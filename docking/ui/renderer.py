@@ -52,6 +52,22 @@ def _rounded_rect(
     cr.close_path()
 
 
+SHELF_HEIGHT_RATIO = (
+    0.44  # bg_height = icon_size * ratio + bottom_padding (Plank: 21/48)
+)
+SHELF_SMOOTH_FACTOR = 0.3  # lerp factor for shelf width smoothing per frame
+SLIDE_MOVE_THRESHOLD = 2.0  # minimum px displacement to trigger slide animation
+SLIDE_DECAY_FACTOR = 0.75  # per-frame exponential decay for slide offsets
+SLIDE_CLEAR_THRESHOLD = 0.5  # clear slide offset when below this px
+INNER_HIGHLIGHT_OPACITIES = (
+    0.5,
+    0.12,
+    0.08,
+    0.19,
+)  # top, near-top, near-bottom, bottom
+MAX_INDICATOR_DOTS = 3
+INDICATOR_SPACING_MULT = 3  # spacing = indicator_radius * this
+
 SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
 
@@ -142,12 +158,14 @@ class DockRenderer:
         target_shelf_w = zoomed_w
         if not hasattr(self, "smooth_shelf_w"):
             self.smooth_shelf_w = base_w
-        self.smooth_shelf_w += (target_shelf_w - self.smooth_shelf_w) * 0.3
+        self.smooth_shelf_w += (
+            target_shelf_w - self.smooth_shelf_w
+        ) * SHELF_SMOOTH_FACTOR
         shelf_w = self.smooth_shelf_w
         shelf_x = (w - shelf_w) / 2
 
         # Plank Yaru-light: bg_height ≈ 21px for 48px icons (ratio ~0.44)
-        bg_height = config.icon_size * 0.44 + theme.bottom_padding
+        bg_height = config.icon_size * SHELF_HEIGHT_RATIO + theme.bottom_padding
         bg_y = h - bg_height
         self._draw_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
@@ -189,17 +207,17 @@ class DockRenderer:
 
         for desktop_id, new_x in new_positions.items():
             old_x = self.prev_positions.get(desktop_id)
-            if old_x is not None and abs(old_x - new_x) > 2.0:
+            if old_x is not None and abs(old_x - new_x) > SLIDE_MOVE_THRESHOLD:
                 # Item moved — set offset so it appears at old position, then animates
                 current_slide = self.slide_offsets.get(desktop_id, 0.0)
                 self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
 
         # Decay all offsets toward 0 (lerp)
-        decay = 0.75  # per-frame decay factor (~300ms to settle at 60fps)
+        decay = SLIDE_DECAY_FACTOR
         dead = []
         for desktop_id in self.slide_offsets:
             self.slide_offsets[desktop_id] *= decay
-            if abs(self.slide_offsets[desktop_id]) < 0.5:
+            if abs(self.slide_offsets[desktop_id]) < SLIDE_CLEAR_THRESHOLD:
                 dead.append(desktop_id)
         for d in dead:
             del self.slide_offsets[d]
@@ -246,10 +264,14 @@ class DockRenderer:
         bottom_point = 1.0 - top_point
 
         highlight = cairo.LinearGradient(0, y + inset, 0, y + h - inset)
-        highlight.add_color_stop_rgba(0, is_r, is_g, is_b, 0.5)
-        highlight.add_color_stop_rgba(top_point, is_r, is_g, is_b, 0.12)
-        highlight.add_color_stop_rgba(bottom_point, is_r, is_g, is_b, 0.08)
-        highlight.add_color_stop_rgba(1, is_r, is_g, is_b, 0.19)
+        highlight.add_color_stop_rgba(0, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[0])
+        highlight.add_color_stop_rgba(
+            top_point, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[1]
+        )
+        highlight.add_color_stop_rgba(
+            bottom_point, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[2]
+        )
+        highlight.add_color_stop_rgba(1, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[3])
 
         inner_r = max(r - lw, 0)
         _rounded_rect(
@@ -316,8 +338,8 @@ class DockRenderer:
         )
         cr.set_source_rgba(*color)
 
-        count = min(item.instance_count, 3)
-        spacing = theme.indicator_radius * 3
+        count = min(item.instance_count, MAX_INDICATOR_DOTS)
+        spacing = theme.indicator_radius * INDICATOR_SPACING_MULT
         start_x = center_x - (count - 1) * spacing / 2
 
         for j in range(count):

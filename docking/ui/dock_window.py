@@ -28,6 +28,10 @@ if TYPE_CHECKING:
     from docking.ui.preview import PreviewPopup
 
 
+CLICK_DRAG_THRESHOLD = 10  # px movement to distinguish click from drag
+PREVIEW_SHOW_DELAY_MS = 400  # hover delay before showing preview popup
+
+
 class DockWindow(Gtk.Window):
     """Dock window positioned at screen bottom with X11 DOCK type hints."""
 
@@ -203,7 +207,7 @@ class DockWindow(Gtk.Window):
     ) -> bool:
         """Handle clicks on dock items (on release to avoid DnD conflicts)."""
         # Only act if release is near the press point (not a drag)
-        if abs(event.x - self._click_x) > 10:
+        if abs(event.x - self._click_x) > CLICK_DRAG_THRESHOLD:
             return False
 
         if event.button == 3:
@@ -277,8 +281,6 @@ class DockWindow(Gtk.Window):
         if not gdk_window:
             return
 
-        import cairo as _cairo
-
         items = self.model.visible_items()
         n = len(items)
         icon_size = self.config.icon_size
@@ -303,8 +305,8 @@ class DockWindow(Gtk.Window):
         x = int((window_w - content_w) / 2 - left_edge)
         w = int(content_w)
 
-        rect = _cairo.RectangleInt(x, 0, max(w, 1), max(window_h, 1))
-        region = _cairo.Region(rect)
+        rect = cairo.RectangleInt(x, 0, max(w, 1), max(window_h, 1))
+        region = cairo.Region(rect)
         gdk_window.input_shape_combine_region(region, 0, 0)
 
     def _base_x_offset(self) -> float:
@@ -378,7 +380,7 @@ class DockWindow(Gtk.Window):
             # If hovering a different running item, start timer to show preview
             if item and item.is_running and item.instance_count > 0:
                 self._preview_timer_id = GLib.timeout_add(
-                    400, self._show_preview, item, layout
+                    PREVIEW_SHOW_DELAY_MS, self._show_preview, item, layout
                 )
             else:
                 self._preview.schedule_hide()

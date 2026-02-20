@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
 
 
+ICON_SIZE_OPTIONS = (32, 48, 64, 80)
+
+
 class MenuHandler:
     """Builds and shows context menus for dock items."""
 
@@ -102,7 +105,7 @@ class MenuHandler:
         # Icon size submenu
         size_item = Gtk.MenuItem(label="Icon Size")
         size_menu = Gtk.Menu()
-        for size in (32, 48, 64, 80):
+        for size in ICON_SIZE_OPTIONS:
             item = Gtk.RadioMenuItem(label=f"{size}px")
             if size == self._config.icon_size:
                 item.set_active(True)

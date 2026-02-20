@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from docking.platform.model import DockItem
 
 
+OFFSET_PCT_SNAP = 0.99  # snap offset_pct to 1.0 above this threshold
+
+
 @dataclass
 class LayoutItem:
     """Computed position and scale for a single dock icon."""
@@ -95,7 +98,7 @@ def compute_layout(
         # Displacement: push icon away from cursor (Plank's formula)
         offset = min(abs(cursor_x - center), zoom_icon_size)
         offset_pct = offset / zoom_icon_size if zoom_icon_size > 0 else 1.0
-        if offset_pct > 0.99:
+        if offset_pct > OFFSET_PCT_SNAP:
             offset_pct = 1.0
 
         # Taper the displacement: center icons move more, edge icons barely move

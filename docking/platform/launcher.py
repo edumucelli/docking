@@ -11,6 +11,11 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gio, Gtk, GdkPixbuf, GLib  # noqa: E402
 
+DESKTOP_SUFFIX = ".desktop"
+FALLBACK_ICON = "application-x-executable"
+DEFAULT_XDG_DATA_DIRS = "/usr/local/share:/usr/share"
+GNOME_APP_PREFIX = "org.gnome."
+
 
 class DesktopInfo(NamedTuple):
     """Resolved information from a .desktop file."""
@@ -53,10 +58,12 @@ class Launcher:
             # Fallback: derive from executable name
             commandline = app_info.get_commandline() or ""
             exe = commandline.split()[0] if commandline else ""
-            wm_class = Path(exe).name if exe else desktop_id.removesuffix(".desktop")
+            wm_class = (
+                Path(exe).name if exe else desktop_id.removesuffix(DESKTOP_SUFFIX)
+            )
 
         icon = app_info.get_icon()
-        icon_name = icon.to_string() if icon else "application-x-executable"
+        icon_name = icon.to_string() if icon else FALLBACK_ICON
 
         return DesktopInfo(
             desktop_id=desktop_id,
@@ -97,16 +104,14 @@ class Launcher:
 
         # Fallback
         try:
-            return theme.load_icon(
-                "application-x-executable", size, Gtk.IconLookupFlags.FORCE_SIZE
-            )
+            return theme.load_icon(FALLBACK_ICON, size, Gtk.IconLookupFlags.FORCE_SIZE)
         except GLib.Error:
             return None
 
     @staticmethod
     def _get_desktop_dirs() -> list[Path]:
         """Get application .desktop file directories from XDG_DATA_DIRS."""
-        xdg = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share")
+        xdg = os.environ.get("XDG_DATA_DIRS", DEFAULT_XDG_DATA_DIRS)
         dirs = []
         for d in xdg.split(":"):
             p = Path(d) / "applications"

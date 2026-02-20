@@ -10,6 +10,8 @@ gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Wnck, Gtk, GLib  # noqa: E402
 
+from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
+
 if TYPE_CHECKING:
     from docking.platform.model import DockModel
     from docking.platform.launcher import Launcher
@@ -105,14 +107,14 @@ class WindowTracker:
                 return self._wm_class_to_desktop[inst_lower]
 
         # Try to resolve via Gio
-        desktop_id = f"{class_lower}.desktop"
+        desktop_id = f"{class_lower}{DESKTOP_SUFFIX}"
         info = self._launcher.resolve(desktop_id)
         if info:
             self._wm_class_to_desktop[class_lower] = info.desktop_id
             return info.desktop_id
 
         # Try with org.gnome prefix
-        gnome_id = f"org.gnome.{class_group}.desktop"
+        gnome_id = f"{GNOME_APP_PREFIX}{class_group}{DESKTOP_SUFFIX}"
         info = self._launcher.resolve(gnome_id)
         if info:
             self._wm_class_to_desktop[class_lower] = info.desktop_id

@@ -6,6 +6,10 @@ import ctypes
 
 from gi.repository import Gdk, GdkX11
 
+ATOM_STRUT_PARTIAL = b"_NET_WM_STRUT_PARTIAL"
+ATOM_STRUT = b"_NET_WM_STRUT"
+ATOM_CARDINAL = b"CARDINAL"
+
 
 def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
     """Set _NET_WM_STRUT and _NET_WM_STRUT_PARTIAL via ctypes/Xlib."""
@@ -16,9 +20,9 @@ def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
     xlib.XInternAtom.restype = ctypes.c_ulong
     xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
 
-    atom_partial = xlib.XInternAtom(xdisplay, b"_NET_WM_STRUT_PARTIAL", 0)
-    atom_strut = xlib.XInternAtom(xdisplay, b"_NET_WM_STRUT", 0)
-    xa_cardinal = xlib.XInternAtom(xdisplay, b"CARDINAL", 0)
+    atom_partial = xlib.XInternAtom(xdisplay, ATOM_STRUT_PARTIAL, 0)
+    atom_strut = xlib.XInternAtom(xdisplay, ATOM_STRUT, 0)
+    xa_cardinal = xlib.XInternAtom(xdisplay, ATOM_CARDINAL, 0)
 
     xlib.XChangeProperty.argtypes = [
         ctypes.c_void_p,

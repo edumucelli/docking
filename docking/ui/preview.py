@@ -25,6 +25,8 @@ THUMB_H = 150
 POPUP_PADDING = 8
 THUMB_SPACING = 8
 LABEL_MAX_CHARS = 25
+PREVIEW_HIDE_DELAY_MS = 300
+ICON_FALLBACK_SIZE = 64
 
 _CSS = b"""
 .preview-popup {
@@ -118,7 +120,7 @@ def _icon_fallback(
     bg.fill(0x1E1E1EFF)
 
     # Center the icon
-    icon_size = min(64, thumb_w, thumb_h)
+    icon_size = min(ICON_FALLBACK_SIZE, thumb_w, thumb_h)
     scaled_icon = icon.scale_simple(icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR)
     if scaled_icon:
         x = (thumb_w - icon_size) // 2
@@ -294,7 +296,7 @@ class PreviewPopup(Gtk.Window):
         log.debug("preview schedule_hide (from dock_window)")
         self._schedule_hide()
 
-    def _schedule_hide(self, delay_ms: int = 300) -> None:
+    def _schedule_hide(self, delay_ms: int = PREVIEW_HIDE_DELAY_MS) -> None:
         """Hide after a grace period (lets user move mouse to popup)."""
         self._cancel_hide_timer()
         log.debug("preview: scheduling hide in %dms", delay_ms)

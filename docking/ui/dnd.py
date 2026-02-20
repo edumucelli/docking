@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.platform.launcher import Launcher
 
+DRAG_ICON_SCALE = 1.2  # dragged icon shown at this multiplier of icon_size
+
 # DnD targets
 _DOCK_ITEM_TARGET = Gtk.TargetEntry.new(
     "dock-item-index", Gtk.TargetFlags.SAME_WIDGET, 0
@@ -117,7 +119,7 @@ class DnDHandler:
 
                 item = items[i]
                 if item.icon:
-                    icon_size = int(self._config.icon_size * 1.2)
+                    icon_size = int(self._config.icon_size * DRAG_ICON_SCALE)
                     scaled = item.icon.scale_simple(
                         icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR
                     )
