@@ -8,8 +8,8 @@
   "indicator_color": [80, 80, 80, 200],
   "active_indicator_color": [50, 50, 50, 255],
   "indicator_radius": 2.5,
-  "h_padding": 12,
-  "top_padding": 4,
+  "h_padding": 2,
+  "top_padding": 5,
   "bottom_padding": 8,
-  "item_padding": 10
+  "item_padding": 12
 }

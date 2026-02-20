@@ -137,7 +137,8 @@ class DockRenderer:
         shelf_w = self._smooth_shelf_w
         shelf_x = (w - shelf_w) / 2
 
-        bg_height = config.icon_size * 0.55 + theme.bottom_padding
+        # Plank Yaru-light: bg_height ≈ 21px for 48px icons (ratio ~0.44)
+        bg_height = config.icon_size * 0.44 + theme.bottom_padding
         bg_y = h - bg_height
         self._draw_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 

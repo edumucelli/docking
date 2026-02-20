@@ -188,13 +188,12 @@ class PreviewPopup(Gtk.Window):
             hbox.pack_start(thumb_widget, False, False, 0)
 
         self.add(hbox)
-        self.show_all()
 
-        # Position centered above the icon
-        self.resize(1, 1)  # force re-measure
-        preferred = self.get_preferred_size()[1]
-        popup_w = preferred.width
-        popup_h = preferred.height
+        # Measure size, position, then show (avoids flash at wrong position)
+        hbox.show_all()
+        preferred = hbox.get_preferred_size()[1]
+        popup_w = max(preferred.width + 2 * POPUP_PADDING, 1)
+        popup_h = max(preferred.height + 2 * POPUP_PADDING, 1)
 
         icon_center_x = icon_x + icon_w / 2
         popup_x = int(icon_center_x - popup_w / 2)
@@ -207,6 +206,7 @@ class PreviewPopup(Gtk.Window):
         popup_y = max(0, popup_y)
 
         self.move(popup_x, popup_y)
+        self.show_all()
 
     def _make_thumbnail(self, window: Wnck.Window) -> Gtk.Widget:
         """Create a clickable thumbnail widget for a window."""

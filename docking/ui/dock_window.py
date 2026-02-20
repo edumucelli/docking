@@ -358,6 +358,9 @@ class DockWindow(Gtk.Window):
 
         # Convert icon position to absolute screen coordinates
         win_x, win_y = self.get_position()
+        # Guard: skip if window hasn't been positioned yet
+        if win_x == 0 and win_y == 0:
+            return GLib.SOURCE_REMOVE
         icon_abs_x = win_x + li.x + self._zoomed_x_offset(layout)
         dock_abs_y = win_y
 
