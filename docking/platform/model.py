@@ -98,7 +98,6 @@ class DockModel:
                 matched_ids.add(item.desktop_id)
 
         # Add transient items for running apps not in pinned
-        old_transient = {t.desktop_id for t in self._transient}
         new_transient: list[DockItem] = []
         for desktop_id, info in running.items():
             if desktop_id not in matched_ids:

@@ -15,9 +15,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
 
-import cairo
-
 from docking.core.zoom import compute_layout
+from docking.ui.poof import show_poof
 from docking.platform.model import DockItem
 
 if TYPE_CHECKING:
@@ -270,10 +269,10 @@ class DnDHandler:
                     if item.is_pinned:
                         log.debug("drag-end: unpinning %s (running=%s)",
                                   item.name, item.is_running)
-                        _show_poof(int(screen_x), int(screen_y))
+                        show_poof(int(screen_x), int(screen_y))
                         # Clear slide state to avoid stale offsets
-                        self._renderer._slide_offsets.clear()
-                        self._renderer._prev_positions.clear()
+                        self._renderer.slide_offsets.clear()
+                        self._renderer.prev_positions.clear()
                         self._model.unpin_item(item.desktop_id)
 
         self.drag_index = -1
@@ -297,84 +296,3 @@ class DnDHandler:
             return None
 
         return path.name
-
-
-# -- Poof animation --
-
-_POOF_DURATION_MS = 300
-_POOF_SIZE = 80
-_POOF_FRAMES = 18
-
-
-_poof_pixbuf: GdkPixbuf.Pixbuf | None = None
-_poof_loaded = False
-
-
-def _load_poof() -> GdkPixbuf.Pixbuf | None:
-    global _poof_pixbuf, _poof_loaded
-    if _poof_loaded:
-        return _poof_pixbuf
-    _poof_loaded = True
-    svg_path = str(Path(__file__).parent.parent / "assets" / "poof.svg")
-    try:
-        _poof_pixbuf = GdkPixbuf.Pixbuf.new_from_file(svg_path)
-    except Exception:
-        log.warning("poof.svg not found at %s", svg_path)
-    return _poof_pixbuf
-
-
-def _show_poof(x: int, y: int) -> None:
-    """Show Plank's poof sprite-sheet animation at (x, y) screen coords."""
-    pixbuf = _load_poof()
-    if pixbuf is None:
-        return
-
-    frame_size = pixbuf.get_width()
-    num_frames = pixbuf.get_height() // frame_size
-    if num_frames < 1:
-        return
-
-    win = Gtk.Window(type=Gtk.WindowType.POPUP)
-    win.set_decorated(False)
-    win.set_skip_taskbar_hint(True)
-    win.set_app_paintable(True)
-    win.set_size_request(frame_size, frame_size)
-
-    screen = win.get_screen()
-    visual = screen.get_rgba_visual()
-    if visual:
-        win.set_visual(visual)
-
-    # Store animation state on the window itself to prevent GC issues
-    win._poof_frame = 0
-    win._poof_pixbuf = pixbuf
-    win._poof_frame_size = frame_size
-    win._poof_num_frames = num_frames
-
-    def on_draw(widget, cr):
-        cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_rgba(0, 0, 0, 0)
-        cr.paint()
-        cr.set_operator(cairo.OPERATOR_OVER)
-
-        f = min(widget._poof_frame, widget._poof_num_frames - 1)
-        Gdk.cairo_set_source_pixbuf(cr, widget._poof_pixbuf, 0, -widget._poof_frame_size * f)
-        cr.rectangle(0, 0, widget._poof_frame_size, widget._poof_frame_size)
-        cr.fill()
-        return True
-
-    def tick(w):
-        w._poof_frame += 1
-        log.debug("poof tick: frame=%d/%d mapped=%s", w._poof_frame, w._poof_num_frames, w.get_mapped())
-        if w._poof_frame >= w._poof_num_frames:
-            log.debug("poof: destroying window")
-            w.destroy()
-            return False
-        w.queue_draw()
-        return True
-
-    win.connect("draw", on_draw)
-    win.move(x - frame_size // 2, y - frame_size // 2)
-    win.show_all()
-    log.debug("poof: shown at (%d,%d) frames=%d interval=%dms", x, y, num_frames, _POOF_DURATION_MS // num_frames)
-    GLib.timeout_add(_POOF_DURATION_MS // num_frames, tick, win)

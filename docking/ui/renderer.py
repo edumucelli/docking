@@ -53,8 +53,8 @@ class DockRenderer:
 
     def __init__(self) -> None:
         # Per-item X offset for slide animation: {desktop_id: offset_px}
-        self._slide_offsets: dict[str, float] = {}
-        self._prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
+        self.slide_offsets: dict[str, float] = {}
+        self.prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
 
     def compute_dock_size(
         self, model: DockModel, config: Config, theme: Theme,
@@ -130,10 +130,10 @@ class DockRenderer:
 
         # Shelf matches icons but smoothed to reduce wobble
         target_shelf_w = zoomed_w
-        if not hasattr(self, '_smooth_shelf_w'):
-            self._smooth_shelf_w = base_w
-        self._smooth_shelf_w += (target_shelf_w - self._smooth_shelf_w) * 0.3
-        shelf_w = self._smooth_shelf_w
+        if not hasattr(self, 'smooth_shelf_w'):
+            self.smooth_shelf_w = base_w
+        self.smooth_shelf_w += (target_shelf_w - self.smooth_shelf_w) * 0.3
+        shelf_w = self.smooth_shelf_w
         shelf_x = (w - shelf_w) / 2
 
         # Plank Yaru-light: bg_height ≈ 21px for 48px icons (ratio ~0.44)
@@ -152,14 +152,14 @@ class DockRenderer:
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
                 continue
-            slide = self._slide_offsets.get(item.desktop_id, 0.0)
+            slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
             self._draw_icon(cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift)
 
         # Draw indicators with slide offset + drop gap
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
-                slide = self._slide_offsets.get(item.desktop_id, 0.0)
+                slide = self.slide_offsets.get(item.desktop_id, 0.0)
                 drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
                 self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift)
 
@@ -170,23 +170,23 @@ class DockRenderer:
             new_positions[item.desktop_id] = li.x + icon_offset
 
         for desktop_id, new_x in new_positions.items():
-            old_x = self._prev_positions.get(desktop_id)
+            old_x = self.prev_positions.get(desktop_id)
             if old_x is not None and abs(old_x - new_x) > 2.0:
                 # Item moved — set offset so it appears at old position, then animates
-                current_slide = self._slide_offsets.get(desktop_id, 0.0)
-                self._slide_offsets[desktop_id] = current_slide + (old_x - new_x)
+                current_slide = self.slide_offsets.get(desktop_id, 0.0)
+                self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
 
         # Decay all offsets toward 0 (lerp)
         decay = 0.75  # per-frame decay factor (~300ms to settle at 60fps)
         dead = []
-        for desktop_id in self._slide_offsets:
-            self._slide_offsets[desktop_id] *= decay
-            if abs(self._slide_offsets[desktop_id]) < 0.5:
+        for desktop_id in self.slide_offsets:
+            self.slide_offsets[desktop_id] *= decay
+            if abs(self.slide_offsets[desktop_id]) < 0.5:
                 dead.append(desktop_id)
         for d in dead:
-            del self._slide_offsets[d]
+            del self.slide_offsets[d]
 
-        self._prev_positions = new_positions
+        self.prev_positions = new_positions
 
     def _draw_background(
         self, cr: cairo.Context, x: float, y: float, w: float, h: float, theme: Theme,

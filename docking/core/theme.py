@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,7 @@ RGBA = tuple[float, float, float, float]
 
 def _rgba(values: list[int]) -> RGBA:
     """Convert [R, G, B, A] (0-255) to Cairo-compatible (0.0-1.0) tuple."""
-    return (values[0] / 255, values[1] / 255, values[2] / 255, values[3] / 255)
+    return values[0] / 255, values[1] / 255, values[2] / 255, values[3] / 255
 
 
 @dataclass(frozen=True)

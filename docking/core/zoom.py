@@ -124,12 +124,12 @@ def content_bounds(
 ) -> tuple[float, float]:
     """Compute the left and right edges of the content including displacements."""
     if not layout:
-        return (0.0, 2 * h_padding)
+        return 0.0, 2 * h_padding
     first = layout[0]
     last = layout[-1]
     left = first.x - h_padding
     right = last.x + icon_size * last.scale + h_padding
-    return (left, right)
+    return left, right
 
 
 def total_width(
