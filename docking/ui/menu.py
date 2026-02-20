@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk  # noqa: E402
 
@@ -39,11 +40,15 @@ class MenuHandler:
         theme = self._window.theme
         local_x = self._window._local_cursor_x()
         layout = compute_layout(
-            items, self._config, local_x,
+            items,
+            self._config,
+            local_x,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
-        item = self._hit_test(cursor_x, items, layout)  # cursor_x is window-space for hit test
+        item = self._hit_test(
+            cursor_x, items, layout
+        )  # cursor_x is window-space for hit test
 
         menu = Gtk.Menu()
 
@@ -127,7 +132,10 @@ class MenuHandler:
             # Would need a full reload to update icons at new size
 
     def _hit_test(
-        self, x: float, items: list[DockItem], layout: list[LayoutItem],
+        self,
+        x: float,
+        items: list[DockItem],
+        layout: list[LayoutItem],
     ) -> DockItem | None:
         """Find which DockItem is under cursor x (window-space)."""
         offset = self._window._zoomed_x_offset(layout)

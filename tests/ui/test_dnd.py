@@ -17,6 +17,7 @@ class TestPoofAsset:
     def test_poof_svg_exists(self):
         # Given
         from pathlib import Path
+
         svg = Path(__file__).parent.parent.parent / "docking" / "assets" / "poof.svg"
         # When / Then
         assert svg.exists(), "poof.svg sprite sheet missing"
@@ -25,11 +26,13 @@ class TestPoofAsset:
         """SVG should be square-width with multiple frames stacked vertically."""
         # Given
         from pathlib import Path
+
         svg = Path(__file__).parent.parent.parent / "docking" / "assets" / "poof.svg"
         # When
         with open(svg) as f:
             content = f.read(500)
         import re
+
         match = re.search(r'viewBox="0 0 (\d+) (\d+)"', content)
         # Then
         assert match, "poof.svg missing viewBox"

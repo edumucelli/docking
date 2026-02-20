@@ -3,7 +3,13 @@
 import pytest
 from unittest.mock import MagicMock
 
-from docking.core.zoom import compute_icon_zoom, compute_layout, total_width, content_bounds, LayoutItem
+from docking.core.zoom import (
+    compute_icon_zoom,
+    compute_layout,
+    total_width,
+    content_bounds,
+    LayoutItem,
+)
 
 
 class TestComputeIconZoom:
@@ -62,7 +68,9 @@ class TestComputeLayout:
     def _make_items(self, n: int) -> list:
         return [MagicMock() for _ in range(n)]
 
-    def _make_config(self, icon_size=48, zoom_enabled=True, zoom_percent=2.0, zoom_range=3):
+    def _make_config(
+        self, icon_size=48, zoom_enabled=True, zoom_percent=2.0, zoom_range=3
+    ):
         config = MagicMock()
         config.icon_size = icon_size
         config.zoom_enabled = zoom_enabled
@@ -111,7 +119,9 @@ class TestComputeLayout:
         items = self._make_items(5)
         config = self._make_config()
         # When
-        layout_zoomed = compute_layout(items, config, 100.0, item_padding=6, h_padding=12)
+        layout_zoomed = compute_layout(
+            items, config, 100.0, item_padding=6, h_padding=12
+        )
         layout_flat = compute_layout(items, config, -1.0, item_padding=6, h_padding=12)
         w_zoomed = total_width(layout_zoomed, 48, 6, 12)
         w_flat = total_width(layout_flat, 48, 6, 12)
@@ -183,7 +193,9 @@ class TestCenteringOffset:
         base_layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
         base_w = total_width(base_layout, 48, 10, 12)
         # When
-        zoomed_layout = compute_layout(items, config, 150.0, item_padding=10, h_padding=12)
+        zoomed_layout = compute_layout(
+            items, config, 150.0, item_padding=10, h_padding=12
+        )
         zoomed_w = total_width(zoomed_layout, 48, 10, 12)
         # Then
         assert zoomed_w > base_w
@@ -197,7 +209,9 @@ class TestCenteringOffset:
         base_w = total_width(base_layout, 48, 10, 12)
         center = base_w / 2
         # When
-        center_layout = compute_layout(items, config, center, item_padding=10, h_padding=12)
+        center_layout = compute_layout(
+            items, config, center, item_padding=10, h_padding=12
+        )
         center_w = total_width(center_layout, 48, 10, 12)
         edge_layout = compute_layout(items, config, 12.0, item_padding=10, h_padding=12)
         edge_w = total_width(edge_layout, 48, 10, 12)
@@ -240,7 +254,9 @@ class TestPlankDisplacement:
         rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
         last_center = rest[-1].x + 24
         # When
-        hover_right = compute_layout(items, config, last_center, item_padding=10, h_padding=12)
+        hover_right = compute_layout(
+            items, config, last_center, item_padding=10, h_padding=12
+        )
         # Then — far-left icons should all shift by the same constant amount
         displacements = [hover_right[i].x - rest[i].x for i in range(3)]
         for d in displacements:
@@ -327,7 +343,9 @@ class TestContentBounds:
         items = [MagicMock() for _ in range(5)]
         rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
         # When
-        zoomed = compute_layout(items, config, rest[-1].x + 24, item_padding=10, h_padding=12)
+        zoomed = compute_layout(
+            items, config, rest[-1].x + 24, item_padding=10, h_padding=12
+        )
         left, _ = content_bounds(zoomed, 48, 12)
         # Then — left edge should be at or below the rest left edge
         rest_left, _ = content_bounds(rest, 48, 12)

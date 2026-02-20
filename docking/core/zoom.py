@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 @dataclass
 class LayoutItem:
     """Computed position and scale for a single dock icon."""
+
     x: float
     scale: float
 
@@ -49,7 +50,7 @@ def compute_icon_zoom(
     max_distance = icon_size * zoom_range
     offset = min(abs(cursor_x - icon_center_x), max_distance)
     offset_pct = offset / max_distance if max_distance > 0 else 1.0
-    zoom = 1.0 - offset_pct ** 2
+    zoom = 1.0 - offset_pct**2
     return 1.0 + zoom * (zoom_percent - 1.0)
 
 
@@ -107,7 +108,7 @@ def compute_layout(
             center += displacement
 
         # Zoom scale (same parabolic curve)
-        zoom = 1.0 - offset_pct ** 2
+        zoom = 1.0 - offset_pct**2
         scale = 1.0 + zoom * (zoom_percent - 1.0)
 
         # Position: center minus half the zoomed icon size

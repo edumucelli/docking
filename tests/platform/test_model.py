@@ -94,10 +94,12 @@ class TestUpdateRunning:
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
         # When
-        model.update_running({
-            "a.desktop": {"count": 1, "active": False},
-            "b.desktop": {"count": 1, "active": True},
-        })
+        model.update_running(
+            {
+                "a.desktop": {"count": 1, "active": False},
+                "b.desktop": {"count": 1, "active": True},
+            }
+        )
         # Then
         items = model.visible_items()
         assert len(items) == 2
@@ -229,10 +231,12 @@ class TestReorderVisible:
         config = _make_config([])
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
-        model.update_running({
-            "a.desktop": {"count": 1, "active": False},
-            "b.desktop": {"count": 1, "active": False},
-        })
+        model.update_running(
+            {
+                "a.desktop": {"count": 1, "active": False},
+                "b.desktop": {"count": 1, "active": False},
+            }
+        )
         assert len(model.visible_items()) == 2
         # When
         model.reorder_visible(1, 0)

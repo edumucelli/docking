@@ -11,6 +11,7 @@ from docking.log import get_logger
 log = get_logger("dnd")
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf  # noqa: E402
 
@@ -27,7 +28,9 @@ if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
 
 # DnD targets
-_DOCK_ITEM_TARGET = Gtk.TargetEntry.new("dock-item-index", Gtk.TargetFlags.SAME_WIDGET, 0)
+_DOCK_ITEM_TARGET = Gtk.TargetEntry.new(
+    "dock-item-index", Gtk.TargetFlags.SAME_WIDGET, 0
+)
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 1)
 
 
@@ -85,20 +88,29 @@ class DnDHandler:
         items = self._model.visible_items()
         local_cx = self._window._local_cursor_x()
         layout = compute_layout(
-            items, self._config, local_cx,
+            items,
+            self._config,
+            local_cx,
             item_padding=self._theme.item_padding,
             h_padding=self._theme.h_padding,
         )
 
         offset = self._window._zoomed_x_offset(layout)
         win_cx = self._window.cursor_x
-        log.debug("drag-begin: win_cx=%.1f local_cx=%.1f offset=%.1f items=%d",
-                   win_cx, local_cx, offset, len(items))
+        log.debug(
+            "drag-begin: win_cx=%.1f local_cx=%.1f offset=%.1f items=%d",
+            win_cx,
+            local_cx,
+            offset,
+            len(items),
+        )
         for i, li in enumerate(layout):
             icon_w = li.scale * self._config.icon_size
             left = li.x + offset
             right = left + icon_w
-            log.debug("  item %d: left=%.1f right=%.1f (win_cx=%.1f)", i, left, right, win_cx)
+            log.debug(
+                "  item %d: left=%.1f right=%.1f (win_cx=%.1f)", i, left, right, win_cx
+            )
             if left <= win_cx <= right:
                 self._drag_from = i
                 self.drag_index = i
@@ -110,14 +122,20 @@ class DnDHandler:
                         icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR
                     )
                     if scaled:
-                        Gtk.drag_set_icon_pixbuf(context, scaled, icon_size // 2, icon_size // 2)
+                        Gtk.drag_set_icon_pixbuf(
+                            context, scaled, icon_size // 2, icon_size // 2
+                        )
                 log.debug("  -> dragging item %d: %s", i, item.name)
                 return
         log.debug("  -> no item matched")
 
     def _on_drag_motion(
-        self, widget: Gtk.DrawingArea, context: Gdk.DragContext,
-        x: int, y: int, time: int,
+        self,
+        widget: Gtk.DrawingArea,
+        context: Gdk.DragContext,
+        x: int,
+        y: int,
+        time: int,
     ) -> bool:
         """Update drop position as user drags."""
         # Reveal dock when dragging over it (enter-notify doesn't fire during DnD)
@@ -127,7 +145,9 @@ class DnDHandler:
             # External drag — compute insert position for gap effect
             items = self._model.visible_items()
             layout = compute_layout(
-                items, self._config, -1.0,
+                items,
+                self._config,
+                -1.0,
                 item_padding=self._theme.item_padding,
                 h_padding=self._theme.h_padding,
             )
@@ -146,7 +166,9 @@ class DnDHandler:
 
         items = self._model.visible_items()
         layout = compute_layout(
-            items, self._config, -1.0,
+            items,
+            self._config,
+            -1.0,
             item_padding=self._theme.item_padding,
             h_padding=self._theme.h_padding,
         )
@@ -170,22 +192,35 @@ class DnDHandler:
         return True
 
     def _on_drag_drop(
-        self, widget: Gtk.DrawingArea, context: Gdk.DragContext,
-        x: int, y: int, time: int,
+        self,
+        widget: Gtk.DrawingArea,
+        context: Gdk.DragContext,
+        x: int,
+        y: int,
+        time: int,
     ) -> bool:
         """Request data for external drops, finalize internal drops."""
         target = widget.drag_dest_find_target(context, None)
-        log.debug("drag-drop: drag_from=%d insert=%d target=%s",
-                  self._drag_from, self.drop_insert_index, target)
+        log.debug(
+            "drag-drop: drag_from=%d insert=%d target=%s",
+            self._drag_from,
+            self.drop_insert_index,
+            target,
+        )
         if target:
             widget.drag_get_data(context, target, time)
             return True
         return False
 
     def _on_drag_data_received(
-        self, widget: Gtk.DrawingArea, context: Gdk.DragContext,
-        x: int, y: int, selection: Gtk.SelectionData,
-        info: int, time: int,
+        self,
+        widget: Gtk.DrawingArea,
+        context: Gdk.DragContext,
+        x: int,
+        y: int,
+        selection: Gtk.SelectionData,
+        info: int,
+        time: int,
     ) -> None:
         """Handle internal reorder completion and external .desktop drops."""
         # Internal reorder — already handled during drag-motion
@@ -234,7 +269,9 @@ class DnDHandler:
 
         Gtk.drag_finish(context, added, False, time)
 
-    def _on_drag_leave(self, widget: Gtk.DrawingArea, context: Gdk.DragContext, time: int) -> None:
+    def _on_drag_leave(
+        self, widget: Gtk.DrawingArea, context: Gdk.DragContext, time: int
+    ) -> None:
         """Hide dock when drag leaves (leave-notify doesn't fire during DnD).
 
         Note: don't clear drop_insert_index here — GTK fires drag-leave
@@ -259,15 +296,26 @@ class DnDHandler:
             items = self._model.visible_items()
             outside = screen_y < win_y - self._config.icon_size
 
-            log.debug("drag-end: screen=(%d,%d) win=(%d,%d %dx%d) outside=%s",
-                       screen_x, screen_y, win_x, win_y, win_w, win_h, outside)
+            log.debug(
+                "drag-end: screen=(%d,%d) win=(%d,%d %dx%d) outside=%s",
+                screen_x,
+                screen_y,
+                win_x,
+                win_y,
+                win_w,
+                win_h,
+                outside,
+            )
 
             if outside:
                 if self.drag_index >= 0 and self.drag_index < len(items):
                     item = items[self.drag_index]
                     if item.is_pinned:
-                        log.debug("drag-end: unpinning %s (running=%s)",
-                                  item.name, item.is_running)
+                        log.debug(
+                            "drag-end: unpinning %s (running=%s)",
+                            item.name,
+                            item.is_running,
+                        )
                         show_poof(int(screen_x), int(screen_y))
                         # Clear slide state to avoid stale offsets
                         self._renderer.slide_offsets.clear()

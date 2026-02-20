@@ -7,12 +7,14 @@ from pathlib import Path
 from typing import NamedTuple
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gio, Gtk, GdkPixbuf, GLib  # noqa: E402
 
 
 class DesktopInfo(NamedTuple):
     """Resolved information from a .desktop file."""
+
     desktop_id: str
     name: str
     icon_name: str
@@ -89,18 +91,14 @@ class Launcher:
 
         # Try icon theme lookup
         try:
-            return theme.load_icon(
-                icon_name, size,
-                Gtk.IconLookupFlags.FORCE_SIZE
-            )
+            return theme.load_icon(icon_name, size, Gtk.IconLookupFlags.FORCE_SIZE)
         except GLib.Error:
             pass
 
         # Fallback
         try:
             return theme.load_icon(
-                "application-x-executable", size,
-                Gtk.IconLookupFlags.FORCE_SIZE
+                "application-x-executable", size, Gtk.IconLookupFlags.FORCE_SIZE
             )
         except GLib.Error:
             return None
@@ -108,10 +106,7 @@ class Launcher:
     @staticmethod
     def _get_desktop_dirs() -> list[Path]:
         """Get application .desktop file directories from XDG_DATA_DIRS."""
-        xdg = os.environ.get(
-            "XDG_DATA_DIRS",
-            "/usr/local/share:/usr/share"
-        )
+        xdg = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share")
         dirs = []
         for d in xdg.split(":"):
             p = Path(d) / "applications"

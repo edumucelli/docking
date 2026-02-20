@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf  # noqa: E402
 
@@ -49,14 +50,16 @@ class DockModel:
             if info is None:
                 continue
             icon = self._launcher.load_icon(info.icon_name, icon_size)
-            self._pinned.append(DockItem(
-                desktop_id=desktop_id,
-                name=info.name,
-                icon_name=info.icon_name,
-                wm_class=info.wm_class,
-                is_pinned=True,
-                icon=icon,
-            ))
+            self._pinned.append(
+                DockItem(
+                    desktop_id=desktop_id,
+                    name=info.name,
+                    icon_name=info.icon_name,
+                    wm_class=info.wm_class,
+                    is_pinned=True,
+                    icon=icon,
+                )
+            )
 
     def visible_items(self) -> list[DockItem]:
         """All items to display: pinned first, then transient running apps."""
@@ -102,8 +105,7 @@ class DockModel:
         for desktop_id, info in running.items():
             if desktop_id not in matched_ids:
                 existing = next(
-                    (t for t in self._transient if t.desktop_id == desktop_id),
-                    None
+                    (t for t in self._transient if t.desktop_id == desktop_id), None
                 )
                 if existing:
                     existing.is_running = True
@@ -117,27 +119,30 @@ class DockModel:
                         resolved.icon_name if resolved else "application-x-executable",
                         icon_size,
                     )
-                    new_transient.append(DockItem(
-                        desktop_id=desktop_id,
-                        name=resolved.name if resolved else desktop_id,
-                        icon_name=resolved.icon_name if resolved else "application-x-executable",
-                        wm_class=resolved.wm_class if resolved else "",
-                        is_pinned=False,
-                        is_running=True,
-                        is_active=info.get("active", False),
-                        instance_count=info.get("count", 1),
-                        icon=icon,
-                    ))
+                    new_transient.append(
+                        DockItem(
+                            desktop_id=desktop_id,
+                            name=resolved.name if resolved else desktop_id,
+                            icon_name=(
+                                resolved.icon_name
+                                if resolved
+                                else "application-x-executable"
+                            ),
+                            wm_class=resolved.wm_class if resolved else "",
+                            is_pinned=False,
+                            is_running=True,
+                            is_active=info.get("active", False),
+                            instance_count=info.get("count", 1),
+                            icon=icon,
+                        )
+                    )
 
         self._transient = new_transient
         self._notify()
 
     def pin_item(self, desktop_id: str) -> None:
         """Pin a transient item to the dock."""
-        item = next(
-            (t for t in self._transient if t.desktop_id == desktop_id),
-            None
-        )
+        item = next((t for t in self._transient if t.desktop_id == desktop_id), None)
         if item:
             self._transient.remove(item)
             item.is_pinned = True
@@ -147,10 +152,7 @@ class DockModel:
 
     def unpin_item(self, desktop_id: str) -> None:
         """Unpin an item. If running, becomes transient; otherwise removed."""
-        item = next(
-            (p for p in self._pinned if p.desktop_id == desktop_id),
-            None
-        )
+        item = next((p for p in self._pinned if p.desktop_id == desktop_id), None)
         if item:
             self._pinned.remove(item)
             item.is_pinned = False

@@ -8,8 +8,9 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
-
-DEFAULT_CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
+DEFAULT_CONFIG_DIR = (
+    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
+)
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 
 DEFAULT_PINNED: list[str] = []

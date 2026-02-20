@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import cairo
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
@@ -170,8 +171,15 @@ class DockWindow(Gtk.Window):
         drag_index = self._dnd.drag_index if self._dnd else -1
         drop_insert = self._dnd.drop_insert_index if self._dnd else -1
         self.renderer.draw(
-            cr, widget, self.model, self.config, self.theme,
-            self.cursor_x, hide_offset, drag_index, drop_insert,
+            cr,
+            widget,
+            self.model,
+            self.config,
+            self.theme,
+            self.cursor_x,
+            hide_offset,
+            drag_index,
+            drop_insert,
         )
         return True
 
@@ -190,7 +198,9 @@ class DockWindow(Gtk.Window):
         self._click_button = event.button
         return False  # Propagate so DnD can still work
 
-    def _on_button_release(self, widget: Gtk.DrawingArea, event: Gdk.EventButton) -> bool:
+    def _on_button_release(
+        self, widget: Gtk.DrawingArea, event: Gdk.EventButton
+    ) -> bool:
         """Handle clicks on dock items (on release to avoid DnD conflicts)."""
         # Only act if release is near the press point (not a drag)
         if abs(event.x - self._click_x) > 10:
@@ -203,7 +213,9 @@ class DockWindow(Gtk.Window):
 
         if event.button == 1 or event.button == 2:
             layout = compute_layout(
-                self.model.visible_items(), self.config, self._local_cursor_x(),
+                self.model.visible_items(),
+                self.config,
+                self._local_cursor_x(),
                 item_padding=self.theme.item_padding,
                 h_padding=self.theme.h_padding,
             )
@@ -211,9 +223,8 @@ class DockWindow(Gtk.Window):
             if item is None:
                 return True
 
-            force_launch = (
-                event.button == 2
-                or (event.state & Gdk.ModifierType.CONTROL_MASK)
+            force_launch = event.button == 2 or (
+                event.state & Gdk.ModifierType.CONTROL_MASK
             )
             if force_launch or not item.is_running:
                 launch(item.desktop_id)
@@ -272,9 +283,15 @@ class DockWindow(Gtk.Window):
         n = len(items)
         icon_size = self.config.icon_size
         # Content width: use max-zoom width (cursor at center) for generous input area
-        base_w = self.theme.h_padding * 2 + n * icon_size + max(0, n - 1) * self.theme.item_padding
+        base_w = (
+            self.theme.h_padding * 2
+            + n * icon_size
+            + max(0, n - 1) * self.theme.item_padding
+        )
         layout = compute_layout(
-            items, self.config, base_w / 2,
+            items,
+            self.config,
+            base_w / 2,
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )
@@ -309,7 +326,9 @@ class DockWindow(Gtk.Window):
 
     def _zoomed_x_offset(self, layout: list[LayoutItem]) -> float:
         """X offset matching where icons are actually rendered."""
-        left_edge, right_edge = content_bounds(layout, self.config.icon_size, self.theme.h_padding)
+        left_edge, right_edge = content_bounds(
+            layout, self.config.icon_size, self.theme.h_padding
+        )
         zoomed_w = right_edge - left_edge
         window_w: int = self.get_size()[0]
         return (window_w - zoomed_w) / 2 - left_edge
@@ -341,7 +360,9 @@ class DockWindow(Gtk.Window):
         """Detect which item the cursor is over and manage preview timer."""
         items = self.model.visible_items()
         layout = compute_layout(
-            items, self.config, self._local_cursor_x(),
+            items,
+            self.config,
+            self._local_cursor_x(),
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )
@@ -371,7 +392,9 @@ class DockWindow(Gtk.Window):
         # Find the layout entry for this item to get screen coordinates
         items = self.model.visible_items()
         layout = compute_layout(
-            items, self.config, self._local_cursor_x(),
+            items,
+            self.config,
+            self._local_cursor_x(),
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )

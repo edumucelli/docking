@@ -31,7 +31,9 @@ class TestGetDesktopDirs:
         user_apps = tmp_path / ".local" / "share" / "applications"
         user_apps.mkdir(parents=True)
         # When
-        with patch.dict(os.environ, {"XDG_DATA_HOME": str(tmp_path / ".local" / "share")}):
+        with patch.dict(
+            os.environ, {"XDG_DATA_HOME": str(tmp_path / ".local" / "share")}
+        ):
             launcher = Launcher()
         # Then
         assert user_apps in launcher._desktop_dirs

@@ -9,6 +9,7 @@ from docking.log import get_logger
 log = get_logger("preview")
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
@@ -69,7 +70,9 @@ def _ensure_css() -> None:
         _css_installed = True
 
 
-def capture_window(wnck_window: Wnck.Window, thumb_w: int = THUMB_W, thumb_h: int = THUMB_H) -> GdkPixbuf.Pixbuf | None:
+def capture_window(
+    wnck_window: Wnck.Window, thumb_w: int = THUMB_W, thumb_h: int = THUMB_H
+) -> GdkPixbuf.Pixbuf | None:
     """Capture a window's content as a scaled thumbnail pixbuf."""
     if wnck_window.is_minimized():
         return _icon_fallback(wnck_window, thumb_w, thumb_h)
@@ -93,14 +96,18 @@ def capture_window(wnck_window: Wnck.Window, thumb_w: int = THUMB_W, thumb_h: in
                     scale = min(thumb_w / w, thumb_h / h)
                     new_w = max(int(w * scale), 1)
                     new_h = max(int(h * scale), 1)
-                    return pixbuf.scale_simple(new_w, new_h, GdkPixbuf.InterpType.BILINEAR)
+                    return pixbuf.scale_simple(
+                        new_w, new_h, GdkPixbuf.InterpType.BILINEAR
+                    )
         except Exception:
             pass
 
     return _icon_fallback(wnck_window, thumb_w, thumb_h)
 
 
-def _icon_fallback(wnck_window: Wnck.Window, thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
+def _icon_fallback(
+    wnck_window: Wnck.Window, thumb_w: int, thumb_h: int
+) -> GdkPixbuf.Pixbuf | None:
     """Create a dark placeholder with the app icon centered."""
     icon = wnck_window.get_icon()
     if icon is None:
@@ -117,9 +124,17 @@ def _icon_fallback(wnck_window: Wnck.Window, thumb_w: int, thumb_h: int) -> GdkP
         x = (thumb_w - icon_size) // 2
         y = (thumb_h - icon_size) // 2
         scaled_icon.composite(
-            bg, x, y, icon_size, icon_size,
-            x, y, 1.0, 1.0,
-            GdkPixbuf.InterpType.BILINEAR, 255,
+            bg,
+            x,
+            y,
+            icon_size,
+            icon_size,
+            x,
+            y,
+            1.0,
+            1.0,
+            GdkPixbuf.InterpType.BILINEAR,
+            255,
         )
     return bg
 
@@ -155,7 +170,9 @@ class PreviewPopup(Gtk.Window):
     def set_autohide(self, controller: AutoHideController | None) -> None:
         self._autohide = controller
 
-    def show_for_item(self, desktop_id: str, icon_x: float, icon_w: float, dock_y: int) -> None:
+    def show_for_item(
+        self, desktop_id: str, icon_x: float, icon_w: float, dock_y: int
+    ) -> None:
         """Show preview popup above a dock icon.
 
         Args:
@@ -225,14 +242,16 @@ class PreviewPopup(Gtk.Window):
         if pixbuf:
             image = Gtk.Image.new_from_pixbuf(pixbuf)
         else:
-            image = Gtk.Image.new_from_icon_name("application-x-executable", Gtk.IconSize.DIALOG)
+            image = Gtk.Image.new_from_icon_name(
+                "application-x-executable", Gtk.IconSize.DIALOG
+            )
         image.set_size_request(THUMB_W, THUMB_H)
         vbox.pack_start(image, False, False, 0)
 
         # Window title
         title = window.get_name() or "Untitled"
         if len(title) > LABEL_MAX_CHARS:
-            title = title[:LABEL_MAX_CHARS - 1] + "\u2026"
+            title = title[: LABEL_MAX_CHARS - 1] + "\u2026"
         label = Gtk.Label(label=title)
         label.get_style_context().add_class("preview-label")
         label.set_ellipsize(Pango.EllipsizeMode.END)
@@ -242,7 +261,9 @@ class PreviewPopup(Gtk.Window):
         event_box.add(vbox)
         return event_box
 
-    def _on_thumb_click(self, widget: Gtk.EventBox, event: Gdk.EventButton, window: Wnck.Window) -> bool:
+    def _on_thumb_click(
+        self, widget: Gtk.EventBox, event: Gdk.EventButton, window: Wnck.Window
+    ) -> bool:
         """Activate the clicked window."""
         self._tracker.activate_window(window)
         self.hide()

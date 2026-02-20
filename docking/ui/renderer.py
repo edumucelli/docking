@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import cairo
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk  # noqa: E402
 
@@ -23,8 +24,15 @@ if TYPE_CHECKING:
     from docking.core.zoom import LayoutItem
 
 
-def _rounded_rect(cr: cairo.Context, x: float, y: float, w: float, h: float, r: float,
-                   round_bottom: bool = True) -> None:
+def _rounded_rect(
+    cr: cairo.Context,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    r: float,
+    round_bottom: bool = True,
+) -> None:
     """Draw a rounded rectangle path, optionally with square bottom corners."""
     cr.new_sub_path()
     # Top-right (rounded)
@@ -57,22 +65,26 @@ class DockRenderer:
         self.prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
 
     def compute_dock_size(
-        self, model: DockModel, config: Config, theme: Theme,
+        self,
+        model: DockModel,
+        config: Config,
+        theme: Theme,
     ) -> tuple[int, int]:
         """Compute base dock dimensions (no zoom)."""
         items = model.visible_items()
         n = len(items)
         icon_size = config.icon_size
         width = int(
-            theme.h_padding * 2
-            + n * icon_size
-            + max(0, n - 1) * theme.item_padding
+            theme.h_padding * 2 + n * icon_size + max(0, n - 1) * theme.item_padding
         )
         height = int(icon_size + theme.top_padding + theme.bottom_padding)
         return max(width, 1), max(height, 1)
 
     def compute_zoomed_width(
-        self, layout: list[LayoutItem], config: Config, theme: Theme,
+        self,
+        layout: list[LayoutItem],
+        config: Config,
+        theme: Theme,
     ) -> int:
         """Compute total dock width from a zoomed layout."""
         w = total_width(layout, config.icon_size, theme.item_padding, theme.h_padding)
@@ -111,26 +123,34 @@ class DockRenderer:
         n = len(items)
 
         # Base offset for cursor conversion (content-space)
-        base_w = theme.h_padding * 2 + n * config.icon_size + max(0, n - 1) * theme.item_padding
+        base_w = (
+            theme.h_padding * 2
+            + n * config.icon_size
+            + max(0, n - 1) * theme.item_padding
+        )
         base_offset = (w - base_w) / 2
 
         # Compute zoomed layout in content-space
         local_cursor = cursor_x - base_offset if cursor_x >= 0 else -1.0
         layout = compute_layout(
-            items, config, local_cursor,
+            items,
+            config,
+            local_cursor,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
 
         # Compute actual content bounds (accounts for leftward displacement)
-        left_edge, right_edge = content_bounds(layout, config.icon_size, theme.h_padding)
+        left_edge, right_edge = content_bounds(
+            layout, config.icon_size, theme.h_padding
+        )
         zoomed_w = right_edge - left_edge
         # icon_offset: shifts layout so content is centered in window
         icon_offset = (w - zoomed_w) / 2 - left_edge
 
         # Shelf matches icons but smoothed to reduce wobble
         target_shelf_w = zoomed_w
-        if not hasattr(self, 'smooth_shelf_w'):
+        if not hasattr(self, "smooth_shelf_w"):
             self.smooth_shelf_w = base_w
         self.smooth_shelf_w += (target_shelf_w - self.smooth_shelf_w) * 0.3
         shelf_w = self.smooth_shelf_w
@@ -154,16 +174,24 @@ class DockRenderer:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
-            self._draw_icon(cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift)
+            self._draw_icon(
+                cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift
+            )
 
         # Draw indicators with slide offset + drop gap
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
                 slide = self.slide_offsets.get(item.desktop_id, 0.0)
-                drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
-                self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift)
+                drop_shift = (
+                    gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
+                )
+                self._draw_indicator(
+                    cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift
+                )
 
-    def _update_slide_offsets(self, items: list[DockItem], layout: list[LayoutItem], icon_offset: float) -> None:
+    def _update_slide_offsets(
+        self, items: list[DockItem], layout: list[LayoutItem], icon_offset: float
+    ) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}
         for item, li in zip(items, layout):
@@ -189,7 +217,13 @@ class DockRenderer:
         self.prev_positions = new_positions
 
     def _draw_background(
-        self, cr: cairo.Context, x: float, y: float, w: float, h: float, theme: Theme,
+        self,
+        cr: cairo.Context,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        theme: Theme,
     ) -> None:
         """Draw the dock background shelf with Plank-style 3D effect.
 
@@ -199,7 +233,9 @@ class DockRenderer:
         lw = theme.stroke_width
 
         # Layer 1: Gradient fill + outer stroke
-        _rounded_rect(cr, x + lw / 2, y + lw / 2, w - lw, h - lw / 2, r, round_bottom=False)
+        _rounded_rect(
+            cr, x + lw / 2, y + lw / 2, w - lw, h - lw / 2, r, round_bottom=False
+        )
 
         pat = cairo.LinearGradient(0, y, 0, y + h)
         pat.add_color_stop_rgba(0, *theme.fill_start)
@@ -226,7 +262,15 @@ class DockRenderer:
         highlight.add_color_stop_rgba(1, is_r, is_g, is_b, 0.19)
 
         inner_r = max(r - lw, 0)
-        _rounded_rect(cr, x + inset, y + inset, w - 2 * inset, inner_h - inset / 2, inner_r, round_bottom=False)
+        _rounded_rect(
+            cr,
+            x + inset,
+            y + inset,
+            w - 2 * inset,
+            inner_h - inset / 2,
+            inner_r,
+            round_bottom=False,
+        )
         cr.set_source(highlight)
         cr.set_line_width(lw)
         cr.stroke()
@@ -277,7 +321,9 @@ class DockRenderer:
         center_x = li.x + x_offset + scaled_size / 2
         y = dock_height - theme.bottom_padding / 2
 
-        color = theme.active_indicator_color if item.is_active else theme.indicator_color
+        color = (
+            theme.active_indicator_color if item.is_active else theme.indicator_color
+        )
         cr.set_source_rgba(*color)
 
         count = min(item.instance_count, 3)

@@ -82,7 +82,9 @@ class TestConfigSave:
     def test_save_roundtrip(self, tmp_path):
         # Given
         path = tmp_path / "dock.json"
-        original = Config(icon_size=80, zoom_percent=1.5, pinned=["a.desktop", "b.desktop"])
+        original = Config(
+            icon_size=80, zoom_percent=1.5, pinned=["a.desktop", "b.desktop"]
+        )
         # When
         original.save(path)
         loaded = Config.load(path)

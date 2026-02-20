@@ -23,14 +23,14 @@ def _rgba(values: list[int]) -> RGBA:
 class Theme:
     """Visual theme for the dock."""
 
-    fill_start: RGBA = (41/255, 41/255, 41/255, 1.0)
-    fill_end: RGBA = (80/255, 80/255, 80/255, 1.0)
-    stroke: RGBA = (41/255, 41/255, 41/255, 1.0)
+    fill_start: RGBA = (41 / 255, 41 / 255, 41 / 255, 1.0)
+    fill_end: RGBA = (80 / 255, 80 / 255, 80 / 255, 1.0)
+    stroke: RGBA = (41 / 255, 41 / 255, 41 / 255, 1.0)
     stroke_width: float = 1.0
     inner_stroke: RGBA = (1.0, 1.0, 1.0, 1.0)
     roundness: float = 4.0
-    indicator_color: RGBA = (1.0, 1.0, 1.0, 200/255)
-    active_indicator_color: RGBA = (100/255, 180/255, 1.0, 1.0)
+    indicator_color: RGBA = (1.0, 1.0, 1.0, 200 / 255)
+    active_indicator_color: RGBA = (100 / 255, 180 / 255, 1.0, 1.0)
     indicator_radius: float = 2.5
     h_padding: float = 12.0
     top_padding: float = 4.0
@@ -55,7 +55,9 @@ class Theme:
             inner_stroke=_rgba(data.get("inner_stroke", [255, 255, 255, 255])),
             roundness=float(data.get("roundness", 4.0)),
             indicator_color=_rgba(data.get("indicator_color", [255, 255, 255, 200])),
-            active_indicator_color=_rgba(data.get("active_indicator_color", [100, 180, 255, 255])),
+            active_indicator_color=_rgba(
+                data.get("active_indicator_color", [100, 180, 255, 255])
+            ),
             indicator_radius=float(data.get("indicator_radius", 2.5)),
             h_padding=float(data.get("h_padding", 12.0)),
             top_padding=float(data.get("top_padding", 4.0)),

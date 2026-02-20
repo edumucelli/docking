@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 import gi
+
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Wnck, Gtk, GLib  # noqa: E402

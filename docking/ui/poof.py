@@ -10,6 +10,7 @@ from docking.log import get_logger
 log = get_logger("poof")
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
 
@@ -67,7 +68,9 @@ def show_poof(x: int, y: int) -> None:
         cr.set_operator(cairo.OPERATOR_OVER)
 
         f = min(widget._poof_frame, widget._poof_num_frames - 1)
-        Gdk.cairo_set_source_pixbuf(cr, widget._poof_pixbuf, 0, -widget._poof_frame_size * f)
+        Gdk.cairo_set_source_pixbuf(
+            cr, widget._poof_pixbuf, 0, -widget._poof_frame_size * f
+        )
         cr.rectangle(0, 0, widget._poof_frame_size, widget._poof_frame_size)
         cr.fill()
         return True
@@ -84,5 +87,11 @@ def show_poof(x: int, y: int) -> None:
     win.connect("draw", on_draw)
     win.move(x - frame_size // 2, y - frame_size // 2)
     win.show_all()
-    log.debug("shown at (%d,%d) frames=%d interval=%dms", x, y, num_frames, POOF_DURATION_MS // num_frames)
+    log.debug(
+        "shown at (%d,%d) frames=%d interval=%dms",
+        x,
+        y,
+        num_frames,
+        POOF_DURATION_MS // num_frames,
+    )
     GLib.timeout_add(POOF_DURATION_MS // num_frames, tick, win)

@@ -10,6 +10,7 @@ from docking.log import get_logger
 log = get_logger("autohide")
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib  # noqa: E402
 
