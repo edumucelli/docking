@@ -13,6 +13,29 @@ sys.modules.setdefault("gi.repository", gi_mock.repository)
 from docking.dnd import DnDHandler  # noqa: E402
 
 
+class TestPoofAsset:
+    def test_poof_svg_exists(self):
+        from pathlib import Path
+        svg = Path(__file__).parent.parent / "docking" / "poof.svg"
+        assert svg.exists(), "poof.svg sprite sheet missing"
+
+    def test_poof_svg_dimensions(self):
+        """SVG should be square-width with multiple frames stacked vertically."""
+        from pathlib import Path
+        svg = Path(__file__).parent.parent / "docking" / "poof.svg"
+        # Parse viewBox from SVG
+        with open(svg) as f:
+            content = f.read(500)
+        import re
+        match = re.search(r'viewBox="0 0 (\d+) (\d+)"', content)
+        assert match, "poof.svg missing viewBox"
+        w, h = int(match.group(1)), int(match.group(2))
+        assert w > 0
+        assert h > w, "sprite sheet should be taller than wide (stacked frames)"
+        assert h % w == 0, "height should be exact multiple of width"
+        assert h // w >= 4, "should have at least 4 frames"
+
+
 class TestUriToDesktopId:
     def test_file_uri(self):
         uri = "file:///usr/share/applications/firefox.desktop"
