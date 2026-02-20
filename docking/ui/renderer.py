@@ -157,9 +157,12 @@ class DockRenderer:
 
         # Shelf matches icons but smoothed to reduce wobble
         target_shelf_w = zoomed_w
-        self.smooth_shelf_w += (
-            target_shelf_w - self.smooth_shelf_w
-        ) * SHELF_SMOOTH_FACTOR
+        if self.smooth_shelf_w == 0.0:
+            self.smooth_shelf_w = target_shelf_w  # snap on first draw
+        else:
+            self.smooth_shelf_w += (
+                target_shelf_w - self.smooth_shelf_w
+            ) * SHELF_SMOOTH_FACTOR
         shelf_w = self.smooth_shelf_w
         shelf_x = (w - shelf_w) / 2
 
