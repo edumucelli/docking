@@ -15,19 +15,23 @@ from docking.dnd import DnDHandler  # noqa: E402
 
 class TestPoofAsset:
     def test_poof_svg_exists(self):
+        # Given
         from pathlib import Path
         svg = Path(__file__).parent.parent / "docking" / "poof.svg"
+        # When / Then
         assert svg.exists(), "poof.svg sprite sheet missing"
 
     def test_poof_svg_dimensions(self):
         """SVG should be square-width with multiple frames stacked vertically."""
+        # Given
         from pathlib import Path
         svg = Path(__file__).parent.parent / "docking" / "poof.svg"
-        # Parse viewBox from SVG
+        # When
         with open(svg) as f:
             content = f.read(500)
         import re
         match = re.search(r'viewBox="0 0 (\d+) (\d+)"', content)
+        # Then
         assert match, "poof.svg missing viewBox"
         w, h = int(match.group(1)), int(match.group(2))
         assert w > 0
@@ -38,31 +42,45 @@ class TestPoofAsset:
 
 class TestUriToDesktopId:
     def test_file_uri(self):
+        # Given
         uri = "file:///usr/share/applications/firefox.desktop"
+        # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) == "firefox.desktop"
 
     def test_file_uri_with_spaces(self):
+        # Given
         uri = "file:///usr/share/applications/my%20app.desktop"
+        # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) == "my app.desktop"
 
     def test_file_uri_snap(self):
+        # Given
         uri = "file:///var/lib/snapd/desktop/applications/firefox_firefox.desktop"
+        # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) == "firefox_firefox.desktop"
 
     def test_plain_path(self):
+        # Given
         uri = "firefox.desktop"
+        # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) == "firefox.desktop"
 
     def test_non_desktop_file_returns_none(self):
+        # Given
         uri = "file:///home/user/document.pdf"
+        # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) is None
 
     def test_http_uri_returns_none(self):
+        # Given
         uri = "https://example.com/app.desktop"
+        # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) is None
 
     def test_empty_string_returns_none(self):
+        # Given / When / Then
         assert DnDHandler._uri_to_desktop_id("") is None
 
     def test_non_desktop_plain_path(self):
+        # Given / When / Then
         assert DnDHandler._uri_to_desktop_id("readme.txt") is None
