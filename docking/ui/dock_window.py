@@ -44,7 +44,7 @@ class DockWindow(Gtk.Window):
         self.window_tracker = window_tracker
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
-        self._autohide: AutoHideController | None = None
+        self.autohide: AutoHideController | None = None
         self._dnd: DnDHandler | None = None
         self._menu: MenuHandler | None = None
         self._preview: PreviewPopup | None = None
@@ -102,7 +102,7 @@ class DockWindow(Gtk.Window):
         self.model.on_change = self._on_model_changed
 
     def set_autohide_controller(self, controller: AutoHideController) -> None:
-        self._autohide = controller
+        self.autohide = controller
 
     def set_dnd_handler(self, handler: DnDHandler) -> None:
         self._dnd = handler
@@ -163,7 +163,7 @@ class DockWindow(Gtk.Window):
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr) -> bool:
         """Render the dock via the renderer."""
-        hide_offset = self._autohide.hide_offset if self._autohide else 0.0
+        hide_offset = self.autohide.hide_offset if self.autohide else 0.0
         drag_index = self._dnd.drag_index if self._dnd else -1
         drop_insert = self._dnd.drop_insert_index if self._dnd else -1
         self.renderer.draw(
@@ -234,14 +234,14 @@ class DockWindow(Gtk.Window):
             self._preview.schedule_hide()
         self._update_dock_size()
         widget.queue_draw()
-        if self._autohide and not preview_visible:
-            self._autohide.on_mouse_leave()
+        if self.autohide and not preview_visible:
+            self.autohide.on_mouse_leave()
         return True
 
     def _on_enter(self, widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
         """Notify auto-hide on mouse enter."""
-        if self._autohide:
-            self._autohide.on_mouse_enter()
+        if self.autohide:
+            self.autohide.on_mouse_enter()
         return True
 
     def _on_model_changed(self) -> None:

@@ -123,8 +123,8 @@ class DnDHandler:
     ) -> bool:
         """Update drop position as user drags."""
         # Reveal dock when dragging over it (enter-notify doesn't fire during DnD)
-        if self._window._autohide:
-            self._window._autohide.on_mouse_enter()
+        if self._window.autohide:
+            self._window.autohide.on_mouse_enter()
         if self._drag_from < 0:
             # External drag — compute insert position for gap effect
             items = self._model.visible_items()
@@ -243,8 +243,8 @@ class DnDHandler:
         before drag-drop, so we need the index to survive until data-received.
         """
         widget.queue_draw()
-        if self._window._autohide:
-            self._window._autohide.on_mouse_leave()
+        if self._window.autohide:
+            self._window.autohide.on_mouse_leave()
 
     def _on_drag_end(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Clean up drag state. Remove item if dragged outside dock."""

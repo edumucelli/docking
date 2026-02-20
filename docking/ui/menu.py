@@ -116,8 +116,8 @@ class MenuHandler:
         self._config.autohide = widget.get_active()
         self._config.save()
         # Reset hide state when toggling off so dock becomes visible immediately
-        if not self._config.autohide and self._window._autohide:
-            self._window._autohide.reset()
+        if not self._config.autohide and self._window.autohide:
+            self._window.autohide.reset()
 
     def _on_icon_size_changed(self, widget: Gtk.MenuItem, size: int) -> None:
         if widget.get_active():
