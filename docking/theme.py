@@ -20,11 +20,12 @@ def _rgba(values: list[int]) -> tuple[float, float, float, float]:
 class Theme:
     """Visual theme for the dock."""
 
-    fill_start: tuple[float, float, float, float] = (40/255, 40/255, 40/255, 220/255)
-    fill_end: tuple[float, float, float, float] = (30/255, 30/255, 30/255, 220/255)
-    stroke: tuple[float, float, float, float] = (75/255, 75/255, 75/255, 1.0)
+    fill_start: tuple[float, float, float, float] = (41/255, 41/255, 41/255, 1.0)
+    fill_end: tuple[float, float, float, float] = (80/255, 80/255, 80/255, 1.0)
+    stroke: tuple[float, float, float, float] = (41/255, 41/255, 41/255, 1.0)
     stroke_width: float = 1.0
-    roundness: float = 8.0
+    inner_stroke: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)
+    roundness: float = 4.0
     indicator_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 200/255)
     active_indicator_color: tuple[float, float, float, float] = (100/255, 180/255, 1.0, 1.0)
     indicator_radius: float = 2.5
@@ -46,9 +47,10 @@ class Theme:
         return cls(
             fill_start=_rgba(data.get("fill_start", [40, 40, 40, 220])),
             fill_end=_rgba(data.get("fill_end", [30, 30, 30, 220])),
-            stroke=_rgba(data.get("stroke", [75, 75, 75, 255])),
+            stroke=_rgba(data.get("stroke", [41, 41, 41, 255])),
             stroke_width=float(data.get("stroke_width", 1.0)),
-            roundness=float(data.get("roundness", 8.0)),
+            inner_stroke=_rgba(data.get("inner_stroke", [255, 255, 255, 255])),
+            roundness=float(data.get("roundness", 4.0)),
             indicator_color=_rgba(data.get("indicator_color", [255, 255, 255, 200])),
             active_indicator_color=_rgba(data.get("active_indicator_color", [100, 180, 255, 255])),
             indicator_radius=float(data.get("indicator_radius", 2.5)),

@@ -35,7 +35,7 @@ class TestThemeDefaults:
 class TestThemeLoad:
     def test_load_default_theme(self):
         t = Theme.load("default")
-        assert t.roundness == 8.0
+        assert t.roundness == 5.0
         assert t.stroke_width == 1.0
 
     def test_load_missing_theme_returns_defaults(self):

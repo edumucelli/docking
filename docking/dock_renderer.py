@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import math
+from docking.log import get_logger
+
+log = get_logger("renderer")
 from typing import TYPE_CHECKING
 
 import cairo
@@ -94,53 +97,82 @@ class DockRenderer:
         if not items:
             return
 
-        # Compute layout
         from docking.zoom import compute_layout, total_width
+        n = len(items)
+
+        # Base offset for cursor conversion (content-space)
+        base_w = theme.h_padding * 2 + n * config.icon_size + max(0, n - 1) * theme.item_padding
+        base_offset = (w - base_w) / 2
+
+        # Compute zoomed layout in content-space
+        local_cursor = cursor_x - base_offset if cursor_x >= 0 else -1.0
         layout = compute_layout(
-            items, config, cursor_x,
+            items, config, local_cursor,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
 
-        # Center the zoomed content within the fixed-size window
-        content_w = total_width(layout, config.icon_size, theme.item_padding, theme.h_padding)
-        x_offset = (w - content_w) / 2
+        # Shelf and icons both track zoomed content width (centered together)
+        zoomed_w = total_width(layout, config.icon_size, theme.item_padding, theme.h_padding)
+        icon_offset = (w - zoomed_w) / 2
 
-        # Draw background — shorter shelf sized to content, not full window
         bg_height = config.icon_size * 0.55 + theme.bottom_padding
         bg_y = h - bg_height
-        self._draw_background(cr, x_offset, bg_y, content_w, bg_height, theme)
+        self._draw_background(cr, icon_offset, bg_y, zoomed_w, bg_height, theme)
 
-        # Draw icons (offset to center)
+        # Draw icons
         icon_size = config.icon_size
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
                 continue
-            self._draw_icon(cr, item, li, icon_size, h, theme, x_offset)
+            self._draw_icon(cr, item, li, icon_size, h, theme, icon_offset)
 
         # Draw indicators
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
-                self._draw_indicator(cr, item, li, icon_size, h, theme, x_offset)
+                self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset)
 
     def _draw_background(
         self, cr: cairo.Context, x: float, y: float, w: float, h: float, theme: Theme,
     ) -> None:
-        """Draw the dock background shelf with gradient fill and stroke."""
-        r = theme.roundness
-        margin = theme.stroke_width / 2
-        _rounded_rect(cr, x + margin, y + margin, w - 2 * margin, h - 2 * margin, r, round_bottom=False)
+        """Draw the dock background shelf with Plank-style 3D effect.
 
-        # Vertical gradient fill
+        Three layers: gradient fill, dark outer stroke, inner highlight stroke.
+        """
+        r = theme.roundness
+        lw = theme.stroke_width
+
+        # Layer 1: Gradient fill + outer stroke
+        _rounded_rect(cr, x + lw / 2, y + lw / 2, w - lw, h - lw / 2, r, round_bottom=False)
+
         pat = cairo.LinearGradient(0, y, 0, y + h)
         pat.add_color_stop_rgba(0, *theme.fill_start)
         pat.add_color_stop_rgba(1, *theme.fill_end)
         cr.set_source(pat)
         cr.fill_preserve()
 
-        # Stroke
         cr.set_source_rgba(*theme.stroke)
-        cr.set_line_width(theme.stroke_width)
+        cr.set_line_width(lw)
+        cr.stroke()
+
+        # Layer 2: Inner highlight stroke (creates 3D bevel effect)
+        # Plank uses white with varying opacity: 50% top → 12% → 8% → 19% bottom
+        is_r, is_g, is_b, _ = theme.inner_stroke
+        inset = 3 * lw / 2
+        inner_h = h - inset
+        top_point = max(r, lw) / h if h > 0 else 0.1
+        bottom_point = 1.0 - top_point
+
+        highlight = cairo.LinearGradient(0, y + inset, 0, y + h - inset)
+        highlight.add_color_stop_rgba(0, is_r, is_g, is_b, 0.5)
+        highlight.add_color_stop_rgba(top_point, is_r, is_g, is_b, 0.12)
+        highlight.add_color_stop_rgba(bottom_point, is_r, is_g, is_b, 0.08)
+        highlight.add_color_stop_rgba(1, is_r, is_g, is_b, 0.19)
+
+        inner_r = max(r - lw, 0)
+        _rounded_rect(cr, x + inset, y + inset, w - 2 * inset, inner_h - inset / 2, inner_r, round_bottom=False)
+        cr.set_source(highlight)
+        cr.set_line_width(lw)
         cr.stroke()
 
     def _draw_icon(

@@ -12,7 +12,7 @@ class TestConfigDefaults:
         c = Config()
         assert c.icon_size == 48
         assert c.zoom_enabled is True
-        assert c.zoom_percent == 1.3
+        assert c.zoom_percent == 1.5
         assert c.zoom_range == 3
         assert c.position == "bottom"
         assert c.autohide is False

@@ -21,7 +21,7 @@ class Config:
 
     icon_size: int = 48
     zoom_enabled: bool = True
-    zoom_percent: float = 1.3
+    zoom_percent: float = 1.5
     zoom_range: int = 3
     position: str = "bottom"
     autohide: bool = False

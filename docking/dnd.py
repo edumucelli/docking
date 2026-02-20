@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse, unquote
 
+from docking.log import get_logger
+
+log = get_logger("dnd")
+
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf  # noqa: E402
@@ -76,15 +80,23 @@ class DnDHandler:
         """Identify which item is being dragged and set the drag icon."""
         from docking.zoom import compute_layout
         items = self._model.visible_items()
+        local_cx = self._window._local_cursor_x()
         layout = compute_layout(
-            items, self._config, self._window.cursor_x,
+            items, self._config, local_cx,
             item_padding=self._theme.item_padding,
             h_padding=self._theme.h_padding,
         )
 
+        offset = self._window._zoomed_x_offset(layout)
+        win_cx = self._window.cursor_x
+        log.debug("drag-begin: win_cx=%.1f local_cx=%.1f offset=%.1f items=%d",
+                   win_cx, local_cx, offset, len(items))
         for i, li in enumerate(layout):
             icon_w = li.scale * self._config.icon_size
-            if li.x <= self._window.cursor_x <= li.x + icon_w:
+            left = li.x + offset
+            right = left + icon_w
+            log.debug("  item %d: left=%.1f right=%.1f (win_cx=%.1f)", i, left, right, win_cx)
+            if left <= win_cx <= right:
                 self._drag_from = i
                 self.drag_index = i
 
@@ -96,7 +108,9 @@ class DnDHandler:
                     )
                     if scaled:
                         Gtk.drag_set_icon_pixbuf(context, scaled, icon_size // 2, icon_size // 2)
+                log.debug("  -> dragging item %d: %s", i, item.name)
                 return
+        log.debug("  -> no item matched")
 
     def _on_drag_motion(
         self, widget: Gtk.DrawingArea, context: Gdk.DragContext,
@@ -119,7 +133,7 @@ class DnDHandler:
             h_padding=self._theme.h_padding,
         )
 
-        x_offset = self._window._compute_x_offset(layout)
+        x_offset = self._window._zoomed_x_offset(layout)
         new_index = len(layout) - 1
         for i, li in enumerate(layout):
             center = li.x + x_offset + self._config.icon_size / 2
@@ -128,6 +142,7 @@ class DnDHandler:
                 break
 
         if new_index != self.drag_index:
+            log.debug("drag-motion: reorder %d -> %d", self.drag_index, new_index)
             self._model.reorder_visible(self.drag_index, new_index)
             self.drag_index = new_index
 
@@ -142,6 +157,7 @@ class DnDHandler:
     ) -> bool:
         """Request data for external drops, finalize internal drops."""
         target = widget.drag_dest_find_target(context, None)
+        log.debug("drag-drop: drag_from=%d target=%s", self._drag_from, target)
         if target:
             widget.drag_get_data(context, target, time)
             return True
@@ -155,6 +171,7 @@ class DnDHandler:
         """Handle internal reorder completion and external .desktop drops."""
         # Internal reorder — already handled during drag-motion
         if self._drag_from >= 0:
+            log.debug("drag-data-received: internal reorder complete")
             Gtk.drag_finish(context, True, False, time)
             return
 

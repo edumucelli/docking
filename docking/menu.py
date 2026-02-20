@@ -35,12 +35,13 @@ class MenuHandler:
         from docking.zoom import compute_layout
         items = self._model.visible_items()
         theme = self._window.theme
+        local_x = self._window._local_cursor_x()
         layout = compute_layout(
-            items, self._config, cursor_x,
+            items, self._config, local_x,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
-        item = self._hit_test(cursor_x, items, layout)
+        item = self._hit_test(cursor_x, items, layout)  # cursor_x is window-space for hit test
 
         menu = Gtk.Menu()
 
@@ -126,9 +127,11 @@ class MenuHandler:
     def _hit_test(
         self, x: float, items: list, layout: list,
     ) -> DockItem | None:
-        """Find which DockItem is under cursor x."""
+        """Find which DockItem is under cursor x (window-space)."""
+        offset = self._window._zoomed_x_offset(layout)
         for i, li in enumerate(layout):
             icon_w = li.scale * self._config.icon_size
-            if li.x <= x <= li.x + icon_w:
+            left = li.x + offset
+            if left <= x <= left + icon_w:
                 return items[i]
         return None
