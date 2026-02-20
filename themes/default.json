@@ -1,0 +1,14 @@
+{
+  "fill_start": [40, 40, 40, 220],
+  "fill_end": [30, 30, 30, 220],
+  "stroke": [75, 75, 75, 255],
+  "stroke_width": 1.0,
+  "roundness": 8,
+  "indicator_color": [255, 255, 255, 200],
+  "active_indicator_color": [100, 180, 255, 255],
+  "indicator_radius": 2.5,
+  "h_padding": 12,
+  "top_padding": 4,
+  "bottom_padding": 8,
+  "item_padding": 6
+}
