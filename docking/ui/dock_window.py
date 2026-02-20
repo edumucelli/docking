@@ -119,6 +119,7 @@ class DockWindow(Gtk.Window):
         """Position dock and set struts after window is realized."""
         self._position_dock()
         self._set_struts()
+        self._update_input_region()
 
     def _position_dock(self) -> None:
         """Position dock at full monitor width, fixed at bottom. Plank-style."""
@@ -253,8 +254,43 @@ class DockWindow(Gtk.Window):
 
     def _update_dock_size(self) -> None:
         """Reposition dock only when item count changes (not during hover)."""
-        # Window stays at full monitor width — only reposition on item change
-        pass
+        self._update_input_region()
+
+    def _update_input_region(self) -> None:
+        """Set input shape so only the dock content area receives events.
+
+        Plank does the same: input_shape_combine_region with a rect
+        matching the cursor/content region.
+        """
+        gdk_window = self.get_window()
+        if not gdk_window:
+            return
+
+        import cairo as _cairo
+
+        items = self.model.visible_items()
+        n = len(items)
+        icon_size = self.config.icon_size
+        zoom = self.config.zoom_percent if self.config.zoom_enabled else 1.0
+
+        # Content width: use max-zoom width (cursor at center) for generous input area
+        base_w = self.theme.h_padding * 2 + n * icon_size + max(0, n - 1) * self.theme.item_padding
+        layout = compute_layout(
+            items, self.config, base_w / 2,
+            item_padding=self.theme.item_padding,
+            h_padding=self.theme.h_padding,
+        )
+        left_edge, right_edge = content_bounds(layout, icon_size, self.theme.h_padding)
+        content_w = right_edge - left_edge
+
+        window_w: int = self.get_size()[0]
+        window_h: int = self.get_size()[1]
+        x = int((window_w - content_w) / 2 - left_edge)
+        w = int(content_w)
+
+        rect = _cairo.RectangleInt(x, 0, max(w, 1), max(window_h, 1))
+        region = _cairo.Region(rect)
+        gdk_window.input_shape_combine_region(region, 0, 0)
 
     def _base_x_offset(self) -> float:
         """X offset to center base (no-zoom) content within the full-width window."""
