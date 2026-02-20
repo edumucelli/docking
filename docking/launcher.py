@@ -29,13 +29,19 @@ class Launcher:
 
     def resolve(self, desktop_id: str) -> DesktopInfo | None:
         """Resolve a desktop ID (e.g. 'firefox.desktop') to full info."""
-        app_info = Gio.DesktopAppInfo.new(desktop_id)
+        try:
+            app_info = Gio.DesktopAppInfo.new(desktop_id)
+        except (TypeError, GLib.Error):
+            app_info = None
         if app_info is None:
             # Try searching by filename in XDG dirs
             for d in self._desktop_dirs:
                 path = d / desktop_id
                 if path.exists():
-                    app_info = Gio.DesktopAppInfo.new_from_filename(str(path))
+                    try:
+                        app_info = Gio.DesktopAppInfo.new_from_filename(str(path))
+                    except (TypeError, GLib.Error):
+                        continue
                     break
         if app_info is None:
             return None

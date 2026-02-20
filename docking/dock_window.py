@@ -146,36 +146,46 @@ class DockWindow(Gtk.Window):
         # _NET_WM_STRUT_PARTIAL: left, right, top, bottom,
         #   left_start, left_end, right_start, right_end,
         #   top_start, top_end, bottom_start, bottom_end
-        struts = [0, 0, 0, bottom, 0, 0, 0, 0, 0, 0, bottom_start, bottom_end]
+        struts = [0, 0, 0, int(bottom), 0, 0, 0, 0, 0, 0, int(bottom_start), int(bottom_end)]
+        self._xprop_set_struts(gdk_window, struts)
 
-        atom_partial = Gdk.Atom.intern("_NET_WM_STRUT_PARTIAL", False)
-        atom_strut = Gdk.Atom.intern("_NET_WM_STRUT", False)
-        atom_cardinal = Gdk.Atom.intern("CARDINAL", False)
+    @staticmethod
+    def _xprop_set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
+        """Set _NET_WM_STRUT and _NET_WM_STRUT_PARTIAL via ctypes/Xlib."""
+        import ctypes
 
-        import struct
-        data_partial = struct.pack(f"={len(struts)}I", *[int(s) for s in struts])
-        data_short = struct.pack(f"=4I", *[int(s) for s in struts[:4]])
+        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+        xid = gdk_window.get_xid()
+        xdisplay = ctypes.c_void_p(hash(
+            GdkX11.X11Display.get_default().get_xdisplay()
+        ))
 
-        Gdk.property_change(
-            gdk_window, atom_partial, atom_cardinal, 32,
-            Gdk.PropMode.REPLACE, data_partial
-        )
-        Gdk.property_change(
-            gdk_window, atom_strut, atom_cardinal, 32,
-            Gdk.PropMode.REPLACE, data_short
-        )
+        xlib.XInternAtom.restype = ctypes.c_ulong
+        xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+
+        atom_partial = xlib.XInternAtom(xdisplay, b"_NET_WM_STRUT_PARTIAL", 0)
+        atom_strut = xlib.XInternAtom(xdisplay, b"_NET_WM_STRUT", 0)
+        xa_cardinal = xlib.XInternAtom(xdisplay, b"CARDINAL", 0)
+
+        xlib.XChangeProperty.argtypes = [
+            ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong,
+            ctypes.c_ulong, ctypes.c_int, ctypes.c_int,
+            ctypes.c_void_p, ctypes.c_int,
+        ]
+
+        arr12 = (ctypes.c_long * 12)(*struts)
+        arr4 = (ctypes.c_long * 4)(*struts[:4])
+
+        xlib.XChangeProperty(xdisplay, xid, atom_partial, xa_cardinal, 32, 0, ctypes.byref(arr12), 12)
+        xlib.XChangeProperty(xdisplay, xid, atom_strut, xa_cardinal, 32, 0, ctypes.byref(arr4), 4)
+        xlib.XFlush(xdisplay)
 
     def _clear_struts(self) -> None:
-        """Remove strut reservation."""
+        """Remove strut reservation by setting all struts to zero."""
         gdk_window = self.get_window()
-        if not gdk_window:
+        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
             return
-
-        atom_partial = Gdk.Atom.intern("_NET_WM_STRUT_PARTIAL", False)
-        atom_strut = Gdk.Atom.intern("_NET_WM_STRUT", False)
-
-        Gdk.property_delete(gdk_window, atom_partial)
-        Gdk.property_delete(gdk_window, atom_strut)
+        self._xprop_set_struts(gdk_window, [0] * 12)
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr) -> bool:
         """Render the dock via the renderer."""
