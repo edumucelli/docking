@@ -9,6 +9,10 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 
+from docking.platform.struts import set_dock_struts, clear_struts
+from docking.core.zoom import compute_layout, content_bounds
+from docking.platform.launcher import launch
+
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.model import DockModel, DockItem
@@ -131,8 +135,6 @@ class DockWindow(Gtk.Window):
 
     def _set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
-        from docking.platform.struts import set_dock_struts, clear_struts
-
         if self.config.autohide:
             self._clear_struts()
             return
@@ -154,8 +156,6 @@ class DockWindow(Gtk.Window):
 
     def _clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
-        from docking.platform.struts import clear_struts
-
         gdk_window = self.get_window()
         if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
             return
@@ -199,7 +199,6 @@ class DockWindow(Gtk.Window):
             return True
 
         if event.button == 1 or event.button == 2:
-            from docking.core.zoom import compute_layout
             layout = compute_layout(
                 self.model.visible_items(), self.config, self._local_cursor_x(),
                 item_padding=self.theme.item_padding,
@@ -214,7 +213,6 @@ class DockWindow(Gtk.Window):
                 or (event.state & Gdk.ModifierType.CONTROL_MASK)
             )
             if force_launch or not item.is_running:
-                from docking.platform.launcher import launch
                 launch(item.desktop_id)
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
@@ -275,7 +273,6 @@ class DockWindow(Gtk.Window):
 
     def _zoomed_x_offset(self, layout: list) -> float:
         """X offset matching where icons are actually rendered."""
-        from docking.core.zoom import content_bounds
         left_edge, right_edge = content_bounds(layout, self.config.icon_size, self.theme.h_padding)
         zoomed_w = right_edge - left_edge
         window_w, _ = self.get_size()
@@ -306,7 +303,6 @@ class DockWindow(Gtk.Window):
 
     def _update_hovered_item(self) -> None:
         """Detect which item the cursor is over and manage preview timer."""
-        from docking.core.zoom import compute_layout
         items = self.model.visible_items()
         layout = compute_layout(
             items, self.config, self._local_cursor_x(),
@@ -337,7 +333,6 @@ class DockWindow(Gtk.Window):
             return GLib.SOURCE_REMOVE
 
         # Find the layout entry for this item to get screen coordinates
-        from docking.core.zoom import compute_layout
         items = self.model.visible_items()
         layout = compute_layout(
             items, self.config, self._local_cursor_x(),

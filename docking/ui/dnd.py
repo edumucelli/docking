@@ -15,6 +15,11 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
 
+import cairo
+
+from docking.core.zoom import compute_layout
+from docking.platform.model import DockItem
+
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
     from docking.platform.model import DockModel
@@ -79,7 +84,6 @@ class DnDHandler:
 
     def _on_drag_begin(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Identify which item is being dragged and set the drag icon."""
-        from docking.core.zoom import compute_layout
         items = self._model.visible_items()
         local_cx = self._window._local_cursor_x()
         layout = compute_layout(
@@ -123,7 +127,6 @@ class DnDHandler:
             self._window._autohide.on_mouse_enter()
         if self._drag_from < 0:
             # External drag — compute insert position for gap effect
-            from docking.core.zoom import compute_layout
             items = self._model.visible_items()
             layout = compute_layout(
                 items, self._config, -1.0,
@@ -143,7 +146,6 @@ class DnDHandler:
             Gdk.drag_status(context, Gdk.DragAction.COPY, time)
             return True
 
-        from docking.core.zoom import compute_layout
         items = self._model.visible_items()
         layout = compute_layout(
             items, self._config, -1.0,
@@ -211,7 +213,6 @@ class DnDHandler:
                 if resolved:
                     icon_size = int(self._config.icon_size * self._config.zoom_percent)
                     icon = self._launcher.load_icon(resolved.icon_name, icon_size)
-                    from docking.platform.model import DockItem
                     item = DockItem(
                         desktop_id=desktop_id,
                         name=resolved.name,
@@ -351,7 +352,6 @@ def _show_poof(x: int, y: int) -> None:
     win._poof_num_frames = num_frames
 
     def on_draw(widget, cr):
-        import cairo
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_rgba(0, 0, 0, 0)
         cr.paint()

@@ -8,6 +8,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk  # noqa: E402
 
+from docking.core.zoom import compute_layout
+
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
     from docking.platform.model import DockModel, DockItem
@@ -32,7 +34,6 @@ class MenuHandler:
 
     def show(self, event: Gdk.EventButton, cursor_x: float) -> None:
         """Show context menu at cursor position."""
-        from docking.core.zoom import compute_layout
         items = self._model.visible_items()
         theme = self._window.theme
         local_x = self._window._local_cursor_x()
