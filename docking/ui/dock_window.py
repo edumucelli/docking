@@ -31,6 +31,11 @@ if TYPE_CHECKING:
 CLICK_DRAG_THRESHOLD = 10  # px movement to distinguish click from drag
 PREVIEW_SHOW_DELAY_MS = 400  # hover delay before showing preview popup
 
+# X11 mouse button codes
+MOUSE_LEFT = 1
+MOUSE_MIDDLE = 2
+MOUSE_RIGHT = 3
+
 
 class DockWindow(Gtk.Window):
     """Dock window positioned at screen bottom with X11 DOCK type hints."""
@@ -210,12 +215,12 @@ class DockWindow(Gtk.Window):
         if abs(event.x - self._click_x) > CLICK_DRAG_THRESHOLD:
             return False
 
-        if event.button == 3:
+        if event.button == MOUSE_RIGHT:
             if self._menu:
                 self._menu.show(event, self.cursor_x)
             return True
 
-        if event.button == 1 or event.button == 2:
+        if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
             layout = compute_layout(
                 self.model.visible_items(),
                 self.config,
@@ -227,7 +232,7 @@ class DockWindow(Gtk.Window):
             if item is None:
                 return True
 
-            force_launch = event.button == 2 or (
+            force_launch = event.button == MOUSE_MIDDLE or (
                 event.state & Gdk.ModifierType.CONTROL_MASK
             )
             if force_launch or not item.is_running:
@@ -346,11 +351,6 @@ class DockWindow(Gtk.Window):
             if left <= x <= right:
                 return items[i]
         return None
-
-    def update_position(self) -> None:
-        """Public method for auto-hide to reposition the dock."""
-        self._position_dock()
-        self.drawing_area.queue_draw()
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
