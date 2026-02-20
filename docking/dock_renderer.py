@@ -42,8 +42,17 @@ def _rounded_rect(cr: cairo.Context, x: float, y: float, w: float, h: float, r: 
     cr.close_path()
 
 
+SLIDE_DURATION_MS = 300
+SLIDE_FRAME_MS = 16
+
+
 class DockRenderer:
-    """Stateless renderer: given state, draws the dock via Cairo."""
+    """Dock renderer with per-item slide animation for reordering."""
+
+    def __init__(self) -> None:
+        # Per-item X offset for slide animation: {desktop_id: offset_px}
+        self._slide_offsets: dict[str, float] = {}
+        self._prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
 
     def compute_dock_size(
         self, model: DockModel, config: Config, theme: Theme,
@@ -120,17 +129,47 @@ class DockRenderer:
         bg_y = h - bg_height
         self._draw_background(cr, icon_offset, bg_y, zoomed_w, bg_height, theme)
 
-        # Draw icons
+        # Update slide animation offsets (detect items that moved)
+        self._update_slide_offsets(items, layout, icon_offset)
+
+        # Draw icons with slide offset
         icon_size = config.icon_size
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
                 continue
-            self._draw_icon(cr, item, li, icon_size, h, theme, icon_offset)
+            slide = self._slide_offsets.get(item.desktop_id, 0.0)
+            self._draw_icon(cr, item, li, icon_size, h, theme, icon_offset + slide)
 
-        # Draw indicators
+        # Draw indicators with slide offset
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
-                self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset)
+                slide = self._slide_offsets.get(item.desktop_id, 0.0)
+                self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset + slide)
+
+    def _update_slide_offsets(self, items: list, layout: list, icon_offset: float) -> None:
+        """Detect items that changed position and set slide animation offsets."""
+        new_positions: dict[str, float] = {}
+        for item, li in zip(items, layout):
+            new_positions[item.desktop_id] = li.x + icon_offset
+
+        for desktop_id, new_x in new_positions.items():
+            old_x = self._prev_positions.get(desktop_id)
+            if old_x is not None and abs(old_x - new_x) > 2.0:
+                # Item moved — set offset so it appears at old position, then animates
+                current_slide = self._slide_offsets.get(desktop_id, 0.0)
+                self._slide_offsets[desktop_id] = current_slide + (old_x - new_x)
+
+        # Decay all offsets toward 0 (lerp)
+        decay = 0.75  # per-frame decay factor (~300ms to settle at 60fps)
+        dead = []
+        for desktop_id in self._slide_offsets:
+            self._slide_offsets[desktop_id] *= decay
+            if abs(self._slide_offsets[desktop_id]) < 0.5:
+                dead.append(desktop_id)
+        for d in dead:
+            del self._slide_offsets[d]
+
+        self._prev_positions = new_positions
 
     def _draw_background(
         self, cr: cairo.Context, x: float, y: float, w: float, h: float, theme: Theme,
