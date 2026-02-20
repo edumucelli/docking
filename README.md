@@ -6,13 +6,19 @@ A lightweight dock for Linux, inspired by [Plank](https://github.com/ricotz/plan
 
 - Pinned application launchers with click-to-launch
 - Running application indicators (dots)
-- Parabolic icon zoom on hover (Plank's magnification formula)
+- Parabolic icon zoom on hover (Plank's displacement formula from `PositionManager.vala`)
+- 3D shelf background with Plank's Yaru-light theme (gradient fill, inner highlight bevel)
 - Auto-hide with cubic easing animation
-- Drag-to-reorder pinned items
-- Right-click context menu (pin/unpin, close, preferences)
+- Window preview thumbnails on hover (X11 foreign window capture)
+- Drag-to-reorder with slide animation
+- Drag `.desktop` files from file manager to add icons (with gap insertion effect)
+- Drag icons off dock to remove (Plank's poof sprite animation)
+- Right-click context menu (pin/unpin, close, auto-hide toggle, quit)
 - Theming via JSON
-- Window tracking via libwnck (running state, active window, focus toggle)
+- Window tracking via libwnck (running state, active window, smart focus toggle)
 - X11 dock struts (reserves screen space)
+- Input shape region (clicks pass through transparent areas)
+- Debug logging via `DOCKING_LOG_LEVEL=DEBUG`
 
 ## Requirements
 
@@ -31,7 +37,7 @@ sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1
 uv venv --python /usr/bin/python3 --system-site-packages .venv
 source .venv/bin/activate
 
-# Install in editable mode
+# Install in editable mode with dev dependencies
 uv pip install -e ".[dev]"
 ```
 
@@ -51,6 +57,9 @@ docking
 
 # Or directly
 python run.py
+
+# With debug logging
+DOCKING_LOG_LEVEL=DEBUG python run.py
 ```
 
 ## Configuration
@@ -61,7 +70,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 {
   "icon_size": 48,
   "zoom_enabled": true,
-  "zoom_percent": 2.0,
+  "zoom_percent": 1.5,
   "zoom_range": 3,
   "position": "bottom",
   "autohide": false,
@@ -73,11 +82,39 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 }
 ```
 
-Pinned items are `.desktop` file IDs resolved via `$XDG_DATA_DIRS`.
+| Setting | Description |
+|---|---|
+| `icon_size` | Base icon size in pixels (before zoom) |
+| `zoom_percent` | Max zoom multiplier (1.5 = Plank default) |
+| `zoom_range` | Icon widths over which zoom tapers off |
+| `autohide` | Hide dock when cursor leaves |
+| `hide_delay_ms` | Delay before hiding starts |
+| `hide_time_ms` | Duration of hide/show animation |
+| `theme` | Theme name (loads from `assets/themes/{name}.json`) |
+| `pinned` | Desktop file IDs resolved via `$XDG_DATA_DIRS` |
 
 ## Theming
 
-Themes live in `themes/` as JSON files. See `themes/default.json` for the schema. Set `"theme": "mytheme"` in config to use `themes/mytheme.json`.
+Themes are JSON files in `docking/assets/themes/`. The default theme matches Plank's Yaru-light.
+
+```json
+{
+  "fill_start": [222, 222, 222, 240],
+  "fill_end": [247, 247, 247, 240],
+  "stroke": [145, 145, 145, 255],
+  "inner_stroke": [248, 248, 248, 255],
+  "roundness": 5,
+  "item_padding": 12
+}
+```
+
+## Adding/Removing Dock Items
+
+- **Drag & drop**: Drag a `.desktop` file from your file manager onto the dock
+- **Right-click running app**: "Keep in Dock" to pin
+- **Drag off**: Drag an icon upward off the dock to remove (poof animation)
+- **Right-click pinned app**: "Remove from Dock" to unpin
+- **Edit config**: Add desktop IDs to `"pinned"` in `dock.json`
 
 ## Tests
 
@@ -85,19 +122,47 @@ Themes live in `themes/` as JSON files. See `themes/default.json` for the schema
 pytest tests/ -v
 ```
 
+87 tests organized by module:
+
+```
+tests/
+├── core/       test_config, test_theme, test_zoom
+├── platform/   test_model, test_launcher
+└── ui/         test_autohide, test_dnd
+```
+
+## Pre-commit Hooks
+
+Runs automatically on `git commit`:
+- **black** — code formatting
+- **flake8** — unused imports/variables
+- **mypy** — type checking (0 errors)
+- **pytest** — 87 tests
+
 ## Architecture
 
-| Module | Purpose |
-|---|---|
-| `app.py` | Entry point, GTK main loop |
-| `dock_window.py` | GTK window, X11 dock hints, struts, event dispatch |
-| `dock_renderer.py` | Cairo rendering — background, icons, indicators |
-| `dock_model.py` | Data model — pinned + running items |
-| `zoom.py` | Parabolic zoom math |
-| `autohide.py` | Hide state machine with easing |
-| `window_tracker.py` | libwnck running app detection |
-| `launcher.py` | XDG .desktop resolution, icon loading |
-| `dnd.py` | Drag-to-reorder |
-| `menu.py` | Right-click context menus |
-| `config.py` | JSON config management |
-| `theme.py` | Theme loading |
+```
+docking/
+├── app.py                  Entry point, GTK main loop
+├── log.py                  Logging config (DOCKING_LOG_LEVEL)
+├── core/                   Pure logic, no GTK dependency
+│   ├── config.py           Config dataclass, load/save
+│   ├── theme.py            Theme dataclass, RGBA type, load
+│   └── zoom.py             Parabolic zoom math (Plank's formula)
+├── platform/               GTK/X11 system integration
+│   ├── model.py            DockItem, DockModel
+│   ├── launcher.py         .desktop resolution, icon loading
+│   ├── window_tracker.py   Wnck running app detection
+│   └── struts.py           X11 _NET_WM_STRUT via ctypes
+├── ui/                     GTK rendering & interaction
+│   ├── dock_window.py      Main window, events, positioning
+│   ├── renderer.py         Cairo drawing (3D shelf, icons, indicators)
+│   ├── preview.py          Window thumbnail popup
+│   ├── menu.py             Right-click context menus
+│   ├── dnd.py              Drag-and-drop (reorder, add, remove)
+│   ├── poof.py             Poof smoke animation (Plank's sprite sheet)
+│   └── autohide.py         Hide state machine with easing
+└── assets/
+    ├── poof.svg            Plank's poof sprite sheet
+    └── themes/default.json Yaru-light theme
+```
