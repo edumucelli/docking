@@ -172,6 +172,57 @@ class TestReorder:
         assert len(model.visible_items()) == 1
 
 
+class TestReorderVisible:
+    def test_reorder_pinned_items(self):
+        config = _make_config(["a.desktop", "b.desktop", "c.desktop"])
+        launcher = _make_launcher("a.desktop", "b.desktop", "c.desktop")
+        model = DockModel(config, launcher)
+
+        model.reorder_visible(0, 2)
+        ids = [it.desktop_id for it in model.visible_items()]
+        assert ids == ["b.desktop", "c.desktop", "a.desktop"]
+
+    def test_reorder_auto_pins_transient(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher)
+
+        model.update_running({"b.desktop": {"count": 1, "active": False}})
+        assert len(model.visible_items()) == 2
+        assert not model.visible_items()[1].is_pinned
+
+        # Drag transient b to position 0
+        model.reorder_visible(1, 0)
+        items = model.visible_items()
+        assert items[0].desktop_id == "b.desktop"
+        assert items[0].is_pinned
+        assert "b.desktop" in config.pinned
+
+    def test_reorder_both_transients(self):
+        config = _make_config([])
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher)
+
+        model.update_running({
+            "a.desktop": {"count": 1, "active": False},
+            "b.desktop": {"count": 1, "active": False},
+        })
+        assert len(model.visible_items()) == 2
+
+        model.reorder_visible(1, 0)
+        items = model.visible_items()
+        # Both should now be pinned
+        assert all(it.is_pinned for it in items)
+        assert len(config.pinned) == 2
+
+    def test_reorder_visible_out_of_bounds_noop(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        model.reorder_visible(0, 5)
+        assert len(model.visible_items()) == 1
+
+
 class TestCallbacks:
     def test_on_change_fires(self):
         config = _make_config(["a.desktop"])

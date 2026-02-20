@@ -115,20 +115,42 @@ class DockWindow(Gtk.Window):
         self._set_struts()
 
     def _position_dock(self) -> None:
-        """Center dock at the bottom of the primary monitor."""
-        dock_width, dock_height = self.renderer.compute_dock_size(
-            self.model, self.config, self.theme
-        )
-        self.set_size_request(dock_width, dock_height)
-        self.resize(dock_width, dock_height)
+        """Center dock at the bottom of the primary monitor, sized for max zoom."""
+        w, h = self._compute_max_size()
+        self.set_size_request(w, h)
+        self.resize(w, h)
 
         display = self.get_display()
         monitor = display.get_primary_monitor() or display.get_monitor(0)
         geom = monitor.get_geometry()
 
-        x = geom.x + (geom.width - dock_width) // 2
-        y = geom.y + geom.height - dock_height
+        x = geom.x + (geom.width - w) // 2
+        y = geom.y + geom.height - h
         self.move(x, y)
+
+    def _compute_max_size(self) -> tuple[int, int]:
+        """Compute dock size for the widest possible zoom scenario."""
+        from docking.zoom import compute_layout, total_width
+        items = self.model.visible_items()
+        if not items:
+            return (1, 1)
+        icon_size = self.config.icon_size
+        zoom = self.config.zoom_percent if self.config.zoom_enabled else 1.0
+
+        # Simulate cursor at center of dock to get the widest layout
+        n = len(items)
+        base_w = self.theme.h_padding * 2 + n * icon_size + max(0, n - 1) * self.theme.item_padding
+        center_x = base_w / 2
+        layout = compute_layout(
+            items, self.config, center_x,
+            item_padding=self.theme.item_padding,
+            h_padding=self.theme.h_padding,
+        )
+        width = int(total_width(layout, icon_size, self.theme.item_padding, self.theme.h_padding))
+
+        # Height: tallest possible icon + padding
+        height = int(icon_size * zoom + self.theme.top_padding + self.theme.bottom_padding)
+        return max(width, 1), max(height, 1)
 
     def _set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
@@ -286,39 +308,27 @@ class DockWindow(Gtk.Window):
         self.drawing_area.queue_draw()
 
     def _update_dock_size(self) -> None:
-        """Recalculate dock dimensions and reposition if size changed."""
-        from docking.zoom import compute_layout
-        items = self.model.visible_items()
-        layout = compute_layout(
-            items, self.config, self.cursor_x,
-            item_padding=self.theme.item_padding,
-            h_padding=self.theme.h_padding,
-        )
-        total_width = self.renderer.compute_zoomed_width(layout, self.config, self.theme)
-        max_scale = max((li.scale for li in layout), default=1.0)
-        max_icon = self.config.icon_size * max_scale
-        total_height = int(max_icon + self.theme.top_padding + self.theme.bottom_padding)
-
+        """Reposition dock only when the max size changes (item count change)."""
+        new_w, new_h = self._compute_max_size()
         current_w, current_h = self.get_size()
-        if total_width != current_w or total_height != current_h:
-            self.set_size_request(total_width, total_height)
-            self.resize(total_width, total_height)
+        if new_w != current_w or new_h != current_h:
+            self._position_dock()
 
-            display = self.get_display()
-            monitor = display.get_primary_monitor() or display.get_monitor(0)
-            geom = monitor.get_geometry()
-            x = geom.x + (geom.width - total_width) // 2
-            y = geom.y + geom.height - total_height
-            self.move(x, y)
+    def _compute_x_offset(self, layout: list) -> float:
+        """Compute the X offset to center zoomed content in the fixed window."""
+        from docking.zoom import total_width
+        content_w = total_width(layout, self.config.icon_size, self.theme.item_padding, self.theme.h_padding)
+        window_w, _ = self.get_size()
+        return (window_w - content_w) / 2
 
     def _hit_test(self, x: float, layout: list) -> object | None:
         """Find which DockItem is under the cursor x position."""
-        from docking.zoom import LayoutItem
+        x_offset = self._compute_x_offset(layout)
         items = self.model.visible_items()
         for i, li in enumerate(layout):
             icon_w = li.scale * self.config.icon_size
-            left = li.x
-            right = li.x + icon_w
+            left = li.x + x_offset
+            right = left + icon_w
             if left <= x <= right:
                 return items[i]
         return None
@@ -388,7 +398,8 @@ class DockWindow(Gtk.Window):
 
         # Convert icon position to absolute screen coordinates
         win_x, win_y = self.get_position()
-        icon_abs_x = win_x + li.x
+        x_offset = self._compute_x_offset(layout)
+        icon_abs_x = win_x + li.x + x_offset
         dock_abs_y = win_y
 
         self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, dock_abs_y)

@@ -110,3 +110,52 @@ class TestTotalWidth:
         flat = [LayoutItem(x=12.0, scale=1.0), LayoutItem(x=66.0, scale=1.0)]
         zoomed = [LayoutItem(x=12.0, scale=1.5), LayoutItem(x=84.0, scale=1.5)]
         assert total_width(zoomed, 48, 6, 12) > total_width(flat, 48, 6, 12)
+
+
+class TestCenteringOffset:
+    """Verify content centering math for fixed-size window."""
+
+    def _make_config(self, zoom_enabled=True, zoom_percent=1.3):
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = zoom_enabled
+        config.zoom_percent = zoom_percent
+        config.zoom_range = 3
+        return config
+
+    def test_no_zoom_width_equals_base(self):
+        """Without zoom, content width = base width."""
+        items = [MagicMock() for _ in range(5)]
+        config = self._make_config(zoom_enabled=False)
+        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        w = total_width(layout, 48, 10, 12)
+        expected = 12 + 5 * 48 + 4 * 10 + 12  # h_pad + icons + gaps + h_pad
+        assert w == pytest.approx(expected)
+
+    def test_zoomed_width_larger_than_base(self):
+        items = [MagicMock() for _ in range(5)]
+        config = self._make_config()
+        base_layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        base_w = total_width(base_layout, 48, 10, 12)
+
+        zoomed_layout = compute_layout(items, config, 150.0, item_padding=10, h_padding=12)
+        zoomed_w = total_width(zoomed_layout, 48, 10, 12)
+
+        assert zoomed_w > base_w
+
+    def test_center_hover_is_widest(self):
+        """Hovering at center produces the widest layout."""
+        items = [MagicMock() for _ in range(5)]
+        config = self._make_config()
+        # Base width to find center
+        base_layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        base_w = total_width(base_layout, 48, 10, 12)
+        center = base_w / 2
+
+        center_layout = compute_layout(items, config, center, item_padding=10, h_padding=12)
+        center_w = total_width(center_layout, 48, 10, 12)
+
+        edge_layout = compute_layout(items, config, 12.0, item_padding=10, h_padding=12)
+        edge_w = total_width(edge_layout, 48, 10, 12)
+
+        assert center_w >= edge_w

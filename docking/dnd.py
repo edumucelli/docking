@@ -119,9 +119,10 @@ class DnDHandler:
             h_padding=self._theme.h_padding,
         )
 
+        x_offset = self._window._compute_x_offset(layout)
         new_index = len(layout) - 1
         for i, li in enumerate(layout):
-            center = li.x + self._config.icon_size / 2
+            center = li.x + x_offset + self._config.icon_size / 2
             if x < center:
                 new_index = i
                 break

@@ -72,3 +72,27 @@ class TestAutoHideState:
 
         ctrl2 = self._make_controller(autohide=False)
         assert ctrl2.enabled is False
+
+    def test_reset_forces_visible(self):
+        ctrl = self._make_controller()
+        ctrl.state = HideState.HIDDEN
+        ctrl.hide_offset = 1.0
+
+        ctrl.reset()
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl.hide_offset == 0.0
+
+    def test_reset_from_hiding(self):
+        ctrl = self._make_controller()
+        ctrl.state = HideState.HIDING
+        ctrl.hide_offset = 0.5
+
+        ctrl.reset()
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl.hide_offset == 0.0
+
+    def test_reset_when_already_visible(self):
+        ctrl = self._make_controller()
+        ctrl.reset()
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl.hide_offset == 0.0

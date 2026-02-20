@@ -95,29 +95,33 @@ class DockRenderer:
             return
 
         # Compute layout
-        from docking.zoom import compute_layout
+        from docking.zoom import compute_layout, total_width
         layout = compute_layout(
             items, config, cursor_x,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
 
-        # Draw background — shorter shelf at the bottom, icons overflow above
+        # Center the zoomed content within the fixed-size window
+        content_w = total_width(layout, config.icon_size, theme.item_padding, theme.h_padding)
+        x_offset = (w - content_w) / 2
+
+        # Draw background — shorter shelf sized to content, not full window
         bg_height = config.icon_size * 0.55 + theme.bottom_padding
         bg_y = h - bg_height
-        self._draw_background(cr, 0, bg_y, w, bg_height, theme)
+        self._draw_background(cr, x_offset, bg_y, content_w, bg_height, theme)
 
-        # Draw icons
+        # Draw icons (offset to center)
         icon_size = config.icon_size
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
                 continue
-            self._draw_icon(cr, item, li, icon_size, h, theme)
+            self._draw_icon(cr, item, li, icon_size, h, theme, x_offset)
 
         # Draw indicators
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
-                self._draw_indicator(cr, item, li, icon_size, h, theme)
+                self._draw_indicator(cr, item, li, icon_size, h, theme, x_offset)
 
     def _draw_background(
         self, cr: cairo.Context, x: float, y: float, w: float, h: float, theme: Theme,
@@ -147,17 +151,17 @@ class DockRenderer:
         base_size: int,
         dock_height: float,
         theme: Theme,
+        x_offset: float = 0.0,
     ) -> None:
         """Draw a single dock icon at its zoomed position and scale."""
         if item.icon is None:
             return
 
         scaled_size = base_size * li.scale
-        # Vertically align: icons sit on the bottom, pushed up by bottom_padding
         y = dock_height - theme.bottom_padding - scaled_size
 
         cr.save()
-        cr.translate(li.x, y)
+        cr.translate(li.x + x_offset, y)
 
         # Scale the icon pixbuf
         icon_w = item.icon.get_width()
@@ -178,10 +182,11 @@ class DockRenderer:
         base_size: int,
         dock_height: float,
         theme: Theme,
+        x_offset: float = 0.0,
     ) -> None:
         """Draw running indicator dot(s) below an icon."""
         scaled_size = base_size * li.scale
-        center_x = li.x + scaled_size / 2
+        center_x = li.x + x_offset + scaled_size / 2
         y = dock_height - theme.bottom_padding / 2
 
         color = theme.active_indicator_color if item.is_active else theme.indicator_color
