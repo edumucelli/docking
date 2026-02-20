@@ -121,13 +121,24 @@ class DockRenderer:
             h_padding=theme.h_padding,
         )
 
-        # Shelf and icons both track zoomed content width (centered together)
-        zoomed_w = total_width(layout, config.icon_size, theme.item_padding, theme.h_padding)
-        icon_offset = (w - zoomed_w) / 2
+        # Compute actual content bounds (accounts for leftward displacement)
+        from docking.zoom import content_bounds
+        left_edge, right_edge = content_bounds(layout, config.icon_size, theme.h_padding)
+        zoomed_w = right_edge - left_edge
+        # icon_offset: shifts layout so content is centered in window
+        icon_offset = (w - zoomed_w) / 2 - left_edge
+
+        # Shelf matches icons but smoothed to reduce wobble
+        target_shelf_w = zoomed_w
+        if not hasattr(self, '_smooth_shelf_w'):
+            self._smooth_shelf_w = base_w
+        self._smooth_shelf_w += (target_shelf_w - self._smooth_shelf_w) * 0.3
+        shelf_w = self._smooth_shelf_w
+        shelf_x = (w - shelf_w) / 2
 
         bg_height = config.icon_size * 0.55 + theme.bottom_padding
         bg_y = h - bg_height
-        self._draw_background(cr, icon_offset, bg_y, zoomed_w, bg_height, theme)
+        self._draw_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
         # Update slide animation offsets (detect items that moved)
         self._update_slide_offsets(items, layout, icon_offset)

@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from docking.zoom import compute_icon_zoom, compute_layout, total_width, LayoutItem
+from docking.zoom import compute_icon_zoom, compute_layout, total_width, content_bounds, LayoutItem
 
 
 class TestComputeIconZoom:
@@ -159,3 +159,122 @@ class TestCenteringOffset:
         edge_w = total_width(edge_layout, 48, 10, 12)
 
         assert center_w >= edge_w
+
+
+class TestPlankDisplacement:
+    """Tests for Plank-style per-icon displacement (no cascading shifts)."""
+
+    def _make_config(self, zoom_percent=1.5, zoom_range=3):
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = zoom_percent
+        config.zoom_range = zoom_range
+        return config
+
+    def test_far_icons_have_constant_displacement(self):
+        """Icons beyond zoom range all get the same small fixed displacement."""
+        items = [MagicMock() for _ in range(8)]
+        config = self._make_config()
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        hover_left = compute_layout(items, config, 36.0, item_padding=10, h_padding=12)
+
+        # Far icons should all have scale=1.0
+        for i in range(5, 8):
+            assert hover_left[i].scale == pytest.approx(1.0, abs=0.01)
+
+        # Far icons should all have the SAME displacement (constant, not cascading)
+        displacements = [hover_left[i].x - rest[i].x for i in range(5, 8)]
+        for d in displacements:
+            assert d == pytest.approx(displacements[0], abs=0.1)
+
+    def test_hover_right_left_icons_shift_uniformly(self):
+        """Hovering right icon — left icons shift left by a constant amount."""
+        items = [MagicMock() for _ in range(8)]
+        config = self._make_config()
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        last_center = rest[-1].x + 24
+        hover_right = compute_layout(items, config, last_center, item_padding=10, h_padding=12)
+
+        # Far-left icons should all shift by the same constant amount
+        displacements = [hover_right[i].x - rest[i].x for i in range(3)]
+        for d in displacements:
+            assert d == pytest.approx(displacements[0], abs=0.1)
+
+    def test_icons_push_away_from_cursor(self):
+        """Icons near cursor should be pushed away (left goes left, right goes right)."""
+        items = [MagicMock() for _ in range(5)]
+        config = self._make_config()
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # Hover center icon
+        center_x = rest[2].x + 24
+        zoomed = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
+
+        # Icons left of cursor should shift left (smaller x)
+        assert zoomed[0].x <= rest[0].x
+        assert zoomed[1].x <= rest[1].x
+        # Icons right of cursor should shift right (larger x)
+        assert zoomed[3].x >= rest[3].x
+        assert zoomed[4].x >= rest[4].x
+
+    def test_hovered_icon_scales_up(self):
+        """The icon directly under cursor should have max zoom."""
+        items = [MagicMock() for _ in range(5)]
+        config = self._make_config()
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        center_x = rest[2].x + 24
+        zoomed = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
+
+        assert zoomed[2].scale == pytest.approx(1.5, abs=0.05)
+
+
+class TestContentBounds:
+    def test_no_layout_returns_zero_and_padding(self):
+        left, right = content_bounds([], 48, 12)
+        assert left == 0.0
+        assert right == pytest.approx(24.0)
+
+    def test_rest_layout_bounds(self):
+        """Rest layout should have left edge at 0 and right edge at base_w."""
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = False
+        config.zoom_percent = 1.0
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(3)]
+        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        left, right = content_bounds(layout, 48, 12)
+        expected_w = 12 * 2 + 3 * 48 + 2 * 10
+        assert left == pytest.approx(0.0)
+        assert right == pytest.approx(expected_w)
+
+    def test_zoomed_bounds_wider_than_rest(self):
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(5)]
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest_l, rest_r = content_bounds(rest, 48, 12)
+
+        zoomed = compute_layout(items, config, 150.0, item_padding=10, h_padding=12)
+        zoom_l, zoom_r = content_bounds(zoomed, 48, 12)
+
+        assert (zoom_r - zoom_l) >= (rest_r - rest_l)
+
+    def test_left_edge_can_go_negative_during_zoom(self):
+        """When hovering right side, left icons displace left — left_edge may be < 0."""
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(5)]
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # Hover far right
+        zoomed = compute_layout(items, config, rest[-1].x + 24, item_padding=10, h_padding=12)
+        left, _ = content_bounds(zoomed, 48, 12)
+        # Left edge should be at or below the rest left edge
+        rest_left, _ = content_bounds(rest, 48, 12)
+        assert left <= rest_left

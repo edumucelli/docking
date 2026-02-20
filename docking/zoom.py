@@ -60,14 +60,10 @@ def compute_layout(
     item_padding: float = 6.0,
     h_padding: float = 12.0,
 ) -> list[LayoutItem]:
-    """Compute the X position and scale of each icon with zoom applied.
+    """Compute icon positions using Plank's per-icon displacement approach.
 
-    Two-pass algorithm:
-    1. Compute scales based on rest positions (approximate).
-    2. Layout with actual zoomed sizes to get final X positions.
-
-    Returns:
-        List of LayoutItem with x position and scale for each icon.
+    Each icon starts at its rest center and gets pushed away from the cursor.
+    Distant icons stay put — no cascading shifts.
     """
     n = len(items)
     if n == 0:
@@ -76,28 +72,64 @@ def compute_layout(
     icon_size = config.icon_size
     zoom_percent = config.zoom_percent if config.zoom_enabled else 1.0
     zoom_range = config.zoom_range
+    # Plank: zoom_icon_size = icon_size * zoom_percent (NOT zoom_range)
+    # This controls how far the displacement extends — one zoomed icon width
+    zoom_icon_size = icon_size * zoom_percent
 
-    # Pass 1: compute rest-position centers and initial scales
-    rest_x = h_padding
-    centers: list[float] = []
+    # Rest-position centers
+    rest_centers: list[float] = []
+    x = h_padding + icon_size / 2
     for _ in range(n):
-        center = rest_x + icon_size / 2
-        centers.append(center)
-        rest_x += icon_size + item_padding
+        rest_centers.append(x)
+        x += icon_size + item_padding
 
-    scales = [
-        compute_icon_zoom(cursor_x, c, icon_size, zoom_percent, zoom_range)
-        for c in centers
-    ]
-
-    # Pass 2: layout with zoomed sizes
-    x = h_padding
     result: list[LayoutItem] = []
     for i in range(n):
-        result.append(LayoutItem(x=x, scale=scales[i]))
-        x += icon_size * scales[i] + item_padding
+        center = rest_centers[i]
+
+        if cursor_x < 0:
+            # No hover — rest positions
+            result.append(LayoutItem(x=center - icon_size / 2, scale=1.0))
+            continue
+
+        # Displacement: push icon away from cursor (Plank's formula)
+        offset = min(abs(cursor_x - center), zoom_icon_size)
+        offset_pct = offset / zoom_icon_size if zoom_icon_size > 0 else 1.0
+        if offset_pct > 0.99:
+            offset_pct = 1.0
+
+        # Taper the displacement: center icons move more, edge icons barely move
+        displacement = offset * (zoom_percent - 1.0) * (1.0 - offset_pct / 3.0)
+
+        # Push away from cursor
+        if cursor_x > center:
+            center -= displacement
+        else:
+            center += displacement
+
+        # Zoom scale (same parabolic curve)
+        zoom = 1.0 - offset_pct ** 2
+        scale = 1.0 + zoom * (zoom_percent - 1.0)
+
+        # Position: center minus half the zoomed icon size
+        result.append(LayoutItem(x=center - icon_size * scale / 2, scale=scale))
 
     return result
+
+
+def content_bounds(
+    layout: list[LayoutItem],
+    icon_size: int,
+    h_padding: float,
+) -> tuple[float, float]:
+    """Compute the left and right edges of the content including displacements."""
+    if not layout:
+        return (0.0, 2 * h_padding)
+    first = layout[0]
+    last = layout[-1]
+    left = first.x - h_padding
+    right = last.x + icon_size * last.scale + h_padding
+    return (left, right)
 
 
 def total_width(
@@ -107,7 +139,5 @@ def total_width(
     h_padding: float,
 ) -> float:
     """Compute total dock content width from a layout."""
-    if not layout:
-        return 2 * h_padding
-    last = layout[-1]
-    return last.x + icon_size * last.scale + h_padding
+    left, right = content_bounds(layout, icon_size, h_padding)
+    return max(right - left, 2 * h_padding)

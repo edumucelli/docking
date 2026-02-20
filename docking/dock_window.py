@@ -308,10 +308,11 @@ class DockWindow(Gtk.Window):
 
     def _zoomed_x_offset(self, layout: list) -> float:
         """X offset matching where icons are actually rendered."""
-        from docking.zoom import total_width
-        zoomed_w = total_width(layout, self.config.icon_size, self.theme.item_padding, self.theme.h_padding)
+        from docking.zoom import content_bounds
+        left_edge, right_edge = content_bounds(layout, self.config.icon_size, self.theme.h_padding)
+        zoomed_w = right_edge - left_edge
         window_w, _ = self.get_size()
-        return (window_w - zoomed_w) / 2
+        return (window_w - zoomed_w) / 2 - left_edge
 
     def _hit_test(self, x: float, layout: list) -> object | None:
         """Find which DockItem is under the cursor x position (window-space)."""
