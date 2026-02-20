@@ -19,16 +19,27 @@ DEFAULT_PINNED: list[str] = []
 class Config:
     """Dock configuration with sensible defaults."""
 
+    # Base icon size in pixels (before zoom)
     icon_size: int = 48
+    # Whether parabolic zoom on hover is enabled
     zoom_enabled: bool = True
+    # Max zoom multiplier (1.5 = 150%, Plank default)
     zoom_percent: float = 1.5
+    # Number of icon widths over which the zoom tapers off
     zoom_range: int = 3
+    # Screen edge where the dock is placed
     position: str = "bottom"
+    # Whether the dock hides when the cursor leaves
     autohide: bool = False
+    # Delay in ms before the dock starts hiding after cursor leaves
     hide_delay_ms: int = 500
+    # Delay in ms before the dock starts showing when cursor returns
     unhide_delay_ms: int = 0
+    # Duration of the hide/show slide animation in ms
     hide_time_ms: int = 250
+    # Theme name (loads from assets/themes/{name}.json)
     theme: str = "default"
+    # Desktop file IDs of pinned applications, in display order
     pinned: list[str] = field(default_factory=lambda: list(DEFAULT_PINNED))
 
     @classmethod

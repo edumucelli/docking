@@ -10,8 +10,11 @@ from typing import Any
 # Bundled themes directory (relative to package)
 _BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
 
+# RGBA color as Cairo-compatible floats (0.0–1.0)
+RGBA = tuple[float, float, float, float]
 
-def _rgba(values: list[int]) -> tuple[float, float, float, float]:
+
+def _rgba(values: list[int]) -> RGBA:
     """Convert [R, G, B, A] (0-255) to Cairo-compatible (0.0-1.0) tuple."""
     return (values[0] / 255, values[1] / 255, values[2] / 255, values[3] / 255)
 
@@ -20,14 +23,14 @@ def _rgba(values: list[int]) -> tuple[float, float, float, float]:
 class Theme:
     """Visual theme for the dock."""
 
-    fill_start: tuple[float, float, float, float] = (41/255, 41/255, 41/255, 1.0)
-    fill_end: tuple[float, float, float, float] = (80/255, 80/255, 80/255, 1.0)
-    stroke: tuple[float, float, float, float] = (41/255, 41/255, 41/255, 1.0)
+    fill_start: RGBA = (41/255, 41/255, 41/255, 1.0)
+    fill_end: RGBA = (80/255, 80/255, 80/255, 1.0)
+    stroke: RGBA = (41/255, 41/255, 41/255, 1.0)
     stroke_width: float = 1.0
-    inner_stroke: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)
+    inner_stroke: RGBA = (1.0, 1.0, 1.0, 1.0)
     roundness: float = 4.0
-    indicator_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 200/255)
-    active_indicator_color: tuple[float, float, float, float] = (100/255, 180/255, 1.0, 1.0)
+    indicator_color: RGBA = (1.0, 1.0, 1.0, 200/255)
+    active_indicator_color: RGBA = (100/255, 180/255, 1.0, 1.0)
     indicator_radius: float = 2.5
     h_padding: float = 12.0
     top_padding: float = 4.0
