@@ -43,6 +43,7 @@ def main() -> None:
     window.set_menu_handler(menu)
 
     preview = PreviewPopup(tracker)
+    preview.set_autohide(autohide)
     window.set_preview_popup(preview)
 
     # Graceful shutdown on SIGINT/SIGTERM

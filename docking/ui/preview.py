@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from docking.log import get_logger
+
+log = get_logger("preview")
+
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
@@ -127,6 +131,7 @@ class PreviewPopup(Gtk.Window):
         _ensure_css()
 
         self._tracker = tracker
+        self._autohide = None  # set via set_autohide()
         self._hide_timer_id: int = 0
         self._current_desktop_id: str = ""
 
@@ -145,6 +150,9 @@ class PreviewPopup(Gtk.Window):
 
         self.connect("enter-notify-event", self._on_enter)
         self.connect("leave-notify-event", self._on_leave)
+
+    def set_autohide(self, controller) -> None:
+        self._autohide = controller
 
     def show_for_item(self, desktop_id: str, icon_x: float, icon_w: float, dock_y: int) -> None:
         """Show preview popup above a dock icon.
@@ -240,25 +248,38 @@ class PreviewPopup(Gtk.Window):
         return True
 
     def _on_enter(self, widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
-        """Keep popup visible while mouse is inside."""
+        """Keep popup and dock visible while mouse is inside preview."""
+        log.debug("preview enter: detail=%s mode=%s", event.detail, event.mode)
         self._cancel_hide_timer()
+        if self._autohide:
+            self._autohide.on_mouse_enter()
         return False
 
     def _on_leave(self, widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
         """Start hide timer when mouse leaves popup."""
+        # Ignore leave events caused by child widgets (e.g. hovering over a thumbnail)
+        if event.detail == Gdk.NotifyType.INFERIOR:
+            log.debug("preview leave: INFERIOR (ignored)")
+            return False
+        log.debug("preview leave: detail=%s mode=%s", event.detail, event.mode)
         self._schedule_hide()
+        if self._autohide:
+            self._autohide.on_mouse_leave()
         return False
 
     def schedule_hide(self) -> None:
         """Public method for dock_window to start the hide timer."""
+        log.debug("preview schedule_hide (from dock_window)")
         self._schedule_hide()
 
     def _schedule_hide(self, delay_ms: int = 300) -> None:
         """Hide after a grace period (lets user move mouse to popup)."""
         self._cancel_hide_timer()
+        log.debug("preview: scheduling hide in %dms", delay_ms)
         self._hide_timer_id = GLib.timeout_add(delay_ms, self._do_hide)
 
     def _do_hide(self) -> bool:
+        log.debug("preview: hiding")
         self._hide_timer_id = 0
         self._current_desktop_id = ""
         self.hide()

@@ -6,6 +6,10 @@ import enum
 import math
 from typing import TYPE_CHECKING
 
+from docking.log import get_logger
+
+log = get_logger("autohide")
+
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib  # noqa: E402
@@ -67,6 +71,7 @@ class AutoHideController:
         """Called when mouse leaves the dock area."""
         if not self.enabled:
             return
+        log.debug("on_mouse_leave: state=%s", self.state.value)
 
         self._cancel_unhide_timer()
 
@@ -81,6 +86,7 @@ class AutoHideController:
         """Called when mouse enters the dock area."""
         if not self.enabled:
             return
+        log.debug("on_mouse_enter: state=%s", self.state.value)
 
         self._cancel_hide_timer()
 

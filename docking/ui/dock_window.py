@@ -229,11 +229,14 @@ class DockWindow(Gtk.Window):
         self.cursor_x = -1.0
         self._hovered_item = None
         self._cancel_preview_timer()
-        if self._preview:
+
+        # If preview is visible, don't hide dock — let preview manage autohide
+        preview_visible = self._preview and self._preview.get_visible()
+        if self._preview and not preview_visible:
             self._preview.schedule_hide()
         self._update_dock_size()
         widget.queue_draw()
-        if self._autohide:
+        if self._autohide and not preview_visible:
             self._autohide.on_mouse_leave()
         return True
 
