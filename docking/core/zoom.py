@@ -135,7 +135,6 @@ def content_bounds(
 def total_width(
     layout: list[LayoutItem],
     icon_size: int,
-    item_padding: float,
     h_padding: float,
 ) -> float:
     """Compute total dock content width from a layout."""

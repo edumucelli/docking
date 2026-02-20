@@ -15,7 +15,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk  # noqa: E402
 
-from docking.core.zoom import compute_layout, total_width, content_bounds
+from docking.core.zoom import compute_layout, content_bounds
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -79,16 +79,6 @@ class DockRenderer:
         )
         height = int(icon_size + theme.top_padding + theme.bottom_padding)
         return max(width, 1), max(height, 1)
-
-    def compute_zoomed_width(
-        self,
-        layout: list[LayoutItem],
-        config: Config,
-        theme: Theme,
-    ) -> int:
-        """Compute total dock width from a zoomed layout."""
-        w = total_width(layout, config.icon_size, theme.item_padding, theme.h_padding)
-        return max(int(w), 1)
 
     def draw(
         self,

@@ -123,8 +123,8 @@ class TestComputeLayout:
             items, config, 100.0, item_padding=6, h_padding=12
         )
         layout_flat = compute_layout(items, config, -1.0, item_padding=6, h_padding=12)
-        w_zoomed = total_width(layout_zoomed, 48, 6, 12)
-        w_flat = total_width(layout_flat, 48, 6, 12)
+        w_zoomed = total_width(layout_zoomed, 48, 12)
+        w_flat = total_width(layout_flat, 48, 12)
         # Then
         assert w_zoomed >= w_flat
 
@@ -143,7 +143,7 @@ class TestComputeLayout:
 class TestTotalWidth:
     def test_empty_layout(self):
         # Given / When
-        result = total_width([], 48, 6, 12)
+        result = total_width([], 48, 12)
         # Then
         assert result == pytest.approx(24.0)
 
@@ -151,7 +151,7 @@ class TestTotalWidth:
         # Given
         layout = [LayoutItem(x=12.0, scale=1.0)]
         # When
-        result = total_width(layout, 48, 6, 12)
+        result = total_width(layout, 48, 12)
         # Then — 12 + 48*1 + 12 = 72
         assert result == pytest.approx(72.0)
 
@@ -160,7 +160,7 @@ class TestTotalWidth:
         flat = [LayoutItem(x=12.0, scale=1.0), LayoutItem(x=66.0, scale=1.0)]
         zoomed = [LayoutItem(x=12.0, scale=1.5), LayoutItem(x=84.0, scale=1.5)]
         # When / Then
-        assert total_width(zoomed, 48, 6, 12) > total_width(flat, 48, 6, 12)
+        assert total_width(zoomed, 48, 12) > total_width(flat, 48, 12)
 
 
 class TestCenteringOffset:
@@ -181,7 +181,7 @@ class TestCenteringOffset:
         config = self._make_config(zoom_enabled=False)
         # When
         layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        w = total_width(layout, 48, 10, 12)
+        w = total_width(layout, 48, 12)
         # Then
         expected = 12 + 5 * 48 + 4 * 10 + 12  # h_pad + icons + gaps + h_pad
         assert w == pytest.approx(expected)
@@ -191,12 +191,12 @@ class TestCenteringOffset:
         items = [MagicMock() for _ in range(5)]
         config = self._make_config()
         base_layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        base_w = total_width(base_layout, 48, 10, 12)
+        base_w = total_width(base_layout, 48, 12)
         # When
         zoomed_layout = compute_layout(
             items, config, 150.0, item_padding=10, h_padding=12
         )
-        zoomed_w = total_width(zoomed_layout, 48, 10, 12)
+        zoomed_w = total_width(zoomed_layout, 48, 12)
         # Then
         assert zoomed_w > base_w
 
@@ -206,15 +206,15 @@ class TestCenteringOffset:
         items = [MagicMock() for _ in range(5)]
         config = self._make_config()
         base_layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        base_w = total_width(base_layout, 48, 10, 12)
+        base_w = total_width(base_layout, 48, 12)
         center = base_w / 2
         # When
         center_layout = compute_layout(
             items, config, center, item_padding=10, h_padding=12
         )
-        center_w = total_width(center_layout, 48, 10, 12)
+        center_w = total_width(center_layout, 48, 12)
         edge_layout = compute_layout(items, config, 12.0, item_padding=10, h_padding=12)
-        edge_w = total_width(edge_layout, 48, 10, 12)
+        edge_w = total_width(edge_layout, 48, 12)
         # Then
         assert center_w >= edge_w
 
