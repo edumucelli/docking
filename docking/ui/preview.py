@@ -284,7 +284,7 @@ class PreviewPopup(Gtk.Window):
         self._hide_timer_id = 0
         self._current_desktop_id = ""
         self.hide()
-        return GLib.SOURCE_REMOVE
+        return False
 
     def _cancel_hide_timer(self) -> None:
         if self._hide_timer_id:

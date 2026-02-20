@@ -37,7 +37,7 @@ class WindowTracker:
         """Initialize Wnck screen and connect signals."""
         self._screen = Wnck.Screen.get_default()
         if self._screen is None:
-            return GLib.SOURCE_REMOVE
+            return False
 
         self._screen.force_update()
         self._screen.connect("window-opened", self._on_window_changed)
@@ -46,7 +46,7 @@ class WindowTracker:
 
         # Initial scan
         self._update_running()
-        return GLib.SOURCE_REMOVE
+        return False
 
     def _on_window_changed(self, screen: Wnck.Screen, *args: Any) -> None:
         """Called when any window state changes."""

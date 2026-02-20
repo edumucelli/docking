@@ -102,7 +102,7 @@ class AutoHideController:
         self.state = HideState.HIDING
         self._anim_progress = 0.0
         self._start_animation()
-        return GLib.SOURCE_REMOVE
+        return False
 
     def _start_showing(self) -> bool:
         """Begin show animation."""
@@ -110,7 +110,7 @@ class AutoHideController:
         self.state = HideState.SHOWING
         self._anim_progress = 0.0
         self._start_animation()
-        return GLib.SOURCE_REMOVE
+        return False
 
     def _start_animation(self) -> None:
         """Start the animation tick loop."""
@@ -131,7 +131,7 @@ class AutoHideController:
                 self.hide_offset = 1.0
                 self._anim_timer_id = 0
                 self._window.queue_redraw()
-                return GLib.SOURCE_REMOVE
+                return False
 
         elif self.state == HideState.SHOWING:
             self.hide_offset = 1.0 - ease_out_cubic(self._anim_progress)
@@ -140,10 +140,10 @@ class AutoHideController:
                 self.hide_offset = 0.0
                 self._anim_timer_id = 0
                 self._window.queue_redraw()
-                return GLib.SOURCE_REMOVE
+                return False
 
         self._window.queue_redraw()
-        return GLib.SOURCE_CONTINUE
+        return True
 
     def _cancel_hide_timer(self) -> None:
         if self._hide_timer_id:

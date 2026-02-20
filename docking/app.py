@@ -56,4 +56,4 @@ def main() -> None:
 
 def _quit() -> bool:
     Gtk.main_quit()
-    return GLib.SOURCE_REMOVE
+    return False

@@ -264,7 +264,7 @@ class DockWindow(Gtk.Window):
             + n * self.config.icon_size
             + max(0, n - 1) * self.theme.item_padding
         )
-        window_w, _ = self.get_size()
+        window_w: int = self.get_size()[0]
         return (window_w - base_w) / 2
 
     def _local_cursor_x(self) -> float:
@@ -277,7 +277,7 @@ class DockWindow(Gtk.Window):
         """X offset matching where icons are actually rendered."""
         left_edge, right_edge = content_bounds(layout, self.config.icon_size, self.theme.h_padding)
         zoomed_w = right_edge - left_edge
-        window_w, _ = self.get_size()
+        window_w: int = self.get_size()[0]
         return (window_w - zoomed_w) / 2 - left_edge
 
     def _hit_test(self, x: float, layout: list[LayoutItem]) -> DockItem | None:
@@ -332,7 +332,7 @@ class DockWindow(Gtk.Window):
         """Show the preview popup above the hovered icon."""
         self._preview_timer_id = 0
         if not self._preview or self._hovered_item is not item:
-            return GLib.SOURCE_REMOVE
+            return False
 
         # Find the layout entry for this item to get screen coordinates
         items = self.model.visible_items()
@@ -348,7 +348,7 @@ class DockWindow(Gtk.Window):
                 idx = i
                 break
         if idx is None or idx >= len(layout):
-            return GLib.SOURCE_REMOVE
+            return False
 
         li = layout[idx]
         icon_w = li.scale * self.config.icon_size
@@ -357,12 +357,12 @@ class DockWindow(Gtk.Window):
         win_x, win_y = self.get_position()
         # Guard: skip if window hasn't been positioned yet
         if win_x == 0 and win_y == 0:
-            return GLib.SOURCE_REMOVE
+            return False
         icon_abs_x = win_x + li.x + self._zoomed_x_offset(layout)
         dock_abs_y = win_y
 
         self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, dock_abs_y)
-        return GLib.SOURCE_REMOVE
+        return False
 
     def _cancel_preview_timer(self) -> None:
         if self._preview_timer_id:

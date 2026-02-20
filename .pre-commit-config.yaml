@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: pytest
+        name: tests
+        entry: .venv/bin/python -m pytest tests/ -q
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: mypy
+        name: mypy
+        entry: .venv/bin/python -m mypy docking/ --ignore-missing-imports
+        language: system
+        pass_filenames: false
+        always_run: true
