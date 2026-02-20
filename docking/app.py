@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import signal
-import sys
 
 import gi
 gi.require_version("Gtk", "3.0")

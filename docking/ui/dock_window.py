@@ -271,8 +271,6 @@ class DockWindow(Gtk.Window):
         items = self.model.visible_items()
         n = len(items)
         icon_size = self.config.icon_size
-        zoom = self.config.zoom_percent if self.config.zoom_enabled else 1.0
-
         # Content width: use max-zoom width (cursor at center) for generous input area
         base_w = self.theme.h_padding * 2 + n * icon_size + max(0, n - 1) * self.theme.item_padding
         layout = compute_layout(

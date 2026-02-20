@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse, unquote
@@ -13,7 +12,7 @@ log = get_logger("dnd")
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
+from gi.repository import Gtk, Gdk, GdkPixbuf  # noqa: E402
 
 from docking.core.zoom import compute_layout
 from docking.ui.poof import show_poof

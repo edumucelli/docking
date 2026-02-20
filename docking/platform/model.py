@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.launcher import Launcher, DesktopInfo
+    from docking.platform.launcher import Launcher
 
 import gi
 gi.require_version("Gtk", "3.0")

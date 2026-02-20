@@ -71,7 +71,6 @@ def compute_layout(
 
     icon_size = config.icon_size
     zoom_percent = config.zoom_percent if config.zoom_enabled else 1.0
-    zoom_range = config.zoom_range
     # Plank: zoom_icon_size = icon_size * zoom_percent (NOT zoom_range)
     # This controls how far the displacement extends — one zoomed icon width
     zoom_icon_size = icon_size * zoom_percent
