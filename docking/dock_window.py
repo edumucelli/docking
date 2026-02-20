@@ -11,13 +11,14 @@ from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 
 if TYPE_CHECKING:
     from docking.config import Config
-    from docking.dock_model import DockModel
+    from docking.dock_model import DockModel, DockItem
     from docking.dock_renderer import DockRenderer
     from docking.theme import Theme
     from docking.autohide import AutoHideController
     from docking.window_tracker import WindowTracker
     from docking.dnd import DnDHandler
     from docking.menu import MenuHandler
+    from docking.preview import PreviewPopup
 
 
 class DockWindow(Gtk.Window):
@@ -42,6 +43,9 @@ class DockWindow(Gtk.Window):
         self._autohide: AutoHideController | None = None
         self._dnd: DnDHandler | None = None
         self._menu: MenuHandler | None = None
+        self._preview: PreviewPopup | None = None
+        self._hovered_item: DockItem | None = None
+        self._preview_timer_id: int = 0
 
         self._setup_window()
         self._setup_drawing_area()
@@ -74,15 +78,20 @@ class DockWindow(Gtk.Window):
             Gdk.EventMask.POINTER_MOTION_MASK
             | Gdk.EventMask.BUTTON_PRESS_MASK
             | Gdk.EventMask.BUTTON_RELEASE_MASK
+            | Gdk.EventMask.BUTTON1_MOTION_MASK
             | Gdk.EventMask.ENTER_NOTIFY_MASK
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
         self.drawing_area.connect("draw", self._on_draw)
         self.drawing_area.connect("motion-notify-event", self._on_motion)
         self.drawing_area.connect("button-press-event", self._on_button_press)
+        self.drawing_area.connect("button-release-event", self._on_button_release)
         self.drawing_area.connect("leave-notify-event", self._on_leave)
         self.drawing_area.connect("enter-notify-event", self._on_enter)
         self.add(self.drawing_area)
+
+        self._click_x: float = -1.0
+        self._click_button: int = 0
 
     def _connect_model(self) -> None:
         """Listen for model changes to trigger redraws."""
@@ -96,6 +105,9 @@ class DockWindow(Gtk.Window):
 
     def set_menu_handler(self, handler: MenuHandler) -> None:
         self._menu = handler
+
+    def set_preview_popup(self, preview: PreviewPopup) -> None:
+        self._preview = preview
 
     def _on_realize(self, widget: Gtk.Widget) -> None:
         """Position dock and set struts after window is realized."""
@@ -203,10 +215,21 @@ class DockWindow(Gtk.Window):
         self.cursor_y = event.y
         self._update_dock_size()
         widget.queue_draw()
-        return True
+        self._update_hovered_item()
+        return False  # Propagate so GTK drag source can detect drag threshold
 
     def _on_button_press(self, widget: Gtk.DrawingArea, event: Gdk.EventButton) -> bool:
-        """Handle clicks on dock items."""
+        """Record press position for click vs drag discrimination."""
+        self._click_x = event.x
+        self._click_button = event.button
+        return False  # Propagate so DnD can still work
+
+    def _on_button_release(self, widget: Gtk.DrawingArea, event: Gdk.EventButton) -> bool:
+        """Handle clicks on dock items (on release to avoid DnD conflicts)."""
+        # Only act if release is near the press point (not a drag)
+        if abs(event.x - self._click_x) > 10:
+            return False
+
         if event.button == 3:
             if self._menu:
                 self._menu.show(event, self.cursor_x)
@@ -215,7 +238,9 @@ class DockWindow(Gtk.Window):
         if event.button == 1 or event.button == 2:
             from docking.zoom import compute_layout
             layout = compute_layout(
-                self.model.visible_items(), self.config, self.cursor_x
+                self.model.visible_items(), self.config, self.cursor_x,
+                item_padding=self.theme.item_padding,
+                h_padding=self.theme.h_padding,
             )
             item = self._hit_test(event.x, layout)
             if item is None:
@@ -239,6 +264,10 @@ class DockWindow(Gtk.Window):
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
         self.cursor_x = -1.0
+        self._hovered_item = None
+        self._cancel_preview_timer()
+        if self._preview:
+            self._preview.schedule_hide()
         self._update_dock_size()
         widget.queue_draw()
         if self._autohide:
@@ -260,13 +289,15 @@ class DockWindow(Gtk.Window):
         """Recalculate dock dimensions and reposition if size changed."""
         from docking.zoom import compute_layout
         items = self.model.visible_items()
-        layout = compute_layout(items, self.config, self.cursor_x)
-        total_width = self.renderer.compute_zoomed_width(layout, self.config, self.theme)
-        _, base_height = self.renderer.compute_dock_size(
-            self.model, self.config, self.theme
+        layout = compute_layout(
+            items, self.config, self.cursor_x,
+            item_padding=self.theme.item_padding,
+            h_padding=self.theme.h_padding,
         )
-        zoomed_icon = self.config.icon_size * self.config.zoom_percent if self.config.zoom_enabled else self.config.icon_size
-        total_height = int(zoomed_icon + self.theme.top_padding + self.theme.bottom_padding)
+        total_width = self.renderer.compute_zoomed_width(layout, self.config, self.theme)
+        max_scale = max((li.scale for li in layout), default=1.0)
+        max_icon = self.config.icon_size * max_scale
+        total_height = int(max_icon + self.theme.top_padding + self.theme.bottom_padding)
 
         current_w, current_h = self.get_size()
         if total_width != current_w or total_height != current_h:
@@ -300,3 +331,70 @@ class DockWindow(Gtk.Window):
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
         self.drawing_area.queue_draw()
+
+    # -- Preview popup hover tracking --
+
+    def _update_hovered_item(self) -> None:
+        """Detect which item the cursor is over and manage preview timer."""
+        from docking.zoom import compute_layout
+        items = self.model.visible_items()
+        layout = compute_layout(
+            items, self.config, self.cursor_x,
+            item_padding=self.theme.item_padding,
+            h_padding=self.theme.h_padding,
+        )
+        item = self._hit_test(self.cursor_x, layout)
+
+        if item is self._hovered_item:
+            return
+
+        self._hovered_item = item
+        self._cancel_preview_timer()
+
+        if self._preview:
+            # If hovering a different running item, start timer to show preview
+            if item and item.is_running and item.instance_count > 0:
+                self._preview_timer_id = GLib.timeout_add(
+                    400, self._show_preview, item, layout
+                )
+            else:
+                self._preview.schedule_hide()
+
+    def _show_preview(self, item, layout) -> bool:
+        """Show the preview popup above the hovered icon."""
+        self._preview_timer_id = 0
+        if not self._preview or self._hovered_item is not item:
+            return GLib.SOURCE_REMOVE
+
+        # Find the layout entry for this item to get screen coordinates
+        from docking.zoom import compute_layout
+        items = self.model.visible_items()
+        layout = compute_layout(
+            items, self.config, self.cursor_x,
+            item_padding=self.theme.item_padding,
+            h_padding=self.theme.h_padding,
+        )
+
+        idx = None
+        for i, it in enumerate(items):
+            if it is item:
+                idx = i
+                break
+        if idx is None or idx >= len(layout):
+            return GLib.SOURCE_REMOVE
+
+        li = layout[idx]
+        icon_w = li.scale * self.config.icon_size
+
+        # Convert icon position to absolute screen coordinates
+        win_x, win_y = self.get_position()
+        icon_abs_x = win_x + li.x
+        dock_abs_y = win_y
+
+        self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, dock_abs_y)
+        return GLib.SOURCE_REMOVE
+
+    def _cancel_preview_timer(self) -> None:
+        if self._preview_timer_id:
+            GLib.source_remove(self._preview_timer_id)
+            self._preview_timer_id = 0

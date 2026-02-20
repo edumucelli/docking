@@ -18,12 +18,23 @@ if TYPE_CHECKING:
     from docking.zoom import LayoutItem
 
 
-def _rounded_rect(cr: cairo.Context, x: float, y: float, w: float, h: float, r: float) -> None:
-    """Draw a rounded rectangle path."""
+def _rounded_rect(cr: cairo.Context, x: float, y: float, w: float, h: float, r: float,
+                   round_bottom: bool = True) -> None:
+    """Draw a rounded rectangle path, optionally with square bottom corners."""
     cr.new_sub_path()
+    # Top-right (rounded)
     cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+    if round_bottom:
+        # Bottom-right (rounded)
+        cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
+        # Bottom-left (rounded)
+        cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+    else:
+        # Bottom-right (square)
+        cr.line_to(x + w, y + h)
+        # Bottom-left (square)
+        cr.line_to(x, y + h)
+    # Top-left (rounded)
     cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
     cr.close_path()
 
@@ -91,8 +102,10 @@ class DockRenderer:
             h_padding=theme.h_padding,
         )
 
-        # Draw background
-        self._draw_background(cr, w, h, theme)
+        # Draw background — shorter shelf at the bottom, icons overflow above
+        bg_height = config.icon_size * 0.55 + theme.bottom_padding
+        bg_y = h - bg_height
+        self._draw_background(cr, 0, bg_y, w, bg_height, theme)
 
         # Draw icons
         icon_size = config.icon_size
@@ -107,15 +120,15 @@ class DockRenderer:
                 self._draw_indicator(cr, item, li, icon_size, h, theme)
 
     def _draw_background(
-        self, cr: cairo.Context, w: float, h: float, theme: Theme,
+        self, cr: cairo.Context, x: float, y: float, w: float, h: float, theme: Theme,
     ) -> None:
-        """Draw the dock background with gradient fill and stroke."""
+        """Draw the dock background shelf with gradient fill and stroke."""
         r = theme.roundness
         margin = theme.stroke_width / 2
-        _rounded_rect(cr, margin, margin, w - 2 * margin, h - 2 * margin, r)
+        _rounded_rect(cr, x + margin, y + margin, w - 2 * margin, h - 2 * margin, r, round_bottom=False)
 
         # Vertical gradient fill
-        pat = cairo.LinearGradient(0, 0, 0, h)
+        pat = cairo.LinearGradient(0, y, 0, y + h)
         pat.add_color_stop_rgba(0, *theme.fill_start)
         pat.add_color_stop_rgba(1, *theme.fill_end)
         cr.set_source(pat)

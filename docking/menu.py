@@ -34,7 +34,12 @@ class MenuHandler:
         """Show context menu at cursor position."""
         from docking.zoom import compute_layout
         items = self._model.visible_items()
-        layout = compute_layout(items, self._config, cursor_x)
+        theme = self._window.theme
+        layout = compute_layout(
+            items, self._config, cursor_x,
+            item_padding=theme.item_padding,
+            h_padding=theme.h_padding,
+        )
         item = self._hit_test(cursor_x, items, layout)
 
         menu = Gtk.Menu()
@@ -98,9 +103,19 @@ class MenuHandler:
         size_item.set_submenu(size_menu)
         menu.append(size_item)
 
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Quit
+        quit_item = Gtk.MenuItem(label="Quit")
+        quit_item.connect("activate", lambda _: Gtk.main_quit())
+        menu.append(quit_item)
+
     def _on_autohide_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.autohide = widget.get_active()
         self._config.save()
+        # Reset hide state when toggling off so dock becomes visible immediately
+        if not self._config.autohide and self._window._autohide:
+            self._window._autohide.reset()
 
     def _on_icon_size_changed(self, widget: Gtk.MenuItem, size: int) -> None:
         if widget.get_active():

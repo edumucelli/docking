@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import gi
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Wnck, GLib  # noqa: E402
+from gi.repository import Wnck, Gtk, GLib  # noqa: E402
 
 if TYPE_CHECKING:
     from docking.dock_model import DockModel
@@ -119,6 +119,17 @@ class WindowTracker:
 
         return None
 
+    def get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
+        """Get all windows belonging to a desktop_id."""
+        return self._get_windows_for(desktop_id)
+
+    def activate_window(self, window: Wnck.Window) -> None:
+        """Activate a specific window."""
+        timestamp = Gtk.get_current_event_time() or 0
+        if window.is_minimized():
+            window.unminimize(timestamp)
+        window.activate(timestamp)
+
     def toggle_focus(self, desktop_id: str) -> None:
         """Focus or minimize windows for a desktop_id (smart focus)."""
         if self._screen is None:
@@ -136,14 +147,14 @@ class WindowTracker:
                 w.minimize()
         else:
             # Activate the most recent window
-            now = GLib.get_monotonic_time() // 1000  # milliseconds
-            windows[0].activate(int(now // 1000))
+            timestamp = Gtk.get_current_event_time() or 0
+            windows[0].activate(timestamp)
 
     def close_all(self, desktop_id: str) -> None:
         """Close all windows for a desktop_id."""
-        now = GLib.get_monotonic_time() // 1000
+        timestamp = Gtk.get_current_event_time() or 0
         for w in self._get_windows_for(desktop_id):
-            w.close(int(now // 1000))
+            w.close(timestamp)
 
     def _get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
         """Get all windows belonging to a desktop_id."""

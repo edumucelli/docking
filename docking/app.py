@@ -19,6 +19,7 @@ from docking.window_tracker import WindowTracker
 from docking.autohide import AutoHideController
 from docking.dnd import DnDHandler
 from docking.menu import MenuHandler
+from docking.preview import PreviewPopup
 
 
 def main() -> None:
@@ -35,11 +36,14 @@ def main() -> None:
     autohide = AutoHideController(window, config)
     window.set_autohide_controller(autohide)
 
-    dnd = DnDHandler(window, model, config, renderer, theme)
+    dnd = DnDHandler(window, model, config, renderer, theme, launcher)
     window.set_dnd_handler(dnd)
 
     menu = MenuHandler(window, model, config, tracker)
     window.set_menu_handler(menu)
+
+    preview = PreviewPopup(tracker)
+    window.set_preview_popup(preview)
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)

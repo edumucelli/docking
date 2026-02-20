@@ -169,6 +169,47 @@ class DockModel:
             self._sync_pinned_to_config()
             self._notify()
 
+    def reorder_visible(self, from_index: int, to_index: int) -> None:
+        """Move any visible item, auto-pinning transients as needed.
+
+        Indices are based on visible_items() ordering.
+        """
+        items = self.visible_items()
+        if not (0 <= from_index < len(items) and 0 <= to_index < len(items)):
+            return
+
+        item = items[from_index]
+
+        # Auto-pin if transient
+        if not item.is_pinned:
+            if item in self._transient:
+                self._transient.remove(item)
+            item.is_pinned = True
+            self._pinned.append(item)
+
+        # Now reorder within _pinned using the item's pinned index
+        pinned_from = self._pinned.index(item)
+
+        # Target: find what pinned index to_index maps to
+        target_item = items[to_index] if to_index < len(items) else None
+        if target_item and not target_item.is_pinned:
+            if target_item in self._transient:
+                self._transient.remove(target_item)
+            target_item.is_pinned = True
+            self._pinned.append(target_item)
+
+        if target_item and target_item in self._pinned:
+            pinned_to = self._pinned.index(target_item)
+        else:
+            pinned_to = len(self._pinned) - 1
+
+        if pinned_from != pinned_to:
+            self._pinned.pop(pinned_from)
+            self._pinned.insert(pinned_to, item)
+
+        self._sync_pinned_to_config()
+        self._notify()
+
     def _sync_pinned_to_config(self) -> None:
         """Update config.pinned to reflect current pinned order."""
         self._config.pinned = [item.desktop_id for item in self._pinned]

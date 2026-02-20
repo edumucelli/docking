@@ -52,6 +52,17 @@ class AutoHideController:
     def enabled(self) -> bool:
         return self._config.autohide
 
+    def reset(self) -> None:
+        """Force dock visible — call when auto-hide is toggled off."""
+        self._cancel_hide_timer()
+        self._cancel_unhide_timer()
+        if self._anim_timer_id:
+            GLib.source_remove(self._anim_timer_id)
+            self._anim_timer_id = 0
+        self.state = HideState.VISIBLE
+        self.hide_offset = 0.0
+        self._window.queue_redraw()
+
     def on_mouse_leave(self) -> None:
         """Called when mouse leaves the dock area."""
         if not self.enabled:
