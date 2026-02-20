@@ -87,6 +87,7 @@ class DockRenderer:
         cursor_x: float,
         hide_offset: float = 0.0,
         drag_index: int = -1,
+        drop_insert_index: int = -1,
     ) -> None:
         """Main draw entry point — called on every 'draw' signal."""
         alloc = widget.get_allocation()
@@ -143,19 +144,24 @@ class DockRenderer:
         # Update slide animation offsets (detect items that moved)
         self._update_slide_offsets(items, layout, icon_offset)
 
-        # Draw icons with slide offset
+        # Gap for external drop insertion
+        gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0
+
+        # Draw icons with slide offset + drop gap
         icon_size = config.icon_size
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
                 continue
             slide = self._slide_offsets.get(item.desktop_id, 0.0)
-            self._draw_icon(cr, item, li, icon_size, h, theme, icon_offset + slide)
+            drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
+            self._draw_icon(cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift)
 
-        # Draw indicators with slide offset
+        # Draw indicators with slide offset + drop gap
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
                 slide = self._slide_offsets.get(item.desktop_id, 0.0)
-                self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset + slide)
+                drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
+                self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift)
 
     def _update_slide_offsets(self, items: list, layout: list, icon_offset: float) -> None:
         """Detect items that changed position and set slide animation offsets."""

@@ -49,6 +49,7 @@ class DnDHandler:
 
         self.drag_index: int = -1
         self._drag_from: int = -1
+        self.drop_insert_index: int = -1  # for external drops: where to insert
 
         self._setup_dnd()
 
@@ -121,7 +122,24 @@ class DnDHandler:
         if self._window._autohide:
             self._window._autohide.on_mouse_enter()
         if self._drag_from < 0:
-            # External drag — just accept it
+            # External drag — compute insert position for gap effect
+            from docking.zoom import compute_layout
+            items = self._model.visible_items()
+            layout = compute_layout(
+                items, self._config, -1.0,
+                item_padding=self._theme.item_padding,
+                h_padding=self._theme.h_padding,
+            )
+            x_offset = self._window._zoomed_x_offset(layout)
+            insert = len(layout)
+            for i, li in enumerate(layout):
+                center = li.x + x_offset + self._config.icon_size / 2
+                if x < center:
+                    insert = i
+                    break
+            if insert != self.drop_insert_index:
+                self.drop_insert_index = insert
+                widget.queue_draw()
             Gdk.drag_status(context, Gdk.DragAction.COPY, time)
             return True
 
@@ -157,7 +175,8 @@ class DnDHandler:
     ) -> bool:
         """Request data for external drops, finalize internal drops."""
         target = widget.drag_dest_find_target(context, None)
-        log.debug("drag-drop: drag_from=%d target=%s", self._drag_from, target)
+        log.debug("drag-drop: drag_from=%d insert=%d target=%s",
+                  self._drag_from, self.drop_insert_index, target)
         if target:
             widget.drag_get_data(context, target, time)
             return True
@@ -176,6 +195,8 @@ class DnDHandler:
             return
 
         # External drop — process URIs
+        insert_at = max(0, self.drop_insert_index)
+        log.debug("drag-data-received: external drop, insert_at=%d", insert_at)
         uris = selection.get_uris()
         if not uris:
             text = selection.get_text()
@@ -188,34 +209,46 @@ class DnDHandler:
             if desktop_id and not self._model.find_by_desktop_id(desktop_id):
                 resolved = self._launcher.resolve(desktop_id)
                 if resolved:
-                    self._config.pinned.append(desktop_id)
                     icon_size = int(self._config.icon_size * self._config.zoom_percent)
                     icon = self._launcher.load_icon(resolved.icon_name, icon_size)
                     from docking.dock_model import DockItem
-                    self._model._pinned.append(DockItem(
+                    item = DockItem(
                         desktop_id=desktop_id,
                         name=resolved.name,
                         icon_name=resolved.icon_name,
                         wm_class=resolved.wm_class,
                         is_pinned=True,
                         icon=icon,
-                    ))
+                    )
+                    # Insert at drop position
+                    insert_at = min(insert_at, len(self._model._pinned))
+                    self._model._pinned.insert(insert_at, item)
+                    self._config.pinned.insert(insert_at, desktop_id)
+                    insert_at += 1
                     added = True
 
+        self.drop_insert_index = -1
         if added:
             self._config.save()
+            self._model._sync_pinned_to_config()
             self._model._notify()
 
         Gtk.drag_finish(context, added, False, time)
 
     def _on_drag_leave(self, widget: Gtk.DrawingArea, context: Gdk.DragContext, time: int) -> None:
-        """Hide dock when drag leaves (leave-notify doesn't fire during DnD)."""
+        """Hide dock when drag leaves (leave-notify doesn't fire during DnD).
+
+        Note: don't clear drop_insert_index here — GTK fires drag-leave
+        before drag-drop, so we need the index to survive until data-received.
+        """
+        widget.queue_draw()
         if self._window._autohide:
             self._window._autohide.on_mouse_leave()
 
     def _on_drag_end(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Clean up drag state and persist order."""
         self.drag_index = -1
+        self.drop_insert_index = -1
         self._drag_from = -1
         self._config.save()
         widget.queue_draw()

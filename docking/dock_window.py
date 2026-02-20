@@ -202,9 +202,10 @@ class DockWindow(Gtk.Window):
         """Render the dock via the renderer."""
         hide_offset = self._autohide.hide_offset if self._autohide else 0.0
         drag_index = self._dnd.drag_index if self._dnd else -1
+        drop_insert = self._dnd.drop_insert_index if self._dnd else -1
         self.renderer.draw(
             cr, widget, self.model, self.config, self.theme,
-            self.cursor_x, hide_offset, drag_index,
+            self.cursor_x, hide_offset, drag_index, drop_insert,
         )
         return True
 
