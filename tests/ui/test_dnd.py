@@ -10,7 +10,14 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.ui.dnd import DnDHandler  # noqa: E402
+from docking.ui.dnd import DnDHandler, DRAG_ICON_SCALE  # noqa: E402
+
+
+class TestConstants:
+    def test_drag_icon_scale_reasonable(self):
+        # Given / When / Then
+        assert DRAG_ICON_SCALE > 1.0
+        assert DRAG_ICON_SCALE < 2.0
 
 
 class TestPoofAsset:
@@ -21,6 +28,21 @@ class TestPoofAsset:
         svg = Path(__file__).parent.parent.parent / "docking" / "assets" / "poof.svg"
         # When / Then
         assert svg.exists(), "poof.svg sprite sheet missing"
+
+    def test_poof_svg_path_matches_poof_module(self):
+        """Asset path resolved in tests matches the path used in poof.py."""
+        # Given
+        from pathlib import Path
+        import docking.ui.poof as poof_mod
+
+        poof_py = Path(poof_mod.__file__)
+        # When
+        expected = (poof_py.parent.parent / "assets" / "poof.svg").resolve()
+        test_path = (
+            Path(__file__).parent.parent.parent / "docking" / "assets" / "poof.svg"
+        ).resolve()
+        # Then
+        assert expected == test_path
 
     def test_poof_svg_dimensions(self):
         """SVG should be square-width with multiple frames stacked vertically."""

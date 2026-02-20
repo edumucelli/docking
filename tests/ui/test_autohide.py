@@ -125,6 +125,20 @@ class TestAutoHideState:
         assert ctrl.state == HideState.VISIBLE
         assert ctrl.hide_offset == 0.0
 
+    def test_reset_from_showing(self):
+        # Given
+        ctrl = self._make_controller()
+        ctrl.state = HideState.SHOWING
+        ctrl.hide_offset = 0.4
+        ctrl._anim_timer_id = 42
+        ctrl._unhide_timer_id = 7
+        # When
+        ctrl.reset()
+        # Then
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl.hide_offset == 0.0
+        assert ctrl._anim_timer_id == 0
+
     def test_reset_when_already_visible(self):
         # Given
         ctrl = self._make_controller()

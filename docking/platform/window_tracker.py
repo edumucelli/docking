@@ -51,7 +51,7 @@ class WindowTracker:
         self._update_running()
         return False
 
-    def _on_window_changed(self, screen: Wnck.Screen, *args: Any) -> None:
+    def _on_window_changed(self, _screen: Wnck.Screen, *_args: Any) -> None:
         """Called when any window state changes."""
         self._update_running()
 
@@ -126,7 +126,8 @@ class WindowTracker:
         """Get all windows belonging to a desktop_id."""
         return self._get_windows_for(desktop_id)
 
-    def activate_window(self, window: Wnck.Window) -> None:
+    @staticmethod
+    def activate_window(window: Wnck.Window) -> None:
         """Activate a specific window."""
         timestamp = Gtk.get_current_event_time() or 0
         if window.is_minimized():

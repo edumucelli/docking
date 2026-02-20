@@ -28,7 +28,7 @@ def _load_poof() -> GdkPixbuf.Pixbuf | None:
     svg_path = str(Path(__file__).parent.parent / "assets" / "poof.svg")
     try:
         _poof_pixbuf = GdkPixbuf.Pixbuf.new_from_file(svg_path)
-    except Exception:
+    except (GLib.Error, FileNotFoundError):
         log.warning("poof.svg not found at %s", svg_path)
     return _poof_pixbuf
 
@@ -56,10 +56,12 @@ def show_poof(x: int, y: int) -> None:
         win.set_visual(visual)
 
     # Store animation state on the window to prevent GC issues
-    win._poof_frame = 0
-    win._poof_pixbuf = pixbuf
-    win._poof_frame_size = frame_size
-    win._poof_num_frames = num_frames
+    win.poof = {
+        "frame": 0,
+        "pixbuf": pixbuf,
+        "frame_size": frame_size,
+        "num_frames": num_frames,
+    }
 
     def on_draw(widget: Gtk.Widget, cr: cairo.Context) -> bool:
         cr.set_operator(cairo.OPERATOR_SOURCE)
@@ -67,18 +69,18 @@ def show_poof(x: int, y: int) -> None:
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        f = min(widget._poof_frame, widget._poof_num_frames - 1)
-        Gdk.cairo_set_source_pixbuf(
-            cr, widget._poof_pixbuf, 0, -widget._poof_frame_size * f
-        )
-        cr.rectangle(0, 0, widget._poof_frame_size, widget._poof_frame_size)
+        p = widget.poof
+        f = min(p["frame"], p["num_frames"] - 1)
+        Gdk.cairo_set_source_pixbuf(cr, p["pixbuf"], 0, -p["frame_size"] * f)
+        cr.rectangle(0, 0, p["frame_size"], p["frame_size"])
         cr.fill()
         return True
 
     def tick(w: Gtk.Window) -> bool:
-        w._poof_frame += 1
-        log.debug("tick: frame=%d/%d", w._poof_frame, w._poof_num_frames)
-        if w._poof_frame >= w._poof_num_frames:
+        p = w.poof
+        p["frame"] += 1
+        log.debug("tick: frame=%d/%d", p["frame"], p["num_frames"])
+        if p["frame"] >= p["num_frames"]:
             w.destroy()
             return False
         w.queue_draw()

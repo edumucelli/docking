@@ -125,7 +125,7 @@ class DockWindow(Gtk.Window):
     def set_preview_popup(self, preview: PreviewPopup) -> None:
         self._preview = preview
 
-    def _on_realize(self, widget: Gtk.Widget) -> None:
+    def _on_realize(self, _widget: Gtk.Widget) -> None:
         """Position dock and set struts after window is realized."""
         self._position_dock()
         self._set_struts()
@@ -201,14 +201,16 @@ class DockWindow(Gtk.Window):
         self._update_hovered_item()
         return False  # Propagate so GTK drag source can detect drag threshold
 
-    def _on_button_press(self, widget: Gtk.DrawingArea, event: Gdk.EventButton) -> bool:
+    def _on_button_press(
+        self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
+    ) -> bool:
         """Record press position for click vs drag discrimination."""
         self._click_x = event.x
         self._click_button = event.button
         return False  # Propagate so DnD can still work
 
     def _on_button_release(
-        self, widget: Gtk.DrawingArea, event: Gdk.EventButton
+        self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
     ) -> bool:
         """Handle clicks on dock items (on release to avoid DnD conflicts)."""
         # Only act if release is near the press point (not a drag)
@@ -224,7 +226,7 @@ class DockWindow(Gtk.Window):
             layout = compute_layout(
                 self.model.visible_items(),
                 self.config,
-                self._local_cursor_x(),
+                self.local_cursor_x(),
                 item_padding=self.theme.item_padding,
                 h_padding=self.theme.h_padding,
             )
@@ -261,7 +263,7 @@ class DockWindow(Gtk.Window):
             self.autohide.on_mouse_leave()
         return True
 
-    def _on_enter(self, widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
+    def _on_enter(self, _widget: Gtk.DrawingArea, _event: Gdk.EventCrossing) -> bool:
         """Notify auto-hide on mouse enter."""
         if self.autohide:
             self.autohide.on_mouse_enter()
@@ -325,13 +327,13 @@ class DockWindow(Gtk.Window):
         window_w: int = self.get_size()[0]
         return (window_w - base_w) / 2
 
-    def _local_cursor_x(self) -> float:
+    def local_cursor_x(self) -> float:
         """Cursor X in content-space (adjusted for centering offset)."""
         if self.cursor_x < 0:
             return -1.0
         return self.cursor_x - self._base_x_offset()
 
-    def _zoomed_x_offset(self, layout: list[LayoutItem]) -> float:
+    def zoomed_x_offset(self, layout: list[LayoutItem]) -> float:
         """X offset matching where icons are actually rendered."""
         left_edge, right_edge = content_bounds(
             layout, self.config.icon_size, self.theme.h_padding
@@ -342,7 +344,7 @@ class DockWindow(Gtk.Window):
 
     def _hit_test(self, x: float, layout: list[LayoutItem]) -> DockItem | None:
         """Find which DockItem is under the cursor x position (window-space)."""
-        offset = self._zoomed_x_offset(layout)
+        offset = self.zoomed_x_offset(layout)
         items = self.model.visible_items()
         for i, li in enumerate(layout):
             icon_w = li.scale * self.config.icon_size
@@ -364,7 +366,7 @@ class DockWindow(Gtk.Window):
         layout = compute_layout(
             items,
             self.config,
-            self._local_cursor_x(),
+            self.local_cursor_x(),
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )
@@ -385,7 +387,7 @@ class DockWindow(Gtk.Window):
             else:
                 self._preview.schedule_hide()
 
-    def _show_preview(self, item: DockItem, layout: list[LayoutItem]) -> bool:
+    def _show_preview(self, item: DockItem, _layout: list[LayoutItem]) -> bool:
         """Show the preview popup above the hovered icon."""
         self._preview_timer_id = 0
         if not self._preview or self._hovered_item is not item:
@@ -396,7 +398,7 @@ class DockWindow(Gtk.Window):
         layout = compute_layout(
             items,
             self.config,
-            self._local_cursor_x(),
+            self.local_cursor_x(),
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )
@@ -417,7 +419,7 @@ class DockWindow(Gtk.Window):
         # Guard: skip if window hasn't been positioned yet
         if win_x == 0 and win_y == 0:
             return False
-        icon_abs_x = win_x + li.x + self._zoomed_x_offset(layout)
+        icon_abs_x = win_x + li.x + self.zoomed_x_offset(layout)
         dock_abs_y = win_y
 
         self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, dock_abs_y)

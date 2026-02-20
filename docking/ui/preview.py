@@ -84,7 +84,7 @@ def capture_window(
 
     try:
         foreign = GdkX11.X11Window.foreign_new_for_display(display, xid)
-    except Exception:
+    except (TypeError, GLib.Error):
         foreign = None
 
     if foreign:
@@ -101,7 +101,7 @@ def capture_window(
                     return pixbuf.scale_simple(
                         new_w, new_h, GdkPixbuf.InterpType.BILINEAR
                     )
-        except Exception:
+        except (TypeError, GLib.Error):
             pass
 
     return _icon_fallback(wnck_window, thumb_w, thumb_h)
@@ -264,14 +264,14 @@ class PreviewPopup(Gtk.Window):
         return event_box
 
     def _on_thumb_click(
-        self, widget: Gtk.EventBox, event: Gdk.EventButton, window: Wnck.Window
+        self, _widget: Gtk.EventBox, _event: Gdk.EventButton, window: Wnck.Window
     ) -> bool:
         """Activate the clicked window."""
         self._tracker.activate_window(window)
         self.hide()
         return True
 
-    def _on_enter(self, widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
+    def _on_enter(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
         """Keep popup and dock visible while mouse is inside preview."""
         log.debug("preview enter: detail=%s mode=%s", event.detail, event.mode)
         self._cancel_hide_timer()
@@ -279,7 +279,7 @@ class PreviewPopup(Gtk.Window):
             self._autohide.on_mouse_enter()
         return False
 
-    def _on_leave(self, widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
+    def _on_leave(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
         """Start hide timer when mouse leaves popup."""
         # Ignore leave events caused by child widgets (e.g. hovering over a thumbnail)
         if event.detail == Gdk.NotifyType.INFERIOR:

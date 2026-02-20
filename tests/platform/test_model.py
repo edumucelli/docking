@@ -64,6 +64,38 @@ class TestDockModelInit:
         # Then
         assert len(model.visible_items()) == 1
 
+    def test_find_by_wm_class(self):
+        # Given
+        config = _make_config(["firefox.desktop"])
+        launcher = _make_launcher("firefox.desktop")
+        model = DockModel(config, launcher)
+        # When
+        found = model.find_by_wm_class("firefox")
+        # Then
+        assert found is not None
+        assert found.desktop_id == "firefox.desktop"
+
+    def test_find_by_wm_class_case_insensitive(self):
+        # Given
+        config = _make_config(["firefox.desktop"])
+        launcher = _make_launcher("firefox.desktop")
+        model = DockModel(config, launcher)
+        # When
+        found = model.find_by_wm_class("Firefox")
+        # Then
+        assert found is not None
+        assert found.desktop_id == "firefox.desktop"
+
+    def test_find_by_wm_class_not_found(self):
+        # Given
+        config = _make_config(["firefox.desktop"])
+        launcher = _make_launcher("firefox.desktop")
+        model = DockModel(config, launcher)
+        # When
+        found = model.find_by_wm_class("chromium")
+        # Then
+        assert found is None
+
     def test_empty_pinned(self):
         # Given
         config = _make_config([])
@@ -199,6 +231,32 @@ class TestReorder:
 
 
 class TestReorderVisible:
+    def test_pinned_items_list_accessible(self):
+        # Given
+        config = _make_config(["a.desktop", "b.desktop"])
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        # When
+        model = DockModel(config, launcher)
+        # Then
+        assert isinstance(model.pinned_items, list)
+        assert all(isinstance(it, DockItem) for it in model.pinned_items)
+        assert len(model.pinned_items) == 2
+
+    def test_sync_and_notify(self):
+        # Given
+        config = _make_config(["a.desktop", "b.desktop"])
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher)
+        callback = MagicMock()
+        model.on_change = callback
+        # When — mutate pinned order then sync
+        model.pinned_items.reverse()
+        model.sync_pinned_to_config()
+        model.notify()
+        # Then
+        assert config.pinned == ["b.desktop", "a.desktop"]
+        callback.assert_called_once()
+
     def test_reorder_pinned_items(self):
         # Given
         config = _make_config(["a.desktop", "b.desktop", "c.desktop"])

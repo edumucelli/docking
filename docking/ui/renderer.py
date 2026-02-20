@@ -79,9 +79,10 @@ class DockRenderer:
         # Per-item X offset for slide animation: {desktop_id: offset_px}
         self.slide_offsets: dict[str, float] = {}
         self.prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
+        self.smooth_shelf_w: float = 0.0
 
+    @staticmethod
     def compute_dock_size(
-        self,
         model: DockModel,
         config: Config,
         theme: Theme,
@@ -156,8 +157,6 @@ class DockRenderer:
 
         # Shelf matches icons but smoothed to reduce wobble
         target_shelf_w = zoomed_w
-        if not hasattr(self, "smooth_shelf_w"):
-            self.smooth_shelf_w = base_w
         self.smooth_shelf_w += (
             target_shelf_w - self.smooth_shelf_w
         ) * SHELF_SMOOTH_FACTOR
@@ -224,8 +223,8 @@ class DockRenderer:
 
         self.prev_positions = new_positions
 
+    @staticmethod
     def _draw_background(
-        self,
         cr: cairo.Context,
         x: float,
         y: float,
@@ -287,8 +286,8 @@ class DockRenderer:
         cr.set_line_width(lw)
         cr.stroke()
 
+    @staticmethod
     def _draw_icon(
-        self,
         cr: cairo.Context,
         item: DockItem,
         li: LayoutItem,
@@ -318,8 +317,8 @@ class DockRenderer:
         cr.paint()
         cr.restore()
 
+    @staticmethod
     def _draw_indicator(
-        self,
         cr: cairo.Context,
         item: DockItem,
         li: LayoutItem,

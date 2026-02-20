@@ -88,7 +88,7 @@ class DnDHandler:
     def _on_drag_begin(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Identify which item is being dragged and set the drag icon."""
         items = self._model.visible_items()
-        local_cx = self._window._local_cursor_x()
+        local_cx = self._window.local_cursor_x()
         layout = compute_layout(
             items,
             self._config,
@@ -97,7 +97,7 @@ class DnDHandler:
             h_padding=self._theme.h_padding,
         )
 
-        offset = self._window._zoomed_x_offset(layout)
+        offset = self._window.zoomed_x_offset(layout)
         win_cx = self._window.cursor_x
         log.debug(
             "drag-begin: win_cx=%.1f local_cx=%.1f offset=%.1f items=%d",
@@ -153,7 +153,7 @@ class DnDHandler:
                 item_padding=self._theme.item_padding,
                 h_padding=self._theme.h_padding,
             )
-            x_offset = self._window._zoomed_x_offset(layout)
+            x_offset = self._window.zoomed_x_offset(layout)
             insert = len(layout)
             for i, li in enumerate(layout):
                 center = li.x + x_offset + self._config.icon_size / 2
@@ -175,7 +175,7 @@ class DnDHandler:
             h_padding=self._theme.h_padding,
         )
 
-        x_offset = self._window._zoomed_x_offset(layout)
+        x_offset = self._window.zoomed_x_offset(layout)
         new_index = len(layout) - 1
         for i, li in enumerate(layout):
             center = li.x + x_offset + self._config.icon_size / 2
@@ -197,8 +197,8 @@ class DnDHandler:
         self,
         widget: Gtk.DrawingArea,
         context: Gdk.DragContext,
-        x: int,
-        y: int,
+        _x: int,
+        _y: int,
         time: int,
     ) -> bool:
         """Request data for external drops, finalize internal drops."""
@@ -218,10 +218,10 @@ class DnDHandler:
         self,
         widget: Gtk.DrawingArea,
         context: Gdk.DragContext,
-        x: int,
-        y: int,
+        _x: int,
+        _y: int,
         selection: Gtk.SelectionData,
-        info: int,
+        _info: int,
         time: int,
     ) -> None:
         """Handle internal reorder completion and external .desktop drops."""
@@ -257,8 +257,8 @@ class DnDHandler:
                         icon=icon,
                     )
                     # Insert at drop position
-                    insert_at = min(insert_at, len(self._model._pinned))
-                    self._model._pinned.insert(insert_at, item)
+                    insert_at = min(insert_at, len(self._model.pinned_items))
+                    self._model.pinned_items.insert(insert_at, item)
                     self._config.pinned.insert(insert_at, desktop_id)
                     insert_at += 1
                     added = True
@@ -266,13 +266,13 @@ class DnDHandler:
         self.drop_insert_index = -1
         if added:
             self._config.save()
-            self._model._sync_pinned_to_config()
-            self._model._notify()
+            self._model.sync_pinned_to_config()
+            self._model.notify()
 
         Gtk.drag_finish(context, added, False, time)
 
     def _on_drag_leave(
-        self, widget: Gtk.DrawingArea, context: Gdk.DragContext, time: int
+        self, widget: Gtk.DrawingArea, _context: Gdk.DragContext, _time: int
     ) -> None:
         """Hide dock when drag leaves (leave-notify doesn't fire during DnD).
 
@@ -283,7 +283,7 @@ class DnDHandler:
         if self._window.autohide:
             self._window.autohide.on_mouse_leave()
 
-    def _on_drag_end(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
+    def _on_drag_end(self, widget: Gtk.DrawingArea, _context: Gdk.DragContext) -> None:
         """Clean up drag state. Remove item if dragged outside dock."""
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position

@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from docking.core.zoom import (
+    OFFSET_PCT_SNAP,
     compute_icon_zoom,
     compute_layout,
     total_width,
@@ -62,6 +63,25 @@ class TestComputeIconZoom:
         right = compute_icon_zoom(120.0, 100.0, 48, 2.0, 3)
         # Then
         assert left == pytest.approx(right)
+
+    def test_offset_pct_snaps_at_threshold(self):
+        """At 99%+ distance, compute_layout should snap scale to exactly 1.0."""
+        # Given — single item; cursor placed so offset_pct just exceeds OFFSET_PCT_SNAP
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 2.0
+        config.zoom_range = 3
+        items = [MagicMock()]
+        rest = compute_layout(items, config, -1.0, item_padding=0, h_padding=12)
+        icon_center = rest[0].x + config.icon_size / 2
+        zoom_icon_size = config.icon_size * config.zoom_percent
+        # Place cursor so offset_pct = OFFSET_PCT_SNAP + small epsilon (above threshold)
+        cursor_x = icon_center + zoom_icon_size * (OFFSET_PCT_SNAP + 0.005)
+        # When
+        layout = compute_layout(items, config, cursor_x, item_padding=0, h_padding=12)
+        # Then — offset_pct > OFFSET_PCT_SNAP, so it snaps to 1.0 → scale = 1.0
+        assert layout[0].scale == pytest.approx(1.0)
 
 
 class TestComputeLayout:
