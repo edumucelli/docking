@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import gi
 gi.require_version("Wnck", "3.0")
@@ -48,7 +48,7 @@ class WindowTracker:
         self._update_running()
         return GLib.SOURCE_REMOVE
 
-    def _on_window_changed(self, screen: Wnck.Screen, *args) -> None:
+    def _on_window_changed(self, screen: Wnck.Screen, *args: Any) -> None:
         """Called when any window state changes."""
         self._update_running()
 
@@ -61,7 +61,7 @@ class WindowTracker:
         active_xid = active_window.get_xid() if active_window else 0
 
         # Aggregate by desktop_id: {desktop_id: {"count": n, "active": bool, "windows": [...]}}
-        running: dict[str, dict] = {}
+        running: dict[str, dict[str, Any]] = {}
 
         for window in self._screen.get_windows():
             wtype = window.get_window_type()

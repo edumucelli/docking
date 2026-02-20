@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable
+from typing import Any, TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -75,7 +75,7 @@ class DockModel:
                 return item
         return None
 
-    def update_running(self, running: dict[str, dict]) -> None:
+    def update_running(self, running: dict[str, dict[str, Any]]) -> None:
         """Update running state from WindowTracker data.
 
         Args:

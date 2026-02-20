@@ -163,7 +163,7 @@ class DockRenderer:
                 drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
                 self._draw_indicator(cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift)
 
-    def _update_slide_offsets(self, items: list, layout: list, icon_offset: float) -> None:
+    def _update_slide_offsets(self, items: list[DockItem], layout: list[LayoutItem], icon_offset: float) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}
         for item, li in zip(items, layout):

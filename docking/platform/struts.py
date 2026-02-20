@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ctypes
 
-from gi.repository import GdkX11
+from gi.repository import Gdk, GdkX11
 
 
 def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
@@ -37,7 +37,7 @@ def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
 
 
 def set_dock_struts(gdk_window: GdkX11.X11Window, dock_height: int,
-                    monitor_geom, screen) -> None:
+                    monitor_geom: Gdk.Rectangle, screen: Gdk.Screen) -> None:
     """Compute and set struts for the dock at the bottom of a monitor."""
     scale = gdk_window.get_scale_factor()
     screen_h = screen.get_height()

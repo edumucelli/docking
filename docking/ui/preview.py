@@ -17,6 +17,7 @@ from gi.repository import Gtk, Gdk, GdkX11, GdkPixbuf, Wnck, GLib, Pango  # noqa
 
 if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
+    from docking.ui.autohide import AutoHideController
 
 THUMB_W = 200
 THUMB_H = 150
@@ -131,7 +132,7 @@ class PreviewPopup(Gtk.Window):
         _ensure_css()
 
         self._tracker = tracker
-        self._autohide = None  # set via set_autohide()
+        self._autohide: AutoHideController | None = None
         self._hide_timer_id: int = 0
         self._current_desktop_id: str = ""
 
@@ -151,7 +152,7 @@ class PreviewPopup(Gtk.Window):
         self.connect("enter-notify-event", self._on_enter)
         self.connect("leave-notify-event", self._on_leave)
 
-    def set_autohide(self, controller) -> None:
+    def set_autohide(self, controller: AutoHideController | None) -> None:
         self._autohide = controller
 
     def show_for_item(self, desktop_id: str, icon_x: float, icon_w: float, dock_y: int) -> None:

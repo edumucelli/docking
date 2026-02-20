@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import cairo
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
@@ -15,6 +16,7 @@ from docking.platform.launcher import launch
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.core.zoom import LayoutItem
     from docking.platform.model import DockModel, DockItem
     from docking.ui.renderer import DockRenderer
     from docking.core.theme import Theme
@@ -161,7 +163,7 @@ class DockWindow(Gtk.Window):
             return
         clear_struts(gdk_window)
 
-    def _on_draw(self, widget: Gtk.DrawingArea, cr) -> bool:
+    def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """Render the dock via the renderer."""
         hide_offset = self.autohide.hide_offset if self.autohide else 0.0
         drag_index = self._dnd.drag_index if self._dnd else -1
@@ -271,14 +273,14 @@ class DockWindow(Gtk.Window):
             return -1.0
         return self.cursor_x - self._base_x_offset()
 
-    def _zoomed_x_offset(self, layout: list) -> float:
+    def _zoomed_x_offset(self, layout: list[LayoutItem]) -> float:
         """X offset matching where icons are actually rendered."""
         left_edge, right_edge = content_bounds(layout, self.config.icon_size, self.theme.h_padding)
         zoomed_w = right_edge - left_edge
         window_w, _ = self.get_size()
         return (window_w - zoomed_w) / 2 - left_edge
 
-    def _hit_test(self, x: float, layout: list) -> object | None:
+    def _hit_test(self, x: float, layout: list[LayoutItem]) -> DockItem | None:
         """Find which DockItem is under the cursor x position (window-space)."""
         offset = self._zoomed_x_offset(layout)
         items = self.model.visible_items()
@@ -326,7 +328,7 @@ class DockWindow(Gtk.Window):
             else:
                 self._preview.schedule_hide()
 
-    def _show_preview(self, item, layout) -> bool:
+    def _show_preview(self, item: DockItem, layout: list[LayoutItem]) -> bool:
         """Show the preview popup above the hovered icon."""
         self._preview_timer_id = 0
         if not self._preview or self._hovered_item is not item:

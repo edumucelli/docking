@@ -11,6 +11,7 @@ from gi.repository import Gtk, Gdk  # noqa: E402
 from docking.core.zoom import compute_layout
 
 if TYPE_CHECKING:
+    from docking.core.zoom import LayoutItem
     from docking.ui.dock_window import DockWindow
     from docking.platform.model import DockModel, DockItem
     from docking.core.config import Config
@@ -126,7 +127,7 @@ class MenuHandler:
             # Would need a full reload to update icons at new size
 
     def _hit_test(
-        self, x: float, items: list, layout: list,
+        self, x: float, items: list[DockItem], layout: list[LayoutItem],
     ) -> DockItem | None:
         """Find which DockItem is under cursor x (window-space)."""
         offset = self._window._zoomed_x_offset(layout)
