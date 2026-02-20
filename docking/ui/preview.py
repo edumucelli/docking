@@ -12,7 +12,7 @@ gi.require_version("Wnck", "3.0")
 from gi.repository import Gtk, Gdk, GdkX11, GdkPixbuf, Wnck, GLib, Pango  # noqa: E402
 
 if TYPE_CHECKING:
-    from docking.window_tracker import WindowTracker
+    from docking.platform.window_tracker import WindowTracker
 
 THUMB_W = 200
 THUMB_H = 150

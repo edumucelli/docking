@@ -10,7 +10,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.autohide import (  # noqa: E402
+from docking.ui.autohide import (  # noqa: E402
     AutoHideController,
     HideState,
     ease_in_cubic,

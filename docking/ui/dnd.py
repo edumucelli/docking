@@ -16,12 +16,12 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
 
 if TYPE_CHECKING:
-    from docking.dock_window import DockWindow
-    from docking.dock_model import DockModel
-    from docking.config import Config
-    from docking.dock_renderer import DockRenderer
-    from docking.theme import Theme
-    from docking.launcher import Launcher
+    from docking.ui.dock_window import DockWindow
+    from docking.platform.model import DockModel
+    from docking.core.config import Config
+    from docking.ui.renderer import DockRenderer
+    from docking.core.theme import Theme
+    from docking.platform.launcher import Launcher
 
 # DnD targets
 _DOCK_ITEM_TARGET = Gtk.TargetEntry.new("dock-item-index", Gtk.TargetFlags.SAME_WIDGET, 0)
@@ -79,7 +79,7 @@ class DnDHandler:
 
     def _on_drag_begin(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Identify which item is being dragged and set the drag icon."""
-        from docking.zoom import compute_layout
+        from docking.core.zoom import compute_layout
         items = self._model.visible_items()
         local_cx = self._window._local_cursor_x()
         layout = compute_layout(
@@ -123,7 +123,7 @@ class DnDHandler:
             self._window._autohide.on_mouse_enter()
         if self._drag_from < 0:
             # External drag — compute insert position for gap effect
-            from docking.zoom import compute_layout
+            from docking.core.zoom import compute_layout
             items = self._model.visible_items()
             layout = compute_layout(
                 items, self._config, -1.0,
@@ -143,7 +143,7 @@ class DnDHandler:
             Gdk.drag_status(context, Gdk.DragAction.COPY, time)
             return True
 
-        from docking.zoom import compute_layout
+        from docking.core.zoom import compute_layout
         items = self._model.visible_items()
         layout = compute_layout(
             items, self._config, -1.0,
@@ -211,7 +211,7 @@ class DnDHandler:
                 if resolved:
                     icon_size = int(self._config.icon_size * self._config.zoom_percent)
                     icon = self._launcher.load_icon(resolved.icon_name, icon_size)
-                    from docking.dock_model import DockItem
+                    from docking.platform.model import DockItem
                     item = DockItem(
                         desktop_id=desktop_id,
                         name=resolved.name,
@@ -314,7 +314,7 @@ def _load_poof() -> GdkPixbuf.Pixbuf | None:
     if _poof_loaded:
         return _poof_pixbuf
     _poof_loaded = True
-    svg_path = str(Path(__file__).parent / "poof.svg")
+    svg_path = str(Path(__file__).parent.parent / "assets" / "poof.svg")
     try:
         _poof_pixbuf = GdkPixbuf.Pixbuf.new_from_file(svg_path)
     except Exception:

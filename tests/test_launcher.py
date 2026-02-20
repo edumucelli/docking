@@ -12,7 +12,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.launcher import Launcher  # noqa: E402
+from docking.platform.launcher import Launcher  # noqa: E402
 
 
 class TestGetDesktopDirs:

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 # Bundled themes directory (relative to package)
-_BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "themes"
+_BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
 
 
 def _rgba(values: list[int]) -> tuple[float, float, float, float]:

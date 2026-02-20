@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from docking.config import Config
-    from docking.launcher import Launcher, DesktopInfo
+    from docking.core.config import Config
+    from docking.platform.launcher import Launcher, DesktopInfo
 
 import gi
 gi.require_version("Gtk", "3.0")

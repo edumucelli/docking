@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from docking.zoom import compute_icon_zoom, compute_layout, total_width, content_bounds, LayoutItem
+from docking.core.zoom import compute_icon_zoom, compute_layout, total_width, content_bounds, LayoutItem
 
 
 class TestComputeIconZoom:

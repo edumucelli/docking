@@ -10,15 +10,15 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 
 if TYPE_CHECKING:
-    from docking.config import Config
-    from docking.dock_model import DockModel, DockItem
-    from docking.dock_renderer import DockRenderer
-    from docking.theme import Theme
-    from docking.autohide import AutoHideController
-    from docking.window_tracker import WindowTracker
-    from docking.dnd import DnDHandler
-    from docking.menu import MenuHandler
-    from docking.preview import PreviewPopup
+    from docking.core.config import Config
+    from docking.platform.model import DockModel, DockItem
+    from docking.ui.renderer import DockRenderer
+    from docking.core.theme import Theme
+    from docking.ui.autohide import AutoHideController
+    from docking.platform.window_tracker import WindowTracker
+    from docking.ui.dnd import DnDHandler
+    from docking.ui.menu import MenuHandler
+    from docking.ui.preview import PreviewPopup
 
 
 class DockWindow(Gtk.Window):
@@ -131,6 +131,8 @@ class DockWindow(Gtk.Window):
 
     def _set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
+        from docking.platform.struts import set_dock_struts, clear_struts
+
         if self.config.autohide:
             self._clear_struts()
             return
@@ -143,60 +145,21 @@ class DockWindow(Gtk.Window):
         monitor = display.get_primary_monitor() or display.get_monitor(0)
         geom = monitor.get_geometry()
         screen = self.get_screen()
-        scale = gdk_window.get_scale_factor()
 
         _, dock_height = self.renderer.compute_dock_size(
             self.model, self.config, self.theme
         )
 
-        screen_h = screen.get_height()
-        bottom = (dock_height + screen_h - geom.y - geom.height) * scale
-        bottom_start = geom.x * scale
-        bottom_end = (geom.x + geom.width) * scale - 1
-
-        # _NET_WM_STRUT_PARTIAL: left, right, top, bottom,
-        #   left_start, left_end, right_start, right_end,
-        #   top_start, top_end, bottom_start, bottom_end
-        struts = [0, 0, 0, int(bottom), 0, 0, 0, 0, 0, 0, int(bottom_start), int(bottom_end)]
-        self._xprop_set_struts(gdk_window, struts)
-
-    @staticmethod
-    def _xprop_set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
-        """Set _NET_WM_STRUT and _NET_WM_STRUT_PARTIAL via ctypes/Xlib."""
-        import ctypes
-
-        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
-        xid = gdk_window.get_xid()
-        xdisplay = ctypes.c_void_p(hash(
-            GdkX11.X11Display.get_default().get_xdisplay()
-        ))
-
-        xlib.XInternAtom.restype = ctypes.c_ulong
-        xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-
-        atom_partial = xlib.XInternAtom(xdisplay, b"_NET_WM_STRUT_PARTIAL", 0)
-        atom_strut = xlib.XInternAtom(xdisplay, b"_NET_WM_STRUT", 0)
-        xa_cardinal = xlib.XInternAtom(xdisplay, b"CARDINAL", 0)
-
-        xlib.XChangeProperty.argtypes = [
-            ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong,
-            ctypes.c_ulong, ctypes.c_int, ctypes.c_int,
-            ctypes.c_void_p, ctypes.c_int,
-        ]
-
-        arr12 = (ctypes.c_long * 12)(*struts)
-        arr4 = (ctypes.c_long * 4)(*struts[:4])
-
-        xlib.XChangeProperty(xdisplay, xid, atom_partial, xa_cardinal, 32, 0, ctypes.byref(arr12), 12)
-        xlib.XChangeProperty(xdisplay, xid, atom_strut, xa_cardinal, 32, 0, ctypes.byref(arr4), 4)
-        xlib.XFlush(xdisplay)
+        set_dock_struts(gdk_window, dock_height, geom, screen)
 
     def _clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
+        from docking.platform.struts import clear_struts
+
         gdk_window = self.get_window()
         if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
             return
-        self._xprop_set_struts(gdk_window, [0] * 12)
+        clear_struts(gdk_window)
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr) -> bool:
         """Render the dock via the renderer."""
@@ -236,7 +199,7 @@ class DockWindow(Gtk.Window):
             return True
 
         if event.button == 1 or event.button == 2:
-            from docking.zoom import compute_layout
+            from docking.core.zoom import compute_layout
             layout = compute_layout(
                 self.model.visible_items(), self.config, self._local_cursor_x(),
                 item_padding=self.theme.item_padding,
@@ -251,7 +214,7 @@ class DockWindow(Gtk.Window):
                 or (event.state & Gdk.ModifierType.CONTROL_MASK)
             )
             if force_launch or not item.is_running:
-                from docking.launcher import launch
+                from docking.platform.launcher import launch
                 launch(item.desktop_id)
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
@@ -309,7 +272,7 @@ class DockWindow(Gtk.Window):
 
     def _zoomed_x_offset(self, layout: list) -> float:
         """X offset matching where icons are actually rendered."""
-        from docking.zoom import content_bounds
+        from docking.core.zoom import content_bounds
         left_edge, right_edge = content_bounds(layout, self.config.icon_size, self.theme.h_padding)
         zoomed_w = right_edge - left_edge
         window_w, _ = self.get_size()
@@ -340,7 +303,7 @@ class DockWindow(Gtk.Window):
 
     def _update_hovered_item(self) -> None:
         """Detect which item the cursor is over and manage preview timer."""
-        from docking.zoom import compute_layout
+        from docking.core.zoom import compute_layout
         items = self.model.visible_items()
         layout = compute_layout(
             items, self.config, self._local_cursor_x(),
@@ -371,7 +334,7 @@ class DockWindow(Gtk.Window):
             return GLib.SOURCE_REMOVE
 
         # Find the layout entry for this item to get screen coordinates
-        from docking.zoom import compute_layout
+        from docking.core.zoom import compute_layout
         items = self.model.visible_items()
         layout = compute_layout(
             items, self.config, self._local_cursor_x(),

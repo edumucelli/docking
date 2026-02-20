@@ -15,10 +15,10 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf  # noqa: E402
 
 if TYPE_CHECKING:
-    from docking.config import Config
-    from docking.dock_model import DockModel, DockItem
-    from docking.theme import Theme
-    from docking.zoom import LayoutItem
+    from docking.core.config import Config
+    from docking.platform.model import DockModel, DockItem
+    from docking.core.theme import Theme
+    from docking.core.zoom import LayoutItem
 
 
 def _rounded_rect(cr: cairo.Context, x: float, y: float, w: float, h: float, r: float,
@@ -73,7 +73,7 @@ class DockRenderer:
         self, layout: list[LayoutItem], config: Config, theme: Theme,
     ) -> int:
         """Compute total dock width from a zoomed layout."""
-        from docking.zoom import total_width
+        from docking.core.zoom import total_width
         w = total_width(layout, config.icon_size, theme.item_padding, theme.h_padding)
         return max(int(w), 1)
 
@@ -107,7 +107,7 @@ class DockRenderer:
         if not items:
             return
 
-        from docking.zoom import compute_layout, total_width
+        from docking.core.zoom import compute_layout, total_width
         n = len(items)
 
         # Base offset for cursor conversion (content-space)
@@ -123,7 +123,7 @@ class DockRenderer:
         )
 
         # Compute actual content bounds (accounts for leftward displacement)
-        from docking.zoom import content_bounds
+        from docking.core.zoom import content_bounds
         left_edge, right_edge = content_bounds(layout, config.icon_size, theme.h_padding)
         zoomed_w = right_edge - left_edge
         # icon_offset: shifts layout so content is centered in window

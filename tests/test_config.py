@@ -4,7 +4,7 @@ import json
 import pytest
 from pathlib import Path
 
-from docking.config import Config
+from docking.core.config import Config
 
 
 class TestConfigDefaults:

@@ -5,7 +5,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-from docking.theme import Theme, _rgba
+from docking.core.theme import Theme, _rgba
 
 
 class TestRgba:
@@ -63,7 +63,7 @@ class TestThemeLoad:
         theme_file = tmp_path / "custom.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("custom")
         # Then
         assert t.roundness == 16.0

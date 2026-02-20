@@ -10,8 +10,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from docking.config import Config
-    from docking.dock_model import DockItem
+    from docking.core.config import Config
+    from docking.platform.model import DockItem
 
 
 @dataclass

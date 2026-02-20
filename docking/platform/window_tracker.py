@@ -10,8 +10,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Wnck, Gtk, GLib  # noqa: E402
 
 if TYPE_CHECKING:
-    from docking.dock_model import DockModel
-    from docking.launcher import Launcher
+    from docking.platform.model import DockModel
+    from docking.platform.launcher import Launcher
 
 
 class WindowTracker:

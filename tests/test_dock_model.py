@@ -10,7 +10,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.dock_model import DockModel, DockItem  # noqa: E402
+from docking.platform.model import DockModel, DockItem  # noqa: E402
 
 
 def _make_launcher(*desktop_ids: str):

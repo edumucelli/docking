@@ -11,8 +11,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib  # noqa: E402
 
 if TYPE_CHECKING:
-    from docking.dock_window import DockWindow
-    from docking.config import Config
+    from docking.ui.dock_window import DockWindow
+    from docking.core.config import Config
 
 FRAME_INTERVAL_MS = 16  # ~60fps
 
