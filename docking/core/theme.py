@@ -189,9 +189,31 @@ class Theme:
         item_padding_px = float(data.get("item_padding", 2.5)) * scaled
 
         # --- Derive shelf_height ---
-        # shelf_height = max(0, icon_size + top_offset + bottom_offset)
-        # top_offset = 2 * stroke_width + top_padding_px
-        # bottom_offset = bottom_padding_px  (bottom_roundness=0)
+        #
+        # The dock has two visual layers: the shelf (background bar) and
+        # the icons that sit on top of it. The shelf is intentionally
+        # shorter than the icons, creating a "shelf" effect where icons
+        # overflow above the background:
+        #
+        #     ┌──────┐          ┌──────┐
+        #     │ icon │          │ icon │       ← icons overflow above shelf
+        #     │      │          │      │
+        #   ──┴──────┴──────────┴──────┴──   ← shelf top edge
+        #   │        shelf background       │
+        #   ─────────────────────────────────  ← screen bottom
+        #
+        # The height is derived from the icon size and theme padding:
+        #   top_offset    = 2 * stroke_width + top_padding_px
+        #   bottom_offset = bottom_padding_px
+        #   shelf_height  = max(0, icon_size + top_offset + bottom_offset)
+        #
+        # With the default theme at 48px icons:
+        #   top_offset = 2 + (-33.6) = -31.6  (negative → icons overflow)
+        #   bottom_offset = 4.8
+        #   shelf_height = max(0, 48 - 31.6 + 4.8) ≈ 21px
+        #
+        # This means icons extend ~27px above the shelf, which gives
+        # the characteristic dock appearance.
         top_offset = 2.0 * stroke_width + top_padding_px
         bottom_offset = bottom_padding_px
         shelf_height = max(0.0, icon_size + top_offset + bottom_offset)
