@@ -214,7 +214,12 @@ class DockWindow(Gtk.Window):
         # After the hide animation completes (state=HIDDEN), we finally
         # reset cursor_x to -1.0. This is deferred from _on_leave to allow
         # the smooth zoom decay described above.
-        zoom_progress = self.autohide.zoom_progress if self.autohide else 1.0
+        # zoom_progress is only relevant during autohide animations.
+        # When autohide is disabled, zoom should always be at full strength.
+        if self.autohide and self.autohide.enabled:
+            zoom_progress = self.autohide.zoom_progress
+        else:
+            zoom_progress = 1.0
         drag_index = self._dnd.drag_index if self._dnd else -1
         drop_insert = self._dnd.drop_insert_index if self._dnd else -1
         hovered_id = (
