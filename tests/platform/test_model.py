@@ -326,3 +326,61 @@ class TestCallbacks:
         model.update_running({"a.desktop": {"count": 1, "active": False}})
         # Then
         callback.assert_called_once()
+
+
+class TestDockItemAnimationFields:
+    def test_default_timestamps_zero(self):
+        # Given / When
+        item = DockItem(desktop_id="test.desktop")
+        # Then
+        assert item.last_clicked == 0
+        assert item.last_launched == 0
+        assert item.last_urgent == 0
+        assert item.is_urgent is False
+
+    def test_urgent_state_tracked(self):
+        # Given
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        # When — update with urgent flag
+        model.update_running(
+            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
+        )
+        # Then
+        item = model.visible_items()[0]
+        assert item.is_urgent is True
+        assert item.last_urgent != 0  # timestamp was set
+
+    def test_urgent_timestamp_set_only_on_transition(self):
+        # Given
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        # When — first urgent
+        model.update_running(
+            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
+        )
+        first_ts = model.visible_items()[0].last_urgent
+        # When — still urgent (no transition)
+        model.update_running(
+            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
+        )
+        second_ts = model.visible_items()[0].last_urgent
+        # Then — timestamp unchanged (only set on false→true transition)
+        assert second_ts is first_ts
+
+    def test_urgent_clears(self):
+        # Given
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        model.update_running(
+            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
+        )
+        # When
+        model.update_running(
+            {"a.desktop": {"count": 1, "active": False, "urgent": False}}
+        )
+        # Then
+        assert model.visible_items()[0].is_urgent is False

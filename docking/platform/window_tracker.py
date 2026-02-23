@@ -78,12 +78,19 @@ class WindowTracker:
                 continue
 
             if desktop_id not in running:
-                running[desktop_id] = {"count": 0, "active": False, "windows": []}
+                running[desktop_id] = {
+                    "count": 0,
+                    "active": False,
+                    "urgent": False,
+                    "windows": [],
+                }
 
             running[desktop_id]["count"] += 1
             running[desktop_id]["windows"].append(window)
             if window.get_xid() == active_xid:
                 running[desktop_id]["active"] = True
+            if window.needs_attention():
+                running[desktop_id]["urgent"] = True
 
         self._model.update_running(running)
 

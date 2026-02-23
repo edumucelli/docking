@@ -26,8 +26,13 @@ class DockItem:
     is_pinned: bool = False
     is_running: bool = False
     is_active: bool = False
+    is_urgent: bool = False
     instance_count: int = 0
     icon: GdkPixbuf.Pixbuf | None = None
+    # Timestamps for animations (monotonic microseconds, 0 = inactive)
+    last_clicked: int = 0
+    last_launched: int = 0
+    last_urgent: int = 0
 
 
 class DockModel:
@@ -88,6 +93,7 @@ class DockModel:
         for item in self.pinned_items:
             item.is_running = False
             item.is_active = False
+            item.is_urgent = False
             item.instance_count = 0
 
         # Update pinned items that are running
@@ -98,6 +104,13 @@ class DockModel:
                 item.is_running = True
                 item.is_active = info.get("active", False)
                 item.instance_count = info.get("count", 1)
+                # Set urgent and trigger bounce timestamp
+                urgent = info.get("urgent", False)
+                if urgent and not item.is_urgent:
+                    from gi.repository import GLib
+
+                    item.last_urgent = GLib.get_monotonic_time()
+                item.is_urgent = urgent
                 matched_ids.add(item.desktop_id)
 
         # Add transient items for running apps not in pinned

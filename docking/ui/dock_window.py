@@ -63,6 +63,7 @@ class DockWindow(Gtk.Window):
         self._preview: PreviewPopup | None = None
         self._hovered_item: DockItem | None = None
         self._preview_timer_id: int = 0
+        self._anim_timer_id: int = 0  # redraw pump for click/bounce animations
 
         self._setup_window()
         self._setup_drawing_area()
@@ -158,7 +159,16 @@ class DockWindow(Gtk.Window):
 
         icon_size = self.config.icon_size
         zoom = self.config.zoom_percent if self.config.zoom_enabled else 1.0
-        h = int(icon_size * zoom + self.theme.top_padding + self.theme.bottom_padding)
+        # Extra headroom for bounce animations (urgent bounce is tallest)
+        from docking.ui.renderer import URGENT_BOUNCE_HEIGHT
+
+        bounce_headroom = int(icon_size * URGENT_BOUNCE_HEIGHT)
+        h = int(
+            icon_size * zoom
+            + self.theme.top_padding
+            + self.theme.bottom_padding
+            + bounce_headroom
+        )
 
         # Full monitor width — window never resizes during zoom
         self.set_size_request(geom.width, h)
@@ -207,6 +217,7 @@ class DockWindow(Gtk.Window):
         zoom_progress = self.autohide.zoom_progress if self.autohide else 1.0
         drag_index = self._dnd.drag_index if self._dnd else -1
         drop_insert = self._dnd.drop_insert_index if self._dnd else -1
+        hovered_id = self._hovered_item.desktop_id if self._hovered_item else ""
         self.renderer.draw(
             cr,
             widget,
@@ -218,7 +229,11 @@ class DockWindow(Gtk.Window):
             drag_index,
             drop_insert,
             zoom_progress,
+            hovered_id,
         )
+        # Update input region as hide state changes (shrink when hidden)
+        self._update_input_region()
+
         # Reset cursor after hide completes
         if self.autohide and self.autohide.state == HideState.HIDDEN:
             self.cursor_x = -1.0
@@ -266,13 +281,19 @@ class DockWindow(Gtk.Window):
             if item is None:
                 return True
 
+            now = GLib.get_monotonic_time()
+            item.last_clicked = now
+
             force_launch = event.button == MOUSE_MIDDLE or (
                 event.state & Gdk.ModifierType.CONTROL_MASK
             )
             if force_launch or not item.is_running:
+                item.last_launched = now
                 launch(item.desktop_id)
+                self._start_anim_pump(700)  # 600ms bounce + margin
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
+                self._start_anim_pump(350)  # 300ms click darken
 
         return True
 
@@ -346,6 +367,11 @@ class DockWindow(Gtk.Window):
     def _on_model_changed(self) -> None:
         """Reposition and redraw when the model changes."""
         self._update_dock_size()
+        # Check if any item became urgent — start animation pump
+        for item in self.model.visible_items():
+            if item.is_urgent and item.last_urgent > 0:
+                self._start_anim_pump(700)
+                break
         self.drawing_area.queue_draw()
 
     def _update_dock_size(self) -> None:
@@ -408,7 +434,30 @@ class DockWindow(Gtk.Window):
         x = int((window_w - content_w) / 2 - left_edge)
         w = int(content_w)
 
-        rect = cairo.RectangleInt(x, 0, max(w, 1), max(window_h, 1))
+        # When the dock is hidden (or hiding), shrink the input region to
+        # a thin strip at the very bottom of the screen. This ensures the
+        # dock only reveals when the mouse hits the screen edge — not when
+        # it's just near the bottom. When visible, use the full content height.
+        #
+        #   Visible:                    Hidden:
+        #   ┌─────────────────┐         ┌─────────────────┐
+        #   │  input region   │         │                 │ ← transparent, clicks pass
+        #   │  (full height)  │         │                 │
+        #   │  [dock icons]   │         ├─────────────────┤
+        #   └─────────────────┘         │ 2px trigger strip│ ← only this catches mouse
+        #   ── screen bottom ──         └─────────────────┘
+        hidden = (
+            self.autohide
+            and self.autohide.enabled
+            and self.autohide.state in (HideState.HIDDEN, HideState.HIDING)
+        )
+        if hidden:
+            # Thin trigger strip: full monitor width, 2px tall, at bottom
+            trigger_h = 2
+            rect = cairo.RectangleInt(0, window_h - trigger_h, window_w, trigger_h)
+        else:
+            rect = cairo.RectangleInt(x, 0, max(w, 1), max(window_h, 1))
+
         region = cairo.Region(rect)
         gdk_window.input_shape_combine_region(region, 0, 0)
 
@@ -469,6 +518,28 @@ class DockWindow(Gtk.Window):
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
         self.drawing_area.queue_draw()
+
+    def _start_anim_pump(self, duration_ms: int = 700) -> None:
+        """Start a temporary redraw loop for time-based animations.
+
+        Click darken, launch bounce, and urgent bounce are all driven by
+        timestamps — they need continuous redraws to animate. This pump
+        calls queue_draw() at ~60fps for the given duration, then stops.
+        """
+        if self._anim_timer_id:
+            GLib.source_remove(self._anim_timer_id)
+
+        frames_left = [duration_ms // 16]
+
+        def tick() -> bool:
+            frames_left[0] -= 1
+            if frames_left[0] <= 0:
+                self._anim_timer_id = 0
+                return False
+            self.drawing_area.queue_draw()
+            return True
+
+        self._anim_timer_id = GLib.timeout_add(16, tick)
 
     # -- Preview popup hover tracking --
 

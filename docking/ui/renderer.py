@@ -13,7 +13,7 @@ import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk  # noqa: E402
+from gi.repository import Gtk, Gdk, GLib  # noqa: E402
 
 from docking.core.zoom import compute_layout, content_bounds
 
@@ -108,8 +108,44 @@ INNER_HIGHLIGHT_OPACITIES = (
 MAX_INDICATOR_DOTS = 3
 INDICATOR_SPACING_MULT = 3  # spacing = indicator_radius * this
 
+# Icon hover lighten effect: additive brightness on hovered icon.
+# The lighten value fades in/out over HOVER_FADE_FRAMES at ~60fps.
+HOVER_LIGHTEN_MAX = 0.2  # max additive brightness (0.0-1.0)
+HOVER_FADE_FRAMES = 9  # ~150ms at 60fps (150/16.67)
+
+# Click animation: brief darken pulse using sine curve.
+CLICK_DURATION_US = 300_000  # 300ms in microseconds
+CLICK_DARKEN_MAX = 0.5  # max darkening on click (0.0-1.0)
+
+# Launch bounce: icon bounces upward when launching an app.
+LAUNCH_BOUNCE_DURATION_US = 600_000  # 600ms
+LAUNCH_BOUNCE_HEIGHT = 0.625  # fraction of icon_size
+
+# Urgent bounce: icon bounces when app demands attention.
+URGENT_BOUNCE_DURATION_US = 600_000  # 600ms
+URGENT_BOUNCE_HEIGHT = 1.66  # fraction of icon_size
+
 SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
+
+
+def _easing_bounce(t: float, duration: float, n: float = 1.0) -> float:
+    """Sinusoidal bounce easing with momentum decay.
+
+    Simulates a ball bouncing n times with decreasing height:
+      - First bounce reaches full height (clamped to 1.0)
+      - Each subsequent bounce is lower due to the decay envelope
+      - Uses abs(sin) so all bounces go upward
+
+    The envelope formula: min(1.0, (1-p) * 2n / (2n-1))
+    For n=2 (launch): first bounce = 100%, second bounce ≈ 33%
+    For n=1 (urgent): single bounce with clean decay to zero
+    """
+    if duration <= 0 or t >= duration:
+        return 0.0
+    p = t / duration
+    envelope = min(1.0, (1.0 - p) * (2.0 * n) / (2.0 * n - 1.0))
+    return abs(math.sin(n * math.pi * p)) * envelope
 
 
 class DockRenderer:
@@ -120,6 +156,9 @@ class DockRenderer:
         self.slide_offsets: dict[str, float] = {}
         self.prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
         self.smooth_shelf_w: float = 0.0
+        # Per-item lighten value for hover effect: {desktop_id: 0.0-HOVER_LIGHTEN_MAX}
+        self._hover_lighten: dict[str, float] = {}
+        self._hovered_id: str = ""
 
     @staticmethod
     def compute_dock_size(
@@ -149,6 +188,7 @@ class DockRenderer:
         drag_index: int = -1,
         drop_insert_index: int = -1,
         zoom_progress: float = 1.0,
+        hovered_id: str = "",
     ) -> None:
         """Main draw entry point — called on every 'draw' signal."""
         alloc = widget.get_allocation()
@@ -307,14 +347,49 @@ class DockRenderer:
         # Gap for external drop insertion
         gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0
 
-        # Draw icons with slide offset + drop gap + cascade hide
+        # Update hover lighten values (fade in/out per icon)
+        self._update_hover_lighten(items, hovered_id)
+
+        # Draw icons with all effects: slide, drop gap, cascade hide,
+        # hover lighten, click darken, launch/urgent bounce
         icon_size = config.icon_size
         icon_y_off = icon_hide * h
+        now = GLib.get_monotonic_time()
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
+            lighten = self._hover_lighten.get(item.desktop_id, 0.0)
+
+            # Click darken animation: brief sine pulse
+            darken = 0.0
+            if item.last_clicked > 0:
+                ct = now - item.last_clicked
+                if ct < CLICK_DURATION_US:
+                    darken = (
+                        math.sin(math.pi * ct / CLICK_DURATION_US) * CLICK_DARKEN_MAX
+                    )
+
+            # Launch bounce: icon bounces up when launching
+            bounce_y = 0.0
+            if item.last_launched > 0:
+                lt = now - item.last_launched
+                bounce_y -= (
+                    _easing_bounce(lt, LAUNCH_BOUNCE_DURATION_US, 2)
+                    * icon_size
+                    * LAUNCH_BOUNCE_HEIGHT
+                )
+
+            # Urgent bounce: icon bounces when app demands attention
+            if item.last_urgent > 0:
+                ut = now - item.last_urgent
+                bounce_y -= (
+                    _easing_bounce(ut, URGENT_BOUNCE_DURATION_US, 1)
+                    * icon_size
+                    * URGENT_BOUNCE_HEIGHT
+                )
+
             self._draw_icon(
                 cr,
                 item,
@@ -323,7 +398,9 @@ class DockRenderer:
                 h,
                 theme,
                 icon_offset + slide + drop_shift,
-                icon_y_off,
+                icon_y_off + bounce_y,
+                lighten,
+                darken,
             )
 
         # Draw indicators with slide offset + drop gap + cascade hide
@@ -343,6 +420,35 @@ class DockRenderer:
                     icon_offset + slide + drop_shift,
                     icon_y_off,
                 )
+
+    def _update_hover_lighten(self, items: list[DockItem], hovered_id: str) -> None:
+        """Update per-icon lighten values for hover highlight effect.
+
+        Icons fade in to HOVER_LIGHTEN_MAX when hovered, and fade out
+        when the cursor moves to a different icon. The fade uses a fixed
+        step per frame for a linear ~150ms transition.
+        """
+        step = HOVER_LIGHTEN_MAX / HOVER_FADE_FRAMES
+        active_ids = {item.desktop_id for item in items}
+
+        for item in items:
+            did = item.desktop_id
+            current = self._hover_lighten.get(did, 0.0)
+            if did == hovered_id:
+                # Fade in
+                self._hover_lighten[did] = min(current + step, HOVER_LIGHTEN_MAX)
+            elif current > 0:
+                # Fade out
+                new_val = max(current - step, 0.0)
+                if new_val > 0:
+                    self._hover_lighten[did] = new_val
+                else:
+                    self._hover_lighten.pop(did, None)
+
+        # Clean up removed items
+        for did in list(self._hover_lighten):
+            if did not in active_ids:
+                del self._hover_lighten[did]
 
     def _update_slide_offsets(
         self, items: list[DockItem], layout: list[LayoutItem], icon_offset: float
@@ -444,25 +550,50 @@ class DockRenderer:
         theme: Theme,
         x_offset: float = 0.0,
         y_offset: float = 0.0,
+        lighten: float = 0.0,
+        darken: float = 0.0,
     ) -> None:
-        """Draw a single dock icon at its zoomed position and scale."""
+        """Draw a single dock icon with hover lighten and click darken effects.
+
+        lighten: additive brightness (Cairo ADD operator, 0.0-1.0)
+        darken: subtractive darkness (black overlay with ATOP operator, 0.0-1.0)
+        """
         if item.icon is None:
             return
 
         scaled_size = base_size * li.scale
         y = dock_height - theme.bottom_padding - scaled_size + y_offset
 
-        cr.save()
-        cr.translate(li.x + x_offset, y)
-
-        # Scale the icon pixbuf
         icon_w = item.icon.get_width()
         icon_h = item.icon.get_height()
+
+        # Render icon + effects to an intermediate surface so that
+        # ATOP/ADD operators only affect the icon pixels, not the
+        # shelf background underneath.
+        icon_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, icon_w, icon_h)
+        icon_cr = cairo.Context(icon_surface)
+
+        Gdk.cairo_set_source_pixbuf(icon_cr, item.icon, 0, 0)
+        icon_cr.paint()
+
+        # Hover lighten: additive blending brightens the icon
+        if lighten > 0:
+            icon_cr.set_operator(cairo.OPERATOR_ADD)
+            icon_cr.paint_with_alpha(lighten)
+
+        # Click darken: black overlay dims only the icon's opaque pixels
+        if darken > 0:
+            icon_cr.set_operator(cairo.OPERATOR_ATOP)
+            icon_cr.set_source_rgba(0, 0, 0, darken)
+            icon_cr.paint()
+
+        # Composite the icon surface onto the main context at scaled size
+        cr.save()
+        cr.translate(li.x + x_offset, y)
         sx = scaled_size / icon_w
         sy = scaled_size / icon_h
         cr.scale(sx, sy)
-
-        Gdk.cairo_set_source_pixbuf(cr, item.icon, 0, 0)
+        cr.set_source_surface(icon_surface, 0, 0)
         cr.paint()
         cr.restore()
 
