@@ -14,7 +14,18 @@ if TYPE_CHECKING:
     from docking.platform.model import DockItem
 
 
-OFFSET_PCT_SNAP = 0.99  # snap offset_pct to 1.0 above this threshold
+# Floating-point snap threshold for the zoom offset percentage.
+#
+# offset_pct is the normalized distance from cursor to icon center,
+# ranging from 0.0 (directly under cursor) to 1.0 (at max zoom range).
+# Due to floating-point arithmetic, this value may land at 0.9999...
+# instead of exactly 1.0 at the boundary.
+#
+# Without snapping, icons at the very edge of the zoom range would get
+# a tiny residual displacement and scale change — visible as a subtle
+# "twitch" when hovering near the zoom boundary. Snapping at 0.99
+# ensures these edge icons are treated as fully outside the zoom range.
+OFFSET_PCT_SNAP = 0.99
 
 
 @dataclass
@@ -75,8 +86,22 @@ def compute_layout(
 
     icon_size = config.icon_size
     zoom_percent = config.zoom_percent if config.zoom_enabled else 1.0
-    # Plank: zoom_icon_size = icon_size * zoom_percent (NOT zoom_range)
-    # This controls how far the displacement extends — one zoomed icon width
+    # Zoom displacement radius.
+    #
+    # This value controls how far the displacement effect extends from
+    # the cursor. Icons within this distance get pushed away from the
+    # cursor to make room for the zoomed icon. Icons beyond this
+    # distance stay at their rest positions.
+    #
+    # Set to one zoomed icon width (icon_size * zoom_percent). For
+    # example, with 48px icons and 1.5x zoom, the radius is 72px.
+    # This means only the immediate neighbors of the hovered icon
+    # are significantly displaced — distant icons barely move.
+    #
+    # A larger radius (e.g., icon_size * zoom_range) would spread
+    # the displacement across more icons, causing visible shifts
+    # even for far-away items. The tighter radius keeps the effect
+    # local and focused.
     zoom_icon_size = icon_size * zoom_percent
 
     # Rest-position centers
@@ -95,22 +120,60 @@ def compute_layout(
             result.append(LayoutItem(x=center - icon_size / 2, scale=1.0))
             continue
 
-        # Displacement: push icon away from cursor (Plank's formula)
+        # Per-icon displacement: push icons away from cursor.
+        #
+        # Each icon is displaced from its rest (no-zoom) center position.
+        # The displacement direction is AWAY from the cursor — icons to
+        # the left of the cursor shift left, icons to the right shift right.
+        # This creates space for the zoomed icon under the cursor:
+        #
+        #   Cursor at C:        ↓
+        #   Rest positions:  [A]  [B]  [C]  [D]  [E]
+        #   After zoom:      [A] [B]  [C↑↑] [D] [E]
+        #                        ←         →
+        #                    pushed    pushed
+        #                    left      right
+        #
+        # The displacement amount depends on distance from cursor:
+        #   offset     = distance from cursor, capped to zoom_icon_size
+        #   offset_pct = offset / zoom_icon_size  (0.0 = on cursor, 1.0 = at max range)
+        #
+        # The displacement formula has three terms:
+        #   displacement = offset * (zoom_percent - 1.0) * (1.0 - offset_pct / 3.0)
+        #
+        #   Term 1: offset (base displacement proportional to distance)
+        #   Term 2: (zoom_percent - 1.0) (scales with zoom level — more zoom = more spread)
+        #   Term 3: (1.0 - offset_pct / 3.0) (taper factor, pulls edges inward)
+        #
+        # The taper factor reduces displacement by up to 33% at the edges
+        # (offset_pct=1.0 → factor=0.667). This prevents icons at the zoom
+        # boundary from jumping discontinuously.
         offset = min(abs(cursor_x - center), zoom_icon_size)
         offset_pct = offset / zoom_icon_size if zoom_icon_size > 0 else 1.0
         if offset_pct > OFFSET_PCT_SNAP:
             offset_pct = 1.0
 
-        # Taper the displacement: center icons move more, edge icons barely move
         displacement = offset * (zoom_percent - 1.0) * (1.0 - offset_pct / 3.0)
 
-        # Push away from cursor
         if cursor_x > center:
             center -= displacement
         else:
             center += displacement
 
-        # Zoom scale (same parabolic curve)
+        # Zoom scale: parabolic curve.
+        #
+        # The icon scale follows a parabolic (quadratic) curve based on
+        # distance from cursor:
+        #   zoom = 1.0 - offset_pct²
+        #   scale = 1.0 + zoom * (zoom_percent - 1.0)
+        #
+        # At offset_pct=0.0 (directly under cursor): scale = zoom_percent (max zoom)
+        # At offset_pct=0.5 (halfway to edge): scale = 1.0 + 0.75 * (zoom_percent - 1.0)
+        # At offset_pct=1.0 (at max range): scale = 1.0 (no zoom)
+        #
+        # The quadratic curve (²) creates a smooth, natural-looking
+        # falloff — most zoom is concentrated on the hovered icon with
+        # a gentle taper to its neighbors.
         zoom = 1.0 - offset_pct**2
         scale = 1.0 + zoom * (zoom_percent - 1.0)
 

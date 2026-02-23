@@ -281,7 +281,25 @@ class PreviewPopup(Gtk.Window):
 
     def _on_leave(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
         """Start hide timer when mouse leaves popup."""
-        # Ignore leave events caused by child widgets (e.g. hovering over a thumbnail)
+        # GTK crossing event detail types:
+        #
+        # GTK uses a tree of internal windows (GdkWindow). When a parent
+        # widget contains child widgets — like our preview popup containing
+        # thumbnail EventBox widgets — mouse movement between parent and
+        # child generates crossing events.
+        #
+        # When the mouse moves FROM the popup background TO a thumbnail:
+        #   - The popup receives leave-notify with detail=INFERIOR
+        #   - This means "mouse went to a child widget"
+        #   - The mouse is still visually INSIDE the popup
+        #
+        # When the mouse moves genuinely OUTSIDE the popup:
+        #   - The popup receives leave-notify with detail=NONLINEAR
+        #   - This means "mouse left for a completely different window"
+        #
+        # We ignore INFERIOR leaves because hiding the popup when the
+        # user hovers over a thumbnail would make it impossible to
+        # click on any thumbnail.
         if event.detail == Gdk.NotifyType.INFERIOR:
             log.debug("preview leave: INFERIOR (ignored)")
             return False

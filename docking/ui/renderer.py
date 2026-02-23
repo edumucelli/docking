@@ -52,13 +52,52 @@ def _rounded_rect(
     cr.close_path()
 
 
-# Plank shelf height formula: IconSize + top_offset + bottom_offset
-# Yaru-light: top_offset = 2 + (-33) = -31, bottom_offset = 0 + 4 = 4
-# Result: 48 + (-31) + 4 = 21px. As a fraction of icon_size: 21/48 ≈ 0.4375
-SHELF_HEIGHT_PX = 21  # exact Plank Yaru-light value for 48px icons
-SHELF_SMOOTH_FACTOR = 0.3  # lerp factor for shelf width smoothing per frame
+# Shelf height in pixels for the dock background.
+#
+# The dock has two visual layers: the shelf (background bar) and the icons
+# that sit on top of it. The shelf is intentionally shorter than the icons,
+# creating a "shelf" effect where icons overflow above the background:
+#
+#     ┌──────┐          ┌──────┐
+#     │ icon │          │ icon │       ← icons overflow above shelf
+#     │      │          │      │
+#   ──┴──────┴──────────┴──────┴──   ← shelf top edge
+#   │        shelf background       │
+#   ─────────────────────────────────  ← screen bottom
+#
+# The height is derived from the icon size and theme padding offsets.
+# For 48px icons with the default theme: 21px shelf height.
+# This means icons extend ~27px above the shelf, which gives the
+# characteristic dock appearance.
+SHELF_HEIGHT_PX = 21
+# Linear interpolation (lerp) factor for shelf width smoothing.
+#
+# When icons zoom on hover, the total content width changes slightly
+# each frame. If the shelf background tracked this width exactly, it
+# would visibly jitter (wobble) as the cursor moves between icons.
+#
+# Instead, the shelf width is smoothed using lerp:
+#   shelf_w += (target_w - shelf_w) * SHELF_SMOOTH_FACTOR
+#
+# A value of 0.3 means the shelf moves 30% of the remaining distance
+# each frame. At 60fps this settles in ~200ms — fast enough to follow
+# the icons but smooth enough to dampen frame-to-frame jitter.
+# Lower values = smoother but slower. Higher values = more responsive
+# but more visible wobble.
+SHELF_SMOOTH_FACTOR = 0.3
 SLIDE_MOVE_THRESHOLD = 2.0  # minimum px displacement to trigger slide animation
-SLIDE_DECAY_FACTOR = 0.75  # per-frame exponential decay for slide offsets
+# Per-frame exponential decay factor for the slide reorder animation.
+#
+# When dock items are reordered via drag-and-drop, displaced items
+# slide smoothly to their new positions instead of teleporting.
+# Each frame, the remaining offset is multiplied by this factor:
+#   offset *= SLIDE_DECAY_FACTOR  (e.g., 0.75)
+#
+# This creates a decelerating motion — items move fast initially
+# then slow down as they approach their target, which feels natural.
+# At 60fps with 0.75 decay, an offset halves roughly every 3 frames
+# (~50ms), settling to imperceptible in about 200-300ms.
+SLIDE_DECAY_FACTOR = 0.75
 SLIDE_CLEAR_THRESHOLD = 0.5  # clear slide offset when below this px
 INNER_HIGHLIGHT_OPACITIES = (
     0.5,
@@ -109,6 +148,7 @@ class DockRenderer:
         hide_offset: float = 0.0,
         drag_index: int = -1,
         drop_insert_index: int = -1,
+        zoom_progress: float = 1.0,
     ) -> None:
         """Main draw entry point — called on every 'draw' signal."""
         alloc = widget.get_allocation()
@@ -120,8 +160,23 @@ class DockRenderer:
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # CascadeHide: background and icons slide at different rates
-        # Background slides faster (reaches edge first), icons follow
+        # Cascade hide animation: shelf and icons slide at different rates.
+        #
+        # When the dock hides, instead of everything moving uniformly,
+        # the shelf background slides down faster than the icons. This
+        # creates a layered "cascade" effect that feels more polished:
+        #
+        #   Frame 0:  [icons]          Frame 3:     [icons]
+        #             ═══shelf═══                 ═══shelf═══
+        #             ───screen───                ───screen───
+        #
+        #   Frame 6:        [icons]    Frame 9:          (hidden)
+        #                ═══shelf═══               ═══shelf═══
+        #             ───screen───                ───screen───
+        #
+        # The shelf leads with a 1.3x multiplier on hide_offset,
+        # meaning it reaches the screen edge ~30% sooner than icons.
+        # bg_hide is clamped to 1.0 so it doesn't overshoot.
         if hide_offset > 0:
             bg_hide = min(hide_offset * 1.3, 1.0)  # background leads
             icon_hide = hide_offset  # icons follow
@@ -135,7 +190,33 @@ class DockRenderer:
 
         n = len(items)
 
-        # Base offset for cursor conversion (content-space)
+        # --- Coordinate Systems ---
+        #
+        # The dock uses two coordinate spaces:
+        #
+        # WINDOW-SPACE: pixel positions within the GTK window.
+        #   The window spans the full monitor width (e.g., 1920px) to
+        #   prevent resize wobble during zoom. Position 0 = left edge
+        #   of the monitor, position 1920 = right edge.
+        #
+        # CONTENT-SPACE: positions relative to the dock icon layout.
+        #   Position 0 = left edge of the first icon's horizontal padding.
+        #   The layout is computed entirely in this space.
+        #
+        # Conversion between them:
+        #
+        #   |<----------- monitor (1920px) ------------>|
+        #   |            |<-- content (478px) -->|      |
+        #   |            | [A] [B] [C] [D] [E]  |      |
+        #   |<--offset-->|                       |      |
+        #   0          721                     1199   1920
+        #
+        #   content_x = window_x - base_offset
+        #   window_x  = content_x + base_offset
+        #
+        # Mouse events arrive in window-space. The zoom formula and
+        # layout computation work in content-space. We convert the
+        # cursor position before passing it to compute_layout().
         base_w = (
             theme.h_padding * 2
             + n * config.icon_size
@@ -143,7 +224,6 @@ class DockRenderer:
         )
         base_offset = (w - base_w) / 2
 
-        # Compute zoomed layout in content-space
         local_cursor = cursor_x - base_offset if cursor_x >= 0 else -1.0
         layout = compute_layout(
             items,
@@ -153,18 +233,62 @@ class DockRenderer:
             h_padding=theme.h_padding,
         )
 
-        # Compute actual content bounds (accounts for leftward displacement)
+        # Smooth zoom decay during hide animation.
+        #
+        # When the mouse leaves the dock and autohide triggers, we want
+        # the icon zoom to fade out smoothly IN PARALLEL with the slide
+        # animation, not snap to unzoomed before the slide starts.
+        #
+        # zoom_progress is a value from 0.0 (no zoom) to 1.0 (full zoom),
+        # animated by the AutoHideController. During hide, it decays from
+        # its current value toward 0.0 alongside hide_offset.
+        #
+        # The formula: effective_scale = 1.0 + (computed_scale - 1.0) * zoom_progress
+        # At zoom_progress=1.0: full zoom (normal hover behavior)
+        # At zoom_progress=0.5: half zoom (mid-hide)
+        # At zoom_progress=0.0: no zoom (fully hidden)
+        #
+        # Without this, icons would snap to 1.0x scale on the frame the
+        # mouse leaves, creating a jarring visual pop before the smooth
+        # slide animation begins.
+        if zoom_progress < 1.0:
+            for li in layout:
+                li.scale = 1.0 + (li.scale - 1.0) * zoom_progress
+
+        # Content bounds and centering offset.
+        #
+        # The parabolic zoom displacement pushes icons AWAY from the cursor.
+        # When hovering the right side, left icons shift further left —
+        # potentially past x=0 in content-space. Similarly, hovering the
+        # left side pushes right icons past the normal right boundary.
+        #
+        # content_bounds() returns the actual (left_edge, right_edge) of
+        # all icons including these displacements. The left_edge may be
+        # negative when left icons are pushed past the origin.
+        #
+        # icon_offset positions the content so it's centered in the
+        # full-width window: icon_offset = (window_w - zoomed_w) / 2 - left_edge
+        # The "- left_edge" term compensates for negative left displacement,
+        # ensuring the visual center stays at the monitor center.
         left_edge, right_edge = content_bounds(
             layout, config.icon_size, theme.h_padding
         )
         zoomed_w = right_edge - left_edge
-        # icon_offset: shifts layout so content is centered in window
         icon_offset = (w - zoomed_w) / 2 - left_edge
 
-        # Shelf matches icons but smoothed to reduce wobble
+        # Shelf width smoothing with snap-on-first-draw.
+        #
+        # smooth_shelf_w tracks the rendered shelf width, smoothed via
+        # lerp to prevent wobble (see SHELF_SMOOTH_FACTOR above).
+        #
+        # On the very first frame, smooth_shelf_w is 0.0 (initialized in
+        # __init__). If we lerped from 0, the shelf would start tiny and
+        # gradually expand — a visible glitch on startup. Instead, we
+        # snap to the target width on the first frame, then lerp normally
+        # on all subsequent frames.
         target_shelf_w = zoomed_w
         if self.smooth_shelf_w == 0.0:
-            self.smooth_shelf_w = target_shelf_w  # snap on first draw
+            self.smooth_shelf_w = target_shelf_w
         else:
             self.smooth_shelf_w += (
                 target_shelf_w - self.smooth_shelf_w

@@ -47,6 +47,44 @@ def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
     xlib.XFlush(xdisplay)
 
 
+# Screen edge reservation using EWMH struts.
+#
+# The Extended Window Manager Hints (EWMH) protocol allows dock
+# applications to reserve screen edge space so other windows don't
+# overlap them. This is done via the _NET_WM_STRUT_PARTIAL X11
+# property, which contains 12 integer values:
+#
+#   [left, right, top, bottom,
+#    left_start_y, left_end_y,
+#    right_start_y, right_end_y,
+#    top_start_x, top_end_x,
+#    bottom_start_x, bottom_end_x]
+#
+# For a bottom-edge dock, we set:
+#   bottom      = dock height (in pixels from screen bottom)
+#   bottom_start_x = left edge of the monitor
+#   bottom_end_x   = right edge of the monitor
+#
+# The window manager uses these to calculate the available workspace:
+#
+#   ┌──────────────────────────────┐
+#   │                              │
+#   │     usable workspace         │
+#   │     (windows maximize here)  │
+#   │                              │
+#   ├──────────────────────────────┤ ← strut boundary
+#   │     dock (bottom strut)      │
+#   └──────────────────────────────┘
+#
+# Multi-monitor note: the "bottom" value is relative to the LOGICAL
+# screen (which may span multiple physical monitors). If the dock's
+# monitor doesn't extend to the bottom of the logical screen, we add
+# the gap between the monitor's bottom edge and the screen's bottom.
+#
+# HiDPI note: all values are multiplied by the window scale factor
+# because X11 struts operate in physical (not logical) pixels.
+
+
 def set_dock_struts(
     gdk_window: GdkX11.X11Window,
     dock_height: int,

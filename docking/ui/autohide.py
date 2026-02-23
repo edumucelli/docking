@@ -46,6 +46,7 @@ class AutoHideController:
         self._config = config
         self.state = HideState.VISIBLE
         self.hide_offset: float = 0.0  # 0.0 = fully visible, 1.0 = fully hidden
+        self.zoom_progress: float = 0.0  # 0.0 = no zoom, 1.0 = full zoom
 
         self._hide_timer_id: int = 0
         self._unhide_timer_id: int = 0
@@ -65,6 +66,7 @@ class AutoHideController:
             self._anim_timer_id = 0
         self.state = HideState.VISIBLE
         self.hide_offset = 0.0
+        self.zoom_progress = 0.0
         self._window.queue_redraw()
 
     def on_mouse_leave(self) -> None:
@@ -88,6 +90,7 @@ class AutoHideController:
             return
         log.debug("on_mouse_enter: state=%s", self.state.value)
 
+        self.zoom_progress = 1.0
         self._cancel_hide_timer()
 
         if self.state in (HideState.HIDDEN, HideState.HIDING):
@@ -119,6 +122,25 @@ class AutoHideController:
             GLib.source_remove(self._anim_timer_id)
         self._anim_timer_id = GLib.timeout_add(FRAME_INTERVAL_MS, self._animation_tick)
 
+    # Autohide state machine:
+    #
+    #   ┌─────────┐  mouse   ┌────────┐  anim    ┌────────┐
+    #   │ VISIBLE │──leave──→│ HIDING │──done───→│ HIDDEN │
+    #   └─────────┘          └────────┘          └────────┘
+    #       ↑                                        │
+    #       │                ┌─────────┐   mouse     │
+    #       └───anim done────│ SHOWING │←──enter─────┘
+    #                        └─────────┘
+    #
+    # HIDING:  hide_offset animates 0→1 using ease_in_cubic (accelerating)
+    #          zoom_progress decays in parallel
+    # SHOWING: hide_offset animates 1→0 using ease_out_cubic (decelerating)
+    # VISIBLE/HIDDEN: stable states, no animation running
+    #
+    # Each animation frame advances _anim_progress by a fixed step
+    # (FRAME_INTERVAL_MS / hide_time_ms), giving consistent timing
+    # regardless of how many frames actually render.
+
     def _animation_tick(self) -> bool:
         """Single animation frame."""
         duration = self._config.hide_time_ms
@@ -127,9 +149,25 @@ class AutoHideController:
 
         if self.state == HideState.HIDING:
             self.hide_offset = ease_in_cubic(self._anim_progress)
+            # Zoom progress decay — smooth zoom fadeout during hide.
+            #
+            # As the dock slides down (hide_offset goes 0.0 → 1.0), we
+            # simultaneously decay the zoom effect. The formula:
+            #   zoom_progress *= (1.0 - hide_offset)
+            #
+            # This is a multiplicative decay that couples zoom to the
+            # hide animation. Early in the hide (hide_offset ≈ 0.1),
+            # zoom_progress drops by ~10%. Late in the hide
+            # (hide_offset ≈ 0.9), it drops rapidly toward zero.
+            #
+            # The visual effect: icons gradually shrink back to their
+            # rest size AS the dock slides away, rather than snapping
+            # to unzoomed before the slide starts.
+            self.zoom_progress = self.zoom_progress * (1.0 - self.hide_offset)
             if self._anim_progress >= 1.0:
                 self.state = HideState.HIDDEN
                 self.hide_offset = 1.0
+                self.zoom_progress = 0.0
                 self._anim_timer_id = 0
                 self._window.queue_redraw()
                 return False

@@ -14,6 +14,7 @@ from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 from docking.platform.struts import set_dock_struts, clear_struts
 from docking.core.zoom import compute_layout, content_bounds
 from docking.platform.launcher import launch
+from docking.ui.autohide import HideState
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -132,7 +133,25 @@ class DockWindow(Gtk.Window):
         self._update_input_region()
 
     def _position_dock(self) -> None:
-        """Position dock at full monitor width, fixed at bottom. Plank-style."""
+        """Position the dock window at the bottom of the screen.
+
+        The window is set to the FULL MONITOR WIDTH, not just the width
+        of the dock content. This is a deliberate design choice:
+
+        When icons zoom on hover, the total content width changes. If the
+        window resized to match on every frame, it would cause visible
+        "wobble" — the window manager would reposition the window each
+        frame, creating a jittery visual effect.
+
+        By keeping the window at full monitor width, the window geometry
+        NEVER changes during hover. All animation (zoom, displacement,
+        cascade hide) happens within this fixed buffer via Cairo rendering.
+        The transparent areas are invisible, and an input shape region
+        (see _update_input_region) ensures clicks pass through.
+
+        The height is set to accommodate the maximum zoomed icon size plus
+        padding, so even fully zoomed icons are never clipped.
+        """
         display = self.get_display()
         monitor = display.get_primary_monitor() or display.get_monitor(0)
         geom = monitor.get_geometry()
@@ -177,6 +196,15 @@ class DockWindow(Gtk.Window):
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """Render the dock via the renderer."""
         hide_offset = self.autohide.hide_offset if self.autohide else 0.0
+        # The renderer receives zoom_progress from the autohide controller.
+        # During normal hover (no autohide), zoom_progress is 1.0 and has
+        # no effect. During a hide animation, zoom_progress decays from 1.0
+        # toward 0.0, smoothly reducing icon scales.
+        #
+        # After the hide animation completes (state=HIDDEN), we finally
+        # reset cursor_x to -1.0. This is deferred from _on_leave to allow
+        # the smooth zoom decay described above.
+        zoom_progress = self.autohide.zoom_progress if self.autohide else 1.0
         drag_index = self._dnd.drag_index if self._dnd else -1
         drop_insert = self._dnd.drop_insert_index if self._dnd else -1
         self.renderer.draw(
@@ -189,7 +217,11 @@ class DockWindow(Gtk.Window):
             hide_offset,
             drag_index,
             drop_insert,
+            zoom_progress,
         )
+        # Reset cursor after hide completes
+        if self.autohide and self.autohide.state == HideState.HIDDEN:
+            self.cursor_x = -1.0
         return True
 
     def _on_motion(self, widget: Gtk.DrawingArea, event: Gdk.EventMotion) -> bool:
@@ -245,18 +277,60 @@ class DockWindow(Gtk.Window):
         return True
 
     def _on_leave(self, widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
-        """Reset cursor and notify auto-hide."""
-        # Ignore leave events caused by grabs (e.g., menu popup)
+        """Handle mouse leaving the dock area.
+
+        This is the most complex event handler in the dock because it
+        coordinates several subsystems: zoom state, preview popups,
+        autohide, and cursor tracking.
+        """
+        # GTK crossing events and the INFERIOR detail type:
+        #
+        # When the mouse moves from a parent widget to one of its children,
+        # GTK fires a leave-notify-event on the parent with detail=INFERIOR.
+        # This is technically "leaving" the parent's direct area, but the
+        # mouse is still within the parent's bounds (just over a child).
+        #
+        # For the dock, this happens when the mouse moves to a child widget
+        # like a popup menu. We ignore these events because the mouse hasn't
+        # actually left the dock area.
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
-        self.cursor_x = -1.0
+
         self._hovered_item = None
         self._cancel_preview_timer()
 
-        # If preview is visible, don't hide dock — let preview manage autohide
+        # Preview popup interaction:
+        #
+        # If the window preview popup is currently showing (thumbnails of
+        # application windows), we don't trigger autohide. The preview popup
+        # has its own enter/leave handlers that manage the autohide lifecycle.
+        # This prevents the dock from hiding while the user is browsing
+        # through window thumbnails.
         preview_visible = self._preview and self._preview.get_visible()
         if self._preview and not preview_visible:
             self._preview.schedule_hide()
+
+        # Cursor position preservation during autohide:
+        #
+        # Normally, when the mouse leaves, we'd set cursor_x = -1 to indicate
+        # "no hover." The zoom formula treats cursor_x < 0 as "all icons at
+        # rest scale (1.0x)."
+        #
+        # However, during autohide we KEEP cursor_x at its last valid position.
+        # This allows the zoom to decay smoothly during the hide animation
+        # (via zoom_progress in the renderer) instead of snapping instantly:
+        #
+        #   SMOOTH (cursor_x kept):
+        #   Frame 0: mouse leaves, cursor_x=500, autohide starts
+        #   Frame 1: hide_offset=0.05, zoom_progress=0.95 → icons slightly smaller
+        #   Frame N: hide_offset=1.0, zoom_progress=0.0 → dock hidden, then cursor_x=-1
+        #
+        #   JARRING (cursor_x reset immediately — what we avoid):
+        #   Frame 0: mouse leaves, cursor_x=-1 → icons SNAP to 1.0x instantly
+        #   Frame 1: hide animation starts, but icons already unzoomed
+        if not (self.autohide and self.autohide.enabled and not preview_visible):
+            self.cursor_x = -1.0
+
         self._update_dock_size()
         widget.queue_draw()
         if self.autohide and not preview_visible:
@@ -279,10 +353,32 @@ class DockWindow(Gtk.Window):
         self._update_input_region()
 
     def _update_input_region(self) -> None:
-        """Set input shape so only the dock content area receives events.
+        """Define which part of the window responds to mouse events.
 
-        Plank does the same: input_shape_combine_region with a rect
-        matching the cursor/content region.
+        GTK windows receive ALL mouse events (clicks, hover, scroll) within
+        their pixel bounds. Since our dock window spans the full monitor
+        width (to prevent resize wobble during zoom), the transparent area
+        on either side of the dock icons would block clicks on desktop icons,
+        taskbar items, or any other windows at the same Y coordinate.
+
+        To solve this, we set an "input shape region" — a pixel mask that
+        tells the X11 window manager which parts of the window are "real."
+        Clicks outside this region pass through to whatever is underneath,
+        as if our window wasn't there.
+
+        The input region is a rectangle covering only the dock content area:
+
+          |<----------- monitor (1920px) ------------------>|
+          |          |  [dock icons here]  |                |
+          |          |<-- input region --->|                |
+          |          |                     |                |
+          | clicks   |  clicks handled     |  clicks pass   |
+          | pass     |  by the dock        |  through to    |
+          | through  |                     |  desktop       |
+
+        We compute the region from the maximum zoom layout (cursor at center)
+        to ensure the input area is generous enough to capture hover events
+        even at the edges of the zoom spread.
         """
         gdk_window = self.get_window()
         if not gdk_window:
@@ -315,6 +411,22 @@ class DockWindow(Gtk.Window):
         rect = cairo.RectangleInt(x, 0, max(w, 1), max(window_h, 1))
         region = cairo.Region(rect)
         gdk_window.input_shape_combine_region(region, 0, 0)
+
+    # --- Coordinate Conversion Utilities ---
+    #
+    # These methods convert between window-space and content-space.
+    # See the coordinate system documentation in renderer.py's draw()
+    # method for a full explanation with ASCII diagrams.
+    #
+    # Window-space: pixel position within the GTK window.
+    #   Range: 0 to monitor_width (e.g., 0 to 1920)
+    #   Origin: left edge of the monitor
+    #   Used by: GTK event coordinates (event.x), hit testing
+    #
+    # Content-space: position relative to the dock's icon layout.
+    #   Range: 0 to base_content_width (e.g., 0 to 478)
+    #   Origin: left edge of the first icon's horizontal padding
+    #   Used by: zoom computation, layout positioning
 
     def _base_x_offset(self) -> float:
         """X offset to center base (no-zoom) content within the full-width window."""

@@ -140,7 +140,21 @@ class DnDHandler:
         time: int,
     ) -> bool:
         """Update drop position as user drags."""
-        # Reveal dock when dragging over it (enter-notify doesn't fire during DnD)
+        # GTK drag-and-drop event model quirk:
+        #
+        # During an active drag operation (user is dragging something),
+        # GTK takes over mouse event delivery. The normal widget signals
+        # that fire during regular mouse movement do NOT fire during DnD:
+        #
+        #   Normal hover:    enter-notify → motion-notify → leave-notify
+        #   During DnD:      drag-motion  → (no enter/leave!) → drag-leave
+        #
+        # This means our autohide controller's on_mouse_enter() — which
+        # is triggered by enter-notify-event — would never fire when the
+        # user drags a .desktop file toward the dock to add it.
+        #
+        # To fix this, we explicitly call autohide.on_mouse_enter() from
+        # the drag-motion handler, which IS delivered during DnD.
         if self._window.autohide:
             self._window.autohide.on_mouse_enter()
         if self._drag_from < 0:
@@ -274,10 +288,22 @@ class DnDHandler:
     def _on_drag_leave(
         self, widget: Gtk.DrawingArea, _context: Gdk.DragContext, _time: int
     ) -> None:
-        """Hide dock when drag leaves (leave-notify doesn't fire during DnD).
+        """Handle drag leaving the dock area.
 
-        Note: don't clear drop_insert_index here — GTK fires drag-leave
-        before drag-drop, so we need the index to survive until data-received.
+        IMPORTANT: GTK fires events in this order during a drop:
+
+          1. drag-motion   (mouse hovering over drop target)
+          2. drag-leave    ← fires BEFORE the drop happens!
+          3. drag-drop     (user releases the mouse button)
+          4. drag-data-received  (dropped data is delivered)
+
+        This means if we cleared drop_insert_index here in drag-leave,
+        it would already be -1 by the time drag-data-received tries to
+        read it to know WHERE to insert the dropped item.
+
+        Therefore, we do NOT clear drop_insert_index here. It gets
+        cleared in _on_drag_data_received after the insertion is done,
+        or in _on_drag_end when the drag operation fully completes.
         """
         widget.queue_draw()
         if self._window.autohide:
