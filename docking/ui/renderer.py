@@ -17,6 +17,19 @@ from gi.repository import Gtk, Gdk, GLib  # noqa: E402
 
 from docking.core.zoom import compute_layout, content_bounds
 from docking.core.theme import RGB
+from docking.ui.effects import (
+    easing_bounce,
+    average_icon_color,
+    CLICK_DURATION_US,
+    CLICK_DARKEN_MAX,
+    LAUNCH_BOUNCE_DURATION_US,
+    LAUNCH_BOUNCE_HEIGHT,
+    URGENT_BOUNCE_DURATION_US,
+    URGENT_BOUNCE_HEIGHT,
+    HOVER_LIGHTEN_MAX,
+    HOVER_FADE_FRAMES,
+)
+from docking.ui.shelf import draw_shelf_background, SHELF_HEIGHT_PX
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -25,52 +38,6 @@ if TYPE_CHECKING:
     from docking.core.zoom import LayoutItem
 
 
-def _rounded_rect(
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    width: float,
-    height: float,
-    radius: float,
-    round_bottom: bool = True,
-) -> None:
-    """Draw a rounded rectangle path, optionally with square bottom corners."""
-    cr.new_sub_path()
-    # Top-right (rounded)
-    cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)
-    if round_bottom:
-        # Bottom-right (rounded)
-        cr.arc(x + width - radius, y + height - radius, radius, 0, math.pi / 2)
-        # Bottom-left (rounded)
-        cr.arc(x + radius, y + height - radius, radius, math.pi / 2, math.pi)
-    else:
-        # Bottom-right (square)
-        cr.line_to(x + width, y + height)
-        # Bottom-left (square)
-        cr.line_to(x, y + height)
-    # Top-left (rounded)
-    cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
-    cr.close_path()
-
-
-# Shelf height in pixels for the dock background.
-#
-# The dock has two visual layers: the shelf (background bar) and the icons
-# that sit on top of it. The shelf is intentionally shorter than the icons,
-# creating a "shelf" effect where icons overflow above the background:
-#
-#     ┌──────┐          ┌──────┐
-#     │ icon │          │ icon │       ← icons overflow above shelf
-#     │      │          │      │
-#   ──┴──────┴──────────┴──────┴──   ← shelf top edge
-#   │        shelf background       │
-#   ─────────────────────────────────  ← screen bottom
-#
-# The height is derived from the icon size and theme padding offsets.
-# For 48px icons with the default theme: 21px shelf height.
-# This means icons extend ~27px above the shelf, which gives the
-# characteristic dock appearance.
-SHELF_HEIGHT_PX = 21
 # Linear interpolation (lerp) factor for shelf width smoothing.
 #
 # When icons zoom on hover, the total content width changes slightly
@@ -100,229 +67,11 @@ SLIDE_MOVE_THRESHOLD = 2.0  # minimum px displacement to trigger slide animation
 # (~50ms), settling to imperceptible in about 200-300ms.
 SLIDE_DECAY_FACTOR = 0.75
 SLIDE_CLEAR_THRESHOLD = 0.5  # clear slide offset when below this px
-INNER_HIGHLIGHT_OPACITIES = (
-    0.5,
-    0.12,
-    0.08,
-    0.19,
-)  # top, near-top, near-bottom, bottom
 MAX_INDICATOR_DOTS = 3
 INDICATOR_SPACING_MULT = 3  # spacing = indicator_radius * this
 
-# Hover lighten: additive blending effect on the hovered icon.
-#
-# When the cursor hovers an icon, a white additive overlay fades in
-# over HOVER_FADE_FRAMES, making the icon visibly brighter. This uses
-# Cairo's ADD operator, which adds RGB values per-pixel:
-#   result_rgb = icon_rgb + (1,1,1) * lighten_alpha
-#
-# The effect is subtle (max 20% brightness increase) to avoid
-# washing out the icon. The linear fade (step = max / frames) takes
-# ~150ms at 60fps, which is fast enough to feel responsive but slow
-# enough to appear smooth rather than instant.
-#
-#   lighten=0.0        lighten=0.1        lighten=0.2
-#   [normal icon]  →  [slightly bright]  →  [noticeably bright]
-#
-# On un-hover, the lighten value fades back to 0.0 at the same rate.
-# When it reaches 0.0, the entry is removed from the dict entirely
-# (no stale zero-entries accumulate).
-HOVER_LIGHTEN_MAX = 0.2  # max additive brightness (0.0-1.0)
-HOVER_FADE_FRAMES = 9  # ~150ms at 60fps (150/16.67)
-
-# Click darken: a brief sine-curve pulse that dims the icon on click.
-#
-# When the user clicks an icon, a black ATOP overlay fades in and
-# out following a sine curve over CLICK_DURATION_US microseconds:
-#   darken(t) = sin(pi * t / duration) * CLICK_DARKEN_MAX
-#
-# The sine shape creates a smooth "flash" — starts at 0, peaks at
-# the midpoint (150ms), and returns to 0 at the end (300ms):
-#
-#   darken ▲
-#    0.5   │   ╭──╮
-#          │  ╭╯  ╰╮
-#    0.0   │──╯    ╰──
-#          └──────────────→ time (ms)
-#          0    150    300
-#
-# Cairo ATOP operator ensures the black only affects the icon's own
-# opaque pixels — transparent areas remain transparent.
-CLICK_DURATION_US = 300_000  # 300ms in microseconds
-CLICK_DARKEN_MAX = 0.5  # max darkening on click (0.0-1.0)
-
-# Launch bounce: icon hops upward when launching an application.
-#
-# Uses _easing_bounce with n=2 (two bounces). The first bounce
-# reaches full height (icon_size * 0.625 = 30px for 48px icons),
-# and the second bounce is lower (~33% of first) due to the
-# decay envelope. Total animation: 600ms.
-#
-#   y-offset ▲
-#    30px    │  ╭╮
-#            │ ╭╯╰╮      (second bounce ~10px)
-#            │╭╯  ╰╮╭╮
-#    0px     │╯    ╰╯╰─
-#            └────────────→ time (ms)
-#            0   200  400  600
-LAUNCH_BOUNCE_DURATION_US = 600_000  # 600ms
-LAUNCH_BOUNCE_HEIGHT = 0.625  # fraction of icon_size
-
-# Urgent bounce: taller single bounce when an app demands attention.
-#
-# Uses _easing_bounce with n=1 (single arc). The icon rises to
-# icon_size * 1.66 = ~80px for 48px icons — significantly taller
-# than the launch bounce to be unmissable. The single arc with
-# decay envelope creates a clean rise-and-fall over 600ms.
-#
-#   y-offset ▲
-#    80px    │  ╭──╮
-#            │ ╭╯  ╰╮
-#            │╭╯    ╰╮
-#    0px     │╯      ╰─
-#            └──────────────→ time (ms)
-#            0    300    600
-URGENT_BOUNCE_DURATION_US = 600_000  # 600ms
-URGENT_BOUNCE_HEIGHT = 1.66  # fraction of icon_size
-
 SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
-
-
-def _average_icon_color(
-    pixbuf: object,
-) -> RGB:
-    """Compute the saturation-weighted average color of an icon pixbuf.
-
-    Returns (r, g, b) in 0.0-1.0 range, or (0.5, 0.5, 0.5) for
-    missing/empty/gray icons.
-    """
-    # The goal is to extract the icon's "dominant color" for use in
-    # the active glow effect. A naive average of all pixels would
-    # produce muddy browns/grays because most icon backgrounds
-    # contain desaturated pixels (grays, whites, near-blacks).
-    #
-    # Instead, we use saturation-weighted averaging. Each pixel gets a
-    # "score" based on how colorful (saturated) it is. Vibrant pixels
-    # contribute heavily to the average; gray pixels contribute nothing.
-    #
-    # The score formula uses HSV-like saturation:
-    #   score = (max_channel - min_channel) / max_channel
-    #
-    # For a pure red pixel (255, 0, 0):  score = 255/255 = 1.0 (max weight)
-    # For a gray pixel (128, 128, 128):  score = 0/128   = 0.0 (ignored)
-    # For a muted blue (100, 100, 180):  score = 80/180  = 0.44 (moderate)
-    #
-    # The weighted sum is:
-    #   r_avg = sum(score_i * r_i) / sum(score_i)
-    #
-    # This naturally selects the icon's most visually prominent hue.
-    # For example, a Firefox icon with a blue globe and gray background
-    # will average to blue because the blue pixels have high saturation
-    # scores while the gray pixels have scores near zero.
-    #
-    # Transparent pixels (alpha < 25) are skipped entirely since they
-    # have no visual contribution. If ALL pixels are gray (score_total=0),
-    # we fall back to neutral gray (0.5, 0.5, 0.5).
-    if pixbuf is None:
-        return (0.5, 0.5, 0.5)
-
-    pixels = pixbuf.get_pixels()  # type: ignore[attr-defined]
-    n_channels = pixbuf.get_n_channels()  # type: ignore[attr-defined]
-    width = pixbuf.get_width()  # type: ignore[attr-defined]
-    height = pixbuf.get_height()  # type: ignore[attr-defined]
-    rowstride = pixbuf.get_rowstride()  # type: ignore[attr-defined]
-
-    r_total = 0.0
-    g_total = 0.0
-    b_total = 0.0
-    score_total = 0.0
-    count = 0
-
-    for y in range(height):
-        for x in range(width):
-            offset = y * rowstride + x * n_channels
-            r = pixels[offset]
-            g = pixels[offset + 1]
-            b = pixels[offset + 2]
-            a = pixels[offset + 3] if n_channels >= 4 else 255
-
-            # Skip nearly-transparent pixels
-            if a < 25:
-                continue
-
-            min_channel = min(r, g, b)
-            max_channel = max(r, g, b)
-            delta = max_channel - min_channel
-            # Saturation score: 0.0 for grays, 1.0 for fully saturated
-            score = (delta / max_channel) if max_channel > 0 else 0.0
-
-            r_total += score * r / 255
-            g_total += score * g / 255
-            b_total += score * b / 255
-            score_total += score
-            count += 1
-
-    if count == 0:
-        return (0.5, 0.5, 0.5)
-
-    if score_total > 0:
-        r_avg = r_total / score_total
-        g_avg = g_total / score_total
-        b_avg = b_total / score_total
-    else:
-        # All pixels were gray (zero saturation) — fall back to neutral
-        r_avg = g_avg = b_avg = 0.5
-
-    # Clamp: ensure no channel exceeds 1.0 (can happen with
-    # rounding in heavily saturated icons)
-    max_channel = max(r_avg, g_avg, b_avg)
-    if max_channel > 1.0:
-        r_avg /= max_channel
-        g_avg /= max_channel
-        b_avg /= max_channel
-
-    return (r_avg, g_avg, b_avg)
-
-
-def _easing_bounce(t: float, duration: float, n: float = 1.0) -> float:
-    """Sinusoidal bounce easing with momentum decay.
-
-    Simulates a ball bouncing n times with decreasing height.
-    """
-    # The bounce is the product of two components:
-    #
-    # 1) abs(sin(n * pi * p)) — the bounce oscillation
-    #    Using abs(sin) ensures all bounces go upward (positive).
-    #    The parameter n controls the number of half-arcs within
-    #    the duration. For n=2, sin completes 2 full half-arcs
-    #    (two bounces); for n=1, a single arc (one bounce).
-    #
-    # 2) min(1.0, (1-p) * 2n / (2n-1)) — the decay envelope
-    #    A linear decay from a value > 1.0 down to 0.0 over the
-    #    full duration. The min(1.0, ...) clamp ensures the first
-    #    bounce reaches exactly 1.0 at its peak (not higher).
-    #
-    #    The factor 2n/(2n-1) sets the starting value:
-    #      n=1: 2/1 = 2.0 → envelope starts at 2.0, clamped to 1.0
-    #      n=2: 4/3 ≈ 1.33 → envelope starts at 1.33, clamped to 1.0
-    #
-    #    This is tuned so the FIRST bounce peak hits exactly 1.0.
-    #    Subsequent bounces are lower because the envelope has
-    #    decayed past 1.0 by then.
-    #
-    #    For n=2 (launch bounce):
-    #      First peak at p≈0.25:  envelope ≈ 1.0  → bounce = 1.0
-    #      Second peak at p≈0.75: envelope ≈ 0.33 → bounce ≈ 0.33
-    #
-    #    For n=1 (urgent bounce):
-    #      Single peak at p=0.5:  envelope = 1.0  → bounce = 1.0
-    #      Decays smoothly to 0 by p=1.0
-    if duration <= 0 or t >= duration:
-        return 0.0
-    p = t / duration
-    envelope = min(1.0, (1.0 - p) * (2.0 * n) / (2.0 * n - 1.0))
-    return abs(math.sin(n * math.pi * p)) * envelope
 
 
 class DockRenderer:
@@ -520,13 +269,13 @@ class DockRenderer:
         # Plank Yaru-light: shelf = 21px for 48px icons (not additive with bottom_padding)
         bg_height = SHELF_HEIGHT_PX
         bg_y = height - bg_height + bg_hide * height
-        self._draw_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
+        draw_shelf_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
         # Active window glow: color-matched highlight on the shelf
         # behind the focused application's icon.
         #
         # The glow pipeline:
-        # 1. Extract the icon's dominant color via _average_icon_color()
+        # 1. Extract the icon's dominant color via average_icon_color()
         #    (saturation-weighted average — see that function's comments).
         #    The result is cached in _icon_colors so we don't re-scan
         #    the pixbuf every frame.
@@ -561,7 +310,7 @@ class DockRenderer:
                 glow_pad = glow_w * 0.15
                 # Compute and cache the icon's average color
                 if item.desktop_id not in self._icon_colors:
-                    self._icon_colors[item.desktop_id] = _average_icon_color(item.icon)
+                    self._icon_colors[item.desktop_id] = average_icon_color(item.icon)
                 glow_red, glow_green, glow_blue = self._icon_colors[item.desktop_id]
                 pat = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
                 pat.add_color_stop_rgba(0, glow_red, glow_green, glow_blue, 0.0)
@@ -609,7 +358,7 @@ class DockRenderer:
             if item.last_launched > 0:
                 lt = now - item.last_launched
                 bounce_y -= (
-                    _easing_bounce(lt, LAUNCH_BOUNCE_DURATION_US, 2)
+                    easing_bounce(lt, LAUNCH_BOUNCE_DURATION_US, 2)
                     * icon_size
                     * LAUNCH_BOUNCE_HEIGHT
                 )
@@ -618,7 +367,7 @@ class DockRenderer:
             if item.last_urgent > 0:
                 ut = now - item.last_urgent
                 bounce_y -= (
-                    _easing_bounce(ut, URGENT_BOUNCE_DURATION_US, 1)
+                    easing_bounce(ut, URGENT_BOUNCE_DURATION_US, 1)
                     * icon_size
                     * URGENT_BOUNCE_HEIGHT
                 )
@@ -709,75 +458,6 @@ class DockRenderer:
             del self.slide_offsets[d]
 
         self.prev_positions = new_positions
-
-    @staticmethod
-    def _draw_background(
-        cr: cairo.Context,
-        x: float,
-        y: float,
-        w: float,
-        h: float,
-        theme: Theme,
-    ) -> None:
-        """Draw the dock background shelf with Plank-style 3D effect.
-
-        Three layers: gradient fill, dark outer stroke, inner highlight stroke.
-        """
-        radius = theme.roundness
-        line_width = theme.stroke_width
-
-        # Layer 1: Gradient fill + outer stroke
-        _rounded_rect(
-            cr,
-            x + line_width / 2,
-            y + line_width / 2,
-            w - line_width,
-            h - line_width / 2,
-            radius,
-            round_bottom=False,
-        )
-
-        pat = cairo.LinearGradient(0, y, 0, y + h)
-        pat.add_color_stop_rgba(0, *theme.fill_start)
-        pat.add_color_stop_rgba(1, *theme.fill_end)
-        cr.set_source(pat)
-        cr.fill_preserve()
-
-        cr.set_source_rgba(*theme.stroke)
-        cr.set_line_width(line_width)
-        cr.stroke()
-
-        # Layer 2: Inner highlight stroke (creates 3D bevel effect)
-        # Plank uses white with varying opacity: 50% top → 12% → 8% → 19% bottom
-        is_r, is_g, is_b, _ = theme.inner_stroke
-        inset = 3 * line_width / 2
-        inner_h = h - inset
-        top_point = max(radius, line_width) / h if h > 0 else 0.1
-        bottom_point = 1.0 - top_point
-
-        highlight = cairo.LinearGradient(0, y + inset, 0, y + h - inset)
-        highlight.add_color_stop_rgba(0, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[0])
-        highlight.add_color_stop_rgba(
-            top_point, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[1]
-        )
-        highlight.add_color_stop_rgba(
-            bottom_point, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[2]
-        )
-        highlight.add_color_stop_rgba(1, is_r, is_g, is_b, INNER_HIGHLIGHT_OPACITIES[3])
-
-        inner_r = max(radius - line_width, 0)
-        _rounded_rect(
-            cr,
-            x + inset,
-            y + inset,
-            w - 2 * inset,
-            inner_h - inset / 2,
-            inner_r,
-            round_bottom=False,
-        )
-        cr.set_source(highlight)
-        cr.set_line_width(line_width)
-        cr.stroke()
 
     @staticmethod
     def _draw_icon(

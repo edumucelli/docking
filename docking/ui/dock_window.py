@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 import cairo
@@ -16,7 +15,9 @@ from docking.platform.struts import set_dock_struts, clear_struts
 from docking.core.zoom import compute_layout, content_bounds
 from docking.platform.launcher import launch
 from docking.ui.autohide import HideState
-from docking.ui.renderer import URGENT_BOUNCE_HEIGHT
+from docking.ui.effects import URGENT_BOUNCE_HEIGHT
+from docking.ui.tooltip import TooltipManager
+from docking.ui.hover import HoverManager
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
 
 
 CLICK_DRAG_THRESHOLD = 10  # px movement to distinguish click from drag
-PREVIEW_SHOW_DELAY_MS = 400  # hover delay before showing preview popup
 
 # X11 mouse button codes
 MOUSE_LEFT = 1
@@ -63,9 +63,8 @@ class DockWindow(Gtk.Window):
         self._dnd: DnDHandler | None = None
         self._menu: MenuHandler | None = None
         self._preview: PreviewPopup | None = None
-        self._hovered_item: DockItem | None = None
-        self._preview_timer_id: int = 0
-        self._anim_timer_id: int = 0  # redraw pump for click/bounce animations
+        self._tooltip = TooltipManager(self, config, model, theme)
+        self._hover = HoverManager(self, config, model, theme, self._tooltip)
 
         self._setup_window()
         self._setup_drawing_area()
@@ -109,7 +108,6 @@ class DockWindow(Gtk.Window):
         self.drawing_area.connect("leave-notify-event", self._on_leave)
         self.drawing_area.connect("enter-notify-event", self._on_enter)
         self.add(self.drawing_area)
-        self._tooltip_window: Gtk.Window | None = None
 
         self._click_x: float = -1.0
         self._click_button: int = 0
@@ -129,6 +127,7 @@ class DockWindow(Gtk.Window):
 
     def set_preview_popup(self, preview: PreviewPopup) -> None:
         self._preview = preview
+        self._hover.set_preview(preview)
 
     def _on_realize(self, _widget: Gtk.Widget) -> None:
         """Position dock and set struts after window is realized."""
@@ -219,7 +218,11 @@ class DockWindow(Gtk.Window):
         zoom_progress = self.autohide.zoom_progress if self.autohide else 1.0
         drag_index = self._dnd.drag_index if self._dnd else -1
         drop_insert = self._dnd.drop_insert_index if self._dnd else -1
-        hovered_id = self._hovered_item.desktop_id if self._hovered_item else ""
+        hovered_id = (
+            self._hover.hovered_item.desktop_id
+            if self._hover and self._hover.hovered_item
+            else ""
+        )
         self.renderer.draw(
             cr,
             widget,
@@ -247,7 +250,7 @@ class DockWindow(Gtk.Window):
         self.cursor_y = event.y
         self._update_dock_size()
         widget.queue_draw()
-        self._update_hovered_item()
+        self._hover.update(self.cursor_x)
         return False  # Propagate so GTK drag source can detect drag threshold
 
     def _on_button_press(
@@ -279,7 +282,7 @@ class DockWindow(Gtk.Window):
                 item_padding=self.theme.item_padding,
                 h_padding=self.theme.h_padding,
             )
-            item = self._hit_test(event.x, layout)
+            item = self.hit_test(event.x, layout)
             if item is None:
                 return True
 
@@ -310,10 +313,10 @@ class DockWindow(Gtk.Window):
             if force_launch or not item.is_running:
                 item.last_launched = now
                 launch(item.desktop_id)
-                self._start_anim_pump(700)  # 600ms bounce + margin
+                self._hover.start_anim_pump(700)  # 600ms bounce + margin
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
-                self._start_anim_pump(350)  # 300ms click darken
+                self._hover.start_anim_pump(350)  # 300ms click darken
 
         return True
 
@@ -337,9 +340,9 @@ class DockWindow(Gtk.Window):
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
 
-        self._hovered_item = None
-        self._cancel_preview_timer()
-        self._hide_tooltip()
+        self._hover.hovered_item = None
+        self._hover.cancel()
+        self._tooltip.hide()
 
         # Preview popup interaction:
         #
@@ -388,11 +391,7 @@ class DockWindow(Gtk.Window):
     def _on_model_changed(self) -> None:
         """Reposition and redraw when the model changes."""
         self._update_dock_size()
-        # Check if any item became urgent — start animation pump
-        for item in self.model.visible_items():
-            if item.is_urgent and item.last_urgent > 0:
-                self._start_anim_pump(700)
-                break
+        self._hover.on_model_changed()
         self.drawing_area.queue_draw()
 
     def _update_dock_size(self) -> None:
@@ -524,7 +523,7 @@ class DockWindow(Gtk.Window):
         window_w: int = self.get_size()[0]
         return (window_w - zoomed_w) / 2 - left_edge
 
-    def _hit_test(self, x: float, layout: list[LayoutItem]) -> DockItem | None:
+    def hit_test(self, x: float, layout: list[LayoutItem]) -> DockItem | None:
         """Find which DockItem is under the cursor x position (window-space)."""
         offset = self.zoomed_x_offset(layout)
         items = self.model.visible_items()
@@ -539,242 +538,3 @@ class DockWindow(Gtk.Window):
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
         self.drawing_area.queue_draw()
-
-    def _start_anim_pump(self, duration_ms: int = 700) -> None:
-        """Start a temporary redraw loop for time-based animations.
-
-        The dock does NOT have a continuous render loop. In normal
-        operation, GTK only calls the draw handler when something
-        changes (mouse move, model update, etc.). This is efficient —
-        a static dock uses zero CPU for rendering.
-
-        However, time-based animations (click darken, launch bounce,
-        urgent bounce) need continuous redraws even when the mouse is
-        still. Without a pump, the animation would only advance when
-        the user happens to move the mouse (triggering motion events).
-
-        The pump is a GLib.timeout_add timer at ~16ms intervals (~60fps)
-        that calls queue_draw() for a fixed duration, then self-stops.
-        This avoids a permanent render loop — the pump only runs during
-        the animation window (e.g., 700ms for a launch bounce).
-
-        If a new animation starts while a pump is already running, the
-        old timer is cancelled and replaced. This prevents overlapping
-        timers from accumulating.
-        """
-        if self._anim_timer_id:
-            GLib.source_remove(self._anim_timer_id)
-
-        frames_left = [duration_ms // 16]
-
-        def tick() -> bool:
-            frames_left[0] -= 1
-            if frames_left[0] <= 0:
-                self._anim_timer_id = 0
-                return False
-            self.drawing_area.queue_draw()
-            return True
-
-        self._anim_timer_id = GLib.timeout_add(16, tick)
-
-    # -- Tooltip --
-
-    # Tooltip gap between icon top and tooltip bottom (matches Plank's PADDING=10)
-    TOOLTIP_GAP = 10
-
-    def _update_tooltip(self, item: DockItem | None, layout: list[LayoutItem]) -> None:
-        """Show or hide the app name tooltip centered above the hovered icon.
-
-        Custom tooltip implementation instead of GTK's built-in tooltips.
-
-        GTK tooltips (set_tooltip_text / query-tooltip signal) cannot be
-        precisely positioned — GTK places them using its own heuristics
-        that don't account for zoomed icon sizes or the dock's coordinate
-        system. The tooltip would appear at the wrong X position (centered
-        on the un-zoomed icon) and at a fixed Y offset from the cursor
-        rather than above the icon's actual top edge.
-
-        Instead, we create a separate Gtk.Window(POPUP) with:
-        - RGBA visual for transparency (same as the dock window)
-        - A Cairo-drawn rounded rectangle background (dark, 85% opaque)
-        - Manual positioning: centered horizontally over the icon,
-          placed TOOLTIP_GAP pixels above the icon's top edge
-        - Screen-edge clamping so it never goes off-screen
-        """
-        if not item or not item.name:
-            self._hide_tooltip()
-            return
-
-        # Find the icon's screen position
-        items = self.model.visible_items()
-        idx = None
-        for i, it in enumerate(items):
-            if it is item:
-                idx = i
-                break
-        if idx is None or idx >= len(layout):
-            self._hide_tooltip()
-            return
-
-        li = layout[idx]
-        offset = self.zoomed_x_offset(layout)
-        scaled_size = li.scale * self.config.icon_size
-
-        # Compute the icon's top edge in screen coordinates.
-        # The dock window's bottom edge sits at the screen bottom. Icons
-        # are drawn from bottom up: icon_top = win_bottom - bottom_padding - icon_height
-        win_x, win_y = self.get_position()
-        _, win_h = self.get_size()
-        screen_bottom = win_y + win_h
-        icon_top_y = screen_bottom - self.theme.bottom_padding - scaled_size
-
-        icon_center_x = win_x + li.x + offset + scaled_size / 2
-
-        self._show_tooltip(item.name, icon_center_x, icon_top_y)
-
-    def _show_tooltip(self, text: str, center_x: float, above_y: float) -> None:
-        """Display a tooltip centered above a screen point, 10px gap.
-
-        The tooltip window requires an RGBA visual (compositing support)
-        for the semi-transparent Cairo-drawn background to work. Without
-        RGBA, the rounded corners would show opaque black rectangles
-        instead of transparency. The RGBA visual is set once on first
-        creation and reused for subsequent tooltip updates.
-        """
-        if self._tooltip_window is None:
-            self._tooltip_window = Gtk.Window(type=Gtk.WindowType.POPUP)
-            self._tooltip_window.set_decorated(False)
-            self._tooltip_window.set_skip_taskbar_hint(True)
-            self._tooltip_window.set_resizable(False)
-            self._tooltip_window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
-            self._tooltip_window.set_app_paintable(True)
-
-            screen = self._tooltip_window.get_screen()
-            visual = screen.get_rgba_visual()
-            if visual:
-                self._tooltip_window.set_visual(visual)
-
-            # Dark tooltip with rounded corners — draw background via Cairo
-            # since app_paintable windows skip GTK's default background
-            def on_draw(widget, cr):
-                alloc = widget.get_allocation()
-                # Rounded rect background
-                radius = 6
-                width, height = alloc.width, alloc.height
-                cr.new_sub_path()
-                cr.arc(width - radius, radius, radius, -math.pi / 2, 0)
-                cr.arc(width - radius, height - radius, radius, 0, math.pi / 2)
-                cr.arc(radius, height - radius, radius, math.pi / 2, math.pi)
-                cr.arc(radius, radius, radius, math.pi, 3 * math.pi / 2)
-                cr.close_path()
-                cr.set_source_rgba(0, 0, 0, 0.85)
-                cr.fill()
-                return False  # propagate to draw children
-
-            self._tooltip_window.connect("draw", on_draw)
-
-        # Update label
-        child = self._tooltip_window.get_child()
-        if child:
-            self._tooltip_window.remove(child)
-        label = Gtk.Label(label=text)
-        label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
-        label.set_margin_start(6)
-        label.set_margin_end(6)
-        label.set_margin_top(6)
-        label.set_margin_bottom(6)
-        self._tooltip_window.add(label)
-        label.show()
-
-        # Measure size, position, THEN show (avoids flash at 0,0)
-        label.show()
-        pref = self._tooltip_window.get_preferred_size()[1]
-        tooltip_width = max(pref.width, 1)
-        tooltip_height = max(pref.height, 1)
-        tooltip_x = int(center_x - tooltip_width / 2)
-        tooltip_y = int(above_y - tooltip_height - self.TOOLTIP_GAP)
-
-        # Clamp to screen
-        screen_w = self._tooltip_window.get_screen().get_width()
-        tooltip_x = max(0, min(tooltip_x, screen_w - tooltip_width))
-        tooltip_y = max(0, tooltip_y)
-
-        self._tooltip_window.move(tooltip_x, tooltip_y)
-        self._tooltip_window.show_all()
-
-    def _hide_tooltip(self) -> None:
-        if self._tooltip_window:
-            self._tooltip_window.hide()
-
-    # -- Preview popup hover tracking --
-
-    def _update_hovered_item(self) -> None:
-        """Detect which item the cursor is over and manage preview timer."""
-        items = self.model.visible_items()
-        layout = compute_layout(
-            items,
-            self.config,
-            self.local_cursor_x(),
-            item_padding=self.theme.item_padding,
-            h_padding=self.theme.h_padding,
-        )
-        item = self._hit_test(self.cursor_x, layout)
-
-        if item is self._hovered_item:
-            return
-
-        self._hovered_item = item
-        self._cancel_preview_timer()
-        self._update_tooltip(item, layout)
-
-        if self._preview and self.config.previews_enabled:
-            # If hovering a different running item, start timer to show preview
-            if item and item.is_running and item.instance_count > 0:
-                self._preview_timer_id = GLib.timeout_add(
-                    PREVIEW_SHOW_DELAY_MS, self._show_preview, item, layout
-                )
-            else:
-                self._preview.schedule_hide()
-
-    def _show_preview(self, item: DockItem, _layout: list[LayoutItem]) -> bool:
-        """Show the preview popup above the hovered icon."""
-        self._preview_timer_id = 0
-        if not self._preview or self._hovered_item is not item:
-            return False
-
-        # Find the layout entry for this item to get screen coordinates
-        items = self.model.visible_items()
-        layout = compute_layout(
-            items,
-            self.config,
-            self.local_cursor_x(),
-            item_padding=self.theme.item_padding,
-            h_padding=self.theme.h_padding,
-        )
-
-        idx = None
-        for i, it in enumerate(items):
-            if it is item:
-                idx = i
-                break
-        if idx is None or idx >= len(layout):
-            return False
-
-        li = layout[idx]
-        icon_w = li.scale * self.config.icon_size
-
-        # Convert icon position to absolute screen coordinates
-        win_x, win_y = self.get_position()
-        # Guard: skip if window hasn't been positioned yet
-        if win_x == 0 and win_y == 0:
-            return False
-        icon_abs_x = win_x + li.x + self.zoomed_x_offset(layout)
-        dock_abs_y = win_y
-
-        self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, dock_abs_y)
-        return False
-
-    def _cancel_preview_timer(self) -> None:
-        if self._preview_timer_id:
-            GLib.source_remove(self._preview_timer_id)
-            self._preview_timer_id = 0
