@@ -23,6 +23,18 @@ class TestConfigDefaults:
         assert c.theme == "default"
         assert isinstance(c.pinned, list)
 
+    def test_previews_enabled_default_true(self):
+        # Given / When
+        c = Config()
+        # Then — previews should be on by default
+        assert c.previews_enabled is True
+
+    def test_hide_delay_default_zero(self):
+        # Given / When
+        c = Config()
+        # Then — no hide delay by default (instant hide)
+        assert c.hide_delay_ms == 0
+
 
 class TestConfigLoad:
     def test_load_missing_file_creates_default(self, tmp_path):

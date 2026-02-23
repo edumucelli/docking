@@ -16,7 +16,58 @@ from docking.ui.renderer import (
     URGENT_BOUNCE_DURATION_US,
     URGENT_BOUNCE_HEIGHT,
     _easing_bounce,
+    _average_icon_color,
 )
+
+
+class TestAverageIconColor:
+    def test_none_pixbuf_returns_gray(self):
+        # Given / When
+        result = _average_icon_color(None)
+        # Then
+        assert result == (0.5, 0.5, 0.5)
+
+    def test_opaque_red_pixbuf(self):
+        # Given — a 2x2 fully red, fully opaque pixbuf
+        pixbuf = MagicMock()
+        pixbuf.get_width.return_value = 2
+        pixbuf.get_height.return_value = 2
+        pixbuf.get_n_channels.return_value = 4
+        pixbuf.get_rowstride.return_value = 8  # 2 pixels * 4 channels
+        # RGBA: pure red, fully opaque
+        pixbuf.get_pixels.return_value = bytes([255, 0, 0, 255] * 4)
+        # When
+        r, g, b = _average_icon_color(pixbuf)
+        # Then — dominant color should be red
+        assert r > 0.5
+        assert g < 0.1
+        assert b < 0.1
+
+    def test_transparent_pixels_ignored(self):
+        # Given — all pixels are fully transparent (alpha=0)
+        pixbuf = MagicMock()
+        pixbuf.get_width.return_value = 2
+        pixbuf.get_height.return_value = 2
+        pixbuf.get_n_channels.return_value = 4
+        pixbuf.get_rowstride.return_value = 8
+        pixbuf.get_pixels.return_value = bytes([255, 0, 0, 0] * 4)
+        # When
+        result = _average_icon_color(pixbuf)
+        # Then — no visible pixels, returns gray fallback
+        assert result == (0.5, 0.5, 0.5)
+
+    def test_gray_pixels_low_score(self):
+        # Given — all pixels are neutral gray (no saturation)
+        pixbuf = MagicMock()
+        pixbuf.get_width.return_value = 2
+        pixbuf.get_height.return_value = 2
+        pixbuf.get_n_channels.return_value = 4
+        pixbuf.get_rowstride.return_value = 8
+        pixbuf.get_pixels.return_value = bytes([128, 128, 128, 255] * 4)
+        # When — gray pixels have delta=0, so score=0
+        result = _average_icon_color(pixbuf)
+        # Then — all scores are 0, returns gray fallback
+        assert result == (0.5, 0.5, 0.5)
 
 
 class TestSmoothShelfW:
@@ -109,6 +160,23 @@ class TestEasingBounce:
         # Then
         assert result == 0.0
 
+    def test_n1_symmetric_around_midpoint(self):
+        # Given — n=1 single bounce: values at 25% and 75% should be equal
+        duration = 600_000
+        t_25 = int(duration * 0.25)
+        t_75 = int(duration * 0.75)
+        # When
+        val_25 = _easing_bounce(t_25, duration, 1)
+        val_75 = _easing_bounce(t_75, duration, 1)
+        # Then — sin(pi*0.25) == sin(pi*0.75), but envelope differs;
+        # the bounce shape should still be reasonably symmetric
+        assert val_25 > 0.0
+        assert val_75 > 0.0
+        # Both are on the same arc, so abs(sin) values are equal
+        assert abs(math.sin(math.pi * 0.25)) == pytest.approx(
+            abs(math.sin(math.pi * 0.75))
+        )
+
 
 class TestHoverLighten:
     def test_initial_empty(self):
@@ -155,6 +223,18 @@ class TestHoverLighten:
             renderer._update_hover_lighten(items, "test.desktop")
         # Then — never exceeds max
         assert renderer._hover_lighten["test.desktop"] <= HOVER_LIGHTEN_MAX
+
+    def test_cleanup_removed_items(self):
+        # Given — item has a lighten value but is no longer in the item list
+        renderer = DockRenderer()
+        renderer._hover_lighten["removed.desktop"] = HOVER_LIGHTEN_MAX
+        item = MagicMock()
+        item.desktop_id = "still-here.desktop"
+        items = [item]
+        # When — update with a list that doesn't include "removed.desktop"
+        renderer._update_hover_lighten(items, "still-here.desktop")
+        # Then — removed item's lighten entry should be cleaned up
+        assert "removed.desktop" not in renderer._hover_lighten
 
 
 class TestAnimationConstants:

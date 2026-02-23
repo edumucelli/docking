@@ -107,9 +107,9 @@ class DnDHandler:
             len(items),
         )
         for i, li in enumerate(layout):
-            icon_w = li.scale * self._config.icon_size
+            icon_width = li.scale * self._config.icon_size
             left = li.x + offset
-            right = left + icon_w
+            right = left + icon_width
             log.debug(
                 "  item %d: left=%.1f right=%.1f (win_cx=%.1f)", i, left, right, win_cx
             )

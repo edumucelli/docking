@@ -153,8 +153,8 @@ class MenuHandler:
         """Find which DockItem is under cursor x (window-space)."""
         offset = self._window.zoomed_x_offset(layout)
         for i, li in enumerate(layout):
-            icon_w = li.scale * self._config.icon_size
+            icon_width = li.scale * self._config.icon_size
             left = li.x + offset
-            if left <= x <= left + icon_w:
+            if left <= x <= left + icon_width:
                 return items[i]
         return None

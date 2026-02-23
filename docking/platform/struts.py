@@ -93,8 +93,10 @@ def set_dock_struts(
 ) -> None:
     """Compute and set struts for the dock at the bottom of a monitor."""
     scale = gdk_window.get_scale_factor()
-    screen_h = screen.get_height()
-    bottom = (dock_height + screen_h - monitor_geom.y - monitor_geom.height) * scale
+    screen_height = screen.get_height()
+    bottom = (
+        dock_height + screen_height - monitor_geom.y - monitor_geom.height
+    ) * scale
     bottom_start = monitor_geom.x * scale
     bottom_end = (monitor_geom.x + monitor_geom.width) * scale - 1
 

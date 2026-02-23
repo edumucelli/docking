@@ -80,8 +80,8 @@ def compute_layout(
     Each icon starts at its rest center and gets pushed away from the cursor.
     Distant icons stay put — no cascading shifts.
     """
-    n = len(items)
-    if n == 0:
+    num_items = len(items)
+    if num_items == 0:
         return []
 
     icon_size = config.icon_size
@@ -107,12 +107,12 @@ def compute_layout(
     # Rest-position centers
     rest_centers: list[float] = []
     x = h_padding + icon_size / 2
-    for _ in range(n):
+    for _ in range(num_items):
         rest_centers.append(x)
         x += icon_size + item_padding
 
     result: list[LayoutItem] = []
-    for i in range(n):
+    for i in range(num_items):
         center = rest_centers[i]
 
         if cursor_x < 0:

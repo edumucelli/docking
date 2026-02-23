@@ -165,7 +165,7 @@ class DockWindow(Gtk.Window):
         from docking.ui.renderer import URGENT_BOUNCE_HEIGHT
 
         bounce_headroom = int(icon_size * URGENT_BOUNCE_HEIGHT)
-        h = int(
+        height = int(
             icon_size * zoom
             + self.theme.top_padding
             + self.theme.bottom_padding
@@ -173,9 +173,9 @@ class DockWindow(Gtk.Window):
         )
 
         # Full monitor width — window never resizes during zoom
-        self.set_size_request(geom.width, h)
-        self.resize(geom.width, h)
-        self.move(geom.x, geom.y + geom.height - h)
+        self.set_size_request(geom.width, height)
+        self.resize(geom.width, height)
+        self.move(geom.x, geom.y + geom.height - height)
 
     def _set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
@@ -283,6 +283,24 @@ class DockWindow(Gtk.Window):
             if item is None:
                 return True
 
+            # Animation trigger chain:
+            #
+            # Every click sets last_clicked, which triggers the click
+            # darken animation (sine pulse, 300ms). The renderer reads
+            # this timestamp each frame and computes the darken amount.
+            #
+            # If the click also launches the app (not already running,
+            # or force-launch via middle-click/Ctrl+click), we ALSO set
+            # last_launched. This triggers the launch bounce animation
+            # (600ms, two bounces). Both animations run simultaneously —
+            # the icon darkens AND bounces at the same time.
+            #
+            # The two timestamps are independent fields on DockItem.
+            # Setting last_clicked does NOT affect last_launched, and
+            # vice versa. The renderer evaluates each independently.
+            #
+            # The anim pump duration is set to cover the longer of the
+            # two animations plus a small margin for the final frame.
             now = GLib.get_monotonic_time()
             item.last_clicked = now
 
@@ -525,9 +543,24 @@ class DockWindow(Gtk.Window):
     def _start_anim_pump(self, duration_ms: int = 700) -> None:
         """Start a temporary redraw loop for time-based animations.
 
-        Click darken, launch bounce, and urgent bounce are all driven by
-        timestamps — they need continuous redraws to animate. This pump
-        calls queue_draw() at ~60fps for the given duration, then stops.
+        The dock does NOT have a continuous render loop. In normal
+        operation, GTK only calls the draw handler when something
+        changes (mouse move, model update, etc.). This is efficient —
+        a static dock uses zero CPU for rendering.
+
+        However, time-based animations (click darken, launch bounce,
+        urgent bounce) need continuous redraws even when the mouse is
+        still. Without a pump, the animation would only advance when
+        the user happens to move the mouse (triggering motion events).
+
+        The pump is a GLib.timeout_add timer at ~16ms intervals (~60fps)
+        that calls queue_draw() for a fixed duration, then self-stops.
+        This avoids a permanent render loop — the pump only runs during
+        the animation window (e.g., 700ms for a launch bounce).
+
+        If a new animation starts while a pump is already running, the
+        old timer is cancelled and replaced. This prevents overlapping
+        timers from accumulating.
         """
         if self._anim_timer_id:
             GLib.source_remove(self._anim_timer_id)
@@ -550,7 +583,24 @@ class DockWindow(Gtk.Window):
     TOOLTIP_GAP = 10
 
     def _update_tooltip(self, item: DockItem | None, layout: list[LayoutItem]) -> None:
-        """Show or hide the app name tooltip centered above the hovered icon."""
+        """Show or hide the app name tooltip centered above the hovered icon.
+
+        Custom tooltip implementation instead of GTK's built-in tooltips.
+
+        GTK tooltips (set_tooltip_text / query-tooltip signal) cannot be
+        precisely positioned — GTK places them using its own heuristics
+        that don't account for zoomed icon sizes or the dock's coordinate
+        system. The tooltip would appear at the wrong X position (centered
+        on the un-zoomed icon) and at a fixed Y offset from the cursor
+        rather than above the icon's actual top edge.
+
+        Instead, we create a separate Gtk.Window(POPUP) with:
+        - RGBA visual for transparency (same as the dock window)
+        - A Cairo-drawn rounded rectangle background (dark, 85% opaque)
+        - Manual positioning: centered horizontally over the icon,
+          placed TOOLTIP_GAP pixels above the icon's top edge
+        - Screen-edge clamping so it never goes off-screen
+        """
         if not item or not item.name:
             self._hide_tooltip()
             return
@@ -583,7 +633,14 @@ class DockWindow(Gtk.Window):
         self._show_tooltip(item.name, icon_center_x, icon_top_y)
 
     def _show_tooltip(self, text: str, center_x: float, above_y: float) -> None:
-        """Display a tooltip centered above a screen point, 10px gap."""
+        """Display a tooltip centered above a screen point, 10px gap.
+
+        The tooltip window requires an RGBA visual (compositing support)
+        for the semi-transparent Cairo-drawn background to work. Without
+        RGBA, the rounded corners would show opaque black rectangles
+        instead of transparency. The RGBA visual is set once on first
+        creation and reused for subsequent tooltip updates.
+        """
         if self._tooltip_window is None:
             self._tooltip_window = Gtk.Window(type=Gtk.WindowType.POPUP)
             self._tooltip_window.set_decorated(False)
@@ -602,13 +659,13 @@ class DockWindow(Gtk.Window):
             def on_draw(widget, cr):
                 alloc = widget.get_allocation()
                 # Rounded rect background
-                r = 6
-                w, h = alloc.width, alloc.height
+                radius = 6
+                width, height = alloc.width, alloc.height
                 cr.new_sub_path()
-                cr.arc(w - r, r, r, -math.pi / 2, 0)
-                cr.arc(w - r, h - r, r, 0, math.pi / 2)
-                cr.arc(r, h - r, r, math.pi / 2, math.pi)
-                cr.arc(r, r, r, math.pi, 3 * math.pi / 2)
+                cr.arc(width - radius, radius, radius, -math.pi / 2, 0)
+                cr.arc(width - radius, height - radius, radius, 0, math.pi / 2)
+                cr.arc(radius, height - radius, radius, math.pi / 2, math.pi)
+                cr.arc(radius, radius, radius, math.pi, 3 * math.pi / 2)
                 cr.close_path()
                 cr.set_source_rgba(0, 0, 0, 0.85)
                 cr.fill()
@@ -632,17 +689,17 @@ class DockWindow(Gtk.Window):
         # Measure size, position, THEN show (avoids flash at 0,0)
         label.show()
         pref = self._tooltip_window.get_preferred_size()[1]
-        tip_w = max(pref.width, 1)
-        tip_h = max(pref.height, 1)
-        tip_x = int(center_x - tip_w / 2)
-        tip_y = int(above_y - tip_h - self.TOOLTIP_GAP)
+        tooltip_width = max(pref.width, 1)
+        tooltip_height = max(pref.height, 1)
+        tooltip_x = int(center_x - tooltip_width / 2)
+        tooltip_y = int(above_y - tooltip_height - self.TOOLTIP_GAP)
 
         # Clamp to screen
         screen_w = self._tooltip_window.get_screen().get_width()
-        tip_x = max(0, min(tip_x, screen_w - tip_w))
-        tip_y = max(0, tip_y)
+        tooltip_x = max(0, min(tooltip_x, screen_w - tooltip_width))
+        tooltip_y = max(0, tooltip_y)
 
-        self._tooltip_window.move(tip_x, tip_y)
+        self._tooltip_window.move(tooltip_x, tooltip_y)
         self._tooltip_window.show_all()
 
     def _hide_tooltip(self) -> None:

@@ -67,8 +67,8 @@ class WindowTracker:
         running: dict[str, dict[str, Any]] = {}
 
         for window in self._screen.get_windows():
-            wtype = window.get_window_type()
-            if wtype in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
+            window_type = window.get_window_type()
+            if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
                 continue
             if window.is_skip_tasklist():
                 continue

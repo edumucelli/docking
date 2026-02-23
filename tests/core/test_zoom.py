@@ -310,6 +310,24 @@ class TestPlankDisplacement:
         # Then
         assert zoomed[2].scale == pytest.approx(1.5, abs=0.05)
 
+    def test_no_displacement_when_zoom_disabled(self):
+        """With zoom_enabled=False, all items stay at rest positions regardless of cursor."""
+        # Given
+        items = [MagicMock() for _ in range(5)]
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = False
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # When — cursor directly over center icon
+        center_x = rest[2].x + 24
+        hovered = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
+        # Then — all items should be at scale 1.0 with identical positions
+        for r, h in zip(rest, hovered):
+            assert h.scale == pytest.approx(1.0)
+            assert h.x == pytest.approx(r.x)
+
 
 class TestContentBounds:
     def test_no_layout_returns_zero_and_padding(self):

@@ -89,17 +89,17 @@ def capture_window(
 
     if foreign:
         try:
-            w = foreign.get_width()
-            h = foreign.get_height()
-            if w > 0 and h > 0:
-                pixbuf = Gdk.pixbuf_get_from_window(foreign, 0, 0, w, h)
+            width = foreign.get_width()
+            height = foreign.get_height()
+            if width > 0 and height > 0:
+                pixbuf = Gdk.pixbuf_get_from_window(foreign, 0, 0, width, height)
                 if pixbuf:
                     # Scale preserving aspect ratio
-                    scale = min(thumb_w / w, thumb_h / h)
-                    new_w = max(int(w * scale), 1)
-                    new_h = max(int(h * scale), 1)
+                    scale = min(thumb_w / width, thumb_h / height)
+                    new_width = max(int(width * scale), 1)
+                    new_height = max(int(height * scale), 1)
                     return pixbuf.scale_simple(
-                        new_w, new_h, GdkPixbuf.InterpType.BILINEAR
+                        new_width, new_height, GdkPixbuf.InterpType.BILINEAR
                     )
         except (TypeError, GLib.Error):
             pass
@@ -212,17 +212,17 @@ class PreviewPopup(Gtk.Window):
         # Measure size, position, then show (avoids flash at wrong position)
         hbox.show_all()
         preferred = hbox.get_preferred_size()[1]
-        popup_w = max(preferred.width + 2 * POPUP_PADDING, 1)
-        popup_h = max(preferred.height + 2 * POPUP_PADDING, 1)
+        popup_width = max(preferred.width + 2 * POPUP_PADDING, 1)
+        popup_height = max(preferred.height + 2 * POPUP_PADDING, 1)
 
         icon_center_x = icon_x + icon_w / 2
-        popup_x = int(icon_center_x - popup_w / 2)
-        popup_y = int(dock_y - popup_h - 6)
+        popup_x = int(icon_center_x - popup_width / 2)
+        popup_y = int(dock_y - popup_height - 6)
 
         # Clamp to screen
         screen = self.get_screen()
-        screen_w = screen.get_width()
-        popup_x = max(0, min(popup_x, screen_w - popup_w))
+        screen_width = screen.get_width()
+        popup_x = max(0, min(popup_x, screen_width - popup_width))
         popup_y = max(0, popup_y)
 
         self.move(popup_x, popup_y)

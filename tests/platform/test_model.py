@@ -384,3 +384,15 @@ class TestDockItemAnimationFields:
         )
         # Then
         assert model.visible_items()[0].is_urgent is False
+
+    def test_click_and_launch_timestamps_independent(self):
+        # Given
+        item = DockItem(desktop_id="test.desktop")
+        # When — set last_clicked
+        item.last_clicked = 12345
+        # Then — last_launched should be unaffected
+        assert item.last_launched == 0
+        # When — set last_launched
+        item.last_launched = 67890
+        # Then — last_clicked should retain its value
+        assert item.last_clicked == 12345
