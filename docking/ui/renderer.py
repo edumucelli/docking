@@ -303,25 +303,22 @@ class DockRenderer:
         # Using the icon's own color (instead of a fixed white/blue)
         # makes each app's active state visually distinct — Firefox
         # gets an orange glow, Terminal gets a dark glow, etc.
-        for i, (item, li) in enumerate(zip(items, layout)):
+        for item, li in zip(items, layout):
             if item.is_active:
-                glow_x = li.x + icon_offset
-                glow_w = config.icon_size * li.scale
-                glow_pad = glow_w * 0.15
-                # Compute and cache the icon's average color
                 if item.desktop_id not in self._icon_colors:
                     self._icon_colors[item.desktop_id] = average_icon_color(item.icon)
-                glow_red, glow_green, glow_blue = self._icon_colors[item.desktop_id]
-                pat = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
-                pat.add_color_stop_rgba(0, glow_red, glow_green, glow_blue, 0.0)
-                pat.add_color_stop_rgba(1, glow_red, glow_green, glow_blue, 0.6)
-                # Clip glow to shelf bounds so it doesn't bleed past edges
-                gx_left = max(glow_x - glow_pad, shelf_x)
-                gx_right = min(glow_x + glow_w + glow_pad, shelf_x + shelf_w)
-                if gx_right > gx_left:
-                    cr.rectangle(gx_left, bg_y, gx_right - gx_left, bg_height)
-                    cr.set_source(pat)
-                    cr.fill()
+                color = self._icon_colors[item.desktop_id]
+                self._draw_active_glow(
+                    cr,
+                    li,
+                    config.icon_size,
+                    icon_offset,
+                    bg_y,
+                    bg_height,
+                    shelf_x,
+                    shelf_w,
+                    color,
+                )
 
         # Update slide animation offsets (detect items that moved)
         self._update_slide_offsets(items, layout, icon_offset)
@@ -535,6 +532,42 @@ class DockRenderer:
         cr.set_source_surface(icon_surface, 0, 0)
         cr.paint()
         cr.restore()
+
+    @staticmethod
+    def _draw_active_glow(
+        cr: cairo.Context,
+        li: LayoutItem,
+        icon_size: int,
+        icon_offset: float,
+        bg_y: float,
+        bg_height: float,
+        shelf_x: float,
+        shelf_w: float,
+        color: RGB,
+    ) -> None:
+        """Draw a color-matched glow on the shelf behind the active icon.
+
+        The glow is a vertical gradient from transparent at the shelf top
+        to the icon's dominant color at the bottom. The rectangle is
+        slightly wider than the icon (15% padding) and clipped to the
+        shelf bounds to prevent bleeding past rounded corners.
+        """
+        glow_x = li.x + icon_offset
+        glow_width = icon_size * li.scale
+        glow_pad = glow_width * 0.15
+
+        glow_red, glow_green, glow_blue = color
+        gradient = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
+        gradient.add_color_stop_rgba(0, glow_red, glow_green, glow_blue, 0.0)
+        gradient.add_color_stop_rgba(1, glow_red, glow_green, glow_blue, 0.6)
+
+        # Clip to shelf bounds
+        left = max(glow_x - glow_pad, shelf_x)
+        right = min(glow_x + glow_width + glow_pad, shelf_x + shelf_w)
+        if right > left:
+            cr.rectangle(left, bg_y, right - left, bg_height)
+            cr.set_source(gradient)
+            cr.fill()
 
     @staticmethod
     def _draw_indicator(
