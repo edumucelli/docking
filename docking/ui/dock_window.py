@@ -378,7 +378,7 @@ class DockWindow(Gtk.Window):
         self._hovered_item = item
         self._cancel_preview_timer()
 
-        if self._preview:
+        if self._preview and self.config.previews_enabled:
             # If hovering a different running item, start timer to show preview
             if item and item.is_running and item.instance_count > 0:
                 self._preview_timer_id = GLib.timeout_add(

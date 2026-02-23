@@ -52,9 +52,10 @@ def _rounded_rect(
     cr.close_path()
 
 
-SHELF_HEIGHT_RATIO = (
-    0.44  # bg_height = icon_size * ratio + bottom_padding (Plank: 21/48)
-)
+# Plank shelf height formula: IconSize + top_offset + bottom_offset
+# Yaru-light: top_offset = 2 + (-33) = -31, bottom_offset = 0 + 4 = 4
+# Result: 48 + (-31) + 4 = 21px. As a fraction of icon_size: 21/48 ≈ 0.4375
+SHELF_HEIGHT_PX = 21  # exact Plank Yaru-light value for 48px icons
 SHELF_SMOOTH_FACTOR = 0.3  # lerp factor for shelf width smoothing per frame
 SLIDE_MOVE_THRESHOLD = 2.0  # minimum px displacement to trigger slide animation
 SLIDE_DECAY_FACTOR = 0.75  # per-frame exponential decay for slide offsets
@@ -119,9 +120,14 @@ class DockRenderer:
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Apply hide offset (slides dock downward)
+        # CascadeHide: background and icons slide at different rates
+        # Background slides faster (reaches edge first), icons follow
         if hide_offset > 0:
-            cr.translate(0, hide_offset * h)
+            bg_hide = min(hide_offset * 1.3, 1.0)  # background leads
+            icon_hide = hide_offset  # icons follow
+        else:
+            bg_hide = 0.0
+            icon_hide = 0.0
 
         items = model.visible_items()
         if not items:
@@ -166,9 +172,9 @@ class DockRenderer:
         shelf_w = self.smooth_shelf_w
         shelf_x = (w - shelf_w) / 2
 
-        # Plank Yaru-light: bg_height ≈ 21px for 48px icons (ratio ~0.44)
-        bg_height = config.icon_size * SHELF_HEIGHT_RATIO + theme.bottom_padding
-        bg_y = h - bg_height
+        # Plank Yaru-light: shelf = 21px for 48px icons (not additive with bottom_padding)
+        bg_height = SHELF_HEIGHT_PX
+        bg_y = h - bg_height + bg_hide * h
         self._draw_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
         # Update slide animation offsets (detect items that moved)
@@ -177,18 +183,26 @@ class DockRenderer:
         # Gap for external drop insertion
         gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0
 
-        # Draw icons with slide offset + drop gap
+        # Draw icons with slide offset + drop gap + cascade hide
         icon_size = config.icon_size
+        icon_y_off = icon_hide * h
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
             self._draw_icon(
-                cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift
+                cr,
+                item,
+                li,
+                icon_size,
+                h,
+                theme,
+                icon_offset + slide + drop_shift,
+                icon_y_off,
             )
 
-        # Draw indicators with slide offset + drop gap
+        # Draw indicators with slide offset + drop gap + cascade hide
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
                 slide = self.slide_offsets.get(item.desktop_id, 0.0)
@@ -196,7 +210,14 @@ class DockRenderer:
                     gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
                 )
                 self._draw_indicator(
-                    cr, item, li, icon_size, h, theme, icon_offset + slide + drop_shift
+                    cr,
+                    item,
+                    li,
+                    icon_size,
+                    h,
+                    theme,
+                    icon_offset + slide + drop_shift,
+                    icon_y_off,
                 )
 
     def _update_slide_offsets(
@@ -298,13 +319,14 @@ class DockRenderer:
         dock_height: float,
         theme: Theme,
         x_offset: float = 0.0,
+        y_offset: float = 0.0,
     ) -> None:
         """Draw a single dock icon at its zoomed position and scale."""
         if item.icon is None:
             return
 
         scaled_size = base_size * li.scale
-        y = dock_height - theme.bottom_padding - scaled_size
+        y = dock_height - theme.bottom_padding - scaled_size + y_offset
 
         cr.save()
         cr.translate(li.x + x_offset, y)
@@ -329,11 +351,12 @@ class DockRenderer:
         dock_height: float,
         theme: Theme,
         x_offset: float = 0.0,
+        y_offset: float = 0.0,
     ) -> None:
         """Draw running indicator dot(s) below an icon."""
         scaled_size = base_size * li.scale
         center_x = li.x + x_offset + scaled_size / 2
-        y = dock_height - theme.bottom_padding / 2
+        y = dock_height - theme.bottom_padding / 2 + y_offset
 
         color = (
             theme.active_indicator_color if item.is_active else theme.indicator_color

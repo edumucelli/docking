@@ -18,6 +18,8 @@ class TestConfigDefaults:
         assert c.zoom_range == 3
         assert c.position == "bottom"
         assert c.autohide is False
+        assert c.hide_delay_ms == 0
+        assert c.previews_enabled is True
         assert c.theme == "default"
         assert isinstance(c.pinned, list)
 
@@ -31,6 +33,16 @@ class TestConfigLoad:
         # Then
         assert config.icon_size == 48
         assert path.exists()
+
+    def test_load_previews_enabled(self, tmp_path):
+        # Given
+        path = tmp_path / "dock.json"
+        data = {"previews_enabled": False}
+        path.write_text(json.dumps(data))
+        # When
+        config = Config.load(path)
+        # Then
+        assert config.previews_enabled is False
 
     def test_load_valid_file(self, tmp_path):
         # Given

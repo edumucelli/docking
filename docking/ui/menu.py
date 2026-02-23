@@ -100,6 +100,12 @@ class MenuHandler:
         autohide.connect("toggled", self._on_autohide_toggled)
         menu.append(autohide)
 
+        # Window previews toggle
+        previews = Gtk.CheckMenuItem(label="Window Previews")
+        previews.set_active(self._config.previews_enabled)
+        previews.connect("toggled", self._on_previews_toggled)
+        menu.append(previews)
+
         menu.append(Gtk.SeparatorMenuItem())
 
         # Icon size submenu
@@ -127,6 +133,10 @@ class MenuHandler:
         # Reset hide state when toggling off so dock becomes visible immediately
         if not self._config.autohide and self._window.autohide:
             self._window.autohide.reset()
+
+    def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
+        self._config.previews_enabled = widget.get_active()
+        self._config.save()
 
     def _on_icon_size_changed(self, widget: Gtk.MenuItem, size: int) -> None:
         if widget.get_active():

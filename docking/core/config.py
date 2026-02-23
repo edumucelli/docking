@@ -32,12 +32,14 @@ class Config:
     position: str = "bottom"
     # Whether the dock hides when the cursor leaves
     autohide: bool = False
-    # Delay in ms before the dock starts hiding after cursor leaves
-    hide_delay_ms: int = 500
+    # Delay in ms before the dock starts hiding after cursor leaves (Plank default: 0)
+    hide_delay_ms: int = 0
     # Delay in ms before the dock starts showing when cursor returns
     unhide_delay_ms: int = 0
     # Duration of the hide/show slide animation in ms
     hide_time_ms: int = 250
+    # Whether to show window preview thumbnails on hover
+    previews_enabled: bool = True
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = "default"
     # Desktop file IDs of pinned applications, in display order
