@@ -25,7 +25,7 @@ from docking.ui.preview import PreviewPopup
 def main() -> None:
     """Entry point for the docking application."""
     config = Config.load()
-    theme = Theme.load(config.theme)
+    theme = Theme.load(config.theme, config.icon_size)
     launcher = Launcher()
     model = DockModel(config, launcher)
     renderer = DockRenderer()

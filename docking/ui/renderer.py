@@ -17,19 +17,8 @@ from gi.repository import Gtk, Gdk, GLib  # noqa: E402
 
 from docking.core.zoom import compute_layout, content_bounds
 from docking.core.theme import RGB
-from docking.ui.effects import (
-    easing_bounce,
-    average_icon_color,
-    CLICK_DURATION_US,
-    CLICK_DARKEN_MAX,
-    LAUNCH_BOUNCE_DURATION_US,
-    LAUNCH_BOUNCE_HEIGHT,
-    URGENT_BOUNCE_DURATION_US,
-    URGENT_BOUNCE_HEIGHT,
-    HOVER_LIGHTEN_MAX,
-    HOVER_FADE_FRAMES,
-)
-from docking.ui.shelf import draw_shelf_background, SHELF_HEIGHT_PX
+from docking.ui.effects import easing_bounce, average_icon_color
+from docking.ui.shelf import draw_shelf_background
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -67,7 +56,6 @@ SLIDE_MOVE_THRESHOLD = 2.0  # minimum px displacement to trigger slide animation
 # (~50ms), settling to imperceptible in about 200-300ms.
 SLIDE_DECAY_FACTOR = 0.75
 SLIDE_CLEAR_THRESHOLD = 0.5  # clear slide offset when below this px
-MAX_INDICATOR_DOTS = 3
 INDICATOR_SPACING_MULT = 3  # spacing = indicator_radius * this
 
 SLIDE_DURATION_MS = 300
@@ -82,7 +70,7 @@ class DockRenderer:
         self.slide_offsets: dict[str, float] = {}
         self.prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
         self.smooth_shelf_w: float = 0.0
-        # Per-item lighten value for hover effect: {desktop_id: 0.0-HOVER_LIGHTEN_MAX}
+        # Per-item lighten value for hover effect: {desktop_id: 0.0-theme.hover_lighten}
         self._hover_lighten: dict[str, float] = {}
         self._hovered_id: str = ""
         # Cached average icon colors for active glow: {desktop_id: (r, g, b)}
@@ -264,8 +252,8 @@ class DockRenderer:
         shelf_w = self.smooth_shelf_w
         shelf_x = (width - shelf_w) / 2
 
-        # Plank Yaru-light: shelf = 21px for 48px icons (not additive with bottom_padding)
-        bg_height = SHELF_HEIGHT_PX
+        # Shelf height is derived from icon_size + padding offsets in Theme.load()
+        bg_height = theme.shelf_height
         bg_y = height - bg_height + bg_hide * height
         draw_shelf_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
@@ -285,6 +273,7 @@ class DockRenderer:
                     shelf_x,
                     shelf_w,
                     color,
+                    theme.glow_opacity,
                 )
 
         # Update slide animation offsets (detect items that moved)
@@ -294,7 +283,7 @@ class DockRenderer:
         gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0
 
         # Update hover lighten values (fade in/out per icon)
-        self._update_hover_lighten(items, hovered_id)
+        self._update_hover_lighten(items, hovered_id, theme)
 
         # Draw icons with all effects: slide, drop gap, cascade hide,
         # hover lighten, click darken, launch/urgent bounce
@@ -310,30 +299,31 @@ class DockRenderer:
 
             # Click darken animation: brief sine pulse
             darken = 0.0
+            click_duration_us = theme.click_time_ms * 1000
             if item.last_clicked > 0:
                 ct = now - item.last_clicked
-                if ct < CLICK_DURATION_US:
-                    darken = (
-                        math.sin(math.pi * ct / CLICK_DURATION_US) * CLICK_DARKEN_MAX
-                    )
+                if ct < click_duration_us:
+                    darken = math.sin(math.pi * ct / click_duration_us) * 0.5
 
             # Launch bounce: icon bounces up when launching
             bounce_y = 0.0
+            launch_duration_us = theme.launch_bounce_time_ms * 1000
             if item.last_launched > 0:
                 lt = now - item.last_launched
                 bounce_y -= (
-                    easing_bounce(lt, LAUNCH_BOUNCE_DURATION_US, 2)
+                    easing_bounce(lt, launch_duration_us, 2)
                     * icon_size
-                    * LAUNCH_BOUNCE_HEIGHT
+                    * theme.launch_bounce_height
                 )
 
             # Urgent bounce: icon bounces when app demands attention
+            urgent_duration_us = theme.urgent_bounce_time_ms * 1000
             if item.last_urgent > 0:
                 ut = now - item.last_urgent
                 bounce_y -= (
-                    easing_bounce(ut, URGENT_BOUNCE_DURATION_US, 1)
+                    easing_bounce(ut, urgent_duration_us, 1)
                     * icon_size
-                    * URGENT_BOUNCE_HEIGHT
+                    * theme.urgent_bounce_height
                 )
 
             self._draw_icon(
@@ -367,14 +357,19 @@ class DockRenderer:
                     icon_y_off,
                 )
 
-    def _update_hover_lighten(self, items: list[DockItem], hovered_id: str) -> None:
+    def _update_hover_lighten(
+        self, items: list[DockItem], hovered_id: str, theme: Theme
+    ) -> None:
         """Update per-icon lighten values for hover highlight effect.
 
-        Icons fade in to HOVER_LIGHTEN_MAX when hovered, and fade out
+        Icons fade in to theme.hover_lighten when hovered, and fade out
         when the cursor moves to a different icon. The fade uses a fixed
-        step per frame for a linear ~150ms transition.
+        step per frame for a linear transition over theme.active_time_ms.
         """
-        step = HOVER_LIGHTEN_MAX / HOVER_FADE_FRAMES
+        # Compute fade frames from theme.active_time_ms (16ms per frame at ~60fps)
+        fade_frames = max(1, theme.active_time_ms // 16)
+        hover_max = theme.hover_lighten
+        step = hover_max / fade_frames
         active_ids = {item.desktop_id for item in items}
 
         for item in items:
@@ -382,7 +377,7 @@ class DockRenderer:
             current = self._hover_lighten.get(did, 0.0)
             if did == hovered_id:
                 # Fade in
-                self._hover_lighten[did] = min(current + step, HOVER_LIGHTEN_MAX)
+                self._hover_lighten[did] = min(current + step, hover_max)
             elif current > 0:
                 # Fade out
                 new_val = max(current - step, 0.0)
@@ -511,6 +506,7 @@ class DockRenderer:
         shelf_x: float,
         shelf_w: float,
         color: RGB,
+        glow_opacity: float = 0.6,
     ) -> None:
         """Draw a color-matched glow on the shelf behind the active icon.
 
@@ -552,7 +548,7 @@ class DockRenderer:
         glow_red, glow_green, glow_blue = color
         gradient = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
         gradient.add_color_stop_rgba(0, glow_red, glow_green, glow_blue, 0.0)
-        gradient.add_color_stop_rgba(1, glow_red, glow_green, glow_blue, 0.6)
+        gradient.add_color_stop_rgba(1, glow_red, glow_green, glow_blue, glow_opacity)
 
         # Clip to shelf bounds
         left = max(glow_x - glow_pad, shelf_x)
@@ -583,7 +579,7 @@ class DockRenderer:
         )
         cr.set_source_rgba(*color)
 
-        count = min(item.instance_count, MAX_INDICATOR_DOTS)
+        count = min(item.instance_count, theme.max_indicator_dots)
         spacing = theme.indicator_radius * INDICATOR_SPACING_MULT
         start_x = center_x - (count - 1) * spacing / 2
 

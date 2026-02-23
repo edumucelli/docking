@@ -15,7 +15,6 @@ from docking.platform.struts import set_dock_struts, clear_struts
 from docking.core.zoom import compute_layout, content_bounds
 from docking.platform.launcher import launch
 from docking.ui.autohide import HideState
-from docking.ui.effects import URGENT_BOUNCE_HEIGHT
 from docking.ui.tooltip import TooltipManager
 from docking.ui.hover import HoverManager
 
@@ -163,7 +162,7 @@ class DockWindow(Gtk.Window):
         zoom = self.config.zoom_percent if self.config.zoom_enabled else 1.0
         # Extra headroom for bounce animations (urgent bounce is tallest)
 
-        bounce_headroom = int(icon_size * URGENT_BOUNCE_HEIGHT)
+        bounce_headroom = int(icon_size * self.theme.urgent_bounce_height)
         height = int(
             icon_size * zoom
             + self.theme.top_padding

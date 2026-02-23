@@ -10,25 +10,6 @@ import cairo
 if TYPE_CHECKING:
     from docking.core.theme import Theme
 
-# Shelf height in pixels for the dock background.
-#
-# The dock has two visual layers: the shelf (background bar) and the icons
-# that sit on top of it. The shelf is intentionally shorter than the icons,
-# creating a "shelf" effect where icons overflow above the background:
-#
-#     ┌──────┐          ┌──────┐
-#     │ icon │          │ icon │       ← icons overflow above shelf
-#     │      │          │      │
-#   ──┴──────┴──────────┴──────┴──   ← shelf top edge
-#   │        shelf background       │
-#   ─────────────────────────────────  ← screen bottom
-#
-# The height is derived from the icon size and theme padding offsets.
-# For 48px icons with the default theme: 21px shelf height.
-# This means icons extend ~27px above the shelf, which gives the
-# characteristic dock appearance.
-SHELF_HEIGHT_PX = 21
-
 INNER_HIGHLIGHT_OPACITIES = (
     0.5,
     0.12,

@@ -7,9 +7,18 @@
   "roundness": 5,
   "indicator_color": [80, 80, 80, 200],
   "active_indicator_color": [50, 50, 50, 255],
-  "indicator_radius": 2.5,
-  "h_padding": 8,
-  "top_padding": 5,
-  "bottom_padding": 8,
-  "item_padding": 12
+  "indicator_size": 5,
+  "h_padding": 0,
+  "top_padding": -7,
+  "bottom_padding": 1,
+  "item_padding": 2.5,
+  "urgent_bounce_height": 1.66,
+  "launch_bounce_height": 0.625,
+  "urgent_bounce_time_ms": 600,
+  "launch_bounce_time_ms": 600,
+  "click_time_ms": 300,
+  "hover_lighten": 0.2,
+  "active_time_ms": 150,
+  "max_indicator_dots": 3,
+  "glow_opacity": 0.6
 }

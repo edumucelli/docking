@@ -1,17 +1,10 @@
-"""Tests for animation effects: easing bounce, icon color, constants."""
+"""Tests for animation effects: easing bounce, icon color extraction."""
 
 import math
 import pytest
 from unittest.mock import MagicMock
 
 from docking.ui.effects import (
-    HOVER_LIGHTEN_MAX,
-    CLICK_DURATION_US,
-    CLICK_DARKEN_MAX,
-    LAUNCH_BOUNCE_DURATION_US,
-    LAUNCH_BOUNCE_HEIGHT,
-    URGENT_BOUNCE_DURATION_US,
-    URGENT_BOUNCE_HEIGHT,
     easing_bounce,
     average_icon_color,
 )
@@ -129,29 +122,3 @@ class TestEasingBounce:
         assert abs(math.sin(math.pi * 0.25)) == pytest.approx(
             abs(math.sin(math.pi * 0.75))
         )
-
-
-class TestAnimationConstants:
-    def test_click_duration_reasonable(self):
-        # Given / When / Then
-        assert 100_000 <= CLICK_DURATION_US <= 500_000
-
-    def test_click_darken_max_reasonable(self):
-        # Given / When / Then
-        assert 0.0 < CLICK_DARKEN_MAX <= 1.0
-
-    def test_launch_bounce_height_reasonable(self):
-        # Given / When / Then
-        assert 0.0 < LAUNCH_BOUNCE_HEIGHT < 2.0
-
-    def test_urgent_bounce_height_reasonable(self):
-        # Given / When / Then
-        assert 0.0 < URGENT_BOUNCE_HEIGHT < 3.0
-
-    def test_launch_shorter_than_urgent(self):
-        # Given / When / Then
-        assert LAUNCH_BOUNCE_HEIGHT < URGENT_BOUNCE_HEIGHT
-
-    def test_hover_lighten_max_subtle(self):
-        # Given / When / Then
-        assert 0.0 < HOVER_LIGHTEN_MAX <= 0.5

@@ -1,9 +1,5 @@
-"""Tests for shelf background drawing constants."""
+"""Tests for shelf background drawing."""
 
-from docking.ui.shelf import SHELF_HEIGHT_PX
-
-
-class TestShelfConstants:
-    def test_shelf_height_reasonable(self):
-        # Given / When / Then — shelf should be shorter than a typical icon
-        assert 10 <= SHELF_HEIGHT_PX <= 30
+# Shelf height is now derived from theme + icon_size in Theme.load(),
+# so the constant-based test has been removed.  See tests/core/test_theme.py
+# for shelf_height derivation tests.
