@@ -133,6 +133,10 @@ class MenuHandler:
         # Reset hide state when toggling off so dock becomes visible immediately
         if not self._config.autohide and self._window.autohide:
             self._window.autohide.reset()
+        # Update struts immediately so windows adapt to the new mode:
+        # autohide ON  → clear struts (windows use full screen)
+        # autohide OFF → set struts (windows shrink above dock)
+        self._window.update_struts()
 
     def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.previews_enabled = widget.get_active()

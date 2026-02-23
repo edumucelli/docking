@@ -190,11 +190,14 @@ class DockWindow(Gtk.Window):
         geom = monitor.get_geometry()
         screen = self.get_screen()
 
-        _, dock_height = self.renderer.compute_dock_size(
-            self.model, self.config, self.theme
-        )
+        # Reserve space for the full icon height + bottom padding so
+        # windows sit above the icons, not just above the shelf.
+        # compute_dock_size returns shelf-based height (with negative
+        # top_padding), but struts need the visible icon extent.
+        icon_size = self.config.icon_size
+        strut_height = int(icon_size + self.theme.bottom_padding)
 
-        set_dock_struts(gdk_window, dock_height, geom, screen)
+        set_dock_struts(gdk_window, strut_height, geom, screen)
 
     def _clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
@@ -202,6 +205,15 @@ class DockWindow(Gtk.Window):
         if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
             return
         clear_struts(gdk_window)
+
+    def update_struts(self) -> None:
+        """Public method to refresh struts after autohide toggle.
+
+        Called from the menu when the user switches between autohide
+        and always-visible modes. Immediately updates the X11 strut
+        reservation so the window manager resizes application windows.
+        """
+        self._set_struts()
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """Render the dock via the renderer."""
