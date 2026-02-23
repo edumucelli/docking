@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import cairo
@@ -107,6 +108,7 @@ class DockWindow(Gtk.Window):
         self.drawing_area.connect("leave-notify-event", self._on_leave)
         self.drawing_area.connect("enter-notify-event", self._on_enter)
         self.add(self.drawing_area)
+        self._tooltip_window: Gtk.Window | None = None
 
         self._click_x: float = -1.0
         self._click_button: int = 0
@@ -319,6 +321,7 @@ class DockWindow(Gtk.Window):
 
         self._hovered_item = None
         self._cancel_preview_timer()
+        self._hide_tooltip()
 
         # Preview popup interaction:
         #
@@ -541,6 +544,111 @@ class DockWindow(Gtk.Window):
 
         self._anim_timer_id = GLib.timeout_add(16, tick)
 
+    # -- Tooltip --
+
+    # Tooltip gap between icon top and tooltip bottom (matches Plank's PADDING=10)
+    TOOLTIP_GAP = 10
+
+    def _update_tooltip(self, item: DockItem | None, layout: list[LayoutItem]) -> None:
+        """Show or hide the app name tooltip centered above the hovered icon."""
+        if not item or not item.name:
+            self._hide_tooltip()
+            return
+
+        # Find the icon's screen position
+        items = self.model.visible_items()
+        idx = None
+        for i, it in enumerate(items):
+            if it is item:
+                idx = i
+                break
+        if idx is None or idx >= len(layout):
+            self._hide_tooltip()
+            return
+
+        li = layout[idx]
+        offset = self.zoomed_x_offset(layout)
+        scaled_size = li.scale * self.config.icon_size
+
+        # Compute the icon's top edge in screen coordinates.
+        # The dock window's bottom edge sits at the screen bottom. Icons
+        # are drawn from bottom up: icon_top = win_bottom - bottom_padding - icon_height
+        win_x, win_y = self.get_position()
+        _, win_h = self.get_size()
+        screen_bottom = win_y + win_h
+        icon_top_y = screen_bottom - self.theme.bottom_padding - scaled_size
+
+        icon_center_x = win_x + li.x + offset + scaled_size / 2
+
+        self._show_tooltip(item.name, icon_center_x, icon_top_y)
+
+    def _show_tooltip(self, text: str, center_x: float, above_y: float) -> None:
+        """Display a tooltip centered above a screen point, 10px gap."""
+        if self._tooltip_window is None:
+            self._tooltip_window = Gtk.Window(type=Gtk.WindowType.POPUP)
+            self._tooltip_window.set_decorated(False)
+            self._tooltip_window.set_skip_taskbar_hint(True)
+            self._tooltip_window.set_resizable(False)
+            self._tooltip_window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+            self._tooltip_window.set_app_paintable(True)
+
+            screen = self._tooltip_window.get_screen()
+            visual = screen.get_rgba_visual()
+            if visual:
+                self._tooltip_window.set_visual(visual)
+
+            # Dark tooltip with rounded corners — draw background via Cairo
+            # since app_paintable windows skip GTK's default background
+            def on_draw(widget, cr):
+                alloc = widget.get_allocation()
+                # Rounded rect background
+                r = 6
+                w, h = alloc.width, alloc.height
+                cr.new_sub_path()
+                cr.arc(w - r, r, r, -math.pi / 2, 0)
+                cr.arc(w - r, h - r, r, 0, math.pi / 2)
+                cr.arc(r, h - r, r, math.pi / 2, math.pi)
+                cr.arc(r, r, r, math.pi, 3 * math.pi / 2)
+                cr.close_path()
+                cr.set_source_rgba(0, 0, 0, 0.85)
+                cr.fill()
+                return False  # propagate to draw children
+
+            self._tooltip_window.connect("draw", on_draw)
+
+        # Update label
+        child = self._tooltip_window.get_child()
+        if child:
+            self._tooltip_window.remove(child)
+        label = Gtk.Label(label=text)
+        label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+        label.set_margin_start(6)
+        label.set_margin_end(6)
+        label.set_margin_top(6)
+        label.set_margin_bottom(6)
+        self._tooltip_window.add(label)
+        label.show()
+
+        # Measure size, position, THEN show (avoids flash at 0,0)
+        label.show()
+        pref = self._tooltip_window.get_preferred_size()[1]
+        tip_w = max(pref.width, 1)
+        tip_h = max(pref.height, 1)
+        tip_x = int(center_x - tip_w / 2)
+        tip_y = int(above_y - tip_h - self.TOOLTIP_GAP)
+
+        # Clamp to screen
+        screen_w = self._tooltip_window.get_screen().get_width()
+        tip_x = max(0, min(tip_x, screen_w - tip_w))
+        tip_y = max(0, tip_y)
+
+        self._tooltip_window.move(tip_x, tip_y)
+        self._tooltip_window.show_all()
+
+    def _hide_tooltip(self) -> None:
+        if self._tooltip_window:
+            self._tooltip_window.hide()
+
     # -- Preview popup hover tracking --
 
     def _update_hovered_item(self) -> None:
@@ -560,6 +668,7 @@ class DockWindow(Gtk.Window):
 
         self._hovered_item = item
         self._cancel_preview_timer()
+        self._update_tooltip(item, layout)
 
         if self._preview and self.config.previews_enabled:
             # If hovering a different running item, start timer to show preview

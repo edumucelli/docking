@@ -181,3 +181,10 @@ class TestAnimationConstants:
     def test_hover_lighten_max_subtle(self):
         # Given / When / Then — should be subtle, not blinding
         assert 0.0 < HOVER_LIGHTEN_MAX <= 0.5
+
+    def test_shelf_height_reasonable(self):
+        # Given
+        from docking.ui.renderer import SHELF_HEIGHT_PX
+
+        # When / Then — shelf should be shorter than a typical icon
+        assert 10 <= SHELF_HEIGHT_PX <= 30
