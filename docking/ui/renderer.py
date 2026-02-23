@@ -341,6 +341,21 @@ class DockRenderer:
         bg_y = h - bg_height + bg_hide * h
         self._draw_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
+        # Draw active window glow on the shelf behind active icons.
+        # A vertical gradient from transparent at top to a soft color at
+        # bottom, clipped to the icon's column within the shelf area.
+        for i, (item, li) in enumerate(zip(items, layout)):
+            if item.is_active:
+                glow_x = li.x + icon_offset
+                glow_w = config.icon_size * li.scale
+                glow_pad = glow_w * 0.1  # slight horizontal expansion
+                pat = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
+                pat.add_color_stop_rgba(0, 1, 1, 1, 0)
+                pat.add_color_stop_rgba(1, 1, 1, 1, 0.3)
+                cr.rectangle(glow_x - glow_pad, bg_y, glow_w + 2 * glow_pad, bg_height)
+                cr.set_source(pat)
+                cr.fill()
+
         # Update slide animation offsets (detect items that moved)
         self._update_slide_offsets(items, layout, icon_offset)
 
