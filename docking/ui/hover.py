@@ -166,7 +166,13 @@ class HoverManager:
         if win_x == 0 and win_y == 0:
             return False
         icon_abs_x = win_x + li.x + self._window.zoomed_x_offset(layout)
-        dock_abs_y = win_y
 
-        self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, dock_abs_y)
+        # Compute the icon's top edge in screen coordinates, not the
+        # window top (which includes bounce headroom above the icons)
+        _, win_height = self._window.get_size()
+        screen_bottom = win_y + win_height
+        scaled_size = li.scale * self._config.icon_size
+        icon_top_y = screen_bottom - self._theme.bottom_padding - scaled_size
+
+        self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, icon_top_y)
         return False

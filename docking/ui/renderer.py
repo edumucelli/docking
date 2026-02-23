@@ -160,8 +160,6 @@ class DockRenderer:
 
         num_items = len(items)
 
-        # --- Coordinate Systems ---
-        #
         # The dock uses two coordinate spaces:
         #
         # WINDOW-SPACE: pixel positions within the GTK window.
@@ -271,38 +269,7 @@ class DockRenderer:
         bg_y = height - bg_height + bg_hide * height
         draw_shelf_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
-        # Active window glow: color-matched highlight on the shelf
-        # behind the focused application's icon.
-        #
-        # The glow pipeline:
-        # 1. Extract the icon's dominant color via average_icon_color()
-        #    (saturation-weighted average — see that function's comments).
-        #    The result is cached in _icon_colors so we don't re-scan
-        #    the pixbuf every frame.
-        #
-        # 2. Create a vertical linear gradient using that color:
-        #    - Top of shelf:    icon_color at alpha=0.0 (transparent)
-        #    - Bottom of shelf: icon_color at alpha=0.6 (visible)
-        #    This makes the glow appear to emanate upward from the
-        #    screen edge, fading as it rises into the shelf.
-        #
-        # 3. Draw a rectangle slightly wider than the icon (15% padding
-        #    on each side) to give the glow a soft spread.
-        #
-        # 4. Clip the glow rectangle to the shelf bounds. Without
-        #    clipping, icons near the shelf edge would have their glow
-        #    bleed past the rounded corners of the shelf background.
-        #
-        #   Shelf background:
-        #   ╔════════════════════════════════╗
-        #   ║          ▓▓▓▓▓▓▓▓              ║ ← glow clipped to shelf
-        #   ║         ▓▓▓▓▓▓▓▓▓▓             ║
-        #   ╚════════════════════════════════╝
-        #              ↑ glow uses icon's own color
-        #
-        # Using the icon's own color (instead of a fixed white/blue)
-        # makes each app's active state visually distinct — Firefox
-        # gets an orange glow, Terminal gets a dark glow, etc.
+        # Draw active glow behind focused app's icon (color cached per item)
         for item, li in zip(items, layout):
             if item.is_active:
                 if item.desktop_id not in self._icon_colors:
@@ -547,10 +514,36 @@ class DockRenderer:
     ) -> None:
         """Draw a color-matched glow on the shelf behind the active icon.
 
-        The glow is a vertical gradient from transparent at the shelf top
-        to the icon's dominant color at the bottom. The rectangle is
-        slightly wider than the icon (15% padding) and clipped to the
-        shelf bounds to prevent bleeding past rounded corners.
+        The glow pipeline:
+
+        1. The caller extracts the icon's dominant color via
+           average_icon_color() (saturation-weighted average that prefers
+           colorful pixels over grays). The result is cached per desktop_id
+           so we don't re-scan the pixbuf every frame.
+
+        2. A vertical linear gradient is created using that color:
+           - Top of shelf:    icon_color at alpha=0.0 (transparent)
+           - Bottom of shelf: icon_color at alpha=0.6 (visible)
+           This makes the glow appear to emanate upward from the screen
+           edge, fading as it rises into the shelf.
+
+        3. The gradient fills a rectangle slightly wider than the icon
+           (15% padding on each side) to give the glow a soft spread.
+
+        4. The glow rectangle is clipped to the shelf bounds. Without
+           clipping, icons near the shelf edge would have their glow
+           bleed past the rounded corners of the shelf background.
+
+           Shelf background:
+           ╔════════════════════════════════╗
+           ║          ▓▓▓▓▓▓▓▓              ║ ← glow clipped to shelf
+           ║         ▓▓▓▓▓▓▓▓▓▓             ║
+           ╚════════════════════════════════╝
+                      ↑ glow uses icon's own color
+
+        Using the icon's own color (instead of a fixed white/blue)
+        makes each app's active state visually distinct — Firefox gets
+        an orange glow, Terminal gets a dark glow, etc.
         """
         glow_x = li.x + icon_offset
         glow_width = icon_size * li.scale

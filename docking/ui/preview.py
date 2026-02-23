@@ -217,7 +217,8 @@ class PreviewPopup(Gtk.Window):
 
         icon_center_x = icon_x + icon_w / 2
         popup_x = int(icon_center_x - popup_width / 2)
-        popup_y = int(dock_y - popup_height - 6)
+        # Extra gap accounts for the tooltip that sits between preview and icon
+        popup_y = int(dock_y - popup_height - 40)
 
         # Clamp to screen
         screen = self.get_screen()
