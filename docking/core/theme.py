@@ -10,7 +10,8 @@ from typing import Any
 # Bundled themes directory (relative to package)
 _BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
 
-# RGBA color as Cairo-compatible floats (0.0–1.0)
+# Color types as Cairo-compatible floats (0.0–1.0)
+RGB = tuple[float, float, float]
 RGBA = tuple[float, float, float, float]
 
 

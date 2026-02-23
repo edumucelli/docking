@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf  # noqa: E402
+from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
 
 @dataclass
@@ -107,8 +107,6 @@ class DockModel:
                 # Set urgent and trigger bounce timestamp
                 urgent = info.get("urgent", False)
                 if urgent and not item.is_urgent:
-                    from gi.repository import GLib
-
                     item.last_urgent = GLib.get_monotonic_time()
                 item.is_urgent = urgent
                 matched_ids.add(item.desktop_id)

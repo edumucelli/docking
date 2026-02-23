@@ -16,6 +16,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib  # noqa: E402
 
 from docking.core.zoom import compute_layout, content_bounds
+from docking.core.theme import RGB
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -190,7 +191,7 @@ SLIDE_FRAME_MS = 16
 
 def _average_icon_color(
     pixbuf: object,
-) -> tuple[float, float, float]:
+) -> RGB:
     """Compute the saturation-weighted average color of an icon pixbuf.
 
     Returns (r, g, b) in 0.0-1.0 range, or (0.5, 0.5, 0.5) for
@@ -336,7 +337,7 @@ class DockRenderer:
         self._hover_lighten: dict[str, float] = {}
         self._hovered_id: str = ""
         # Cached average icon colors for active glow: {desktop_id: (r, g, b)}
-        self._icon_colors: dict[str, tuple[float, float, float]] = {}
+        self._icon_colors: dict[str, RGB] = {}
 
     @staticmethod
     def compute_dock_size(
