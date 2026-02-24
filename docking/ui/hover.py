@@ -9,6 +9,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib  # noqa: E402
 
+from docking.core.position import Position
 from docking.core.zoom import compute_layout
 
 if TYPE_CHECKING:
@@ -19,18 +20,11 @@ if TYPE_CHECKING:
     from docking.ui.tooltip import TooltipManager
     from docking.ui.dock_window import DockWindow
 
-PREVIEW_SHOW_DELAY_MS = 400  # hover delay before showing preview popup
+PREVIEW_SHOW_DELAY_MS = 400
 
 
 class HoverManager:
-    """Tracks which dock icon is hovered and manages preview/animation timers.
-
-    Responsibilities:
-    - Detect which item the cursor is over via hit testing
-    - Start/cancel the preview popup delay timer
-    - Run the animation pump for click/bounce effects
-    - Notify the tooltip manager on hover changes
-    """
+    """Tracks which dock icon is hovered and manages preview/animation timers."""
 
     def __init__(
         self,
@@ -49,23 +43,22 @@ class HoverManager:
 
         self.hovered_item: DockItem | None = None
         self._preview_timer_id: int = 0
-        self._anim_timer_id: int = 0  # redraw pump for click/bounce animations
+        self._anim_timer_id: int = 0
 
     def set_preview(self, preview: PreviewPopup) -> None:
-        """Set the preview popup reference (wired after construction)."""
         self._preview = preview
 
-    def update(self, cursor_x: float) -> None:
+    def update(self, cursor_main: float) -> None:
         """Detect which item the cursor is over and manage preview timer."""
         items = self._model.visible_items()
         layout = compute_layout(
             items,
             self._config,
-            self._window.local_cursor_x(),
+            self._window.local_cursor_main(),
             item_padding=self._theme.item_padding,
             h_padding=self._theme.h_padding,
         )
-        item = self._window.hit_test(cursor_x, layout)
+        item = self._window.hit_test(cursor_main, layout)
 
         if item is self.hovered_item:
             return
@@ -75,7 +68,6 @@ class HoverManager:
         self._tooltip.update(item, layout)
 
         if self._preview and self._config.previews_enabled:
-            # If hovering a different running item, start timer to show preview
             if item and item.is_running and item.instance_count > 0:
                 self._preview_timer_id = GLib.timeout_add(
                     PREVIEW_SHOW_DELAY_MS, self._show_preview, item, layout
@@ -84,33 +76,12 @@ class HoverManager:
                 self._preview.schedule_hide()
 
     def cancel(self) -> None:
-        """Cancel the pending preview timer."""
         if self._preview_timer_id:
             GLib.source_remove(self._preview_timer_id)
             self._preview_timer_id = 0
 
     def start_anim_pump(self, duration_ms: int = 700) -> None:
-        """Start a temporary redraw loop for time-based animations.
-
-        The dock does NOT have a continuous render loop. In normal
-        operation, GTK only calls the draw handler when something
-        changes (mouse move, model update, etc.). This is efficient —
-        a static dock uses zero CPU for rendering.
-
-        However, time-based animations (click darken, launch bounce,
-        urgent bounce) need continuous redraws even when the mouse is
-        still. Without a pump, the animation would only advance when
-        the user happens to move the mouse (triggering motion events).
-
-        The pump is a GLib.timeout_add timer at ~16ms intervals (~60fps)
-        that calls queue_draw() for a fixed duration, then self-stops.
-        This avoids a permanent render loop — the pump only runs during
-        the animation window (e.g., 700ms for a launch bounce).
-
-        If a new animation starts while a pump is already running, the
-        old timer is cancelled and replaced. This prevents overlapping
-        timers from accumulating.
-        """
+        """Start a temporary redraw loop for time-based animations."""
         if self._anim_timer_id:
             GLib.source_remove(self._anim_timer_id)
 
@@ -127,24 +98,22 @@ class HoverManager:
         self._anim_timer_id = GLib.timeout_add(16, tick)
 
     def on_model_changed(self) -> None:
-        """Check if any item became urgent and start animation pump."""
         for item in self._model.visible_items():
             if item.is_urgent and item.last_urgent > 0:
                 self.start_anim_pump(700)
                 break
 
     def _show_preview(self, item: DockItem, _layout: object) -> bool:
-        """Show the preview popup above the hovered icon."""
+        """Show the preview popup near the hovered icon."""
         self._preview_timer_id = 0
         if not self._preview or self.hovered_item is not item:
             return False
 
-        # Find the layout entry for this item to get screen coordinates
         items = self._model.visible_items()
         layout = compute_layout(
             items,
             self._config,
-            self._window.local_cursor_x(),
+            self._window.local_cursor_main(),
             item_padding=self._theme.item_padding,
             h_padding=self._theme.h_padding,
         )
@@ -159,20 +128,39 @@ class HoverManager:
 
         li = layout[idx]
         icon_w = li.scale * self._config.icon_size
+        pos = self._config.pos
 
-        # Convert icon position to absolute screen coordinates
         win_x, win_y = self._window.get_position()
-        # Guard: skip if window hasn't been positioned yet
         if win_x == 0 and win_y == 0:
             return False
-        icon_abs_x = win_x + li.x + self._window.zoomed_x_offset(layout)
 
-        # Compute the icon's top edge in screen coordinates, not the
-        # window top (which includes bounce headroom above the icons)
-        _, win_height = self._window.get_size()
-        screen_bottom = win_y + win_height
+        main_offset = self._window.zoomed_main_offset(layout)
+        win_w, win_h = self._window.get_size()
+        edge_padding = self._theme.bottom_padding
         scaled_size = li.scale * self._config.icon_size
-        icon_top_y = screen_bottom - self._theme.bottom_padding - scaled_size
 
-        self._preview.show_for_item(item.desktop_id, icon_abs_x, icon_w, icon_top_y)
+        if pos == Position.BOTTOM:
+            icon_abs_x = win_x + li.x + main_offset
+            icon_top_y = win_y + win_h - edge_padding - scaled_size
+            self._preview.show_for_item(
+                item.desktop_id, icon_abs_x, icon_w, icon_top_y, pos
+            )
+        elif pos == Position.TOP:
+            icon_abs_x = win_x + li.x + main_offset
+            icon_bottom_y = win_y + edge_padding + scaled_size
+            self._preview.show_for_item(
+                item.desktop_id, icon_abs_x, icon_w, icon_bottom_y, pos
+            )
+        elif pos == Position.LEFT:
+            icon_abs_y = win_y + li.x + main_offset
+            icon_right_x = win_x + edge_padding + scaled_size
+            self._preview.show_for_item(
+                item.desktop_id, icon_right_x, icon_w, icon_abs_y, pos
+            )
+        else:  # RIGHT
+            icon_abs_y = win_y + li.x + main_offset
+            icon_left_x = win_x + win_w - edge_padding - scaled_size
+            self._preview.show_for_item(
+                item.desktop_id, icon_left_x, icon_w, icon_abs_y, pos
+            )
         return False

@@ -16,6 +16,8 @@ gi.require_version("GdkX11", "3.0")
 gi.require_version("Wnck", "3.0")
 from gi.repository import Gtk, Gdk, GdkX11, GdkPixbuf, Wnck, GLib, Pango  # noqa: E402
 
+from docking.core.position import Position, is_horizontal
+
 if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.autohide import AutoHideController
@@ -173,15 +175,19 @@ class PreviewPopup(Gtk.Window):
         self._autohide = controller
 
     def show_for_item(
-        self, desktop_id: str, icon_x: float, icon_w: float, dock_y: int
+        self,
+        desktop_id: str,
+        anchor_x: float,
+        icon_w: float,
+        anchor_y: float,
+        position: Position = Position.BOTTOM,
     ) -> None:
-        """Show preview popup above a dock icon.
+        """Show preview popup near a dock icon.
 
-        Args:
-            desktop_id: Which app's windows to show.
-            icon_x: Absolute X of the icon's left edge on screen.
-            icon_w: Width of the icon.
-            dock_y: Absolute Y of the dock's top edge on screen.
+        For horizontal docks: anchor_x = icon left edge, anchor_y = icon
+        inner edge (top for bottom dock, bottom for top dock).
+        For vertical docks: anchor_x = icon inner edge, anchor_y = icon
+        top edge along main axis.
         """
         windows = self._tracker.get_windows_for(desktop_id)
         if not windows:
@@ -191,40 +197,53 @@ class PreviewPopup(Gtk.Window):
         self._current_desktop_id = desktop_id
         self._cancel_hide_timer()
 
-        # Remove old content
         child = self.get_child()
         if child:
             self.remove(child)
 
-        # Build thumbnail row
-        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=THUMB_SPACING)
-        hbox.set_margin_start(POPUP_PADDING)
-        hbox.set_margin_end(POPUP_PADDING)
-        hbox.set_margin_top(POPUP_PADDING)
-        hbox.set_margin_bottom(POPUP_PADDING)
+        # Horizontal layout for horizontal docks, vertical for vertical
+        horizontal = is_horizontal(position)
+        orientation = (
+            Gtk.Orientation.HORIZONTAL if horizontal else Gtk.Orientation.VERTICAL
+        )
+        box = Gtk.Box(orientation=orientation, spacing=THUMB_SPACING)
+        box.set_margin_start(POPUP_PADDING)
+        box.set_margin_end(POPUP_PADDING)
+        box.set_margin_top(POPUP_PADDING)
+        box.set_margin_bottom(POPUP_PADDING)
 
         for window in windows:
             thumb_widget = self._make_thumbnail(window)
-            hbox.pack_start(thumb_widget, False, False, 0)
+            box.pack_start(thumb_widget, False, False, 0)
 
-        self.add(hbox)
+        self.add(box)
 
-        # Measure size, position, then show (avoids flash at wrong position)
-        hbox.show_all()
-        preferred = hbox.get_preferred_size()[1]
+        box.show_all()
+        preferred = box.get_preferred_size()[1]
         popup_width = max(preferred.width + 2 * POPUP_PADDING, 1)
         popup_height = max(preferred.height + 2 * POPUP_PADDING, 1)
 
-        icon_center_x = icon_x + icon_w / 2
-        popup_x = int(icon_center_x - popup_width / 2)
-        # Extra gap accounts for the tooltip that sits between preview and icon
-        popup_y = int(dock_y - popup_height - 40)
+        preview_gap = 40
+
+        if position == Position.BOTTOM:
+            popup_x = int(anchor_x + icon_w / 2 - popup_width / 2)
+            popup_y = int(anchor_y - popup_height - preview_gap)
+        elif position == Position.TOP:
+            popup_x = int(anchor_x + icon_w / 2 - popup_width / 2)
+            popup_y = int(anchor_y + preview_gap)
+        elif position == Position.LEFT:
+            popup_x = int(anchor_x + preview_gap)
+            popup_y = int(anchor_y + icon_w / 2 - popup_height / 2)
+        else:  # RIGHT
+            popup_x = int(anchor_x - popup_width - preview_gap)
+            popup_y = int(anchor_y + icon_w / 2 - popup_height / 2)
 
         # Clamp to screen
         screen = self.get_screen()
-        screen_width = screen.get_width()
-        popup_x = max(0, min(popup_x, screen_width - popup_width))
-        popup_y = max(0, popup_y)
+        screen_w = screen.get_width()
+        screen_h = screen.get_height()
+        popup_x = max(0, min(popup_x, screen_w - popup_width))
+        popup_y = max(0, min(popup_y, screen_h - popup_height))
 
         self.move(popup_x, popup_y)
         self.show_all()

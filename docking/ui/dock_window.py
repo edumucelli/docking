@@ -11,6 +11,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 
+from docking.core.position import Position, is_horizontal
 from docking.platform.struts import set_dock_struts, clear_struts
 from docking.core.zoom import compute_layout, content_bounds
 from docking.platform.launcher import launch
@@ -32,6 +33,46 @@ if TYPE_CHECKING:
 
 
 CLICK_DRAG_THRESHOLD = 10  # px movement to distinguish click from drag
+TRIGGER_PX = 2  # trigger strip size at screen edge
+TRIGGER_PX_TOP = 8  # wider trigger at top (no physical edge barrier)
+
+
+def compute_input_rect(
+    pos: Position,
+    window_w: int,
+    window_h: int,
+    content_offset: int,
+    content_w: int,
+    autohide_state: HideState | None,
+) -> tuple[int, int, int, int]:
+    """Return (x, y, w, h) for the input shape region.
+
+    When hidden: thin trigger strip at screen edge.
+    When showing: full window (prevents oscillation during animation).
+    Otherwise: content-only rectangle (clicks outside pass through).
+    """
+    horizontal = is_horizontal(pos)
+
+    if autohide_state in (HideState.HIDDEN, HideState.HIDING):
+        trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
+        if pos == Position.BOTTOM:
+            return (0, window_h - trigger, window_w, trigger)
+        elif pos == Position.TOP:
+            return (0, 0, window_w, trigger)
+        elif pos == Position.LEFT:
+            return (0, 0, trigger, window_h)
+        else:
+            return (window_w - trigger, 0, trigger, window_h)
+
+    if autohide_state == HideState.SHOWING:
+        return (0, 0, window_w, window_h)
+
+    # VISIBLE or autohide off: content-only
+    if horizontal:
+        return (content_offset, 0, max(content_w, 1), max(window_h, 1))
+    else:
+        return (0, content_offset, max(window_w, 1), max(content_w, 1))
+
 
 # X11 mouse button codes
 MOUSE_LEFT = 1
@@ -109,6 +150,7 @@ class DockWindow(Gtk.Window):
         self.add(self.drawing_area)
 
         self._click_x: float = -1.0
+        self._click_y: float = -1.0
         self._click_button: int = 0
 
     def _connect_model(self) -> None:
@@ -135,45 +177,55 @@ class DockWindow(Gtk.Window):
         self._update_input_region()
 
     def _position_dock(self) -> None:
-        """Position the dock window at the bottom of the screen.
+        """Position the dock window at the configured screen edge.
 
-        The window is set to the FULL MONITOR WIDTH, not just the width
-        of the dock content. This is a deliberate design choice:
-
-        When icons zoom on hover, the total content width changes. If the
-        window resized to match on every frame, it would cause visible
-        "wobble" — the window manager would reposition the window each
-        frame, creating a jittery visual effect.
-
-        By keeping the window at full monitor width, the window geometry
-        NEVER changes during hover. All animation (zoom, displacement,
-        cascade hide) happens within this fixed buffer via Cairo rendering.
-        The transparent areas are invisible, and an input shape region
-        (see _update_input_region) ensures clicks pass through.
-
-        The height is set to accommodate the maximum zoomed icon size plus
-        padding, so even fully zoomed icons are never clipped.
+        The window spans the full monitor extent along its main axis
+        (width for horizontal, height for vertical) to prevent resize
+        wobble during zoom. The cross-axis dimension accommodates the
+        max zoomed icon size plus padding and bounce headroom.
         """
         display = self.get_display()
         monitor = display.get_primary_monitor() or display.get_monitor(0)
         geom = monitor.get_geometry()
+        # Work area excludes other panels (e.g. MATE panel) so we don't
+        # overlap them. Use full monitor geometry only for the edge where
+        # we place the dock (we ARE a panel), work area for the other axis.
+        workarea = monitor.get_workarea()
 
         icon_size = self.config.icon_size
         zoom = self.config.zoom_percent if self.config.zoom_enabled else 1.0
-        # Extra headroom for bounce animations (urgent bounce is tallest)
-
         bounce_headroom = int(icon_size * self.theme.urgent_bounce_height)
-        height = int(
+        cross = int(
             icon_size * zoom
             + self.theme.top_padding
             + self.theme.bottom_padding
             + bounce_headroom
         )
 
-        # Full monitor width — window never resizes during zoom
-        self.set_size_request(geom.width, height)
-        self.resize(geom.width, height)
-        self.move(geom.x, geom.y + geom.height - height)
+        pos = self.config.pos
+        if is_horizontal(pos):
+            # Span full monitor width; use workarea Y for positioning
+            # to avoid overlapping panels on perpendicular edges
+            win_w, win_h = geom.width, cross
+            if pos == Position.BOTTOM:
+                win_x = geom.x
+                win_y = geom.y + geom.height - win_h
+            else:  # TOP
+                win_x = geom.x
+                win_y = workarea.y
+        else:
+            # Span workarea height to avoid overlapping top/bottom panels
+            win_w, win_h = cross, workarea.height
+            if pos == Position.LEFT:
+                win_x = geom.x
+                win_y = workarea.y
+            else:  # RIGHT
+                win_x = geom.x + geom.width - win_w
+                win_y = workarea.y
+
+        self.set_size_request(win_w, win_h)
+        self.resize(win_w, win_h)
+        self.move(win_x, win_y)
 
     def _set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
@@ -197,7 +249,7 @@ class DockWindow(Gtk.Window):
         icon_size = self.config.icon_size
         strut_height = int(icon_size + self.theme.bottom_padding)
 
-        set_dock_struts(gdk_window, strut_height, geom, screen)
+        set_dock_struts(gdk_window, strut_height, geom, screen, self.config.pos)
 
     def _clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
@@ -239,13 +291,14 @@ class DockWindow(Gtk.Window):
             if self._hover and self._hover.hovered_item
             else ""
         )
+        main_cursor = self._main_axis_cursor()
         self.renderer.draw(
             cr,
             widget,
             self.model,
             self.config,
             self.theme,
-            self.cursor_x,
+            main_cursor,
             hide_offset,
             drag_index,
             drop_insert,
@@ -258,6 +311,7 @@ class DockWindow(Gtk.Window):
         # Reset cursor after hide completes
         if self.autohide and self.autohide.state == HideState.HIDDEN:
             self.cursor_x = -1.0
+            self.cursor_y = -1.0
         return True
 
     def _on_motion(self, widget: Gtk.DrawingArea, event: Gdk.EventMotion) -> bool:
@@ -266,7 +320,7 @@ class DockWindow(Gtk.Window):
         self.cursor_y = event.y
         self._update_dock_size()
         widget.queue_draw()
-        self._hover.update(self.cursor_x)
+        self._hover.update(self._main_axis_cursor())
         return False  # Propagate so GTK drag source can detect drag threshold
 
     def _on_button_press(
@@ -274,6 +328,7 @@ class DockWindow(Gtk.Window):
     ) -> bool:
         """Record press position for click vs drag discrimination."""
         self._click_x = event.x
+        self._click_y = event.y
         self._click_button = event.button
         return False  # Propagate so DnD can still work
 
@@ -282,23 +337,28 @@ class DockWindow(Gtk.Window):
     ) -> bool:
         """Handle clicks on dock items (on release to avoid DnD conflicts)."""
         # Only act if release is near the press point (not a drag)
-        if abs(event.x - self._click_x) > CLICK_DRAG_THRESHOLD:
+        if is_horizontal(self.config.pos):
+            drag_delta = abs(event.x - self._click_x)
+        else:
+            drag_delta = abs(event.y - self._click_y)
+        if drag_delta > CLICK_DRAG_THRESHOLD:
             return False
 
         if event.button == MOUSE_RIGHT:
             if self._menu:
-                self._menu.show(event, self.cursor_x)
+                self._menu.show(event, self._main_axis_cursor())
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
             layout = compute_layout(
                 self.model.visible_items(),
                 self.config,
-                self.local_cursor_x(),
+                self.local_cursor_main(),
                 item_padding=self.theme.item_padding,
                 h_padding=self.theme.h_padding,
             )
-            item = self.hit_test(event.x, layout)
+            main_event = event.x if is_horizontal(self.config.pos) else event.y
+            item = self.hit_test(main_event, layout)
             if item is None:
                 return True
 
@@ -391,6 +451,7 @@ class DockWindow(Gtk.Window):
         #   Frame 1: hide animation starts, but icons already unzoomed
         if not (self.autohide and self.autohide.enabled and not preview_visible):
             self.cursor_x = -1.0
+            self.cursor_y = -1.0
 
         self._update_dock_size()
         widget.queue_draw()
@@ -467,89 +528,101 @@ class DockWindow(Gtk.Window):
 
         window_w: int = self.get_size()[0]
         window_h: int = self.get_size()[1]
-        x = int((window_w - content_w) / 2 - left_edge)
-        w = int(content_w)
+        pos = self.config.pos
+        horizontal = is_horizontal(pos)
 
-        # When the dock is hidden (or hiding), shrink the input region to
-        # a thin strip at the very bottom of the screen. This ensures the
-        # dock only reveals when the mouse hits the screen edge — not when
-        # it's just near the bottom. When visible, use the full content height.
-        #
-        #   Visible:                    Hidden:
-        #   ┌─────────────────┐         ┌─────────────────┐
-        #   │  input region   │         │                 │ ← transparent, clicks pass
-        #   │  (full height)  │         │                 │
-        #   │  [dock icons]   │         ├─────────────────┤
-        #   └─────────────────┘         │ 2px trigger strip│ ← only this catches mouse
-        #   ── screen bottom ──         └─────────────────┘
-        hidden = (
-            self.autohide
-            and self.autohide.enabled
-            and self.autohide.state in (HideState.HIDDEN, HideState.HIDING)
+        # Content centering along main axis
+        main_size = window_w if horizontal else window_h
+        content_offset = int((main_size - content_w) / 2 - left_edge)
+
+        autohide_state = (
+            self.autohide.state if self.autohide and self.autohide.enabled else None
         )
-        if hidden:
-            # Thin trigger strip: full monitor width, 2px tall, at bottom
-            trigger_h = 2
-            rect = cairo.RectangleInt(0, window_h - trigger_h, window_w, trigger_h)
-        else:
-            rect = cairo.RectangleInt(x, 0, max(w, 1), max(window_h, 1))
-
+        rx, ry, rw, rh = compute_input_rect(
+            pos,
+            window_w,
+            window_h,
+            content_offset,
+            int(content_w),
+            autohide_state,
+        )
+        rect = cairo.RectangleInt(rx, ry, rw, rh)
         region = cairo.Region(rect)
         gdk_window.input_shape_combine_region(region, 0, 0)
 
     # --- Coordinate Conversion Utilities ---
     #
-    # These methods convert between window-space and content-space.
-    # See the coordinate system documentation in renderer.py's draw()
-    # method for a full explanation with ASCII diagrams.
+    # All layout is computed in 1D along the dock's "main axis" (the
+    # axis along which icons are arranged). For horizontal docks (top/
+    # bottom), this is the X axis. For vertical docks (left/right),
+    # this is the Y axis. The "cross axis" is perpendicular.
     #
-    # Window-space: pixel position within the GTK window.
-    #   Range: 0 to monitor_width (e.g., 0 to 1920)
-    #   Origin: left edge of the monitor
-    #   Used by: GTK event coordinates (event.x), hit testing
-    #
-    # Content-space: position relative to the dock's icon layout.
-    #   Range: 0 to base_content_width (e.g., 0 to 478)
-    #   Origin: left edge of the first icon's horizontal padding
-    #   Used by: zoom computation, layout positioning
+    # These methods convert between window-space and content-space
+    # along the main axis.
 
-    def _base_x_offset(self) -> float:
-        """X offset to center base (no-zoom) content within the full-width window."""
+    def _main_axis_cursor(self) -> float:
+        """Cursor position along the dock's main axis (window-space)."""
+        if is_horizontal(self.config.pos):
+            return self.cursor_x
+        return self.cursor_y
+
+    def _main_axis_window_size(self) -> int:
+        """Window extent along the dock's main axis."""
+        w, h = self.get_size()
+        return int(w if is_horizontal(self.config.pos) else h)
+
+    def _base_main_offset(self) -> float:
+        """Offset to center base (no-zoom) content along the main axis."""
         n = len(self.model.visible_items())
         base_w = (
             self.theme.h_padding * 2
             + n * self.config.icon_size
             + max(0, n - 1) * self.theme.item_padding
         )
-        window_w: int = self.get_size()[0]
-        return (window_w - base_w) / 2
+        return (self._main_axis_window_size() - base_w) / 2
 
-    def local_cursor_x(self) -> float:
-        """Cursor X in content-space (adjusted for centering offset)."""
-        if self.cursor_x < 0:
+    def local_cursor_main(self) -> float:
+        """Cursor in content-space along the main axis."""
+        mc = self._main_axis_cursor()
+        if mc < 0:
             return -1.0
-        return self.cursor_x - self._base_x_offset()
+        return mc - self._base_main_offset()
 
-    def zoomed_x_offset(self, layout: list[LayoutItem]) -> float:
-        """X offset matching where icons are actually rendered."""
+    def zoomed_main_offset(self, layout: list[LayoutItem]) -> float:
+        """Main-axis offset matching where icons are actually rendered."""
         left_edge, right_edge = content_bounds(
             layout, self.config.icon_size, self.theme.h_padding
         )
         zoomed_w = right_edge - left_edge
-        window_w: int = self.get_size()[0]
-        return (window_w - zoomed_w) / 2 - left_edge
+        return (self._main_axis_window_size() - zoomed_w) / 2 - left_edge
 
-    def hit_test(self, x: float, layout: list[LayoutItem]) -> DockItem | None:
-        """Find which DockItem is under the cursor x position (window-space)."""
-        offset = self.zoomed_x_offset(layout)
+    # Keep short aliases used by other modules
+    def local_cursor_x(self) -> float:
+        """Alias for local_cursor_main (backward compat)."""
+        return self.local_cursor_main()
+
+    def zoomed_x_offset(self, layout: list[LayoutItem]) -> float:
+        """Alias for zoomed_main_offset (backward compat)."""
+        return self.zoomed_main_offset(layout)
+
+    def hit_test(self, main_coord: float, layout: list[LayoutItem]) -> DockItem | None:
+        """Find which DockItem is under the cursor along the main axis."""
+        offset = self.zoomed_main_offset(layout)
         items = self.model.visible_items()
         for i, li in enumerate(layout):
             icon_w = li.scale * self.config.icon_size
             left = li.x + offset
             right = left + icon_w
-            if left <= x <= right:
+            if left <= main_coord <= right:
                 return items[i]
         return None
+
+    def reposition(self) -> None:
+        """Re-layout after position change — reposition window, struts, input."""
+        self._position_dock()
+        self._set_struts()
+        self._update_input_region()
+        self.drawing_area.queue_draw()
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""

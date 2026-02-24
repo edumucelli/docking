@@ -15,6 +15,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib  # noqa: E402
 
+from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout, content_bounds
 from docking.core.theme import RGB
 from docking.ui.effects import easing_bounce, average_icon_color
@@ -27,36 +28,11 @@ if TYPE_CHECKING:
     from docking.core.zoom import LayoutItem
 
 
-# Linear interpolation (lerp) factor for shelf width smoothing.
-#
-# When icons zoom on hover, the total content width changes slightly
-# each frame. If the shelf background tracked this width exactly, it
-# would visibly jitter (wobble) as the cursor moves between icons.
-#
-# Instead, the shelf width is smoothed using lerp:
-#   shelf_w += (target_w - shelf_w) * SHELF_SMOOTH_FACTOR
-#
-# A value of 0.3 means the shelf moves 30% of the remaining distance
-# each frame. At 60fps this settles in ~200ms — fast enough to follow
-# the icons but smooth enough to dampen frame-to-frame jitter.
-# Lower values = smoother but slower. Higher values = more responsive
-# but more visible wobble.
 SHELF_SMOOTH_FACTOR = 0.3
-SLIDE_MOVE_THRESHOLD = 2.0  # minimum px displacement to trigger slide animation
-# Per-frame exponential decay factor for the slide reorder animation.
-#
-# When dock items are reordered via drag-and-drop, displaced items
-# slide smoothly to their new positions instead of teleporting.
-# Each frame, the remaining offset is multiplied by this factor:
-#   offset *= SLIDE_DECAY_FACTOR  (e.g., 0.75)
-#
-# This creates a decelerating motion — items move fast initially
-# then slow down as they approach their target, which feels natural.
-# At 60fps with 0.75 decay, an offset halves roughly every 3 frames
-# (~50ms), settling to imperceptible in about 200-300ms.
+SLIDE_MOVE_THRESHOLD = 2.0
 SLIDE_DECAY_FACTOR = 0.75
-SLIDE_CLEAR_THRESHOLD = 0.5  # clear slide offset when below this px
-INDICATOR_SPACING_MULT = 3  # spacing = indicator_radius * this
+SLIDE_CLEAR_THRESHOLD = 0.5
+INDICATOR_SPACING_MULT = 3
 
 SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
@@ -66,14 +42,11 @@ class DockRenderer:
     """Dock renderer with per-item slide animation for reordering."""
 
     def __init__(self) -> None:
-        # Per-item X offset for slide animation: {desktop_id: offset_px}
         self.slide_offsets: dict[str, float] = {}
-        self.prev_positions: dict[str, float] = {}  # {desktop_id: last_x}
+        self.prev_positions: dict[str, float] = {}
         self.smooth_shelf_w: float = 0.0
-        # Per-item lighten value for hover effect: {desktop_id: 0.0-theme.hover_lighten}
         self._hover_lighten: dict[str, float] = {}
         self._hovered_id: str = ""
-        # Cached average icon colors for active glow: {desktop_id: (r, g, b)}
         self._icon_colors: dict[str, RGB] = {}
 
     @staticmethod
@@ -101,16 +74,27 @@ class DockRenderer:
         model: DockModel,
         config: Config,
         theme: Theme,
-        cursor_x: float,
+        cursor_main: float,
         hide_offset: float = 0.0,
         drag_index: int = -1,
         drop_insert_index: int = -1,
         zoom_progress: float = 1.0,
         hovered_id: str = "",
     ) -> None:
-        """Main draw entry point — called on every 'draw' signal."""
+        """Main draw entry point — called on every 'draw' signal.
+
+        cursor_main is the cursor position along the main axis (the axis
+        icons are laid out along). For horizontal docks this is X, for
+        vertical docks this is Y.
+        """
         alloc = widget.get_allocation()
         width, height = alloc.width, alloc.height
+        pos = config.pos
+        horizontal = is_horizontal(pos)
+
+        # Main axis = axis along icon row; cross axis = perpendicular
+        main_size = width if horizontal else height
+        cross_size = height if horizontal else width
 
         # Clear to transparent
         cr.set_operator(cairo.OPERATOR_SOURCE)
@@ -118,26 +102,10 @@ class DockRenderer:
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Cascade hide animation: shelf and icons slide at different rates.
-        #
-        # When the dock hides, instead of everything moving uniformly,
-        # the shelf background slides down faster than the icons. This
-        # creates a layered "cascade" effect that feels more polished:
-        #
-        #   Frame 0:  [icons]          Frame 3:     [icons]
-        #             ═══shelf═══                 ═══shelf═══
-        #             ───screen───                ───screen───
-        #
-        #   Frame 6:        [icons]    Frame 9:          (hidden)
-        #                ═══shelf═══               ═══shelf═══
-        #             ───screen───                ───screen───
-        #
-        # The shelf leads with a 1.3x multiplier on hide_offset,
-        # meaning it reaches the screen edge ~30% sooner than icons.
-        # bg_hide is clamped to 1.0 so it doesn't overshoot.
+        # Cascade hide: shelf leads icons by 1.3x
         if hide_offset > 0:
-            bg_hide = min(hide_offset * 1.3, 1.0)  # background leads
-            icon_hide = hide_offset  # icons follow
+            bg_hide = min(hide_offset * 1.3, 1.0)
+            icon_hide = hide_offset
         else:
             bg_hide = 0.0
             icon_hide = 0.0
@@ -147,40 +115,16 @@ class DockRenderer:
             return
 
         num_items = len(items)
+        icon_size = config.icon_size
 
-        # The dock uses two coordinate spaces:
-        #
-        # WINDOW-SPACE: pixel positions within the GTK window.
-        #   The window spans the full monitor width (e.g., 1920px) to
-        #   prevent resize wobble during zoom. Position 0 = left edge
-        #   of the monitor, position 1920 = right edge.
-        #
-        # CONTENT-SPACE: positions relative to the dock icon layout.
-        #   Position 0 = left edge of the first icon's horizontal padding.
-        #   The layout is computed entirely in this space.
-        #
-        # Conversion between them:
-        #
-        #   |<----------- monitor (1920px) ------------>|
-        #   |            |<-- content (478px) -->|      |
-        #   |            | [A] [B] [C] [D] [E]  |      |
-        #   |<--offset-->|                       |      |
-        #   0          721                     1199   1920
-        #
-        #   content_x = window_x - base_offset
-        #   window_x  = content_x + base_offset
-        #
-        # Mouse events arrive in window-space. The zoom formula and
-        # layout computation work in content-space. We convert the
-        # cursor position before passing it to compute_layout().
+        # Layout in 1D content-space (same for all positions)
         base_w = (
             theme.h_padding * 2
-            + num_items * config.icon_size
+            + num_items * icon_size
             + max(0, num_items - 1) * theme.item_padding
         )
-        base_offset = (width - base_w) / 2
-
-        local_cursor = cursor_x - base_offset if cursor_x >= 0 else -1.0
+        base_offset = (main_size - base_w) / 2
+        local_cursor = cursor_main - base_offset if cursor_main >= 0 else -1.0
         layout = compute_layout(
             items,
             config,
@@ -189,59 +133,17 @@ class DockRenderer:
             h_padding=theme.h_padding,
         )
 
-        # Smooth zoom decay during hide animation.
-        #
-        # When the mouse leaves the dock and autohide triggers, we want
-        # the icon zoom to fade out smoothly IN PARALLEL with the slide
-        # animation, not snap to unzoomed before the slide starts.
-        #
-        # zoom_progress is a value from 0.0 (no zoom) to 1.0 (full zoom),
-        # animated by the AutoHideController. During hide, it decays from
-        # its current value toward 0.0 alongside hide_offset.
-        #
-        # The formula: effective_scale = 1.0 + (computed_scale - 1.0) * zoom_progress
-        # At zoom_progress=1.0: full zoom (normal hover behavior)
-        # At zoom_progress=0.5: half zoom (mid-hide)
-        # At zoom_progress=0.0: no zoom (fully hidden)
-        #
-        # Without this, icons would snap to 1.0x scale on the frame the
-        # mouse leaves, creating a jarring visual pop before the smooth
-        # slide animation begins.
+        # Smooth zoom decay during hide
         if zoom_progress < 1.0:
             for li in layout:
                 li.scale = 1.0 + (li.scale - 1.0) * zoom_progress
 
-        # Content bounds and centering offset.
-        #
-        # The parabolic zoom displacement pushes icons AWAY from the cursor.
-        # When hovering the right side, left icons shift further left —
-        # potentially past x=0 in content-space. Similarly, hovering the
-        # left side pushes right icons past the normal right boundary.
-        #
-        # content_bounds() returns the actual (left_edge, right_edge) of
-        # all icons including these displacements. The left_edge may be
-        # negative when left icons are pushed past the origin.
-        #
-        # icon_offset positions the content so it's centered in the
-        # full-width window: icon_offset = (window_w - zoomed_w) / 2 - left_edge
-        # The "- left_edge" term compensates for negative left displacement,
-        # ensuring the visual center stays at the monitor center.
-        left_edge, right_edge = content_bounds(
-            layout, config.icon_size, theme.h_padding
-        )
+        # Content bounds and centering offset along main axis
+        left_edge, right_edge = content_bounds(layout, icon_size, theme.h_padding)
         zoomed_w = right_edge - left_edge
-        icon_offset = (width - zoomed_w) / 2 - left_edge
+        icon_offset = (main_size - zoomed_w) / 2 - left_edge
 
-        # Shelf width smoothing with snap-on-first-draw.
-        #
-        # smooth_shelf_w tracks the rendered shelf width, smoothed via
-        # lerp to prevent wobble (see SHELF_SMOOTH_FACTOR above).
-        #
-        # On the very first frame, smooth_shelf_w is 0.0 (initialized in
-        # __init__). If we lerped from 0, the shelf would start tiny and
-        # gradually expand — a visible glitch on startup. Instead, we
-        # snap to the target width on the first frame, then lerp normally
-        # on all subsequent frames.
+        # Shelf width smoothing
         target_shelf_w = zoomed_w
         if self.smooth_shelf_w == 0.0:
             self.smooth_shelf_w = target_shelf_w
@@ -249,15 +151,24 @@ class DockRenderer:
             self.smooth_shelf_w += (
                 target_shelf_w - self.smooth_shelf_w
             ) * SHELF_SMOOTH_FACTOR
-        shelf_w = self.smooth_shelf_w
-        shelf_x = (width - shelf_w) / 2
+        shelf_main_extent = self.smooth_shelf_w
+        shelf_main_pos = (main_size - shelf_main_extent) / 2
 
-        # Shelf height is derived from icon_size + padding offsets in Theme.load()
         bg_height = theme.shelf_height
-        bg_y = height - bg_height + bg_hide * height
-        draw_shelf_background(cr, shelf_x, bg_y, shelf_w, bg_height, theme)
 
-        # Draw active glow behind focused app's icon (color cached per item)
+        # --- Draw shelf background with Cairo transform ---
+        # Always draw as-if-bottom, then transform for other positions.
+        # For the "as-if-bottom" draw: shelf at y = cross_size - bg_height,
+        # sliding toward screen edge by bg_hide * cross_size.
+        as_bottom_bg_y = cross_size - bg_height + bg_hide * cross_size
+
+        cr.save()
+        self._apply_shelf_transform(cr, pos, width, height, main_size, cross_size)
+        draw_shelf_background(
+            cr, shelf_main_pos, as_bottom_bg_y, shelf_main_extent, bg_height, theme
+        )
+
+        # Active glow (drawn in shelf transform space)
         for item, li in zip(items, layout):
             if item.is_active:
                 if item.desktop_id not in self._icon_colors:
@@ -266,29 +177,26 @@ class DockRenderer:
                 self._draw_active_glow(
                     cr,
                     li,
-                    config.icon_size,
+                    icon_size,
                     icon_offset,
-                    bg_y,
+                    as_bottom_bg_y,
                     bg_height,
-                    shelf_x,
-                    shelf_w,
+                    shelf_main_pos,
+                    shelf_main_extent,
                     color,
                     theme.glow_opacity,
                 )
+        cr.restore()
 
-        # Update slide animation offsets (detect items that moved)
+        # --- Draw icons ---
         self._update_slide_offsets(items, layout, icon_offset)
 
-        # Gap for external drop insertion
-        gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0
-
-        # Update hover lighten values (fade in/out per icon)
+        gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         self._update_hover_lighten(items, hovered_id, theme)
 
-        # Draw icons with all effects: slide, drop gap, cascade hide,
-        # hover lighten, click darken, launch/urgent bounce
-        icon_size = config.icon_size
-        icon_y_off = icon_hide * height
+        # Hide offset: distance to push content toward the screen edge
+        hide_cross = icon_hide * cross_size
+
         now = GLib.get_monotonic_time()
         for i, (item, li) in enumerate(zip(items, layout)):
             if i == drag_index:
@@ -297,7 +205,6 @@ class DockRenderer:
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
             lighten = self._hover_lighten.get(item.desktop_id, 0.0)
 
-            # Click darken animation: brief sine pulse
             darken = 0.0
             click_duration_us = theme.click_time_ms * 1000
             if item.last_clicked > 0:
@@ -305,41 +212,50 @@ class DockRenderer:
                 if ct < click_duration_us:
                     darken = math.sin(math.pi * ct / click_duration_us) * 0.5
 
-            # Launch bounce: icon bounces up when launching
-            bounce_y = 0.0
+            # Bounce away from screen edge
+            bounce = 0.0
             launch_duration_us = theme.launch_bounce_time_ms * 1000
             if item.last_launched > 0:
                 lt = now - item.last_launched
-                bounce_y -= (
+                bounce += (
                     easing_bounce(lt, launch_duration_us, 2)
                     * icon_size
                     * theme.launch_bounce_height
                 )
-
-            # Urgent bounce: icon bounces when app demands attention
             urgent_duration_us = theme.urgent_bounce_time_ms * 1000
             if item.last_urgent > 0:
                 ut = now - item.last_urgent
-                bounce_y -= (
+                bounce += (
                     easing_bounce(ut, urgent_duration_us, 1)
                     * icon_size
                     * theme.urgent_bounce_height
                 )
 
-            self._draw_icon(
-                cr,
-                item,
-                li,
-                icon_size,
-                height,
-                theme,
-                icon_offset + slide + drop_shift,
-                icon_y_off + bounce_y,
-                lighten,
-                darken,
-            )
+            # Map to (x, y) based on position
+            scaled_size = icon_size * li.scale
+            main_pos = li.x + icon_offset + slide + drop_shift
+            # Cross position: icon placed at (cross_size - edge_padding - scaled_size)
+            # from the screen edge, with hide offset pushing toward edge,
+            # bounce pushing away from edge.
+            edge_padding = theme.bottom_padding
+            cross_rest = cross_size - edge_padding - scaled_size
 
-        # Draw indicators with slide offset + drop gap + cascade hide
+            if pos == Position.BOTTOM:
+                ix = main_pos
+                iy = cross_rest + hide_cross - bounce
+            elif pos == Position.TOP:
+                ix = main_pos
+                iy = edge_padding - hide_cross + bounce
+            elif pos == Position.LEFT:
+                ix = edge_padding - hide_cross + bounce
+                iy = main_pos
+            else:  # RIGHT
+                ix = cross_rest + hide_cross - bounce
+                iy = main_pos
+
+            self._draw_icon(cr, item, li, icon_size, ix, iy, lighten, darken)
+
+        # --- Draw indicators ---
         for i, (item, li) in enumerate(zip(items, layout)):
             if item.is_running:
                 slide = self.slide_offsets.get(item.desktop_id, 0.0)
@@ -351,22 +267,46 @@ class DockRenderer:
                     item,
                     li,
                     icon_size,
-                    height,
-                    theme,
                     icon_offset + slide + drop_shift,
-                    icon_y_off,
+                    cross_size,
+                    hide_cross,
+                    theme,
+                    pos,
                 )
+
+    @staticmethod
+    def _apply_shelf_transform(
+        cr: cairo.Context,
+        pos: Position,
+        width: int,
+        height: int,
+        main_size: int,
+        cross_size: int,
+    ) -> None:
+        """Apply Cairo transform so shelf drawing code always works as-if-bottom.
+
+        The shelf code draws a horizontal bar at a given y, with rounded
+        top corners and square bottom. After transform:
+        - BOTTOM: no change
+        - TOP: vertical flip (square edge at screen top)
+        - LEFT: rotate so horizontal becomes vertical, square edge at left
+        - RIGHT: rotate so horizontal becomes vertical, square edge at right
+        """
+        if pos == Position.TOP:
+            cr.translate(0, height)
+            cr.scale(1, -1)
+        elif pos == Position.LEFT:
+            cr.translate(width, 0)
+            cr.rotate(math.pi / 2)
+        elif pos == Position.RIGHT:
+            cr.rotate(-math.pi / 2)
+            cr.translate(-height, 0)
+        # BOTTOM: identity — no transform needed
 
     def _update_hover_lighten(
         self, items: list[DockItem], hovered_id: str, theme: Theme
     ) -> None:
-        """Update per-icon lighten values for hover highlight effect.
-
-        Icons fade in to theme.hover_lighten when hovered, and fade out
-        when the cursor moves to a different icon. The fade uses a fixed
-        step per frame for a linear transition over theme.active_time_ms.
-        """
-        # Compute fade frames from theme.active_time_ms (16ms per frame at ~60fps)
+        """Update per-icon lighten values for hover highlight effect."""
         fade_frames = max(1, theme.active_time_ms // 16)
         hover_max = theme.hover_lighten
         step = hover_max / fade_frames
@@ -376,17 +316,14 @@ class DockRenderer:
             did = item.desktop_id
             current = self._hover_lighten.get(did, 0.0)
             if did == hovered_id:
-                # Fade in
                 self._hover_lighten[did] = min(current + step, hover_max)
             elif current > 0:
-                # Fade out
                 new_val = max(current - step, 0.0)
                 if new_val > 0:
                     self._hover_lighten[did] = new_val
                 else:
                     self._hover_lighten.pop(did, None)
 
-        # Clean up removed items
         for did in list(self._hover_lighten):
             if did not in active_ids:
                 del self._hover_lighten[did]
@@ -402,11 +339,9 @@ class DockRenderer:
         for desktop_id, new_x in new_positions.items():
             old_x = self.prev_positions.get(desktop_id)
             if old_x is not None and abs(old_x - new_x) > SLIDE_MOVE_THRESHOLD:
-                # Item moved — set offset so it appears at old position, then animates
                 current_slide = self.slide_offsets.get(desktop_id, 0.0)
                 self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
 
-        # Decay all offsets toward 0 (lerp)
         decay = SLIDE_DECAY_FACTOR
         dead = []
         for desktop_id in self.slide_offsets:
@@ -424,73 +359,37 @@ class DockRenderer:
         item: DockItem,
         li: LayoutItem,
         base_size: int,
-        dock_height: float,
-        theme: Theme,
-        x_offset: float = 0.0,
-        y_offset: float = 0.0,
+        x: float,
+        y: float,
         lighten: float = 0.0,
         darken: float = 0.0,
     ) -> None:
-        """Draw a single dock icon with hover lighten and click darken effects.
-
-        lighten: additive brightness (Cairo ADD operator, 0.0-1.0)
-        darken: subtractive darkness (black overlay with ATOP operator, 0.0-1.0)
-        """
+        """Draw a single dock icon at (x, y) with hover/click effects."""
         if item.icon is None:
             return
 
         scaled_size = base_size * li.scale
-        y = dock_height - theme.bottom_padding - scaled_size + y_offset
-
         icon_width = item.icon.get_width()
         icon_height = item.icon.get_height()
 
-        # Render icon + effects to an intermediate ImageSurface, then
-        # composite the result onto the main Cairo context.
-        #
-        # Why not apply effects directly on the main context?
-        # Cairo compositing operators (ADD, ATOP) operate on ALL
-        # pixels in the destination surface — not just the icon's
-        # pixels. If we used OPERATOR_ADD directly on the main
-        # context, the additive white overlay would brighten the
-        # shelf background behind the icon, not just the icon itself.
-        # Similarly, OPERATOR_ATOP would interact with previously
-        # drawn shelf/glow pixels in unpredictable ways.
-        #
-        # The intermediate surface isolates the icon:
-        #
-        #   Step 1: Paint icon onto empty ARGB32 surface
-        #   Step 2: Apply ADD (lighten) — only icon pixels affected
-        #           because the rest of the surface is transparent
-        #   Step 3: Apply ATOP (darken) — ATOP only paints where
-        #           the destination has alpha > 0 (the icon shape)
-        #   Step 4: Composite finished icon onto main context with
-        #           OPERATOR_OVER (normal alpha blending)
-        #
-        # This is the standard Cairo pattern for per-object effects.
         icon_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, icon_width, icon_height)
         icon_cr = cairo.Context(icon_surface)
 
         Gdk.cairo_set_source_pixbuf(icon_cr, item.icon, 0, 0)
         icon_cr.paint()
 
-        # Hover lighten: additive blending brightens the icon
         if lighten > 0:
             icon_cr.set_operator(cairo.OPERATOR_ADD)
             icon_cr.paint_with_alpha(lighten)
 
-        # Click darken: black overlay dims only the icon's opaque pixels
         if darken > 0:
             icon_cr.set_operator(cairo.OPERATOR_ATOP)
             icon_cr.set_source_rgba(0, 0, 0, darken)
             icon_cr.paint()
 
-        # Composite the icon surface onto the main context at scaled size
         cr.save()
-        cr.translate(li.x + x_offset, y)
-        scale_x = scaled_size / icon_width
-        scale_y = scaled_size / icon_height
-        cr.scale(scale_x, scale_y)
+        cr.translate(x, y)
+        cr.scale(scaled_size / icon_width, scaled_size / icon_height)
         cr.set_source_surface(icon_surface, 0, 0)
         cr.paint()
         cr.restore()
@@ -510,36 +409,7 @@ class DockRenderer:
     ) -> None:
         """Draw a color-matched glow on the shelf behind the active icon.
 
-        The glow pipeline:
-
-        1. The caller extracts the icon's dominant color via
-           average_icon_color() (saturation-weighted average that prefers
-           colorful pixels over grays). The result is cached per desktop_id
-           so we don't re-scan the pixbuf every frame.
-
-        2. A vertical linear gradient is created using that color:
-           - Top of shelf:    icon_color at alpha=0.0 (transparent)
-           - Bottom of shelf: icon_color at alpha=0.6 (visible)
-           This makes the glow appear to emanate upward from the screen
-           edge, fading as it rises into the shelf.
-
-        3. The gradient fills a rectangle slightly wider than the icon
-           (15% padding on each side) to give the glow a soft spread.
-
-        4. The glow rectangle is clipped to the shelf bounds. Without
-           clipping, icons near the shelf edge would have their glow
-           bleed past the rounded corners of the shelf background.
-
-           Shelf background:
-           ╔════════════════════════════════╗
-           ║          ▓▓▓▓▓▓▓▓              ║ ← glow clipped to shelf
-           ║         ▓▓▓▓▓▓▓▓▓▓             ║
-           ╚════════════════════════════════╝
-                      ↑ glow uses icon's own color
-
-        Using the icon's own color (instead of a fixed white/blue)
-        makes each app's active state visually distinct — Firefox gets
-        an orange glow, Terminal gets a dark glow, etc.
+        Drawn in the shelf's transform space (always as-if-bottom).
         """
         glow_x = li.x + icon_offset
         glow_width = icon_size * li.scale
@@ -550,7 +420,6 @@ class DockRenderer:
         gradient.add_color_stop_rgba(0, glow_red, glow_green, glow_blue, 0.0)
         gradient.add_color_stop_rgba(1, glow_red, glow_green, glow_blue, glow_opacity)
 
-        # Clip to shelf bounds
         left = max(glow_x - glow_pad, shelf_x)
         right = min(glow_x + glow_width + glow_pad, shelf_x + shelf_w)
         if right > left:
@@ -564,15 +433,16 @@ class DockRenderer:
         item: DockItem,
         li: LayoutItem,
         base_size: int,
-        dock_height: float,
+        main_pos: float,
+        cross_size: float,
+        hide_cross: float,
         theme: Theme,
-        x_offset: float = 0.0,
-        y_offset: float = 0.0,
+        pos: Position,
     ) -> None:
-        """Draw running indicator dot(s) below an icon."""
+        """Draw running indicator dot(s) near the screen edge."""
         scaled_size = base_size * li.scale
-        center_x = li.x + x_offset + scaled_size / 2
-        y = dock_height - theme.bottom_padding / 2 + y_offset
+        main_center = li.x + main_pos + scaled_size / 2
+        edge_padding = theme.bottom_padding
 
         color = (
             theme.active_indicator_color if item.is_active else theme.indicator_color
@@ -581,9 +451,32 @@ class DockRenderer:
 
         count = min(item.instance_count, theme.max_indicator_dots)
         spacing = theme.indicator_radius * INDICATOR_SPACING_MULT
-        start_x = center_x - (count - 1) * spacing / 2
 
-        for j in range(count):
-            dot_x = start_x + j * spacing
-            cr.arc(dot_x, y, theme.indicator_radius, 0, 2 * math.pi)
-            cr.fill()
+        if pos == Position.BOTTOM:
+            cx = main_center
+            cy = cross_size - edge_padding / 2 + hide_cross
+            for j in range(count):
+                dx = cx + (j - (count - 1) / 2) * spacing
+                cr.arc(dx, cy, theme.indicator_radius, 0, 2 * math.pi)
+                cr.fill()
+        elif pos == Position.TOP:
+            cx = main_center
+            cy = edge_padding / 2 - hide_cross
+            for j in range(count):
+                dx = cx + (j - (count - 1) / 2) * spacing
+                cr.arc(dx, cy, theme.indicator_radius, 0, 2 * math.pi)
+                cr.fill()
+        elif pos == Position.LEFT:
+            cx = edge_padding / 2 - hide_cross
+            cy = main_center
+            for j in range(count):
+                dy = cy + (j - (count - 1) / 2) * spacing
+                cr.arc(cx, dy, theme.indicator_radius, 0, 2 * math.pi)
+                cr.fill()
+        else:  # RIGHT
+            cx = cross_size - edge_padding / 2 + hide_cross
+            cy = main_center
+            for j in range(count):
+                dy = cy + (j - (count - 1) / 2) * spacing
+                cr.arc(cx, dy, theme.indicator_radius, 0, 2 * math.pi)
+                cr.fill()

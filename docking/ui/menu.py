@@ -9,6 +9,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk  # noqa: E402
 
+from docking.core.position import Position
+from docking.core.theme import Theme, _BUILTIN_THEMES_DIR
 from docking.core.zoom import compute_layout
 
 if TYPE_CHECKING:
@@ -37,21 +39,19 @@ class MenuHandler:
         self._config = config
         self._tracker = tracker
 
-    def show(self, event: Gdk.EventButton, cursor_x: float) -> None:
+    def show(self, event: Gdk.EventButton, cursor_main: float) -> None:
         """Show context menu at cursor position."""
         items = self._model.visible_items()
         theme = self._window.theme
-        local_x = self._window.local_cursor_x()
+        local_main = self._window.local_cursor_main()
         layout = compute_layout(
             items,
             self._config,
-            local_x,
+            local_main,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
-        item = self._hit_test(
-            cursor_x, items, layout
-        )  # cursor_x is window-space for hit test
+        item = self._hit_test(cursor_main, items, layout)
 
         menu = Gtk.Menu()
 
@@ -108,6 +108,29 @@ class MenuHandler:
 
         menu.append(Gtk.SeparatorMenuItem())
 
+        # Themes submenu
+        theme_item = Gtk.MenuItem(label="Themes")
+        theme_menu = Gtk.Menu()
+        first_radio: Gtk.RadioMenuItem | None = None
+
+        theme_names = [p.stem for p in sorted(_BUILTIN_THEMES_DIR.glob("*.json"))]
+
+        for name in theme_names:
+            label = name.replace("-", " ").capitalize()
+            radio = Gtk.RadioMenuItem(label=label)
+            if first_radio:
+                radio.join_group(first_radio)
+            else:
+                first_radio = radio
+            if name == self._config.theme:
+                radio.set_active(True)
+            radio.connect("activate", self._on_theme_changed, name)
+            theme_menu.append(radio)
+        theme_item.set_submenu(theme_menu)
+        menu.append(theme_item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
         # Icon size submenu
         size_item = Gtk.MenuItem(label="Icon Size")
         size_menu = Gtk.Menu()
@@ -119,6 +142,23 @@ class MenuHandler:
             size_menu.append(item)
         size_item.set_submenu(size_menu)
         menu.append(size_item)
+
+        # Position submenu
+        pos_item = Gtk.MenuItem(label="Position")
+        pos_menu = Gtk.Menu()
+        first_pos_radio: Gtk.RadioMenuItem | None = None
+        for pos in Position:
+            radio = Gtk.RadioMenuItem(label=pos.value.capitalize())
+            if first_pos_radio:
+                radio.join_group(first_pos_radio)
+            else:
+                first_pos_radio = radio
+            if pos.value == self._config.position:
+                radio.set_active(True)
+            radio.connect("activate", self._on_position_changed, pos.value)
+            pos_menu.append(radio)
+        pos_item.set_submenu(pos_menu)
+        menu.append(pos_item)
 
         menu.append(Gtk.SeparatorMenuItem())
 
@@ -142,6 +182,23 @@ class MenuHandler:
         self._config.previews_enabled = widget.get_active()
         self._config.save()
 
+    def _on_theme_changed(self, widget: Gtk.MenuItem, name: str) -> None:
+        if not widget.get_active() or name == self._config.theme:
+            return
+        self._config.theme = name
+        self._config.save()
+        new_theme = Theme.load(name, self._config.icon_size)
+        self._window.theme = new_theme
+        self._window.update_struts()
+        self._window.drawing_area.queue_draw()
+
+    def _on_position_changed(self, widget: Gtk.MenuItem, position: str) -> None:
+        if not widget.get_active() or position == self._config.position:
+            return
+        self._config.position = position
+        self._config.save()
+        self._window.reposition()
+
     def _on_icon_size_changed(self, widget: Gtk.MenuItem, size: int) -> None:
         if widget.get_active():
             self._config.icon_size = size
@@ -150,15 +207,15 @@ class MenuHandler:
 
     def _hit_test(
         self,
-        x: float,
+        main_coord: float,
         items: list[DockItem],
         layout: list[LayoutItem],
     ) -> DockItem | None:
-        """Find which DockItem is under cursor x (window-space)."""
-        offset = self._window.zoomed_x_offset(layout)
+        """Find which DockItem is under cursor along the main axis."""
+        offset = self._window.zoomed_main_offset(layout)
         for i, li in enumerate(layout):
             icon_width = li.scale * self._config.icon_size
             left = li.x + offset
-            if left <= x <= left + icon_width:
+            if left <= main_coord <= left + icon_width:
                 return items[i]
         return None

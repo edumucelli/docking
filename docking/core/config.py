@@ -8,6 +8,8 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
+from docking.core.position import Position
+
 DEFAULT_CONFIG_DIR = (
     Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
 )
@@ -45,6 +47,11 @@ class Config:
     # Desktop file IDs of pinned applications, in display order
     pinned: list[str] = field(default_factory=lambda: list(DEFAULT_PINNED))
 
+    @property
+    def pos(self) -> Position:
+        """Position as enum."""
+        return Position(self.position)
+
     @classmethod
     def load(cls, path: Path | str | None = None) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
@@ -59,7 +66,13 @@ class Config:
 
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
-        return cls(**filtered)
+        config = cls(**filtered)
+        # Validate position (fallback to default if unknown)
+        try:
+            Position(config.position)
+        except ValueError:
+            config.position = "bottom"
+        return config
 
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""

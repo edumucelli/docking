@@ -15,6 +15,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf  # noqa: E402
 
+from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout
 from docking.ui.poof import show_poof
 from docking.platform.model import DockItem
@@ -88,7 +89,7 @@ class DnDHandler:
     def _on_drag_begin(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Identify which item is being dragged and set the drag icon."""
         items = self._model.visible_items()
-        local_cx = self._window.local_cursor_x()
+        local_cx = self._window.local_cursor_main()
         layout = compute_layout(
             items,
             self._config,
@@ -97,8 +98,9 @@ class DnDHandler:
             h_padding=self._theme.h_padding,
         )
 
-        offset = self._window.zoomed_x_offset(layout)
-        win_cx = self._window.cursor_x
+        offset = self._window.zoomed_main_offset(layout)
+        horizontal = is_horizontal(self._config.pos)
+        win_cx = self._window.cursor_x if horizontal else self._window.cursor_y
         log.debug(
             "drag-begin: win_cx=%.1f local_cx=%.1f offset=%.1f items=%d",
             win_cx,
@@ -157,6 +159,8 @@ class DnDHandler:
         # the drag-motion handler, which IS delivered during DnD.
         if self._window.autohide:
             self._window.autohide.on_mouse_enter()
+        main_coord = x if is_horizontal(self._config.pos) else y
+
         if self._drag_from < 0:
             # External drag — compute insert position for gap effect
             items = self._model.visible_items()
@@ -167,11 +171,11 @@ class DnDHandler:
                 item_padding=self._theme.item_padding,
                 h_padding=self._theme.h_padding,
             )
-            x_offset = self._window.zoomed_x_offset(layout)
+            main_offset = self._window.zoomed_main_offset(layout)
             insert = len(layout)
             for i, li in enumerate(layout):
-                center = li.x + x_offset + self._config.icon_size / 2
-                if x < center:
+                center = li.x + main_offset + self._config.icon_size / 2
+                if main_coord < center:
                     insert = i
                     break
             if insert != self.drop_insert_index:
@@ -189,11 +193,11 @@ class DnDHandler:
             h_padding=self._theme.h_padding,
         )
 
-        x_offset = self._window.zoomed_x_offset(layout)
+        main_offset = self._window.zoomed_main_offset(layout)
         new_index = len(layout) - 1
         for i, li in enumerate(layout):
-            center = li.x + x_offset + self._config.icon_size / 2
-            if x < center:
+            center = li.x + main_offset + self._config.icon_size / 2
+            if main_coord < center:
                 new_index = i
                 break
 
@@ -320,9 +324,18 @@ class DnDHandler:
             win_x, win_y = self._window.get_position()
             win_w, win_h = self._window.get_size()
 
-            # Outside if cursor Y is above the dock window or far below
+            # Outside if cursor moved away from the dock edge
             items = self._model.visible_items()
-            outside = screen_y < win_y - self._config.icon_size
+            pos = self._config.pos
+            icon_sz = self._config.icon_size
+            if pos == Position.BOTTOM:
+                outside = screen_y < win_y - icon_sz
+            elif pos == Position.TOP:
+                outside = screen_y > win_y + win_h + icon_sz
+            elif pos == Position.LEFT:
+                outside = screen_x > win_x + win_w + icon_sz
+            else:  # RIGHT
+                outside = screen_x < win_x - icon_sz
 
             log.debug(
                 "drag-end: screen=(%d,%d) win=(%d,%d %dx%d) outside=%s",
