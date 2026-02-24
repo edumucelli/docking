@@ -13,7 +13,7 @@ log = get_logger("dnd")
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GdkPixbuf  # noqa: E402
+from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout
@@ -71,7 +71,7 @@ class DnDHandler:
             [_DOCK_ITEM_TARGET],
             Gdk.DragAction.MOVE,
         )
-        # No DestDefaults — we handle motion/drop manually to support
+        # No DestDefaults -- we handle motion/drop manually to support
         # both internal reorder and external URI drops without conflicts
         da.drag_dest_set(
             0,
@@ -146,13 +146,13 @@ class DnDHandler:
         #
         # During an active drag operation (user is dragging something),
         # GTK takes over mouse event delivery. The normal widget signals
-        # that fire during regular mouse movement do NOT fire during DnD:
+        # that fire during regular mouse movement do not fire during DnD:
         #
-        #   Normal hover:    enter-notify → motion-notify → leave-notify
-        #   During DnD:      drag-motion  → (no enter/leave!) → drag-leave
+        #   Normal hover:    enter-notify -> motion-notify -> leave-notify
+        #   During DnD:      drag-motion  -> (no enter/leave!) -> drag-leave
         #
-        # This means our autohide controller's on_mouse_enter() — which
-        # is triggered by enter-notify-event — would never fire when the
+        # This means our autohide controller's on_mouse_enter() -- which
+        # is triggered by enter-notify-event -- would never fire when the
         # user drags a .desktop file toward the dock to add it.
         #
         # To fix this, we explicitly call autohide.on_mouse_enter() from
@@ -162,7 +162,7 @@ class DnDHandler:
         main_coord = x if is_horizontal(self._config.pos) else y
 
         if self._drag_from < 0:
-            # External drag — compute insert position for gap effect
+            # External drag -- compute insert position for gap effect
             items = self._model.visible_items()
             layout = compute_layout(
                 items,
@@ -230,6 +230,9 @@ class DnDHandler:
         if target:
             widget.drag_get_data(context, target, time)
             return True
+        # No matching target (e.g. docklet URI) -- clear the gap
+        self.drop_insert_index = -1
+        widget.queue_draw()
         return False
 
     def _on_drag_data_received(
@@ -243,13 +246,13 @@ class DnDHandler:
         time: int,
     ) -> None:
         """Handle internal reorder completion and external .desktop drops."""
-        # Internal reorder — already handled during drag-motion
+        # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
             log.debug("drag-data-received: internal reorder complete")
             Gtk.drag_finish(context, True, False, time)
             return
 
-        # External drop — process URIs
+        # External drop -- process URIs
         insert_at = max(0, self.drop_insert_index)
         log.debug("drag-data-received: external drop, insert_at=%d", insert_at)
         uris = selection.get_uris()
@@ -294,24 +297,24 @@ class DnDHandler:
     ) -> None:
         """Handle drag leaving the dock area.
 
-        IMPORTANT: GTK fires events in this order during a drop:
-
-          1. drag-motion   (mouse hovering over drop target)
-          2. drag-leave    ← fires BEFORE the drop happens!
-          3. drag-drop     (user releases the mouse button)
-          4. drag-data-received  (dropped data is delivered)
-
-        This means if we cleared drop_insert_index here in drag-leave,
-        it would already be -1 by the time drag-data-received tries to
-        read it to know WHERE to insert the dropped item.
-
-        Therefore, we do NOT clear drop_insert_index here. It gets
-        cleared in _on_drag_data_received after the insertion is done,
-        or in _on_drag_end when the drag operation fully completes.
+        GTK fires drag-leave before drag-drop, so we can't clear
+        drop_insert_index here (drag-data-received still needs it).
+        Instead we schedule a deferred clear -- if a drop happens,
+        drag-data-received or drag-end will clear it first. If the
+        drag truly left (cancelled), the deferred clear closes the gap.
         """
+        if self._drag_from < 0 and self.drop_insert_index >= 0:
+            GLib.timeout_add(100, self._deferred_clear_drop_gap, widget)
         widget.queue_draw()
         if self._window.autohide:
             self._window.autohide.on_mouse_leave()
+
+    def _deferred_clear_drop_gap(self, widget: Gtk.DrawingArea) -> bool:
+        """Clear stale drop gap if it wasn't consumed by a drop."""
+        if self.drop_insert_index >= 0 and self._drag_from < 0:
+            self.drop_insert_index = -1
+            widget.queue_draw()
+        return False
 
     def _on_drag_end(self, widget: Gtk.DrawingArea, _context: Gdk.DragContext) -> None:
         """Clean up drag state. Remove item if dragged outside dock."""

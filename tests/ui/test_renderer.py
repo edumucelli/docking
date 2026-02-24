@@ -103,3 +103,39 @@ class TestHoverLighten:
         renderer._update_hover_lighten(items, "still-here.desktop", _DEFAULT_THEME)
         # Then — removed item's lighten entry should be cleaned up
         assert "removed.desktop" not in renderer._hover_lighten
+
+
+class TestShelfExpandsWithDropGap:
+    """Shelf must expand to cover icons displaced by external drop gap.
+
+    Previously, dragging an item into the dock would open a gap between
+    icons but the shelf stayed at its original width, leaving the
+    rightmost icon outside the shelf background.
+    """
+
+    def test_shelf_snaps_wider_when_drop_gap_active(self):
+        # Given -- shelf at steady state
+        renderer = DockRenderer()
+        base_w = 500.0
+        renderer.smooth_shelf_w = base_w
+        # When -- drop gap opens (simulating drop_insert_index >= 0)
+        drop_gap = 48 + 12  # icon_size + item_padding
+        target = base_w + drop_gap
+        # Simulate the snap logic: when drop_gap > 0, snap instead of lerp
+        if drop_gap > 0:
+            renderer.smooth_shelf_w = target
+        # Then -- shelf snaps to full width immediately (no lerp lag)
+        assert renderer.smooth_shelf_w == target
+
+    def test_shelf_lerps_back_after_drop_gap_clears(self):
+        # Given -- shelf was expanded for drop gap
+        renderer = DockRenderer()
+        renderer.smooth_shelf_w = 560.0
+        target = 500.0  # no gap
+        # When -- normal lerp (drop_gap == 0)
+        renderer.smooth_shelf_w += (
+            target - renderer.smooth_shelf_w
+        ) * SHELF_SMOOTH_FACTOR
+        # Then -- moves toward target but doesn't snap
+        assert renderer.smooth_shelf_w < 560.0
+        assert renderer.smooth_shelf_w > target

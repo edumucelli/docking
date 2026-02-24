@@ -1,4 +1,4 @@
-"""Cairo renderer for the dock — background, icons, indicators, zoom visualization."""
+"""Cairo renderer for the dock -- background, icons, indicators, zoom visualization."""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ class DockRenderer:
         zoom_progress: float = 1.0,
         hovered_id: str = "",
     ) -> None:
-        """Main draw entry point — called on every 'draw' signal.
+        """Main draw entry point -- called on every 'draw' signal.
 
         cursor_main is the cursor position along the main axis (the axis
         icons are laid out along). For horizontal docks this is X, for
@@ -141,11 +141,14 @@ class DockRenderer:
         # Content bounds and centering offset along main axis
         left_edge, right_edge = content_bounds(layout, icon_size, theme.h_padding)
         zoomed_w = right_edge - left_edge
+        # Include the drop gap so shelf expands to cover displaced items
+        drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
+        zoomed_w += drop_gap
         icon_offset = (main_size - zoomed_w) / 2 - left_edge
 
-        # Shelf width smoothing
+        # Shelf width smoothing — snap immediately when drop gap active
         target_shelf_w = zoomed_w
-        if self.smooth_shelf_w == 0.0:
+        if self.smooth_shelf_w == 0.0 or drop_gap > 0:
             self.smooth_shelf_w = target_shelf_w
         else:
             self.smooth_shelf_w += (
@@ -301,7 +304,7 @@ class DockRenderer:
         elif pos == Position.RIGHT:
             cr.rotate(-math.pi / 2)
             cr.translate(-height, 0)
-        # BOTTOM: identity — no transform needed
+        # BOTTOM: identity -- no transform needed
 
     def _update_hover_lighten(
         self, items: list[DockItem], hovered_id: str, theme: Theme
