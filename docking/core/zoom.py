@@ -74,18 +74,25 @@ def compute_layout(
     cursor_x: float,
     item_padding: float = 6.0,
     h_padding: float = 12.0,
+    zoom_progress: float = 1.0,
 ) -> list[LayoutItem]:
     """Compute icon positions using Plank's per-icon displacement approach.
 
     Each icon starts at its rest center and gets pushed away from the cursor.
     Distant icons stay put -- no cascading shifts.
+
+    zoom_progress (0-1) scales the effective zoom. During autohide, this
+    decays from 1.0 to 0.0, collapsing both icon scale AND displacement
+    so icons compress toward their rest centers (Plank's zoom_in_percent).
     """
     num_items = len(items)
     if num_items == 0:
         return []
 
     icon_size = config.icon_size
-    zoom_percent = config.zoom_percent if config.zoom_enabled else 1.0
+    base_zoom = config.zoom_percent if config.zoom_enabled else 1.0
+    # Effective zoom decays with zoom_progress (matches Plank's zoom_in_percent)
+    zoom_percent = 1.0 + (base_zoom - 1.0) * zoom_progress
     # Zoom displacement radius.
     #
     # This value controls how far the displacement effect extends from
@@ -187,14 +194,22 @@ def content_bounds(
     layout: list[LayoutItem],
     icon_size: int,
     h_padding: float,
+    item_padding: float = 0.0,
 ) -> tuple[float, float]:
-    """Compute the left and right edges of the content including displacements."""
+    """Compute the left and right edges of the content including displacements.
+
+    Plank treats each icon slot as (icon_size + item_padding) wide, so the
+    shelf extends item_padding/2 beyond the first/last icon edges. We add
+    this to h_padding to match.
+    """
+    half_item_pad = item_padding / 2
+    pad = h_padding + half_item_pad
     if not layout:
-        return 0.0, 2 * h_padding
+        return 0.0, 2 * pad
     first = layout[0]
     last = layout[-1]
-    left = first.x - h_padding
-    right = last.x + icon_size * last.scale + h_padding
+    left = first.x - pad
+    right = last.x + icon_size * last.scale + pad
     return left, right
 
 
@@ -202,7 +217,8 @@ def total_width(
     layout: list[LayoutItem],
     icon_size: int,
     h_padding: float,
+    item_padding: float = 0.0,
 ) -> float:
     """Compute total dock content width from a layout."""
-    left, right = content_bounds(layout, icon_size, h_padding)
-    return max(right - left, 2 * h_padding)
+    left, right = content_bounds(layout, icon_size, h_padding, item_padding)
+    return max(right - left, 2 * (h_padding + item_padding / 2))

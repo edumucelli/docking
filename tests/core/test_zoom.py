@@ -1,344 +1,210 @@
-"""Tests for parabolic zoom math."""
+"""Tests for the parabolic zoom layout engine.
+
+The zoom module computes per-icon positions using a parabolic displacement
+formula derived from Plank's PositionManager.  Each icon is displaced from
+its REST position based on distance from the cursor, then scaled using a
+parabolic curve.
+
+The scaling unit for h_padding and item_padding is pixels (already scaled
+from the theme's "tenths of one percent of icon_size" at load time).
+"""
 
 import pytest
 from unittest.mock import MagicMock
 
 from docking.core.zoom import (
-    OFFSET_PCT_SNAP,
-    compute_icon_zoom,
     compute_layout,
-    total_width,
     content_bounds,
+    total_width,
     LayoutItem,
+    OFFSET_PCT_SNAP,
 )
 
 
-class TestComputeIconZoom:
-    def test_cursor_off_dock_returns_no_zoom(self):
-        # Given / When
-        result = compute_icon_zoom(-1.0, 100.0, 48, 2.0, 3)
-        # Then
-        assert result == 1.0
+class TestRestPositions:
+    """When cursor_x < 0 (no hover), icons should be at rest scale (1.0x)."""
 
-    def test_cursor_directly_on_icon_returns_max_zoom(self):
-        # Given / When
-        result = compute_icon_zoom(100.0, 100.0, 48, 2.0, 3)
-        # Then
-        assert result == pytest.approx(2.0)
-
-    def test_cursor_at_max_range_returns_no_zoom(self):
+    def test_all_scales_are_1(self):
         # Given
-        icon_size, zoom_range = 48, 3
-        max_dist = icon_size * zoom_range  # 144
-        # When
-        result = compute_icon_zoom(100.0 + max_dist, 100.0, icon_size, 2.0, zoom_range)
-        # Then
-        assert result == pytest.approx(1.0)
-
-    def test_cursor_beyond_max_range_clamps(self):
-        # Given / When
-        result = compute_icon_zoom(500.0, 100.0, 48, 2.0, 3)
-        # Then
-        assert result == pytest.approx(1.0)
-
-    def test_half_distance_gives_intermediate_zoom(self):
-        # Given
-        icon_size, zoom_range = 48, 3
-        half_dist = (icon_size * zoom_range) / 2
-        # When
-        result = compute_icon_zoom(100.0 + half_dist, 100.0, icon_size, 2.0, zoom_range)
-        # Then — at half distance: offset_pct=0.5, zoom=1-0.25=0.75, scale=1+0.75*1=1.75
-        assert result == pytest.approx(1.75)
-
-    def test_zoom_percent_of_1_always_returns_1(self):
-        # Given / When
-        result = compute_icon_zoom(100.0, 100.0, 48, 1.0, 3)
-        # Then
-        assert result == pytest.approx(1.0)
-
-    def test_symmetry(self):
-        """Zoom should be same distance left or right of center."""
-        # Given / When
-        left = compute_icon_zoom(80.0, 100.0, 48, 2.0, 3)
-        right = compute_icon_zoom(120.0, 100.0, 48, 2.0, 3)
-        # Then
-        assert left == pytest.approx(right)
-
-    def test_offset_pct_snaps_at_threshold(self):
-        """At 99%+ distance, compute_layout should snap scale to exactly 1.0."""
-        # Given — single item; cursor placed so offset_pct just exceeds OFFSET_PCT_SNAP
         config = MagicMock()
         config.icon_size = 48
         config.zoom_enabled = True
-        config.zoom_percent = 2.0
+        config.zoom_percent = 1.5
         config.zoom_range = 3
-        items = [MagicMock()]
-        rest = compute_layout(items, config, -1.0, item_padding=0, h_padding=12)
-        icon_center = rest[0].x + config.icon_size / 2
-        zoom_icon_size = config.icon_size * config.zoom_percent
-        # Place cursor so offset_pct = OFFSET_PCT_SNAP + small epsilon (above threshold)
-        cursor_x = icon_center + zoom_icon_size * (OFFSET_PCT_SNAP + 0.005)
+        items = [MagicMock() for _ in range(5)]
         # When
-        layout = compute_layout(items, config, cursor_x, item_padding=0, h_padding=12)
-        # Then — offset_pct > OFFSET_PCT_SNAP, so it snaps to 1.0 → scale = 1.0
-        assert layout[0].scale == pytest.approx(1.0)
-
-
-class TestComputeLayout:
-    def _make_items(self, n: int) -> list:
-        return [MagicMock() for _ in range(n)]
-
-    def _make_config(
-        self, icon_size=48, zoom_enabled=True, zoom_percent=2.0, zoom_range=3
-    ):
-        config = MagicMock()
-        config.icon_size = icon_size
-        config.zoom_enabled = zoom_enabled
-        config.zoom_percent = zoom_percent
-        config.zoom_range = zoom_range
-        return config
-
-    def test_empty_items_returns_empty(self):
-        # Given
-        config = self._make_config()
-        # When / Then
-        assert compute_layout([], config, 100.0) == []
-
-    def test_no_zoom_uniform_scales(self):
-        # Given
-        items = self._make_items(3)
-        config = self._make_config(zoom_enabled=False)
-        # When
-        layout = compute_layout(items, config, 100.0, item_padding=6, h_padding=12)
+        layout = compute_layout(items, config, -1.0)
         # Then
         for li in layout:
             assert li.scale == pytest.approx(1.0)
 
-    def test_cursor_off_dock_no_zoom(self):
+    def test_positions_are_evenly_spaced(self):
         # Given
-        items = self._make_items(3)
-        config = self._make_config()
-        # When
-        layout = compute_layout(items, config, -1.0, item_padding=6, h_padding=12)
-        # Then
-        for li in layout:
-            assert li.scale == pytest.approx(1.0)
-
-    def test_layout_x_positions_monotonically_increase(self):
-        # Given
-        items = self._make_items(5)
-        config = self._make_config()
-        # When
-        layout = compute_layout(items, config, 100.0, item_padding=6, h_padding=12)
-        # Then
-        for i in range(1, len(layout)):
-            assert layout[i].x > layout[i - 1].x
-
-    def test_zoomed_layout_wider_than_unzoomed(self):
-        # Given
-        items = self._make_items(5)
-        config = self._make_config()
-        # When
-        layout_zoomed = compute_layout(
-            items, config, 100.0, item_padding=6, h_padding=12
-        )
-        layout_flat = compute_layout(items, config, -1.0, item_padding=6, h_padding=12)
-        w_zoomed = total_width(layout_zoomed, 48, 12)
-        w_flat = total_width(layout_flat, 48, 12)
-        # Then
-        assert w_zoomed >= w_flat
-
-    def test_single_item(self):
-        # Given
-        items = self._make_items(1)
-        config = self._make_config()
-        # When
-        layout = compute_layout(items, config, -1.0, item_padding=6, h_padding=12)
-        # Then
-        assert len(layout) == 1
-        assert layout[0].x == pytest.approx(12.0)
-        assert layout[0].scale == pytest.approx(1.0)
-
-
-class TestTotalWidth:
-    def test_empty_layout(self):
-        # Given / When
-        result = total_width([], 48, 12)
-        # Then
-        assert result == pytest.approx(24.0)
-
-    def test_single_item_no_zoom(self):
-        # Given
-        layout = [LayoutItem(x=12.0, scale=1.0)]
-        # When
-        result = total_width(layout, 48, 12)
-        # Then — 12 + 48*1 + 12 = 72
-        assert result == pytest.approx(72.0)
-
-    def test_width_increases_with_zoom(self):
-        # Given
-        flat = [LayoutItem(x=12.0, scale=1.0), LayoutItem(x=66.0, scale=1.0)]
-        zoomed = [LayoutItem(x=12.0, scale=1.5), LayoutItem(x=84.0, scale=1.5)]
-        # When / Then
-        assert total_width(zoomed, 48, 12) > total_width(flat, 48, 12)
-
-
-class TestCenteringOffset:
-    """Verify content centering math for fixed-size window."""
-
-    def _make_config(self, zoom_enabled=True, zoom_percent=1.3):
         config = MagicMock()
         config.icon_size = 48
-        config.zoom_enabled = zoom_enabled
-        config.zoom_percent = zoom_percent
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
         config.zoom_range = 3
-        return config
-
-    def test_no_zoom_width_equals_base(self):
-        """Without zoom, content width = base width."""
-        # Given
         items = [MagicMock() for _ in range(5)]
-        config = self._make_config(zoom_enabled=False)
         # When
         layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        w = total_width(layout, 48, 12)
         # Then
-        expected = 12 + 5 * 48 + 4 * 10 + 12  # h_pad + icons + gaps + h_pad
-        assert w == pytest.approx(expected)
+        for i in range(1, len(layout)):
+            gap = layout[i].x - layout[i - 1].x
+            assert gap == pytest.approx(48 + 10)  # icon_size + item_padding
 
-    def test_zoomed_width_larger_than_base(self):
+    def test_first_icon_starts_at_h_padding(self):
         # Given
-        items = [MagicMock() for _ in range(5)]
-        config = self._make_config()
-        base_layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        base_w = total_width(base_layout, 48, 12)
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = False
+        config.zoom_percent = 1.0
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(3)]
         # When
-        zoomed_layout = compute_layout(
-            items, config, 150.0, item_padding=10, h_padding=12
-        )
-        zoomed_w = total_width(zoomed_layout, 48, 12)
+        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
         # Then
-        assert zoomed_w > base_w
+        assert layout[0].x == pytest.approx(12.0)
 
-    def test_center_hover_is_widest(self):
-        """Hovering at center produces the widest layout."""
+
+class TestZoomedPositions:
+    """When cursor hovers, nearby icons should zoom up."""
+
+    def test_hovered_icon_has_max_scale(self):
         # Given
-        items = [MagicMock() for _ in range(5)]
-        config = self._make_config()
-        base_layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        base_w = total_width(base_layout, 48, 12)
-        center = base_w / 2
-        # When
-        center_layout = compute_layout(
-            items, config, center, item_padding=10, h_padding=12
-        )
-        center_w = total_width(center_layout, 48, 12)
-        edge_layout = compute_layout(items, config, 12.0, item_padding=10, h_padding=12)
-        edge_w = total_width(edge_layout, 48, 12)
-        # Then
-        assert center_w >= edge_w
-
-
-class TestPlankDisplacement:
-    """Tests for Plank-style per-icon displacement (no cascading shifts)."""
-
-    def _make_config(self, zoom_percent=1.5, zoom_range=3):
         config = MagicMock()
         config.icon_size = 48
         config.zoom_enabled = True
-        config.zoom_percent = zoom_percent
-        config.zoom_range = zoom_range
-        return config
-
-    def test_far_icons_have_constant_displacement(self):
-        """Icons beyond zoom range all get the same small fixed displacement."""
-        # Given
-        items = [MagicMock() for _ in range(8)]
-        config = self._make_config()
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        # When
-        hover_left = compute_layout(items, config, 36.0, item_padding=10, h_padding=12)
-        # Then — far icons should all have scale=1.0
-        for i in range(5, 8):
-            assert hover_left[i].scale == pytest.approx(1.0, abs=0.01)
-        # Far icons should all have the SAME displacement (constant, not cascading)
-        displacements = [hover_left[i].x - rest[i].x for i in range(5, 8)]
-        for d in displacements:
-            assert d == pytest.approx(displacements[0], abs=0.1)
-
-    def test_hover_right_left_icons_shift_uniformly(self):
-        """Hovering right icon — left icons shift left by a constant amount."""
-        # Given
-        items = [MagicMock() for _ in range(8)]
-        config = self._make_config()
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        last_center = rest[-1].x + 24
-        # When
-        hover_right = compute_layout(
-            items, config, last_center, item_padding=10, h_padding=12
-        )
-        # Then — far-left icons should all shift by the same constant amount
-        displacements = [hover_right[i].x - rest[i].x for i in range(3)]
-        for d in displacements:
-            assert d == pytest.approx(displacements[0], abs=0.1)
-
-    def test_icons_push_away_from_cursor(self):
-        """Icons near cursor should be pushed away (left goes left, right goes right)."""
-        # Given
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
         items = [MagicMock() for _ in range(5)]
-        config = self._make_config()
         rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        center_x = rest[2].x + 24
-        # When
-        zoomed = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
-        # Then — icons left of cursor should shift left (smaller x)
-        assert zoomed[0].x <= rest[0].x
-        assert zoomed[1].x <= rest[1].x
-        # Icons right of cursor should shift right (larger x)
-        assert zoomed[3].x >= rest[3].x
-        assert zoomed[4].x >= rest[4].x
-
-    def test_hovered_icon_scales_up(self):
-        """The icon directly under cursor should have max zoom."""
-        # Given
-        items = [MagicMock() for _ in range(5)]
-        config = self._make_config()
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        center_x = rest[2].x + 24
-        # When
-        zoomed = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
+        # When — hover directly over the center icon
+        center_x = rest[2].x + 24  # center of 3rd icon
+        layout = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
         # Then
-        assert zoomed[2].scale == pytest.approx(1.5, abs=0.05)
+        assert layout[2].scale == pytest.approx(config.zoom_percent)
 
-    def test_no_displacement_when_zoom_disabled(self):
-        """With zoom_enabled=False, all items stay at rest positions regardless of cursor."""
+    def test_distant_icons_stay_at_rest(self):
         # Given
-        items = [MagicMock() for _ in range(5)]
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(10)]
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # When — hover near the left end
+        layout = compute_layout(
+            items, config, rest[0].x + 24, item_padding=10, h_padding=12
+        )
+        # Then — far-right icons should be at rest
+        assert layout[-1].scale == pytest.approx(1.0)
+
+    def test_zoom_disabled_returns_all_scale_1(self):
+        # Given
         config = MagicMock()
         config.icon_size = 48
         config.zoom_enabled = False
         config.zoom_percent = 1.5
         config.zoom_range = 3
+        items = [MagicMock() for _ in range(5)]
         rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        # When — cursor directly over center icon
-        center_x = rest[2].x + 24
-        hovered = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
-        # Then — all items should be at scale 1.0 with identical positions
-        for r, h in zip(rest, hovered):
-            assert h.scale == pytest.approx(1.0)
-            assert h.x == pytest.approx(r.x)
+        # When
+        layout = compute_layout(
+            items, config, rest[2].x + 24, item_padding=10, h_padding=12
+        )
+        # Then
+        for li in layout:
+            assert li.scale == pytest.approx(1.0)
+
+    def test_single_item_zooms_when_hovered(self):
+        # Given
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [MagicMock()]
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # When
+        layout = compute_layout(
+            items, config, rest[0].x + 24, item_padding=10, h_padding=12
+        )
+        # Then
+        assert layout[0].scale == pytest.approx(1.5)
+
+
+class TestEdgeCases:
+    def test_empty_items_returns_empty(self):
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        assert compute_layout([], config, 100.0) == []
+
+    def test_cursor_far_right_all_at_rest(self):
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(3)]
+        layout = compute_layout(items, config, 99999.0, item_padding=10, h_padding=12)
+        for li in layout:
+            assert li.scale == pytest.approx(1.0)
+
+    def test_offset_pct_snap_constant_near_one(self):
+        assert 0.9 < OFFSET_PCT_SNAP < 1.0
+
+    def test_cursor_exactly_between_two_icons(self):
+        """Cursor between two icons -- both should zoom symmetrically."""
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 2.0
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(2)]
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # When — cursor exactly between the two icon centers
+        center_x = (rest[0].x + rest[1].x + 48) / 2
+        layout = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
+        # Then — both should have equal scale
+        assert layout[0].scale == pytest.approx(layout[1].scale, abs=0.01)
+
+    def test_hover_over_first_icon_zooms_first(self):
+        # Given
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(5)]
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # When -- hover over first icon center
+        layout = compute_layout(
+            items, config, rest[0].x + 24, item_padding=10, h_padding=12
+        )
+        # Then -- first icon zoomed, last icon at rest
+        assert layout[0].scale == pytest.approx(1.5)
+        assert layout[-1].scale == pytest.approx(1.0)
 
 
 class TestContentBounds:
     def test_no_layout_returns_zero_and_padding(self):
-        # Given / When
-        left, right = content_bounds([], 48, 12)
+        # Given / When -- with item_padding, total pad = h_padding + item_padding/2
+        left, right = content_bounds([], 48, 12, item_padding=10)
         # Then
         assert left == 0.0
+        assert right == pytest.approx(2 * (12 + 5))  # 34.0
+
+    def test_no_layout_without_item_padding(self):
+        left, right = content_bounds([], 48, 12)
         assert right == pytest.approx(24.0)
 
-    def test_rest_layout_bounds(self):
-        """Rest layout should have left edge at 0 and right edge at base_w."""
+    def test_rest_layout_includes_half_item_padding_per_side(self):
+        """Shelf extends item_padding/2 beyond first/last icon edges."""
         # Given
         config = MagicMock()
         config.icon_size = 48
@@ -348,11 +214,27 @@ class TestContentBounds:
         items = [MagicMock() for _ in range(3)]
         layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
         # When
-        left, right = content_bounds(layout, 48, 12)
-        # Then
-        expected_w = 12 * 2 + 3 * 48 + 2 * 10
-        assert left == pytest.approx(0.0)
-        assert right == pytest.approx(expected_w)
+        left, right = content_bounds(layout, 48, 12, item_padding=10)
+        # Then -- width = 2*(h_pad + item_pad/2) + 3*48 + 2*10
+        expected_w = (12 + 5) * 2 + 3 * 48 + 2 * 10
+        assert right - left == pytest.approx(expected_w)
+
+    def test_half_item_padding_extends_beyond_icon_edges(self):
+        """content_bounds with item_padding should be wider than without."""
+        # Given
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = False
+        config.zoom_percent = 1.0
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(3)]
+        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        # When
+        with_ipad = content_bounds(layout, 48, 12, item_padding=10)
+        without_ipad = content_bounds(layout, 48, 12, item_padding=0)
+        # Then -- with item_padding adds 10px total (5 per side)
+        diff = (with_ipad[1] - with_ipad[0]) - (without_ipad[1] - without_ipad[0])
+        assert diff == pytest.approx(10.0)
 
     def test_zoomed_bounds_wider_than_rest(self):
         # Given
@@ -363,15 +245,15 @@ class TestContentBounds:
         config.zoom_range = 3
         items = [MagicMock() for _ in range(5)]
         rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
-        rest_l, rest_r = content_bounds(rest, 48, 12)
+        rest_l, rest_r = content_bounds(rest, 48, 12, item_padding=10)
         # When
         zoomed = compute_layout(items, config, 150.0, item_padding=10, h_padding=12)
-        zoom_l, zoom_r = content_bounds(zoomed, 48, 12)
+        zoom_l, zoom_r = content_bounds(zoomed, 48, 12, item_padding=10)
         # Then
         assert (zoom_r - zoom_l) >= (rest_r - rest_l)
 
     def test_left_edge_can_go_negative_during_zoom(self):
-        """When hovering right side, left icons displace left — left_edge may be < 0."""
+        """When hovering right side, left icons displace left."""
         # Given
         config = MagicMock()
         config.icon_size = 48
@@ -384,7 +266,171 @@ class TestContentBounds:
         zoomed = compute_layout(
             items, config, rest[-1].x + 24, item_padding=10, h_padding=12
         )
-        left, _ = content_bounds(zoomed, 48, 12)
-        # Then — left edge should be at or below the rest left edge
-        rest_left, _ = content_bounds(rest, 48, 12)
+        left, _ = content_bounds(zoomed, 48, 12, item_padding=10)
+        # Then
+        rest_left, _ = content_bounds(rest, 48, 12, item_padding=10)
         assert left <= rest_left
+
+
+class TestBaseWConsistency:
+    """base_w used for cursor conversion must match content_bounds at rest.
+
+    If these diverge, cursor-to-content-space conversion produces wrong
+    values, causing zoom to center on the wrong position. This is an
+    integration test guarding the contract between renderer/dock_window
+    and zoom.py.
+    """
+
+    def test_base_w_matches_rest_content_width(self):
+        # Given -- same parameters used in renderer.draw()
+        h_padding = 2.0
+        item_padding = 12.0
+        icon_size = 48
+        n = 5
+        config = MagicMock()
+        config.icon_size = icon_size
+        config.zoom_enabled = False
+        config.zoom_percent = 1.0
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(n)]
+        # When
+        pad = h_padding + item_padding / 2
+        base_w = pad * 2 + n * icon_size + max(0, n - 1) * item_padding
+        layout = compute_layout(
+            items, config, -1.0, item_padding=item_padding, h_padding=h_padding
+        )
+        left, right = content_bounds(layout, icon_size, h_padding, item_padding)
+        bounds_w = right - left
+        # Then -- must match exactly
+        assert base_w == pytest.approx(bounds_w)
+
+    def test_consistency_across_item_counts(self):
+        for n in (1, 2, 5, 11):
+            h_pad, i_pad, size = 2.0, 12.0, 48
+            config = MagicMock()
+            config.icon_size = size
+            config.zoom_enabled = False
+            config.zoom_percent = 1.0
+            config.zoom_range = 3
+            items = [MagicMock() for _ in range(n)]
+            pad = h_pad + i_pad / 2
+            base_w = pad * 2 + n * size + max(0, n - 1) * i_pad
+            layout = compute_layout(
+                items, config, -1.0, item_padding=i_pad, h_padding=h_pad
+            )
+            left, right = content_bounds(layout, size, h_pad, i_pad)
+            assert base_w == pytest.approx(right - left), f"mismatch at n={n}"
+
+    def test_consistency_with_default_theme_values(self):
+        """Use actual default theme values to catch real-world mismatches."""
+        from docking.core.theme import Theme
+
+        theme = Theme.load("default", 48)
+        n = 8
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = False
+        config.zoom_percent = 1.0
+        config.zoom_range = 3
+        items = [MagicMock() for _ in range(n)]
+        pad = theme.h_padding + theme.item_padding / 2
+        base_w = pad * 2 + n * 48 + max(0, n - 1) * theme.item_padding
+        layout = compute_layout(
+            items,
+            config,
+            -1.0,
+            item_padding=theme.item_padding,
+            h_padding=theme.h_padding,
+        )
+        left, right = content_bounds(layout, 48, theme.h_padding, theme.item_padding)
+        assert base_w == pytest.approx(right - left)
+
+
+class TestZoomProgressDecay:
+    """zoom_progress parameter controls zoom decay during hide animation.
+
+    Matches Plank's zoom_in_percent = 1.0 + (ZoomPercent - 1.0) * zoom_in_progress.
+    Both scale AND displacement must decay together so icons compress toward
+    their rest centers during hide.
+    """
+
+    def _make_config(self):
+        config = MagicMock()
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        return config
+
+    def test_zoom_progress_1_gives_full_zoom(self):
+        # Given -- cursor over center icon
+        config = self._make_config()
+        items = [MagicMock() for _ in range(5)]
+        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        cursor = rest[2].x + 24
+        # When
+        full = compute_layout(
+            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0
+        )
+        # Then -- center icon at max zoom
+        assert full[2].scale == pytest.approx(1.5)
+
+    def test_zoom_progress_0_gives_rest(self):
+        # Given
+        config = self._make_config()
+        items = [MagicMock() for _ in range(5)]
+        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        cursor = rest[2].x + 24
+        # When -- fully hidden
+        decayed = compute_layout(
+            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.0
+        )
+        # Then -- all at rest scale
+        for li in decayed:
+            assert li.scale == pytest.approx(1.0)
+
+    def test_displacement_collapses_with_zoom_progress(self):
+        """Icons must compress toward rest centers as zoom decays."""
+        # Given
+        config = self._make_config()
+        items = [MagicMock() for _ in range(5)]
+        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        cursor = rest[2].x + 24
+        full = compute_layout(
+            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0
+        )
+        # When
+        half = compute_layout(
+            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.5
+        )
+        decayed = compute_layout(
+            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.0
+        )
+        # Then -- spread shrinks: full > half > decayed (== rest)
+        full_spread = full[-1].x - full[0].x
+        half_spread = half[-1].x - half[0].x
+        rest_spread = rest[-1].x - rest[0].x
+        decayed_spread = decayed[-1].x - decayed[0].x
+        assert full_spread > half_spread
+        assert half_spread > rest_spread or half_spread == pytest.approx(rest_spread)
+        assert decayed_spread == pytest.approx(rest_spread)
+
+    def test_content_bounds_shrink_with_zoom_progress(self):
+        """Shelf width should track zoom decay -- no growing edge gaps."""
+        config = self._make_config()
+        items = [MagicMock() for _ in range(5)]
+        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        cursor = rest[2].x + 24
+        full = compute_layout(
+            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0
+        )
+        decayed = compute_layout(
+            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.0
+        )
+        # When
+        fl, fr = content_bounds(full, 48, 2, 12)
+        dl, dr = content_bounds(decayed, 48, 2, 12)
+        rl, rr = content_bounds(rest, 48, 2, 12)
+        # Then
+        assert (fr - fl) > (dr - dl)
+        assert (dr - dl) == pytest.approx(rr - rl)

@@ -110,6 +110,42 @@ class TestHiDPIScale:
         assert s2[11] == 1920 * 2 - 1
 
 
+class TestHiDPIMultiMonitor:
+    """HiDPI scaling combined with multi-monitor gaps."""
+
+    def test_bottom_gap_scale_2x(self):
+        # Given -- upper monitor at (0,0) in vertical stack, scale=2
+        s = compute_struts(DOCK_H, 0, 0, 1920, 1080, 1920, 2160, 2, Position.BOTTOM)
+        # gap = 2160 - 0 - 1080 = 1080, strut = (53 + 1080) * 2 = 2266
+        assert s[3] == (DOCK_H + 1080) * 2
+
+    def test_top_gap_scale_2x(self):
+        # Given -- lower monitor at y=1080 in vertical stack, scale=2
+        s = compute_struts(DOCK_H, 0, 1080, 1920, 1080, 1920, 2160, 2, Position.TOP)
+        assert s[2] == (DOCK_H + 1080) * 2
+
+    def test_left_gap_scale_2x(self):
+        # Given -- right monitor at x=1920, scale=2
+        s = compute_struts(DOCK_H, 1920, 0, 1920, 1080, 3840, 1080, 2, Position.LEFT)
+        assert s[0] == (DOCK_H + 1920) * 2
+
+    def test_right_gap_scale_2x(self):
+        # Given -- left monitor at (0,0), scale=2
+        s = compute_struts(DOCK_H, 0, 0, 1920, 1080, 3840, 1080, 2, Position.RIGHT)
+        assert s[1] == (DOCK_H + 1920) * 2
+
+    def test_span_end_scaled_for_all_positions(self):
+        # Given -- single monitor at origin, scale=2
+        # span_start is 0*2=0, span_end should be (dimension*2 - 1)
+        for pos in Position:
+            s = compute_struts(DOCK_H, MX, MY, MW, MH, SW, SH, 2, pos)
+            # The end value (odd index in start/end pairs) should be scaled
+            ends = [s[5], s[7], s[9], s[11]]
+            scaled_ends = [v for v in ends if v > 0]
+            assert len(scaled_ends) == 1
+            assert scaled_ends[0] in (MW * 2 - 1, MH * 2 - 1)
+
+
 class TestAlwaysTwelveValues:
     def test_all_positions_return_12_values(self):
         for pos in Position:

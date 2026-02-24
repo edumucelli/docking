@@ -459,8 +459,17 @@ class DockWindow(Gtk.Window):
             self.autohide.on_mouse_leave()
         return True
 
-    def _on_enter(self, _widget: Gtk.DrawingArea, _event: Gdk.EventCrossing) -> bool:
-        """Notify auto-hide on mouse enter."""
+    def _on_enter(self, _widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
+        """Notify auto-hide on mouse enter and capture cursor position.
+
+        Cursor position must be set here (not just in motion events)
+        because during the SHOWING animation the zoom engine needs a
+        valid cursor to compute the expanding displacement effect.
+        Without this, cursor stays at -1 from the HIDDEN reset and
+        compute_layout produces rest-only positions (no expansion).
+        """
+        self.cursor_x = event.x
+        self.cursor_y = event.y
         if self.autohide:
             self.autohide.on_mouse_enter()
         return True
@@ -511,11 +520,8 @@ class DockWindow(Gtk.Window):
         n = len(items)
         icon_size = self.config.icon_size
         # Content width: use max-zoom width (cursor at center) for generous input area
-        base_w = (
-            self.theme.h_padding * 2
-            + n * icon_size
-            + max(0, n - 1) * self.theme.item_padding
-        )
+        pad = self.theme.h_padding + self.theme.item_padding / 2
+        base_w = pad * 2 + n * icon_size + max(0, n - 1) * self.theme.item_padding
         layout = compute_layout(
             items,
             self.config,
@@ -523,7 +529,9 @@ class DockWindow(Gtk.Window):
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )
-        left_edge, right_edge = content_bounds(layout, icon_size, self.theme.h_padding)
+        left_edge, right_edge = content_bounds(
+            layout, icon_size, self.theme.h_padding, self.theme.item_padding
+        )
         content_w = right_edge - left_edge
 
         window_w: int = self.get_size()[0]
@@ -574,8 +582,9 @@ class DockWindow(Gtk.Window):
     def _base_main_offset(self) -> float:
         """Offset to center base (no-zoom) content along the main axis."""
         n = len(self.model.visible_items())
+        pad = self.theme.h_padding + self.theme.item_padding / 2
         base_w = (
-            self.theme.h_padding * 2
+            pad * 2
             + n * self.config.icon_size
             + max(0, n - 1) * self.theme.item_padding
         )
@@ -591,7 +600,10 @@ class DockWindow(Gtk.Window):
     def zoomed_main_offset(self, layout: list[LayoutItem]) -> float:
         """Main-axis offset matching where icons are actually rendered."""
         left_edge, right_edge = content_bounds(
-            layout, self.config.icon_size, self.theme.h_padding
+            layout,
+            self.config.icon_size,
+            self.theme.h_padding,
+            self.theme.item_padding,
         )
         zoomed_w = right_edge - left_edge
         return (self._main_axis_window_size() - zoomed_w) / 2 - left_edge

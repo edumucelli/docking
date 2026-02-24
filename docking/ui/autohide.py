@@ -163,7 +163,11 @@ class AutoHideController:
             # The visual effect: icons gradually shrink back to their
             # rest size AS the dock slides away, rather than snapping
             # to unzoomed before the slide starts.
-            self.zoom_progress = self.zoom_progress * (1.0 - self.hide_offset)
+            # Plank's formula: direct linear decay, not compounding.
+            # zoom_in_progress = zoom_progress * (1 - hide_progress)
+            # We keep zoom_progress at its initial value (set to 1.0 on
+            # mouse_enter) and let the renderer apply the decay.
+            self.zoom_progress = 1.0 - self.hide_offset
             if self._anim_progress >= 1.0:
                 self.state = HideState.HIDDEN
                 self.hide_offset = 1.0
@@ -174,6 +178,7 @@ class AutoHideController:
 
         elif self.state == HideState.SHOWING:
             self.hide_offset = 1.0 - ease_out_cubic(self._anim_progress)
+            self.zoom_progress = 1.0 - self.hide_offset
             if self._anim_progress >= 1.0:
                 self.state = HideState.VISIBLE
                 self.hide_offset = 0.0

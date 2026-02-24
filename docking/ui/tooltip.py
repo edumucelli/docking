@@ -23,6 +23,31 @@ if TYPE_CHECKING:
 TOOLTIP_GAP = 10
 
 
+def compute_tooltip_position(
+    pos: Position,
+    anchor_x: float,
+    anchor_y: float,
+    tooltip_w: int,
+    tooltip_h: int,
+) -> tuple[int, int]:
+    """Compute tooltip (x, y) before screen clamping.
+
+    anchor is the icon edge closest to the tooltip:
+    - BOTTOM: anchor = (icon_center_x, icon_top_y)
+    - TOP:    anchor = (icon_center_x, icon_bottom_y)
+    - LEFT:   anchor = (icon_right_x, icon_center_y)
+    - RIGHT:  anchor = (icon_left_x, icon_center_y)
+    """
+    if pos == Position.BOTTOM:
+        return int(anchor_x - tooltip_w / 2), int(anchor_y - tooltip_h - TOOLTIP_GAP)
+    elif pos == Position.TOP:
+        return int(anchor_x - tooltip_w / 2), int(anchor_y + TOOLTIP_GAP)
+    elif pos == Position.LEFT:
+        return int(anchor_x + TOOLTIP_GAP), int(anchor_y - tooltip_h / 2)
+    else:  # RIGHT
+        return int(anchor_x - tooltip_w - TOOLTIP_GAP), int(anchor_y - tooltip_h / 2)
+
+
 class TooltipManager:
     """Custom positioned tooltip shown near hovered dock icons.
 
@@ -63,7 +88,10 @@ class TooltipManager:
         from docking.core.zoom import content_bounds
 
         left_edge, right_edge = content_bounds(
-            layout, self._config.icon_size, self._theme.h_padding
+            layout,
+            self._config.icon_size,
+            self._theme.h_padding,
+            self._theme.item_padding,
         )
         zoomed_w = right_edge - left_edge
 
@@ -146,18 +174,7 @@ class TooltipManager:
         tw = max(pref.width, 1)
         th = max(pref.height, 1)
 
-        if pos == Position.BOTTOM:
-            tx = int(anchor_x - tw / 2)
-            ty = int(anchor_y - th - TOOLTIP_GAP)
-        elif pos == Position.TOP:
-            tx = int(anchor_x - tw / 2)
-            ty = int(anchor_y + TOOLTIP_GAP)
-        elif pos == Position.LEFT:
-            tx = int(anchor_x + TOOLTIP_GAP)
-            ty = int(anchor_y - th / 2)
-        else:  # RIGHT
-            tx = int(anchor_x - tw - TOOLTIP_GAP)
-            ty = int(anchor_y - th / 2)
+        tx, ty = compute_tooltip_position(pos, anchor_x, anchor_y, tw, th)
 
         # Clamp to screen
         screen = self._tooltip_window.get_screen()

@@ -147,3 +147,59 @@ class TestAutoHideState:
         # Then
         assert ctrl.state == HideState.VISIBLE
         assert ctrl.hide_offset == 0.0
+
+
+class TestZoomProgressFormula:
+    """zoom_progress must use linear formula (1 - hide_offset), not compound.
+
+    Plank: zoom_in_progress = zoom_progress * (1 - hide_progress).
+    A compound formula (zp *= (1 - offset)) decays too aggressively late
+    in the animation, causing icons to snap to rest instead of smoothly
+    compressing.
+    """
+
+    def _make_controller(self):
+        window = MagicMock()
+        config = MagicMock()
+        config.autohide = True
+        config.hide_delay_ms = 0
+        config.unhide_delay_ms = 0
+        config.hide_time_ms = 250
+        return AutoHideController(window, config)
+
+    def test_zoom_progress_is_linear_with_hide_offset(self):
+        # Given -- simulate mid-hide
+        ctrl = self._make_controller()
+        ctrl.state = HideState.HIDING
+        ctrl.hide_offset = 0.5
+        # Simulate one animation tick
+        ctrl._anim_progress = 0.5
+        ctrl._animation_tick()
+        # Then -- zoom_progress should be 1 - hide_offset (linear)
+        assert ctrl.zoom_progress == pytest.approx(1.0 - ctrl.hide_offset, abs=0.1)
+
+    def test_zoom_progress_zero_when_fully_hidden(self):
+        ctrl = self._make_controller()
+        ctrl.state = HideState.HIDING
+        ctrl._anim_progress = 0.99
+        ctrl._animation_tick()
+        # At full hide, zoom_progress should be near 0
+        assert ctrl.zoom_progress <= 0.05
+
+    def test_zoom_progress_ramps_during_showing(self):
+        # Given -- partway through show animation
+        ctrl = self._make_controller()
+        ctrl.state = HideState.SHOWING
+        ctrl._anim_progress = 0.3
+        ctrl.hide_offset = 1.0
+        ctrl._animation_tick()
+        # Then -- zoom_progress should be positive (dock expanding)
+        assert ctrl.zoom_progress > 0.0
+
+    def test_zoom_progress_1_when_fully_shown(self):
+        ctrl = self._make_controller()
+        ctrl.state = HideState.SHOWING
+        ctrl._anim_progress = 0.99
+        ctrl._animation_tick()
+        # near fully shown
+        assert ctrl.zoom_progress > 0.9

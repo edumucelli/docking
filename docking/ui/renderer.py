@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import math
-from docking.log import get_logger
-
-log = get_logger("renderer")
 from typing import TYPE_CHECKING
 
 import cairo
@@ -36,6 +33,30 @@ INDICATOR_SPACING_MULT = 3
 
 SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
+
+
+def map_icon_position(
+    pos: Position,
+    main_pos: float,
+    cross_size: float,
+    edge_padding: float,
+    scaled_size: float,
+    hide_cross: float = 0.0,
+    bounce: float = 0.0,
+) -> tuple[float, float]:
+    """Map 1D main-axis position to (x, y) for a given dock position.
+
+    Returns the top-left corner of the icon in window coordinates.
+    """
+    cross_rest = cross_size - edge_padding - scaled_size
+    if pos == Position.BOTTOM:
+        return main_pos, cross_rest + hide_cross - bounce
+    elif pos == Position.TOP:
+        return main_pos, edge_padding - hide_cross + bounce
+    elif pos == Position.LEFT:
+        return edge_padding - hide_cross + bounce, main_pos
+    else:  # RIGHT
+        return cross_rest + hide_cross - bounce, main_pos
 
 
 class DockRenderer:
@@ -102,13 +123,35 @@ class DockRenderer:
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Cascade hide: shelf leads icons by 1.3x
+        # Uniform scale during hide/show — creates a subtle "fold/expand"
+        # effect anchored at the screen edge. This complements the zoom
+        # displacement decay (which collapses icon spread during hide)
+        # and provides the expansion visual during show (where there's
+        # little zoom displacement to expand from).
+        # Shrinks to 85% at full hide (15% reduction).
         if hide_offset > 0:
-            bg_hide = min(hide_offset * 1.3, 1.0)
-            icon_hide = hide_offset
-        else:
-            bg_hide = 0.0
-            icon_hide = 0.0
+            hide_scale = 1.0 - hide_offset * 0.15
+            if pos == Position.BOTTOM:
+                cr.translate(main_size / 2, cross_size)
+                cr.scale(hide_scale, hide_scale)
+                cr.translate(-main_size / 2, -cross_size)
+            elif pos == Position.TOP:
+                cr.translate(main_size / 2, 0)
+                cr.scale(hide_scale, hide_scale)
+                cr.translate(-main_size / 2, 0)
+            elif pos == Position.LEFT:
+                cr.translate(0, cross_size / 2)
+                cr.scale(hide_scale, hide_scale)
+                cr.translate(0, -cross_size / 2)
+            else:  # RIGHT
+                cr.translate(cross_size, main_size / 2)
+                cr.scale(hide_scale, hide_scale)
+                cr.translate(-cross_size, -main_size / 2)
+
+        icon_hide = hide_offset
+        bg_extra = (
+            hide_offset * (cross_size - theme.shelf_height) if hide_offset > 0 else 0.0
+        )
 
         items = model.visible_items()
         if not items:
@@ -117,9 +160,10 @@ class DockRenderer:
         num_items = len(items)
         icon_size = config.icon_size
 
-        # Layout in 1D content-space (same for all positions)
+        # Layout in 1D content-space (same for all positions).
+        # Matches content_bounds: h_padding + item_padding/2 on each side.
         base_w = (
-            theme.h_padding * 2
+            (theme.h_padding + theme.item_padding / 2) * 2
             + num_items * icon_size
             + max(0, num_items - 1) * theme.item_padding
         )
@@ -131,24 +175,23 @@ class DockRenderer:
             local_cursor,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
+            zoom_progress=zoom_progress,
         )
 
-        # Smooth zoom decay during hide
-        if zoom_progress < 1.0:
-            for li in layout:
-                li.scale = 1.0 + (li.scale - 1.0) * zoom_progress
-
         # Content bounds and centering offset along main axis
-        left_edge, right_edge = content_bounds(layout, icon_size, theme.h_padding)
+        left_edge, right_edge = content_bounds(
+            layout, icon_size, theme.h_padding, theme.item_padding
+        )
         zoomed_w = right_edge - left_edge
         # Include the drop gap so shelf expands to cover displaced items
         drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         zoomed_w += drop_gap
         icon_offset = (main_size - zoomed_w) / 2 - left_edge
 
-        # Shelf width smoothing — snap immediately when drop gap active
+        # Shelf width smoothing — snap during hide/show and drop gap so
+        # the shelf tracks icon positions exactly (no lag = no edge gaps).
         target_shelf_w = zoomed_w
-        if self.smooth_shelf_w == 0.0 or drop_gap > 0:
+        if self.smooth_shelf_w == 0.0 or drop_gap > 0 or hide_offset > 0:
             self.smooth_shelf_w = target_shelf_w
         else:
             self.smooth_shelf_w += (
@@ -161,9 +204,11 @@ class DockRenderer:
 
         # --- Draw shelf background with Cairo transform ---
         # Always draw as-if-bottom, then transform for other positions.
-        # For the "as-if-bottom" draw: shelf at y = cross_size - bg_height,
-        # sliding toward screen edge by bg_hide * cross_size.
-        as_bottom_bg_y = cross_size - bg_height + bg_hide * cross_size
+        # Shelf slides by the same base offset as icons (icon_hide * cross)
+        # plus an extra cascade boost so its top edge hits the screen edge
+        # at the same time the icons' top edge does.
+        shelf_slide = icon_hide * cross_size + bg_extra
+        as_bottom_bg_y = cross_size - bg_height + shelf_slide
 
         cr.save()
         self._apply_shelf_transform(cr, pos, width, height, main_size, cross_size)
@@ -234,28 +279,17 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            # Map to (x, y) based on position
             scaled_size = icon_size * li.scale
             main_pos = li.x + icon_offset + slide + drop_shift
-            # Cross position: icon placed at (cross_size - edge_padding - scaled_size)
-            # from the screen edge, with hide offset pushing toward edge,
-            # bounce pushing away from edge.
-            edge_padding = theme.bottom_padding
-            cross_rest = cross_size - edge_padding - scaled_size
-
-            if pos == Position.BOTTOM:
-                ix = main_pos
-                iy = cross_rest + hide_cross - bounce
-            elif pos == Position.TOP:
-                ix = main_pos
-                iy = edge_padding - hide_cross + bounce
-            elif pos == Position.LEFT:
-                ix = edge_padding - hide_cross + bounce
-                iy = main_pos
-            else:  # RIGHT
-                ix = cross_rest + hide_cross - bounce
-                iy = main_pos
-
+            ix, iy = map_icon_position(
+                pos,
+                main_pos,
+                cross_size,
+                theme.bottom_padding,
+                scaled_size,
+                hide_cross,
+                bounce,
+            )
             self._draw_icon(cr, item, li, icon_size, ix, iy, lighten, darken)
 
         # --- Draw indicators ---

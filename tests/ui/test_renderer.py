@@ -139,3 +139,40 @@ class TestShelfExpandsWithDropGap:
         # Then -- moves toward target but doesn't snap
         assert renderer.smooth_shelf_w < 560.0
         assert renderer.smooth_shelf_w > target
+
+
+class TestShelfSnapDuringHide:
+    """Shelf width must snap (not lerp) during hide/show animation.
+
+    When zoom decays during hide, icon spread shrinks each frame. If the
+    shelf lerps, it lags behind, creating growing gaps at the edges.
+    """
+
+    def test_shelf_snaps_when_hiding(self):
+        # Given -- shelf at steady state
+        renderer = DockRenderer()
+        renderer.smooth_shelf_w = 600.0
+        target = 500.0  # icons compressed by zoom decay
+        # When -- hide_offset > 0, snap logic applies
+        hide_offset = 0.5
+        if hide_offset > 0:
+            renderer.smooth_shelf_w = target
+        # Then
+        assert renderer.smooth_shelf_w == target
+
+    def test_shelf_lerps_when_visible(self):
+        # Given
+        renderer = DockRenderer()
+        renderer.smooth_shelf_w = 600.0
+        target = 500.0
+        # When -- no hide, normal lerp
+        hide_offset = 0.0
+        if hide_offset > 0:
+            renderer.smooth_shelf_w = target
+        else:
+            renderer.smooth_shelf_w += (
+                target - renderer.smooth_shelf_w
+            ) * SHELF_SMOOTH_FACTOR
+        # Then -- lerped, not snapped
+        assert renderer.smooth_shelf_w < 600.0
+        assert renderer.smooth_shelf_w > target

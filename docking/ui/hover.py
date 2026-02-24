@@ -104,9 +104,16 @@ class HoverManager:
                 break
 
     def _show_preview(self, item: DockItem, _layout: object) -> bool:
-        """Show the preview popup near the hovered icon."""
+        """Show the preview popup near the hovered icon.
+
+        The _layout parameter is kept for GLib.timeout_add signature
+        compatibility but we recompute layout with the current cursor
+        position for accuracy.
+        """
         self._preview_timer_id = 0
         if not self._preview or self.hovered_item is not item:
+            return False
+        if not self._window.get_realized():
             return False
 
         items = self._model.visible_items()
@@ -131,8 +138,6 @@ class HoverManager:
         pos = self._config.pos
 
         win_x, win_y = self._window.get_position()
-        if win_x == 0 and win_y == 0:
-            return False
 
         main_offset = self._window.zoomed_main_offset(layout)
         win_w, win_h = self._window.get_size()
