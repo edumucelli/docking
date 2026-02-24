@@ -43,16 +43,18 @@ def compute_input_rect(
     window_h: int,
     content_offset: int,
     content_w: int,
+    content_cross: int,
     autohide_state: HideState | None,
 ) -> tuple[int, int, int, int]:
     """Return (x, y, w, h) for the input shape region.
 
     When hidden: thin trigger strip at screen edge.
     When showing: full window (prevents oscillation during animation).
-    Otherwise: content-only rectangle (clicks outside pass through).
+    Otherwise: content rectangle at the screen edge. The cross-axis
+    extent is content_cross (icon area height), not the full window,
+    so hovering the headroom above icons triggers a leave event --
+    matching Plank's behavior where tooltips don't keep the dock visible.
     """
-    horizontal = is_horizontal(pos)
-
     if autohide_state in (HideState.HIDDEN, HideState.HIDING):
         trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
         if pos == Position.BOTTOM:
@@ -67,11 +69,18 @@ def compute_input_rect(
     if autohide_state == HideState.SHOWING:
         return (0, 0, window_w, window_h)
 
-    # VISIBLE or autohide off: content-only
-    if horizontal:
-        return (content_offset, 0, max(content_w, 1), max(window_h, 1))
-    else:
-        return (0, content_offset, max(window_w, 1), max(content_w, 1))
+    # VISIBLE or autohide off: content rect at screen edge.
+    # Only covers icon area (content_cross), not headroom.
+    cross = max(content_cross, 1)
+    main = max(content_w, 1)
+    if pos == Position.BOTTOM:
+        return (content_offset, window_h - cross, main, cross)
+    elif pos == Position.TOP:
+        return (content_offset, 0, main, cross)
+    elif pos == Position.LEFT:
+        return (0, content_offset, cross, main)
+    else:  # RIGHT
+        return (window_w - cross, content_offset, cross, main)
 
 
 # X11 mouse button codes
@@ -403,16 +412,6 @@ class DockWindow(Gtk.Window):
         coordinates several subsystems: zoom state, preview popups,
         autohide, and cursor tracking.
         """
-        # GTK crossing events and the INFERIOR detail type:
-        #
-        # When the mouse moves from a parent widget to one of its children,
-        # GTK fires a leave-notify-event on the parent with detail=INFERIOR.
-        # This is technically "leaving" the parent's direct area, but the
-        # mouse is still within the parent's bounds (just over a child).
-        #
-        # For the dock, this happens when the mouse moves to a child widget
-        # like a popup menu. We ignore these events because the mouse hasn't
-        # actually left the dock area.
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
 
@@ -420,35 +419,11 @@ class DockWindow(Gtk.Window):
         self._hover.cancel()
         self._tooltip.hide()
 
-        # Preview popup interaction:
-        #
-        # If the window preview popup is currently showing (thumbnails of
-        # application windows), we don't trigger autohide. The preview popup
-        # has its own enter/leave handlers that manage the autohide lifecycle.
-        # This prevents the dock from hiding while the user is browsing
-        # through window thumbnails.
         preview_visible = self._preview and self._preview.get_visible()
         if self._preview and not preview_visible:
             self._preview.schedule_hide()
 
-        # Cursor position preservation during autohide:
-        #
-        # Normally, when the mouse leaves, we'd set cursor_x = -1 to indicate
-        # "no hover." The zoom formula treats cursor_x < 0 as "all icons at
-        # rest scale (1.0x)."
-        #
-        # However, during autohide we keep cursor_x at its last valid position.
-        # This allows the zoom to decay smoothly during the hide animation
-        # (via zoom_progress in the renderer) instead of snapping instantly:
-        #
-        #   Smooth (cursor_x kept):
-        #   Frame 0: mouse leaves, cursor_x=500, autohide starts
-        #   Frame 1: hide_offset=0.05, zoom_progress=0.95 -> icons slightly smaller
-        #   Frame N: hide_offset=1.0, zoom_progress=0.0 -> dock hidden, then cursor_x=-1
-        #
-        #   Jarring (cursor_x reset immediately -- what we avoid):
-        #   Frame 0: mouse leaves, cursor_x=-1 -> icons snap to 1.0x instantly
-        #   Frame 1: hide animation starts, but icons already unzoomed
+        # Keep cursor during autohide so zoom decays smoothly
         if not (self.autohide and self.autohide.enabled and not preview_visible):
             self.cursor_x = -1.0
             self.cursor_y = -1.0
@@ -546,12 +521,18 @@ class DockWindow(Gtk.Window):
         autohide_state = (
             self.autohide.state if self.autohide and self.autohide.enabled else None
         )
+        # Interactive cross-axis extent: icon height + edge padding.
+        # This excludes the headroom above icons (zoom/bounce space)
+        # so hovering above icons triggers a leave -> dock hides.
+        content_cross = int(icon_size + self.theme.bottom_padding)
+
         rx, ry, rw, rh = compute_input_rect(
             pos,
             window_w,
             window_h,
             content_offset,
             int(content_w),
+            content_cross,
             autohide_state,
         )
         rect = cairo.RectangleInt(rx, ry, rw, rh)

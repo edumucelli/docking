@@ -123,31 +123,6 @@ class DockRenderer:
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Uniform scale during hide/show — creates a subtle "fold/expand"
-        # effect anchored at the screen edge. This complements the zoom
-        # displacement decay (which collapses icon spread during hide)
-        # and provides the expansion visual during show (where there's
-        # little zoom displacement to expand from).
-        # Shrinks to 85% at full hide (15% reduction).
-        if hide_offset > 0:
-            hide_scale = 1.0 - hide_offset * 0.15
-            if pos == Position.BOTTOM:
-                cr.translate(main_size / 2, cross_size)
-                cr.scale(hide_scale, hide_scale)
-                cr.translate(-main_size / 2, -cross_size)
-            elif pos == Position.TOP:
-                cr.translate(main_size / 2, 0)
-                cr.scale(hide_scale, hide_scale)
-                cr.translate(-main_size / 2, 0)
-            elif pos == Position.LEFT:
-                cr.translate(0, cross_size / 2)
-                cr.scale(hide_scale, hide_scale)
-                cr.translate(0, -cross_size / 2)
-            else:  # RIGHT
-                cr.translate(cross_size, main_size / 2)
-                cr.scale(hide_scale, hide_scale)
-                cr.translate(-cross_size, -main_size / 2)
-
         icon_hide = hide_offset
         bg_extra = (
             hide_offset * (cross_size - theme.shelf_height) if hide_offset > 0 else 0.0

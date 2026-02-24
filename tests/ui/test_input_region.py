@@ -1,4 +1,4 @@
-"""Tests for input region computation — regression guard for tooltip/zoom snap."""
+"""Tests for input region computation -- regression guard for tooltip/zoom snap."""
 
 import sys
 from unittest.mock import MagicMock
@@ -20,6 +20,7 @@ WIN_W = 1920
 WIN_H = 120
 CONTENT_OFFSET = 700
 CONTENT_W = 520
+CONTENT_CROSS = 53  # icon_size(48) + bottom_padding(~5)
 
 
 class TestVisibleContentOnly:
@@ -30,67 +31,84 @@ class TestVisibleContentOnly:
     """
 
     def test_autohide_visible_bottom_is_content_only(self):
-        # Given — autohide on, state=VISIBLE
-        # When
         x, y, w, h = compute_input_rect(
             Position.BOTTOM,
             WIN_W,
             WIN_H,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.VISIBLE,
         )
-        # Then — width matches content, not full window
         assert w == CONTENT_W
         assert x == CONTENT_OFFSET
 
-    def test_autohide_visible_top_is_content_only(self):
+    def test_autohide_visible_bottom_cross_is_icon_area(self):
+        # Cross extent must be content_cross, not full window height --
+        # headroom above icons must NOT be interactive.
+        x, y, w, h = compute_input_rect(
+            Position.BOTTOM,
+            WIN_W,
+            WIN_H,
+            CONTENT_OFFSET,
+            CONTENT_W,
+            CONTENT_CROSS,
+            HideState.VISIBLE,
+        )
+        assert h == CONTENT_CROSS
+        assert y == WIN_H - CONTENT_CROSS  # at screen edge
+
+    def test_autohide_visible_top_at_screen_edge(self):
         x, y, w, h = compute_input_rect(
             Position.TOP,
             WIN_W,
             WIN_H,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.VISIBLE,
         )
-        assert w == CONTENT_W
-        assert x == CONTENT_OFFSET
+        assert h == CONTENT_CROSS
+        assert y == 0
 
-    def test_autohide_visible_left_is_content_only(self):
+    def test_autohide_visible_left_at_screen_edge(self):
         x, y, w, h = compute_input_rect(
             Position.LEFT,
             WIN_H,
             WIN_W,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.VISIBLE,
         )
-        assert h == CONTENT_W
-        assert y == CONTENT_OFFSET
+        assert w == CONTENT_CROSS
+        assert x == 0
 
-    def test_autohide_visible_right_is_content_only(self):
+    def test_autohide_visible_right_at_screen_edge(self):
         x, y, w, h = compute_input_rect(
             Position.RIGHT,
             WIN_H,
             WIN_W,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.VISIBLE,
         )
-        assert h == CONTENT_W
-        assert y == CONTENT_OFFSET
+        assert w == CONTENT_CROSS
+        assert x == WIN_H - CONTENT_CROSS
 
     def test_autohide_off_is_content_only(self):
-        # Given — autohide disabled (state=None)
         x, y, w, h = compute_input_rect(
             Position.BOTTOM,
             WIN_W,
             WIN_H,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             None,
         )
         assert w == CONTENT_W
+        assert h == CONTENT_CROSS
 
 
 class TestShowingFullWindow:
@@ -103,6 +121,7 @@ class TestShowingFullWindow:
             WIN_H,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.SHOWING,
         )
         assert (x, y, w, h) == (0, 0, WIN_W, WIN_H)
@@ -115,6 +134,7 @@ class TestShowingFullWindow:
                 WIN_H,
                 CONTENT_OFFSET,
                 CONTENT_W,
+                CONTENT_CROSS,
                 HideState.SHOWING,
             )
             assert (x, y, w, h) == (0, 0, WIN_W, WIN_H)
@@ -130,6 +150,7 @@ class TestHiddenTriggerStrip:
             WIN_H,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.HIDDEN,
         )
         assert h == TRIGGER_PX
@@ -143,6 +164,7 @@ class TestHiddenTriggerStrip:
             WIN_H,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.HIDDEN,
         )
         assert h == TRIGGER_PX_TOP
@@ -155,6 +177,7 @@ class TestHiddenTriggerStrip:
             WIN_W,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.HIDDEN,
         )
         assert w == TRIGGER_PX
@@ -167,6 +190,7 @@ class TestHiddenTriggerStrip:
             WIN_W,
             CONTENT_OFFSET,
             CONTENT_W,
+            CONTENT_CROSS,
             HideState.HIDDEN,
         )
         assert w == TRIGGER_PX
@@ -180,6 +204,7 @@ class TestHiddenTriggerStrip:
                 WIN_H,
                 CONTENT_OFFSET,
                 CONTENT_W,
+                CONTENT_CROSS,
                 HideState.HIDDEN,
             )
             hiding = compute_input_rect(
@@ -188,6 +213,44 @@ class TestHiddenTriggerStrip:
                 WIN_H,
                 CONTENT_OFFSET,
                 CONTENT_W,
+                CONTENT_CROSS,
                 HideState.HIDING,
             )
             assert hidden == hiding
+
+
+class TestHeadroomExcluded:
+    """Headroom above icons must NOT be in the input region.
+
+    This prevents tooltip oscillation: cursor above icons -> leave ->
+    hide -> trigger -> show -> tooltip -> leave -> repeat.
+    """
+
+    def test_bottom_headroom_above_icons_excluded(self):
+        x, y, w, h = compute_input_rect(
+            Position.BOTTOM,
+            WIN_W,
+            WIN_H,
+            CONTENT_OFFSET,
+            CONTENT_W,
+            CONTENT_CROSS,
+            HideState.VISIBLE,
+        )
+        # The region starts at (WIN_H - CONTENT_CROSS), so y=0 to that
+        # point is outside the input region (headroom).
+        assert y > 0
+        assert y == WIN_H - CONTENT_CROSS
+
+    def test_top_headroom_below_icons_excluded(self):
+        x, y, w, h = compute_input_rect(
+            Position.TOP,
+            WIN_W,
+            WIN_H,
+            CONTENT_OFFSET,
+            CONTENT_W,
+            CONTENT_CROSS,
+            HideState.VISIBLE,
+        )
+        assert y == 0
+        assert h == CONTENT_CROSS
+        assert h < WIN_H  # doesn't cover full height
