@@ -1,4 +1,4 @@
-"""Window tracking via libwnck — monitors running apps and active window."""
+"""Window tracking via libwnck -- monitors running apps and active window."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class WindowTracker:
         GLib.idle_add(self._init_screen)
 
     def _build_wm_class_map(self) -> None:
-        """Build reverse map from WM_CLASS → desktop_id for pinned items."""
+        """Build reverse map from WM_CLASS -> desktop_id for pinned items."""
         for item in self._model.visible_items():
             if item.wm_class:
                 self._wm_class_to_desktop[item.wm_class.lower()] = item.desktop_id

@@ -1,4 +1,4 @@
-"""Main dock window — GTK window with X11 dock hints, struts, and event wiring."""
+"""Main dock window -- GTK window with X11 dock hints, struts, and event wiring."""
 
 from __future__ import annotations
 
@@ -189,7 +189,7 @@ class DockWindow(Gtk.Window):
         geom = monitor.get_geometry()
         # Work area excludes other panels (e.g. MATE panel) so we don't
         # overlap them. Use full monitor geometry only for the edge where
-        # we place the dock (we ARE a panel), work area for the other axis.
+        # we place the dock (we are a panel), work area for the other axis.
         workarea = monitor.get_workarea()
 
         icon_size = self.config.icon_size
@@ -369,13 +369,13 @@ class DockWindow(Gtk.Window):
             # this timestamp each frame and computes the darken amount.
             #
             # If the click also launches the app (not already running,
-            # or force-launch via middle-click/Ctrl+click), we ALSO set
+            # or force-launch via middle-click/Ctrl+click), we also set
             # last_launched. This triggers the launch bounce animation
-            # (600ms, two bounces). Both animations run simultaneously —
+            # (600ms, two bounces). Both animations run simultaneously --
             # the icon darkens AND bounces at the same time.
             #
             # The two timestamps are independent fields on DockItem.
-            # Setting last_clicked does NOT affect last_launched, and
+            # Setting last_clicked does not affect last_launched, and
             # vice versa. The renderer evaluates each independently.
             #
             # The anim pump duration is set to cover the longer of the
@@ -437,17 +437,17 @@ class DockWindow(Gtk.Window):
         # "no hover." The zoom formula treats cursor_x < 0 as "all icons at
         # rest scale (1.0x)."
         #
-        # However, during autohide we KEEP cursor_x at its last valid position.
+        # However, during autohide we keep cursor_x at its last valid position.
         # This allows the zoom to decay smoothly during the hide animation
         # (via zoom_progress in the renderer) instead of snapping instantly:
         #
-        #   SMOOTH (cursor_x kept):
+        #   Smooth (cursor_x kept):
         #   Frame 0: mouse leaves, cursor_x=500, autohide starts
-        #   Frame 1: hide_offset=0.05, zoom_progress=0.95 → icons slightly smaller
-        #   Frame N: hide_offset=1.0, zoom_progress=0.0 → dock hidden, then cursor_x=-1
+        #   Frame 1: hide_offset=0.05, zoom_progress=0.95 -> icons slightly smaller
+        #   Frame N: hide_offset=1.0, zoom_progress=0.0 -> dock hidden, then cursor_x=-1
         #
-        #   JARRING (cursor_x reset immediately — what we avoid):
-        #   Frame 0: mouse leaves, cursor_x=-1 → icons SNAP to 1.0x instantly
+        #   Jarring (cursor_x reset immediately -- what we avoid):
+        #   Frame 0: mouse leaves, cursor_x=-1 -> icons snap to 1.0x instantly
         #   Frame 1: hide animation starts, but icons already unzoomed
         if not (self.autohide and self.autohide.enabled and not preview_visible):
             self.cursor_x = -1.0
@@ -484,7 +484,7 @@ class DockWindow(Gtk.Window):
         on either side of the dock icons would block clicks on desktop icons,
         taskbar items, or any other windows at the same Y coordinate.
 
-        To solve this, we set an "input shape region" — a pixel mask that
+        To solve this, we set an "input shape region" -- a pixel mask that
         tells the X11 window manager which parts of the window are "real."
         Clicks outside this region pass through to whatever is underneath,
         as if our window wasn't there.
@@ -618,7 +618,7 @@ class DockWindow(Gtk.Window):
         return None
 
     def reposition(self) -> None:
-        """Re-layout after position change — reposition window, struts, input."""
+        """Re-layout after position change -- reposition window, struts, input."""
         self._position_dock()
         self._set_struts()
         self._update_input_region()

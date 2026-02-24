@@ -130,7 +130,7 @@ def easing_bounce(t: float, duration: float, n: float = 1.0) -> float:
     #      n=1: 2/1 = 2.0 -> envelope starts at 2.0, clamped to 1.0
     #      n=2: 4/3 ~ 1.33 -> envelope starts at 1.33, clamped to 1.0
     #
-    #    This is tuned so the FIRST bounce peak hits exactly 1.0.
+    #    This is tuned so the first bounce peak hits exactly 1.0.
     #    Subsequent bounces are lower because the envelope has
     #    decayed past 1.0 by then.
     #

@@ -1,4 +1,4 @@
-"""Hover manager — icon hover detection, preview popup timer, animation pump."""
+"""Hover manager -- icon hover detection, preview popup timer, animation pump."""
 
 from __future__ import annotations
 

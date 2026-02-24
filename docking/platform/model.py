@@ -1,4 +1,4 @@
-"""Data model for dock items — merges pinned and running applications."""
+"""Data model for dock items -- merges pinned and running applications."""
 
 from __future__ import annotations
 

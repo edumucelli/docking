@@ -1,4 +1,4 @@
-"""Window preview popup — shows thumbnails of running windows on hover."""
+"""Window preview popup -- shows thumbnails of running windows on hover."""
 
 from __future__ import annotations
 
@@ -304,16 +304,16 @@ class PreviewPopup(Gtk.Window):
         # GTK crossing event detail types:
         #
         # GTK uses a tree of internal windows (GdkWindow). When a parent
-        # widget contains child widgets — like our preview popup containing
-        # thumbnail EventBox widgets — mouse movement between parent and
+        # widget contains child widgets -- like our preview popup containing
+        # thumbnail EventBox widgets -- mouse movement between parent and
         # child generates crossing events.
         #
-        # When the mouse moves FROM the popup background TO a thumbnail:
+        # When the mouse moves from the popup background TO a thumbnail:
         #   - The popup receives leave-notify with detail=INFERIOR
         #   - This means "mouse went to a child widget"
-        #   - The mouse is still visually INSIDE the popup
+        #   - The mouse is still visually inside the popup
         #
-        # When the mouse moves genuinely OUTSIDE the popup:
+        # When the mouse moves genuinely outside the popup:
         #   - The popup receives leave-notify with detail=NONLINEAR
         #   - This means "mouse left for a completely different window"
         #

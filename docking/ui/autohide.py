@@ -1,4 +1,4 @@
-"""Auto-hide controller — state machine with cubic easing animation."""
+"""Auto-hide controller -- state machine with cubic easing animation."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ class AutoHideController:
         return self._config.autohide
 
     def reset(self) -> None:
-        """Force dock visible — call when auto-hide is toggled off."""
+        """Force dock visible -- call when auto-hide is toggled off."""
         self._cancel_hide_timer()
         self._cancel_unhide_timer()
         if self._anim_timer_id:
@@ -125,16 +125,16 @@ class AutoHideController:
     # Autohide state machine:
     #
     #   ┌─────────┐  mouse   ┌────────┐  anim    ┌────────┐
-    #   │ VISIBLE │──leave──→│ HIDING │──done───→│ HIDDEN │
+    #   │ VISIBLE │──leave──->│ HIDING │──done───->│ HIDDEN │
     #   └─────────┘          └────────┘          └────────┘
-    #       ↑                                        │
+    #       ^                                        │
     #       │                ┌─────────┐   mouse     │
-    #       └───anim done────│ SHOWING │←──enter─────┘
+    #       └───anim done────│ SHOWING │<-──enter─────┘
     #                        └─────────┘
     #
-    # HIDING:  hide_offset animates 0→1 using ease_in_cubic (accelerating)
+    # HIDING:  hide_offset animates 0->1 using ease_in_cubic (accelerating)
     #          zoom_progress decays in parallel
-    # SHOWING: hide_offset animates 1→0 using ease_out_cubic (decelerating)
+    # SHOWING: hide_offset animates 1->0 using ease_out_cubic (decelerating)
     # VISIBLE/HIDDEN: stable states, no animation running
     #
     # Each animation frame advances _anim_progress by a fixed step
@@ -149,9 +149,9 @@ class AutoHideController:
 
         if self.state == HideState.HIDING:
             self.hide_offset = ease_in_cubic(self._anim_progress)
-            # Zoom progress decay — smooth zoom fadeout during hide.
+            # Zoom progress decay -- smooth zoom fadeout during hide.
             #
-            # As the dock slides down (hide_offset goes 0.0 → 1.0), we
+            # As the dock slides down (hide_offset goes 0.0 -> 1.0), we
             # simultaneously decay the zoom effect. The formula:
             #   zoom_progress *= (1.0 - hide_offset)
             #

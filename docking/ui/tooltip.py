@@ -1,4 +1,4 @@
-"""Tooltip manager — custom positioned tooltips near dock icons."""
+"""Tooltip manager -- custom positioned tooltips near dock icons."""
 
 from __future__ import annotations
 

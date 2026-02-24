@@ -1,4 +1,4 @@
-"""Parabolic zoom math — pure functions, no GTK dependency.
+"""Parabolic zoom math -- pure functions, no GTK dependency.
 
 Implements the magnification effect from Plank's PositionManager.vala.
 Icons near the cursor scale up parabolically; distant icons stay at 1.0x.
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # instead of exactly 1.0 at the boundary.
 #
 # Without snapping, icons at the very edge of the zoom range would get
-# a tiny residual displacement and scale change — visible as a subtle
+# a tiny residual displacement and scale change -- visible as a subtle
 # "twitch" when hovering near the zoom boundary. Snapping at 0.99
 # ensures these edge icons are treated as fully outside the zoom range.
 OFFSET_PCT_SNAP = 0.99
@@ -78,7 +78,7 @@ def compute_layout(
     """Compute icon positions using Plank's per-icon displacement approach.
 
     Each icon starts at its rest center and gets pushed away from the cursor.
-    Distant icons stay put — no cascading shifts.
+    Distant icons stay put -- no cascading shifts.
     """
     num_items = len(items)
     if num_items == 0:
@@ -96,7 +96,7 @@ def compute_layout(
     # Set to one zoomed icon width (icon_size * zoom_percent). For
     # example, with 48px icons and 1.5x zoom, the radius is 72px.
     # This means only the immediate neighbors of the hovered icon
-    # are significantly displaced — distant icons barely move.
+    # are significantly displaced -- distant icons barely move.
     #
     # A larger radius (e.g., icon_size * zoom_range) would spread
     # the displacement across more icons, causing visible shifts
@@ -116,21 +116,21 @@ def compute_layout(
         center = rest_centers[i]
 
         if cursor_x < 0:
-            # No hover — rest positions
+            # No hover -- rest positions
             result.append(LayoutItem(x=center - icon_size / 2, scale=1.0))
             continue
 
         # Per-icon displacement: push icons away from cursor.
         #
         # Each icon is displaced from its rest (no-zoom) center position.
-        # The displacement direction is AWAY from the cursor — icons to
+        # The displacement direction is away from the cursor -- icons to
         # the left of the cursor shift left, icons to the right shift right.
         # This creates space for the zoomed icon under the cursor:
         #
-        #   Cursor at C:        ↓
+        #   Cursor at C:        v
         #   Rest positions:  [A]  [B]  [C]  [D]  [E]
-        #   After zoom:      [A] [B]  [C↑↑] [D] [E]
-        #                        ←         →
+        #   After zoom:      [A] [B]  [C^^] [D] [E]
+        #                        <-         ->
         #                    pushed    pushed
         #                    left      right
         #
@@ -142,11 +142,11 @@ def compute_layout(
         #   displacement = offset * (zoom_percent - 1.0) * (1.0 - offset_pct / 3.0)
         #
         #   Term 1: offset (base displacement proportional to distance)
-        #   Term 2: (zoom_percent - 1.0) (scales with zoom level — more zoom = more spread)
+        #   Term 2: (zoom_percent - 1.0) (scales with zoom level -- more zoom = more spread)
         #   Term 3: (1.0 - offset_pct / 3.0) (taper factor, pulls edges inward)
         #
         # The taper factor reduces displacement by up to 33% at the edges
-        # (offset_pct=1.0 → factor=0.667). This prevents icons at the zoom
+        # (offset_pct=1.0 -> factor=0.667). This prevents icons at the zoom
         # boundary from jumping discontinuously.
         offset = min(abs(cursor_x - center), zoom_icon_size)
         offset_pct = offset / zoom_icon_size if zoom_icon_size > 0 else 1.0
@@ -172,7 +172,7 @@ def compute_layout(
         # At offset_pct=1.0 (at max range): scale = 1.0 (no zoom)
         #
         # The quadratic curve (²) creates a smooth, natural-looking
-        # falloff — most zoom is concentrated on the hovered icon with
+        # falloff -- most zoom is concentrated on the hovered icon with
         # a gentle taper to its neighbors.
         zoom = 1.0 - offset_pct**2
         scale = 1.0 + zoom * (zoom_percent - 1.0)

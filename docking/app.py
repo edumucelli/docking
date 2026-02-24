@@ -1,4 +1,4 @@
-"""Application entry point — bootstraps the dock and runs the GTK main loop."""
+"""Application entry point -- bootstraps the dock and runs the GTK main loop."""
 
 from __future__ import annotations
 

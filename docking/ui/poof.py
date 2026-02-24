@@ -1,4 +1,4 @@
-"""Poof smoke animation — shown when an icon is removed by dragging off the dock."""
+"""Poof smoke animation -- shown when an icon is removed by dragging off the dock."""
 
 from __future__ import annotations
 

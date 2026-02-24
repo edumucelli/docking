@@ -1,16 +1,16 @@
-"""X11 strut management — reserve screen space for the dock.
+"""X11 strut management -- reserve screen space for the dock.
 
-WHAT ARE STRUTS?
+What are struts?
 
 When a dock or panel sits at a screen edge, other windows (browsers,
 terminals, etc.) need to know not to overlap it. The EWMH (Extended
 Window Manager Hints) protocol provides the _NET_WM_STRUT_PARTIAL X11
 property for exactly this. A window sets this property to declare
-"I occupy N pixels along this edge — please keep other windows out."
+"I occupy N pixels along this edge -- please keep other windows out."
 
 The window manager reads these struts and shrinks the available
 workspace accordingly. For example, a 53px bottom strut turns a
-1920×1080 screen into a 1920×1027 workspace — maximized windows
+1920x1080 screen into a 1920x1027 workspace -- maximized windows
 stop 53px above the bottom.
 
     Without struts:                  With bottom strut of 53px:
@@ -19,35 +19,35 @@ stop 53px above the bottom.
     │   browser fills    │           │   browser fills    │
     │   entire screen    │           │   workspace only   │
     │                    │           │                    │
-    │                    │           ├────────────────────┤ ← strut boundary
+    │                    │           ├────────────────────┤ <- strut boundary
     │  (dock hidden      │           │   dock (53px)      │
     │   behind browser)  │           └────────────────────┘
     └────────────────────┘
 
-THE 12-VALUE STRUT ARRAY
+The 12-value strut array
 
 _NET_WM_STRUT_PARTIAL is an array of 12 integers:
 
-    [left, right, top, bottom,               ← reserved pixels per edge
-     left_start_y,  left_end_y,              ← Y range for left strut
-     right_start_y, right_end_y,             ← Y range for right strut
-     top_start_x,   top_end_x,              ← X range for top strut
-     bottom_start_x, bottom_end_x]          ← X range for bottom strut
+    [left, right, top, bottom,               <- reserved pixels per edge
+     left_start_y,  left_end_y,              <- Y range for left strut
+     right_start_y, right_end_y,             <- Y range for right strut
+     top_start_x,   top_end_x,              <- X range for top strut
+     bottom_start_x, bottom_end_x]          <- X range for bottom strut
 
-The first 4 values say HOW MUCH space to reserve at each edge.
-The remaining 8 values say WHERE along that edge the reservation
+The first 4 values say how much space to reserve at each edge.
+The remaining 8 values say where along that edge the reservation
 applies (important for multi-monitor setups where a strut should
 only affect one monitor, not span the entire logical screen).
 
-For a bottom dock on a 1920×1080 monitor at origin:
+For a bottom dock on a 1920x1080 monitor at origin:
     bottom       = 53         (53px from screen bottom)
     bottom_start = 0          (starts at left edge of monitor)
     bottom_end   = 1919       (ends at right edge of monitor)
     all others   = 0
 
-MULTI-MONITOR GAP
+Multi-monitor gap
 
-Strut values are relative to the LOGICAL SCREEN edge, not the
+Strut values are relative to the logical screen edge, not the
 monitor edge. In a multi-monitor setup the logical screen spans
 all monitors. If our monitor doesn't reach the logical screen
 edge, we must add the gap:
@@ -55,27 +55,27 @@ edge, we must add the gap:
     Two monitors stacked vertically (monitor A on top, B on bottom):
     ┌─────────────┐ y=0
     │  Monitor A  │
-    │  1920×1080  │
+    │  1920x1080  │
     ├─────────────┤ y=1080
-    │  Monitor B  │ ← dock here
-    │  1920×1080  │
+    │  Monitor B  │ <- dock here
+    │  1920x1080  │
     └─────────────┘ y=2160  (logical screen height)
 
     For a 53px dock at Monitor B's bottom:
-      bottom = 53 + (2160 - 1080 - 1080) = 53 + 0 = 53  ← no gap
+      bottom = 53 + (2160 - 1080 - 1080) = 53 + 0 = 53  <- no gap
 
     For a 53px dock at Monitor A's bottom:
       bottom = 53 + (2160 - 0 - 1080) = 53 + 1080 = 1133
       The WM measures from logical screen bottom (y=2160), so we
       need 1080px extra to reach Monitor A's bottom edge.
 
-HiDPI SCALING
+HiDPI scaling
 
-X11 struts operate in PHYSICAL pixels. On a 2× HiDPI display,
+X11 struts operate in physical pixels. On a 2x HiDPI display,
 all values must be multiplied by the scale factor. A 53px logical
 dock becomes 106 physical pixels in the strut array.
 
-WHY ctypes INSTEAD OF GDK?
+Why ctypes instead of Gdk?
 
 Gdk.property_change() is not available in the PyGObject bindings
 shipped with Ubuntu's python3-gi package. We use ctypes to call
@@ -83,7 +83,7 @@ Xlib's XChangeProperty directly, which works everywhere.
 
 We also set the older _NET_WM_STRUT (4 values, no start/end pairs)
 for compatibility with window managers that don't support the
-PARTIAL variant.
+partial variant.
 """
 
 from __future__ import annotations

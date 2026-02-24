@@ -1,6 +1,6 @@
 """Theme loading and color accessors.
 
-The theme system uses a SCALING UNIT for all layout values stored in the
+The theme system uses a scaling unit for all layout values stored in the
 JSON theme files.  The unit is "tenths of one percent of icon_size":
 
     pixel_value = json_value * (icon_size / 10.0)
@@ -11,11 +11,11 @@ For example, with icon_size=48 the scale factor is 4.8:
     json top_padding=-7  -> -7 * 4.8 = -33.6 px (icons overflow above shelf)
 
 This scaling unit means a single theme JSON produces correct proportions
-at ANY icon size -- 32px, 48px, 64px, 128px, etc.  All downstream code
+at any icon size -- 32px, 48px, 64px, 128px, etc.  All downstream code
 receives pixel values from the Theme dataclass and never touches the raw
 JSON scaling values.
 
-Animation parameters (bounce heights, durations, opacity) are NOT scaled
+Animation parameters (bounce heights, durations, opacity) are not scaled
 -- they are stored as-is from the JSON since they are already in their
 final units (fractions, milliseconds, opacity 0-1).
 """
@@ -44,7 +44,7 @@ def _rgba(values: list[int]) -> RGBA:
 class Theme:
     """Visual theme for the dock.
 
-    All layout fields store PIXEL values, computed at load time from the
+    All layout fields store pixel values, computed at load time from the
     JSON scaling units.  Downstream rendering code uses these directly.
     """
 
@@ -66,7 +66,7 @@ class Theme:
     item_padding: float = 6.0
     shelf_height: float = 21.0
 
-    # --- Animation (direct values, NOT scaled) ---
+    # --- Animation (direct values, not scaled) ---
     urgent_bounce_height: float = 1.66  # fraction of icon_size
     launch_bounce_height: float = 0.625  # fraction of icon_size
     urgent_bounce_time_ms: int = 600  # ms
@@ -81,7 +81,7 @@ class Theme:
     def load(cls, name: str = "default", icon_size: int = 48) -> "Theme":
         """Load theme by name, applying the scaling unit system.
 
-        The JSON theme file stores layout values in a SCALING UNIT:
+        The JSON theme file stores layout values in a scaling unit:
         "tenths of one percent of icon_size."  At load time we multiply
         each layout value by `icon_size / 10.0` to get pixel values.
 
@@ -98,9 +98,9 @@ class Theme:
                                                   stored as raw px, not scaled.
 
         Note: `indicator_size` in the JSON maps to `indicator_radius` and is
-        stored as half the JSON value (radius = size / 2), NOT scaled.
+        stored as half the JSON value (radius = size / 2), not scaled.
 
-        HOW SHELF HEIGHT IS DERIVED:
+        How shelf height is derived:
 
         The shelf is the background bar.  Icons sit ON the shelf, often
         overflowing above it.  shelf_height is derived, not stored in JSON:
@@ -196,11 +196,11 @@ class Theme:
         # overflow above the background:
         #
         #     ┌──────┐          ┌──────┐
-        #     │ icon │          │ icon │       ← icons overflow above shelf
+        #     │ icon │          │ icon │       <- icons overflow above shelf
         #     │      │          │      │
-        #   ──┴──────┴──────────┴──────┴──   ← shelf top edge
+        #   ──┴──────┴──────────┴──────┴──   <- shelf top edge
         #   │        shelf background       │
-        #   ─────────────────────────────────  ← screen bottom
+        #   ─────────────────────────────────  <- screen bottom
         #
         # The height is derived from the icon size and theme padding:
         #   top_offset    = 2 * stroke_width + top_padding_px
@@ -208,7 +208,7 @@ class Theme:
         #   shelf_height  = max(0, icon_size + top_offset + bottom_offset)
         #
         # With the default theme at 48px icons:
-        #   top_offset = 2 + (-33.6) = -31.6  (negative → icons overflow)
+        #   top_offset = 2 + (-33.6) = -31.6  (negative -> icons overflow)
         #   bottom_offset = 4.8
         #   shelf_height = max(0, 48 - 31.6 + 4.8) ≈ 21px
         #
@@ -218,7 +218,7 @@ class Theme:
         bottom_offset = bottom_padding_px
         shelf_height = max(0.0, icon_size + top_offset + bottom_offset)
 
-        # --- Animation params (direct values, NOT scaled) ---
+        # --- Animation params (direct values, not scaled) ---
         urgent_bounce_height = float(data.get("urgent_bounce_height", 1.66))
         launch_bounce_height = float(data.get("launch_bounce_height", 0.625))
         urgent_bounce_time_ms = int(data.get("urgent_bounce_time_ms", 600))

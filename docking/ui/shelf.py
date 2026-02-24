@@ -1,4 +1,4 @@
-"""Shelf background drawing — rounded rectangle, gradient fill, inner highlight."""
+"""Shelf background drawing -- rounded rectangle, gradient fill, inner highlight."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def draw_shelf_background(
     cr.stroke()
 
     # Layer 2: Inner highlight stroke (creates 3D bevel effect)
-    # Plank uses white with varying opacity: 50% top → 12% → 8% → 19% bottom
+    # Plank uses white with varying opacity: 50% top -> 12% -> 8% -> 19% bottom
     is_r, is_g, is_b, _ = theme.inner_stroke
     inset = 3 * line_width / 2
     inner_h = h - inset
