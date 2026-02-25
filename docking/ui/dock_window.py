@@ -178,6 +178,7 @@ class DockWindow(Gtk.Window):
         self._click_x: float = -1.0
         self._click_y: float = -1.0
         self._click_button: int = 0
+        self._last_input_rect: tuple[int, int, int, int] = (-1, -1, -1, -1)
 
     def _connect_model(self) -> None:
         """Listen for model changes to trigger redraws."""
@@ -604,9 +605,12 @@ class DockWindow(Gtk.Window):
             autohide_state,
             hide_offset,
         )
-        rect = cairo.RectangleInt(rx, ry, rw, rh)
-        region = cairo.Region(rect)
-        gdk_window.input_shape_combine_region(region, 0, 0)
+        new_rect = (rx, ry, rw, rh)
+        if new_rect != self._last_input_rect:
+            self._last_input_rect = new_rect
+            rect = cairo.RectangleInt(rx, ry, rw, rh)
+            region = cairo.Region(rect)
+            gdk_window.input_shape_combine_region(region, 0, 0)
 
     # --- Coordinate Conversion Utilities ---
     #
