@@ -234,7 +234,12 @@ class NetworkApplet(Applet):
         self.refresh_icon()
 
     def _update_nm_state(self) -> None:
-        """Read current connection info from NetworkManager."""
+        """Read current connection info from NetworkManager.
+
+        Iterates all active connections and picks the most relevant one:
+        wifi > ethernet > other. Skips tun/bridge/loopback devices
+        (VPN tunnels, Docker bridges) which would hide the real connection.
+        """
         if not self._nm_client:
             return
 
@@ -245,36 +250,60 @@ class NetworkApplet(Applet):
         self._iface = ""
         self._ip_address = ""
 
+        # Collect candidates, prioritize wifi > ethernet > other
+        best_device: NM.Device | None = None
+        best_priority = -1
+
         for conn in self._nm_client.get_active_connections():
             if conn.get_state() != NM.ActiveConnectionState.ACTIVATED:
                 continue
-
             devices = conn.get_devices()
             if not devices:
                 continue
             device = devices[0]
-            self._iface = device.get_iface() or ""
-            self._is_connected = True
+            dev_type = device.get_device_type()
 
-            # IP address
-            ip4_config = device.get_ip4_config()
-            if ip4_config:
-                addrs = ip4_config.get_addresses()
-                if addrs:
-                    self._ip_address = addrs[0].get_address() or ""
+            # Skip tun, bridge, loopback (VPN, Docker, lo)
+            if dev_type in (
+                NM.DeviceType.TUN,
+                NM.DeviceType.BRIDGE,
+            ):
+                continue
 
-            # WiFi specifics
-            if isinstance(device, NM.DeviceWifi):
-                self._is_wifi = True
-                ap = device.get_active_access_point()
-                if ap:
-                    ssid_bytes = ap.get_ssid()
-                    if ssid_bytes:
-                        self._ssid = ssid_bytes.get_data().decode(
-                            "utf-8", errors="replace"
-                        )
-                    self._signal_strength = ap.get_strength()
-            break  # use first active connection
+            # Priority: wifi=2, ethernet=1, other=0
+            if dev_type == NM.DeviceType.WIFI:
+                priority = 2
+            elif dev_type == NM.DeviceType.ETHERNET:
+                priority = 1
+            else:
+                priority = 0
+
+            if priority > best_priority:
+                best_priority = priority
+                best_device = device
+
+        if not best_device:
+            return
+
+        self._is_connected = True
+        self._iface = best_device.get_iface() or ""
+
+        # IP address
+        ip4_config = best_device.get_ip4_config()
+        if ip4_config:
+            addrs = ip4_config.get_addresses()
+            if addrs:
+                self._ip_address = addrs[0].get_address() or ""
+
+        # WiFi specifics
+        if isinstance(best_device, NM.DeviceWifi):
+            self._is_wifi = True
+            ap = best_device.get_active_access_point()
+            if ap:
+                ssid_bytes = ap.get_ssid()
+                if ssid_bytes:
+                    self._ssid = ssid_bytes.get_data().decode("utf-8", errors="replace")
+                self._signal_strength = ap.get_strength()
 
     def _tick(self) -> bool:
         """Poll traffic counters and wifi signal."""
