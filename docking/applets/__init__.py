@@ -18,6 +18,7 @@ def get_registry() -> dict[str, type[Applet]]:
     from docking.applets.clock import ClockApplet
     from docking.applets.cpumonitor import CpuMonitorApplet
     from docking.applets.desktop import DesktopApplet
+    from docking.applets.network import NetworkApplet
     from docking.applets.trash import TrashApplet
     from docking.applets.weather import WeatherApplet
 
@@ -28,6 +29,7 @@ def get_registry() -> dict[str, type[Applet]]:
         "clock": ClockApplet,
         "cpumonitor": CpuMonitorApplet,
         "desktop": DesktopApplet,
+        "network": NetworkApplet,
         "trash": TrashApplet,
         "weather": WeatherApplet,
     }
