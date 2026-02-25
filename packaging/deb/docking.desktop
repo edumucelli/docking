@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Docking
+Comment=A lightweight dock for Linux
+Exec=docking
+Icon=docking
+Categories=Utility;System;
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=false

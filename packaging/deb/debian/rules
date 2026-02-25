@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+export PYBUILD_NAME=docking
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_install:
+	dh_auto_install
+	# Install pip-only dependencies into the package
+	python3 -m pip install --no-deps --target=debian/docking/usr/lib/python3/dist-packages \
+		openmeteo-requests retry-requests
+
+override_dh_python3:
+	dh_python3 --shebang=/usr/bin/python3

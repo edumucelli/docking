@@ -23,6 +23,13 @@ dev = ["pytest>=7.0", "pytest-cov", "mypy", "flake8"]
 [tool.setuptools.packages.find]
 include = ["docking*"]
 
+[tool.setuptools.package-data]
+docking = [
+    "assets/**/*.svg",
+    "assets/**/*.json",
+    "assets/**/*.csv.gz",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
