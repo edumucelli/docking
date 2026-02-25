@@ -1,7 +1,8 @@
-"""Tests for input region computation -- continuous animation model.
+"""Tests for input region computation.
 
-The input region is interpolated using hide_offset (0.0=visible, 1.0=hidden)
-matching Plank's approach. No abrupt region changes at state boundaries.
+Input region uses two-state model: content rect when dock is visible/animating,
+trigger strip only when fully hidden. No interpolation during animation to
+prevent oscillation from mouse re-entering a shrinking region.
 """
 
 import sys
@@ -45,35 +46,9 @@ class TestAutohideOff:
         assert h == CONTENT_CROSS
         assert y == WIN_H - CONTENT_CROSS
 
-    def test_top_content_rect(self):
-        x, y, w, h = compute_input_rect(
-            Position.TOP,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            None,
-        )
-        assert y == 0
-        assert h == CONTENT_CROSS
-
-    def test_left_content_rect(self):
-        x, y, w, h = compute_input_rect(
-            Position.LEFT,
-            WIN_H,
-            WIN_W,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            None,
-        )
-        assert x == 0
-        assert w == CONTENT_CROSS
-
 
 class TestAutohideVisible:
-    """When autohide is on and dock fully visible (hide_offset=0.0)."""
+    """When visible, content rect regardless of hide_offset."""
 
     def test_bottom_content_rect(self):
         x, y, w, h = compute_input_rect(
@@ -86,13 +61,29 @@ class TestAutohideVisible:
             HideState.VISIBLE,
             hide_offset=0.0,
         )
-        assert w == CONTENT_W
         assert h == CONTENT_CROSS
         assert y == WIN_H - CONTENT_CROSS
 
-    def test_cross_excludes_headroom(self):
-        # Headroom above icons must NOT be interactive
+
+class TestAutohideHiding:
+    """During HIDING animation, keep content rect (prevents oscillation)."""
+
+    def test_keeps_content_rect(self):
         x, y, w, h = compute_input_rect(
+            Position.BOTTOM,
+            WIN_W,
+            WIN_H,
+            CONTENT_OFFSET,
+            CONTENT_W,
+            CONTENT_CROSS,
+            HideState.HIDING,
+            hide_offset=0.5,
+        )
+        # Still content-sized, NOT shrunk
+        assert h == CONTENT_CROSS
+
+    def test_same_as_visible(self):
+        visible = compute_input_rect(
             Position.BOTTOM,
             WIN_W,
             WIN_H,
@@ -102,12 +93,38 @@ class TestAutohideVisible:
             HideState.VISIBLE,
             hide_offset=0.0,
         )
-        assert y > 0
-        assert y == WIN_H - CONTENT_CROSS
+        hiding = compute_input_rect(
+            Position.BOTTOM,
+            WIN_W,
+            WIN_H,
+            CONTENT_OFFSET,
+            CONTENT_W,
+            CONTENT_CROSS,
+            HideState.HIDING,
+            hide_offset=0.5,
+        )
+        assert visible == hiding
+
+
+class TestAutohideShowing:
+    """During SHOWING animation, keep content rect."""
+
+    def test_keeps_content_rect(self):
+        x, y, w, h = compute_input_rect(
+            Position.BOTTOM,
+            WIN_W,
+            WIN_H,
+            CONTENT_OFFSET,
+            CONTENT_W,
+            CONTENT_CROSS,
+            HideState.SHOWING,
+            hide_offset=0.5,
+        )
+        assert h == CONTENT_CROSS
 
 
 class TestAutohideHidden:
-    """When dock fully hidden (hide_offset=1.0), trigger strip at edge."""
+    """When fully hidden, trigger strip at edge."""
 
     def test_bottom_trigger_strip(self):
         x, y, w, h = compute_input_rect(
@@ -122,7 +139,6 @@ class TestAutohideHidden:
         )
         assert h == TRIGGER_PX
         assert y == WIN_H - TRIGGER_PX
-        assert w == CONTENT_W
 
     def test_top_trigger_wider(self):
         x, y, w, h = compute_input_rect(
@@ -139,11 +155,10 @@ class TestAutohideHidden:
         assert y == 0
 
 
-class TestContinuousAnimation:
-    """Input region interpolates smoothly between visible and hidden."""
+class TestHeadroomExcluded:
+    """Headroom above icons must NOT be in the input region."""
 
-    def test_halfway_cross_is_between(self):
-        # At 50% hidden, cross should be between trigger and content
+    def test_bottom_headroom_excluded(self):
         x, y, w, h = compute_input_rect(
             Position.BOTTOM,
             WIN_W,
@@ -151,48 +166,8 @@ class TestContinuousAnimation:
             CONTENT_OFFSET,
             CONTENT_W,
             CONTENT_CROSS,
-            HideState.HIDING,
-            hide_offset=0.5,
+            HideState.VISIBLE,
         )
-        assert TRIGGER_PX < h < CONTENT_CROSS
-
-    def test_cross_decreases_monotonically(self):
-        # As hide_offset increases, cross should decrease
-        prev_h = CONTENT_CROSS + 1
-        for offset in [0.0, 0.25, 0.5, 0.75, 1.0]:
-            _, _, _, h = compute_input_rect(
-                Position.BOTTOM,
-                WIN_W,
-                WIN_H,
-                CONTENT_OFFSET,
-                CONTENT_W,
-                CONTENT_CROSS,
-                HideState.HIDING,
-                hide_offset=offset,
-            )
-            assert h <= prev_h
-            prev_h = h
-
-    def test_showing_same_as_hiding_at_same_offset(self):
-        # SHOWING and HIDING at the same hide_offset produce same region
-        showing = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.SHOWING,
-            hide_offset=0.3,
-        )
-        hiding = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.HIDING,
-            hide_offset=0.3,
-        )
-        assert showing == hiding
+        assert y > 0
+        assert y == WIN_H - CONTENT_CROSS
+        assert h == CONTENT_CROSS

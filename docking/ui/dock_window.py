@@ -81,11 +81,19 @@ def compute_input_rect(
         else:
             return (window_w - cross, content_offset, cross, main)
 
-    # Autohide on: interpolate cross-axis between content and trigger strip.
-    # progress=1.0 when visible, 0.0 when hidden.
-    progress = 1.0 - hide_offset
+    # Autohide on: two distinct regions only.
+    # - HIDDEN: trigger strip at screen edge (thin, full width for reveal)
+    # - Everything else (VISIBLE/SHOWING/HIDING): content rect
+    #
+    # During HIDING, keeping the content rect prevents oscillation: the mouse
+    # is inside the region so no re-enter events fire. Once fully hidden, it
+    # switches to the trigger strip. During SHOWING, content rect ensures the
+    # mouse stays "inside" until the dock is fully visible.
     trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
-    cross = max(trigger, int(progress * content_cross))
+    if autohide_state == HideState.HIDDEN:
+        cross = trigger
+    else:
+        cross = max(content_cross, 1)
     main = max(content_w, 1)
 
     if pos == Position.BOTTOM:
