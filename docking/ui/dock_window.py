@@ -37,6 +37,15 @@ TRIGGER_PX = 2  # trigger strip size at screen edge
 TRIGGER_PX_TOP = 8  # wider trigger at top (no physical edge barrier)
 
 
+def should_keep_cursor_on_leave(autohide_enabled: bool, preview_visible: bool) -> bool:
+    """Whether to preserve cursor position when mouse leaves the dock.
+
+    True when autohide is active (smooth zoom decay during hide animation)
+    or preview popup is visible (mouse moved into preview, zoom should hold).
+    """
+    return autohide_enabled or preview_visible
+
+
 def compute_input_rect(
     pos: Position,
     window_w: int,
@@ -438,14 +447,14 @@ class DockWindow(Gtk.Window):
         if self._preview and not preview_visible:
             self._preview.schedule_hide()
 
-        # Keep cursor during autohide so zoom decays smoothly
-        if not (self.autohide and self.autohide.enabled and not preview_visible):
+        autohide_on = bool(self.autohide and self.autohide.enabled)
+        if not should_keep_cursor_on_leave(autohide_on, bool(preview_visible)):
             self.cursor_x = -1.0
             self.cursor_y = -1.0
 
         self._update_dock_size()
         widget.queue_draw()
-        if self.autohide and not preview_visible:
+        if autohide_on and self.autohide:
             self.autohide.on_mouse_leave()
         return True
 
