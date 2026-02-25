@@ -12,7 +12,9 @@ if TYPE_CHECKING:
 @lru_cache(maxsize=1)
 def get_registry() -> dict[str, type[Docklet]]:
     """Return the docklet registry, loading it on first access."""
+    from docking.docklets.applications import ApplicationsDocklet
     from docking.docklets.battery import BatteryDocklet
+    from docking.docklets.clippy import ClippyDocklet
     from docking.docklets.clock import ClockDocklet
     from docking.docklets.cpumonitor import CpuMonitorDocklet
     from docking.docklets.desktop import DesktopDocklet
@@ -20,7 +22,9 @@ def get_registry() -> dict[str, type[Docklet]]:
     from docking.docklets.weather import WeatherDocklet
 
     return {
+        "applications": ApplicationsDocklet,
         "battery": BatteryDocklet,
+        "clippy": ClippyDocklet,
         "clock": ClockDocklet,
         "cpumonitor": CpuMonitorDocklet,
         "desktop": DesktopDocklet,

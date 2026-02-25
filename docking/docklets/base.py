@@ -111,6 +111,9 @@ class Docklet(ABC):
     def on_clicked(self) -> None:
         """Handle left-click (default: no-op)."""
 
+    def on_scroll(self, direction_up: bool) -> None:
+        """Handle scroll wheel on docklet icon (default: no-op)."""
+
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Extra right-click menu items (default: empty)."""
         return []

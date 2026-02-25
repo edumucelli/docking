@@ -14,6 +14,7 @@ from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 from docking.core.position import Position, is_horizontal
 from docking.platform.struts import set_dock_struts, clear_struts
 from docking.core.zoom import compute_layout, content_bounds
+from docking.docklets.base import is_docklet
 from docking.platform.launcher import launch
 from docking.ui.autohide import HideState
 from docking.ui.tooltip import TooltipManager
@@ -158,6 +159,7 @@ class DockWindow(Gtk.Window):
             | Gdk.EventMask.BUTTON1_MOTION_MASK
             | Gdk.EventMask.ENTER_NOTIFY_MASK
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
+            | Gdk.EventMask.SCROLL_MASK
         )
         self.drawing_area.connect("draw", self._on_draw)
         self.drawing_area.connect("motion-notify-event", self._on_motion)
@@ -165,6 +167,7 @@ class DockWindow(Gtk.Window):
         self.drawing_area.connect("button-release-event", self._on_button_release)
         self.drawing_area.connect("leave-notify-event", self._on_leave)
         self.drawing_area.connect("enter-notify-event", self._on_enter)
+        self.drawing_area.connect("scroll-event", self._on_scroll)
         self.add(self.drawing_area)
 
         self._click_x: float = -1.0
@@ -407,7 +410,6 @@ class DockWindow(Gtk.Window):
             item.last_clicked = now
 
             # Docklets handle their own click
-            from docking.docklets.base import is_docklet
 
             if is_docklet(item.desktop_id):
                 docklet = self.model.get_docklet(item.desktop_id)
@@ -428,6 +430,25 @@ class DockWindow(Gtk.Window):
                 self._hover.start_anim_pump(350)  # 300ms click darken
 
         return True
+
+    def _on_scroll(self, _widget: Gtk.DrawingArea, event: Gdk.EventScroll) -> bool:
+        """Forward scroll events to docklet if scrolled item is one."""
+        layout = compute_layout(
+            self.model.visible_items(),
+            self.config,
+            self.local_cursor_main(),
+            item_padding=self.theme.item_padding,
+            h_padding=self.theme.h_padding,
+        )
+        main_event = event.x if is_horizontal(self.config.pos) else event.y
+        item = self.hit_test(main_event, layout)
+        if item and is_docklet(item.desktop_id):
+            docklet = self.model.get_docklet(item.desktop_id)
+            if docklet:
+                direction_up = event.direction == Gdk.ScrollDirection.UP
+                docklet.on_scroll(direction_up)
+                return True
+        return False
 
     def _on_leave(self, widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
         """Handle mouse leaving the dock area.
