@@ -55,54 +55,47 @@ def compute_input_rect(
     content_w: int,
     content_cross: int,
     autohide_state: HideState | None,
+    hide_offset: float = 0.0,
 ) -> tuple[int, int, int, int]:
     """Return (x, y, w, h) for the input shape region.
 
-    When hidden: thin trigger strip at screen edge.
-    When showing: full window (prevents oscillation during animation).
-    Otherwise: content rectangle at the screen edge. The cross-axis
-    extent is content_cross (icon area height), not the full window,
-    so hovering the headroom above icons triggers a leave event --
-    matching Plank's behavior where tooltips don't keep the dock visible.
+    The input region is continuously animated using hide_offset (0.0=visible,
+    1.0=hidden), matching Plank's approach. This avoids abrupt region changes
+    at state boundaries that cause oscillation.
+
+    When autohide is off: content rectangle at the screen edge.
+    When autohide is on: cross-axis interpolated between content_cross
+    (visible) and trigger strip (hidden) based on hide_offset. Updated
+    every frame during draw.
     """
-    if autohide_state in (HideState.HIDDEN, HideState.HIDING):
-        trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
+    if autohide_state is None:
+        # Autohide off: content rect only
+        cross = max(content_cross, 1)
+        main = max(content_w, 1)
         if pos == Position.BOTTOM:
-            return (0, window_h - trigger, window_w, trigger)
+            return (content_offset, window_h - cross, main, cross)
         elif pos == Position.TOP:
-            return (0, 0, window_w, trigger)
+            return (content_offset, 0, main, cross)
         elif pos == Position.LEFT:
-            return (0, 0, trigger, window_h)
+            return (0, content_offset, cross, main)
         else:
-            return (window_w - trigger, 0, trigger, window_h)
+            return (window_w - cross, content_offset, cross, main)
 
-    if autohide_state == HideState.SHOWING:
-        return (0, 0, window_w, window_h)
+    # Autohide on: interpolate cross-axis between content and trigger strip.
+    # progress=1.0 when visible, 0.0 when hidden.
+    progress = 1.0 - hide_offset
+    trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
+    cross = max(trigger, int(progress * content_cross))
+    main = max(content_w, 1)
 
-    # VISIBLE or autohide off: content rect at screen edge.
-    # Only covers icon area (content_cross), not headroom.
-    #
-    # When autohide is enabled, extend along the full screen edge so the
-    # mouse at the side of the dock doesn't trigger a false leave event
-    # (which would start hide, re-expand trigger strip, start show = loop).
-    cross = max(content_cross, 1)
-    extend_edge = autohide_state == HideState.VISIBLE
     if pos == Position.BOTTOM:
-        if extend_edge:
-            return (0, window_h - cross, window_w, cross)
-        return (content_offset, window_h - cross, max(content_w, 1), cross)
+        return (content_offset, window_h - cross, main, cross)
     elif pos == Position.TOP:
-        if extend_edge:
-            return (0, 0, window_w, cross)
-        return (content_offset, 0, max(content_w, 1), cross)
+        return (content_offset, 0, main, cross)
     elif pos == Position.LEFT:
-        if extend_edge:
-            return (0, 0, cross, window_h)
-        return (0, content_offset, cross, max(content_w, 1))
-    else:  # RIGHT
-        if extend_edge:
-            return (window_w - cross, 0, cross, window_h)
-        return (window_w - cross, content_offset, cross, max(content_w, 1))
+        return (0, content_offset, cross, main)
+    else:
+        return (window_w - cross, content_offset, cross, main)
 
 
 # X11 mouse button codes
@@ -601,6 +594,7 @@ class DockWindow(Gtk.Window):
         # so hovering above icons triggers a leave -> dock hides.
         content_cross = int(icon_size + self.theme.bottom_padding)
 
+        hide_offset = self.autohide.hide_offset if self.autohide else 0.0
         rx, ry, rw, rh = compute_input_rect(
             pos,
             window_w,
@@ -609,6 +603,7 @@ class DockWindow(Gtk.Window):
             int(content_w),
             content_cross,
             autohide_state,
+            hide_offset,
         )
         rect = cairo.RectangleInt(rx, ry, rw, rh)
         region = cairo.Region(rect)
@@ -647,10 +642,15 @@ class DockWindow(Gtk.Window):
         return (self._main_axis_window_size() - base_w) / 2
 
     def local_cursor_main(self) -> float:
-        """Cursor in content-space along the main axis."""
+        """Cursor in content-space along the main axis.
+
+        Returns a large negative sentinel (-1e6) when no cursor is present,
+        or the actual local coordinate (which can be negative if cursor is
+        to the left of content) for smooth zoom taper on both edges.
+        """
         mc = self._main_axis_cursor()
         if mc < 0:
-            return -1.0
+            return -1e6  # sentinel: no cursor
         return mc - self._base_main_offset()
 
     def zoomed_main_offset(self, layout: list[LayoutItem]) -> float:
