@@ -17,6 +17,7 @@ def get_registry() -> dict[str, type[Docklet]]:
     from docking.docklets.cpumonitor import CpuMonitorDocklet
     from docking.docklets.desktop import DesktopDocklet
     from docking.docklets.trash import TrashDocklet
+    from docking.docklets.weather import WeatherDocklet
 
     return {
         "battery": BatteryDocklet,
@@ -24,4 +25,5 @@ def get_registry() -> dict[str, type[Docklet]]:
         "cpumonitor": CpuMonitorDocklet,
         "desktop": DesktopDocklet,
         "trash": TrashDocklet,
+        "weather": WeatherDocklet,
     }
