@@ -1,4 +1,4 @@
-"""Open-Meteo API client for weather docklet.
+"""Open-Meteo API client for weather applet.
 
 Uses openmeteo_requests with requests-cache and retry (5 attempts).
 Cache and poll interval share REFRESH_INTERVAL (5 min).
@@ -17,7 +17,7 @@ import requests_cache
 from retry_requests import retry
 
 # How often weather data is refreshed (seconds). Used for both the
-# polling timer in the docklet and the requests-cache expiry.
+# polling timer in the applet and the requests-cache expiry.
 REFRESH_INTERVAL = 300  # 5 minutes
 
 _CACHE_DIR = (

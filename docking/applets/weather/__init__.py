@@ -1,4 +1,4 @@
-"""Weather docklet -- shows current weather for a user-selected city.
+"""Weather applet -- shows current weather for a user-selected city.
 
 City selection via autocomplete dialog (right-click -> Change City).
 Weather data from Open-Meteo API with caching and retry (5 min interval).
@@ -29,9 +29,9 @@ from gi.repository import (
 
 import cairo
 
-from docking.docklets.base import Docklet, load_theme_icon
-from docking.docklets.weather.api import REFRESH_INTERVAL, WeatherData, fetch_weather
-from docking.docklets.weather.cities import CityEntry, load_cities, search_cities
+from docking.applets.base import Applet, load_theme_icon
+from docking.applets.weather.api import REFRESH_INTERVAL, WeatherData, fetch_weather
+from docking.applets.weather.cities import CityEntry, load_cities, search_cities
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ def _get_cities() -> tuple[CityEntry, ...]:
     return tuple(load_cities())
 
 
-class WeatherDocklet(Docklet):
+class WeatherApplet(Applet):
     """Shows current weather icon + temperature for a selected city.
 
     Prefs: city_display, lat, lng, show_temperature.
@@ -69,7 +69,7 @@ class WeatherDocklet(Docklet):
 
         # Load saved prefs
         if config:
-            prefs = config.docklet_prefs.get("weather", {})
+            prefs = config.applet_prefs.get("weather", {})
             self._city_display = prefs.get("city_display", "")
             self._lat = prefs.get("lat", 0.0)
             self._lng = prefs.get("lng", 0.0)

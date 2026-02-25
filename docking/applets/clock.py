@@ -1,4 +1,4 @@
-"""Clock docklet -- analog or digital time display as a dock icon.
+"""Clock applet -- analog or digital time display as a dock icon.
 
 Three rendering modes controlled by preferences:
   1. Analog 12-hour (default) -- SVG face layers + Cairo hands
@@ -22,7 +22,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
-from docking.docklets.base import Docklet
+from docking.applets.base import Applet
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -57,7 +57,7 @@ def hour_rotation_24h(hour: int, minute: int) -> float:
     return math.pi * (hour % 24 / 12.0 + minute / 720.0 + 1.0)
 
 
-class ClockDocklet(Docklet):
+class ClockApplet(Applet):
     """Displays current time as an analog clock face or digital readout."""
 
     id = "clock"
@@ -78,7 +78,7 @@ class ClockDocklet(Docklet):
         self._show_military = False
         self._show_date = False
         if config:
-            prefs = config.docklet_prefs.get("clock", {})
+            prefs = config.applet_prefs.get("clock", {})
             self._show_digital = prefs.get("show_digital", False)
             self._show_military = prefs.get("show_military", False)
             self._show_date = prefs.get("show_date", False)

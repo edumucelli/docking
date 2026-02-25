@@ -2,7 +2,7 @@
 
 import pytest
 
-from docking.docklets.weather.api import (
+from docking.applets.weather.api import (
     DailyForecast,
     WeatherData,
     wmo_description,

@@ -1,16 +1,16 @@
-"""Tests for the CPU monitor docklet -- parsing and rendering."""
+"""Tests for the CPU monitor applet -- parsing and rendering."""
 
 import math
 
 import pytest
 
-from docking.docklets.cpumonitor import (
+from docking.applets.cpumonitor import (
     CpuSample,
     cpu_hue_rgb,
     cpu_percent,
     parse_proc_meminfo,
     parse_proc_stat,
-    CpuMonitorDocklet,
+    CpuMonitorApplet,
 )
 
 
@@ -91,30 +91,30 @@ class TestCpuHueRgb:
 class TestCpuMonitorRendering:
     @pytest.mark.parametrize("size", [32, 48, 64])
     def test_renders_valid_pixbuf(self, size):
-        docklet = CpuMonitorDocklet(size)
-        pixbuf = docklet.create_icon(size)
+        applet = CpuMonitorApplet(size)
+        pixbuf = applet.create_icon(size)
         assert pixbuf is not None
         assert pixbuf.get_width() == size
         assert pixbuf.get_height() == size
 
     def test_no_menu_items(self):
-        docklet = CpuMonitorDocklet(48)
-        assert docklet.get_menu_items() == []
+        applet = CpuMonitorApplet(48)
+        assert applet.get_menu_items() == []
 
     def test_tooltip_format(self):
-        docklet = CpuMonitorDocklet(48)
-        docklet._cpu = 0.423
-        docklet._mem = 0.671
-        docklet.create_icon(48)
-        assert "CPU: 42.3%" in docklet.item.name
-        assert "Mem: 67.1%" in docklet.item.name
+        applet = CpuMonitorApplet(48)
+        applet._cpu = 0.423
+        applet._mem = 0.671
+        applet.create_icon(48)
+        assert "CPU: 42.3%" in applet.item.name
+        assert "Mem: 67.1%" in applet.item.name
 
     def test_icon_has_visible_content(self):
         # Given 50% CPU
-        docklet = CpuMonitorDocklet(48)
-        docklet._cpu = 0.5
-        docklet._mem = 0.3
-        pixbuf = docklet.create_icon(48)
+        applet = CpuMonitorApplet(48)
+        applet._cpu = 0.5
+        applet._mem = 0.3
+        pixbuf = applet.create_icon(48)
         pixels = pixbuf.get_pixels()
         non_transparent = sum(1 for i in range(0, len(pixels), 4) if pixels[i + 3] > 0)
         # Then -- gauge should have substantial visible content

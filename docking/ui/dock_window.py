@@ -14,7 +14,7 @@ from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 from docking.core.position import Position, is_horizontal
 from docking.platform.struts import set_dock_struts, clear_struts
 from docking.core.zoom import compute_layout, content_bounds
-from docking.docklets.base import is_docklet
+from docking.applets.base import is_applet
 from docking.platform.launcher import launch
 from docking.ui.autohide import HideState
 from docking.ui.tooltip import TooltipManager
@@ -409,12 +409,12 @@ class DockWindow(Gtk.Window):
             now = GLib.get_monotonic_time()
             item.last_clicked = now
 
-            # Docklets handle their own click
+            # Applets handle their own click
 
-            if is_docklet(item.desktop_id):
-                docklet = self.model.get_docklet(item.desktop_id)
-                if docklet:
-                    docklet.on_clicked()
+            if is_applet(item.desktop_id):
+                applet = self.model.get_applet(item.desktop_id)
+                if applet:
+                    applet.on_clicked()
                 self._hover.start_anim_pump(350)
                 return True
 
@@ -432,7 +432,7 @@ class DockWindow(Gtk.Window):
         return True
 
     def _on_scroll(self, _widget: Gtk.DrawingArea, event: Gdk.EventScroll) -> bool:
-        """Forward scroll events to docklet if scrolled item is one."""
+        """Forward scroll events to applet if scrolled item is one."""
         layout = compute_layout(
             self.model.visible_items(),
             self.config,
@@ -442,11 +442,11 @@ class DockWindow(Gtk.Window):
         )
         main_event = event.x if is_horizontal(self.config.pos) else event.y
         item = self.hit_test(main_event, layout)
-        if item and is_docklet(item.desktop_id):
-            docklet = self.model.get_docklet(item.desktop_id)
-            if docklet:
+        if item and is_applet(item.desktop_id):
+            applet = self.model.get_applet(item.desktop_id)
+            if applet:
                 direction_up = event.direction == Gdk.ScrollDirection.UP
-                docklet.on_scroll(direction_up)
+                applet.on_scroll(direction_up)
                 # Refresh tooltip immediately (item.name may have changed)
                 self._tooltip.update(item, layout)
                 return True

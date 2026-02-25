@@ -1,4 +1,4 @@
-"""Battery docklet -- shows charge level and charging state from sysfs.
+"""Battery applet -- shows charge level and charging state from sysfs.
 
 Reads /sys/class/power_supply/BAT0/ every 60 seconds. Maps capacity_level
 to standard FDO battery icon names (battery-full, battery-good, battery-low,
@@ -16,7 +16,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
-from docking.docklets.base import Docklet, load_theme_icon_centered
+from docking.applets.base import Applet, load_theme_icon_centered
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -80,10 +80,10 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
     )
 
 
-# -- Docklet -----------------------------------------------------------------
+# -- Applet -----------------------------------------------------------------
 
 
-class BatteryDocklet(Docklet):
+class BatteryApplet(Applet):
     """Shows battery charge icon from sysfs, polled every 60 seconds.
 
     No preferences, no menu items. Tooltip shows percentage.

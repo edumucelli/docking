@@ -1,7 +1,7 @@
-"""City database for weather docklet -- gzipped CSV loading and search.
+"""City database for weather applet -- gzipped CSV loading and search.
 
 Loads ~48K cities from a gzipped SimpleMaps CSV (871KB on disk).
-Provides prefix-based search for the autocomplete entry in the docklet menu.
+Provides prefix-based search for the autocomplete entry in the applet menu.
 """
 
 from __future__ import annotations

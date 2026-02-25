@@ -1,4 +1,4 @@
-"""Desktop docklet -- toggles show desktop on click.
+"""Desktop applet -- toggles show desktop on click.
 
 Uses Wnck to minimize/restore all windows, matching Plank's behavior.
 Static icon (user-desktop), no menu items, no timers.
@@ -11,10 +11,10 @@ import gi
 gi.require_version("Wnck", "3.0")
 from gi.repository import GdkPixbuf, Wnck  # noqa: E402
 
-from docking.docklets.base import Docklet, load_theme_icon
+from docking.applets.base import Applet, load_theme_icon
 
 
-class DesktopDocklet(Docklet):
+class DesktopApplet(Applet):
     """Click to toggle showing the desktop (minimize/restore all windows).
 
     No preferences, no menu items, no timers -- just a click action.

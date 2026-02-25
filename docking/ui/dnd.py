@@ -230,7 +230,7 @@ class DnDHandler:
         if target:
             widget.drag_get_data(context, target, time)
             return True
-        # No matching target (e.g. docklet URI) -- clear the gap
+        # No matching target (e.g. applet URI) -- clear the gap
         self.drop_insert_index = -1
         widget.queue_draw()
         return False

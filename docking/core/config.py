@@ -46,8 +46,8 @@ class Config:
     theme: str = "default"
     # Desktop file IDs of pinned applications, in display order
     pinned: list[str] = field(default_factory=lambda: list(DEFAULT_PINNED))
-    # Per-docklet preferences keyed by docklet id (e.g. "clock")
-    docklet_prefs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Per-applet preferences keyed by applet id (e.g. "clock")
+    applet_prefs: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def pos(self) -> Position:

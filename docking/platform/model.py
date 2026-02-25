@@ -10,7 +10,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.launcher import Launcher
-    from docking.docklets.base import Docklet
+    from docking.applets.base import Applet
 
 import gi
 
@@ -46,34 +46,34 @@ class DockModel:
         self._launcher = launcher
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
-        self._docklets: dict[str, Docklet] = {}
+        self._applets: dict[str, Applet] = {}
         self.on_change: Callable[[], None] | None = None
 
         self._load_pinned()
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
-        from docking.docklets.base import is_docklet, docklet_id_from
-        from docking.docklets import get_registry
+        from docking.applets.base import is_applet, applet_id_from
+        from docking.applets import get_registry
 
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         registry = get_registry()
 
         log = get_logger("model")
         for desktop_id in self._config.pinned:
-            if is_docklet(desktop_id):
-                did = docklet_id_from(desktop_id)
+            if is_applet(desktop_id):
+                did = applet_id_from(desktop_id)
                 cls = registry.get(did)
                 if cls:
                     try:
-                        docklet = cls(icon_size, config=self._config)
-                        self._docklets[desktop_id] = docklet
-                        self.pinned_items.append(docklet.item)
-                        log.info("Loaded docklet %s (icon=%s)", did, docklet.item.icon)
+                        applet = cls(icon_size, config=self._config)
+                        self._applets[desktop_id] = applet
+                        self.pinned_items.append(applet.item)
+                        log.info("Loaded applet %s (icon=%s)", did, applet.item.icon)
                     except Exception:
-                        log.exception("Failed to create docklet %s", did)
+                        log.exception("Failed to create applet %s", did)
                 else:
-                    log.warning("Unknown docklet id: %s", did)
+                    log.warning("Unknown applet id: %s", did)
                 continue
 
             info = self._launcher.resolve(desktop_id)
@@ -91,51 +91,51 @@ class DockModel:
                 )
             )
 
-    def get_docklet(self, desktop_id: str) -> Docklet | None:
-        """Look up active docklet by desktop_id."""
-        return self._docklets.get(desktop_id)
+    def get_applet(self, desktop_id: str) -> Applet | None:
+        """Look up active applet by desktop_id."""
+        return self._applets.get(desktop_id)
 
-    def add_docklet(self, docklet_id: str) -> None:
-        """Instantiate a docklet and add to the dock."""
-        from docking.docklets import get_registry
+    def add_applet(self, applet_id: str) -> None:
+        """Instantiate a applet and add to the dock."""
+        from docking.applets import get_registry
 
-        desktop_id = f"docklet://{docklet_id}"
-        if desktop_id in self._docklets:
+        desktop_id = f"applet://{applet_id}"
+        if desktop_id in self._applets:
             return
-        cls = get_registry().get(docklet_id)
+        cls = get_registry().get(applet_id)
         if not cls:
             return
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         try:
-            docklet = cls(icon_size, config=self._config)
+            applet = cls(icon_size, config=self._config)
         except Exception:
-            get_logger("model").exception("Failed to create docklet %s", docklet_id)
+            get_logger("model").exception("Failed to create applet %s", applet_id)
             return
-        self._docklets[desktop_id] = docklet
-        self.pinned_items.append(docklet.item)
-        docklet.start(self.notify)
+        self._applets[desktop_id] = applet
+        self.pinned_items.append(applet.item)
+        applet.start(self.notify)
         self.sync_pinned_to_config()
         self.notify()
 
-    def remove_docklet(self, desktop_id: str) -> None:
-        """Stop and remove a docklet from the dock."""
-        docklet = self._docklets.pop(desktop_id, None)
-        if docklet:
-            docklet.stop()
-            if docklet.item in self.pinned_items:
-                self.pinned_items.remove(docklet.item)
+    def remove_applet(self, desktop_id: str) -> None:
+        """Stop and remove a applet from the dock."""
+        applet = self._applets.pop(desktop_id, None)
+        if applet:
+            applet.stop()
+            if applet.item in self.pinned_items:
+                self.pinned_items.remove(applet.item)
             self.sync_pinned_to_config()
             self.notify()
 
-    def start_docklets(self) -> None:
-        """Start all active docklets (call after dock is ready)."""
-        for docklet in self._docklets.values():
-            docklet.start(self.notify)
+    def start_applets(self) -> None:
+        """Start all active applets (call after dock is ready)."""
+        for applet in self._applets.values():
+            applet.start(self.notify)
 
-    def stop_docklets(self) -> None:
-        """Stop all active docklets (call on shutdown)."""
-        for docklet in self._docklets.values():
-            docklet.stop()
+    def stop_applets(self) -> None:
+        """Stop all active applets (call on shutdown)."""
+        for applet in self._applets.values():
+            applet.stop()
 
     def visible_items(self) -> list[DockItem]:
         """All items to display: pinned first, then transient running apps."""

@@ -1,4 +1,4 @@
-"""CPU monitor docklet -- circular gauge showing CPU and memory usage.
+"""CPU monitor applet -- circular gauge showing CPU and memory usage.
 
 Reads /proc/stat and /proc/meminfo every second. Renders a circular gauge
 where CPU usage fills the center (green->red hue) and memory usage draws
@@ -19,7 +19,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib  # noqa: E402
 
-from docking.docklets.base import Docklet
+from docking.applets.base import Applet
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -82,10 +82,10 @@ def cpu_hue_rgb(cpu: float) -> tuple[float, float, float]:
     return colorsys.hsv_to_rgb(hue, 1.0, 1.0)
 
 
-# -- Docklet -----------------------------------------------------------------
+# -- Applet -----------------------------------------------------------------
 
 
-class CpuMonitorDocklet(Docklet):
+class CpuMonitorApplet(Applet):
     """Circular gauge: CPU radial fill + memory arc at edge.
 
     Updates every 1 second. CPU value is smoothed with previous sample

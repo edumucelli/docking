@@ -1,4 +1,4 @@
-"""Trash docklet -- shows trash state, opens and empties trash.
+"""Trash applet -- shows trash state, opens and empties trash.
 
 Icon switches between user-trash (empty) and user-trash-full (has items).
 Monitors trash:/// via Gio.FileMonitor for real-time updates.
@@ -14,7 +14,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
-from docking.docklets.base import Docklet, load_theme_icon
+from docking.applets.base import Applet, load_theme_icon
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ def _count_trash_items() -> int:
     return count
 
 
-class TrashDocklet(Docklet):
+class TrashApplet(Applet):
     """Shows trash state icon; click opens, menu allows emptying.
 
     Icon: user-trash (empty) or user-trash-full (has items).

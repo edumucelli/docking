@@ -1,7 +1,7 @@
-"""Tests for the docklet registry and shared utilities."""
+"""Tests for the applet registry and shared utilities."""
 
-from docking.docklets import get_registry
-from docking.docklets.base import Docklet, load_theme_icon, load_theme_icon_centered
+from docking.applets import get_registry
+from docking.applets.base import Applet, load_theme_icon, load_theme_icon_centered
 
 
 class TestRegistry:
@@ -9,9 +9,9 @@ class TestRegistry:
         registry = get_registry()
         assert isinstance(registry, dict)
 
-    def test_all_values_are_docklet_subclasses(self):
-        for docklet_id, cls in get_registry().items():
-            assert issubclass(cls, Docklet), f"{docklet_id}: {cls} not a Docklet"
+    def test_all_values_are_applet_subclasses(self):
+        for applet_id, cls in get_registry().items():
+            assert issubclass(cls, Applet), f"{applet_id}: {cls} not a Applet"
 
     def test_contains_clock(self):
         assert "clock" in get_registry()

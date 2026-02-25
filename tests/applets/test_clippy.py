@@ -1,6 +1,6 @@
-"""Tests for the Clippy clipboard history docklet."""
+"""Tests for the Clippy clipboard history applet."""
 
-from docking.docklets.clippy import ClippyDocklet, _truncate
+from docking.applets.clippy import ClippyApplet, _truncate
 
 
 class TestTruncate:
@@ -21,20 +21,20 @@ class TestTruncate:
 
 class TestClipHistory:
     def test_add_clip(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("first")
         d.add_clip("second")
         assert d._clips == ["first", "second"]
 
     def test_dedup_moves_to_end(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("a")
         d.add_clip("b")
         d.add_clip("a")
         assert d._clips == ["b", "a"]
 
     def test_cap_at_max_entries(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d._max_entries = 3
         for i in range(5):
             d.add_clip(str(i))
@@ -42,7 +42,7 @@ class TestClipHistory:
         assert d._clips == ["2", "3", "4"]
 
     def test_position_tracks_newest(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("a")
         assert d._cur_position == 1
         d.add_clip("b")
@@ -51,7 +51,7 @@ class TestClipHistory:
 
 class TestClipScroll:
     def test_scroll_up_decrements(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("a")
         d.add_clip("b")
         d.add_clip("c")
@@ -60,7 +60,7 @@ class TestClipScroll:
         assert d._cur_position == 2
 
     def test_scroll_wraps_around(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("a")
         d.add_clip("b")
         d._cur_position = 1
@@ -68,7 +68,7 @@ class TestClipScroll:
         assert d._cur_position == 2  # wraps to end
 
     def test_scroll_down_increments(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("a")
         d.add_clip("b")
         d._cur_position = 1
@@ -76,18 +76,18 @@ class TestClipScroll:
         assert d._cur_position == 2
 
     def test_scroll_empty_noop(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.on_scroll(direction_up=True)  # no crash
         assert d._cur_position == 0
 
 
 class TestClipMenu:
     def test_empty_returns_empty(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         assert d.get_menu_items() == []
 
     def test_returns_clips_newest_first(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("old")
         d.add_clip("new")
         items = d.get_menu_items()
@@ -97,7 +97,7 @@ class TestClipMenu:
         assert items[1].get_label() == "old"
 
     def test_clear_empties_list(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("text")
         d._clear()
         assert d._clips == []
@@ -106,23 +106,23 @@ class TestClipMenu:
 
 class TestClipRendering:
     def test_creates_with_icon(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         assert d.item.icon is not None
 
     def test_tooltip_empty(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.create_icon(48)
         assert "empty" in d.item.name.lower()
 
     def test_tooltip_shows_current_clip(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("hello world")
         d.create_icon(48)
         assert "hello world" in d.item.name
 
     def test_tooltip_updates_on_scroll(self):
         # Given two clips
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("first")
         d.add_clip("second")
         d.create_icon(48)
@@ -135,7 +135,7 @@ class TestClipRendering:
         assert "first" in d.item.name
 
     def test_scroll_down_wraps_and_updates_tooltip(self):
-        d = ClippyDocklet(48)
+        d = ClippyApplet(48)
         d.add_clip("a")
         d.add_clip("b")
         d._cur_position = 2  # at "b"

@@ -13,7 +13,7 @@ from gi.repository import Gtk, Gdk  # noqa: E402
 from docking.core.position import Position
 from docking.core.theme import Theme, _BUILTIN_THEMES_DIR
 from docking.core.zoom import compute_layout
-from docking.docklets.base import is_docklet
+from docking.applets.base import is_applet
 
 if TYPE_CHECKING:
     from docking.core.zoom import LayoutItem
@@ -101,18 +101,18 @@ class MenuHandler:
 
     def _build_item_menu(self, menu: Gtk.Menu, item: DockItem) -> None:
         """Build context menu for a specific dock item."""
-        if is_docklet(item.desktop_id):
-            # Docklet-specific menu items
-            docklet = self._model.get_docklet(item.desktop_id)
-            if docklet:
-                for mi in docklet.get_menu_items():
+        if is_applet(item.desktop_id):
+            # Applet-specific menu items
+            applet = self._model.get_applet(item.desktop_id)
+            if applet:
+                for mi in applet.get_menu_items():
                     menu.append(mi)
-                if docklet.get_menu_items():
+                if applet.get_menu_items():
                     menu.append(Gtk.SeparatorMenuItem())
             remove = Gtk.MenuItem(label="Remove from Dock")
             remove.connect(
                 "activate",
-                lambda _: self._model.remove_docklet(item.desktop_id),
+                lambda _: self._model.remove_applet(item.desktop_id),
             )
             menu.append(remove)
             return
@@ -186,23 +186,23 @@ class MenuHandler:
             )
         )
 
-        # Docklets submenu -- toggle each docklet on/off
-        from docking.docklets import get_registry
+        # Applets submenu -- toggle each applet on/off
+        from docking.applets import get_registry
 
         registry = get_registry()
         if registry:
-            dock_item = Gtk.MenuItem(label="Docklets")
+            dock_item = Gtk.MenuItem(label="Applets")
             dock_menu = Gtk.Menu()
             active_ids = {
                 item.desktop_id
                 for item in self._model.pinned_items
-                if is_docklet(item.desktop_id)
+                if is_applet(item.desktop_id)
             }
             for did, cls in sorted(registry.items()):
-                desktop_id = f"docklet://{did}"
+                desktop_id = f"applet://{did}"
                 check = Gtk.CheckMenuItem(label=cls.name)
                 check.set_active(desktop_id in active_ids)
-                check.connect("toggled", self._on_docklet_toggled, did)
+                check.connect("toggled", self._on_applet_toggled, did)
                 dock_menu.append(check)
             dock_item.set_submenu(dock_menu)
             menu.append(dock_item)
@@ -233,11 +233,11 @@ class MenuHandler:
             menu.append(mi)
         menu.append(Gtk.SeparatorMenuItem())
 
-    def _on_docklet_toggled(self, widget: Gtk.CheckMenuItem, docklet_id: str) -> None:
+    def _on_applet_toggled(self, widget: Gtk.CheckMenuItem, applet_id: str) -> None:
         if widget.get_active():
-            self._model.add_docklet(docklet_id)
+            self._model.add_applet(applet_id)
         else:
-            self._model.remove_docklet(f"docklet://{docklet_id}")
+            self._model.remove_applet(f"applet://{applet_id}")
 
     def _on_autohide_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.autohide = widget.get_active()

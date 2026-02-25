@@ -50,12 +50,12 @@ def main() -> None:
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
-    model.start_docklets()
+    model.start_applets()
 
     window.show_all()
     Gtk.main()
 
-    model.stop_docklets()
+    model.stop_applets()
 
 
 def _quit() -> bool:

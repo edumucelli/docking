@@ -1,10 +1,10 @@
-"""Tests for the battery docklet -- sysfs parsing and icon mapping."""
+"""Tests for the battery applet -- sysfs parsing and icon mapping."""
 
 import pytest
 from unittest.mock import patch
 
-from docking.docklets.battery import (
-    BatteryDocklet,
+from docking.applets.battery import (
+    BatteryApplet,
     BatteryState,
     read_battery,
     resolve_battery_icon,
@@ -72,15 +72,15 @@ class TestReadBattery:
         assert read_battery("BAT0", base=tmp_path) is None
 
 
-class TestBatteryDockletRendering:
+class TestBatteryAppletRendering:
     def test_renders_valid_pixbuf(self):
-        docklet = BatteryDocklet(48)
-        pixbuf = docklet.create_icon(48)
+        applet = BatteryApplet(48)
+        pixbuf = applet.create_icon(48)
         assert pixbuf is not None
 
     def test_no_menu_items(self):
-        docklet = BatteryDocklet(48)
-        assert docklet.get_menu_items() == []
+        applet = BatteryApplet(48)
+        assert applet.get_menu_items() == []
 
     def test_tooltip_shows_percentage(self, tmp_path):
         # Given battery at 72%
@@ -90,16 +90,16 @@ class TestBatteryDockletRendering:
         (bat / "capacity_level").write_text("Normal\n")
         (bat / "status").write_text("Discharging\n")
         with patch(
-            "docking.docklets.battery.read_battery",
+            "docking.applets.battery.read_battery",
             return_value=read_battery("BAT0", base=tmp_path),
         ):
-            docklet = BatteryDocklet(48)
-        assert docklet.item.name == "72%"
+            applet = BatteryApplet(48)
+        assert applet.item.name == "72%"
 
     def test_tooltip_no_battery(self):
-        with patch("docking.docklets.battery.read_battery", return_value=None):
-            docklet = BatteryDocklet(48)
-        assert docklet.item.name == "No battery"
+        with patch("docking.applets.battery.read_battery", return_value=None):
+            applet = BatteryApplet(48)
+        assert applet.item.name == "No battery"
 
     def test_full_charging_icon(self, tmp_path):
         bat = tmp_path / "BAT0"

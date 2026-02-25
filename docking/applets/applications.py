@@ -1,4 +1,4 @@
-"""Applications docklet -- categorized app launcher via right-click menu.
+"""Applications applet -- categorized app launcher via right-click menu.
 
 Scans installed .desktop files via Gio.AppInfo and groups them by
 FreeDesktop category. No GMenu dependency required.
@@ -13,7 +13,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
-from docking.docklets.base import Docklet, load_theme_icon
+from docking.applets.base import Applet, load_theme_icon
 
 # FreeDesktop main categories -> display label
 _CATEGORY_LABELS: dict[str, str] = {
@@ -78,7 +78,7 @@ def _build_app_categories() -> dict[str, list[Gio.DesktopAppInfo]]:
     return dict(categories)
 
 
-class ApplicationsDocklet(Docklet):
+class ApplicationsApplet(Applet):
     """Categorized application launcher via right-click menu."""
 
     id = "applications"

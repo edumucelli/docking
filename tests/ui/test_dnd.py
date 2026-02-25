@@ -65,24 +65,24 @@ class TestPoofAsset:
         assert h // w >= 4, "should have at least 4 frames"
 
 
-class TestDockletUriRejection:
-    """Docklet URIs (e.g. from Plank) must not be accepted as desktop files.
+class TestAppletUriRejection:
+    """Applet URIs (e.g. from Plank) must not be accepted as desktop files.
 
-    Previously, dropping a Plank docklet would open a gap that never closed
+    Previously, dropping a Plank applet would open a gap that never closed
     because the URI failed to resolve but drop_insert_index was never cleared.
     """
 
-    def test_docklet_uri_returns_none(self):
-        # Given -- Plank docklet URI
-        uri = "docklet://clock"
+    def test_applet_uri_returns_none(self):
+        # Given -- Plank applet URI
+        uri = "applet://clock"
         # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) is None
 
-    def test_docklet_uri_cpumonitor(self):
-        assert DnDHandler._uri_to_desktop_id("docklet://cpumonitor") is None
+    def test_applet_uri_cpumonitor(self):
+        assert DnDHandler._uri_to_desktop_id("applet://cpumonitor") is None
 
-    def test_docklet_uri_trash(self):
-        assert DnDHandler._uri_to_desktop_id("docklet://trash") is None
+    def test_applet_uri_trash(self):
+        assert DnDHandler._uri_to_desktop_id("applet://trash") is None
 
 
 class TestUriToDesktopId:

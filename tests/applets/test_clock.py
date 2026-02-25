@@ -1,4 +1,4 @@
-"""Tests for the clock docklet -- rotation math, prefs, rendering."""
+"""Tests for the clock applet -- rotation math, prefs, rendering."""
 
 import json
 import math
@@ -7,8 +7,8 @@ import time
 import pytest
 
 from docking.core.config import Config
-from docking.docklets.clock import (
-    ClockDocklet,
+from docking.applets.clock import (
+    ClockApplet,
     hour_rotation_12h,
     hour_rotation_24h,
     minute_rotation,
@@ -126,11 +126,11 @@ class TestHourRotation24h:
 
 
 class TestClockPrefs:
-    """Preferences load/save via Config.docklet_prefs."""
+    """Preferences load/save via Config.applet_prefs."""
 
     def test_defaults_when_no_config(self):
         # Given no config
-        clock = ClockDocklet(48)
+        clock = ClockApplet(48)
         # Then -- defaults: analog 12h, no date
         assert clock._show_digital is False
         assert clock._show_military is False
@@ -139,7 +139,7 @@ class TestClockPrefs:
     def test_loads_prefs_from_config(self):
         # Given config with saved prefs
         config = Config(
-            docklet_prefs={
+            applet_prefs={
                 "clock": {
                     "show_digital": True,
                     "show_military": True,
@@ -148,7 +148,7 @@ class TestClockPrefs:
             }
         )
         # When
-        clock = ClockDocklet(48, config=config)
+        clock = ClockApplet(48, config=config)
         # Then
         assert clock._show_digital is True
         assert clock._show_military is True
@@ -160,23 +160,23 @@ class TestClockPrefs:
         config = Config()
         config.save(path)
         config = Config.load(path)
-        clock = ClockDocklet(48, config=config)
+        clock = ClockApplet(48, config=config)
 
         # When
         clock._show_digital = True
         clock._save_prefs()
 
         # Then -- prefs written to config
-        assert config.docklet_prefs["clock"]["show_digital"] is True
+        assert config.applet_prefs["clock"]["show_digital"] is True
         # And persisted to disk
         reloaded = Config.load(path)
-        assert reloaded.docklet_prefs["clock"]["show_digital"] is True
+        assert reloaded.applet_prefs["clock"]["show_digital"] is True
 
     def test_partial_prefs_use_defaults(self):
         # Given config with only one pref set
-        config = Config(docklet_prefs={"clock": {"show_military": True}})
+        config = Config(applet_prefs={"clock": {"show_military": True}})
         # When
-        clock = ClockDocklet(48, config=config)
+        clock = ClockApplet(48, config=config)
         # Then -- missing prefs default to False
         assert clock._show_digital is False
         assert clock._show_military is True
@@ -192,7 +192,7 @@ class TestClockRendering:
     @pytest.mark.parametrize("size", [32, 48, 64, 96])
     def test_analog_12h_renders(self, size):
         # Given analog 12h mode (default)
-        clock = ClockDocklet(size)
+        clock = ClockApplet(size)
         # When
         pixbuf = clock.create_icon(size)
         # Then
@@ -203,8 +203,8 @@ class TestClockRendering:
     @pytest.mark.parametrize("size", [32, 48, 64, 96])
     def test_analog_24h_renders(self, size):
         # Given analog 24h mode
-        config = Config(docklet_prefs={"clock": {"show_military": True}})
-        clock = ClockDocklet(size, config=config)
+        config = Config(applet_prefs={"clock": {"show_military": True}})
+        clock = ClockApplet(size, config=config)
         # When
         pixbuf = clock.create_icon(size)
         # Then
@@ -214,8 +214,8 @@ class TestClockRendering:
     @pytest.mark.parametrize("size", [32, 48, 64, 96])
     def test_digital_12h_renders(self, size):
         # Given digital 12h mode
-        config = Config(docklet_prefs={"clock": {"show_digital": True}})
-        clock = ClockDocklet(size, config=config)
+        config = Config(applet_prefs={"clock": {"show_digital": True}})
+        clock = ClockApplet(size, config=config)
         # When
         pixbuf = clock.create_icon(size)
         # Then
@@ -226,7 +226,7 @@ class TestClockRendering:
     def test_digital_24h_with_date_renders(self, size):
         # Given digital 24h mode with date
         config = Config(
-            docklet_prefs={
+            applet_prefs={
                 "clock": {
                     "show_digital": True,
                     "show_military": True,
@@ -234,7 +234,7 @@ class TestClockRendering:
                 }
             }
         )
-        clock = ClockDocklet(size, config=config)
+        clock = ClockApplet(size, config=config)
         # When
         pixbuf = clock.create_icon(size)
         # Then
@@ -247,7 +247,7 @@ class TestClockTooltip:
 
     def test_tooltip_updates_on_render(self):
         # Given
-        clock = ClockDocklet(48)
+        clock = ClockApplet(48)
         # When
         clock.create_icon(48)
         # Then -- name is no longer the static "Clock"
@@ -262,7 +262,7 @@ class TestClockMenuItems:
 
     def test_returns_three_items(self):
         # Given
-        clock = ClockDocklet(48)
+        clock = ClockApplet(48)
         # When
         items = clock.get_menu_items()
         # Then
@@ -270,7 +270,7 @@ class TestClockMenuItems:
 
     def test_date_insensitive_in_analog_mode(self):
         # Given analog mode (show_digital=False)
-        clock = ClockDocklet(48)
+        clock = ClockApplet(48)
         # When
         items = clock.get_menu_items()
         # Then -- "Show Date" should be insensitive
@@ -279,8 +279,8 @@ class TestClockMenuItems:
 
     def test_date_sensitive_in_digital_mode(self):
         # Given digital mode
-        config = Config(docklet_prefs={"clock": {"show_digital": True}})
-        clock = ClockDocklet(48, config=config)
+        config = Config(applet_prefs={"clock": {"show_digital": True}})
+        clock = ClockApplet(48, config=config)
         # When
         items = clock.get_menu_items()
         # Then -- "Show Date" should be sensitive

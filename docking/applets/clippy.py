@@ -1,4 +1,4 @@
-"""Clippy docklet -- clipboard history with scroll cycling.
+"""Clippy applet -- clipboard history with scroll cycling.
 
 Monitors the system clipboard (CLIPBOARD selection) for text changes.
 Stores up to max_entries clips in memory (newest at end). Scroll cycles
@@ -16,7 +16,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
-from docking.docklets.base import Docklet, load_theme_icon
+from docking.applets.base import Applet, load_theme_icon
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -32,8 +32,8 @@ def _truncate(text: str, max_len: int = MAX_DISPLAY_LEN) -> str:
     return clean
 
 
-class ClippyDocklet(Docklet):
-    """Clipboard history docklet. Scroll to cycle, click to paste, menu to pick."""
+class ClippyApplet(Applet):
+    """Clipboard history applet. Scroll to cycle, click to paste, menu to pick."""
 
     id = "clippy"
     name = "Clippy"
@@ -48,7 +48,7 @@ class ClippyDocklet(Docklet):
         # Load prefs
         self._max_entries = 15
         if config:
-            prefs = config.docklet_prefs.get("clippy", {})
+            prefs = config.applet_prefs.get("clippy", {})
             self._max_entries = prefs.get("max_entries", 15)
 
         super().__init__(icon_size, config)

@@ -1,4 +1,4 @@
-"""Docklet base class -- special-purpose dock items with custom rendering."""
+"""Applet base class -- special-purpose dock items with custom rendering."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from gi.repository import GdkPixbuf, GLib, Gtk  # noqa: E402
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-DOCKLET_PREFIX = "docklet://"
+APPLET_PREFIX = "applet://"
 
 
 def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -46,20 +46,20 @@ def load_theme_icon_centered(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
     return canvas
 
 
-def is_docklet(desktop_id: str) -> bool:
-    """True if desktop_id refers to a docklet rather than a .desktop app."""
-    return desktop_id.startswith(DOCKLET_PREFIX)
+def is_applet(desktop_id: str) -> bool:
+    """True if desktop_id refers to a applet rather than a .desktop app."""
+    return desktop_id.startswith(APPLET_PREFIX)
 
 
-def docklet_id_from(desktop_id: str) -> str:
-    """Extract docklet id from desktop_id (e.g. 'docklet://clock' -> 'clock')."""
-    return desktop_id[len(DOCKLET_PREFIX) :]
+def applet_id_from(desktop_id: str) -> str:
+    """Extract applet id from desktop_id (e.g. 'applet://clock' -> 'clock')."""
+    return desktop_id[len(APPLET_PREFIX) :]
 
 
-class Docklet(ABC):
+class Applet(ABC):
     """Base class for dock plugins that render custom icons.
 
-    Each docklet owns a DockItem. The docklet renders custom Cairo
+    Each applet owns a DockItem. The applet renders custom Cairo
     content to a pixbuf and assigns it to item.icon. The existing
     renderer draws it like any other icon -- no renderer changes needed.
 
@@ -90,18 +90,18 @@ class Docklet(ABC):
 
     @property
     def desktop_id(self) -> str:
-        return f"{DOCKLET_PREFIX}{self.id}"
+        return f"{APPLET_PREFIX}{self.id}"
 
     def load_prefs(self) -> dict[str, Any]:
-        """Load this docklet's preferences from config."""
+        """Load this applet's preferences from config."""
         if self._config:
-            return dict(self._config.docklet_prefs.get(self.id, {}))
+            return dict(self._config.applet_prefs.get(self.id, {}))
         return {}
 
     def save_prefs(self, prefs: dict[str, Any]) -> None:
-        """Save this docklet's preferences to config."""
+        """Save this applet's preferences to config."""
         if self._config:
-            self._config.docklet_prefs[self.id] = prefs
+            self._config.applet_prefs[self.id] = prefs
             self._config.save()
 
     @abstractmethod
@@ -112,7 +112,7 @@ class Docklet(ABC):
         """Handle left-click (default: no-op)."""
 
     def on_scroll(self, direction_up: bool) -> None:
-        """Handle scroll wheel on docklet icon (default: no-op)."""
+        """Handle scroll wheel on applet icon (default: no-op)."""
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Extra right-click menu items (default: empty)."""

@@ -1,9 +1,9 @@
-"""Tests for the Applications docklet."""
+"""Tests for the Applications applet."""
 
 from unittest.mock import MagicMock, patch
 
-from docking.docklets.applications import (
-    ApplicationsDocklet,
+from docking.applets.applications import (
+    ApplicationsApplet,
     _build_app_categories,
 )
 
@@ -19,7 +19,7 @@ class TestBuildAppCategories:
         mock_app.get_nodisplay.return_value = False
 
         with patch(
-            "docking.docklets.applications.Gio.AppInfo.get_all",
+            "docking.applets.applications.Gio.AppInfo.get_all",
             return_value=[mock_app],
         ):
             cats = _build_app_categories()
@@ -28,24 +28,24 @@ class TestBuildAppCategories:
         assert total == 0
 
 
-class TestApplicationsDocklet:
+class TestApplicationsApplet:
     def test_creates_with_icon(self):
-        d = ApplicationsDocklet(48)
+        d = ApplicationsApplet(48)
         assert d.item.icon is not None
 
     def test_no_click_action(self):
-        d = ApplicationsDocklet(48)
-        # on_clicked is inherited no-op from Docklet base
+        d = ApplicationsApplet(48)
+        # on_clicked is inherited no-op from Applet base
         d.on_clicked()  # should not crash
 
     def test_menu_returns_items(self):
-        d = ApplicationsDocklet(48)
+        d = ApplicationsApplet(48)
         items = d.get_menu_items()
         # Should have at least some categories on a real system
         assert isinstance(items, list)
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            d = ApplicationsDocklet(size)
+            d = ApplicationsApplet(size)
             pixbuf = d.create_icon(size)
             assert pixbuf is not None
