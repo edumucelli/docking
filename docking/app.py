@@ -39,7 +39,7 @@ def main() -> None:
     dnd = DnDHandler(window, model, config, renderer, theme, launcher)
     window.set_dnd_handler(dnd)
 
-    menu = MenuHandler(window, model, config, tracker)
+    menu = MenuHandler(window, model, config, tracker, launcher)
     window.set_menu_handler(menu)
 
     preview = PreviewPopup(tracker)
@@ -50,8 +50,12 @@ def main() -> None:
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
+    model.start_docklets()
+
     window.show_all()
     Gtk.main()
+
+    model.stop_docklets()
 
 
 def _quit() -> bool:

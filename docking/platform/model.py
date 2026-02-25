@@ -5,9 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING, Callable
 
+from docking.log import get_logger
+
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.launcher import Launcher
+    from docking.docklets.base import Docklet
 
 import gi
 
@@ -43,14 +46,36 @@ class DockModel:
         self._launcher = launcher
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
+        self._docklets: dict[str, Docklet] = {}
         self.on_change: Callable[[], None] | None = None
 
         self._load_pinned()
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
+        from docking.docklets.base import is_docklet, docklet_id_from
+        from docking.docklets import get_registry
+
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        registry = get_registry()
+
+        log = get_logger("model")
         for desktop_id in self._config.pinned:
+            if is_docklet(desktop_id):
+                did = docklet_id_from(desktop_id)
+                cls = registry.get(did)
+                if cls:
+                    try:
+                        docklet = cls(icon_size, config=self._config)
+                        self._docklets[desktop_id] = docklet
+                        self.pinned_items.append(docklet.item)
+                        log.info("Loaded docklet %s (icon=%s)", did, docklet.item.icon)
+                    except Exception:
+                        log.exception("Failed to create docklet %s", did)
+                else:
+                    log.warning("Unknown docklet id: %s", did)
+                continue
+
             info = self._launcher.resolve(desktop_id)
             if info is None:
                 continue
@@ -65,6 +90,52 @@ class DockModel:
                     icon=icon,
                 )
             )
+
+    def get_docklet(self, desktop_id: str) -> Docklet | None:
+        """Look up active docklet by desktop_id."""
+        return self._docklets.get(desktop_id)
+
+    def add_docklet(self, docklet_id: str) -> None:
+        """Instantiate a docklet and add to the dock."""
+        from docking.docklets import get_registry
+
+        desktop_id = f"docklet://{docklet_id}"
+        if desktop_id in self._docklets:
+            return
+        cls = get_registry().get(docklet_id)
+        if not cls:
+            return
+        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        try:
+            docklet = cls(icon_size, config=self._config)
+        except Exception:
+            get_logger("model").exception("Failed to create docklet %s", docklet_id)
+            return
+        self._docklets[desktop_id] = docklet
+        self.pinned_items.append(docklet.item)
+        docklet.start(self.notify)
+        self.sync_pinned_to_config()
+        self.notify()
+
+    def remove_docklet(self, desktop_id: str) -> None:
+        """Stop and remove a docklet from the dock."""
+        docklet = self._docklets.pop(desktop_id, None)
+        if docklet:
+            docklet.stop()
+            if docklet.item in self.pinned_items:
+                self.pinned_items.remove(docklet.item)
+            self.sync_pinned_to_config()
+            self.notify()
+
+    def start_docklets(self) -> None:
+        """Start all active docklets (call after dock is ready)."""
+        for docklet in self._docklets.values():
+            docklet.start(self.notify)
+
+    def stop_docklets(self) -> None:
+        """Stop all active docklets (call on shutdown)."""
+        for docklet in self._docklets.values():
+            docklet.stop()
 
     def visible_items(self) -> list[DockItem]:
         """All items to display: pinned first, then transient running apps."""
@@ -89,27 +160,28 @@ class DockModel:
         Args:
             running: {desktop_id: {"count": int, "active": bool}}
         """
-        # Reset all items
+        # Reset running state (preserve is_urgent for transition detection)
         for item in self.pinned_items:
             item.is_running = False
             item.is_active = False
-            item.is_urgent = False
             item.instance_count = 0
 
         # Update pinned items that are running
         matched_ids = set()
         for item in self.pinned_items:
-            if item.desktop_id in running:
-                info = running[item.desktop_id]
-                item.is_running = True
-                item.is_active = info.get("active", False)
-                item.instance_count = info.get("count", 1)
-                # Set urgent and trigger bounce timestamp
-                urgent = info.get("urgent", False)
-                if urgent and not item.is_urgent:
-                    item.last_urgent = GLib.get_monotonic_time()
-                item.is_urgent = urgent
-                matched_ids.add(item.desktop_id)
+            if item.desktop_id not in running:
+                item.is_urgent = False
+                continue
+            info = running[item.desktop_id]
+            item.is_running = True
+            item.is_active = info.get("active", False)
+            item.instance_count = info.get("count", 1)
+            # Set urgent timestamp only on false->true transition
+            urgent = info.get("urgent", False)
+            if urgent and not item.is_urgent:
+                item.last_urgent = GLib.get_monotonic_time()
+            item.is_urgent = urgent
+            matched_ids.add(item.desktop_id)
 
         # Add transient items for running apps not in pinned
         new_transient: list[DockItem] = []

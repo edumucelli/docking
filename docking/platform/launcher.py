@@ -125,6 +125,35 @@ class Launcher:
         return dirs
 
 
+def get_actions(desktop_id: str) -> list[tuple[str, str]]:
+    """Return desktop actions for an app as [(action_id, display_name), ...]."""
+    try:
+        app_info = Gio.DesktopAppInfo.new(desktop_id)
+    except (TypeError, GLib.Error):
+        return []
+    if not app_info:
+        return []
+    result = []
+    for action_id in app_info.list_actions():
+        name = app_info.get_action_name(action_id)
+        if name:
+            result.append((action_id, name))
+    return result
+
+
+def launch_action(desktop_id: str, action_id: str) -> None:
+    """Launch a specific desktop action for an app."""
+    try:
+        app_info = Gio.DesktopAppInfo.new(desktop_id)
+    except (TypeError, GLib.Error):
+        return
+    if app_info:
+        try:
+            app_info.launch_action(action_id, None)
+        except GLib.Error:
+            pass
+
+
 def launch(desktop_id: str) -> None:
     """Launch an application by its desktop ID."""
     app_info = Gio.DesktopAppInfo.new(desktop_id)

@@ -46,11 +46,16 @@ class Config:
     theme: str = "default"
     # Desktop file IDs of pinned applications, in display order
     pinned: list[str] = field(default_factory=lambda: list(DEFAULT_PINNED))
+    # Per-docklet preferences keyed by docklet id (e.g. "clock")
+    docklet_prefs: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def pos(self) -> Position:
         """Position as enum."""
         return Position(self.position)
+
+    def __post_init__(self) -> None:
+        self._path: Path = DEFAULT_CONFIG_FILE
 
     @classmethod
     def load(cls, path: Path | str | None = None) -> Config:
@@ -58,6 +63,7 @@ class Config:
         path = Path(path) if path else DEFAULT_CONFIG_FILE
         if not path.exists():
             config = cls()
+            config._path = path
             config.save(path)
             return config
 
@@ -67,6 +73,7 @@ class Config:
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         config = cls(**filtered)
+        config._path = path
         # Validate position (fallback to default if unknown)
         try:
             Position(config.position)
@@ -76,7 +83,7 @@ class Config:
 
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""
-        path = Path(path) if path else DEFAULT_CONFIG_FILE
+        path = Path(path) if path else self._path
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             json.dump(asdict(self), f, indent=2)

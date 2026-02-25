@@ -12,7 +12,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.platform.launcher import Launcher  # noqa: E402
+from docking.platform.launcher import Launcher, get_actions, launch_action  # noqa: E402
 
 
 class TestGetDesktopDirs:
@@ -65,3 +65,58 @@ class TestIconCache:
         # Then — different cache keys
         assert ("application-x-executable", 48) in launcher._icon_cache
         assert ("application-x-executable", 96) in launcher._icon_cache
+
+
+class TestDesktopActions:
+    def test_get_actions_returns_pairs(self):
+        # Given a mock DesktopAppInfo with actions
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-window", "new-private"]
+        mock_app.get_action_name.side_effect = lambda a: {
+            "new-window": "New Window",
+            "new-private": "New Incognito Window",
+        }[a]
+
+        # When
+        with patch(
+            "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
+        ):
+            actions = get_actions("chrome.desktop")
+
+        # Then
+        assert actions == [
+            ("new-window", "New Window"),
+            ("new-private", "New Incognito Window"),
+        ]
+
+    def test_get_actions_returns_empty_for_unknown(self):
+        # Given an unknown desktop id
+        with patch(
+            "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=None
+        ):
+            actions = get_actions("nonexistent.desktop")
+        # Then
+        assert actions == []
+
+    def test_get_actions_skips_empty_names(self):
+        # Given an action with no display name
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["good", "empty"]
+        mock_app.get_action_name.side_effect = lambda a: "Good" if a == "good" else ""
+
+        with patch(
+            "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
+        ):
+            actions = get_actions("app.desktop")
+        # Then -- empty-name action skipped
+        assert actions == [("good", "Good")]
+
+    def test_launch_action_calls_gio(self):
+        # Given
+        mock_app = MagicMock()
+        with patch(
+            "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
+        ):
+            launch_action("chrome.desktop", "new-window")
+        # Then
+        mock_app.launch_action.assert_called_once_with("new-window", None)

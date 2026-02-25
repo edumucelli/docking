@@ -12,12 +12,14 @@ from gi.repository import Gtk, Gdk  # noqa: E402
 from docking.core.position import Position
 from docking.core.theme import Theme, _BUILTIN_THEMES_DIR
 from docking.core.zoom import compute_layout
+from docking.docklets.base import is_docklet
 
 if TYPE_CHECKING:
     from docking.core.zoom import LayoutItem
     from docking.ui.dock_window import DockWindow
     from docking.platform.model import DockModel, DockItem
     from docking.core.config import Config
+    from docking.platform.launcher import Launcher
     from docking.platform.window_tracker import WindowTracker
 
 
@@ -33,11 +35,13 @@ class MenuHandler:
         model: DockModel,
         config: Config,
         tracker: WindowTracker,
+        launcher: Launcher | None = None,
     ) -> None:
         self._window = window
         self._model = model
         self._config = config
         self._tracker = tracker
+        self._launcher = launcher
 
     def show(self, event: Gdk.EventButton, cursor_main: float) -> None:
         """Show context menu at cursor position."""
@@ -65,11 +69,24 @@ class MenuHandler:
 
     def _build_item_menu(self, menu: Gtk.Menu, item: DockItem) -> None:
         """Build context menu for a specific dock item."""
-        # App name as header (insensitive)
-        header = Gtk.MenuItem(label=item.name)
-        header.set_sensitive(False)
-        menu.append(header)
-        menu.append(Gtk.SeparatorMenuItem())
+        if is_docklet(item.desktop_id):
+            # Docklet-specific menu items
+            docklet = self._model.get_docklet(item.desktop_id)
+            if docklet:
+                for mi in docklet.get_menu_items():
+                    menu.append(mi)
+                if docklet.get_menu_items():
+                    menu.append(Gtk.SeparatorMenuItem())
+            remove = Gtk.MenuItem(label="Remove from Dock")
+            remove.connect(
+                "activate",
+                lambda _: self._model.remove_docklet(item.desktop_id),
+            )
+            menu.append(remove)
+            return
+
+        # Desktop actions (e.g. "New Window", "New Incognito Window")
+        self._append_desktop_actions(menu, item.desktop_id)
 
         # Pin/Unpin
         if item.is_pinned:
@@ -81,7 +98,6 @@ class MenuHandler:
             pin.connect("activate", lambda _: self._model.pin_item(item.desktop_id))
             menu.append(pin)
 
-        # Close all (if running)
         if item.is_running and item.instance_count > 0:
             menu.append(Gtk.SeparatorMenuItem())
             label = "Close All" if item.instance_count > 1 else "Close"
@@ -160,12 +176,58 @@ class MenuHandler:
         pos_item.set_submenu(pos_menu)
         menu.append(pos_item)
 
+        # Docklets submenu -- toggle each docklet on/off
+        from docking.docklets import get_registry
+
+        registry = get_registry()
+        if registry:
+            dock_item = Gtk.MenuItem(label="Docklets")
+            dock_menu = Gtk.Menu()
+            active_ids = {
+                item.desktop_id
+                for item in self._model.pinned_items
+                if is_docklet(item.desktop_id)
+            }
+            for did, cls in sorted(registry.items()):
+                desktop_id = f"docklet://{did}"
+                check = Gtk.CheckMenuItem(label=cls.name)
+                check.set_active(desktop_id in active_ids)
+                check.connect("toggled", self._on_docklet_toggled, did)
+                dock_menu.append(check)
+            dock_item.set_submenu(dock_menu)
+            menu.append(dock_item)
+
         menu.append(Gtk.SeparatorMenuItem())
 
         # Quit
         quit_item = Gtk.MenuItem(label="Quit")
         quit_item.connect("activate", lambda _: Gtk.main_quit())
         menu.append(quit_item)
+
+    def _append_desktop_actions(self, menu: Gtk.Menu, desktop_id: str) -> None:
+        """Append desktop actions (quicklists) from .desktop file, if any."""
+        if not self._launcher:
+            return
+        from docking.platform.launcher import get_actions, launch_action
+
+        actions = get_actions(desktop_id)
+        if not actions:
+            return
+        for action_id, label in actions:
+            mi = Gtk.MenuItem(label=label)
+            # Capture by value via default arg
+            mi.connect(
+                "activate",
+                lambda _, did=desktop_id, aid=action_id: launch_action(did, aid),
+            )
+            menu.append(mi)
+        menu.append(Gtk.SeparatorMenuItem())
+
+    def _on_docklet_toggled(self, widget: Gtk.CheckMenuItem, docklet_id: str) -> None:
+        if widget.get_active():
+            self._model.add_docklet(docklet_id)
+        else:
+            self._model.remove_docklet(f"docklet://{docklet_id}")
 
     def _on_autohide_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.autohide = widget.get_active()

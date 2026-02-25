@@ -392,6 +392,16 @@ class DockWindow(Gtk.Window):
             now = GLib.get_monotonic_time()
             item.last_clicked = now
 
+            # Docklets handle their own click
+            from docking.docklets.base import is_docklet
+
+            if is_docklet(item.desktop_id):
+                docklet = self.model.get_docklet(item.desktop_id)
+                if docklet:
+                    docklet.on_clicked()
+                self._hover.start_anim_pump(350)
+                return True
+
             force_launch = event.button == MOUSE_MIDDLE or (
                 event.state & Gdk.ModifierType.CONTROL_MASK
             )
