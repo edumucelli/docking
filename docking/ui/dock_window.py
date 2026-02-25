@@ -321,6 +321,11 @@ class DockWindow(Gtk.Window):
         if self.autohide and self.autohide.state == HideState.HIDDEN:
             self.cursor_x = -1.0
             self.cursor_y = -1.0
+
+        # Keep redraw pump alive while urgent glow is visible (dock hidden)
+        if self._has_active_urgent_glow():
+            GLib.timeout_add(16, self._urgent_glow_tick)
+
         return True
 
     def _on_motion(self, widget: Gtk.DrawingArea, event: Gdk.EventMotion) -> bool:
@@ -458,6 +463,22 @@ class DockWindow(Gtk.Window):
         if self.autohide:
             self.autohide.on_mouse_enter()
         return True
+
+    def _has_active_urgent_glow(self) -> bool:
+        """True if dock is hidden and any item has an active urgent glow."""
+        if not self.autohide or self.autohide.state != HideState.HIDDEN:
+            return False
+        now = GLib.get_monotonic_time()
+        glow_time_us = self.theme.urgent_glow_time_ms * 1000
+        for item in self.model.visible_items():
+            if item.last_urgent > 0 and (now - item.last_urgent) < glow_time_us:
+                return True
+        return False
+
+    def _urgent_glow_tick(self) -> bool:
+        """One-shot tick to keep redraws flowing during urgent glow."""
+        self.drawing_area.queue_draw()
+        return False  # don't repeat; _on_draw re-schedules if still needed
 
     def _on_model_changed(self) -> None:
         """Reposition and redraw when the model changes."""

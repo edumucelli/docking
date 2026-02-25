@@ -35,6 +35,22 @@ SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
 
 
+def compute_urgent_glow_opacity(
+    elapsed_us: int, glow_time_ms: int, pulse_ms: int
+) -> float:
+    """Pulsing opacity for urgent glow (pure function, testable).
+
+    Returns 0.0 after glow_time expires. Otherwise oscillates between
+    ~0.2 and ~0.95 via sine wave with period = pulse_ms.
+    """
+    glow_time_us = glow_time_ms * 1000
+    if elapsed_us >= glow_time_us or elapsed_us < 0:
+        return 0.0
+    pulse_us = pulse_ms * 1000
+    phase = elapsed_us / pulse_us * 2 * math.pi
+    return 0.2 + 0.75 * (math.sin(phase) + 1) / 2
+
+
 def map_icon_position(
     pos: Position,
     main_pos: float,
@@ -286,6 +302,32 @@ class DockRenderer:
                     pos,
                 )
 
+        # --- Urgent glow at screen edge (only when fully hidden) ---
+        if hide_offset >= 1.0:
+            for item, li in zip(items, layout):
+                if item.last_urgent > 0:
+                    elapsed = now - item.last_urgent
+                    opacity = compute_urgent_glow_opacity(
+                        elapsed, theme.urgent_glow_time_ms, theme.urgent_glow_pulse_ms
+                    )
+                    if opacity > 0:
+                        if item.desktop_id not in self._icon_colors:
+                            self._icon_colors[item.desktop_id] = average_icon_color(
+                                item.icon
+                            )
+                        color = self._icon_colors[item.desktop_id]
+                        self._draw_urgent_glow(
+                            cr,
+                            li,
+                            icon_size,
+                            icon_offset,
+                            cross_size,
+                            pos,
+                            theme,
+                            color,
+                            opacity,
+                        )
+
     @staticmethod
     def _apply_shelf_transform(
         cr: cairo.Context,
@@ -438,6 +480,50 @@ class DockRenderer:
             cr.rectangle(left, bg_y, right - left, bg_height)
             cr.set_source(gradient)
             cr.fill()
+
+    @staticmethod
+    def _draw_urgent_glow(
+        cr: cairo.Context,
+        li: LayoutItem,
+        icon_size: int,
+        icon_offset: float,
+        cross_size: float,
+        pos: Position,
+        theme: Theme,
+        color: RGB,
+        opacity: float,
+    ) -> None:
+        """Draw a pulsing radial glow at the screen edge for an urgent item.
+
+        Positioned at the screen edge (where the dock hides into), centered
+        on the item's main-axis position. Half the glow extends off-screen.
+        Radial gradient: white center -> colored -> transparent.
+        """
+        glow_r = icon_size * theme.urgent_glow_size
+        scaled_size = icon_size * li.scale
+        main_center = li.x + icon_offset + scaled_size / 2
+        r, g, b = color
+
+        # Position glow center at screen edge, centered on item
+        if pos == Position.BOTTOM:
+            gx, gy = main_center, cross_size
+        elif pos == Position.TOP:
+            gx, gy = main_center, 0.0
+        elif pos == Position.LEFT:
+            gx, gy = 0.0, main_center
+        else:  # RIGHT
+            gx, gy = cross_size, main_center
+
+        grad = cairo.RadialGradient(gx, gy, 0, gx, gy, glow_r)
+        grad.add_color_stop_rgba(0, 1, 1, 1, 1.0)
+        grad.add_color_stop_rgba(0.33, r, g, b, 0.66)
+        grad.add_color_stop_rgba(0.66, r, g, b, 0.33)
+        grad.add_color_stop_rgba(1.0, r, g, b, 0.0)
+
+        cr.arc(gx, gy, glow_r, 0, 2 * math.pi)
+        cr.set_source(grad)
+        cr.paint_with_alpha(opacity)
+        cr.new_path()
 
     @staticmethod
     def _draw_indicator(

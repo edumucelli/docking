@@ -76,6 +76,9 @@ class Theme:
     active_time_ms: int = 150  # ms for hover fade in/out
     max_indicator_dots: int = 3  # max running indicator dots
     glow_opacity: float = 0.6  # active glow gradient max opacity
+    urgent_glow_time_ms: int = 10000  # glow visible for 10s after urgency
+    urgent_glow_pulse_ms: int = 2000  # one pulse cycle every 2s
+    urgent_glow_size: float = 0.6  # glow radius as fraction of icon_size
 
     @classmethod
     def load(cls, name: str = "default", icon_size: int = 48) -> "Theme":
@@ -228,6 +231,9 @@ class Theme:
         active_time_ms = int(data.get("active_time_ms", 150))
         max_indicator_dots = int(data.get("max_indicator_dots", 3))
         glow_opacity = float(data.get("glow_opacity", 0.6))
+        urgent_glow_time_ms = int(data.get("urgent_glow_time_ms", 10000))
+        urgent_glow_pulse_ms = int(data.get("urgent_glow_pulse_ms", 2000))
+        urgent_glow_size = float(data.get("urgent_glow_size", 0.6))
 
         return cls(
             fill_start=fill_start,
@@ -253,4 +259,7 @@ class Theme:
             active_time_ms=active_time_ms,
             max_indicator_dots=max_indicator_dots,
             glow_opacity=glow_opacity,
+            urgent_glow_time_ms=urgent_glow_time_ms,
+            urgent_glow_pulse_ms=urgent_glow_pulse_ms,
+            urgent_glow_size=urgent_glow_size,
         )
