@@ -25,9 +25,13 @@ from docking.ui.preview import PreviewPopup
 
 def main() -> None:
     """Entry point for the docking application."""
-    # Own process group so Ctrl+C from terminal doesn't kill apps launched
-    # from the dock (they inherit the parent's process group otherwise).
-    os.setpgrp()
+    # New session so Ctrl+C from terminal doesn't kill apps launched from
+    # the dock. setsid() detaches from the controlling terminal entirely.
+    # The dock is still stoppable via Quit menu or kill(1).
+    try:
+        os.setsid()
+    except OSError:
+        pass  # already a session leader
 
     config = Config.load()
     theme = Theme.load(config.theme, config.icon_size)
