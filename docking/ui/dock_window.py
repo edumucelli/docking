@@ -560,15 +560,14 @@ class DockWindow(Gtk.Window):
             return
 
         items = self.model.visible_items()
-        n = len(items)
         icon_size = self.config.icon_size
-        # Content width: use max-zoom width (cursor at center) for generous input area
-        pad = self.theme.h_padding + self.theme.item_padding / 2
-        base_w = pad * 2 + n * icon_size + max(0, n - 1) * self.theme.item_padding
+        # Use rest layout (no zoom) for input region bounds. The max-zoom
+        # layout was too generous and prevented hide when mouse moved past
+        # the last icon on the right.
         layout = compute_layout(
             items,
             self.config,
-            base_w / 2,
+            -1e6,  # sentinel: no cursor -> rest positions
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )
