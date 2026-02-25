@@ -192,6 +192,11 @@ class WindowTracker:
 
         result: list[Wnck.Window] = []
         for window in self._screen.get_windows():
+            window_type = window.get_window_type()
+            if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
+                continue
+            if window.is_skip_tasklist():
+                continue
             matched = self._match_window(window)
             if matched == desktop_id:
                 result.append(window)

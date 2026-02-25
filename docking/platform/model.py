@@ -36,6 +36,7 @@ class DockItem:
     last_clicked: int = 0
     last_launched: int = 0
     last_urgent: int = 0
+    tooltip_builder: Callable[[], Any] | None = None
 
 
 class DockModel:
@@ -115,6 +116,7 @@ class DockModel:
         self.pinned_items.append(applet.item)
         applet.start(self.notify)
         self.sync_pinned_to_config()
+        self._config.save()
         self.notify()
 
     def remove_applet(self, desktop_id: str) -> None:
@@ -125,6 +127,7 @@ class DockModel:
             if applet.item in self.pinned_items:
                 self.pinned_items.remove(applet.item)
             self.sync_pinned_to_config()
+            self._config.save()
             self.notify()
 
     def start_applets(self) -> None:

@@ -60,12 +60,14 @@ class HoverManager:
         )
         item = self._window.hit_test(cursor_main, layout)
 
+        # Always refresh tooltip (item.name may change while hovered)
+        self._tooltip.update(item, layout)
+
         if item is self.hovered_item:
             return
 
         self.hovered_item = item
         self.cancel()
-        self._tooltip.update(item, layout)
 
         if self._preview and self._config.previews_enabled:
             if item and item.is_running and item.instance_count > 0:

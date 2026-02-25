@@ -30,7 +30,12 @@ from gi.repository import (
 import cairo
 
 from docking.applets.base import Applet, load_theme_icon
-from docking.applets.weather.api import REFRESH_INTERVAL, WeatherData, fetch_weather
+from docking.applets.weather.api import (
+    REFRESH_INTERVAL,
+    WeatherData,
+    fetch_weather,
+    wmo_icon_name,
+)
 from docking.applets.weather.cities import CityEntry, load_cities, search_cities
 from docking.log import get_logger
 
@@ -83,6 +88,7 @@ class WeatherApplet(Applet):
 
         if hasattr(self, "item"):
             self.item.name = self._build_tooltip()
+            self.item.tooltip_builder = self._build_tooltip_widget
 
         # Load base icon
         base = load_theme_icon(icon_name, size)
@@ -284,3 +290,35 @@ class WeatherApplet(Applet):
                 f"{day.date}: {day.temp_min:.0f}/{day.temp_max:.0f}°C, {day.description}"
             )
         return "\n".join(lines)
+
+    def _build_tooltip_widget(self) -> Gtk.Box:
+        """Build tooltip widget with weather icons for each forecast day."""
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+
+        if not self._city_display or not self._weather:
+            label = Gtk.Label(label=self._build_tooltip())
+            label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+            box.pack_start(label, False, False, 0)
+            return box
+
+        w = self._weather
+        header = Gtk.Label(
+            label=f"{self._city_display}: {w.temperature:.0f}°C, {w.description}"
+        )
+        header.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+        box.pack_start(header, False, False, 0)
+
+        for day in w.daily:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+            icon = Gtk.Image.new_from_icon_name(
+                wmo_icon_name(day.code), Gtk.IconSize.LARGE_TOOLBAR
+            )
+            label = Gtk.Label(
+                label=f"{day.date}: {day.temp_min:.0f}/{day.temp_max:.0f}°C"
+            )
+            label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+            row.pack_start(icon, False, False, 0)
+            row.pack_start(label, False, False, 0)
+            box.pack_start(row, False, False, 0)
+
+        return box

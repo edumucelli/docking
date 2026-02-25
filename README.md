@@ -255,6 +255,37 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 
 **Update interval:** 2 seconds for traffic, instant for connection state changes (NM signals)
 
+### Session
+
+Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
+
+**Click:** Lock screen
+**Right-click options:**
+- **Lock Screen** -- `loginctl lock-session`
+- **Log Out** -- `loginctl terminate-session`
+- **Suspend** -- `systemctl suspend`
+- **Restart** -- `systemctl reboot`
+- **Shut Down** -- `systemctl poweroff`
+
+### Calendar
+
+Shows today's date as a calendar page icon with red header (weekday) and day number.
+
+**Click:** Toggle a GtkCalendar popup
+**Tooltip:** Full date (e.g. "Tuesday, February 25")
+
+**Update interval:** 30 seconds (refreshes icon at midnight)
+
+### Workspaces
+
+Workspace switcher with a visual grid icon. Active workspace is highlighted in blue.
+
+**Click:** Cycle to next workspace
+**Scroll:** Switch workspace up/down
+**Right-click options:** Radio list of all workspaces
+
+**Tooltip:** Active workspace name
+
 ## Theming
 
 Themes are JSON files in `docking/assets/themes/`. Six built-in themes are included:

@@ -97,7 +97,7 @@ class ClockApplet(Applet):
         if self._show_digital:
             self._render_digital(cr, size, now, is_24h, self._show_date)
         else:
-            self._render_analog(cr, size, now, is_24h)
+            self._render_analog(cr, size, now)
 
         # Update tooltip with full date+time (guard: item not yet set on first call)
         if hasattr(self, "item"):
@@ -113,18 +113,14 @@ class ClockApplet(Applet):
         cr: cairo.Context,
         size: int,
         now: time.struct_time,
-        is_24h: bool,
     ) -> None:
         """Draw analog clock: SVG face layers, Cairo hands, SVG glass+frame.
 
-        Matches Plank's rendering pipeline exactly:
-          1. SVG: drop-shadow, face-shadow, face, marks
-          2. Cairo: minute hand (dark gray), hour hand (black)
-          3. SVG: glass highlight, frame bezel
+        Always uses 12-hour face; 24h pref only affects tooltip/digital.
         """
         center = size / 2
         radius = center
-        theme_dir = _CLOCK_THEMES_DIR / ("Default24" if is_24h else "Default")
+        theme_dir = _CLOCK_THEMES_DIR / "Default"
 
         # Bottom SVG layers: shadow, face, marks
         for name in _FACE_LAYERS:
@@ -151,10 +147,7 @@ class ClockApplet(Applet):
         # Hour hand (black, shorter)
         cr.save()
         cr.set_source_rgba(0, 0, 0, 1)
-        if is_24h:
-            cr.rotate(hour_rotation_24h(hour, minute))
-        else:
-            cr.rotate(hour_rotation_12h(hour, minute))
+        cr.rotate(hour_rotation_12h(hour, minute))
         cr.move_to(0, radius - radius * 0.5)
         cr.line_to(0, -radius * 0.15)
         cr.stroke()

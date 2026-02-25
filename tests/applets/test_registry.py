@@ -36,6 +36,15 @@ class TestRegistry:
     def test_contains_weather(self):
         assert "weather" in get_registry()
 
+    def test_contains_session(self):
+        assert "session" in get_registry()
+
+    def test_contains_calendar(self):
+        assert "calendar" in get_registry()
+
+    def test_contains_workspaces(self):
+        assert "workspaces" in get_registry()
+
 
 class TestLoadThemeIcon:
     def test_loads_known_icon(self):

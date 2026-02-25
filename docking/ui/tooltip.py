@@ -108,25 +108,32 @@ class TooltipManager:
         win_x, win_y = self._window.get_position()
         win_w, win_h = self._window.get_size()
 
+        widget = item.tooltip_builder() if item.tooltip_builder else None
+
         if pos == Position.BOTTOM:
             icon_center_x = win_x + li.x + offset + scaled_size / 2
             icon_top_y = win_y + win_h - edge_padding - scaled_size
-            self._show_tooltip(item.name, pos, icon_center_x, icon_top_y)
+            self._show_tooltip(item.name, pos, icon_center_x, icon_top_y, widget)
         elif pos == Position.TOP:
             icon_center_x = win_x + li.x + offset + scaled_size / 2
             icon_bottom_y = win_y + edge_padding + scaled_size
-            self._show_tooltip(item.name, pos, icon_center_x, icon_bottom_y)
+            self._show_tooltip(item.name, pos, icon_center_x, icon_bottom_y, widget)
         elif pos == Position.LEFT:
             icon_center_y = win_y + li.x + offset + scaled_size / 2
             icon_right_x = win_x + edge_padding + scaled_size
-            self._show_tooltip(item.name, pos, icon_right_x, icon_center_y)
+            self._show_tooltip(item.name, pos, icon_right_x, icon_center_y, widget)
         else:  # RIGHT
             icon_center_y = win_y + li.x + offset + scaled_size / 2
             icon_left_x = win_x + win_w - edge_padding - scaled_size
-            self._show_tooltip(item.name, pos, icon_left_x, icon_center_y)
+            self._show_tooltip(item.name, pos, icon_left_x, icon_center_y, widget)
 
     def _show_tooltip(
-        self, text: str, pos: Position, anchor_x: float, anchor_y: float
+        self,
+        text: str,
+        pos: Position,
+        anchor_x: float,
+        anchor_y: float,
+        widget: Gtk.Widget | None = None,
     ) -> None:
         """Display a tooltip near anchor point, on the inner side of the dock."""
         if self._tooltip_window is None:
@@ -161,14 +168,18 @@ class TooltipManager:
         child = self._tooltip_window.get_child()
         if child:
             self._tooltip_window.remove(child)
-        label = Gtk.Label(label=text)
-        label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
-        label.set_margin_start(6)
-        label.set_margin_end(6)
-        label.set_margin_top(6)
-        label.set_margin_bottom(6)
-        self._tooltip_window.add(label)
-        label.show()
+
+        if widget:
+            content = widget
+        else:
+            content = Gtk.Label(label=text)
+            content.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+        content.set_margin_start(6)
+        content.set_margin_end(6)
+        content.set_margin_top(6)
+        content.set_margin_bottom(6)
+        self._tooltip_window.add(content)
+        content.show_all()
 
         pref = self._tooltip_window.get_preferred_size()[1]
         tw = max(pref.width, 1)

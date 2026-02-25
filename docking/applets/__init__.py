@@ -14,22 +14,28 @@ def get_registry() -> dict[str, type[Applet]]:
     """Return the applet registry, loading it on first access."""
     from docking.applets.applications import ApplicationsApplet
     from docking.applets.battery import BatteryApplet
+    from docking.applets.calendar import CalendarApplet
     from docking.applets.clippy import ClippyApplet
     from docking.applets.clock import ClockApplet
     from docking.applets.cpumonitor import CpuMonitorApplet
     from docking.applets.desktop import DesktopApplet
     from docking.applets.network import NetworkApplet
+    from docking.applets.session import SessionApplet
     from docking.applets.trash import TrashApplet
     from docking.applets.weather import WeatherApplet
+    from docking.applets.workspaces import WorkspacesApplet
 
     return {
         "applications": ApplicationsApplet,
         "battery": BatteryApplet,
+        "calendar": CalendarApplet,
         "clippy": ClippyApplet,
         "clock": ClockApplet,
         "cpumonitor": CpuMonitorApplet,
         "desktop": DesktopApplet,
         "network": NetworkApplet,
+        "session": SessionApplet,
         "trash": TrashApplet,
         "weather": WeatherApplet,
+        "workspaces": WorkspacesApplet,
     }
