@@ -119,3 +119,28 @@ class TestClipRendering:
         d.add_clip("hello world")
         d.create_icon(48)
         assert "hello world" in d.item.name
+
+    def test_tooltip_updates_on_scroll(self):
+        # Given two clips
+        d = ClippyDocklet(48)
+        d.add_clip("first")
+        d.add_clip("second")
+        d.create_icon(48)
+        assert "second" in d.item.name
+
+        # When scroll up (to older clip)
+        d.on_scroll(direction_up=True)
+
+        # Then tooltip reflects older clip immediately
+        assert "first" in d.item.name
+
+    def test_scroll_down_wraps_and_updates_tooltip(self):
+        d = ClippyDocklet(48)
+        d.add_clip("a")
+        d.add_clip("b")
+        d._cur_position = 2  # at "b"
+        d.on_scroll(direction_up=False)  # wraps to "a"
+        assert d._cur_position == 1
+        # create_icon is called by refresh_icon inside on_scroll
+        # so item.name should already be updated
+        assert "a" in d.item.name

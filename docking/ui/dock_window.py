@@ -447,6 +447,8 @@ class DockWindow(Gtk.Window):
             if docklet:
                 direction_up = event.direction == Gdk.ScrollDirection.UP
                 docklet.on_scroll(direction_up)
+                # Refresh tooltip immediately (item.name may have changed)
+                self._tooltip.update(item, layout)
                 return True
         return False
 
