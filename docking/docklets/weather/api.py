@@ -166,5 +166,5 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
             icon_name=wmo_icon_name(code),
             daily=daily,
         )
-    except Exception:
+    except (OSError, ValueError, KeyError, IndexError, AttributeError):
         return None

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 import gi
 
@@ -24,6 +25,37 @@ if TYPE_CHECKING:
 
 
 ICON_SIZE_OPTIONS = (32, 48, 64, 80)
+
+
+def _build_radio_submenu(
+    label: str,
+    items: Sequence[tuple[str, Any]],
+    current: Any,
+    on_changed: Any,
+) -> Gtk.MenuItem:
+    """Build a MenuItem with a radio-group submenu.
+
+    Args:
+        label: Submenu parent label
+        items: [(display_text, value), ...] for each radio option
+        current: Currently active value (compared with ==)
+        on_changed: Callback(widget, value) connected to "activate"
+    """
+    menu_item = Gtk.MenuItem(label=label)
+    submenu = Gtk.Menu()
+    first: Gtk.RadioMenuItem | None = None
+    for display, value in items:
+        radio = Gtk.RadioMenuItem(label=display)
+        if first:
+            radio.join_group(first)
+        else:
+            first = radio
+        if value == current:
+            radio.set_active(True)
+        radio.connect("activate", on_changed, value)
+        submenu.append(radio)
+    menu_item.set_submenu(submenu)
+    return menu_item
 
 
 class MenuHandler:
@@ -125,56 +157,34 @@ class MenuHandler:
         menu.append(Gtk.SeparatorMenuItem())
 
         # Themes submenu
-        theme_item = Gtk.MenuItem(label="Themes")
-        theme_menu = Gtk.Menu()
-        first_radio: Gtk.RadioMenuItem | None = None
-
         theme_names = [p.stem for p in sorted(_BUILTIN_THEMES_DIR.glob("*.json"))]
-
-        for name in theme_names:
-            label = name.replace("-", " ").capitalize()
-            radio = Gtk.RadioMenuItem(label=label)
-            if first_radio:
-                radio.join_group(first_radio)
-            else:
-                first_radio = radio
-            if name == self._config.theme:
-                radio.set_active(True)
-            radio.connect("activate", self._on_theme_changed, name)
-            theme_menu.append(radio)
-        theme_item.set_submenu(theme_menu)
-        menu.append(theme_item)
+        theme_items = [(n.replace("-", " ").capitalize(), n) for n in theme_names]
+        menu.append(
+            _build_radio_submenu(
+                "Themes", theme_items, self._config.theme, self._on_theme_changed
+            )
+        )
 
         menu.append(Gtk.SeparatorMenuItem())
 
         # Icon size submenu
-        size_item = Gtk.MenuItem(label="Icon Size")
-        size_menu = Gtk.Menu()
-        for size in ICON_SIZE_OPTIONS:
-            item = Gtk.RadioMenuItem(label=f"{size}px")
-            if size == self._config.icon_size:
-                item.set_active(True)
-            item.connect("activate", self._on_icon_size_changed, size)
-            size_menu.append(item)
-        size_item.set_submenu(size_menu)
-        menu.append(size_item)
+        size_items = [(f"{s}px", s) for s in ICON_SIZE_OPTIONS]
+        menu.append(
+            _build_radio_submenu(
+                "Icon Size",
+                size_items,
+                self._config.icon_size,
+                self._on_icon_size_changed,
+            )
+        )
 
         # Position submenu
-        pos_item = Gtk.MenuItem(label="Position")
-        pos_menu = Gtk.Menu()
-        first_pos_radio: Gtk.RadioMenuItem | None = None
-        for pos in Position:
-            radio = Gtk.RadioMenuItem(label=pos.value.capitalize())
-            if first_pos_radio:
-                radio.join_group(first_pos_radio)
-            else:
-                first_pos_radio = radio
-            if pos.value == self._config.position:
-                radio.set_active(True)
-            radio.connect("activate", self._on_position_changed, pos.value)
-            pos_menu.append(radio)
-        pos_item.set_submenu(pos_menu)
-        menu.append(pos_item)
+        pos_items = [(p.value.capitalize(), p.value) for p in Position]
+        menu.append(
+            _build_radio_submenu(
+                "Position", pos_items, self._config.position, self._on_position_changed
+            )
+        )
 
         # Docklets submenu -- toggle each docklet on/off
         from docking.docklets import get_registry

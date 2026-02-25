@@ -1,7 +1,7 @@
-"""Tests for the docklet registry."""
+"""Tests for the docklet registry and shared utilities."""
 
 from docking.docklets import get_registry
-from docking.docklets.base import Docklet
+from docking.docklets.base import Docklet, load_theme_icon, load_theme_icon_centered
 
 
 class TestRegistry:
@@ -32,3 +32,24 @@ class TestRegistry:
         r1 = get_registry()
         r2 = get_registry()
         assert r1 is r2
+
+    def test_contains_weather(self):
+        assert "weather" in get_registry()
+
+
+class TestLoadThemeIcon:
+    def test_loads_known_icon(self):
+        pixbuf = load_theme_icon("user-trash", 48)
+        assert pixbuf is not None
+        assert pixbuf.get_width() == 48
+
+    def test_returns_none_for_unknown(self):
+        assert load_theme_icon("nonexistent-icon-xyz", 48) is None
+
+    def test_centered_returns_square(self):
+        pixbuf = load_theme_icon_centered("user-trash", 48)
+        assert pixbuf is not None
+        assert pixbuf.get_width() == pixbuf.get_height()
+
+    def test_centered_returns_none_for_unknown(self):
+        assert load_theme_icon_centered("nonexistent-icon-xyz", 48) is None

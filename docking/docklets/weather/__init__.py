@@ -29,7 +29,7 @@ from gi.repository import (
 
 import cairo
 
-from docking.docklets.base import Docklet
+from docking.docklets.base import Docklet, load_theme_icon
 from docking.docklets.weather.api import REFRESH_INTERVAL, WeatherData, fetch_weather
 from docking.docklets.weather.cities import CityEntry, load_cities, search_cities
 from docking.log import get_logger
@@ -44,15 +44,6 @@ _log = get_logger("weather")
 def _get_cities() -> tuple[CityEntry, ...]:
     """Load city database on first access (cached)."""
     return tuple(load_cities())
-
-
-def _load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
-    """Load an icon by name from the default GTK icon theme."""
-    theme = Gtk.IconTheme.get_default()
-    try:
-        return theme.load_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE)
-    except GLib.Error:
-        return None
 
 
 class WeatherDocklet(Docklet):
@@ -94,7 +85,7 @@ class WeatherDocklet(Docklet):
             self.item.name = self._build_tooltip()
 
         # Load base icon
-        base = _load_theme_icon(icon_name, size)
+        base = load_theme_icon(icon_name, size)
         if not base or not self._weather or not self._show_temperature:
             return base
 

@@ -14,7 +14,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
-from docking.docklets.base import Docklet
+from docking.docklets.base import Docklet, load_theme_icon
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -37,15 +37,6 @@ def _count_trash_items() -> int:
         count += 1
     enumerator.close(None)
     return count
-
-
-def _load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
-    """Load an icon by name from the default GTK icon theme."""
-    theme = Gtk.IconTheme.get_default()
-    try:
-        return theme.load_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE)
-    except GLib.Error:
-        return None
 
 
 class TrashDocklet(Docklet):
@@ -75,7 +66,7 @@ class TrashDocklet(Docklet):
                 self.item.name = "1 item in Trash"
             else:
                 self.item.name = f"{self._item_count} items in Trash"
-        return _load_theme_icon(icon_name, size)
+        return load_theme_icon(icon_name, size)
 
     def on_clicked(self) -> None:
         """Open trash folder in the default file manager."""

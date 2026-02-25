@@ -14,10 +14,9 @@ from typing import TYPE_CHECKING, Callable, NamedTuple
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
-from gi.repository import GdkPixbuf, GLib, Gtk  # noqa: E402
+from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
-from docking.docklets.base import Docklet
+from docking.docklets.base import Docklet, load_theme_icon_centered
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -81,34 +80,6 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
     )
 
 
-def _load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
-    """Load icon from theme, centered on a square canvas.
-
-    Battery icons are often non-square (taller than wide). This loads
-    the icon and composites it centered on a transparent square pixbuf
-    so the dock renderer gets a uniform size.
-    """
-    theme = Gtk.IconTheme.get_default()
-    try:
-        raw = theme.load_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE)
-    except GLib.Error:
-        return None
-    if raw is None:
-        return None
-    w, h = raw.get_width(), raw.get_height()
-    if w == h:
-        return raw
-    # Center on transparent square canvas to preserve aspect ratio
-    canvas = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, size, size)
-    canvas.fill(0x00000000)
-    x = (size - w) // 2
-    y = (size - h) // 2
-    raw.composite(
-        canvas, x, y, w, h, x, y, 1.0, 1.0, GdkPixbuf.InterpType.BILINEAR, 255
-    )
-    return canvas
-
-
 # -- Docklet -----------------------------------------------------------------
 
 
@@ -143,7 +114,7 @@ class BatteryDocklet(Docklet):
             icon_name = "battery-missing"
             if hasattr(self, "item"):
                 self.item.name = "No battery"
-        return _load_theme_icon(icon_name, size)
+        return load_theme_icon_centered(icon_name, size)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start 60-second polling timer (battery changes slowly)."""

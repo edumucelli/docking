@@ -8,7 +8,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.ui.menu import ICON_SIZE_OPTIONS  # noqa: E402
+from docking.ui.menu import ICON_SIZE_OPTIONS, _build_radio_submenu  # noqa: E402
 from docking.core.position import Position  # noqa: E402
 from docking.core.theme import _BUILTIN_THEMES_DIR  # noqa: E402
 
@@ -46,3 +46,24 @@ class TestThemeDiscovery:
 
     def test_default_theme_exists(self):
         assert (_BUILTIN_THEMES_DIR / "default.json").exists()
+
+
+class TestBuildRadioSubmenu:
+    def test_returns_menu_item_with_submenu(self):
+        callback = MagicMock()
+        item = _build_radio_submenu("Test", [("A", 1), ("B", 2)], 1, callback)
+        assert item.get_label() == "Test"
+        assert item.get_submenu() is not None
+
+    def test_correct_number_of_children(self):
+        item = _build_radio_submenu(
+            "Test", [("A", 1), ("B", 2), ("C", 3)], 1, MagicMock()
+        )
+        children = item.get_submenu().get_children()
+        assert len(children) == 3
+
+    def test_active_item_is_set(self):
+        item = _build_radio_submenu("Test", [("A", 1), ("B", 2)], 2, MagicMock())
+        children = item.get_submenu().get_children()
+        # Second item (value=2) should be active
+        assert children[1].get_active()

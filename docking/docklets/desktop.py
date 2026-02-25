@@ -8,21 +8,10 @@ from __future__ import annotations
 
 import gi
 
-gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
 gi.require_version("Wnck", "3.0")
-from gi.repository import GdkPixbuf, GLib, Gtk, Wnck  # noqa: E402
+from gi.repository import GdkPixbuf, Wnck  # noqa: E402
 
-from docking.docklets.base import Docklet
-
-
-def _load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
-    """Load an icon by name from the default GTK icon theme."""
-    theme = Gtk.IconTheme.get_default()
-    try:
-        return theme.load_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE)
-    except GLib.Error:
-        return None
+from docking.docklets.base import Docklet, load_theme_icon
 
 
 class DesktopDocklet(Docklet):
@@ -37,7 +26,7 @@ class DesktopDocklet(Docklet):
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Return static user-desktop icon from theme."""
-        return _load_theme_icon("user-desktop", size)
+        return load_theme_icon("user-desktop", size)
 
     def on_clicked(self) -> None:
         """Toggle show desktop via Wnck.

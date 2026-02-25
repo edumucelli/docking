@@ -5,11 +5,45 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable
 
+import gi
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import GdkPixbuf, GLib, Gtk  # noqa: E402
+
 if TYPE_CHECKING:
-    from gi.repository import GdkPixbuf, Gtk
     from docking.core.config import Config
 
 DOCKLET_PREFIX = "docklet://"
+
+
+def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
+    """Load an icon by name from the default GTK icon theme."""
+    theme = Gtk.IconTheme.get_default()
+    try:
+        return theme.load_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE)
+    except GLib.Error:
+        return None
+
+
+def load_theme_icon_centered(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
+    """Load icon from theme, centered on a square canvas if non-square.
+
+    Useful for icons that are taller than wide (e.g. battery icons).
+    """
+    raw = load_theme_icon(name, size)
+    if raw is None:
+        return None
+    w, h = raw.get_width(), raw.get_height()
+    if w == h:
+        return raw
+    canvas = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, size, size)
+    canvas.fill(0x00000000)
+    x = (size - w) // 2
+    y = (size - h) // 2
+    raw.composite(
+        canvas, x, y, w, h, x, y, 1.0, 1.0, GdkPixbuf.InterpType.BILINEAR, 255
+    )
+    return canvas
 
 
 def is_docklet(desktop_id: str) -> bool:
@@ -40,6 +74,7 @@ class Docklet(ABC):
     icon_name: str
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        # Deferred import: DockItem imports from this module (circular)
         from docking.platform.model import DockItem
 
         self._config = config
