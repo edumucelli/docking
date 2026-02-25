@@ -12,6 +12,23 @@ from gi.repository import Wnck, Gtk, GLib  # noqa: E402
 
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 
+
+def _wm_class_desktop_candidates(class_lower: str) -> list[str]:
+    """Generate desktop ID candidates from a lowercased WM_CLASS.
+
+    Handles apps whose WM_CLASS contains spaces (e.g. "mongodb compass",
+    "aws vpn client") by trying hyphenated and no-space variants.
+    Returns a deduplicated list of candidates to try.
+    """
+    candidates = [class_lower]
+    if " " in class_lower:
+        candidates.append(class_lower.replace(" ", "-"))
+        candidates.append(class_lower.replace(" ", ""))
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    return [c for c in candidates if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
+
+
 if TYPE_CHECKING:
     from docking.platform.model import DockModel
     from docking.platform.launcher import Launcher
@@ -113,12 +130,13 @@ class WindowTracker:
             if inst_lower in self._wm_class_to_desktop:
                 return self._wm_class_to_desktop[inst_lower]
 
-        # Try to resolve via Gio
-        desktop_id = f"{class_lower}{DESKTOP_SUFFIX}"
-        info = self._launcher.resolve(desktop_id)
-        if info:
-            self._wm_class_to_desktop[class_lower] = info.desktop_id
-            return info.desktop_id
+        # Try to resolve via Gio: exact, hyphenated, no-spaces variants
+        for candidate in _wm_class_desktop_candidates(class_lower):
+            desktop_id = f"{candidate}{DESKTOP_SUFFIX}"
+            info = self._launcher.resolve(desktop_id)
+            if info:
+                self._wm_class_to_desktop[class_lower] = info.desktop_id
+                return info.desktop_id
 
         # Try with org.gnome prefix
         gnome_id = f"{GNOME_APP_PREFIX}{class_group}{DESKTOP_SUFFIX}"
