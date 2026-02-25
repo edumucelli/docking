@@ -126,14 +126,52 @@ class DockRenderer:
         """
         alloc = widget.get_allocation()
         width, height = alloc.width, alloc.height
+
+        # Render to offscreen surface, then blit atomically with SOURCE.
+        # With set_double_buffered(False), we draw directly to the X11
+        # backing surface. CLEAR+draw leaves a transparent gap between
+        # frames that the compositor can catch. Offscreen avoids this:
+        # the window surface is only touched once (the SOURCE blit).
+        offscreen = cr.get_target().create_similar(
+            cairo.Content.COLOR_ALPHA, width, height
+        )
+        ocr = cairo.Context(offscreen)
+        self._draw_content(
+            ocr,
+            width,
+            height,
+            model,
+            config,
+            theme,
+            cursor_main,
+            hide_offset,
+            drag_index,
+            drop_insert_index,
+            zoom_progress,
+            hovered_id,
+        )
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_source_surface(offscreen, 0, 0)
+        cr.paint()
+
+    def _draw_content(
+        self,
+        cr: cairo.Context,
+        width: int,
+        height: int,
+        model: DockModel,
+        config: Config,
+        theme: Theme,
+        cursor_main: float,
+        hide_offset: float,
+        drag_index: int,
+        drop_insert_index: int,
+        zoom_progress: float,
+        hovered_id: str,
+    ) -> None:
+        """Render all dock content to a Cairo context."""
         pos = config.pos
         horizontal = is_horizontal(pos)
-
-        # Clear to transparent (direct rendering, no GTK double buffering)
-        cr.save()
-        cr.set_operator(cairo.OPERATOR_CLEAR)
-        cr.paint()
-        cr.restore()
         main_size = width if horizontal else height
         cross_size = height if horizontal else width
 
