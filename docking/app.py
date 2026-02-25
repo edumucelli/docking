@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import signal
 
 import gi
@@ -25,14 +24,6 @@ from docking.ui.preview import PreviewPopup
 
 def main() -> None:
     """Entry point for the docking application."""
-    # New session so Ctrl+C from terminal doesn't kill apps launched from
-    # the dock. setsid() detaches from the controlling terminal entirely.
-    # The dock is still stoppable via Quit menu or kill(1).
-    try:
-        os.setsid()
-    except OSError:
-        pass  # already a session leader
-
     config = Config.load()
     theme = Theme.load(config.theme, config.icon_size)
     launcher = Launcher()
