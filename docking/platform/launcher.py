@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import os
+import signal as _signal
 from pathlib import Path
 from typing import NamedTuple
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gio, Gtk, GdkPixbuf, GLib  # noqa: E402
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, Gio, Gtk, GdkPixbuf, GLib  # noqa: E402
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
@@ -155,10 +157,22 @@ def launch_action(desktop_id: str, action_id: str) -> None:
 
 
 def launch(desktop_id: str) -> None:
-    """Launch an application by its desktop ID."""
+    """Launch an application by its desktop ID.
+
+    Uses Gdk.AppLaunchContext for proper desktop integration. The launched
+    app inherits SIGHUP=SIG_IGN so it survives if the dock's session ends
+    (os.setsid makes us a session leader; children get SIGHUP on exit).
+    """
     app_info = Gio.DesktopAppInfo.new(desktop_id)
-    if app_info:
+    if not app_info:
+        return
+    try:
+        # Temporarily ignore SIGHUP so children inherit SIG_IGN
+        prev = _signal.signal(_signal.SIGHUP, _signal.SIG_IGN)
         try:
-            app_info.launch([], None)
-        except GLib.Error as e:
-            print(f"Failed to launch {desktop_id}: {e}")
+            ctx = Gdk.Display.get_default().get_app_launch_context()
+            app_info.launch([], ctx)
+        finally:
+            _signal.signal(_signal.SIGHUP, prev)
+    except GLib.Error as e:
+        print(f"Failed to launch {desktop_id}: {e}")
