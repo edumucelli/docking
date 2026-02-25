@@ -126,52 +126,14 @@ class DockRenderer:
         """
         alloc = widget.get_allocation()
         width, height = alloc.width, alloc.height
-
-        # Render to offscreen surface, then blit in one shot.
-        # Direct clear+redraw on the window surface causes flicker because
-        # the compositor sees a transparent frame between clear and draw.
-        offscreen = cr.get_target().create_similar(
-            cairo.Content.COLOR_ALPHA, width, height
-        )
-        ocr = cairo.Context(offscreen)
-        self._draw_to(
-            ocr,
-            width,
-            height,
-            model,
-            config,
-            theme,
-            cursor_main,
-            hide_offset,
-            drag_index,
-            drop_insert_index,
-            zoom_progress,
-            hovered_id,
-        )
-
-        # Atomic blit: replace window contents in one operation
-        cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_surface(offscreen, 0, 0)
-        cr.paint()
-
-    def _draw_to(
-        self,
-        cr: cairo.Context,
-        width: int,
-        height: int,
-        model: DockModel,
-        config: Config,
-        theme: Theme,
-        cursor_main: float,
-        hide_offset: float,
-        drag_index: int,
-        drop_insert_index: int,
-        zoom_progress: float,
-        hovered_id: str,
-    ) -> None:
-        """Render dock content onto a Cairo context (offscreen or direct)."""
         pos = config.pos
         horizontal = is_horizontal(pos)
+
+        # Clear to transparent (direct rendering, no GTK double buffering)
+        cr.save()
+        cr.set_operator(cairo.OPERATOR_CLEAR)
+        cr.paint()
+        cr.restore()
         main_size = width if horizontal else height
         cross_size = height if horizontal else width
 

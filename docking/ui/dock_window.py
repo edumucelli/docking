@@ -144,12 +144,12 @@ class DockWindow(Gtk.Window):
         self.set_keep_above(True)
         self.set_type_hint(Gdk.WindowTypeHint.DOCK)
         self.set_app_paintable(True)
+        self.set_resizable(False)
 
         # Enable RGBA visual for transparency
         screen = self.get_screen()
-        visual = screen.get_rgba_visual()
-        if visual:
-            self.set_visual(visual)
+        visual = screen.get_rgba_visual() or screen.get_system_visual()
+        self.set_visual(visual)
 
         self.connect("realize", self._on_realize)
         self.connect("destroy", Gtk.main_quit)
@@ -157,6 +157,11 @@ class DockWindow(Gtk.Window):
     def _setup_drawing_area(self) -> None:
         """Create the drawing surface and wire events."""
         self.drawing_area = Gtk.DrawingArea()
+        # Disable GTK's automatic double buffering. For transparent RGBA
+        # windows, GTK allocates an intermediate CPU buffer that causes
+        # CPU->GPU transfer stalls visible as flicker during fast mouse
+        # movement. Direct rendering to the X11 backing surface avoids this.
+        self.drawing_area.set_double_buffered(False)
         self.drawing_area.set_events(
             Gdk.EventMask.POINTER_MOTION_MASK
             | Gdk.EventMask.BUTTON_PRESS_MASK
