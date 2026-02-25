@@ -81,16 +81,28 @@ def compute_input_rect(
 
     # VISIBLE or autohide off: content rect at screen edge.
     # Only covers icon area (content_cross), not headroom.
+    #
+    # When autohide is enabled, extend along the full screen edge so the
+    # mouse at the side of the dock doesn't trigger a false leave event
+    # (which would start hide, re-expand trigger strip, start show = loop).
     cross = max(content_cross, 1)
-    main = max(content_w, 1)
+    extend_edge = autohide_state == HideState.VISIBLE
     if pos == Position.BOTTOM:
-        return (content_offset, window_h - cross, main, cross)
+        if extend_edge:
+            return (0, window_h - cross, window_w, cross)
+        return (content_offset, window_h - cross, max(content_w, 1), cross)
     elif pos == Position.TOP:
-        return (content_offset, 0, main, cross)
+        if extend_edge:
+            return (0, 0, window_w, cross)
+        return (content_offset, 0, max(content_w, 1), cross)
     elif pos == Position.LEFT:
-        return (0, content_offset, cross, main)
+        if extend_edge:
+            return (0, 0, cross, window_h)
+        return (0, content_offset, cross, max(content_w, 1))
     else:  # RIGHT
-        return (window_w - cross, content_offset, cross, main)
+        if extend_edge:
+            return (window_w - cross, 0, cross, window_h)
+        return (window_w - cross, content_offset, cross, max(content_w, 1))
 
 
 # X11 mouse button codes

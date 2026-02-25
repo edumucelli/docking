@@ -30,7 +30,9 @@ class TestVisibleContentOnly:
     crossing events, making icons snap/de-zoom when the tooltip appears.
     """
 
-    def test_autohide_visible_bottom_is_content_only(self):
+    def test_autohide_visible_bottom_extends_full_edge(self):
+        # When autohide VISIBLE, input region spans full screen edge
+        # to prevent oscillation when mouse is beside the dock content.
         x, y, w, h = compute_input_rect(
             Position.BOTTOM,
             WIN_W,
@@ -39,6 +41,20 @@ class TestVisibleContentOnly:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.VISIBLE,
+        )
+        assert w == WIN_W
+        assert x == 0
+
+    def test_no_autohide_bottom_is_content_only(self):
+        # Without autohide, region is just the content area
+        x, y, w, h = compute_input_rect(
+            Position.BOTTOM,
+            WIN_W,
+            WIN_H,
+            CONTENT_OFFSET,
+            CONTENT_W,
+            CONTENT_CROSS,
+            None,  # autohide disabled
         )
         assert w == CONTENT_W
         assert x == CONTENT_OFFSET
