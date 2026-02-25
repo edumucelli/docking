@@ -1,16 +1,19 @@
-"""City database for weather docklet -- CSV loading and search.
+"""City database for weather docklet -- gzipped CSV loading and search.
 
-Loads ~48K cities from a SimpleMaps CSV file. Provides prefix-based
-search for the autocomplete entry in the docklet menu.
+Loads ~48K cities from a gzipped SimpleMaps CSV (871KB on disk).
+Provides prefix-based search for the autocomplete entry in the docklet menu.
 """
 
 from __future__ import annotations
 
 import csv
+import gzip
 from pathlib import Path
 from typing import NamedTuple
 
-_CITIES_CSV = Path(__file__).parent.parent.parent / "assets" / "weather" / "cities.csv"
+_CITIES_GZ = (
+    Path(__file__).parent.parent.parent / "assets" / "weather" / "cities.csv.gz"
+)
 
 
 class CityEntry(NamedTuple):
@@ -23,14 +26,14 @@ class CityEntry(NamedTuple):
     lng: float
 
 
-def load_cities(path: Path = _CITIES_CSV) -> list[CityEntry]:
-    """Parse the cities CSV, returning entries sorted by population (largest first).
+def load_cities(path: Path = _CITIES_GZ) -> list[CityEntry]:
+    """Parse the gzipped cities CSV, sorted by population (largest first).
 
     Columns used: city_ascii, lat, lng, country, population.
     Rows with missing coordinates are skipped.
     """
     entries: list[tuple[int, CityEntry]] = []
-    with open(path, encoding="utf-8") as f:
+    with gzip.open(path, "rt", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             try:
