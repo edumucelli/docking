@@ -101,12 +101,22 @@ class ApplicationsDocklet(Docklet):
             if not apps:
                 continue
 
-            cat_item = Gtk.MenuItem(label=cat_name)
+            cat_item = Gtk.ImageMenuItem(label=cat_name)
+            cat_item.set_always_show_image(True)
+            cat_icon = _CATEGORY_ICONS.get(cat_name)
+            if cat_icon:
+                cat_item.set_image(
+                    Gtk.Image.new_from_icon_name(cat_icon, Gtk.IconSize.MENU)
+                )
             submenu = Gtk.Menu()
 
             for app_info in apps:
                 name = app_info.get_display_name() or "Unknown"
-                mi = Gtk.MenuItem(label=name)
+                mi = Gtk.ImageMenuItem(label=name)
+                mi.set_always_show_image(True)
+                gicon = app_info.get_icon()
+                if gicon:
+                    mi.set_image(Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.MENU))
                 mi.connect(
                     "activate",
                     lambda _, info=app_info: _launch_app(info),
