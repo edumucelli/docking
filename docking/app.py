@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import signal
 
 import gi
@@ -24,6 +25,10 @@ from docking.ui.preview import PreviewPopup
 
 def main() -> None:
     """Entry point for the docking application."""
+    # Own process group so Ctrl+C from terminal doesn't kill apps launched
+    # from the dock (they inherit the parent's process group otherwise).
+    os.setpgrp()
+
     config = Config.load()
     theme = Theme.load(config.theme, config.icon_size)
     launcher = Launcher()
