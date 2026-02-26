@@ -78,7 +78,7 @@ sudo apt install \
 
 ```bash
 # Clone
-git clone https://github.com/your-username/docking.git
+git clone https://github.com/edumucelli/docking.git
 cd docking
 
 # Create venv with access to system GI bindings
@@ -95,6 +95,17 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv venv --python /usr/bin/python3 --system-site-packages .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
+```
+
+### Building a .deb package
+
+```bash
+# Install build dependencies
+sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
+  debhelper dh-python pybuild-plugin-pyproject
+
+# Build
+./packaging/deb/build.sh
 ```
 
 ## Running

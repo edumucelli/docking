@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import signal
+import sys
+
+# Add vendor directory for bundled pip dependencies (.deb installs them
+# to /usr/lib/docking/vendor to avoid conflicts with system packages).
+_VENDOR_DIR = "/usr/lib/docking/vendor"
+if os.path.isdir(_VENDOR_DIR):
+    sys.path.insert(0, _VENDOR_DIR)
 
 import gi
 

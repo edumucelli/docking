@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: docking
-Upstream-Contact: Eduardo <eduardo@example.com>
-Source: https://github.com/eduardo/docking
+Upstream-Contact: Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>
+Source: https://github.com/edumucelli/docking
 
 Files: *
 Copyright: 2025-2026 Eduardo

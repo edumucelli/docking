@@ -1,15 +1,27 @@
 #!/usr/bin/make -f
 
 export PYBUILD_NAME=docking
+export PYBUILD_SYSTEM=pyproject
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild
 
+override_dh_auto_test:
+	# Tests require pytest and dev deps; run in CI instead
+
 override_dh_auto_install:
 	dh_auto_install
-	# Install pip-only dependencies into the package
-	python3 -m pip install --no-deps --target=debian/docking/usr/lib/python3/dist-packages \
-		openmeteo-requests retry-requests
+	# Bundle ALL pip dependencies into an isolated vendor directory.
+	# This avoids file conflicts with Ubuntu's python3-* system packages
+	# and makes the .deb fully self-contained.
+	# The docking entrypoint adds /usr/lib/docking/vendor to sys.path.
+	python3 -m pip install --no-compile \
+		--target=debian/docking/usr/lib/docking/vendor \
+		openmeteo-requests requests-cache retry-requests
+	# Remove .dist-info so dh_python3 won't auto-add vendored
+	# packages as system dependencies.
+	rm -rf debian/docking/usr/lib/docking/vendor/*.dist-info
+	rm -rf debian/docking/usr/lib/docking/vendor/bin
 
 override_dh_python3:
 	dh_python3 --shebang=/usr/bin/python3

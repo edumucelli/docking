@@ -1,13 +1,14 @@
 Source: docking
 Section: utils
 Priority: optional
-Maintainer: Eduardo <eduardo@example.com>
-Homepage: https://github.com/eduardo/docking
+Maintainer: Eduardo <edumucelli@gmail.com>
+Homepage: https://github.com/edumucelli/docking
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Build-Depends:
     debhelper-compat (= 13),
     dh-python,
+    pybuild-plugin-pyproject,
     python3-all,
     python3-setuptools,
     python3-wheel,
@@ -26,13 +27,11 @@ Depends:
     gir1.2-wnck-3.0,
     gir1.2-nm-1.0,
     gir1.2-pango-1.0
-Recommends:
-    python3-requests-cache
 Description: A lightweight dock for Linux
  Docking is a Python GTK3 dock inspired by Plank and Cairo-Dock.
  Features parabolic zoom, window previews, autohide, drag-and-drop,
- and an extensible applet system with 9 built-in applets (clock,
+ and an extensible applet system with 12 built-in applets (clock,
  trash, weather, CPU monitor, battery, clipboard, applications,
- network, show desktop).
+ network, show desktop, session, calendar, workspaces).
  .
  Requires X11.

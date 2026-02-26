@@ -6,7 +6,7 @@ Build scripts for distributing Docking in various formats.
 
 ```bash
 # Install build dependencies
-sudo apt install debhelper dh-python python3-setuptools python3-wheel python3-pip
+sudo apt install debhelper dh-python python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject
 
 # Build .deb
 ./packaging/deb/build.sh
@@ -19,9 +19,10 @@ sudo apt-get -f install  # fix any missing deps
 docking
 ```
 
-The .deb depends on system GTK packages (`python3-gi`, `gir1.2-gtk-3.0`, etc.)
-and bundles pip-only dependencies (`openmeteo-requests`, `retry-requests`) that
-aren't available in Ubuntu repos.
+The .deb depends on system GTK/GI packages (`python3-gi`, `gir1.2-gtk-3.0`, etc.).
+All Python pip dependencies are vendored into `/usr/lib/docking/vendor/` to avoid
+file conflicts with Ubuntu's system python3-* packages. The entrypoint adds this
+path to `sys.path` at startup.
 
 ## PyPI
 
