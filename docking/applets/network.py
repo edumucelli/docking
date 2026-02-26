@@ -9,17 +9,16 @@ Speed overlay rendered via Cairo at bottom center.
 from __future__ import annotations
 
 import time
-from typing import NamedTuple, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, NamedTuple
 
 import cairo
-
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("NM", "1.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, NM, Pango, PangoCairo  # noqa: E402
+from gi.repository import NM, Gdk, GdkPixbuf, GLib, Pango, PangoCairo  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
 from docking.log import get_logger
@@ -210,9 +209,9 @@ class NetworkApplet(Applet):
             items.append(ip_item)
 
         if self._is_connected:
-            speed_item = Gtk.MenuItem(
-                label=f"\u2193 {format_speed(self._rx_speed)}  \u2191 {format_speed(self._tx_speed)}"
-            )
+            down = format_speed(self._rx_speed)
+            up = format_speed(self._tx_speed)
+            speed_item = Gtk.MenuItem(label=f"\u2193 {down}  \u2191 {up}")
             speed_item.set_sensitive(False)
             items.append(speed_item)
 
@@ -374,7 +373,7 @@ class NetworkApplet(Applet):
             lines.append(f"Ethernet: {self._iface}")
         if self._ip_address:
             lines.append(f"IP: {self._ip_address}")
-        lines.append(
-            f"\u2193 {format_speed(self._rx_speed)}  \u2191 {format_speed(self._tx_speed)}"
-        )
+        down = format_speed(self._rx_speed)
+        up = format_speed(self._tx_speed)
+        lines.append(f"\u2193 {down}  \u2191 {up}")
         return "\n".join(lines)

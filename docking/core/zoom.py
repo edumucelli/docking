@@ -7,7 +7,7 @@ Icons near the cursor scale up parabolically; distant icons stay at 1.0x.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -149,7 +149,7 @@ def compute_layout(
         #   displacement = offset * (zoom_percent - 1.0) * (1.0 - offset_pct / 3.0)
         #
         #   Term 1: offset (base displacement proportional to distance)
-        #   Term 2: (zoom_percent - 1.0) (scales with zoom level -- more zoom = more spread)
+        #   Term 2: (zoom_percent - 1.0) (more zoom = more spread)
         #   Term 3: (1.0 - offset_pct / 3.0) (taper factor, pulls edges inward)
         #
         # The taper factor reduces displacement by up to 33% at the edges

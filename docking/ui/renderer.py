@@ -6,23 +6,22 @@ import math
 from typing import TYPE_CHECKING
 
 import cairo
-
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GLib  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
-from docking.core.zoom import compute_layout, content_bounds
 from docking.core.theme import RGB
-from docking.ui.effects import easing_bounce, average_icon_color
+from docking.core.zoom import compute_layout, content_bounds
+from docking.ui.effects import average_icon_color, easing_bounce
 from docking.ui.shelf import draw_shelf_background
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.model import DockModel, DockItem
     from docking.core.theme import Theme
     from docking.core.zoom import LayoutItem
+    from docking.platform.model import DockItem, DockModel
 
 
 SHELF_SMOOTH_FACTOR = 0.3

@@ -4,8 +4,6 @@ Guards against regressions where the window surface is cleared to transparent
 before drawing, causing compositor-visible flicker during fast mouse movement.
 """
 
-import cairo
-
 from docking.ui.renderer import DockRenderer
 
 
@@ -34,9 +32,9 @@ class TestOffscreenRendering:
         import inspect
 
         source = inspect.getsource(DockRenderer.draw)
-        assert (
-            "OPERATOR_CLEAR" not in source
-        ), "draw() must not CLEAR the window surface -- use offscreen + SOURCE blit"
+        assert "OPERATOR_CLEAR" not in source, (
+            "draw() must not CLEAR the window surface -- use offscreen + SOURCE blit"
+        )
 
     def test_draw_content_does_not_clear_either(self):
         # _draw_content renders to a fresh offscreen surface (starts transparent),

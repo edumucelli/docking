@@ -1,6 +1,6 @@
 """Tests for the trash applet."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from docking.applets.trash import TrashApplet, _count_trash_items
 

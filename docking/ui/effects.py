@@ -50,12 +50,11 @@ def average_icon_color(
     if pixbuf is None:
         return (0.5, 0.5, 0.5)
 
-    pixels = pixbuf.get_pixels()  # type: ignore[attr-defined]
-    n_channels = pixbuf.get_n_channels()  # type: ignore[attr-defined]
-    width = pixbuf.get_width()  # type: ignore[attr-defined]
-    height = pixbuf.get_height()  # type: ignore[attr-defined]
-    rowstride = pixbuf.get_rowstride()  # type: ignore[attr-defined]
-
+    pixels = pixbuf.get_pixels()
+    n_channels = pixbuf.get_n_channels()
+    width = pixbuf.get_width()
+    height = pixbuf.get_height()
+    rowstride = pixbuf.get_rowstride()
     r_total = 0.0
     g_total = 0.0
     b_total = 0.0

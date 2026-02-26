@@ -9,7 +9,7 @@ from typing import NamedTuple
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gio, Gtk, GdkPixbuf, GLib  # noqa: E402
+from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"

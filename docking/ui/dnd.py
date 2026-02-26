@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse, unquote
+from urllib.parse import unquote, urlparse
 
 from docking.log import get_logger
 
@@ -13,20 +13,20 @@ log = get_logger("dnd")
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout
-from docking.ui.poof import show_poof
 from docking.platform.model import DockItem
+from docking.ui.poof import show_poof
 
 if TYPE_CHECKING:
-    from docking.ui.dock_window import DockWindow
-    from docking.platform.model import DockModel
     from docking.core.config import Config
-    from docking.ui.renderer import DockRenderer
     from docking.core.theme import Theme
     from docking.platform.launcher import Launcher
+    from docking.platform.model import DockModel
+    from docking.ui.dock_window import DockWindow
+    from docking.ui.renderer import DockRenderer
 
 DRAG_ICON_SCALE = 1.2  # dragged icon shown at this multiplier of icon_size
 

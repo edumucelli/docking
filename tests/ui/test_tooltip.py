@@ -5,7 +5,7 @@ the hide/show lifecycle that prevents spurious crossing events.
 """
 
 import sys
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock
 
 # Mock gi before importing
 gi_mock = MagicMock()
@@ -15,8 +15,8 @@ sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.position import Position  # noqa: E402
 from docking.ui.tooltip import (  # noqa: E402
-    TooltipManager,
     TOOLTIP_GAP,
+    TooltipManager,
     compute_tooltip_position,
 )
 
@@ -275,7 +275,6 @@ class TestSpuriousLeaveFilter:
 
     def test_leave_inside_bounds_is_ignored(self):
         # Given — leave event with cursor inside drawing area
-        from docking.ui.dock_window import compute_input_rect
 
         # This is a structural test: verify the function exists and the
         # pattern. The actual _on_leave integration requires GTK.

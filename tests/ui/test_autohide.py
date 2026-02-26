@@ -1,8 +1,9 @@
 """Tests for auto-hide state machine and easing functions."""
 
 import sys
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, MagicMock as MM
 
 # Mock gi before importing autohide so tests run without PyGObject
 gi_mock = MagicMock()

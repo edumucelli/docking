@@ -9,7 +9,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gtk, Gdk  # noqa: E402
+from gi.repository import Gdk, Gtk  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.theme import Theme
     from docking.core.zoom import LayoutItem
-    from docking.platform.model import DockModel, DockItem
+    from docking.platform.model import DockItem, DockModel
 
 
 TOOLTIP_GAP = 10

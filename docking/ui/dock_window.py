@@ -2,38 +2,38 @@
 
 from __future__ import annotations
 
-from typing import NamedTuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
+from gi.repository import Gdk, GdkX11, GLib, Gtk  # noqa: E402
 
-from docking.core.position import Position, is_horizontal
-from docking.log import get_logger
-from docking.platform.struts import set_dock_struts, clear_struts
-from docking.core.zoom import compute_layout, content_bounds
 from docking.applets.base import is_applet
+from docking.core.position import Position, is_horizontal
+from docking.core.zoom import compute_layout, content_bounds
+from docking.log import get_logger
 from docking.platform.launcher import launch
+from docking.platform.struts import clear_struts, set_dock_struts
 from docking.ui.autohide import HideState
-from docking.ui.tooltip import TooltipManager
 from docking.ui.hover import HoverManager
+from docking.ui.tooltip import TooltipManager
 
 _log = get_logger("dock_window")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.core.zoom import LayoutItem
-    from docking.platform.model import DockModel, DockItem
-    from docking.ui.renderer import DockRenderer
     from docking.core.theme import Theme
-    from docking.ui.autohide import AutoHideController
+    from docking.core.zoom import LayoutItem
+    from docking.platform.model import DockItem, DockModel
     from docking.platform.window_tracker import WindowTracker
+    from docking.ui.autohide import AutoHideController
     from docking.ui.dnd import DnDHandler
     from docking.ui.menu import MenuHandler
     from docking.ui.preview import PreviewPopup
+    from docking.ui.renderer import DockRenderer
 
 
 # Minimum pixel movement between press and release to consider it a drag

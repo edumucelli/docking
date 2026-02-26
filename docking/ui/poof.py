@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import cairo
 from functools import lru_cache
 from pathlib import Path
+
+import cairo
 
 from docking.log import get_logger
 
@@ -13,7 +14,7 @@ log = get_logger("poof")
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 POOF_DURATION_MS = 300
 

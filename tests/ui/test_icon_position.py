@@ -5,8 +5,6 @@ depending on dock position. These tests verify correctness for all 4
 positions including hide offset and bounce.
 """
 
-import pytest
-
 from docking.core.position import Position
 from docking.ui.renderer import map_icon_position
 

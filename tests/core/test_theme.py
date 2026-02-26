@@ -1,9 +1,9 @@
 """Tests for theme loading, scaling unit system, and color parsing."""
 
 import json
-import pytest
-from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from docking.core.theme import Theme, _rgba
 

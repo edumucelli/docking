@@ -1,12 +1,13 @@
 """Tests for animation effects: easing bounce, icon color extraction."""
 
 import math
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.ui.effects import (
-    easing_bounce,
     average_icon_color,
+    easing_bounce,
 )
 
 

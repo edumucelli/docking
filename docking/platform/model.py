@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from docking.applets.base import Applet
     from docking.core.config import Config
     from docking.platform.launcher import Launcher
-    from docking.applets.base import Applet
 
 import gi
 
@@ -55,8 +55,8 @@ class DockModel:
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
-        from docking.applets.base import is_applet, applet_id_from
         from docking.applets import get_registry
+        from docking.applets.base import applet_id_from, is_applet
 
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         registry = get_registry()

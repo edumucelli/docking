@@ -8,20 +8,20 @@ from typing import TYPE_CHECKING, Any
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk  # noqa: E402
+from gi.repository import Gdk, Gtk  # noqa: E402
 
-from docking.core.position import Position
-from docking.core.theme import Theme, _BUILTIN_THEMES_DIR
-from docking.core.zoom import compute_layout
 from docking.applets.base import is_applet
+from docking.core.position import Position
+from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
+from docking.core.zoom import compute_layout
 
 if TYPE_CHECKING:
-    from docking.core.zoom import LayoutItem
-    from docking.ui.dock_window import DockWindow
-    from docking.platform.model import DockModel, DockItem
     from docking.core.config import Config
+    from docking.core.zoom import LayoutItem
     from docking.platform.launcher import Launcher
+    from docking.platform.model import DockItem, DockModel
     from docking.platform.window_tracker import WindowTracker
+    from docking.ui.dock_window import DockWindow
 
 
 ICON_SIZE_OPTIONS = (32, 48, 64, 80)

@@ -1,8 +1,6 @@
 """Tests for config loading, saving, and defaults."""
 
 import json
-import pytest
-from pathlib import Path
 
 from docking.core.config import Config
 

@@ -16,9 +16,9 @@ sys.modules.setdefault("gi.repository", gi_mock.repository)
 from docking.core.position import Position  # noqa: E402
 from docking.ui.autohide import HideState  # noqa: E402
 from docking.ui.dock_window import (  # noqa: E402
-    compute_input_rect,
     TRIGGER_PX,
     TRIGGER_PX_TOP,
+    compute_input_rect,
 )
 
 WIN_W = 1920

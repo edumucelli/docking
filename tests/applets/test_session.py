@@ -1,6 +1,6 @@
 """Tests for the session applet."""
 
-from docking.applets.session import SessionApplet, _ACTIONS
+from docking.applets.session import _ACTIONS, SessionApplet
 
 
 class TestSessionApplet:

@@ -1,8 +1,7 @@
 """Tests for the dock data model."""
 
 import sys
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Mock gi before importing dock_model
 gi_mock = MagicMock()
@@ -10,7 +9,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.platform.model import DockModel, DockItem  # noqa: E402
+from docking.platform.model import DockItem, DockModel  # noqa: E402
 
 
 def _make_launcher(*desktop_ids: str):

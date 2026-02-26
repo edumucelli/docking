@@ -18,7 +18,7 @@ dependencies = [
 docking = "docking.app:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov", "mypy", "flake8"]
+dev = ["pytest>=7.0", "pytest-cov", "ruff>=0.15", "ty>=0.0.19"]
 
 [tool.setuptools.packages.find]
 include = ["docking*"]
@@ -33,7 +33,23 @@ docking = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]
+ignore = ["E402"]  # gi.require_version() must precede gi.repository imports
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E501"]  # test data strings can exceed line length
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.rules]
+unresolved-import = "ignore"  # gi/cairo lack type stubs
+unresolved-attribute = "ignore"  # gi.repository dynamic attrs
+# openmeteo-requests has incomplete type stubs
+invalid-argument-type = "warn"
+no-matching-overload = "warn"

@@ -17,6 +17,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("PangoCairo", "1.0")
+import cairo
 from gi.repository import (
     Gdk,
     GdkPixbuf,
@@ -26,8 +27,6 @@ from gi.repository import (
     Pango,
     PangoCairo,
 )  # noqa: E402
-
-import cairo
 
 from docking.applets.base import Applet, load_theme_icon
 from docking.applets.weather.api import (
@@ -286,9 +285,8 @@ class WeatherApplet(Applet):
         w = self._weather
         lines = [f"{self._city_display}: {w.temperature:.0f}°C, {w.description}"]
         for day in w.daily:
-            lines.append(
-                f"{day.date}: {day.temp_min:.0f}/{day.temp_max:.0f}°C, {day.description}"
-            )
+            temp = f"{day.temp_min:.0f}/{day.temp_max:.0f}°C"
+            lines.append(f"{day.date}: {temp}, {day.description}")
         return "\n".join(lines)
 
     def _build_tooltip_widget(self) -> Gtk.Box:

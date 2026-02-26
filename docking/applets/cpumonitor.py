@@ -12,7 +12,6 @@ import math
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
 import cairo
-
 import gi
 
 gi.require_version("Gtk", "3.0")

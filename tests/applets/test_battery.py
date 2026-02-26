@@ -1,11 +1,11 @@
 """Tests for the battery applet -- sysfs parsing and icon mapping."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from docking.applets.battery import (
     BatteryApplet,
-    BatteryState,
     read_battery,
     resolve_battery_icon,
 )

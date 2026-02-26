@@ -1,7 +1,6 @@
 """Tests for drag-and-drop URI parsing."""
 
 import sys
-import pytest
 from unittest.mock import MagicMock
 
 # Mock gi before importing dnd
@@ -10,7 +9,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.ui.dnd import DnDHandler, DRAG_ICON_SCALE  # noqa: E402
+from docking.ui.dnd import DRAG_ICON_SCALE, DnDHandler  # noqa: E402
 
 
 class TestConstants:
@@ -33,6 +32,7 @@ class TestPoofAsset:
         """Asset path resolved in tests matches the path used in poof.py."""
         # Given
         from pathlib import Path
+
         import docking.ui.poof as poof_mod
 
         poof_py = Path(poof_mod.__file__)

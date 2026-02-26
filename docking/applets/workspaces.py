@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 
 import cairo
-
 import gi
 
 gi.require_version("Gtk", "3.0")

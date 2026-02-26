@@ -8,9 +8,9 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.ui.menu import ICON_SIZE_OPTIONS, _build_radio_submenu  # noqa: E402
 from docking.core.position import Position  # noqa: E402
 from docking.core.theme import _BUILTIN_THEMES_DIR  # noqa: E402
+from docking.ui.menu import ICON_SIZE_OPTIONS, _build_radio_submenu  # noqa: E402
 
 
 class TestIconSizeOptions:

@@ -7,7 +7,6 @@ import time
 from typing import TYPE_CHECKING, Callable
 
 import cairo
-
 import gi
 
 gi.require_version("Gtk", "3.0")

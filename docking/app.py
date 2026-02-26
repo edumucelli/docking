@@ -7,19 +7,19 @@ import signal
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib  # noqa: E402
+from gi.repository import GLib, Gtk  # noqa: E402
 
 from docking.core.config import Config
 from docking.core.theme import Theme
-from docking.platform.model import DockModel
-from docking.ui.renderer import DockRenderer
-from docking.ui.dock_window import DockWindow
 from docking.platform.launcher import Launcher
+from docking.platform.model import DockModel
 from docking.platform.window_tracker import WindowTracker
 from docking.ui.autohide import AutoHideController
 from docking.ui.dnd import DnDHandler
+from docking.ui.dock_window import DockWindow
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import PreviewPopup
+from docking.ui.renderer import DockRenderer
 
 
 def main() -> None:

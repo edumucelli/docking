@@ -9,15 +9,14 @@ The scaling unit for h_padding and item_padding is pixels (already scaled
 from the theme's "tenths of one percent of icon_size" at load time).
 """
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.core.zoom import (
+    OFFSET_PCT_SNAP,
     compute_layout,
     content_bounds,
-    total_width,
-    LayoutItem,
-    OFFSET_PCT_SNAP,
 )
 
 

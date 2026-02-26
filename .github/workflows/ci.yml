@@ -38,14 +38,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Lint (black --check)
-        run: python -m black --check docking/ tests/
+      - name: Lint (ruff check)
+        run: python -m ruff check docking/ tests/
 
-      - name: Lint (flake8)
-        run: python -m flake8 --select=F401,F841 docking/ tests/
+      - name: Format (ruff format)
+        run: python -m ruff format --check docking/ tests/
 
-      - name: Type check (mypy)
-        run: python -m mypy docking/ --ignore-missing-imports
+      - name: Type check (ty)
+        run: python -m ty check docking/
 
       - name: Tests
         run: python -m pytest tests/ -v

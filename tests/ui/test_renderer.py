@@ -1,13 +1,14 @@
 """Tests for DockRenderer state management."""
 
-import pytest
 from unittest.mock import MagicMock
 
-from docking.ui.renderer import (
-    DockRenderer,
-    SHELF_SMOOTH_FACTOR,
-)
+import pytest
+
 from docking.core.theme import Theme
+from docking.ui.renderer import (
+    SHELF_SMOOTH_FACTOR,
+    DockRenderer,
+)
 
 # Default theme at 48px for hover lighten tests
 _DEFAULT_THEME = Theme.load("default", 48)

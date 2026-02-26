@@ -1,16 +1,14 @@
 """Tests for the CPU monitor applet -- parsing and rendering."""
 
-import math
-
 import pytest
 
 from docking.applets.cpumonitor import (
+    CpuMonitorApplet,
     CpuSample,
     cpu_hue_rgb,
     cpu_percent,
     parse_proc_meminfo,
     parse_proc_stat,
-    CpuMonitorApplet,
 )
 
 

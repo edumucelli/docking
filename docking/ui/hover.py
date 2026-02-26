@@ -18,10 +18,10 @@ _log = get_logger("hover")
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.theme import Theme
-    from docking.platform.model import DockModel, DockItem
+    from docking.platform.model import DockItem, DockModel
+    from docking.ui.dock_window import DockWindow
     from docking.ui.preview import PreviewPopup
     from docking.ui.tooltip import TooltipManager
-    from docking.ui.dock_window import DockWindow
 
 PREVIEW_SHOW_DELAY_MS = 400
 

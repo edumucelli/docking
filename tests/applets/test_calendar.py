@@ -2,9 +2,8 @@
 
 import time
 
-import pytest
-
 import cairo
+import pytest
 
 from docking.applets.calendar import CalendarApplet, _render_calendar_icon
 

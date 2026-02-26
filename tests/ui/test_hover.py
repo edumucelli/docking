@@ -9,7 +9,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.ui.hover import HoverManager, PREVIEW_SHOW_DELAY_MS  # noqa: E402
+from docking.ui.hover import PREVIEW_SHOW_DELAY_MS, HoverManager  # noqa: E402
 
 
 class TestHoverManagerInit:

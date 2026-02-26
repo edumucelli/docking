@@ -1,18 +1,17 @@
 """Tests for the clock applet -- rotation math, prefs, rendering."""
 
-import json
 import math
 import time
 
 import pytest
 
-from docking.core.config import Config
 from docking.applets.clock import (
     ClockApplet,
     hour_rotation_12h,
     hour_rotation_24h,
     minute_rotation,
 )
+from docking.core.config import Config
 
 # -- Rotation pure functions -------------------------------------------------
 

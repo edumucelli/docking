@@ -1,10 +1,9 @@
 """Tests for desktop file resolution."""
 
-import sys
 import os
-import pytest
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # Mock gi before importing launcher
 gi_mock = MagicMock()
@@ -60,8 +59,8 @@ class TestIconCache:
         # Given
         launcher = Launcher()
         # When
-        icon48 = launcher.load_icon("application-x-executable", 48)
-        icon96 = launcher.load_icon("application-x-executable", 96)
+        launcher.load_icon("application-x-executable", 48)
+        launcher.load_icon("application-x-executable", 96)
         # Then — different cache keys
         assert ("application-x-executable", 48) in launcher._icon_cache
         assert ("application-x-executable", 96) in launcher._icon_cache

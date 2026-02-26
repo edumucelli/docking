@@ -1,7 +1,5 @@
 """Tests for urgent glow opacity calculation."""
 
-import math
-
 import pytest
 
 from docking.ui.renderer import compute_urgent_glow_opacity

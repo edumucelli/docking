@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import gi
 
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Wnck, Gtk, GLib  # noqa: E402
+from gi.repository import GLib, Gtk, Wnck  # noqa: E402
 
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 
@@ -26,12 +26,12 @@ def _wm_class_desktop_candidates(class_lower: str) -> list[str]:
         candidates.append(class_lower.replace(" ", ""))
     # Deduplicate while preserving order
     seen: set[str] = set()
-    return [c for c in candidates if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
+    return [c for c in candidates if not (c in seen or seen.add(c))]
 
 
 if TYPE_CHECKING:
-    from docking.platform.model import DockModel
     from docking.platform.launcher import Launcher
+    from docking.platform.model import DockModel
 
 
 class WindowTracker:
@@ -80,7 +80,7 @@ class WindowTracker:
         active_window = self._screen.get_active_window()
         active_xid = active_window.get_xid() if active_window else 0
 
-        # Aggregate by desktop_id: {desktop_id: {"count": n, "active": bool, "windows": [...]}}
+        # {desktop_id: {"count": n, "active": bool, "windows": [...]}}
         running: dict[str, dict[str, Any]] = {}
 
         for window in self._screen.get_windows():

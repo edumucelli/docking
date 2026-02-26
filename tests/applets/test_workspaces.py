@@ -1,8 +1,7 @@
 """Tests for the workspaces applet."""
 
-import pytest
-
 import cairo
+import pytest
 
 from docking.applets.workspaces import WorkspacesApplet, _render_grid
 

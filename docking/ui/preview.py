@@ -15,7 +15,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("Wnck", "3.0")
-from gi.repository import Gtk, Gdk, GdkX11, GdkPixbuf, Wnck, GLib, Pango  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Pango, Wnck  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
 

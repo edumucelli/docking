@@ -9,12 +9,12 @@ sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.ui.preview import (  # noqa: E402
-    THUMB_W,
-    THUMB_H,
-    POPUP_PADDING,
-    THUMB_SPACING,
-    PREVIEW_HIDE_DELAY_MS,
     ICON_FALLBACK_SIZE,
+    POPUP_PADDING,
+    PREVIEW_HIDE_DELAY_MS,
+    THUMB_H,
+    THUMB_SPACING,
+    THUMB_W,
 )
 
 

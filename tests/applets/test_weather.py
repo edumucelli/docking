@@ -1,8 +1,8 @@
 """Tests for the weather applet."""
 
-from docking.core.config import Config
 from docking.applets.weather import WeatherApplet
 from docking.applets.weather.api import DailyForecast, WeatherData
+from docking.core.config import Config
 
 _SAMPLE_WEATHER = WeatherData(
     temperature=22.0,
