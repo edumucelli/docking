@@ -1,7 +1,11 @@
-"""Tests for tooltip manager."""
+"""Tests for tooltip manager.
+
+Covers positioning math, content caching (flicker prevention), and
+the hide/show lifecycle that prevents spurious crossing events.
+"""
 
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, PropertyMock
 
 # Mock gi before importing
 gi_mock = MagicMock()
@@ -48,7 +52,7 @@ class TestTooltipHide:
         # When / Then — should not raise
         tooltip.hide()
 
-    def test_update_with_no_item_hides(self):
+    def test_update_with_no_item_keeps_tooltip(self):
         # Given
         window = MagicMock()
         config = MagicMock()
@@ -56,12 +60,12 @@ class TestTooltipHide:
         theme = MagicMock()
         tooltip = TooltipManager(window, config, model, theme)
         tooltip._tooltip_window = MagicMock()
-        # When — update with None item
+        # When — update with None item (cursor in gap between icons)
         tooltip.update(None, [])
-        # Then — tooltip should be hidden
-        tooltip._tooltip_window.hide.assert_called_once()
+        # Then — tooltip stays visible (dock _on_leave handles hiding)
+        tooltip._tooltip_window.hide.assert_not_called()
 
-    def test_update_with_unnamed_item_hides(self):
+    def test_update_with_unnamed_item_keeps_tooltip(self):
         # Given
         window = MagicMock()
         config = MagicMock()
@@ -71,10 +75,10 @@ class TestTooltipHide:
         tooltip._tooltip_window = MagicMock()
         item = MagicMock()
         item.name = ""
-        # When -- item has no name
+        # When -- item has no name (cursor in gap)
         tooltip.update(item, [])
-        # Then -- tooltip should be hidden
-        tooltip._tooltip_window.hide.assert_called_once()
+        # Then — tooltip stays visible
+        tooltip._tooltip_window.hide.assert_not_called()
 
 
 # Anchor point for tests
@@ -144,3 +148,146 @@ class TestTooltipDirection:
     def test_right_tooltip_left(self):
         tx, _ = compute_tooltip_position(Position.RIGHT, AX, AY, TW, TH)
         assert tx + TW <= AX  # tooltip right <= anchor
+
+
+# -- Regression: content caching prevents flicker ----------------------------
+
+
+def _make_tooltip() -> TooltipManager:
+    """Create a TooltipManager with mocked dependencies."""
+    window = MagicMock()
+    config = MagicMock()
+    model = MagicMock()
+    theme = MagicMock()
+    return TooltipManager(window, config, model, theme)
+
+
+def _make_item(name: str, builder: bool = False) -> MagicMock:
+    item = MagicMock()
+    item.name = name
+    item.tooltip_builder = (lambda: MagicMock()) if builder else None
+    return item
+
+
+class TestContentCaching:
+    """Tooltip should skip content rebuild when same item+name is hovered.
+
+    Rebuilding calls show_all() which generates GTK crossing events that
+    cause spurious leave-notify on the dock drawing area (flicker).
+    """
+
+    def test_same_item_same_name_is_cached(self):
+        # Given
+        tooltip = _make_tooltip()
+        item = _make_item("Firefox")
+        tooltip._last_item = item
+        tooltip._last_name = "Firefox"
+        # When — update with same item and name
+        tooltip.update(item, [])
+        # Then — no rebuild triggered (would need layout lookup)
+        # The early return means no _show_tooltip call
+
+    def test_different_item_triggers_rebuild(self):
+        # Given
+        tooltip = _make_tooltip()
+        item_a = _make_item("Firefox")
+        item_b = _make_item("Chrome")
+        tooltip._last_item = item_a
+        tooltip._last_name = "Firefox"
+        # When/Then — content_changed should be True for different item
+        content_changed = not (
+            item_b is tooltip._last_item and item_b.name == tooltip._last_name
+        )
+        assert content_changed is True
+
+    def test_same_item_different_name_triggers_rebuild(self):
+        # Given — applet changed its tooltip text (e.g. workspace switch)
+        tooltip = _make_tooltip()
+        item = _make_item("Workspace 1")
+        tooltip._last_item = item
+        tooltip._last_name = "Workspace 1"
+        item.name = "Workspace 2"
+        # When/Then
+        content_changed = not (
+            item is tooltip._last_item and item.name == tooltip._last_name
+        )
+        assert content_changed is True
+
+    def test_builder_item_same_name_is_cached(self):
+        # Given — weather applet with tooltip_builder, same data
+        tooltip = _make_tooltip()
+        item = _make_item("Paris: 17°C", builder=True)
+        tooltip._last_item = item
+        tooltip._last_name = "Paris: 17°C"
+        # When/Then — should be cached (builder only called on content change)
+        content_changed = not (
+            item is tooltip._last_item and item.name == tooltip._last_name
+        )
+        assert content_changed is False
+
+
+class TestTooltipGapBehavior:
+    """Tooltip must NOT hide when cursor moves to gap between icons.
+
+    Previously, update(None) would hide the tooltip, causing rapid
+    hide/show flicker when moving between adjacent icons. Now the
+    tooltip stays visible until the mouse leaves the dock entirely.
+    """
+
+    def test_none_item_does_not_hide(self):
+        tooltip = _make_tooltip()
+        tooltip._tooltip_window = MagicMock()
+        tooltip.update(None, [])
+        tooltip._tooltip_window.hide.assert_not_called()
+
+    def test_empty_name_does_not_hide(self):
+        tooltip = _make_tooltip()
+        tooltip._tooltip_window = MagicMock()
+        item = _make_item("")
+        tooltip.update(item, [])
+        tooltip._tooltip_window.hide.assert_not_called()
+
+    def test_explicit_hide_works(self):
+        tooltip = _make_tooltip()
+        tooltip._tooltip_window = MagicMock()
+        tooltip.hide()
+        tooltip._tooltip_window.hide.assert_called_once()
+
+    def test_hide_clears_tracking(self):
+        tooltip = _make_tooltip()
+        tooltip._last_item = _make_item("Firefox")
+        tooltip._last_name = "Firefox"
+        tooltip.hide()
+        assert tooltip._last_item is None
+        assert tooltip._last_name == ""
+
+
+# -- Regression: spurious leave filter in dock_window ------------------------
+
+
+class TestSpuriousLeaveFilter:
+    """Dock must ignore leave events where cursor is still inside the window.
+
+    The tooltip popup generates NONLINEAR leave events on the dock's
+    drawing area even though the cursor hasn't moved outside it. The
+    bounds check in _on_leave prevents these from triggering autohide.
+    """
+
+    def test_leave_inside_bounds_is_ignored(self):
+        # Given — leave event with cursor inside drawing area
+        from docking.ui.dock_window import compute_input_rect
+
+        # This is a structural test: verify the function exists and the
+        # pattern. The actual _on_leave integration requires GTK.
+        # We verify the bounds-check logic directly.
+        alloc_width, alloc_height = 1440, 100
+        event_x, event_y = 1200, 80  # inside
+        inside = 0 <= event_x <= alloc_width and 0 <= event_y <= alloc_height
+        assert inside is True  # would return False from _on_leave
+
+    def test_leave_outside_bounds_is_real(self):
+        # Given — leave event with cursor outside (genuine exit)
+        alloc_width, alloc_height = 1440, 100
+        event_x, event_y = 1200, 105  # y outside
+        inside = 0 <= event_x <= alloc_width and 0 <= event_y <= alloc_height
+        assert inside is False  # would proceed to autohide

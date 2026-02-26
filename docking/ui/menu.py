@@ -76,7 +76,12 @@ class MenuHandler:
         self._launcher = launcher
 
     def show(self, event: Gdk.EventButton, cursor_main: float) -> None:
-        """Show context menu at cursor position."""
+        """Build and show the right-click context menu.
+
+        Hit-tests the cursor to determine whether to show an item-specific
+        menu (desktop actions, pin/unpin, close) or a dock background menu
+        (autohide, theme, position, applets, quit).
+        """
         items = self._model.visible_items()
         theme = self._window.theme
         local_main = self._window.local_cursor_main()
@@ -100,7 +105,11 @@ class MenuHandler:
         menu.popup_at_pointer(event)
 
     def _build_item_menu(self, menu: Gtk.Menu, item: DockItem) -> None:
-        """Build context menu for a specific dock item."""
+        """Build context menu for a specific dock item.
+
+        Applets: delegates to applet.get_menu_items() + "Remove from Dock".
+        Regular items: desktop actions (quicklists), pin/unpin, close.
+        """
         if is_applet(item.desktop_id):
             # Applet-specific menu items
             applet = self._model.get_applet(item.desktop_id)
@@ -141,7 +150,11 @@ class MenuHandler:
             menu.append(close)
 
     def _build_dock_menu(self, menu: Gtk.Menu) -> None:
-        """Build context menu for the dock background."""
+        """Build context menu for the dock background (no item under cursor).
+
+        Sections: autohide toggle, preview toggle, theme/icon size/position
+        radio submenus, applet toggle checkboxes, quit.
+        """
         # Auto-hide toggle
         autohide = Gtk.CheckMenuItem(label="Auto-hide")
         autohide.set_active(self._config.autohide)

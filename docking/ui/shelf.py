@@ -10,12 +10,10 @@ import cairo
 if TYPE_CHECKING:
     from docking.core.theme import Theme
 
-INNER_HIGHLIGHT_OPACITIES = (
-    0.5,
-    0.12,
-    0.08,
-    0.19,
-)  # top, near-top, near-bottom, bottom
+# Gradient stop opacities for the inner highlight stroke (3D bevel effect).
+# (top edge, near-top, near-bottom, bottom edge) -- brighter at top and
+# bottom edges creates the illusion of a raised surface catching light.
+INNER_HIGHLIGHT_OPACITIES = (0.5, 0.12, 0.08, 0.19)
 
 
 def rounded_rect(
@@ -29,20 +27,18 @@ def rounded_rect(
 ) -> None:
     """Draw a rounded rectangle path, optionally with square bottom corners."""
     cr.new_sub_path()
-    # Top-right (rounded)
-    cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)
+    cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)  # top-right corner
     if round_bottom:
-        # Bottom-right (rounded)
-        cr.arc(x + width - radius, y + height - radius, radius, 0, math.pi / 2)
-        # Bottom-left (rounded)
-        cr.arc(x + radius, y + height - radius, radius, math.pi / 2, math.pi)
+        cr.arc(
+            x + width - radius, y + height - radius, radius, 0, math.pi / 2
+        )  # bottom-right
+        cr.arc(
+            x + radius, y + height - radius, radius, math.pi / 2, math.pi
+        )  # bottom-left
     else:
-        # Bottom-right (square)
-        cr.line_to(x + width, y + height)
-        # Bottom-left (square)
-        cr.line_to(x, y + height)
-    # Top-left (rounded)
-    cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
+        cr.line_to(x + width, y + height)  # bottom-right (square)
+        cr.line_to(x, y + height)  # bottom-left (square)
+    cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)  # top-left corner
     cr.close_path()
 
 

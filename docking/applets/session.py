@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from typing import NamedTuple, TYPE_CHECKING
 
 import gi
 
@@ -18,12 +18,20 @@ if TYPE_CHECKING:
 
 _log = get_logger("session")
 
-_ACTIONS: list[tuple[str, list[str]]] = [
-    ("Lock Screen", ["loginctl", "lock-session"]),
-    ("Log Out", ["loginctl", "terminate-session", ""]),
-    ("Suspend", ["systemctl", "suspend"]),
-    ("Restart", ["systemctl", "reboot"]),
-    ("Shut Down", ["systemctl", "poweroff"]),
+
+class SessionAction(NamedTuple):
+    """A session/power action with its shell command."""
+
+    label: str
+    command: list[str]
+
+
+_ACTIONS: list[SessionAction] = [
+    SessionAction("Lock Screen", ["loginctl", "lock-session"]),
+    SessionAction("Log Out", ["loginctl", "terminate-session", ""]),
+    SessionAction("Suspend", ["systemctl", "suspend"]),
+    SessionAction("Restart", ["systemctl", "reboot"]),
+    SessionAction("Shut Down", ["systemctl", "poweroff"]),
 ]
 
 

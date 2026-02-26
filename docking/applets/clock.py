@@ -175,7 +175,7 @@ class ClockApplet(Applet):
         center = size / 2
 
         # Build list of (text, font_desc, stroke_width, rgba) rows to draw
-        rows: list[tuple[str, Pango.FontDescription, float, tuple]] = []
+        rows: list[tuple[str, Pango.FontDescription, float, tuple[float, ...]]] = []
 
         # Time text
         if is_24h:
@@ -266,7 +266,7 @@ class ClockApplet(Applet):
         x: float,
         y: float,
         stroke_width: float,
-        fill_rgba: tuple = (1, 1, 1, 1),
+        fill_rgba: tuple[float, ...] = (1, 1, 1, 1),
     ) -> None:
         """Draw Pango text with a black outline and colored fill."""
         cr.save()

@@ -31,47 +31,54 @@ _API_URL = "https://api.open-meteo.com/v1/forecast"
 
 # -- WMO weather code mapping ------------------------------------------------
 
-# WMO code -> (description, GTK icon name)
-_WMO_CODES: dict[int, tuple[str, str]] = {
-    0: ("Clear sky", "weather-clear"),
-    1: ("Mainly clear", "weather-few-clouds"),
-    2: ("Partly cloudy", "weather-few-clouds"),
-    3: ("Overcast", "weather-overcast"),
-    45: ("Fog", "weather-fog"),
-    48: ("Depositing rime fog", "weather-fog"),
-    51: ("Light drizzle", "weather-showers-scattered"),
-    53: ("Moderate drizzle", "weather-showers-scattered"),
-    55: ("Dense drizzle", "weather-showers-scattered"),
-    56: ("Light freezing drizzle", "weather-showers-scattered"),
-    57: ("Dense freezing drizzle", "weather-showers-scattered"),
-    61: ("Slight rain", "weather-showers"),
-    63: ("Moderate rain", "weather-showers"),
-    65: ("Heavy rain", "weather-showers"),
-    66: ("Light freezing rain", "weather-showers"),
-    67: ("Heavy freezing rain", "weather-showers"),
-    71: ("Slight snowfall", "weather-snow"),
-    73: ("Moderate snowfall", "weather-snow"),
-    75: ("Heavy snowfall", "weather-snow"),
-    77: ("Snow grains", "weather-snow"),
-    80: ("Slight rain showers", "weather-showers"),
-    81: ("Moderate rain showers", "weather-showers"),
-    82: ("Violent rain showers", "weather-showers"),
-    85: ("Slight snow showers", "weather-snow"),
-    86: ("Heavy snow showers", "weather-snow"),
-    95: ("Thunderstorm", "weather-storm"),
-    96: ("Thunderstorm with slight hail", "weather-storm"),
-    99: ("Thunderstorm with heavy hail", "weather-storm"),
+
+class WmoEntry(NamedTuple):
+    """WMO weather code mapping: human description + GTK icon name."""
+
+    description: str
+    icon_name: str
+
+
+_WMO_CODES: dict[int, WmoEntry] = {
+    0: WmoEntry("Clear sky", "weather-clear"),
+    1: WmoEntry("Mainly clear", "weather-few-clouds"),
+    2: WmoEntry("Partly cloudy", "weather-few-clouds"),
+    3: WmoEntry("Overcast", "weather-overcast"),
+    45: WmoEntry("Fog", "weather-fog"),
+    48: WmoEntry("Depositing rime fog", "weather-fog"),
+    51: WmoEntry("Light drizzle", "weather-showers-scattered"),
+    53: WmoEntry("Moderate drizzle", "weather-showers-scattered"),
+    55: WmoEntry("Dense drizzle", "weather-showers-scattered"),
+    56: WmoEntry("Light freezing drizzle", "weather-showers-scattered"),
+    57: WmoEntry("Dense freezing drizzle", "weather-showers-scattered"),
+    61: WmoEntry("Slight rain", "weather-showers"),
+    63: WmoEntry("Moderate rain", "weather-showers"),
+    65: WmoEntry("Heavy rain", "weather-showers"),
+    66: WmoEntry("Light freezing rain", "weather-showers"),
+    67: WmoEntry("Heavy freezing rain", "weather-showers"),
+    71: WmoEntry("Slight snowfall", "weather-snow"),
+    73: WmoEntry("Moderate snowfall", "weather-snow"),
+    75: WmoEntry("Heavy snowfall", "weather-snow"),
+    77: WmoEntry("Snow grains", "weather-snow"),
+    80: WmoEntry("Slight rain showers", "weather-showers"),
+    81: WmoEntry("Moderate rain showers", "weather-showers"),
+    82: WmoEntry("Violent rain showers", "weather-showers"),
+    85: WmoEntry("Slight snow showers", "weather-snow"),
+    86: WmoEntry("Heavy snow showers", "weather-snow"),
+    95: WmoEntry("Thunderstorm", "weather-storm"),
+    96: WmoEntry("Thunderstorm with slight hail", "weather-storm"),
+    99: WmoEntry("Thunderstorm with heavy hail", "weather-storm"),
 }
 
 
 def wmo_description(code: int) -> str:
     """Human-readable description for a WMO weather code."""
-    return _WMO_CODES.get(code, ("Unknown", "weather-few-clouds"))[0]
+    return _WMO_CODES.get(code, WmoEntry("Unknown", "weather-few-clouds")).description
 
 
 def wmo_icon_name(code: int) -> str:
     """GTK icon name for a WMO weather code."""
-    return _WMO_CODES.get(code, ("Unknown", "weather-few-clouds"))[1]
+    return _WMO_CODES.get(code, WmoEntry("Unknown", "weather-few-clouds")).icon_name
 
 
 # -- Data types --------------------------------------------------------------

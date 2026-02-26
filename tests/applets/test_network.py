@@ -4,6 +4,7 @@ import pytest
 
 from docking.applets.network import (
     NetworkApplet,
+    TrafficCounters,
     compute_speeds,
     format_speed,
     parse_proc_net_dev,
@@ -48,27 +49,33 @@ class TestParseProcNetDev:
 
 class TestComputeSpeeds:
     def test_basic_speeds(self):
-        prev = (1000, 500)
-        curr = (3000, 1500)
-        rx, tx = compute_speeds(prev, curr, 2.0)
-        assert rx == pytest.approx(1000.0)
-        assert tx == pytest.approx(500.0)
+        prev = TrafficCounters(1000, 500)
+        curr = TrafficCounters(3000, 1500)
+        down, up = compute_speeds(prev, curr, 2.0)
+        assert down == pytest.approx(1000.0)
+        assert up == pytest.approx(500.0)
 
     def test_zero_elapsed(self):
-        rx, tx = compute_speeds((0, 0), (1000, 500), 0.0)
-        assert rx == 0.0
-        assert tx == 0.0
+        down, up = compute_speeds(
+            TrafficCounters(0, 0), TrafficCounters(1000, 500), 0.0
+        )
+        assert down == 0.0
+        assert up == 0.0
 
     def test_no_change(self):
-        rx, tx = compute_speeds((1000, 500), (1000, 500), 1.0)
-        assert rx == 0.0
-        assert tx == 0.0
+        down, up = compute_speeds(
+            TrafficCounters(1000, 500), TrafficCounters(1000, 500), 1.0
+        )
+        assert down == 0.0
+        assert up == 0.0
 
     def test_counter_wraparound_clamped(self):
         # If curr < prev (counter reset), clamp to 0
-        rx, tx = compute_speeds((5000, 3000), (1000, 500), 1.0)
-        assert rx == 0.0
-        assert tx == 0.0
+        down, up = compute_speeds(
+            TrafficCounters(5000, 3000), TrafficCounters(1000, 500), 1.0
+        )
+        assert down == 0.0
+        assert up == 0.0
 
 
 class TestFormatSpeed:

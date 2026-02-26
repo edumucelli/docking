@@ -13,4 +13,8 @@ logging.basicConfig(
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Return a logger under the 'docking.' namespace.
+
+    Level controlled by DOCKING_LOG_LEVEL env var (default WARNING).
+    """
     return logging.getLogger(f"docking.{name}")

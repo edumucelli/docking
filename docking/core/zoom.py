@@ -7,7 +7,7 @@ Icons near the cursor scale up parabolically; distant icons stay at 1.0x.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import NamedTuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -190,12 +190,19 @@ def compute_layout(
     return result
 
 
+class Bounds(NamedTuple):
+    """Left and right edges of content along the main axis."""
+
+    left: float
+    right: float
+
+
 def content_bounds(
     layout: list[LayoutItem],
     icon_size: int,
     h_padding: float,
     item_padding: float = 0.0,
-) -> tuple[float, float]:
+) -> Bounds:
     """Compute the left and right edges of the content including displacements.
 
     Plank treats each icon slot as (icon_size + item_padding) wide, so the
@@ -205,12 +212,12 @@ def content_bounds(
     half_item_pad = item_padding / 2
     pad = h_padding + half_item_pad
     if not layout:
-        return 0.0, 2 * pad
+        return Bounds(0.0, 2 * pad)
     first = layout[0]
     last = layout[-1]
     left = first.x - pad
     right = last.x + icon_size * last.scale + pad
-    return left, right
+    return Bounds(left, right)
 
 
 def total_width(

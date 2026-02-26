@@ -48,7 +48,7 @@ class TestAutohideOff:
 
 
 class TestAutohideVisible:
-    """When visible, content rect regardless of hide_offset."""
+    """When visible, content rect."""
 
     def test_bottom_content_rect(self):
         x, y, w, h = compute_input_rect(
@@ -59,7 +59,6 @@ class TestAutohideVisible:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.VISIBLE,
-            hide_offset=0.0,
         )
         assert h == CONTENT_CROSS
         assert y == WIN_H - CONTENT_CROSS
@@ -77,7 +76,6 @@ class TestAutohideHiding:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.HIDING,
-            hide_offset=0.5,
         )
         # Still content-sized, NOT shrunk
         assert h == CONTENT_CROSS
@@ -91,7 +89,6 @@ class TestAutohideHiding:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.VISIBLE,
-            hide_offset=0.0,
         )
         hiding = compute_input_rect(
             Position.BOTTOM,
@@ -101,7 +98,6 @@ class TestAutohideHiding:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.HIDING,
-            hide_offset=0.5,
         )
         assert visible == hiding
 
@@ -118,7 +114,6 @@ class TestAutohideShowing:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.SHOWING,
-            hide_offset=0.5,
         )
         assert h == CONTENT_CROSS
 
@@ -135,7 +130,6 @@ class TestAutohideHidden:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.HIDDEN,
-            hide_offset=1.0,
         )
         assert h == TRIGGER_PX
         assert y == WIN_H - TRIGGER_PX
@@ -149,7 +143,6 @@ class TestAutohideHidden:
             CONTENT_W,
             CONTENT_CROSS,
             HideState.HIDDEN,
-            hide_offset=1.0,
         )
         assert h == TRIGGER_PX_TOP
         assert y == 0

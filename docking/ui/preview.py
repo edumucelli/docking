@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
@@ -64,20 +65,22 @@ def _install_css() -> None:
     )
 
 
-_css_installed = False
-
-
+@lru_cache(maxsize=1)
 def _ensure_css() -> None:
-    global _css_installed
-    if not _css_installed:
-        _install_css()
-        _css_installed = True
+    _install_css()
 
 
 def capture_window(
     wnck_window: Wnck.Window, thumb_w: int = THUMB_W, thumb_h: int = THUMB_H
 ) -> GdkPixbuf.Pixbuf | None:
-    """Capture a window's content as a scaled thumbnail pixbuf."""
+    """Capture a window's content as a scaled thumbnail pixbuf.
+
+    Uses GdkX11.X11Window.foreign_new_for_display to create a GDK handle
+    for the target XID, then reads pixels via Gdk.pixbuf_get_from_window.
+    Falls back to _icon_fallback if the window is minimized (no pixel
+    content available) or if the foreign window handle fails (e.g. the
+    window was destroyed between detection and capture).
+    """
     if wnck_window.is_minimized():
         return _icon_fallback(wnck_window, thumb_w, thumb_h)
 
@@ -112,7 +115,11 @@ def capture_window(
 def _icon_fallback(
     wnck_window: Wnck.Window, thumb_w: int, thumb_h: int
 ) -> GdkPixbuf.Pixbuf | None:
-    """Create a dark placeholder with the app icon centered."""
+    """Create a dark placeholder pixbuf with the app icon centered.
+
+    Used when the window is minimized or pixel capture fails. Composites
+    the Wnck icon (scaled to ICON_FALLBACK_SIZE) onto a dark background.
+    """
     icon = wnck_window.get_icon()
     if icon is None:
         return None
@@ -184,10 +191,14 @@ class PreviewPopup(Gtk.Window):
     ) -> None:
         """Show preview popup near a dock icon.
 
-        For horizontal docks: anchor_x = icon left edge, anchor_y = icon
-        inner edge (top for bottom dock, bottom for top dock).
-        For vertical docks: anchor_x = icon inner edge, anchor_y = icon
-        top edge along main axis.
+        Anchor coordinates are in absolute screen-space (not window-local):
+        - Horizontal docks: anchor_x = icon left edge, anchor_y = icon
+          inner edge (top for bottom dock, bottom for top dock).
+        - Vertical docks: anchor_x = icon inner edge, anchor_y = icon
+          top edge along main axis.
+
+        The popup is centered on the icon along the main axis and offset
+        away from the screen edge along the cross axis.
         """
         windows = self._tracker.get_windows_for(desktop_id)
         if not windows:

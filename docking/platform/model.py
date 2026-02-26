@@ -36,6 +36,7 @@ class DockItem:
     last_clicked: int = 0
     last_launched: int = 0
     last_urgent: int = 0
+    # Callable returning tooltip widget/content; used by applets for rich tooltips
     tooltip_builder: Callable[[], Any] | None = None
 
 
@@ -267,17 +268,17 @@ class DockModel:
 
         item = items[from_index]
 
-        # Auto-pin if transient
+        # Auto-pin transient items so they can be reordered among pinned items
         if not item.is_pinned:
             if item in self._transient:
                 self._transient.remove(item)
             item.is_pinned = True
             self.pinned_items.append(item)
 
-        # Now reorder within _pinned using the item's pinned index
+        # Map visible index -> pinned index for the source item
         pinned_from = self.pinned_items.index(item)
 
-        # Target: find what pinned index to_index maps to
+        # Map visible target index -> pinned index (auto-pin target if transient)
         target_item = items[to_index] if to_index < len(items) else None
         if target_item and not target_item.is_pinned:
             if target_item in self._transient:
@@ -298,9 +299,10 @@ class DockModel:
         self.notify()
 
     def sync_pinned_to_config(self) -> None:
-        """Update config.pinned to reflect current pinned order."""
+        """Write current pinned_items order back to config (does not save to disk)."""
         self._config.pinned = [item.desktop_id for item in self.pinned_items]
 
     def notify(self) -> None:
+        """Fire on_change callback to trigger a dock redraw."""
         if self.on_change:
             self.on_change()

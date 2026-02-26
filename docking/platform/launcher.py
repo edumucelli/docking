@@ -125,8 +125,15 @@ class Launcher:
         return dirs
 
 
-def get_actions(desktop_id: str) -> list[tuple[str, str]]:
-    """Return desktop actions for an app as [(action_id, display_name), ...]."""
+class DesktopAction(NamedTuple):
+    """A .desktop Actions entry (e.g. "New Window")."""
+
+    action_id: str
+    display_name: str
+
+
+def get_actions(desktop_id: str) -> list[DesktopAction]:
+    """Return .desktop Actions entries (e.g. "New Window", "New Incognito Window")."""
     try:
         app_info = Gio.DesktopAppInfo.new(desktop_id)
     except (TypeError, GLib.Error):
@@ -137,12 +144,12 @@ def get_actions(desktop_id: str) -> list[tuple[str, str]]:
     for action_id in app_info.list_actions():
         name = app_info.get_action_name(action_id)
         if name:
-            result.append((action_id, name))
+            result.append(DesktopAction(action_id, name))
     return result
 
 
 def launch_action(desktop_id: str, action_id: str) -> None:
-    """Launch a specific desktop action for an app."""
+    """Launch a named desktop action (from the .desktop [Desktop Action ...] group)."""
     try:
         app_info = Gio.DesktopAppInfo.new(desktop_id)
     except (TypeError, GLib.Error):
@@ -169,7 +176,8 @@ def launch(desktop_id: str) -> None:
     cmdline = app_info.get_commandline()
     if not cmdline:
         return
-    # Strip %u, %U, %f, %F field codes from Exec line
+    # Strip .desktop Exec field codes (%u=URL, %f=file, %i=icon, etc.)
+    # per freedesktop Desktop Entry spec s1.7
     import re
 
     cmd = re.sub(r"%[uUfFdDnNickvm]", "", cmdline).strip()

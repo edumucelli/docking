@@ -9,7 +9,7 @@ Speed overlay rendered via Cairo at bottom center.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Callable
+from typing import NamedTuple, TYPE_CHECKING, Callable
 
 import cairo
 
@@ -35,13 +35,27 @@ POLL_INTERVAL_S = 2
 # -- Pure functions (testable without GTK) ------------------------------------
 
 
-def parse_proc_net_dev(text: str) -> dict[str, tuple[int, int]]:
+class TrafficCounters(NamedTuple):
+    """Byte counters for a network interface."""
+
+    rx: int
+    tx: int
+
+
+class TrafficSpeeds(NamedTuple):
+    """Download/upload speeds in bytes per second."""
+
+    down: float
+    up: float
+
+
+def parse_proc_net_dev(text: str) -> dict[str, TrafficCounters]:
     """Parse /proc/net/dev into {iface: (rx_bytes, tx_bytes)}.
 
     Skips the two header lines. Each data line:
       iface: rx_bytes rx_packets ... (8 fields) tx_bytes tx_packets ... (8 fields)
     """
-    result: dict[str, tuple[int, int]] = {}
+    result: dict[str, TrafficCounters] = {}
     for line in text.strip().split("\n")[2:]:
         if ":" not in line:
             continue
@@ -50,19 +64,19 @@ def parse_proc_net_dev(text: str) -> dict[str, tuple[int, int]]:
         if len(fields) >= 9:
             rx = int(fields[0])
             tx = int(fields[8])
-            result[iface.strip()] = (rx, tx)
+            result[iface.strip()] = TrafficCounters(rx, tx)
     return result
 
 
 def compute_speeds(
-    prev: tuple[int, int], curr: tuple[int, int], elapsed_s: float
-) -> tuple[float, float]:
+    prev: TrafficCounters, curr: TrafficCounters, elapsed_s: float
+) -> TrafficSpeeds:
     """Compute (rx_bytes_per_sec, tx_bytes_per_sec) from two samples."""
     if elapsed_s <= 0:
-        return 0.0, 0.0
-    rx_delta = max(0, curr[0] - prev[0])
-    tx_delta = max(0, curr[1] - prev[1])
-    return rx_delta / elapsed_s, tx_delta / elapsed_s
+        return TrafficSpeeds(0.0, 0.0)
+    rx_delta = max(0, curr.rx - prev.rx)
+    tx_delta = max(0, curr.tx - prev.tx)
+    return TrafficSpeeds(rx_delta / elapsed_s, tx_delta / elapsed_s)
 
 
 def format_speed(bps: float) -> str:
@@ -119,7 +133,7 @@ class NetworkApplet(Applet):
         self._tx_speed = 0.0
 
         # Traffic tracking
-        self._prev_counters: tuple[int, int] | None = None
+        self._prev_counters: TrafficCounters | None = None
         self._prev_time: float = 0.0
 
         super().__init__(icon_size, config)

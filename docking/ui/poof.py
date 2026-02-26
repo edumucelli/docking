@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import cairo
+from functools import lru_cache
 from pathlib import Path
 
 from docking.log import get_logger
@@ -16,21 +17,21 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GLib  # noqa: E402
 
 POOF_DURATION_MS = 300
 
-_poof_pixbuf: GdkPixbuf.Pixbuf | None = None
-_poof_loaded = False
 
-
+@lru_cache(maxsize=1)
 def _load_poof() -> GdkPixbuf.Pixbuf | None:
-    global _poof_pixbuf, _poof_loaded
-    if _poof_loaded:
-        return _poof_pixbuf
-    _poof_loaded = True
+    """Load the poof sprite sheet SVG from assets (cached after first load).
+
+    The sprite sheet is a vertical strip of square frames. Each frame is
+    frame_size x frame_size, stacked top to bottom. Returns None if the
+    asset is missing.
+    """
     svg_path = str(Path(__file__).parent.parent / "assets" / "poof.svg")
     try:
-        _poof_pixbuf = GdkPixbuf.Pixbuf.new_from_file(svg_path)
+        return GdkPixbuf.Pixbuf.new_from_file(svg_path)
     except (GLib.Error, FileNotFoundError):
         log.warning("poof.svg not found at %s", svg_path)
-    return _poof_pixbuf
+        return None
 
 
 def show_poof(x: int, y: int) -> None:

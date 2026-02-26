@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import NamedTuple, TYPE_CHECKING
 
 import cairo
 import gi
@@ -12,6 +12,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, GdkX11  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
+from docking.log import get_logger
 from docking.platform.struts import set_dock_struts, clear_struts
 from docking.core.zoom import compute_layout, content_bounds
 from docking.applets.base import is_applet
@@ -19,6 +20,8 @@ from docking.platform.launcher import launch
 from docking.ui.autohide import HideState
 from docking.ui.tooltip import TooltipManager
 from docking.ui.hover import HoverManager
+
+_log = get_logger("dock_window")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -33,9 +36,26 @@ if TYPE_CHECKING:
     from docking.ui.preview import PreviewPopup
 
 
-CLICK_DRAG_THRESHOLD = 10  # px movement to distinguish click from drag
-TRIGGER_PX = 2  # trigger strip size at screen edge
-TRIGGER_PX_TOP = 8  # wider trigger at top (no physical edge barrier)
+# Minimum pixel movement between press and release to consider it a drag
+# rather than a click. Prevents accidental launches when slightly moving
+# the mouse during a click.
+CLICK_DRAG_THRESHOLD = 10
+
+# Thin input region at screen edge when dock is hidden, allowing the
+# mouse to re-enter and trigger the show animation.
+TRIGGER_PX = 2
+# Top edge needs a wider trigger because there's no physical screen edge
+# barrier -- the mouse can overshoot into a top panel more easily.
+TRIGGER_PX_TOP = 8
+
+
+class Rect(NamedTuple):
+    """Rectangle with named x, y, w, h fields (input region, etc.)."""
+
+    x: int
+    y: int
+    w: int
+    h: int
 
 
 def should_keep_cursor_on_leave(autohide_enabled: bool, preview_visible: bool) -> bool:
@@ -55,55 +75,37 @@ def compute_input_rect(
     content_w: int,
     content_cross: int,
     autohide_state: HideState | None,
-    hide_offset: float = 0.0,
-) -> tuple[int, int, int, int]:
+) -> Rect:
     """Return (x, y, w, h) for the input shape region.
 
-    The input region is continuously animated using hide_offset (0.0=visible,
-    1.0=hidden), matching Plank's approach. This avoids abrupt region changes
-    at state boundaries that cause oscillation.
-
-    When autohide is off: content rectangle at the screen edge.
-    When autohide is on: cross-axis interpolated between content_cross
-    (visible) and trigger strip (hidden) based on hide_offset. Updated
-    every frame during draw.
+    Two-state approach: HIDDEN uses a thin trigger strip at the screen edge
+    for reveal; all other states (including autohide off) use the content rect.
+    No interpolation during animation -- this prevents oscillation from
+    mouse re-entry events during hide/show transitions.
     """
-    if autohide_state is None:
-        # Autohide off: content rect only
-        cross = max(content_cross, 1)
-        main = max(content_w, 1)
-        if pos == Position.BOTTOM:
-            return (content_offset, window_h - cross, main, cross)
-        elif pos == Position.TOP:
-            return (content_offset, 0, main, cross)
-        elif pos == Position.LEFT:
-            return (0, content_offset, cross, main)
-        else:
-            return (window_w - cross, content_offset, cross, main)
-
-    # Autohide on: two distinct regions only.
-    # - HIDDEN: trigger strip at screen edge (thin, full width for reveal)
-    # - Everything else (VISIBLE/SHOWING/HIDING): content rect
+    # Determine cross-axis size:
+    # - Autohide off or non-HIDDEN: content rect
+    # - HIDDEN: thin trigger strip at screen edge for reveal
     #
-    # During HIDING, keeping the content rect prevents oscillation: the mouse
-    # is inside the region so no re-enter events fire. Once fully hidden, it
-    # switches to the trigger strip. During SHOWING, content rect ensures the
-    # mouse stays "inside" until the dock is fully visible.
-    trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
+    # During HIDING, keeping the content rect prevents oscillation: the
+    # mouse stays inside so no re-enter events fire. Once fully hidden,
+    # it switches to the trigger strip. During SHOWING, content rect
+    # ensures the mouse stays "inside" until the dock is fully visible.
     if autohide_state == HideState.HIDDEN:
+        trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
         cross = trigger
     else:
         cross = max(content_cross, 1)
     main = max(content_w, 1)
 
     if pos == Position.BOTTOM:
-        return (content_offset, window_h - cross, main, cross)
+        return Rect(content_offset, window_h - cross, main, cross)
     elif pos == Position.TOP:
-        return (content_offset, 0, main, cross)
+        return Rect(content_offset, 0, main, cross)
     elif pos == Position.LEFT:
-        return (0, content_offset, cross, main)
+        return Rect(0, content_offset, cross, main)
     else:
-        return (window_w - cross, content_offset, cross, main)
+        return Rect(window_w - cross, content_offset, cross, main)
 
 
 # X11 mouse button codes
@@ -143,7 +145,11 @@ class DockWindow(Gtk.Window):
         self._connect_model()
 
     def _setup_window(self) -> None:
-        """Configure window as an X11 dock."""
+        """Configure GTK window as an X11 dock.
+
+        Sets window manager hints (DOCK type, skip taskbar/pager, keep above,
+        sticky) and enables RGBA visual for composited transparency.
+        """
         self.set_title("Docking")
         self.set_decorated(False)
         self.set_skip_taskbar_hint(True)
@@ -163,7 +169,12 @@ class DockWindow(Gtk.Window):
         self.connect("destroy", Gtk.main_quit)
 
     def _setup_drawing_area(self) -> None:
-        """Create the drawing surface and wire events."""
+        """Create the drawing surface and wire all mouse/scroll event handlers.
+
+        Disables GTK double buffering (we blit from an offscreen surface
+        instead) and registers handlers for draw, motion, button, enter/leave,
+        and scroll events.
+        """
         self.drawing_area = Gtk.DrawingArea()
         # Disable GTK's automatic double buffering. For transparent RGBA
         # windows, GTK allocates an intermediate CPU buffer that causes
@@ -191,7 +202,7 @@ class DockWindow(Gtk.Window):
         self._click_x: float = -1.0
         self._click_y: float = -1.0
         self._click_button: int = 0
-        self._last_input_rect: tuple[int, int, int, int] = (-1, -1, -1, -1)
+        self._last_input_rect: Rect | None = None
 
     def _connect_model(self) -> None:
         """Listen for model changes to trigger redraws."""
@@ -308,7 +319,12 @@ class DockWindow(Gtk.Window):
         self._set_struts()
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
-        """Render the dock via the renderer."""
+        """GTK draw signal handler -- orchestrates each frame.
+
+        Delegates rendering to the DockRenderer, then updates the input
+        region (which may change during hide animation), resets cursor
+        after hide completes, and re-schedules redraws for urgent glow.
+        """
         hide_offset = self.autohide.hide_offset if self.autohide else 0.0
         # The renderer receives zoom_progress from the autohide controller.
         # During normal hover (no autohide), zoom_progress is 1.0 and has
@@ -360,7 +376,11 @@ class DockWindow(Gtk.Window):
         return True
 
     def _on_motion(self, widget: Gtk.DrawingArea, event: Gdk.EventMotion) -> bool:
-        """Update cursor position and trigger zoom redraw."""
+        """Update cursor position, trigger zoom redraw, and refresh hover state.
+
+        Returns False to propagate the event so GTK's drag source can
+        detect the drag threshold and initiate DnD when appropriate.
+        """
         self.cursor_x = event.x
         self.cursor_y = event.y
         self._update_dock_size()
@@ -371,7 +391,12 @@ class DockWindow(Gtk.Window):
     def _on_button_press(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
     ) -> bool:
-        """Record press position for click vs drag discrimination."""
+        """Record press position for click-vs-drag discrimination.
+
+        The actual click action fires on button-release, not here. This
+        handler only stores the press coordinates so _on_button_release
+        can compare them and distinguish clicks from drags.
+        """
         self._click_x = event.x
         self._click_y = event.y
         self._click_button = event.button
@@ -451,7 +476,12 @@ class DockWindow(Gtk.Window):
         return True
 
     def _on_scroll(self, _widget: Gtk.DrawingArea, event: Gdk.EventScroll) -> bool:
-        """Forward scroll events to applet if scrolled item is one."""
+        """Forward scroll events to the applet under the cursor, if any.
+
+        Hit-tests the cursor against the current layout to find the target
+        item. If it's an applet, delegates to its on_scroll() and refreshes
+        the tooltip (applet name/state may change on scroll, e.g. clippy).
+        """
         layout = compute_layout(
             self.model.visible_items(),
             self.config,
@@ -478,8 +508,24 @@ class DockWindow(Gtk.Window):
         coordinates several subsystems: zoom state, preview popups,
         autohide, and cursor tracking.
         """
+        _log.debug(
+            "leave: detail=%s mode=%s x=%.0f y=%.0f",
+            event.detail,
+            event.mode,
+            event.x,
+            event.y,
+        )
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
+
+        # Spurious leave filter: when the tooltip popup appears, GTK
+        # generates a NONLINEAR leave even though the cursor is still
+        # inside the dock's input region. Check cursor against the
+        # current input rect and ignore if inside.
+        if self._last_input_rect is not None:
+            rx, ry, rw, rh = self._last_input_rect
+            if rx <= event.x <= rx + rw and ry <= event.y <= ry + rh:
+                return False
 
         self._hover.hovered_item = None
         self._hover.cancel()
@@ -501,7 +547,7 @@ class DockWindow(Gtk.Window):
         return True
 
     def _on_enter(self, _widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
-        """Notify auto-hide on mouse enter and capture cursor position.
+        """Handle mouse entering the dock -- trigger reveal and capture cursor.
 
         Cursor position must be set here (not just in motion events)
         because during the SHOWING animation the zoom engine needs a
@@ -538,7 +584,11 @@ class DockWindow(Gtk.Window):
         self.drawing_area.queue_draw()
 
     def _update_dock_size(self) -> None:
-        """Reposition dock only when item count changes (not during hover)."""
+        """Refresh the input region after model or cursor changes.
+
+        The window itself doesn't resize (it spans the full monitor),
+        but the clickable input region needs to track the content bounds.
+        """
         self._update_input_region()
 
     def _update_input_region(self) -> None:
@@ -607,8 +657,7 @@ class DockWindow(Gtk.Window):
         # so hovering above icons triggers a leave -> dock hides.
         content_cross = int(icon_size + self.theme.bottom_padding)
 
-        hide_offset = self.autohide.hide_offset if self.autohide else 0.0
-        rx, ry, rw, rh = compute_input_rect(
+        new_rect = compute_input_rect(
             pos,
             window_w,
             window_h,
@@ -616,13 +665,12 @@ class DockWindow(Gtk.Window):
             int(content_w),
             content_cross,
             autohide_state,
-            hide_offset,
         )
-        new_rect = (rx, ry, rw, rh)
         if new_rect != self._last_input_rect:
             self._last_input_rect = new_rect
-            rect = cairo.RectangleInt(rx, ry, rw, rh)
-            region = cairo.Region(rect)
+            region = cairo.Region(
+                cairo.RectangleInt(new_rect.x, new_rect.y, new_rect.w, new_rect.h)
+            )
             gdk_window.input_shape_combine_region(region, 0, 0)
 
     # --- Coordinate Conversion Utilities ---
@@ -636,7 +684,11 @@ class DockWindow(Gtk.Window):
     # along the main axis.
 
     def _main_axis_cursor(self) -> float:
-        """Cursor position along the dock's main axis (window-space)."""
+        """Cursor position along the dock's main axis in window-space.
+
+        Returns cursor_x for horizontal docks, cursor_y for vertical.
+        Negative when no cursor is present (mouse outside window).
+        """
         if is_horizontal(self.config.pos):
             return self.cursor_x
         return self.cursor_y
@@ -670,7 +722,12 @@ class DockWindow(Gtk.Window):
         return mc - self._base_main_offset()
 
     def zoomed_main_offset(self, layout: list[LayoutItem]) -> float:
-        """Main-axis offset matching where icons are actually rendered."""
+        """Main-axis offset to center the zoomed content in the window.
+
+        Unlike _base_main_offset() which uses rest-state width, this uses
+        the actual zoomed layout bounds so the offset matches where icons
+        are rendered during hover.
+        """
         left_edge, right_edge = content_bounds(
             layout,
             self.config.icon_size,
@@ -690,7 +747,12 @@ class DockWindow(Gtk.Window):
         return self.zoomed_main_offset(layout)
 
     def hit_test(self, main_coord: float, layout: list[LayoutItem]) -> DockItem | None:
-        """Find which DockItem is under the cursor along the main axis."""
+        """Find which DockItem is under the cursor along the main axis.
+
+        Converts main_coord from window-space to content-space using the
+        zoomed offset, then checks each layout item's [x, x+width) range.
+        Returns None if cursor is in empty space between or outside items.
+        """
         offset = self.zoomed_main_offset(layout)
         items = self.model.visible_items()
         for i, li in enumerate(layout):

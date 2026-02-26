@@ -6,6 +6,13 @@ import enum
 
 
 class Position(str, enum.Enum):
+    """Screen edge where the dock is anchored.
+
+    Coordinate convention:
+      main axis  -- along the dock (horizontal for BOTTOM/TOP, vertical for LEFT/RIGHT)
+      cross axis -- perpendicular to the dock (toward/away from screen edge)
+    """
+
     BOTTOM = "bottom"
     TOP = "top"
     LEFT = "left"

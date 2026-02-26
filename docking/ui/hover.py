@@ -11,6 +11,9 @@ from gi.repository import GLib  # noqa: E402
 
 from docking.core.position import Position
 from docking.core.zoom import compute_layout
+from docking.log import get_logger
+
+_log = get_logger("hover")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -34,6 +37,13 @@ class HoverManager:
         theme: Theme,
         tooltip: TooltipManager,
     ) -> None:
+        """Initialize with references to dock subsystems.
+
+        Depends on window (for hit_test and coordinate conversion),
+        config/theme (for layout computation), model (for item list),
+        and tooltip (to show/hide on hover changes). Preview is set
+        later via set_preview() since it's constructed after the window.
+        """
         self._window = window
         self._config = config
         self._model = model
@@ -66,6 +76,11 @@ class HoverManager:
         if item is self.hovered_item:
             return
 
+        _log.debug(
+            "hover changed: %s -> %s",
+            self.hovered_item.name if self.hovered_item else None,
+            item.name if item else None,
+        )
         self.hovered_item = item
         self.cancel()
 
@@ -78,12 +93,17 @@ class HoverManager:
                 self._preview.schedule_hide()
 
     def cancel(self) -> None:
+        """Cancel any pending preview show timer."""
         if self._preview_timer_id:
             GLib.source_remove(self._preview_timer_id)
             self._preview_timer_id = 0
 
     def start_anim_pump(self, duration_ms: int = 700) -> None:
-        """Start a temporary redraw loop for time-based animations."""
+        """Start a temporary 60fps redraw loop for time-based animations.
+
+        Used for click darken (300ms), launch bounce (600ms), and urgent
+        bounce. The pump self-terminates after duration_ms.
+        """
         if self._anim_timer_id:
             GLib.source_remove(self._anim_timer_id)
 
@@ -100,6 +120,7 @@ class HoverManager:
         self._anim_timer_id = GLib.timeout_add(16, tick)
 
     def on_model_changed(self) -> None:
+        """Start anim pump if any item became urgent (needs bounce animation)."""
         for item in self._model.visible_items():
             if item.is_urgent and item.last_urgent > 0:
                 self.start_anim_pump(700)
@@ -108,9 +129,10 @@ class HoverManager:
     def _show_preview(self, item: DockItem, _layout: object) -> bool:
         """Show the preview popup near the hovered icon.
 
-        The _layout parameter is kept for GLib.timeout_add signature
-        compatibility but we recompute layout with the current cursor
-        position for accuracy.
+        Called after PREVIEW_SHOW_DELAY_MS by GLib.timeout_add. The
+        _layout parameter is from the timeout closure but is stale, so
+        we recompute layout with the current cursor position to get
+        accurate icon coordinates for anchor placement.
         """
         self._preview_timer_id = 0
         if not self._preview or self.hovered_item is not item:

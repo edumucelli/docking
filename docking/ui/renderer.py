@@ -205,7 +205,10 @@ class DockRenderer:
             zoom_progress=zoom_progress,
         )
 
-        # Content bounds and centering offset along main axis
+        # Content bounds and centering offset along main axis.
+        # compute_layout returns positions in content-space (0 = left edge
+        # of content). icon_offset translates content-space to window-space
+        # by centering the content extent within main_size.
         left_edge, right_edge = content_bounds(
             layout, icon_size, theme.h_padding, theme.item_padding
         )
@@ -213,6 +216,8 @@ class DockRenderer:
         # Include the drop gap so shelf expands to cover displaced items
         drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         zoomed_w += drop_gap
+        # icon_offset = window_center - content_center, accounting for
+        # left_edge so that layout x=0 maps to the correct window pixel
         icon_offset = (main_size - zoomed_w) / 2 - left_edge
 
         # Shelf width smoothing — snap during hide/show and drop gap so
@@ -426,12 +431,20 @@ class DockRenderer:
         for item, li in zip(items, layout):
             new_positions[item.desktop_id] = li.x + icon_offset
 
+        # When an item jumps to a new position (reorder, add, remove),
+        # store the displacement as a slide offset. The icon renders at
+        # (new_position + slide_offset), starting where it was and
+        # decaying toward 0 over subsequent frames.
         for desktop_id, new_x in new_positions.items():
             old_x = self.prev_positions.get(desktop_id)
             if old_x is not None and abs(old_x - new_x) > SLIDE_MOVE_THRESHOLD:
                 current_slide = self.slide_offsets.get(desktop_id, 0.0)
                 self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
 
+        # Exponential decay: each frame multiplies the offset by
+        # SLIDE_DECAY_FACTOR (0.75), giving a quick ease-out.
+        # Offsets below SLIDE_CLEAR_THRESHOLD are removed to avoid
+        # sub-pixel drift and stale entries.
         decay = SLIDE_DECAY_FACTOR
         dead = []
         for desktop_id in self.slide_offsets:

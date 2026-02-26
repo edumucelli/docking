@@ -30,7 +30,9 @@ if TYPE_CHECKING:
 
 DRAG_ICON_SCALE = 1.2  # dragged icon shown at this multiplier of icon_size
 
-# DnD targets
+# DnD target formats:
+# - dock-item-index: internal reorder (SAME_WIDGET only, info=0)
+# - text/uri-list: external .desktop file drops from file managers (info=1)
 _DOCK_ITEM_TARGET = Gtk.TargetEntry.new(
     "dock-item-index", Gtk.TargetFlags.SAME_WIDGET, 0
 )
@@ -63,7 +65,12 @@ class DnDHandler:
         self._setup_dnd()
 
     def _setup_dnd(self) -> None:
-        """Configure GTK drag-and-drop on the drawing area."""
+        """Configure GTK drag-and-drop on the drawing area.
+
+        Source: left-button drag of dock-item-index (internal reorder).
+        Dest: no DestDefaults (manual motion/drop handling) accepting
+        both dock-item-index and text/uri-list for external .desktop drops.
+        """
         da = self._window.drawing_area
 
         da.drag_source_set(
@@ -87,7 +94,12 @@ class DnDHandler:
         da.connect("drag-leave", self._on_drag_leave)
 
     def _on_drag_begin(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
-        """Identify which item is being dragged and set the drag icon."""
+        """Identify which item is being dragged and set the drag icon.
+
+        Hit-tests the current cursor against the layout to find the
+        dragged item, stores its index in drag_index/_drag_from, and
+        sets a scaled pixbuf as the drag icon.
+        """
         items = self._model.visible_items()
         local_cx = self._window.local_cursor_main()
         layout = compute_layout(
@@ -141,7 +153,12 @@ class DnDHandler:
         y: int,
         time: int,
     ) -> bool:
-        """Update drop position as user drags."""
+        """Update drop position as user drags over the dock.
+
+        For internal drags: live-reorders items as the cursor crosses
+        icon center boundaries. For external drags: tracks the insert
+        position to render a gap in the icon layout.
+        """
         # GTK drag-and-drop event model quirk:
         #
         # During an active drag operation (user is dragging something),
@@ -219,7 +236,7 @@ class DnDHandler:
         _y: int,
         time: int,
     ) -> bool:
-        """Request data for external drops, finalize internal drops."""
+        """Handle the drop event -- request URI data for external drops."""
         target = widget.drag_dest_find_target(context, None)
         log.debug(
             "drag-drop: drag_from=%d insert=%d target=%s",
@@ -245,7 +262,12 @@ class DnDHandler:
         _info: int,
         time: int,
     ) -> None:
-        """Handle internal reorder completion and external .desktop drops."""
+        """Process drop data -- noop for internal reorder, pin for external URIs.
+
+        Internal reorder is already handled live in drag-motion; this just
+        acknowledges completion. External drops parse URI list, resolve
+        .desktop files, and insert pinned items at the drop position.
+        """
         # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
             log.debug("drag-data-received: internal reorder complete")
@@ -317,7 +339,11 @@ class DnDHandler:
         return False
 
     def _on_drag_end(self, widget: Gtk.DrawingArea, _context: Gdk.DragContext) -> None:
-        """Clean up drag state. Remove item if dragged outside dock."""
+        """Clean up drag state and unpin if item was dragged outside the dock.
+
+        Checks if the cursor ended up beyond the icon_size threshold from
+        the dock edge. If so, unpins the item and plays the poof animation.
+        """
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position
             display = self._window.get_display()

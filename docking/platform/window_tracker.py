@@ -193,6 +193,8 @@ class WindowTracker:
         result: list[Wnck.Window] = []
         for window in self._screen.get_windows():
             window_type = window.get_window_type()
+            # Skip DESKTOP/DOCK types -- Caja's desktop window can segfault on
+            # WM_CLASS queries, and docks should never appear as app windows.
             if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
                 continue
             if window.is_skip_tasklist():
