@@ -70,21 +70,12 @@ class DnDHandler:
         Source: left-button drag of dock-item-index (internal reorder).
         Dest: no DestDefaults (manual motion/drop handling) accepting
         both dock-item-index and text/uri-list for external .desktop drops.
+        Skips source/dest setup if icons are locked.
         """
         da = self._window.drawing_area
 
-        da.drag_source_set(
-            Gdk.ModifierType.BUTTON1_MASK,
-            [_DOCK_ITEM_TARGET],
-            Gdk.DragAction.MOVE,
-        )
-        # No DestDefaults -- we handle motion/drop manually to support
-        # both internal reorder and external URI drops without conflicts
-        da.drag_dest_set(
-            0,
-            [_DOCK_ITEM_TARGET, _URI_TARGET],
-            Gdk.DragAction.MOVE | Gdk.DragAction.COPY,
-        )
+        if not self._config.lock_icons:
+            self._enable_dnd(da)
 
         da.connect("drag-begin", self._on_drag_begin)
         da.connect("drag-motion", self._on_drag_motion)
@@ -92,6 +83,33 @@ class DnDHandler:
         da.connect("drag-end", self._on_drag_end)
         da.connect("drag-data-received", self._on_drag_data_received)
         da.connect("drag-leave", self._on_drag_leave)
+
+    def _enable_dnd(self, da: Gtk.DrawingArea | None = None) -> None:
+        """Enable drag source and dest on the drawing area."""
+        da = da or self._window.drawing_area
+        da.drag_source_set(
+            Gdk.ModifierType.BUTTON1_MASK,
+            [_DOCK_ITEM_TARGET],
+            Gdk.DragAction.MOVE,
+        )
+        da.drag_dest_set(
+            0,
+            [_DOCK_ITEM_TARGET, _URI_TARGET],
+            Gdk.DragAction.MOVE | Gdk.DragAction.COPY,
+        )
+
+    def _disable_dnd(self, da: Gtk.DrawingArea | None = None) -> None:
+        """Disable drag source and dest on the drawing area."""
+        da = da or self._window.drawing_area
+        da.drag_source_unset()
+        da.drag_dest_unset()
+
+    def set_locked(self, locked: bool) -> None:
+        """Toggle DnD based on lock state."""
+        if locked:
+            self._disable_dnd()
+        else:
+            self._enable_dnd()
 
     def _on_drag_begin(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Identify which item is being dragged and set the drag icon.

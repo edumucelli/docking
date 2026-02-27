@@ -42,6 +42,8 @@ class Config:
     hide_time_ms: int = 250
     # Whether to show window preview thumbnails on hover
     previews_enabled: bool = True
+    # Whether icon reordering, drag-in, and drag-off removal are locked
+    lock_icons: bool = False
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = "default"
     # Desktop file IDs of pinned applications, in display order

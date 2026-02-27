@@ -37,6 +37,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Drag to reorder icons (with slide animation)
 - Drag `.desktop` files from file manager to add icons (gap insertion effect)
 - Drag icons off dock to remove (poof smoke animation)
+- **Lock Icons** -- toggle via right-click menu to prevent reordering, adding, and removing icons
 
 ### Auto-hide
 - Cubic easing animation (ease-in hide, ease-out show)
@@ -137,6 +138,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "unhide_delay_ms": 0,
   "hide_time_ms": 250,
   "previews_enabled": true,
+  "lock_icons": false,
   "theme": "default",
   "pinned": ["firefox.desktop", "org.gnome.Nautilus.desktop"]
 }

@@ -110,6 +110,8 @@ class MenuHandler:
         Applets: delegates to applet.get_menu_items() + "Remove from Dock".
         Regular items: desktop actions (quicklists), pin/unpin, close.
         """
+        locked = self._config.lock_icons
+
         if is_applet(item.desktop_id):
             # Applet-specific menu items
             applet = self._model.get_applet(item.desktop_id)
@@ -118,26 +120,34 @@ class MenuHandler:
                     menu.append(mi)
                 if applet.get_menu_items():
                     menu.append(Gtk.SeparatorMenuItem())
-            remove = Gtk.MenuItem(label="Remove from Dock")
-            remove.connect(
-                "activate",
-                lambda _: self._model.remove_applet(item.desktop_id),
-            )
-            menu.append(remove)
+            if not locked:
+                remove = Gtk.MenuItem(label="Remove from Dock")
+                remove.connect(
+                    "activate",
+                    lambda _: self._model.remove_applet(item.desktop_id),
+                )
+                menu.append(remove)
             return
 
         # Desktop actions (e.g. "New Window", "New Incognito Window")
         self._append_desktop_actions(menu, item.desktop_id)
 
-        # Pin/Unpin
-        if item.is_pinned:
-            unpin = Gtk.MenuItem(label="Remove from Dock")
-            unpin.connect("activate", lambda _: self._model.unpin_item(item.desktop_id))
-            menu.append(unpin)
-        else:
-            pin = Gtk.MenuItem(label="Keep in Dock")
-            pin.connect("activate", lambda _: self._model.pin_item(item.desktop_id))
-            menu.append(pin)
+        # Pin/Unpin (hidden when icons are locked)
+        if not locked:
+            if item.is_pinned:
+                unpin = Gtk.MenuItem(label="Remove from Dock")
+                unpin.connect(
+                    "activate",
+                    lambda _: self._model.unpin_item(item.desktop_id),
+                )
+                menu.append(unpin)
+            else:
+                pin = Gtk.MenuItem(label="Keep in Dock")
+                pin.connect(
+                    "activate",
+                    lambda _: self._model.pin_item(item.desktop_id),
+                )
+                menu.append(pin)
 
         if item.is_running and item.instance_count > 0:
             menu.append(Gtk.SeparatorMenuItem())
@@ -166,6 +176,12 @@ class MenuHandler:
         previews.set_active(self._config.previews_enabled)
         previews.connect("toggled", self._on_previews_toggled)
         menu.append(previews)
+
+        # Lock icons toggle
+        lock = Gtk.CheckMenuItem(label="Lock Icons")
+        lock.set_active(self._config.lock_icons)
+        lock.connect("toggled", self._on_lock_toggled)
+        menu.append(lock)
 
         menu.append(Gtk.SeparatorMenuItem())
 
@@ -266,6 +282,12 @@ class MenuHandler:
     def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.previews_enabled = widget.get_active()
         self._config.save()
+
+    def _on_lock_toggled(self, widget: Gtk.CheckMenuItem) -> None:
+        self._config.lock_icons = widget.get_active()
+        self._config.save()
+        if self._window._dnd:
+            self._window._dnd.set_locked(self._config.lock_icons)
 
     def _on_theme_changed(self, widget: Gtk.MenuItem, name: str) -> None:
         if not widget.get_active() or name == self._config.theme:
