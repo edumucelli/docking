@@ -99,7 +99,10 @@ class MenuHandler:
         if item:
             self._build_item_menu(menu=menu, item=item)
         else:
-            self._build_dock_menu(menu=menu)
+            insert_idx = self._insert_index(
+                cursor_main=cursor_main, items=items, layout=layout
+            )
+            self._build_dock_menu(menu=menu, insert_index=insert_idx)
 
         menu.show_all()
         menu.popup_at_pointer(event)
@@ -159,7 +162,23 @@ class MenuHandler:
             )
             menu.append(close)
 
-    def _build_dock_menu(self, menu: Gtk.Menu) -> None:
+    def _insert_index(
+        self,
+        cursor_main: float,
+        items: list[DockItem],
+        layout: list[LayoutItem],
+    ) -> int:
+        """Compute pinned insertion index from cursor position."""
+        main_offset = self._window.zoomed_main_offset(layout)
+        icon_size = self._config.icon_size
+        for i, li in enumerate(layout):
+            w = li.width or icon_size
+            center = li.x + main_offset + w / 2
+            if cursor_main < center:
+                return i
+        return len(layout)
+
+    def _build_dock_menu(self, menu: Gtk.Menu, insert_index: int = -1) -> None:
         """Build context menu for the dock background (no item under cursor).
 
         Sections: autohide toggle, preview toggle, theme/icon size/position
@@ -234,6 +253,8 @@ class MenuHandler:
                 if is_applet(desktop_id=item.desktop_id)
             }
             for did, cls in sorted(registry.items()):
+                if did == "separator":
+                    continue
                 desktop_id = f"applet://{did}"
                 check = Gtk.CheckMenuItem(label=cls.name)
                 check.set_active(desktop_id in active_ids)
@@ -241,6 +262,14 @@ class MenuHandler:
                 dock_menu.append(check)
             dock_item.set_submenu(dock_menu)
             menu.append(dock_item)
+
+        # Add Separator (multi-instance, not a toggle)
+        add_sep = Gtk.MenuItem(label="Add Separator")
+        add_sep.connect(
+            "activate",
+            lambda _, idx=insert_index: self._model.add_separator(index=idx),
+        )
+        menu.append(add_sep)
 
         menu.append(Gtk.SeparatorMenuItem())
 

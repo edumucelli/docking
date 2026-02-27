@@ -5,10 +5,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable
 
+import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, GLib, Gtk  # noqa: E402
+gi.require_version("Pango", "1.0")
+gi.require_version("PangoCairo", "1.0")
+from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -46,14 +49,46 @@ def load_theme_icon_centered(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
     return canvas
 
 
+def draw_icon_label(cr: cairo.Context, text: str, size: int) -> None:
+    """Draw outlined text at the bottom center of a size x size icon.
+
+    Shared by weather (temperature), pomodoro (countdown), and hydration
+    (countdown) for a uniform appearance.
+    """
+    font_size = max(1, int(size * 0.22))
+    layout = PangoCairo.create_layout(cr)
+    layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
+    layout.set_text(text, -1)
+    _ink, logical = layout.get_pixel_extents()
+
+    tx = (size - logical.width) / 2 - logical.x
+    ty = size - logical.height - max(1, size * 0.02) - logical.y
+
+    cr.save()
+    cr.move_to(tx, ty)
+    PangoCairo.layout_path(cr, layout)
+    cr.set_source_rgba(0, 0, 0, 0.8)
+    cr.set_line_width(max(2.0, size * 0.05))
+    cr.set_line_join(cairo.LINE_JOIN_ROUND)
+    cr.stroke_preserve()
+    cr.set_source_rgba(1, 1, 1, 1)
+    cr.fill()
+    cr.restore()
+
+
 def is_applet(desktop_id: str) -> bool:
     """True if desktop_id refers to a applet rather than a .desktop app."""
     return desktop_id.startswith(APPLET_PREFIX)
 
 
 def applet_id_from(desktop_id: str) -> str:
-    """Extract applet id from desktop_id (e.g. 'applet://clock' -> 'clock')."""
-    return desktop_id[len(APPLET_PREFIX) :]
+    """Extract applet id from desktop_id.
+
+    Handles both simple ids ('applet://clock' -> 'clock') and
+    multi-instance ids ('applet://separator#2' -> 'separator').
+    """
+    raw = desktop_id[len(APPLET_PREFIX) :]
+    return raw.split("#")[0]
 
 
 class Applet(ABC):

@@ -16,19 +16,10 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-gi.require_version("PangoCairo", "1.0")
 import cairo
-from gi.repository import (
-    Gdk,
-    GdkPixbuf,
-    Gio,
-    GLib,
-    Gtk,
-    Pango,
-    PangoCairo,
-)  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
-from docking.applets.base import Applet, load_theme_icon
+from docking.applets.base import Applet, draw_icon_label, load_theme_icon
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
     WeatherData,
@@ -102,25 +93,8 @@ class WeatherApplet(Applet):
         Gdk.cairo_set_source_pixbuf(cr, base, 0, 0)
         cr.paint()
 
-        # Draw temperature text at bottom center (outlined for readability)
-        temp_text = f"{self._weather.temperature:.0f}°"
-        font_size = max(1, int(size * 0.22))
-        layout = PangoCairo.create_layout(cr)
-        layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
-        layout.set_text(temp_text, -1)
-
-        _ink, logical = layout.get_pixel_extents()
-        tx = (size - logical.width) / 2 - logical.x
-        ty = size - logical.height - max(1, size * 0.02) - logical.y
-
-        cr.move_to(tx, ty)
-        PangoCairo.layout_path(cr, layout)
-        cr.set_source_rgba(0, 0, 0, 0.8)
-        cr.set_line_width(max(2.0, size * 0.05))
-        cr.set_line_join(cairo.LINE_JOIN_ROUND)
-        cr.stroke_preserve()
-        cr.set_source_rgba(1, 1, 1, 1)
-        cr.fill()
+        # Draw temperature text at bottom center
+        draw_icon_label(cr=cr, text=f"{self._weather.temperature:.0f}°", size=size)
 
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 

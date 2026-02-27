@@ -34,6 +34,7 @@ class LayoutItem:
 
     x: float
     scale: float
+    width: int = 0  # Per-item base width (0 = icon_size)
 
 
 def compute_icon_zoom(
@@ -111,20 +112,25 @@ def compute_layout(
     # local and focused.
     zoom_icon_size = icon_size * zoom_percent
 
+    # Per-item widths (0 = use icon_size)
+    widths = [item.main_size or icon_size for item in items]
+
     # Rest-position centers
     rest_centers: list[float] = []
-    x = h_padding + icon_size / 2
-    for _ in range(num_items):
+    x = h_padding
+    for w in widths:
+        x += w / 2
         rest_centers.append(x)
-        x += icon_size + item_padding
+        x += w / 2 + item_padding
 
     result: list[LayoutItem] = []
     for i in range(num_items):
         center = rest_centers[i]
+        w = widths[i]
 
         if cursor_x < 0:
             # No hover -- rest positions
-            result.append(LayoutItem(x=center - icon_size / 2, scale=1.0))
+            result.append(LayoutItem(x=center - w / 2, scale=1.0, width=w))
             continue
 
         # Per-icon displacement: push icons away from cursor.
@@ -184,8 +190,8 @@ def compute_layout(
         zoom = 1.0 - offset_pct**2
         scale = 1.0 + zoom * (zoom_percent - 1.0)
 
-        # Position: center minus half the zoomed icon size
-        result.append(LayoutItem(x=center - icon_size * scale / 2, scale=scale))
+        # Position: center minus half the zoomed item size
+        result.append(LayoutItem(x=center - w * scale / 2, scale=scale, width=w))
 
     return result
 
@@ -216,7 +222,8 @@ def content_bounds(
     first = layout[0]
     last = layout[-1]
     left = first.x - pad
-    right = last.x + icon_size * last.scale + pad
+    last_w = last.width or icon_size
+    right = last.x + last_w * last.scale + pad
     return Bounds(left, right)
 
 

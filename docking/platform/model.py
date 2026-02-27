@@ -32,6 +32,8 @@ class DockItem:
     is_urgent: bool = False
     instance_count: int = 0
     icon: GdkPixbuf.Pixbuf | None = None
+    # Custom slot width along main axis (0 = use icon_size)
+    main_size: int = 0
     # Timestamps for animations (monotonic microseconds, 0 = inactive)
     last_clicked: int = 0
     last_launched: int = 0
@@ -69,6 +71,10 @@ class DockModel:
                 if cls:
                     try:
                         applet = cls(icon_size, config=self._config)
+                        applet.item.desktop_id = desktop_id
+                        apply = getattr(applet, "apply_prefs", None)
+                        if apply:
+                            apply()
                         self._applets[desktop_id] = applet
                         self.pinned_items.append(applet.item)
                         log.info("Loaded applet %s (icon=%s)", did, applet.item.icon)
@@ -115,6 +121,37 @@ class DockModel:
             return
         self._applets[desktop_id] = applet
         self.pinned_items.append(applet.item)
+        applet.start(self.notify)
+        self.sync_pinned_to_config()
+        self._config.save()
+        self.notify()
+
+    def add_separator(self, index: int = -1) -> None:
+        """Add a separator instance at the given pinned index (-1 = end)."""
+        from docking.applets import get_registry
+
+        cls = get_registry().get("separator")
+        if not cls:
+            return
+
+        # Find next unused instance number
+        prefix = "applet://separator#"
+        nums = [int(k[len(prefix) :]) for k in self._applets if k.startswith(prefix)]
+        n = max(nums, default=-1) + 1
+        desktop_id = f"{prefix}{n}"
+
+        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        try:
+            applet = cls(icon_size, config=self._config)
+        except Exception:
+            get_logger(name="model").exception("Failed to create separator")
+            return
+        applet.item.desktop_id = desktop_id
+        self._applets[desktop_id] = applet
+        if index < 0 or index >= len(self.pinned_items):
+            self.pinned_items.append(applet.item)
+        else:
+            self.pinned_items.insert(index, applet.item)
         applet.start(self.notify)
         self.sync_pinned_to_config()
         self._config.save()

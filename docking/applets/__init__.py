@@ -19,9 +19,14 @@ def get_registry() -> dict[str, type[Applet]]:
     from docking.applets.clock import ClockApplet
     from docking.applets.cpumonitor import CpuMonitorApplet
     from docking.applets.desktop import DesktopApplet
+    from docking.applets.hydration import HydrationApplet
     from docking.applets.network import NetworkApplet
+    from docking.applets.pomodoro import PomodoroApplet
+    from docking.applets.screenshot import ScreenshotApplet
+    from docking.applets.separator import SeparatorApplet
     from docking.applets.session import SessionApplet
     from docking.applets.trash import TrashApplet
+    from docking.applets.volume import VolumeApplet
     from docking.applets.weather import WeatherApplet
     from docking.applets.workspaces import WorkspacesApplet
 
@@ -33,9 +38,14 @@ def get_registry() -> dict[str, type[Applet]]:
         "clock": ClockApplet,
         "cpumonitor": CpuMonitorApplet,
         "desktop": DesktopApplet,
+        "hydration": HydrationApplet,
         "network": NetworkApplet,
+        "screenshot": ScreenshotApplet,
+        "separator": SeparatorApplet,
         "session": SessionApplet,
+        "pomodoro": PomodoroApplet,
         "trash": TrashApplet,
+        "volume": VolumeApplet,
         "weather": WeatherApplet,
         "workspaces": WorkspacesApplet,
     }

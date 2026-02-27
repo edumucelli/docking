@@ -46,7 +46,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 9 built-in applets:
+Extensible plugin system for custom dock widgets. 16 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -59,6 +59,13 @@ Extensible plugin system for custom dock widgets. 9 built-in applets:
 | **Clippy** | Clipboard history manager |
 | **Applications** | Categorized application launcher |
 | **Network** | WiFi signal strength and traffic speeds |
+| **Session** | Lock, logout, suspend, restart, shutdown |
+| **Calendar** | Date icon with popup calendar |
+| **Workspaces** | Workspace switcher with grid icon |
+| **Screenshot** | Capture full screen, window, or region |
+| **Volume** | Scroll to adjust, click to mute |
+| **Pomodoro** | Tomato timer with auto-cycling work/break phases |
+| **Separator** | Transparent gap divider (multiple instances, scroll to resize) |
 
 See [Applet Documentation](#applets-1) below for details on each applet.
 
@@ -299,6 +306,50 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 **Tooltip:** Active workspace name
 
+### Screenshot
+
+Capture screenshots via the best available tool. Auto-detects mate-screenshot, gnome-screenshot, xfce4-screenshooter, spectacle, flameshot, or scrot.
+
+**Click:** Full-screen capture
+**Right-click options:**
+- **Full Screen** -- capture entire screen
+- **Window** -- capture active window
+- **Region** -- interactive area selection
+
+### Volume
+
+System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA). Icon switches between muted/low/medium/high based on level.
+
+**Click:** Toggle mute
+**Scroll:** Adjust volume ±5%
+**Tooltip:** `Volume: 75%` or `Muted`
+
+**Update interval:** 1 second (refreshes only on change)
+
+### Pomodoro
+
+Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases with configurable durations. Triggers urgent bounce+glow on phase transitions.
+
+**Click:** Start/pause toggle
+**Right-click options:**
+- **Reset** -- back to idle
+- **Work duration** -- 15/25/30/45 min presets
+- **Break duration** -- 5/10 min presets
+- **Long break duration** -- 15/20/30 min presets
+
+**Preferences stored:** `work`, `break_`, `long_break`
+
+### Separator
+
+Transparent gap divider between dock items. Supports multiple instances -- each with independent, persistent size.
+
+**Scroll:** Adjust gap width (±2px, range 2–48px)
+**Right-click options:**
+- **Increase Gap** / **Decrease Gap**
+- **Remove from Dock**
+
+Added via right-click on dock background -> **Add Separator** (inserts at click position).
+
 ## Theming
 
 Themes are JSON files in `docking/assets/themes/`. Six built-in themes are included:
@@ -384,7 +435,7 @@ docking/
 |   +-- launcher.py         .desktop resolution, icon loading, desktop actions
 |   +-- window_tracker.py   Wnck running app detection
 |   +-- struts.py           X11 _NET_WM_STRUT_PARTIAL via ctypes
-+-- applets/                Extensible applet system
++-- applets/                Extensible applet system (16 applets)
 |   +-- base.py             Applet ABC, shared icon loaders
 |   +-- clock.py            Analog/digital clock
 |   +-- trash.py            Trash monitor
@@ -394,6 +445,13 @@ docking/
 |   +-- clippy.py           Clipboard history
 |   +-- applications.py     App launcher
 |   +-- network.py          Network status
+|   +-- session.py          Session/power actions
+|   +-- calendar.py         Calendar icon + popup
+|   +-- workspaces.py       Workspace switcher
+|   +-- screenshot.py       Screenshot capture
+|   +-- volume.py           Volume control
+|   +-- pomodoro.py         Pomodoro timer
+|   +-- separator.py        Gap divider (multi-instance)
 |   +-- weather/            Weather (sub-package)
 +-- ui/                     GTK rendering and interaction
 |   +-- dock_window.py      Main window, events, input region
@@ -424,7 +482,7 @@ pytest tests/ -v
 pytest tests/applets/test_clock.py -v
 ```
 
-462 tests covering pure functions, applet behavior, rendering, and UI logic:
+606 tests covering pure functions, applet behavior, rendering, and UI logic:
 
 ```
 tests/
@@ -442,9 +500,9 @@ tests/
 ## Pre-commit Hooks
 
 Runs automatically on `git commit`:
-- **black** -- code formatting
-- **flake8** -- unused imports/variables (F401, F841)
-- **mypy** -- type checking (0 errors)
+- **ruff format** -- code formatting
+- **ruff check** -- linting (E, W, F, I rules)
+- **ty check** -- type checking
 - **pytest** -- full test suite
 
 ## Contributing
@@ -452,8 +510,8 @@ Runs automatically on `git commit`:
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes (tests required for new features)
-4. Run `python -m black docking/ tests/` for formatting
-5. Ensure `python -m pytest tests/` passes
+4. Run `ruff format docking/ tests/` for formatting
+5. Ensure `ruff check && ty check && pytest tests/` passes
 6. Submit a pull request
 
 ## License

@@ -95,9 +95,10 @@ class DockRenderer:
         items = model.visible_items()
         num_items = len(items)
         icon_size = config.icon_size
+        total_main = sum(item.main_size or icon_size for item in items)
         width = int(
             theme.h_padding * 2
-            + num_items * icon_size
+            + total_main
             + max(0, num_items - 1) * theme.item_padding
         )
         height = int(icon_size + theme.top_padding + theme.bottom_padding)
@@ -188,9 +189,10 @@ class DockRenderer:
 
         # Layout in 1D content-space (same for all positions).
         # Matches content_bounds: h_padding + item_padding/2 on each side.
+        total_main = sum(item.main_size or icon_size for item in items)
         base_w = (
             (theme.h_padding + theme.item_padding / 2) * 2
-            + num_items * icon_size
+            + total_main
             + max(0, num_items - 1) * theme.item_padding
         )
         base_offset = (main_size - base_w) / 2
@@ -322,7 +324,8 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            scaled_size = icon_size * li.scale
+            item_w = li.width or icon_size
+            scaled_size = item_w * li.scale
             main_pos = li.x + icon_offset + slide + drop_shift
             ix, iy = map_icon_position(
                 pos=pos,
@@ -337,7 +340,7 @@ class DockRenderer:
                 cr=cr,
                 item=item,
                 li=li,
-                base_size=icon_size,
+                base_size=item_w,
                 x=ix,
                 y=iy,
                 lighten=lighten,
