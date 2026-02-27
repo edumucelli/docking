@@ -22,7 +22,9 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 from docking.applets.base import Applet, draw_icon_label, load_theme_icon
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
+    AirQualityData,
     WeatherData,
+    fetch_air_quality,
     fetch_weather,
     wmo_icon_name,
 )
@@ -56,6 +58,7 @@ class WeatherApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer_id: int = 0
         self._weather: WeatherData | None = None
+        self._air_quality: AirQualityData | None = None
         self._city_display: str = ""
         self._lat: float = 0.0
         self._lng: float = 0.0
@@ -235,17 +238,21 @@ class WeatherApplet(Applet):
         )
 
     def _fetch_async(self) -> None:
-        """Fetch weather in a background thread to avoid blocking GTK."""
+        """Fetch weather + air quality in a background thread."""
 
         def worker() -> None:
-            data = fetch_weather(lat=self._lat, lng=self._lng)
-            GLib.idle_add(self._on_weather_result, data)
+            weather = fetch_weather(lat=self._lat, lng=self._lng)
+            aqi = fetch_air_quality(lat=self._lat, lng=self._lng)
+            GLib.idle_add(self._on_fetch_result, weather, aqi)
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_weather_result(self, data: WeatherData | None) -> bool:
-        """Called on main thread with weather data."""
-        self._weather = data
+    def _on_fetch_result(
+        self, weather: WeatherData | None, aqi: AirQualityData | None
+    ) -> bool:
+        """Called on main thread with weather + air quality data."""
+        self._weather = weather
+        self._air_quality = aqi
         self.refresh_icon()
         return False  # remove from idle
 
@@ -257,7 +264,10 @@ class WeatherApplet(Applet):
             return f"{self._city_display}: loading..."
 
         w = self._weather
-        lines = [f"{self._city_display}: {w.temperature:.0f}°C, {w.description}"]
+        lines = [self._city_display]
+        lines.append(f"{w.temperature:.0f}°C, {w.description}")
+        if self._air_quality:
+            lines.append(f"Air: {self._air_quality.label}")
         for day in w.daily:
             temp = f"{day.temp_min:.0f}/{day.temp_max:.0f}°C"
             lines.append(f"{day.date}: {temp}, {day.description}")
@@ -274,11 +284,24 @@ class WeatherApplet(Applet):
             return box
 
         w = self._weather
-        header = Gtk.Label(
-            label=f"{self._city_display}: {w.temperature:.0f}°C, {w.description}"
-        )
-        header.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
-        box.pack_start(header, False, False, 0)
+
+        # City name as bold header
+        city = Gtk.Label()
+        city.set_markup(f"<b>{GLib.markup_escape_text(self._city_display)}</b>")
+        city.set_xalign(0.5)
+        city.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+        box.pack_start(city, False, False, 0)
+
+        # Current conditions + air quality as subtitle
+        subtitle = f"{w.temperature:.0f}°C, {w.description}"
+        if self._air_quality:
+            subtitle += f" · Air: {self._air_quality.label}"
+        current = Gtk.Label(label=subtitle)
+        current.set_xalign(0.5)
+        current.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.8))
+        box.pack_start(current, False, False, 0)
+
+        box.pack_start(Gtk.Separator(), False, False, 2)
 
         for day in w.daily:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)

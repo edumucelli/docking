@@ -1,7 +1,12 @@
 """Tests for the weather applet."""
 
 from docking.applets.weather import WeatherApplet
-from docking.applets.weather.api import DailyForecast, WeatherData
+from docking.applets.weather.api import (
+    AirQualityData,
+    DailyForecast,
+    WeatherData,
+    aqi_label,
+)
 from docking.core.config import Config
 
 _SAMPLE_WEATHER = WeatherData(
@@ -106,6 +111,53 @@ class TestWeatherMenu:
         items = applet.get_menu_items()
         # No city header, just show_temp + change_city
         assert len(items) == 2
+
+
+_SAMPLE_AQI = AirQualityData(aqi=28, pm2_5=8.1, pm10=9.1, label="Fair")
+
+
+class TestAqiLabel:
+    def test_good(self):
+        assert aqi_label(aqi=15) == "Good"
+
+    def test_fair(self):
+        assert aqi_label(aqi=30) == "Fair"
+
+    def test_moderate(self):
+        assert aqi_label(aqi=50) == "Moderate"
+
+    def test_poor(self):
+        assert aqi_label(aqi=70) == "Poor"
+
+    def test_very_poor(self):
+        assert aqi_label(aqi=90) == "Very Poor"
+
+    def test_extremely_poor(self):
+        assert aqi_label(aqi=150) == "Extremely Poor"
+
+    def test_boundary_20(self):
+        assert aqi_label(aqi=20) == "Good"
+
+    def test_boundary_21(self):
+        assert aqi_label(aqi=21) == "Fair"
+
+
+class TestAirQualityInTooltip:
+    def test_tooltip_includes_aqi_when_available(self):
+        applet = WeatherApplet(48)
+        applet._city_display = "Berlin, Germany"
+        applet._weather = _SAMPLE_WEATHER
+        applet._air_quality = _SAMPLE_AQI
+        applet.create_icon(48)
+        assert "Air: Fair" in applet.item.name
+
+    def test_tooltip_no_aqi_when_unavailable(self):
+        applet = WeatherApplet(48)
+        applet._city_display = "Berlin, Germany"
+        applet._weather = _SAMPLE_WEATHER
+        applet._air_quality = None
+        applet.create_icon(48)
+        assert "Air:" not in applet.item.name
 
 
 class TestWeatherPrefs:

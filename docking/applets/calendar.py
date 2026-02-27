@@ -39,6 +39,7 @@ class CalendarApplet(Applet):
         self._last_day: int = -1
         self._popup: Gtk.Window | None = None
         super().__init__(icon_size, config)
+        self.item.name = time.strftime("%a, %b %-d %H:%M", time.localtime())
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         now = time.localtime()
@@ -51,7 +52,7 @@ class CalendarApplet(Applet):
         )
 
         if hasattr(self, "item"):
-            self.item.name = time.strftime("%A, %B %-d", now)
+            self.item.name = time.strftime("%a, %b %-d %H:%M", now)
 
         self._last_day = day
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
@@ -77,6 +78,7 @@ class CalendarApplet(Applet):
 
     def _tick(self) -> bool:
         now = time.localtime()
+        self.item.name = time.strftime("%a, %b %-d %H:%M", now)
         if now.tm_mday != self._last_day:
             self.refresh_icon()
         return True

@@ -16,6 +16,10 @@ import openmeteo_requests
 import requests_cache
 from retry_requests import retry
 
+from docking.log import get_logger
+
+_log = get_logger(name="weather.api")
+
 # How often weather data is refreshed (seconds). Used for both the
 # polling timer in the applet and the requests-cache expiry.
 REFRESH_INTERVAL = 300  # 5 minutes
@@ -27,6 +31,7 @@ _CACHE_DIR = (
 )
 
 _API_URL = "https://api.open-meteo.com/v1/forecast"
+_AQI_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 
 # -- WMO weather code mapping ------------------------------------------------
@@ -174,4 +179,57 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
             daily=daily,
         )
     except (OSError, ValueError, KeyError, IndexError, AttributeError):
+        _log.warning("Failed to fetch weather", exc_info=True)
+        return None
+
+
+# -- Air quality ---------------------------------------------------------------
+
+
+class AirQualityData(NamedTuple):
+    """Current air quality readings."""
+
+    aqi: int  # European AQI index
+    pm2_5: float  # Fine particulate (μg/m³)
+    pm10: float  # Particulate (μg/m³)
+    label: str  # Human-readable level
+
+
+def aqi_label(aqi: int) -> str:
+    """Map European AQI value to a human-readable level."""
+    if aqi <= 20:
+        return "Good"
+    if aqi <= 40:
+        return "Fair"
+    if aqi <= 60:
+        return "Moderate"
+    if aqi <= 80:
+        return "Poor"
+    if aqi <= 100:
+        return "Very Poor"
+    return "Extremely Poor"
+
+
+def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
+    """Fetch current air quality from Open-Meteo.
+
+    Returns None on any API/network error. Responses cached per REFRESH_INTERVAL.
+    """
+    try:
+        client = _get_client()
+        responses = client.weather_api(
+            _AQI_URL,
+            params={
+                "latitude": lat,
+                "longitude": lng,
+                "current": ["european_aqi", "pm10", "pm2_5"],
+            },
+        )
+        current = responses[0].Current()
+        aqi = int(current.Variables(0).Value())
+        pm10 = round(current.Variables(1).Value(), 1)
+        pm2_5 = round(current.Variables(2).Value(), 1)
+        return AirQualityData(aqi=aqi, pm2_5=pm2_5, pm10=pm10, label=aqi_label(aqi=aqi))
+    except (OSError, ValueError, KeyError, IndexError, AttributeError):
+        _log.warning("Failed to fetch air quality", exc_info=True)
         return None
