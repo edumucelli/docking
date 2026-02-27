@@ -16,7 +16,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger("session")
+_log = get_logger(name="session")
 
 
 class SessionAction(NamedTuple):
@@ -58,16 +58,16 @@ class SessionApplet(Applet):
         super().__init__(icon_size, config)
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        return load_theme_icon("system-log-out", size)
+        return load_theme_icon(name="system-log-out", size=size)
 
     def on_clicked(self) -> None:
         """Lock screen on left-click."""
-        _run(["loginctl", "lock-session"])
+        _run(cmd=["loginctl", "lock-session"])
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
         for label, cmd in _ACTIONS:
             mi = Gtk.MenuItem(label=label)
-            mi.connect("activate", lambda _w, c=cmd: _run(c))
+            mi.connect("activate", lambda _w, c=cmd: _run(cmd=c))
             items.append(mi)
         return items

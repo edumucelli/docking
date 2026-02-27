@@ -160,7 +160,7 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
                 DailyForecast(
                     date=day_name,
                     code=day_code,
-                    description=wmo_description(day_code),
+                    description=wmo_description(code=day_code),
                     temp_max=round(day_max, 1),
                     temp_min=round(day_min, 1),
                 )
@@ -169,8 +169,8 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
         return WeatherData(
             temperature=round(temp, 1),
             weather_code=code,
-            description=wmo_description(code),
-            icon_name=wmo_icon_name(code),
+            description=wmo_description(code=code),
+            icon_name=wmo_icon_name(code=code),
             daily=daily,
         )
     except (OSError, ValueError, KeyError, IndexError, AttributeError):

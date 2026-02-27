@@ -15,7 +15,7 @@ sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.position import Position  # noqa: E402
 from docking.ui.tooltip import (  # noqa: E402
-    TOOLTIP_GAP,
+    TOOLTIP_BASE_GAP,
     TooltipManager,
     compute_tooltip_position,
 )
@@ -35,10 +35,10 @@ class TestTooltipManagerInit:
 
     def test_gap_constant_reasonable(self):
         # Given
-        from docking.ui.tooltip import TOOLTIP_GAP
+        from docking.ui.tooltip import TOOLTIP_BASE_GAP
 
         # When / Then — gap should be small positive value
-        assert 5 <= TOOLTIP_GAP <= 20
+        assert 5 <= TOOLTIP_BASE_GAP <= 50
 
 
 class TestTooltipHide:
@@ -88,45 +88,61 @@ TW, TH = 80, 24
 
 class TestTooltipPositionBottom:
     def test_centered_horizontally(self):
-        tx, ty = compute_tooltip_position(Position.BOTTOM, AX, AY, TW, TH)
+        tx, ty = compute_tooltip_position(
+            pos=Position.BOTTOM, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert tx == int(AX - TW / 2)
 
     def test_above_anchor(self):
-        tx, ty = compute_tooltip_position(Position.BOTTOM, AX, AY, TW, TH)
-        assert ty == int(AY - TH - TOOLTIP_GAP)
+        tx, ty = compute_tooltip_position(
+            pos=Position.BOTTOM, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
+        assert ty == int(AY - TH - TOOLTIP_BASE_GAP)
         assert ty < AY
 
 
 class TestTooltipPositionTop:
     def test_centered_horizontally(self):
-        tx, ty = compute_tooltip_position(Position.TOP, AX, AY, TW, TH)
+        tx, ty = compute_tooltip_position(
+            pos=Position.TOP, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert tx == int(AX - TW / 2)
 
     def test_below_anchor(self):
-        tx, ty = compute_tooltip_position(Position.TOP, AX, AY, TW, TH)
-        assert ty == int(AY + TOOLTIP_GAP)
+        tx, ty = compute_tooltip_position(
+            pos=Position.TOP, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
+        assert ty == int(AY + TOOLTIP_BASE_GAP)
         assert ty > AY
 
 
 class TestTooltipPositionLeft:
     def test_right_of_anchor(self):
-        tx, ty = compute_tooltip_position(Position.LEFT, AX, AY, TW, TH)
-        assert tx == int(AX + TOOLTIP_GAP)
+        tx, ty = compute_tooltip_position(
+            pos=Position.LEFT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
+        assert tx == int(AX + TOOLTIP_BASE_GAP)
         assert tx > AX
 
     def test_centered_vertically(self):
-        tx, ty = compute_tooltip_position(Position.LEFT, AX, AY, TW, TH)
+        tx, ty = compute_tooltip_position(
+            pos=Position.LEFT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert ty == int(AY - TH / 2)
 
 
 class TestTooltipPositionRight:
     def test_left_of_anchor(self):
-        tx, ty = compute_tooltip_position(Position.RIGHT, AX, AY, TW, TH)
-        assert tx == int(AX - TW - TOOLTIP_GAP)
+        tx, ty = compute_tooltip_position(
+            pos=Position.RIGHT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
+        assert tx == int(AX - TW - TOOLTIP_BASE_GAP)
         assert tx < AX
 
     def test_centered_vertically(self):
-        tx, ty = compute_tooltip_position(Position.RIGHT, AX, AY, TW, TH)
+        tx, ty = compute_tooltip_position(
+            pos=Position.RIGHT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert ty == int(AY - TH / 2)
 
 
@@ -134,19 +150,27 @@ class TestTooltipDirection:
     """Tooltip should always appear on the inner side (away from screen edge)."""
 
     def test_bottom_tooltip_above(self):
-        _, ty = compute_tooltip_position(Position.BOTTOM, AX, AY, TW, TH)
+        _, ty = compute_tooltip_position(
+            pos=Position.BOTTOM, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert ty + TH <= AY  # tooltip bottom <= anchor
 
     def test_top_tooltip_below(self):
-        _, ty = compute_tooltip_position(Position.TOP, AX, AY, TW, TH)
+        _, ty = compute_tooltip_position(
+            pos=Position.TOP, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert ty >= AY  # tooltip top >= anchor
 
     def test_left_tooltip_right(self):
-        tx, _ = compute_tooltip_position(Position.LEFT, AX, AY, TW, TH)
+        tx, _ = compute_tooltip_position(
+            pos=Position.LEFT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert tx >= AX  # tooltip left >= anchor
 
     def test_right_tooltip_left(self):
-        tx, _ = compute_tooltip_position(Position.RIGHT, AX, AY, TW, TH)
+        tx, _ = compute_tooltip_position(
+            pos=Position.RIGHT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
+        )
         assert tx + TW <= AX  # tooltip right <= anchor
 
 

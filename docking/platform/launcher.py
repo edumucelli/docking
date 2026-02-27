@@ -79,7 +79,7 @@ class Launcher:
         if key in self._icon_cache:
             return self._icon_cache[key]
 
-        pixbuf = self._try_load_icon(icon_name, size)
+        pixbuf = self._try_load_icon(icon_name=icon_name, size=size)
         self._icon_cache[key] = pixbuf
         return pixbuf
 

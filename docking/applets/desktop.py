@@ -26,7 +26,7 @@ class DesktopApplet(Applet):
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Return static user-desktop icon from theme."""
-        return load_theme_icon("user-desktop", size)
+        return load_theme_icon(name="user-desktop", size=size)
 
     def on_clicked(self) -> None:
         """Toggle show desktop via Wnck.

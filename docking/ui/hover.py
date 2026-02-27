@@ -13,7 +13,7 @@ from docking.core.position import Position
 from docking.core.zoom import compute_layout
 from docking.log import get_logger
 
-_log = get_logger("hover")
+_log = get_logger(name="hover")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -123,7 +123,7 @@ class HoverManager:
         """Start anim pump if any item became urgent (needs bounce animation)."""
         for item in self._model.visible_items():
             if item.is_urgent and item.last_urgent > 0:
-                self.start_anim_pump(700)
+                self.start_anim_pump(duration_ms=700)
                 break
 
     def _show_preview(self, item: DockItem, _layout: object) -> bool:

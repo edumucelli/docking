@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from docking.log import get_logger
 
-log = get_logger("autohide")
+log = get_logger(name="autohide")
 
 import gi
 
@@ -148,7 +148,7 @@ class AutoHideController:
         self._anim_progress = min(1.0, self._anim_progress + step)
 
         if self.state == HideState.HIDING:
-            self.hide_offset = ease_in_cubic(self._anim_progress)
+            self.hide_offset = ease_in_cubic(t=self._anim_progress)
             # Zoom progress decay -- smooth zoom fadeout during hide.
             #
             # As the dock slides down (hide_offset goes 0.0 -> 1.0), we
@@ -177,7 +177,7 @@ class AutoHideController:
                 return False
 
         elif self.state == HideState.SHOWING:
-            self.hide_offset = 1.0 - ease_out_cubic(self._anim_progress)
+            self.hide_offset = 1.0 - ease_out_cubic(t=self._anim_progress)
             self.zoom_progress = 1.0 - self.hide_offset
             if self._anim_progress >= 1.0:
                 self.state = HideState.VISIBLE

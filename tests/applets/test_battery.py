@@ -26,10 +26,13 @@ class TestResolveBatteryIcon:
         ],
     )
     def test_icon_mapping(self, level, status, expected):
-        assert resolve_battery_icon(level, status) == expected
+        assert resolve_battery_icon(capacity_level=level, status=status) == expected
 
     def test_unknown_level_returns_missing(self):
-        assert resolve_battery_icon("bogus", "Discharging") == "battery-missing"
+        assert (
+            resolve_battery_icon(capacity_level="bogus", status="Discharging")
+            == "battery-missing"
+        )
 
 
 class TestReadBattery:

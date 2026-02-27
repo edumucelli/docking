@@ -22,51 +22,51 @@ from docking.ui.autohide import (  # noqa: E402
 class TestEasing:
     def test_ease_in_cubic_at_0(self):
         # Given / When
-        result = ease_in_cubic(0.0)
+        result = ease_in_cubic(t=0.0)
         # Then
         assert result == pytest.approx(0.0)
 
     def test_ease_in_cubic_at_1(self):
         # Given / When
-        result = ease_in_cubic(1.0)
+        result = ease_in_cubic(t=1.0)
         # Then
         assert result == pytest.approx(1.0)
 
     def test_ease_in_cubic_at_half(self):
         # Given / When
-        result = ease_in_cubic(0.5)
+        result = ease_in_cubic(t=0.5)
         # Then
         assert result == pytest.approx(0.125)
 
     def test_ease_out_cubic_at_0(self):
         # Given / When
-        result = ease_out_cubic(0.0)
+        result = ease_out_cubic(t=0.0)
         # Then
         assert result == pytest.approx(0.0)
 
     def test_ease_out_cubic_at_1(self):
         # Given / When
-        result = ease_out_cubic(1.0)
+        result = ease_out_cubic(t=1.0)
         # Then
         assert result == pytest.approx(1.0)
 
     def test_ease_out_cubic_at_half(self):
         # Given / When
-        result = ease_out_cubic(0.5)
+        result = ease_out_cubic(t=0.5)
         # Then
         assert result == pytest.approx(0.875)
 
     def test_ease_in_starts_slow(self):
         """Ease-in should have smaller values at the start."""
         # Given / When
-        result = ease_in_cubic(0.1)
+        result = ease_in_cubic(t=0.1)
         # Then
         assert result < 0.1
 
     def test_ease_out_starts_fast(self):
         """Ease-out should have larger values at the start."""
         # Given / When
-        result = ease_out_cubic(0.1)
+        result = ease_out_cubic(t=0.1)
         # Then
         assert result > 0.1
 

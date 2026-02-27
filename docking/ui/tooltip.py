@@ -14,7 +14,7 @@ from gi.repository import Gdk, Gtk  # noqa: E402
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
 
-_log = get_logger("tooltip")
+_log = get_logger(name="tooltip")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from docking.platform.model import DockItem, DockModel
 
 
-TOOLTIP_GAP = 10
+TOOLTIP_BASE_GAP = 10  # base gap between icon and tooltip
 
 
 def compute_tooltip_position(
@@ -32,6 +32,7 @@ def compute_tooltip_position(
     anchor_y: float,
     tooltip_w: int,
     tooltip_h: int,
+    gap: float = TOOLTIP_BASE_GAP,
 ) -> tuple[int, int]:
     """Compute tooltip (x, y) before screen clamping.
 
@@ -40,15 +41,18 @@ def compute_tooltip_position(
     - TOP:    anchor = (icon_center_x, icon_bottom_y)
     - LEFT:   anchor = (icon_right_x, icon_center_y)
     - RIGHT:  anchor = (icon_left_x, icon_center_y)
+
+    gap includes bounce headroom so the tooltip doesn't overlap a
+    bouncing icon.
     """
     if pos == Position.BOTTOM:
-        return int(anchor_x - tooltip_w / 2), int(anchor_y - tooltip_h - TOOLTIP_GAP)
+        return int(anchor_x - tooltip_w / 2), int(anchor_y - tooltip_h - gap)
     elif pos == Position.TOP:
-        return int(anchor_x - tooltip_w / 2), int(anchor_y + TOOLTIP_GAP)
+        return int(anchor_x - tooltip_w / 2), int(anchor_y + gap)
     elif pos == Position.LEFT:
-        return int(anchor_x + TOOLTIP_GAP), int(anchor_y - tooltip_h / 2)
+        return int(anchor_x + gap), int(anchor_y - tooltip_h / 2)
     else:  # RIGHT
-        return int(anchor_x - tooltip_w - TOOLTIP_GAP), int(anchor_y - tooltip_h / 2)
+        return int(anchor_x - tooltip_w - gap), int(anchor_y - tooltip_h / 2)
 
 
 class TooltipManager:
@@ -109,15 +113,15 @@ class TooltipManager:
         from docking.core.zoom import content_bounds
 
         left_edge, right_edge = content_bounds(
-            layout,
-            self._config.icon_size,
-            self._theme.h_padding,
-            self._theme.item_padding,
+            layout=layout,
+            icon_size=self._config.icon_size,
+            h_padding=self._theme.h_padding,
+            item_padding=self._theme.item_padding,
         )
         zoomed_w = right_edge - left_edge
 
         pos = self._config.pos
-        horizontal = is_horizontal(pos)
+        horizontal = is_horizontal(pos=pos)
         if horizontal:
             main_win_size = self._window.get_size()[0]
         else:
@@ -138,25 +142,45 @@ class TooltipManager:
             icon_center_x = win_x + li.x + offset + scaled_size / 2
             icon_top_y = win_y + win_h - edge_padding - scaled_size
             self._show_tooltip(
-                item.name, pos, icon_center_x, icon_top_y, widget, content_changed
+                text=item.name,
+                pos=pos,
+                anchor_x=icon_center_x,
+                anchor_y=icon_top_y,
+                widget=widget,
+                content_changed=content_changed,
             )
         elif pos == Position.TOP:
             icon_center_x = win_x + li.x + offset + scaled_size / 2
             icon_bottom_y = win_y + edge_padding + scaled_size
             self._show_tooltip(
-                item.name, pos, icon_center_x, icon_bottom_y, widget, content_changed
+                text=item.name,
+                pos=pos,
+                anchor_x=icon_center_x,
+                anchor_y=icon_bottom_y,
+                widget=widget,
+                content_changed=content_changed,
             )
         elif pos == Position.LEFT:
             icon_center_y = win_y + li.x + offset + scaled_size / 2
             icon_right_x = win_x + edge_padding + scaled_size
             self._show_tooltip(
-                item.name, pos, icon_right_x, icon_center_y, widget, content_changed
+                text=item.name,
+                pos=pos,
+                anchor_x=icon_right_x,
+                anchor_y=icon_center_y,
+                widget=widget,
+                content_changed=content_changed,
             )
         else:  # RIGHT
             icon_center_y = win_y + li.x + offset + scaled_size / 2
             icon_left_x = win_x + win_w - edge_padding - scaled_size
             self._show_tooltip(
-                item.name, pos, icon_left_x, icon_center_y, widget, content_changed
+                text=item.name,
+                pos=pos,
+                anchor_x=icon_left_x,
+                anchor_y=icon_center_y,
+                widget=widget,
+                content_changed=content_changed,
             )
 
     def _show_tooltip(
@@ -232,7 +256,17 @@ class TooltipManager:
         tw = max(pref.width, 1)
         th = max(pref.height, 1)
 
-        tx, ty = compute_tooltip_position(pos, anchor_x, anchor_y, tw, th)
+        # Gap = base gap + half bounce headroom (icon only briefly reaches peak)
+        bounce_px = self._config.icon_size * self._theme.launch_bounce_height
+        gap = TOOLTIP_BASE_GAP + bounce_px * 0.5
+        tx, ty = compute_tooltip_position(
+            pos=pos,
+            anchor_x=anchor_x,
+            anchor_y=anchor_y,
+            tooltip_w=tw,
+            tooltip_h=th,
+            gap=gap,
+        )
 
         # Clamp to screen
         screen = self._tooltip_window.get_screen()

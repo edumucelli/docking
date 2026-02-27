@@ -109,7 +109,7 @@ class CpuMonitorApplet(Applet):
         """Render circular gauge to pixbuf; updates tooltip with CPU/Mem %."""
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_gauge(cr, size, self._cpu, self._mem)
+        _render_gauge(cr=cr, size=size, cpu=self._cpu, mem=self._mem)
 
         if hasattr(self, "item"):
             self.item.name = (
@@ -134,19 +134,19 @@ class CpuMonitorApplet(Applet):
         """Read CPU + memory, smooth, and redraw if change exceeds threshold."""
         try:
             with open("/proc/stat") as f:
-                curr = parse_proc_stat(f.read())
+                curr = parse_proc_stat(text=f.read())
         except OSError:
             return True
 
         if self._prev_sample is not None:
-            raw = cpu_percent(self._prev_sample, curr)
+            raw = cpu_percent(prev=self._prev_sample, curr=curr)
             # Smooth with previous value
             self._cpu = (raw + self._cpu) / 2.0
         self._prev_sample = curr
 
         try:
             with open("/proc/meminfo") as f:
-                self._mem = parse_proc_meminfo(f.read())
+                self._mem = parse_proc_meminfo(text=f.read())
         except OSError:
             pass
 
@@ -175,7 +175,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     center = size / 2.0
     radius = center * RADIUS_PERCENT
 
-    r, g, b = cpu_hue_rgb(cpu)
+    r, g, b = cpu_hue_rgb(cpu=cpu)
     base_alpha = 0.5
     cpu_clamped = max(0.001, min(cpu * 1.3, 1.0))
 

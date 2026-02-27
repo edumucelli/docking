@@ -136,18 +136,18 @@ class DockRenderer:
         )
         ocr = cairo.Context(offscreen)
         self._draw_content(
-            ocr,
-            width,
-            height,
-            model,
-            config,
-            theme,
-            cursor_main,
-            hide_offset,
-            drag_index,
-            drop_insert_index,
-            zoom_progress,
-            hovered_id,
+            cr=ocr,
+            width=width,
+            height=height,
+            model=model,
+            config=config,
+            theme=theme,
+            cursor_main=cursor_main,
+            hide_offset=hide_offset,
+            drag_index=drag_index,
+            drop_insert_index=drop_insert_index,
+            zoom_progress=zoom_progress,
+            hovered_id=hovered_id,
         )
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_surface(offscreen, 0, 0)
@@ -170,7 +170,7 @@ class DockRenderer:
     ) -> None:
         """Render all dock content to a Cairo context."""
         pos = config.pos
-        horizontal = is_horizontal(pos)
+        horizontal = is_horizontal(pos=pos)
         main_size = width if horizontal else height
         cross_size = height if horizontal else width
 
@@ -204,19 +204,17 @@ class DockRenderer:
             zoom_progress=zoom_progress,
         )
 
-        # Content bounds and centering offset along main axis.
-        # compute_layout returns positions in content-space (0 = left edge
-        # of content). icon_offset translates content-space to window-space
-        # by centering the content extent within main_size.
+        # Content bounds and centering offset along main axis
         left_edge, right_edge = content_bounds(
-            layout, icon_size, theme.h_padding, theme.item_padding
+            layout=layout,
+            icon_size=icon_size,
+            h_padding=theme.h_padding,
+            item_padding=theme.item_padding,
         )
         zoomed_w = right_edge - left_edge
         # Include the drop gap so shelf expands to cover displaced items
         drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         zoomed_w += drop_gap
-        # icon_offset = window_center - content_center, accounting for
-        # left_edge so that layout x=0 maps to the correct window pixel
         icon_offset = (main_size - zoomed_w) / 2 - left_edge
 
         # Shelf width smoothing — snap during hide/show and drop gap so
@@ -242,36 +240,50 @@ class DockRenderer:
         as_bottom_bg_y = cross_size - bg_height + shelf_slide
 
         cr.save()
-        self._apply_shelf_transform(cr, pos, width, height, main_size, cross_size)
+        self._apply_shelf_transform(
+            cr=cr,
+            pos=pos,
+            width=width,
+            height=height,
+            main_size=main_size,
+            cross_size=cross_size,
+        )
         draw_shelf_background(
-            cr, shelf_main_pos, as_bottom_bg_y, shelf_main_extent, bg_height, theme
+            cr=cr,
+            x=shelf_main_pos,
+            y=as_bottom_bg_y,
+            w=shelf_main_extent,
+            h=bg_height,
+            theme=theme,
         )
 
         # Active glow (drawn in shelf transform space)
         for item, li in zip(items, layout):
             if item.is_active:
                 if item.desktop_id not in self._icon_colors:
-                    self._icon_colors[item.desktop_id] = average_icon_color(item.icon)
+                    self._icon_colors[item.desktop_id] = average_icon_color(
+                        pixbuf=item.icon
+                    )
                 color = self._icon_colors[item.desktop_id]
                 self._draw_active_glow(
-                    cr,
-                    li,
-                    icon_size,
-                    icon_offset,
-                    as_bottom_bg_y,
-                    bg_height,
-                    shelf_main_pos,
-                    shelf_main_extent,
-                    color,
-                    theme.glow_opacity,
+                    cr=cr,
+                    li=li,
+                    icon_size=icon_size,
+                    icon_offset=icon_offset,
+                    bg_y=as_bottom_bg_y,
+                    bg_height=bg_height,
+                    shelf_x=shelf_main_pos,
+                    shelf_w=shelf_main_extent,
+                    color=color,
+                    glow_opacity=theme.glow_opacity,
                 )
         cr.restore()
 
         # --- Draw icons ---
-        self._update_slide_offsets(items, layout, icon_offset)
+        self._update_slide_offsets(items=items, layout=layout, icon_offset=icon_offset)
 
         gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
-        self._update_hover_lighten(items, hovered_id, theme)
+        self._update_hover_lighten(items=items, hovered_id=hovered_id, theme=theme)
 
         # Hide offset: distance to push content toward the screen edge
         hide_cross = icon_hide * cross_size
@@ -297,7 +309,7 @@ class DockRenderer:
             if item.last_launched > 0:
                 lt = now - item.last_launched
                 bounce += (
-                    easing_bounce(lt, launch_duration_us, 2)
+                    easing_bounce(t=lt, duration=launch_duration_us, n=2)
                     * icon_size
                     * theme.launch_bounce_height
                 )
@@ -305,7 +317,7 @@ class DockRenderer:
             if item.last_urgent > 0:
                 ut = now - item.last_urgent
                 bounce += (
-                    easing_bounce(ut, urgent_duration_us, 1)
+                    easing_bounce(t=ut, duration=urgent_duration_us, n=1)
                     * icon_size
                     * theme.urgent_bounce_height
                 )
@@ -313,15 +325,24 @@ class DockRenderer:
             scaled_size = icon_size * li.scale
             main_pos = li.x + icon_offset + slide + drop_shift
             ix, iy = map_icon_position(
-                pos,
-                main_pos,
-                cross_size,
-                theme.bottom_padding,
-                scaled_size,
-                hide_cross,
-                bounce,
+                pos=pos,
+                main_pos=main_pos,
+                cross_size=cross_size,
+                edge_padding=theme.bottom_padding,
+                scaled_size=scaled_size,
+                hide_cross=hide_cross,
+                bounce=bounce,
             )
-            self._draw_icon(cr, item, li, icon_size, ix, iy, lighten, darken)
+            self._draw_icon(
+                cr=cr,
+                item=item,
+                li=li,
+                base_size=icon_size,
+                x=ix,
+                y=iy,
+                lighten=lighten,
+                darken=darken,
+            )
 
         # --- Draw indicators ---
         for i, (item, li) in enumerate(zip(items, layout)):
@@ -331,15 +352,15 @@ class DockRenderer:
                     gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
                 )
                 self._draw_indicator(
-                    cr,
-                    item,
-                    li,
-                    icon_size,
-                    icon_offset + slide + drop_shift,
-                    cross_size,
-                    hide_cross,
-                    theme,
-                    pos,
+                    cr=cr,
+                    item=item,
+                    li=li,
+                    base_size=icon_size,
+                    main_pos=icon_offset + slide + drop_shift,
+                    cross_size=cross_size,
+                    hide_cross=hide_cross,
+                    theme=theme,
+                    pos=pos,
                 )
 
         # --- Urgent glow at screen edge (only when fully hidden) ---
@@ -348,24 +369,26 @@ class DockRenderer:
                 if item.last_urgent > 0:
                     elapsed = now - item.last_urgent
                     opacity = compute_urgent_glow_opacity(
-                        elapsed, theme.urgent_glow_time_ms, theme.urgent_glow_pulse_ms
+                        elapsed_us=elapsed,
+                        glow_time_ms=theme.urgent_glow_time_ms,
+                        pulse_ms=theme.urgent_glow_pulse_ms,
                     )
                     if opacity > 0:
                         if item.desktop_id not in self._icon_colors:
                             self._icon_colors[item.desktop_id] = average_icon_color(
-                                item.icon
+                                pixbuf=item.icon
                             )
                         color = self._icon_colors[item.desktop_id]
                         self._draw_urgent_glow(
-                            cr,
-                            li,
-                            icon_size,
-                            icon_offset,
-                            cross_size,
-                            pos,
-                            theme,
-                            color,
-                            opacity,
+                            cr=cr,
+                            li=li,
+                            icon_size=icon_size,
+                            icon_offset=icon_offset,
+                            cross_size=cross_size,
+                            pos=pos,
+                            theme=theme,
+                            color=color,
+                            opacity=opacity,
                         )
 
     @staticmethod
@@ -430,20 +453,12 @@ class DockRenderer:
         for item, li in zip(items, layout):
             new_positions[item.desktop_id] = li.x + icon_offset
 
-        # When an item jumps to a new position (reorder, add, remove),
-        # store the displacement as a slide offset. The icon renders at
-        # (new_position + slide_offset), starting where it was and
-        # decaying toward 0 over subsequent frames.
         for desktop_id, new_x in new_positions.items():
             old_x = self.prev_positions.get(desktop_id)
             if old_x is not None and abs(old_x - new_x) > SLIDE_MOVE_THRESHOLD:
                 current_slide = self.slide_offsets.get(desktop_id, 0.0)
                 self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
 
-        # Exponential decay: each frame multiplies the offset by
-        # SLIDE_DECAY_FACTOR (0.75), giving a quick ease-out.
-        # Offsets below SLIDE_CLEAR_THRESHOLD are removed to avoid
-        # sub-pixel drift and stale entries.
         decay = SLIDE_DECAY_FACTOR
         dead = []
         for desktop_id in self.slide_offsets:

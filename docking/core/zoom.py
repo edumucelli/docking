@@ -227,5 +227,10 @@ def total_width(
     item_padding: float = 0.0,
 ) -> float:
     """Compute total dock content width from a layout."""
-    left, right = content_bounds(layout, icon_size, h_padding, item_padding)
+    left, right = content_bounds(
+        layout=layout,
+        icon_size=icon_size,
+        h_padding=h_padding,
+        item_padding=item_padding,
+    )
     return max(right - left, 2 * (h_padding + item_padding / 2))

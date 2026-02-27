@@ -61,10 +61,10 @@ class DockModel:
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         registry = get_registry()
 
-        log = get_logger("model")
+        log = get_logger(name="model")
         for desktop_id in self._config.pinned:
-            if is_applet(desktop_id):
-                did = applet_id_from(desktop_id)
+            if is_applet(desktop_id=desktop_id):
+                did = applet_id_from(desktop_id=desktop_id)
                 cls = registry.get(did)
                 if cls:
                     try:
@@ -111,7 +111,7 @@ class DockModel:
         try:
             applet = cls(icon_size, config=self._config)
         except Exception:
-            get_logger("model").exception("Failed to create applet %s", applet_id)
+            get_logger(name="model").exception("Failed to create applet %s", applet_id)
             return
         self._applets[desktop_id] = applet
         self.pinned_items.append(applet.item)

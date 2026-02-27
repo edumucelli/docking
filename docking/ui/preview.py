@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from docking.log import get_logger
 
-log = get_logger("preview")
+log = get_logger(name="preview")
 
 import gi
 
@@ -82,7 +82,7 @@ def capture_window(
     window was destroyed between detection and capture).
     """
     if wnck_window.is_minimized():
-        return _icon_fallback(wnck_window, thumb_w, thumb_h)
+        return _icon_fallback(wnck_window=wnck_window, thumb_w=thumb_w, thumb_h=thumb_h)
 
     xid = wnck_window.get_xid()
     display = GdkX11.X11Display.get_default()
@@ -109,7 +109,7 @@ def capture_window(
         except (TypeError, GLib.Error):
             pass
 
-    return _icon_fallback(wnck_window, thumb_w, thumb_h)
+    return _icon_fallback(wnck_window=wnck_window, thumb_w=thumb_w, thumb_h=thumb_h)
 
 
 def _icon_fallback(
@@ -213,7 +213,7 @@ class PreviewPopup(Gtk.Window):
             self.remove(child)
 
         # Horizontal layout for horizontal docks, vertical for vertical
-        horizontal = is_horizontal(position)
+        horizontal = is_horizontal(pos=position)
         orientation = (
             Gtk.Orientation.HORIZONTAL if horizontal else Gtk.Orientation.VERTICAL
         )
@@ -224,7 +224,7 @@ class PreviewPopup(Gtk.Window):
         box.set_margin_bottom(POPUP_PADDING)
 
         for window in windows:
-            thumb_widget = self._make_thumbnail(window)
+            thumb_widget = self._make_thumbnail(window=window)
             box.pack_start(thumb_widget, False, False, 0)
 
         self.add(box)

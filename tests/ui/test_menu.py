@@ -51,19 +51,26 @@ class TestThemeDiscovery:
 class TestBuildRadioSubmenu:
     def test_returns_menu_item_with_submenu(self):
         callback = MagicMock()
-        item = _build_radio_submenu("Test", [("A", 1), ("B", 2)], 1, callback)
+        item = _build_radio_submenu(
+            label="Test", items=[("A", 1), ("B", 2)], current=1, on_changed=callback
+        )
         assert item.get_label() == "Test"
         assert item.get_submenu() is not None
 
     def test_correct_number_of_children(self):
         item = _build_radio_submenu(
-            "Test", [("A", 1), ("B", 2), ("C", 3)], 1, MagicMock()
+            label="Test",
+            items=[("A", 1), ("B", 2), ("C", 3)],
+            current=1,
+            on_changed=MagicMock(),
         )
         children = item.get_submenu().get_children()
         assert len(children) == 3
 
     def test_active_item_is_set(self):
-        item = _build_radio_submenu("Test", [("A", 1), ("B", 2)], 2, MagicMock())
+        item = _build_radio_submenu(
+            label="Test", items=[("A", 1), ("B", 2)], current=2, on_changed=MagicMock()
+        )
         children = item.get_submenu().get_children()
         # Second item (value=2) should be active
         assert children[1].get_active()

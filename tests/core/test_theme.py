@@ -11,19 +11,19 @@ from docking.core.theme import Theme, _rgba
 class TestRgba:
     def test_white_opaque(self):
         # Given / When
-        result = _rgba([255, 255, 255, 255])
+        result = _rgba(values=[255, 255, 255, 255])
         # Then
         assert result == pytest.approx((1.0, 1.0, 1.0, 1.0))
 
     def test_black_transparent(self):
         # Given / When
-        result = _rgba([0, 0, 0, 0])
+        result = _rgba(values=[0, 0, 0, 0])
         # Then
         assert result == pytest.approx((0.0, 0.0, 0.0, 0.0))
 
     def test_mid_values(self):
         # Given / When
-        r, g, b, a = _rgba([128, 64, 32, 200])
+        r, g, b, a = _rgba(values=[128, 64, 32, 200])
         # Then
         assert r == pytest.approx(128 / 255)
         assert g == pytest.approx(64 / 255)

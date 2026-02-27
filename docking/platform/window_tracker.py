@@ -90,7 +90,7 @@ class WindowTracker:
             if window.is_skip_tasklist():
                 continue
 
-            desktop_id = self._match_window(window)
+            desktop_id = self._match_window(window=window)
             if desktop_id is None:
                 continue
 
@@ -131,7 +131,7 @@ class WindowTracker:
                 return self._wm_class_to_desktop[inst_lower]
 
         # Try to resolve via Gio: exact, hyphenated, no-spaces variants
-        for candidate in _wm_class_desktop_candidates(class_lower):
+        for candidate in _wm_class_desktop_candidates(class_lower=class_lower):
             desktop_id = f"{candidate}{DESKTOP_SUFFIX}"
             info = self._launcher.resolve(desktop_id)
             if info:
@@ -149,7 +149,7 @@ class WindowTracker:
 
     def get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
         """Get all windows belonging to a desktop_id."""
-        return self._get_windows_for(desktop_id)
+        return self._get_windows_for(desktop_id=desktop_id)
 
     @staticmethod
     def activate_window(window: Wnck.Window) -> None:
@@ -165,7 +165,7 @@ class WindowTracker:
             return
 
         active_window = self._screen.get_active_window()
-        windows = self._get_windows_for(desktop_id)
+        windows = self._get_windows_for(desktop_id=desktop_id)
 
         if not windows:
             return
@@ -182,7 +182,7 @@ class WindowTracker:
     def close_all(self, desktop_id: str) -> None:
         """Close all windows for a desktop_id."""
         timestamp = Gtk.get_current_event_time() or 0
-        for w in self._get_windows_for(desktop_id):
+        for w in self._get_windows_for(desktop_id=desktop_id):
             w.close(timestamp)
 
     def _get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
@@ -199,7 +199,7 @@ class WindowTracker:
                 continue
             if window.is_skip_tasklist():
                 continue
-            matched = self._match_window(window)
+            matched = self._match_window(window=window)
             if matched == desktop_id:
                 result.append(window)
         return result

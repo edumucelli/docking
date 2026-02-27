@@ -298,7 +298,12 @@ class TestBaseWConsistency:
         layout = compute_layout(
             items, config, -1.0, item_padding=item_padding, h_padding=h_padding
         )
-        left, right = content_bounds(layout, icon_size, h_padding, item_padding)
+        left, right = content_bounds(
+            layout=layout,
+            icon_size=icon_size,
+            h_padding=h_padding,
+            item_padding=item_padding,
+        )
         bounds_w = right - left
         # Then -- must match exactly
         assert base_w == pytest.approx(bounds_w)
@@ -317,7 +322,9 @@ class TestBaseWConsistency:
             layout = compute_layout(
                 items, config, -1.0, item_padding=i_pad, h_padding=h_pad
             )
-            left, right = content_bounds(layout, size, h_pad, i_pad)
+            left, right = content_bounds(
+                layout=layout, icon_size=size, h_padding=h_pad, item_padding=i_pad
+            )
             assert base_w == pytest.approx(right - left), f"mismatch at n={n}"
 
     def test_consistency_with_default_theme_values(self):
@@ -341,7 +348,12 @@ class TestBaseWConsistency:
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
-        left, right = content_bounds(layout, 48, theme.h_padding, theme.item_padding)
+        left, right = content_bounds(
+            layout=layout,
+            icon_size=48,
+            h_padding=theme.h_padding,
+            item_padding=theme.item_padding,
+        )
         assert base_w == pytest.approx(right - left)
 
 
@@ -427,9 +439,11 @@ class TestZoomProgressDecay:
             items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.0
         )
         # When
-        fl, fr = content_bounds(full, 48, 2, 12)
-        dl, dr = content_bounds(decayed, 48, 2, 12)
-        rl, rr = content_bounds(rest, 48, 2, 12)
+        fl, fr = content_bounds(layout=full, icon_size=48, h_padding=2, item_padding=12)
+        dl, dr = content_bounds(
+            layout=decayed, icon_size=48, h_padding=2, item_padding=12
+        )
+        rl, rr = content_bounds(layout=rest, icon_size=48, h_padding=2, item_padding=12)
         # Then
         assert (fr - fl) > (dr - dl)
         assert (dr - dl) == pytest.approx(rr - rl)

@@ -24,7 +24,7 @@ class TestWmoMapping:
         ],
     )
     def test_wmo_icon_name(self, code, expected_icon):
-        assert wmo_icon_name(code) == expected_icon
+        assert wmo_icon_name(code=code) == expected_icon
 
     @pytest.mark.parametrize(
         "code, expected_desc",
@@ -35,11 +35,11 @@ class TestWmoMapping:
         ],
     )
     def test_wmo_description(self, code, expected_desc):
-        assert wmo_description(code) == expected_desc
+        assert wmo_description(code=code) == expected_desc
 
     def test_unknown_code_returns_fallback(self):
-        assert wmo_icon_name(999) == "weather-few-clouds"
-        assert wmo_description(999) == "Unknown"
+        assert wmo_icon_name(code=999) == "weather-few-clouds"
+        assert wmo_description(code=999) == "Unknown"
 
 
 class TestWeatherData:

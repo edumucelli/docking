@@ -9,7 +9,7 @@ import cairo
 
 from docking.log import get_logger
 
-log = get_logger("poof")
+log = get_logger(name="poof")
 
 import gi
 

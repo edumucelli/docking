@@ -49,23 +49,23 @@ def sample_gz(tmp_path):
 
 class TestLoadCities:
     def test_parses_csv(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         assert len(cities) == 3
 
     def test_sorted_by_population_desc(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         # Tokyo (13.9M) > Berlin (3.7M) > Bern (422K)
         assert cities[0].name == "Tokyo"
         assert cities[1].name == "Berlin"
         assert cities[2].name == "Bern"
 
     def test_display_format(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         berlin = next(c for c in cities if c.name == "Berlin")
         assert berlin.display == "Berlin, Germany"
 
     def test_coordinates(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         berlin = next(c for c in cities if c.name == "Berlin")
         assert berlin.lat == pytest.approx(52.52)
         assert berlin.lng == pytest.approx(13.41)
@@ -75,38 +75,38 @@ class TestLoadCities:
         with gzip.open(path, "wt", encoding="utf-8", newline="") as f:
             f.write("city_ascii,lat,lng,country,population\n")
             f.write(",invalid,invalid,X,\n")
-        cities = load_cities(path)
+        cities = load_cities(path=path)
         assert len(cities) == 0
 
 
 class TestSearchCities:
     def test_prefix_match(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         results = search_cities("Ber", cities)
         names = [c.name for c in results]
         assert "Berlin" in names
         assert "Bern" in names
 
     def test_case_insensitive(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         results = search_cities("ber", cities)
         assert len(results) == 2
 
     def test_empty_query_returns_empty(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         assert search_cities("", cities) == []
 
     def test_no_match(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         assert search_cities("xyz", cities) == []
 
     def test_respects_limit(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         results = search_cities("B", cities, limit=1)
         assert len(results) == 1
 
     def test_matches_display_name(self, sample_gz):
-        cities = load_cities(sample_gz)
+        cities = load_cities(path=sample_gz)
         results = search_cities("Berlin, G", cities)
         assert len(results) == 1
         assert results[0].name == "Berlin"

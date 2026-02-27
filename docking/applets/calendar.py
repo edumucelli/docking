@@ -20,7 +20,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger("calendar")
+_log = get_logger(name="calendar")
 
 
 class CalendarApplet(Applet):
@@ -46,7 +46,9 @@ class CalendarApplet(Applet):
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_calendar_icon(cr, size, day, time.strftime("%a", now))
+        _render_calendar_icon(
+            cr=cr, size=size, day=day, weekday=time.strftime("%a", now)
+        )
 
         if hasattr(self, "item"):
             self.item.name = time.strftime("%A, %B %-d", now)

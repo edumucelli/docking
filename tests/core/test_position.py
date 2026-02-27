@@ -18,13 +18,13 @@ class TestPositionEnum:
 
 class TestIsHorizontal:
     def test_bottom_is_horizontal(self):
-        assert is_horizontal(Position.BOTTOM) is True
+        assert is_horizontal(pos=Position.BOTTOM) is True
 
     def test_top_is_horizontal(self):
-        assert is_horizontal(Position.TOP) is True
+        assert is_horizontal(pos=Position.TOP) is True
 
     def test_left_is_vertical(self):
-        assert is_horizontal(Position.LEFT) is False
+        assert is_horizontal(pos=Position.LEFT) is False
 
     def test_right_is_vertical(self):
-        assert is_horizontal(Position.RIGHT) is False
+        assert is_horizontal(pos=Position.RIGHT) is False

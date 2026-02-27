@@ -8,7 +8,7 @@ from urllib.parse import unquote, urlparse
 
 from docking.log import get_logger
 
-log = get_logger("dnd")
+log = get_logger(name="dnd")
 
 import gi
 
@@ -75,7 +75,7 @@ class DnDHandler:
         da = self._window.drawing_area
 
         if not self._config.lock_icons:
-            self._enable_dnd(da)
+            self._enable_dnd(da=da)
 
         da.connect("drag-begin", self._on_drag_begin)
         da.connect("drag-motion", self._on_drag_motion)
@@ -129,7 +129,7 @@ class DnDHandler:
         )
 
         offset = self._window.zoomed_main_offset(layout)
-        horizontal = is_horizontal(self._config.pos)
+        horizontal = is_horizontal(pos=self._config.pos)
         win_cx = self._window.cursor_x if horizontal else self._window.cursor_y
         log.debug(
             "drag-begin: win_cx=%.1f local_cx=%.1f offset=%.1f items=%d",
@@ -194,7 +194,7 @@ class DnDHandler:
         # the drag-motion handler, which IS delivered during DnD.
         if self._window.autohide:
             self._window.autohide.on_mouse_enter()
-        main_coord = x if is_horizontal(self._config.pos) else y
+        main_coord = x if is_horizontal(pos=self._config.pos) else y
 
         if self._drag_from < 0:
             # External drag -- compute insert position for gap effect
@@ -303,7 +303,7 @@ class DnDHandler:
 
         added = False
         for uri in uris:
-            desktop_id = self._uri_to_desktop_id(uri)
+            desktop_id = self._uri_to_desktop_id(uri=uri)
             if desktop_id and not self._model.find_by_desktop_id(desktop_id):
                 resolved = self._launcher.resolve(desktop_id)
                 if resolved:
@@ -404,7 +404,7 @@ class DnDHandler:
                             item.name,
                             item.is_running,
                         )
-                        show_poof(int(screen_x), int(screen_y))
+                        show_poof(x=int(screen_x), y=int(screen_y))
                         # Clear slide state to avoid stale offsets
                         self._renderer.slide_offsets.clear()
                         self._renderer.prev_positions.clear()

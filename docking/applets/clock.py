@@ -94,9 +94,11 @@ class ClockApplet(Applet):
         is_24h = self._show_military
 
         if self._show_digital:
-            self._render_digital(cr, size, now, is_24h, self._show_date)
+            self._render_digital(
+                cr=cr, size=size, now=now, is_24h=is_24h, show_date=self._show_date
+            )
         else:
-            self._render_analog(cr, size, now)
+            self._render_analog(cr=cr, size=size, now=now)
 
         # Update tooltip with full date+time (guard: item not yet set on first call)
         if hasattr(self, "item"):
@@ -123,7 +125,7 @@ class ClockApplet(Applet):
 
         # Bottom SVG layers: shadow, face, marks
         for name in _FACE_LAYERS:
-            _paint_svg(cr, theme_dir / f"{name}.svg", size)
+            _paint_svg(cr=cr, path=theme_dir / f"{name}.svg", size=size)
 
         # Hands (drawn between face and glass/frame layers)
         lw = max(1.0, size / 48.0)
@@ -137,7 +139,7 @@ class ClockApplet(Applet):
         # Minute hand (dark gray, longer)
         cr.save()
         cr.set_source_rgba(0.15, 0.15, 0.15, 1)
-        cr.rotate(minute_rotation(minute))
+        cr.rotate(minute_rotation(minute=minute))
         cr.move_to(0, radius - radius * 0.35)
         cr.line_to(0, -radius * 0.15)
         cr.stroke()
@@ -146,7 +148,7 @@ class ClockApplet(Applet):
         # Hour hand (black, shorter)
         cr.save()
         cr.set_source_rgba(0, 0, 0, 1)
-        cr.rotate(hour_rotation_12h(hour, minute))
+        cr.rotate(hour_rotation_12h(hour=hour, minute=minute))
         cr.move_to(0, radius - radius * 0.5)
         cr.line_to(0, -radius * 0.15)
         cr.stroke()
@@ -156,7 +158,7 @@ class ClockApplet(Applet):
 
         # Top SVG layers: glass highlight, frame bezel
         for name in _TOP_LAYERS:
-            _paint_svg(cr, theme_dir / f"{name}.svg", size)
+            _paint_svg(cr=cr, path=theme_dir / f"{name}.svg", size=size)
 
     def _render_digital(
         self,
@@ -224,13 +226,20 @@ class ClockApplet(Applet):
         for idx, (text, font, stroke_w, rgba) in enumerate(rows):
             layout, logical = layouts[idx]
             tx = center - logical.width / 2 - logical.x
-            self._draw_outlined_text(cr, layout, tx, y - logical.y, stroke_w, rgba)
+            self._draw_outlined_text(
+                cr=cr,
+                layout=layout,
+                x=tx,
+                y=y - logical.y,
+                stroke_width=stroke_w,
+                fill_rgba=rgba,
+            )
             y += logical.height + spacing
 
             # AM/PM row right after time (first row)
             if idx == 0 and not is_24h:
                 is_pm = now.tm_hour >= 12
-                self._draw_am_pm(cr, size, y, am_pm_font, is_pm)
+                self._draw_am_pm(cr=cr, size=size, y=y, font=am_pm_font, is_pm=is_pm)
                 y += am_pm_height + spacing
 
     def _draw_am_pm(
@@ -255,7 +264,12 @@ class ClockApplet(Applet):
             tx = x_center - logical.width / 2 - logical.x
             alpha = 1.0 if active else 0.35
             self._draw_outlined_text(
-                cr, layout, tx, y - logical.y, 2.5, (1, 1, 1, alpha)
+                cr=cr,
+                layout=layout,
+                x=tx,
+                y=y - logical.y,
+                stroke_width=2.5,
+                fill_rgba=(1, 1, 1, alpha),
             )
 
     @staticmethod
@@ -320,7 +334,7 @@ class ClockApplet(Applet):
 
     def _save_prefs(self) -> None:
         self.save_prefs(
-            {
+            prefs={
                 "show_digital": self._show_digital,
                 "show_military": self._show_military,
                 "show_date": self._show_date,

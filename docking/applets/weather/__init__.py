@@ -41,7 +41,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger("weather")
+_log = get_logger(name="weather")
 
 
 @lru_cache(maxsize=1)
@@ -90,7 +90,7 @@ class WeatherApplet(Applet):
             self.item.tooltip_builder = self._build_tooltip_widget
 
         # Load base icon
-        base = load_theme_icon(icon_name, size)
+        base = load_theme_icon(name=icon_name, size=size)
         if not base or not self._weather or not self._show_temperature:
             return base
 
@@ -210,7 +210,7 @@ class WeatherApplet(Applet):
             display = model.get_value(tree_iter, 0)
             lat = model.get_value(tree_iter, 1)
             lng = model.get_value(tree_iter, 2)
-            self._select_city(display, lat, lng)
+            self._select_city(display=display, lat=lat, lng=lng)
             dialog.destroy()
             return True
 
@@ -252,7 +252,7 @@ class WeatherApplet(Applet):
 
     def _save_prefs(self) -> None:
         self.save_prefs(
-            {
+            prefs={
                 "city_display": self._city_display,
                 "lat": self._lat,
                 "lng": self._lng,
@@ -264,7 +264,7 @@ class WeatherApplet(Applet):
         """Fetch weather in a background thread to avoid blocking GTK."""
 
         def worker() -> None:
-            data = fetch_weather(self._lat, self._lng)
+            data = fetch_weather(lat=self._lat, lng=self._lng)
             GLib.idle_add(self._on_weather_result, data)
 
         threading.Thread(target=worker, daemon=True).start()
@@ -309,7 +309,7 @@ class WeatherApplet(Applet):
         for day in w.daily:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
             icon = Gtk.Image.new_from_icon_name(
-                wmo_icon_name(day.code), Gtk.IconSize.LARGE_TOOLBAR
+                wmo_icon_name(code=day.code), Gtk.IconSize.LARGE_TOOLBAR
             )
             label = Gtk.Label(
                 label=f"{day.date}: {day.temp_min:.0f}/{day.temp_max:.0f}°C"

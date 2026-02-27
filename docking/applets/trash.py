@@ -20,7 +20,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger("trash")
+_log = get_logger(name="trash")
 
 
 def _count_trash_items() -> int:
@@ -66,7 +66,7 @@ class TrashApplet(Applet):
                 self.item.name = "1 item in Trash"
             else:
                 self.item.name = f"{self._item_count} items in Trash"
-        return load_theme_icon(icon_name, size)
+        return load_theme_icon(name=icon_name, size=size)
 
     def on_clicked(self) -> None:
         """Open trash folder in the default file manager."""

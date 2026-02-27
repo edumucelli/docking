@@ -22,35 +22,35 @@ class TestMinuteRotation:
     def test_minute_0_points_up(self):
         # Given minute = 0 (12 o'clock)
         # When
-        angle = minute_rotation(0)
+        angle = minute_rotation(minute=0)
         # Then -- pi rotates the downward line to point up
         assert angle == pytest.approx(math.pi)
 
     def test_minute_15_points_right(self):
         # Given minute = 15 (3 o'clock)
         # When
-        angle = minute_rotation(15)
+        angle = minute_rotation(minute=15)
         # Then -- 1.5*pi = 270 degrees
         assert angle == pytest.approx(1.5 * math.pi)
 
     def test_minute_30_points_down(self):
         # Given minute = 30 (6 o'clock)
         # When
-        angle = minute_rotation(30)
+        angle = minute_rotation(minute=30)
         # Then -- 2*pi = 360 degrees (= 0, points down)
         assert angle == pytest.approx(2 * math.pi)
 
     def test_minute_45_points_left(self):
         # Given minute = 45 (9 o'clock)
         # When
-        angle = minute_rotation(45)
+        angle = minute_rotation(minute=45)
         # Then -- 2.5*pi
         assert angle == pytest.approx(2.5 * math.pi)
 
     def test_continuous_increase(self):
         # Given sequential minutes
         # When / Then -- rotation increases monotonically
-        angles = [minute_rotation(m) for m in range(60)]
+        angles = [minute_rotation(minute=m) for m in range(60)]
         for i in range(1, len(angles)):
             assert angles[i] > angles[i - 1]
 
@@ -61,35 +61,37 @@ class TestHourRotation12h:
     def test_12_oclock(self):
         # Given 12:00 (hour=0 or 12)
         # When
-        angle = hour_rotation_12h(0, 0)
+        angle = hour_rotation_12h(hour=0, minute=0)
         # Then -- points up (pi)
         assert angle == pytest.approx(math.pi)
-        assert hour_rotation_12h(12, 0) == pytest.approx(math.pi)
+        assert hour_rotation_12h(hour=12, minute=0) == pytest.approx(math.pi)
 
     def test_3_oclock(self):
         # Given 3:00
-        assert hour_rotation_12h(3, 0) == pytest.approx(1.5 * math.pi)
+        assert hour_rotation_12h(hour=3, minute=0) == pytest.approx(1.5 * math.pi)
 
     def test_6_oclock(self):
         # Given 6:00
-        assert hour_rotation_12h(6, 0) == pytest.approx(2 * math.pi)
+        assert hour_rotation_12h(hour=6, minute=0) == pytest.approx(2 * math.pi)
 
     def test_9_oclock(self):
         # Given 9:00
-        assert hour_rotation_12h(9, 0) == pytest.approx(2.5 * math.pi)
+        assert hour_rotation_12h(hour=9, minute=0) == pytest.approx(2.5 * math.pi)
 
     def test_minutes_advance_hour_hand(self):
         # Given 3:30 vs 3:00
         # When
-        at_3_00 = hour_rotation_12h(3, 0)
-        at_3_30 = hour_rotation_12h(3, 30)
+        at_3_00 = hour_rotation_12h(hour=3, minute=0)
+        at_3_30 = hour_rotation_12h(hour=3, minute=30)
         # Then -- 3:30 should be further along than 3:00
         assert at_3_30 > at_3_00
 
     def test_full_revolution_is_12_hours(self):
         # Given hour 0 and hour 12 (mod 12 = 0)
         # Then -- same angle (one full revolution)
-        assert hour_rotation_12h(0, 0) == pytest.approx(hour_rotation_12h(12, 0))
+        assert hour_rotation_12h(hour=0, minute=0) == pytest.approx(
+            hour_rotation_12h(hour=12, minute=0)
+        )
 
 
 class TestHourRotation24h:
@@ -97,27 +99,29 @@ class TestHourRotation24h:
 
     def test_0_oclock(self):
         # Given midnight (hour=0)
-        assert hour_rotation_24h(0, 0) == pytest.approx(math.pi)
+        assert hour_rotation_24h(hour=0, minute=0) == pytest.approx(math.pi)
 
     def test_6_oclock(self):
         # Given 06:00 -- quarter of the way around
-        assert hour_rotation_24h(6, 0) == pytest.approx(1.5 * math.pi)
+        assert hour_rotation_24h(hour=6, minute=0) == pytest.approx(1.5 * math.pi)
 
     def test_12_oclock(self):
         # Given 12:00 -- half way around
-        assert hour_rotation_24h(12, 0) == pytest.approx(2 * math.pi)
+        assert hour_rotation_24h(hour=12, minute=0) == pytest.approx(2 * math.pi)
 
     def test_18_oclock(self):
         # Given 18:00 -- three quarters around
-        assert hour_rotation_24h(18, 0) == pytest.approx(2.5 * math.pi)
+        assert hour_rotation_24h(hour=18, minute=0) == pytest.approx(2.5 * math.pi)
 
     def test_full_revolution_is_24_hours(self):
         # Given hour 0 and hour 24 (mod 24 = 0)
-        assert hour_rotation_24h(0, 0) == pytest.approx(hour_rotation_24h(24, 0))
+        assert hour_rotation_24h(hour=0, minute=0) == pytest.approx(
+            hour_rotation_24h(hour=24, minute=0)
+        )
 
     def test_minutes_advance_hour_hand(self):
-        at_6_00 = hour_rotation_24h(6, 0)
-        at_6_30 = hour_rotation_24h(6, 30)
+        at_6_00 = hour_rotation_24h(hour=6, minute=0)
+        at_6_30 = hour_rotation_24h(hour=6, minute=30)
         assert at_6_30 > at_6_00
 
 

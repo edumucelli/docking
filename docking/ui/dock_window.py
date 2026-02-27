@@ -21,7 +21,7 @@ from docking.ui.autohide import HideState
 from docking.ui.hover import HoverManager
 from docking.ui.tooltip import TooltipManager
 
-_log = get_logger("dock_window")
+_log = get_logger(name="dock_window")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -254,7 +254,7 @@ class DockWindow(Gtk.Window):
         )
 
         pos = self.config.pos
-        if is_horizontal(pos):
+        if is_horizontal(pos=pos):
             # Span full monitor width; use workarea Y for positioning
             # to avoid overlapping panels on perpendicular edges
             win_w, win_h = geom.width, cross
@@ -274,6 +274,15 @@ class DockWindow(Gtk.Window):
                 win_x = geom.x + geom.width - win_w
                 win_y = workarea.y
 
+        _log.debug(
+            "dock position: win=(%d,%d) size=%dx%d cross=%d bounce_headroom=%d",
+            win_x,
+            win_y,
+            win_w,
+            win_h,
+            cross,
+            bounce_headroom,
+        )
         self.set_size_request(win_w, win_h)
         self.resize(win_w, win_h)
         self.move(win_x, win_y)
@@ -300,14 +309,20 @@ class DockWindow(Gtk.Window):
         icon_size = self.config.icon_size
         strut_height = int(icon_size + self.theme.bottom_padding)
 
-        set_dock_struts(gdk_window, strut_height, geom, screen, self.config.pos)
+        set_dock_struts(
+            gdk_window=gdk_window,
+            dock_height=strut_height,
+            monitor_geom=geom,
+            screen=screen,
+            position=self.config.pos,
+        )
 
     def _clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
         gdk_window = self.get_window()
         if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
             return
-        clear_struts(gdk_window)
+        clear_struts(gdk_window=gdk_window)
 
     def update_struts(self) -> None:
         """Public method to refresh struts after autohide toggle.
@@ -407,7 +422,7 @@ class DockWindow(Gtk.Window):
     ) -> bool:
         """Handle clicks on dock items (on release to avoid DnD conflicts)."""
         # Only act if release is near the press point (not a drag)
-        if is_horizontal(self.config.pos):
+        if is_horizontal(pos=self.config.pos):
             drag_delta = abs(event.x - self._click_x)
         else:
             drag_delta = abs(event.y - self._click_y)
@@ -427,8 +442,8 @@ class DockWindow(Gtk.Window):
                 item_padding=self.theme.item_padding,
                 h_padding=self.theme.h_padding,
             )
-            main_event = event.x if is_horizontal(self.config.pos) else event.y
-            item = self.hit_test(main_event, layout)
+            main_event = event.x if is_horizontal(pos=self.config.pos) else event.y
+            item = self.hit_test(main_coord=main_event, layout=layout)
             if item is None:
                 return True
 
@@ -455,7 +470,7 @@ class DockWindow(Gtk.Window):
 
             # Applets handle their own click
 
-            if is_applet(item.desktop_id):
+            if is_applet(desktop_id=item.desktop_id):
                 applet = self.model.get_applet(item.desktop_id)
                 if applet:
                     applet.on_clicked()
@@ -467,7 +482,7 @@ class DockWindow(Gtk.Window):
             )
             if force_launch or not item.is_running:
                 item.last_launched = now
-                launch(item.desktop_id)
+                launch(desktop_id=item.desktop_id)
                 self._hover.start_anim_pump(700)  # 600ms bounce + margin
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
@@ -489,9 +504,9 @@ class DockWindow(Gtk.Window):
             item_padding=self.theme.item_padding,
             h_padding=self.theme.h_padding,
         )
-        main_event = event.x if is_horizontal(self.config.pos) else event.y
-        item = self.hit_test(main_event, layout)
-        if item and is_applet(item.desktop_id):
+        main_event = event.x if is_horizontal(pos=self.config.pos) else event.y
+        item = self.hit_test(main_coord=main_event, layout=layout)
+        if item and is_applet(desktop_id=item.desktop_id):
             applet = self.model.get_applet(item.desktop_id)
             if applet:
                 direction_up = event.direction == Gdk.ScrollDirection.UP
@@ -536,7 +551,9 @@ class DockWindow(Gtk.Window):
             self._preview.schedule_hide()
 
         autohide_on = bool(self.autohide and self.autohide.enabled)
-        if not should_keep_cursor_on_leave(autohide_on, bool(preview_visible)):
+        if not should_keep_cursor_on_leave(
+            autohide_enabled=autohide_on, preview_visible=bool(preview_visible)
+        ):
             self.cursor_x = -1.0
             self.cursor_y = -1.0
 
@@ -636,14 +653,17 @@ class DockWindow(Gtk.Window):
             h_padding=self.theme.h_padding,
         )
         left_edge, right_edge = content_bounds(
-            layout, icon_size, self.theme.h_padding, self.theme.item_padding
+            layout=layout,
+            icon_size=icon_size,
+            h_padding=self.theme.h_padding,
+            item_padding=self.theme.item_padding,
         )
         content_w = right_edge - left_edge
 
         window_w: int = self.get_size()[0]
         window_h: int = self.get_size()[1]
         pos = self.config.pos
-        horizontal = is_horizontal(pos)
+        horizontal = is_horizontal(pos=pos)
 
         # Content centering along main axis
         main_size = window_w if horizontal else window_h
@@ -658,13 +678,13 @@ class DockWindow(Gtk.Window):
         content_cross = int(icon_size + self.theme.bottom_padding)
 
         new_rect = compute_input_rect(
-            pos,
-            window_w,
-            window_h,
-            content_offset,
-            int(content_w),
-            content_cross,
-            autohide_state,
+            pos=pos,
+            window_w=window_w,
+            window_h=window_h,
+            content_offset=content_offset,
+            content_w=int(content_w),
+            content_cross=content_cross,
+            autohide_state=autohide_state,
         )
         if new_rect != self._last_input_rect:
             self._last_input_rect = new_rect
@@ -689,14 +709,14 @@ class DockWindow(Gtk.Window):
         Returns cursor_x for horizontal docks, cursor_y for vertical.
         Negative when no cursor is present (mouse outside window).
         """
-        if is_horizontal(self.config.pos):
+        if is_horizontal(pos=self.config.pos):
             return self.cursor_x
         return self.cursor_y
 
     def _main_axis_window_size(self) -> int:
         """Window extent along the dock's main axis."""
         w, h = self.get_size()
-        return int(w if is_horizontal(self.config.pos) else h)
+        return int(w if is_horizontal(pos=self.config.pos) else h)
 
     def _base_main_offset(self) -> float:
         """Offset to center base (no-zoom) content along the main axis."""
@@ -729,10 +749,10 @@ class DockWindow(Gtk.Window):
         are rendered during hover.
         """
         left_edge, right_edge = content_bounds(
-            layout,
-            self.config.icon_size,
-            self.theme.h_padding,
-            self.theme.item_padding,
+            layout=layout,
+            icon_size=self.config.icon_size,
+            h_padding=self.theme.h_padding,
+            item_padding=self.theme.item_padding,
         )
         zoomed_w = right_edge - left_edge
         return (self._main_axis_window_size() - zoomed_w) / 2 - left_edge
@@ -744,7 +764,7 @@ class DockWindow(Gtk.Window):
 
     def zoomed_x_offset(self, layout: list[LayoutItem]) -> float:
         """Alias for zoomed_main_offset (backward compat)."""
-        return self.zoomed_main_offset(layout)
+        return self.zoomed_main_offset(layout=layout)
 
     def hit_test(self, main_coord: float, layout: list[LayoutItem]) -> DockItem | None:
         """Find which DockItem is under the cursor along the main axis.
@@ -753,7 +773,7 @@ class DockWindow(Gtk.Window):
         zoomed offset, then checks each layout item's [x, x+width) range.
         Returns None if cursor is in empty space between or outside items.
         """
-        offset = self.zoomed_main_offset(layout)
+        offset = self.zoomed_main_offset(layout=layout)
         items = self.model.visible_items()
         for i, li in enumerate(layout):
             icon_w = li.scale * self.config.icon_size

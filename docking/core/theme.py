@@ -166,15 +166,17 @@ class Theme:
         scaled = icon_size / 10.0
 
         # --- Colors (not scaled, just converted 0-255 -> 0.0-1.0) ---
-        fill_start = _rgba(data.get("fill_start", [40, 40, 40, 220]))
-        fill_end = _rgba(data.get("fill_end", [30, 30, 30, 220]))
-        stroke = _rgba(data.get("stroke", [41, 41, 41, 255]))
+        fill_start = _rgba(values=data.get("fill_start", [40, 40, 40, 220]))
+        fill_end = _rgba(values=data.get("fill_end", [30, 30, 30, 220]))
+        stroke = _rgba(values=data.get("stroke", [41, 41, 41, 255]))
         stroke_width = float(data.get("stroke_width", 1.0))
-        inner_stroke = _rgba(data.get("inner_stroke", [255, 255, 255, 255]))
+        inner_stroke = _rgba(values=data.get("inner_stroke", [255, 255, 255, 255]))
         roundness = float(data.get("roundness", 4.0))
-        indicator_color = _rgba(data.get("indicator_color", [255, 255, 255, 200]))
+        indicator_color = _rgba(
+            values=data.get("indicator_color", [255, 255, 255, 200])
+        )
         active_indicator_color = _rgba(
-            data.get("active_indicator_color", [100, 180, 255, 255])
+            values=data.get("active_indicator_color", [100, 180, 255, 255])
         )
 
         # --- Layout values: JSON scaling unit -> pixels ---

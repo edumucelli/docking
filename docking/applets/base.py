@@ -30,7 +30,7 @@ def load_theme_icon_centered(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
 
     Useful for icons that are taller than wide (e.g. battery icons).
     """
-    raw = load_theme_icon(name, size)
+    raw = load_theme_icon(name=name, size=size)
     if raw is None:
         return None
     w, h = raw.get_width(), raw.get_height()
@@ -83,7 +83,7 @@ class Applet(ABC):
             name=self.name,
             icon_name=self.icon_name,
             is_pinned=True,
-            icon=self.create_icon(icon_size),
+            icon=self.create_icon(size=icon_size),
         )
         self._icon_size = icon_size
         self._notify: Callable[[], None] | None = None
@@ -128,6 +128,6 @@ class Applet(ABC):
 
     def refresh_icon(self) -> None:
         """Re-render the icon and trigger a redraw."""
-        self.item.icon = self.create_icon(self._icon_size)
+        self.item.icon = self.create_icon(size=self._icon_size)
         if self._notify:
             self._notify()

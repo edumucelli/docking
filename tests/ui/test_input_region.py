@@ -33,13 +33,13 @@ class TestAutohideOff:
 
     def test_bottom_content_rect(self):
         x, y, w, h = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            None,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=None,
         )
         assert w == CONTENT_W
         assert x == CONTENT_OFFSET
@@ -52,13 +52,13 @@ class TestAutohideVisible:
 
     def test_bottom_content_rect(self):
         x, y, w, h = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.VISIBLE,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.VISIBLE,
         )
         assert h == CONTENT_CROSS
         assert y == WIN_H - CONTENT_CROSS
@@ -69,35 +69,35 @@ class TestAutohideHiding:
 
     def test_keeps_content_rect(self):
         x, y, w, h = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.HIDING,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.HIDING,
         )
         # Still content-sized, NOT shrunk
         assert h == CONTENT_CROSS
 
     def test_same_as_visible(self):
         visible = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.VISIBLE,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.VISIBLE,
         )
         hiding = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.HIDING,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.HIDING,
         )
         assert visible == hiding
 
@@ -107,13 +107,13 @@ class TestAutohideShowing:
 
     def test_keeps_content_rect(self):
         x, y, w, h = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.SHOWING,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.SHOWING,
         )
         assert h == CONTENT_CROSS
 
@@ -123,26 +123,26 @@ class TestAutohideHidden:
 
     def test_bottom_trigger_strip(self):
         x, y, w, h = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.HIDDEN,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.HIDDEN,
         )
         assert h == TRIGGER_PX
         assert y == WIN_H - TRIGGER_PX
 
     def test_top_trigger_wider(self):
         x, y, w, h = compute_input_rect(
-            Position.TOP,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.HIDDEN,
+            pos=Position.TOP,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.HIDDEN,
         )
         assert h == TRIGGER_PX_TOP
         assert y == 0
@@ -153,13 +153,13 @@ class TestHeadroomExcluded:
 
     def test_bottom_headroom_excluded(self):
         x, y, w, h = compute_input_rect(
-            Position.BOTTOM,
-            WIN_W,
-            WIN_H,
-            CONTENT_OFFSET,
-            CONTENT_W,
-            CONTENT_CROSS,
-            HideState.VISIBLE,
+            pos=Position.BOTTOM,
+            window_w=WIN_W,
+            window_h=WIN_H,
+            content_offset=CONTENT_OFFSET,
+            content_w=CONTENT_W,
+            content_cross=CONTENT_CROSS,
+            autohide_state=HideState.VISIBLE,
         )
         assert y > 0
         assert y == WIN_H - CONTENT_CROSS

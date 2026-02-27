@@ -87,8 +87,8 @@ class ApplicationsApplet(Applet):
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Static app grid icon."""
-        return load_theme_icon("view-app-grid", size) or load_theme_icon(
-            "gnome-applications", size
+        return load_theme_icon(name="view-app-grid", size=size) or load_theme_icon(
+            name="gnome-applications", size=size
         )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
@@ -119,7 +119,7 @@ class ApplicationsApplet(Applet):
                     mi.set_image(Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.MENU))
                 mi.connect(
                     "activate",
-                    lambda _, info=app_info: _launch_app(info),
+                    lambda _, info=app_info: _launch_app(app_info=info),
                 )
                 submenu.append(mi)
 

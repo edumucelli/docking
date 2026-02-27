@@ -199,19 +199,19 @@ def set_dock_struts(
 ) -> None:
     """Compute and set struts for the dock at the given screen edge."""
     struts = compute_struts(
-        dock_height,
-        monitor_geom.x,
-        monitor_geom.y,
-        monitor_geom.width,
-        monitor_geom.height,
-        screen.get_width(),
-        screen.get_height(),
-        gdk_window.get_scale_factor(),
-        position,
+        dock_height=dock_height,
+        monitor_x=monitor_geom.x,
+        monitor_y=monitor_geom.y,
+        monitor_w=monitor_geom.width,
+        monitor_h=monitor_geom.height,
+        screen_w=screen.get_width(),
+        screen_h=screen.get_height(),
+        scale=gdk_window.get_scale_factor(),
+        position=position,
     )
-    set_struts(gdk_window, struts)
+    set_struts(gdk_window=gdk_window, struts=struts)
 
 
 def clear_struts(gdk_window: GdkX11.X11Window) -> None:
     """Remove strut reservation by setting all struts to zero."""
-    set_struts(gdk_window, [0] * 12)
+    set_struts(gdk_window=gdk_window, struts=[0] * 12)

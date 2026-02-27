@@ -75,7 +75,7 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
     except (OSError, ValueError):
         return None
     return BatteryState(
-        icon_name=resolve_battery_icon(capacity_level, status),
+        icon_name=resolve_battery_icon(capacity_level=capacity_level, status=status),
         capacity=capacity,
     )
 
@@ -114,7 +114,7 @@ class BatteryApplet(Applet):
             icon_name = "battery-missing"
             if hasattr(self, "item"):
                 self.item.name = "No battery"
-        return load_theme_icon_centered(icon_name, size)
+        return load_theme_icon_centered(name=icon_name, size=size)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start 60-second polling timer (battery changes slowly)."""

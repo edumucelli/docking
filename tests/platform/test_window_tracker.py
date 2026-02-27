@@ -16,21 +16,21 @@ class TestWmClassCandidates:
     """Desktop ID candidates from WM_CLASS with spaces."""
 
     def test_no_spaces(self):
-        assert _wm_class_desktop_candidates("firefox") == ["firefox"]
+        assert _wm_class_desktop_candidates(class_lower="firefox") == ["firefox"]
 
     def test_spaces_to_hyphens_and_joined(self):
-        result = _wm_class_desktop_candidates("mongodb compass")
+        result = _wm_class_desktop_candidates(class_lower="mongodb compass")
         assert "mongodb compass" in result
         assert "mongodb-compass" in result
         assert "mongodbcompass" in result
 
     def test_multi_word(self):
-        result = _wm_class_desktop_candidates("aws vpn client")
+        result = _wm_class_desktop_candidates(class_lower="aws vpn client")
         assert "aws-vpn-client" in result
         assert "awsvpnclient" in result
 
     def test_no_duplicates(self):
-        result = _wm_class_desktop_candidates("simple")
+        result = _wm_class_desktop_candidates(class_lower="simple")
         assert len(result) == len(set(result))
 
 

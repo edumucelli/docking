@@ -92,14 +92,14 @@ class MenuHandler:
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
-        item = self._hit_test(cursor_main, items, layout)
+        item = self._hit_test(main_coord=cursor_main, items=items, layout=layout)
 
         menu = Gtk.Menu()
 
         if item:
-            self._build_item_menu(menu, item)
+            self._build_item_menu(menu=menu, item=item)
         else:
-            self._build_dock_menu(menu)
+            self._build_dock_menu(menu=menu)
 
         menu.show_all()
         menu.popup_at_pointer(event)
@@ -112,7 +112,7 @@ class MenuHandler:
         """
         locked = self._config.lock_icons
 
-        if is_applet(item.desktop_id):
+        if is_applet(desktop_id=item.desktop_id):
             # Applet-specific menu items
             applet = self._model.get_applet(item.desktop_id)
             if applet:
@@ -130,7 +130,7 @@ class MenuHandler:
             return
 
         # Desktop actions (e.g. "New Window", "New Incognito Window")
-        self._append_desktop_actions(menu, item.desktop_id)
+        self._append_desktop_actions(menu=menu, desktop_id=item.desktop_id)
 
         # Pin/Unpin (hidden when icons are locked)
         if not locked:
@@ -190,7 +190,10 @@ class MenuHandler:
         theme_items = [(n.replace("-", " ").capitalize(), n) for n in theme_names]
         menu.append(
             _build_radio_submenu(
-                "Themes", theme_items, self._config.theme, self._on_theme_changed
+                label="Themes",
+                items=theme_items,
+                current=self._config.theme,
+                on_changed=self._on_theme_changed,
             )
         )
 
@@ -200,10 +203,10 @@ class MenuHandler:
         size_items = [(f"{s}px", s) for s in ICON_SIZE_OPTIONS]
         menu.append(
             _build_radio_submenu(
-                "Icon Size",
-                size_items,
-                self._config.icon_size,
-                self._on_icon_size_changed,
+                label="Icon Size",
+                items=size_items,
+                current=self._config.icon_size,
+                on_changed=self._on_icon_size_changed,
             )
         )
 
@@ -211,7 +214,10 @@ class MenuHandler:
         pos_items = [(p.value.capitalize(), p.value) for p in Position]
         menu.append(
             _build_radio_submenu(
-                "Position", pos_items, self._config.position, self._on_position_changed
+                label="Position",
+                items=pos_items,
+                current=self._config.position,
+                on_changed=self._on_position_changed,
             )
         )
 
@@ -225,7 +231,7 @@ class MenuHandler:
             active_ids = {
                 item.desktop_id
                 for item in self._model.pinned_items
-                if is_applet(item.desktop_id)
+                if is_applet(desktop_id=item.desktop_id)
             }
             for did, cls in sorted(registry.items()):
                 desktop_id = f"applet://{did}"
@@ -249,7 +255,7 @@ class MenuHandler:
             return
         from docking.platform.launcher import get_actions, launch_action
 
-        actions = get_actions(desktop_id)
+        actions = get_actions(desktop_id=desktop_id)
         if not actions:
             return
         for action_id, label in actions:
@@ -257,7 +263,9 @@ class MenuHandler:
             # Capture by value via default arg
             mi.connect(
                 "activate",
-                lambda _, did=desktop_id, aid=action_id: launch_action(did, aid),
+                lambda _, did=desktop_id, aid=action_id: launch_action(
+                    desktop_id=did, action_id=aid
+                ),
             )
             menu.append(mi)
         menu.append(Gtk.SeparatorMenuItem())

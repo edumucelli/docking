@@ -60,7 +60,7 @@ class ClippyApplet(Applet):
                 self.item.name = _truncate(self._clips[self._cur_position - 1])
             else:
                 self.item.name = "Clippy (empty)"
-        return load_theme_icon("edit-paste", size)
+        return load_theme_icon(name="edit-paste", size=size)
 
     def on_clicked(self) -> None:
         """Copy current clip back to clipboard."""
@@ -92,7 +92,7 @@ class ClippyApplet(Applet):
             mi = Gtk.MenuItem(label=_truncate(clip))
             mi.connect(
                 "activate",
-                lambda _, t=clip: self._copy_to_clipboard(t),
+                lambda _, t=clip: self._copy_to_clipboard(text=t),
             )
             items.append(mi)
 
@@ -125,7 +125,7 @@ class ClippyApplet(Applet):
         text = clipboard.wait_for_text()
         if not text:
             return
-        self.add_clip(text)
+        self.add_clip(text=text)
         self.refresh_icon()
 
     def add_clip(self, text: str) -> None:

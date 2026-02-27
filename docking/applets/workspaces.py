@@ -18,7 +18,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger("workspaces")
+_log = get_logger(name="workspaces")
 
 
 class WorkspacesApplet(Applet):
@@ -46,7 +46,7 @@ class WorkspacesApplet(Applet):
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_grid(cr, size, count, active_num)
+        _render_grid(cr=cr, size=size, count=count, active_num=active_num)
 
         if hasattr(self, "item"):
             name = active.get_name() if active else "Desktop"

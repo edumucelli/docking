@@ -80,7 +80,7 @@ class TestDesktopActions:
         with patch(
             "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
         ):
-            actions = get_actions("chrome.desktop")
+            actions = get_actions(desktop_id="chrome.desktop")
 
         # Then
         assert actions == [
@@ -93,7 +93,7 @@ class TestDesktopActions:
         with patch(
             "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=None
         ):
-            actions = get_actions("nonexistent.desktop")
+            actions = get_actions(desktop_id="nonexistent.desktop")
         # Then
         assert actions == []
 
@@ -106,7 +106,7 @@ class TestDesktopActions:
         with patch(
             "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
         ):
-            actions = get_actions("app.desktop")
+            actions = get_actions(desktop_id="app.desktop")
         # Then -- empty-name action skipped
         assert actions == [("good", "Good")]
 
@@ -116,6 +116,6 @@ class TestDesktopActions:
         with patch(
             "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
         ):
-            launch_action("chrome.desktop", "new-window")
+            launch_action(desktop_id="chrome.desktop", action_id="new-window")
         # Then
         mock_app.launch_action.assert_called_once_with("new-window", None)

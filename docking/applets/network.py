@@ -26,7 +26,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger("network")
+_log = get_logger(name="network")
 
 POLL_INTERVAL_S = 2
 
@@ -140,9 +140,11 @@ class NetworkApplet(Applet):
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load network icon with speed overlay."""
         icon_name = signal_to_icon(
-            self._signal_strength, self._is_connected, self._is_wifi
+            strength=self._signal_strength,
+            is_connected=self._is_connected,
+            is_wifi=self._is_wifi,
         )
-        base = load_theme_icon(icon_name, size)
+        base = load_theme_icon(name=icon_name, size=size)
 
         if hasattr(self, "item"):
             self.item.name = self._build_tooltip()
@@ -151,8 +153,8 @@ class NetworkApplet(Applet):
             return base
 
         # Overlay speed text
-        rx_str = format_speed(self._rx_speed)
-        tx_str = format_speed(self._tx_speed)
+        rx_str = format_speed(bps=self._rx_speed)
+        tx_str = format_speed(bps=self._tx_speed)
         if self._tx_speed > 1024:
             overlay = f"\u2193{rx_str.split()[0]} \u2191{tx_str.split()[0]}"
         else:
@@ -209,8 +211,8 @@ class NetworkApplet(Applet):
             items.append(ip_item)
 
         if self._is_connected:
-            down = format_speed(self._rx_speed)
-            up = format_speed(self._tx_speed)
+            down = format_speed(bps=self._rx_speed)
+            up = format_speed(bps=self._tx_speed)
             speed_item = Gtk.MenuItem(label=f"\u2193 {down}  \u2191 {up}")
             speed_item.set_sensitive(False)
             items.append(speed_item)
@@ -333,7 +335,7 @@ class NetworkApplet(Applet):
             return
         try:
             with open("/proc/net/dev") as f:
-                counters = parse_proc_net_dev(f.read())
+                counters = parse_proc_net_dev(text=f.read())
         except OSError:
             return
 
@@ -342,7 +344,7 @@ class NetworkApplet(Applet):
         if current and self._prev_counters:
             elapsed = now - self._prev_time
             self._rx_speed, self._tx_speed = compute_speeds(
-                self._prev_counters, current, elapsed
+                prev=self._prev_counters, curr=current, elapsed_s=elapsed
             )
         if current:
             self._prev_counters = current
@@ -373,7 +375,7 @@ class NetworkApplet(Applet):
             lines.append(f"Ethernet: {self._iface}")
         if self._ip_address:
             lines.append(f"IP: {self._ip_address}")
-        down = format_speed(self._rx_speed)
-        up = format_speed(self._tx_speed)
+        down = format_speed(bps=self._rx_speed)
+        up = format_speed(bps=self._tx_speed)
         lines.append(f"\u2193 {down}  \u2191 {up}")
         return "\n".join(lines)

@@ -17,7 +17,7 @@ class TestRenderCalendarIcon:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
         # Given a valid day and weekday
-        _render_calendar_icon(cr, size, day, "Mon")
+        _render_calendar_icon(cr=cr, size=size, day=day, weekday="Mon")
         # Then no exception and surface has content
         data = surface.get_data()
         assert any(b != 0 for b in data)
@@ -26,7 +26,7 @@ class TestRenderCalendarIcon:
     def test_renders_at_various_sizes(self, size):
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_calendar_icon(cr, size, 25, "Tue")
+        _render_calendar_icon(cr=cr, size=size, day=25, weekday="Tue")
         data = surface.get_data()
         assert any(b != 0 for b in data)
 

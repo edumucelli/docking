@@ -48,17 +48,17 @@ class TestRegistry:
 
 class TestLoadThemeIcon:
     def test_loads_known_icon(self):
-        pixbuf = load_theme_icon("user-trash", 48)
+        pixbuf = load_theme_icon(name="user-trash", size=48)
         assert pixbuf is not None
         assert pixbuf.get_width() == 48
 
     def test_returns_none_for_unknown(self):
-        assert load_theme_icon("nonexistent-icon-xyz", 48) is None
+        assert load_theme_icon(name="nonexistent-icon-xyz", size=48) is None
 
     def test_centered_returns_square(self):
-        pixbuf = load_theme_icon_centered("user-trash", 48)
+        pixbuf = load_theme_icon_centered(name="user-trash", size=48)
         assert pixbuf is not None
         assert pixbuf.get_width() == pixbuf.get_height()
 
     def test_centered_returns_none_for_unknown(self):
-        assert load_theme_icon_centered("nonexistent-icon-xyz", 48) is None
+        assert load_theme_icon_centered(name="nonexistent-icon-xyz", size=48) is None
