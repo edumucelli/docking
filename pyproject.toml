@@ -28,6 +28,8 @@ docking = [
     "assets/**/*.svg",
     "assets/**/*.json",
     "assets/**/*.csv.gz",
+    "assets/**/*.ogg",
+    "assets/**/*.md",
 ]
 
 [tool.pytest.ini_options]

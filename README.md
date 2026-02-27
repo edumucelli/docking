@@ -46,7 +46,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 16 built-in applets:
+Extensible plugin system for custom dock widgets. 18 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -55,7 +55,7 @@ Extensible plugin system for custom dock widgets. 16 built-in applets:
 | **Desktop** | Toggle show desktop |
 | **CPU Monitor** | Circular gauge with CPU and memory usage |
 | **Battery** | Battery charge level with charging indicator |
-| **Weather** | Current weather with 5-day forecast |
+| **Weather** | Current weather, air quality, and 5-day forecast |
 | **Clippy** | Clipboard history manager |
 | **Applications** | Categorized application launcher |
 | **Network** | WiFi signal strength and traffic speeds |
@@ -66,6 +66,8 @@ Extensible plugin system for custom dock widgets. 16 built-in applets:
 | **Volume** | Scroll to adjust, click to mute |
 | **Pomodoro** | Tomato timer with auto-cycling work/break phases |
 | **Separator** | Transparent gap divider (multiple instances, scroll to resize) |
+| **Hydration** | Water drop reminder — drains over time, click to refill |
+| **Ambient** | Looping nature sounds and white/pink noise via GStreamer |
 
 See [Applet Documentation](#applets-1) below for details on each applet.
 
@@ -222,18 +224,20 @@ Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/cl
 
 ### Weather
 
-Shows current weather for a selected city with a 5-day forecast. Uses the [Open-Meteo](https://open-meteo.com/) free API with automatic caching and retry.
+Shows current weather and air quality for a selected city with a 5-day forecast. Uses the [Open-Meteo](https://open-meteo.com/) weather and air quality APIs with automatic caching and retry.
 
 **Click:** Open forecast in browser
 **Right-click options:**
 - **Show Temperature** -- toggle temperature overlay on icon
 - **Change City...** -- opens search dialog with autocomplete (48,000 cities)
 
-**Tooltip:** Current conditions + 5-day forecast:
+**Tooltip:** Bold city header + current conditions + air quality + daily forecast with icons:
 ```
-Berlin, Germany: 22C, Clear sky
-Mon: 18/24C, Partly cloudy
-Tue: 16/22C, Rain
+Berlin, Germany
+22°C, Clear sky
+Air: Good
+Mon: 18/24°C, Partly cloudy
+Tue: 16/22°C, Rain
 ```
 
 **Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`
@@ -350,6 +354,28 @@ Transparent gap divider between dock items. Supports multiple instances -- each 
 
 Added via right-click on dock background -> **Add Separator** (inserts at click position).
 
+### Hydration
+
+Water drop icon that drains over a configurable interval, reminding you to drink water. Click to refill. Triggers urgent bounce when empty.
+
+**Click:** Refill (log a drink)
+**Scroll:** No-op
+**Right-click options:**
+- **Show Timer** -- toggle countdown overlay on icon
+- **Interval presets** -- 15/30/45/60/90 min
+
+**Preferences stored:** `interval`, `show_timer`
+
+### Ambient
+
+Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sounds plus procedural white/pink noise via GStreamer.
+
+**Click:** Toggle play/stop
+**Scroll:** Adjust volume ±10%
+**Right-click:** Sound selection (Birds, Boat, Coffee Shop, Fireplace, Stream, Summer Night, Wind, White Noise, Pink Noise)
+
+**Preferences stored:** `sound`, `volume`
+
 ## Theming
 
 Themes are JSON files in `docking/assets/themes/`. Six built-in themes are included:
@@ -435,7 +461,7 @@ docking/
 |   +-- launcher.py         .desktop resolution, icon loading, desktop actions
 |   +-- window_tracker.py   Wnck running app detection
 |   +-- struts.py           X11 _NET_WM_STRUT_PARTIAL via ctypes
-+-- applets/                Extensible applet system (16 applets)
++-- applets/                Extensible applet system (18 applets)
 |   +-- base.py             Applet ABC, shared icon loaders
 |   +-- clock.py            Analog/digital clock
 |   +-- trash.py            Trash monitor
@@ -482,7 +508,7 @@ pytest tests/ -v
 pytest tests/applets/test_clock.py -v
 ```
 
-606 tests covering pure functions, applet behavior, rendering, and UI logic:
+643 tests covering pure functions, applet behavior, rendering, and UI logic:
 
 ```
 tests/
