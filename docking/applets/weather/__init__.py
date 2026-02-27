@@ -292,16 +292,16 @@ class WeatherApplet(Applet):
         city.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
         box.pack_start(city, False, False, 0)
 
-        # Current conditions + air quality as subtitle
-        subtitle = f"{w.temperature:.0f}°C, {w.description}"
-        if self._air_quality:
-            subtitle += f" · Air: {self._air_quality.label}"
-        current = Gtk.Label(label=subtitle)
-        current.set_xalign(0.5)
-        current.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.8))
+        # Current conditions
+        current = Gtk.Label(label=f"{w.temperature:.0f}°C, {w.description}")
+        current.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.9))
         box.pack_start(current, False, False, 0)
 
-        box.pack_start(Gtk.Separator(), False, False, 2)
+        # Air quality
+        if self._air_quality:
+            aqi_lbl = Gtk.Label(label=f"Air: {self._air_quality.label}")
+            aqi_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
+            box.pack_start(aqi_lbl, False, False, 0)
 
         for day in w.daily:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
