@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import faulthandler
 import os
 import signal
 import sys
+
+# Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
+# Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
+faulthandler.enable()
+faulthandler.register(signal.SIGUSR1)
 
 # Add vendor directory for bundled pip dependencies (.deb installs them
 # to /usr/lib/docking/vendor to avoid conflicts with system packages).
