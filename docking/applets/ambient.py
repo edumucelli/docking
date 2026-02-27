@@ -197,6 +197,9 @@ class AmbientApplet(Applet):
 
     def _stop_playback(self) -> None:
         if self._pipeline:
+            bus = self._pipeline.get_bus()
+            if bus:
+                bus.remove_signal_watch()
             self._pipeline.set_state(Gst.State.NULL)
             self._pipeline = None
         self._playing = False
