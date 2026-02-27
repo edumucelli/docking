@@ -9,19 +9,9 @@ from docking.applets.hydration import (
 
 
 class TestWaterColor:
-    def test_full_is_blue(self):
-        r, g, b = water_color(fill=1.0)
+    def test_is_blue(self):
+        r, g, b = water_color()
         assert b > r  # blue dominant
-
-    def test_empty_is_orange(self):
-        r, g, b = water_color(fill=0.0)
-        assert r > b  # red/orange dominant
-
-    def test_clamps_above_one(self):
-        assert water_color(fill=1.5) == water_color(fill=1.0)
-
-    def test_clamps_below_zero(self):
-        assert water_color(fill=-0.5) == water_color(fill=0.0)
 
 
 class TestTooltipText:

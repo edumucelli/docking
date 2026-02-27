@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 @lru_cache(maxsize=1)
 def get_registry() -> dict[str, type[Applet]]:
     """Return the applet registry, loading it on first access."""
+    from docking.applets.ambient import AmbientApplet
     from docking.applets.applications import ApplicationsApplet
     from docking.applets.battery import BatteryApplet
     from docking.applets.calendar import CalendarApplet
@@ -31,6 +32,7 @@ def get_registry() -> dict[str, type[Applet]]:
     from docking.applets.workspaces import WorkspacesApplet
 
     return {
+        "ambient": AmbientApplet,
         "applications": ApplicationsApplet,
         "battery": BatteryApplet,
         "calendar": CalendarApplet,

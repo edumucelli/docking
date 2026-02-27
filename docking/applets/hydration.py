@@ -29,15 +29,9 @@ _REDRAW_EVERY = 10
 # ---------------------------------------------------------------------------
 
 
-def water_color(fill: float) -> tuple[float, float, float]:
-    """Map fill level to color: bright blue (full) -> orange-red (empty)."""
-    # Lerp from vivid blue (0.2, 0.5, 1.0) to orange-red (1.0, 0.35, 0.1)
-    f = max(0.0, min(1.0, fill))
-    return (
-        0.2 + (1.0 - 0.2) * (1 - f),
-        0.5 + (0.35 - 0.5) * (1 - f),
-        1.0 + (0.1 - 1.0) * (1 - f),
-    )
+def water_color() -> tuple[float, float, float]:
+    """Return the water color (constant vivid blue)."""
+    return (0.2, 0.5, 1.0)
 
 
 def format_remaining(fill: float, interval_min: int) -> str:
@@ -103,7 +97,7 @@ def _draw_drop_path(cr: cairo.Context, size: int) -> None:
 
 def _render_drop(cr: cairo.Context, size: int, fill: float) -> None:
     """Render a water drop with fill level."""
-    r, g, b = water_color(fill=fill)
+    r, g, b = water_color()
 
     # Solid dark background so the drop shape is always visible
     _draw_drop_path(cr=cr, size=size)
