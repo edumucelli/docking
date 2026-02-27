@@ -275,7 +275,15 @@ class DockModel:
             self.notify()
 
     def unpin_item(self, desktop_id: str) -> None:
-        """Unpin an item. If running, becomes transient; otherwise removed."""
+        """Unpin an item. If running, becomes transient; otherwise removed.
+
+        Applets are fully removed (stop + cleanup) since they can't be transient.
+        """
+        from docking.applets.base import is_applet
+
+        if is_applet(desktop_id=desktop_id):
+            self.remove_applet(desktop_id=desktop_id)
+            return
         item = next((p for p in self.pinned_items if p.desktop_id == desktop_id), None)
         if item:
             self.pinned_items.remove(item)

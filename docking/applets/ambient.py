@@ -197,11 +197,16 @@ class AmbientApplet(Applet):
 
     def _stop_playback(self) -> None:
         if self._pipeline:
+            _log.debug("Stopping pipeline: %s", self._current)
             bus = self._pipeline.get_bus()
             if bus:
                 bus.remove_signal_watch()
             self._pipeline.set_state(Gst.State.NULL)
+            # Wait for state change to complete
+            self._pipeline.get_state(Gst.CLOCK_TIME_NONE)
+            del self._pipeline
             self._pipeline = None
+            _log.debug("Pipeline stopped")
         self._playing = False
 
     def _on_eos(self, _bus: Gst.Bus, _msg: Gst.Message) -> None:
