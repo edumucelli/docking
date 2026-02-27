@@ -19,10 +19,17 @@ sudo apt-get -f install  # fix any missing deps
 docking
 ```
 
-The .deb depends on system GTK/GI packages (`python3-gi`, `gir1.2-gtk-3.0`, etc.).
-All Python pip dependencies are vendored into `/usr/lib/docking/vendor/` to avoid
-file conflicts with Ubuntu's system python3-* packages. The entrypoint adds this
-path to `sys.path` at startup.
+### How it works
+
+- **Runtime deps**: system GTK/GI packages (`python3-gi`, `gir1.2-gtk-3.0`, etc.)
+- **Vendored deps**: all pip dependencies go to `/usr/lib/docking/vendor/` to avoid
+  file conflicts with Ubuntu's python3-* packages. The entrypoint adds this path to
+  `sys.path` at startup.
+- **Assets**: theme JSON files, clock SVG layers, and weather city database are bundled
+  via `package_data` in `setup.cfg` (shim for Ubuntu 22.04's older setuptools that
+  can't read PEP 621 from `pyproject.toml`). Installed to
+  `/usr/lib/python3/dist-packages/docking/assets/`.
+- **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
 
 ## PyPI
 
