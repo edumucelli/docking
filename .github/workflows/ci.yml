@@ -26,6 +26,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             python3-venv \
+            xvfb \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
             gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
             gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
@@ -49,7 +50,9 @@ jobs:
         run: .venv/bin/python -m ty check docking/
 
       - name: Tests
-        run: .venv/bin/python -m pytest tests/ -v
+        env:
+          GSETTINGS_BACKEND: memory
+        run: xvfb-run -a .venv/bin/python -m pytest tests/ -v
 
   build-deb:
     name: Build .deb
