@@ -29,6 +29,10 @@ docking
   via `package_data` in `setup.cfg` (shim for Ubuntu 22.04's older setuptools that
   can't read PEP 621 from `pyproject.toml`). Installed to
   `/usr/lib/python3/dist-packages/docking/assets/`.
+- **Application icon**: add `org.docking.Docking` icon files under
+  `packaging/deb/icons/hicolor/<size>x<size>/apps/org.docking.Docking.png` (and
+  optional `packaging/deb/icons/hicolor/scalable/apps/org.docking.Docking.svg`).
+  The deb build copies this tree to `/usr/share/icons/hicolor/`.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
 
 ## PyPI

@@ -42,6 +42,10 @@ class WindowTracker:
         self._launcher = launcher
         self._screen: Wnck.Screen | None = None
         self._wm_class_to_desktop: dict[str, str] = {}
+        # Latest known window XIDs per desktop_id from _update_running().
+        # Preview/toggle paths use this cache to avoid rematching WM_CLASS
+        # during hover-time UI events.
+        self._running_xids_by_desktop: dict[str, list[int]] = {}
 
         self._build_wm_class_map()
         # Defer screen init to after GTK is ready
@@ -80,7 +84,7 @@ class WindowTracker:
         active_window = self._screen.get_active_window()
         active_xid = active_window.get_xid() if active_window else 0
 
-        # {desktop_id: {"count": n, "active": bool, "windows": [...]}}
+        # {desktop_id: {"count": n, "active": bool, "urgent": bool, "windows": [...], "xids": [...]}}
         running: dict[str, dict[str, Any]] = {}
 
         for window in self._screen.get_windows():
@@ -100,15 +104,22 @@ class WindowTracker:
                     "active": False,
                     "urgent": False,
                     "windows": [],
+                    "xids": [],
                 }
 
+            xid = window.get_xid()
             running[desktop_id]["count"] += 1
             running[desktop_id]["windows"].append(window)
-            if window.get_xid() == active_xid:
+            running[desktop_id]["xids"].append(xid)
+            if xid == active_xid:
                 running[desktop_id]["active"] = True
             if window.needs_attention():
                 running[desktop_id]["urgent"] = True
 
+        self._running_xids_by_desktop = {
+            desktop_id: list(info.get("xids", []))
+            for desktop_id, info in running.items()
+        }
         self._model.update_running(running)
 
     def _match_window(self, window: Wnck.Window) -> str | None:
@@ -186,11 +197,16 @@ class WindowTracker:
             w.close(timestamp)
 
     def _get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
-        """Get all windows belonging to a desktop_id."""
+        """Get windows for desktop_id using cached XIDs from last scan.
+
+        This avoids rematching WM_CLASS in hover/preview paths, which can
+        race with native Wnck object lifetime transitions.
+        """
         if self._screen is None:
             return []
 
-        result: list[Wnck.Window] = []
+        # Build current XID -> window map from live screen windows.
+        by_xid: dict[int, Wnck.Window] = {}
         for window in self._screen.get_windows():
             window_type = window.get_window_type()
             # Skip DESKTOP/DOCK types -- Caja's desktop window can segfault on
@@ -199,7 +215,11 @@ class WindowTracker:
                 continue
             if window.is_skip_tasklist():
                 continue
-            matched = self._match_window(window=window)
-            if matched == desktop_id:
+            by_xid[window.get_xid()] = window
+
+        result: list[Wnck.Window] = []
+        for xid in self._running_xids_by_desktop.get(desktop_id, []):
+            window = by_xid.get(xid)
+            if window is not None:
                 result.append(window)
         return result

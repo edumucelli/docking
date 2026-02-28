@@ -2,13 +2,11 @@
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
-## Screenshots
-
-*(coming soon)*
+![all.png](images/all.png)
 
 ## Features
 
-### Core Dock
+### Core
 - Pinned application launchers with click-to-launch
 - Running application indicators (dots) with active window glow
 - Parabolic icon zoom on hover with per-icon displacement
@@ -116,6 +114,9 @@ sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
 
 # Build
 ./packaging/deb/build.sh
+
+# Install generated package
+sudo dpkg -i ../docking_*_all.deb
 ```
 
 ## Running
@@ -193,6 +194,8 @@ Analog or digital clock face. The analog mode uses SVG layers for a realistic cl
 
 ### Trash
 
+![Trash applet](images/trash.png)
+
 Shows the current state of the system trash. Icon switches between empty and full automatically via file monitoring.
 
 **Click:** Open trash folder in file manager
@@ -202,11 +205,15 @@ Shows the current state of the system trash. Icon switches between empty and ful
 
 ### Desktop
 
+![Desktop applet](images/desktop.png)
+
 Toggle "show desktop" mode -- minimizes or restores all windows.
 
 **Click:** Toggle show/hide all windows
 
 ### CPU Monitor
+
+![CPU Monitor applet](images/cpu_monitor.png)
 
 Circular gauge showing real-time CPU and memory usage. The fill color shifts from green (idle) to red (busy). A white arc around the edge shows memory usage.
 
@@ -216,6 +223,8 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 ### Battery
 
+![Battery applet](images/battery.png)
+
 Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/class/power_supply/BAT0/`. Icon changes based on charge level (full, good, low, caution, empty) and charging state.
 
 **Tooltip:** Shows percentage (e.g. "85%") or "No battery"
@@ -223,6 +232,8 @@ Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/cl
 **Update interval:** 60 seconds
 
 ### Weather
+
+![Weather applet](images/weather.png)
 
 Shows current weather and air quality for a selected city with a 5-day forecast. Uses the [Open-Meteo](https://open-meteo.com/) weather and air quality APIs with automatic caching and retry.
 
@@ -246,6 +257,8 @@ Tue: 16/22°C, Rain
 
 ### Clippy
 
+![Clippy applet](images/clippy.png)
+
 Clipboard history manager. Monitors the system clipboard and stores the last 15 text entries.
 
 **Click:** Copy the currently selected clip back to the clipboard
@@ -256,11 +269,15 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 
 ### Applications
 
+![Applications applet](images/applications.png)
+
 Categorized application launcher. Groups all installed `.desktop` applications by FreeDesktop category (Multimedia, Development, Internet, etc.) with icons.
 
 **Right-click:** Categorized submenus with application icons. Click an app to launch it.
 
 ### Network
+
+![Network applet](images/network.png)
 
 Shows WiFi signal strength or wired connection status, with live upload/download speed overlay.
 
@@ -281,6 +298,8 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 
 ### Session
 
+![Session applet](images/session.png)
+
 Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
 **Click:** Lock screen
@@ -293,6 +312,8 @@ Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
 ### Calendar
 
+![Calendar applet](images/calendar.png)
+
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
 **Click:** Toggle a GtkCalendar popup
@@ -301,6 +322,8 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 **Update interval:** 30 seconds (refreshes icon at midnight)
 
 ### Workspaces
+
+![Workspaces applet](images/workspace.png)
 
 Workspace switcher with a visual grid icon. Active workspace is highlighted in blue.
 
@@ -312,6 +335,8 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 ### Screenshot
 
+![Screenshot applet](images/screenshot.png)
+
 Capture screenshots via the best available tool. Auto-detects mate-screenshot, gnome-screenshot, xfce4-screenshooter, spectacle, flameshot, or scrot.
 
 **Click:** Full-screen capture
@@ -322,6 +347,8 @@ Capture screenshots via the best available tool. Auto-detects mate-screenshot, g
 
 ### Volume
 
+![Volume applet](images/volume.png)
+
 System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA). Icon switches between muted/low/medium/high based on level.
 
 **Click:** Toggle mute
@@ -331,6 +358,8 @@ System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA)
 **Update interval:** 1 second (refreshes only on change)
 
 ### Pomodoro
+
+![Pomodoro applet](images/pomodoro.png)
 
 Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases with configurable durations. Triggers urgent bounce+glow on phase transitions.
 
@@ -356,6 +385,8 @@ Added via right-click on dock background -> **Add Separator** (inserts at click 
 
 ### Hydration
 
+![Hydration applet](images/hydration.png)
+
 Water drop icon that drains over a configurable interval, reminding you to drink water. Click to refill. Triggers urgent bounce when empty.
 
 **Click:** Refill (log a drink)
@@ -367,6 +398,8 @@ Water drop icon that drains over a configurable interval, reminding you to drink
 **Preferences stored:** `interval`, `show_timer`
 
 ### Ambient
+
+![Ambient applet](images/ambient.png)
 
 Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sounds plus procedural white/pink noise via GStreamer.
 

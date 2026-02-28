@@ -82,7 +82,7 @@ def capture_window(
     window was destroyed between detection and capture).
     """
     if wnck_window.is_minimized():
-        return _icon_fallback(wnck_window=wnck_window, thumb_w=thumb_w, thumb_h=thumb_h)
+        return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
 
     xid = wnck_window.get_xid()
     display = GdkX11.X11Display.get_default()
@@ -109,29 +109,36 @@ def capture_window(
         except (TypeError, GLib.Error):
             pass
 
-    return _icon_fallback(wnck_window=wnck_window, thumb_w=thumb_w, thumb_h=thumb_h)
+    return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
 
 
-def _icon_fallback(
-    wnck_window: Wnck.Window, thumb_w: int, thumb_h: int
-) -> GdkPixbuf.Pixbuf | None:
+def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
     """Create a dark placeholder pixbuf with the app icon centered.
 
     Used when the window is minimized or pixel capture fails. Composites
-    the Wnck icon (scaled to ICON_FALLBACK_SIZE) onto a dark background.
+    a generic app icon (scaled to ICON_FALLBACK_SIZE) onto a dark background.
     """
-    icon = wnck_window.get_icon()
-    if icon is None:
-        return None
-
     # Create dark background
     bg = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, thumb_w, thumb_h)
     bg.fill(0x1E1E1EFF)
 
-    # Center the icon
+    # Center a generic icon and avoid querying per-window class-group state.
+    icon_theme = Gtk.IconTheme.get_default()
+    if icon_theme is None:
+        return bg
+
     icon_size = min(ICON_FALLBACK_SIZE, thumb_w, thumb_h)
-    scaled_icon = icon.scale_simple(icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR)
-    if scaled_icon:
+    try:
+        icon = icon_theme.load_icon("application-x-executable", icon_size, 0)
+    except GLib.Error:
+        icon = None
+
+    if icon:
+        scaled_icon = icon.scale_simple(icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR)
+    else:
+        scaled_icon = None
+
+    if scaled_icon is not None:
         x = (thumb_w - icon_size) // 2
         y = (thumb_h - icon_size) // 2
         scaled_icon.composite(

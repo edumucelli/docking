@@ -1,0 +1,26 @@
+<!--?xml version="1.0" encoding="UTF-8"?-->
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- GTK symbolic icon: uses currentColor so the theme can recolor it -->
+  <g fill="currentColor" fill-rule="evenodd">
+    <!-- Rocket body (simple capsule) -->
+    <path d="
+      M8 1.6
+      C10.0 2.4 11.2 4.2 11.2 5.9
+      V9.2
+      C11.2 10.9 10.0 12.5 8 13.0
+      C6.0 12.5 4.8 10.9 4.8 9.2
+      V5.9
+      C4.8 4.2 6.0 2.4 8 1.6
+      Z"></path>
+
+    <!-- Window (tiny, optional but still readable) -->
+    <circle cx="8" cy="6.7" r="0.9" fill="#000" opacity="0.0"></circle>
+    <!-- If you DO want the window, delete the opacity line above (or set opacity="1") -->
+
+    <!-- Thruster (controlled landing burn hint) -->
+    <path d="M7.2 12.6 L8.8 12.6 L8 14.0 Z"></path>
+
+    <!-- Dock line / shelf -->
+    <rect x="3" y="14.6" width="10" height="1.0" rx="0.5"></rect>
+  </g>
+</svg>

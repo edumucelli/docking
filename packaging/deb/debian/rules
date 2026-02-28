@@ -6,6 +6,15 @@ export PYBUILD_SYSTEM=pyproject
 %:
 	dh $@ --with python3 --buildsystem=pybuild
 
+override_dh_install:
+	dh_install
+	# Optional app icons (hicolor theme). If present in source tree,
+	# copy into package so Icon=org.docking.Docking resolves from desktop environments.
+	if [ -d packaging/deb/icons/hicolor ]; then \
+		mkdir -p debian/docking/usr/share/icons/hicolor; \
+		cp -a packaging/deb/icons/hicolor/. debian/docking/usr/share/icons/hicolor/; \
+	fi
+
 override_dh_auto_test:
 	# Tests require pytest and dev deps; run in CI instead
 
@@ -24,4 +33,7 @@ override_dh_auto_install:
 	rm -rf debian/docking/usr/lib/docking/vendor/bin
 
 override_dh_python3:
-	dh_python3 --shebang=/usr/bin/python3
+	# Keep runtime Python deps self-contained via vendored wheels under
+	# /usr/lib/docking/vendor; avoid auto-deriving system python3-* deps
+	# from upstream metadata (e.g. requests-cache for weather).
+	dh_python3 --shebang=/usr/bin/python3 --no-guessing-deps
