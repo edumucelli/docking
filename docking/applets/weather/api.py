@@ -8,9 +8,9 @@ All functions are pure data -- no GTK dependency.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple, cast
 
 import openmeteo_requests
 import requests_cache
@@ -120,7 +120,7 @@ def _get_client() -> openmeteo_requests.Client:
         cache_path, expire_after=REFRESH_INTERVAL
     )
     retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-    return openmeteo_requests.Client(session=retry_session)
+    return openmeteo_requests.Client(session=cast(Any, retry_session))
 
 
 def fetch_weather(lat: float, lng: float) -> WeatherData | None:
@@ -157,10 +157,10 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
         for i in range(daily_data.Variables(0).ValuesLength()):
             # Daily timestamps are Unix epoch at midnight UTC
             ts = daily_data.Time() + i * daily_data.Interval()
-            day_name = datetime.utcfromtimestamp(ts).strftime("%a")
-            day_code = int(daily_data.Variables(0).Values(i))
-            day_max = daily_data.Variables(1).Values(i)
-            day_min = daily_data.Variables(2).Values(i)
+            day_name = datetime.fromtimestamp(ts, timezone.utc).strftime("%a")
+            day_code = int(cast(float, daily_data.Variables(0).Values(i)))
+            day_max = float(cast(float, daily_data.Variables(1).Values(i)))
+            day_min = float(cast(float, daily_data.Variables(2).Values(i)))
             daily.append(
                 DailyForecast(
                     date=day_name,
