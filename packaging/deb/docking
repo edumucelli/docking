@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+exec /usr/bin/python3 -m docking.app "$@"

@@ -20,6 +20,12 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	dh_auto_install
+	# Ensure /usr/bin/docking exists even on older setuptools/pybuild stacks
+	# where project.scripts may not be emitted.
+	mkdir -p debian/docking/usr/bin
+	if [ ! -x debian/docking/usr/bin/docking ]; then \
+		install -m 0755 packaging/deb/docking debian/docking/usr/bin/docking; \
+	fi
 	# Bundle ALL pip dependencies into an isolated vendor directory.
 	# This avoids file conflicts with Ubuntu's python3-* system packages
 	# and makes the .deb fully self-contained.
