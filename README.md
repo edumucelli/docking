@@ -1,4 +1,4 @@
-# Docking
+# Docking <img src="images/docking.png" alt="Docking" width="64" height="64" style="vertical-align: middle;">
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
@@ -244,11 +244,11 @@ Shows current weather and air quality for a selected city with a 5-day forecast.
 
 **Tooltip:** Bold city header + current conditions + air quality + daily forecast with icons:
 ```
-Berlin, Germany
-22°C, Clear sky
+Contagem, Brazil
+29°C, Clear sky
 Air: Good
-Mon: 18/24°C, Partly cloudy
-Tue: 16/22°C, Rain
+Mon: 25/29°C, Partly cloudy
+Tue: 28/32°C, Rain
 ```
 
 **Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`
