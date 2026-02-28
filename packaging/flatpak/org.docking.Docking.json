@@ -4,6 +4,11 @@
   "runtime-version": "46",
   "sdk": "org.gnome.Sdk",
   "command": "docking",
+  "build-options": {
+    "build-args": [
+      "--share=network"
+    ]
+  },
   "finish-args": [
     "--share=network",
     "--share=ipc",
