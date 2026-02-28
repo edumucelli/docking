@@ -134,7 +134,9 @@ def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
         icon = None
 
     if icon:
-        scaled_icon = icon.scale_simple(icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR)
+        scaled_icon = icon.scale_simple(
+            icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR
+        )
     else:
         scaled_icon = None
 

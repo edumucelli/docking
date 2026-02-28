@@ -84,7 +84,8 @@ class WindowTracker:
         active_window = self._screen.get_active_window()
         active_xid = active_window.get_xid() if active_window else 0
 
-        # {desktop_id: {"count": n, "active": bool, "urgent": bool, "windows": [...], "xids": [...]}}
+        # {desktop_id: {"count": n, "active": bool, "urgent": bool,
+        #               "windows": [...], "xids": [...]}}
         running: dict[str, dict[str, Any]] = {}
 
         for window in self._screen.get_windows():
