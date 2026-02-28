@@ -1,7 +1,7 @@
 Source: docking
 Section: utils
 Priority: optional
-Maintainer: Eduardo <edumucelli@gmail.com>
+Maintainer: Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>
 Homepage: https://github.com/edumucelli/docking
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
