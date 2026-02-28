@@ -53,6 +53,7 @@ class WindowTracker:
 
     def _build_wm_class_map(self) -> None:
         """Build reverse map from WM_CLASS -> desktop_id for pinned items."""
+        self._wm_class_to_desktop.clear()
         for item in self._model.visible_items():
             if item.wm_class:
                 self._wm_class_to_desktop[item.wm_class.lower()] = item.desktop_id
@@ -78,6 +79,11 @@ class WindowTracker:
 
     def _update_running(self) -> None:
         """Scan all windows and update the dock model."""
+        # Keep WM_CLASS mapping in sync with current visible items. The set of
+        # pinned/transient items can change at runtime (pin/unpin/reorder),
+        # and a stale map causes running indicators to miss windows.
+        self._build_wm_class_map()
+
         if self._screen is None:
             return
 
