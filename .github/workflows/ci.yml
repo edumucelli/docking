@@ -86,14 +86,40 @@ jobs:
 
       - name: Validate .deb install
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y ./../docking_*.deb
+          echo "[check] dpkg status"
           dpkg -s docking | grep -F "Status: install ok installed"
-          test -x /usr/bin/docking
-          test -f /usr/share/applications/org.docking.Docking.desktop
-          test -d /usr/lib/docking/vendor
-          ls -l /usr/bin/docking /usr/share/applications/org.docking.Docking.desktop
-          ls -ld /usr/lib/docking/vendor
+
+          echo "[check] executable exists: /usr/bin/docking"
+          if [ -x /usr/bin/docking ]; then
+            ls -l /usr/bin/docking
+          else
+            echo "missing or non-executable: /usr/bin/docking"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] desktop file exists"
+          if [ -f /usr/share/applications/org.docking.Docking.desktop ]; then
+            ls -l /usr/share/applications/org.docking.Docking.desktop
+          else
+            echo "missing: /usr/share/applications/org.docking.Docking.desktop"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] vendored dependencies directory exists"
+          if [ -d /usr/lib/docking/vendor ]; then
+            ls -ld /usr/lib/docking/vendor
+          else
+            echo "missing: /usr/lib/docking/vendor"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] all install validations passed"
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
