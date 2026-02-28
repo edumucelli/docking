@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
     tags: ["v*"]
   pull_request:
-    branches: [main, master]
+    branches: [master]
 
 jobs:
   test:
@@ -181,7 +181,7 @@ jobs:
     name: Release
     runs-on: ubuntu-22.04
     needs: build-deb
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
     steps:
@@ -194,20 +194,75 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Check if tag exists
-        id: tag_check
+      - name: Decide if release is needed
+        id: release_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+
+          current_version="${{ steps.version.outputs.version }}"
+          api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
+
+          status_code=$(
+            curl -sS -o /tmp/latest-release.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "${api_url}"
+          )
+
+          if [ "${status_code}" = "404" ]; then
+            echo "latest_tag=" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no_existing_release" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${status_code}" != "200" ]; then
+            echo "GitHub API error (${status_code}) while reading latest release"
+            cat /tmp/latest-release.json
+            exit 1
+          fi
+
+          latest_tag=$(
+            python3 - <<'PY'
+import json
+from pathlib import Path
+data = json.loads(Path("/tmp/latest-release.json").read_text())
+print(data.get("tag_name", ""))
+PY
+          )
+
+          latest_version="${latest_tag#v}"
+          echo "latest_tag=${latest_tag}" >> "$GITHUB_OUTPUT"
+
+          if [ -z "${latest_version}" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "reason=latest_release_without_tag" >> "$GITHUB_OUTPUT"
+          elif [ "${current_version}" = "${latest_version}" ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "reason=already_released" >> "$GITHUB_OUTPUT"
+          elif [ "$(printf '%s\n%s\n' "${latest_version}" "${current_version}" | sort -V | tail -n1)" = "${current_version}" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "reason=version_is_newer" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "reason=version_not_newer" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create tag
-        if: steps.tag_check.outputs.exists == 'false'
+        if: steps.release_check.outputs.should_release == 'true'
         run: |
-          git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
+          set -euo pipefail
+          tag="${{ steps.version.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists on origin, skipping tag creation"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${tag}"
+          git push origin "${tag}"
 
       - name: Download .deb artifact
         uses: actions/download-artifact@v4
@@ -216,10 +271,17 @@ jobs:
           path: artifacts
 
       - name: Create GitHub Release
-        if: steps.tag_check.outputs.exists == 'false'
+        if: steps.release_check.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Docking ${{ steps.version.outputs.version }}
           files: "artifacts/*.deb"
           generate_release_notes: true
+
+      - name: Skip release summary
+        if: steps.release_check.outputs.should_release != 'true'
+        run: |
+          echo "Release skipped: ${{ steps.release_check.outputs.reason }}"
+          echo "Latest release tag: ${{ steps.release_check.outputs.latest_tag }}"
+          echo "Current pyproject version: ${{ steps.version.outputs.version }}"
