@@ -70,6 +70,7 @@ flatpak run org.docking.Docking
 ### Notes
 
 - App ID is `org.docking.Docking` (same reverse-DNS used by desktop file and icons).
-- Flatpak build reuses icons from `packaging/deb/icons/hicolor/`.
+- Flatpak build installs hicolor icons and a local `hicolor/index.theme` so
+  AppStream icon checks pass in sandboxed builds.
 - The app requires X11 window management behavior, so the Flatpak manifest enables
   `--socket=x11` and host filesystem access.

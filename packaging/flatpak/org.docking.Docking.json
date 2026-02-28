@@ -29,7 +29,10 @@
         "python3 -m pip install --prefix=/app --no-build-isolation --no-deps .",
         "install -Dm644 packaging/deb/org.docking.Docking.desktop /app/share/applications/org.docking.Docking.desktop",
         "install -Dm644 packaging/flatpak/org.docking.Docking.metainfo.xml /app/share/metainfo/org.docking.Docking.metainfo.xml",
-        "cp -r packaging/deb/icons/hicolor /app/share/icons/"
+        "install -Dm644 packaging/flatpak/hicolor.index.theme /app/share/icons/hicolor/index.theme",
+        "for size in 16 24 32 48 64 128 256 512; do install -Dm644 \"packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\" \"/app/share/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\"; install -Dm644 \"packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\" \"/app/share/icons/hicolor/${size}x${size}/apps/org.docking.docking.png\"; done",
+        "install -Dm644 packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg /app/share/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg",
+        "install -Dm644 packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg /app/share/icons/hicolor/symbolic/apps/org.docking.docking-symbolic.svg"
       ],
       "sources": [
         {
