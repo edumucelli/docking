@@ -18,9 +18,6 @@
     {
       "name": "docking",
       "buildsystem": "simple",
-      "build-options": {
-        "network": true
-      },
       "build-commands": [
         "python3 -m ensurepip --upgrade || true",
         "python3 -m pip install --prefix=/app --no-build-isolation --no-deps \"openmeteo-requests>=1.2\" \"requests-cache>=1.0\" \"retry-requests>=2.0\"",
