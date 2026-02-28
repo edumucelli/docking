@@ -89,8 +89,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ./../docking_*.deb
           dpkg -s docking | grep -F "Status: install ok installed"
-          command -v docking
-          dpkg -L docking | grep -E '/usr/share/applications/org\.docking\.Docking\.desktop|/usr/lib/docking/vendor'
+          test -x /usr/bin/docking
+          dpkg -L docking | grep -Fx "/usr/share/applications/org.docking.Docking.desktop"
+          dpkg -L docking | grep -q "^/usr/lib/docking/vendor/"
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
