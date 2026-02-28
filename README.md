@@ -575,4 +575,4 @@ Runs automatically on `git commit`:
 
 ## License
 
-MIT
+GPL-3.0-or-later

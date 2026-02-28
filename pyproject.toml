@@ -7,7 +7,7 @@ name = "docking"
 version = "0.1.0"
 description = "A lightweight dock for Linux, inspired by Plank"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "GPL-3.0-or-later"}
 dependencies = [
     "openmeteo-requests>=1.2",
     "requests-cache>=1.0",
