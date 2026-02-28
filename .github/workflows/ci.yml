@@ -225,12 +225,7 @@ jobs:
           fi
 
           latest_tag=$(
-            python3 - <<'PY'
-import json
-from pathlib import Path
-data = json.loads(Path("/tmp/latest-release.json").read_text())
-print(data.get("tag_name", ""))
-PY
+            python3 -c 'import json, pathlib; print(json.loads(pathlib.Path("/tmp/latest-release.json").read_text()).get("tag_name", ""))'
           )
 
           latest_version="${latest_tag#v}"
