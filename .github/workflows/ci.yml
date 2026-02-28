@@ -25,9 +25,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            python3-cairo python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
+            gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
             gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
-            gir1.2-nm-1.0 libcairo2-dev libgirepository1.0-dev
+            gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
+            libcairo2-dev libgirepository1.0-dev pkg-config
 
       - uses: actions/setup-python@v5
         with:
@@ -36,6 +37,7 @@ jobs:
       - name: Install project
         run: |
           python -m pip install --upgrade pip
+          python -m pip install pycairo PyGObject
           python -m pip install -e ".[dev]"
 
       - name: Lint (ruff check)
@@ -48,8 +50,6 @@ jobs:
         run: python -m ty check docking/
 
       - name: Tests
-        env:
-          PYTHONPATH: /usr/lib/python3/dist-packages:/usr/lib/python${{ matrix.python }}/dist-packages
         run: python -m pytest tests/ -v
 
   build-deb:
