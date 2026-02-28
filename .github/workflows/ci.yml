@@ -82,13 +82,15 @@ jobs:
         run: |
           ln -s packaging/deb/debian debian
           dpkg-buildpackage -us -uc -b
-          ls -lh ../docking_*.deb
+          mkdir -p artifacts
+          cp ../docking_*.deb artifacts/
+          ls -lh artifacts/docking_*.deb
 
       - name: Validate .deb install
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y ./../docking_*.deb
+          sudo apt-get install -y ./artifacts/docking_*.deb
           echo "[check] dpkg status"
           dpkg -s docking | grep -F "Status: install ok installed"
 
@@ -125,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: docking-deb
-          path: ../docking_*.deb
+          path: artifacts/docking_*.deb
 
   release:
     name: Release
@@ -163,6 +165,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docking-deb
+          path: artifacts
 
       - name: Create GitHub Release
         if: steps.tag_check.outputs.exists == 'false'
@@ -170,5 +173,5 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Docking ${{ steps.version.outputs.version }}
-          files: "*.deb"
+          files: "artifacts/*.deb"
           generate_release_notes: true
