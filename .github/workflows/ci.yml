@@ -71,10 +71,12 @@ jobs:
         include:
           - debian: "11"
             python: "3.10"
+            image: python:3.10-bullseye
           - debian: "12"
             python: "3.12"
+            image: python:3.12-bookworm
     container:
-      image: debian:${{ matrix.debian }}
+      image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -82,14 +84,11 @@ jobs:
         run: |
           apt-get update
           apt-get install -y \
+            build-essential \
             ca-certificates curl git \
             xvfb pkg-config gobject-introspection libcairo2-dev libgirepository1.0-dev \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 \
             gir1.2-pango-1.0 gir1.2-nm-1.0 gir1.2-gstreamer-1.0
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
 
       - name: Install project
         run: |
