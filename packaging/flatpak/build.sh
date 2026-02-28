@@ -8,8 +8,8 @@ REPO_DIR="${ROOT_DIR}/flatpak-repo"
 OUT_DIR="${ROOT_DIR}/artifacts"
 BUNDLE="${OUT_DIR}/org.docking.Docking.flatpak"
 
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
+flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
 
 flatpak-builder --force-clean --repo="${REPO_DIR}" "${BUILD_DIR}" "${MANIFEST}"
 
