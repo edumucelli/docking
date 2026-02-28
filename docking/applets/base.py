@@ -18,14 +18,47 @@ if TYPE_CHECKING:
 
 APPLET_PREFIX = "applet://"
 
+_ICON_NAME_ALIASES: dict[str, tuple[str, ...]] = {
+    # Not widely available outside GNOME/MATE icon packs.
+    "applets-screenshooter": ("camera-photo", "camera-photo-symbolic"),
+}
+
+
+def _icon_name_candidates(name: str) -> tuple[str, ...]:
+    names: list[str] = [name]
+    if not name.endswith("-symbolic"):
+        names.append(f"{name}-symbolic")
+    names.extend(_ICON_NAME_ALIASES.get(name, ()))
+    # Deduplicate while preserving order.
+    return tuple(dict.fromkeys(names))
+
+
+def _icon_theme_candidates() -> tuple[Gtk.IconTheme, ...]:
+    themes: list[Gtk.IconTheme] = []
+
+    default = Gtk.IconTheme.get_default()
+    if default is not None:
+        themes.append(default)
+
+    # CI/headless sessions may not configure an icon theme in GtkSettings.
+    for theme_name in ("Adwaita", "hicolor"):
+        theme = Gtk.IconTheme()
+        theme.set_custom_theme(theme_name)
+        themes.append(theme)
+
+    return tuple(themes)
+
 
 def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
     """Load an icon by name from the default GTK icon theme."""
-    theme = Gtk.IconTheme.get_default()
-    try:
-        return theme.load_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE)
-    except GLib.Error:
-        return None
+    flags = Gtk.IconLookupFlags.FORCE_SIZE
+    for icon_name in _icon_name_candidates(name=name):
+        for theme in _icon_theme_candidates():
+            try:
+                return theme.load_icon(icon_name, size, flags)
+            except GLib.Error:
+                continue
+    return None
 
 
 def load_theme_icon_centered(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
