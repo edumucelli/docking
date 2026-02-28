@@ -33,6 +33,8 @@ docking
   `packaging/deb/icons/hicolor/<size>x<size>/apps/org.docking.Docking.png` (and
   optional `packaging/deb/icons/hicolor/scalable/apps/org.docking.Docking.svg`).
   The deb build copies this tree to `/usr/share/icons/hicolor/`.
+  Do not ship `status/org.docking.Docking.png`; status icons should use
+  `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
 
 ## PyPI

@@ -40,29 +40,24 @@ for s in 16 24 32 48 64 128 256 512; do
 done
 ```
 
-Commands used to generate/copy the currently packaged symbolic and status icons:
+Commands used to copy the currently packaged symbolic icons:
 
 ```bash
 mkdir -p packaging/deb/icons/hicolor/symbolic/apps
 mkdir -p packaging/deb/icons/hicolor/symbolic/status
 cp symbolic.svg packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg
 cp symbolic.svg packaging/deb/icons/hicolor/symbolic/status/org.docking.Docking-symbolic.svg
-
-for s in 16 22 24; do
-  mkdir -p "packaging/deb/icons/hicolor/${s}x${s}/status"
-  rsvg-convert -w "$s" -h "$s" symbolic.svg \
-    -o "packaging/deb/icons/hicolor/${s}x${s}/status/org.docking.Docking.png"
-done
 ```
+
+The `status/org.docking.Docking.png` files were removed from packaging because
+they conflict with app icon resolution in launchers that request
+`org.docking.Docking` at small sizes.
 
 ## Current Packaged Icon Files
 
 `packaging/deb/icons/hicolor/128x128/apps/org.docking.Docking.png`
 `packaging/deb/icons/hicolor/16x16/apps/org.docking.Docking.png`
-`packaging/deb/icons/hicolor/16x16/status/org.docking.Docking.png`
-`packaging/deb/icons/hicolor/22x22/status/org.docking.Docking.png`
 `packaging/deb/icons/hicolor/24x24/apps/org.docking.Docking.png`
-`packaging/deb/icons/hicolor/24x24/status/org.docking.Docking.png`
 `packaging/deb/icons/hicolor/256x256/apps/org.docking.Docking.png`
 `packaging/deb/icons/hicolor/32x32/apps/org.docking.Docking.png`
 `packaging/deb/icons/hicolor/48x48/apps/org.docking.Docking.png`
