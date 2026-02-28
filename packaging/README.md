@@ -46,6 +46,30 @@ twine upload dist/*
 
 Users install with: `pip install docking`
 
-## Flatpak / AppImage
+## Flatpak
 
-*(Coming soon)*
+```bash
+# Install tooling
+sudo apt install flatpak flatpak-builder
+
+# Build bundle
+./packaging/flatpak/build.sh
+```
+
+Output bundle:
+
+- `artifacts/org.docking.Docking.flatpak`
+
+Install locally:
+
+```bash
+flatpak install --user ./artifacts/org.docking.Docking.flatpak
+flatpak run org.docking.Docking
+```
+
+### Notes
+
+- App ID is `org.docking.Docking` (same reverse-DNS used by desktop file and icons).
+- Flatpak build reuses icons from `packaging/deb/icons/hicolor/`.
+- The app requires X11 window management behavior, so the Flatpak manifest enables
+  `--socket=x11` and host filesystem access.

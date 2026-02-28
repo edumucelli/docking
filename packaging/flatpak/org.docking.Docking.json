@@ -1,0 +1,40 @@
+{
+  "app-id": "org.docking.Docking",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "46",
+  "sdk": "org.gnome.Sdk",
+  "command": "docking",
+  "finish-args": [
+    "--share=network",
+    "--share=ipc",
+    "--socket=x11",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--filesystem=host",
+    "--talk-name=org.freedesktop.Notifications",
+    "--system-talk-name=org.freedesktop.NetworkManager"
+  ],
+  "modules": [
+    {
+      "name": "docking",
+      "buildsystem": "simple",
+      "build-options": {
+        "network": true
+      },
+      "build-commands": [
+        "python3 -m ensurepip --upgrade || true",
+        "python3 -m pip install --prefix=/app --no-build-isolation --no-deps \"openmeteo-requests>=1.2\" \"requests-cache>=1.0\" \"retry-requests>=2.0\"",
+        "python3 -m pip install --prefix=/app --no-build-isolation --no-deps .",
+        "install -Dm644 packaging/deb/org.docking.Docking.desktop /app/share/applications/org.docking.Docking.desktop",
+        "install -Dm644 packaging/flatpak/org.docking.Docking.metainfo.xml /app/share/metainfo/org.docking.Docking.metainfo.xml",
+        "cp -r packaging/deb/icons/hicolor /app/share/icons/"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../.."
+        }
+      ]
+    }
+  ]
+}
