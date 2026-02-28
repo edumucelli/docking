@@ -1,4 +1,4 @@
-# Docking <img src="images/docking-header.png" alt="Docking" height="48" style="vertical-align: -2.30em;">
+# Docking <img src="images/docking-header.png" alt="Docking" height="48" style="vertical-align: -5.30em;">
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
