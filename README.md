@@ -1,7 +1,7 @@
-<table>
+<table style="border-collapse: collapse; border: 0;">
   <tr>
-    <td valign="middle"><h1>Docking</h1></td>
-    <td valign="middle"><img src="images/docking-header.png" alt="Docking" height="52"></td>
+    <td valign="middle" style="border: 0; padding: 0 12px 0 0;"><h1>Docking</h1></td>
+    <td valign="middle" style="border: 0; padding: 0;"><img src="images/docking-header.png" alt="Docking" height="52"></td>
   </tr>
 </table>
 
