@@ -25,32 +25,31 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            python3-venv \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
             gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
             gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
-            libcairo2-dev libgirepository1.0-dev pkg-config
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
+            libcairo2-dev libgirepository1.0-dev pkg-config \
+            python3-cairo python3-gi python3-gi-cairo
 
       - name: Install project
         run: |
+          python3 -m venv --system-site-packages .venv
+          . .venv/bin/activate
           python -m pip install --upgrade pip
-          python -m pip install pycairo PyGObject
           python -m pip install -e ".[dev]"
 
       - name: Lint (ruff check)
-        run: python -m ruff check docking/ tests/
+        run: .venv/bin/python -m ruff check docking/ tests/
 
       - name: Format (ruff format)
-        run: python -m ruff format --check docking/ tests/
+        run: .venv/bin/python -m ruff format --check docking/ tests/
 
       - name: Type check (ty)
-        run: python -m ty check docking/
+        run: .venv/bin/python -m ty check docking/
 
       - name: Tests
-        run: python -m pytest tests/ -v
+        run: .venv/bin/python -m pytest tests/ -v
 
   build-deb:
     name: Build .deb
