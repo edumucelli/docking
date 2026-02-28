@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from importlib import resources
 from typing import TYPE_CHECKING, Any, Callable
 
 import cairo
@@ -22,6 +23,33 @@ _ICON_NAME_ALIASES: dict[str, tuple[str, ...]] = {
     # Not widely available outside GNOME/MATE icon packs.
     "applets-screenshooter": ("camera-photo", "camera-photo-symbolic"),
 }
+
+# Built-in applet icon names we guarantee via bundled fallback asset.
+_BUNDLED_FALLBACK_ICON_NAMES = frozenset(
+    {
+        "alarm",
+        "applets-screenshooter",
+        "audio-speakers",
+        "battery-good",
+        "clock",
+        "edit-paste",
+        "list-remove",
+        "office-calendar",
+        "preferences-desktop-workspaces",
+        "system-log-out",
+        "user-desktop",
+        "user-trash",
+        "user-trash-full",
+        "utilities-system-monitor",
+        "view-app-grid",
+    }
+)
+_BUNDLED_FALLBACK_ICON_PREFIXES = (
+    "audio-volume-",
+    "battery-",
+    "network-",
+    "weather-",
+)
 
 
 def _icon_name_candidates(name: str) -> tuple[str, ...]:
@@ -49,6 +77,25 @@ def _icon_theme_candidates() -> tuple[Gtk.IconTheme, ...]:
     return tuple(themes)
 
 
+def _should_use_bundled_fallback(name: str) -> bool:
+    if name in _BUNDLED_FALLBACK_ICON_NAMES:
+        return True
+    return any(name.startswith(prefix) for prefix in _BUNDLED_FALLBACK_ICON_PREFIXES)
+
+
+def _load_bundled_fallback_icon(size: int) -> GdkPixbuf.Pixbuf | None:
+    try:
+        icon_ref = resources.files("docking.assets").joinpath(
+            "icons/applet-fallback.png"
+        )
+        with resources.as_file(icon_ref) as icon_path:
+            return GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                str(icon_path), size, size, True
+            )
+    except (FileNotFoundError, GLib.Error, ModuleNotFoundError):
+        return None
+
+
 def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
     """Load an icon by name from the default GTK icon theme."""
     flags = Gtk.IconLookupFlags.FORCE_SIZE
@@ -58,6 +105,8 @@ def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
                 return theme.load_icon(icon_name, size, flags)
             except GLib.Error:
                 continue
+    if _should_use_bundled_fallback(name=name):
+        return _load_bundled_fallback_icon(size=size)
     return None
 
 

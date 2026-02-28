@@ -1,5 +1,7 @@
 """Tests for the applet registry and shared utilities."""
 
+from unittest.mock import patch
+
 from docking.applets import get_registry
 from docking.applets.base import Applet, load_theme_icon, load_theme_icon_centered
 
@@ -62,3 +64,14 @@ class TestLoadThemeIcon:
 
     def test_centered_returns_none_for_unknown(self):
         assert load_theme_icon_centered(name="nonexistent-icon-xyz", size=48) is None
+
+    def test_uses_bundled_fallback_for_known_icon_when_theme_unavailable(self):
+        with patch("docking.applets.base._icon_theme_candidates", return_value=()):
+            pixbuf = load_theme_icon(name="view-app-grid", size=48)
+        assert pixbuf is not None
+        assert pixbuf.get_width() == 48
+
+    def test_unknown_icon_still_none_when_theme_unavailable(self):
+        with patch("docking.applets.base._icon_theme_candidates", return_value=()):
+            pixbuf = load_theme_icon(name="nonexistent-icon-xyz", size=48)
+        assert pixbuf is None

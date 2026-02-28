@@ -26,6 +26,7 @@ include = ["docking*"]
 [tool.setuptools.package-data]
 docking = [
     "assets/**/*.svg",
+    "assets/**/*.png",
     "assets/**/*.json",
     "assets/**/*.csv.gz",
     "assets/**/*.ogg",
