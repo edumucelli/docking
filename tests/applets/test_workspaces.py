@@ -1,8 +1,11 @@
 """Tests for the workspaces applet."""
 
+from unittest.mock import MagicMock
+
 import cairo
 import pytest
 
+import docking.applets.workspaces as workspaces_mod
 from docking.applets.workspaces import WorkspacesApplet, _render_grid
 
 
@@ -58,3 +61,110 @@ class TestWorkspacesApplet:
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
+
+
+class TestWorkspacesBehavior:
+    def test_on_clicked_activates_next_workspace(self, monkeypatch):
+        # Given
+        applet = WorkspacesApplet(48)
+        active = MagicMock()
+        active.get_number.return_value = 1
+        target = MagicMock()
+        screen = MagicMock()
+        screen.get_active_workspace.return_value = active
+        screen.get_workspace_count.return_value = 4
+        screen.get_workspace.return_value = target
+        applet._screen = screen
+        monkeypatch.setattr(workspaces_mod.Gtk, "get_current_event_time", lambda: 99)
+        # When
+        applet.on_clicked()
+        # Then
+        screen.get_workspace.assert_called_once_with(2)
+        target.activate.assert_called_once_with(99)
+
+    def test_on_clicked_no_screen_or_active_is_safe(self):
+        # Given
+        applet = WorkspacesApplet(48)
+        applet._screen = None
+        # When / Then
+        applet.on_clicked()
+
+        # Given
+        applet._screen = MagicMock()
+        applet._screen.get_active_workspace.return_value = None
+        # When / Then
+        applet.on_clicked()
+
+    def test_on_scroll_switches_workspace(self, monkeypatch):
+        # Given
+        applet = WorkspacesApplet(48)
+        active = MagicMock()
+        active.get_number.return_value = 0
+        target = MagicMock()
+        screen = MagicMock()
+        screen.get_active_workspace.return_value = active
+        screen.get_workspace_count.return_value = 4
+        screen.get_workspace.return_value = target
+        applet._screen = screen
+        monkeypatch.setattr(workspaces_mod.Gtk, "get_current_event_time", lambda: 7)
+        # When
+        applet.on_scroll(direction_up=False)
+        # Then
+        screen.get_workspace.assert_called_once_with(1)
+        target.activate.assert_called_once_with(7)
+
+    def test_get_menu_items_builds_radios_for_workspaces(self):
+        # Given
+        applet = WorkspacesApplet(48)
+        ws0 = MagicMock()
+        ws0.get_name.return_value = "One"
+        ws0.get_number.return_value = 0
+        ws1 = MagicMock()
+        ws1.get_name.return_value = "Two"
+        ws1.get_number.return_value = 1
+        active = MagicMock()
+        active.get_number.return_value = 1
+        screen = MagicMock()
+        screen.get_workspaces.return_value = [ws0, ws1]
+        screen.get_active_workspace.return_value = active
+        applet._screen = screen
+        # When
+        items = applet.get_menu_items()
+        # Then
+        assert len(items) == 2
+        assert items[1].get_active()
+
+    def test_start_and_stop_manage_screen_signal(self, monkeypatch):
+        # Given
+        applet = WorkspacesApplet(48)
+        screen = MagicMock()
+        screen.connect.return_value = 33
+        monkeypatch.setattr(workspaces_mod.Wnck.Screen, "get_default", lambda: screen)
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        # When
+        applet.start(lambda: None)
+        # Then
+        screen.force_update.assert_called_once()
+        assert applet._signal_id == 33
+        refresh.assert_called_once()
+
+        # When
+        applet.stop()
+        # Then
+        screen.disconnect.assert_called_once_with(33)
+        assert applet._signal_id == 0
+
+    def test_on_workspace_activate_and_changed_refresh(self, monkeypatch):
+        # Given
+        applet = WorkspacesApplet(48)
+        ws = MagicMock()
+        monkeypatch.setattr(workspaces_mod.Gtk, "get_current_event_time", lambda: 11)
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        # When
+        applet._on_workspace_activate(MagicMock(), ws)
+        applet._on_workspace_changed(MagicMock())
+        # Then
+        ws.activate.assert_called_once_with(11)
+        refresh.assert_called_once()

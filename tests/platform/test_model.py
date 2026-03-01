@@ -327,6 +327,116 @@ class TestCallbacks:
         callback.assert_called_once()
 
 
+class TestAppletLifecycleIntegration:
+    def test_add_applet_and_remove_applet_updates_config_and_notifies(
+        self, monkeypatch
+    ):
+        # Given
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher)
+        callback = MagicMock()
+        model.on_change = callback
+
+        fake_item = DockItem(desktop_id="applet://session", name="Session")
+        fake_applet = MagicMock()
+        fake_applet.item = fake_item
+
+        class FakeAppletClass:
+            def __new__(cls, icon_size, config):
+                return fake_applet
+
+        import docking.applets as applets_mod
+        import docking.applets.identity as identity_mod
+
+        monkeypatch.setattr(
+            applets_mod,
+            "get_registry",
+            lambda: {identity_mod.AppletId.SESSION: FakeAppletClass},
+        )
+        # When
+        model.add_applet("session")
+        # Then
+        assert fake_applet.start.called
+        assert "applet://session" in config.pinned
+        assert config.save.called
+        assert callback.called
+
+        # Given
+        callback.reset_mock()
+        # When
+        model.remove_applet("applet://session")
+        # Then
+        fake_applet.stop.assert_called_once()
+        assert "applet://session" not in config.pinned
+        assert callback.called
+
+    def test_add_separator_assigns_instance_and_inserts_at_index(self, monkeypatch):
+        # Given
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher)
+
+        import docking.applets as applets_mod
+        import docking.applets.identity as identity_mod
+
+        created: list[MagicMock] = []
+
+        class FakeSeparatorClass:
+            def __new__(cls, icon_size, config):
+                app = MagicMock()
+                app.item = DockItem(desktop_id="applet://separator", name="Separator")
+                created.append(app)
+                return app
+
+        monkeypatch.setattr(
+            applets_mod,
+            "get_registry",
+            lambda: {identity_mod.AppletId.SEPARATOR: FakeSeparatorClass},
+        )
+        # When
+        model.add_separator(index=0)
+        # Then
+        assert len(model.pinned_items) == 1
+        assert model.pinned_items[0].desktop_id.startswith("applet://separator#")
+        assert created[0].start.called
+        assert config.save.called
+
+    def test_start_stop_applets_and_get_applet(self):
+        # Given
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher)
+        applet = MagicMock()
+        applet.item = DockItem(desktop_id="applet://x", name="X")
+        model._applets["applet://x"] = applet
+        # When
+        model.start_applets()
+        model.stop_applets()
+        found = model.get_applet("applet://x")
+        # Then
+        applet.start.assert_called_once()
+        applet.stop.assert_called_once()
+        assert found is applet
+
+    def test_find_by_desktop_id_and_unpin_applet_route(self, monkeypatch):
+        # Given
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        item = model.find_by_desktop_id("a.desktop")
+        # Then
+        assert item is not None
+
+        # Given
+        remove = MagicMock()
+        monkeypatch.setattr(model, "remove_applet", remove)
+        # When
+        model.unpin_item("applet://session")
+        # Then
+        remove.assert_called_once_with(desktop_id="applet://session")
+
+
 class TestDockItemAnimationFields:
     def test_default_timestamps_zero(self):
         # Given / When
