@@ -12,7 +12,7 @@ sudo apt install debhelper dh-python python3-setuptools python3-wheel python3-pi
 ./packaging/deb/build.sh
 
 # Install
-sudo dpkg -i ../docking_0.1.0-1_all.deb
+sudo dpkg -i ../docking_*_all.deb
 sudo apt-get -f install  # fix any missing deps
 
 # Verify
@@ -126,3 +126,29 @@ Notes:
 
 - AppImage recipe: `packaging/appimage/AppImageBuilder.yml`
 - Runtime dependencies are bundled from Ubuntu 22.04 packages listed in the recipe.
+
+## RPM
+
+```bash
+# Install tooling
+sudo apt install rpm python3-pip
+
+# Build RPM package
+./packaging/rpm/build.sh
+```
+
+Output artifact:
+
+- `artifacts/docking-*.rpm`
+
+Install locally (RPM-based distros):
+
+```bash
+sudo rpm -Uvh artifacts/docking-*.rpm
+```
+
+Notes:
+
+- RPM spec: `packaging/rpm/docking.spec`
+- Build script: `packaging/rpm/build.sh`
+- Python API dependencies used by weather are vendored under `/usr/lib/docking/vendor`.

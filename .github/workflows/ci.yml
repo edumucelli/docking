@@ -224,6 +224,29 @@ jobs:
           name: docking-deb
           path: artifacts/docking_*.deb
 
+  build-rpm:
+    name: Build RPM
+    runs-on: ubuntu-22.04
+    needs: [test, test-debian]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RPM tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm python3-pip
+
+      - name: Build RPM package
+        run: |
+          mkdir -p artifacts
+          ./packaging/rpm/build.sh
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-rpm
+          path: artifacts/*.rpm
+
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
@@ -307,7 +330,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [build-deb, build-flatpak, build-snap, build-appimage]
+    needs: [build-deb, build-rpm, build-flatpak, build-snap, build-appimage]
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -406,6 +429,12 @@ jobs:
           name: docking-deb
           path: artifacts
 
+      - name: Download RPM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-rpm
+          path: artifacts
+
       - name: Download Flatpak artifact
         uses: actions/download-artifact@v4
         with:
@@ -432,6 +461,7 @@ jobs:
           name: Docking ${{ steps.version.outputs.version }}
           files: |
             artifacts/*.deb
+            artifacts/*.rpm
             artifacts/*.flatpak
             artifacts/*.snap
             artifacts/*.AppImage

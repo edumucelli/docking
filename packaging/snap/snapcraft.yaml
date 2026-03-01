@@ -45,6 +45,7 @@ parts:
       - ca-certificates
     override-build: |
       craftctl default
-      install -Dm644 packaging/deb/org.docking.Docking.desktop \
+      install -Dm644 debian/org.docking.Docking.desktop \
         "${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
-      cp -r packaging/deb/icons/hicolor "${CRAFT_PART_INSTALL}/usr/share/icons/"
+      mkdir -p "${CRAFT_PART_INSTALL}/usr/share/icons"
+      cp -r debian/icons/hicolor "${CRAFT_PART_INSTALL}/usr/share/icons/"
