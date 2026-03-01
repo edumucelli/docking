@@ -34,7 +34,7 @@ rm -rf %{buildroot}/usr/lib/docking/vendor/*.dist-info
 rm -rf %{buildroot}/usr/lib/docking/vendor/bin
 
 if [ ! -x %{buildroot}/usr/bin/docking ]; then
-  install -m 0755 packaging/deb/docking %{buildroot}/usr/bin/docking
+  install -Dm755 packaging/deb/docking %{buildroot}/usr/bin/docking
 fi
 
 install -Dm644 packaging/deb/org.docking.Docking.desktop \

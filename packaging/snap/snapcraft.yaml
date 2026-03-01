@@ -45,7 +45,22 @@ parts:
       - ca-certificates
     override-build: |
       craftctl default
-      install -Dm644 debian/org.docking.Docking.desktop \
+      desktop_src=""
+      icons_src=""
+      if [ -f packaging/deb/org.docking.Docking.desktop ]; then
+        desktop_src="packaging/deb/org.docking.Docking.desktop"
+        icons_src="packaging/deb/icons/hicolor"
+      elif [ -f debian/org.docking.Docking.desktop ]; then
+        desktop_src="debian/org.docking.Docking.desktop"
+        icons_src="debian/icons/hicolor"
+      else
+        echo "Desktop file source not found in expected locations."
+        pwd
+        ls -la
+        exit 1
+      fi
+
+      install -Dm644 "${desktop_src}" \
         "${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
       mkdir -p "${CRAFT_PART_INSTALL}/usr/share/icons"
-      cp -r debian/icons/hicolor "${CRAFT_PART_INSTALL}/usr/share/icons/"
+      cp -r "${icons_src}" "${CRAFT_PART_INSTALL}/usr/share/icons/"
