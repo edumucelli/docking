@@ -102,7 +102,7 @@ jobs:
             --cov-fail-under=${COVERAGE_MIN}
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-ubuntu-${{ matrix.ubuntu }}-py${{ matrix.python }}
           path: |
@@ -230,7 +230,7 @@ jobs:
           echo "[check] all install validations passed"
 
       - name: Upload .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-deb
           path: artifacts/docking_*.deb
@@ -253,7 +253,7 @@ jobs:
           ./packaging/rpm/build.sh
 
       - name: Upload RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-rpm
           path: artifacts/*.rpm
@@ -280,7 +280,7 @@ jobs:
           ls -lh artifacts/org.docking.Docking.flatpak
 
       - name: Upload Flatpak artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-flatpak
           path: artifacts/org.docking.Docking.flatpak
@@ -308,7 +308,7 @@ jobs:
           ls -lh artifacts/*.snap
 
       - name: Upload Snap artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-snap
           path: artifacts/*.snap
@@ -333,7 +333,7 @@ jobs:
           ./packaging/appimage/build.sh
 
       - name: Upload AppImage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-appimage
           path: artifacts/*.AppImage
@@ -361,7 +361,7 @@ jobs:
           ls -lh artifacts/*.pkg.tar.*
 
       - name: Upload Arch artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-arch
           path: artifacts/*.pkg.tar.*
@@ -384,7 +384,7 @@ jobs:
           ./packaging/nix/build.sh
 
       - name: Upload Nix artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-nix
           path: |
