@@ -23,16 +23,21 @@ pyPkgs.buildPythonApplication rec {
     pango
     cairo
     gobject-introspection
-    gstreamer
+    gst_all_1.gstreamer
     librsvg
   ];
 
   propagatedBuildInputs = with pyPkgs; [
     pycairo
     pygobject3
-    openmeteo-requests
-    requests-cache
-    retry-requests
+  ];
+
+  # Weather client deps are not consistently available in nixpkgs channels.
+  # Keep build reproducible in CI by removing them from Nix metadata.
+  pythonRemoveDeps = [
+    "openmeteo-requests"
+    "requests-cache"
+    "retry-requests"
   ];
 
   doCheck = false;
