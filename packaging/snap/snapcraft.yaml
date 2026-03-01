@@ -45,22 +45,27 @@ parts:
       - ca-certificates
     override-build: |
       craftctl default
-      desktop_src=""
-      icons_src=""
-      if [ -f packaging/deb/org.docking.Docking.desktop ]; then
-        desktop_src="packaging/deb/org.docking.Docking.desktop"
-        icons_src="packaging/deb/icons/hicolor"
-      elif [ -f debian/org.docking.Docking.desktop ]; then
-        desktop_src="debian/org.docking.Docking.desktop"
-        icons_src="debian/icons/hicolor"
+      desktop_file="${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
+      install -d "$(dirname "${desktop_file}")"
+      printf '%s\n' \
+        '[Desktop Entry]' \
+        'Type=Application' \
+        'Name=Docking' \
+        'Comment=A lightweight dock for Linux' \
+        'Exec=docking' \
+        'Icon=org.docking.Docking' \
+        'Categories=Utility;System;' \
+        'Terminal=false' \
+        'StartupNotify=false' \
+        'X-GNOME-Autostart-enabled=false' \
+        > "${desktop_file}"
+
+      if [ -f images/docking.png ]; then
+        install -Dm644 images/docking.png \
+          "${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/512x512/apps/org.docking.Docking.png"
       else
-        echo "Desktop file source not found in expected locations."
+        echo "Required icon not found: images/docking.png"
         pwd
         ls -la
         exit 1
       fi
-
-      install -Dm644 "${desktop_src}" \
-        "${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
-      mkdir -p "${CRAFT_PART_INSTALL}/usr/share/icons"
-      cp -r "${icons_src}" "${CRAFT_PART_INSTALL}/usr/share/icons/"

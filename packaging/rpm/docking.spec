@@ -24,8 +24,11 @@ previews, autohide, drag-and-drop, and an extensible applet system.
 %install
 rm -rf %{buildroot}
 
+mkdir -p %{buildroot}/usr/lib/docking/python
 python3 -m pip install --no-compile --no-deps \
-  --root %{buildroot} --prefix /usr .
+  --target %{buildroot}/usr/lib/docking/python .
+rm -rf %{buildroot}/usr/lib/docking/python/*.dist-info
+rm -rf %{buildroot}/usr/lib/docking/python/bin
 
 mkdir -p %{buildroot}/usr/lib/docking/vendor
 python3 -m pip install --no-compile --target %{buildroot}/usr/lib/docking/vendor \
@@ -33,9 +36,12 @@ python3 -m pip install --no-compile --target %{buildroot}/usr/lib/docking/vendor
 rm -rf %{buildroot}/usr/lib/docking/vendor/*.dist-info
 rm -rf %{buildroot}/usr/lib/docking/vendor/bin
 
-if [ ! -x %{buildroot}/usr/bin/docking ]; then
-  install -Dm755 packaging/deb/docking %{buildroot}/usr/bin/docking
-fi
+install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'
+#!/bin/sh
+set -eu
+export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
+exec /usr/bin/python3 -m docking.app "$@"
+EOF
 
 install -Dm644 packaging/deb/org.docking.Docking.desktop \
   %{buildroot}/usr/share/applications/org.docking.Docking.desktop
@@ -48,9 +54,8 @@ fi
 %files
 %license LICENSE
 /usr/bin/docking
+/usr/lib/docking/python
 /usr/lib/docking/vendor
-/usr/lib/python3*/site-packages/docking
-/usr/lib/python3*/site-packages/docking-*.dist-info
 /usr/share/applications/org.docking.Docking.desktop
 /usr/share/icons/hicolor
 
