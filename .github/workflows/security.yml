@@ -1,0 +1,44 @@
+name: Security
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  scan:
+    name: Dependency and SAST scan
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install security tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit bandit
+
+      - name: Export runtime dependencies from pyproject.toml
+        run: |
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          deps = tomllib.loads(Path("pyproject.toml").read_text())["project"]["dependencies"]
+          Path("requirements.audit.txt").write_text("\n".join(deps) + "\n")
+          print("requirements.audit.txt generated")
+          PY
+
+      - name: Audit Python dependencies (pip-audit)
+        run: |
+          python -m pip_audit -r requirements.audit.txt
+
+      - name: Static security scan (bandit)
+        run: |
+          python -m bandit -q -r docking -x tests,packaging -lll -iii

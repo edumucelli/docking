@@ -1,15 +1,34 @@
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
   - repo: local
     hooks:
-      - id: pytest
-        name: tests
-        entry: .venv/bin/python -m pytest tests/ -q
+      - id: ruff-format
+        name: ruff-format
+        entry: .venv/bin/python -m ruff format --check docking/ tests/
         language: system
         pass_filenames: false
         always_run: true
-      - id: mypy
-        name: mypy
-        entry: .venv/bin/python -m mypy docking/ --ignore-missing-imports
+      - id: ruff-check
+        name: ruff-check
+        entry: .venv/bin/python -m ruff check docking/ tests/
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ty
+        name: ty
+        entry: .venv/bin/python -m ty check docking/
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pytest
+        name: tests
+        entry: .venv/bin/python -m pytest tests/ -q
         language: system
         pass_filenames: false
         always_run: true

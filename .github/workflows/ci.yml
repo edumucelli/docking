@@ -61,12 +61,14 @@ jobs:
         env:
           GSETTINGS_BACKEND: memory
           GTK_THEME: Adwaita
+          COVERAGE_MIN: "55"
         run: |
           xvfb-run -a .venv/bin/python -m pytest tests/ -v \
             --cov=docking \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-report=html:htmlcov
+            --cov-report=html:htmlcov \
+            --cov-fail-under=${COVERAGE_MIN}
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
