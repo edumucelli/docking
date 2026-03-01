@@ -109,6 +109,14 @@ jobs:
             coverage.xml
             htmlcov/
 
+      - name: Upload coverage to Codecov
+        if: matrix.ubuntu == '24.04' && matrix.python == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: ubuntu-24.04-py3.12
+          fail_ci_if_error: false
+
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
     needs: [quality]
