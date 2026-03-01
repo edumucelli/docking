@@ -488,43 +488,43 @@ jobs:
           git push origin "${tag}"
 
       - name: Download .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-deb
           path: artifacts
 
       - name: Download RPM artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-rpm
           path: artifacts
 
       - name: Download Flatpak artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-flatpak
           path: artifacts
 
       - name: Download Snap artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-snap
           path: artifacts
 
       - name: Download AppImage artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-appimage
           path: artifacts
 
       - name: Download Arch artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-arch
           path: artifacts
 
       - name: Download Nix artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-nix
           path: artifacts
