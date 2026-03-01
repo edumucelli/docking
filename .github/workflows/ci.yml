@@ -268,8 +268,9 @@ jobs:
           mkdir -p artifacts
           (
             cd packaging/snap
-            snapcraft pack --destructive-mode --output ../../artifacts/docking.snap
+            sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
           )
+          sudo chown "$USER:$USER" artifacts/docking.snap
           ls -lh artifacts/*.snap
 
       - name: Upload Snap artifact

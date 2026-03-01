@@ -84,7 +84,7 @@ sudo apt install snapcraft
 # Build snap package
 (
   cd packaging/snap
-  snapcraft pack --destructive-mode --output ../../artifacts/docking.snap
+  sudo snapcraft pack --destructive-mode --output ../../artifacts/docking.snap
 )
 ```
 

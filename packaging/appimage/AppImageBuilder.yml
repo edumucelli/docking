@@ -24,7 +24,11 @@ AppDir:
     arch: amd64
     sources:
       - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main universe
+        key_url: https://archive.ubuntu.com/ubuntu/project/ubuntu-archive-keyring.gpg
       - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main universe
+        key_url: https://archive.ubuntu.com/ubuntu/project/ubuntu-archive-keyring.gpg
+      - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-security main universe
+        key_url: https://archive.ubuntu.com/ubuntu/project/ubuntu-archive-keyring.gpg
     include:
       - python3
       - python3-gi
