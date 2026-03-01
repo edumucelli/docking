@@ -42,7 +42,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 18 built-in applets:
+Extensible plugin system for custom dock widgets. 19 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -63,6 +63,7 @@ Extensible plugin system for custom dock widgets. 18 built-in applets:
 | **Pomodoro** | Tomato timer with auto-cycling work/break phases |
 | **Separator** | Transparent gap divider (multiple instances, scroll to resize) |
 | **Hydration** | Water drop reminder — drains over time, click to refill |
+| **Quote** | Quote/joke applet with source switching and clipboard copy |
 | **Ambient** | Looping nature sounds and white/pink noise via GStreamer |
 
 See [Applet Documentation](#applets-1) below for details on each applet.
@@ -75,9 +76,11 @@ See [Applet Documentation](#applets-1) below for details on each applet.
 
 ```bash
 sudo apt install \
+  python3-venv \
   python3-gi python3-gi-cairo \
-  gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1.2-gdkpixbuf-2.0 \
-  gir1.2-nm-1.0
+  gir1.2-gtk-3.0 gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
+  gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
+  libcairo2-dev libgirepository1.0-dev pkg-config
 ```
 
 ## Installation
@@ -115,6 +118,21 @@ sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
 
 # Install generated package
 sudo dpkg -i ../docking_*_all.deb
+sudo apt-get -f install
+```
+
+### Building a Flatpak bundle
+
+```bash
+# Install tooling
+sudo apt install flatpak flatpak-builder
+
+# Build bundle
+./packaging/flatpak/build.sh
+
+# Install and run locally
+flatpak install --user ./artifacts/org.docking.Docking.flatpak
+flatpak run org.docking.Docking
 ```
 
 ## Running
@@ -395,6 +413,19 @@ Water drop icon that drains over a configurable interval, reminding you to drink
 
 **Preferences stored:** `interval`, `show_timer`
 
+### Quote
+
+Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with local fallback quotes and supports online refresh from active sources.
+
+**Click:** Show next quote
+**Right-click options:**
+- **Next Quote**
+- **Copy Quote** -- copy current quote to clipboard
+- **Refresh from Web**
+- **Source** -- switch source (Quotationspage, Qdb, Danstonchat, Viedemerde, Fmylife, Vitadimerda, Chucknorrisfactsfr)
+
+**Preferences stored:** `source`
+
 ### Ambient
 
 ![Ambient applet](images/ambient.png)
@@ -492,24 +523,27 @@ docking/
 |   +-- launcher.py         .desktop resolution, icon loading, desktop actions
 |   +-- window_tracker.py   Wnck running app detection
 |   +-- struts.py           X11 _NET_WM_STRUT_PARTIAL via ctypes
-+-- applets/                Extensible applet system (18 applets)
++-- applets/                Extensible applet system (19 applets)
 |   +-- base.py             Applet ABC, shared icon loaders
-|   +-- clock.py            Analog/digital clock
-|   +-- trash.py            Trash monitor
-|   +-- desktop.py          Show desktop toggle
-|   +-- cpumonitor.py       CPU/memory gauge
+|   +-- ambient.py          Ambient sound player
+|   +-- applications.py     Categorized app launcher
 |   +-- battery.py          Battery charge
-|   +-- clippy.py           Clipboard history
-|   +-- applications.py     App launcher
-|   +-- network.py          Network status
-|   +-- session.py          Session/power actions
 |   +-- calendar.py         Calendar icon + popup
-|   +-- workspaces.py       Workspace switcher
-|   +-- screenshot.py       Screenshot capture
-|   +-- volume.py           Volume control
+|   +-- clippy.py           Clipboard history
+|   +-- clock.py            Analog/digital clock
+|   +-- cpumonitor.py       CPU/memory gauge
+|   +-- desktop.py          Show desktop toggle
+|   +-- hydration.py        Water reminder timer
+|   +-- network.py          Network status
 |   +-- pomodoro.py         Pomodoro timer
+|   +-- quote.py            Quote/joke applet
+|   +-- screenshot.py       Screenshot capture
 |   +-- separator.py        Gap divider (multi-instance)
+|   +-- session.py          Session/power actions
+|   +-- trash.py            Trash monitor
+|   +-- volume.py           Volume control
 |   +-- weather/            Weather (sub-package)
+|   +-- workspaces.py       Workspace switcher
 +-- ui/                     GTK rendering and interaction
 |   +-- dock_window.py      Main window, events, input region
 |   +-- renderer.py         Draw orchestration, icons, glow, bounce
@@ -537,16 +571,20 @@ pytest tests/ -v
 
 # Run specific module
 pytest tests/applets/test_clock.py -v
+
+# Coverage report
+pytest tests/ -v --cov=docking --cov-report=term-missing
 ```
 
-643 tests covering pure functions, applet behavior, rendering, and UI logic:
+Current suite: 666 tests covering pure functions, applet behavior, rendering, and UI logic.
 
 ```
 tests/
 +-- core/       config, theme, zoom, position
 +-- platform/   model, launcher, struts
 +-- applets/    clock, trash, desktop, cpumonitor, battery,
-|               weather, clippy, applications, network, registry
+|               weather, clippy, applications, network, hydration,
+|               quote, ambient, registry
 +-- ui/         autohide, dnd, effects, hover, input_region,
                 leave_behavior, menu, poof, preview, renderer,
                 shelf, tooltip, urgent_glow, icon_position
@@ -557,10 +595,35 @@ tests/
 ## Pre-commit Hooks
 
 Runs automatically on `git commit`:
+- **check-yaml** -- validate YAML files
+- **end-of-file-fixer** -- ensure trailing newline
+- **trailing-whitespace** -- remove trailing spaces
 - **ruff format** -- code formatting
 - **ruff check** -- linting (E, W, F, I rules)
 - **ty check** -- type checking
 - **pytest** -- full test suite
+
+## CI/CD Pipeline
+
+GitHub Actions runs:
+
+- **Quality**: `ruff check`, `ruff format --check`, `ty check`
+- **Test matrix**:
+  - Ubuntu 22.04 / Python 3.10
+  - Ubuntu 24.04 / Python 3.12
+  - Debian 11 / Python 3.10
+  - Debian 12 / Python 3.12
+- **Coverage**: pytest-cov reports with a fail threshold (`--cov-fail-under=55`) and uploaded HTML/XML artifacts
+- **Security**: `pip-audit` (runtime dependencies) + `bandit` source scan
+- **Packaging**:
+  - Build and validate `.deb`
+  - Build Flatpak bundle artifact
+- **Release**: automatic GitHub Release with `.deb` and `.flatpak` assets when a new `pyproject.toml` version is detected on `master`
+
+## Additional Docs
+
+- [Architecture Maintainer Map](docs/ARCHITECTURE.md)
+- [Icon Assets and Packaging](docs/ICONS.md)
 
 ## Contributing
 
