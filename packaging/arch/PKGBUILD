@@ -1,5 +1,5 @@
 pkgname=docking
-pkgver=0.1.2
+pkgver=0.1.3
 pkgrel=1
 pkgdesc="A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
 arch=('x86_64')

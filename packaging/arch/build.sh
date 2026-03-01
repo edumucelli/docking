@@ -30,6 +30,21 @@ fi
 mkdir -p "${ARTIFACTS_DIR}"
 cd "${PKG_DIR}"
 
+# Keep PKGBUILD in sync with project version so source filename resolution
+# stays correct in CI and local builds.
+current_pkgver="$(
+  awk -F '=' '
+    /^pkgver=/ {
+      gsub(/^[ \t]+|[ \t]+$/, "", $2)
+      print $2
+      exit
+    }
+  ' "${PKG_DIR}/PKGBUILD"
+)"
+if [ "${current_pkgver}" != "${VERSION}" ]; then
+  sed -i "s/^pkgver=.*/pkgver=${VERSION}/" "${PKG_DIR}/PKGBUILD"
+fi
+
 rm -f "${ROOT_DIR}/packaging/arch/docking-${VERSION}.tar.gz"
 
 # Prefer git archive for clean source exports; fall back to tar if .git metadata
