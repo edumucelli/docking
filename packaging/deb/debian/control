@@ -27,8 +27,8 @@ Depends:
     gir1.2-wnck-3.0,
     gir1.2-nm-1.0,
     gir1.2-pango-1.0
-Description: A lightweight dock for Linux
- Docking is a Python GTK3 dock inspired by Plank and Cairo-Dock.
+Description: A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
+ Inspired by Plank and Cairo-Dock.
  Features parabolic zoom, window previews, autohide, drag-and-drop,
  and an extensible applet system with 12 built-in applets (clock,
  trash, weather, CPU monitor, battery, clipboard, applications,

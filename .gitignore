@@ -21,6 +21,10 @@ AppDir/
 appimage-builder-cache/
 appimage-builder-build/
 .rpmbuild/
+packaging/arch/*.tar.gz
+packaging/arch/*.pkg.tar.*
+packaging/arch/pkg/
+packaging/arch/src/
 packaging/deb/debian/.debhelper/
 packaging/deb/debian/debhelper-build-stamp
 packaging/deb/debian/*.debhelper

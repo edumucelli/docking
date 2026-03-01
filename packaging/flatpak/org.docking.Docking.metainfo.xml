@@ -2,15 +2,15 @@
 <component type="desktop-application">
   <id>org.docking.Docking</id>
   <name>Docking</name>
-  <summary>A lightweight dock for Linux</summary>
+  <summary>A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <launchable type="desktop-id">org.docking.Docking.desktop</launchable>
   <description>
     <p>
-      Docking is a lightweight dock for Linux written in Python with GTK 3 and Cairo.
-      It provides pinned launchers, running-window indicators, hover effects, window
-      previews, and applets.
+      A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo.
+      Inspired by Plank and Cairo-Dock, it provides pinned launchers, running-window
+      indicators, hover effects, window previews, and applets.
     </p>
   </description>
   <url type="homepage">https://github.com/edumucelli/docking</url>

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Docking
-Comment=A lightweight dock for Linux
+Comment=A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 Exec=docking
 Icon=org.docking.Docking
 Categories=Utility;System;

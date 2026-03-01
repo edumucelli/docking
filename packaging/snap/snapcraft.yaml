@@ -1,11 +1,12 @@
 name: docking
 base: core22
 version: "0.1.1"
-summary: Lightweight Linux dock inspired by Plank and Cairo-Dock
+summary: Feature-rich Linux dock in Python with GTK 3 and Cairo
 description: |
-  Docking is a lightweight, feature-rich dock for Linux written in Python
-  with GTK 3 and Cairo. It provides pinned launchers, window indicators,
-  previews, autohide, drag-and-drop, and an extensible applet system.
+  A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo.
+  Inspired by Plank and Cairo-Dock, it provides pinned launchers, window
+  indicators, previews, autohide, drag-and-drop, and an extensible
+  applet system.
 grade: stable
 confinement: devmode
 
@@ -51,7 +52,7 @@ parts:
         '[Desktop Entry]' \
         'Type=Application' \
         'Name=Docking' \
-        'Comment=A lightweight dock for Linux' \
+        'Comment=A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo' \
         'Exec=docking' \
         'Icon=org.docking.Docking' \
         'Categories=Utility;System;' \

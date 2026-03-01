@@ -1,0 +1,62 @@
+pkgname=docking
+pkgver=0.1.2
+pkgrel=1
+pkgdesc="A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
+arch=('x86_64')
+url="https://github.com/edumucelli/docking"
+license=('GPL3')
+depends=(
+  'python'
+  'python-gobject'
+  'python-cairo'
+  'gtk3'
+  'libwnck3'
+  'networkmanager'
+  'gstreamer'
+  'librsvg'
+  'hicolor-icon-theme'
+  'adwaita-icon-theme'
+)
+makedepends=(
+  'python-pip'
+  'python-setuptools'
+  'python-wheel'
+)
+source=("${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "${srcdir}/${pkgname}-${pkgver}"
+}
+
+package() {
+  cd "${srcdir}/${pkgname}-${pkgver}"
+
+  install -d "${pkgdir}/usr/lib/docking/python"
+  python -m pip install --no-compile --no-deps \
+    --target "${pkgdir}/usr/lib/docking/python" .
+  rm -rf "${pkgdir}/usr/lib/docking/python"/*.dist-info
+  rm -rf "${pkgdir}/usr/lib/docking/python"/bin
+
+  install -d "${pkgdir}/usr/lib/docking/vendor"
+  python -m pip install --no-compile \
+    --target "${pkgdir}/usr/lib/docking/vendor" \
+    openmeteo-requests requests-cache retry-requests
+  rm -rf "${pkgdir}/usr/lib/docking/vendor"/*.dist-info
+  rm -rf "${pkgdir}/usr/lib/docking/vendor"/bin
+
+  install -Dm755 /dev/stdin "${pkgdir}/usr/bin/docking" << 'EOF'
+#!/bin/sh
+set -eu
+export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
+exec /usr/bin/python3 -m docking.app "$@"
+EOF
+
+  install -Dm644 packaging/deb/org.docking.Docking.desktop \
+    "${pkgdir}/usr/share/applications/org.docking.Docking.desktop"
+
+  if [ -d packaging/deb/icons/hicolor ]; then
+    mkdir -p "${pkgdir}/usr/share/icons/hicolor"
+    cp -a packaging/deb/icons/hicolor/. "${pkgdir}/usr/share/icons/hicolor/"
+  fi
+}

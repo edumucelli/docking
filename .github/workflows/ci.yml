@@ -327,10 +327,38 @@ jobs:
           name: docking-appimage
           path: artifacts/*.AppImage
 
+  build-arch:
+    name: Build Arch package
+    runs-on: ubuntu-22.04
+    needs: [test-ubuntu, test-debian]
+    container:
+      image: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Arch build tooling
+        run: |
+          pacman -Sy --noconfirm archlinux-keyring
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed base-devel git python python-pip
+
+      - name: Build Arch package
+        run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          su - builder -c "cd '$GITHUB_WORKSPACE' && ./packaging/arch/build.sh"
+          ls -lh artifacts/*.pkg.tar.*
+
+      - name: Upload Arch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-arch
+          path: artifacts/*.pkg.tar.*
+
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [build-deb, build-rpm, build-flatpak, build-snap, build-appimage]
+    needs: [build-deb, build-rpm, build-flatpak, build-snap, build-appimage, build-arch]
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -453,6 +481,12 @@ jobs:
           name: docking-appimage
           path: artifacts
 
+      - name: Download Arch artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-arch
+          path: artifacts
+
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
@@ -465,6 +499,7 @@ jobs:
             artifacts/*.flatpak
             artifacts/*.snap
             artifacts/*.AppImage
+            artifacts/*.pkg.tar.*
           generate_release_notes: true
 
       - name: Skip release summary

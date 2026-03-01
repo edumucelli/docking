@@ -1,7 +1,7 @@
 Name:           docking
 Version:        %{?pkg_version}%{!?pkg_version:0.1.1}
 Release:        1%{?dist}
-Summary:        Lightweight Linux dock inspired by Plank and Cairo-Dock
+Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/edumucelli/docking
@@ -12,8 +12,9 @@ Requires:       python3
 
 %description
 Docking is a lightweight, feature-rich dock for Linux written in Python
-with GTK 3 and Cairo. It provides pinned launchers, window indicators,
-previews, autohide, drag-and-drop, and an extensible applet system.
+with GTK 3 and Cairo. Inspired by Plank and Cairo-Dock, it provides
+pinned launchers, window indicators, previews, autohide, drag-and-drop,
+and an extensible applet system.
 
 %prep
 %autosetup -n %{name}-%{version}
