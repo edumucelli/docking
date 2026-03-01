@@ -168,6 +168,8 @@ def launch(desktop_id: str) -> None:
     session and process group. This prevents the child from receiving
     SIGHUP/SIGINT when the dock exits or the terminal sends Ctrl+C.
     """
+    import re
+    import shlex
     import subprocess
 
     app_info = Gio.DesktopAppInfo.new(desktop_id)
@@ -176,15 +178,20 @@ def launch(desktop_id: str) -> None:
     cmdline = app_info.get_commandline()
     if not cmdline:
         return
-    # Strip .desktop Exec field codes (%u=URL, %f=file, %i=icon, etc.)
-    # per freedesktop Desktop Entry spec s1.7
-    import re
-
     cmd = re.sub(r"%[uUfFdDnNickvm]", "", cmdline).strip()
+    if not cmd:
+        return
+    try:
+        argv = [arg for arg in shlex.split(cmd, posix=True) if arg]
+    except ValueError as e:
+        print(f"Failed to parse launch command for {desktop_id}: {e}")
+        return
+    if not argv:
+        return
     try:
         subprocess.Popen(
-            cmd,
-            shell=True,
+            argv,
+            shell=False,
             start_new_session=True,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
