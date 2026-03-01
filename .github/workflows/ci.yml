@@ -38,7 +38,7 @@ jobs:
       - name: Type check (ty)
         run: .venv/bin/python -m ty check docking/
 
-  test:
+  test-ubuntu:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
     needs: [quality]
     runs-on: ubuntu-${{ matrix.ubuntu }}
@@ -161,7 +161,7 @@ jobs:
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [test, test-debian]
+    needs: [test-ubuntu, test-debian]
     steps:
       - uses: actions/checkout@v4
 
@@ -227,7 +227,7 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [test, test-debian]
+    needs: [test-ubuntu, test-debian]
     steps:
       - uses: actions/checkout@v4
 
@@ -250,7 +250,7 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [test, test-debian]
+    needs: [test-ubuntu, test-debian]
     steps:
       - uses: actions/checkout@v4
 
@@ -277,7 +277,7 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [test, test-debian]
+    needs: [test-ubuntu, test-debian]
     steps:
       - uses: actions/checkout@v4
 
@@ -305,7 +305,7 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [test, test-debian]
+    needs: [test-ubuntu, test-debian]
     steps:
       - uses: actions/checkout@v4
 
