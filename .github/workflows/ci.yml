@@ -8,8 +8,39 @@ on:
     branches: [master]
 
 jobs:
+  quality:
+    name: Quality (ruff + ty)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-quality-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-quality-pip-
+
+      - name: Install project
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Lint (ruff check)
+        run: .venv/bin/python -m ruff check docking/ tests/
+
+      - name: Format (ruff format)
+        run: .venv/bin/python -m ruff format --check docking/ tests/
+
+      - name: Type check (ty)
+        run: .venv/bin/python -m ty check docking/
+
   test:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
+    needs: [quality]
     runs-on: ubuntu-${{ matrix.ubuntu }}
     strategy:
       matrix:
@@ -20,6 +51,15 @@ jobs:
             python: "3.12"
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-ubuntu-${{ matrix.ubuntu }}-py${{ matrix.python }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-ubuntu-${{ matrix.ubuntu }}-py${{ matrix.python }}-pip-
+            ${{ runner.os }}-ubuntu-${{ matrix.ubuntu }}-pip-
 
       - name: Install system dependencies
         run: |
@@ -48,15 +88,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Lint (ruff check)
-        run: .venv/bin/python -m ruff check docking/ tests/
-
-      - name: Format (ruff format)
-        run: .venv/bin/python -m ruff format --check docking/ tests/
-
-      - name: Type check (ty)
-        run: .venv/bin/python -m ty check docking/
-
       - name: Tests
         env:
           GSETTINGS_BACKEND: memory
@@ -80,6 +111,7 @@ jobs:
 
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
+    needs: [quality]
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -94,6 +126,15 @@ jobs:
       image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: /root/.cache/pip
+          key: ${{ runner.os }}-debian-${{ matrix.debian }}-py${{ matrix.python }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-debian-${{ matrix.debian }}-py${{ matrix.python }}-pip-
+            ${{ runner.os }}-debian-${{ matrix.debian }}-pip-
 
       - name: Install system dependencies
         run: |
@@ -110,15 +151,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pycairo "PyGObject==3.42.2"
           python -m pip install -e ".[dev]"
-
-      - name: Lint (ruff check)
-        run: python -m ruff check docking/ tests/
-
-      - name: Format (ruff format)
-        run: python -m ruff format --check docking/ tests/
-
-      - name: Type check (ty)
-        run: python -m ty check docking/
 
       - name: Tests
         env:
