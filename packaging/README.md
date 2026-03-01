@@ -74,3 +74,24 @@ flatpak run org.docking.Docking
   AppStream icon checks pass in sandboxed builds.
 - The app requires X11 window management behavior, so the Flatpak manifest enables
   `--socket=x11` and host filesystem access.
+
+## Snap
+
+```bash
+# Install tooling
+sudo apt install snapcraft
+
+# Build snap package
+snapcraft --destructive-mode --project-dir packaging/snap --output artifacts/docking.snap
+```
+
+Install locally:
+
+```bash
+sudo snap install --dangerous artifacts/docking.snap
+```
+
+Notes:
+
+- Snap manifest: `packaging/snap/snapcraft.yaml`
+- Current confinement is `devmode` to support development/runtime integration paths.

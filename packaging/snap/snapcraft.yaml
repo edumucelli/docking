@@ -1,0 +1,50 @@
+name: docking
+base: core22
+version: "0.1.1"
+summary: Lightweight Linux dock inspired by Plank and Cairo-Dock
+description: |
+  Docking is a lightweight, feature-rich dock for Linux written in Python
+  with GTK 3 and Cairo. It provides pinned launchers, window indicators,
+  previews, autohide, drag-and-drop, and an extensible applet system.
+grade: stable
+confinement: devmode
+
+apps:
+  docking:
+    command: bin/docking
+    desktop: usr/share/applications/org.docking.Docking.desktop
+    plugs:
+      - x11
+      - wayland
+      - desktop
+      - desktop-legacy
+      - network
+      - network-manager
+      - audio-playback
+      - home
+
+parts:
+  docking:
+    plugin: python
+    source: ../..
+    build-packages:
+      - pkg-config
+      - libcairo2-dev
+      - libgirepository1.0-dev
+    stage-packages:
+      - python3-gi
+      - python3-gi-cairo
+      - python3-cairo
+      - gir1.2-gtk-3.0
+      - gir1.2-wnck-3.0
+      - gir1.2-gdkpixbuf-2.0
+      - gir1.2-pango-1.0
+      - gir1.2-nm-1.0
+      - gir1.2-gstreamer-1.0
+      - librsvg2-common
+      - ca-certificates
+    override-build: |
+      craftctl default
+      install -Dm644 packaging/deb/org.docking.Docking.desktop \
+        "${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
+      cp -r packaging/deb/icons/hicolor "${CRAFT_PART_INSTALL}/usr/share/icons/"

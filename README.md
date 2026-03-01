@@ -135,6 +135,19 @@ flatpak install --user ./artifacts/org.docking.Docking.flatpak
 flatpak run org.docking.Docking
 ```
 
+### Building a Snap package
+
+```bash
+# Install tooling
+sudo apt install snapcraft
+
+# Build snap package
+snapcraft --destructive-mode --project-dir packaging/snap --output artifacts/docking.snap
+
+# Install locally
+sudo snap install --dangerous artifacts/docking.snap
+```
+
 ## Running
 
 ```bash
