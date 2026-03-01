@@ -1,12 +1,18 @@
 name: docking
+title: Docking
 base: core22
-version: "0.1.1"
+version: "0.1.3"
 summary: Feature-rich Linux dock in Python with GTK 3 and Cairo
 description: |
   A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo.
   Inspired by Plank and Cairo-Dock, it provides pinned launchers, window
   indicators, previews, autohide, drag-and-drop, and an extensible
   applet system.
+contact: https://github.com/edumucelli/docking/issues
+license: GPL-3.0-or-later
+issues: https://github.com/edumucelli/docking/issues
+source-code: https://github.com/edumucelli/docking
+website: https://github.com/edumucelli/docking
 grade: stable
 confinement: devmode
 
@@ -54,7 +60,7 @@ parts:
         'Name=Docking' \
         'Comment=A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo' \
         'Exec=docking' \
-        'Icon=org.docking.Docking' \
+        'Icon=docking' \
         'Categories=Utility;System;' \
         'Terminal=false' \
         'StartupNotify=false' \
@@ -64,6 +70,8 @@ parts:
       if [ -f images/docking.png ]; then
         install -Dm644 images/docking.png \
           "${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/512x512/apps/org.docking.Docking.png"
+        install -Dm644 images/docking.png \
+          "${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/512x512/apps/docking.png"
       else
         echo "Required icon not found: images/docking.png"
         pwd
