@@ -12,6 +12,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk  # noqa: E402
 
 from docking.applets.base import is_applet
+from docking.applets.ids import AppletId
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
 from docking.core.zoom import compute_layout
@@ -46,30 +47,34 @@ _APPLET_CATEGORY_ORDER: tuple[AppletCategory, ...] = (
     AppletCategory.OTHER,
 )
 
-_APPLET_CATEGORY_BY_ID: dict[str, AppletCategory] = {
-    "applications": AppletCategory.LAUNCHER,
-    "desktop": AppletCategory.LAUNCHER,
-    "workspaces": AppletCategory.LAUNCHER,
-    "calendar": AppletCategory.PRODUCTIVITY,
-    "clock": AppletCategory.PRODUCTIVITY,
-    "clippy": AppletCategory.PRODUCTIVITY,
-    "pomodoro": AppletCategory.PRODUCTIVITY,
-    "battery": AppletCategory.SYSTEM,
-    "network": AppletCategory.SYSTEM,
-    "screenshot": AppletCategory.SYSTEM,
-    "session": AppletCategory.SYSTEM,
-    "trash": AppletCategory.SYSTEM,
-    "volume": AppletCategory.SYSTEM,
-    "ambient": AppletCategory.WELLNESS,
-    "hydration": AppletCategory.WELLNESS,
-    "cpumonitor": AppletCategory.INFORMATION,
-    "quote": AppletCategory.INFORMATION,
-    "weather": AppletCategory.INFORMATION,
+_APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
+    AppletId.APPLICATIONS: AppletCategory.LAUNCHER,
+    AppletId.DESKTOP: AppletCategory.LAUNCHER,
+    AppletId.WORKSPACES: AppletCategory.LAUNCHER,
+    AppletId.CALENDAR: AppletCategory.PRODUCTIVITY,
+    AppletId.CLOCK: AppletCategory.PRODUCTIVITY,
+    AppletId.CLIPPY: AppletCategory.PRODUCTIVITY,
+    AppletId.POMODORO: AppletCategory.PRODUCTIVITY,
+    AppletId.BATTERY: AppletCategory.SYSTEM,
+    AppletId.NETWORK: AppletCategory.SYSTEM,
+    AppletId.SCREENSHOT: AppletCategory.SYSTEM,
+    AppletId.SESSION: AppletCategory.SYSTEM,
+    AppletId.TRASH: AppletCategory.SYSTEM,
+    AppletId.VOLUME: AppletCategory.SYSTEM,
+    AppletId.AMBIENT: AppletCategory.WELLNESS,
+    AppletId.HYDRATION: AppletCategory.WELLNESS,
+    AppletId.CPUMONITOR: AppletCategory.INFORMATION,
+    AppletId.QUOTE: AppletCategory.INFORMATION,
+    AppletId.WEATHER: AppletCategory.INFORMATION,
 }
 
 
 def _applet_category_for(applet_id: str) -> AppletCategory:
-    return _APPLET_CATEGORY_BY_ID.get(applet_id, AppletCategory.OTHER)
+    try:
+        did = AppletId(applet_id)
+    except ValueError:
+        return AppletCategory.OTHER
+    return _APPLET_CATEGORY_BY_ID.get(did, AppletCategory.OTHER)
 
 
 def _make_menu_header(label: str) -> Gtk.MenuItem:
@@ -307,9 +312,10 @@ class MenuHandler:
                 key: [] for key in _APPLET_CATEGORY_ORDER
             }
             for did, cls in sorted(registry.items()):
-                if did == "separator":
+                did_str = str(did)
+                if did_str == str(AppletId.SEPARATOR):
                     continue
-                grouped[_applet_category_for(applet_id=did)].append((did, cls))
+                grouped[_applet_category_for(applet_id=did_str)].append((did_str, cls))
 
             non_empty_categories = [
                 key for key in _APPLET_CATEGORY_ORDER if grouped.get(key)
