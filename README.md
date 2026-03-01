@@ -3,6 +3,7 @@
 [![CI](https://github.com/edumucelli/docking/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/edumucelli/docking/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/edumucelli/docking?display_name=tag)](https://github.com/edumucelli/docking/releases)
 [![Coverage](https://codecov.io/gh/edumucelli/docking/branch/master/graph/badge.svg)](https://codecov.io/gh/edumucelli/docking)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
 <img src="images/docking-header.png" alt="Docking" height="48" style="display:block; margin:0 auto;">
 
