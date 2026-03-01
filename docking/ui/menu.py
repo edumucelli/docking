@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -25,6 +26,56 @@ if TYPE_CHECKING:
 
 
 ICON_SIZE_OPTIONS = (32, 48, 64, 80)
+
+
+class AppletCategory(Enum):
+    LAUNCHER = "Launcher & Navigation"
+    PRODUCTIVITY = "Time & Productivity"
+    SYSTEM = "System & Power"
+    WELLNESS = "Wellness & Ambient"
+    INFORMATION = "Information & Monitoring"
+    OTHER = "Other"
+
+
+_APPLET_CATEGORY_ORDER: tuple[AppletCategory, ...] = (
+    AppletCategory.LAUNCHER,
+    AppletCategory.PRODUCTIVITY,
+    AppletCategory.SYSTEM,
+    AppletCategory.WELLNESS,
+    AppletCategory.INFORMATION,
+    AppletCategory.OTHER,
+)
+
+_APPLET_CATEGORY_BY_ID: dict[str, AppletCategory] = {
+    "applications": AppletCategory.LAUNCHER,
+    "desktop": AppletCategory.LAUNCHER,
+    "workspaces": AppletCategory.LAUNCHER,
+    "calendar": AppletCategory.PRODUCTIVITY,
+    "clock": AppletCategory.PRODUCTIVITY,
+    "clippy": AppletCategory.PRODUCTIVITY,
+    "pomodoro": AppletCategory.PRODUCTIVITY,
+    "battery": AppletCategory.SYSTEM,
+    "network": AppletCategory.SYSTEM,
+    "screenshot": AppletCategory.SYSTEM,
+    "session": AppletCategory.SYSTEM,
+    "trash": AppletCategory.SYSTEM,
+    "volume": AppletCategory.SYSTEM,
+    "ambient": AppletCategory.WELLNESS,
+    "hydration": AppletCategory.WELLNESS,
+    "cpumonitor": AppletCategory.INFORMATION,
+    "quote": AppletCategory.INFORMATION,
+    "weather": AppletCategory.INFORMATION,
+}
+
+
+def _applet_category_for(applet_id: str) -> AppletCategory:
+    return _APPLET_CATEGORY_BY_ID.get(applet_id, AppletCategory.OTHER)
+
+
+def _make_menu_header(label: str) -> Gtk.MenuItem:
+    item = Gtk.MenuItem(label=label)
+    item.set_sensitive(False)
+    return item
 
 
 def _build_radio_submenu(
@@ -252,14 +303,29 @@ class MenuHandler:
                 for item in self._model.pinned_items
                 if is_applet(desktop_id=item.desktop_id)
             }
+            grouped: dict[AppletCategory, list[tuple[str, Any]]] = {
+                key: [] for key in _APPLET_CATEGORY_ORDER
+            }
             for did, cls in sorted(registry.items()):
                 if did == "separator":
                     continue
-                desktop_id = f"applet://{did}"
-                check = Gtk.CheckMenuItem(label=cls.name)
-                check.set_active(desktop_id in active_ids)
-                check.connect("toggled", self._on_applet_toggled, did)
-                dock_menu.append(check)
+                grouped[_applet_category_for(applet_id=did)].append((did, cls))
+
+            non_empty_categories = [
+                key for key in _APPLET_CATEGORY_ORDER if grouped.get(key)
+            ]
+            for i, category in enumerate(non_empty_categories):
+                dock_menu.append(_make_menu_header(label=category.value))
+                for did, cls in sorted(
+                    grouped[category], key=lambda entry: entry[1].name.lower()
+                ):
+                    desktop_id = f"applet://{did}"
+                    check = Gtk.CheckMenuItem(label=cls.name)
+                    check.set_active(desktop_id in active_ids)
+                    check.connect("toggled", self._on_applet_toggled, did)
+                    dock_menu.append(check)
+                if i < len(non_empty_categories) - 1:
+                    dock_menu.append(Gtk.SeparatorMenuItem())
             dock_item.set_submenu(dock_menu)
             menu.append(dock_item)
 

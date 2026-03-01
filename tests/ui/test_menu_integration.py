@@ -44,6 +44,7 @@ class FakeMenuItem:
     def __init__(self, label: str = "") -> None:
         self._label = label
         self._submenu = None
+        self._sensitive = True
         self._signals: dict[str, list[tuple[object, tuple[object, ...]]]] = {}
 
     def connect(self, signal: str, callback, *args) -> None:
@@ -66,6 +67,9 @@ class FakeMenuItem:
 
     def get_active(self) -> bool:
         return True
+
+    def set_sensitive(self, sensitive: bool) -> None:
+        self._sensitive = sensitive
 
 
 class FakeCheckMenuItem(FakeMenuItem):
@@ -236,7 +240,13 @@ class TestDockMenu:
         FakeGtk.main_quit.assert_called_once()
 
         applets_item = next(mi for mi in menu.children if mi.get_label() == "Applets")
-        check = applets_item.get_submenu().get_children()[0]
+        submenu_labels = _labels(applets_item.get_submenu())
+        assert "Time & Productivity" in submenu_labels
+        check = next(
+            mi
+            for mi in applets_item.get_submenu().get_children()
+            if mi.get_label() == "Clock"
+        )
         check.set_active(False)
         check.activate()
         handler._model.remove_applet.assert_called_once_with("applet://clock")

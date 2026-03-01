@@ -6,7 +6,7 @@ Summary:        Lightweight Linux dock inspired by Plank and Cairo-Dock
 License:        GPL-3.0-or-later
 URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
-BuildArch:      noarch
+BuildArch:      x86_64
 
 Requires:       python3
 
