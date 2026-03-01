@@ -12,7 +12,7 @@ jobs:
     name: Quality (ruff + ty)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache pip downloads
         uses: actions/cache@v4
@@ -50,7 +50,7 @@ jobs:
           - ubuntu: "24.04"
             python: "3.12"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache pip downloads
         uses: actions/cache@v4
@@ -136,7 +136,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache pip downloads
         uses: actions/cache@v4
@@ -174,7 +174,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test-ubuntu, test-debian]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install build dependencies
         run: |
@@ -240,7 +240,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test-ubuntu, test-debian]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install RPM tooling
         run: |
@@ -263,7 +263,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test-ubuntu, test-debian]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Flatpak tooling
         run: |
@@ -290,7 +290,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test-ubuntu, test-debian]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Snapcraft
         run: |
@@ -318,7 +318,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test-ubuntu, test-debian]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install AppImage tooling
         run: |
@@ -345,7 +345,7 @@ jobs:
     container:
       image: archlinux:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Arch build tooling
         run: |
@@ -371,7 +371,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test-ubuntu, test-debian]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
@@ -399,7 +399,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version from pyproject.toml
         id: version
