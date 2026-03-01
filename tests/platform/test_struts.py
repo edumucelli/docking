@@ -9,7 +9,12 @@ sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.position import Position  # noqa: E402
-from docking.platform.struts import compute_struts  # noqa: E402
+from docking.platform import struts as struts_mod  # noqa: E402
+from docking.platform.struts import (  # noqa: E402
+    clear_struts,
+    compute_struts,
+    set_dock_struts,
+)
 
 # Single 1920x1080 monitor at origin, scale=1
 MX, MY, MW, MH = 0, 0, 1920, 1080
@@ -377,3 +382,88 @@ class TestAlwaysTwelveValues:
             )
             edge_values = s[0:4]
             assert sum(1 for v in edge_values if v > 0) == 1
+
+
+class TestStrutWriters:
+    def test_set_struts_writes_partial_and_legacy_atoms(self, monkeypatch):
+        # Given
+        xlib = MagicMock()
+        xlib.XInternAtom.side_effect = [11, 12, 13]
+        monkeypatch.setattr(
+            struts_mod.ctypes.cdll,
+            "LoadLibrary",
+            lambda _name: xlib,
+        )
+
+        display = MagicMock()
+        display.get_xdisplay.return_value = object()
+        monkeypatch.setattr(
+            struts_mod.GdkX11.X11Display,
+            "get_default",
+            lambda: display,
+            raising=False,
+        )
+
+        gdk_window = MagicMock()
+        gdk_window.get_xid.return_value = 1234
+        struts = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+        # When
+        struts_mod.set_struts(gdk_window=gdk_window, struts=struts)
+
+        # Then
+        assert xlib.XInternAtom.call_count == 3
+        assert xlib.XChangeProperty.call_count == 2
+        assert xlib.XChangeProperty.call_args_list[0].args[-1] == 12
+        assert xlib.XChangeProperty.call_args_list[1].args[-1] == 4
+        xlib.XFlush.assert_called_once()
+
+    def test_set_dock_struts_computes_and_writes(self, monkeypatch):
+        # Given
+        computed = [9] * 12
+        compute_mock = MagicMock(return_value=computed)
+        set_mock = MagicMock()
+        monkeypatch.setattr(struts_mod, "compute_struts", compute_mock)
+        monkeypatch.setattr(struts_mod, "set_struts", set_mock)
+
+        gdk_window = MagicMock()
+        gdk_window.get_scale_factor.return_value = 2
+        monitor_geom = MagicMock(x=10, y=20, width=300, height=90)
+        screen = MagicMock()
+        screen.get_width.return_value = 1920
+        screen.get_height.return_value = 1080
+
+        # When
+        set_dock_struts(
+            gdk_window=gdk_window,
+            dock_height=53,
+            monitor_geom=monitor_geom,
+            screen=screen,
+            position=Position.TOP,
+        )
+
+        # Then
+        compute_mock.assert_called_once_with(
+            dock_height=53,
+            monitor_x=10,
+            monitor_y=20,
+            monitor_w=300,
+            monitor_h=90,
+            screen_w=1920,
+            screen_h=1080,
+            scale=2,
+            position=Position.TOP,
+        )
+        set_mock.assert_called_once_with(gdk_window=gdk_window, struts=computed)
+
+    def test_clear_struts_sets_all_zeros(self, monkeypatch):
+        # Given
+        set_mock = MagicMock()
+        monkeypatch.setattr(struts_mod, "set_struts", set_mock)
+        gdk_window = MagicMock()
+
+        # When
+        clear_struts(gdk_window=gdk_window)
+
+        # Then
+        set_mock.assert_called_once_with(gdk_window=gdk_window, struts=[0] * 12)

@@ -1,0 +1,9 @@
+Tests: installed-layout
+Depends: @
+Restrictions: superficial
+Test-Command: test -x /usr/bin/docking && test -f /usr/share/applications/org.docking.Docking.desktop && test -d /usr/lib/docking/vendor
+
+Tests: python-import
+Depends: @, python3
+Restrictions: superficial
+Test-Command: python3 -c "import docking"
