@@ -49,6 +49,15 @@ def tooltip_text(fill: float, interval_min: int) -> str:
     return f"Next in {format_remaining(fill=fill, interval_min=interval_min)}"
 
 
+def mouth_curvature(fill: float) -> float:
+    """Map fill level to mouth mood in [-1, 1].
+
+    1.0 = full smile, 0.0 = neutral, -1.0 = full frown.
+    """
+    clamped = max(0.0, min(1.0, fill))
+    return clamped * 2.0 - 1.0
+
+
 # ---------------------------------------------------------------------------
 # Cairo rendering
 # ---------------------------------------------------------------------------
@@ -60,7 +69,7 @@ def _draw_drop_path(cr: cairo.Context, size: int) -> None:
     tip_y = size * 0.08
     bot_y = size * 0.92
     # Widest point of the drop
-    bulge_y = size * 0.65
+    bulge_y = size * 0.64
     bulge_w = size * 0.38
 
     cr.new_path()
@@ -74,12 +83,20 @@ def _draw_drop_path(cr: cairo.Context, size: int) -> None:
         cx - bulge_w,
         bulge_y,
     )
-    # Bottom-left to bottom-right: round bottom
+    # Bottom: two curves through a single low point for a rounder belly.
     cr.curve_to(
-        cx - bulge_w,
+        cx - bulge_w * 1.05,
+        bulge_y + size * 0.18,
+        cx - bulge_w * 0.45,
         bot_y,
-        cx + bulge_w,
+        cx,
         bot_y,
+    )
+    cr.curve_to(
+        cx + bulge_w * 0.45,
+        bot_y,
+        cx + bulge_w * 1.05,
+        bulge_y + size * 0.18,
         cx + bulge_w,
         bulge_y,
     )
@@ -121,7 +138,7 @@ def _render_drop(cr: cairo.Context, size: int, fill: float) -> None:
     # Thick white outline so the shape pops on any background
     _draw_drop_path(cr=cr, size=size)
     cr.set_source_rgba(1, 1, 1, 0.9)
-    cr.set_line_width(max(2.0, size * 0.05))
+    cr.set_line_width(max(1.3, size * 0.035))
     cr.stroke()
 
     # Small highlight on upper-left
@@ -134,6 +151,56 @@ def _render_drop(cr: cairo.Context, size: int, fill: float) -> None:
     cr.restore()
     cr.set_source_rgba(1, 1, 1, 0.3 * max(0.0, fill))
     cr.fill()
+
+    # Face styled like Pomodoro (dark eyes + arc mouth). Mouth transitions
+    # from smile -> neutral -> frown as water drains.
+    cr.save()
+    _draw_drop_path(cr=cr, size=size)
+    cr.clip()
+
+    cx = size / 2
+    cy = size * 0.54
+    eye_r = size * 0.04
+    eye_y = cy - size * 0.05
+    eye_dx = size * 0.11
+
+    # Eyes
+    cr.set_source_rgba(0.12, 0.12, 0.16, 0.95)
+    cr.arc(cx - eye_dx, eye_y, eye_r, 0, TWO_PI)
+    cr.fill()
+    cr.arc(cx + eye_dx, eye_y, eye_r, 0, TWO_PI)
+    cr.fill()
+
+    # Mouth (Pomodoro-like arc; flips as fill decreases)
+    mouth_y = cy + size * 0.04
+    mood = mouth_curvature(fill=fill)
+    strength = abs(mood)
+
+    # Near neutral, draw a short flat line.
+    if strength < 0.08:
+        half_w = size * 0.09
+        cr.set_source_rgba(0.12, 0.12, 0.16, 0.95)
+        cr.set_line_width(max(1.0, size * 0.03))
+        cr.set_line_cap(cairo.LINE_CAP_ROUND)
+        cr.move_to(cx - half_w, mouth_y)
+        cr.line_to(cx + half_w, mouth_y)
+        cr.stroke()
+        cr.restore()
+        return
+
+    smile_r = size * (0.04 + 0.06 * strength)
+    cr.set_source_rgba(0.12, 0.12, 0.16, 0.95)
+    cr.set_line_width(max(1.0, size * 0.03))
+    cr.set_line_cap(cairo.LINE_CAP_ROUND)
+
+    if mood >= 0:
+        # Smile arc (happy/full).
+        cr.arc(cx, mouth_y, smile_r, 0.2, math.pi - 0.2)
+    else:
+        # Frown arc (sad/empty).
+        cr.arc(cx, mouth_y + size * 0.03, smile_r, math.pi + 0.2, TWO_PI - 0.2)
+    cr.stroke()
+    cr.restore()
 
 
 # ---------------------------------------------------------------------------

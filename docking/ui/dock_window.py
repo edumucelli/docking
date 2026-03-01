@@ -474,6 +474,9 @@ class DockWindow(Gtk.Window):
                 applet = self.model.get_applet(item.desktop_id)
                 if applet:
                     applet.on_clicked()
+                    # Refresh tooltip immediately so applet name/tooltip
+                    # changes are visible without waiting for pointer motion.
+                    self._tooltip.update(item, layout)
                 self._hover.start_anim_pump(350)
                 return True
 

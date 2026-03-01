@@ -3,6 +3,7 @@
 from docking.applets.hydration import (
     DEFAULT_INTERVAL,
     HydrationApplet,
+    mouth_curvature,
     tooltip_text,
     water_color,
 )
@@ -94,3 +95,20 @@ class TestHydrationApplet:
         applet._fill = 0.5
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
+
+
+class TestMouthCurvature:
+    def test_full_is_smile(self):
+        assert mouth_curvature(fill=1.0) > 0.0
+
+    def test_half_is_neutral(self):
+        assert mouth_curvature(fill=0.5) == 0.0
+
+    def test_empty_is_frown(self):
+        assert mouth_curvature(fill=0.0) < 0.0
+
+    def test_clamps_low(self):
+        assert mouth_curvature(fill=-1.0) == -1.0
+
+    def test_clamps_high(self):
+        assert mouth_curvature(fill=2.0) == 1.0

@@ -61,7 +61,20 @@ jobs:
         env:
           GSETTINGS_BACKEND: memory
           GTK_THEME: Adwaita
-        run: xvfb-run -a .venv/bin/python -m pytest tests/ -v
+        run: |
+          xvfb-run -a .venv/bin/python -m pytest tests/ -v \
+            --cov=docking \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:htmlcov
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-ubuntu-${{ matrix.ubuntu }}-py${{ matrix.python }}
+          path: |
+            coverage.xml
+            htmlcov/
 
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})

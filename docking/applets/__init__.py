@@ -23,6 +23,7 @@ def get_registry() -> dict[str, type[Applet]]:
     from docking.applets.hydration import HydrationApplet
     from docking.applets.network import NetworkApplet
     from docking.applets.pomodoro import PomodoroApplet
+    from docking.applets.quote import QuoteApplet
     from docking.applets.screenshot import ScreenshotApplet
     from docking.applets.separator import SeparatorApplet
     from docking.applets.session import SessionApplet
@@ -42,6 +43,7 @@ def get_registry() -> dict[str, type[Applet]]:
         "desktop": DesktopApplet,
         "hydration": HydrationApplet,
         "network": NetworkApplet,
+        "quote": QuoteApplet,
         "screenshot": ScreenshotApplet,
         "separator": SeparatorApplet,
         "session": SessionApplet,
