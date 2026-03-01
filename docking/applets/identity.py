@@ -37,7 +37,7 @@ class AppletCategory(str, Enum):
     PRODUCTIVITY = "Time & Productivity"
     SYSTEM = "System & Power"
     WELLNESS = "Wellness & Ambient"
-    INFORMATION = "Information & Monitoring"
+    INFORMATION = "Information and Environment"
     OTHER = "Other"
 
 
@@ -66,7 +66,7 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.VOLUME: AppletCategory.SYSTEM,
     AppletId.AMBIENT: AppletCategory.WELLNESS,
     AppletId.HYDRATION: AppletCategory.WELLNESS,
-    AppletId.CPUMONITOR: AppletCategory.INFORMATION,
+    AppletId.CPUMONITOR: AppletCategory.SYSTEM,
     AppletId.QUOTE: AppletCategory.INFORMATION,
     AppletId.WEATHER: AppletCategory.INFORMATION,
 }

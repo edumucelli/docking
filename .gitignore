@@ -17,6 +17,7 @@ htmlcov/
 .claude/
 artifacts/
 AppDir/
+result-nix
 *.AppImage
 appimage-builder-cache/
 appimage-builder-build/

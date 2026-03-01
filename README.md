@@ -152,6 +152,29 @@ snapcraft --destructive-mode --project-dir packaging/snap --output artifacts/doc
 sudo snap install --dangerous artifacts/docking.snap
 ```
 
+### Building an Arch package
+
+```bash
+# Arch Linux tooling
+sudo pacman -S --needed base-devel git python python-pip
+
+# Build package
+./packaging/arch/build.sh
+
+# Install locally
+sudo pacman -U artifacts/docking-*.pkg.tar.*
+```
+
+### Building with Nix
+
+```bash
+# Build package output
+./packaging/nix/build.sh
+
+# Run from build output
+./result-nix/bin/docking
+```
+
 ## Running
 
 ```bash

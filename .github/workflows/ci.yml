@@ -355,10 +355,35 @@ jobs:
           name: docking-arch
           path: artifacts/*.pkg.tar.*
 
+  build-nix:
+    name: Build Nix package
+    runs-on: ubuntu-22.04
+    needs: [test-ubuntu, test-debian]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11
+
+      - name: Build Nix package
+        run: |
+          mkdir -p artifacts
+          ./packaging/nix/build.sh
+
+      - name: Upload Nix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-nix
+          path: |
+            artifacts/docking-nix-output.tar.gz
+            artifacts/docking-nix-store-path.txt
+
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [build-deb, build-rpm, build-flatpak, build-snap, build-appimage, build-arch]
+    needs: [build-deb, build-rpm, build-flatpak, build-snap, build-appimage, build-arch, build-nix]
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -487,6 +512,12 @@ jobs:
           name: docking-arch
           path: artifacts
 
+      - name: Download Nix artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-nix
+          path: artifacts
+
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
@@ -500,6 +531,8 @@ jobs:
             artifacts/*.snap
             artifacts/*.AppImage
             artifacts/*.pkg.tar.*
+            artifacts/docking-nix-output.tar.gz
+            artifacts/docking-nix-store-path.txt
           generate_release_notes: true
 
       - name: Skip release summary
