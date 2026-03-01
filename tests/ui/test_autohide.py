@@ -169,14 +169,14 @@ class TestZoomProgressFormula:
         return AutoHideController(window, config)
 
     def test_zoom_progress_is_linear_with_hide_offset(self):
-        # Given -- simulate mid-hide
+        # Given
         ctrl = self._make_controller()
         ctrl.state = HideState.HIDING
         ctrl.hide_offset = 0.5
         # Simulate one animation tick
         ctrl._anim_progress = 0.5
         ctrl._animation_tick()
-        # Then -- zoom_progress should be 1 - hide_offset (linear)
+        # Then
         assert ctrl.zoom_progress == pytest.approx(1.0 - ctrl.hide_offset, abs=0.1)
 
     def test_zoom_progress_zero_when_fully_hidden(self):
@@ -188,13 +188,13 @@ class TestZoomProgressFormula:
         assert ctrl.zoom_progress <= 0.05
 
     def test_zoom_progress_ramps_during_showing(self):
-        # Given -- partway through show animation
+        # Given
         ctrl = self._make_controller()
         ctrl.state = HideState.SHOWING
         ctrl._anim_progress = 0.3
         ctrl.hide_offset = 1.0
         ctrl._animation_tick()
-        # Then -- zoom_progress should be positive (dock expanding)
+        # Then
         assert ctrl.zoom_progress > 0.0
 
     def test_zoom_progress_1_when_fully_shown(self):

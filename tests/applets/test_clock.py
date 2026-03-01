@@ -23,28 +23,28 @@ class TestMinuteRotation:
         # Given minute = 0 (12 o'clock)
         # When
         angle = minute_rotation(minute=0)
-        # Then -- pi rotates the downward line to point up
+        # Then
         assert angle == pytest.approx(math.pi)
 
     def test_minute_15_points_right(self):
         # Given minute = 15 (3 o'clock)
         # When
         angle = minute_rotation(minute=15)
-        # Then -- 1.5*pi = 270 degrees
+        # Then
         assert angle == pytest.approx(1.5 * math.pi)
 
     def test_minute_30_points_down(self):
         # Given minute = 30 (6 o'clock)
         # When
         angle = minute_rotation(minute=30)
-        # Then -- 2*pi = 360 degrees (= 0, points down)
+        # Then
         assert angle == pytest.approx(2 * math.pi)
 
     def test_minute_45_points_left(self):
         # Given minute = 45 (9 o'clock)
         # When
         angle = minute_rotation(minute=45)
-        # Then -- 2.5*pi
+        # Then
         assert angle == pytest.approx(2.5 * math.pi)
 
     def test_continuous_increase(self):
@@ -62,7 +62,7 @@ class TestHourRotation12h:
         # Given 12:00 (hour=0 or 12)
         # When
         angle = hour_rotation_12h(hour=0, minute=0)
-        # Then -- points up (pi)
+        # Then
         assert angle == pytest.approx(math.pi)
         assert hour_rotation_12h(hour=12, minute=0) == pytest.approx(math.pi)
 
@@ -83,12 +83,12 @@ class TestHourRotation12h:
         # When
         at_3_00 = hour_rotation_12h(hour=3, minute=0)
         at_3_30 = hour_rotation_12h(hour=3, minute=30)
-        # Then -- 3:30 should be further along than 3:00
+        # Then
         assert at_3_30 > at_3_00
 
     def test_full_revolution_is_12_hours(self):
         # Given hour 0 and hour 12 (mod 12 = 0)
-        # Then -- same angle (one full revolution)
+        # Then
         assert hour_rotation_12h(hour=0, minute=0) == pytest.approx(
             hour_rotation_12h(hour=12, minute=0)
         )
@@ -134,7 +134,7 @@ class TestClockPrefs:
     def test_defaults_when_no_config(self):
         # Given no config
         clock = ClockApplet(48)
-        # Then -- defaults: analog 12h, no date
+        # Then
         assert clock._show_digital is False
         assert clock._show_military is False
         assert clock._show_date is False
@@ -169,7 +169,7 @@ class TestClockPrefs:
         clock._show_digital = True
         clock._save_prefs()
 
-        # Then -- prefs written to config
+        # Then
         assert config.applet_prefs["clock"]["show_digital"] is True
         # And persisted to disk
         reloaded = Config.load(path)
@@ -180,7 +180,7 @@ class TestClockPrefs:
         config = Config(applet_prefs={"clock": {"show_military": True}})
         # When
         clock = ClockApplet(48, config=config)
-        # Then -- missing prefs default to False
+        # Then
         assert clock._show_digital is False
         assert clock._show_military is True
         assert clock._show_date is False
@@ -253,7 +253,7 @@ class TestClockTooltip:
         clock = ClockApplet(48)
         # When
         clock.create_icon(48)
-        # Then -- name is no longer the static "Clock"
+        # Then
         assert clock.item.name != "Clock"
         # And contains the current month abbreviation
         expected_month = time.strftime("%b")
@@ -276,7 +276,7 @@ class TestClockMenuItems:
         clock = ClockApplet(48)
         # When
         items = clock.get_menu_items()
-        # Then -- "Show Date" should be insensitive
+        # Then
         date_item = items[2]
         assert not date_item.get_sensitive()
 
@@ -286,6 +286,6 @@ class TestClockMenuItems:
         clock = ClockApplet(48, config=config)
         # When
         items = clock.get_menu_items()
-        # Then -- "Show Date" should be sensitive
+        # Then
         date_item = items[2]
         assert date_item.get_sensitive()

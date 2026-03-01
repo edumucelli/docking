@@ -77,7 +77,7 @@ class TestWeatherTemperatureOverlay:
         applet = WeatherApplet(48)
         applet._weather = _SAMPLE_WEATHER
         applet._show_temperature = False
-        # When -- should return base icon without Cairo compositing
+        # When
         pixbuf = applet.create_icon(48)
         assert pixbuf is not None
 

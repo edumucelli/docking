@@ -248,7 +248,7 @@ class TestReorderVisible:
         model = DockModel(config, launcher)
         callback = MagicMock()
         model.on_change = callback
-        # When — mutate pinned order then sync
+        # When
         model.pinned_items.reverse()
         model.sync_pinned_to_config()
         model.notify()
@@ -275,7 +275,7 @@ class TestReorderVisible:
         model.update_running({"b.desktop": {"count": 1, "active": False}})
         assert len(model.visible_items()) == 2
         assert not model.visible_items()[1].is_pinned
-        # When — drag transient b to position 0
+        # When
         model.reorder_visible(1, 0)
         # Then
         items = model.visible_items()
@@ -297,7 +297,7 @@ class TestReorderVisible:
         assert len(model.visible_items()) == 2
         # When
         model.reorder_visible(1, 0)
-        # Then — both should now be pinned
+        # Then
         items = model.visible_items()
         assert all(it.is_pinned for it in items)
         assert len(config.pinned) == 2
@@ -342,7 +342,7 @@ class TestDockItemAnimationFields:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        # When — update with urgent flag
+        # When
         model.update_running(
             {"a.desktop": {"count": 1, "active": False, "urgent": True}}
         )
@@ -356,17 +356,17 @@ class TestDockItemAnimationFields:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        # When — first urgent
+        # When
         model.update_running(
             {"a.desktop": {"count": 1, "active": False, "urgent": True}}
         )
         first_ts = model.visible_items()[0].last_urgent
-        # When — still urgent (no transition)
+        # When
         model.update_running(
             {"a.desktop": {"count": 1, "active": False, "urgent": True}}
         )
         second_ts = model.visible_items()[0].last_urgent
-        # Then — timestamp unchanged (only set on false→true transition)
+        # Then
         assert second_ts is first_ts
 
     def test_urgent_clears(self):
@@ -387,11 +387,11 @@ class TestDockItemAnimationFields:
     def test_click_and_launch_timestamps_independent(self):
         # Given
         item = DockItem(desktop_id="test.desktop")
-        # When — set last_clicked
+        # When
         item.last_clicked = 12345
-        # Then — last_launched should be unaffected
+        # Then
         assert item.last_launched == 0
-        # When — set last_launched
+        # When
         item.last_launched = 67890
-        # Then — last_clicked should retain its value
+        # Then
         assert item.last_clicked == 12345

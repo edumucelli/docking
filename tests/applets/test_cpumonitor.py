@@ -115,5 +115,5 @@ class TestCpuMonitorRendering:
         pixbuf = applet.create_icon(48)
         pixels = pixbuf.get_pixels()
         non_transparent = sum(1 for i in range(0, len(pixels), 4) if pixels[i + 3] > 0)
-        # Then -- gauge should have substantial visible content
+        # Then
         assert non_transparent > 100

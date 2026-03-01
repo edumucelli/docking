@@ -73,7 +73,7 @@ class TestAppletUriRejection:
     """
 
     def test_applet_uri_returns_none(self):
-        # Given -- Plank applet URI
+        # Given
         uri = "applet://clock"
         # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) is None

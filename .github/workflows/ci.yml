@@ -266,9 +266,10 @@ jobs:
       - name: Build Snap package
         run: |
           mkdir -p artifacts
-          snapcraft --destructive-mode \
-            --project-dir packaging/snap \
-            --output artifacts/docking.snap
+          (
+            cd packaging/snap
+            snapcraft pack --destructive-mode --output ../../artifacts/docking.snap
+          )
           ls -lh artifacts/*.snap
 
       - name: Upload Snap artifact
@@ -277,10 +278,35 @@ jobs:
           name: docking-snap
           path: artifacts/*.snap
 
+  build-appimage:
+    name: Build AppImage
+    runs-on: ubuntu-22.04
+    needs: [test, test-debian]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AppImage tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip libfuse2
+          python3 -m pip install --upgrade pip
+          python3 -m pip install appimage-builder
+
+      - name: Build AppImage
+        run: |
+          mkdir -p artifacts
+          ./packaging/appimage/build.sh
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-appimage
+          path: artifacts/*.AppImage
+
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [build-deb, build-flatpak, build-snap]
+    needs: [build-deb, build-flatpak, build-snap, build-appimage]
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -391,6 +417,12 @@ jobs:
           name: docking-snap
           path: artifacts
 
+      - name: Download AppImage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-appimage
+          path: artifacts
+
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
@@ -401,6 +433,7 @@ jobs:
             artifacts/*.deb
             artifacts/*.flatpak
             artifacts/*.snap
+            artifacts/*.AppImage
           generate_release_notes: true
 
       - name: Skip release summary

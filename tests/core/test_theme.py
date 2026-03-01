@@ -76,45 +76,45 @@ class TestScalingUnit:
     """Tests for the scaling unit system: JSON values * (icon_size / 10)."""
 
     def test_default_48px_item_padding(self):
-        # Given — default.json has item_padding=2.5
+        # Given
         # scale = 48/10 = 4.8, so 2.5 * 4.8 = 12.0
         t = Theme.load("default", 48)
         # Then
         assert t.item_padding == pytest.approx(12.0)
 
     def test_default_48px_top_padding(self):
-        # Given — default.json has top_padding=-7
+        # Given
         # scale = 4.8, so -7 * 4.8 = -33.6
         t = Theme.load("default", 48)
         # Then
         assert t.top_padding == pytest.approx(-33.6)
 
     def test_default_48px_bottom_padding(self):
-        # Given — default.json has bottom_padding=1
+        # Given
         # scale = 4.8, so 1 * 4.8 = 4.8
         t = Theme.load("default", 48)
         # Then
         assert t.bottom_padding == pytest.approx(4.8)
 
     def test_default_64px_scales_proportionally(self):
-        # Given — icon_size=64, scale = 64/10 = 6.4
+        # Given
         t48 = Theme.load("default", 48)
         t64 = Theme.load("default", 64)
-        # Then — 64px values should be 64/48 = 4/3 times the 48px values
+        # Then
         ratio = 64 / 48
         assert t64.item_padding == pytest.approx(t48.item_padding * ratio, rel=1e-6)
         assert t64.top_padding == pytest.approx(t48.top_padding * ratio, rel=1e-6)
         assert t64.bottom_padding == pytest.approx(t48.bottom_padding * ratio, rel=1e-6)
 
     def test_h_padding_fallback_when_zero(self):
-        # Given — default.json has h_padding=0, stroke_width=1.0
+        # Given
         # When h_padding <= 0, fallback = 2 * stroke_width = 2.0
         t = Theme.load("default", 48)
         # Then
         assert t.h_padding == pytest.approx(2.0)
 
     def test_h_padding_positive_uses_scaled(self, tmp_path):
-        # Given — h_padding=3 in JSON, icon_size=48, scale=4.8
+        # Given
         # 3 * 4.8 = 14.4 > 0, so no fallback
         theme_data = {"h_padding": 3, "stroke_width": 1.0}
         theme_file = tmp_path / "pos.json"
@@ -126,7 +126,7 @@ class TestScalingUnit:
         assert t.h_padding == pytest.approx(14.4)
 
     def test_indicator_radius_from_size(self):
-        # Given — default.json has indicator_size=5
+        # Given
         # indicator_radius = 5 / 2 = 2.5 (NOT scaled)
         t = Theme.load("default", 48)
         # Then
@@ -141,7 +141,7 @@ class TestShelfHeightDerivation:
     """
 
     def test_default_48px_shelf_height(self):
-        # Given — 48px icons, default theme
+        # Given
         # top_padding_px = -7 * 4.8 = -33.6
         # bottom_padding_px = 1 * 4.8 = 4.8
         # top_offset = 2 * 1.0 + (-33.6) = -31.6
@@ -152,7 +152,7 @@ class TestShelfHeightDerivation:
         assert t.shelf_height == pytest.approx(21.2)
 
     def test_default_64px_shelf_height(self):
-        # Given — 64px icons
+        # Given
         # scale = 6.4
         # top_padding_px = -7 * 6.4 = -44.8
         # bottom_padding_px = 1 * 6.4 = 6.4
@@ -164,14 +164,14 @@ class TestShelfHeightDerivation:
         assert t.shelf_height == pytest.approx(27.6)
 
     def test_shelf_height_never_negative(self, tmp_path):
-        # Given — extreme negative padding that would make shelf_height < 0
+        # Given
         theme_data = {"top_padding": -20, "bottom_padding": -5}
         theme_file = tmp_path / "neg.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
         with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("neg", 48)
-        # Then — max(0, ...) prevents negative
+        # Then
         assert t.shelf_height >= 0.0
 
 
@@ -197,7 +197,7 @@ class TestAnimationParams:
         assert t.glow_opacity == pytest.approx(0.6)
 
     def test_animation_params_same_at_different_icon_sizes(self):
-        # Given — animation params should NOT change with icon_size
+        # Given
         t48 = Theme.load("default", 48)
         t64 = Theme.load("default", 64)
         # Then
@@ -207,14 +207,14 @@ class TestAnimationParams:
         assert t48.glow_opacity == t64.glow_opacity
 
     def test_missing_animation_keys_use_defaults(self, tmp_path):
-        # Given — JSON with no animation keys
+        # Given
         theme_data = {"roundness": 5}
         theme_file = tmp_path / "minimal.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
         with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("minimal", 48)
-        # Then — all animation params use defaults
+        # Then
         assert t.urgent_bounce_height == pytest.approx(1.66)
         assert t.launch_bounce_height == pytest.approx(0.625)
         assert t.click_time_ms == 300

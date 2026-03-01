@@ -97,7 +97,7 @@ class KeywordArgTransformer(cst.CSTTransformer):
         if not func_name:
             return updated_node
 
-        # Skip super().__init__() — parent may have different param names
+        # Skip super().__init__() - parent may have different param names
         if func_name == "__init__" and self._is_super_call(updated_node.func):
             return updated_node
 

@@ -16,7 +16,7 @@ from docking.core.config import Config
 class TestFormatQuote:
     def test_includes_author_when_present(self):
         entry = QuoteEntry(text="Stay hungry, stay foolish.", author="Steve Jobs")
-        assert format_quote(entry) == '"Stay hungry, stay foolish." — Steve Jobs'
+        assert format_quote(entry) == '"Stay hungry, stay foolish." - Steve Jobs'
 
     def test_text_only_when_author_missing(self):
         entry = QuoteEntry(text="No author quote")

@@ -19,7 +19,7 @@ class TestAverageIconColor:
         assert result == (0.5, 0.5, 0.5)
 
     def test_opaque_red_pixbuf(self):
-        # Given — a 2x2 fully red, fully opaque pixbuf
+        # Given
         pixbuf = MagicMock()
         pixbuf.get_width.return_value = 2
         pixbuf.get_height.return_value = 2
@@ -28,13 +28,13 @@ class TestAverageIconColor:
         pixbuf.get_pixels.return_value = bytes([255, 0, 0, 255] * 4)
         # When
         r, g, b = average_icon_color(pixbuf=pixbuf)
-        # Then — dominant color should be red
+        # Then
         assert r > 0.5
         assert g < 0.1
         assert b < 0.1
 
     def test_transparent_pixels_ignored(self):
-        # Given — all pixels are fully transparent (alpha=0)
+        # Given
         pixbuf = MagicMock()
         pixbuf.get_width.return_value = 2
         pixbuf.get_height.return_value = 2
@@ -43,20 +43,20 @@ class TestAverageIconColor:
         pixbuf.get_pixels.return_value = bytes([255, 0, 0, 0] * 4)
         # When
         result = average_icon_color(pixbuf=pixbuf)
-        # Then — no visible pixels, returns gray fallback
+        # Then
         assert result == (0.5, 0.5, 0.5)
 
     def test_gray_pixels_low_score(self):
-        # Given — all pixels are neutral gray (no saturation)
+        # Given
         pixbuf = MagicMock()
         pixbuf.get_width.return_value = 2
         pixbuf.get_height.return_value = 2
         pixbuf.get_n_channels.return_value = 4
         pixbuf.get_rowstride.return_value = 8
         pixbuf.get_pixels.return_value = bytes([128, 128, 128, 255] * 4)
-        # When — gray pixels have delta=0, so score=0
+        # When
         result = average_icon_color(pixbuf=pixbuf)
-        # Then — all scores are 0, returns gray fallback
+        # Then
         assert result == (0.5, 0.5, 0.5)
 
 
@@ -80,16 +80,16 @@ class TestEasingBounce:
         assert result == 0.0
 
     def test_first_bounce_reaches_one(self):
-        # Given — launch bounce n=2, first peak at ~25% of duration
+        # Given
         # When
         peak = max(
             easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(0, 600, 5)
         )
-        # Then — first bounce should reach 1.0
+        # Then
         assert peak == pytest.approx(1.0, abs=0.01)
 
     def test_second_bounce_lower_than_first(self):
-        # Given — launch bounce n=2
+        # Given
         first_half = [
             easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(0, 300)
         ]
@@ -99,12 +99,12 @@ class TestEasingBounce:
         # When
         first_peak = max(first_half)
         second_peak = max(second_half)
-        # Then — second bounce should be significantly lower
+        # Then
         assert second_peak < first_peak
         assert second_peak < 0.5
 
     def test_always_non_negative(self):
-        # Given — uses abs(sin), should never go negative
+        # Given
         # When
         values = [
             easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(0, 601)
@@ -113,7 +113,7 @@ class TestEasingBounce:
         assert all(v >= 0.0 for v in values)
 
     def test_urgent_single_bounce(self):
-        # Given — urgent bounce n=1, single arc peaking at center
+        # Given
         # When
         peak = max(
             easing_bounce(t=t * 1000, duration=600_000, n=1) for t in range(0, 600, 5)
@@ -128,7 +128,7 @@ class TestEasingBounce:
         assert result == 0.0
 
     def test_n1_symmetric_around_midpoint(self):
-        # Given — n=1 single bounce: sin values at 25% and 75% are equal
+        # Given
         # When / Then
         assert abs(math.sin(math.pi * 0.25)) == pytest.approx(
             abs(math.sin(math.pi * 0.75))

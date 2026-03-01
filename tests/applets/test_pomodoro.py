@@ -45,7 +45,7 @@ class TestTooltipText:
         assert result == "Long Break: 15:00 remaining"
 
     def test_paused(self):
-        assert tooltip_text(state=State.PAUSED, remaining=600) == "Paused — 10:00"
+        assert tooltip_text(state=State.PAUSED, remaining=600) == "Paused - 10:00"
 
 
 # -- State machine ------------------------------------------------------------

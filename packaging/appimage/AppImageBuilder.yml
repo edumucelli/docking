@@ -1,0 +1,58 @@
+version: 1
+
+script:
+  - rm -rf AppDir
+  - mkdir -p AppDir/usr/lib/python3/dist-packages
+  - mkdir -p AppDir/usr/share/applications
+  - mkdir -p AppDir/usr/share/icons
+  - python3 -m pip install --upgrade pip
+  - python3 -m pip install --no-cache-dir --target AppDir/usr/lib/python3/dist-packages .
+  - install -Dm644 packaging/deb/org.docking.Docking.desktop AppDir/usr/share/applications/org.docking.Docking.desktop
+  - cp -r packaging/deb/icons/hicolor AppDir/usr/share/icons/
+
+AppDir:
+  path: AppDir
+  app_info:
+    id: org.docking.Docking
+    name: Docking
+    icon: org.docking.Docking
+    version: latest
+    exec: usr/bin/python3
+    exec_args: -m docking.app
+
+  apt:
+    arch: amd64
+    sources:
+      - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main universe
+      - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main universe
+    include:
+      - python3
+      - python3-gi
+      - python3-gi-cairo
+      - python3-cairo
+      - gir1.2-gtk-3.0
+      - gir1.2-gdkpixbuf-2.0
+      - gir1.2-wnck-3.0
+      - gir1.2-pango-1.0
+      - gir1.2-nm-1.0
+      - gir1.2-gstreamer-1.0
+      - libgtk-3-0
+      - libwnck-3-0
+      - libgdk-pixbuf-2.0-0
+      - libpangocairo-1.0-0
+      - libcairo2
+      - libnm0
+      - libgstreamer1.0-0
+      - librsvg2-common
+      - hicolor-icon-theme
+
+  runtime:
+    env:
+      PYTHONPATH: $APPDIR/usr/lib/python3/dist-packages
+      GI_TYPELIB_PATH: $APPDIR/usr/lib/x86_64-linux-gnu/girepository-1.0:$APPDIR/usr/lib/girepository-1.0
+      XDG_DATA_DIRS: $APPDIR/usr/share:$XDG_DATA_DIRS
+      GSETTINGS_BACKEND: memory
+
+AppImage:
+  arch: x86_64
+  file_name: Docking-x86_64.AppImage

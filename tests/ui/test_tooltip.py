@@ -37,19 +37,19 @@ class TestTooltipManagerInit:
         # Given
         from docking.ui.tooltip import TOOLTIP_BASE_GAP
 
-        # When / Then — gap should be small positive value
+        # When / Then - gap should be small positive value
         assert 5 <= TOOLTIP_BASE_GAP <= 50
 
 
 class TestTooltipHide:
     def test_hide_when_no_window(self):
-        # Given — tooltip window not yet created
+        # Given
         window = MagicMock()
         config = MagicMock()
         model = MagicMock()
         theme = MagicMock()
         tooltip = TooltipManager(window, config, model, theme)
-        # When / Then — should not raise
+        # When / Then - should not raise
         tooltip.hide()
 
     def test_update_with_no_item_keeps_tooltip(self):
@@ -60,9 +60,9 @@ class TestTooltipHide:
         theme = MagicMock()
         tooltip = TooltipManager(window, config, model, theme)
         tooltip._tooltip_window = MagicMock()
-        # When — update with None item (cursor in gap between icons)
+        # When
         tooltip.update(None, [])
-        # Then — tooltip stays visible (dock _on_leave handles hiding)
+        # Then
         tooltip._tooltip_window.hide.assert_not_called()
 
     def test_update_with_unnamed_item_keeps_tooltip(self):
@@ -75,9 +75,9 @@ class TestTooltipHide:
         tooltip._tooltip_window = MagicMock()
         item = MagicMock()
         item.name = ""
-        # When -- item has no name (cursor in gap)
+        # When
         tooltip.update(item, [])
-        # Then — tooltip stays visible
+        # Then
         tooltip._tooltip_window.hide.assert_not_called()
 
 
@@ -206,9 +206,9 @@ class TestContentCaching:
         item = _make_item("Firefox")
         tooltip._last_item = item
         tooltip._last_name = "Firefox"
-        # When — update with same item and name
+        # When
         tooltip.update(item, [])
-        # Then — no rebuild triggered (would need layout lookup)
+        # Then
         # The early return means no _show_tooltip call
 
     def test_different_item_triggers_rebuild(self):
@@ -218,14 +218,14 @@ class TestContentCaching:
         item_b = _make_item("Chrome")
         tooltip._last_item = item_a
         tooltip._last_name = "Firefox"
-        # When/Then — content_changed should be True for different item
+        # When/Then - content_changed should be True for different item
         content_changed = not (
             item_b is tooltip._last_item and item_b.name == tooltip._last_name
         )
         assert content_changed is True
 
     def test_same_item_different_name_triggers_rebuild(self):
-        # Given — applet changed its tooltip text (e.g. workspace switch)
+        # Given
         tooltip = _make_tooltip()
         item = _make_item("Workspace 1")
         tooltip._last_item = item
@@ -238,12 +238,12 @@ class TestContentCaching:
         assert content_changed is True
 
     def test_builder_item_same_name_is_cached(self):
-        # Given — weather applet with tooltip_builder, same data
+        # Given
         tooltip = _make_tooltip()
         item = _make_item("Paris: 17°C", builder=True)
         tooltip._last_item = item
         tooltip._last_name = "Paris: 17°C"
-        # When/Then — should be cached (builder only called on content change)
+        # When/Then - should be cached (builder only called on content change)
         content_changed = not (
             item is tooltip._last_item and item.name == tooltip._last_name
         )
@@ -298,7 +298,7 @@ class TestSpuriousLeaveFilter:
     """
 
     def test_leave_inside_bounds_is_ignored(self):
-        # Given — leave event with cursor inside drawing area
+        # Given
 
         # This is a structural test: verify the function exists and the
         # pattern. The actual _on_leave integration requires GTK.
@@ -309,7 +309,7 @@ class TestSpuriousLeaveFilter:
         assert inside is True  # would return False from _on_leave
 
     def test_leave_outside_bounds_is_real(self):
-        # Given — leave event with cursor outside (genuine exit)
+        # Given
         alloc_width, alloc_height = 1440, 100
         event_x, event_y = 1200, 105  # y outside
         inside = 0 <= event_x <= alloc_width and 0 <= event_y <= alloc_height

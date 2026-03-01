@@ -16,6 +16,10 @@ htmlcov/
 .pybuild/
 .claude/
 artifacts/
+AppDir/
+*.AppImage
+appimage-builder-cache/
+appimage-builder-build/
 packaging/deb/debian/.debhelper/
 packaging/deb/debian/debhelper-build-stamp
 packaging/deb/debian/*.debhelper

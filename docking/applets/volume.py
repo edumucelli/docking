@@ -31,7 +31,7 @@ class VolumeState(NamedTuple):
 
 
 # ---------------------------------------------------------------------------
-# Parsers — pure functions, no side effects
+# Parsers - pure functions, no side effects
 # ---------------------------------------------------------------------------
 
 _PACTL_VOL_RE = re.compile(r"(\d+)%")
@@ -241,7 +241,7 @@ class VolumeApplet(Applet):
             self._muted = state.muted
 
     def _tick(self) -> bool:
-        """Periodic poll — refresh icon only if state changed."""
+        """Periodic poll - refresh icon only if state changed."""
         prev = VolumeState(volume=self._volume, muted=self._muted)
         self._poll()
         if (self._volume, self._muted) != prev:

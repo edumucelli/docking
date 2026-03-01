@@ -82,7 +82,10 @@ flatpak run org.docking.Docking
 sudo apt install snapcraft
 
 # Build snap package
-snapcraft --destructive-mode --project-dir packaging/snap --output artifacts/docking.snap
+(
+  cd packaging/snap
+  snapcraft pack --destructive-mode --output ../../artifacts/docking.snap
+)
 ```
 
 Install locally:
@@ -95,3 +98,31 @@ Notes:
 
 - Snap manifest: `packaging/snap/snapcraft.yaml`
 - Current confinement is `devmode` to support development/runtime integration paths.
+
+## AppImage
+
+```bash
+# Install tooling
+sudo apt install python3-pip libfuse2
+python3 -m pip install --upgrade pip
+python3 -m pip install appimage-builder
+
+# Build AppImage
+./packaging/appimage/build.sh
+```
+
+Output artifact:
+
+- `artifacts/Docking-x86_64.AppImage`
+
+Run locally:
+
+```bash
+chmod +x artifacts/Docking-x86_64.AppImage
+./artifacts/Docking-x86_64.AppImage
+```
+
+Notes:
+
+- AppImage recipe: `packaging/appimage/AppImageBuilder.yml`
+- Runtime dependencies are bundled from Ubuntu 22.04 packages listed in the recipe.

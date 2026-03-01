@@ -1,4 +1,6 @@
-# Docking <img src="images/docking-header.png" alt="Docking" height="48" style="vertical-align: -5.30em;">
+# Docking
+
+<img src="images/docking-header.png" alt="Docking" height="48" style="horizontal-align: middle;">
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
@@ -62,7 +64,7 @@ Extensible plugin system for custom dock widgets. 19 built-in applets:
 | **Volume** | Scroll to adjust, click to mute |
 | **Pomodoro** | Tomato timer with auto-cycling work/break phases |
 | **Separator** | Transparent gap divider (multiple instances, scroll to resize) |
-| **Hydration** | Water drop reminder — drains over time, click to refill |
+| **Hydration** | Water drop reminder - drains over time, click to refill |
 | **Quote** | Quote/joke applet with source switching and clipboard copy |
 | **Ambient** | Looping nature sounds and white/pink noise via GStreamer |
 

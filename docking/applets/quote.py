@@ -99,7 +99,7 @@ def _normalize_quote(text: str) -> str:
 def format_quote(entry: QuoteEntry) -> str:
     """Render quote text for tooltip/clipboard."""
     if entry.author:
-        return f'"{entry.text}" — {entry.author}'
+        return f'"{entry.text}" - {entry.author}'
     return entry.text
 
 

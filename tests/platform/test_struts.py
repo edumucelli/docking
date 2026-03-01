@@ -165,7 +165,7 @@ class TestMultiMonitorGap:
     """When monitor doesn't extend to the logical screen edge, gap is added."""
 
     def test_bottom_gap_on_upper_monitor(self):
-        # Given — monitor at top of a vertically stacked dual-monitor setup
+        # Given
         # Monitor: 1920x1080 at (0, 0), screen: 1920x2160
         s = compute_struts(
             dock_height=DOCK_H,
@@ -178,11 +178,11 @@ class TestMultiMonitorGap:
             scale=1,
             position=Position.BOTTOM,
         )
-        # Then — strut includes the 1080px gap below the monitor
+        # Then
         assert s[3] == DOCK_H + 1080
 
     def test_right_gap_on_left_monitor(self):
-        # Given — left monitor in a horizontally stacked setup
+        # Given
         # Monitor: 1920x1080 at (0, 0), screen: 3840x1080
         s = compute_struts(
             dock_height=DOCK_H,
@@ -198,7 +198,7 @@ class TestMultiMonitorGap:
         assert s[1] == DOCK_H + 1920
 
     def test_top_gap_on_lower_monitor(self):
-        # Given — monitor at y=1080 in vertical stack, screen: 1920x2160
+        # Given
         s = compute_struts(
             dock_height=DOCK_H,
             monitor_x=0,
@@ -213,7 +213,7 @@ class TestMultiMonitorGap:
         assert s[2] == DOCK_H + 1080
 
     def test_left_gap_on_right_monitor(self):
-        # Given — monitor at x=1920 in horizontal stack, screen: 3840x1080
+        # Given
         s = compute_struts(
             dock_height=DOCK_H,
             monitor_x=1920,
@@ -229,7 +229,7 @@ class TestMultiMonitorGap:
 
 
 class TestHiDPIScale:
-    """Struts are in physical pixels — all values multiplied by scale."""
+    """Struts are in physical pixels - all values multiplied by scale."""
 
     def test_scale_2x_doubles_all_values(self):
         s1 = compute_struts(
@@ -264,7 +264,7 @@ class TestHiDPIMultiMonitor:
     """HiDPI scaling combined with multi-monitor gaps."""
 
     def test_bottom_gap_scale_2x(self):
-        # Given -- upper monitor at (0,0) in vertical stack, scale=2
+        # Given
         s = compute_struts(
             dock_height=DOCK_H,
             monitor_x=0,
@@ -280,7 +280,7 @@ class TestHiDPIMultiMonitor:
         assert s[3] == (DOCK_H + 1080) * 2
 
     def test_top_gap_scale_2x(self):
-        # Given -- lower monitor at y=1080 in vertical stack, scale=2
+        # Given
         s = compute_struts(
             dock_height=DOCK_H,
             monitor_x=0,
@@ -295,7 +295,7 @@ class TestHiDPIMultiMonitor:
         assert s[2] == (DOCK_H + 1080) * 2
 
     def test_left_gap_scale_2x(self):
-        # Given -- right monitor at x=1920, scale=2
+        # Given
         s = compute_struts(
             dock_height=DOCK_H,
             monitor_x=1920,
@@ -310,7 +310,7 @@ class TestHiDPIMultiMonitor:
         assert s[0] == (DOCK_H + 1920) * 2
 
     def test_right_gap_scale_2x(self):
-        # Given -- left monitor at (0,0), scale=2
+        # Given
         s = compute_struts(
             dock_height=DOCK_H,
             monitor_x=0,
@@ -325,7 +325,7 @@ class TestHiDPIMultiMonitor:
         assert s[1] == (DOCK_H + 1920) * 2
 
     def test_span_end_scaled_for_all_positions(self):
-        # Given -- single monitor at origin, scale=2
+        # Given
         # span_start is 0*2=0, span_end should be (dimension*2 - 1)
         for pos in Position:
             s = compute_struts(

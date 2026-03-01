@@ -65,7 +65,7 @@ def tooltip_text(state: State, remaining: int) -> str:
     if state == State.IDLE:
         return "Pomodoro"
     if state == State.PAUSED:
-        return f"Paused — {format_time(seconds=remaining)}"
+        return f"Paused - {format_time(seconds=remaining)}"
     labels = {State.WORK: "Work", State.BREAK: "Break", State.LONG_BREAK: "Long Break"}
     return f"{labels[state]}: {format_time(seconds=remaining)} remaining"
 

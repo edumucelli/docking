@@ -186,7 +186,7 @@ class AmbientApplet(Applet):
             _log.warning("Failed to create pipeline for %s", sound.name)
             return
 
-        # Loop on EOS (file sounds only — noise is infinite)
+        # Loop on EOS (file sounds only - noise is infinite)
         if sound.kind == "file":
             bus = self._pipeline.get_bus()
             bus.add_signal_watch()

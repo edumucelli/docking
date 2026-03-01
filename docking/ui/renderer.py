@@ -219,7 +219,7 @@ class DockRenderer:
         zoomed_w += drop_gap
         icon_offset = (main_size - zoomed_w) / 2 - left_edge
 
-        # Shelf width smoothing — snap during hide/show and drop gap so
+        # Shelf width smoothing - snap during hide/show and drop gap so
         # the shelf tracks icon positions exactly (no lag = no edge gaps).
         target_shelf_w = zoomed_w
         if self.smooth_shelf_w == 0.0 or drop_gap > 0 or hide_offset > 0:

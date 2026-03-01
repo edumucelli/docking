@@ -57,7 +57,7 @@ class TestIconCache:
         # When
         icon1 = launcher.load_icon("application-x-executable", 48)
         icon2 = launcher.load_icon("application-x-executable", 48)
-        # Then — both should be the same object (cached)
+        # Then
         assert icon1 is icon2
 
     def test_different_sizes_cached_separately(self):
@@ -66,7 +66,7 @@ class TestIconCache:
         # When
         launcher.load_icon("application-x-executable", 48)
         launcher.load_icon("application-x-executable", 96)
-        # Then — different cache keys
+        # Then
         assert ("application-x-executable", 48) in launcher._icon_cache
         assert ("application-x-executable", 96) in launcher._icon_cache
 
@@ -112,7 +112,7 @@ class TestDesktopActions:
             "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
         ):
             actions = get_actions(desktop_id="app.desktop")
-        # Then -- empty-name action skipped
+        # Then
         assert actions == [("good", "Good")]
 
     def test_launch_action_calls_gio(self):

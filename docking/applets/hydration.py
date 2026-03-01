@@ -257,7 +257,7 @@ class HydrationApplet(Applet):
         super().stop()
 
     def on_clicked(self) -> None:
-        """Refill — user drank water."""
+        """Refill - user drank water."""
         self._fill = 1.0
         self.item.is_urgent = False
         self._tick_count = 0
