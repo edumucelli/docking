@@ -110,9 +110,10 @@ jobs:
             htmlcov/
 
       - name: Upload coverage to Codecov
-        if: matrix.ubuntu == '24.04' && matrix.python == '3.12'
+        if: matrix.ubuntu == '24.04' && matrix.python == '3.12' && secrets.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           flags: ubuntu-24.04-py3.12
           fail_ci_if_error: false
