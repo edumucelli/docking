@@ -14,7 +14,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, draw_icon_label
-from docking.applets.ids import AppletId
+from docking.applets.identity import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:

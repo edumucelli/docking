@@ -14,7 +14,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
-from docking.applets.ids import AppletId
+from docking.applets.identity import AppletId
 
 # FreeDesktop main categories -> display label
 _CATEGORY_LABELS: dict[str, str] = {

@@ -1,6 +1,7 @@
 """Tests for the separator applet."""
 
 from docking.applets.base import applet_id_from
+from docking.applets.identity import AppletId
 from docking.applets.separator import (
     DEFAULT_SIZE,
     MAX_SIZE,
@@ -12,16 +13,16 @@ from docking.applets.separator import (
 
 class TestAppletIdFrom:
     def test_simple_applet(self):
-        assert applet_id_from(desktop_id="applet://clock") == "clock"
+        assert applet_id_from(desktop_id="applet://clock") == AppletId.CLOCK
 
     def test_separator_instance(self):
-        assert applet_id_from(desktop_id="applet://separator#0") == "separator"
+        assert applet_id_from(desktop_id="applet://separator#0") == AppletId.SEPARATOR
 
     def test_separator_high_instance(self):
-        assert applet_id_from(desktop_id="applet://separator#42") == "separator"
+        assert applet_id_from(desktop_id="applet://separator#42") == AppletId.SEPARATOR
 
     def test_no_instance_suffix(self):
-        assert applet_id_from(desktop_id="applet://weather") == "weather"
+        assert applet_id_from(desktop_id="applet://weather") == AppletId.WEATHER
 
 
 class TestSeparatorApplet:

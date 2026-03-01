@@ -14,10 +14,17 @@ gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
+from docking.applets.identity import (
+    AppletId,
+    applet_desktop_id,
+    is_applet_desktop_id,
+)
+from docking.applets.identity import (
+    applet_id_from as _applet_id_from,
+)
+
 if TYPE_CHECKING:
     from docking.core.config import Config
-
-APPLET_PREFIX = "applet://"
 
 _ICON_NAME_ALIASES: dict[str, tuple[str, ...]] = {
     # Not widely available outside GNOME/MATE icon packs.
@@ -160,17 +167,16 @@ def draw_icon_label(cr: cairo.Context, text: str, size: int) -> None:
 
 def is_applet(desktop_id: str) -> bool:
     """True if desktop_id refers to a applet rather than a .desktop app."""
-    return desktop_id.startswith(APPLET_PREFIX)
+    return is_applet_desktop_id(desktop_id=desktop_id)
 
 
-def applet_id_from(desktop_id: str) -> str:
+def applet_id_from(desktop_id: str) -> AppletId:
     """Extract applet id from desktop_id.
 
-    Handles both simple ids ('applet://clock' -> 'clock') and
-    multi-instance ids ('applet://separator#2' -> 'separator').
+    Handles both simple ids ('applet://clock' -> AppletId.CLOCK) and
+    multi-instance ids ('applet://separator#2' -> AppletId.SEPARATOR).
     """
-    raw = desktop_id[len(APPLET_PREFIX) :]
-    return raw.split("#")[0]
+    return _applet_id_from(desktop_id=desktop_id)
 
 
 class Applet(ABC):
@@ -186,7 +192,7 @@ class Applet(ABC):
       stop()    -> cleanup (called on removal or shutdown)
     """
 
-    id: str
+    id: AppletId
     name: str
     icon_name: str
 
@@ -207,7 +213,7 @@ class Applet(ABC):
 
     @property
     def desktop_id(self) -> str:
-        return f"{APPLET_PREFIX}{self.id}"
+        return applet_desktop_id(applet_id=self.id)
 
     def load_prefs(self) -> dict[str, Any]:
         """Load this applet's preferences from config."""

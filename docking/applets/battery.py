@@ -17,7 +17,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon_centered
-from docking.applets.ids import AppletId
+from docking.applets.identity import AppletId
 
 if TYPE_CHECKING:
     from docking.core.config import Config

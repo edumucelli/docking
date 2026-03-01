@@ -5,14 +5,14 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from docking.applets.ids import AppletId
+from docking.applets.identity import AppletId
 
 if TYPE_CHECKING:
     from docking.applets.base import Applet
 
 
 @lru_cache(maxsize=1)
-def get_registry() -> dict[str, type[Applet]]:
+def get_registry() -> dict[AppletId, type[Applet]]:
     """Return the applet registry, loading it on first access."""
     from docking.applets.ambient import AmbientApplet
     from docking.applets.applications import ApplicationsApplet

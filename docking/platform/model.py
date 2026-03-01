@@ -106,18 +106,24 @@ class DockModel:
     def add_applet(self, applet_id: str) -> None:
         """Instantiate a applet and add to the dock."""
         from docking.applets import get_registry
+        from docking.applets.identity import AppletId, applet_desktop_id
 
-        desktop_id = f"applet://{applet_id}"
+        try:
+            did = AppletId(applet_id)
+        except ValueError:
+            return
+
+        desktop_id = applet_desktop_id(applet_id=did)
         if desktop_id in self._applets:
             return
-        cls = get_registry().get(applet_id)
+        cls = get_registry().get(did)
         if not cls:
             return
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         try:
             applet = cls(icon_size, config=self._config)
         except Exception:
-            get_logger(name="model").exception("Failed to create applet %s", applet_id)
+            get_logger(name="model").exception("Failed to create applet %s", did)
             return
         self._applets[desktop_id] = applet
         self.pinned_items.append(applet.item)
@@ -129,16 +135,17 @@ class DockModel:
     def add_separator(self, index: int = -1) -> None:
         """Add a separator instance at the given pinned index (-1 = end)."""
         from docking.applets import get_registry
+        from docking.applets.identity import APPLET_PREFIX, AppletId, applet_desktop_id
 
-        cls = get_registry().get("separator")
+        cls = get_registry().get(AppletId.SEPARATOR)
         if not cls:
             return
 
         # Find next unused instance number
-        prefix = "applet://separator#"
+        prefix = f"{APPLET_PREFIX}{AppletId.SEPARATOR}#"
         nums = [int(k[len(prefix) :]) for k in self._applets if k.startswith(prefix)]
         n = max(nums, default=-1) + 1
-        desktop_id = f"{prefix}{n}"
+        desktop_id = applet_desktop_id(applet_id=AppletId.SEPARATOR, instance=n)
 
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         try:

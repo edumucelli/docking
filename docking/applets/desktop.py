@@ -12,7 +12,7 @@ gi.require_version("Wnck", "3.0")
 from gi.repository import GdkPixbuf, Wnck  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
-from docking.applets.ids import AppletId
+from docking.applets.identity import AppletId
 
 
 class DesktopApplet(Applet):
