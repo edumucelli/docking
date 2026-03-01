@@ -15,6 +15,7 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
 from docking.applets.base import Applet
+from docking.applets.ids import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ class CalendarApplet(Applet):
     Tooltip shows the full date. Click toggles a GtkCalendar popup.
     """
 
-    id = "calendar"
+    id = AppletId.CALENDAR
     name = "Calendar"
     icon_name = "office-calendar"
 

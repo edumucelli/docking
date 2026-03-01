@@ -17,6 +17,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon_centered
+from docking.applets.ids import AppletId
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -89,7 +90,7 @@ class BatteryApplet(Applet):
     No preferences, no menu items. Tooltip shows percentage.
     """
 
-    id = "battery"
+    id = AppletId.BATTERY
     name = "Battery"
     icon_name = "battery-good"
 

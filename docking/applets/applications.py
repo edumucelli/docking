@@ -14,6 +14,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.ids import AppletId
 
 # FreeDesktop main categories -> display label
 _CATEGORY_LABELS: dict[str, str] = {
@@ -81,7 +82,7 @@ def _build_app_categories() -> dict[str, list[Gio.DesktopAppInfo]]:
 class ApplicationsApplet(Applet):
     """Categorized application launcher via right-click menu."""
 
-    id = "applications"
+    id = AppletId.APPLICATIONS
     name = "Applications"
     icon_name = "view-app-grid"
 

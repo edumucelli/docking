@@ -22,6 +22,7 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
 from docking.applets.base import Applet
+from docking.applets.ids import AppletId
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -59,7 +60,7 @@ def hour_rotation_24h(hour: int, minute: int) -> float:
 class ClockApplet(Applet):
     """Displays current time as an analog clock face or digital readout."""
 
-    id = "clock"
+    id = AppletId.CLOCK
     name = "Clock"
     icon_name = "clock"
 

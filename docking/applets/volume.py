@@ -13,6 +13,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.ids import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -173,7 +174,7 @@ class VolumeApplet(Applet):
     Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA).
     """
 
-    id = "volume"
+    id = AppletId.VOLUME
     name = "Volume"
     icon_name = "audio-volume-medium"
 

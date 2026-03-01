@@ -20,6 +20,7 @@ import cairo
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, draw_icon_label, load_theme_icon
+from docking.applets.ids import AppletId
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
     AirQualityData,
@@ -51,7 +52,7 @@ class WeatherApplet(Applet):
     Click opens Open-Meteo forecast in browser.
     """
 
-    id = "weather"
+    id = AppletId.WEATHER
     name = "Weather"
     icon_name = "weather-few-clouds"
 

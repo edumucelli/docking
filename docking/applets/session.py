@@ -11,6 +11,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.ids import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ class SessionApplet(Applet):
     suspend, restart, and shutdown via systemctl/loginctl.
     """
 
-    id = "session"
+    id = AppletId.SESSION
     name = "Session"
     icon_name = "system-log-out"
 

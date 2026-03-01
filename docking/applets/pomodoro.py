@@ -14,6 +14,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, draw_icon_label
+from docking.applets.ids import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -166,7 +167,7 @@ class PomodoroApplet(Applet):
     Right-click menu offers reset and duration presets.
     """
 
-    id = "pomodoro"
+    id = AppletId.POMODORO
     name = "Pomodoro"
     icon_name = "alarm"
 

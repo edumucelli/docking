@@ -12,6 +12,7 @@ gi.require_version("Gst", "1.0")
 from gi.repository import GdkPixbuf, Gst, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.ids import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -86,7 +87,7 @@ class AmbientApplet(Applet):
     Right-click menu lists all available sounds.
     """
 
-    id = "ambient"
+    id = AppletId.AMBIENT
     name = "Ambient"
     icon_name = "audio-speakers"
 

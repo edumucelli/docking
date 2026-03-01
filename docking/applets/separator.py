@@ -16,6 +16,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
+from docking.applets.ids import AppletId
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -33,7 +34,7 @@ class SeparatorApplet(Applet):
     Scroll or right-click to adjust width.
     """
 
-    id = "separator"
+    id = AppletId.SEPARATOR
     name = "Separator"
     icon_name = "list-remove"
 

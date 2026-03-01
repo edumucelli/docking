@@ -15,6 +15,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.ids import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ class TrashApplet(Applet):
     Tooltip: item count (e.g. "3 items in Trash").
     """
 
-    id = "trash"
+    id = AppletId.TRASH
     name = "Trash"
     icon_name = "user-trash"
 

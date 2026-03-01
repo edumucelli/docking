@@ -21,6 +21,7 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import NM, Gdk, GdkPixbuf, GLib, Pango, PangoCairo  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.ids import AppletId
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -112,7 +113,7 @@ def signal_to_icon(strength: int, is_connected: bool, is_wifi: bool) -> str:
 class NetworkApplet(Applet):
     """Shows network connection state, wifi signal, and traffic speeds."""
 
-    id = "network"
+    id = AppletId.NETWORK
     name = "Network"
     icon_name = "network-wireless-symbolic"
 

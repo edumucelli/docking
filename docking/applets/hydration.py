@@ -13,6 +13,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, draw_icon_label
+from docking.applets.ids import AppletId
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -215,7 +216,7 @@ class HydrationApplet(Applet):
     Triggers urgent bounce when fully drained.
     """
 
-    id = "hydration"
+    id = AppletId.HYDRATION
     name = "Hydration"
     icon_name = "weather-showers"
 

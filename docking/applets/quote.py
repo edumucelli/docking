@@ -25,6 +25,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
+from docking.applets.ids import AppletId
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -195,7 +196,7 @@ def _source_fallback(source: str) -> list[QuoteEntry]:
 class QuoteApplet(Applet):
     """Quote of the day style applet inspired by the legacy Cairo-Dock plugin."""
 
-    id = "quote"
+    id = AppletId.QUOTE
     name = "Quote"
     icon_name = "idea"
 

@@ -17,6 +17,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.ids import AppletId
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -35,7 +36,7 @@ def _truncate(text: str, max_len: int = MAX_DISPLAY_LEN) -> str:
 class ClippyApplet(Applet):
     """Clipboard history applet. Scroll to cycle, click to paste, menu to pick."""
 
-    id = "clippy"
+    id = AppletId.CLIPPY
     name = "Clippy"
     icon_name = "edit-paste"
 
