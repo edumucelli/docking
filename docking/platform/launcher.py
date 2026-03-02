@@ -9,12 +9,16 @@ from typing import NamedTuple
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
+
+from docking.log import get_logger
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
 DEFAULT_XDG_DATA_DIRS = "/usr/local/share:/usr/share"
 GNOME_APP_PREFIX = "org.gnome."
+_log = get_logger(name="launcher")
 
 
 class DesktopInfo(NamedTuple):
@@ -93,14 +97,14 @@ class Launcher:
                 return GdkPixbuf.Pixbuf.new_from_file_at_scale(
                     icon_name, size, size, True
                 )
-            except GLib.Error:
-                pass
+            except GLib.Error as exc:
+                _log.debug("Failed to load icon file %s: %s", icon_name, exc)
 
         # Try icon theme lookup
         try:
             return theme.load_icon(icon_name, size, Gtk.IconLookupFlags.FORCE_SIZE)
-        except GLib.Error:
-            pass
+        except GLib.Error as exc:
+            _log.debug("Theme icon not found (%s): %s", icon_name, exc)
 
         # Fallback
         try:
@@ -157,8 +161,13 @@ def launch_action(desktop_id: str, action_id: str) -> None:
     if app_info:
         try:
             app_info.launch_action(action_id, None)
-        except GLib.Error:
-            pass
+        except GLib.Error as exc:
+            _log.warning(
+                "Failed to launch action %s for %s: %s",
+                action_id,
+                desktop_id,
+                exc,
+            )
 
 
 def launch(desktop_id: str) -> None:
@@ -184,7 +193,7 @@ def launch(desktop_id: str) -> None:
     try:
         argv = [arg for arg in shlex.split(cmd, posix=True) if arg]
     except ValueError as e:
-        print(f"Failed to parse launch command for {desktop_id}: {e}")
+        _log.warning("Failed to parse launch command for %s: %s", desktop_id, e)
         return
     if not argv:
         return
@@ -198,4 +207,4 @@ def launch(desktop_id: str) -> None:
             stderr=subprocess.DEVNULL,
         )
     except OSError as e:
-        print(f"Failed to launch {desktop_id}: {e}")
+        _log.warning("Failed to launch %s: %s", desktop_id, e)

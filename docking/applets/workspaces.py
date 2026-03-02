@@ -10,6 +10,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Wnck", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk, Wnck  # noqa: E402
 
 from docking.applets.base import Applet

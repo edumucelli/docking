@@ -18,6 +18,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("NM", "1.0")
 gi.require_version("PangoCairo", "1.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import NM, Gdk, GdkPixbuf, GLib, Pango, PangoCairo  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
@@ -363,7 +364,7 @@ class NetworkApplet(Applet):
                 ap = devices[0].get_active_access_point()
                 if ap:
                     self._signal_strength = ap.get_strength()
-            break
+                break
 
     def _build_tooltip(self) -> str:
         """Multi-line tooltip with connection details."""

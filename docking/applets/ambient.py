@@ -9,6 +9,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gst", "1.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gst, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon

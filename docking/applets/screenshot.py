@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, NamedTuple
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon

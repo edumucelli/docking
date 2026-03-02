@@ -5,11 +5,14 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Mock gi before importing launcher
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
+# Mock gi before importing launcher only when PyGObject is unavailable.
+try:
+    import gi  # type: ignore # noqa: F401
+except Exception:
+    gi_mock = MagicMock()
+    gi_mock.require_version = MagicMock()
+    sys.modules.setdefault("gi", gi_mock)
+    sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.platform.launcher import (  # noqa: E402
     Launcher,
@@ -336,16 +339,15 @@ class TestLaunch:
         popen_mock.assert_not_called()
 
     @patch("subprocess.Popen")
-    def test_launch_handles_bad_exec_parse(self, popen_mock):
+    def test_launch_handles_bad_exec_parse(self, popen_mock, caplog):
         mock_app = MagicMock()
         mock_app.get_commandline.return_value = 'foo "unterminated'
         with patch(
             "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=mock_app
         ):
-            with patch("builtins.print") as print_mock:
-                launch(desktop_id="bad.desktop")
+            launch(desktop_id="bad.desktop")
         popen_mock.assert_not_called()
-        print_mock.assert_called()
+        assert "Failed to parse launch command for bad.desktop" in caplog.text
 
     @patch("subprocess.Popen")
     def test_launch_returns_when_command_becomes_empty_after_field_codes(
@@ -363,18 +365,15 @@ class TestLaunch:
         popen_mock.assert_not_called()
 
     @patch("subprocess.Popen", side_effect=OSError("boom"))
-    def test_launch_prints_when_spawn_fails(self, _popen_mock):
+    def test_launch_prints_when_spawn_fails(self, _popen_mock, caplog):
         # Given
         mock_app = MagicMock()
         mock_app.get_commandline.return_value = "firefox"
         # When
-        with (
-            patch(
-                "docking.platform.launcher.Gio.DesktopAppInfo.new",
-                return_value=mock_app,
-            ),
-            patch("builtins.print") as print_mock,
+        with patch(
+            "docking.platform.launcher.Gio.DesktopAppInfo.new",
+            return_value=mock_app,
         ):
             launch(desktop_id="firefox.desktop")
         # Then
-        print_mock.assert_called()
+        assert "Failed to launch firefox.desktop" in caplog.text

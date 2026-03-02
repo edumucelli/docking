@@ -12,11 +12,12 @@ import threading
 from functools import lru_cache
 from typing import TYPE_CHECKING, Callable
 
+import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-import cairo
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, draw_icon_label, load_theme_icon
@@ -58,6 +59,7 @@ class WeatherApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer_id: int = 0
+        self._fetch_request_id: int = 0
         self._weather: WeatherData | None = None
         self._air_quality: AirQualityData | None = None
         self._city_display: str = ""
@@ -240,18 +242,24 @@ class WeatherApplet(Applet):
 
     def _fetch_async(self) -> None:
         """Fetch weather + air quality in a background thread."""
+        self._fetch_request_id += 1
+        request_id = self._fetch_request_id
+        lat = self._lat
+        lng = self._lng
 
         def worker() -> None:
-            weather = fetch_weather(lat=self._lat, lng=self._lng)
-            aqi = fetch_air_quality(lat=self._lat, lng=self._lng)
-            GLib.idle_add(self._on_fetch_result, weather, aqi)
+            weather = fetch_weather(lat=lat, lng=lng)
+            aqi = fetch_air_quality(lat=lat, lng=lng)
+            GLib.idle_add(lambda: self._on_fetch_result(request_id, weather, aqi))
 
         threading.Thread(target=worker, daemon=True).start()
 
     def _on_fetch_result(
-        self, weather: WeatherData | None, aqi: AirQualityData | None
+        self, request_id: int, weather: WeatherData | None, aqi: AirQualityData | None
     ) -> bool:
         """Called on main thread with weather + air quality data."""
+        if request_id != self._fetch_request_id:
+            return False
         self._weather = weather
         self._air_quality = aqi
         self.refresh_icon()

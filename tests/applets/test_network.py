@@ -488,6 +488,45 @@ class TestNetworkAppletInternals:
         # Then
         assert applet._signal_strength == 81
 
+    def test_update_wifi_signal_skips_non_wifi_active_connection_first(
+        self, monkeypatch
+    ):
+        # Given
+        applet = NetworkApplet(48)
+        applet._is_wifi = True
+        monkeypatch.setattr(
+            network_mod.NM,
+            "ActiveConnectionState",
+            SimpleNamespace(ACTIVATED=9),
+            raising=False,
+        )
+
+        class FakeWifiDevice:
+            def get_active_access_point(self):
+                ap = MagicMock()
+                ap.get_strength.return_value = 67
+                return ap
+
+        class FakeEthDevice:
+            pass
+
+        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+
+        conn_eth = MagicMock()
+        conn_eth.get_state.return_value = 9
+        conn_eth.get_devices.return_value = [FakeEthDevice()]
+
+        conn_wifi = MagicMock()
+        conn_wifi.get_state.return_value = 9
+        conn_wifi.get_devices.return_value = [FakeWifiDevice()]
+
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_active_connections.return_value = [conn_eth, conn_wifi]
+        # When
+        applet._update_wifi_signal()
+        # Then
+        assert applet._signal_strength == 67
+
     def test_build_tooltip_disconnected_and_connected(self):
         # Given
         applet = NetworkApplet(48)

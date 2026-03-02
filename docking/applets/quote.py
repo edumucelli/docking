@@ -22,15 +22,18 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.log import get_logger
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
 TWO_PI = 2 * math.pi
+_log = get_logger(name="quote")
 
 DEFAULT_SOURCE = "quotationspage"
 
@@ -184,7 +187,8 @@ def fetch_quotes(source: str, limit: int = 20) -> list[QuoteEntry]:
             f"https://v2.jokeapi.dev/joke/Any?type=single&amount={limit}"
         )
         return _parse_jokeapi(data=data, limit=limit)
-    except Exception:
+    except Exception as exc:
+        _log.debug("Failed to fetch quotes for source=%s: %s", source, exc)
         return []
 
 
@@ -306,7 +310,8 @@ class QuoteApplet(Applet):
                 self._clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
             self._clipboard.set_text(text, -1)
             self._clipboard.store()
-        except Exception:
+        except Exception as exc:
+            _log.warning("Failed to copy quote to clipboard: %s", exc)
             return
 
     def _fetch_async(self, show_first: bool) -> None:

@@ -14,6 +14,7 @@ log = get_logger(name="poof")
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 POOF_DURATION_MS = 300

@@ -9,6 +9,7 @@ from __future__ import annotations
 import gi
 
 gi.require_version("Wnck", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Wnck  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon

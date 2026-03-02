@@ -1,5 +1,10 @@
 """Tests for the weather applet."""
 
+from __future__ import annotations
+
+from unittest.mock import MagicMock
+
+import docking.applets.weather as weather_mod
 from docking.applets.weather import WeatherApplet
 from docking.applets.weather.api import (
     AirQualityData,
@@ -203,3 +208,69 @@ class TestWeatherPrefs:
 
         reloaded = Config.load(path)
         assert reloaded.applet_prefs["weather"]["show_temperature"] is False
+
+
+class _ImmediateThread:
+    def __init__(self, target, daemon=True):
+        self._target = target
+        self.daemon = daemon
+
+    def start(self):
+        self._target()
+
+
+class TestWeatherAsyncFetch:
+    def test_on_fetch_result_ignores_stale_request(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._fetch_request_id = 2
+        applet._weather = None
+        applet._air_quality = None
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        # When
+        result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
+        # Then
+        assert result is False
+        assert applet._weather is None
+        assert applet._air_quality is None
+        refresh.assert_not_called()
+
+    def test_on_fetch_result_applies_latest_request(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._fetch_request_id = 3
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        # When
+        result = applet._on_fetch_result(3, _SAMPLE_WEATHER, _SAMPLE_AQI)
+        # Then
+        assert result is False
+        assert applet._weather == _SAMPLE_WEATHER
+        assert applet._air_quality == _SAMPLE_AQI
+        refresh.assert_called_once()
+
+    def test_fetch_async_uses_coordinate_snapshot(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._lat = 10.0
+        applet._lng = 20.0
+
+        def fake_fetch_weather(lat, lng):
+            applet._lat = 99.0
+            applet._lng = 88.0
+            assert lat == 10.0
+            assert lng == 20.0
+            return _SAMPLE_WEATHER
+
+        fetch_aqi = MagicMock(return_value=_SAMPLE_AQI)
+        monkeypatch.setattr(weather_mod, "fetch_weather", fake_fetch_weather)
+        monkeypatch.setattr(weather_mod, "fetch_air_quality", fetch_aqi)
+        monkeypatch.setattr(weather_mod.threading, "Thread", _ImmediateThread)
+        monkeypatch.setattr(weather_mod.GLib, "idle_add", lambda cb: cb())
+        # When
+        applet._fetch_async()
+        # Then
+        fetch_aqi.assert_called_once_with(lat=10.0, lng=20.0)
+        assert applet._weather == _SAMPLE_WEATHER
+        assert applet._air_quality == _SAMPLE_AQI

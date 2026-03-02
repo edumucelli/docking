@@ -15,6 +15,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("Wnck", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Pango, Wnck  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
@@ -106,8 +107,8 @@ def capture_window(
                     return pixbuf.scale_simple(
                         new_width, new_height, GdkPixbuf.InterpType.BILINEAR
                     )
-        except (TypeError, GLib.Error):
-            pass
+        except (TypeError, GLib.Error) as exc:
+            log.debug("Window preview capture failed for xid=%s: %s", xid, exc)
 
     return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
 

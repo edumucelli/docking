@@ -38,6 +38,26 @@ def ease_out_cubic(t: float) -> float:
     return 1.0 - (1.0 - t) ** 3
 
 
+def _source_exists(source_id: int) -> bool:
+    """Return True when a GLib source id is still active."""
+    if source_id <= 0:
+        return False
+    try:
+        ctx = GLib.MainContext.default()
+        return bool(ctx and ctx.find_source_by_id(source_id))
+    except Exception as exc:
+        log.debug("Could not query GLib source id %s: %s", source_id, exc)
+        # If runtime doesn't expose the check, fall back to best effort.
+        return True
+
+
+def _clear_source(source_id: int) -> int:
+    """Safely remove a GLib source if it still exists and return zero id."""
+    if _source_exists(source_id=source_id):
+        GLib.source_remove(source_id)
+    return 0
+
+
 class AutoHideController:
     """Manages dock hide/show animation with configurable delays."""
 
@@ -62,8 +82,7 @@ class AutoHideController:
         self._cancel_hide_timer()
         self._cancel_unhide_timer()
         if self._anim_timer_id:
-            GLib.source_remove(self._anim_timer_id)
-            self._anim_timer_id = 0
+            self._anim_timer_id = _clear_source(source_id=self._anim_timer_id)
         self.state = HideState.VISIBLE
         self.hide_offset = 0.0
         self.zoom_progress = 0.0
@@ -119,7 +138,7 @@ class AutoHideController:
     def _start_animation(self) -> None:
         """Start the animation tick loop."""
         if self._anim_timer_id:
-            GLib.source_remove(self._anim_timer_id)
+            self._anim_timer_id = _clear_source(source_id=self._anim_timer_id)
         self._anim_timer_id = GLib.timeout_add(FRAME_INTERVAL_MS, self._animation_tick)
 
     # Autohide state machine:
@@ -191,10 +210,8 @@ class AutoHideController:
 
     def _cancel_hide_timer(self) -> None:
         if self._hide_timer_id:
-            GLib.source_remove(self._hide_timer_id)
-            self._hide_timer_id = 0
+            self._hide_timer_id = _clear_source(source_id=self._hide_timer_id)
 
     def _cancel_unhide_timer(self) -> None:
         if self._unhide_timer_id:
-            GLib.source_remove(self._unhide_timer_id)
-            self._unhide_timer_id = 0
+            self._unhide_timer_id = _clear_source(source_id=self._unhide_timer_id)

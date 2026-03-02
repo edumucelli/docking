@@ -12,6 +12,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
@@ -31,7 +32,8 @@ def _count_trash_items() -> int:
         enumerator = trash.enumerate_children(
             Gio.FILE_ATTRIBUTE_STANDARD_NAME, Gio.FileQueryInfoFlags.NONE, None
         )
-    except GLib.Error:
+    except GLib.Error as exc:
+        _log.debug("Could not enumerate trash items: %s", exc)
         return 0
     count = 0
     while enumerator.next_file(None) is not None:
@@ -98,8 +100,8 @@ class TrashApplet(Applet):
         try:
             self._monitor = trash.monitor(Gio.FileMonitorFlags.NONE, None)
             self._monitor.connect("changed", self._on_trash_changed)
-        except GLib.Error:
-            _log.warning("Could not start file monitor for trash")
+        except GLib.Error as exc:
+            _log.warning("Could not start file monitor for trash: %s", exc)
 
     def stop(self) -> None:
         """Cancel the trash file monitor."""
@@ -140,10 +142,16 @@ class TrashApplet(Applet):
                         None,
                     )
                     return
-                except GLib.Error:
+                except GLib.Error as exc:
+                    _log.debug(
+                        "DBus EmptyTrash failed for %s at %s: %s",
+                        bus_name,
+                        obj_path,
+                        exc,
+                    )
                     continue
-        except GLib.Error:
-            pass
+        except GLib.Error as exc:
+            _log.debug("Could not connect to session bus for trash cleanup: %s", exc)
 
         # Fallback: delete children directly via Gio
         self._delete_trash_contents()
@@ -155,7 +163,8 @@ class TrashApplet(Applet):
             enumerator = trash.enumerate_children(
                 Gio.FILE_ATTRIBUTE_STANDARD_NAME, Gio.FileQueryInfoFlags.NONE, None
             )
-        except GLib.Error:
+        except GLib.Error as exc:
+            _log.debug("Could not enumerate trash for deletion: %s", exc)
             return
         while True:
             info = enumerator.next_file(None)
@@ -164,6 +173,6 @@ class TrashApplet(Applet):
             child = trash.get_child(info.get_name())
             try:
                 child.delete(None)
-            except GLib.Error:
-                pass
+            except GLib.Error as exc:
+                _log.debug("Could not delete trash item %s: %s", info.get_name(), exc)
         enumerator.close(None)
