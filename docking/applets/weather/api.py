@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, NamedTuple, cast
 
@@ -113,8 +114,9 @@ class WeatherData(NamedTuple):
 # -- API client --------------------------------------------------------------
 
 
+@lru_cache(maxsize=1)
 def _get_client() -> openmeteo_requests.Client:
-    """Create or return cached API client with retry and request caching."""
+    """Return cached API client with retry and request caching."""
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = str(_CACHE_DIR / "responses")
     cache_session = requests_cache.CachedSession(

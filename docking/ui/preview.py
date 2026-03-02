@@ -98,15 +98,22 @@ def capture_window(
             width = foreign.get_width()
             height = foreign.get_height()
             if width > 0 and height > 0:
+                # Trap X11 errors: the window may be destroyed between
+                # foreign_new_for_display and pixbuf_get_from_window,
+                # causing a segfault in the C layer that Python can't catch.
+                display.error_trap_push()
                 pixbuf = Gdk.pixbuf_get_from_window(foreign, 0, 0, width, height)
-                if pixbuf:
-                    # Scale preserving aspect ratio
-                    scale = min(thumb_w / width, thumb_h / height)
-                    new_width = max(int(width * scale), 1)
-                    new_height = max(int(height * scale), 1)
-                    return pixbuf.scale_simple(
-                        new_width, new_height, GdkPixbuf.InterpType.BILINEAR
-                    )
+                x_error = display.error_trap_pop()
+                if x_error or not pixbuf:
+                    log.debug(f"X11 capture failed for xid={xid} (error={x_error})")
+                    return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
+                # Scale preserving aspect ratio
+                scale = min(thumb_w / width, thumb_h / height)
+                new_width = max(int(width * scale), 1)
+                new_height = max(int(height * scale), 1)
+                return pixbuf.scale_simple(
+                    new_width, new_height, GdkPixbuf.InterpType.BILINEAR
+                )
         except (TypeError, GLib.Error) as exc:
             log.debug(f"Window preview capture failed for xid={xid}: {exc}")
 

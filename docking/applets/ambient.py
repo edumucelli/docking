@@ -97,6 +97,7 @@ class AmbientApplet(Applet):
         self._volume = DEFAULT_VOLUME
         self._playing = False
         self._pipeline: Gst.Element | None = None
+        self._bus_watching = False
 
         if config:
             prefs = config.applet_prefs.get("ambient", {})
@@ -189,10 +190,12 @@ class AmbientApplet(Applet):
             return
 
         # Loop on EOS (file sounds only - noise is infinite)
+        self._bus_watching = False
         if sound.kind == "file":
             bus = self._pipeline.get_bus()
             bus.add_signal_watch()
             bus.connect("message::eos", self._on_eos)
+            self._bus_watching = True
 
         self._pipeline.set_state(Gst.State.PLAYING)
         self._playing = True
@@ -200,9 +203,11 @@ class AmbientApplet(Applet):
     def _stop_playback(self) -> None:
         if self._pipeline:
             _log.debug(f"Stopping pipeline: {self._current}")
-            bus = self._pipeline.get_bus()
-            if bus:
-                bus.remove_signal_watch()
+            if self._bus_watching:
+                bus = self._pipeline.get_bus()
+                if bus:
+                    bus.remove_signal_watch()
+                self._bus_watching = False
             self._pipeline.set_state(Gst.State.NULL)
             # Wait for state change to complete
             self._pipeline.get_state(Gst.CLOCK_TIME_NONE)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import threading
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
 import gi
@@ -255,10 +256,24 @@ class VolumeApplet(Applet):
             self._muted = state.muted
 
     def _tick(self) -> bool:
-        """Periodic poll - refresh icon only if state changed."""
-        prev = VolumeState(volume=self._volume, muted=self._muted)
-        self._poll()
-        if (self._volume, self._muted) != prev:
+        """Periodic poll - fetch state in background thread."""
+        if not self._backend:
+            return True
+
+        def worker() -> None:
+            state = self._backend.get_state()
+            GLib.idle_add(self._on_poll_result, state)
+
+        threading.Thread(target=worker, daemon=True).start()
+        return True
+
+    def _on_poll_result(self, state: VolumeState | None) -> bool:
+        """Apply polled state on main thread, refresh if changed."""
+        if state is None:
+            return False
+        if (state.volume, state.muted) != (self._volume, self._muted):
+            self._volume = state.volume
+            self._muted = state.muted
             self._update_tooltip()
             self.refresh_icon()
-        return True
+        return False

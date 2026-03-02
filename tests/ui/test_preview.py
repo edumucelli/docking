@@ -125,10 +125,12 @@ class TestCaptureWindow:
         scaled = MagicMock()
         pixbuf.scale_simple.return_value = scaled
 
+        display = MagicMock()
+        display.error_trap_pop.return_value = 0
         monkeypatch.setattr(
             preview_mod.GdkX11.X11Display,
             "get_default",
-            lambda: MagicMock(),
+            lambda: display,
             raising=False,
         )
         monkeypatch.setattr(
