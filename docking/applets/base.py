@@ -23,6 +23,7 @@ from docking.applets.identity import (
 from docking.applets.identity import (
     applet_id_from as _applet_id_from,
 )
+from docking.core.items import DockItem
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -198,9 +199,6 @@ class Applet(ABC):
     icon_name: str
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        # Deferred import: DockItem imports from this module (circular)
-        from docking.platform.model import DockItem
-
         self._config = config
         self.item = DockItem(
             desktop_id=self.desktop_id,

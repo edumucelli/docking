@@ -16,7 +16,7 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 # FreeDesktop main categories -> display label
 _CATEGORY_LABELS: dict[str, str] = {
@@ -51,7 +51,10 @@ _CATEGORY_ICONS: dict[str, str] = {
 }
 
 _MENU_ICON_PX = 16
-_log = get_logger(name="applications")
+_log = with_context(
+    get_logger(name="applications"),
+    applet_id=str(AppletId.APPLICATIONS),
+)
 
 
 def _normalize_menu_icon(image: Gtk.Image) -> None:
@@ -169,8 +172,13 @@ class ApplicationsApplet(Applet):
 
 def _launch_app(app_info: Gio.DesktopAppInfo) -> None:
     """Launch an application from its DesktopAppInfo."""
+    desktop_id = app_info.get_id() if app_info else None
     try:
         app_info.launch([], None)
     except GLib.Error as exc:
         app_name = app_info.get_display_name() if app_info else None
-        _log.warning("Failed to launch application %s: %s", app_name, exc)
+        _log.bind(desktop_id=desktop_id, action="launch_app").warning(
+            "Failed to launch application %s: %s",
+            app_name,
+            exc,
+        )

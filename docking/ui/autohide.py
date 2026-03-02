@@ -46,7 +46,7 @@ def _source_exists(source_id: int) -> bool:
         ctx = GLib.MainContext.default()
         return bool(ctx and ctx.find_source_by_id(source_id))
     except Exception as exc:
-        log.debug("Could not query GLib source id %s: %s", source_id, exc)
+        log.debug(f"Could not query GLib source id {source_id}: {exc}")
         # If runtime doesn't expose the check, fall back to best effort.
         return True
 
@@ -92,7 +92,7 @@ class AutoHideController:
         """Called when mouse leaves the dock area."""
         if not self.enabled:
             return
-        log.debug("on_mouse_leave: state=%s", self.state.value)
+        log.debug(f"on_mouse_leave: state={self.state.value}")
 
         self._cancel_unhide_timer()
 
@@ -107,7 +107,7 @@ class AutoHideController:
         """Called when mouse enters the dock area."""
         if not self.enabled:
             return
-        log.debug("on_mouse_enter: state=%s", self.state.value)
+        log.debug(f"on_mouse_enter: state={self.state.value}")
 
         self.zoom_progress = 1.0
         self._cancel_hide_timer()

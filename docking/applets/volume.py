@@ -15,12 +15,12 @@ from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="volume")
+_log = with_context(get_logger(name="volume"), applet_id=str(AppletId.VOLUME))
 
 STEP = 5
 
@@ -93,20 +93,26 @@ class Backend(NamedTuple):
     toggle_mute: Callable[[], None]
 
 
-def _run(cmd: list[str]) -> str | None:
+def _run(cmd: list[str], action: str) -> str | None:
     """Run command, return stdout or None on failure."""
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
         if result.returncode == 0:
             return result.stdout
     except (OSError, subprocess.TimeoutExpired) as exc:
-        _log.warning("Failed to run %s: %s", cmd, exc)
+        _log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
     return None
 
 
 def _pactl_get_state() -> VolumeState | None:
-    vol_out = _run(cmd=["pactl", "get-sink-volume", "@DEFAULT_SINK@"])
-    mute_out = _run(cmd=["pactl", "get-sink-mute", "@DEFAULT_SINK@"])
+    vol_out = _run(
+        cmd=["pactl", "get-sink-volume", "@DEFAULT_SINK@"],
+        action="get_state",
+    )
+    mute_out = _run(
+        cmd=["pactl", "get-sink-mute", "@DEFAULT_SINK@"],
+        action="get_state",
+    )
     if vol_out is None or mute_out is None:
         return None
     vol = _parse_pactl_volume(output=vol_out)
@@ -117,26 +123,32 @@ def _pactl_get_state() -> VolumeState | None:
 
 
 def _pactl_set_volume(volume: int) -> None:
-    _run(cmd=["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{volume}%"])
+    _run(
+        cmd=["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{volume}%"],
+        action="set_volume",
+    )
 
 
 def _pactl_toggle_mute() -> None:
-    _run(cmd=["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"])
+    _run(
+        cmd=["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"],
+        action="toggle_mute",
+    )
 
 
 def _amixer_get_state() -> VolumeState | None:
-    out = _run(cmd=["amixer", "get", "Master"])
+    out = _run(cmd=["amixer", "get", "Master"], action="get_state")
     if out is None:
         return None
     return _parse_amixer(output=out)
 
 
 def _amixer_set_volume(volume: int) -> None:
-    _run(cmd=["amixer", "set", "Master", f"{volume}%"])
+    _run(cmd=["amixer", "set", "Master", f"{volume}%"], action="set_volume")
 
 
 def _amixer_toggle_mute() -> None:
-    _run(cmd=["amixer", "set", "Master", "toggle"])
+    _run(cmd=["amixer", "set", "Master", "toggle"], action="toggle_mute")
 
 
 _BACKENDS: tuple[Backend, ...] = (
@@ -182,7 +194,7 @@ class VolumeApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._backend = _detect_backend()
         if not self._backend:
-            _log.warning(
+            _log.bind(action="detect_backend").warning(
                 "No audio backend found (%s)",
                 ", ".join(b.command for b in _BACKENDS),
             )

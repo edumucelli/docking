@@ -12,15 +12,17 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gtk  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
+from docking.core.zoom import content_bounds
 from docking.log import get_logger
 
 _log = get_logger(name="tooltip")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.core.items import DockItem
     from docking.core.theme import Theme
     from docking.core.zoom import LayoutItem
-    from docking.platform.model import DockItem, DockModel
+    from docking.platform.model import DockModel
 
 
 TOOLTIP_BASE_GAP = 10  # base gap between icon and tooltip
@@ -95,7 +97,7 @@ class TooltipManager:
         # crossing events) vs just repositioning (cheap: move only).
         content_changed = not (item is self._last_item and item.name == self._last_name)
         if content_changed:
-            _log.debug("content changed: %s", item.name)
+            _log.debug(f"content changed: {item.name}")
         self._last_item = item
         self._last_name = item.name
 
@@ -110,8 +112,6 @@ class TooltipManager:
             return
 
         li = layout[idx]
-        from docking.core.zoom import content_bounds
-
         left_edge, right_edge = content_bounds(
             layout=layout,
             icon_size=self._config.icon_size,

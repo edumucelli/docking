@@ -16,12 +16,12 @@ from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="session")
+_log = with_context(get_logger(name="session"), applet_id=str(AppletId.SESSION))
 TWO_PI = 2 * math.pi
 
 
@@ -41,12 +41,12 @@ _ACTIONS: list[SessionAction] = [
 ]
 
 
-def _run(cmd: list[str]) -> None:
+def _run(cmd: list[str], action: str) -> None:
     """Run a session/power command, logging failures."""
     try:
         subprocess.Popen(cmd, start_new_session=True)
     except OSError as exc:
-        _log.warning("Failed to run %s: %s", cmd, exc)
+        _log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
 
 
 class SessionApplet(Applet):
@@ -119,12 +119,13 @@ class SessionApplet(Applet):
 
     def on_clicked(self) -> None:
         """Lock screen on left-click."""
-        _run(cmd=["loginctl", "lock-session"])
+        _run(cmd=["loginctl", "lock-session"], action="lock_screen")
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
         for label, cmd in _ACTIONS:
             mi = Gtk.MenuItem(label=label)
-            mi.connect("activate", lambda _w, c=cmd: _run(cmd=c))
+            action = label.lower().replace(" ", "_")
+            mi.connect("activate", lambda _w, c=cmd, a=action: _run(cmd=c, action=a))
             items.append(mi)
         return items

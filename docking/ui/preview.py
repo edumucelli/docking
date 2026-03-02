@@ -108,7 +108,7 @@ def capture_window(
                         new_width, new_height, GdkPixbuf.InterpType.BILINEAR
                     )
         except (TypeError, GLib.Error) as exc:
-            log.debug("Window preview capture failed for xid=%s: %s", xid, exc)
+            log.debug(f"Window preview capture failed for xid={xid}: {exc}")
 
     return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
 
@@ -314,7 +314,7 @@ class PreviewPopup(Gtk.Window):
 
     def _on_enter(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
         """Keep popup and dock visible while mouse is inside preview."""
-        log.debug("preview enter: detail=%s mode=%s", event.detail, event.mode)
+        log.debug(f"preview enter: detail={event.detail} mode={event.mode}")
         self._cancel_hide_timer()
         if self._autohide:
             self._autohide.on_mouse_enter()
@@ -344,7 +344,7 @@ class PreviewPopup(Gtk.Window):
         if event.detail == Gdk.NotifyType.INFERIOR:
             log.debug("preview leave: INFERIOR (ignored)")
             return False
-        log.debug("preview leave: detail=%s mode=%s", event.detail, event.mode)
+        log.debug(f"preview leave: detail={event.detail} mode={event.mode}")
         self._schedule_hide()
         if self._autohide:
             self._autohide.on_mouse_leave()
@@ -358,7 +358,7 @@ class PreviewPopup(Gtk.Window):
     def _schedule_hide(self, delay_ms: int = PREVIEW_HIDE_DELAY_MS) -> None:
         """Hide after a grace period (lets user move mouse to popup)."""
         self._cancel_hide_timer()
-        log.debug("preview: scheduling hide in %dms", delay_ms)
+        log.debug(f"preview: scheduling hide in {delay_ms}ms")
         self._hide_timer_id = GLib.timeout_add(delay_ms, self._do_hide)
 
     def _do_hide(self) -> bool:

@@ -7,9 +7,9 @@ from pathlib import Path
 
 import cairo
 
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
-log = get_logger(name="poof")
+log = with_context(get_logger(name="poof"))
 
 import gi
 
@@ -32,7 +32,7 @@ def _load_poof() -> GdkPixbuf.Pixbuf | None:
     try:
         return GdkPixbuf.Pixbuf.new_from_file(svg_path)
     except (GLib.Error, FileNotFoundError):
-        log.warning("poof.svg not found at %s", svg_path)
+        log.bind(action="load_sprite").warning(f"poof.svg not found at {svg_path}")
         return None
 
 
@@ -82,7 +82,7 @@ def show_poof(x: int, y: int) -> None:
     def tick(w: Gtk.Window) -> bool:
         p = w.poof
         p["frame"] += 1
-        log.debug("tick: frame=%d/%d", p["frame"], p["num_frames"])
+        log.bind(action="animate").debug(f"tick: frame={p['frame']}/{p['num_frames']}")
         if p["frame"] >= p["num_frames"]:
             w.destroy()
             return False
@@ -92,11 +92,8 @@ def show_poof(x: int, y: int) -> None:
     win.connect("draw", on_draw)
     win.move(x - frame_size // 2, y - frame_size // 2)
     win.show_all()
-    log.debug(
-        "shown at (%d,%d) frames=%d interval=%dms",
-        x,
-        y,
-        num_frames,
-        POOF_DURATION_MS // num_frames,
+    interval_ms = POOF_DURATION_MS // num_frames
+    log.bind(action="show").debug(
+        f"shown at ({x},{y}) frames={num_frames} interval={interval_ms}ms"
     )
     GLib.timeout_add(POOF_DURATION_MS // num_frames, tick, win)

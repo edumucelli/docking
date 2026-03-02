@@ -16,9 +16,9 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
+from docking.core.items import DockItem
 from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout
-from docking.platform.model import DockItem
 from docking.ui.poof import show_poof
 
 if TYPE_CHECKING:
@@ -160,7 +160,7 @@ class DnDHandler:
                         Gtk.drag_set_icon_pixbuf(
                             context, scaled, icon_size // 2, icon_size // 2
                         )
-                log.debug("  -> dragging item %d: %s", i, item.name)
+                log.debug(f"  -> dragging item {i}: {item.name}")
                 return
         log.debug("  -> no item matched")
 
@@ -238,7 +238,7 @@ class DnDHandler:
                 break
 
         if new_index != self.drag_index:
-            log.debug("drag-motion: reorder %d -> %d", self.drag_index, new_index)
+            log.debug(f"drag-motion: reorder {self.drag_index} -> {new_index}")
             self._model.reorder_visible(self.drag_index, new_index)
             self.drag_index = new_index
 
@@ -295,7 +295,7 @@ class DnDHandler:
 
         # External drop -- process URIs
         insert_at = max(0, self.drop_insert_index)
-        log.debug("drag-data-received: external drop, insert_at=%d", insert_at)
+        log.debug(f"drag-data-received: external drop, insert_at={insert_at}")
         uris = selection.get_uris()
         if not uris:
             text = selection.get_text()

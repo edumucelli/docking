@@ -16,12 +16,12 @@ from gi.repository import GdkPixbuf, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="screenshot")
+_log = with_context(get_logger(name="screenshot"), applet_id=str(AppletId.SCREENSHOT))
 
 
 class Tool(NamedTuple):
@@ -71,7 +71,7 @@ def _run(tool: Tool, mode: str) -> None:
     try:
         subprocess.Popen(cmd, start_new_session=True)
     except OSError as exc:
-        _log.warning("Failed to run %s: %s", cmd, exc)
+        _log.bind(action=f"screenshot_{mode}").warning(f"Failed to run {cmd}: {exc}")
 
 
 class ScreenshotApplet(Applet):
@@ -89,7 +89,7 @@ class ScreenshotApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._tool = _detect_tool()
         if not self._tool:
-            _log.warning(
+            _log.bind(action="detect_tool").warning(
                 "No screenshot tool found (%s)",
                 ", ".join(t.command for t in _TOOLS),
             )

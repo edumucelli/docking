@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import os
+import re
+import shlex
+import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
@@ -12,13 +15,13 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
 DEFAULT_XDG_DATA_DIRS = "/usr/local/share:/usr/share"
 GNOME_APP_PREFIX = "org.gnome."
-_log = get_logger(name="launcher")
+_log = with_context(get_logger(name="launcher"))
 
 
 class DesktopInfo(NamedTuple):
@@ -98,13 +101,21 @@ class Launcher:
                     icon_name, size, size, True
                 )
             except GLib.Error as exc:
-                _log.debug("Failed to load icon file %s: %s", icon_name, exc)
+                _log.bind(action="load_icon").debug(
+                    "Failed to load icon file %s: %s",
+                    icon_name,
+                    exc,
+                )
 
         # Try icon theme lookup
         try:
             return theme.load_icon(icon_name, size, Gtk.IconLookupFlags.FORCE_SIZE)
         except GLib.Error as exc:
-            _log.debug("Theme icon not found (%s): %s", icon_name, exc)
+            _log.bind(action="load_icon").debug(
+                "Theme icon not found (%s): %s",
+                icon_name,
+                exc,
+            )
 
         # Fallback
         try:
@@ -162,7 +173,7 @@ def launch_action(desktop_id: str, action_id: str) -> None:
         try:
             app_info.launch_action(action_id, None)
         except GLib.Error as exc:
-            _log.warning(
+            _log.bind(desktop_id=desktop_id, action="launch_action").warning(
                 "Failed to launch action %s for %s: %s",
                 action_id,
                 desktop_id,
@@ -177,10 +188,6 @@ def launch(desktop_id: str) -> None:
     session and process group. This prevents the child from receiving
     SIGHUP/SIGINT when the dock exits or the terminal sends Ctrl+C.
     """
-    import re
-    import shlex
-    import subprocess
-
     app_info = Gio.DesktopAppInfo.new(desktop_id)
     if not app_info:
         return
@@ -193,7 +200,9 @@ def launch(desktop_id: str) -> None:
     try:
         argv = [arg for arg in shlex.split(cmd, posix=True) if arg]
     except ValueError as e:
-        _log.warning("Failed to parse launch command for %s: %s", desktop_id, e)
+        _log.bind(desktop_id=desktop_id, action="parse_exec").warning(
+            f"Failed to parse launch command for {desktop_id}: {e}"
+        )
         return
     if not argv:
         return
@@ -207,4 +216,6 @@ def launch(desktop_id: str) -> None:
             stderr=subprocess.DEVNULL,
         )
     except OSError as e:
-        _log.warning("Failed to launch %s: %s", desktop_id, e)
+        _log.bind(desktop_id=desktop_id, action="launch").warning(
+            f"Failed to launch {desktop_id}: {e}"
+        )

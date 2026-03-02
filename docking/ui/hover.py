@@ -17,8 +17,9 @@ _log = get_logger(name="hover")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.core.items import DockItem
     from docking.core.theme import Theme
-    from docking.platform.model import DockItem, DockModel
+    from docking.platform.model import DockModel
     from docking.ui.dock_window import DockWindow
     from docking.ui.preview import PreviewPopup
     from docking.ui.tooltip import TooltipManager
@@ -77,9 +78,9 @@ class HoverManager:
             return
 
         _log.debug(
-            "hover changed: %s -> %s",
-            self.hovered_item.name if self.hovered_item else None,
-            item.name if item else None,
+            f"hover changed: "
+            f"{self.hovered_item.name if self.hovered_item else None} -> "
+            f"{item.name if item else None}"
         )
         self.hovered_item = item
         self.cancel()

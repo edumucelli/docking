@@ -25,9 +25,10 @@ _log = get_logger(name="dock_window")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.core.items import DockItem
     from docking.core.theme import Theme
     from docking.core.zoom import LayoutItem
-    from docking.platform.model import DockItem, DockModel
+    from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.autohide import AutoHideController
     from docking.ui.dnd import DnDHandler

@@ -17,12 +17,12 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="trash")
+_log = with_context(get_logger(name="trash"), applet_id=str(AppletId.TRASH))
 
 
 def _count_trash_items() -> int:
@@ -33,7 +33,9 @@ def _count_trash_items() -> int:
             Gio.FILE_ATTRIBUTE_STANDARD_NAME, Gio.FileQueryInfoFlags.NONE, None
         )
     except GLib.Error as exc:
-        _log.debug("Could not enumerate trash items: %s", exc)
+        _log.bind(action="count_items").debug(
+            "Could not enumerate trash items: %s", exc
+        )
         return 0
     count = 0
     while enumerator.next_file(None) is not None:
@@ -76,7 +78,7 @@ class TrashApplet(Applet):
         try:
             Gio.AppInfo.launch_default_for_uri("trash:///", None)
         except GLib.Error as e:
-            _log.warning("Failed to open trash: %s", e)
+            _log.bind(action="open_trash").warning(f"Failed to open trash: {e}")
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Return 'Open Trash' and 'Empty Trash' menu items."""
@@ -101,7 +103,10 @@ class TrashApplet(Applet):
             self._monitor = trash.monitor(Gio.FileMonitorFlags.NONE, None)
             self._monitor.connect("changed", self._on_trash_changed)
         except GLib.Error as exc:
-            _log.warning("Could not start file monitor for trash: %s", exc)
+            _log.bind(action="monitor_trash").warning(
+                "Could not start file monitor for trash: %s",
+                exc,
+            )
 
     def stop(self) -> None:
         """Cancel the trash file monitor."""
@@ -143,7 +148,7 @@ class TrashApplet(Applet):
                     )
                     return
                 except GLib.Error as exc:
-                    _log.debug(
+                    _log.bind(action="empty_trash_dbus").debug(
                         "DBus EmptyTrash failed for %s at %s: %s",
                         bus_name,
                         obj_path,
@@ -151,7 +156,10 @@ class TrashApplet(Applet):
                     )
                     continue
         except GLib.Error as exc:
-            _log.debug("Could not connect to session bus for trash cleanup: %s", exc)
+            _log.bind(action="empty_trash_dbus").debug(
+                "Could not connect to session bus for trash cleanup: %s",
+                exc,
+            )
 
         # Fallback: delete children directly via Gio
         self._delete_trash_contents()
@@ -164,7 +172,10 @@ class TrashApplet(Applet):
                 Gio.FILE_ATTRIBUTE_STANDARD_NAME, Gio.FileQueryInfoFlags.NONE, None
             )
         except GLib.Error as exc:
-            _log.debug("Could not enumerate trash for deletion: %s", exc)
+            _log.bind(action="empty_trash_delete").debug(
+                "Could not enumerate trash for deletion: %s",
+                exc,
+            )
             return
         while True:
             info = enumerator.next_file(None)
@@ -174,5 +185,9 @@ class TrashApplet(Applet):
             try:
                 child.delete(None)
             except GLib.Error as exc:
-                _log.debug("Could not delete trash item %s: %s", info.get_name(), exc)
+                _log.bind(action="empty_trash_delete").debug(
+                    "Could not delete trash item %s: %s",
+                    info.get_name(),
+                    exc,
+                )
         enumerator.close(None)

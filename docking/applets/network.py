@@ -19,16 +19,16 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("NM", "1.0")
 gi.require_version("PangoCairo", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import NM, Gdk, GdkPixbuf, GLib, Pango, PangoCairo  # noqa: E402
+from gi.repository import NM, Gdk, GdkPixbuf, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
 from docking.applets.base import Applet, load_theme_icon
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="network")
+_log = with_context(get_logger(name="network"), applet_id=str(AppletId.NETWORK))
 
 POLL_INTERVAL_S = 2
 
@@ -189,8 +189,6 @@ class NetworkApplet(Applet):
 
     def get_menu_items(self) -> list:
         """Show connection info."""
-        from gi.repository import Gtk
-
         items = []
         if self._ssid:
             header = Gtk.MenuItem(
@@ -231,7 +229,9 @@ class NetworkApplet(Applet):
             )
             self._update_nm_state()
         except GLib.Error:
-            _log.warning("Could not connect to NetworkManager")
+            _log.bind(action="connect_nm").warning(
+                "Could not connect to NetworkManager"
+            )
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
 
     def stop(self) -> None:

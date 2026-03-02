@@ -27,13 +27,13 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
 TWO_PI = 2 * math.pi
-_log = get_logger(name="quote")
+_log = with_context(get_logger(name="quote"), applet_id=str(AppletId.QUOTE))
 
 DEFAULT_SOURCE = "quotationspage"
 
@@ -188,7 +188,11 @@ def fetch_quotes(source: str, limit: int = 20) -> list[QuoteEntry]:
         )
         return _parse_jokeapi(data=data, limit=limit)
     except Exception as exc:
-        _log.debug("Failed to fetch quotes for source=%s: %s", source, exc)
+        _log.bind(action="fetch_quotes").debug(
+            "Failed to fetch quotes for source=%s: %s",
+            source,
+            exc,
+        )
         return []
 
 
@@ -311,7 +315,10 @@ class QuoteApplet(Applet):
             self._clipboard.set_text(text, -1)
             self._clipboard.store()
         except Exception as exc:
-            _log.warning("Failed to copy quote to clipboard: %s", exc)
+            _log.bind(action="copy_quote").warning(
+                "Failed to copy quote to clipboard: %s",
+                exc,
+            )
             return
 
     def _fetch_async(self, show_first: bool) -> None:

@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
-from docking.log import get_logger
+import docking.applets as applets
+from docking.applets.identity import (
+    APPLET_PREFIX,
+    AppletId,
+    applet_desktop_id,
+    applet_id_from,
+    is_applet_desktop_id,
+)
+from docking.core.items import DockItem
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.applets.base import Applet
@@ -15,32 +23,9 @@ if TYPE_CHECKING:
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib  # noqa: E402
+from gi.repository import GLib  # noqa: E402
 
-
-@dataclass
-class DockItem:
-    """A single item in the dock."""
-
-    desktop_id: str
-    name: str = ""
-    icon_name: str = "application-x-executable"
-    wm_class: str = ""
-    is_pinned: bool = False
-    is_running: bool = False
-    is_active: bool = False
-    is_urgent: bool = False
-    instance_count: int = 0
-    icon: GdkPixbuf.Pixbuf | None = None
-    # Custom slot width along main axis (0 = use icon_size)
-    main_size: int = 0
-    # Timestamps for animations (monotonic microseconds, 0 = inactive)
-    last_clicked: int = 0
-    last_launched: int = 0
-    last_urgent: int = 0
-    # Callable returning tooltip widget/content; used by applets for rich tooltips
-    tooltip_builder: Callable[[], Any] | None = None
+_log = with_context(get_logger(name="model"))
 
 
 class DockModel:
@@ -58,15 +43,11 @@ class DockModel:
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
-        from docking.applets import get_registry
-        from docking.applets.base import applet_id_from, is_applet
-
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
-        registry = get_registry()
+        registry = applets.get_registry()
 
-        log = get_logger(name="model")
         for desktop_id in self._config.pinned:
-            if is_applet(desktop_id=desktop_id):
+            if is_applet_desktop_id(desktop_id=desktop_id):
                 did = applet_id_from(desktop_id=desktop_id)
                 cls = registry.get(did)
                 if cls:
@@ -78,11 +59,17 @@ class DockModel:
                             apply()
                         self._applets[desktop_id] = applet
                         self.pinned_items.append(applet.item)
-                        log.info("Loaded applet %s (icon=%s)", did, applet.item.icon)
+                        _log.bind(applet_id=str(did), action="load_applet").info(
+                            f"Loaded applet {did} (icon={applet.item.icon})"
+                        )
                     except Exception:
-                        log.exception("Failed to create applet %s", did)
+                        _log.bind(applet_id=str(did), action="load_applet").exception(
+                            f"Failed to create applet {did}"
+                        )
                 else:
-                    log.warning("Unknown applet id: %s", did)
+                    _log.bind(applet_id=str(did), action="load_applet").warning(
+                        f"Unknown applet id: {did}"
+                    )
                 continue
 
             info = self._launcher.resolve(desktop_id)
@@ -106,9 +93,6 @@ class DockModel:
 
     def add_applet(self, applet_id: str) -> None:
         """Instantiate a applet and add to the dock."""
-        from docking.applets import get_registry
-        from docking.applets.identity import AppletId, applet_desktop_id
-
         try:
             did = AppletId(applet_id)
         except ValueError:
@@ -117,14 +101,16 @@ class DockModel:
         desktop_id = applet_desktop_id(applet_id=did)
         if desktop_id in self._applets:
             return
-        cls = get_registry().get(did)
+        cls = applets.get_registry().get(did)
         if not cls:
             return
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         try:
             applet = cls(icon_size, config=self._config)
         except Exception:
-            get_logger(name="model").exception("Failed to create applet %s", did)
+            _log.bind(applet_id=str(did), action="add_applet").exception(
+                f"Failed to create applet {did}"
+            )
             return
         self._applets[desktop_id] = applet
         self.pinned_items.append(applet.item)
@@ -135,10 +121,7 @@ class DockModel:
 
     def add_separator(self, index: int = -1) -> None:
         """Add a separator instance at the given pinned index (-1 = end)."""
-        from docking.applets import get_registry
-        from docking.applets.identity import APPLET_PREFIX, AppletId, applet_desktop_id
-
-        cls = get_registry().get(AppletId.SEPARATOR)
+        cls = applets.get_registry().get(AppletId.SEPARATOR)
         if not cls:
             return
 
@@ -152,7 +135,9 @@ class DockModel:
         try:
             applet = cls(icon_size, config=self._config)
         except Exception:
-            get_logger(name="model").exception("Failed to create separator")
+            _log.bind(applet_id="separator", action="add_separator").exception(
+                "Failed to create separator",
+            )
             return
         applet.item.desktop_id = desktop_id
         self._applets[desktop_id] = applet
@@ -287,9 +272,7 @@ class DockModel:
 
         Applets are fully removed (stop + cleanup) since they can't be transient.
         """
-        from docking.applets.base import is_applet
-
-        if is_applet(desktop_id=desktop_id):
+        if is_applet_desktop_id(desktop_id=desktop_id):
             self.remove_applet(desktop_id=desktop_id)
             return
         item = next((p for p in self.pinned_items if p.desktop_id == desktop_id), None)

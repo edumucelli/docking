@@ -10,6 +10,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk  # noqa: E402
 
+import docking.platform.launcher as launcher_mod
+from docking.applets import get_registry
 from docking.applets.base import is_applet
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
@@ -24,9 +26,10 @@ from docking.core.zoom import compute_layout
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.core.items import DockItem
     from docking.core.zoom import LayoutItem
     from docking.platform.launcher import Launcher
-    from docking.platform.model import DockItem, DockModel
+    from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.dock_window import DockWindow
 
@@ -254,8 +257,6 @@ class MenuHandler:
         )
 
         # Applets submenu -- toggle each applet on/off
-        from docking.applets import get_registry
-
         registry = get_registry()
         if registry:
             dock_item = Gtk.MenuItem(label="Applets")
@@ -317,9 +318,8 @@ class MenuHandler:
         """Append desktop actions (quicklists) from .desktop file, if any."""
         if not self._launcher:
             return
-        from docking.platform.launcher import get_actions, launch_action
 
-        actions = get_actions(desktop_id=desktop_id)
+        actions = launcher_mod.get_actions(desktop_id=desktop_id)
         if not actions:
             return
         for action_id, label in actions:
@@ -327,7 +327,7 @@ class MenuHandler:
             # Capture by value via default arg
             mi.connect(
                 "activate",
-                lambda _, did=desktop_id, aid=action_id: launch_action(
+                lambda _, did=desktop_id, aid=action_id: launcher_mod.launch_action(
                     desktop_id=did, action_id=aid
                 ),
             )

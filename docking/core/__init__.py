@@ -1,4 +1,5 @@
 from docking.core.config import Config  # noqa: F401
+from docking.core.items import DockItem  # noqa: F401
 from docking.core.theme import RGB, RGBA, Theme  # noqa: F401
 from docking.core.zoom import (
     LayoutItem,  # noqa: F401

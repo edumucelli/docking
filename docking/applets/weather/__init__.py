@@ -31,12 +31,12 @@ from docking.applets.weather.api import (
     wmo_icon_name,
 )
 from docking.applets.weather.cities import CityEntry, load_cities, search_cities
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="weather")
+_log = with_context(get_logger(name="weather"), applet_id=str(AppletId.WEATHER))
 
 
 @lru_cache(maxsize=1)
@@ -117,7 +117,7 @@ class WeatherApplet(Applet):
         try:
             Gio.AppInfo.launch_default_for_uri(url, None)
         except GLib.Error as e:
-            _log.warning("Failed to open weather URL: %s", e)
+            _log.bind(action="open_url").warning(f"Failed to open weather URL: {e}")
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Return current city label + 'Change City' item that opens a dialog."""

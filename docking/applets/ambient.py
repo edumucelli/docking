@@ -177,7 +177,7 @@ class AmbientApplet(Applet):
         if sound.kind == "file":
             path = SOUNDS_DIR / f"{sound.name}.ogg"
             if not path.exists():
-                _log.warning("Sound file not found: %s", path)
+                _log.warning(f"Sound file not found: {path}")
                 return
             self._pipeline = _build_file_pipeline(path=path, volume=self._volume)
         else:
@@ -185,7 +185,7 @@ class AmbientApplet(Applet):
             self._pipeline = _build_noise_pipeline(wave=wave, volume=self._volume)
 
         if not self._pipeline:
-            _log.warning("Failed to create pipeline for %s", sound.name)
+            _log.warning(f"Failed to create pipeline for {sound.name}")
             return
 
         # Loop on EOS (file sounds only - noise is infinite)
@@ -199,7 +199,7 @@ class AmbientApplet(Applet):
 
     def _stop_playback(self) -> None:
         if self._pipeline:
-            _log.debug("Stopping pipeline: %s", self._current)
+            _log.debug(f"Stopping pipeline: {self._current}")
             bus = self._pipeline.get_bus()
             if bus:
                 bus.remove_signal_watch()

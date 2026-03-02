@@ -21,7 +21,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -32,7 +32,7 @@ RADIUS_PERCENT = 0.9
 # Redraw thresholds (avoid excessive redraws)
 CPU_THRESHOLD = 0.03
 MEM_THRESHOLD = 0.01
-_log = get_logger(name="cpumonitor")
+_log = with_context(get_logger(name="cpumonitor"), applet_id=str(AppletId.CPUMONITOR))
 
 
 # -- Pure data functions (testable without GTK) ------------------------------
@@ -140,7 +140,9 @@ class CpuMonitorApplet(Applet):
             with open("/proc/stat") as f:
                 curr = parse_proc_stat(text=f.read())
         except OSError as exc:
-            _log.debug("Could not read /proc/stat: %s", exc)
+            _log.bind(action="read_proc_stat").debug(
+                "Could not read /proc/stat: %s", exc
+            )
             return True
 
         if self._prev_sample is not None:
@@ -153,7 +155,10 @@ class CpuMonitorApplet(Applet):
             with open("/proc/meminfo") as f:
                 self._mem = parse_proc_meminfo(text=f.read())
         except OSError as exc:
-            _log.debug("Could not read /proc/meminfo: %s", exc)
+            _log.bind(action="read_proc_meminfo").debug(
+                "Could not read /proc/meminfo: %s",
+                exc,
+            )
 
         # Only redraw if change exceeds threshold
         cpu_delta = abs(self._cpu - self._last_drawn_cpu)

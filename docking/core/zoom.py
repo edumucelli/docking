@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.model import DockItem
+    from docking.core.items import DockItem
 
 
 # Floating-point snap threshold for the zoom offset percentage.
