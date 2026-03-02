@@ -176,3 +176,43 @@ class TestCaptureWindow:
         result = preview_mod.capture_window(window, thumb_w=180, thumb_h=120)
         # Then
         assert result is fallback
+
+    def test_capture_xid_returns_none_for_black_unavailable_frame(self, monkeypatch):
+        # Given
+        foreign = MagicMock()
+        foreign.get_width.return_value = 4
+        foreign.get_height.return_value = 4
+
+        # Fully black opaque pixels.
+        pixbuf = MagicMock()
+        pixbuf.get_width.return_value = 4
+        pixbuf.get_height.return_value = 4
+        pixbuf.get_n_channels.return_value = 4
+        pixbuf.get_rowstride.return_value = 16
+        pixbuf.get_has_alpha.return_value = True
+        pixbuf.get_pixels.return_value = bytes([0, 0, 0, 255] * 16)
+
+        display = MagicMock()
+        display.error_trap_pop.return_value = 0
+        monkeypatch.setattr(
+            preview_mod.GdkX11.X11Display,
+            "get_default",
+            lambda: display,
+            raising=False,
+        )
+        monkeypatch.setattr(
+            preview_mod.GdkX11.X11Window,
+            "foreign_new_for_display",
+            lambda _display, _xid: foreign,
+            raising=False,
+        )
+        monkeypatch.setattr(
+            preview_mod.Gdk,
+            "pixbuf_get_from_window",
+            lambda *_a, **_k: pixbuf,
+            raising=False,
+        )
+        # When
+        result = preview_mod.capture_xid(42, thumb_w=200, thumb_h=150)
+        # Then
+        assert result is None

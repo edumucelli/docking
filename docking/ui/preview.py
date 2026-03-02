@@ -86,11 +86,22 @@ def capture_window(
         return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
 
     xid = wnck_window.get_xid()
+    pixbuf = capture_xid(xid=xid, thumb_w=thumb_w, thumb_h=thumb_h)
+    if pixbuf is None:
+        return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
+    return pixbuf
+
+
+def capture_xid(
+    xid: int, thumb_w: int = THUMB_W, thumb_h: int = THUMB_H
+) -> GdkPixbuf.Pixbuf | None:
+    """Capture a window thumbnail by XID, avoiding direct Wnck object use."""
     display = GdkX11.X11Display.get_default()
 
     try:
         foreign = GdkX11.X11Window.foreign_new_for_display(display, xid)
-    except (TypeError, GLib.Error):
+    except (TypeError, GLib.Error) as exc:
+        log.warning(f"Failed to create foreign X11 window for xid={xid}: {exc}")
         foreign = None
 
     if foreign:
@@ -106,7 +117,10 @@ def capture_window(
                 x_error = display.error_trap_pop()
                 if x_error or not pixbuf:
                     log.debug(f"X11 capture failed for xid={xid} (error={x_error})")
-                    return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
+                    return None
+                if _looks_unavailable_capture(pixbuf=pixbuf):
+                    log.debug(f"Capture looked unavailable (black) for xid={xid}")
+                    return None
                 # Scale preserving aspect ratio
                 scale = min(thumb_w / width, thumb_h / height)
                 new_width = max(int(width * scale), 1)
@@ -115,9 +129,58 @@ def capture_window(
                     new_width, new_height, GdkPixbuf.InterpType.BILINEAR
                 )
         except (TypeError, GLib.Error) as exc:
-            log.debug(f"Window preview capture failed for xid={xid}: {exc}")
+            log.warning(f"Window preview capture failed for xid={xid}: {exc}")
 
-    return _icon_fallback(thumb_w=thumb_w, thumb_h=thumb_h)
+    return None
+
+
+def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
+    """Detect near-black captures that should fallback to app icon."""
+    try:
+        width = int(pixbuf.get_width())
+        height = int(pixbuf.get_height())
+        channels = int(pixbuf.get_n_channels())
+        rowstride = int(pixbuf.get_rowstride())
+        has_alpha = bool(pixbuf.get_has_alpha())
+        data = pixbuf.get_pixels()
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+    if width <= 0 or height <= 0 or channels < 3 or rowstride <= 0:
+        return False
+    if not isinstance(data, (bytes, bytearray, memoryview)):
+        return False
+
+    sample_x = max(1, min(8, width))
+    sample_y = max(1, min(8, height))
+    max_channel = 0
+    total_luma = 0
+    count = 0
+
+    for yi in range(sample_y):
+        y = int((yi + 0.5) * height / sample_y)
+        if y >= height:
+            y = height - 1
+        for xi in range(sample_x):
+            x = int((xi + 0.5) * width / sample_x)
+            if x >= width:
+                x = width - 1
+            p = y * rowstride + x * channels
+            r = data[p]
+            g = data[p + 1]
+            b = data[p + 2]
+            a = data[p + 3] if has_alpha and channels >= 4 else 255
+            if a < 8:
+                continue
+            max_channel = max(max_channel, r, g, b)
+            total_luma += (r + g + b) // 3
+            count += 1
+
+    if count == 0:
+        return True
+
+    avg_luma = total_luma / count
+    return max_channel < 10 and avg_luma < 5
 
 
 def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
@@ -138,7 +201,8 @@ def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
     icon_size = min(ICON_FALLBACK_SIZE, thumb_w, thumb_h)
     try:
         icon = icon_theme.load_icon("application-x-executable", icon_size, 0)
-    except GLib.Error:
+    except GLib.Error as exc:
+        log.warning(f"Failed to load fallback preview icon: {exc}")
         icon = None
 
     if icon:
@@ -217,10 +281,11 @@ class PreviewPopup(Gtk.Window):
         The popup is centered on the icon along the main axis and offset
         away from the screen edge along the cross axis.
         """
-        windows = self._tracker.get_windows_for(desktop_id)
-        if not windows:
+        xids = self._tracker.get_xids_for(desktop_id)
+        if not xids:
             self.hide()
             return
+        icon_name = self._tracker.icon_name_for_desktop(desktop_id)
 
         self._current_desktop_id = desktop_id
         self._cancel_hide_timer()
@@ -240,8 +305,10 @@ class PreviewPopup(Gtk.Window):
         box.set_margin_top(POPUP_PADDING)
         box.set_margin_bottom(POPUP_PADDING)
 
-        for window in windows:
-            thumb_widget = self._make_thumbnail(window=window)
+        for xid in xids:
+            thumb_widget = self._make_thumbnail_for_xid(
+                xid=xid, fallback_icon_name=icon_name
+            )
             box.pack_start(thumb_widget, False, False, 0)
 
         self.add(box)
@@ -276,30 +343,30 @@ class PreviewPopup(Gtk.Window):
         self.move(popup_x, popup_y)
         self.show_all()
 
-    def _make_thumbnail(self, window: Wnck.Window) -> Gtk.Widget:
-        """Create a clickable thumbnail widget for a window."""
+    def _make_thumbnail_for_xid(self, xid: int, fallback_icon_name: str) -> Gtk.Widget:
+        """Create a clickable thumbnail widget for a window XID."""
         event_box = Gtk.EventBox()
         event_box.get_style_context().add_class("preview-thumb")
         event_box.set_events(
             Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.ENTER_NOTIFY_MASK
         )
-        event_box.connect("button-press-event", self._on_thumb_click, window)
+        event_box.connect("button-press-event", self._on_thumb_click, xid)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         # Thumbnail image
-        pixbuf = capture_window(window)
+        pixbuf = capture_xid(xid=xid)
         if pixbuf:
             image = Gtk.Image.new_from_pixbuf(pixbuf)
         else:
             image = Gtk.Image.new_from_icon_name(
-                "application-x-executable", Gtk.IconSize.DIALOG
+                fallback_icon_name, Gtk.IconSize.DIALOG
             )
         image.set_size_request(THUMB_W, THUMB_H)
         vbox.pack_start(image, False, False, 0)
 
         # Window title
-        title = window.get_name() or "Untitled"
+        title = self._tracker.get_window_title_for_xid(xid=xid)
         if len(title) > LABEL_MAX_CHARS:
             title = title[: LABEL_MAX_CHARS - 1] + "\u2026"
         label = Gtk.Label(label=title)
@@ -312,10 +379,10 @@ class PreviewPopup(Gtk.Window):
         return event_box
 
     def _on_thumb_click(
-        self, _widget: Gtk.EventBox, _event: Gdk.EventButton, window: Wnck.Window
+        self, _widget: Gtk.EventBox, _event: Gdk.EventButton, xid: int
     ) -> bool:
         """Activate the clicked window."""
-        self._tracker.activate_window(window)
+        self._tracker.activate_xid(xid=xid)
         self.hide()
         return True
 

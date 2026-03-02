@@ -10,7 +10,14 @@ gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, Wnck  # noqa: E402
 
+from docking.log import get_logger, with_context
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
+
+_RECOVERABLE_ERRORS: tuple[type[BaseException], ...] = (TypeError,)
+if isinstance(GLib.Error, type) and issubclass(GLib.Error, BaseException):
+    _RECOVERABLE_ERRORS = (TypeError, GLib.Error)
+
+_log = with_context(get_logger(name="window_tracker"))
 
 
 def _wm_class_desktop_candidates(class_lower: str) -> list[str]:
@@ -88,17 +95,37 @@ class WindowTracker:
             return
 
         active_window = self._screen.get_active_window()
-        active_xid = active_window.get_xid() if active_window else 0
+        active_xid = 0
+        if active_window:
+            try:
+                active_xid = active_window.get_xid()
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="active_xid").warning(
+                    f"Failed to read active window xid: {exc}"
+                )
+                active_xid = 0
 
         # {desktop_id: {"count": n, "active": bool, "urgent": bool,
         #               "windows": [...], "xids": [...]}}
         running: dict[str, dict[str, Any]] = {}
 
         for window in self._screen.get_windows():
-            window_type = window.get_window_type()
+            try:
+                window_type = window.get_window_type()
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="window_type").warning(
+                    f"Skipping window: failed to read window type: {exc}"
+                )
+                continue
             if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
                 continue
-            if window.is_skip_tasklist():
+            try:
+                if window.is_skip_tasklist():
+                    continue
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="skip_tasklist").warning(
+                    f"Skipping window: failed to read skip-tasklist state: {exc}"
+                )
                 continue
 
             desktop_id = self._match_window(window=window)
@@ -114,14 +141,25 @@ class WindowTracker:
                     "xids": [],
                 }
 
-            xid = window.get_xid()
+            try:
+                xid = window.get_xid()
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="window_xid").warning(
+                    f"Skipping window: failed to read xid: {exc}"
+                )
+                continue
             running[desktop_id]["count"] += 1
             running[desktop_id]["windows"].append(window)
             running[desktop_id]["xids"].append(xid)
             if xid == active_xid:
                 running[desktop_id]["active"] = True
-            if window.needs_attention():
-                running[desktop_id]["urgent"] = True
+            try:
+                if window.needs_attention():
+                    running[desktop_id]["urgent"] = True
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="needs_attention", desktop_id=desktop_id).warning(
+                    f"Failed to read urgent state: {exc}"
+                )
 
         self._running_xids_by_desktop = {
             desktop_id: list(info.get("xids", []))
@@ -131,7 +169,13 @@ class WindowTracker:
 
     def _match_window(self, window: Wnck.Window) -> str | None:
         """Match a window to a desktop_id via WM_CLASS."""
-        class_group = window.get_class_group_name()
+        try:
+            class_group = window.get_class_group_name()
+        except _RECOVERABLE_ERRORS as exc:
+            _log.bind(action="class_group").warning(
+                f"Skipping window: failed to read class group: {exc}"
+            )
+            return None
         if not class_group:
             return None
 
@@ -142,7 +186,13 @@ class WindowTracker:
             return self._wm_class_to_desktop[class_lower]
 
         # Try matching class instance name
-        class_instance = window.get_class_instance_name()
+        try:
+            class_instance = window.get_class_instance_name()
+        except _RECOVERABLE_ERRORS as exc:
+            _log.bind(action="class_instance").warning(
+                f"Failed to read class instance name: {exc}"
+            )
+            class_instance = None
         if class_instance:
             inst_lower = class_instance.lower()
             if inst_lower in self._wm_class_to_desktop:
@@ -169,13 +219,51 @@ class WindowTracker:
         """Get all windows belonging to a desktop_id."""
         return self._get_windows_for(desktop_id=desktop_id)
 
+    def get_xids_for(self, desktop_id: str) -> list[int]:
+        """Get current window XIDs for a desktop_id from the latest scan."""
+        return list(self._running_xids_by_desktop.get(desktop_id, []))
+
+    def icon_name_for_desktop(self, desktop_id: str) -> str:
+        """Return icon name for desktop_id from the current dock model."""
+        for item in self._model.visible_items():
+            if item.desktop_id == desktop_id:
+                return item.icon_name or "application-x-executable"
+        return "application-x-executable"
+
+    def get_window_title_for_xid(self, xid: int) -> str:
+        """Get a best-effort window title for an XID."""
+        window = self._window_for_xid(xid=xid)
+        if window is None:
+            return "Window"
+        try:
+            title = window.get_name()
+        except _RECOVERABLE_ERRORS as exc:
+            _log.bind(action="window_title", xid=str(xid)).warning(
+                f"Failed to read window title: {exc}"
+            )
+            return "Window"
+        return title or "Window"
+
     @staticmethod
     def activate_window(window: Wnck.Window) -> None:
         """Activate a specific window."""
         timestamp = Gtk.get_current_event_time() or 0
-        if window.is_minimized():
-            window.unminimize(timestamp)
-        window.activate(timestamp)
+        try:
+            if window.is_minimized():
+                window.unminimize(timestamp)
+            window.activate(timestamp)
+        except _RECOVERABLE_ERRORS as exc:
+            _log.bind(action="activate_window").warning(
+                f"Failed to activate window: {exc}"
+            )
+            return
+
+    def activate_xid(self, xid: int) -> None:
+        """Activate a window by XID, if still present."""
+        window = self._window_for_xid(xid=xid)
+        if window is None:
+            return
+        self.activate_window(window=window)
 
     def toggle_focus(self, desktop_id: str) -> None:
         """Focus or minimize windows for a desktop_id (smart focus)."""
@@ -191,17 +279,26 @@ class WindowTracker:
         # If any window of this app is active, minimize all
         if active_window and active_window in windows:
             for w in windows:
-                w.minimize()
+                try:
+                    w.minimize()
+                except _RECOVERABLE_ERRORS as exc:
+                    _log.bind(action="minimize", desktop_id=desktop_id).warning(
+                        f"Failed to minimize window: {exc}"
+                    )
         else:
             # Activate the most recent window
-            timestamp = Gtk.get_current_event_time() or 0
-            windows[0].activate(timestamp)
+            self.activate_window(windows[0])
 
     def close_all(self, desktop_id: str) -> None:
         """Close all windows for a desktop_id."""
         timestamp = Gtk.get_current_event_time() or 0
         for w in self._get_windows_for(desktop_id=desktop_id):
-            w.close(timestamp)
+            try:
+                w.close(timestamp)
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="close_all", desktop_id=desktop_id).warning(
+                    f"Failed to close window: {exc}"
+                )
 
     def _get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
         """Get windows for desktop_id using cached XIDs from last scan.
@@ -215,14 +312,32 @@ class WindowTracker:
         # Build current XID -> window map from live screen windows.
         by_xid: dict[int, Wnck.Window] = {}
         for window in self._screen.get_windows():
-            window_type = window.get_window_type()
+            try:
+                window_type = window.get_window_type()
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="get_windows_type").warning(
+                    f"Skipping window while collecting by xid: {exc}"
+                )
+                continue
             # Skip DESKTOP/DOCK types -- Caja's desktop window can segfault on
             # WM_CLASS queries, and docks should never appear as app windows.
             if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
                 continue
-            if window.is_skip_tasklist():
+            try:
+                if window.is_skip_tasklist():
+                    continue
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="get_windows_skip_tasklist").warning(
+                    f"Skipping window while collecting by xid: {exc}"
+                )
                 continue
-            by_xid[window.get_xid()] = window
+            try:
+                by_xid[window.get_xid()] = window
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="get_windows_xid").warning(
+                    f"Skipping window while collecting xid map: {exc}"
+                )
+                continue
 
         result: list[Wnck.Window] = []
         for xid in self._running_xids_by_desktop.get(desktop_id, []):
@@ -230,3 +345,18 @@ class WindowTracker:
             if window is not None:
                 result.append(window)
         return result
+
+    def _window_for_xid(self, xid: int) -> Wnck.Window | None:
+        """Resolve a live Wnck window by XID."""
+        if self._screen is None:
+            return None
+        for window in self._screen.get_windows():
+            try:
+                if window.get_xid() == xid:
+                    return window
+            except _RECOVERABLE_ERRORS as exc:
+                _log.bind(action="window_for_xid", xid=str(xid)).warning(
+                    f"Failed while scanning windows for xid: {exc}"
+                )
+                continue
+        return None

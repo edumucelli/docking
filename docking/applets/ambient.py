@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
+import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("Gst", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gst, Gtk  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gst, Gtk  # noqa: E402
 
-from docking.applets.base import Applet, load_theme_icon
+from docking.applets.base import Applet
 from docking.applets.identity import AppletId
 from docking.log import get_logger
 
@@ -81,6 +84,90 @@ def _build_noise_pipeline(wave: int, volume: float) -> Gst.Element | None:
     return pipeline
 
 
+def _rounded_rect_path(
+    cr: cairo.Context, x: float, y: float, w: float, h: float, r: float
+) -> None:
+    """Build a rounded-rectangle path."""
+    r = max(0.0, min(r, min(w, h) / 2.0))
+    cr.new_sub_path()
+    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
+    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
+    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
+    cr.close_path()
+
+
+def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
+    """Draw purple rounded tile with centered waveform bars."""
+    margin = size * 0.09
+    x = margin
+    y = margin
+    w = size - (2 * margin)
+    h = w
+    radius = 0.13 * w
+
+    # Subtle drop shadow.
+    _rounded_rect_path(
+        cr=cr, x=x + (size * 0.01), y=y + (size * 0.018), w=w, h=h, r=radius
+    )
+    cr.set_source_rgba(0.0, 0.0, 0.0, 0.20)
+    cr.fill()
+
+    # Tile fill gradient.
+    gradient = cairo.LinearGradient(x, y, x + w, y + h)
+    gradient.add_color_stop_rgb(0.0, 0xD2 / 255.0, 0x80 / 255.0, 0xB9 / 255.0)
+    gradient.add_color_stop_rgb(1.0, 0x89 / 255.0, 0x40 / 255.0, 0xA8 / 255.0)
+    _rounded_rect_path(cr=cr, x=x, y=y, w=w, h=h, r=radius)
+    cr.set_source(gradient)
+    cr.fill_preserve()
+
+    # Border for crisp edge at smaller sizes.
+    cr.set_source_rgba(0.48, 0.20, 0.55, 0.70)
+    cr.set_line_width(max(1.0, size * 0.016))
+    cr.stroke()
+
+    # Wave bars.
+    cr.set_source_rgba(1.0, 1.0, 1.0, 0.88)
+    bar_count = 16
+    heights = [
+        0.30,
+        0.55,
+        0.75,
+        0.88,
+        1.00,
+        0.84,
+        0.54,
+        0.34,
+        0.26,
+        0.34,
+        0.54,
+        0.84,
+        1.00,
+        0.75,
+        0.55,
+        0.30,
+    ]
+
+    waveform_w = w * 0.76
+    spacing = w * 0.024
+    total_spacing = spacing * (bar_count - 1)
+    bar_w = max(size * 0.01, (waveform_w - total_spacing) / bar_count)
+    max_bar_h = h * 0.52
+    start_x = x + (w - ((bar_w * bar_count) + total_spacing)) / 2
+    center_y = y + (h / 2)
+
+    for i, height in enumerate(heights):
+        bar_h = height * max_bar_h
+        if i >= bar_count // 2:
+            # Keep horizontal spacing symmetric; compact right half vertically.
+            bar_h *= 0.84
+        bar_x = start_x + i * (bar_w + spacing)
+        bar_y = center_y - (bar_h / 2)
+        bar_radius = bar_w * 0.35
+        _rounded_rect_path(cr=cr, x=bar_x, y=bar_y, w=bar_w, h=bar_h, r=bar_radius)
+        cr.fill()
+
+
 class AmbientApplet(Applet):
     """Looping ambient soundscape player.
 
@@ -119,7 +206,10 @@ class AmbientApplet(Applet):
             self.item.name = "Ambient"
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        return load_theme_icon(name="audio-speakers", size=size)
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+        cr = cairo.Context(surface)
+        _draw_waveform_icon(cr=cr, size=size)
+        return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)

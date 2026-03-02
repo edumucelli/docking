@@ -45,7 +45,10 @@ class Launcher:
         """Resolve a desktop ID (e.g. 'firefox.desktop') to full info."""
         try:
             app_info = Gio.DesktopAppInfo.new(desktop_id)
-        except (TypeError, GLib.Error):
+        except (TypeError, GLib.Error) as exc:
+            _log.bind(desktop_id=desktop_id, action="resolve").warning(
+                f"Failed to resolve desktop app info: {exc}"
+            )
             app_info = None
         if app_info is None:
             # Try searching by filename in XDG dirs
@@ -54,7 +57,12 @@ class Launcher:
                 if path.exists():
                     try:
                         app_info = Gio.DesktopAppInfo.new_from_filename(str(path))
-                    except (TypeError, GLib.Error):
+                    except (TypeError, GLib.Error) as exc:
+                        _log.bind(
+                            desktop_id=desktop_id,
+                            action="resolve_from_filename",
+                            path=str(path),
+                        ).warning(f"Failed to resolve desktop file by path: {exc}")
                         continue
                     break
         if app_info is None:
@@ -120,7 +128,10 @@ class Launcher:
         # Fallback
         try:
             return theme.load_icon(FALLBACK_ICON, size, Gtk.IconLookupFlags.FORCE_SIZE)
-        except GLib.Error:
+        except GLib.Error as exc:
+            _log.bind(action="load_icon").warning(
+                f"Failed to load fallback icon {FALLBACK_ICON}: {exc}"
+            )
             return None
 
     @staticmethod
@@ -151,7 +162,10 @@ def get_actions(desktop_id: str) -> list[DesktopAction]:
     """Return .desktop Actions entries (e.g. "New Window", "New Incognito Window")."""
     try:
         app_info = Gio.DesktopAppInfo.new(desktop_id)
-    except (TypeError, GLib.Error):
+    except (TypeError, GLib.Error) as exc:
+        _log.bind(desktop_id=desktop_id, action="get_actions").warning(
+            f"Failed to read desktop actions: {exc}"
+        )
         return []
     if not app_info:
         return []
@@ -167,7 +181,10 @@ def launch_action(desktop_id: str, action_id: str) -> None:
     """Launch a named desktop action (from the .desktop [Desktop Action ...] group)."""
     try:
         app_info = Gio.DesktopAppInfo.new(desktop_id)
-    except (TypeError, GLib.Error):
+    except (TypeError, GLib.Error) as exc:
+        _log.bind(desktop_id=desktop_id, action="launch_action").warning(
+            f"Failed to resolve desktop app info for action {action_id}: {exc}"
+        )
         return
     if app_info:
         try:

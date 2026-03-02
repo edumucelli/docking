@@ -38,6 +38,7 @@ class FakeWindow:
         self._skip_tasklist = skip_tasklist
         self._urgent = urgent
         self._minimized = minimized
+        self._name = class_group
         self.activated_with: list[int] = []
         self.closed_with: list[int] = []
         self.minimize_count = 0
@@ -57,6 +58,9 @@ class FakeWindow:
 
     def get_xid(self) -> int:
         return self._xid
+
+    def get_name(self) -> str:
+        return self._name
 
     def needs_attention(self) -> bool:
         return self._urgent
@@ -221,6 +225,44 @@ class TestWindowTrackerRunningAggregation:
         # Then
         assert windows == [w1]
 
+    def test_get_windows_for_skips_broken_xid_windows(self, tracker_env):
+        # Given
+        tracker, _model, _launcher = tracker_env
+        tracker._running_xids_by_desktop = {"firefox.desktop": [1]}
+
+        class BrokenXidWindow(FakeWindow):
+            def get_xid(self) -> int:  # type: ignore[override]
+                raise TypeError("stale xid")
+
+        tracker._screen = FakeScreen(
+            windows=[BrokenXidWindow(99), FakeWindow(1)],
+            active_window=None,
+        )
+        # When
+        windows = tracker.get_windows_for("firefox.desktop")
+        # Then
+        assert [w.get_xid() for w in windows] == [1]
+
+    def test_update_running_skips_broken_windows(self, tracker_env):
+        # Given
+        tracker, model, _launcher = tracker_env
+
+        class BrokenWindow:
+            def get_window_type(self):
+                raise TypeError("stale window object")
+
+        good = FakeWindow(10, class_group="Firefox")
+        tracker._screen = FakeScreen(windows=[BrokenWindow(), good], active_window=good)
+        tracker._match_window = MagicMock(
+            side_effect=lambda window: "firefox.desktop" if window is good else None
+        )
+        # When
+        tracker._update_running()
+        # Then
+        model.update_running.assert_called_once()
+        running = model.update_running.call_args.args[0]
+        assert running["firefox.desktop"]["xids"] == [10]
+
 
 class TestWindowMatching:
     def test_match_uses_direct_class_map(self, tracker_env):
@@ -277,6 +319,19 @@ class TestWindowMatching:
         # Then
         assert tracker._match_window(win) is None
 
+    def test_match_returns_none_when_class_group_lookup_raises(self, tracker_env):
+        # Given
+        tracker, _model, _launcher = tracker_env
+
+        class BrokenClassWindow(FakeWindow):
+            def get_class_group_name(self):  # type: ignore[override]
+                raise TypeError("invalid pointer")
+
+        win = BrokenClassWindow(15, class_group="Firefox")
+        # When
+        # Then
+        assert tracker._match_window(win) is None
+
 
 class TestWindowActions:
     def test_toggle_focus_minimizes_when_one_window_is_active(self, tracker_env):
@@ -321,3 +376,45 @@ class TestWindowActions:
         # Then
         assert w1.closed_with == [123]
         assert w2.closed_with == [123]
+
+    def test_activate_window_handles_broken_native_calls(self, tracker_env):
+        # Given
+        tracker, _model, _launcher = tracker_env
+
+        class BrokenActivateWindow(FakeWindow):
+            def activate(self, timestamp: int) -> None:  # type: ignore[override]
+                raise TypeError(f"bad activate {timestamp}")
+
+        win = BrokenActivateWindow(30)
+        # When
+        tracker.activate_xid = MagicMock()
+        window_tracker_mod.WindowTracker.activate_window(win)
+        # Then
+        assert win.unminimize_count == 0
+
+    def test_get_window_title_for_xid_handles_error(self, tracker_env):
+        # Given
+        tracker, _model, _launcher = tracker_env
+
+        class BrokenTitleWindow(FakeWindow):
+            def get_name(self) -> str:  # type: ignore[override]
+                raise TypeError("bad name")
+
+        bad = BrokenTitleWindow(40, class_group="Broken")
+        tracker._screen = FakeScreen(windows=[bad], active_window=None)
+        # When
+        title = tracker.get_window_title_for_xid(40)
+        # Then
+        assert title == "Window"
+
+    def test_icon_name_for_desktop_uses_model_item_icon(self, tracker_env):
+        # Given
+        tracker, model, _launcher = tracker_env
+        model.visible_items.return_value = [
+            DockItem(desktop_id="firefox.desktop", icon_name="firefox"),
+            DockItem(desktop_id="code.desktop", icon_name="code"),
+        ]
+        # When
+        icon_name = tracker.icon_name_for_desktop("code.desktop")
+        # Then
+        assert icon_name == "code"
