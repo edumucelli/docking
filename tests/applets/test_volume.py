@@ -105,7 +105,7 @@ class TestVolumeIconName:
 class TestDetectBackend:
     def test_returns_first_available(self):
         with patch(
-            "docking.applets.volume.shutil.which",
+            "docking.applets.volume.state.shutil.which",
             side_effect=[None, "/usr/bin/amixer"],
         ):
             result = _detect_backend()
@@ -113,7 +113,7 @@ class TestDetectBackend:
         assert result.command == "amixer"
 
     def test_returns_none_when_nothing_found(self):
-        with patch("docking.applets.volume.shutil.which", return_value=None):
+        with patch("docking.applets.volume.state.shutil.which", return_value=None):
             assert _detect_backend() is None
 
 
@@ -124,7 +124,7 @@ _MOCK_STATE = VolumeState(volume=45, muted=False)
 
 def _make_applet(state: VolumeState = _MOCK_STATE) -> VolumeApplet:
     """Create applet with mocked backend."""
-    with patch("docking.applets.volume._detect_backend") as mock_detect:
+    with patch("docking.applets.volume.applet._detect_backend") as mock_detect:
         mock_backend = mock_detect.return_value
         mock_backend.command = "pactl"
         mock_backend.get_state.return_value = state

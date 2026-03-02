@@ -302,3 +302,34 @@ class TestUrgentGlow:
         # When
         assert dock_window_mod.DockWindow._urgent_glow_tick(stub) is False
         stub.drawing_area.queue_draw.assert_called_once()
+
+
+class TestModelChangedFlow:
+    def test_model_changed_refreshes_hover_and_redraw(self):
+        # Given
+        stub, _item = _make_stub()
+        stub.drawing_area = MagicMock()
+
+        # When
+        dock_window_mod.DockWindow._on_model_changed(stub)
+
+        # Then
+        stub._update_dock_size.assert_called_once()
+        stub._hover.on_model_changed.assert_called_once()
+        stub._hover.update.assert_called_once_with(33.0)
+        stub.drawing_area.queue_draw.assert_called_once()
+
+    def test_model_changed_skips_hover_refresh_when_not_hovering(self):
+        # Given
+        stub, _item = _make_stub()
+        stub.drawing_area = MagicMock()
+        stub._hover.hovered_item = None
+
+        # When
+        dock_window_mod.DockWindow._on_model_changed(stub)
+
+        # Then
+        stub._update_dock_size.assert_called_once()
+        stub._hover.on_model_changed.assert_called_once()
+        stub._hover.update.assert_not_called()
+        stub.drawing_area.queue_draw.assert_called_once()

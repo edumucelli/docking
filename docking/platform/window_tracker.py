@@ -165,7 +165,7 @@ class WindowTracker:
             desktop_id: list(info.get("xids", []))
             for desktop_id, info in running.items()
         }
-        self._model.update_running(running)
+        self._model.update_running(running=running)
 
     def _match_window(self, window: Wnck.Window) -> str | None:
         """Match a window to a desktop_id via WM_CLASS."""
@@ -201,14 +201,14 @@ class WindowTracker:
         # Try to resolve via Gio: exact, hyphenated, no-spaces variants
         for candidate in _wm_class_desktop_candidates(class_lower=class_lower):
             desktop_id = f"{candidate}{DESKTOP_SUFFIX}"
-            info = self._launcher.resolve(desktop_id)
+            info = self._launcher.resolve(desktop_id=desktop_id)
             if info:
                 self._wm_class_to_desktop[class_lower] = info.desktop_id
                 return info.desktop_id
 
         # Try with org.gnome prefix
         gnome_id = f"{GNOME_APP_PREFIX}{class_group}{DESKTOP_SUFFIX}"
-        info = self._launcher.resolve(gnome_id)
+        info = self._launcher.resolve(desktop_id=gnome_id)
         if info:
             self._wm_class_to_desktop[class_lower] = info.desktop_id
             return info.desktop_id
@@ -287,7 +287,7 @@ class WindowTracker:
                     )
         else:
             # Activate the most recent window
-            self.activate_window(windows[0])
+            self.activate_window(window=windows[0])
 
     def close_all(self, desktop_id: str) -> None:
         """Close all windows for a desktop_id."""

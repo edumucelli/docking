@@ -399,6 +399,7 @@ class TestAppletLifecycleIntegration:
         # Then
         assert len(model.pinned_items) == 1
         assert model.pinned_items[0].desktop_id.startswith("applet://separator#")
+        created[0].apply_prefs.assert_called_once()
         assert created[0].start.called
         assert config.save.called
 
@@ -418,6 +419,37 @@ class TestAppletLifecycleIntegration:
         applet.start.assert_called_once()
         applet.stop.assert_called_once()
         assert found is applet
+
+    def test_start_applets_passes_notify_callback(self):
+        # Given
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher)
+        callback = MagicMock()
+        model.on_change = callback
+
+        class StrictApplet:
+            def __init__(self):
+                self.item = DockItem(desktop_id="applet://strict", name="Strict")
+                self.start_calls = 0
+                self.stop_calls = 0
+
+            def start(self, notify):
+                self.start_calls += 1
+                notify()
+
+            def stop(self):
+                self.stop_calls += 1
+
+        applet = StrictApplet()
+        model._applets["applet://strict"] = applet
+
+        # When
+        model.start_applets()
+
+        # Then
+        assert applet.start_calls == 1
+        callback.assert_called_once()
 
     def test_find_by_desktop_id_and_unpin_applet_route(self, monkeypatch):
         # Given

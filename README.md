@@ -116,6 +116,21 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
+## Tests
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific module
+pytest tests/applets/test_clock.py -v
+
+# Coverage report
+pytest tests/ -v --cov=docking --cov-report=term-missing
+```
+
+## Packages
+
 ### Building a .deb package
 
 ```bash
@@ -243,7 +258,29 @@ All settings are also configurable via the dock's right-click menu.
 
 Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**.
 
+### Applet Architecture
+
+Docking applets follow a small, testable architecture:
+
+- `docking/applets/base.py` defines the common applet lifecycle and UI hooks:
+  - `create_icon(size)`
+  - `on_clicked()`
+  - `on_scroll(direction_up)`
+  - `get_menu_items()`
+  - optional `start(notify=...)` / `stop()`
+- Most applets are organized as a package with three modules:
+  - `state.py`: pure logic, parsing, command/state helpers (easy to unit test)
+  - `render.py`: Cairo/icon rendering helpers (no applet lifecycle logic)
+  - `applet.py`: GTK/Wnck/Gio wiring, timers, click/scroll/menu behavior
+- Package `__init__.py` re-exports public symbols used by the registry/tests.
+- Applet classes are loaded through `docking/applets/__init__.py:get_registry()`.
+- Each applet declares a stable identity via `AppletId` from `docking/applets/identity.py`.
+
+This split keeps runtime behavior in one place while making parsers/rendering highly testable without a live desktop session.
+
 ### Clock
+
+![Clock applet](images/clock.png)
 
 Analog or digital clock face. The analog mode uses SVG layers for a realistic clock face with hour/minute hands.
 
@@ -505,15 +542,16 @@ Applets extend the `Applet` abstract base class in `docking/applets/base.py`:
 
 ```python
 from docking.applets.base import Applet, load_theme_icon
+from docking.applets.identity import AppletId
 
 class MyApplet(Applet):
-    id = "myapplet"          # unique identifier
+    id = AppletId.MY_APPLET  # add enum entry in identity.py
     name = "My Applet"       # display name in menus
     icon_name = "my-icon"    # fallback icon
 
     def create_icon(self, size):
         """Render your icon as a GdkPixbuf at the given size."""
-        return load_theme_icon("my-icon", size)
+        return load_theme_icon(name="my-icon", size=size)
 
     def on_clicked(self):
         """Handle left-click."""
@@ -542,98 +580,26 @@ class MyApplet(Applet):
 - For Cairo rendering: create a surface, draw, return via `Gdk.pixbuf_get_from_surface()`
 - For background work: use `threading.Thread` + `GLib.idle_add()` to dispatch results to main thread
 
-Register your applet in `docking/applets/__init__.py`:
+Recommended file layout:
+
+```text
+docking/applets/my_applet/
+  __init__.py   # re-export MyApplet (+ public helpers if needed)
+  applet.py     # GTK wiring and lifecycle
+  state.py      # pure state/logic helpers
+  render.py     # icon rendering helpers
+```
+
+Register your applet in `docking/applets/__init__.py` (`get_registry()`):
 
 ```python
-from docking.applets.myapplet import MyApplet
+from docking.applets.my_applet import MyApplet
+from docking.applets.identity import AppletId
 
 return {
     ...
-    "myapplet": MyApplet,
+    AppletId.MY_APPLET: MyApplet,
 }
-```
-
-## Architecture
-
-```
-docking/
-+-- app.py                  Entry point, GTK main loop
-+-- log.py                  Logging (DOCKING_LOG_LEVEL env var)
-+-- core/                   Pure logic, no GTK dependency
-|   +-- config.py           Config dataclass, load/save JSON
-|   +-- position.py         Position enum (BOTTOM/TOP/LEFT/RIGHT)
-|   +-- theme.py            Theme with scaling units, RGB/RGBA types
-|   +-- zoom.py             Parabolic zoom math, layout computation
-+-- platform/               System integration
-|   +-- model.py            DockItem dataclass, DockModel
-|   +-- launcher.py         .desktop resolution, icon loading, desktop actions
-|   +-- window_tracker.py   Wnck running app detection
-|   +-- struts.py           X11 _NET_WM_STRUT_PARTIAL via ctypes
-+-- applets/                Extensible applet system (19 applets)
-|   +-- base.py             Applet ABC, shared icon loaders
-|   +-- ambient.py          Ambient sound player
-|   +-- applications.py     Categorized app launcher
-|   +-- battery.py          Battery charge
-|   +-- calendar.py         Calendar icon + popup
-|   +-- clippy.py           Clipboard history
-|   +-- clock.py            Analog/digital clock
-|   +-- cpumonitor.py       CPU/memory gauge
-|   +-- desktop.py          Show desktop toggle
-|   +-- hydration.py        Water reminder timer
-|   +-- network.py          Network status
-|   +-- pomodoro.py         Pomodoro timer
-|   +-- quote.py            Quote/joke applet
-|   +-- screenshot.py       Screenshot capture
-|   +-- separator.py        Gap divider (multi-instance)
-|   +-- session.py          Session/power actions
-|   +-- trash.py            Trash monitor
-|   +-- volume.py           Volume control
-|   +-- weather/            Weather (sub-package)
-|   +-- workspaces.py       Workspace switcher
-+-- ui/                     GTK rendering and interaction
-|   +-- dock_window.py      Main window, events, input region
-|   +-- renderer.py         Draw orchestration, icons, glow, bounce
-|   +-- shelf.py            Shelf background (3D bevel)
-|   +-- effects.py          Easing bounce, icon color extraction
-|   +-- tooltip.py          Tooltip rendering
-|   +-- hover.py            Hover tracking, preview timer
-|   +-- preview.py          Window thumbnail popup
-|   +-- menu.py             Right-click context menus
-|   +-- dnd.py              Drag-and-drop
-|   +-- poof.py             Poof smoke animation
-|   +-- autohide.py         Hide state machine with easing
-+-- assets/
-    +-- poof.svg            Poof sprite sheet
-    +-- themes/             6 JSON themes
-    +-- clock/              Clock face SVG layers
-    +-- weather/            Cities database (gzipped CSV)
-```
-
-## Tests
-
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Run specific module
-pytest tests/applets/test_clock.py -v
-
-# Coverage report
-pytest tests/ -v --cov=docking --cov-report=term-missing
-```
-
-Current suite: 666 tests covering pure functions, applet behavior, rendering, and UI logic.
-
-```
-tests/
-+-- core/       config, theme, zoom, position
-+-- platform/   model, launcher, struts
-+-- applets/    clock, trash, desktop, cpumonitor, battery,
-|               weather, clippy, applications, network, hydration,
-|               quote, ambient, registry
-+-- ui/         autohide, dnd, effects, hover, input_region,
-                leave_behavior, menu, poof, preview, renderer,
-                shelf, tooltip, urgent_glow, icon_position
 ```
 
 **Design principle:** Complex logic is extracted as pure functions (no GTK dependency) so tests run fast without a display server. GTK-dependent tests use lightweight mocks.

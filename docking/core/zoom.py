@@ -218,13 +218,13 @@ def content_bounds(
     half_item_pad = item_padding / 2
     pad = h_padding + half_item_pad
     if not layout:
-        return Bounds(0.0, 2 * pad)
+        return Bounds(left=0.0, right=2 * pad)
     first = layout[0]
     last = layout[-1]
     left = first.x - pad
     last_w = last.width or icon_size
     right = last.x + last_w * last.scale + pad
-    return Bounds(left, right)
+    return Bounds(left=left, right=right)
 
 
 def total_width(

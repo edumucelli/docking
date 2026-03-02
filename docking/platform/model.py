@@ -52,7 +52,7 @@ class DockModel:
                 cls = registry.get(did)
                 if cls:
                     try:
-                        applet = cls(icon_size, config=self._config)
+                        applet = cls(icon_size=icon_size, config=self._config)
                         applet.item.desktop_id = desktop_id
                         apply = getattr(applet, "apply_prefs", None)
                         if apply:
@@ -72,10 +72,10 @@ class DockModel:
                     )
                 continue
 
-            info = self._launcher.resolve(desktop_id)
+            info = self._launcher.resolve(desktop_id=desktop_id)
             if info is None:
                 continue
-            icon = self._launcher.load_icon(info.icon_name, icon_size)
+            icon = self._launcher.load_icon(icon_name=info.icon_name, size=icon_size)
             self.pinned_items.append(
                 DockItem(
                     desktop_id=desktop_id,
@@ -96,17 +96,26 @@ class DockModel:
         try:
             did = AppletId(applet_id)
         except ValueError:
+            _log.bind(applet_id=applet_id, action="add_applet").warning(
+                f"Invalid applet id: {applet_id}"
+            )
             return
 
         desktop_id = applet_desktop_id(applet_id=did)
         if desktop_id in self._applets:
+            _log.bind(applet_id=str(did), action="add_applet").warning(
+                f"Applet already present: {did}"
+            )
             return
         cls = applets.get_registry().get(did)
         if not cls:
+            _log.bind(applet_id=str(did), action="add_applet").warning(
+                f"No class registered for applet: {did}"
+            )
             return
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         try:
-            applet = cls(icon_size, config=self._config)
+            applet = cls(icon_size=icon_size, config=self._config)
         except Exception:
             _log.bind(applet_id=str(did), action="add_applet").exception(
                 f"Failed to create applet {did}"
@@ -114,7 +123,7 @@ class DockModel:
             return
         self._applets[desktop_id] = applet
         self.pinned_items.append(applet.item)
-        applet.start(self.notify)
+        applet.start(notify=self.notify)
         self.sync_pinned_to_config()
         self._config.save()
         self.notify()
@@ -133,19 +142,22 @@ class DockModel:
 
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         try:
-            applet = cls(icon_size, config=self._config)
+            applet = cls(icon_size=icon_size, config=self._config)
         except Exception:
             _log.bind(applet_id="separator", action="add_separator").exception(
                 "Failed to create separator",
             )
             return
         applet.item.desktop_id = desktop_id
+        apply = getattr(applet, "apply_prefs", None)
+        if apply:
+            apply()
         self._applets[desktop_id] = applet
         if index < 0 or index >= len(self.pinned_items):
             self.pinned_items.append(applet.item)
         else:
             self.pinned_items.insert(index, applet.item)
-        applet.start(self.notify)
+        applet.start(notify=self.notify)
         self.sync_pinned_to_config()
         self._config.save()
         self.notify()
@@ -164,7 +176,7 @@ class DockModel:
     def start_applets(self) -> None:
         """Start all active applets (call after dock is ready)."""
         for applet in self._applets.values():
-            applet.start(self.notify)
+            applet.start(notify=self.notify)
 
     def stop_applets(self) -> None:
         """Stop all active applets (call on shutdown)."""
@@ -230,11 +242,15 @@ class DockModel:
                     existing.instance_count = info.get("count", 1)
                     new_transient.append(existing)
                 else:
-                    resolved = self._launcher.resolve(desktop_id)
+                    resolved = self._launcher.resolve(desktop_id=desktop_id)
                     icon_size = int(self._config.icon_size * self._config.zoom_percent)
                     icon = self._launcher.load_icon(
-                        resolved.icon_name if resolved else "application-x-executable",
-                        icon_size,
+                        icon_name=(
+                            resolved.icon_name
+                            if resolved
+                            else "application-x-executable"
+                        ),
+                        size=icon_size,
                     )
                     new_transient.append(
                         DockItem(

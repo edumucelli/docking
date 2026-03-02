@@ -54,7 +54,7 @@ class Config:
     @property
     def pos(self) -> Position:
         """Position as enum."""
-        return Position(self.position)
+        return Position(value=self.position)
 
     def __post_init__(self) -> None:
         self._path: Path = DEFAULT_CONFIG_FILE
@@ -66,11 +66,11 @@ class Config:
         if not path.exists():
             config = cls()
             config._path = path
-            config.save(path)
+            config.save(path=path)
             return config
 
-        with open(path) as f:
-            data: dict[str, Any] = json.load(f)
+        with open(file=path) as f:
+            data: dict[str, Any] = json.load(fp=f)
 
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
@@ -78,7 +78,7 @@ class Config:
         config._path = path
         # Validate position (fallback to default if unknown)
         try:
-            Position(config.position)
+            Position(value=config.position)
         except ValueError:
             config.position = "bottom"
         return config
@@ -87,6 +87,6 @@ class Config:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(asdict(self), f, indent=2)
+        with open(file=path, mode="w") as f:
+            json.dump(obj=asdict(self), fp=f, indent=2)
             f.write("\n")

@@ -15,7 +15,7 @@ class TestCountTrashItems:
 
         # When
         with patch(
-            "docking.applets.trash.Gio.File.new_for_uri", return_value=mock_file
+            "docking.applets.trash.state.Gio.File.new_for_uri", return_value=mock_file
         ):
             count = _count_trash_items()
 
@@ -30,7 +30,7 @@ class TestCountTrashItems:
         mock_file.enumerate_children.side_effect = GLib.Error("fail")
 
         with patch(
-            "docking.applets.trash.Gio.File.new_for_uri", return_value=mock_file
+            "docking.applets.trash.state.Gio.File.new_for_uri", return_value=mock_file
         ):
             assert _count_trash_items() == 0
 
@@ -38,7 +38,7 @@ class TestCountTrashItems:
 class TestTrashAppletIcon:
     def test_empty_trash_uses_empty_icon(self):
         # Given empty trash
-        with patch("docking.applets.trash._count_trash_items", return_value=0):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
 
         # When
@@ -50,7 +50,7 @@ class TestTrashAppletIcon:
 
     def test_full_trash_uses_full_icon(self):
         # Given trash with items
-        with patch("docking.applets.trash._count_trash_items", return_value=5):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=5):
             applet = TrashApplet(48)
 
         # When
@@ -61,7 +61,7 @@ class TestTrashAppletIcon:
         assert "5 items" in applet.item.name
 
     def test_single_item_singular(self):
-        with patch("docking.applets.trash._count_trash_items", return_value=1):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=1):
             applet = TrashApplet(48)
         applet.create_icon(48)
         assert applet.item.name == "1 item in Trash"
@@ -69,20 +69,20 @@ class TestTrashAppletIcon:
 
 class TestTrashAppletMenu:
     def test_returns_two_items(self):
-        with patch("docking.applets.trash._count_trash_items", return_value=0):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
         items = applet.get_menu_items()
         assert len(items) == 2
 
     def test_empty_trash_insensitive_when_empty(self):
-        with patch("docking.applets.trash._count_trash_items", return_value=0):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
         items = applet.get_menu_items()
         empty_item = items[1]
         assert not empty_item.get_sensitive()
 
     def test_empty_trash_sensitive_when_full(self):
-        with patch("docking.applets.trash._count_trash_items", return_value=3):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=3):
             applet = TrashApplet(48)
         items = applet.get_menu_items()
         empty_item = items[1]
@@ -92,12 +92,14 @@ class TestTrashAppletMenu:
 class TestTrashAppletLifecycle:
     def test_start_sets_monitor_and_stop_cancels(self):
         # Given
-        with patch("docking.applets.trash._count_trash_items", return_value=0):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
         monitor = MagicMock()
         trash = MagicMock()
         trash.monitor.return_value = monitor
-        with patch("docking.applets.trash.Gio.File.new_for_uri", return_value=trash):
+        with patch(
+            "docking.applets.trash.applet.Gio.File.new_for_uri", return_value=trash
+        ):
             # When
             applet.start(lambda: None)
             # Then
@@ -114,11 +116,13 @@ class TestTrashAppletLifecycle:
         # Given
         from gi.repository import GLib
 
-        with patch("docking.applets.trash._count_trash_items", return_value=0):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
         trash = MagicMock()
         trash.monitor.side_effect = GLib.Error("monitor error")
-        with patch("docking.applets.trash.Gio.File.new_for_uri", return_value=trash):
+        with patch(
+            "docking.applets.trash.applet.Gio.File.new_for_uri", return_value=trash
+        ):
             # When
             applet.start(lambda: None)
             # Then
@@ -128,10 +132,10 @@ class TestTrashAppletLifecycle:
         # Given
         from gi.repository import GLib
 
-        with patch("docking.applets.trash._count_trash_items", return_value=0):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
         with patch(
-            "docking.applets.trash.Gio.AppInfo.launch_default_for_uri",
+            "docking.applets.trash.applet.Gio.AppInfo.launch_default_for_uri",
             side_effect=GLib.Error("boom"),
         ):
             # When / Then
@@ -141,10 +145,10 @@ class TestTrashAppletLifecycle:
 class TestTrashAppletDeletePaths:
     def test_empty_trash_uses_dbus_first(self):
         # Given
-        with patch("docking.applets.trash._count_trash_items", return_value=1):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=1):
             applet = TrashApplet(48)
         bus = MagicMock()
-        with patch("docking.applets.trash.Gio.bus_get_sync", return_value=bus):
+        with patch("docking.applets.trash.applet.Gio.bus_get_sync", return_value=bus):
             # When
             applet._empty_trash()
             # Then
@@ -154,11 +158,11 @@ class TestTrashAppletDeletePaths:
         # Given
         from gi.repository import GLib
 
-        with patch("docking.applets.trash._count_trash_items", return_value=1):
+        with patch("docking.applets.trash.applet._count_trash_items", return_value=1):
             applet = TrashApplet(48)
         bus = MagicMock()
         bus.call_sync.side_effect = [GLib.Error("caja"), GLib.Error("nautilus")]
-        with patch("docking.applets.trash.Gio.bus_get_sync", return_value=bus):
+        with patch("docking.applets.trash.applet.Gio.bus_get_sync", return_value=bus):
             with patch.object(applet, "_delete_trash_contents") as delete_mock:
                 # When
                 applet._empty_trash()
@@ -178,9 +182,13 @@ class TestTrashAppletDeletePaths:
         trash = MagicMock()
         trash.enumerate_children.return_value = enumerator
         trash.get_child.side_effect = [child_a, child_b]
-        with patch("docking.applets.trash.Gio.File.new_for_uri", return_value=trash):
+        with patch(
+            "docking.applets.trash.applet.Gio.File.new_for_uri", return_value=trash
+        ):
             # When
-            with patch("docking.applets.trash._count_trash_items", return_value=2):
+            with patch(
+                "docking.applets.trash.applet._count_trash_items", return_value=2
+            ):
                 applet = TrashApplet(48)
             applet._delete_trash_contents()
             # Then
@@ -201,9 +209,13 @@ class TestTrashAppletDeletePaths:
         trash = MagicMock()
         trash.enumerate_children.return_value = enumerator
         trash.get_child.return_value = child
-        with patch("docking.applets.trash.Gio.File.new_for_uri", return_value=trash):
+        with patch(
+            "docking.applets.trash.applet.Gio.File.new_for_uri", return_value=trash
+        ):
             # When
-            with patch("docking.applets.trash._count_trash_items", return_value=1):
+            with patch(
+                "docking.applets.trash.applet._count_trash_items", return_value=1
+            ):
                 applet = TrashApplet(48)
             applet._delete_trash_contents()
             # Then

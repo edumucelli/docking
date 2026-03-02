@@ -9,11 +9,12 @@ from docking.applets.ambient import (
     VOLUME_STEP,
     AmbientApplet,
 )
+from docking.applets.ambient.applet import SOUNDS_DIR
 
 
 def _make_applet() -> AmbientApplet:
     """Create applet with mocked GStreamer."""
-    with patch("docking.applets.ambient.Gst"):
+    with patch("docking.applets.ambient.applet.Gst"):
         return AmbientApplet(48)
 
 
@@ -90,3 +91,8 @@ class TestAmbientApplet:
         applet._stop_playback = MagicMock()
         applet.on_clicked()
         applet._stop_playback.assert_called_once()
+
+    def test_sounds_dir_points_to_package_assets(self):
+        assert SOUNDS_DIR.name == "sounds"
+        assert SOUNDS_DIR.parent.name == "assets"
+        assert SOUNDS_DIR.parent.parent.name == "docking"

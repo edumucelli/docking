@@ -62,6 +62,23 @@ class TestWorkspacesApplet:
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
+    def test_item_name_uses_workspace_number_even_if_wnck_name_is_stale(self):
+        # Given
+        applet = WorkspacesApplet(48)
+        active = MagicMock()
+        active.get_number.return_value = 1
+        active.get_name.return_value = "Workspace 1"
+        screen = MagicMock()
+        screen.get_workspaces.return_value = [MagicMock(), MagicMock(), MagicMock()]
+        screen.get_active_workspace.return_value = active
+        applet._screen = screen
+
+        # When
+        applet.create_icon(48)
+
+        # Then
+        assert applet.item.name == "Workspace 2"
+
 
 class TestWorkspacesBehavior:
     def test_on_clicked_activates_next_workspace(self, monkeypatch):

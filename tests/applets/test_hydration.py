@@ -1,8 +1,10 @@
 """Tests for the hydration reminder applet."""
 
 from docking.applets.hydration import (
-    DEFAULT_INTERVAL,
     HydrationApplet,
+)
+from docking.applets.hydration.state import (
+    DEFAULT_INTERVAL,
     mouth_curvature,
     tooltip_text,
     water_color,

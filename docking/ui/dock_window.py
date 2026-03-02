@@ -602,6 +602,11 @@ class DockWindow(Gtk.Window):
         """Reposition and redraw when the model changes."""
         self._update_dock_size()
         self._hover.on_model_changed()
+        # Refresh hover/tooltip state even without mouse motion so applets
+        # that update item.name asynchronously (e.g. workspace switcher)
+        # show the new tooltip text immediately.
+        if self._hover.hovered_item is not None:
+            self._hover.update(self._main_axis_cursor())
         self.drawing_area.queue_draw()
 
     def _update_dock_size(self) -> None:

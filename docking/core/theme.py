@@ -157,8 +157,8 @@ class Theme:
         if not path.exists():
             return cls()
 
-        with open(path) as f:
-            data: dict[str, Any] = json.load(f)
+        with open(file=path) as f:
+            data: dict[str, Any] = json.load(fp=f)
 
         # --- Scale factor ---
         # All layout values in JSON use "tenths of percent of icon_size".

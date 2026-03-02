@@ -200,7 +200,7 @@ class TestWindowTrackerRunningAggregation:
 
         # Then
         model.update_running.assert_called_once()
-        running = model.update_running.call_args.args[0]
+        running = model.update_running.call_args.kwargs["running"]
         assert running["firefox.desktop"]["count"] == 2
         assert running["firefox.desktop"]["active"] is True
         assert running["firefox.desktop"]["urgent"] is True
@@ -260,7 +260,7 @@ class TestWindowTrackerRunningAggregation:
         tracker._update_running()
         # Then
         model.update_running.assert_called_once()
-        running = model.update_running.call_args.args[0]
+        running = model.update_running.call_args.kwargs["running"]
         assert running["firefox.desktop"]["xids"] == [10]
 
 

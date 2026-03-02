@@ -19,7 +19,7 @@ class TestBuildAppCategories:
         mock_app.get_nodisplay.return_value = False
 
         with patch(
-            "docking.applets.applications.Gio.AppInfo.get_all",
+            "docking.applets.applications.state.Gio.AppInfo.get_all",
             return_value=[mock_app],
         ):
             cats = _build_app_categories()

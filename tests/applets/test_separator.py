@@ -77,3 +77,33 @@ class TestSeparatorApplet:
         applet = SeparatorApplet(48)
         applet.item.desktop_id = "applet://separator#5"
         assert applet.item.desktop_id == "applet://separator#5"
+
+    def test_apply_prefs_clamps_loaded_gap_above_max(self):
+        applet = SeparatorApplet(48)
+        applet.item.desktop_id = "applet://separator#0"
+        applet.load_instance_prefs = lambda: {"gap": MAX_SIZE + 100}
+
+        applet.apply_prefs()
+
+        assert applet._gap == MAX_SIZE
+        assert applet.item.main_size == MAX_SIZE
+
+    def test_apply_prefs_clamps_loaded_gap_below_min(self):
+        applet = SeparatorApplet(48)
+        applet.item.desktop_id = "applet://separator#0"
+        applet.load_instance_prefs = lambda: {"gap": -999}
+
+        applet.apply_prefs()
+
+        assert applet._gap == MIN_SIZE
+        assert applet.item.main_size == MIN_SIZE
+
+    def test_apply_prefs_invalid_gap_falls_back_to_default(self):
+        applet = SeparatorApplet(48)
+        applet.item.desktop_id = "applet://separator#0"
+        applet.load_instance_prefs = lambda: {"gap": "bad"}
+
+        applet.apply_prefs()
+
+        assert applet._gap == DEFAULT_SIZE
+        assert applet.item.main_size == DEFAULT_SIZE
