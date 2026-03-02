@@ -2,23 +2,164 @@
 
 from __future__ import annotations
 
+import math
+
+import cairo
 import gi
 
+gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, Gtk  # noqa: E402
-
-from docking.applets.base import load_theme_icon
+from gi.repository import Gdk, GdkPixbuf, Gio, Gtk  # noqa: E402
 
 MENU_ICON_PX = 16
 
 
+def _rounded_rect(
+    *,
+    cr: cairo.Context,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    r: float,
+) -> None:
+    r = max(0.0, min(r, min(w, h) / 2))
+    cr.new_sub_path()
+    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
+    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
+    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
+    cr.close_path()
+
+
+def _draw_applications_icon(*, cr: cairo.Context, size: int) -> None:
+    """Draw custom folder/app-grid icon matching Dock identity."""
+    outline = (0.18, 0.18, 0.50)
+    header = (0.53, 0.79, 0.63)
+    highlight = (0.60, 0.84, 0.72)
+    body = (0.93, 0.93, 0.95)
+
+    x = size * 0.05
+    y = size * 0.08
+    w = size * 0.90
+    h = size * 0.88
+    _rounded_rect(cr=cr, x=x, y=y, w=w, h=h, r=size * 0.10)
+    cr.set_source_rgb(*outline)
+    cr.fill()
+
+    inner = size * 0.02
+    ix = x + inner
+    iy = y + inner
+    iw = w - 2 * inner
+    ih = h - 2 * inner
+    _rounded_rect(cr=cr, x=ix, y=iy, w=iw, h=ih, r=size * 0.08)
+    cr.set_source_rgb(*body)
+    cr.fill()
+
+    hh = ih * 0.30
+    _rounded_rect(cr=cr, x=ix, y=iy, w=iw, h=hh, r=size * 0.07)
+    cr.set_source_rgb(*header)
+    cr.fill()
+
+    cr.rectangle(ix, iy, iw * 0.14, hh)
+    cr.set_source_rgb(*highlight)
+    cr.fill()
+
+    line_y = iy + hh
+    cr.set_line_width(max(1.0, size * 0.018))
+    cr.set_source_rgb(*outline)
+    cr.move_to(ix, line_y)
+    cr.line_to(ix + iw, line_y)
+    cr.stroke()
+
+    dot_r = size * 0.03
+    for dx, color in (
+        (ix + iw * 0.10, (0.98, 0.83, 0.00)),
+        (ix + iw * 0.24, (0.95, 0.35, 0.41)),
+        (ix + iw * 0.38, (0.95, 0.95, 0.96)),
+    ):
+        dy = iy + hh * 0.42
+        cr.arc(dx, dy, dot_r, 0, math.tau)
+        cr.set_source_rgb(*outline)
+        cr.fill_preserve()
+        cr.set_line_width(max(1.0, size * 0.015))
+        cr.stroke()
+        cr.arc(dx, dy, dot_r * 0.62, 0, math.tau)
+        cr.set_source_rgb(*color)
+        cr.fill()
+
+    cols = 3
+    rows = 3
+    gap = iw * 0.08
+    cell_by_width = (iw * 0.72 - gap * (cols - 1)) / cols
+    cell_by_height = (ih * 0.52 - gap * (rows - 1)) / rows
+    cell = min(cell_by_width, cell_by_height)
+    grid_w = cols * cell + (cols - 1) * gap
+    grid_h = rows * cell + (rows - 1) * gap
+    gx = ix + (iw - grid_w) / 2
+    gy = line_y + (ih - hh - grid_h) / 2
+    palette = [
+        (0.96, 0.33, 0.40),
+        (0.74, 0.75, 0.84),
+        (0.74, 0.75, 0.84),
+        (0.97, 0.84, 0.00),
+        (0.97, 0.84, 0.00),
+        (0.97, 0.84, 0.00),
+        (0.37, 0.57, 0.87),
+        (0.37, 0.57, 0.87),
+        (0.74, 0.75, 0.84),
+    ]
+
+    idx = 0
+    bright_cells = {(0.96, 0.33, 0.40), (0.97, 0.84, 0.00), (0.37, 0.57, 0.87)}
+    for row in range(rows):
+        for col in range(cols):
+            cx = gx + col * (cell + gap)
+            cy = gy + row * (cell + gap)
+            _rounded_rect(
+                cr=cr,
+                x=cx,
+                y=cy,
+                w=cell,
+                h=cell,
+                r=size * 0.035,
+            )
+            cr.set_source_rgb(*outline)
+            cr.fill()
+
+            inset = cell * 0.14
+            inner_x = cx + inset
+            inner_y = cy + inset
+            inner_w = cell - 2 * inset
+            inner_h = cell - 2 * inset
+            color = palette[idx]
+            _rounded_rect(
+                cr=cr,
+                x=inner_x,
+                y=inner_y,
+                w=inner_w,
+                h=inner_h,
+                r=size * 0.018,
+            )
+            cr.set_source_rgb(*color)
+            cr.fill()
+
+            if color in bright_cells:
+                cr.rectangle(inner_x, inner_y, inner_w * 0.25, inner_h)
+                cr.set_source_rgba(1, 1, 1, 0.18)
+                cr.fill()
+            idx += 1
+
+
 def create_icon(size: int) -> GdkPixbuf.Pixbuf | None:
-    """Static app grid icon."""
-    return load_theme_icon(name="view-app-grid", size=size) or load_theme_icon(
-        name="gnome-applications",
-        size=size,
-    )
+    """Render custom applications/folder icon."""
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    cr = cairo.Context(surface)
+    cr.set_source_rgba(0, 0, 0, 0)
+    cr.paint()
+    _draw_applications_icon(cr=cr, size=size)
+    return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 
 
 def normalize_menu_icon(image: Gtk.Image) -> None:
