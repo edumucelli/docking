@@ -10,8 +10,6 @@
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
-Published release artifacts include **.deb**, **.rpm**, **Flatpak**, **Snap**, **AppImage**, **Arch** package (`.pkg.tar.*`), and **Nix**, refer to [releases](https://github.com/edumucelli/docking/releases). Release assets follow the pattern `docking-<version>-linux-<arch>.<ext>` (Nix outputs use `-nix-output.tar.gz` and `-nix-store-path.txt` suffixes).
-
 ![all.png](images/all.png)
 
 ## Features
@@ -98,7 +96,14 @@ sudo apt install \
 
 ## Installation
 
-Prebuilt release packages are also available on GitHub Releases: **.deb**, **.rpm**, **Flatpak**, **Snap**, **AppImage**, **Arch** package (`.pkg.tar.*`), and **Nix** outputs. Filenames are standardized as `docking-<version>-linux-<arch>.<ext>`.
+Prebuilt `x86_64` release packages are also available on [GitHub Releases](https://github.com/edumucelli/docking/releases), you can download them directly bellow.
+- [AppImage](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage)
+- [Debian .deb](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb)
+- [RPM](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm)
+- [Flatpak](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak)
+- [Snap](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap)
+- [Arch package](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst)
+- Nix [store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt) and [output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz)
 
 ```bash
 # Clone

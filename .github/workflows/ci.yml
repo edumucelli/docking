@@ -573,25 +573,45 @@ jobs:
             printf '%s\n' "$1"
           }
 
+          copy_release_asset() {
+            local src="$1"
+            local versioned_name="$2"
+            local latest_name="$3"
+            cp -f "${src}" "${release_dir}/${versioned_name}"
+            cp -f "${src}" "${release_dir}/${latest_name}"
+          }
+
           deb_candidates=("${source_dir}"/*.deb)
           deb_file="$(expect_one "deb" "${deb_candidates[@]}")"
           deb_arch="$(echo "${deb_file##*/}" | sed -E 's/.*_([[:alnum:]_]+)\.deb$/\1/')"
           deb_arch="$(normalize_arch "${deb_arch}")"
-          cp -f "${deb_file}" "${release_dir}/docking-${version}-linux-${deb_arch}.deb"
+          copy_release_asset \
+            "${deb_file}" \
+            "docking-${version}-linux-${deb_arch}.deb" \
+            "docking-latest-linux-${deb_arch}.deb"
 
           rpm_candidates=("${source_dir}"/*.rpm)
           rpm_file="$(expect_one "rpm" "${rpm_candidates[@]}")"
           rpm_arch="$(echo "${rpm_file##*/}" | sed -E 's/.*\.([^.]+)\.rpm$/\1/')"
           rpm_arch="$(normalize_arch "${rpm_arch}")"
-          cp -f "${rpm_file}" "${release_dir}/docking-${version}-linux-${rpm_arch}.rpm"
+          copy_release_asset \
+            "${rpm_file}" \
+            "docking-${version}-linux-${rpm_arch}.rpm" \
+            "docking-latest-linux-${rpm_arch}.rpm"
 
           flatpak_candidates=("${source_dir}"/*.flatpak)
           flatpak_file="$(expect_one "flatpak" "${flatpak_candidates[@]}")"
-          cp -f "${flatpak_file}" "${release_dir}/docking-${version}-linux-${host_arch}.flatpak"
+          copy_release_asset \
+            "${flatpak_file}" \
+            "docking-${version}-linux-${host_arch}.flatpak" \
+            "docking-latest-linux-${host_arch}.flatpak"
 
           snap_candidates=("${source_dir}"/*.snap)
           snap_file="$(expect_one "snap" "${snap_candidates[@]}")"
-          cp -f "${snap_file}" "${release_dir}/docking-${version}-linux-${host_arch}.snap"
+          copy_release_asset \
+            "${snap_file}" \
+            "docking-${version}-linux-${host_arch}.snap" \
+            "docking-latest-linux-${host_arch}.snap"
 
           appimage_candidates=("${source_dir}"/*.AppImage)
           appimage_file="$(expect_one "appimage" "${appimage_candidates[@]}")"
@@ -600,22 +620,34 @@ jobs:
             appimage_arch="${host_arch}"
           fi
           appimage_arch="$(normalize_arch "${appimage_arch}")"
-          cp -f "${appimage_file}" "${release_dir}/docking-${version}-linux-${appimage_arch}.AppImage"
+          copy_release_asset \
+            "${appimage_file}" \
+            "docking-${version}-linux-${appimage_arch}.AppImage" \
+            "docking-latest-linux-${appimage_arch}.AppImage"
 
           arch_candidates=("${source_dir}"/*.pkg.tar.*)
           arch_file="$(expect_one "arch" "${arch_candidates[@]}")"
           arch_arch="$(echo "${arch_file##*/}" | sed -E 's/.*-([^-]+)\.pkg\.tar\..+$/\1/')"
           arch_arch="$(normalize_arch "${arch_arch}")"
           arch_ext="${arch_file##*.pkg.tar.}"
-          cp -f "${arch_file}" "${release_dir}/docking-${version}-linux-${arch_arch}.pkg.tar.${arch_ext}"
+          copy_release_asset \
+            "${arch_file}" \
+            "docking-${version}-linux-${arch_arch}.pkg.tar.${arch_ext}" \
+            "docking-latest-linux-${arch_arch}.pkg.tar.${arch_ext}"
 
           nix_output_candidates=("${source_dir}"/docking-nix-output.tar.gz)
           nix_output_file="$(expect_one "nix output tarball" "${nix_output_candidates[@]}")"
-          cp -f "${nix_output_file}" "${release_dir}/docking-${version}-linux-${host_arch}-nix-output.tar.gz"
+          copy_release_asset \
+            "${nix_output_file}" \
+            "docking-${version}-linux-${host_arch}-nix-output.tar.gz" \
+            "docking-latest-linux-${host_arch}-nix-output.tar.gz"
 
           nix_path_candidates=("${source_dir}"/docking-nix-store-path.txt)
           nix_path_file="$(expect_one "nix store path" "${nix_path_candidates[@]}")"
-          cp -f "${nix_path_file}" "${release_dir}/docking-${version}-linux-${host_arch}-nix-store-path.txt"
+          copy_release_asset \
+            "${nix_path_file}" \
+            "docking-${version}-linux-${host_arch}-nix-store-path.txt" \
+            "docking-latest-linux-${host_arch}-nix-store-path.txt"
 
           echo "Standardized release assets:"
           ls -lh "${release_dir}"
