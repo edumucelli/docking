@@ -529,6 +529,97 @@ jobs:
           name: docking-nix
           path: artifacts
 
+      - name: Normalize release asset names
+        if: steps.release_check.outputs.should_release == 'true'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          version="${{ steps.version.outputs.version }}"
+          host_arch="$(uname -m)"
+          source_dir="artifacts"
+          release_dir="${source_dir}/release"
+          mkdir -p "${release_dir}"
+
+          normalize_arch() {
+            case "$1" in
+              amd64)
+                echo "x86_64"
+                ;;
+              arm64)
+                echo "aarch64"
+                ;;
+              noarch)
+                echo "all"
+                ;;
+              *)
+                echo "$1"
+                ;;
+            esac
+          }
+
+          expect_one() {
+            local label="$1"
+            shift
+            if [ "$#" -eq 0 ]; then
+              echo "Missing ${label} artifact"
+              exit 1
+            fi
+            if [ "$#" -gt 1 ]; then
+              echo "Expected one ${label} artifact, found $#:"
+              printf ' - %s\n' "$@"
+              exit 1
+            fi
+            printf '%s\n' "$1"
+          }
+
+          deb_candidates=("${source_dir}"/*.deb)
+          deb_file="$(expect_one "deb" "${deb_candidates[@]}")"
+          deb_arch="$(echo "${deb_file##*/}" | sed -E 's/.*_([[:alnum:]_]+)\.deb$/\1/')"
+          deb_arch="$(normalize_arch "${deb_arch}")"
+          cp -f "${deb_file}" "${release_dir}/docking-${version}-linux-${deb_arch}.deb"
+
+          rpm_candidates=("${source_dir}"/*.rpm)
+          rpm_file="$(expect_one "rpm" "${rpm_candidates[@]}")"
+          rpm_arch="$(echo "${rpm_file##*/}" | sed -E 's/.*\.([^.]+)\.rpm$/\1/')"
+          rpm_arch="$(normalize_arch "${rpm_arch}")"
+          cp -f "${rpm_file}" "${release_dir}/docking-${version}-linux-${rpm_arch}.rpm"
+
+          flatpak_candidates=("${source_dir}"/*.flatpak)
+          flatpak_file="$(expect_one "flatpak" "${flatpak_candidates[@]}")"
+          cp -f "${flatpak_file}" "${release_dir}/docking-${version}-linux-${host_arch}.flatpak"
+
+          snap_candidates=("${source_dir}"/*.snap)
+          snap_file="$(expect_one "snap" "${snap_candidates[@]}")"
+          cp -f "${snap_file}" "${release_dir}/docking-${version}-linux-${host_arch}.snap"
+
+          appimage_candidates=("${source_dir}"/*.AppImage)
+          appimage_file="$(expect_one "appimage" "${appimage_candidates[@]}")"
+          appimage_arch="$(echo "${appimage_file##*/}" | sed -nE 's/.*-([[:alnum:]_]+)\.AppImage$/\1/p')"
+          if [ -z "${appimage_arch}" ]; then
+            appimage_arch="${host_arch}"
+          fi
+          appimage_arch="$(normalize_arch "${appimage_arch}")"
+          cp -f "${appimage_file}" "${release_dir}/docking-${version}-linux-${appimage_arch}.AppImage"
+
+          arch_candidates=("${source_dir}"/*.pkg.tar.*)
+          arch_file="$(expect_one "arch" "${arch_candidates[@]}")"
+          arch_arch="$(echo "${arch_file##*/}" | sed -E 's/.*-([^-]+)\.pkg\.tar\..+$/\1/')"
+          arch_arch="$(normalize_arch "${arch_arch}")"
+          arch_ext="${arch_file##*.pkg.tar.}"
+          cp -f "${arch_file}" "${release_dir}/docking-${version}-linux-${arch_arch}.pkg.tar.${arch_ext}"
+
+          nix_output_candidates=("${source_dir}"/docking-nix-output.tar.gz)
+          nix_output_file="$(expect_one "nix output tarball" "${nix_output_candidates[@]}")"
+          cp -f "${nix_output_file}" "${release_dir}/docking-${version}-linux-${host_arch}-nix-output.tar.gz"
+
+          nix_path_candidates=("${source_dir}"/docking-nix-store-path.txt)
+          nix_path_file="$(expect_one "nix store path" "${nix_path_candidates[@]}")"
+          cp -f "${nix_path_file}" "${release_dir}/docking-${version}-linux-${host_arch}-nix-store-path.txt"
+
+          echo "Standardized release assets:"
+          ls -lh "${release_dir}"
+
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
@@ -536,14 +627,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Docking ${{ steps.version.outputs.version }}
           files: |
-            artifacts/*.deb
-            artifacts/*.rpm
-            artifacts/*.flatpak
-            artifacts/*.snap
-            artifacts/*.AppImage
-            artifacts/*.pkg.tar.*
-            artifacts/docking-nix-output.tar.gz
-            artifacts/docking-nix-store-path.txt
+            artifacts/release/*
           generate_release_notes: true
 
       - name: Skip release summary

@@ -10,6 +10,8 @@
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
+Published release artifacts include **.deb**, **.rpm**, **Flatpak**, **Snap**, **AppImage**, **Arch** package (`.pkg.tar.*`), and **Nix**, refer to [releases](https://github.com/edumucelli/docking/releases). Release assets follow the pattern `docking-<version>-linux-<arch>.<ext>` (Nix outputs use `-nix-output.tar.gz` and `-nix-store-path.txt` suffixes).
+
 ![all.png](images/all.png)
 
 ## Features
@@ -95,6 +97,8 @@ sudo apt install \
 ```
 
 ## Installation
+
+Prebuilt release packages are also available on GitHub Releases: **.deb**, **.rpm**, **Flatpak**, **Snap**, **AppImage**, **Arch** package (`.pkg.tar.*`), and **Nix** outputs. Filenames are standardized as `docking-<version>-linux-<arch>.<ext>`.
 
 ```bash
 # Clone
@@ -657,7 +661,7 @@ GitHub Actions is split across two workflows:
   - **Release step (CD)**:
     - Runs on `master` only after all package builds.
     - Reads version from `pyproject.toml`, checks latest GitHub Release, and only releases if version is newer.
-    - Creates/pushes `v<version>` tag (if missing) and publishes a GitHub Release with all built artifacts.
+    - Creates/pushes `v<version>` tag (if missing), normalizes artifact names, and publishes a GitHub Release with standardized files.
 
 - **`Security`** (`.github/workflows/security.yml`)
   - Triggers on push/PR to `master` plus weekly schedule (`0 6 * * 1`).
