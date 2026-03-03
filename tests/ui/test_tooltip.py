@@ -5,6 +5,7 @@ the hide/show lifecycle that prevents spurious crossing events.
 """
 
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 # Mock gi before importing
@@ -13,6 +14,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.ui.tooltip as tooltip_mod  # noqa: E402
 from docking.core.position import Position  # noqa: E402
 from docking.ui.tooltip import (  # noqa: E402
     TOOLTIP_BASE_GAP,
@@ -314,3 +316,219 @@ class TestSpuriousLeaveFilter:
         event_x, event_y = 1200, 105  # y outside
         inside = 0 <= event_x <= alloc_width and 0 <= event_y <= alloc_height
         assert inside is False  # would proceed to autohide
+
+
+class _FakeTooltipScreen:
+    def get_rgba_visual(self):
+        return object()
+
+    def get_width(self) -> int:
+        return 200
+
+    def get_height(self) -> int:
+        return 100
+
+
+class _FakeTooltipWindow:
+    def __init__(self, **_kwargs):
+        self._screen = _FakeTooltipScreen()
+        self._visible = False
+        self._child = None
+        self._removed = 0
+        self._moved = None
+        self._draw_cb = None
+
+    def set_decorated(self, _value: bool) -> None:
+        return
+
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
+
+    def set_resizable(self, _value: bool) -> None:
+        return
+
+    def set_type_hint(self, _value) -> None:
+        return
+
+    def set_app_paintable(self, _value: bool) -> None:
+        return
+
+    def get_screen(self):
+        return self._screen
+
+    def set_visual(self, _value) -> None:
+        return
+
+    def connect(self, signal: str, callback) -> None:
+        if signal == "draw":
+            self._draw_cb = callback
+
+    def get_visible(self) -> bool:
+        return self._visible
+
+    def hide(self) -> None:
+        self._visible = False
+
+    def get_child(self):
+        return self._child
+
+    def remove(self, _child) -> None:
+        self._removed += 1
+        self._child = None
+
+    def add(self, child) -> None:
+        self._child = child
+
+    def get_preferred_size(self):
+        return (
+            SimpleNamespace(width=0, height=0),
+            SimpleNamespace(width=120, height=30),
+        )
+
+    def move(self, x: int, y: int) -> None:
+        self._moved = (x, y)
+
+    def show_all(self) -> None:
+        self._visible = True
+
+
+class _FakeTooltipLabel:
+    def __init__(self, label: str):
+        self.label = label
+
+    def override_color(self, _state, _rgba) -> None:
+        return
+
+    def set_margin_start(self, _value: int) -> None:
+        return
+
+    def set_margin_end(self, _value: int) -> None:
+        return
+
+    def set_margin_top(self, _value: int) -> None:
+        return
+
+    def set_margin_bottom(self, _value: int) -> None:
+        return
+
+    def show_all(self) -> None:
+        return
+
+
+class _FakeGtk:
+    Window = _FakeTooltipWindow
+    Label = _FakeTooltipLabel
+    WindowType = SimpleNamespace(POPUP=1)
+    StateFlags = SimpleNamespace(NORMAL=1)
+
+
+class _FakeGdk:
+    WindowTypeHint = SimpleNamespace(TOOLTIP=1)
+    RGBA = staticmethod(lambda *args: args)
+
+
+class TestTooltipIntegrationBranches:
+    def test_show_tooltip_creates_window_and_clamps_to_screen(self, monkeypatch):
+        # Given
+        monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
+        window = MagicMock()
+        config = SimpleNamespace(icon_size=48)
+        model = MagicMock()
+        theme = SimpleNamespace(launch_bounce_height=0.5)
+        tooltip = TooltipManager(window, config, model, theme)
+
+        # When
+        tooltip._show_tooltip(
+            text="Firefox",
+            pos=Position.BOTTOM,
+            anchor_x=2.0,
+            anchor_y=4.0,
+            widget=None,
+            content_changed=True,
+        )
+
+        # Then
+        assert isinstance(tooltip._tooltip_window, _FakeTooltipWindow)
+        moved = tooltip._tooltip_window._moved
+        assert moved is not None
+        assert moved[0] >= 0
+        assert moved[1] >= 0
+
+    def test_show_tooltip_without_content_change_keeps_existing_child(
+        self, monkeypatch
+    ):
+        # Given
+        monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
+        tooltip = TooltipManager(
+            MagicMock(),
+            SimpleNamespace(icon_size=48),
+            MagicMock(),
+            SimpleNamespace(launch_bounce_height=0.0),
+        )
+        existing = _FakeTooltipWindow()
+        existing._child = _FakeTooltipLabel("Old")
+        tooltip._tooltip_window = existing
+
+        # When
+        tooltip._show_tooltip(
+            text="Same",
+            pos=Position.TOP,
+            anchor_x=100.0,
+            anchor_y=20.0,
+            content_changed=False,
+        )
+
+        # Then
+        assert existing._removed == 0
+
+    def test_update_hides_when_hovered_item_not_in_visible_list(self):
+        # Given
+        window = MagicMock()
+        window.get_size.return_value = (300, 80)
+        window.get_position.return_value = (10, 10)
+        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        model = MagicMock()
+        model.visible_items.return_value = []
+        theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
+        tooltip = TooltipManager(window, config, model, theme)
+        tooltip.hide = MagicMock()
+        item = MagicMock()
+        item.name = "Firefox"
+        item.tooltip_builder = None
+        layout = [SimpleNamespace(x=0.0, scale=1.0)]
+
+        # When
+        tooltip.update(item=item, layout=layout)
+
+        # Then
+        tooltip.hide.assert_called_once()
+
+    def test_update_uses_builder_widget_when_content_changes(self, monkeypatch):
+        # Given
+        window = MagicMock()
+        window.get_size.return_value = (300, 80)
+        window.get_position.return_value = (10, 10)
+        config = SimpleNamespace(pos=Position.LEFT, icon_size=48)
+        model = MagicMock()
+        item = MagicMock()
+        item.name = "CPU: 30%"
+        built_widget = MagicMock()
+        item.tooltip_builder = MagicMock(return_value=built_widget)
+        model.visible_items.return_value = [item]
+        theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
+        tooltip = TooltipManager(window, config, model, theme)
+        tooltip._show_tooltip = MagicMock()
+        monkeypatch.setattr(
+            tooltip_mod, "content_bounds", lambda **_kwargs: (0.0, 48.0)
+        )
+        layout = [SimpleNamespace(x=5.0, scale=1.0)]
+
+        # When
+        tooltip.update(item=item, layout=layout)
+
+        # Then
+        tooltip._show_tooltip.assert_called_once()
+        kwargs = tooltip._show_tooltip.call_args.kwargs
+        assert kwargs["widget"] is built_widget

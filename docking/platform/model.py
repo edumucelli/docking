@@ -113,9 +113,7 @@ class DockModel:
                     try:
                         applet = cls(icon_size=icon_size, config=self._config)
                         applet.item.desktop_id = desktop_id
-                        apply = getattr(applet, "apply_prefs", None)
-                        if apply:
-                            apply()
+                        applet.apply_prefs()
                         self._applets[desktop_id] = applet
                         self.pinned_items.append(applet.item)
                         _log.bind(applet_id=str(did), action="load_applet").info(
@@ -208,9 +206,7 @@ class DockModel:
             )
             return
         applet.item.desktop_id = desktop_id
-        apply = getattr(applet, "apply_prefs", None)
-        if apply:
-            apply()
+        applet.apply_prefs()
         self._applets[desktop_id] = applet
         if index < 0 or index >= len(self.pinned_items):
             self.pinned_items.append(applet.item)

@@ -17,7 +17,7 @@ from docking.applets.identity import AppletId
 from docking.log import get_logger, with_context
 
 from .render import _draw_screenshot_icon
-from .state import _TOOLS, _detect_tool, _run
+from .state import _TOOLS, Mode, _detect_tool, _run
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -67,7 +67,7 @@ class ScreenshotApplet(Applet):
             items.append(mi)
         return items
 
-    def _run_mode(self, *, mode: str) -> None:
+    def _run_mode(self, *, mode: Mode) -> None:
         if not self._tool:
             return
         try:

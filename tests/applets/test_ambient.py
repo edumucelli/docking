@@ -96,3 +96,83 @@ class TestAmbientApplet:
         assert SOUNDS_DIR.name == "sounds"
         assert SOUNDS_DIR.parent.name == "assets"
         assert SOUNDS_DIR.parent.parent.name == "docking"
+
+
+class TestAmbientPlaybackBranches:
+    def test_start_playback_noise_pipeline_sets_playing_state(self, monkeypatch):
+        # Given
+        applet = _make_applet()
+        applet._current = "white-noise"
+        pipeline = MagicMock()
+        monkeypatch.setattr(
+            "docking.applets.ambient.applet._build_noise_pipeline",
+            lambda **_kwargs: pipeline,
+        )
+
+        # When
+        applet._start_playback()
+
+        # Then
+        pipeline.set_state.assert_called_once()
+        assert applet._playing is True
+
+    def test_start_playback_file_missing_keeps_stopped(self, monkeypatch, tmp_path):
+        # Given
+        applet = _make_applet()
+        applet._current = "birds"
+        monkeypatch.setattr("docking.applets.ambient.applet.SOUNDS_DIR", tmp_path)
+
+        # When
+        applet._start_playback()
+
+        # Then
+        assert applet._pipeline is None
+        assert applet._playing is False
+
+    def test_stop_playback_cleans_pipeline_and_bus_watch(self):
+        # Given
+        applet = _make_applet()
+        bus = MagicMock()
+        pipeline = MagicMock()
+        pipeline.get_bus.return_value = bus
+        applet._pipeline = pipeline
+        applet._bus_watching = True
+        applet._playing = True
+
+        # When
+        applet._stop_playback()
+
+        # Then
+        bus.remove_signal_watch.assert_called_once()
+        pipeline.set_state.assert_called_once()
+        pipeline.get_state.assert_called_once()
+        assert applet._pipeline is None
+        assert applet._playing is False
+
+    def test_apply_volume_uses_direct_volume_property(self):
+        # Given
+        applet = _make_applet()
+        pipeline = MagicMock()
+        pipeline.find_property.return_value = object()
+        applet._pipeline = pipeline
+
+        # When
+        applet._apply_volume()
+
+        # Then
+        pipeline.set_property.assert_called_once_with("volume", applet._volume)
+
+    def test_apply_volume_uses_named_volume_element_when_needed(self):
+        # Given
+        applet = _make_applet()
+        pipeline = MagicMock()
+        pipeline.find_property.return_value = None
+        volume_element = MagicMock()
+        pipeline.get_by_name.return_value = volume_element
+        applet._pipeline = pipeline
+
+        # When
+        applet._apply_volume()
+
+        # Then
+        volume_element.set_property.assert_called_once_with("volume", applet._volume)

@@ -290,6 +290,13 @@ class Applet(ABC):
         """Extra right-click menu items (default: empty)."""
         return []
 
+    def apply_prefs(self) -> None:
+        """Apply persisted preferences after desktop_id is finalized.
+
+        Applets that need per-instance or late-bound preference loading can
+        override this method. Default applets have nothing to apply.
+        """
+
     def start(self, notify: Callable[[], None]) -> None:
         """Start timers/monitors. Call notify() to trigger redraw."""
         self._notify = notify

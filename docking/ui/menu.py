@@ -24,6 +24,7 @@ from docking.applets.identity import (
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
 from docking.core.zoom import compute_layout
+from docking.ui.about import AboutDialogController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -136,6 +137,7 @@ class MenuHandler:
         self._config = config
         self._tracker = tracker
         self._launcher = launcher
+        self._about = AboutDialogController(parent=self._window)
 
     def show(self, event: Gdk.EventButton, cursor_main: float) -> None:
         """Build and show the right-click context menu.
@@ -340,13 +342,10 @@ class MenuHandler:
                     check.set_active(desktop_id in active_ids)
                     applet = self._model.get_applet(desktop_id)
                     pixbuf: GdkPixbuf.Pixbuf | None = None
-                    if (
-                        applet is not None
-                        and getattr(applet.item, "icon", None) is not None
-                    ):
+                    if applet is not None and applet.item.icon is not None:
                         pixbuf = applet.item.icon
                     else:
-                        icon_name = getattr(cls, "icon_name", "")
+                        icon_name = cls.icon_name
                         if icon_name:
                             pixbuf = load_theme_icon(
                                 name=str(icon_name), size=APPLET_MENU_ICON_PX
@@ -368,6 +367,11 @@ class MenuHandler:
         menu.append(add_sep)
 
         menu.append(Gtk.SeparatorMenuItem())
+
+        # About
+        about_item = Gtk.MenuItem(label="About")
+        about_item.connect("activate", lambda _: self._about.show())
+        menu.append(about_item)
 
         # Quit
         quit_item = Gtk.MenuItem(label="Quit")

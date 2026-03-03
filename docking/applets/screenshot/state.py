@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 
 class Tool(NamedTuple):
@@ -16,6 +16,9 @@ class Tool(NamedTuple):
     full: list[str]
     window: list[str]
     region: list[str]
+
+
+Mode = Literal["full", "window", "region"]
 
 
 _TOOLS: tuple[Tool, ...] = (
@@ -47,9 +50,17 @@ def _scrot_path() -> str:
     return str(Path.home() / "Pictures" / f"Screenshot_{ts}.png")
 
 
-def _run(tool: Tool, mode: str) -> list[str]:
+def _mode_args(*, tool: Tool, mode: Mode) -> list[str]:
+    if mode == "full":
+        return tool.full
+    if mode == "window":
+        return tool.window
+    return tool.region
+
+
+def _run(tool: Tool, mode: Mode) -> list[str]:
     """Build and run screenshot command for *tool* and *mode*."""
-    args: list[str] = getattr(tool, mode)
+    args = _mode_args(tool=tool, mode=mode)
     cmd = [tool.command, *args]
     if tool.command == "scrot":
         cmd.append(_scrot_path())

@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import docking.applets.weather as weather_mod
+import docking.applets.weather.applet as weather_applet_mod
 from docking.applets.weather import WeatherApplet
 from docking.applets.weather.api import (
     AirQualityData,
@@ -274,3 +275,81 @@ class TestWeatherAsyncFetch:
         fetch_aqi.assert_called_once_with(lat=10.0, lng=20.0)
         assert applet._weather == _SAMPLE_WEATHER
         assert applet._air_quality == _SAMPLE_AQI
+
+
+class TestWeatherLifecycleAndInteractions:
+    def test_start_schedules_timer_and_fetches_when_city_selected(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = "Berlin, Germany"
+        fetch = MagicMock()
+        monkeypatch.setattr(applet, "_fetch_async", fetch)
+        monkeypatch.setattr(weather_mod.GLib, "timeout_add_seconds", lambda *_a: 99)
+
+        # When
+        applet.start(notify=lambda: None)
+
+        # Then
+        assert applet._timer_id == 99
+        fetch.assert_called_once()
+
+    def test_stop_removes_active_timer(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._timer_id = 77
+        remove = MagicMock()
+        monkeypatch.setattr(weather_mod.GLib, "source_remove", remove)
+
+        # When
+        applet.stop()
+
+        # Then
+        remove.assert_called_once_with(77)
+        assert applet._timer_id == 0
+
+    def test_tick_fetches_when_city_is_set(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = "Tokyo, Japan"
+        fetch = MagicMock()
+        monkeypatch.setattr(applet, "_fetch_async", fetch)
+
+        # When
+        result = applet._tick()
+
+        # Then
+        assert result is True
+        fetch.assert_called_once()
+
+    def test_on_toggle_temperature_saves_and_refreshes(self):
+        # Given
+        applet = WeatherApplet(48)
+        applet._save_prefs = MagicMock()
+        applet.refresh_presentation = MagicMock()
+        widget = MagicMock()
+        widget.get_active.return_value = False
+
+        # When
+        applet._on_toggle_temperature(widget)
+
+        # Then
+        assert applet._show_temperature is False
+        applet._save_prefs.assert_called_once()
+        applet.refresh_presentation.assert_called_once()
+
+    def test_on_clicked_noops_without_city(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = ""
+        launch = MagicMock()
+        monkeypatch.setattr(
+            weather_applet_mod.Gio.AppInfo,
+            "launch_default_for_uri",
+            launch,
+        )
+
+        # When
+        applet.on_clicked()
+
+        # Then
+        launch.assert_not_called()

@@ -266,8 +266,8 @@ class TestDockMenu:
             menu_mod,
             "get_registry",
             lambda: {
-                "clock": SimpleNamespace(name="Clock"),
-                "separator": SimpleNamespace(name="Separator"),
+                "clock": SimpleNamespace(name="Clock", icon_name="clock"),
+                "separator": SimpleNamespace(name="Separator", icon_name="list-remove"),
             },
         )
 
@@ -279,11 +279,18 @@ class TestDockMenu:
         assert "Window Previews" in labels
         assert "Lock Icons" in labels
         assert "Add Separator" in labels
+        assert "About" in labels
         assert "Quit" in labels
         assert "Applets" in labels
+        assert labels.index("About") == labels.index("Quit") - 1
 
         next(mi for mi in menu.children if mi.get_label() == "Add Separator").activate()
         handler._model.add_separator.assert_called_once_with(index=3)
+
+        show_about = MagicMock()
+        handler._about.show = show_about
+        next(mi for mi in menu.children if mi.get_label() == "About").activate()
+        show_about.assert_called_once()
 
         next(mi for mi in menu.children if mi.get_label() == "Quit").activate()
         FakeGtk.main_quit.assert_called_once()
