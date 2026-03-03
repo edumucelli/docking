@@ -1,7 +1,9 @@
 """Tests for the volume applet."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import docking.applets.volume.applet as volume_applet_mod
+import docking.applets.volume.state as volume_state_mod
 from docking.applets.volume import (
     VolumeApplet,
     VolumeState,
@@ -179,3 +181,141 @@ class TestVolumeApplet:
     def test_no_menu_items(self):
         applet = _make_applet()
         assert applet.get_menu_items() == []
+
+
+def _make_applet_no_backend() -> VolumeApplet:
+    with patch("docking.applets.volume.applet._detect_backend", return_value=None):
+        return VolumeApplet(48)
+
+
+class TestVolumeStateBackendHelpers:
+    def test_run_returns_stdout_on_success(self, monkeypatch):
+        result = MagicMock(returncode=0, stdout="ok")
+        monkeypatch.setattr(volume_state_mod.subprocess, "run", lambda *a, **k: result)
+        assert volume_state_mod._run(["echo", "ok"], "test") == "ok"
+
+    def test_run_returns_none_on_nonzero_exit(self, monkeypatch):
+        result = MagicMock(returncode=1, stdout="")
+        monkeypatch.setattr(volume_state_mod.subprocess, "run", lambda *a, **k: result)
+        assert volume_state_mod._run(["bad"], "test") is None
+
+    def test_run_returns_none_on_oserror(self, monkeypatch):
+        def boom(*_a, **_k):
+            raise OSError("boom")
+
+        monkeypatch.setattr(volume_state_mod.subprocess, "run", boom)
+        assert volume_state_mod._run(["bad"], "test") is None
+
+    def test_pactl_get_state_success(self, monkeypatch):
+        calls = [
+            "Volume: mono: 12345 / 70% / 0.00 dB",
+            "Mute: no",
+        ]
+        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: calls.pop(0))
+        assert volume_state_mod._pactl_get_state() == VolumeState(
+            volume=70, muted=False
+        )
+
+    def test_pactl_get_state_returns_none_on_invalid_parse(self, monkeypatch):
+        calls = ["no volume", "Mute: ???"]
+        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: calls.pop(0))
+        assert volume_state_mod._pactl_get_state() is None
+
+    def test_pactl_get_state_returns_none_on_missing_command_output(self, monkeypatch):
+        calls = [None, "Mute: yes"]
+        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: calls.pop(0))
+        assert volume_state_mod._pactl_get_state() is None
+
+    def test_pactl_set_and_toggle_call_run(self, monkeypatch):
+        seen = []
+        monkeypatch.setattr(
+            volume_state_mod,
+            "_run",
+            lambda cmd, action: seen.append((cmd, action)),
+        )
+        volume_state_mod._pactl_set_volume(33)
+        volume_state_mod._pactl_toggle_mute()
+        assert seen[0][0] == ["pactl", "set-sink-volume", "@DEFAULT_SINK@", "33%"]
+        assert seen[1][0] == ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"]
+
+    def test_amixer_get_state_none_when_run_fails(self, monkeypatch):
+        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: None)
+        assert volume_state_mod._amixer_get_state() is None
+
+    def test_amixer_set_and_toggle_call_run(self, monkeypatch):
+        seen = []
+        monkeypatch.setattr(
+            volume_state_mod,
+            "_run",
+            lambda cmd, action: seen.append((cmd, action)),
+        )
+        volume_state_mod._amixer_set_volume(55)
+        volume_state_mod._amixer_toggle_mute()
+        assert seen[0][0] == ["amixer", "set", "Master", "55%"]
+        assert seen[1][0] == ["amixer", "set", "Master", "toggle"]
+
+
+class TestVolumeAppletInternals:
+    def test_start_and_stop_manage_timer(self, monkeypatch):
+        applet = _make_applet()
+        monkeypatch.setattr(
+            volume_applet_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 321
+        )
+        removed = []
+        monkeypatch.setattr(
+            volume_applet_mod.GLib, "source_remove", lambda i: removed.append(i)
+        )
+
+        applet.start(lambda: None)
+        assert applet._timer_id == 321
+
+        applet.stop()
+        assert removed == [321]
+        assert applet._timer_id == 0
+
+    def test_no_backend_branches_are_safe(self):
+        applet = _make_applet_no_backend()
+        assert applet._tick() is True
+        applet.on_scroll(direction_up=True)
+        applet.on_clicked()
+
+    def test_on_poll_result_handles_none_and_no_change(self):
+        applet = _make_applet()
+        assert applet._on_poll_result(None) is False
+        applet._volume = 45
+        applet._muted = False
+        applet.refresh_presentation = MagicMock()
+        assert applet._on_poll_result(VolumeState(volume=45, muted=False)) is False
+        applet.refresh_presentation.assert_not_called()
+
+    def test_on_poll_result_updates_when_changed(self):
+        applet = _make_applet()
+        applet._volume = 10
+        applet._muted = False
+        applet.refresh_presentation = MagicMock()
+        assert applet._on_poll_result(VolumeState(volume=60, muted=True)) is False
+        assert applet._volume == 60
+        assert applet._muted is True
+        applet.refresh_presentation.assert_called_once()
+
+    def test_tick_worker_posts_idle_callback(self, monkeypatch):
+        applet = _make_applet()
+        applet._backend.get_state.return_value = VolumeState(volume=70, muted=True)
+        calls = []
+        monkeypatch.setattr(
+            volume_applet_mod.GLib,
+            "idle_add",
+            lambda cb, state: calls.append((cb, state)),
+        )
+
+        class FakeThread:
+            def __init__(self, target, daemon):
+                self._target = target
+                self.daemon = daemon
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(volume_applet_mod.threading, "Thread", FakeThread)
+        assert applet._tick() is True
+        assert calls == [(applet._on_poll_result, VolumeState(volume=70, muted=True))]

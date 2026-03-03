@@ -11,6 +11,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.ui.autohide as autohide_mod  # noqa: E402
 from docking.ui.autohide import (  # noqa: E402
     AutoHideController,
     HideState,
@@ -204,3 +205,85 @@ class TestZoomProgressFormula:
         ctrl._animation_tick()
         # near fully shown
         assert ctrl.zoom_progress > 0.9
+
+
+class TestAutoHideUtilityBranches:
+    def test_source_exists_handles_all_paths(self, monkeypatch):
+        assert autohide_mod._source_exists(0) is False
+
+        ctx = MagicMock()
+        ctx.find_source_by_id.return_value = object()
+        monkeypatch.setattr(autohide_mod.GLib.MainContext, "default", lambda: ctx)
+        assert autohide_mod._source_exists(10) is True
+
+        def boom():
+            raise RuntimeError("bad")
+
+        monkeypatch.setattr(autohide_mod.GLib.MainContext, "default", boom)
+        assert autohide_mod._source_exists(11) is True
+
+    def test_clear_source_removes_only_when_present(self, monkeypatch):
+        removed = []
+        monkeypatch.setattr(
+            autohide_mod, "_source_exists", lambda source_id: source_id == 7
+        )
+        monkeypatch.setattr(
+            autohide_mod.GLib, "source_remove", lambda sid: removed.append(sid)
+        )
+        assert autohide_mod._clear_source(7) == 0
+        assert autohide_mod._clear_source(8) == 0
+        assert removed == [7]
+
+
+class TestAutoHideTimersAndDelays:
+    def _make_controller(self, hide_delay=0, unhide_delay=0):
+        window = MagicMock()
+        config = MagicMock()
+        config.autohide = True
+        config.hide_delay_ms = hide_delay
+        config.unhide_delay_ms = unhide_delay
+        config.hide_time_ms = 250
+        return AutoHideController(window, config)
+
+    def test_mouse_leave_with_delay_schedules_hide_timer(self, monkeypatch):
+        ctrl = self._make_controller(hide_delay=120)
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", lambda delay, cb: 901)
+        ctrl.on_mouse_leave()
+        assert ctrl._hide_timer_id == 901
+
+    def test_mouse_enter_with_delay_schedules_unhide_timer(self, monkeypatch):
+        ctrl = self._make_controller(unhide_delay=140)
+        ctrl.state = HideState.HIDDEN
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", lambda delay, cb: 902)
+        ctrl.on_mouse_enter()
+        assert ctrl._unhide_timer_id == 902
+
+    def test_start_hiding_and_showing_set_state_and_start_animation(self):
+        ctrl = self._make_controller()
+        ctrl._start_animation = MagicMock()
+        assert ctrl._start_hiding() is False
+        assert ctrl.state == HideState.HIDING
+        assert ctrl._anim_progress == 0.0
+
+        assert ctrl._start_showing() is False
+        assert ctrl.state == HideState.SHOWING
+        assert ctrl._anim_progress == 0.0
+        assert ctrl._start_animation.call_count == 2
+
+    def test_start_animation_replaces_existing_timer(self, monkeypatch):
+        ctrl = self._make_controller()
+        ctrl._anim_timer_id = 77
+        monkeypatch.setattr(autohide_mod, "_clear_source", lambda source_id: 0)
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", lambda _ms, _cb: 333)
+        ctrl._start_animation()
+        assert ctrl._anim_timer_id == 333
+
+    def test_cancel_timer_helpers_clear_ids(self, monkeypatch):
+        ctrl = self._make_controller()
+        monkeypatch.setattr(autohide_mod, "_clear_source", lambda source_id: 0)
+        ctrl._hide_timer_id = 11
+        ctrl._unhide_timer_id = 12
+        ctrl._cancel_hide_timer()
+        ctrl._cancel_unhide_timer()
+        assert ctrl._hide_timer_id == 0
+        assert ctrl._unhide_timer_id == 0

@@ -1,7 +1,9 @@
 """Tests for the ambient sound applet."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import docking.applets.ambient.applet as ambient_mod
 from docking.applets.ambient import (
     ALL_SOUNDS,
     DEFAULT_SOUND,
@@ -176,3 +178,108 @@ class TestAmbientPlaybackBranches:
 
         # Then
         volume_element.set_property.assert_called_once_with("volume", applet._volume)
+
+
+class TestAmbientLifecycleAndPipelines:
+    def test_build_file_pipeline_returns_none_when_factory_missing(self, monkeypatch):
+        monkeypatch.setattr(
+            ambient_mod.Gst.ElementFactory, "make", lambda *_a, **_k: None
+        )
+        assert (
+            ambient_mod._build_file_pipeline(path=Path("/tmp/missing.ogg"), volume=0.4)
+            is None
+        )
+
+    def test_build_file_pipeline_sets_uri_and_volume(self, monkeypatch):
+        playbin = MagicMock()
+        monkeypatch.setattr(
+            ambient_mod.Gst.ElementFactory, "make", lambda *_a, **_k: playbin
+        )
+        sound_path = Path("/tmp/sound.ogg")
+        result = ambient_mod._build_file_pipeline(path=sound_path, volume=0.7)
+        assert result is playbin
+        playbin.set_property.assert_any_call("uri", sound_path.as_uri())
+        playbin.set_property.assert_any_call("volume", 0.7)
+
+    def test_build_noise_pipeline_delegates_to_parse_launch(self, monkeypatch):
+        pipeline = MagicMock()
+        monkeypatch.setattr(ambient_mod.Gst, "parse_launch", lambda _expr: pipeline)
+        assert ambient_mod._build_noise_pipeline(wave=2, volume=0.3) is pipeline
+
+    def test_start_and_stop_exercise_lifecycle_methods(self):
+        applet = _make_applet()
+        applet._stop_playback = MagicMock()
+        applet.start(lambda: None)
+        applet.stop()
+        applet._stop_playback.assert_called_once()
+
+    def test_select_sound_restarts_when_currently_playing(self):
+        applet = _make_applet()
+        target = ALL_SOUNDS[0].name
+        applet._playing = True
+        applet._stop_playback = MagicMock()
+        applet._start_playback = MagicMock()
+        applet._save = MagicMock()
+        applet.refresh_presentation = MagicMock()
+
+        applet._select_sound(name=target)
+
+        applet._stop_playback.assert_called_once()
+        applet._start_playback.assert_called_once()
+        applet._save.assert_called_once()
+        applet.refresh_presentation.assert_called_once()
+        assert applet._current == target
+
+    def test_start_playback_returns_when_sound_is_unknown(self):
+        applet = _make_applet()
+        applet._current = "unknown"
+        applet._start_playback()
+        assert applet._pipeline is None
+
+    def test_start_playback_file_branch_sets_bus_watch(self, monkeypatch, tmp_path):
+        applet = _make_applet()
+        file_sound = next(s for s in ALL_SOUNDS if s.kind == "file")
+        applet._current = file_sound.name
+        sound_file = tmp_path / f"{file_sound.name}.ogg"
+        sound_file.write_bytes(b"x")
+        monkeypatch.setattr(ambient_mod, "SOUNDS_DIR", tmp_path)
+
+        pipeline = MagicMock()
+        bus = MagicMock()
+        pipeline.get_bus.return_value = bus
+        monkeypatch.setattr(ambient_mod, "_build_file_pipeline", lambda **_k: pipeline)
+
+        applet._start_playback()
+
+        bus.add_signal_watch.assert_called_once()
+        bus.connect.assert_called_once()
+        pipeline.set_state.assert_called_once_with(ambient_mod.Gst.State.PLAYING)
+        assert applet._bus_watching is True
+
+    def test_start_playback_warns_when_pipeline_creation_fails(self, monkeypatch):
+        applet = _make_applet()
+        applet._current = "white-noise"
+        monkeypatch.setattr(ambient_mod, "_build_noise_pipeline", lambda **_k: None)
+
+        applet._start_playback()
+
+        assert applet._pipeline is None
+        assert applet._playing is False
+
+    def test_on_eos_seeks_to_start_when_pipeline_exists(self):
+        applet = _make_applet()
+        pipeline = MagicMock()
+        applet._pipeline = pipeline
+
+        applet._on_eos(None, None)
+
+        pipeline.seek_simple.assert_called_once_with(
+            ambient_mod.Gst.Format.TIME,
+            ambient_mod.Gst.SeekFlags.FLUSH,
+            0,
+        )
+
+    def test_apply_volume_no_pipeline_is_noop(self):
+        applet = _make_applet()
+        applet._pipeline = None
+        applet._apply_volume()

@@ -1,5 +1,8 @@
 """Tests for the Pomodoro applet."""
 
+from unittest.mock import MagicMock
+
+import docking.applets.pomodoro.applet as pomodoro_mod
 from docking.applets.pomodoro import (
     DEFAULT_BREAK,
     DEFAULT_LONG_BREAK,
@@ -227,3 +230,68 @@ class TestTooltip:
         applet.on_clicked()
         applet.on_clicked()
         assert "Paused" in applet.item.name
+
+
+class TestPomodoroInternals:
+    def test_property_setters_cover_internal_mutators(self):
+        applet = PomodoroApplet(48)
+        applet._paused_from = State.WORK
+        applet._work_count = 2
+        applet._work_min = 30
+        applet._break_min = 10
+        applet._long_break_min = 20
+        applet._show_timer = False
+
+        assert applet._paused_from == State.WORK
+        assert applet._work_count == 2
+        assert applet._work_min == 30
+        assert applet._break_min == 10
+        assert applet._long_break_min == 20
+        assert applet._show_timer is False
+
+    def test_start_and_stop_manage_timer(self, monkeypatch):
+        applet = PomodoroApplet(48)
+        monkeypatch.setattr(
+            pomodoro_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 515
+        )
+        removed = []
+        monkeypatch.setattr(
+            pomodoro_mod.GLib,
+            "source_remove",
+            lambda timer_id: removed.append(timer_id),
+        )
+
+        applet.start(lambda: None)
+        assert applet._timer_id == 515
+
+        applet.stop()
+        assert removed == [515]
+        assert applet._timer_id == 0
+
+    def test_toggle_and_duration_setters_save(self):
+        applet = PomodoroApplet(48)
+        applet._save = MagicMock()
+        applet.refresh_presentation = MagicMock()
+
+        widget = MagicMock()
+        widget.get_active.return_value = False
+        applet._on_toggle_timer(widget)
+        applet._set_work(35)
+        applet._set_break(7)
+        applet._set_long_break(18)
+
+        assert applet._show_timer is False
+        assert applet._work_min == 35
+        assert applet._break_min == 7
+        assert applet._long_break_min == 18
+        assert applet._save.call_count == 4
+        applet.refresh_presentation.assert_called_once()
+
+    def test_make_duration_header_and_radio_item(self):
+        header = PomodoroApplet._make_duration_header("Work")
+        assert header.get_label() == "Work"
+        assert header.get_sensitive() is False
+
+        callback = MagicMock()
+        radio = PomodoroApplet._make_radio_item("25 min", True, callback)
+        assert radio.get_active() is True

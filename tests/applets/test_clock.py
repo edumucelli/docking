@@ -2,9 +2,12 @@
 
 import math
 import time
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
+import docking.applets.clock.applet as clock_mod
 from docking.applets.clock import (
     ClockApplet,
     hour_rotation_12h,
@@ -289,3 +292,73 @@ class TestClockMenuItems:
         # Then
         date_item = items[2]
         assert date_item.get_sensitive()
+
+
+class TestClockInteractions:
+    def test_toggle_handlers_update_state_and_refresh(self):
+        clock = ClockApplet(48)
+        clock._save_prefs = MagicMock()
+        clock.refresh_presentation = MagicMock()
+
+        w_true = MagicMock()
+        w_true.get_active.return_value = True
+        clock._on_toggle_digital(w_true)
+        clock._on_toggle_military(w_true)
+
+        w_false = MagicMock()
+        w_false.get_active.return_value = False
+        clock._on_toggle_date(w_false)
+
+        assert clock._show_digital is True
+        assert clock._show_military is True
+        assert clock._show_date is False
+        assert clock._save_prefs.call_count == 3
+        assert clock.refresh_presentation.call_count == 3
+
+    def test_start_and_stop_delegate_to_minute_timer(self):
+        clock = ClockApplet(48)
+        clock._timer = MagicMock()
+        clock.start(lambda: None)
+        clock.stop()
+        clock._timer.start.assert_called_once()
+        clock._timer.stop.assert_called_once()
+
+
+class TestMinuteTimer:
+    def test_start_registers_glib_timeout(self, monkeypatch):
+        timer = clock_mod._MinuteTimer()
+        monkeypatch.setattr(clock_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 222)
+        cb = MagicMock()
+        timer.start(cb)
+        assert timer._timer_id == 222
+        assert timer._callback is cb
+
+    def test_stop_removes_source_and_clears_callback(self, monkeypatch):
+        timer = clock_mod._MinuteTimer()
+        timer._timer_id = 88
+        timer._callback = MagicMock()
+        removed = []
+        monkeypatch.setattr(
+            clock_mod.GLib, "source_remove", lambda timer_id: removed.append(timer_id)
+        )
+        timer.stop()
+        assert removed == [88]
+        assert timer._timer_id == 0
+        assert timer._callback is None
+
+    def test_tick_calls_callback_only_on_minute_change(self, monkeypatch):
+        timer = clock_mod._MinuteTimer()
+        callback = MagicMock()
+        timer._callback = callback
+
+        minutes = iter([10, 10, 11])
+        monkeypatch.setattr(
+            clock_mod.time,
+            "localtime",
+            lambda: SimpleNamespace(tm_min=next(minutes)),
+        )
+
+        assert timer._tick() is True
+        assert timer._tick() is True
+        assert timer._tick() is True
+        assert callback.call_count == 2

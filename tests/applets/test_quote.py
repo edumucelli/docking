@@ -1,7 +1,8 @@
 """Tests for the Quote applet."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import docking.applets.quote.applet as quote_mod
 from docking.applets.quote import (
     DEFAULT_SOURCE,
     SOURCE_LABELS,
@@ -114,3 +115,114 @@ class TestQuoteApplet:
         reloaded = Config.load(path)
         assert reloaded.applet_prefs["quote"]["source"] == "qdb"
         assert applet._source == "qdb"
+
+
+class TestQuoteAppletBranches:
+    def test_on_source_toggled_ignores_inactive_widget(self):
+        applet = QuoteApplet(48)
+        applet._set_source = MagicMock()
+        widget = MagicMock()
+        widget.get_active.return_value = False
+        applet._on_source_toggled(widget, "qdb")
+        applet._set_source.assert_not_called()
+
+    def test_set_source_ignores_invalid_and_same_source(self):
+        applet = QuoteApplet(48)
+        applet._fetch_async = MagicMock()
+        applet._set_source("invalid-source")
+        applet._set_source(applet._source)
+        applet._fetch_async.assert_not_called()
+
+    def test_refresh_from_web_delegates_to_async_fetch(self):
+        applet = QuoteApplet(48)
+        applet._fetch_async = MagicMock()
+        applet._refresh_from_web()
+        applet._fetch_async.assert_called_once_with(show_first=True)
+
+    def test_copy_current_quote_uses_clipboard(self, monkeypatch):
+        applet = QuoteApplet(48)
+        applet._current = QuoteEntry(text="hello", author="world")
+        clipboard = MagicMock()
+        monkeypatch.setattr(quote_mod.Gtk.Clipboard, "get", lambda *_a, **_k: clipboard)
+
+        applet._copy_current_quote()
+
+        clipboard.set_text.assert_called_once()
+        clipboard.store.assert_called_once()
+
+    def test_copy_current_quote_handles_clipboard_errors(self):
+        applet = QuoteApplet(48)
+        applet._current = QuoteEntry(text="x")
+        applet._clipboard = MagicMock()
+        applet._clipboard.set_text.side_effect = RuntimeError("boom")
+
+        applet._copy_current_quote()
+
+    def test_fetch_async_noop_when_loading(self):
+        applet = QuoteApplet(48)
+        applet._loading = True
+        applet.refresh_presentation = MagicMock()
+        applet._fetch_async(show_first=True)
+        applet.refresh_presentation.assert_not_called()
+
+    def test_fetch_async_runs_worker_and_posts_idle_result(self, monkeypatch):
+        applet = QuoteApplet(48)
+        monkeypatch.setattr(
+            quote_mod, "fetch_quotes", lambda source, limit: [QuoteEntry(text="q")]
+        )
+        calls = []
+        monkeypatch.setattr(
+            quote_mod.GLib,
+            "idle_add",
+            lambda cb, source, quotes, show_first: calls.append(
+                (cb, source, quotes, show_first)
+            ),
+        )
+
+        class FakeThread:
+            def __init__(self, target, daemon):
+                self._target = target
+                self.daemon = daemon
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(quote_mod.threading, "Thread", FakeThread)
+        applet._fetch_async(show_first=True)
+        assert calls
+        assert calls[0][0] == applet._on_fetch_result
+        assert calls[0][1] == applet._source
+        assert calls[0][3] is True
+
+    def test_on_fetch_result_ignores_stale_source(self):
+        applet = QuoteApplet(48)
+        applet._source = "qdb"
+        applet._loading = True
+        assert (
+            applet._on_fetch_result("other", [QuoteEntry(text="x")], show_first=True)
+            is False
+        )
+
+    def test_on_fetch_result_applies_quotes_and_fallback(self, monkeypatch):
+        applet = QuoteApplet(48)
+        applet._source = "qdb"
+        applet._loading = True
+        applet.refresh_presentation = MagicMock()
+
+        quotes = [QuoteEntry(text="one"), QuoteEntry(text="two")]
+        assert applet._on_fetch_result("qdb", quotes, show_first=True) is False
+        assert applet._current == QuoteEntry(text="one")
+
+        applet._current = None
+        monkeypatch.setattr(
+            quote_mod, "source_fallback", lambda source: [QuoteEntry(text="fallback")]
+        )
+        assert applet._on_fetch_result("qdb", [], show_first=False) is False
+        assert applet._current == QuoteEntry(text="fallback")
+
+    def test_refresh_tooltip_loading_state(self):
+        applet = QuoteApplet(48)
+        applet._loading = True
+        applet._current = None
+        applet.refresh_tooltip()
+        assert "loading" in applet.item.name.lower()

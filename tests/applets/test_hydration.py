@@ -1,5 +1,9 @@
 """Tests for the hydration reminder applet."""
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import docking.applets.hydration.applet as hydration_mod
 from docking.applets.hydration import (
     HydrationApplet,
 )
@@ -114,3 +118,70 @@ class TestMouthCurvature:
 
     def test_clamps_high(self):
         assert mouth_curvature(fill=2.0) == 1.0
+
+
+class TestHydrationLifecycle:
+    def test_property_accessors_cover_interval_show_timer_and_tick_count(self):
+        applet = HydrationApplet(48)
+        applet._interval_min = 30
+        applet._show_timer = False
+        applet._tick_count = 12
+        assert applet._interval_min == 30
+        assert applet._show_timer is False
+        assert applet._tick_count == 12
+
+    def test_start_and_stop_manage_timer(self, monkeypatch):
+        applet = HydrationApplet(48)
+        monkeypatch.setattr(
+            hydration_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 444
+        )
+        removed = []
+        monkeypatch.setattr(
+            hydration_mod.GLib,
+            "source_remove",
+            lambda timer_id: removed.append(timer_id),
+        )
+
+        applet.start(lambda: None)
+        assert applet._timer_id == 444
+
+        applet.stop()
+        assert removed == [444]
+        assert applet._timer_id == 0
+
+    def test_toggle_timer_updates_state_and_saves(self):
+        applet = HydrationApplet(48)
+        widget = MagicMock()
+        widget.get_active.return_value = False
+        applet._save = MagicMock()
+        applet.refresh_presentation = MagicMock()
+
+        applet._on_toggle_timer(widget)
+
+        assert applet._show_timer is False
+        applet._save.assert_called_once()
+        applet.refresh_presentation.assert_called_once()
+
+    def test_tick_should_refresh_branch_updates_tooltip(self, monkeypatch):
+        applet = HydrationApplet(48)
+        refreshed = []
+        monkeypatch.setattr(
+            applet, "refresh_presentation", lambda: refreshed.append(True)
+        )
+        monkeypatch.setattr(
+            hydration_mod,
+            "tick",
+            lambda state: SimpleNamespace(
+                state=state, became_empty=False, should_refresh=True
+            ),
+        )
+
+        assert applet._tick() is True
+        assert refreshed == [True]
+
+    def test_set_interval_saves_preferences(self):
+        applet = HydrationApplet(48)
+        applet._save = MagicMock()
+        applet._set_interval(minutes=90)
+        assert applet._interval_min == 90
+        applet._save.assert_called_once()

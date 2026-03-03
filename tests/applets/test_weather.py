@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.weather as weather_mod
@@ -353,3 +354,224 @@ class TestWeatherLifecycleAndInteractions:
 
         # Then
         launch.assert_not_called()
+
+    def test_start_without_city_does_not_fetch(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = ""
+        fetch = MagicMock()
+        monkeypatch.setattr(applet, "_fetch_async", fetch)
+        monkeypatch.setattr(weather_mod.GLib, "timeout_add_seconds", lambda *_a: 51)
+
+        # When
+        applet.start(notify=lambda: None)
+
+        # Then
+        assert applet._timer_id == 51
+        fetch.assert_not_called()
+
+    def test_tick_without_city_does_not_fetch(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = ""
+        fetch = MagicMock()
+        monkeypatch.setattr(applet, "_fetch_async", fetch)
+
+        # When
+        result = applet._tick()
+
+        # Then
+        assert result is True
+        fetch.assert_not_called()
+
+    def test_on_clicked_logs_when_launch_fails(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = "Berlin, Germany"
+        monkeypatch.setattr(weather_applet_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(
+            weather_applet_mod.Gio.AppInfo,
+            "launch_default_for_uri",
+            MagicMock(side_effect=Exception("boom")),
+        )
+
+        # When
+        applet.on_clicked()
+
+        # Then
+        weather_applet_mod.Gio.AppInfo.launch_default_for_uri.assert_called_once()
+
+
+class _FakeWeatherBox:
+    def __init__(self, orientation=None, spacing=0):
+        self.orientation = orientation
+        self.spacing = spacing
+        self.children: list[object] = []
+        self.margins: dict[str, int] = {}
+
+    def set_spacing(self, value: int) -> None:
+        self.spacing = value
+
+    def set_margin_start(self, value: int) -> None:
+        self.margins["start"] = value
+
+    def set_margin_end(self, value: int) -> None:
+        self.margins["end"] = value
+
+    def set_margin_top(self, value: int) -> None:
+        self.margins["top"] = value
+
+    def set_margin_bottom(self, value: int) -> None:
+        self.margins["bottom"] = value
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+
+class _FakeWeatherEntry:
+    def __init__(self):
+        self._text = ""
+        self._completion = None
+        self.callbacks: dict[str, object] = {}
+
+    def set_placeholder_text(self, _text: str) -> None:
+        return
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+    def set_completion(self, completion) -> None:
+        self._completion = completion
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+
+    def get_text(self) -> str:
+        return self._text
+
+    def grab_focus(self) -> None:
+        return
+
+
+class _FakeWeatherCompletion:
+    def __init__(self):
+        self.model = None
+        self.callbacks: dict[str, object] = {}
+
+    def set_model(self, model) -> None:
+        self.model = model
+
+    def set_text_column(self, _index: int) -> None:
+        return
+
+    def set_minimum_key_length(self, _length: int) -> None:
+        return
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+
+class _FakeWeatherStore:
+    def __init__(self, *_types):
+        self.rows: list[list[object]] = []
+
+    def clear(self) -> None:
+        self.rows.clear()
+
+    def append(self, row: list[object]) -> None:
+        self.rows.append(row)
+
+    def get_value(self, tree_iter: int, column: int):
+        return self.rows[tree_iter][column]
+
+
+class _FakeWeatherDialog:
+    def __init__(self, **_kwargs):
+        self.destroy = MagicMock()
+        self._content = _FakeWeatherBox()
+
+    def set_default_size(self, *_args) -> None:
+        return
+
+    def set_position(self, *_args) -> None:
+        return
+
+    def get_content_area(self):
+        return self._content
+
+    def show_all(self) -> None:
+        return
+
+
+class TestWeatherDialogAndWidget:
+    def test_show_city_dialog_search_and_select(self, monkeypatch):
+        # Given
+        applet = WeatherApplet(48)
+        created_entry = _FakeWeatherEntry()
+        created_completion = _FakeWeatherCompletion()
+        created_dialog = _FakeWeatherDialog()
+        city = SimpleNamespace(display="Berlin, Germany", lat=52.52, lng=13.41)
+        monkeypatch.setattr(weather_applet_mod, "cached_cities", lambda: [city])
+        monkeypatch.setattr(
+            weather_applet_mod, "search_cities", lambda *_a, **_k: [city]
+        )
+        monkeypatch.setattr(
+            weather_applet_mod,
+            "Gtk",
+            SimpleNamespace(
+                Dialog=lambda **_kwargs: created_dialog,
+                DialogFlags=SimpleNamespace(MODAL=1, DESTROY_WITH_PARENT=2),
+                WindowPosition=SimpleNamespace(MOUSE=1),
+                Entry=lambda: created_entry,
+                EntryCompletion=lambda: created_completion,
+                ListStore=lambda *_types: _FakeWeatherStore(),
+                CheckMenuItem=weather_applet_mod.Gtk.CheckMenuItem,
+                MenuItem=weather_applet_mod.Gtk.MenuItem,
+                Orientation=weather_applet_mod.Gtk.Orientation,
+                Box=weather_applet_mod.Gtk.Box,
+                Image=weather_applet_mod.Gtk.Image,
+                IconSize=weather_applet_mod.Gtk.IconSize,
+                Label=weather_applet_mod.Gtk.Label,
+            ),
+        )
+        select = MagicMock()
+        monkeypatch.setattr(applet, "_select_city", select)
+
+        # When
+        applet._show_city_dialog()
+        created_entry.set_text("be")
+        created_entry.callbacks["changed"](created_entry)
+        store = created_completion.model
+        created_completion.callbacks["match-selected"](created_completion, store, 0)
+
+        # Then
+        assert len(store.rows) == 1
+        select.assert_called_once_with(display="Berlin, Germany", lat=52.52, lng=13.41)
+        created_dialog.destroy.assert_called_once()
+
+    def test_build_tooltip_widget_minimal_branch(self):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = ""
+        applet._weather = None
+
+        # When
+        box = applet._build_tooltip_widget()
+
+        # Then
+        assert box is not None
+        assert len(box.get_children()) == 1
+
+    def test_build_tooltip_widget_with_weather_and_aqi(self):
+        # Given
+        applet = WeatherApplet(48)
+        applet._city_display = "Berlin, Germany"
+        applet._weather = _SAMPLE_WEATHER
+        applet._air_quality = _SAMPLE_AQI
+
+        # When
+        box = applet._build_tooltip_widget()
+
+        # Then
+        # city + current + air + 2 daily rows
+        assert len(box.get_children()) >= 5

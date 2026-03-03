@@ -1,6 +1,10 @@
 """Tests for the Clippy clipboard history applet."""
 
+from unittest.mock import MagicMock
+
+import docking.applets.clippy.applet as clippy_mod
 from docking.applets.clippy import ClippyApplet, _truncate
+from docking.core.config import Config
 
 
 class TestTruncate:
@@ -144,3 +148,60 @@ class TestClipRendering:
         # create_icon is called by refresh_presentation inside on_scroll
         # so item.name should already be updated
         assert "a" in d.item.name
+
+
+class TestClipLifecycle:
+    def test_loads_max_entries_from_config(self):
+        applet = ClippyApplet(
+            48, config=Config(applet_prefs={"clippy": {"max_entries": 7}})
+        )
+        assert applet._max_entries == 7
+
+    def test_on_clicked_copies_current_clip_when_available(self):
+        applet = ClippyApplet(48)
+        applet._clips = ["a", "b"]
+        applet._cur_position = 2
+        applet._clipboard = MagicMock()
+
+        applet.on_clicked()
+
+        applet._clipboard.set_text.assert_called_once_with("b", -1)
+        applet._clipboard.store.assert_called_once()
+
+    def test_start_connects_clipboard_and_stop_disconnects(self, monkeypatch):
+        applet = ClippyApplet(48)
+        clipboard = MagicMock()
+        clipboard.connect.return_value = 99
+        monkeypatch.setattr(
+            clippy_mod.Gtk.Clipboard, "get", lambda *_a, **_k: clipboard
+        )
+
+        applet.start(lambda: None)
+        assert applet._clipboard is clipboard
+        assert applet._handler_id == 99
+
+        applet.stop()
+        clipboard.disconnect.assert_called_once_with(99)
+        assert applet._clipboard is None
+        assert applet._handler_id == 0
+
+    def test_owner_change_adds_clip_and_refreshes(self):
+        applet = ClippyApplet(48)
+        clipboard = MagicMock()
+        clipboard.wait_for_text.return_value = "new text"
+        applet.add_clip = MagicMock()
+        applet.refresh_presentation = MagicMock()
+
+        applet._on_owner_change(clipboard, None)
+
+        applet.add_clip.assert_called_once_with(text="new text")
+        applet.refresh_presentation.assert_called_once()
+
+    def test_copy_to_clipboard_helper_uses_clipboard(self):
+        applet = ClippyApplet(48)
+        applet._clipboard = MagicMock()
+
+        applet._copy_to_clipboard("hello")
+
+        applet._clipboard.set_text.assert_called_once_with("hello", -1)
+        applet._clipboard.store.assert_called_once()

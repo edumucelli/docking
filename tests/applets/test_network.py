@@ -16,6 +16,7 @@ from docking.applets.network import (
     parse_proc_net_dev,
     signal_to_icon,
 )
+from docking.applets.network.render import create_icon as create_network_icon
 
 SAMPLE_PROC_NET_DEV = """\
 Inter-|   Receive                                                |  Transmit
@@ -546,3 +547,42 @@ class TestNetworkAppletInternals:
         assert "Ethernet: eth0" in tooltip
         assert "IP: 10.0.0.2" in tooltip
         assert "\u2193" in tooltip and "\u2191" in tooltip
+
+
+class TestNetworkRender:
+    @pytest.mark.parametrize(
+        ("connected", "strength"),
+        [
+            (False, 0),
+            (True, 85),
+            (True, 65),
+            (True, 45),
+            (True, 10),
+        ],
+    )
+    def test_wifi_icon_renders_all_signal_branches(self, connected, strength):
+        pixbuf = create_network_icon(
+            size=48,
+            is_connected=connected,
+            is_wifi=True,
+            signal_strength=strength,
+            rx_speed=0.0,
+            tx_speed=0.0,
+        )
+        assert pixbuf is not None
+        assert pixbuf.get_width() == 48
+        assert pixbuf.get_height() == 48
+
+    @pytest.mark.parametrize("connected", [False, True])
+    def test_wired_icon_renders_connected_and_disconnected(self, connected):
+        pixbuf = create_network_icon(
+            size=48,
+            is_connected=connected,
+            is_wifi=False,
+            signal_strength=0,
+            rx_speed=0.0,
+            tx_speed=0.0,
+        )
+        assert pixbuf is not None
+        assert pixbuf.get_width() == 48
+        assert pixbuf.get_height() == 48
