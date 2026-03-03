@@ -1,4 +1,81 @@
-"""Main dock window -- GTK window with X11 dock hints, struts, and event wiring."""
+"""Main dock window and interaction hub.
+
+DockWindow is the top-level GTK window that hosts the dock drawing area and
+coordinates most UI subsystems: rendering, hover tracking, tooltip/preview
+behavior, drag-and-drop, menus, autohide, and X11 panel integration.
+
+What kind of window this is
+
+This is not a normal application window. It is created with X11 dock/panel
+hints (``WindowTypeHint.DOCK``), marked sticky and keep-above, and usually
+placed at a screen edge. In always-visible mode it also publishes struts so
+the window manager reserves screen space for it.
+
+Two important geometries
+
+DockWindow intentionally separates:
+
+1. visual window geometry
+2. interactive input geometry
+
+The GTK window is sized to a stable edge-aligned box (often spanning the full
+main axis) to avoid resize wobble during zoom and animation. But only a subset
+of that window should intercept mouse input. Transparent areas around icons
+must pass through to the desktop/applications beneath.
+
+To achieve this, the code uses an X11 input shape region (via
+``input_shape_combine_region``). This makes the dock feel visually smooth while
+remaining non-obstructive for clicks outside the actual icon area.
+
+Main-axis model used throughout
+
+Dock math is orientation-agnostic by projecting everything onto a single
+"main axis":
+
+- top/bottom dock: main axis is X
+- left/right dock: main axis is Y
+
+Zoom layout, hit-testing, drag insertion, and hover decisions all use this
+shared axis mapping. That keeps behavior consistent across orientations.
+
+How a frame is produced
+
+For each draw cycle:
+
+1. compute current autohide/zoom parameters,
+2. ask renderer to draw with current cursor state and drag state,
+3. refresh input region if hide state/content bounds changed,
+4. schedule additional redraw ticks only when needed (urgent glow, animations).
+
+This means draw is both a rendering path and a place where window-level
+interaction masks stay in sync with the current dock state.
+
+Event flow responsibilities
+
+DockWindow owns raw GTK pointer/button/scroll/enter/leave events and delegates
+high-level behavior:
+
+- hover updates go through HoverManager,
+- right-click context menus go through MenuHandler,
+- drag behavior goes through DnDHandler,
+- app launch/focus goes through launcher + WindowTracker,
+- applet clicks/scrolls are delegated to applet instances.
+
+Keeping this wiring in one class prevents conflicting event ownership and makes
+cross-feature behavior (for example autohide + previews + drag) predictable.
+
+Autohide-specific behavior
+
+When autohide is enabled, DockWindow participates in a small state machine:
+
+- visible/showing: input region covers icon content,
+- hidden: input region shrinks to a thin edge trigger strip,
+- transitions: cursor and zoom state are preserved long enough for smooth
+  animation instead of abrupt resets.
+
+This is why some cursor resets and input-shape updates are intentionally tied
+to draw/autohide state rather than immediate enter/leave events.
+"""
 
 from __future__ import annotations
 
@@ -116,7 +193,16 @@ MOUSE_RIGHT = 3
 
 
 class DockWindow(Gtk.Window):
-    """Dock window positioned at screen bottom with X11 DOCK type hints."""
+    """Top-level dock window that owns event routing and edge integration.
+
+    DockWindow acts as the composition root for runtime UI behavior: it keeps
+    references to model, renderer, hover manager, tooltip manager, preview,
+    dnd, menu, and optional autohide controller, then coordinates them from
+    GTK event callbacks.
+
+    In short: renderer draws pixels, model owns item state, and DockWindow
+    turns pointer/window-manager events into the right calls between them.
+    """
 
     def __init__(
         self,

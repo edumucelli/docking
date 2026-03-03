@@ -46,13 +46,11 @@ class CpuMonitorApplet(Applet):
         super().__init__(icon_size=icon_size, config=config)
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        """Render circular gauge to pixbuf; updates tooltip with CPU/Mem %."""
-        pixbuf = render_icon(size=size, cpu=self._cpu, mem=self._mem)
+        """Render circular gauge to pixbuf."""
+        return render_icon(size=size, cpu=self._cpu, mem=self._mem)
 
-        if hasattr(self, "item"):
-            self.item.name = tooltip_text(cpu=self._cpu, mem=self._mem)
-
-        return pixbuf
+    def refresh_tooltip(self) -> None:
+        self.item.name = tooltip_text(cpu=self._cpu, mem=self._mem)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start 1-second polling timer for /proc/stat and /proc/meminfo."""
@@ -99,6 +97,6 @@ class CpuMonitorApplet(Applet):
         if cpu_delta >= CPU_THRESHOLD or mem_delta >= MEM_THRESHOLD:
             self._last_drawn_cpu = self._cpu
             self._last_drawn_mem = self._mem
-            self.refresh_icon()
+            self.refresh_presentation()
 
         return True

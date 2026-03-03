@@ -1,4 +1,44 @@
-"""Hover manager -- icon hover detection, preview popup timer, animation pump."""
+"""Hover state machine and preview timing orchestration.
+
+HoverManager sits between raw pointer movement and user-facing hover effects.
+Its job is to keep hover-dependent UI behavior synchronized: tooltips, preview
+show/hide timers, and short redraw pumps for time-based animations.
+
+What problem this module solves
+
+Several features depend on "current hovered item," but they react on different
+timescales:
+
+- tooltip text should update immediately,
+- preview popup should appear only after a delay,
+- preview should hide when hover changes,
+- click/urgent animations require bounded frame pumping.
+
+If each subsystem ran independent hover/timer logic, they would drift and race
+(for example, tooltip over one icon while preview opens for another). This
+manager centralizes the state transitions.
+
+Hover and preview lifecycle
+
+The behavior is:
+
+1. pointer moves -> hit-test current item from latest layout,
+2. tooltip is updated on every move,
+3. if hovered item changed, cancel pending preview show,
+4. if new item is previewable (running app with windows), arm delayed show,
+5. on timer fire, recompute layout and position preview from current geometry.
+
+That final recomputation is critical: layout captured when timer was created may
+be stale due to cursor movement, zoom animation, autohide movement, or model
+changes.
+
+Animation pump responsibility
+
+Some visual effects are short and time-based (click darken, urgent bounce).
+HoverManager provides one shared frame pump (~60 fps for bounded duration)
+instead of many ad-hoc timers. This keeps redraw behavior predictable and
+reduces timer proliferation across the UI layer.
+"""
 
 from __future__ import annotations
 

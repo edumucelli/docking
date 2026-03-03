@@ -56,7 +56,7 @@ class SeparatorApplet(Applet):
         _log.bind(action="apply_prefs", desktop_id=self.item.desktop_id).debug(
             f"Separator size set to {self._gap}px"
         )
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _set_gap(self, gap: int) -> None:
         self._gap = _normalized_gap(value=gap)
@@ -65,7 +65,7 @@ class SeparatorApplet(Applet):
             f"Separator size set to {self._gap}px"
         )
         self.save_instance_prefs(prefs={"gap": self._gap})
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def create_icon(self, size: int):
         return create_separator_icon(gap=self._gap, size=size)

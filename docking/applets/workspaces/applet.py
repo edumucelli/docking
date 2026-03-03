@@ -42,6 +42,9 @@ class WorkspacesApplet(Applet):
         self._screen: Wnck.Screen | None = None
         self._signal_id: int = 0
         self._last_logged_state: tuple[int, int, str, str] | None = None
+        self._workspace_count: int = 1
+        self._active_num: int = -1
+        self._active_name: str = ""
         super().__init__(icon_size, config)
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -55,33 +58,41 @@ class WorkspacesApplet(Applet):
         )
         count = workspace_count(count=len(workspaces) if workspaces else None)
         active_name = (active.get_name() or "").strip() if active else ""
+        self._workspace_count = count
+        self._active_num = active_num
+        self._active_name = active_name
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
         _render_grid(cr=cr, size=size, count=count, active_num=active_num)
 
-        if hasattr(self, "item"):
-            label = (
-                workspace_label(
-                    name=active_name or None,
-                    number=active_num,
-                )
-                if active_num >= 0
-                else "Desktop"
-            )
-            self.item.name = label
-            log_state = (count, active_num, active_name, label)
-            if log_state != self._last_logged_state:
-                self._last_logged_state = log_state
-                _log.bind(action="create_icon").debug(
-                    "workspace state count=%s active_num=%s active_name=%r label=%r",
-                    count,
-                    active_num,
-                    active_name,
-                    label,
-                )
-
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
+
+    def refresh_tooltip(self) -> None:
+        label = (
+            workspace_label(
+                name=self._active_name or None,
+                number=self._active_num,
+            )
+            if self._active_num >= 0
+            else "Desktop"
+        )
+        self.item.name = label
+        log_state = (
+            self._workspace_count,
+            self._active_num,
+            self._active_name,
+            label,
+        )
+        if log_state != self._last_logged_state:
+            self._last_logged_state = log_state
+            _log.bind(action="refresh_tooltip").debug(
+                "workspace state count=%s active_num=%s active_name=%r label=%r",
+                self._workspace_count,
+                self._active_num,
+                self._active_name,
+                label,
+            )
 
     def on_clicked(self) -> None:
         """Cycle to next workspace."""
@@ -177,7 +188,7 @@ class WorkspacesApplet(Applet):
             self._signal_id = self._screen.connect(
                 "active-workspace-changed", self._on_workspace_changed
             )
-            self.refresh_icon()
+            self.refresh_presentation()
 
     def stop(self) -> None:
         if self._screen and self._signal_id:
@@ -189,4 +200,4 @@ class WorkspacesApplet(Applet):
         _log.bind(action="workspace_changed").debug("received active-workspace-changed")
         if self._screen:
             self._screen.force_update()
-        self.refresh_icon()
+        self.refresh_presentation()

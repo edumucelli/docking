@@ -1,4 +1,63 @@
-"""Data model for dock items -- merges pinned and running applications."""
+"""DockModel: canonical dock state, ordering, and applet ownership.
+
+This module is the source of truth for "what icons currently exist in the dock
+and in what order." Renderers, input handlers, menus, hover logic, and window
+tracking all consume model state, but only DockModel owns mutation rules.
+
+What data does the model own?
+
+DockModel composes two logical lists:
+
+1. pinned items: persistent entries from config (apps, applets, separators),
+2. transient items: non-pinned apps that are currently running.
+
+The visual dock list is ``pinned + transient`` (via ``visible_items()``).
+Pinned order is user-controlled and persisted. Transient entries appear only
+while running and disappear when no windows remain.
+
+Why this layer exists
+
+Without a dedicated model, each subsystem would mutate partial state:
+WindowTracker might toggle running flags, menu actions might reorder entries,
+and applet code might update labels independently. That creates drift and race
+conditions. DockModel centralizes those writes so each operation has a single
+place to enforce invariants.
+
+Identity model used by DockModel
+
+Each visible entry is a ``DockItem`` with a ``desktop_id`` key:
+
+- regular apps use desktop entry IDs (``firefox.desktop``),
+- applets use ``applet://<id>`` (for example ``applet://clock``),
+- multi-instance applets include instance suffixes
+  (for example ``applet://separator#2``).
+
+This uniform keying lets the renderer and input logic treat apps and applets
+with the same container type while preserving applet-specific lifecycle hooks.
+
+Ownership boundaries across modules
+
+- Launcher: resolves desktop metadata and loads theme icons.
+- WindowTracker: reports running/active/urgent window aggregates.
+- DockModel: applies those aggregates to DockItem flags and counts.
+- UI modules: render and interact with DockItems; they do not own state.
+
+Lifecycle and persistence responsibilities
+
+DockModel is responsible for:
+
+- constructing applets from registry IDs and managing their lifetime,
+- inserting/removing separator instances with stable instance numbering,
+- starting/stopping applets with dock notify callbacks,
+- synchronizing pinned order back to config and saving.
+
+Core invariant
+
+After every mutating operation, ``visible_items()`` must remain renderer-safe:
+stable order, coherent running/active/urgent flags, and applet object registry
+in sync with corresponding DockItem entries. If this invariant holds, all UI
+paths can assume consistent model semantics.
+"""
 
 from __future__ import annotations
 

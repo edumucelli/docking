@@ -1,4 +1,50 @@
-"""Applet base class -- special-purpose dock items with custom rendering."""
+"""Base applet contract and shared icon-rendering utilities.
+
+Every dock applet (clock, weather, quote, hydration, and so on) is a small UI
+module that owns one ``DockItem`` and knows how to render that item icon.
+This file defines the common lifecycle and update contract all applets follow.
+
+Core applet contract
+
+Applets split their work into two explicit paths:
+
+1. ``create_icon(size)``: pure visual rendering to pixbuf,
+2. ``refresh_tooltip()``: update user-facing metadata (name/tooltip builder),
+3. ``refresh_presentation()``: perform both and notify the dock model/UI.
+
+Why this split matters
+
+The current applet contract keeps rendering and metadata updates explicit.
+``create_icon()`` is for pixels, ``refresh_tooltip()`` is for user-facing text,
+and ``refresh_presentation()`` is the coordinated update path. This keeps applet
+behavior predictable and testable:
+
+- icon tests can assert drawing behavior independently,
+- tooltip/name tests can assert metadata logic independently,
+- full refresh paths are explicit at call sites.
+
+Applet lifecycle model
+
+Applets are instantiated by DockModel with icon size and config, then started
+after dock startup. Typical lifecycle:
+
+1. ``__init__`` creates the DockItem and performs initial presentation sync,
+2. ``start(notify=...)`` enables timers/watchers/signal subscriptions,
+3. applet internals call ``refresh_presentation()`` on state changes,
+4. ``stop()`` tears down timers/watchers when removed or on shutdown.
+
+Shared helpers provided here
+
+This module also centralizes reusable rendering helpers and icon-theme loading:
+
+- theme icon lookup with fallback candidate names,
+- bundled fallback icon for applet identity consistency across distros,
+- canvas-centering helper for non-square icon assets,
+- shared outlined text drawing used by multiple applets.
+
+Keeping these helpers in one place avoids per-applet duplication and ensures
+consistent visual behavior across applets.
+"""
 
 from __future__ import annotations
 
@@ -189,7 +235,7 @@ class Applet(ABC):
     renderer draws it like any other icon -- no renderer changes needed.
 
     Lifecycle:
-      __init__  -> create item + initial icon
+      __init__  -> create item, then initial presentation sync
       start()   -> begin timers/monitors (called after dock is ready)
       stop()    -> cleanup (called on removal or shutdown)
     """
@@ -200,15 +246,16 @@ class Applet(ABC):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._config = config
+        self._icon_size = icon_size
+        self._notify: Callable[[], None] | None = None
         self.item = DockItem(
             desktop_id=self.desktop_id,
             name=self.name,
             icon_name=self.icon_name,
             is_pinned=True,
-            icon=self.create_icon(size=icon_size),
+            icon=None,
         )
-        self._icon_size = icon_size
-        self._notify: Callable[[], None] | None = None
+        self.refresh_presentation()
 
     @property
     def desktop_id(self) -> str:
@@ -230,6 +277,9 @@ class Applet(ABC):
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Render custom content to a pixbuf at the given size."""
 
+    def refresh_tooltip(self) -> None:
+        """Sync tooltip/text presentation fields on self.item."""
+
     def on_clicked(self) -> None:
         """Handle left-click (default: no-op)."""
 
@@ -248,8 +298,9 @@ class Applet(ABC):
         """Cleanup timers/monitors."""
         self._notify = None
 
-    def refresh_icon(self) -> None:
-        """Re-render the icon and trigger a redraw."""
+    def refresh_presentation(self) -> None:
+        """Refresh icon + tooltip fields and trigger a redraw."""
         self.item.icon = self.create_icon(size=self._icon_size)
+        self.refresh_tooltip()
         if self._notify:
             self._notify()

@@ -1,7 +1,66 @@
-"""Parabolic zoom math -- pure functions, no GTK dependency.
+"""Parabolic dock zoom geometry used by rendering and interaction.
 
-Implements the magnification effect from Plank's PositionManager.vala.
-Icons near the cursor scale up parabolically; distant icons stay at 1.0x.
+This module defines the shared math for icon scale and icon position under
+cursor hover. It is used by both rendering code and hit-testing logic. Keeping
+that geometry in one place prevents class of bugs where icons are drawn at one
+position but click/drag logic thinks they are somewhere else.
+
+Two coordinate systems are involved
+
+1. rest layout: icon centers/slots when no hover zoom is applied,
+2. zoomed layout: per-icon displacement and scale relative to the cursor.
+
+Every icon begins at its rest center. Hover then applies two effects:
+
+- scale: icons near cursor become larger,
+- displacement: neighbors are pushed away to make room.
+
+Both effects depend on normalized cursor distance.
+
+Scale function used
+
+Scale follows a parabolic falloff:
+
+    zoom = 1 - offset_pct^2
+    scale = 1 + zoom * (zoom_percent - 1)
+
+``offset_pct`` is distance from cursor normalized to the configured zoom range:
+
+- ``offset_pct = 0`` (cursor centered on icon) -> max scale,
+- ``offset_pct = 1`` (at zoom boundary) -> scale is exactly 1.0.
+
+Why parabolic instead of linear
+
+Linear falloff makes too many neighbors look equally emphasized. The quadratic
+curve concentrates emphasis around the hovered icon and gives a smoother visual
+transition to non-hovered neighbors.
+
+Small numeric example
+
+If ``zoom_percent = 1.5``:
+
+- center icon (offset_pct=0.0) -> scale = 1.5
+- mid neighbor (offset_pct=0.5) -> zoom=0.75 -> scale=1.375
+- boundary icon (offset_pct=1.0) -> zoom=0.0 -> scale=1.0
+
+Why this module is pure functions only
+
+No GTK objects are touched here. Inputs are scalar config/cursor values and
+items; output is a list of plain ``LayoutItem`` records. That keeps behavior
+deterministic, easy to unit test, and cheap to call from high-frequency UI
+paths.
+
+Autohide interaction
+
+``zoom_progress`` modulates effective zoom during show/hide animation. As the
+dock hides, zoom and displacement decay together back to rest geometry, which
+prevents snapping artifacts when the dock transitions.
+
+Floating-point boundary handling
+
+Near the zoom edge, floating-point values can land at ``0.999999`` instead of
+``1.0``. ``OFFSET_PCT_SNAP`` snaps that region to 1.0 so edge icons do not
+receive tiny residual displacement/scale and visually twitch at the boundary.
 """
 
 from __future__ import annotations

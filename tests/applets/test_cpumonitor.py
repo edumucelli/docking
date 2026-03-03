@@ -103,7 +103,7 @@ class TestCpuMonitorRendering:
         applet = CpuMonitorApplet(48)
         applet._cpu = 0.423
         applet._mem = 0.671
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "CPU: 42.3%" in applet.item.name
         assert "Mem: 67.1%" in applet.item.name
 

@@ -32,18 +32,18 @@ class CalendarApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer_id: int = 0
         self._last_day: int = -1
+        self._tooltip_text: str = "Calendar"
         self._popup: Gtk.Window | None = None
         super().__init__(icon_size=icon_size, config=config)
-        snapshot = snapshot_from()
-        self.item.name = snapshot.tooltip
-        self._last_day = snapshot.day
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         snapshot = snapshot_from()
-        if hasattr(self, "item"):
-            self.item.name = snapshot.tooltip
+        self._tooltip_text = snapshot.tooltip
         self._last_day = snapshot.day
         return render_icon(size=size, snapshot=snapshot)
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = self._tooltip_text
 
     def on_clicked(self) -> None:
         if self._popup and self._popup.get_visible():
@@ -66,9 +66,11 @@ class CalendarApplet(Applet):
 
     def _tick(self) -> bool:
         snapshot = snapshot_from()
-        self.item.name = snapshot.tooltip
+        self._tooltip_text = snapshot.tooltip
         if snapshot.day != self._last_day:
-            self.refresh_icon()
+            self.refresh_presentation()
+        else:
+            self.refresh_tooltip()
         return True
 
     def _show_popup(self) -> None:

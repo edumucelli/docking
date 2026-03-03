@@ -120,14 +120,14 @@ class AmbientApplet(Applet):
         else:
             self._start_playback()
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def on_scroll(self, direction_up: bool) -> None:
         self._state = adjust_volume(state=self._state, direction_up=direction_up)
         self._apply_volume()
         self._save()
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -152,7 +152,7 @@ class AmbientApplet(Applet):
         if was_playing:
             self._start_playback()
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _start_playback(self) -> None:
         self._stop_playback()

@@ -29,15 +29,13 @@ class BatteryApplet(Applet):
         self._timer_id: int = 0
         self._state: BatteryState | None = read_battery()
         super().__init__(icon_size=icon_size, config=config)
-        # Set tooltip immediately (create_icon can't on first call because item
-        # doesn't exist yet during super().__init__)
-        self.item.name = tooltip_text(state=self._state)
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        """Load battery theme icon matching current state; update tooltip."""
-        if hasattr(self, "item"):
-            self.item.name = tooltip_text(state=self._state)
+        """Load battery theme icon matching current state."""
         return render_icon(size=size, state=self._state)
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = tooltip_text(state=self._state)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start 60-second polling timer (battery changes slowly)."""
@@ -54,5 +52,5 @@ class BatteryApplet(Applet):
     def _tick(self) -> bool:
         """Re-read sysfs and refresh icon."""
         self._state = read_battery()
-        self.refresh_icon()
+        self.refresh_presentation()
         return True

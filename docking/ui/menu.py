@@ -8,11 +8,12 @@ from typing import TYPE_CHECKING, Any
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, Gtk  # noqa: E402
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
 import docking.platform.launcher as launcher_mod
 from docking.applets import get_registry
-from docking.applets.base import is_applet
+from docking.applets.base import is_applet, load_theme_icon
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
     AppletCategory,
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 
 
 ICON_SIZE_OPTIONS = (32, 48, 64, 80)
+APPLET_MENU_ICON_PX = 16
 
 
 def _make_menu_header(label: str) -> Gtk.MenuItem:
@@ -72,6 +74,50 @@ def _build_radio_submenu(
         submenu.append(radio)
     menu_item.set_submenu(submenu)
     return menu_item
+
+
+def _menu_icon_pixbuf(pixbuf: GdkPixbuf.Pixbuf | None) -> GdkPixbuf.Pixbuf | None:
+    """Scale pixbuf to applet submenu icon size."""
+    if pixbuf is None:
+        return None
+    if (
+        pixbuf.get_width() == APPLET_MENU_ICON_PX
+        and pixbuf.get_height() == APPLET_MENU_ICON_PX
+    ):
+        return pixbuf
+    scaled = pixbuf.scale_simple(
+        APPLET_MENU_ICON_PX,
+        APPLET_MENU_ICON_PX,
+        GdkPixbuf.InterpType.BILINEAR,
+    )
+    return scaled or pixbuf
+
+
+def _set_check_menu_item_icon(
+    *,
+    item: Gtk.CheckMenuItem,
+    label: str,
+    pixbuf: GdkPixbuf.Pixbuf | None,
+) -> None:
+    """Attach icon + text row to a check menu item."""
+    item.set_label(label)
+    if pixbuf is None:
+        return
+
+    image = Gtk.Image.new_from_pixbuf(_menu_icon_pixbuf(pixbuf))
+    image.set_pixel_size(APPLET_MENU_ICON_PX)
+
+    row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+    row.pack_start(image, False, False, 0)
+
+    text = Gtk.Label(label=label)
+    text.set_xalign(0.0)
+    row.pack_start(text, False, False, 0)
+
+    child = item.get_child()
+    if child is not None:
+        item.remove(child)
+    item.add(row)
 
 
 class MenuHandler:
@@ -292,6 +338,20 @@ class MenuHandler:
                     desktop_id = applet_desktop_id(applet_id=did)
                     check = Gtk.CheckMenuItem(label=cls.name)
                     check.set_active(desktop_id in active_ids)
+                    applet = self._model.get_applet(desktop_id)
+                    pixbuf: GdkPixbuf.Pixbuf | None = None
+                    if (
+                        applet is not None
+                        and getattr(applet.item, "icon", None) is not None
+                    ):
+                        pixbuf = applet.item.icon
+                    else:
+                        icon_name = getattr(cls, "icon_name", "")
+                        if icon_name:
+                            pixbuf = load_theme_icon(
+                                name=str(icon_name), size=APPLET_MENU_ICON_PX
+                            )
+                    _set_check_menu_item_icon(item=check, label=cls.name, pixbuf=pixbuf)
                     check.connect("toggled", self._on_applet_toggled, str(did))
                     dock_menu.append(check)
                 if i < len(non_empty_categories) - 1:

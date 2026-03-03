@@ -160,7 +160,7 @@ class TestNetworkApplet:
 
     def test_tooltip_disconnected(self):
         applet = NetworkApplet(48)
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "not connected" in applet.item.name.lower()
 
     def test_menu_returns_items(self):
@@ -176,7 +176,7 @@ class TestNetworkApplet:
         applet._signal_strength = 72
         applet._rx_speed = 1500.0
         applet._tx_speed = 300.0
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "MyNetwork" in applet.item.name
         assert "72%" in applet.item.name
 
@@ -185,7 +185,7 @@ class TestNetworkApplet:
         applet._is_connected = True
         applet._is_wifi = False
         applet._iface = "eth0"
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "Ethernet" in applet.item.name
         assert "eth0" in applet.item.name
 
@@ -219,7 +219,7 @@ class TestNmDevicePriority:
         applet._is_wifi = True
         applet._ssid = "TestWifi"
         applet._signal_strength = 80
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "TestWifi" in applet.item.name
 
 
@@ -286,7 +286,7 @@ class TestNetworkAppletInternals:
         update = MagicMock()
         refresh = MagicMock()
         monkeypatch.setattr(applet, "_update_nm_state", update)
-        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        monkeypatch.setattr(applet, "refresh_presentation", refresh)
         # When
         applet._on_nm_changed()
         # Then
@@ -402,7 +402,7 @@ class TestNetworkAppletInternals:
         refresh = MagicMock()
         monkeypatch.setattr(applet, "_update_traffic", update_traffic)
         monkeypatch.setattr(applet, "_update_wifi_signal", update_wifi)
-        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        monkeypatch.setattr(applet, "refresh_presentation", refresh)
         # When
         result = applet._tick()
         # Then

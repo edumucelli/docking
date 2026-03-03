@@ -16,7 +16,6 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.applets  # noqa: E402
 import docking.ui.menu as menu_mod  # noqa: E402
 from docking.platform.model import DockItem  # noqa: E402
 
@@ -44,6 +43,7 @@ class FakeMenuItem:
     def __init__(self, label: str = "") -> None:
         self._label = label
         self._submenu = None
+        self._child = None
         self._sensitive = True
         self._signals: dict[str, list[tuple[object, tuple[object, ...]]]] = {}
 
@@ -65,11 +65,23 @@ class FakeMenuItem:
     def get_label(self) -> str:
         return self._label
 
+    def set_label(self, label: str) -> None:
+        self._label = label
+
     def get_active(self) -> bool:
         return True
 
     def set_sensitive(self, sensitive: bool) -> None:
         self._sensitive = sensitive
+
+    def get_child(self):
+        return self._child
+
+    def remove(self, _child) -> None:
+        self._child = None
+
+    def add(self, child) -> None:
+        self._child = child
 
 
 class FakeCheckMenuItem(FakeMenuItem):
@@ -94,12 +106,49 @@ class FakeSeparatorMenuItem(FakeMenuItem):
         super().__init__(label="---")
 
 
+class FakeImage:
+    def __init__(self) -> None:
+        self.pixel_size = None
+
+    @classmethod
+    def new_from_pixbuf(cls, _pixbuf):
+        return cls()
+
+    def set_pixel_size(self, size: int) -> None:
+        self.pixel_size = size
+
+
+class FakeBox:
+    def __init__(self, **_kwargs) -> None:
+        self.children: list[object] = []
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+
+class FakeLabel:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.xalign = 0.0
+
+    def set_xalign(self, xalign: float) -> None:
+        self.xalign = xalign
+
+
+class FakeOrientation:
+    HORIZONTAL = 0
+
+
 class FakeGtk:
     Menu = FakeMenu
     MenuItem = FakeMenuItem
     CheckMenuItem = FakeCheckMenuItem
     RadioMenuItem = FakeRadioMenuItem
     SeparatorMenuItem = FakeSeparatorMenuItem
+    Image = FakeImage
+    Box = FakeBox
+    Label = FakeLabel
+    Orientation = FakeOrientation
     main_quit = MagicMock()
 
 
@@ -214,7 +263,7 @@ class TestDockMenu:
         FakeGtk.main_quit.reset_mock()
         handler._model.pinned_items = [DockItem(desktop_id="applet://clock")]
         monkeypatch.setattr(
-            docking.applets,
+            menu_mod,
             "get_registry",
             lambda: {
                 "clock": SimpleNamespace(name="Clock"),

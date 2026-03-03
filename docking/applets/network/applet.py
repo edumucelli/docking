@@ -62,8 +62,6 @@ class NetworkApplet(Applet):
 
     def create_icon(self, size: int):
         """Load network icon with speed overlay."""
-        if hasattr(self, "item"):
-            self.item.name = self._build_tooltip()
         return create_icon(
             size=size,
             is_connected=self._is_connected,
@@ -72,6 +70,9 @@ class NetworkApplet(Applet):
             rx_speed=self._rx_speed,
             tx_speed=self._tx_speed,
         )
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = self._build_tooltip()
 
     def get_menu_items(self) -> list:
         """Show connection info."""
@@ -135,7 +136,7 @@ class NetworkApplet(Applet):
     def _on_nm_changed(self, *_args: object) -> None:
         """NM active-connections changed: update state immediately."""
         self._update_nm_state()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _update_nm_state(self) -> None:
         """Read current connection info from NetworkManager."""
@@ -208,7 +209,7 @@ class NetworkApplet(Applet):
         """Poll traffic counters and wifi signal."""
         self._update_traffic()
         self._update_wifi_signal()
-        self.refresh_icon()
+        self.refresh_presentation()
         return True
 
     def _update_traffic(self) -> None:

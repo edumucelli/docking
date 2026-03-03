@@ -117,7 +117,7 @@ class TestClipRendering:
     def test_tooltip_shows_current_clip(self):
         d = ClippyApplet(48)
         d.add_clip("hello world")
-        d.create_icon(48)
+        d.refresh_tooltip()
         assert "hello world" in d.item.name
 
     def test_tooltip_updates_on_scroll(self):
@@ -125,7 +125,7 @@ class TestClipRendering:
         d = ClippyApplet(48)
         d.add_clip("first")
         d.add_clip("second")
-        d.create_icon(48)
+        d.refresh_tooltip()
         assert "second" in d.item.name
 
         # When scroll up (to older clip)
@@ -141,6 +141,6 @@ class TestClipRendering:
         d._cur_position = 2  # at "b"
         d.on_scroll(direction_up=False)  # wraps to "a"
         assert d._cur_position == 1
-        # create_icon is called by refresh_icon inside on_scroll
+        # create_icon is called by refresh_presentation inside on_scroll
         # so item.name should already be updated
         assert "a" in d.item.name

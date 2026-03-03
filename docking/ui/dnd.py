@@ -1,4 +1,52 @@
-"""Drag-and-drop: internal reordering + external .desktop file drops."""
+"""Drag-and-drop controller for dock reordering and external launcher drops.
+
+This module handles two drag scenarios through one GTK DnD destination:
+
+1. internal drag: reorder existing dock icons (MOVE semantics),
+2. external drag: drop a ``.desktop`` URI onto the dock (COPY semantics).
+
+Why DnD has dedicated logic
+
+GTK drag events are not the same as normal pointer motion events. During an
+active drag, ``drag-motion`` is delivered but regular enter/motion/leave flow
+is not. That means systems like autohide and hover cannot rely on their normal
+signals while dragging. DnDHandler bridges that gap explicitly.
+
+In practice, this handler must keep several subsystems coherent while drag is
+in progress:
+
+- keep dock visible during drag-over,
+- maintain external drop insertion gap,
+- perform live reorder as cursor crosses icon centers,
+- clear transient drag state on leave/end/drop.
+
+Data formats accepted
+
+Two GTK target types are used:
+
+- ``dock-item-index``: internal reorder payload from this same widget,
+- ``text/uri-list``: external URI drops from file managers.
+
+The first maps to "move an existing index." The second maps to "resolve this
+URI to a desktop file ID and pin it at insertion index."
+
+Geometry model used for decisions
+
+All insert/reorder decisions are made in the same main-axis coordinate space
+used by rendering. The handler calls ``compute_layout(...)`` and compares
+cursor position against item centers. This guarantees DnD behavior matches
+visible icon geometry under zoom, scaling, and orientation changes.
+
+Operational invariant
+
+Drag state is represented by mutually exclusive fields:
+
+- internal mode: ``_drag_from`` and ``drag_index``,
+- external mode: ``drop_insert_index``.
+
+Only one mode should be active at a time. Keeping this invariant makes drawing
+and drop finalization deterministic and easier to debug.
+"""
 
 from __future__ import annotations
 

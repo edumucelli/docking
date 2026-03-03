@@ -102,7 +102,7 @@ class HydrationApplet(Applet):
         self._state = refill(state=self._state)
         self.item.is_urgent = False
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -130,7 +130,7 @@ class HydrationApplet(Applet):
             show_timer=widget.get_active(),
         )
         self._save()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _tick(self) -> bool:
         result = tick(state=self._state)
@@ -140,10 +140,10 @@ class HydrationApplet(Applet):
             self.item.is_urgent = True
             self.item.last_urgent = GLib.get_monotonic_time()
             self._update_tooltip()
-            self.refresh_icon()
+            self.refresh_presentation()
         elif result.should_refresh:
             self._update_tooltip()
-            self.refresh_icon()
+            self.refresh_presentation()
 
         return True
 

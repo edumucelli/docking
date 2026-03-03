@@ -74,7 +74,7 @@ class TestWorkspacesApplet:
         applet._screen = screen
 
         # When
-        applet.create_icon(48)
+        applet.refresh_presentation()
 
         # Then
         assert applet.item.name == "Workspace 2"
@@ -158,7 +158,7 @@ class TestWorkspacesBehavior:
         screen.connect.return_value = 33
         monkeypatch.setattr(workspaces_mod.Wnck.Screen, "get_default", lambda: screen)
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        monkeypatch.setattr(applet, "refresh_presentation", refresh)
         # When
         applet.start(lambda: None)
         # Then
@@ -178,7 +178,7 @@ class TestWorkspacesBehavior:
         ws = MagicMock()
         monkeypatch.setattr(workspaces_mod.Gtk, "get_current_event_time", lambda: 11)
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        monkeypatch.setattr(applet, "refresh_presentation", refresh)
         # When
         applet._on_workspace_activate(MagicMock(), ws)
         applet._on_workspace_changed(MagicMock())

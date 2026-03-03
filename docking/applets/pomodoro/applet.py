@@ -142,7 +142,7 @@ class PomodoroApplet(Applet):
         """Start/pause toggle."""
         self._data = click_toggle(state=self._data)
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -210,13 +210,13 @@ class PomodoroApplet(Applet):
             self.item.is_urgent = True
             self.item.last_urgent = GLib.get_monotonic_time()
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
         return True
 
     def _reset(self) -> None:
         self._data = reset(state=self._data)
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _save(self) -> None:
         self.save_prefs(prefs=prefs_from_state(state=self._data))
@@ -224,7 +224,7 @@ class PomodoroApplet(Applet):
     def _on_toggle_timer(self, widget: Gtk.CheckMenuItem) -> None:
         self._data = set_show_timer(state=self._data, show_timer=widget.get_active())
         self._save()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _set_work(self, minutes: int) -> None:
         self._data = set_work_minutes(state=self._data, minutes=minutes)

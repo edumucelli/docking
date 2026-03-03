@@ -68,7 +68,7 @@ class VolumeApplet(Applet):
             self._backend.toggle_mute()
             self._poll()
             self._update_tooltip()
-            self.refresh_icon()
+            self.refresh_presentation()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Adjust volume ±5% on scroll."""
@@ -81,7 +81,7 @@ class VolumeApplet(Applet):
         self._backend.set_volume(new)
         self._poll()
         self._update_tooltip()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _poll(self) -> None:
         """Read current volume state from backend."""
@@ -112,5 +112,5 @@ class VolumeApplet(Applet):
             self._volume = state.volume
             self._muted = state.muted
             self._update_tooltip()
-            self.refresh_icon()
+            self.refresh_presentation()
         return False

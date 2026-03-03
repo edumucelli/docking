@@ -38,9 +38,10 @@ class TrashApplet(Applet):
         super().__init__(icon_size, config)
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        if hasattr(self, "item"):
-            self.item.name = trash_tooltip(item_count=self._item_count)
         return create_trash_icon(size=size, item_count=self._item_count)
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = trash_tooltip(item_count=self._item_count)
 
     def on_clicked(self) -> None:
         """Open trash folder in the default file manager."""
@@ -87,7 +88,7 @@ class TrashApplet(Applet):
     def _on_trash_changed(self, *_args: object) -> None:
         """File monitor callback: re-count items and update icon."""
         self._item_count = _count_trash_items()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _empty_trash(self) -> None:
         """Empty trash via DBus, with fallback to Gio deletion."""

@@ -33,7 +33,7 @@ class TestWeatherAppletCreation:
 
     def test_default_tooltip_no_city(self):
         applet = WeatherApplet(48)
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "no city" in applet.item.name.lower()
 
     def test_renders_at_various_sizes(self):
@@ -48,7 +48,7 @@ class TestWeatherTooltip:
         applet = WeatherApplet(48)
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "Berlin" in applet.item.name
         assert "22" in applet.item.name
         assert "Clear sky" in applet.item.name
@@ -57,7 +57,7 @@ class TestWeatherTooltip:
         applet = WeatherApplet(48)
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "Mon" in applet.item.name
         assert "Tue" in applet.item.name
 
@@ -65,7 +65,7 @@ class TestWeatherTooltip:
         applet = WeatherApplet(48)
         applet._city_display = "Berlin, Germany"
         applet._weather = None
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "loading" in applet.item.name.lower()
 
 
@@ -153,7 +153,7 @@ class TestAirQualityInTooltip:
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
         applet._air_quality = _SAMPLE_AQI
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "Air: Fair" in applet.item.name
 
     def test_tooltip_no_aqi_when_unavailable(self):
@@ -161,7 +161,7 @@ class TestAirQualityInTooltip:
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
         applet._air_quality = None
-        applet.create_icon(48)
+        applet.refresh_tooltip()
         assert "Air:" not in applet.item.name
 
 
@@ -227,7 +227,7 @@ class TestWeatherAsyncFetch:
         applet._weather = None
         applet._air_quality = None
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        monkeypatch.setattr(applet, "refresh_presentation", refresh)
         # When
         result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
         # Then
@@ -241,7 +241,7 @@ class TestWeatherAsyncFetch:
         applet = WeatherApplet(48)
         applet._fetch_request_id = 3
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "refresh_icon", refresh)
+        monkeypatch.setattr(applet, "refresh_presentation", refresh)
         # When
         result = applet._on_fetch_result(3, _SAMPLE_WEATHER, _SAMPLE_AQI)
         # Then

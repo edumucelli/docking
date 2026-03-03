@@ -1,4 +1,87 @@
-"""Window tracking via libwnck -- monitors running apps and active window."""
+"""Window tracking and app identity matching for X11/libwnck.
+
+This module answers a core dock question: "which running window belongs to
+which launcher entry in the dock?" The dock model is keyed by desktop entry
+IDs such as ``firefox.desktop`` or ``org.gnome.Nautilus.desktop``, but runtime
+windows arrive as ``Wnck.Window`` objects. WindowTracker is the translation
+layer between those two identities.
+
+X11 identity basics
+
+Every X11 toplevel has several identity hints. The most important here is
+``WM_CLASS``, which you can inspect with ``xprop``:
+
+    WM_CLASS(STRING) = "Navigator", "firefox"
+
+WM_CLASS has two strings:
+
+1. instance name (often a per-process/toolkit string),
+2. class name (usually the stable application family name).
+
+libwnck also exposes a class-group name (``window.get_class_group_name()``).
+Conceptually, class-group is "the label used to group related windows"
+according to the window manager, and is often closer to what users expect as
+the app name. It is not guaranteed to be identical to WM_CLASS and it is not
+guaranteed to match any desktop file on disk.
+
+Examples of values seen in practice:
+
+    WM_CLASS class      class-group          likely desktop entry
+    ----------------------------------------------------------------
+    firefox             firefox              firefox.desktop
+    Code                code                 code.desktop / org...Code.desktop
+    mongodb compass     mongodb compass      mongodb-compass.desktop
+    aws vpn client      aws vpn client       aws-vpn-client.desktop
+
+Why this is difficult
+
+Desktop file IDs are packaging artifacts (``*.desktop`` filenames). WM_CLASS
+and class-group come from running processes and toolkits. Those naming systems
+evolved independently, so exact string equality is often insufficient.
+
+For example, one app may expose ``"mongodb compass"`` at runtime while the
+desktop file is ``mongodb-compass.desktop``. Another app may use a vendor
+prefix such as ``org.gnome.Nautilus.desktop`` even when runtime strings are
+plain ``nautilus``.
+
+Matching strategy used here
+
+WindowTracker applies layered heuristics, from strongest to broadest:
+
+1. direct lookup from cached WM_CLASS/class-group to known desktop IDs,
+2. fallback to class-instance value when class-group is unhelpful,
+3. synthesize desktop ID candidates from runtime names:
+   plain, hyphenated, and no-space variants,
+4. try GNOME-prefixed naming (``org.gnome.<Name>.desktop``).
+
+When a match succeeds, it is cached. Future scans can resolve the same app with
+a fast dictionary hit instead of repeated heuristic work.
+
+Runtime data flow
+
+Wnck emits ``window-opened``, ``window-closed``, and
+``active-window-changed``. On each signal we rescan current windows and build
+an aggregated structure:
+
+    {desktop_id: {
+        "count": n,
+        "active": bool,
+        "urgent": bool,
+        "windows": [Wnck.Window...],
+        "xids": [int...],
+    }}
+
+That aggregate is then pushed into DockModel, which updates running dots,
+active highlights, urgency animation, preview sources, and click behavior.
+
+Why defensive exception handling is intentional
+
+Wnck objects are live views over X11 state. During rapid close/minimize/focus
+changes, reading one property can succeed and a subsequent property can fail
+because the window disappeared in between. This module treats those failures as
+recoverable: log, skip that unstable window read, and continue scanning. The
+goal is resilient convergence of dock state, not strict all-or-nothing updates.
+"""
 
 from __future__ import annotations
 

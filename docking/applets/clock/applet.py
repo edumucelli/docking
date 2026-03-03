@@ -45,7 +45,7 @@ class ClockApplet(Applet):
     def create_icon(self, size: int):
         """Render clock icon in current mode."""
         now = time.localtime()
-        pixbuf = render_icon(
+        return render_icon(
             size=size,
             now=now,
             show_digital=self._show_digital,
@@ -53,11 +53,11 @@ class ClockApplet(Applet):
             show_date=self._show_date,
         )
 
-        # Update tooltip with full date+time (guard: item not yet set on first call)
-        if hasattr(self, "item"):
-            self.item.name = build_tooltip(now=now, is_24h=self._show_military)
-
-        return pixbuf
+    def refresh_tooltip(self) -> None:
+        self.item.name = build_tooltip(
+            now=time.localtime(),
+            is_24h=self._show_military,
+        )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Three toggles: Digital Clock, 24-Hour Clock, Show Date."""
@@ -84,17 +84,17 @@ class ClockApplet(Applet):
     def _on_toggle_digital(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_digital = widget.get_active()
         self._save_prefs()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _on_toggle_military(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_military = widget.get_active()
         self._save_prefs()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _on_toggle_date(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_date = widget.get_active()
         self._save_prefs()
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def _save_prefs(self) -> None:
         self.save_prefs(
@@ -107,7 +107,7 @@ class ClockApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
-        self._timer.start(callback=self.refresh_icon)
+        self._timer.start(callback=self.refresh_presentation)
 
     def stop(self) -> None:
         self._timer.stop()

@@ -47,13 +47,14 @@ class ClippyApplet(Applet):
         super().__init__(icon_size=icon_size, config=config)
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        """Static edit-paste icon; tooltip shows current clip."""
-        if hasattr(self, "item"):
-            self.item.name = tooltip_text(
-                clips=self._clips,
-                cur_position=self._cur_position,
-            )
+        """Static edit-paste icon."""
         return create_icon(size=size)
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = tooltip_text(
+            clips=self._clips,
+            cur_position=self._cur_position,
+        )
 
     def on_clicked(self) -> None:
         """Copy current clip back to clipboard."""
@@ -71,7 +72,7 @@ class ClippyApplet(Applet):
             direction_up=direction_up,
         )
         if self._cur_position:
-            self.refresh_icon()
+            self.refresh_presentation()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """List all clips (newest first) + Clear button."""
@@ -116,7 +117,7 @@ class ClippyApplet(Applet):
         if not text:
             return
         self.add_clip(text=text)
-        self.refresh_icon()
+        self.refresh_presentation()
 
     def add_clip(self, text: str) -> None:
         """Add a clip to history (dedup, cap at max_entries)."""
@@ -136,4 +137,4 @@ class ClippyApplet(Applet):
         """Clear all clipboard history."""
         self._clips.clear()
         self._cur_position = 0
-        self.refresh_icon()
+        self.refresh_presentation()

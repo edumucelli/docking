@@ -1,4 +1,71 @@
-"""Cairo renderer for the dock -- background, icons, indicators, zoom visualization."""
+"""Cairo renderer for all visual dock output.
+
+This module turns DockModel state + runtime interaction state into pixels.
+It is intentionally "view-only": it does not mutate model state, launch apps,
+or decide hover/menu behavior. Its responsibility is deterministic drawing.
+
+What the renderer draws
+
+A frame is composed in layers:
+
+1. shelf background (panel body),
+2. active-item glow on the shelf,
+3. icons (with hover/click/launch/urgent animation effects),
+4. running indicators,
+5. urgent edge glow when dock is fully hidden.
+
+Because these layers overlap, their order is part of behavior. For example,
+indicators should sit above shelf and below icon contents, while urgent edge
+glow is an edge-only signal that appears only in hidden state.
+
+Why this renderer works in one-dimensional layout space
+
+Icon layout is computed in 1D main-axis coordinates by ``compute_layout``:
+
+- top/bottom docks use X as the main axis,
+- left/right docks use Y as the main axis.
+
+Renderer maps that 1D result to 2D ``(x, y)`` with ``map_icon_position``.
+This keeps zoom/hit-test/dnd geometry consistent across orientations and avoids
+duplicating layout logic per edge.
+
+How autohide affects rendering
+
+Autohide feeds two rendering parameters:
+
+- ``hide_offset``: how far content is shifted toward the screen edge,
+- ``zoom_progress``: how much zoom/displacement remains during transitions.
+
+As hide progresses, icons slide toward the edge while zoom influence decays.
+This produces smooth collapse/expand behavior rather than abrupt scale resets.
+
+Why offscreen composition is used
+
+Transparent RGBA windows can flicker if each draw step paints directly to the
+window surface (especially when clear + repaint occurs under compositor timing).
+To avoid that, renderer paints the full frame into an offscreen surface first,
+then blits once with ``OPERATOR_SOURCE``. The visible surface is touched
+atomically, reducing intermediate artifacts.
+
+Shelf transform model
+
+Shelf code is authored once as "bottom-oriented" geometry. For top/left/right
+docks, Cairo transforms are applied before drawing shelf primitives. This keeps
+corner/gradient math in one place while still supporting all orientations.
+
+Animation state owned here
+
+DockRenderer owns short-lived visual interpolation caches:
+
+- slide offsets for item reordering transitions,
+- smoothed shelf width during layout changes,
+- hover lighten fade values,
+- icon average-color cache for glows.
+
+These are renderer-local presentation states. They are derived from model
+inputs and decay over time, so they belong to the view layer rather than the
+domain model.
+"""
 
 from __future__ import annotations
 
@@ -76,7 +143,12 @@ def map_icon_position(
 
 
 class DockRenderer:
-    """Dock renderer with per-item slide animation for reordering."""
+    """Stateful Cairo renderer for dock visuals and micro-animations.
+
+    The class keeps small presentation caches between frames (slide offsets,
+    hover fade values, shelf smoothing, icon color cache) so transitions look
+    continuous even though each frame is recomputed from current state.
+    """
 
     def __init__(self) -> None:
         self.slide_offsets: dict[str, float] = {}

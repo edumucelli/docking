@@ -57,26 +57,22 @@ class QuoteApplet(Applet):
         super().__init__(icon_size, config)
         self._quotes = source_fallback(source=self._source)
         self._advance_quote()
-        self._update_item_name()
+        self.refresh_tooltip()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
         draw_bulb_icon(cr=cr, size=size)
-        if hasattr(self, "item"):
-            self._update_item_name()
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 
     def on_clicked(self) -> None:
         if self._advance_quote():
-            self.refresh_icon()
+            self.refresh_presentation()
             # Fetch next batch in background when we reach the end.
             if self._index >= len(self._quotes) - 1:
                 self._fetch_async(show_first=False)
             return
         self._current = None
-        self._set_loading_name()
-        self.refresh_icon()
         self._fetch_async(show_first=True)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
@@ -131,7 +127,7 @@ class QuoteApplet(Applet):
         self._index = -1
         self._current = None
         self._advance_quote()
-        self.refresh_icon()
+        self.refresh_presentation()
         self._fetch_async(show_first=False)
 
     def _refresh_from_web(self) -> None:
@@ -157,8 +153,7 @@ class QuoteApplet(Applet):
             return
         self._loading = True
         if show_first:
-            self._set_loading_name()
-            self.refresh_icon()
+            self.refresh_presentation()
 
         source = self._source
 
@@ -191,8 +186,8 @@ class QuoteApplet(Applet):
             self._index = -1
             self._advance_quote()
 
-        self._update_item_name()
-        self.refresh_icon()
+        self.refresh_tooltip()
+        self.refresh_presentation()
         return False
 
     def _advance_quote(self) -> bool:
@@ -201,15 +196,12 @@ class QuoteApplet(Applet):
             return False
         self._index = nxt
         self._current = self._quotes[nxt]
-        self._update_item_name()
+        self.refresh_tooltip()
         return True
 
-    def _set_loading_name(self) -> None:
-        if hasattr(self, "item"):
+    def refresh_tooltip(self) -> None:
+        if self._loading and self._current is None:
             self.item.name = f"{SOURCE_LABELS.get(self._source, 'Quote')}: loading..."
-
-    def _update_item_name(self) -> None:
-        if not hasattr(self, "item"):
             return
         if self._current:
             self.item.name = format_quote(self._current)
