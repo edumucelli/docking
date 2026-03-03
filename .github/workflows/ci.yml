@@ -565,11 +565,11 @@ jobs:
             local label="$1"
             shift
             if [ "$#" -eq 0 ]; then
-              echo "Missing ${label} artifact"
+              echo "Missing ${label} artifact" >&2
               exit 1
             fi
             if [ "$#" -gt 1 ]; then
-              echo "Multiple ${label} artifacts found ($#), selecting first:"
+              echo "Multiple ${label} artifacts found ($#), selecting first:" >&2
               printf ' - %s\n' "$@"
             fi
             printf '%s\n' "$1"
@@ -636,7 +636,7 @@ jobs:
           arch_candidates=("${source_dir}"/*.pkg.tar.*)
           arch_primary=()
           for f in "${arch_candidates[@]}"; do
-            if [[ "${f}" != *.sig ]]; then
+            if [[ "${f}" != *.sig && "${f##*/}" != docking-debug-* ]]; then
               arch_primary+=("${f}")
             fi
           done
