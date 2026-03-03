@@ -58,10 +58,29 @@ def _mode_args(*, tool: Tool, mode: Mode) -> list[str]:
     return tool.region
 
 
-def _run(tool: Tool, mode: Mode) -> list[str]:
+def _delay_args(*, tool: Tool, delay_seconds: int) -> list[str]:
+    """Return per-tool delay args."""
+    if delay_seconds <= 0:
+        return []
+    delay = str(delay_seconds)
+    if tool.command in {"mate-screenshot", "gnome-screenshot"}:
+        return ["-d", delay]
+    if tool.command == "xfce4-screenshooter":
+        return ["-d", delay]
+    if tool.command == "spectacle":
+        return ["--delay", delay]
+    if tool.command == "flameshot":
+        # Flameshot delay is in milliseconds.
+        return ["--delay", str(delay_seconds * 1000)]
+    if tool.command == "scrot":
+        return ["-d", delay]
+    return []
+
+
+def _run(tool: Tool, mode: Mode, delay_seconds: int = 0) -> list[str]:
     """Build and run screenshot command for *tool* and *mode*."""
     args = _mode_args(tool=tool, mode=mode)
-    cmd = [tool.command, *args]
+    cmd = [tool.command, *args, *_delay_args(tool=tool, delay_seconds=delay_seconds)]
     if tool.command == "scrot":
         cmd.append(_scrot_path())
     subprocess.Popen(cmd, start_new_session=True)

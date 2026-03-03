@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 _log = with_context(get_logger(name="screenshot"), applet_id=str(AppletId.SCREENSHOT))
+_TIMED_DELAYS_S: tuple[int, ...] = (3, 5, 7, 9)
 
 
 class ScreenshotApplet(Applet):
@@ -65,13 +66,22 @@ class ScreenshotApplet(Applet):
             mi = Gtk.MenuItem(label=label)
             mi.connect("activate", lambda _w, m=mode: self._run_mode(mode=m))
             items.append(mi)
+
+        items.append(Gtk.SeparatorMenuItem())
+        for delay_s in _TIMED_DELAYS_S:
+            mi = Gtk.MenuItem(label=f"Full Screen in {delay_s}s")
+            mi.connect(
+                "activate",
+                lambda _w, d=delay_s: self._run_mode(mode="full", delay_seconds=d),
+            )
+            items.append(mi)
         return items
 
-    def _run_mode(self, *, mode: Mode) -> None:
+    def _run_mode(self, *, mode: Mode, delay_seconds: int = 0) -> None:
         if not self._tool:
             return
         try:
-            _run(tool=self._tool, mode=mode)
+            _run(tool=self._tool, mode=mode, delay_seconds=delay_seconds)
         except OSError as exc:
             _log.bind(action=f"screenshot_{mode}").warning(
                 "Failed to run screenshot command: %s",

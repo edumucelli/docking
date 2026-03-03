@@ -26,6 +26,9 @@ class TestParseAppletId:
     def test_returns_none_for_unknown_applet_id(self):
         assert parse_applet_id(desktop_id="applet://unknown") is None
 
+    def test_parses_music(self):
+        assert parse_applet_id(desktop_id="applet://music") == AppletId.MUSIC
+
 
 class TestAppletIdFrom:
     def test_returns_typed_applet_id(self):
@@ -38,6 +41,9 @@ class TestAppletIdFrom:
     def test_raises_for_unknown_applet_id(self):
         with pytest.raises(ValueError):
             applet_id_from(desktop_id="applet://nope")
+
+    def test_returns_music_applet_id(self):
+        assert applet_id_from(desktop_id="applet://music") == AppletId.MUSIC
 
 
 class TestAppletDesktopId:
@@ -59,6 +65,9 @@ class TestCategoryFor:
 
     def test_information_category_label(self):
         assert AppletCategory.INFORMATION.value == "Information and Environment"
+
+    def test_music_is_grouped_under_system(self):
+        assert category_for(applet_id=AppletId.MUSIC) == AppletCategory.SYSTEM
 
 
 class TestIsAppletDesktopId:

@@ -65,6 +65,13 @@ class TestRun:
             _run(tool=_MATE, mode="region")
         p.assert_called_once_with(["mate-screenshot", "-a"], start_new_session=True)
 
+    def test_mate_screenshot_full_with_delay(self):
+        with patch("docking.applets.screenshot.state.subprocess.Popen") as p:
+            _run(tool=_MATE, mode="full", delay_seconds=5)
+        p.assert_called_once_with(
+            ["mate-screenshot", "-d", "5"], start_new_session=True
+        )
+
     def test_gnome_screenshot_full(self):
         with patch("docking.applets.screenshot.state.subprocess.Popen") as p:
             _run(tool=_GNOME, mode="full")
@@ -112,6 +119,13 @@ class TestRun:
             _run(tool=_FLAMESHOT, mode="full")
         p.assert_called_once_with(["flameshot", "full"], start_new_session=True)
 
+    def test_flameshot_full_with_delay(self):
+        with patch("docking.applets.screenshot.state.subprocess.Popen") as p:
+            _run(tool=_FLAMESHOT, mode="full", delay_seconds=3)
+        p.assert_called_once_with(
+            ["flameshot", "full", "--delay", "3000"], start_new_session=True
+        )
+
     def test_flameshot_window(self):
         with patch("docking.applets.screenshot.state.subprocess.Popen") as p:
             _run(tool=_FLAMESHOT, mode="window")
@@ -143,6 +157,13 @@ class TestRun:
         assert cmd[0:2] == ["scrot", "-s"]
         assert cmd[-1].endswith(".png")
 
+    def test_scrot_region_with_delay(self):
+        with patch("docking.applets.screenshot.state.subprocess.Popen") as p:
+            _run(tool=_SCROT, mode="region", delay_seconds=7)
+        cmd = p.call_args[0][0]
+        assert cmd[0:4] == ["scrot", "-s", "-d", "7"]
+        assert cmd[-1].endswith(".png")
+
 
 class TestScreenshotApplet:
     def test_creates_with_icon(self):
@@ -163,13 +184,21 @@ class TestScreenshotApplet:
                 assert pixbuf is not None
                 assert pixbuf.get_width() == size
 
-    def test_menu_has_three_modes(self):
+    def test_menu_has_modes_and_timed_entries(self):
         with patch(
             "docking.applets.screenshot.applet._detect_tool", return_value=_MATE
         ):
             applet = ScreenshotApplet(48)
-        labels = [mi.get_label() for mi in applet.get_menu_items()]
-        assert labels == ["Full Screen", "Window", "Region"]
+        labels = [mi.get_label() for mi in applet.get_menu_items() if mi.get_label()]
+        assert labels == [
+            "Full Screen",
+            "Window",
+            "Region",
+            "Full Screen in 3s",
+            "Full Screen in 5s",
+            "Full Screen in 7s",
+            "Full Screen in 9s",
+        ]
 
     def test_menu_empty_when_no_tool(self):
         with patch("docking.applets.screenshot.applet._detect_tool", return_value=None):
@@ -191,3 +220,12 @@ class TestScreenshotApplet:
         with patch("docking.applets.screenshot.state.subprocess.Popen") as mock_popen:
             applet.on_clicked()
         mock_popen.assert_not_called()
+
+    def test_run_mode_forwards_delay(self):
+        with patch(
+            "docking.applets.screenshot.applet._detect_tool", return_value=_MATE
+        ):
+            applet = ScreenshotApplet(48)
+        with patch("docking.applets.screenshot.applet._run") as mock_run:
+            applet._run_mode(mode="full", delay_seconds=9)
+        mock_run.assert_called_once_with(tool=_MATE, mode="full", delay_seconds=9)

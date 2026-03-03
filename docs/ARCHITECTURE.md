@@ -59,7 +59,7 @@ Design intent:
 
 - Base API: `applets/base.py` (`Applet` abstract class).
 - Registry: `applets/__init__.py` (`get_registry()`).
-- Built-ins (18): ambient, applications, battery, calendar, clippy, clock, cpumonitor, desktop, hydration, network, pomodoro, screenshot, separator, session, trash, volume, weather, workspaces.
+- Built-ins (20): ambient, applications, battery, calendar, clippy, clock, cpumonitor, desktop, hydration, music, network, pomodoro, quote, screenshot, separator, session, trash, volume, weather, workspaces.
 - Weather is a subpackage (`applets/weather/*`) with API client and city lookup DB access.
 
 Design intent:

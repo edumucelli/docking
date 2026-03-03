@@ -52,7 +52,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 19 built-in applets:
+Extensible plugin system for custom dock widgets. 20 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -65,6 +65,7 @@ Extensible plugin system for custom dock widgets. 19 built-in applets:
 | **Clippy** | Clipboard history manager |
 | **Applications** | Categorized application launcher |
 | **Network** | WiFi signal strength and traffic speeds |
+| **Music** | Media controls with album-art icon |
 | **Session** | Lock, logout, suspend, restart, shutdown |
 | **Calendar** | Date icon with popup calendar |
 | **Workspaces** | Workspace switcher with grid icon |
@@ -443,6 +444,7 @@ Capture screenshots via the best available tool. Auto-detects mate-screenshot, g
 - **Full Screen** -- capture entire screen
 - **Window** -- capture active window
 - **Region** -- interactive area selection
+- **Full Screen in 3s/5s/7s/9s** -- delayed full-screen capture
 
 ### Volume
 
@@ -455,6 +457,22 @@ System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA)
 **Tooltip:** `Volume: 75%` or `Muted`
 
 **Update interval:** 1 second (refreshes only on change)
+
+### Music
+
+Media controller applet with album-art icon rendering. Uses MPRIS over DBus first, then playerctl fallback for controls when needed.
+
+Current support note: tested with **VLC**, **Clementine**, **Amberol**, and **Recordbox**. In general, the applet should work with MPRIS-compatible players (with `playerctl`/backend fallbacks where available).
+
+**Click:** Play/pause
+**Scroll:** Player volume ±5%
+**Right-click options:**
+- **Previous**
+- **Play** / **Pause**
+- **Next**
+- **Volume Up** / **Volume Down**
+
+**Tooltip:** multiline summary, e.g. `Artist - Title`, `Album: ...`, `Vol N%`
 
 ### Pomodoro
 
@@ -617,20 +635,35 @@ Runs automatically on `git commit`:
 
 ## CI/CD Pipeline
 
-GitHub Actions runs:
+GitHub Actions is split across two workflows:
 
-- **Quality**: `ruff check`, `ruff format --check`, `ty check`
-- **Test matrix**:
-  - Ubuntu 22.04 / Python 3.10
-  - Ubuntu 24.04 / Python 3.12
-  - Debian 11 / Python 3.10
-  - Debian 12 / Python 3.12
-- **Coverage**: pytest-cov reports with a fail threshold (`--cov-fail-under=55`) and uploaded HTML/XML artifacts
-- **Security**: `pip-audit` (runtime dependencies) + `bandit` source scan
-- **Packaging**:
-  - Build and validate `.deb`
-  - Build Flatpak bundle artifact
-- **Release**: automatic GitHub Release with `.deb` and `.flatpak` assets when a new `pyproject.toml` version is detected on `master`
+- **`CI`** (`.github/workflows/ci.yml`)
+  - Triggers on push to `master`, PRs to `master`, and `v*` tags.
+  - **Quality**: `ruff check`, `ruff format --check`, `ty check`.
+  - **Test matrix**:
+    - Ubuntu 22.04 / Python 3.10
+    - Ubuntu 24.04 / Python 3.12
+    - Debian 11 / Python 3.10
+    - Debian 12 / Python 3.12
+  - **Coverage**: pytest-cov on Ubuntu with `--cov-fail-under=55`, artifacts uploaded (XML/HTML), optional Codecov upload when token is configured.
+  - **Packaging artifacts**:
+    - `.deb` (with install validation)
+    - `.rpm`
+    - `.flatpak`
+    - `.snap`
+    - `.AppImage`
+    - Arch package (`.pkg.tar.*`)
+    - Nix output tarball + store path
+  - **Release step (CD)**:
+    - Runs on `master` only after all package builds.
+    - Reads version from `pyproject.toml`, checks latest GitHub Release, and only releases if version is newer.
+    - Creates/pushes `v<version>` tag (if missing) and publishes a GitHub Release with all built artifacts.
+
+- **`Security`** (`.github/workflows/security.yml`)
+  - Triggers on push/PR to `master` plus weekly schedule (`0 6 * * 1`).
+  - Runs:
+    - `pip-audit` against runtime dependencies exported from `pyproject.toml`
+    - `bandit` SAST scan on `docking/` (excluding tests/packaging)
 
 ## Additional Docs
 

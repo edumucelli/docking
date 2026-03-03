@@ -23,6 +23,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
     from docking.applets.cpumonitor import CpuMonitorApplet
     from docking.applets.desktop import DesktopApplet
     from docking.applets.hydration import HydrationApplet
+    from docking.applets.music import MusicApplet
     from docking.applets.network import NetworkApplet
     from docking.applets.pomodoro import PomodoroApplet
     from docking.applets.quote import QuoteApplet
@@ -44,6 +45,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
         AppletId.CPUMONITOR: CpuMonitorApplet,
         AppletId.DESKTOP: DesktopApplet,
         AppletId.HYDRATION: HydrationApplet,
+        AppletId.MUSIC: MusicApplet,
         AppletId.NETWORK: NetworkApplet,
         AppletId.QUOTE: QuoteApplet,
         AppletId.SCREENSHOT: ScreenshotApplet,
