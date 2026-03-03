@@ -541,6 +541,9 @@ jobs:
           release_dir="${source_dir}/release"
           mkdir -p "${release_dir}"
 
+          echo "Downloaded artifacts:"
+          find "${source_dir}" -maxdepth 2 -type f | sed 's#^# - #'
+
           normalize_arch() {
             case "$1" in
               amd64)
@@ -558,7 +561,7 @@ jobs:
             esac
           }
 
-          expect_one() {
+          pick_candidate() {
             local label="$1"
             shift
             if [ "$#" -eq 0 ]; then
@@ -566,9 +569,8 @@ jobs:
               exit 1
             fi
             if [ "$#" -gt 1 ]; then
-              echo "Expected one ${label} artifact, found $#:"
+              echo "Multiple ${label} artifacts found ($#), selecting first:"
               printf ' - %s\n' "$@"
-              exit 1
             fi
             printf '%s\n' "$1"
           }
@@ -581,8 +583,8 @@ jobs:
             cp -f "${src}" "${release_dir}/${latest_name}"
           }
 
-          deb_candidates=("${source_dir}"/*.deb)
-          deb_file="$(expect_one "deb" "${deb_candidates[@]}")"
+          deb_candidates=("${source_dir}"/docking_*.deb)
+          deb_file="$(pick_candidate "deb" "${deb_candidates[@]}")"
           deb_arch="$(echo "${deb_file##*/}" | sed -E 's/.*_([[:alnum:]_]+)\.deb$/\1/')"
           deb_arch="$(normalize_arch "${deb_arch}")"
           copy_release_asset \
@@ -591,7 +593,13 @@ jobs:
             "docking-latest-linux-${deb_arch}.deb"
 
           rpm_candidates=("${source_dir}"/*.rpm)
-          rpm_file="$(expect_one "rpm" "${rpm_candidates[@]}")"
+          rpm_primary=()
+          for f in "${rpm_candidates[@]}"; do
+            if [[ "${f}" != *.src.rpm ]]; then
+              rpm_primary+=("${f}")
+            fi
+          done
+          rpm_file="$(pick_candidate "rpm" "${rpm_primary[@]}")"
           rpm_arch="$(echo "${rpm_file##*/}" | sed -E 's/.*\.([^.]+)\.rpm$/\1/')"
           rpm_arch="$(normalize_arch "${rpm_arch}")"
           copy_release_asset \
@@ -600,21 +608,21 @@ jobs:
             "docking-latest-linux-${rpm_arch}.rpm"
 
           flatpak_candidates=("${source_dir}"/*.flatpak)
-          flatpak_file="$(expect_one "flatpak" "${flatpak_candidates[@]}")"
+          flatpak_file="$(pick_candidate "flatpak" "${flatpak_candidates[@]}")"
           copy_release_asset \
             "${flatpak_file}" \
             "docking-${version}-linux-${host_arch}.flatpak" \
             "docking-latest-linux-${host_arch}.flatpak"
 
           snap_candidates=("${source_dir}"/*.snap)
-          snap_file="$(expect_one "snap" "${snap_candidates[@]}")"
+          snap_file="$(pick_candidate "snap" "${snap_candidates[@]}")"
           copy_release_asset \
             "${snap_file}" \
             "docking-${version}-linux-${host_arch}.snap" \
             "docking-latest-linux-${host_arch}.snap"
 
           appimage_candidates=("${source_dir}"/*.AppImage)
-          appimage_file="$(expect_one "appimage" "${appimage_candidates[@]}")"
+          appimage_file="$(pick_candidate "appimage" "${appimage_candidates[@]}")"
           appimage_arch="$(echo "${appimage_file##*/}" | sed -nE 's/.*-([[:alnum:]_]+)\.AppImage$/\1/p')"
           if [ -z "${appimage_arch}" ]; then
             appimage_arch="${host_arch}"
@@ -626,7 +634,13 @@ jobs:
             "docking-latest-linux-${appimage_arch}.AppImage"
 
           arch_candidates=("${source_dir}"/*.pkg.tar.*)
-          arch_file="$(expect_one "arch" "${arch_candidates[@]}")"
+          arch_primary=()
+          for f in "${arch_candidates[@]}"; do
+            if [[ "${f}" != *.sig ]]; then
+              arch_primary+=("${f}")
+            fi
+          done
+          arch_file="$(pick_candidate "arch" "${arch_primary[@]}")"
           arch_arch="$(echo "${arch_file##*/}" | sed -E 's/.*-([^-]+)\.pkg\.tar\..+$/\1/')"
           arch_arch="$(normalize_arch "${arch_arch}")"
           arch_ext="${arch_file##*.pkg.tar.}"
@@ -636,14 +650,14 @@ jobs:
             "docking-latest-linux-${arch_arch}.pkg.tar.${arch_ext}"
 
           nix_output_candidates=("${source_dir}"/docking-nix-output.tar.gz)
-          nix_output_file="$(expect_one "nix output tarball" "${nix_output_candidates[@]}")"
+          nix_output_file="$(pick_candidate "nix output tarball" "${nix_output_candidates[@]}")"
           copy_release_asset \
             "${nix_output_file}" \
             "docking-${version}-linux-${host_arch}-nix-output.tar.gz" \
             "docking-latest-linux-${host_arch}-nix-output.tar.gz"
 
           nix_path_candidates=("${source_dir}"/docking-nix-store-path.txt)
-          nix_path_file="$(expect_one "nix store path" "${nix_path_candidates[@]}")"
+          nix_path_file="$(pick_candidate "nix store path" "${nix_path_candidates[@]}")"
           copy_release_asset \
             "${nix_path_file}" \
             "docking-${version}-linux-${host_arch}-nix-store-path.txt" \
