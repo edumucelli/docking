@@ -29,7 +29,9 @@ def _state(**overrides: object) -> NotificationsState:
         pending=3,
         pending_known=True,
     )
-    values = {field: getattr(base, field) for field in NotificationsState.__dataclass_fields__}
+    values = {
+        field: getattr(base, field) for field in NotificationsState.__dataclass_fields__
+    }
     values.update(overrides)
     return NotificationsState(**values)
 
@@ -101,9 +103,11 @@ class TestStateParsing:
         monkeypatch.setattr(
             notifications_state_mod,
             "_run",
-            lambda cmd, timeout_s=2.0: "false"
-            if cmd[:3] == ["gsettings", "get", "org.gnome.desktop.notifications"]
-            else None,
+            lambda cmd, timeout_s=2.0: (
+                "false"
+                if cmd[:3] == ["gsettings", "get", "org.gnome.desktop.notifications"]
+                else None
+            ),
         )
         state = GnomeBackend().get_state()
         assert state.available is True
@@ -202,7 +206,9 @@ class TestNotificationsApplet:
             _state(pending=8, pending_known=True),
             supports_clear=True,
         )
-        labels = [item.get_label() for item in applet.get_menu_items() if item.get_label()]
+        labels = [
+            item.get_label() for item in applet.get_menu_items() if item.get_label()
+        ]
         assert "Do Not Disturb" in labels
         assert "Pending: 8" in labels
         assert "Clear History" in labels
@@ -293,7 +299,9 @@ class TestNotificationsApplet:
         )
         applet.refresh_presentation = MagicMock()
 
-        assert applet._on_notification_event("Mail", "New message", "Hello world") is False
+        assert (
+            applet._on_notification_event("Mail", "New message", "Hello world") is False
+        )
         assert len(applet._history) == 1
         assert applet._history[0] == NotificationEntry(
             app_name="Mail",
@@ -306,7 +314,9 @@ class TestNotificationsApplet:
     def test_refresh_tooltip_includes_last_notification(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))
         applet._history = [
-            NotificationEntry(app_name="Mail", summary="New message", body="Body content")
+            NotificationEntry(
+                app_name="Mail", summary="New message", body="Body content"
+            )
         ]
         applet._history_index = 0
 
@@ -358,7 +368,9 @@ class TestNotificationsApplet:
             "timeout_add_seconds",
             lambda _seconds, _cb: 1,
         )
-        monkeypatch.setattr(notifications_applet_mod.GLib, "source_remove", lambda _id: None)
+        monkeypatch.setattr(
+            notifications_applet_mod.GLib, "source_remove", lambda _id: None
+        )
         applet.refresh_presentation = MagicMock()
         for i in range(HISTORY_LIMIT + 5):
             applet._on_notification_event("App", f"S{i}", "Body")
