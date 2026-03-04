@@ -3,6 +3,7 @@
 import json
 
 from docking.core.config import Config
+from docking.core.position import Position
 
 
 class TestConfigDefaults:
@@ -33,6 +34,10 @@ class TestConfigDefaults:
         c = Config()
         # Then
         assert c.hide_delay_ms == 0
+
+    def test_pos_property_returns_position_enum(self):
+        c = Config(position="left")
+        assert c.pos is Position.LEFT
 
 
 class TestConfigLoad:
@@ -89,6 +94,22 @@ class TestConfigLoad:
         # Then
         assert config.icon_size == 48
 
+    def test_load_invalid_position_falls_back_to_bottom(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"position": "diagonal"}))
+
+        config = Config.load(path)
+
+        assert config.position == "bottom"
+
+    def test_load_monitor_index_below_minus_one_is_clamped(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"monitor_index": -5}))
+
+        config = Config.load(path)
+
+        assert config.monitor_index == -1
+
 
 class TestConfigSave:
     def test_save_creates_parent_dirs(self, tmp_path):
@@ -119,3 +140,13 @@ class TestConfigSave:
         assert loaded.zoom_percent == 1.5
         assert loaded.monitor_index == 1
         assert loaded.pinned == ["a.desktop", "b.desktop"]
+
+    def test_save_without_path_uses_loaded_path(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config.load(path)
+        config.icon_size = 72
+
+        config.save()
+
+        saved = json.loads(path.read_text())
+        assert saved["icon_size"] == 72
