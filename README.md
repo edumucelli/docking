@@ -96,9 +96,9 @@ sudo apt install \
 
 ## Installation
 
-Prebuilt `x86_64` release packages are also available on [GitHub Releases](https://github.com/edumucelli/docking/releases), you can download them directly bellow.
+Prebuilt latest release packages are also available on [GitHub Releases](https://github.com/edumucelli/docking/releases), you can download them directly below.
 - [AppImage](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage)
-- [Debian .deb](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb)
+- [Debian .deb](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb)
 - [RPM](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm)
 - [Flatpak](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak)
 - [Snap](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap)
