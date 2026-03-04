@@ -498,8 +498,6 @@ Power profile applet for quick laptop/handheld mode switching.
 - `tuned-adm` fallback (profile-mapped)
 - `tlp` fallback (`ac`/`bat`/`start` mapping)
 
-Detailed backend/mapping notes: [docs/POWER_PROFILES.md](docs/POWER_PROFILES.md)
-
 ### Notifications
 
 Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when supported.
