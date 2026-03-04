@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
+from pathlib import Path
 
 import gi
 
@@ -11,6 +12,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
 
 PROJECT_VERSION_FALLBACK = "0.0.0"
+PROJECT_LICENSE_FALLBACK = "GNU GPL v3.0 or later (GPL-3.0-or-later)"
+PROJECT_LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
 
 
 class AboutDialogController:
@@ -41,6 +44,9 @@ class AboutDialogController:
         dialog.set_website_label("Website")
         dialog.set_logo_icon_name("org.docking.Docking")
         dialog.set_authors(["Eduardo Mucelli Rezende Oliveira"])
+        dialog.set_license_type(Gtk.License.GPL_3_0)
+        dialog.set_license(self._project_license_text())
+        dialog.set_wrap_license(True)
 
         dialog.connect("response", self._on_response)
         dialog.connect("hide", self._on_hide)
@@ -52,6 +58,12 @@ class AboutDialogController:
             return pkg_version("docking")
         except PackageNotFoundError:
             return PROJECT_VERSION_FALLBACK
+
+    def _project_license_text(self) -> str:
+        try:
+            return PROJECT_LICENSE_PATH.read_text(encoding="utf-8")
+        except OSError:
+            return PROJECT_LICENSE_FALLBACK
 
     def _on_response(self, dialog: Gtk.AboutDialog, _response: int) -> None:
         dialog.hide()

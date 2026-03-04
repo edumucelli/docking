@@ -13,12 +13,41 @@ sys.modules.setdefault("gi.repository", gi_mock.repository)
 import docking.ui.about as about_mod  # noqa: E402
 
 
+class FakeButton:
+    def __init__(self, label: str) -> None:
+        self._label = label
+        self.hidden = False
+
+    def get_label(self) -> str:
+        return self._label
+
+    def hide(self) -> None:
+        self.hidden = True
+
+
+class FakeActionArea:
+    def __init__(self, children: list[object]) -> None:
+        self._children = children
+
+    def get_children(self) -> list[object]:
+        return self._children
+
+
 class FakeAboutDialog:
     def __init__(self, **_kwargs) -> None:
         self.show_count = 0
         self.hidden = False
         self.destroyed = False
         self.callbacks: dict[str, object] = {}
+        self.buttons: list[object] = [
+            FakeButton(label="Credits"),
+            FakeButton(label="License"),
+            FakeButton(label="Close"),
+        ]
+        self._action_area = FakeActionArea(children=self.buttons)
+        self.license_type = None
+        self.license_text = None
+        self.wrap_license = None
 
     def set_program_name(self, _value: str) -> None:
         return
@@ -41,8 +70,20 @@ class FakeAboutDialog:
     def set_authors(self, _value: list[str]) -> None:
         return
 
+    def set_license_type(self, value) -> None:
+        self.license_type = value
+
+    def set_license(self, value: str) -> None:
+        self.license_text = value
+
+    def set_wrap_license(self, value: bool) -> None:
+        self.wrap_license = value
+
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
+
+    def get_action_area(self) -> FakeActionArea:
+        return self._action_area
 
     def show_all(self) -> None:
         self.show_count += 1
@@ -60,7 +101,16 @@ class TestAboutDialogController:
         monkeypatch.setattr(
             about_mod,
             "Gtk",
-            type("FakeGtk", (), {"AboutDialog": FakeAboutDialog, "Window": object}),
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "AboutDialog": FakeAboutDialog,
+                    "Button": FakeButton,
+                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
+                    "Window": object,
+                },
+            ),
         )
         monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         controller = about_mod.AboutDialogController(parent=object())
@@ -80,7 +130,16 @@ class TestAboutDialogController:
         monkeypatch.setattr(
             about_mod,
             "Gtk",
-            type("FakeGtk", (), {"AboutDialog": FakeAboutDialog, "Window": object}),
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "AboutDialog": FakeAboutDialog,
+                    "Button": FakeButton,
+                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
+                    "Window": object,
+                },
+            ),
         )
         monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         controller = about_mod.AboutDialogController(parent=object())
@@ -111,3 +170,60 @@ class TestAboutDialogController:
 
         # Then
         assert result == about_mod.PROJECT_VERSION_FALLBACK
+
+    def test_show_sets_license(self, monkeypatch):
+        # Given
+        monkeypatch.setattr(
+            about_mod,
+            "Gtk",
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "AboutDialog": FakeAboutDialog,
+                    "Button": FakeButton,
+                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
+                    "Window": object,
+                },
+            ),
+        )
+        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
+        monkeypatch.setattr(about_mod, "PROJECT_LICENSE_PATH", MagicMock())
+        about_mod.PROJECT_LICENSE_PATH.read_text.return_value = "GPL text"
+        controller = about_mod.AboutDialogController(parent=object())
+
+        # When
+        controller.show()
+        dialog = controller._dialog
+        assert dialog is not None
+
+        # Then
+        assert dialog.license_type == "gpl3"
+        assert dialog.license_text == "GPL text"
+        assert dialog.wrap_license is True
+
+    def test_license_fallback_when_license_file_missing(self, monkeypatch):
+        # Given
+        monkeypatch.setattr(
+            about_mod,
+            "Gtk",
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "AboutDialog": FakeAboutDialog,
+                    "Button": FakeButton,
+                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
+                    "Window": object,
+                },
+            ),
+        )
+        monkeypatch.setattr(about_mod, "PROJECT_LICENSE_PATH", MagicMock())
+        about_mod.PROJECT_LICENSE_PATH.read_text.side_effect = OSError
+        controller = about_mod.AboutDialogController(parent=object())
+
+        # When
+        result = controller._project_license_text()
+
+        # Then
+        assert result == about_mod.PROJECT_LICENSE_FALLBACK
