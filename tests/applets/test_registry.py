@@ -50,6 +50,9 @@ class TestRegistry:
     def test_contains_music(self):
         assert "music" in get_registry()
 
+    def test_contains_notifications(self):
+        assert "notifications" in get_registry()
+
 
 class TestLoadThemeIcon:
     def test_loads_known_icon(self):

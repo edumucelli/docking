@@ -52,7 +52,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 23 built-in applets:
+Extensible plugin system for custom dock widgets. 24 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -65,6 +65,7 @@ Extensible plugin system for custom dock widgets. 23 built-in applets:
 | **Clippy** | Clipboard history manager |
 | **Applications** | Categorized application launcher |
 | **Network** | WiFi signal strength and traffic speeds |
+| **Notifications** | Do Not Disturb toggle with pending badge |
 | **Music** | Media controls with album-art icon |
 | **Session** | Lock, logout, suspend, restart, shutdown |
 | **Calendar** | Date icon with popup calendar |
@@ -454,6 +455,22 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 - `/proc/net/dev` for traffic counters
 
 **Update interval:** 2 seconds for traffic, instant for connection state changes (NM signals)
+
+### Notifications
+
+Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when supported.
+
+**Click:** Toggle Do Not Disturb on/off
+**Right-click options:**
+- **Do Not Disturb** -- toggle notification pause state
+- **Pending: N** -- pending notifications (when backend exposes queue size)
+- **Clear Notifications** -- clear notification history (when backend supports it)
+
+**Backends:**
+- `dunstctl` (Dunst): pause state, pending count, and clear-history action
+- `gsettings` (GNOME): pause state via `org.gnome.desktop.notifications show-banners`
+
+**Update interval:** 2 seconds
 
 ### Session
 

@@ -29,6 +29,12 @@ class TestParseAppletId:
     def test_parses_music(self):
         assert parse_applet_id(desktop_id="applet://music") == AppletId.MUSIC
 
+    def test_parses_notifications(self):
+        assert (
+            parse_applet_id(desktop_id="applet://notifications")
+            == AppletId.NOTIFICATIONS
+        )
+
 
 class TestAppletIdFrom:
     def test_returns_typed_applet_id(self):
@@ -68,6 +74,9 @@ class TestCategoryFor:
 
     def test_music_is_grouped_under_system(self):
         assert category_for(applet_id=AppletId.MUSIC) == AppletCategory.SYSTEM
+
+    def test_notifications_is_grouped_under_system(self):
+        assert category_for(applet_id=AppletId.NOTIFICATIONS) == AppletCategory.SYSTEM
 
 
 class TestIsAppletDesktopId:
