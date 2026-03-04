@@ -49,8 +49,12 @@ _CSS = b"""
     background-color: rgba(100, 180, 255, 0.15);
 }
 .preview-label {
-    color: rgba(255, 255, 255, 0.85);
+    color: white;
     font-size: 11px;
+    background-color: rgba(40, 40, 40, 0.55);
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-top: -4px;
 }
 """
 
@@ -352,7 +356,7 @@ class PreviewPopup(Gtk.Window):
         )
         event_box.connect("button-press-event", self._on_thumb_click, xid)
 
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         # Thumbnail image
         pixbuf = capture_xid(xid=xid)
@@ -371,6 +375,7 @@ class PreviewPopup(Gtk.Window):
             title = title[: LABEL_MAX_CHARS - 1] + "\u2026"
         label = Gtk.Label(label=title)
         label.get_style_context().add_class("preview-label")
+        label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
         label.set_ellipsize(Pango.EllipsizeMode.END)
         label.set_max_width_chars(LABEL_MAX_CHARS)
         vbox.pack_start(label, False, False, 0)

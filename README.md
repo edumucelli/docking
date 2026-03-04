@@ -52,7 +52,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 20 built-in applets:
+Extensible plugin system for custom dock widgets. 23 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -76,6 +76,9 @@ Extensible plugin system for custom dock widgets. 20 built-in applets:
 | **Hydration** | Water drop reminder - drains over time, click to refill |
 | **Quote** | Quote/joke applet with source switching and clipboard copy |
 | **Ambient** | Looping nature sounds and white/pink noise via GStreamer |
+| **Color Picker** | Eyedropper tool - click to sample pixel, copies hex to clipboard |
+| **Brightness** | Screen brightness control via xrandr, scroll to adjust |
+| **Moon** | Lunar phase display with Cairo rendering and astronomical fallback |
 
 See [Applet Documentation](#applets-1) below for details on each applet.
 
@@ -550,7 +553,7 @@ Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sound
 
 ## Theming
 
-Themes are JSON files in `docking/assets/themes/`. Six built-in themes are included:
+Themes are JSON files in `docking/assets/themes/`. Nine built-in themes are included:
 
 - `default` -- light theme
 - `default-dark` -- dark variant
@@ -558,6 +561,9 @@ Themes are JSON files in `docking/assets/themes/`. Six built-in themes are inclu
 - `transparent` -- minimal, see-through
 - `ubuntu-mate` -- matches Ubuntu MATE panel style
 - `yaru-dark` -- matches Yaru dark theme
+- `nord` -- cool, desaturated dark
+- `gruvbox` -- warm earthy dark
+- `solarized` -- soft light Solarized variant
 
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
 

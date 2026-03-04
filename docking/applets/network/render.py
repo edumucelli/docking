@@ -11,6 +11,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
+from docking.applets.base import draw_icon_label
+
 _BG_ARC = (0.72, 0.84, 0.97)
 _FG = (0.42, 0.64, 0.90)
 _DOT_DISCONNECTED = (0.70, 0.70, 0.70)
@@ -127,11 +129,14 @@ def create_icon(
     is_connected: bool,
     is_wifi: bool,
     signal_strength: int,
-    rx_speed: float,  # kept for API compatibility
-    tx_speed: float,  # kept for API compatibility
+    rx_speed: float,
+    tx_speed: float,
+    speed_overlay: str = "none",
 ) -> GdkPixbuf.Pixbuf | None:
-    """Create standardized network icon independent from system theme."""
-    _ = (rx_speed, tx_speed)  # explicit compatibility no-op
+    """Create standardized network icon independent from system theme.
+
+    speed_overlay: "download", "upload", or "none".
+    """
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     cr = cairo.Context(surface)
     cr.set_source_rgba(0, 0, 0, 0)
@@ -157,4 +162,20 @@ def create_icon(
     else:
         _draw_wired_icon(cr=cr, size=size, connected=is_connected)
 
+    if is_connected and speed_overlay == "download" and rx_speed > 0:
+        draw_icon_label(cr=cr, text=f"\u2193{_short(bps=rx_speed)}", size=size)
+    elif is_connected and speed_overlay == "upload" and tx_speed > 0:
+        draw_icon_label(cr=cr, text=f"\u2191{_short(bps=tx_speed)}", size=size)
+
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
+
+
+def _short(bps: float) -> str:
+    """Compact speed value without unit suffix (e.g. '1.2M')."""
+    if bps < 1024:
+        return f"{bps:.0f}B"
+    if bps < 1024 * 1024:
+        return f"{bps / 1024:.0f}K"
+    if bps < 1024 * 1024 * 1024:
+        return f"{bps / (1024 * 1024):.1f}M"
+    return f"{bps / (1024 * 1024 * 1024):.1f}G"

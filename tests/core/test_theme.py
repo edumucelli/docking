@@ -71,6 +71,18 @@ class TestThemeLoad:
         # Defaults for unspecified
         assert t.indicator_radius == 2.5
 
+    @pytest.mark.parametrize(
+        ("theme_name", "expected_roundness"),
+        [("nord", 6.0), ("gruvbox", 6.0), ("solarized", 5.0)],
+    )
+    def test_load_new_builtin_themes(self, theme_name, expected_roundness):
+        t = Theme.load(theme_name, 48)
+        assert t.roundness == expected_roundness
+        assert t.stroke_width == pytest.approx(1.0)
+        assert all(0 <= c <= 1 for c in t.fill_start)
+        assert all(0 <= c <= 1 for c in t.fill_end)
+        assert all(0 <= c <= 1 for c in t.stroke)
+
 
 class TestScalingUnit:
     """Tests for the scaling unit system: JSON values * (icon_size / 10)."""
@@ -101,6 +113,15 @@ class TestScalingUnit:
         t48 = Theme.load("default", 48)
         t64 = Theme.load("default", 64)
         # Then
+        ratio = 64 / 48
+        assert t64.item_padding == pytest.approx(t48.item_padding * ratio, rel=1e-6)
+        assert t64.top_padding == pytest.approx(t48.top_padding * ratio, rel=1e-6)
+        assert t64.bottom_padding == pytest.approx(t48.bottom_padding * ratio, rel=1e-6)
+
+    def test_nord_64px_scales_proportionally(self):
+        t48 = Theme.load("nord", 48)
+        t64 = Theme.load("nord", 64)
+
         ratio = 64 / 48
         assert t64.item_padding == pytest.approx(t48.item_padding * ratio, rel=1e-6)
         assert t64.top_padding == pytest.approx(t48.top_padding * ratio, rel=1e-6)

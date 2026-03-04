@@ -199,6 +199,9 @@ class MenuHandler:
         # Desktop actions (e.g. "New Window", "New Incognito Window")
         self._append_desktop_actions(menu=menu, desktop_id=item.desktop_id)
 
+        # Open windows — click to activate
+        self._append_open_windows(menu=menu, desktop_id=item.desktop_id)
+
         # Pin/Unpin (hidden when icons are locked)
         if not locked:
             if item.is_pinned:
@@ -394,6 +397,23 @@ class MenuHandler:
                 lambda _, did=desktop_id, aid=action_id: launcher_mod.launch_action(
                     desktop_id=did, action_id=aid
                 ),
+            )
+            menu.append(mi)
+        menu.append(Gtk.SeparatorMenuItem())
+
+    def _append_open_windows(self, menu: Gtk.Menu, desktop_id: str) -> None:
+        """Append running windows as menu items — click to activate."""
+        windows = self._tracker.get_windows_for(desktop_id=desktop_id)
+        if len(windows) < 2:
+            return
+        for window in windows:
+            title = window.get_name() or "Window"
+            if len(title) > 40:
+                title = title[:39] + "\u2026"
+            mi = Gtk.MenuItem(label=title)
+            mi.connect(
+                "activate",
+                lambda _w, w=window: self._tracker.activate_window(window=w),
             )
             menu.append(mi)
         menu.append(Gtk.SeparatorMenuItem())

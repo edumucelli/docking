@@ -1,0 +1,137 @@
+"""GTK lifecycle for Brightness applet."""
+
+from __future__ import annotations
+
+import threading
+from typing import TYPE_CHECKING, Callable
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import GdkPixbuf, GLib  # noqa: E402
+
+from docking.applets.base import Applet
+from docking.applets.brightness.render import create_icon
+from docking.applets.brightness.state import (
+    STEP,
+    detect_output,
+    get_brightness,
+    set_brightness,
+)
+from docking.applets.identity import AppletId
+from docking.log import get_logger, with_context
+
+if TYPE_CHECKING:
+    from docking.core.config import Config
+
+_log = with_context(get_logger(name="brightness"), applet_id=str(AppletId.BRIGHTNESS))
+
+POLL_INTERVAL_S = 5
+
+
+class BrightnessApplet(Applet):
+    """Screen brightness control via xrandr.
+
+    Scroll adjusts brightness ±5%. Click resets to 100%.
+    Auto-detects primary xrandr output.
+    """
+
+    id = AppletId.BRIGHTNESS
+    name = "Brightness"
+    icon_name = "display-brightness-symbolic"
+
+    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        self._backend = detect_output()
+        if not self._backend:
+            _log.warning("No xrandr output detected")
+        self._brightness = 1.0
+        self._show_level = False
+        self._timer_id: int = 0
+
+        if config:
+            prefs = config.applet_prefs.get(AppletId.BRIGHTNESS, {})
+            self._show_level = prefs.get("show_level", False)
+
+        self._poll()
+        super().__init__(icon_size=icon_size, config=config)
+
+    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+        return create_icon(
+            size=size,
+            brightness=self._brightness,
+            show_level=self._show_level,
+        )
+
+    def refresh_tooltip(self) -> None:
+        pct = int(self._brightness * 100)
+        self.item.name = f"Brightness: {pct}%"
+
+    def start(self, notify: Callable[[], None]) -> None:
+        super().start(notify=notify)
+        self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
+
+    def stop(self) -> None:
+        if self._timer_id:
+            GLib.source_remove(self._timer_id)
+            self._timer_id = 0
+        super().stop()
+
+    def on_clicked(self) -> None:
+        """Reset to 100% on click."""
+        if self._backend:
+            set_brightness(backend=self._backend, value=1.0)
+            self._brightness = 1.0
+            self.refresh_presentation()
+
+    def get_menu_items(self) -> list:
+        from gi.repository import Gtk
+
+        items = []
+        show = Gtk.CheckMenuItem(label="Show Level")
+        show.set_active(self._show_level)
+        show.connect("toggled", self._on_toggle_level)
+        items.append(show)
+        return items
+
+    def _on_toggle_level(self, widget) -> None:
+        self._show_level = widget.get_active()
+        self.save_prefs(prefs={"show_level": self._show_level})
+        self.refresh_presentation()
+
+    def on_scroll(self, direction_up: bool) -> None:
+        """Adjust brightness ±2% on scroll."""
+        if not self._backend:
+            return
+        if direction_up:
+            new = min(1.0, self._brightness + STEP)
+        else:
+            new = max(0.1, self._brightness - STEP)
+        set_brightness(backend=self._backend, value=new)
+        self._brightness = new
+        self.refresh_presentation()
+
+    def _poll(self) -> None:
+        """Read current brightness synchronously."""
+        if not self._backend:
+            return
+        val = get_brightness(backend=self._backend)
+        if val is not None:
+            self._brightness = val
+
+    def _tick(self) -> bool:
+        """Periodic poll in background thread."""
+        if not self._backend:
+            return True
+
+        def worker() -> None:
+            val = get_brightness(backend=self._backend)
+            GLib.idle_add(self._on_poll_result, val)
+
+        threading.Thread(target=worker, daemon=True).start()
+        return True
+
+    def _on_poll_result(self, val: float | None) -> bool:
+        if val is not None and abs(val - self._brightness) > 0.01:
+            self._brightness = val
+            self.refresh_presentation()
+        return False

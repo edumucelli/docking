@@ -192,6 +192,9 @@ class FakeLabel:
     def set_max_width_chars(self, _value: int) -> None:
         return
 
+    def override_color(self, *_args, **_kwargs) -> None:
+        return
+
 
 def _make_popup():
     popup = object.__new__(preview_mod.PreviewPopup)
@@ -276,6 +279,7 @@ class TestPreviewPopupIntegration:
                 Image=FakeImage,
                 Label=FakeLabel,
                 IconSize=SimpleNamespace(DIALOG=1),
+                StateFlags=SimpleNamespace(NORMAL=1),
             ),
         )
         monkeypatch.setattr(
@@ -283,6 +287,7 @@ class TestPreviewPopupIntegration:
             "Gdk",
             SimpleNamespace(
                 EventMask=SimpleNamespace(BUTTON_PRESS_MASK=1, ENTER_NOTIFY_MASK=2),
+                RGBA=lambda *_args, **_kwargs: None,
             ),
         )
         monkeypatch.setattr(

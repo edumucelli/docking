@@ -53,15 +53,21 @@ class NetworkApplet(Applet):
         self._ip_address = ""
         self._rx_speed = 0.0
         self._tx_speed = 0.0
+        # "download", "upload", or "none"
+        self._speed_overlay = "download"
 
         # Traffic tracking
         self._prev_counters: TrafficCounters | None = None
         self._prev_time: float = 0.0
 
+        if config:
+            prefs = config.applet_prefs.get(AppletId.NETWORK, {})
+            self._speed_overlay = prefs.get("speed_overlay", "download")
+
         super().__init__(icon_size=icon_size, config=config)
 
     def create_icon(self, size: int):
-        """Load network icon with speed overlay."""
+        """Load network icon with optional speed overlay."""
         return create_icon(
             size=size,
             is_connected=self._is_connected,
@@ -69,6 +75,7 @@ class NetworkApplet(Applet):
             signal_strength=self._signal_strength,
             rx_speed=self._rx_speed,
             tx_speed=self._tx_speed,
+            speed_overlay=self._speed_overlay,
         )
 
     def refresh_tooltip(self) -> None:
@@ -104,7 +111,25 @@ class NetworkApplet(Applet):
             speed_item.set_sensitive(False)
             items.append(speed_item)
 
+        for label, mode in [
+            ("Show Download", "download"),
+            ("Show Upload", "upload"),
+            ("Hide Speeds", "none"),
+        ]:
+            mi = Gtk.CheckMenuItem(label=label)
+            mi.set_active(self._speed_overlay == mode)
+            mi.connect(
+                "toggled",
+                lambda _w, m=mode: self._set_speed_overlay(mode=m),
+            )
+            items.append(mi)
+
         return items
+
+    def _set_speed_overlay(self, mode: str) -> None:
+        self._speed_overlay = mode
+        self.save_prefs(prefs={"speed_overlay": mode})
+        self.refresh_presentation()
 
     def start(self, notify: Callable[[], None]) -> None:
         """Connect to NetworkManager and start traffic polling."""

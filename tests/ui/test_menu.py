@@ -47,6 +47,11 @@ class TestThemeDiscovery:
     def test_default_theme_exists(self):
         assert (_BUILTIN_THEMES_DIR / "default.json").exists()
 
+    def test_new_builtin_themes_exist(self):
+        assert (_BUILTIN_THEMES_DIR / "nord.json").exists()
+        assert (_BUILTIN_THEMES_DIR / "gruvbox.json").exists()
+        assert (_BUILTIN_THEMES_DIR / "solarized.json").exists()
+
 
 class TestBuildRadioSubmenu:
     def test_returns_menu_item_with_submenu(self):

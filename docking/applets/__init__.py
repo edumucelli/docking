@@ -17,12 +17,15 @@ def get_registry() -> dict[AppletId, type[Applet]]:
     from docking.applets.ambient import AmbientApplet
     from docking.applets.applications import ApplicationsApplet
     from docking.applets.battery import BatteryApplet
+    from docking.applets.brightness import BrightnessApplet
     from docking.applets.calendar import CalendarApplet
     from docking.applets.clippy import ClippyApplet
     from docking.applets.clock import ClockApplet
+    from docking.applets.colorpicker import ColorPickerApplet
     from docking.applets.cpumonitor import CpuMonitorApplet
     from docking.applets.desktop import DesktopApplet
     from docking.applets.hydration import HydrationApplet
+    from docking.applets.moon import MoonApplet
     from docking.applets.music import MusicApplet
     from docking.applets.network import NetworkApplet
     from docking.applets.pomodoro import PomodoroApplet
@@ -39,12 +42,15 @@ def get_registry() -> dict[AppletId, type[Applet]]:
         AppletId.AMBIENT: AmbientApplet,
         AppletId.APPLICATIONS: ApplicationsApplet,
         AppletId.BATTERY: BatteryApplet,
+        AppletId.BRIGHTNESS: BrightnessApplet,
         AppletId.CALENDAR: CalendarApplet,
         AppletId.CLIPPY: ClippyApplet,
         AppletId.CLOCK: ClockApplet,
+        AppletId.COLORPICKER: ColorPickerApplet,
         AppletId.CPUMONITOR: CpuMonitorApplet,
         AppletId.DESKTOP: DesktopApplet,
         AppletId.HYDRATION: HydrationApplet,
+        AppletId.MOON: MoonApplet,
         AppletId.MUSIC: MusicApplet,
         AppletId.NETWORK: NetworkApplet,
         AppletId.QUOTE: QuoteApplet,
