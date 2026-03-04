@@ -343,6 +343,21 @@ Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/cl
 
 **Update interval:** 60 seconds
 
+### Brightness
+
+![Brightness applet](images/brightness.png)
+
+Screen brightness control via `xrandr`. Auto-detects the primary display output and tracks live brightness value.
+
+**Click:** Reset brightness to 100%
+**Scroll:** Adjust brightness by small steps
+**Right-click options:**
+- **Show Level** -- toggle percentage text overlay on icon
+
+**Tooltip:** `Brightness: N%`
+
+**Update interval:** 5 seconds
+
 ### Weather
 
 ![Weather applet](images/weather.png)
@@ -367,6 +382,21 @@ Tue: 28/32°C, Rain
 
 **Update interval:** 5 minutes (shared between API cache and polling timer)
 
+### Moon
+
+![Moon applet](images/moon.png)
+
+Moon phase applet with Cairo-rendered moon disc and illumination shading. Fetches phase data asynchronously and falls back gracefully while loading.
+
+**Click:** Refresh moon data now
+**Right-click options:**
+- **Show Phase Name** -- toggle phase label overlay on icon
+- **Refresh** -- force a refresh
+
+**Tooltip:** Multi-line phase summary with illumination percentage and description
+
+**Update interval:** 6 hours
+
 ### Clippy
 
 ![Clippy applet](images/clippy.png)
@@ -378,6 +408,21 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 **Right-click:** List of all clips (newest first), click to copy. "Clear" to empty history.
 
 **Preferences stored:** `max_entries`
+
+### Color Picker
+
+![Color Picker applet](images/color.png)
+
+Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel color, copies hex value to clipboard, and updates the icon swatch.
+
+**Click:** Start pick mode and sample next clicked pixel
+**Right-click options:**
+- **Copy #RRGGBB** -- copy current sampled value
+- **Show Hex** -- toggle hex label overlay on icon
+
+**Tooltip:** Current sampled hex value
+
+**Preferences stored:** `show_hex`, `r`, `g`, `b`, `hex`
 
 ### Applications
 
