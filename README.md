@@ -52,7 +52,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 25 built-in applets:
+Extensible plugin system for custom dock widgets. 26 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -66,6 +66,7 @@ Extensible plugin system for custom dock widgets. 25 built-in applets:
 | **Applications** | Categorized application launcher |
 | **Network** | WiFi signal strength and traffic speeds |
 | **Bluetooth** | Full BlueZ manager with device connect/pair controls |
+| **Power Profiles** | Performance/Balanced/Power Saver profile selector |
 | **Notifications** | Do Not Disturb toggle with pending badge |
 | **Music** | Media controls with album-art icon |
 | **Session** | Lock, logout, suspend, restart, shutdown |
@@ -480,6 +481,24 @@ BlueZ-based Bluetooth manager applet for quick adapter/device control from the d
 block power-off (`org.bluez.Error.Busy`) until that external scan stops.
 
 **Update interval:** 2 seconds poll + discovery keepalive
+
+### Power Profiles
+
+Power profile applet for quick laptop/handheld mode switching.
+
+**Click:** Cycle to next available profile
+**Right-click options:**
+- **Select Profile** -- radio selector for available profiles
+- **Power Saver / Balanced / Performance** -- set active profile
+
+**Tooltip:** current profile, available profiles, and backend limitation reason (if any)
+
+**Backend chain (auto-detected):**
+- `power-profiles-daemon` via DBus `net.hadess.PowerProfiles` (preferred)
+- `tuned-adm` fallback (profile-mapped)
+- `tlp` fallback (`ac`/`bat`/`start` mapping)
+
+Detailed backend/mapping notes: [docs/POWER_PROFILES.md](docs/POWER_PROFILES.md)
 
 ### Notifications
 

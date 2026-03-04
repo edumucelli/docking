@@ -38,6 +38,12 @@ class TestParseAppletId:
     def test_parses_bluetooth(self):
         assert parse_applet_id(desktop_id="applet://bluetooth") == AppletId.BLUETOOTH
 
+    def test_parses_powerprofiles(self):
+        assert (
+            parse_applet_id(desktop_id="applet://powerprofiles")
+            == AppletId.POWERPROFILES
+        )
+
 
 class TestAppletIdFrom:
     def test_returns_typed_applet_id(self):
@@ -83,6 +89,9 @@ class TestCategoryFor:
 
     def test_bluetooth_is_grouped_under_system(self):
         assert category_for(applet_id=AppletId.BLUETOOTH) == AppletCategory.SYSTEM
+
+    def test_powerprofiles_is_grouped_under_system(self):
+        assert category_for(applet_id=AppletId.POWERPROFILES) == AppletCategory.SYSTEM
 
 
 class TestIsAppletDesktopId:

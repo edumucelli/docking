@@ -56,6 +56,9 @@ class TestRegistry:
     def test_contains_bluetooth(self):
         assert "bluetooth" in get_registry()
 
+    def test_contains_powerprofiles(self):
+        assert "powerprofiles" in get_registry()
+
 
 class TestLoadThemeIcon:
     def test_loads_known_icon(self):

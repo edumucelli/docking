@@ -24,6 +24,7 @@ class AppletId(str, Enum):
     MOON = "moon"
     MUSIC = "music"
     NOTIFICATIONS = "notifications"
+    POWERPROFILES = "powerprofiles"
     POMODORO = "pomodoro"
     QUOTE = "quote"
     SCREENSHOT = "screenshot"
@@ -70,6 +71,7 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.BRIGHTNESS: AppletCategory.SYSTEM,
     AppletId.NETWORK: AppletCategory.SYSTEM,
     AppletId.NOTIFICATIONS: AppletCategory.SYSTEM,
+    AppletId.POWERPROFILES: AppletCategory.SYSTEM,
     AppletId.MOON: AppletCategory.INFORMATION,
     AppletId.MUSIC: AppletCategory.SYSTEM,
     AppletId.SCREENSHOT: AppletCategory.SYSTEM,
