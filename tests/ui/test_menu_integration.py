@@ -25,12 +25,20 @@ class FakeMenu:
         self.children: list[FakeMenuItem] = []
         self.shown = False
         self.popup_event = None
+        self._signals: dict[str, list[object]] = {}
 
     def append(self, item) -> None:
         self.children.append(item)
 
     def get_children(self):
         return list(self.children)
+
+    def connect(self, signal: str, callback) -> None:
+        self._signals.setdefault(signal, []).append(callback)
+
+    def emit(self, signal: str) -> None:
+        for callback in self._signals.get(signal, []):
+            callback(self)
 
     def show_all(self) -> None:
         self.shown = True
@@ -349,6 +357,9 @@ class TestDockMenu:
         assert captured_menu is not None
         assert captured_menu.shown is True
         assert captured_menu.popup_event is event
+        handler._window.on_menu_popup_opened.assert_called_once()
+        captured_menu.emit("deactivate")
+        handler._window.on_menu_popup_closed.assert_called_once()
 
 
 class TestMenuCallbacks:

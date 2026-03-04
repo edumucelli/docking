@@ -159,6 +159,9 @@ class MenuHandler:
         item = self._hit_test(main_coord=cursor_main, items=items, layout=layout)
 
         menu = Gtk.Menu()
+        self._window.on_menu_popup_opened()
+        menu.connect("hide", self._on_menu_popup_closed)
+        menu.connect("deactivate", self._on_menu_popup_closed)
 
         if item:
             self._build_item_menu(menu=menu, item=item)
@@ -170,6 +173,9 @@ class MenuHandler:
 
         menu.show_all()
         menu.popup_at_pointer(event)
+
+    def _on_menu_popup_closed(self, _menu: Gtk.Menu) -> None:
+        self._window.on_menu_popup_closed()
 
     def _build_item_menu(self, menu: Gtk.Menu, item: DockItem) -> None:
         """Build context menu for a specific dock item.

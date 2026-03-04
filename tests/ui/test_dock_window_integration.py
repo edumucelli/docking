@@ -30,6 +30,7 @@ def _make_stub(item: DockItem | None = None):
     stub._hover.hovered_item = item
     stub._hover.cancel = MagicMock()
     stub._preview = None
+    stub._menu_popup_visible = False
     stub.autohide = None
     stub.cursor_x = 12.0
     stub.cursor_y = 6.0
@@ -39,6 +40,8 @@ def _make_stub(item: DockItem | None = None):
     stub._main_axis_cursor = MagicMock(return_value=33.0)
     stub.hit_test = MagicMock(return_value=item)
     stub._update_dock_size = MagicMock()
+    stub.drawing_area = MagicMock()
+    stub._pointer_inside_input_rect = MagicMock(return_value=False)
     return stub, item
 
 
@@ -274,6 +277,54 @@ class TestLeaveEnterFlow:
         assert stub.cursor_x == 44.0
         assert stub.cursor_y == 11.0
         stub.autohide.on_mouse_enter.assert_called_once()
+
+
+class TestMenuPopupFlow:
+    def test_menu_close_triggers_autohide_when_pointer_outside(self):
+        # Given
+        stub, _item = _make_stub()
+        stub._menu_popup_visible = True
+        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub._preview = MagicMock()
+        stub._preview.get_visible.return_value = False
+
+        # When
+        dock_window_mod.DockWindow.on_menu_popup_closed(stub)
+
+        # Then
+        assert stub._menu_popup_visible is False
+        stub._hover.cancel.assert_called_once()
+        stub._tooltip.hide.assert_called_once()
+        stub._preview.schedule_hide.assert_called_once()
+        stub._update_dock_size.assert_called_once()
+        stub.drawing_area.queue_draw.assert_called_once()
+        stub.autohide.on_mouse_leave.assert_called_once()
+
+    def test_menu_close_does_not_hide_when_pointer_is_back_on_dock(self):
+        # Given
+        stub, _item = _make_stub()
+        stub._menu_popup_visible = True
+        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub._pointer_inside_input_rect.return_value = True
+
+        # When
+        dock_window_mod.DockWindow.on_menu_popup_closed(stub)
+
+        # Then
+        assert stub._menu_popup_visible is False
+        stub.autohide.on_mouse_leave.assert_not_called()
+        stub._hover.cancel.assert_not_called()
+
+    def test_menu_close_is_noop_when_no_popup_is_tracked(self):
+        # Given
+        stub, _item = _make_stub()
+        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+
+        # When
+        dock_window_mod.DockWindow.on_menu_popup_closed(stub)
+
+        # Then
+        stub.autohide.on_mouse_leave.assert_not_called()
 
 
 class TestUrgentGlow:

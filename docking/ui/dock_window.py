@@ -223,6 +223,7 @@ class DockWindow(Gtk.Window):
         self.autohide: AutoHideController | None = None
         self._dnd: DnDHandler | None = None
         self._menu: MenuHandler | None = None
+        self._menu_popup_visible: bool = False
         self._preview: PreviewPopup | None = None
         self._tooltip = TooltipManager(self, config, model, theme)
         self._hover = HoverManager(self, config, model, theme, self._tooltip)
@@ -303,6 +304,57 @@ class DockWindow(Gtk.Window):
 
     def set_menu_handler(self, handler: MenuHandler) -> None:
         self._menu = handler
+
+    def on_menu_popup_opened(self) -> None:
+        """Track that a dock context menu popup is currently active."""
+        self._menu_popup_visible = True
+
+    def on_menu_popup_closed(self) -> None:
+        """Reconcile autohide state when the context menu closes."""
+        if not self._menu_popup_visible:
+            return
+        self._menu_popup_visible = False
+
+        if not self.autohide or not self.autohide.enabled:
+            return
+        if self._pointer_inside_input_rect():
+            return
+
+        self._hover.hovered_item = None
+        self._hover.cancel()
+        self._tooltip.hide()
+
+        preview_visible = self._preview and self._preview.get_visible()
+        if self._preview and not preview_visible:
+            self._preview.schedule_hide()
+
+        self._update_dock_size()
+        self.drawing_area.queue_draw()
+        self.autohide.on_mouse_leave()
+
+    def _pointer_inside_input_rect(self) -> bool:
+        """Return True when pointer is inside current dock input region."""
+        if self._last_input_rect is None or not self.get_realized():
+            return False
+        display = self.get_display()
+        if not display:
+            return False
+        seat = display.get_default_seat()
+        if not seat:
+            return False
+        pointer = seat.get_pointer()
+        if not pointer:
+            return False
+        try:
+            _, screen_x, screen_y = pointer.get_position()
+            win_x, win_y = self.get_position()
+        except Exception:
+            return False
+
+        local_x = screen_x - win_x
+        local_y = screen_y - win_y
+        rx, ry, rw, rh = self._last_input_rect
+        return rx <= local_x <= rx + rw and ry <= local_y <= ry + rh
 
     def set_preview_popup(self, preview: PreviewPopup) -> None:
         self._preview = preview
