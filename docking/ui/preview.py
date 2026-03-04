@@ -16,7 +16,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("Wnck", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Pango, Wnck  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Wnck  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
 
@@ -376,8 +376,14 @@ class PreviewPopup(Gtk.Window):
         label = Gtk.Label(label=title)
         label.get_style_context().add_class("preview-label")
         label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
-        label.set_ellipsize(Pango.EllipsizeMode.END)
-        label.set_max_width_chars(LABEL_MAX_CHARS)
+        # In a vertical Gtk.Box, children can still receive full cross-axis
+        # width (thumbnail width). Keep label at natural width so the CSS
+        # background chip wraps the actual title text.
+        label.set_halign(Gtk.Align.CENTER)
+        label.set_hexpand(False)
+        # Title is already manually truncated above, so avoid forcing a wide
+        # allocation here; letting GTK use natural text width keeps the dark
+        # background chip sized to the title instead of thumbnail width.
         vbox.pack_start(label, False, False, 0)
 
         event_box.add(vbox)

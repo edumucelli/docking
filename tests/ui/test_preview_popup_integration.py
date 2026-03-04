@@ -36,6 +36,7 @@ def _load_preview_module():
         ),
         STYLE_PROVIDER_PRIORITY_APPLICATION=600,
         Orientation=SimpleNamespace(HORIZONTAL=1, VERTICAL=2),
+        Align=SimpleNamespace(CENTER=1),
         IconSize=SimpleNamespace(DIALOG=1),
     )
     fake_gdk = types.SimpleNamespace(
@@ -195,6 +196,12 @@ class FakeLabel:
     def override_color(self, *_args, **_kwargs) -> None:
         return
 
+    def set_halign(self, _value) -> None:
+        return
+
+    def set_hexpand(self, _value: bool) -> None:
+        return
+
 
 def _make_popup():
     popup = object.__new__(preview_mod.PreviewPopup)
@@ -279,6 +286,7 @@ class TestPreviewPopupIntegration:
                 Image=FakeImage,
                 Label=FakeLabel,
                 IconSize=SimpleNamespace(DIALOG=1),
+                Align=SimpleNamespace(CENTER=1),
                 StateFlags=SimpleNamespace(NORMAL=1),
             ),
         )
@@ -290,12 +298,6 @@ class TestPreviewPopupIntegration:
                 RGBA=lambda *_args, **_kwargs: None,
             ),
         )
-        monkeypatch.setattr(
-            preview_mod,
-            "Pango",
-            SimpleNamespace(EllipsizeMode=SimpleNamespace(END=1)),
-        )
-
         # When
         widget = preview_mod.PreviewPopup._make_thumbnail_for_xid(
             popup, xid=42, fallback_icon_name="app"
