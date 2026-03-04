@@ -52,7 +52,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Struts update instantly on toggle (windows resize immediately)
 
 ### Applets
-Extensible plugin system for custom dock widgets. 24 built-in applets:
+Extensible plugin system for custom dock widgets. 25 built-in applets:
 
 | Applet | Description |
 |--------|-------------|
@@ -65,6 +65,7 @@ Extensible plugin system for custom dock widgets. 24 built-in applets:
 | **Clippy** | Clipboard history manager |
 | **Applications** | Categorized application launcher |
 | **Network** | WiFi signal strength and traffic speeds |
+| **Bluetooth** | Full BlueZ manager with device connect/pair controls |
 | **Notifications** | Do Not Disturb toggle with pending badge |
 | **Music** | Media controls with album-art icon |
 | **Session** | Lock, logout, suspend, restart, shutdown |
@@ -455,6 +456,30 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 - `/proc/net/dev` for traffic counters
 
 **Update interval:** 2 seconds for traffic, instant for connection state changes (NM signals)
+
+### Bluetooth
+
+BlueZ-based Bluetooth manager applet for quick adapter/device control from the dock.
+
+**Click:** Toggle Bluetooth power for the active adapter
+**Right-click options:**
+- **Bluetooth On** -- power toggle
+- **Continuous Discovery** -- keeps discovery active while enabled
+- **Adapter** -- switch active adapter on multi-adapter systems
+- **Connected / Paired / Discovered Devices** -- per-device actions:
+  connect/disconnect, pair, remove pairing, trust toggle
+
+**Tooltip:** adapter state, connected/paired counts, discovery status, optional battery line
+**Badge:** connected device count
+
+**Backends:**
+- BlueZ DBus (`org.bluez`) for adapter/device operations
+- `bluetoothctl` fallback for pairing when DBus pair fails
+
+**Note:** if another Bluetooth app owns an active discovery session, BlueZ may
+block power-off (`org.bluez.Error.Busy`) until that external scan stops.
+
+**Update interval:** 2 seconds poll + discovery keepalive
 
 ### Notifications
 

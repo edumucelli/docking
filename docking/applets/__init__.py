@@ -17,6 +17,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
     from docking.applets.ambient import AmbientApplet
     from docking.applets.applications import ApplicationsApplet
     from docking.applets.battery import BatteryApplet
+    from docking.applets.bluetooth import BluetoothApplet
     from docking.applets.brightness import BrightnessApplet
     from docking.applets.calendar import CalendarApplet
     from docking.applets.clippy import ClippyApplet
@@ -43,6 +44,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
         AppletId.AMBIENT: AmbientApplet,
         AppletId.APPLICATIONS: ApplicationsApplet,
         AppletId.BATTERY: BatteryApplet,
+        AppletId.BLUETOOTH: BluetoothApplet,
         AppletId.BRIGHTNESS: BrightnessApplet,
         AppletId.CALENDAR: CalendarApplet,
         AppletId.CLIPPY: ClippyApplet,

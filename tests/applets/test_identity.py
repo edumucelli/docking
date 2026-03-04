@@ -35,6 +35,9 @@ class TestParseAppletId:
             == AppletId.NOTIFICATIONS
         )
 
+    def test_parses_bluetooth(self):
+        assert parse_applet_id(desktop_id="applet://bluetooth") == AppletId.BLUETOOTH
+
 
 class TestAppletIdFrom:
     def test_returns_typed_applet_id(self):
@@ -77,6 +80,9 @@ class TestCategoryFor:
 
     def test_notifications_is_grouped_under_system(self):
         assert category_for(applet_id=AppletId.NOTIFICATIONS) == AppletCategory.SYSTEM
+
+    def test_bluetooth_is_grouped_under_system(self):
+        assert category_for(applet_id=AppletId.BLUETOOTH) == AppletCategory.SYSTEM
 
 
 class TestIsAppletDesktopId:
