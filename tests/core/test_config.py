@@ -15,6 +15,7 @@ class TestConfigDefaults:
         assert c.zoom_percent == 1.5
         assert c.zoom_range == 3
         assert c.position == "bottom"
+        assert c.monitor_index == -1
         assert c.autohide is False
         assert c.hide_delay_ms == 0
         assert c.previews_enabled is True
@@ -105,7 +106,10 @@ class TestConfigSave:
         # Given
         path = tmp_path / "dock.json"
         original = Config(
-            icon_size=80, zoom_percent=1.5, pinned=["a.desktop", "b.desktop"]
+            icon_size=80,
+            zoom_percent=1.5,
+            monitor_index=1,
+            pinned=["a.desktop", "b.desktop"],
         )
         # When
         original.save(path)
@@ -113,4 +117,5 @@ class TestConfigSave:
         # Then
         assert loaded.icon_size == 80
         assert loaded.zoom_percent == 1.5
+        assert loaded.monitor_index == 1
         assert loaded.pinned == ["a.desktop", "b.desktop"]

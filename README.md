@@ -9,8 +9,7 @@
 <img src="images/docking-header.png" alt="Docking" height="48" style="display:block; margin:0 auto;">
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
-
-![all.png](images/all.png)
+![all.gif](images/all.gif)
 
 ## Features
 
@@ -22,6 +21,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Smart focus: click to focus/minimize, Ctrl+click or middle-click to launch new instance
 - Desktop actions (quicklists) from `.desktop` files in the right-click menu
 - Multi-position support: bottom, top, left, right
+- Multi-monitor support with runtime monitor selection via right-click menu (**Display** submenu appears when multiple monitors are available)
 
 ### Visual Effects
 - **Hover lighten** -- additive brightness fade on hovered icon
@@ -233,6 +233,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "zoom_percent": 1.5,
   "zoom_range": 3,
   "position": "bottom",
+  "monitor_index": -1,
   "autohide": false,
   "hide_delay_ms": 0,
   "unhide_delay_ms": 0,
@@ -250,6 +251,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `zoom_percent` | 1.5 | Max zoom multiplier (1.5 = 150%) |
 | `zoom_range` | 3 | Icon widths over which zoom tapers off |
 | `position` | bottom | Dock edge: bottom, top, left, right |
+| `monitor_index` | -1 | Target monitor index (`-1` = primary monitor, `0..N` = specific monitor) |
 | `autohide` | false | Hide dock when cursor leaves |
 | `hide_delay_ms` | 0 | Delay before hiding starts (0 = instant) |
 | `hide_time_ms` | 250 | Duration of hide/show slide animation |
@@ -257,7 +259,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
 | `pinned` | [] | Desktop file IDs resolved via `$XDG_DATA_DIRS` |
 
-All settings are also configurable via the dock's right-click menu.
+All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor.
 
 ## Managing Dock Items
 

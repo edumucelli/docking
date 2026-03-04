@@ -269,6 +269,18 @@ class MenuHandler:
         previews.connect("toggled", self._on_previews_toggled)
         menu.append(previews)
 
+        # Monitor selection submenu (only when multiple monitors are available)
+        monitor_items = self._monitor_items()
+        if monitor_items:
+            menu.append(
+                _build_radio_submenu(
+                    label="Display",
+                    items=monitor_items,
+                    current=self._current_monitor_choice(),
+                    on_changed=self._on_monitor_changed,
+                )
+            )
+
         # Lock icons toggle
         lock = Gtk.CheckMenuItem(label="Lock Icons")
         lock.set_active(self._config.lock_icons)
@@ -444,6 +456,58 @@ class MenuHandler:
     def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.previews_enabled = widget.get_active()
         self._config.save()
+
+    def _monitor_items(self) -> list[tuple[str, int]]:
+        getter = getattr(self._window, "get_monitor_menu_choices", None)
+        if not callable(getter):
+            return []
+        try:
+            raw = getter()
+        except Exception:
+            return []
+        if not isinstance(raw, list):
+            return []
+
+        items: list[tuple[str, int]] = []
+        for entry in raw:
+            if (
+                isinstance(entry, tuple)
+                and len(entry) == 2
+                and isinstance(entry[0], str)
+                and isinstance(entry[1], int)
+            ):
+                items.append((entry[0], entry[1]))
+        return items
+
+    def _current_monitor_choice(self) -> int:
+        getter = getattr(self._window, "current_monitor_choice", None)
+        if callable(getter):
+            try:
+                value = getter()
+                if isinstance(value, int):
+                    return value
+            except Exception:
+                pass
+        return int(getattr(self._config, "monitor_index", -1))
+
+    def _on_monitor_changed(self, widget: Gtk.MenuItem, monitor_index: int) -> None:
+        if not widget.get_active():
+            return
+        primary_idx = monitor_index
+        getter = getattr(self._window, "primary_monitor_index", None)
+        if callable(getter):
+            try:
+                value = getter()
+                if isinstance(value, int):
+                    primary_idx = value
+            except Exception:
+                pass
+        new_value = -1 if monitor_index == primary_idx else monitor_index
+        if int(getattr(self._config, "monitor_index", -1)) == new_value:
+            return
+        self._config.monitor_index = new_value
+        self._config.save()
+        self._window.reposition()
 
     def _on_lock_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.lock_icons = widget.get_active()

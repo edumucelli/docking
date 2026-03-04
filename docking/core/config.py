@@ -32,6 +32,8 @@ class Config:
     zoom_range: int = 3
     # Screen edge where the dock is placed
     position: str = "bottom"
+    # Target monitor index (-1 means "primary monitor")
+    monitor_index: int = -1
     # Whether the dock hides when the cursor leaves
     autohide: bool = False
     # Delay in ms before the dock starts hiding after cursor leaves (Plank default: 0)
@@ -81,6 +83,8 @@ class Config:
             Position(value=config.position)
         except ValueError:
             config.position = "bottom"
+        if config.monitor_index < -1:
+            config.monitor_index = -1
         return config
 
     def save(self, path: Path | str | None = None) -> None:

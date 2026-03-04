@@ -173,6 +173,9 @@ def handler(monkeypatch):
     window.zoomed_main_offset.return_value = 0.0
     window.autohide = MagicMock()
     window._dnd = MagicMock()
+    window.get_monitor_menu_choices.return_value = []
+    window.current_monitor_choice.return_value = -1
+    window.primary_monitor_index.return_value = 0
 
     model = MagicMock()
     model.pinned_items = []
@@ -180,6 +183,7 @@ def handler(monkeypatch):
         lock_icons=False,
         autohide=True,
         previews_enabled=True,
+        monitor_index=-1,
         theme="default",
         icon_size=48,
         position="bottom",
@@ -285,6 +289,7 @@ class TestDockMenu:
         # Then
         assert "Auto-hide" in labels
         assert "Window Previews" in labels
+        assert "Display" not in labels
         assert "Lock Icons" in labels
         assert "Add Separator" in labels
         assert "About" in labels
@@ -361,6 +366,26 @@ class TestDockMenu:
         captured_menu.emit("deactivate")
         handler._window.on_menu_popup_closed.assert_called_once()
 
+    def test_build_dock_menu_shows_display_submenu_for_multiple_monitors(self, handler):
+        # Given
+        menu = FakeMenu()
+        handler._window.get_monitor_menu_choices.return_value = [
+            ("Display 1: 1920x1080 (Primary)", 0),
+            ("Display 2: 2560x1440", 1),
+        ]
+        handler._window.current_monitor_choice.return_value = 0
+
+        # When
+        handler._build_dock_menu(menu=menu, insert_index=0)
+        labels = _labels(menu)
+
+        # Then
+        assert "Display" in labels
+        display_item = next(mi for mi in menu.children if mi.get_label() == "Display")
+        submenu_labels = _labels(display_item.get_submenu())
+        assert "Display 1: 1920x1080 (Primary)" in submenu_labels
+        assert "Display 2: 2560x1440" in submenu_labels
+
 
 class TestMenuCallbacks:
     def test_append_desktop_actions_triggers_launch_action(self, handler, monkeypatch):
@@ -418,6 +443,35 @@ class TestMenuCallbacks:
         size_widget.set_active(True)
         handler._on_icon_size_changed(size_widget, 64)
         assert handler._config.icon_size == 64
+
+    def test_monitor_changed_repositions_and_saves(self, handler):
+        # Given
+        widget = FakeCheckMenuItem("Display")
+        widget.set_active(True)
+        handler._config.monitor_index = -1
+
+        # When
+        handler._on_monitor_changed(widget, 1)
+
+        # Then
+        assert handler._config.monitor_index == 1
+        handler._config.save.assert_called_once()
+        handler._window.reposition.assert_called_once()
+
+    def test_monitor_changed_primary_persists_as_follow_primary(self, handler):
+        # Given
+        widget = FakeCheckMenuItem("Display")
+        widget.set_active(True)
+        handler._config.monitor_index = 1
+        handler._window.primary_monitor_index.return_value = 0
+
+        # When
+        handler._on_monitor_changed(widget, 0)
+
+        # Then
+        assert handler._config.monitor_index == -1
+        handler._config.save.assert_called_once()
+        handler._window.reposition.assert_called_once()
 
     def test_hit_test_and_insert_index(self, handler):
         # Given

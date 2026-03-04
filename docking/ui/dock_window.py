@@ -360,6 +360,81 @@ class DockWindow(Gtk.Window):
         self._preview = preview
         self._hover.set_preview(preview)
 
+    def current_monitor_choice(self) -> int:
+        """Current monitor menu selection (-1=primary, >=0 specific monitor)."""
+        display = self.get_display()
+        if not display:
+            return -1
+        n_monitors = display.get_n_monitors()
+        if n_monitors <= 0:
+            return -1
+        selected = int(getattr(self.config, "monitor_index", -1))
+        if selected == -1:
+            return self.primary_monitor_index()
+        if selected < 0 or selected >= n_monitors:
+            return self.primary_monitor_index()
+        return selected
+
+    def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
+        """Monitor choices for menu display. Empty when only one monitor."""
+        display = self.get_display()
+        if not display:
+            return []
+        n_monitors = display.get_n_monitors()
+        if n_monitors <= 1:
+            return []
+
+        primary = display.get_primary_monitor() or display.get_monitor(0)
+        primary_idx = 0
+        for idx in range(n_monitors):
+            if display.get_monitor(idx) is primary:
+                primary_idx = idx
+                break
+
+        choices: list[tuple[str, int]] = []
+        for idx in range(n_monitors):
+            monitor = display.get_monitor(idx)
+            if monitor is None:
+                continue
+            geom = monitor.get_geometry()
+            label = f"Display {idx + 1}: {geom.width}x{geom.height}"
+            if idx == primary_idx:
+                label += " (Primary)"
+            choices.append((label, idx))
+        return choices
+
+    def primary_monitor_index(self) -> int:
+        """Index of primary monitor, or zero as a stable fallback."""
+        display = self.get_display()
+        if not display:
+            return 0
+        n_monitors = display.get_n_monitors()
+        if n_monitors <= 0:
+            return 0
+        primary = display.get_primary_monitor() or display.get_monitor(0)
+        for idx in range(n_monitors):
+            if display.get_monitor(idx) is primary:
+                return idx
+        return 0
+
+    def _resolve_target_monitor(self, display: Gdk.Display) -> Gdk.Monitor | None:
+        """Resolve configured monitor, falling back to primary monitor."""
+        get_n = getattr(display, "get_n_monitors", None)
+        if not callable(get_n):
+            return display.get_primary_monitor() or display.get_monitor(0)
+
+        n_monitors = get_n()
+        if n_monitors <= 0:
+            return None
+
+        selected = int(getattr(self.config, "monitor_index", -1))
+        if 0 <= selected < n_monitors:
+            monitor = display.get_monitor(selected)
+            if monitor is not None:
+                return monitor
+
+        return display.get_primary_monitor() or display.get_monitor(0)
+
     def _on_realize(self, _widget: Gtk.Widget) -> None:
         """Position dock and set struts after window is realized."""
         self._position_dock()
@@ -375,7 +450,9 @@ class DockWindow(Gtk.Window):
         max zoomed icon size plus padding and bounce headroom.
         """
         display = self.get_display()
-        monitor = display.get_primary_monitor() or display.get_monitor(0)
+        monitor = DockWindow._resolve_target_monitor(self, display=display)
+        if monitor is None:
+            return
         geom = monitor.get_geometry()
         # Work area excludes other panels (e.g. MATE panel) so we don't
         # overlap them. Use full monitor geometry only for the edge where
@@ -437,7 +514,9 @@ class DockWindow(Gtk.Window):
             return
 
         display = self.get_display()
-        monitor = display.get_primary_monitor() or display.get_monitor(0)
+        monitor = DockWindow._resolve_target_monitor(self, display=display)
+        if monitor is None:
+            return
         geom = monitor.get_geometry()
         screen = self.get_screen()
 

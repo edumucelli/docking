@@ -557,6 +557,82 @@ class TestDockWindowSetupAndGeometry:
         # Then
         stub.move.assert_called_once()
 
+    def test_position_dock_uses_selected_monitor_index(self):
+        # Given
+        geom_primary = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        work_primary = SimpleNamespace(x=0, y=24, width=1920, height=1056)
+        geom_secondary = SimpleNamespace(x=1920, y=0, width=1280, height=1024)
+        work_secondary = SimpleNamespace(x=1920, y=24, width=1280, height=1000)
+        primary = SimpleNamespace(
+            get_geometry=lambda: geom_primary, get_workarea=lambda: work_primary
+        )
+        secondary = SimpleNamespace(
+            get_geometry=lambda: geom_secondary, get_workarea=lambda: work_secondary
+        )
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_primary_monitor=lambda: primary,
+            get_monitor=lambda idx: secondary if idx == 1 else primary,
+        )
+        stub = SimpleNamespace(
+            get_display=lambda: display,
+            config=SimpleNamespace(
+                icon_size=48,
+                zoom_enabled=True,
+                zoom_percent=1.2,
+                pos=Position.BOTTOM,
+                monitor_index=1,
+            ),
+            theme=SimpleNamespace(
+                top_padding=4,
+                bottom_padding=8,
+                urgent_bounce_height=0.5,
+            ),
+            set_size_request=MagicMock(),
+            resize=MagicMock(),
+            move=MagicMock(),
+        )
+
+        # When
+        dock_window_mod.DockWindow._position_dock(stub)
+
+        # Then
+        assert stub.move.call_args[0][0] >= 1920
+
+    def test_get_monitor_menu_choices_only_for_multiple_monitors(self):
+        # Given
+        geom = SimpleNamespace(width=1920, height=1080)
+        primary = SimpleNamespace(get_geometry=lambda: geom)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: primary,
+            get_monitor=lambda _idx: primary,
+        )
+        stub = SimpleNamespace(get_display=lambda: display)
+
+        # Then
+        assert dock_window_mod.DockWindow.get_monitor_menu_choices(stub) == []
+
+    def test_get_monitor_menu_choices_does_not_duplicate_primary(self):
+        # Given
+        geom1 = SimpleNamespace(width=1920, height=1080)
+        geom2 = SimpleNamespace(width=2560, height=1440)
+        mon1 = SimpleNamespace(get_geometry=lambda: geom1)
+        mon2 = SimpleNamespace(get_geometry=lambda: geom2)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_primary_monitor=lambda: mon1,
+            get_monitor=lambda idx: mon1 if idx == 0 else mon2,
+        )
+        stub = SimpleNamespace(get_display=lambda: display)
+
+        # When
+        choices = dock_window_mod.DockWindow.get_monitor_menu_choices(stub)
+
+        # Then
+        labels = [label for label, _ in choices]
+        assert labels == ["Display 1: 1920x1080 (Primary)", "Display 2: 2560x1440"]
+
 
 class TestDockWindowStrutsAndRegion:
     def test_set_struts_clears_when_autohide_enabled(self):
