@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 00:16+0100\n"
+"POT-Creation-Date: 2026-03-06 00:18+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -60,7 +60,7 @@ msgstr "Rosa Rauschen"
 #: docking/applets/ambient/state.py:83
 #, python-brace-format
 msgid "Playing: {sound} ({pct}%)"
-msgstr ""
+msgstr "Playing: {sound} ({pct}%)"
 
 #: docking/applets/applications/applet.py:28
 msgid "Applications"
@@ -93,7 +93,7 @@ msgstr "Kein Bluetooth-Adapter"
 
 #: docking/applets/bluetooth/applet.py:156
 msgid "General"
-msgstr ""
+msgstr "General"
 
 #: docking/applets/bluetooth/applet.py:158
 #: docking/applets/bluetooth/state.py:110
@@ -108,7 +108,7 @@ msgstr "Aus"
 #: docking/applets/bluetooth/applet.py:161
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
-msgstr ""
+msgstr "{alias} ({powered}) - Connected {connected}"
 
 #: docking/applets/bluetooth/applet.py:170
 msgid "Bluetooth On"
@@ -127,17 +127,16 @@ msgid "Adapter"
 msgstr "Adapter"
 
 #: docking/applets/bluetooth/applet.py:219
-#, fuzzy
 msgid "Connected Devices"
-msgstr "Verbunden: {n}"
+msgstr "Connected Devices"
 
 #: docking/applets/bluetooth/applet.py:220
 msgid "Paired Devices"
-msgstr ""
+msgstr "Paired Devices"
 
 #: docking/applets/bluetooth/applet.py:221
 msgid "Discovered Devices"
-msgstr ""
+msgstr "Discovered Devices"
 
 #: docking/applets/bluetooth/applet.py:246
 msgid "Disconnect"
@@ -160,14 +159,14 @@ msgid "Trusted"
 msgstr "Vertraut"
 
 #: docking/applets/bluetooth/applet.py:306
-#, fuzzy, python-brace-format
+#, python-brace-format
 msgid "Battery: {percent}%"
-msgstr "Akku: {pct}%"
+msgstr "Battery: {percent}%"
 
 #: docking/applets/bluetooth/state.py:103
 #, python-brace-format
 msgid "Bluetooth: {error}"
-msgstr ""
+msgstr "Bluetooth: {error}"
 
 #: docking/applets/bluetooth/state.py:104
 #: docking/applets/bluetooth/state.py:108
@@ -234,7 +233,7 @@ msgstr "Leeren"
 
 #: docking/applets/clippy/state.py:22
 msgid "Clippy (empty)"
-msgstr ""
+msgstr "Clippy (empty)"
 
 #: docking/applets/clock/applet.py:32
 msgid "Clock"
@@ -258,9 +257,9 @@ msgid "Color Picker"
 msgstr "Farbwähler"
 
 #: docking/applets/colorpicker/applet.py:78
-#, fuzzy, python-brace-format
+#, python-brace-format
 msgid "Copy {hex}"
-msgstr "Zitat kopieren"
+msgstr "Copy {hex}"
 
 #: docking/applets/colorpicker/applet.py:82
 msgid "Show Hex"
@@ -273,7 +272,7 @@ msgstr "CPU-Monitor"
 #: docking/applets/cpumonitor/state.py:64
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
-msgstr ""
+msgstr "CPU: {cpu}% | Mem: {mem}%"
 
 #: docking/applets/desktop/applet.py:22 docking/applets/workspaces/applet.py:79
 msgid "Desktop"
@@ -294,7 +293,7 @@ msgstr "Timer anzeigen"
 #: docking/applets/pomodoro/applet.py:194
 #, python-brace-format
 msgid "{mins} min"
-msgstr ""
+msgstr "{mins} min"
 
 #: docking/applets/hydration/state.py:55
 msgid "Drink water!"
@@ -442,7 +441,7 @@ msgstr "Unbekannt"
 
 #: docking/applets/music/state.py:127
 msgid "Music: No active player"
-msgstr ""
+msgstr "Music: No active player"
 
 #: docking/applets/network/applet.py:40
 msgid "Network"
@@ -451,7 +450,7 @@ msgstr "Netzwerk"
 #: docking/applets/network/applet.py:90
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
-msgstr ""
+msgstr "WiFi: {ssid} ({pct}%)"
 
 #: docking/applets/network/applet.py:98
 #, python-brace-format
@@ -500,7 +499,7 @@ msgstr "Benachrichtigungen leeren"
 
 #: docking/applets/notifications/state.py:43
 msgid "Notifications: No backend available"
-msgstr ""
+msgstr "Notifications: No backend available"
 
 #: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
 msgid "Pomodoro"
@@ -549,19 +548,19 @@ msgstr "Profil auswählen"
 #: docking/applets/powerprofiles/applet.py:136
 #, python-brace-format
 msgid "Limited: {reason}"
-msgstr ""
+msgstr "Limited: {reason}"
 
 #: docking/applets/powerprofiles/state.py:122
 msgid "Power Saver"
-msgstr ""
+msgstr "Power Saver"
 
 #: docking/applets/powerprofiles/state.py:124
 msgid "Balanced"
-msgstr ""
+msgstr "Balanced"
 
 #: docking/applets/powerprofiles/state.py:126
 msgid "Performance"
-msgstr ""
+msgstr "Performance"
 
 #: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
 #: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
@@ -654,8 +653,8 @@ msgstr "Papierkorb ist leer"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} item in Trash"
+msgstr[1] "{n} items in Trash"
 
 #: docking/applets/volume/applet.py:32
 msgid "Volume"
@@ -684,11 +683,11 @@ msgstr "Stadt ändern..."
 
 #: docking/applets/weather/applet.py:128
 msgid "Search for the city"
-msgstr ""
+msgstr "Search for the city"
 
 #: docking/applets/weather/applet.py:142
 msgid "Type city name..."
-msgstr ""
+msgstr "Type city name..."
 
 #: docking/applets/weather/applet.py:260
 #, python-brace-format
@@ -703,12 +702,12 @@ msgstr "Luft: {label}"
 #: docking/applets/weather/applet.py:281
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
-msgstr ""
+msgstr "{date}: {min_temp}/{max_temp}°C"
 
 #: docking/applets/weather/state.py:72
 #, python-brace-format
 msgid "{city}: {temp}°C"
-msgstr ""
+msgstr "{city}: {temp}°C"
 
 #: docking/applets/weather/state.py:85
 msgid "Weather (no city selected)"
@@ -729,12 +728,12 @@ msgstr "Webseite"
 
 #: docking/ui/dock_window.py:248
 msgid "Docking"
-msgstr ""
+msgstr "Docking"
 
 #: docking/ui/dock_window.py:407
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
-msgstr ""
+msgstr "Display {display}: {width}x{height}"
 
 #: docking/ui/menu.py:198 docking/ui/menu.py:215
 msgid "Remove from Dock"

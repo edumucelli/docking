@@ -80,7 +80,7 @@ Auto-detects MATE, Xfce, KDE, Cinnamon, GNOME, and others via `XDG_CURRENT_DESKT
 
 ### Translations
 
-10 languages: English, Portuguese (BR), Spanish, French, Chinese, Hindi, Arabic, German, Japanese, Korean, Russian. Uses your system locale automatically.
+80 locale catalogs plus English fallback. Uses your system locale automatically.
 
 ## Requirements
 
@@ -742,11 +742,12 @@ return {
 
 ## Translations
 
-Docking supports 10 languages via standard gettext:
+Docking now ships 80 locale catalogs via standard gettext (plus English fallback).
+
+Core locales include:
 
 | Language | Code |
 |----------|------|
-| English | en (default) |
 | Brazilian Portuguese | pt_BR |
 | Spanish | es |
 | French | fr |
@@ -757,6 +758,8 @@ Docking supports 10 languages via standard gettext:
 | Japanese | ja |
 | Korean | ko |
 | Russian | ru |
+
+Additional locales are available under `docking/locale/*/LC_MESSAGES/docking.po`.
 
 The dock automatically uses your system locale. To test a specific language:
 
