@@ -56,6 +56,7 @@ def draw_shelf_background(
     """
     radius = theme.roundness
     line_width = theme.stroke_width
+    round_bottom = theme.round_bottom
 
     # Layer 1: Gradient fill + outer stroke
     rounded_rect(
@@ -63,9 +64,9 @@ def draw_shelf_background(
         x + line_width / 2,
         y + line_width / 2,
         w - line_width,
-        h - line_width / 2,
+        h - line_width if round_bottom else h - line_width / 2,
         radius,
-        round_bottom=False,
+        round_bottom=round_bottom,
     )
 
     pat = cairo.LinearGradient(0, y, 0, y + h)
@@ -102,9 +103,9 @@ def draw_shelf_background(
         x + inset,
         y + inset,
         w - 2 * inset,
-        inner_h - inset / 2,
+        inner_h - inset if round_bottom else inner_h - inset / 2,
         inner_r,
-        round_bottom=False,
+        round_bottom=round_bottom,
     )
     cr.set_source(highlight)
     cr.set_line_width(line_width)

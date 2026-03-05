@@ -29,6 +29,7 @@ from gi.repository import GLib, Gtk  # noqa: E402
 
 from docking.core.config import Config
 from docking.core.theme import Theme
+from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.platform.window_tracker import WindowTracker
@@ -42,6 +43,9 @@ from docking.ui.renderer import DockRenderer
 
 def main() -> None:
     """Entry point for the docking application."""
+    desktop = detect_desktop()
+    apply_tweaks(desktop)
+
     config = Config.load()
     theme = Theme.load(config.theme, config.icon_size)
     launcher = Launcher()

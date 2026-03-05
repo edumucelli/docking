@@ -476,6 +476,8 @@ class TestDockWindowSetupAndGeometry:
     def test_on_realize_calls_position_struts_and_input_update(self):
         # Given
         stub = SimpleNamespace(
+            get_display=lambda: None,
+            config=SimpleNamespace(active_display=False),
             _position_dock=MagicMock(),
             _set_struts=MagicMock(),
             _update_input_region=MagicMock(),
@@ -505,12 +507,16 @@ class TestDockWindowSetupAndGeometry:
                 zoom_enabled=True,
                 zoom_percent=1.2,
                 pos=Position.BOTTOM,
+                active_display=False,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
                 bottom_padding=8,
                 urgent_bounce_height=0.5,
+                distance_from_edge=0,
             ),
+            _active_monitor=None,
+            _update_barrier=MagicMock(),
             set_size_request=MagicMock(),
             resize=MagicMock(),
             move=MagicMock(),
@@ -540,12 +546,16 @@ class TestDockWindowSetupAndGeometry:
                 zoom_enabled=False,
                 zoom_percent=1.0,
                 pos=Position.RIGHT,
+                active_display=False,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
                 bottom_padding=8,
                 urgent_bounce_height=0.5,
+                distance_from_edge=0,
             ),
+            _active_monitor=None,
+            _update_barrier=MagicMock(),
             set_size_request=MagicMock(),
             resize=MagicMock(),
             move=MagicMock(),
@@ -582,12 +592,16 @@ class TestDockWindowSetupAndGeometry:
                 zoom_percent=1.2,
                 pos=Position.BOTTOM,
                 monitor_index=1,
+                active_display=False,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
                 bottom_padding=8,
                 urgent_bounce_height=0.5,
+                distance_from_edge=0,
             ),
+            _active_monitor=None,
+            _update_barrier=MagicMock(),
             set_size_request=MagicMock(),
             resize=MagicMock(),
             move=MagicMock(),
@@ -678,8 +692,14 @@ class TestDockWindowStrutsAndRegion:
         )
         gdk_window = FakeX11Window()
         stub = SimpleNamespace(
-            config=SimpleNamespace(autohide=False, icon_size=48, pos=Position.BOTTOM),
+            config=SimpleNamespace(
+                autohide=False,
+                icon_size=48,
+                pos=Position.BOTTOM,
+                active_display=False,
+            ),
             theme=SimpleNamespace(bottom_padding=8),
+            _active_monitor=None,
             get_window=lambda: gdk_window,
             get_display=lambda: display,
             get_screen=lambda: MagicMock(),
@@ -732,7 +752,12 @@ class TestDockWindowStrutsAndRegion:
                 visible_items=lambda: [DockItem(desktop_id="a.desktop")]
             ),
             config=SimpleNamespace(icon_size=48, pos=Position.BOTTOM),
-            theme=SimpleNamespace(item_padding=8, h_padding=8, bottom_padding=6),
+            theme=SimpleNamespace(
+                item_padding=8,
+                h_padding=8,
+                bottom_padding=6,
+                distance_from_edge=0,
+            ),
             autohide=None,
             get_size=lambda: (400, 90),
             _last_input_rect=None,

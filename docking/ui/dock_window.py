@@ -93,6 +93,7 @@ from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout, content_bounds
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.barriers import PointerBarrier
 from docking.platform.launcher import launch
 from docking.platform.struts import clear_struts, set_dock_struts
 from docking.ui.autohide import HideState
@@ -154,6 +155,7 @@ def compute_input_rect(
     content_w: int,
     content_cross: int,
     autohide_state: HideState | None,
+    distance_from_edge: int = 0,
 ) -> Rect:
     """Return (x, y, w, h) for the input shape region.
 
@@ -172,9 +174,9 @@ def compute_input_rect(
     # ensures the mouse stays "inside" until the dock is fully visible.
     if autohide_state == HideState.HIDDEN:
         trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
-        cross = trigger
+        cross = trigger + distance_from_edge
     else:
-        cross = max(content_cross, 1)
+        cross = max(content_cross, 1) + distance_from_edge
     main = max(content_w, 1)
 
     if pos == Position.BOTTOM:
@@ -228,6 +230,10 @@ class DockWindow(Gtk.Window):
         self._preview: PreviewPopup | None = None
         self._tooltip = TooltipManager(self, config, model, theme)
         self._hover = HoverManager(self, config, model, theme, self._tooltip)
+
+        self._active_display_timer: int = 0
+        self._active_monitor: Gdk.Monitor | None = None
+        self._barrier = PointerBarrier()
 
         self._setup_window()
         self._setup_drawing_area()
@@ -424,6 +430,9 @@ class DockWindow(Gtk.Window):
 
     def _resolve_target_monitor(self, display: Gdk.Display) -> Gdk.Monitor | None:
         """Resolve configured monitor, falling back to primary monitor."""
+        if self.config.active_display and self._active_monitor is not None:
+            return self._active_monitor
+
         get_n = getattr(display, "get_n_monitors", None)
         if not callable(get_n):
             return display.get_primary_monitor() or display.get_monitor(0)
@@ -442,9 +451,14 @@ class DockWindow(Gtk.Window):
 
     def _on_realize(self, _widget: Gtk.Widget) -> None:
         """Position dock and set struts after window is realized."""
+        display = self.get_display()
+        if display and isinstance(display, GdkX11.X11Display):
+            self._barrier.initialize(gdk_display=display)
         self._position_dock()
         self._set_struts()
         self._update_input_region()
+        if self.config.active_display:
+            self.start_active_display()
 
     def _position_dock(self) -> None:
         """Position the dock window at the configured screen edge.
@@ -476,10 +490,13 @@ class DockWindow(Gtk.Window):
         gap_size = int(getattr(self.config, "gap_size", 0))
 
         pos = self.config.pos
+        gap = self.theme.distance_from_edge
+        # Window includes the gap in its cross-axis size so it still
+        # touches the screen edge. This lets the autohide trigger strip
+        # catch the mouse at the physical edge. The renderer draws dock
+        # content offset by the gap, keeping the visual floating effect.
         if is_horizontal(pos=pos):
-            # Span full monitor width; use workarea Y for positioning
-            # to avoid overlapping panels on perpendicular edges
-            win_w, win_h = geom.width, cross
+            win_w, win_h = geom.width, cross + gap
             if pos == Position.BOTTOM:
                 win_x = geom.x
                 win_y = geom.y + geom.height - win_h - gap_size
@@ -487,8 +504,7 @@ class DockWindow(Gtk.Window):
                 win_x = geom.x
                 win_y = workarea.y + gap_size
         else:
-            # Span workarea height to avoid overlapping top/bottom panels
-            win_w, win_h = cross, workarea.height
+            win_w, win_h = cross + gap, workarea.height
             if pos == Position.LEFT:
                 win_x = geom.x + gap_size
                 win_y = workarea.y
@@ -508,6 +524,8 @@ class DockWindow(Gtk.Window):
         self.set_size_request(win_w, win_h)
         self.resize(win_w, win_h)
         self.move(win_x, win_y)
+
+        self._update_barrier()
 
     def _set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
@@ -542,6 +560,27 @@ class DockWindow(Gtk.Window):
             position=self.config.pos,
         )
 
+    def _update_barrier(self) -> None:
+        """Create or destroy the pointer barrier based on autohide state."""
+        if not self._barrier.supported:
+            return
+        if not self.config.autohide:
+            self._barrier.destroy()
+            return
+        display = self.get_display()
+        monitor = DockWindow._resolve_target_monitor(self, display=display)
+        if monitor is None:
+            self._barrier.destroy()
+            return
+        geom = monitor.get_geometry()
+        self._barrier.update(
+            position=self.config.pos,
+            monitor_x=geom.x,
+            monitor_y=geom.y,
+            monitor_w=geom.width,
+            monitor_h=geom.height,
+        )
+
     def _clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
         gdk_window = self.get_window()
@@ -550,13 +589,15 @@ class DockWindow(Gtk.Window):
         clear_struts(gdk_window=gdk_window)
 
     def update_struts(self) -> None:
-        """Public method to refresh struts after autohide toggle.
+        """Public method to refresh struts and barrier after autohide toggle.
 
         Called from the menu when the user switches between autohide
         and always-visible modes. Immediately updates the X11 strut
-        reservation so the window manager resizes application windows.
+        reservation so the window manager resizes application windows,
+        and creates/destroys the pointer barrier accordingly.
         """
         self._set_struts()
+        self._update_barrier()
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """GTK draw signal handler -- orchestrates each frame.
@@ -918,6 +959,7 @@ class DockWindow(Gtk.Window):
             content_w=int(content_w),
             content_cross=content_cross,
             autohide_state=autohide_state,
+            distance_from_edge=self.theme.distance_from_edge,
         )
         if new_rect != self._last_input_rect:
             self._last_input_rect = new_rect
@@ -1015,6 +1057,38 @@ class DockWindow(Gtk.Window):
             if left <= main_coord <= right:
                 return items[i]
         return None
+
+    def start_active_display(self) -> None:
+        """Start polling cursor position for active display tracking."""
+        if self._active_display_timer:
+            return
+        self._active_display_timer = GLib.timeout_add_seconds(
+            2, self._poll_active_display
+        )
+
+    def stop_active_display(self) -> None:
+        """Stop active display polling."""
+        if self._active_display_timer:
+            GLib.source_remove(self._active_display_timer)
+            self._active_display_timer = 0
+
+    def _poll_active_display(self) -> bool:
+        """Poll cursor position and move dock to the monitor under cursor."""
+        display = self.get_display()
+        if not display:
+            return True
+        seat = display.get_default_seat()
+        if not seat:
+            return True
+        pointer = seat.get_pointer()
+        if not pointer:
+            return True
+        _, x, y = pointer.get_position()
+        monitor = display.get_monitor_at_point(x, y)
+        if monitor is not None and monitor != self._active_monitor:
+            self._active_monitor = monitor
+            self.reposition()
+        return True
 
     def reposition(self) -> None:
         """Re-layout after position change -- reposition window, struts, input."""

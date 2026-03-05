@@ -184,6 +184,9 @@ def handler(monkeypatch):
         autohide=True,
         previews_enabled=True,
         monitor_index=-1,
+        active_display=False,
+        current_workspace_only=False,
+        anchor_applets=False,
         theme="default",
         icon_size=48,
         position="bottom",
@@ -430,14 +433,14 @@ class TestMenuCallbacks:
         # Then
         assert handler._config.theme == "solar"
         assert handler._window.theme is new_theme
-        handler._window.update_struts.assert_called()
+        handler._window.reposition.assert_called_once()
         handler._window.drawing_area.queue_draw.assert_called()
 
         pos_widget = FakeCheckMenuItem("Position")
         pos_widget.set_active(True)
         handler._on_position_changed(pos_widget, "left")
         assert handler._config.position == "left"
-        handler._window.reposition.assert_called_once()
+        assert handler._window.reposition.call_count == 2
 
         size_widget = FakeCheckMenuItem("Icon Size")
         size_widget.set_active(True)

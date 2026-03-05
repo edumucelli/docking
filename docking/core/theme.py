@@ -22,6 +22,7 @@ final units (fractions, milliseconds, opacity 0-1).
 
 from __future__ import annotations
 
+import enum
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +34,11 @@ _BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "assets" / "theme
 # Color types as Cairo-compatible floats (0.0-1.0)
 RGB = tuple[float, float, float]
 RGBA = tuple[float, float, float, float]
+
+
+class IndicatorStyle(str, enum.Enum):
+    DOTS = "dots"
+    DASHES = "dashes"
 
 
 def _rgba(values: list[int]) -> RGBA:
@@ -79,6 +85,9 @@ class Theme:
     urgent_glow_time_ms: int = 10000  # glow visible for 10s after urgency
     urgent_glow_pulse_ms: int = 2000  # one pulse cycle every 2s
     urgent_glow_size: float = 0.6  # glow radius as fraction of icon_size
+    indicator_style: IndicatorStyle = IndicatorStyle.DOTS
+    round_bottom: bool = False  # round bottom corners (vs square flush with edge)
+    distance_from_edge: int = 0  # gap between dock and screen edge in pixels
 
     @classmethod
     def load(cls, name: str = "default", icon_size: int = 48) -> "Theme":
@@ -236,6 +245,13 @@ class Theme:
         urgent_glow_time_ms = int(data.get("urgent_glow_time_ms", 10000))
         urgent_glow_pulse_ms = int(data.get("urgent_glow_pulse_ms", 2000))
         urgent_glow_size = float(data.get("urgent_glow_size", 0.6))
+        raw_indicator_style = data.get("indicator_style", "dots")
+        try:
+            indicator_style = IndicatorStyle(raw_indicator_style)
+        except ValueError:
+            indicator_style = IndicatorStyle.DOTS
+        round_bottom = bool(data.get("round_bottom", False))
+        distance_from_edge = int(data.get("distance_from_edge", 0))
 
         return cls(
             fill_start=fill_start,
@@ -264,4 +280,7 @@ class Theme:
             urgent_glow_time_ms=urgent_glow_time_ms,
             urgent_glow_pulse_ms=urgent_glow_pulse_ms,
             urgent_glow_size=urgent_glow_size,
+            indicator_style=indicator_style,
+            round_bottom=round_bottom,
+            distance_from_edge=distance_from_edge,
         )

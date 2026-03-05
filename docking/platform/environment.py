@@ -1,0 +1,136 @@
+"""Desktop environment detection and DE-specific tweaks.
+
+Reads XDG_SESSION_DESKTOP, XDG_CURRENT_DESKTOP, and DESKTOP_SESSION
+(in that priority order, matching Plank Reloaded's Environment.vala)
+to determine the running desktop environment.
+
+DE-specific tweaks applied at startup:
+
+- **Xfce**: Disables xfwm4 dock shadow via xfconf-query. Without this,
+  xfwm4 draws a window shadow around the dock that looks wrong for a
+  panel-type window.
+
+- **Monitor geometry**: On GNOME/MATE/Cinnamon/Xfce/KDE the dock uses
+  full monitor geometry for positioning (these DEs handle panels via
+  struts). On unknown DEs, workarea is used as a safer fallback.
+"""
+
+from __future__ import annotations
+
+import enum
+import os
+import shutil
+import subprocess
+
+from docking.log import get_logger
+
+_log = get_logger(name="environment")
+
+
+class Desktop(enum.Flag):
+    UNKNOWN = 0
+    GNOME = enum.auto()
+    KDE = enum.auto()
+    LXDE = enum.auto()
+    MATE = enum.auto()
+    XFCE = enum.auto()
+    CINNAMON = enum.auto()
+    PANTHEON = enum.auto()
+    UNITY = enum.auto()
+    UBUNTU = enum.auto()
+
+    @property
+    def uses_monitor_geometry(self) -> bool:
+        """Whether to use full monitor geometry instead of workarea.
+
+        These DEs handle panel space reservation via struts, so the dock
+        should position relative to the full monitor and let struts
+        carve out workspace.
+        """
+        known = (
+            Desktop.GNOME
+            | Desktop.UBUNTU
+            | Desktop.MATE
+            | Desktop.CINNAMON
+            | Desktop.XFCE
+            | Desktop.KDE
+        )
+        return bool(self & known)
+
+
+_DESKTOP_MAP: dict[str, Desktop] = {
+    "gnome": Desktop.GNOME,
+    "gnome-xorg": Desktop.GNOME,
+    "gnome-classic": Desktop.GNOME,
+    "gnome-flashback": Desktop.GNOME,
+    "ubuntu": Desktop.UBUNTU,
+    "ubuntu-xorg": Desktop.UBUNTU,
+    "kde": Desktop.KDE,
+    "lxde": Desktop.LXDE,
+    "lxqt": Desktop.LXDE,
+    "mate": Desktop.MATE,
+    "xfce": Desktop.XFCE,
+    "xubuntu": Desktop.XFCE,
+    "cinnamon": Desktop.CINNAMON,
+    "x-cinnamon": Desktop.CINNAMON,
+    "pantheon": Desktop.PANTHEON,
+    "unity": Desktop.UNITY,
+}
+
+
+def _parse_desktop(value: str) -> Desktop:
+    """Parse a desktop string, handling semicolon-separated values."""
+    result = Desktop.UNKNOWN
+    for part in value.split(";"):
+        part = part.strip().lower()
+        if part:
+            result |= _DESKTOP_MAP.get(part, Desktop.UNKNOWN)
+    return result
+
+
+def detect_desktop() -> Desktop:
+    """Detect the desktop environment from XDG environment variables.
+
+    Checks XDG_SESSION_DESKTOP, XDG_CURRENT_DESKTOP, DESKTOP_SESSION
+    in that order (matching Plank Reloaded's priority).
+    """
+    for var in ("XDG_SESSION_DESKTOP", "XDG_CURRENT_DESKTOP", "DESKTOP_SESSION"):
+        value = os.environ.get(var, "")
+        if value:
+            desktop = _parse_desktop(value)
+            if desktop != Desktop.UNKNOWN:
+                _log.debug("detected %s from %s=%s", desktop, var, value)
+                return desktop
+
+    _log.warning("could not detect desktop environment")
+    return Desktop.UNKNOWN
+
+
+def _disable_xfce_dock_shadow() -> None:
+    """Disable xfwm4's dock window shadow via xfconf-query."""
+    if not shutil.which("xfconf-query"):
+        _log.warning("xfconf-query not found, cannot disable dock shadow")
+        return
+    try:
+        subprocess.run(
+            [
+                "xfconf-query",
+                "-c",
+                "xfwm4",
+                "-p",
+                "/general/show_dock_shadow",
+                "-s",
+                "false",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        _log.info("disabled xfce dock shadow")
+    except subprocess.CalledProcessError as e:
+        _log.warning("failed to disable xfce dock shadow: %s", e)
+
+
+def apply_tweaks(desktop: Desktop) -> None:
+    """Apply DE-specific tweaks at startup."""
+    if desktop & Desktop.XFCE:
+        _disable_xfce_dock_shadow()

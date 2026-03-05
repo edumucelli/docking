@@ -50,6 +50,8 @@ class Config:
     current_workspace_only: bool = False
     # Whether applets are anchored to the end of the dock
     anchor_applets: bool = False
+    # Whether the dock follows the cursor across monitors
+    active_display: bool = False
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = "default"
     # Gap between dock edge and screen edge (0 = flush, like Plank GapSize)

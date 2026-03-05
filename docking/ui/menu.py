@@ -273,14 +273,20 @@ class MenuHandler:
         # Monitor selection submenu (only when multiple monitors are available)
         monitor_items = self._monitor_items()
         if monitor_items:
-            menu.append(
-                _build_radio_submenu(
-                    label=_("Display"),
-                    items=monitor_items,
-                    current=self._current_monitor_choice(),
-                    on_changed=self._on_monitor_changed,
-                )
+            display_submenu = _build_radio_submenu(
+                label=_("Display"),
+                items=monitor_items,
+                current=self._current_monitor_choice(),
+                on_changed=self._on_monitor_changed,
             )
+            if self._config.active_display:
+                display_submenu.set_sensitive(False)
+            menu.append(display_submenu)
+
+            follow = Gtk.CheckMenuItem(label=_("Follow Cursor"))
+            follow.set_active(self._config.active_display)
+            follow.connect("toggled", self._on_active_display_toggled)
+            menu.append(follow)
 
         # Lock icons toggle
         lock = Gtk.CheckMenuItem(label=_("Lock Icons"))
@@ -289,14 +295,12 @@ class MenuHandler:
         menu.append(lock)
 
         workspace_only = Gtk.CheckMenuItem(label=_("Current Workspace Only"))
-        workspace_only.set_active(
-            bool(getattr(self._config, "current_workspace_only", False))
-        )
+        workspace_only.set_active(self._config.current_workspace_only)
         workspace_only.connect("toggled", self._on_workspace_only_toggled)
         menu.append(workspace_only)
 
         anchor = Gtk.CheckMenuItem(label=_("Anchor Applets to End"))
-        anchor.set_active(bool(getattr(self._config, "anchor_applets", False)))
+        anchor.set_active(self._config.anchor_applets)
         anchor.connect("toggled", self._on_anchor_toggled)
         menu.append(anchor)
 
@@ -522,6 +526,15 @@ class MenuHandler:
         self._config.save()
         self._window.reposition()
 
+    def _on_active_display_toggled(self, widget: Gtk.CheckMenuItem) -> None:
+        self._config.active_display = widget.get_active()
+        self._config.save()
+        if self._config.active_display:
+            self._window.start_active_display()
+        else:
+            self._window.stop_active_display()
+        self._window.reposition()
+
     def _on_lock_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.lock_icons = widget.get_active()
         self._config.save()
@@ -545,7 +558,7 @@ class MenuHandler:
         self._config.save()
         new_theme = Theme.load(name, self._config.icon_size)
         self._window.theme = new_theme
-        self._window.update_struts()
+        self._window.reposition()
         self._window.drawing_area.queue_draw()
 
     def _on_position_changed(self, widget: Gtk.MenuItem, position: str) -> None:

@@ -79,10 +79,10 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
-from docking.core.theme import RGB
+from docking.core.theme import RGB, IndicatorStyle
 from docking.core.zoom import compute_layout, content_bounds
 from docking.ui.effects import average_icon_color, easing_bounce
-from docking.ui.shelf import draw_shelf_background
+from docking.ui.shelf import draw_shelf_background, rounded_rect
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -100,6 +100,28 @@ INDICATOR_SPACING_MULT = 3
 
 SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
+
+
+def _draw_indicator_dashes(
+    cr: cairo.Context,
+    cx: float,
+    cy: float,
+    radius: float,
+    spacing: float,
+    count: int,
+    horizontal: bool,
+) -> None:
+    """Draw rounded pill-shaped dashes as running indicators."""
+    w = radius * 3  # dash length along main axis
+    h = radius  # dash thickness
+    corner = h / 2
+    for j in range(count):
+        offset = (j - (count - 1) / 2) * spacing
+        if horizontal:
+            rounded_rect(cr, cx + offset - w / 2, cy - h / 2, w, h, corner)
+        else:
+            rounded_rect(cr, cx - h / 2, cy + offset - w / 2, h, w, corner)
+        cr.fill()
 
 
 def compute_urgent_glow_opacity(
@@ -246,7 +268,18 @@ class DockRenderer:
         pos = config.pos
         horizontal = is_horizontal(pos=pos)
         main_size = width if horizontal else height
-        cross_size = height if horizontal else width
+        gap = theme.distance_from_edge
+        cross_size = (height if horizontal else width) - gap
+
+        # Offset content away from the screen edge so the gap area
+        # (at the edge) stays transparent for the autohide trigger.
+        if gap > 0:
+            if pos == Position.TOP:
+                cr.translate(0, gap)
+            elif pos == Position.LEFT:
+                cr.translate(gap, 0)
+            # BOTTOM/RIGHT: gap is at high-y/high-x end, content is
+            # already drawn from y=0/x=0 so no translate needed.
 
         icon_hide = hide_offset
         bg_extra = (
@@ -676,7 +709,7 @@ class DockRenderer:
         theme: Theme,
         pos: Position,
     ) -> None:
-        """Draw running indicator dot(s) near the screen edge."""
+        """Draw running indicator(s) near the screen edge."""
         scaled_size = base_size * li.scale
         main_center = li.x + main_pos + scaled_size / 2
         edge_padding = theme.bottom_padding
@@ -687,33 +720,27 @@ class DockRenderer:
         cr.set_source_rgba(*color)
 
         count = min(item.instance_count, theme.max_indicator_dots)
-        spacing = theme.indicator_radius * INDICATOR_SPACING_MULT
+        radius = theme.indicator_radius
+        spacing = radius * INDICATOR_SPACING_MULT
 
+        # Resolve anchor point and orientation once for all positions
+        horizontal = pos in (Position.BOTTOM, Position.TOP)
         if pos == Position.BOTTOM:
-            cx = main_center
-            cy = cross_size - edge_padding / 2 + hide_cross
-            for j in range(count):
-                dx = cx + (j - (count - 1) / 2) * spacing
-                cr.arc(dx, cy, theme.indicator_radius, 0, 2 * math.pi)
-                cr.fill()
+            cx, cy = main_center, cross_size - edge_padding / 2 + hide_cross
         elif pos == Position.TOP:
-            cx = main_center
-            cy = edge_padding / 2 - hide_cross
-            for j in range(count):
-                dx = cx + (j - (count - 1) / 2) * spacing
-                cr.arc(dx, cy, theme.indicator_radius, 0, 2 * math.pi)
-                cr.fill()
+            cx, cy = main_center, edge_padding / 2 - hide_cross
         elif pos == Position.LEFT:
-            cx = edge_padding / 2 - hide_cross
-            cy = main_center
-            for j in range(count):
-                dy = cy + (j - (count - 1) / 2) * spacing
-                cr.arc(cx, dy, theme.indicator_radius, 0, 2 * math.pi)
-                cr.fill()
+            cx, cy = edge_padding / 2 - hide_cross, main_center
         else:  # RIGHT
-            cx = cross_size - edge_padding / 2 + hide_cross
-            cy = main_center
+            cx, cy = cross_size - edge_padding / 2 + hide_cross, main_center
+
+        if theme.indicator_style == IndicatorStyle.DASHES:
+            _draw_indicator_dashes(cr, cx, cy, radius, spacing, count, horizontal)
+        else:  # DOTS
             for j in range(count):
-                dy = cy + (j - (count - 1) / 2) * spacing
-                cr.arc(cx, dy, theme.indicator_radius, 0, 2 * math.pi)
+                offset = (j - (count - 1) / 2) * spacing
+                if horizontal:
+                    cr.arc(cx + offset, cy, radius, 0, 2 * math.pi)
+                else:
+                    cr.arc(cx, cy + offset, radius, 0, 2 * math.pi)
                 cr.fill()

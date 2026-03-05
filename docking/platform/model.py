@@ -239,9 +239,9 @@ class DockModel:
             applet.stop()
 
     def visible_items(self) -> list[DockItem]:
-        """All items to display, with optional applet-anchor ordering."""
+        """All items to display: pinned + transient, optionally anchor applets."""
         items = self.pinned_items + self._transient
-        if not getattr(self._config, "anchor_applets", False):
+        if not self._config.anchor_applets:
             return items
         regular = [
             i for i in items if not is_applet_desktop_id(desktop_id=i.desktop_id)

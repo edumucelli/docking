@@ -1,0 +1,225 @@
+"""X11 pointer barrier for pressure-based dock reveal.
+
+Pointer barriers are invisible walls at a screen edge that prevent the
+cursor from leaving the edge region. When the cursor hits the barrier,
+XInput2 generates BARRIER_HIT events with velocity data that can be
+accumulated as "pressure" to reveal a hidden dock.
+
+This is the same mechanism Plank Reloaded uses (HideManager.vala).
+
+Why barriers help:
+
+1. **Graphics tablets**: Tablet input may not generate normal GTK
+   enter/leave events in the thin trigger strip. A barrier catches
+   all pointer movement at the edge regardless of input device.
+
+2. **Floating docks**: Although the dock window already extends to
+   the screen edge (trigger strip in the gap), some compositors
+   may not deliver enter events reliably at the physical pixel edge.
+   A barrier provides a second, lower-level trigger.
+
+Requirements:
+- XFixes >= 5.0 (libXfixes) for XFixesCreatePointerBarrier
+- XInput >= 2.3 (libXi) for barrier hit/leave events
+
+Both are standard on modern X11 desktops. If unavailable, the dock
+falls back to enter-event-only reveal (current behavior).
+"""
+
+from __future__ import annotations
+
+import ctypes
+from typing import TYPE_CHECKING
+
+from docking.core.position import Position
+from docking.log import get_logger
+
+if TYPE_CHECKING:
+    from gi.repository import GdkX11
+
+_log = get_logger(name="barriers")
+
+
+def _load_libs() -> tuple[ctypes.CDLL, ctypes.CDLL, ctypes.CDLL] | None:
+    """Load Xlib, XFixes, and XInput2 shared libraries."""
+    try:
+        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+        xfixes = ctypes.cdll.LoadLibrary("libXfixes.so.3")
+        xi = ctypes.cdll.LoadLibrary("libXi.so.6")
+        return xlib, xfixes, xi
+    except OSError as e:
+        _log.debug("barrier libs unavailable: %s", e)
+        return None
+
+
+class PointerBarrier:
+    """Manages an X11 pointer barrier at a screen edge.
+
+    The barrier spans the full monitor edge where the dock sits.
+    On compositors/devices where the dock's thin trigger strip may not
+    receive enter events, the barrier ensures the pointer stays at the
+    edge long enough for the next pointer poll to detect it.
+
+    Usage:
+        barrier = PointerBarrier()
+        if barrier.initialize(gdk_display):
+            barrier.update(position, mon_x, mon_y, mon_w, mon_h)
+        # When dock repositions:
+        barrier.update(...)
+        # On shutdown:
+        barrier.destroy()
+    """
+
+    def __init__(self) -> None:
+        self._barrier_id: int = 0
+        self._xdisplay: ctypes.c_void_p | None = None
+        self._libs: tuple[ctypes.CDLL, ctypes.CDLL, ctypes.CDLL] | None = None
+        self._supported: bool = False
+
+    @property
+    def supported(self) -> bool:
+        return self._supported
+
+    def initialize(self, gdk_display: GdkX11.X11Display) -> bool:
+        """Check XInput 2.3+ support. Returns True if barriers work."""
+        self._libs = _load_libs()
+        if self._libs is None:
+            return False
+
+        xlib, _, xi = self._libs
+        self._xdisplay = ctypes.c_void_p(hash(gdk_display.get_xdisplay()))
+
+        # Check XInput extension is present
+        xlib.XQueryExtension.restype = ctypes.c_int
+        xlib.XQueryExtension.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_char_p,
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        opcode = ctypes.c_int()
+        evt = ctypes.c_int()
+        err = ctypes.c_int()
+        if not xlib.XQueryExtension(
+            self._xdisplay,
+            b"XInputExtension",
+            ctypes.byref(opcode),
+            ctypes.byref(evt),
+            ctypes.byref(err),
+        ):
+            _log.debug("XInput extension not available")
+            return False
+
+        # Verify XInput >= 2.3
+        xi.XIQueryVersion.restype = ctypes.c_int
+        xi.XIQueryVersion.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        major = ctypes.c_int(2)
+        minor = ctypes.c_int(3)
+        if (
+            xi.XIQueryVersion(self._xdisplay, ctypes.byref(major), ctypes.byref(minor))
+            != 0
+        ):
+            _log.debug("XInput2 query failed")
+            return False
+        if major.value < 2 or (major.value == 2 and minor.value < 3):
+            _log.debug(
+                "XInput %d.%d insufficient (need 2.3+)",
+                major.value,
+                minor.value,
+            )
+            return False
+
+        _log.info(
+            "barriers supported (XInput %d.%d)",
+            major.value,
+            minor.value,
+        )
+        self._supported = True
+        return True
+
+    def update(
+        self,
+        position: Position,
+        monitor_x: int,
+        monitor_y: int,
+        monitor_w: int,
+        monitor_h: int,
+    ) -> None:
+        """Create or recreate the barrier at the monitor's dock edge."""
+        if not self._supported or self._libs is None:
+            return
+
+        self.destroy()
+
+        xlib, xfixes, _ = self._libs
+
+        # Barrier line spans the full dock edge of the monitor
+        if position == Position.BOTTOM:
+            x1, y1 = monitor_x, monitor_y + monitor_h
+            x2, y2 = monitor_x + monitor_w, monitor_y + monitor_h
+        elif position == Position.TOP:
+            x1, y1 = monitor_x, monitor_y
+            x2, y2 = monitor_x + monitor_w, monitor_y
+        elif position == Position.LEFT:
+            x1, y1 = monitor_x, monitor_y
+            x2, y2 = monitor_x, monitor_y + monitor_h
+        else:  # RIGHT
+            x1, y1 = monitor_x + monitor_w, monitor_y
+            x2, y2 = monitor_x + monitor_w, monitor_y + monitor_h
+
+        xlib.XDefaultRootWindow.restype = ctypes.c_ulong
+        xlib.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+        root = xlib.XDefaultRootWindow(self._xdisplay)
+
+        xfixes.XFixesCreatePointerBarrier.restype = ctypes.c_ulong
+        xfixes.XFixesCreatePointerBarrier.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_ulong,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        self._barrier_id = xfixes.XFixesCreatePointerBarrier(
+            self._xdisplay,
+            root,
+            x1,
+            y1,
+            x2,
+            y2,
+            0,  # directions = 0 (block in all directions)
+            0,
+            None,  # num_devices, devices
+        )
+
+        if self._barrier_id:
+            _log.debug(
+                "barrier created: (%d,%d)-(%d,%d) id=%d",
+                x1,
+                y1,
+                x2,
+                y2,
+                self._barrier_id,
+            )
+        else:
+            _log.warning("failed to create pointer barrier")
+
+    def destroy(self) -> None:
+        """Remove the current barrier if any."""
+        if self._barrier_id and self._libs:
+            _, xfixes, _ = self._libs
+            xfixes.XFixesDestroyPointerBarrier.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_ulong,
+            ]
+            xfixes.XFixesDestroyPointerBarrier(self._xdisplay, self._barrier_id)
+            _log.debug("barrier destroyed: id=%d", self._barrier_id)
+            self._barrier_id = 0

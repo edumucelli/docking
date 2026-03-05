@@ -9,81 +9,78 @@
 <img src="images/docking-header.png" alt="Docking" height="48" style="display:block; margin:0 auto;">
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
+
 ![all.gif](images/all.gif)
 
 ## Features
 
-### Core
-- Pinned application launchers with click-to-launch
-- Running application indicators (dots) with active window glow
+### Dock
+
+- Pinned launchers with click-to-launch, Ctrl+click or middle-click for new instance
 - Parabolic icon zoom on hover with per-icon displacement
-- 3D shelf background with gradient fill and inner highlight bevel
-- Smart focus: click to focus/minimize, Ctrl+click or middle-click to launch new instance
-- Desktop actions (quicklists) from `.desktop` files in the right-click menu
-- Multi-position support: bottom, top, left, right
-- Multi-monitor support with runtime monitor selection via right-click menu (**Display** submenu appears when multiple monitors are available)
+- Running indicators (dots or dashes per theme) with active window glow
+- Auto-hide with cubic easing, configurable delay, and pointer barrier reveal
+- Drag-and-drop reorder, drop `.desktop` files to add, drag off to remove (poof animation)
+- Multi-position: bottom, top, left, right
+- Multi-monitor with runtime display selection or automatic tracking behavior
+- Window preview thumbnails on hover with click-to-activate
+- Desktop actions (quicklists) and open windows in right-click menus
+- Lock Icons mode to prevent reordering and removal
 
-### Visual Effects
-- **Hover lighten** -- additive brightness fade on hovered icon
-- **Click darken** -- brief sine-curve pulse on click
-- **Launch bounce** -- two-bounce momentum decay animation when launching
-- **Urgent bounce** -- single bounce when app demands attention
-- **Urgent glow** -- pulsing radial glow at screen edge when dock is hidden and an app demands attention
-- **Active window glow** -- color-matched gradient using icon's dominant color
-- **Cascade hide** -- shelf slides faster than icons for a layered effect
-- **Smooth zoom decay** -- icons shrink while dock slides away (no snap)
+### Theming
 
-### Window Previews
-- Thumbnails of running windows on hover (X11 foreign window capture)
-- Click thumbnail to activate a specific window
-- Dock stays visible while browsing previews
-- Toggleable via right-click menu
+Nine built-in themes with full visual customization:
 
-### Drag and Drop
-- Drag to reorder icons (with slide animation)
-- Drag `.desktop` files from file manager to add icons (gap insertion effect)
-- Drag icons off dock to remove (poof smoke animation)
-- **Lock Icons** -- toggle via right-click menu to prevent reordering, adding, and removing icons
+| Theme | Style |
+|-------|-------|
+| Default, Default Dark | Classic Plank-style shelf |
+| Matte | Floating dock with rounded corners and dashes |
+| Transparent | Minimal, see-through |
+| Ubuntu MATE, Yaru Dark | DE-matching panel styles |
+| Nord, Gruvbox, Solarized | Popular color scheme ports |
 
-### Auto-hide
-- Cubic easing animation (ease-in hide, ease-out show)
-- Configurable delay (0ms default = instant, like Plank)
-- 2px trigger strip at screen edge when hidden
-- Struts update instantly on toggle (windows resize immediately)
+Themes control colors, shelf shape, indicator style (dots/dashes), corner rounding, edge distance, and all animation parameters. Layout values use a scaling unit that adapts to any icon size.
 
 ### Applets
-Extensible plugin system for custom dock widgets. 26 built-in applets:
+
+26 built-in applets, toggleable via right-click menu:
 
 | Applet | Description |
 |--------|-------------|
-| **Clock** | Analog or digital clock with 12/24h modes |
-| **Trash** | Trash can with real-time monitoring |
-| **Desktop** | Toggle show desktop |
-| **CPU Monitor** | Circular gauge with CPU and memory usage |
-| **Battery** | Battery charge level with charging indicator |
-| **Weather** | Current weather, air quality, and 5-day forecast |
-| **Clippy** | Clipboard history manager |
-| **Applications** | Categorized application launcher |
-| **Network** | WiFi signal strength and traffic speeds |
-| **Bluetooth** | Full BlueZ manager with device connect/pair controls |
-| **Power Profiles** | Performance/Balanced/Power Saver profile selector |
-| **Notifications** | Do Not Disturb toggle with pending badge |
-| **Music** | Media controls with album-art icon |
-| **Session** | Lock, logout, suspend, restart, shutdown |
-| **Calendar** | Date icon with popup calendar |
-| **Workspaces** | Workspace switcher with grid icon |
-| **Screenshot** | Capture full screen, window, or region |
-| **Volume** | Scroll to adjust, click to mute |
-| **Pomodoro** | Tomato timer with auto-cycling work/break phases |
-| **Separator** | Transparent gap divider (multiple instances, scroll to resize) |
-| **Hydration** | Water drop reminder - drains over time, click to refill |
-| **Quote** | Quote/joke applet with source switching and clipboard copy |
-| **Ambient** | Looping nature sounds and white/pink noise via GStreamer |
-| **Color Picker** | Eyedropper tool - click to sample pixel, copies hex to clipboard |
-| **Brightness** | Screen brightness control via xrandr, scroll to adjust |
-| **Moon** | Lunar phase display with Cairo rendering and astronomical fallback |
+| Clock | Analog SVG or digital, 12/24h |
+| Trash | Real-time monitoring, empty via DBus |
+| Desktop | Toggle show desktop |
+| CPU Monitor | Circular gauge with CPU + memory |
+| Battery | Charge level with FreeDesktop icons |
+| Brightness | xrandr control, scroll to adjust |
+| Weather | Open-Meteo current + 5-day forecast + air quality |
+| Moon | Lunar phase with astronomical offline fallback |
+| Clippy | Clipboard history, scroll to cycle |
+| Color Picker | Eyedropper pixel sampler, hex to clipboard |
+| Applications | Categorized launcher from .desktop files |
+| Network | WiFi signal + live upload/download speeds |
+| Bluetooth | Full BlueZ adapter/device management |
+| Power Profiles | power-profiles-daemon / tuned / tlp |
+| Notifications | DND toggle via dunstctl or gsettings |
+| Music | MPRIS2 media controls with album art |
+| Session | Lock, logout, suspend, restart, shutdown |
+| Calendar | Date icon with popup calendar |
+| Workspaces | Workspace switcher with grid icon |
+| Screenshot | 6 backends, full/window/region + timed |
+| Volume | pactl/amixer, scroll to adjust, click to mute |
+| Pomodoro | Tomato timer with auto-cycling phases |
+| Separator | Transparent gap, multi-instance, scroll to resize |
+| Hydration | Water reminder, drains over time |
+| Quote | Quotes/jokes from multiple online sources |
+| Ambient | Looping nature sounds + white/pink noise |
 
-See [Applet Documentation](#applets-1) below for details on each applet.
+### Desktop Environment Integration
+
+Auto-detects MATE, Xfce, KDE, Cinnamon, GNOME, and others via `XDG_CURRENT_DESKTOP`. Applies DE-specific tweaks automatically (e.g., disabling xfwm4 dock shadow on Xfce). X11 pointer barriers ensure reliable autohide reveal with all input devices.
+
+### Translations
+
+10 languages: English, Portuguese (BR), Spanish, French, Chinese, Hindi, Arabic, German, Japanese, Korean, Russian. Uses your system locale automatically.
 
 ## Requirements
 

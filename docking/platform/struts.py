@@ -45,6 +45,31 @@ For a bottom dock on a 1920x1080 monitor at origin:
     bottom_end   = 1919       (ends at right edge of monitor)
     all others   = 0
 
+Theme distance_from_edge
+
+Floating themes (round_bottom=true) use distance_from_edge to push
+the dock window away from the screen edge. This gap is included in
+the strut reservation so maximized windows stop above the gap, not
+behind it:
+
+    Non-floating (distance_from_edge=0):
+    ┌────────────────────┐
+    │   workspace        │
+    ├────────────────────┤
+    │   dock (53px)      │ <- flush with edge
+    └────────────────────┘
+
+    Floating (distance_from_edge=6):
+    ┌────────────────────┐
+    │   workspace        │
+    ├────────────────────┤ <- strut boundary (53+6=59px from edge)
+    │   dock (53px)      │
+    │   ╌╌╌ 6px gap ╌╌╌  │ <- gap between dock and screen edge
+    └────────────────────┘
+
+The caller (DockWindow._set_struts) adds distance_from_edge to the
+dock_height before passing it here.
+
 Multi-monitor gap
 
 Strut values are relative to the logical screen edge, not the

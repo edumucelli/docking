@@ -129,10 +129,7 @@ class WindowTracker:
     """Tracks running applications and maps them to dock items via WM_CLASS."""
 
     def __init__(
-        self,
-        model: DockModel,
-        launcher: Launcher,
-        config: Config | None = None,
+        self, model: DockModel, launcher: Launcher, config: Config | None = None
     ) -> None:
         self._model = model
         self._config = config
@@ -430,10 +427,11 @@ class WindowTracker:
                 continue
 
         result: list[Wnck.Window] = []
-        workspace_only = bool(
-            self._config and getattr(self._config, "current_workspace_only", False)
+        active_ws = (
+            self._screen.get_active_workspace()
+            if self._config and self._config.current_workspace_only
+            else None
         )
-        active_ws = self._screen.get_active_workspace() if workspace_only else None
         for xid in self._running_xids_by_desktop.get(desktop_id, []):
             window = by_xid.get(xid)
             if window is not None:
