@@ -34,3 +34,4 @@ packaging/deb/debian/*.log
 packaging/deb/debian/files
 packaging/deb/debian/docking/
 uv.lock
+docking/locale/*/LC_MESSAGES/*.mo
