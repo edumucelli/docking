@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-05 17:32+0100\n"
+"POT-Creation-Date: 2026-03-06 00:18+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,47 +18,47 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:83
+#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:86
 msgid "Ambient"
 msgstr ""
 
-#: docking/applets/ambient/state.py:22
+#: docking/applets/ambient/state.py:23
 msgid "Birds"
 msgstr ""
 
-#: docking/applets/ambient/state.py:23
+#: docking/applets/ambient/state.py:24
 msgid "Boat"
 msgstr ""
 
-#: docking/applets/ambient/state.py:24
+#: docking/applets/ambient/state.py:25
 msgid "Coffee Shop"
 msgstr ""
 
-#: docking/applets/ambient/state.py:25
+#: docking/applets/ambient/state.py:26
 msgid "Fireplace"
 msgstr ""
 
-#: docking/applets/ambient/state.py:26
+#: docking/applets/ambient/state.py:27
 msgid "Stream"
 msgstr ""
 
-#: docking/applets/ambient/state.py:27
+#: docking/applets/ambient/state.py:28
 msgid "Summer Night"
 msgstr ""
 
-#: docking/applets/ambient/state.py:28
+#: docking/applets/ambient/state.py:29
 msgid "Wind"
 msgstr ""
 
-#: docking/applets/ambient/state.py:33
+#: docking/applets/ambient/state.py:34
 msgid "White Noise"
 msgstr ""
 
-#: docking/applets/ambient/state.py:34
+#: docking/applets/ambient/state.py:35
 msgid "Pink Noise"
 msgstr ""
 
-#: docking/applets/ambient/state.py:82
+#: docking/applets/ambient/state.py:83
 #, python-brace-format
 msgid "Playing: {sound} ({pct}%)"
 msgstr ""
@@ -71,11 +71,11 @@ msgstr ""
 msgid "Battery"
 msgstr ""
 
-#: docking/applets/battery/state.py:58
+#: docking/applets/battery/state.py:59
 msgid "No battery"
 msgstr ""
 
-#: docking/applets/battery/state.py:59
+#: docking/applets/battery/state.py:60
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr ""
@@ -97,12 +97,12 @@ msgid "General"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:158
-#: docking/applets/bluetooth/state.py:109
+#: docking/applets/bluetooth/state.py:110
 msgid "On"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:158
-#: docking/applets/bluetooth/state.py:109
+#: docking/applets/bluetooth/state.py:110
 msgid "Off"
 msgstr ""
 
@@ -164,46 +164,46 @@ msgstr ""
 msgid "Battery: {percent}%"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:102
+#: docking/applets/bluetooth/state.py:103
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:103
-#: docking/applets/bluetooth/state.py:107
+#: docking/applets/bluetooth/state.py:104
+#: docking/applets/bluetooth/state.py:108
 msgid "Bluetooth: No adapter/service"
-msgstr ""
-
-#: docking/applets/bluetooth/state.py:114
-#, python-brace-format
-msgid "Bluetooth: {state}"
 msgstr ""
 
 #: docking/applets/bluetooth/state.py:115
 #, python-brace-format
-msgid "Adapter: {name}"
+msgid "Bluetooth: {state}"
 msgstr ""
 
 #: docking/applets/bluetooth/state.py:116
 #, python-brace-format
-msgid "Connected: {n}"
+msgid "Adapter: {name}"
 msgstr ""
 
 #: docking/applets/bluetooth/state.py:117
 #, python-brace-format
-msgid "Paired: {n}"
+msgid "Connected: {n}"
 msgstr ""
 
 #: docking/applets/bluetooth/state.py:118
 #, python-brace-format
+msgid "Paired: {n}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:119
+#, python-brace-format
 msgid "Discovering: {state}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:118
+#: docking/applets/bluetooth/state.py:120
 msgid "Yes"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:118
+#: docking/applets/bluetooth/state.py:120
 msgid "No"
 msgstr ""
 
@@ -232,7 +232,7 @@ msgstr ""
 msgid "Clear"
 msgstr ""
 
-#: docking/applets/clippy/state.py:21
+#: docking/applets/clippy/state.py:22
 msgid "Clippy (empty)"
 msgstr ""
 
@@ -270,7 +270,7 @@ msgstr ""
 msgid "CPU Monitor"
 msgstr ""
 
-#: docking/applets/cpumonitor/state.py:63
+#: docking/applets/cpumonitor/state.py:64
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr ""
@@ -296,11 +296,11 @@ msgstr ""
 msgid "{mins} min"
 msgstr ""
 
-#: docking/applets/hydration/state.py:54
+#: docking/applets/hydration/state.py:55
 msgid "Drink water!"
 msgstr ""
 
-#: docking/applets/hydration/state.py:55
+#: docking/applets/hydration/state.py:56
 #, python-brace-format
 msgid "Next in {time}"
 msgstr ""
@@ -326,44 +326,44 @@ msgstr ""
 msgid "Refresh"
 msgstr ""
 
-#: docking/applets/moon/offline.py:215 docking/applets/moon/state.py:120
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
 msgid "New"
 msgstr ""
 
-#: docking/applets/moon/offline.py:217 docking/applets/moon/state.py:122
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
 msgid "Full"
 msgstr ""
 
-#: docking/applets/moon/offline.py:219
+#: docking/applets/moon/offline.py:220
 msgid "Crescent"
 msgstr ""
 
-#: docking/applets/moon/offline.py:220
+#: docking/applets/moon/offline.py:221
 msgid "Gibbous"
 msgstr ""
 
-#: docking/applets/moon/offline.py:233
+#: docking/applets/moon/offline.py:234
 msgid "new moon"
 msgstr ""
 
-#: docking/applets/moon/offline.py:235
+#: docking/applets/moon/offline.py:236
 msgid "first quarter"
 msgstr ""
 
-#: docking/applets/moon/offline.py:237
+#: docking/applets/moon/offline.py:238
 msgid "full moon"
 msgstr ""
 
-#: docking/applets/moon/offline.py:239
+#: docking/applets/moon/offline.py:240
 msgid "last quarter"
 msgstr ""
 
-#: docking/applets/moon/offline.py:241
+#: docking/applets/moon/offline.py:242
 #, python-brace-format
 msgid "{days} days after new moon"
 msgstr ""
 
-#: docking/applets/moon/offline.py:244
+#: docking/applets/moon/offline.py:247
 #, python-brace-format
 msgid "{days} days after full moon"
 msgstr ""
@@ -392,7 +392,7 @@ msgstr ""
 msgid "3rd Quarter"
 msgstr ""
 
-#: docking/applets/music/applet.py:43 docking/applets/music/state.py:137
+#: docking/applets/music/applet.py:43 docking/applets/music/state.py:138
 msgid "Music"
 msgstr ""
 
@@ -416,31 +416,31 @@ msgstr ""
 msgid "Volume Down"
 msgstr ""
 
-#: docking/applets/music/state.py:67
+#: docking/applets/music/state.py:68
 msgid "Pause"
 msgstr ""
 
-#: docking/applets/music/state.py:67
+#: docking/applets/music/state.py:68
 msgid "Play"
 msgstr ""
 
-#: docking/applets/music/state.py:74
+#: docking/applets/music/state.py:75
 msgid "Playing"
 msgstr ""
 
-#: docking/applets/music/state.py:76
+#: docking/applets/music/state.py:77
 msgid "Paused"
 msgstr ""
 
-#: docking/applets/music/state.py:78
+#: docking/applets/music/state.py:79
 msgid "Stopped"
 msgstr ""
 
-#: docking/applets/music/state.py:80 docking/applets/powerprofiles/state.py:127
+#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:128
 msgid "Unknown"
 msgstr ""
 
-#: docking/applets/music/state.py:126
+#: docking/applets/music/state.py:127
 msgid "Music: No active player"
 msgstr ""
 
@@ -453,21 +453,21 @@ msgstr ""
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr ""
 
-#: docking/applets/network/applet.py:95
+#: docking/applets/network/applet.py:98
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr ""
 
-#: docking/applets/network/applet.py:99
+#: docking/applets/network/applet.py:103
 msgid "Not connected"
 msgstr ""
 
-#: docking/applets/network/applet.py:104
+#: docking/applets/network/applet.py:108
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr ""
 
-#: docking/applets/network/state.py:88
+#: docking/applets/network/state.py:89
 msgid "Network: Not connected"
 msgstr ""
 
@@ -484,17 +484,17 @@ msgstr ""
 msgid "Do Not Disturb"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:128
+#: docking/applets/notifications/applet.py:129
 #: docking/applets/notifications/state.py:47
 #, python-brace-format
 msgid "Pending: {n}"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:132
+#: docking/applets/notifications/applet.py:134
 msgid "Clear History"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:137
+#: docking/applets/notifications/applet.py:139
 msgid "Clear Notifications"
 msgstr ""
 
@@ -502,7 +502,7 @@ msgstr ""
 msgid "Notifications: No backend available"
 msgstr ""
 
-#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:62
+#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
 msgid "Pomodoro"
 msgstr ""
 
@@ -510,24 +510,24 @@ msgstr ""
 msgid "Reset"
 msgstr ""
 
-#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:65
+#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:67
 msgid "Work"
 msgstr ""
 
-#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:65
+#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:68
 msgid "Break"
 msgstr ""
 
-#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:65
+#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:69
 msgid "Long Break"
 msgstr ""
 
-#: docking/applets/pomodoro/state.py:64
+#: docking/applets/pomodoro/state.py:65
 #, python-brace-format
 msgid "Paused - {time}"
 msgstr ""
 
-#: docking/applets/pomodoro/state.py:66
+#: docking/applets/pomodoro/state.py:71
 #, python-brace-format
 msgid "{label}: {time} remaining"
 msgstr ""
@@ -537,8 +537,8 @@ msgid "Power Profiles"
 msgstr ""
 
 #: docking/applets/powerprofiles/applet.py:112
-#: docking/applets/powerprofiles/state.py:160
 #: docking/applets/powerprofiles/state.py:161
+#: docking/applets/powerprofiles/state.py:162
 msgid "Power Profiles unavailable"
 msgstr ""
 
@@ -551,20 +551,20 @@ msgstr ""
 msgid "Limited: {reason}"
 msgstr ""
 
-#: docking/applets/powerprofiles/state.py:121
+#: docking/applets/powerprofiles/state.py:122
 msgid "Power Saver"
 msgstr ""
 
-#: docking/applets/powerprofiles/state.py:123
+#: docking/applets/powerprofiles/state.py:124
 msgid "Balanced"
 msgstr ""
 
-#: docking/applets/powerprofiles/state.py:125
+#: docking/applets/powerprofiles/state.py:126
 msgid "Performance"
 msgstr ""
 
 #: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
-#: docking/applets/quote/applet.py:205 docking/applets/quote/applet.py:210
+#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
 msgid "Quote"
 msgstr ""
 
@@ -646,11 +646,11 @@ msgstr ""
 msgid "Empty Trash"
 msgstr ""
 
-#: docking/applets/trash/render.py:22
+#: docking/applets/trash/render.py:23
 msgid "No items in Trash"
 msgstr ""
 
-#: docking/applets/trash/render.py:24 docking/applets/trash/render.py:25
+#: docking/applets/trash/render.py:25 docking/applets/trash/render.py:26
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
@@ -661,11 +661,11 @@ msgstr[1] ""
 msgid "Volume"
 msgstr ""
 
-#: docking/applets/volume/applet.py:50
+#: docking/applets/volume/applet.py:51
 msgid "Muted"
 msgstr ""
 
-#: docking/applets/volume/applet.py:50
+#: docking/applets/volume/applet.py:51
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr ""
@@ -690,17 +690,17 @@ msgstr ""
 msgid "Type city name..."
 msgstr ""
 
-#: docking/applets/weather/applet.py:259
+#: docking/applets/weather/applet.py:260
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:264 docking/applets/weather/state.py:89
+#: docking/applets/weather/applet.py:269 docking/applets/weather/state.py:91
 #, python-brace-format
 msgid "Air: {label}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:275
+#: docking/applets/weather/applet.py:281
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
 msgstr ""
@@ -710,11 +710,11 @@ msgstr ""
 msgid "{city}: {temp}°C"
 msgstr ""
 
-#: docking/applets/weather/state.py:83
+#: docking/applets/weather/state.py:85
 msgid "Weather (no city selected)"
 msgstr ""
 
-#: docking/applets/weather/state.py:85
+#: docking/applets/weather/state.py:87
 #, python-brace-format
 msgid "{city}: loading..."
 msgstr ""
@@ -723,15 +723,15 @@ msgstr ""
 msgid "Workspaces"
 msgstr ""
 
-#: docking/ui/about.py:44
+#: docking/ui/about.py:46
 msgid "Website"
 msgstr ""
 
-#: docking/ui/dock_window.py:242
+#: docking/ui/dock_window.py:248
 msgid "Docking"
 msgstr ""
 
-#: docking/ui/dock_window.py:401
+#: docking/ui/dock_window.py:407
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr ""
@@ -760,42 +760,54 @@ msgstr ""
 msgid "Window Previews"
 msgstr ""
 
-#: docking/ui/menu.py:278
+#: docking/ui/menu.py:276
 msgid "Display"
 msgstr ""
 
-#: docking/ui/menu.py:286
+#: docking/ui/menu.py:279
+msgid "Follow Cursor"
+msgstr ""
+
+#: docking/ui/menu.py:303
 msgid "Lock Icons"
 msgstr ""
 
-#: docking/ui/menu.py:298
+#: docking/ui/menu.py:308
+msgid "Current Workspace Only"
+msgstr ""
+
+#: docking/ui/menu.py:313
+msgid "Anchor Applets to End"
+msgstr ""
+
+#: docking/ui/menu.py:325
 msgid "Themes"
 msgstr ""
 
-#: docking/ui/menu.py:311
+#: docking/ui/menu.py:338
 msgid "Icon Size"
 msgstr ""
 
-#: docking/ui/menu.py:322
+#: docking/ui/menu.py:349
 msgid "Position"
 msgstr ""
 
-#: docking/ui/menu.py:332
+#: docking/ui/menu.py:359
 msgid "Applets"
 msgstr ""
 
-#: docking/ui/menu.py:384
+#: docking/ui/menu.py:411
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:394
+#: docking/ui/menu.py:421
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:399
+#: docking/ui/menu.py:426
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:429
+#: docking/ui/menu.py:456
 msgid "Window"
 msgstr ""

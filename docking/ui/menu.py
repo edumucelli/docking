@@ -273,20 +273,31 @@ class MenuHandler:
         # Monitor selection submenu (only when multiple monitors are available)
         monitor_items = self._monitor_items()
         if monitor_items:
-            display_submenu = _build_radio_submenu(
-                label=_("Display"),
-                items=monitor_items,
-                current=self._current_monitor_choice(),
-                on_changed=self._on_monitor_changed,
-            )
-            if self._config.active_display:
-                display_submenu.set_sensitive(False)
-            menu.append(display_submenu)
+            display_item = Gtk.MenuItem(label=_("Display"))
+            display_submenu = Gtk.Menu()
 
             follow = Gtk.CheckMenuItem(label=_("Follow Cursor"))
             follow.set_active(self._config.active_display)
             follow.connect("toggled", self._on_active_display_toggled)
-            menu.append(follow)
+            display_submenu.append(follow)
+            display_submenu.append(Gtk.SeparatorMenuItem())
+
+            first: Gtk.RadioMenuItem | None = None
+            current = self._current_monitor_choice()
+            for label, value in monitor_items:
+                radio = Gtk.RadioMenuItem(label=label)
+                if first:
+                    radio.join_group(first)
+                else:
+                    first = radio
+                if value == current:
+                    radio.set_active(True)
+                radio.set_sensitive(not self._config.active_display)
+                radio.connect("activate", self._on_monitor_changed, value)
+                display_submenu.append(radio)
+
+            display_item.set_submenu(display_submenu)
+            menu.append(display_item)
 
         # Lock icons toggle
         lock = Gtk.CheckMenuItem(label=_("Lock Icons"))

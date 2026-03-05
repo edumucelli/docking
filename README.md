@@ -793,7 +793,15 @@ Runs automatically on `git commit`:
 - **ruff format** -- code formatting
 - **ruff check** -- linting (E, W, F, I rules)
 - **ty check** -- type checking
+- **i18n-pot-sync** -- ensure `docking/locale/docking.pot` matches source strings
+- **i18n-complete** -- fail if PO catalogs are out-of-sync, fuzzy, or untranslated
 - **pytest** -- full test suite
+
+Install/update the strict local hook with:
+
+```bash
+./tools/install_precommit_hook.sh
+```
 
 ## CI/CD Pipeline
 

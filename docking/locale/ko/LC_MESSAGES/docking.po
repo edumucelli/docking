@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-05 15:19+0100\n"
+"POT-Creation-Date: 2026-03-06 00:16+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -17,47 +17,47 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:83
+#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:86
 msgid "Ambient"
 msgstr "환경음"
 
-#: docking/applets/ambient/state.py:22
+#: docking/applets/ambient/state.py:23
 msgid "Birds"
 msgstr "새소리"
 
-#: docking/applets/ambient/state.py:23
+#: docking/applets/ambient/state.py:24
 msgid "Boat"
 msgstr "배"
 
-#: docking/applets/ambient/state.py:24
+#: docking/applets/ambient/state.py:25
 msgid "Coffee Shop"
 msgstr "카페"
 
-#: docking/applets/ambient/state.py:25
+#: docking/applets/ambient/state.py:26
 msgid "Fireplace"
 msgstr "벽난로"
 
-#: docking/applets/ambient/state.py:26
+#: docking/applets/ambient/state.py:27
 msgid "Stream"
 msgstr "시냇물"
 
-#: docking/applets/ambient/state.py:27
+#: docking/applets/ambient/state.py:28
 msgid "Summer Night"
 msgstr "여름밤"
 
-#: docking/applets/ambient/state.py:28
+#: docking/applets/ambient/state.py:29
 msgid "Wind"
 msgstr "바람"
 
-#: docking/applets/ambient/state.py:33
+#: docking/applets/ambient/state.py:34
 msgid "White Noise"
 msgstr "화이트 노이즈"
 
-#: docking/applets/ambient/state.py:34
+#: docking/applets/ambient/state.py:35
 msgid "Pink Noise"
 msgstr "핑크 노이즈"
 
-#: docking/applets/ambient/state.py:82
+#: docking/applets/ambient/state.py:83
 #, python-brace-format
 msgid "Playing: {sound} ({pct}%)"
 msgstr ""
@@ -70,11 +70,11 @@ msgstr "애플리케이션"
 msgid "Battery"
 msgstr "배터리"
 
-#: docking/applets/battery/state.py:58
+#: docking/applets/battery/state.py:59
 msgid "No battery"
 msgstr "배터리 없음"
 
-#: docking/applets/battery/state.py:59
+#: docking/applets/battery/state.py:60
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr "배터리: {pct}%"
@@ -91,90 +91,119 @@ msgstr "블루투스 사용 불가"
 msgid "No Bluetooth adapter"
 msgstr "블루투스 어댑터 없음"
 
-#: docking/applets/bluetooth/applet.py:167
+#: docking/applets/bluetooth/applet.py:156
+msgid "General"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:110
+msgid "On"
+msgstr "켜짐"
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:110
+msgid "Off"
+msgstr "꺼짐"
+
+#: docking/applets/bluetooth/applet.py:161
+#, python-brace-format
+msgid "{alias} ({powered}) - Connected {connected}"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:170
 msgid "Bluetooth On"
 msgstr "블루투스 켜짐"
 
-#: docking/applets/bluetooth/applet.py:172
+#: docking/applets/bluetooth/applet.py:175
 msgid "Continuous Discovery"
 msgstr "지속적 검색"
 
-#: docking/applets/bluetooth/applet.py:183
+#: docking/applets/bluetooth/applet.py:186
 msgid "Refresh Now"
 msgstr "지금 새로고침"
 
-#: docking/applets/bluetooth/applet.py:190
+#: docking/applets/bluetooth/applet.py:193
 msgid "Adapter"
 msgstr "어댑터"
 
-#: docking/applets/bluetooth/applet.py:243
+#: docking/applets/bluetooth/applet.py:219
+#, fuzzy
+msgid "Connected Devices"
+msgstr "연결됨: {n}"
+
+#: docking/applets/bluetooth/applet.py:220
+msgid "Paired Devices"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:221
+msgid "Discovered Devices"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:246
 msgid "Disconnect"
 msgstr "연결 해제"
 
-#: docking/applets/bluetooth/applet.py:252
+#: docking/applets/bluetooth/applet.py:255
 msgid "Connect"
 msgstr "연결"
 
-#: docking/applets/bluetooth/applet.py:262
+#: docking/applets/bluetooth/applet.py:265
 msgid "Pair"
 msgstr "페어링"
 
-#: docking/applets/bluetooth/applet.py:276
+#: docking/applets/bluetooth/applet.py:279
 msgid "Remove Pairing"
 msgstr "페어링 제거"
 
-#: docking/applets/bluetooth/applet.py:288
+#: docking/applets/bluetooth/applet.py:291
 msgid "Trusted"
 msgstr "신뢰됨"
 
-#: docking/applets/bluetooth/state.py:102
+#: docking/applets/bluetooth/applet.py:306
+#, fuzzy, python-brace-format
+msgid "Battery: {percent}%"
+msgstr "배터리: {pct}%"
+
+#: docking/applets/bluetooth/state.py:103
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:103
-#: docking/applets/bluetooth/state.py:107
+#: docking/applets/bluetooth/state.py:104
+#: docking/applets/bluetooth/state.py:108
 msgid "Bluetooth: No adapter/service"
 msgstr "블루투스: 어댑터/서비스 없음"
 
-#: docking/applets/bluetooth/state.py:109
-msgid "On"
-msgstr "켜짐"
-
-#: docking/applets/bluetooth/state.py:109
-msgid "Off"
-msgstr "꺼짐"
-
-#: docking/applets/bluetooth/state.py:114
+#: docking/applets/bluetooth/state.py:115
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "블루투스: {state}"
 
-#: docking/applets/bluetooth/state.py:115
+#: docking/applets/bluetooth/state.py:116
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "어댑터: {name}"
 
-#: docking/applets/bluetooth/state.py:116
+#: docking/applets/bluetooth/state.py:117
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "연결됨: {n}"
 
-#: docking/applets/bluetooth/state.py:117
+#: docking/applets/bluetooth/state.py:118
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "페어링됨: {n}"
 
-#: docking/applets/bluetooth/state.py:118
+#: docking/applets/bluetooth/state.py:119
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "검색 중: {state}"
 
-#: docking/applets/bluetooth/state.py:118
+#: docking/applets/bluetooth/state.py:120
 msgid "Yes"
 msgstr "예"
 
-#: docking/applets/bluetooth/state.py:118
+#: docking/applets/bluetooth/state.py:120
 msgid "No"
 msgstr "아니오"
 
@@ -203,7 +232,7 @@ msgstr "클립보드"
 msgid "Clear"
 msgstr "지우기"
 
-#: docking/applets/clippy/state.py:21
+#: docking/applets/clippy/state.py:22
 msgid "Clippy (empty)"
 msgstr ""
 
@@ -224,8 +253,14 @@ msgid "Show Date"
 msgstr "날짜 표시"
 
 #: docking/applets/colorpicker/applet.py:38
+#: docking/applets/colorpicker/applet.py:68
 msgid "Color Picker"
 msgstr "색상 선택기"
+
+#: docking/applets/colorpicker/applet.py:78
+#, fuzzy, python-brace-format
+msgid "Copy {hex}"
+msgstr "인용구 복사"
 
 #: docking/applets/colorpicker/applet.py:82
 msgid "Show Hex"
@@ -235,7 +270,7 @@ msgstr "16진수 표시"
 msgid "CPU Monitor"
 msgstr "CPU 모니터"
 
-#: docking/applets/cpumonitor/state.py:63
+#: docking/applets/cpumonitor/state.py:64
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr ""
@@ -253,11 +288,19 @@ msgstr "수분 섭취"
 msgid "Show Timer"
 msgstr "타이머 표시"
 
-#: docking/applets/hydration/state.py:54
+#: docking/applets/hydration/applet.py:119
+#: docking/applets/pomodoro/applet.py:168
+#: docking/applets/pomodoro/applet.py:181
+#: docking/applets/pomodoro/applet.py:194
+#, python-brace-format
+msgid "{mins} min"
+msgstr ""
+
+#: docking/applets/hydration/state.py:55
 msgid "Drink water!"
 msgstr "물 마시세요!"
 
-#: docking/applets/hydration/state.py:55
+#: docking/applets/hydration/state.py:56
 #, python-brace-format
 msgid "Next in {time}"
 msgstr "{time} 후"
@@ -283,44 +326,44 @@ msgstr "달의 위상 표시"
 msgid "Refresh"
 msgstr "새로고침"
 
-#: docking/applets/moon/offline.py:215 docking/applets/moon/state.py:120
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
 msgid "New"
 msgstr "삭"
 
-#: docking/applets/moon/offline.py:217 docking/applets/moon/state.py:122
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
 msgid "Full"
 msgstr "보름달"
 
-#: docking/applets/moon/offline.py:219
+#: docking/applets/moon/offline.py:220
 msgid "Crescent"
 msgstr "초승달"
 
-#: docking/applets/moon/offline.py:220
+#: docking/applets/moon/offline.py:221
 msgid "Gibbous"
 msgstr "철월"
 
-#: docking/applets/moon/offline.py:233
+#: docking/applets/moon/offline.py:234
 msgid "new moon"
 msgstr "삭"
 
-#: docking/applets/moon/offline.py:235
+#: docking/applets/moon/offline.py:236
 msgid "first quarter"
 msgstr "상현달"
 
-#: docking/applets/moon/offline.py:237
+#: docking/applets/moon/offline.py:238
 msgid "full moon"
 msgstr "보름달"
 
-#: docking/applets/moon/offline.py:239
+#: docking/applets/moon/offline.py:240
 msgid "last quarter"
 msgstr "하현달"
 
-#: docking/applets/moon/offline.py:241
+#: docking/applets/moon/offline.py:242
 #, python-brace-format
 msgid "{days} days after new moon"
 msgstr "삭 후 {days}일"
 
-#: docking/applets/moon/offline.py:244
+#: docking/applets/moon/offline.py:247
 #, python-brace-format
 msgid "{days} days after full moon"
 msgstr "보름달 후 {days}일"
@@ -349,7 +392,7 @@ msgstr "상현달"
 msgid "3rd Quarter"
 msgstr "하현달"
 
-#: docking/applets/music/applet.py:43 docking/applets/music/state.py:137
+#: docking/applets/music/applet.py:43 docking/applets/music/state.py:138
 msgid "Music"
 msgstr "음악"
 
@@ -373,31 +416,31 @@ msgstr "볼륨 높이기"
 msgid "Volume Down"
 msgstr "볼륨 줄이기"
 
-#: docking/applets/music/state.py:67
+#: docking/applets/music/state.py:68
 msgid "Pause"
 msgstr "일시정지"
 
-#: docking/applets/music/state.py:67
+#: docking/applets/music/state.py:68
 msgid "Play"
 msgstr "재생"
 
-#: docking/applets/music/state.py:74
+#: docking/applets/music/state.py:75
 msgid "Playing"
 msgstr "재생 중"
 
-#: docking/applets/music/state.py:76
+#: docking/applets/music/state.py:77
 msgid "Paused"
 msgstr "일시정지됨"
 
-#: docking/applets/music/state.py:78
+#: docking/applets/music/state.py:79
 msgid "Stopped"
 msgstr "중지됨"
 
-#: docking/applets/music/state.py:80 docking/applets/powerprofiles/state.py:127
+#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:128
 msgid "Unknown"
 msgstr "알 수 없음"
 
-#: docking/applets/music/state.py:126
+#: docking/applets/music/state.py:127
 msgid "Music: No active player"
 msgstr ""
 
@@ -410,21 +453,21 @@ msgstr "네트워크"
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr ""
 
-#: docking/applets/network/applet.py:95
+#: docking/applets/network/applet.py:98
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "이더넷: {iface}"
 
-#: docking/applets/network/applet.py:99
+#: docking/applets/network/applet.py:103
 msgid "Not connected"
 msgstr "연결 안 됨"
 
-#: docking/applets/network/applet.py:104
+#: docking/applets/network/applet.py:108
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/state.py:88
+#: docking/applets/network/state.py:89
 msgid "Network: Not connected"
 msgstr "네트워크: 연결 안 됨"
 
@@ -441,17 +484,17 @@ msgstr "알림 백엔드 없음"
 msgid "Do Not Disturb"
 msgstr "방해 금지"
 
-#: docking/applets/notifications/applet.py:128
+#: docking/applets/notifications/applet.py:129
 #: docking/applets/notifications/state.py:47
 #, python-brace-format
 msgid "Pending: {n}"
 msgstr "대기 중: {n}"
 
-#: docking/applets/notifications/applet.py:132
+#: docking/applets/notifications/applet.py:134
 msgid "Clear History"
 msgstr "기록 지우기"
 
-#: docking/applets/notifications/applet.py:137
+#: docking/applets/notifications/applet.py:139
 msgid "Clear Notifications"
 msgstr "알림 지우기"
 
@@ -459,7 +502,7 @@ msgstr "알림 지우기"
 msgid "Notifications: No backend available"
 msgstr ""
 
-#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:62
+#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
 msgid "Pomodoro"
 msgstr "뽀모도로"
 
@@ -467,24 +510,24 @@ msgstr "뽀모도로"
 msgid "Reset"
 msgstr "초기화"
 
-#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:65
+#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:67
 msgid "Work"
 msgstr "작업"
 
-#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:65
+#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:68
 msgid "Break"
 msgstr "휴식"
 
-#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:65
+#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:69
 msgid "Long Break"
 msgstr "긴 휴식"
 
-#: docking/applets/pomodoro/state.py:64
+#: docking/applets/pomodoro/state.py:65
 #, python-brace-format
 msgid "Paused - {time}"
 msgstr "일시정지 - {time}"
 
-#: docking/applets/pomodoro/state.py:66
+#: docking/applets/pomodoro/state.py:71
 #, python-brace-format
 msgid "{label}: {time} remaining"
 msgstr "{label}: {time} 남음"
@@ -494,8 +537,8 @@ msgid "Power Profiles"
 msgstr "전원 프로필"
 
 #: docking/applets/powerprofiles/applet.py:112
-#: docking/applets/powerprofiles/state.py:160
 #: docking/applets/powerprofiles/state.py:161
+#: docking/applets/powerprofiles/state.py:162
 msgid "Power Profiles unavailable"
 msgstr "전원 프로필 사용 불가"
 
@@ -503,20 +546,25 @@ msgstr "전원 프로필 사용 불가"
 msgid "Select Profile"
 msgstr "프로필 선택"
 
-#: docking/applets/powerprofiles/state.py:121
+#: docking/applets/powerprofiles/applet.py:136
+#, python-brace-format
+msgid "Limited: {reason}"
+msgstr ""
+
+#: docking/applets/powerprofiles/state.py:122
 msgid "Power Saver"
 msgstr ""
 
-#: docking/applets/powerprofiles/state.py:123
+#: docking/applets/powerprofiles/state.py:124
 msgid "Balanced"
 msgstr ""
 
-#: docking/applets/powerprofiles/state.py:125
+#: docking/applets/powerprofiles/state.py:126
 msgid "Performance"
 msgstr ""
 
-#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:205
-#: docking/applets/quote/applet.py:210
+#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
+#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
 msgid "Quote"
 msgstr "인용구"
 
@@ -598,11 +646,11 @@ msgstr "휴지통 열기"
 msgid "Empty Trash"
 msgstr "휴지통 비우기"
 
-#: docking/applets/trash/render.py:22
+#: docking/applets/trash/render.py:23
 msgid "No items in Trash"
 msgstr "휴지통이 비어 있습니다"
 
-#: docking/applets/trash/render.py:24 docking/applets/trash/render.py:25
+#: docking/applets/trash/render.py:25 docking/applets/trash/render.py:26
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
@@ -612,11 +660,11 @@ msgstr[0] ""
 msgid "Volume"
 msgstr "볼륨"
 
-#: docking/applets/volume/applet.py:50
+#: docking/applets/volume/applet.py:51
 msgid "Muted"
 msgstr "음소거"
 
-#: docking/applets/volume/applet.py:50
+#: docking/applets/volume/applet.py:51
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "볼륨: {pct}%"
@@ -633,26 +681,39 @@ msgstr "온도 표시"
 msgid "Change City..."
 msgstr "도시 변경..."
 
-#: docking/applets/weather/applet.py:259
+#: docking/applets/weather/applet.py:128
+msgid "Search for the city"
+msgstr ""
+
+#: docking/applets/weather/applet.py:142
+msgid "Type city name..."
+msgstr ""
+
+#: docking/applets/weather/applet.py:260
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr "{temp}°C, {desc}"
 
-#: docking/applets/weather/applet.py:264 docking/applets/weather/state.py:89
+#: docking/applets/weather/applet.py:269 docking/applets/weather/state.py:91
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "공기: {label}"
+
+#: docking/applets/weather/applet.py:281
+#, python-brace-format
+msgid "{date}: {min_temp}/{max_temp}°C"
+msgstr ""
 
 #: docking/applets/weather/state.py:72
 #, python-brace-format
 msgid "{city}: {temp}°C"
 msgstr ""
 
-#: docking/applets/weather/state.py:83
+#: docking/applets/weather/state.py:85
 msgid "Weather (no city selected)"
 msgstr "날씨 (도시 미선택)"
 
-#: docking/applets/weather/state.py:85
+#: docking/applets/weather/state.py:87
 #, python-brace-format
 msgid "{city}: loading..."
 msgstr "{city}: 로딩 중..."
@@ -661,9 +722,18 @@ msgstr "{city}: 로딩 중..."
 msgid "Workspaces"
 msgstr "작업 공간"
 
-#: docking/ui/about.py:44
+#: docking/ui/about.py:46
 msgid "Website"
 msgstr "웹사이트"
+
+#: docking/ui/dock_window.py:248
+msgid "Docking"
+msgstr ""
+
+#: docking/ui/dock_window.py:407
+#, python-brace-format
+msgid "Display {display}: {width}x{height}"
+msgstr ""
 
 #: docking/ui/menu.py:198 docking/ui/menu.py:215
 msgid "Remove from Dock"
@@ -689,43 +759,55 @@ msgstr "자동 숨기기"
 msgid "Window Previews"
 msgstr "창 미리보기"
 
-#: docking/ui/menu.py:278
+#: docking/ui/menu.py:276
 msgid "Display"
 msgstr "디스플레이"
 
-#: docking/ui/menu.py:286
+#: docking/ui/menu.py:279
+msgid "Follow Cursor"
+msgstr "커서 따라가기"
+
+#: docking/ui/menu.py:303
 msgid "Lock Icons"
 msgstr "아이콘 잠금"
 
-#: docking/ui/menu.py:298
+#: docking/ui/menu.py:308
+msgid "Current Workspace Only"
+msgstr "현재 작업 공간만"
+
+#: docking/ui/menu.py:313
+msgid "Anchor Applets to End"
+msgstr "애플릿을 끝에 고정"
+
+#: docking/ui/menu.py:325
 msgid "Themes"
 msgstr "테마"
 
-#: docking/ui/menu.py:311
+#: docking/ui/menu.py:338
 msgid "Icon Size"
 msgstr "아이콘 크기"
 
-#: docking/ui/menu.py:322
+#: docking/ui/menu.py:349
 msgid "Position"
 msgstr "위치"
 
-#: docking/ui/menu.py:332
+#: docking/ui/menu.py:359
 msgid "Applets"
 msgstr "애플릿"
 
-#: docking/ui/menu.py:384
+#: docking/ui/menu.py:411
 msgid "Add Separator"
 msgstr "구분선 추가"
 
-#: docking/ui/menu.py:394
+#: docking/ui/menu.py:421
 msgid "About"
 msgstr "정보"
 
-#: docking/ui/menu.py:399
+#: docking/ui/menu.py:426
 msgid "Quit"
 msgstr "종료"
 
-#: docking/ui/menu.py:429
+#: docking/ui/menu.py:456
 msgid "Window"
 msgstr "창"
 

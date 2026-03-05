@@ -26,6 +26,18 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: i18n-complete
+        name: i18n-complete
+        entry: bash -c 'I18N_REQUIRE_COMPLETE=1 bash tools/check_translations.sh'
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: i18n-pot-sync
+        name: i18n-pot-sync
+        entry: bash tools/check_pot_sync.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: pytest
         name: tests
         entry: .venv/bin/python -m pytest tests/ -q

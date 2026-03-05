@@ -34,6 +34,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
+      - name: Verify POT is up to date
+        run: bash tools/check_pot_sync.sh
+
+      - name: Validate translation catalogs
+        run: I18N_REQUIRE_COMPLETE=1 bash tools/check_translations.sh
+
       - name: Compile translations
         run: bash tools/compile_translations.sh
 

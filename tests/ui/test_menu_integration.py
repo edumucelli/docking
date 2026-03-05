@@ -385,9 +385,33 @@ class TestDockMenu:
         # Then
         assert "Display" in labels
         display_item = next(mi for mi in menu.children if mi.get_label() == "Display")
-        submenu_labels = _labels(display_item.get_submenu())
-        assert "Display 1: 1920x1080 (Primary)" in submenu_labels
-        assert "Display 2: 2560x1440" in submenu_labels
+        submenu_children = display_item.get_submenu().get_children()
+        assert submenu_children[0].get_label() == "Follow Cursor"
+        assert submenu_children[0].get_active() is False
+        assert submenu_children[1].get_label() == "---"
+        assert submenu_children[2].get_label() == "Display 1: 1920x1080 (Primary)"
+        assert submenu_children[3].get_label() == "Display 2: 2560x1440"
+
+    def test_display_submenu_disables_radio_when_follow_cursor_enabled(self, handler):
+        # Given
+        menu = FakeMenu()
+        handler._config.active_display = True
+        handler._window.get_monitor_menu_choices.return_value = [
+            ("Display 1: 1920x1080 (Primary)", 0),
+            ("Display 2: 2560x1440", 1),
+        ]
+        handler._window.current_monitor_choice.return_value = 0
+
+        # When
+        handler._build_dock_menu(menu=menu, insert_index=0)
+
+        # Then
+        display_item = next(mi for mi in menu.children if mi.get_label() == "Display")
+        submenu_children = display_item.get_submenu().get_children()
+        assert submenu_children[0].get_label() == "Follow Cursor"
+        assert submenu_children[0].get_active() is True
+        assert submenu_children[2]._sensitive is False
+        assert submenu_children[3]._sensitive is False
 
 
 class TestMenuCallbacks:
