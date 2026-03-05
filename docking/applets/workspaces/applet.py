@@ -15,6 +15,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk, Wnck  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import _render_grid
@@ -35,7 +36,7 @@ class WorkspacesApplet(Applet):
     """Shows workspace grid icon, click cycles, scroll switches."""
 
     id = AppletId.WORKSPACES
-    name = "Workspaces"
+    name = _("Workspaces")
     icon_name = "preferences-desktop-workspaces"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -75,7 +76,7 @@ class WorkspacesApplet(Applet):
                 number=self._active_num,
             )
             if self._active_num >= 0
-            else "Desktop"
+            else _("Desktop")
         )
         self.item.name = label
         log_state = (

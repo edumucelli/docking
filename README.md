@@ -743,6 +743,50 @@ return {
 
 **Design principle:** Complex logic is extracted as pure functions (no GTK dependency) so tests run fast without a display server. GTK-dependent tests use lightweight mocks.
 
+## Translations
+
+Docking supports 10 languages via standard gettext:
+
+| Language | Code |
+|----------|------|
+| English | en (default) |
+| Brazilian Portuguese | pt_BR |
+| Spanish | es |
+| French | fr |
+| Simplified Chinese | zh_CN |
+| Hindi | hi |
+| Arabic | ar |
+| German | de |
+| Japanese | ja |
+| Korean | ko |
+| Russian | ru |
+
+The dock automatically uses your system locale. To test a specific language:
+
+```bash
+LANGUAGE=pt_BR python run.py
+```
+
+### Adding a new translation
+
+1. Create a new `.po` file from the template:
+   ```bash
+   msginit --input=docking/locale/docking.pot --locale=XX --output=docking/locale/XX/LC_MESSAGES/docking.po
+   ```
+2. Edit the `.po` file with a PO editor (e.g. Poedit, Lokalize, or any text editor)
+3. Compile: `msgfmt docking/locale/XX/LC_MESSAGES/docking.po -o docking/locale/XX/LC_MESSAGES/docking.mo`
+4. Submit a pull request
+
+### Updating the string template
+
+After adding or modifying translatable strings in the source code:
+
+```bash
+./tools/i18n-extract.sh
+```
+
+This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be updated with `msgmerge`.
+
 ## Pre-commit Hooks
 
 Runs automatically on `git commit`:

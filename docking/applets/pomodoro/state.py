@@ -6,6 +6,8 @@ from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any, Mapping
 
+from docking.i18n import _
+
 # Default durations in minutes
 DEFAULT_WORK = 25
 DEFAULT_BREAK = 5
@@ -58,11 +60,17 @@ def format_time(seconds: int) -> str:
 def tooltip_text(state: State, remaining: int) -> str:
     """Build tooltip string for given state."""
     if state == State.IDLE:
-        return "Pomodoro"
+        return _("Pomodoro")
     if state == State.PAUSED:
-        return f"Paused - {format_time(seconds=remaining)}"
-    labels = {State.WORK: "Work", State.BREAK: "Break", State.LONG_BREAK: "Long Break"}
-    return f"{labels[state]}: {format_time(seconds=remaining)} remaining"
+        return _("Paused - {time}").format(time=format_time(seconds=remaining))
+    labels = {
+        State.WORK: _("Work"),
+        State.BREAK: _("Break"),
+        State.LONG_BREAK: _("Long Break"),
+    }
+    return _("{label}: {time} remaining").format(
+        label=labels[state], time=format_time(seconds=remaining)
+    )
 
 
 def state_from_prefs(prefs: Mapping[str, Any] | None) -> PomodoroState:

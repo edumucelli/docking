@@ -1,0 +1,734 @@
+# Arabic translations for docking package.
+# Copyright (C) 2026 Eduardo Mucelli Rezende Oliveira
+# This file is distributed under the same license as the docking package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: docking\n"
+"Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
+"POT-Creation-Date: 2026-03-05 15:19+0100\n"
+"PO-Revision-Date: 2026-03-05 12:18+0100\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:83
+msgid "Ambient"
+msgstr "أصوات محيطة"
+
+#: docking/applets/ambient/state.py:22
+msgid "Birds"
+msgstr "طيور"
+
+#: docking/applets/ambient/state.py:23
+msgid "Boat"
+msgstr "قارب"
+
+#: docking/applets/ambient/state.py:24
+msgid "Coffee Shop"
+msgstr "مقهى"
+
+#: docking/applets/ambient/state.py:25
+msgid "Fireplace"
+msgstr "مدفأة"
+
+#: docking/applets/ambient/state.py:26
+msgid "Stream"
+msgstr "جدول"
+
+#: docking/applets/ambient/state.py:27
+msgid "Summer Night"
+msgstr "ليلة صيفية"
+
+#: docking/applets/ambient/state.py:28
+msgid "Wind"
+msgstr "رياح"
+
+#: docking/applets/ambient/state.py:33
+msgid "White Noise"
+msgstr "ضوضاء بيضاء"
+
+#: docking/applets/ambient/state.py:34
+msgid "Pink Noise"
+msgstr "ضوضاء وردية"
+
+#: docking/applets/ambient/state.py:82
+#, python-brace-format
+msgid "Playing: {sound} ({pct}%)"
+msgstr ""
+
+#: docking/applets/applications/applet.py:28
+msgid "Applications"
+msgstr "تطبيقات"
+
+#: docking/applets/battery/applet.py:26
+msgid "Battery"
+msgstr "بطارية"
+
+#: docking/applets/battery/state.py:58
+msgid "No battery"
+msgstr "لا توجد بطارية"
+
+#: docking/applets/battery/state.py:59
+#, python-brace-format
+msgid "Battery: {pct}%"
+msgstr "البطارية: {pct}%"
+
+#: docking/applets/bluetooth/applet.py:57
+msgid "Bluetooth"
+msgstr "بلوتوث"
+
+#: docking/applets/bluetooth/applet.py:145
+msgid "Bluetooth unavailable"
+msgstr "بلوتوث غير متاح"
+
+#: docking/applets/bluetooth/applet.py:152
+msgid "No Bluetooth adapter"
+msgstr "لا يوجد محول بلوتوث"
+
+#: docking/applets/bluetooth/applet.py:167
+msgid "Bluetooth On"
+msgstr "بلوتوث مفعل"
+
+#: docking/applets/bluetooth/applet.py:172
+msgid "Continuous Discovery"
+msgstr "اكتشاف مستمر"
+
+#: docking/applets/bluetooth/applet.py:183
+msgid "Refresh Now"
+msgstr "تحديث الآن"
+
+#: docking/applets/bluetooth/applet.py:190
+msgid "Adapter"
+msgstr "محول"
+
+#: docking/applets/bluetooth/applet.py:243
+msgid "Disconnect"
+msgstr "قطع الاتصال"
+
+#: docking/applets/bluetooth/applet.py:252
+msgid "Connect"
+msgstr "اتصال"
+
+#: docking/applets/bluetooth/applet.py:262
+msgid "Pair"
+msgstr "إقران"
+
+#: docking/applets/bluetooth/applet.py:276
+msgid "Remove Pairing"
+msgstr "إزالة الاقتران"
+
+#: docking/applets/bluetooth/applet.py:288
+msgid "Trusted"
+msgstr "موثوق"
+
+#: docking/applets/bluetooth/state.py:102
+#, python-brace-format
+msgid "Bluetooth: {error}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:103
+#: docking/applets/bluetooth/state.py:107
+msgid "Bluetooth: No adapter/service"
+msgstr "بلوتوث: لا يوجد محول/خدمة"
+
+#: docking/applets/bluetooth/state.py:109
+msgid "On"
+msgstr "تشغيل"
+
+#: docking/applets/bluetooth/state.py:109
+msgid "Off"
+msgstr "إيقاف"
+
+#: docking/applets/bluetooth/state.py:114
+#, python-brace-format
+msgid "Bluetooth: {state}"
+msgstr "بلوتوث: {state}"
+
+#: docking/applets/bluetooth/state.py:115
+#, python-brace-format
+msgid "Adapter: {name}"
+msgstr "محول: {name}"
+
+#: docking/applets/bluetooth/state.py:116
+#, python-brace-format
+msgid "Connected: {n}"
+msgstr "متصلة: {n}"
+
+#: docking/applets/bluetooth/state.py:117
+#, python-brace-format
+msgid "Paired: {n}"
+msgstr "مقترنة: {n}"
+
+#: docking/applets/bluetooth/state.py:118
+#, python-brace-format
+msgid "Discovering: {state}"
+msgstr "جاري الاكتشاف: {state}"
+
+#: docking/applets/bluetooth/state.py:118
+msgid "Yes"
+msgstr "نعم"
+
+#: docking/applets/bluetooth/state.py:118
+msgid "No"
+msgstr "لا"
+
+#: docking/applets/brightness/applet.py:41
+msgid "Brightness"
+msgstr "السطوع"
+
+#: docking/applets/brightness/applet.py:68
+#, python-brace-format
+msgid "Brightness: {pct}%"
+msgstr "السطوع: {pct}%"
+
+#: docking/applets/brightness/applet.py:91
+msgid "Show Level"
+msgstr "عرض المستوى"
+
+#: docking/applets/calendar/applet.py:30 docking/applets/calendar/applet.py:36
+msgid "Calendar"
+msgstr "تقويم"
+
+#: docking/applets/clippy/applet.py:33
+msgid "Clippy"
+msgstr "الحافظة"
+
+#: docking/applets/clippy/applet.py:92
+msgid "Clear"
+msgstr "مسح"
+
+#: docking/applets/clippy/state.py:21
+msgid "Clippy (empty)"
+msgstr ""
+
+#: docking/applets/clock/applet.py:32
+msgid "Clock"
+msgstr "ساعة"
+
+#: docking/applets/clock/applet.py:67
+msgid "Digital Clock"
+msgstr "ساعة رقمية"
+
+#: docking/applets/clock/applet.py:72
+msgid "24-Hour Clock"
+msgstr "ساعة 24 ساعة"
+
+#: docking/applets/clock/applet.py:77
+msgid "Show Date"
+msgstr "عرض التاريخ"
+
+#: docking/applets/colorpicker/applet.py:38
+msgid "Color Picker"
+msgstr "منتقي الألوان"
+
+#: docking/applets/colorpicker/applet.py:82
+msgid "Show Hex"
+msgstr "عرض الست عشري"
+
+#: docking/applets/cpumonitor/applet.py:37
+msgid "CPU Monitor"
+msgstr "مراقب المعالج"
+
+#: docking/applets/cpumonitor/state.py:63
+#, python-brace-format
+msgid "CPU: {cpu}% | Mem: {mem}%"
+msgstr ""
+
+#: docking/applets/desktop/applet.py:22 docking/applets/workspaces/applet.py:79
+msgid "Desktop"
+msgstr "سطح المكتب"
+
+#: docking/applets/hydration/applet.py:38
+msgid "Hydration"
+msgstr "ترطيب"
+
+#: docking/applets/hydration/applet.py:111
+#: docking/applets/pomodoro/applet.py:156
+msgid "Show Timer"
+msgstr "عرض المؤقت"
+
+#: docking/applets/hydration/state.py:54
+msgid "Drink water!"
+msgstr "اشرب ماء!"
+
+#: docking/applets/hydration/state.py:55
+#, python-brace-format
+msgid "Next in {time}"
+msgstr "التالي خلال {time}"
+
+#: docking/applets/moon/applet.py:47
+msgid "Moon"
+msgstr "القمر"
+
+#: docking/applets/moon/applet.py:88
+msgid "Moon (loading...)"
+msgstr "القمر (جاري التحميل...)"
+
+#: docking/applets/moon/applet.py:95
+#, python-brace-format
+msgid "Illumination: {pct}%"
+msgstr "الإضاءة: {pct}%"
+
+#: docking/applets/moon/applet.py:118
+msgid "Show Phase Name"
+msgstr "عرض الطور"
+
+#: docking/applets/moon/applet.py:123
+msgid "Refresh"
+msgstr "تحديث"
+
+#: docking/applets/moon/offline.py:215 docking/applets/moon/state.py:120
+msgid "New"
+msgstr "محاق"
+
+#: docking/applets/moon/offline.py:217 docking/applets/moon/state.py:122
+msgid "Full"
+msgstr "بدر"
+
+#: docking/applets/moon/offline.py:219
+msgid "Crescent"
+msgstr "هلال"
+
+#: docking/applets/moon/offline.py:220
+msgid "Gibbous"
+msgstr "أحدب"
+
+#: docking/applets/moon/offline.py:233
+msgid "new moon"
+msgstr "محاق"
+
+#: docking/applets/moon/offline.py:235
+msgid "first quarter"
+msgstr "الربع الأول"
+
+#: docking/applets/moon/offline.py:237
+msgid "full moon"
+msgstr "بدر"
+
+#: docking/applets/moon/offline.py:239
+msgid "last quarter"
+msgstr "الربع الأخير"
+
+#: docking/applets/moon/offline.py:241
+#, python-brace-format
+msgid "{days} days after new moon"
+msgstr "{days} يوم بعد المحاق"
+
+#: docking/applets/moon/offline.py:244
+#, python-brace-format
+msgid "{days} days after full moon"
+msgstr "{days} يوم بعد البدر"
+
+#: docking/applets/moon/state.py:111
+msgid "Waxing Crescent"
+msgstr "هلال متزايد"
+
+#: docking/applets/moon/state.py:113
+msgid "Waxing Gibbous"
+msgstr "أحدب متزايد"
+
+#: docking/applets/moon/state.py:115
+msgid "Waning Gibbous"
+msgstr "أحدب متناقص"
+
+#: docking/applets/moon/state.py:117
+msgid "Waning Crescent"
+msgstr "هلال متناقص"
+
+#: docking/applets/moon/state.py:124
+msgid "1st Quarter"
+msgstr "الربع الأول"
+
+#: docking/applets/moon/state.py:126
+msgid "3rd Quarter"
+msgstr "الربع الأخير"
+
+#: docking/applets/music/applet.py:43 docking/applets/music/state.py:137
+msgid "Music"
+msgstr "موسيقى"
+
+#: docking/applets/music/applet.py:101
+msgid "No active player"
+msgstr "لا يوجد مشغل نشط"
+
+#: docking/applets/music/applet.py:105
+msgid "Previous"
+msgstr "السابق"
+
+#: docking/applets/music/applet.py:113
+msgid "Next"
+msgstr "التالي"
+
+#: docking/applets/music/applet.py:117
+msgid "Volume Up"
+msgstr "رفع الصوت"
+
+#: docking/applets/music/applet.py:123
+msgid "Volume Down"
+msgstr "خفض الصوت"
+
+#: docking/applets/music/state.py:67
+msgid "Pause"
+msgstr "إيقاف مؤقت"
+
+#: docking/applets/music/state.py:67
+msgid "Play"
+msgstr "تشغيل"
+
+#: docking/applets/music/state.py:74
+msgid "Playing"
+msgstr "قيد التشغيل"
+
+#: docking/applets/music/state.py:76
+msgid "Paused"
+msgstr "متوقف مؤقتاً"
+
+#: docking/applets/music/state.py:78
+msgid "Stopped"
+msgstr "متوقف"
+
+#: docking/applets/music/state.py:80 docking/applets/powerprofiles/state.py:127
+msgid "Unknown"
+msgstr "غير معروف"
+
+#: docking/applets/music/state.py:126
+msgid "Music: No active player"
+msgstr ""
+
+#: docking/applets/network/applet.py:40
+msgid "Network"
+msgstr "شبكة"
+
+#: docking/applets/network/applet.py:90
+#, python-brace-format
+msgid "WiFi: {ssid} ({pct}%)"
+msgstr ""
+
+#: docking/applets/network/applet.py:95
+#, python-brace-format
+msgid "Ethernet: {iface}"
+msgstr "إيثرنت: {iface}"
+
+#: docking/applets/network/applet.py:99
+msgid "Not connected"
+msgstr "غير متصل"
+
+#: docking/applets/network/applet.py:104
+#, python-brace-format
+msgid "IP: {ip}"
+msgstr "IP: {ip}"
+
+#: docking/applets/network/state.py:88
+msgid "Network: Not connected"
+msgstr "الشبكة: غير متصل"
+
+#: docking/applets/notifications/applet.py:51
+#: docking/applets/notifications/state.py:49
+msgid "Notifications"
+msgstr "إشعارات"
+
+#: docking/applets/notifications/applet.py:116
+msgid "No notification backend available"
+msgstr "لا يوجد نظام إشعارات"
+
+#: docking/applets/notifications/applet.py:122
+msgid "Do Not Disturb"
+msgstr "عدم الإزعاج"
+
+#: docking/applets/notifications/applet.py:128
+#: docking/applets/notifications/state.py:47
+#, python-brace-format
+msgid "Pending: {n}"
+msgstr "معلق: {n}"
+
+#: docking/applets/notifications/applet.py:132
+msgid "Clear History"
+msgstr "مسح السجل"
+
+#: docking/applets/notifications/applet.py:137
+msgid "Clear Notifications"
+msgstr "مسح الإشعارات"
+
+#: docking/applets/notifications/state.py:43
+msgid "Notifications: No backend available"
+msgstr ""
+
+#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:62
+msgid "Pomodoro"
+msgstr "بومودورو"
+
+#: docking/applets/pomodoro/applet.py:152
+msgid "Reset"
+msgstr "إعادة تعيين"
+
+#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:65
+msgid "Work"
+msgstr "عمل"
+
+#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:65
+msgid "Break"
+msgstr "استراحة"
+
+#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:65
+msgid "Long Break"
+msgstr "استراحة طويلة"
+
+#: docking/applets/pomodoro/state.py:64
+#, python-brace-format
+msgid "Paused - {time}"
+msgstr "متوقف - {time}"
+
+#: docking/applets/pomodoro/state.py:66
+#, python-brace-format
+msgid "{label}: {time} remaining"
+msgstr "{label}: {time} متبقي"
+
+#: docking/applets/powerprofiles/applet.py:54
+msgid "Power Profiles"
+msgstr "ملفات الطاقة"
+
+#: docking/applets/powerprofiles/applet.py:112
+#: docking/applets/powerprofiles/state.py:160
+#: docking/applets/powerprofiles/state.py:161
+msgid "Power Profiles unavailable"
+msgstr "ملفات الطاقة غير متاحة"
+
+#: docking/applets/powerprofiles/applet.py:117
+msgid "Select Profile"
+msgstr "اختيار الملف"
+
+#: docking/applets/powerprofiles/state.py:121
+msgid "Power Saver"
+msgstr ""
+
+#: docking/applets/powerprofiles/state.py:123
+msgid "Balanced"
+msgstr ""
+
+#: docking/applets/powerprofiles/state.py:125
+msgid "Performance"
+msgstr ""
+
+#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:205
+#: docking/applets/quote/applet.py:210
+msgid "Quote"
+msgstr "اقتباس"
+
+#: docking/applets/quote/applet.py:86
+msgid "Next Quote"
+msgstr "الاقتباس التالي"
+
+#: docking/applets/quote/applet.py:90
+msgid "Copy Quote"
+msgstr "نسخ الاقتباس"
+
+#: docking/applets/quote/applet.py:94
+msgid "Refresh from Web"
+msgstr "تحديث من الويب"
+
+#: docking/applets/quote/applet.py:100
+msgid "Source"
+msgstr "مصدر"
+
+#: docking/applets/quote/applet.py:205
+#, python-brace-format
+msgid "{source}: loading..."
+msgstr "{source}: جاري التحميل..."
+
+#: docking/applets/screenshot/applet.py:34
+msgid "Screenshot"
+msgstr "لقطة شاشة"
+
+#: docking/applets/screenshot/applet.py:73
+#, python-brace-format
+msgid "Full Screen in {delay}s"
+msgstr "ملء الشاشة خلال {delay} ثانية"
+
+#: docking/applets/separator/applet.py:30
+msgid "Separator"
+msgstr "فاصل"
+
+#: docking/applets/separator/applet.py:78
+msgid "Increase Gap"
+msgstr "زيادة المسافة"
+
+#: docking/applets/separator/applet.py:80
+msgid "Decrease Gap"
+msgstr "تقليل المسافة"
+
+#: docking/applets/session/applet.py:27
+msgid "Session"
+msgstr "جلسة"
+
+#: docking/applets/session/state.py:23
+msgid "Lock Screen"
+msgstr "قفل الشاشة"
+
+#: docking/applets/session/state.py:24
+msgid "Log Out"
+msgstr "تسجيل الخروج"
+
+#: docking/applets/session/state.py:25
+msgid "Suspend"
+msgstr "تعليق"
+
+#: docking/applets/session/state.py:26
+msgid "Restart"
+msgstr "إعادة تشغيل"
+
+#: docking/applets/session/state.py:27
+msgid "Shut Down"
+msgstr "إيقاف التشغيل"
+
+#: docking/applets/trash/applet.py:33
+msgid "Trash"
+msgstr "سلة المهملات"
+
+#: docking/applets/trash/applet.py:58
+msgid "Open Trash"
+msgstr "فتح سلة المهملات"
+
+#: docking/applets/trash/applet.py:62
+msgid "Empty Trash"
+msgstr "إفراغ سلة المهملات"
+
+#: docking/applets/trash/render.py:22
+msgid "No items in Trash"
+msgstr "سلة المهملات فارغة"
+
+#: docking/applets/trash/render.py:24 docking/applets/trash/render.py:25
+#, python-brace-format
+msgid "{n} item in Trash"
+msgid_plural "{n} items in Trash"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/volume/applet.py:32
+msgid "Volume"
+msgstr "مستوى الصوت"
+
+#: docking/applets/volume/applet.py:50
+msgid "Muted"
+msgstr "صامت"
+
+#: docking/applets/volume/applet.py:50
+#, python-brace-format
+msgid "Volume: {pct}%"
+msgstr "مستوى الصوت: {pct}%"
+
+#: docking/applets/weather/applet.py:45
+msgid "Weather"
+msgstr "الطقس"
+
+#: docking/applets/weather/applet.py:99
+msgid "Show Temperature"
+msgstr "عرض الحرارة"
+
+#: docking/applets/weather/applet.py:104
+msgid "Change City..."
+msgstr "تغيير المدينة..."
+
+#: docking/applets/weather/applet.py:259
+#, python-brace-format
+msgid "{temp}°C, {desc}"
+msgstr "{temp} درجة، {desc}"
+
+#: docking/applets/weather/applet.py:264 docking/applets/weather/state.py:89
+#, python-brace-format
+msgid "Air: {label}"
+msgstr "الهواء: {label}"
+
+#: docking/applets/weather/state.py:72
+#, python-brace-format
+msgid "{city}: {temp}°C"
+msgstr ""
+
+#: docking/applets/weather/state.py:83
+msgid "Weather (no city selected)"
+msgstr "الطقس (لم يتم اختيار مدينة)"
+
+#: docking/applets/weather/state.py:85
+#, python-brace-format
+msgid "{city}: loading..."
+msgstr "{city}: جاري التحميل..."
+
+#: docking/applets/workspaces/applet.py:39
+msgid "Workspaces"
+msgstr "مساحات العمل"
+
+#: docking/ui/about.py:44
+msgid "Website"
+msgstr "موقع إلكتروني"
+
+#: docking/ui/menu.py:198 docking/ui/menu.py:215
+msgid "Remove from Dock"
+msgstr "إزالة من الشريط"
+
+#: docking/ui/menu.py:222
+msgid "Keep in Dock"
+msgstr "الاحتفاظ في الشريط"
+
+#: docking/ui/menu.py:231
+msgid "Close All"
+msgstr "إغلاق الكل"
+
+#: docking/ui/menu.py:231
+msgid "Close"
+msgstr "إغلاق"
+
+#: docking/ui/menu.py:262
+msgid "Auto-hide"
+msgstr "إخفاء تلقائي"
+
+#: docking/ui/menu.py:268
+msgid "Window Previews"
+msgstr "معاينة النوافذ"
+
+#: docking/ui/menu.py:278
+msgid "Display"
+msgstr "شاشة"
+
+#: docking/ui/menu.py:286
+msgid "Lock Icons"
+msgstr "قفل الأيقونات"
+
+#: docking/ui/menu.py:298
+msgid "Themes"
+msgstr "سمات"
+
+#: docking/ui/menu.py:311
+msgid "Icon Size"
+msgstr "حجم الأيقونة"
+
+#: docking/ui/menu.py:322
+msgid "Position"
+msgstr "موضع"
+
+#: docking/ui/menu.py:332
+msgid "Applets"
+msgstr "تطبيقات مصغرة"
+
+#: docking/ui/menu.py:384
+msgid "Add Separator"
+msgstr "إضافة فاصل"
+
+#: docking/ui/menu.py:394
+msgid "About"
+msgstr "حول"
+
+#: docking/ui/menu.py:399
+msgid "Quit"
+msgstr "خروج"
+
+#: docking/ui/menu.py:429
+msgid "Window"
+msgstr "نافذة"
+
+#, python-brace-format
+#~ msgid "WiFi: {ssid}"
+#~ msgstr "واي فاي: {ssid}"

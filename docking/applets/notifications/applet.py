@@ -16,6 +16,7 @@ from gi.repository import GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 from .render import create_notifications_icon
 from .state import (
@@ -47,7 +48,7 @@ class NotificationsApplet(Applet):
     """Notification status and Do Not Disturb toggle."""
 
     id = AppletId.NOTIFICATIONS
-    name = "Notifications"
+    name = _("Notifications")
     icon_name = "preferences-system-notifications"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -112,28 +113,30 @@ class NotificationsApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label="No notification backend available")
+            placeholder = Gtk.MenuItem(label=_("No notification backend available"))
             placeholder.set_sensitive(False)
             return [placeholder]
 
         items: list[Gtk.MenuItem] = []
 
-        dnd = Gtk.CheckMenuItem(label="Do Not Disturb")
+        dnd = Gtk.CheckMenuItem(label=_("Do Not Disturb"))
         dnd.set_active(self._state.paused)
         dnd.connect("toggled", self._on_toggle_dnd)
         items.append(dnd)
 
         if self._state.pending_known:
-            pending = Gtk.MenuItem(label=f"Pending: {self._state.pending}")
+            pending = Gtk.MenuItem(
+                label=_("Pending: {n}").format(n=self._state.pending)
+            )
             pending.set_sensitive(False)
             items.append(pending)
 
-        clear_history = Gtk.MenuItem(label="Clear History")
+        clear_history = Gtk.MenuItem(label=_("Clear History"))
         clear_history.connect("activate", lambda _w: self._on_clear_history())
         items.append(clear_history)
 
         if self._backend.supports_clear:
-            clear = Gtk.MenuItem(label="Clear Notifications")
+            clear = Gtk.MenuItem(label=_("Clear Notifications"))
             clear.connect("activate", lambda _w: self._on_clear())
             items.append(clear)
 

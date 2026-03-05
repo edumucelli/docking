@@ -97,7 +97,7 @@ class TestBatteryAppletRendering:
             return_value=read_battery("BAT0", base=tmp_path),
         ):
             applet = BatteryApplet(48)
-        assert applet.item.name == "72%"
+        assert applet.item.name == "Battery: 72%"
 
     def test_tooltip_no_battery(self):
         with patch("docking.applets.battery.applet.read_battery", return_value=None):

@@ -14,6 +14,7 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import create_trash_icon, trash_tooltip
@@ -29,7 +30,7 @@ class TrashApplet(Applet):
     """Shows trash state icon; click opens, menu allows emptying."""
 
     id = AppletId.TRASH
-    name = "Trash"
+    name = _("Trash")
     icon_name = "user-trash"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -54,11 +55,11 @@ class TrashApplet(Applet):
         """Return 'Open Trash' and 'Empty Trash' menu items."""
         items: list[Gtk.MenuItem] = []
 
-        open_item = Gtk.MenuItem(label="Open Trash")
+        open_item = Gtk.MenuItem(label=_("Open Trash"))
         open_item.connect("activate", lambda _: self.on_clicked())
         items.append(open_item)
 
-        empty_item = Gtk.MenuItem(label="Empty Trash")
+        empty_item = Gtk.MenuItem(label=_("Empty Trash"))
         empty_item.set_sensitive(self._item_count > 0)
         empty_item.connect("activate", lambda _: self._empty_trash())
         items.append(empty_item)

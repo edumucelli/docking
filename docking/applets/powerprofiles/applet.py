@@ -28,6 +28,7 @@ from gi.repository import GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 from .render import create_power_profiles_icon
 from .state import (
@@ -50,7 +51,7 @@ class PowerProfilesApplet(Applet):
     """Quick selector for power profile backends (PPD/tuned/TLP)."""
 
     id = AppletId.POWERPROFILES
-    name = "Power Profiles"
+    name = _("Power Profiles")
     icon_name = "battery-good-symbolic"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -108,12 +109,12 @@ class PowerProfilesApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Build context menu with radio-selector profile entries."""
         if not self._state.available:
-            item = Gtk.MenuItem(label="Power Profiles unavailable")
+            item = Gtk.MenuItem(label=_("Power Profiles unavailable"))
             item.set_sensitive(False)
             return [item]
 
         items: list[Gtk.MenuItem] = []
-        title = Gtk.MenuItem(label="Select Profile")
+        title = Gtk.MenuItem(label=_("Select Profile"))
         title.set_sensitive(False)
         items.append(title)
 
@@ -131,7 +132,9 @@ class PowerProfilesApplet(Applet):
 
         if self._state.degraded_reason:
             items.append(Gtk.SeparatorMenuItem())
-            reason = Gtk.MenuItem(label=f"Limited: {self._state.degraded_reason}")
+            reason = Gtk.MenuItem(
+                label=_("Limited: {reason}").format(reason=self._state.degraded_reason)
+            )
             reason.set_sensitive(False)
             items.append(reason)
 

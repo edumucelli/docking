@@ -25,6 +25,7 @@ from docking.applets.hydration.state import (
     with_fill,
 )
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -34,7 +35,7 @@ class HydrationApplet(Applet):
     """Reminds you to drink water at configurable intervals."""
 
     id = AppletId.HYDRATION
-    name = "Hydration"
+    name = _("Hydration")
     icon_name = "weather-showers"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -107,7 +108,7 @@ class HydrationApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
 
-        show = Gtk.CheckMenuItem(label="Show Timer")
+        show = Gtk.CheckMenuItem(label=_("Show Timer"))
         show.set_active(self._state.show_timer)
         show.connect("toggled", self._on_toggle_timer)
         items.append(show)
@@ -115,7 +116,7 @@ class HydrationApplet(Applet):
         items.append(Gtk.SeparatorMenuItem())
 
         for mins in INTERVAL_PRESETS:
-            mi = Gtk.CheckMenuItem(label=f"{mins} min")
+            mi = Gtk.CheckMenuItem(label=_("{mins} min").format(mins=mins))
             mi.set_active(self._state.interval_min == mins)
             mi.connect(
                 "toggled",

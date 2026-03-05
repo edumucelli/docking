@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 _log = with_context(
@@ -39,13 +40,13 @@ def unavailable_state() -> NotificationsState:
 def tooltip_text(state: NotificationsState) -> str:
     """Tooltip text for notifications applet."""
     if not state.available:
-        return "Notifications: No backend available"
+        return _("Notifications: No backend available")
 
     lines: list[str] = []
     if state.pending_known:
-        lines.append(f"Pending: {state.pending}")
+        lines.append(_("Pending: {n}").format(n=state.pending))
     if not lines:
-        lines.append("Notifications")
+        lines.append(_("Notifications"))
     return "\n".join(lines)
 
 

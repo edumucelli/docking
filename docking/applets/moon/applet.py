@@ -21,6 +21,7 @@ from docking.applets.base import Applet
 from docking.applets.identity import AppletId
 from docking.applets.moon.render import create_icon
 from docking.applets.moon.state import MoonData, fetch_moon, phase_name
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
@@ -43,7 +44,7 @@ class MoonApplet(Applet):
     """
 
     id = AppletId.MOON
-    name = "Moon"
+    name = _("Moon")
     icon_name = "weather-clear-night"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -84,14 +85,14 @@ class MoonApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         if not self._moon:
-            self.item.name = "Moon (loading...)"
+            self.item.name = _("Moon (loading...)")
             return
         name = phase_name(
             illumination=self._moon.illumination,
             description=self._moon.description,
         )
         pct = int(self._moon.illumination * 100)
-        lines = [name, f"Illumination: {pct}%"]
+        lines = [name, _("Illumination: {pct}%").format(pct=pct)]
         if self._moon.description:
             lines.append(self._moon.description.capitalize())
         self.item.name = "\n".join(lines)
@@ -114,12 +115,12 @@ class MoonApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
 
-        show = Gtk.CheckMenuItem(label="Show Phase Name")
+        show = Gtk.CheckMenuItem(label=_("Show Phase Name"))
         show.set_active(self._show_phase)
         show.connect("toggled", self._on_toggle_phase)
         items.append(show)
 
-        refresh = Gtk.MenuItem(label="Refresh")
+        refresh = Gtk.MenuItem(label=_("Refresh"))
         refresh.connect("activate", lambda _: self._fetch_async())
         items.append(refresh)
 

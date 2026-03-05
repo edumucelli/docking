@@ -19,6 +19,7 @@ from docking.applets.clock.state import (
     save_payload,
 )
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -28,7 +29,7 @@ class ClockApplet(Applet):
     """Displays current time as an analog clock face or digital readout."""
 
     id = AppletId.CLOCK
-    name = "Clock"
+    name = _("Clock")
     icon_name = "clock"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -63,17 +64,17 @@ class ClockApplet(Applet):
         """Three toggles: Digital Clock, 24-Hour Clock, Show Date."""
         items: list[Gtk.MenuItem] = []
 
-        digital = Gtk.CheckMenuItem(label="Digital Clock")
+        digital = Gtk.CheckMenuItem(label=_("Digital Clock"))
         digital.set_active(self._show_digital)
         digital.connect("toggled", self._on_toggle_digital)
         items.append(digital)
 
-        military = Gtk.CheckMenuItem(label="24-Hour Clock")
+        military = Gtk.CheckMenuItem(label=_("24-Hour Clock"))
         military.set_active(self._show_military)
         military.connect("toggled", self._on_toggle_military)
         items.append(military)
 
-        date = Gtk.CheckMenuItem(label="Show Date")
+        date = Gtk.CheckMenuItem(label=_("Show Date"))
         date.set_active(self._show_date)
         date.set_sensitive(self._show_digital)
         date.connect("toggled", self._on_toggle_date)

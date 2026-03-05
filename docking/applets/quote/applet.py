@@ -15,6 +15,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import draw_bulb_icon
@@ -37,7 +38,7 @@ class QuoteApplet(Applet):
     """Quote of the day style applet inspired by the legacy Cairo-Dock plugin."""
 
     id = AppletId.QUOTE
-    name = "Quote"
+    name = _("Quote")
     icon_name = "idea"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -78,25 +79,25 @@ class QuoteApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
 
-        source_header = Gtk.MenuItem(label=SOURCE_LABELS.get(self._source, "Quote"))
+        source_header = Gtk.MenuItem(label=SOURCE_LABELS.get(self._source, _("Quote")))
         source_header.set_sensitive(False)
         items.append(source_header)
 
-        next_item = Gtk.MenuItem(label="Next Quote")
+        next_item = Gtk.MenuItem(label=_("Next Quote"))
         next_item.connect("activate", lambda _: self.on_clicked())
         items.append(next_item)
 
-        copy_item = Gtk.MenuItem(label="Copy Quote")
+        copy_item = Gtk.MenuItem(label=_("Copy Quote"))
         copy_item.connect("activate", lambda _: self._copy_current_quote())
         items.append(copy_item)
 
-        refresh_item = Gtk.MenuItem(label="Refresh from Web")
+        refresh_item = Gtk.MenuItem(label=_("Refresh from Web"))
         refresh_item.connect("activate", lambda _: self._refresh_from_web())
         items.append(refresh_item)
 
         items.append(Gtk.SeparatorMenuItem())
 
-        source_title = Gtk.MenuItem(label="Source")
+        source_title = Gtk.MenuItem(label=_("Source"))
         source_title.set_sensitive(False)
         items.append(source_title)
 
@@ -201,9 +202,11 @@ class QuoteApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         if self._loading and self._current is None:
-            self.item.name = f"{SOURCE_LABELS.get(self._source, 'Quote')}: loading..."
+            self.item.name = _("{source}: loading...").format(
+                source=SOURCE_LABELS.get(self._source, _("Quote"))
+            )
             return
         if self._current:
             self.item.name = format_quote(self._current)
             return
-        self.item.name = "Quote"
+        self.item.name = _("Quote")

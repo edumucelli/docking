@@ -21,6 +21,7 @@ from docking.applets.cpumonitor.state import (
     tooltip_text,
 )
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
@@ -33,7 +34,7 @@ class CpuMonitorApplet(Applet):
     """Circular gauge: CPU radial fill + memory arc at edge."""
 
     id = AppletId.CPUMONITOR
-    name = "CPU Monitor"
+    name = _("CPU Monitor")
     icon_name = "utilities-system-monitor"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:

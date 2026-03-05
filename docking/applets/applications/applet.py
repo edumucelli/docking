@@ -12,6 +12,7 @@ from docking.applets.applications.render import create_icon, make_menu_item_with
 from docking.applets.applications.state import CATEGORY_ICONS, _build_app_categories
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 _log = with_context(
@@ -24,7 +25,7 @@ class ApplicationsApplet(Applet):
     """Categorized application launcher via right-click menu."""
 
     id = AppletId.APPLICATIONS
-    name = "Applications"
+    name = _("Applications")
     icon_name = "view-app-grid"
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:

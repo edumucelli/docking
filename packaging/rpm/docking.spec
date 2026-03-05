@@ -9,6 +9,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildArch:      x86_64
 
 Requires:       python3
+BuildRequires:  gettext
 
 %description
 Docking is a lightweight, feature-rich dock for Linux written in Python
@@ -24,6 +25,8 @@ and an extensible applet system.
 
 %install
 rm -rf %{buildroot}
+
+bash tools/compile_translations.sh
 
 mkdir -p %{buildroot}/usr/lib/docking/python
 python3 -m pip install --no-compile --no-deps \

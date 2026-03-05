@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+from docking.i18n import _
+
 
 class TrafficCounters(NamedTuple):
     """Byte counters for a network interface."""
@@ -84,7 +86,7 @@ def build_tooltip(
 ) -> str:
     """Multi-line tooltip with connection details."""
     if not is_connected:
-        return "Network: Not connected"
+        return _("Network: Not connected")
     lines = []
     if ssid:
         lines.append(f"WiFi: {ssid} ({signal_strength}%)")

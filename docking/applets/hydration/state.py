@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
+from docking.i18n import _
+
 DEFAULT_INTERVAL = 45
 INTERVAL_PRESETS = (15, 30, 45, 60, 90)
 # Refresh icon every N ticks (seconds) when timer overlay is hidden
@@ -50,8 +52,10 @@ def format_remaining(fill: float, interval_min: int) -> str:
 def tooltip_text(fill: float, interval_min: int) -> str:
     """Build tooltip string."""
     if fill <= 0:
-        return "Drink water!"
-    return f"Next in {format_remaining(fill=fill, interval_min=interval_min)}"
+        return _("Drink water!")
+    return _("Next in {time}").format(
+        time=format_remaining(fill=fill, interval_min=interval_min)
+    )
 
 
 def mouth_curvature(fill: float) -> float:

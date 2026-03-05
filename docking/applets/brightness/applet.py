@@ -19,6 +19,7 @@ from docking.applets.brightness.state import (
     set_brightness,
 )
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
@@ -37,7 +38,7 @@ class BrightnessApplet(Applet):
     """
 
     id = AppletId.BRIGHTNESS
-    name = "Brightness"
+    name = _("Brightness")
     icon_name = "display-brightness-symbolic"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -64,7 +65,7 @@ class BrightnessApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         pct = int(self._brightness * 100)
-        self.item.name = f"Brightness: {pct}%"
+        self.item.name = _("Brightness: {pct}%").format(pct=pct)
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
@@ -87,7 +88,7 @@ class BrightnessApplet(Applet):
         from gi.repository import Gtk
 
         items = []
-        show = Gtk.CheckMenuItem(label="Show Level")
+        show = Gtk.CheckMenuItem(label=_("Show Level"))
         show.set_active(self._show_level)
         show.connect("toggled", self._on_toggle_level)
         items.append(show)

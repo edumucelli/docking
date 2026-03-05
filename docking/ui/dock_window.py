@@ -91,6 +91,7 @@ from gi.repository import Gdk, GdkX11, GLib, Gtk  # noqa: E402
 from docking.applets.base import is_applet
 from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout, content_bounds
+from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.launcher import launch
 from docking.platform.struts import clear_struts, set_dock_struts
@@ -238,7 +239,7 @@ class DockWindow(Gtk.Window):
         Sets window manager hints (DOCK type, skip taskbar/pager, keep above,
         sticky) and enables RGBA visual for composited transparency.
         """
-        self.set_title("Docking")
+        self.set_title(_("Docking"))
         self.set_decorated(False)
         self.set_skip_taskbar_hint(True)
         self.set_skip_pager_hint(True)
@@ -397,9 +398,13 @@ class DockWindow(Gtk.Window):
             if monitor is None:
                 continue
             geom = monitor.get_geometry()
-            label = f"Display {idx + 1}: {geom.width}x{geom.height}"
+            label = _("Display {display}: {width}x{height}").format(
+                display=idx + 1,
+                width=geom.width,
+                height=geom.height,
+            )
             if idx == primary_idx:
-                label += " (Primary)"
+                label += f" ({_('Primary')})"
             choices.append((label, idx))
         return choices
 

@@ -7,6 +7,8 @@ import math
 import cairo
 import gi
 
+from docking.i18n import _, ngettext
+
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
@@ -18,10 +20,12 @@ def trash_icon_name(*, item_count: int) -> str:
 
 def trash_tooltip(*, item_count: int) -> str:
     if item_count == 0:
-        return "No items in Trash"
+        return _("No items in Trash")
     if item_count == 1:
-        return "1 item in Trash"
-    return f"{item_count} items in Trash"
+        return ngettext("{n} item in Trash", "{n} items in Trash", 1).format(n=1)
+    return ngettext("{n} item in Trash", "{n} items in Trash", item_count).format(
+        n=item_count
+    )
 
 
 def _rounded_rect(

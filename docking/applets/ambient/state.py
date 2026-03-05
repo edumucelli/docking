@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any, Mapping, NamedTuple
 
+from docking.i18n import _
+
 VOLUME_STEP = 0.1
 
 
@@ -18,19 +20,19 @@ class Sound(NamedTuple):
 
 # Bundled OGG files (CC0 / Public Domain)
 FILE_SOUNDS: list[Sound] = [
-    Sound(name="birds", label="Birds", kind="file"),
-    Sound(name="boat", label="Boat", kind="file"),
-    Sound(name="coffee-shop", label="Coffee Shop", kind="file"),
-    Sound(name="fireplace", label="Fireplace", kind="file"),
-    Sound(name="stream", label="Stream", kind="file"),
-    Sound(name="summer-night", label="Summer Night", kind="file"),
-    Sound(name="wind", label="Wind", kind="file"),
+    Sound(name="birds", label=_("Birds"), kind="file"),
+    Sound(name="boat", label=_("Boat"), kind="file"),
+    Sound(name="coffee-shop", label=_("Coffee Shop"), kind="file"),
+    Sound(name="fireplace", label=_("Fireplace"), kind="file"),
+    Sound(name="stream", label=_("Stream"), kind="file"),
+    Sound(name="summer-night", label=_("Summer Night"), kind="file"),
+    Sound(name="wind", label=_("Wind"), kind="file"),
 ]
 
 # Procedural noise via GStreamer audiotestsrc
 NOISE_SOUNDS: list[Sound] = [
-    Sound(name="white-noise", label="White Noise", kind="noise"),
-    Sound(name="pink-noise", label="Pink Noise", kind="noise"),
+    Sound(name="white-noise", label=_("White Noise"), kind="noise"),
+    Sound(name="pink-noise", label=_("Pink Noise"), kind="noise"),
 ]
 
 ALL_SOUNDS: list[Sound] = FILE_SOUNDS + NOISE_SOUNDS
@@ -78,8 +80,10 @@ def tooltip_text(state: AmbientState) -> str:
     """Build tooltip string for current state."""
     if state.playing:
         vol_pct = int(state.volume * 100)
-        return f"Playing: {sound_label(name=state.current)} ({vol_pct}%)"
-    return "Ambient"
+        return _("Playing: {sound} ({pct}%)").format(
+            sound=sound_label(name=state.current), pct=vol_pct
+        )
+    return _("Ambient")
 
 
 def set_playing(state: AmbientState, playing: bool) -> AmbientState:

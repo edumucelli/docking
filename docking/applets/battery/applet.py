@@ -13,6 +13,7 @@ from docking.applets.base import Applet
 from docking.applets.battery.render import render_icon
 from docking.applets.battery.state import BatteryState, read_battery, tooltip_text
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -22,7 +23,7 @@ class BatteryApplet(Applet):
     """Shows battery charge icon from sysfs, polled every 60 seconds."""
 
     id = AppletId.BATTERY
-    name = "Battery"
+    name = _("Battery")
     icon_name = "battery-good"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:

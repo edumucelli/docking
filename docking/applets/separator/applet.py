@@ -11,6 +11,7 @@ from gi.repository import Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import create_separator_icon
@@ -26,7 +27,7 @@ class SeparatorApplet(Applet):
     """A thin transparent gap that can be inserted multiple times."""
 
     id = AppletId.SEPARATOR
-    name = "Separator"
+    name = _("Separator")
     icon_name = "list-remove"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -74,9 +75,9 @@ class SeparatorApplet(Applet):
         self._set_gap(gap=self._gap + STEP if direction_up else self._gap - STEP)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        increase = Gtk.MenuItem(label="Increase Gap")
+        increase = Gtk.MenuItem(label=_("Increase Gap"))
         increase.connect("activate", lambda _: self._set_gap(gap=self._gap + STEP))
-        decrease = Gtk.MenuItem(label="Decrease Gap")
+        decrease = Gtk.MenuItem(label=_("Decrease Gap"))
         decrease.connect("activate", lambda _: self._set_gap(gap=self._gap - STEP))
         return [increase, decrease]
 

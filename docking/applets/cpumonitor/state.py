@@ -5,6 +5,8 @@ from __future__ import annotations
 import colorsys
 from typing import NamedTuple
 
+from docking.i18n import _
+
 # Redraw thresholds (avoid excessive redraws)
 CPU_THRESHOLD = 0.03
 MEM_THRESHOLD = 0.01
@@ -59,4 +61,6 @@ def cpu_hue_rgb(cpu: float) -> tuple[float, float, float]:
 
 def tooltip_text(cpu: float, mem: float) -> str:
     """Build tooltip text for current cpu/memory values."""
-    return f"CPU: {cpu * 100:.1f}% | Mem: {mem * 100:.1f}%"
+    return _("CPU: {cpu}% | Mem: {mem}%").format(
+        cpu=f"{cpu * 100:.1f}", mem=f"{mem * 100:.1f}"
+    )

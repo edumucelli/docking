@@ -19,6 +19,8 @@ override_dh_auto_test:
 	# Tests require pytest and dev deps; run in CI instead
 
 override_dh_auto_install:
+	# Compile gettext catalogs so packaged installs include .mo files.
+	bash tools/compile_translations.sh
 	dh_auto_install
 	# Ensure /usr/bin/docking exists even on older setuptools/pybuild stacks
 	# where project.scripts may not be emitted.

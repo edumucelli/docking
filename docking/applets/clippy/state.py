@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from docking.i18n import _
+
 MAX_DISPLAY_LEN = 50
 
 
@@ -17,7 +19,7 @@ def tooltip_text(clips: list[str], cur_position: int) -> str:
     """Build tooltip from clip history and current cursor position."""
     if clips and 0 < cur_position <= len(clips):
         return _truncate(clips[cur_position - 1])
-    return "Clippy (empty)"
+    return _("Clippy (empty)")
 
 
 def add_clip(clips: list[str], text: str, max_entries: int) -> tuple[list[str], int]:

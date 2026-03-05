@@ -153,6 +153,8 @@ import math
 from datetime import date
 from typing import TYPE_CHECKING
 
+from docking.i18n import _
+
 if TYPE_CHECKING:
     from docking.applets.moon.state import MoonData
 
@@ -211,12 +213,12 @@ def illumination_from_phase(phase: float) -> float:
 def phase_from_illumination(illumination: float) -> str:
     """Map illumination to phase name without description context."""
     if illumination < 0.02:
-        return "New"
+        return _("New")
     if illumination > 0.98:
-        return "Full"
+        return _("Full")
     if illumination < 0.5:
-        return "Crescent"
-    return "Gibbous"
+        return _("Crescent")
+    return _("Gibbous")
 
 
 def fetch_moon_offline(d: date | None = None) -> MoonData:
@@ -229,18 +231,20 @@ def fetch_moon_offline(d: date | None = None) -> MoonData:
     illum = illumination_from_phase(phase=phase)
     waning = phase > 0.5
     if phase < 0.03 or phase > 0.97:
-        desc = "new moon"
+        desc = _("new moon")
     elif 0.23 < phase < 0.27:
-        desc = "first quarter"
+        desc = _("first quarter")
     elif 0.47 < phase < 0.53:
-        desc = "full moon"
+        desc = _("full moon")
     elif 0.73 < phase < 0.77:
-        desc = "last quarter"
+        desc = _("last quarter")
     elif phase < 0.5:
-        desc = f"{phase * SYNODIC_MONTH:.1f} days after new moon"
+        desc = _("{days} days after new moon").format(
+            days=f"{phase * SYNODIC_MONTH:.1f}"
+        )
     else:
         days_after = (phase - 0.5) * SYNODIC_MONTH
-        desc = f"{days_after:.1f} days after full moon"
+        desc = _("{days} days after full moon").format(days=f"{days_after:.1f}")
     return MoonData(
         image_name=f"moon{int(illum * 10):02d}{'b' if waning else 'a'}",
         illumination=round(illum, 3),

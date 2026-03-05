@@ -38,6 +38,7 @@ parts:
       - pkg-config
       - libcairo2-dev
       - libgirepository1.0-dev
+      - gettext
     stage-packages:
       - python3-gi
       - python3-gi-cairo
@@ -51,6 +52,7 @@ parts:
       - librsvg2-common
       - ca-certificates
     override-build: |
+      bash "$CRAFT_PROJECT_DIR/tools/compile_translations.sh"
       craftctl default
       desktop_file="${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
       install -d "$(dirname "${desktop_file}")"

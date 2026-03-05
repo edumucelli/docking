@@ -20,6 +20,7 @@ from docking.applets.clippy.state import (
     tooltip_text,
 )
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -29,7 +30,7 @@ class ClippyApplet(Applet):
     """Clipboard history applet. Scroll to cycle, click to paste, menu to pick."""
 
     id = AppletId.CLIPPY
-    name = "Clippy"
+    name = _("Clippy")
     icon_name = "edit-paste"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -88,7 +89,7 @@ class ClippyApplet(Applet):
 
         if self._clips:
             items.append(Gtk.SeparatorMenuItem())
-            clear = Gtk.MenuItem(label="Clear")
+            clear = Gtk.MenuItem(label=_("Clear"))
             clear.connect("activate", lambda _: self._clear())
             items.append(clear)
 

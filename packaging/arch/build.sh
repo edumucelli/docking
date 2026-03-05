@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PKG_DIR="${ROOT_DIR}/packaging/arch"
 ARTIFACTS_DIR="${ROOT_DIR}/artifacts"
 
+bash "${ROOT_DIR}/tools/compile_translations.sh"
+
 VERSION=$(
   awk -F ' *= *' '
     $0 == "[project]" { in_project = 1; next }

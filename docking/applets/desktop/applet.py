@@ -12,13 +12,14 @@ from docking.applets.base import Applet
 from docking.applets.desktop.render import create_icon
 from docking.applets.desktop.state import next_showing_desktop
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 
 class DesktopApplet(Applet):
     """Click to toggle showing the desktop (minimize/restore all windows)."""
 
     id = AppletId.DESKTOP
-    name = "Desktop"
+    name = _("Desktop")
     icon_name = "user-desktop"
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:

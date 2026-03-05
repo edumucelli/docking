@@ -15,6 +15,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
+# Ensure compiled gettext catalogs are present in the build context.
+bash "${PROJECT_ROOT}/tools/compile_translations.sh"
+
 # Symlink debian/ to project root (dpkg-buildpackage expects it there)
 if [ ! -e debian ]; then
     ln -s packaging/deb/debian debian

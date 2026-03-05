@@ -18,6 +18,10 @@ _VENDOR_DIR = "/usr/lib/docking/vendor"
 if os.path.isdir(_VENDOR_DIR):
     sys.path.insert(0, _VENDOR_DIR)
 
+from docking.i18n import init as _init_i18n
+
+_init_i18n()
+
 import gi
 
 gi.require_version("Gtk", "3.0")

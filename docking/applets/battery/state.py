@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NamedTuple
 
+from docking.i18n import _
+
 BAT_BASE = Path("/sys/class/power_supply")
 
 
@@ -54,8 +56,8 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
 def tooltip_text(state: BatteryState | None) -> str:
     """Build tooltip string from current state."""
     if state is None:
-        return "No battery"
-    return f"{state.capacity}%"
+        return _("No battery")
+    return _("Battery: {pct}%").format(pct=state.capacity)
 
 
 def icon_name_for(state: BatteryState | None) -> str:

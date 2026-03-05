@@ -14,6 +14,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import _draw_screenshot_icon
@@ -30,7 +31,7 @@ class ScreenshotApplet(Applet):
     """Capture screenshots via the best available tool."""
 
     id = AppletId.SCREENSHOT
-    name = "Screenshot"
+    name = _("Screenshot")
     icon_name = "applets-screenshooter"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -69,7 +70,7 @@ class ScreenshotApplet(Applet):
 
         items.append(Gtk.SeparatorMenuItem())
         for delay_s in _TIMED_DELAYS_S:
-            mi = Gtk.MenuItem(label=f"Full Screen in {delay_s}s")
+            mi = Gtk.MenuItem(label=_("Full Screen in {delay}s").format(delay=delay_s))
             mi.connect(
                 "activate",
                 lambda _w, d=delay_s: self._run_mode(mode="full", delay_seconds=d),

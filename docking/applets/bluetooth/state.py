@@ -10,6 +10,8 @@ from typing import Any
 
 import gi
 
+from docking.i18n import _
+
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
@@ -98,23 +100,25 @@ def adapter_from_state(
 def build_tooltip(state: BluetoothState, active_adapter_path: str) -> str:
     if not state.available:
         if state.error:
-            return f"Bluetooth: {state.error}"
-        return "Bluetooth: No adapter/service"
+            return _("Bluetooth: {error}").format(error=state.error)
+        return _("Bluetooth: No adapter/service")
 
     adapter = _find_adapter(state=state, path=active_adapter_path)
     if adapter is None:
-        return "Bluetooth: No adapter/service"
+        return _("Bluetooth: No adapter/service")
 
-    powered = "On" if adapter.powered else "Off"
+    powered = _("On") if adapter.powered else _("Off")
     paired = [d for d in state.devices if d.adapter_path == adapter.path and d.paired]
     connected = [d for d in paired if d.connected]
 
     lines = [
-        f"Bluetooth: {powered}",
-        f"Adapter: {adapter.alias or adapter.name}",
-        f"Connected: {len(connected)}",
-        f"Paired: {len(paired)}",
-        f"Discovering: {'Yes' if adapter.discovering else 'No'}",
+        _("Bluetooth: {state}").format(state=powered),
+        _("Adapter: {name}").format(name=adapter.alias or adapter.name),
+        _("Connected: {n}").format(n=len(connected)),
+        _("Paired: {n}").format(n=len(paired)),
+        _("Discovering: {state}").format(
+            state=_("Yes") if adapter.discovering else _("No")
+        ),
     ]
 
     device_with_battery = next(

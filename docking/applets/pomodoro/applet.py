@@ -30,6 +30,7 @@ from docking.applets.pomodoro.state import (
     tick,
     tooltip_text,
 )
+from docking.i18n import _
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ class PomodoroApplet(Applet):
     """Pomodoro timer with flat tomato icon."""
 
     id = AppletId.POMODORO
-    name = "Pomodoro"
+    name = _("Pomodoro")
     icon_name = "alarm"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -148,11 +149,11 @@ class PomodoroApplet(Applet):
         items: list[Gtk.MenuItem] = []
 
         # Reset
-        reset_item = Gtk.MenuItem(label="Reset")
+        reset_item = Gtk.MenuItem(label=_("Reset"))
         reset_item.connect("activate", lambda _w: self._reset())
         items.append(reset_item)
 
-        show = Gtk.CheckMenuItem(label="Show Timer")
+        show = Gtk.CheckMenuItem(label=_("Show Timer"))
         show.set_active(self._data.show_timer)
         show.connect("toggled", self._on_toggle_timer)
         items.append(show)
@@ -160,11 +161,11 @@ class PomodoroApplet(Applet):
         items.append(Gtk.SeparatorMenuItem())
 
         # Work duration
-        items.append(self._make_duration_header(label="Work"))
+        items.append(self._make_duration_header(label=_("Work")))
         for mins in WORK_PRESETS:
             items.append(
                 self._make_radio_item(
-                    label=f"{mins} min",
+                    label=_("{mins} min").format(mins=mins),
                     active=self._data.work_min == mins,
                     callback=lambda _w, m=mins: self._set_work(minutes=m),
                 )
@@ -173,11 +174,11 @@ class PomodoroApplet(Applet):
         items.append(Gtk.SeparatorMenuItem())
 
         # Break duration
-        items.append(self._make_duration_header(label="Break"))
+        items.append(self._make_duration_header(label=_("Break")))
         for mins in BREAK_PRESETS:
             items.append(
                 self._make_radio_item(
-                    label=f"{mins} min",
+                    label=_("{mins} min").format(mins=mins),
                     active=self._data.break_min == mins,
                     callback=lambda _w, m=mins: self._set_break(minutes=m),
                 )
@@ -186,11 +187,11 @@ class PomodoroApplet(Applet):
         items.append(Gtk.SeparatorMenuItem())
 
         # Long break duration
-        items.append(self._make_duration_header(label="Long Break"))
+        items.append(self._make_duration_header(label=_("Long Break")))
         for mins in LONG_BREAK_PRESETS:
             items.append(
                 self._make_radio_item(
-                    label=f"{mins} min",
+                    label=_("{mins} min").format(mins=mins),
                     active=self._data.long_break_min == mins,
                     callback=lambda _w, m=mins: self._set_long_break(minutes=m),
                 )

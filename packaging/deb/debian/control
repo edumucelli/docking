@@ -12,7 +12,8 @@ Build-Depends:
     python3-all,
     python3-setuptools,
     python3-wheel,
-    python3-pip
+    python3-pip,
+    gettext
 
 Package: docking
 Architecture: all

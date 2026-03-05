@@ -29,6 +29,7 @@ from docking.applets.weather.state import (
     prefs_from_mapping,
     prefs_payload,
 )
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
@@ -41,7 +42,7 @@ class WeatherApplet(Applet):
     """Shows current weather icon + temperature for a selected city."""
 
     id = AppletId.WEATHER
-    name = "Weather"
+    name = _("Weather")
     icon_name = "weather-few-clouds"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -95,12 +96,12 @@ class WeatherApplet(Applet):
             header.set_sensitive(False)
             items.append(header)
 
-        show_temp = Gtk.CheckMenuItem(label="Show Temperature")
+        show_temp = Gtk.CheckMenuItem(label=_("Show Temperature"))
         show_temp.set_active(self._show_temperature)
         show_temp.connect("toggled", self._on_toggle_temperature)
         items.append(show_temp)
 
-        change = Gtk.MenuItem(label="Change City...")
+        change = Gtk.MenuItem(label=_("Change City..."))
         change.connect("activate", lambda _: self._show_city_dialog())
         items.append(change)
         return items
@@ -124,7 +125,7 @@ class WeatherApplet(Applet):
 
     def _show_city_dialog(self) -> None:
         dialog = Gtk.Dialog(
-            title="Search for the city",
+            title=_("Search for the city"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
         dialog.set_default_size(350, -1)
@@ -138,7 +139,7 @@ class WeatherApplet(Applet):
         box.set_margin_bottom(8)
 
         entry = Gtk.Entry()
-        entry.set_placeholder_text("Type city name...")
+        entry.set_placeholder_text(_("Type city name..."))
         box.pack_start(entry, False, False, 0)
 
         completion = Gtk.EntryCompletion()
@@ -255,12 +256,18 @@ class WeatherApplet(Applet):
         city.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
         box.pack_start(city, False, False, 0)
 
-        current = Gtk.Label(label=f"{weather.temperature:.0f}°C, {weather.description}")
+        current = Gtk.Label(
+            label=_("{temp}°C, {desc}").format(
+                temp=f"{weather.temperature:.0f}", desc=weather.description
+            )
+        )
         current.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.9))
         box.pack_start(current, False, False, 0)
 
         if self._air_quality:
-            aqi_lbl = Gtk.Label(label=f"Air: {self._air_quality.label}")
+            aqi_lbl = Gtk.Label(
+                label=_("Air: {label}").format(label=self._air_quality.label)
+            )
             aqi_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
             box.pack_start(aqi_lbl, False, False, 0)
 
@@ -271,7 +278,11 @@ class WeatherApplet(Applet):
                 Gtk.IconSize.LARGE_TOOLBAR,
             )
             label = Gtk.Label(
-                label=f"{day.date}: {day.temp_min:.0f}/{day.temp_max:.0f}°C"
+                label=_("{date}: {min_temp}/{max_temp}°C").format(
+                    date=day.date,
+                    min_temp=f"{day.temp_min:.0f}",
+                    max_temp=f"{day.temp_max:.0f}",
+                )
             )
             label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
             row.pack_start(icon, False, False, 0)

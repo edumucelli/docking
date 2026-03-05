@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT_LINK="${ROOT_DIR}/result-nix"
 ARTIFACTS_DIR="${ROOT_DIR}/artifacts"
 
+bash "${ROOT_DIR}/tools/compile_translations.sh"
+
 mkdir -p "${ARTIFACTS_DIR}"
 rm -f "${OUT_LINK}"
 

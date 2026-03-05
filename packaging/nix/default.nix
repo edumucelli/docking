@@ -13,6 +13,7 @@ pyPkgs.buildPythonApplication rec {
   nativeBuildInputs = with pyPkgs; [
     setuptools
     wheel
+    pkgs.gettext
   ];
 
   buildInputs = with pkgs; [
@@ -41,6 +42,10 @@ pyPkgs.buildPythonApplication rec {
   ];
 
   doCheck = false;
+
+  preBuild = ''
+    bash tools/compile_translations.sh
+  '';
 
   postInstall = ''
     install -Dm644 ${../deb/org.docking.Docking.desktop} \

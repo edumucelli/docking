@@ -51,6 +51,8 @@ from typing import Any, Protocol
 
 import gi
 
+from docking.i18n import _
+
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
@@ -117,13 +119,13 @@ def profile_label(profile: str) -> str:
     """Convert canonical profile IDs into user-facing labels."""
     normalized = normalize_profile(profile)
     if normalized == "power-saver":
-        return "Power Saver"
+        return _("Power Saver")
     if normalized == "balanced":
-        return "Balanced"
+        return _("Balanced")
     if normalized == "performance":
-        return "Performance"
+        return _("Performance")
     if not normalized:
-        return "Unknown"
+        return _("Unknown")
     return normalized.replace("-", " ").title()
 
 
@@ -156,8 +158,8 @@ def tooltip_text(state: PowerProfilesState) -> str:
     """Build multi-line tooltip content from state snapshot."""
     if not state.available:
         if state.error:
-            return f"Power Profiles unavailable\n{state.error}"
-        return "Power Profiles unavailable"
+            return _("Power Profiles unavailable") + f"\n{state.error}"
+        return _("Power Profiles unavailable")
 
     lines = [
         "Power Profiles",

@@ -14,6 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install i18n tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext
+
       - name: Cache pip downloads
         uses: actions/cache@v4
         with:
@@ -28,6 +33,9 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Lint (ruff check)
         run: .venv/bin/python -m ruff check docking/ tests/
@@ -182,7 +190,10 @@ jobs:
           sudo apt-get install -y \
             debhelper dh-python python3-setuptools python3-wheel python3-pip \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
-            pybuild-plugin-pyproject python3-all
+            pybuild-plugin-pyproject python3-all gettext
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Build .deb
         run: |
@@ -245,7 +256,10 @@ jobs:
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip
+          sudo apt-get install -y rpm python3-pip gettext
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Build RPM package
         run: |
@@ -268,7 +282,10 @@ jobs:
       - name: Install Flatpak tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
+          sudo apt-get install -y flatpak flatpak-builder gettext
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Build Flatpak bundle
         run: |
@@ -295,7 +312,10 @@ jobs:
       - name: Install Snapcraft
         run: |
           sudo apt-get update
-          sudo apt-get install -y snapcraft
+          sudo apt-get install -y snapcraft gettext
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Build Snap package
         run: |
@@ -323,9 +343,12 @@ jobs:
       - name: Install AppImage tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip libfuse2
+          sudo apt-get install -y python3-pip libfuse2 gettext
           python3 -m pip install --upgrade pip
           python3 -m pip install appimage-builder
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Build AppImage
         run: |
@@ -351,7 +374,10 @@ jobs:
         run: |
           pacman -Sy --noconfirm archlinux-keyring
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git python python-pip
+          pacman -S --noconfirm --needed base-devel git python python-pip gettext
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Build Arch package
         run: |
@@ -377,6 +403,14 @@ jobs:
         uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-24.11
+
+      - name: Install i18n tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext
+
+      - name: Compile translations
+        run: bash tools/compile_translations.sh
 
       - name: Build Nix package
         run: |

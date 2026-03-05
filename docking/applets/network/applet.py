@@ -22,6 +22,7 @@ from docking.applets.network.state import (
     format_speed,
     parse_proc_net_dev,
 )
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ class NetworkApplet(Applet):
     """Shows network connection state, wifi signal, and traffic speeds."""
 
     id = AppletId.NETWORK
-    name = "Network"
+    name = _("Network")
     icon_name = "network-wireless-symbolic"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -86,21 +87,25 @@ class NetworkApplet(Applet):
         items = []
         if self._ssid:
             header = Gtk.MenuItem(
-                label=f"WiFi: {self._ssid} ({self._signal_strength}%)"
+                label=_("WiFi: {ssid} ({pct}%)").format(
+                    ssid=self._ssid, pct=self._signal_strength
+                )
             )
             header.set_sensitive(False)
             items.append(header)
         elif self._is_connected:
-            header = Gtk.MenuItem(label=f"Ethernet: {self._iface}")
+            header = Gtk.MenuItem(
+                label=_("Ethernet: {iface}").format(iface=self._iface)
+            )
             header.set_sensitive(False)
             items.append(header)
         else:
-            header = Gtk.MenuItem(label="Not connected")
+            header = Gtk.MenuItem(label=_("Not connected"))
             header.set_sensitive(False)
             items.append(header)
 
         if self._ip_address:
-            ip_item = Gtk.MenuItem(label=f"IP: {self._ip_address}")
+            ip_item = Gtk.MenuItem(label=_("IP: {ip}").format(ip=self._ip_address))
             ip_item.set_sensitive(False)
             items.append(ip_item)
 

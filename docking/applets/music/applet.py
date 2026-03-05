@@ -15,6 +15,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 from .artwork import CoverArtResolver
 from .render import create_music_icon
@@ -39,7 +40,7 @@ class MusicApplet(Applet):
     """Media control applet with album-art rendering."""
 
     id = AppletId.MUSIC
-    name = "Music"
+    name = _("Music")
     icon_name = "audio-x-generic"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -97,11 +98,11 @@ class MusicApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label="No active player")
+            placeholder = Gtk.MenuItem(label=_("No active player"))
             placeholder.set_sensitive(False)
             return [placeholder]
 
-        previous_item = Gtk.MenuItem(label="Previous")
+        previous_item = Gtk.MenuItem(label=_("Previous"))
         previous_item.set_sensitive(self._state.can_go_previous)
         previous_item.connect("activate", lambda _w: self._action_previous())
 
@@ -109,17 +110,17 @@ class MusicApplet(Applet):
         play_pause_item.set_sensitive(self._state.can_play_pause)
         play_pause_item.connect("activate", lambda _w: self._action_play_pause())
 
-        next_item = Gtk.MenuItem(label="Next")
+        next_item = Gtk.MenuItem(label=_("Next"))
         next_item.set_sensitive(self._state.can_go_next)
         next_item.connect("activate", lambda _w: self._action_next())
 
-        volume_up_item = Gtk.MenuItem(label="Volume Up")
+        volume_up_item = Gtk.MenuItem(label=_("Volume Up"))
         volume_up_item.connect(
             "activate",
             lambda _w: self._action_volume(direction_up=True),
         )
 
-        volume_down_item = Gtk.MenuItem(label="Volume Down")
+        volume_down_item = Gtk.MenuItem(label=_("Volume Down"))
         volume_down_item.connect(
             "activate", lambda _w: self._action_volume(direction_up=False)
         )

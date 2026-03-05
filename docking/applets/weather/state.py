@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 from docking.applets.weather.api import AirQualityData, WeatherData
 from docking.applets.weather.cities import CityEntry, load_cities
+from docking.i18n import _
 
 DEFAULT_ICON_NAME = "weather-few-clouds"
 
@@ -68,7 +69,9 @@ def menu_header_label(
     """Build the disabled menu header text."""
     if not weather:
         return city_display
-    return f"{city_display}: {weather.temperature:.0f}°C"
+    return _("{city}: {temp}°C").format(
+        city=city_display, temp=f"{weather.temperature:.0f}"
+    )
 
 
 def build_tooltip(
@@ -79,13 +82,13 @@ def build_tooltip(
 ) -> str:
     """Build multi-line tooltip with current + daily forecast."""
     if not city_display:
-        return "Weather (no city selected)"
+        return _("Weather (no city selected)")
     if not weather:
-        return f"{city_display}: loading..."
+        return _("{city}: loading...").format(city=city_display)
 
     lines = [city_display, f"{weather.temperature:.0f}°C, {weather.description}"]
     if air_quality:
-        lines.append(f"Air: {air_quality.label}")
+        lines.append(_("Air: {label}").format(label=air_quality.label))
     for day in weather.daily:
         temp = f"{day.temp_min:.0f}/{day.temp_max:.0f}°C"
         lines.append(f"{day.date}: {temp}, {day.description}")

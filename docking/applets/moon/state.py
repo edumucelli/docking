@@ -18,6 +18,7 @@ from typing import NamedTuple
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from docking.i18n import _
 from docking.log import get_logger
 
 _log = get_logger(name="moon.state")
@@ -107,22 +108,22 @@ def phase_name(illumination: float, description: str) -> str:
     # Check directional phrases first (before matching exact phase names,
     # since "after full moon" would otherwise match "full moon").
     if "after new" in desc_lower or "before first" in desc_lower:
-        return "Waxing Crescent"
+        return _("Waxing Crescent")
     if "after first" in desc_lower or "before full" in desc_lower:
-        return "Waxing Gibbous"
+        return _("Waxing Gibbous")
     if "after full" in desc_lower or "before last" in desc_lower:
-        return "Waning Gibbous"
+        return _("Waning Gibbous")
     if "after last" in desc_lower or "before new" in desc_lower:
-        return "Waning Crescent"
+        return _("Waning Crescent")
     # Exact phase names
     if "new moon" in desc_lower:
-        return "New"
+        return _("New")
     if "full moon" in desc_lower:
-        return "Full"
+        return _("Full")
     if "first quarter" in desc_lower:
-        return "1st Quarter"
+        return _("1st Quarter")
     if "last quarter" in desc_lower or "third quarter" in desc_lower:
-        return "3rd Quarter"
+        return _("3rd Quarter")
     # Fallback: pure astronomical calculation (offline.py)
     from docking.applets.moon.offline import phase_from_illumination
 

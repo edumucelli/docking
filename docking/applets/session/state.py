@@ -6,6 +6,7 @@ import subprocess
 from typing import NamedTuple
 
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 _log = with_context(get_logger(name="session"), applet_id=str(AppletId.SESSION))
@@ -19,11 +20,11 @@ class SessionAction(NamedTuple):
 
 
 _ACTIONS: list[SessionAction] = [
-    SessionAction("Lock Screen", ["loginctl", "lock-session"]),
-    SessionAction("Log Out", ["loginctl", "terminate-session", ""]),
-    SessionAction("Suspend", ["systemctl", "suspend"]),
-    SessionAction("Restart", ["systemctl", "reboot"]),
-    SessionAction("Shut Down", ["systemctl", "poweroff"]),
+    SessionAction(_("Lock Screen"), ["loginctl", "lock-session"]),
+    SessionAction(_("Log Out"), ["loginctl", "terminate-session", ""]),
+    SessionAction(_("Suspend"), ["systemctl", "suspend"]),
+    SessionAction(_("Restart"), ["systemctl", "reboot"]),
+    SessionAction(_("Shut Down"), ["systemctl", "poweroff"]),
 ]
 
 

@@ -21,6 +21,7 @@ makedepends=(
   'python-pip'
   'python-setuptools'
   'python-wheel'
+  'gettext'
 )
 source=("${pkgname}-${pkgver}.tar.gz")
 sha256sums=('SKIP')
@@ -31,6 +32,8 @@ build() {
 
 package() {
   cd "${srcdir}/${pkgname}-${pkgver}"
+
+  bash tools/compile_translations.sh
 
   install -d "${pkgdir}/usr/lib/docking/python"
   python -m pip install --no-compile --no-deps \

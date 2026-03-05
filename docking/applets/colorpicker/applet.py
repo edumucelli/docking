@@ -14,6 +14,7 @@ from docking.applets.base import Applet
 from docking.applets.colorpicker.render import create_icon
 from docking.applets.colorpicker.state import pick_pixel, rgb_to_hex
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ class ColorPickerApplet(Applet):
     """
 
     id = AppletId.COLORPICKER
-    name = "Color Picker"
+    name = _("Color Picker")
     icon_name = "color-select"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -64,7 +65,7 @@ class ColorPickerApplet(Applet):
         )
 
     def refresh_tooltip(self) -> None:
-        self.item.name = self._hex if self._hex else "Color Picker"
+        self.item.name = self._hex if self._hex else _("Color Picker")
 
     def on_clicked(self) -> None:
         """Enter pick mode — fullscreen transparent overlay captures click."""
@@ -74,11 +75,11 @@ class ColorPickerApplet(Applet):
         items: list[Gtk.MenuItem] = []
 
         if self._hex:
-            copy = Gtk.MenuItem(label=f"Copy {self._hex}")
+            copy = Gtk.MenuItem(label=_("Copy {hex}").format(hex=self._hex))
             copy.connect("activate", lambda _: self._copy_to_clipboard())
             items.append(copy)
 
-        show = Gtk.CheckMenuItem(label="Show Hex")
+        show = Gtk.CheckMenuItem(label=_("Show Hex"))
         show.set_active(self._show_hex)
         show.connect("toggled", self._on_toggle_hex)
         items.append(show)

@@ -11,6 +11,7 @@ from gi.repository import Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 from .render import create_session_icon
 from .state import _ACTIONS, _run
@@ -23,7 +24,7 @@ class SessionApplet(Applet):
     """Provides session and power management actions."""
 
     id = AppletId.SESSION
-    name = "Session"
+    name = _("Session")
     icon_name = "system-log-out"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:

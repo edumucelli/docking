@@ -23,6 +23,7 @@ from gi.repository import GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import create_bluetooth_icon
@@ -53,7 +54,7 @@ class BluetoothApplet(Applet):
     """Bluetooth quick manager with multi-adapter support."""
 
     id = AppletId.BLUETOOTH
-    name = "Bluetooth"
+    name = _("Bluetooth")
     icon_name = "bluetooth-active-symbolic"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -141,34 +142,37 @@ class BluetoothApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label="Bluetooth unavailable")
+            placeholder = Gtk.MenuItem(label=_("Bluetooth unavailable"))
             placeholder.set_sensitive(False)
             return [placeholder]
 
         items: list[Gtk.MenuItem] = []
         adapter = self._active_adapter()
         if adapter is None:
-            placeholder = Gtk.MenuItem(label="No Bluetooth adapter")
+            placeholder = Gtk.MenuItem(label=_("No Bluetooth adapter"))
             placeholder.set_sensitive(False)
             return [placeholder]
 
-        items.append(self._make_header(label="General"))
+        items.append(self._make_header(label=_("General")))
+
+        powered_label = _("On") if adapter.powered else _("Off")
 
         status = Gtk.MenuItem(
-            label=(
-                f"{adapter.alias} ({'On' if adapter.powered else 'Off'})"
-                f" - Connected {connected_count(self._state)}"
+            label=_("{alias} ({powered}) - Connected {connected}").format(
+                alias=adapter.alias,
+                powered=powered_label,
+                connected=connected_count(self._state),
             )
         )
         status.set_sensitive(False)
         items.append(status)
 
-        power_toggle = Gtk.CheckMenuItem(label="Bluetooth On")
+        power_toggle = Gtk.CheckMenuItem(label=_("Bluetooth On"))
         power_toggle.set_active(adapter.powered)
         power_toggle.connect("toggled", self._on_power_toggled)
         items.append(power_toggle)
 
-        discovery_toggle = Gtk.CheckMenuItem(label="Continuous Discovery")
+        discovery_toggle = Gtk.CheckMenuItem(label=_("Continuous Discovery"))
         discovery_toggle.set_active(self._continuous_discovery)
         discovery_toggle.connect("toggled", self._on_continuous_discovery_toggled)
         items.append(discovery_toggle)
@@ -179,14 +183,14 @@ class BluetoothApplet(Applet):
         items.append(Gtk.SeparatorMenuItem())
         items.extend(self._build_devices_sections(adapter_path=adapter.path))
 
-        refresh_item = Gtk.MenuItem(label="Refresh Now")
+        refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _w: self._refresh_now())
         items.append(Gtk.SeparatorMenuItem())
         items.append(refresh_item)
         return items
 
     def _build_adapter_submenu(self) -> Gtk.MenuItem:
-        item = Gtk.MenuItem(label="Adapter")
+        item = Gtk.MenuItem(label=_("Adapter"))
         submenu = Gtk.Menu()
         first: Gtk.RadioMenuItem | None = None
 
@@ -212,9 +216,9 @@ class BluetoothApplet(Applet):
 
         items: list[Gtk.MenuItem] = []
         groups = [
-            ("Connected Devices", connected),
-            ("Paired Devices", paired),
-            ("Discovered Devices", discovered),
+            (_("Connected Devices"), connected),
+            (_("Paired Devices"), paired),
+            (_("Discovered Devices"), discovered),
         ]
         for index, (title, members) in enumerate(groups):
             items.extend(self._device_group(title, members))
@@ -239,7 +243,7 @@ class BluetoothApplet(Applet):
             submenu = Gtk.Menu()
 
             if device.connected:
-                disconnect = Gtk.MenuItem(label="Disconnect")
+                disconnect = Gtk.MenuItem(label=_("Disconnect"))
                 disconnect.connect(
                     "activate",
                     lambda _w, p=device.path: self._run_async(
@@ -248,7 +252,7 @@ class BluetoothApplet(Applet):
                 )
                 submenu.append(disconnect)
             else:
-                connect = Gtk.MenuItem(label="Connect")
+                connect = Gtk.MenuItem(label=_("Connect"))
                 connect.connect(
                     "activate",
                     lambda _w, d=device: self._run_async(
@@ -258,7 +262,7 @@ class BluetoothApplet(Applet):
                 submenu.append(connect)
 
             if not device.paired:
-                pair = Gtk.MenuItem(label="Pair")
+                pair = Gtk.MenuItem(label=_("Pair"))
                 pair.connect(
                     "activate",
                     lambda _w, d=device: self._run_async(
@@ -272,7 +276,7 @@ class BluetoothApplet(Applet):
                 submenu.append(pair)
 
             if device.paired:
-                remove = Gtk.MenuItem(label="Remove Pairing")
+                remove = Gtk.MenuItem(label=_("Remove Pairing"))
                 remove.connect(
                     "activate",
                     lambda _w, d=device: self._run_async(
@@ -284,7 +288,7 @@ class BluetoothApplet(Applet):
                 )
                 submenu.append(remove)
 
-            trust = Gtk.CheckMenuItem(label="Trusted")
+            trust = Gtk.CheckMenuItem(label=_("Trusted"))
             trust.set_active(device.trusted)
             trust.connect(
                 "toggled",
@@ -298,7 +302,11 @@ class BluetoothApplet(Applet):
             submenu.append(trust)
 
             if device.battery_percent is not None:
-                battery = Gtk.MenuItem(label=f"Battery: {device.battery_percent}%")
+                battery = Gtk.MenuItem(
+                    label=_("Battery: {percent}%").format(
+                        percent=device.battery_percent
+                    )
+                )
                 battery.set_sensitive(False)
                 submenu.append(battery)
 

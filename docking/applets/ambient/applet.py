@@ -27,6 +27,7 @@ from docking.applets.ambient.state import (
 )
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger
 
 if TYPE_CHECKING:
@@ -60,7 +61,7 @@ class AmbientApplet(Applet):
     """Looping ambient soundscape player."""
 
     id = AppletId.AMBIENT
-    name = "Ambient"
+    name = _("Ambient")
     icon_name = "audio-speakers"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:

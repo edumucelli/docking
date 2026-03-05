@@ -1,1 +1,2 @@
 recursive-include docking/assets *.svg *.png *.json *.csv.gz *.ogg *.md
+recursive-include docking/locale *.pot *.po *.mo

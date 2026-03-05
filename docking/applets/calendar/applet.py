@@ -17,6 +17,7 @@ from docking.applets.base import Applet
 from docking.applets.calendar.render import render_icon
 from docking.applets.calendar.state import snapshot_from
 from docking.applets.identity import AppletId
+from docking.i18n import _
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -26,13 +27,13 @@ class CalendarApplet(Applet):
     """Displays today's date as a dock icon with calendar popup on click."""
 
     id = AppletId.CALENDAR
-    name = "Calendar"
+    name = _("Calendar")
     icon_name = "office-calendar"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer_id: int = 0
         self._last_day: int = -1
-        self._tooltip_text: str = "Calendar"
+        self._tooltip_text: str = _("Calendar")
         self._popup: Gtk.Window | None = None
         super().__init__(icon_size=icon_size, config=config)
 

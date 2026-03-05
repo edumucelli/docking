@@ -1,0 +1,801 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Eduardo Mucelli Rezende Oliveira
+# This file is distributed under the same license as the docking package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: docking\n"
+"Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
+"POT-Creation-Date: 2026-03-05 17:32+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:83
+msgid "Ambient"
+msgstr ""
+
+#: docking/applets/ambient/state.py:22
+msgid "Birds"
+msgstr ""
+
+#: docking/applets/ambient/state.py:23
+msgid "Boat"
+msgstr ""
+
+#: docking/applets/ambient/state.py:24
+msgid "Coffee Shop"
+msgstr ""
+
+#: docking/applets/ambient/state.py:25
+msgid "Fireplace"
+msgstr ""
+
+#: docking/applets/ambient/state.py:26
+msgid "Stream"
+msgstr ""
+
+#: docking/applets/ambient/state.py:27
+msgid "Summer Night"
+msgstr ""
+
+#: docking/applets/ambient/state.py:28
+msgid "Wind"
+msgstr ""
+
+#: docking/applets/ambient/state.py:33
+msgid "White Noise"
+msgstr ""
+
+#: docking/applets/ambient/state.py:34
+msgid "Pink Noise"
+msgstr ""
+
+#: docking/applets/ambient/state.py:82
+#, python-brace-format
+msgid "Playing: {sound} ({pct}%)"
+msgstr ""
+
+#: docking/applets/applications/applet.py:28
+msgid "Applications"
+msgstr ""
+
+#: docking/applets/battery/applet.py:26
+msgid "Battery"
+msgstr ""
+
+#: docking/applets/battery/state.py:58
+msgid "No battery"
+msgstr ""
+
+#: docking/applets/battery/state.py:59
+#, python-brace-format
+msgid "Battery: {pct}%"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:57
+msgid "Bluetooth"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:145
+msgid "Bluetooth unavailable"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:152
+msgid "No Bluetooth adapter"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:156
+msgid "General"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:109
+msgid "On"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:109
+msgid "Off"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:161
+#, python-brace-format
+msgid "{alias} ({powered}) - Connected {connected}"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:170
+msgid "Bluetooth On"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:175
+msgid "Continuous Discovery"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:186
+msgid "Refresh Now"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:193
+msgid "Adapter"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:219
+msgid "Connected Devices"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:220
+msgid "Paired Devices"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:221
+msgid "Discovered Devices"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:246
+msgid "Disconnect"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:255
+msgid "Connect"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:265
+msgid "Pair"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:279
+msgid "Remove Pairing"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:291
+msgid "Trusted"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:306
+#, python-brace-format
+msgid "Battery: {percent}%"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:102
+#, python-brace-format
+msgid "Bluetooth: {error}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:103
+#: docking/applets/bluetooth/state.py:107
+msgid "Bluetooth: No adapter/service"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:114
+#, python-brace-format
+msgid "Bluetooth: {state}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:115
+#, python-brace-format
+msgid "Adapter: {name}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:116
+#, python-brace-format
+msgid "Connected: {n}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:117
+#, python-brace-format
+msgid "Paired: {n}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:118
+#, python-brace-format
+msgid "Discovering: {state}"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:118
+msgid "Yes"
+msgstr ""
+
+#: docking/applets/bluetooth/state.py:118
+msgid "No"
+msgstr ""
+
+#: docking/applets/brightness/applet.py:41
+msgid "Brightness"
+msgstr ""
+
+#: docking/applets/brightness/applet.py:68
+#, python-brace-format
+msgid "Brightness: {pct}%"
+msgstr ""
+
+#: docking/applets/brightness/applet.py:91
+msgid "Show Level"
+msgstr ""
+
+#: docking/applets/calendar/applet.py:30 docking/applets/calendar/applet.py:36
+msgid "Calendar"
+msgstr ""
+
+#: docking/applets/clippy/applet.py:33
+msgid "Clippy"
+msgstr ""
+
+#: docking/applets/clippy/applet.py:92
+msgid "Clear"
+msgstr ""
+
+#: docking/applets/clippy/state.py:21
+msgid "Clippy (empty)"
+msgstr ""
+
+#: docking/applets/clock/applet.py:32
+msgid "Clock"
+msgstr ""
+
+#: docking/applets/clock/applet.py:67
+msgid "Digital Clock"
+msgstr ""
+
+#: docking/applets/clock/applet.py:72
+msgid "24-Hour Clock"
+msgstr ""
+
+#: docking/applets/clock/applet.py:77
+msgid "Show Date"
+msgstr ""
+
+#: docking/applets/colorpicker/applet.py:38
+#: docking/applets/colorpicker/applet.py:68
+msgid "Color Picker"
+msgstr ""
+
+#: docking/applets/colorpicker/applet.py:78
+#, python-brace-format
+msgid "Copy {hex}"
+msgstr ""
+
+#: docking/applets/colorpicker/applet.py:82
+msgid "Show Hex"
+msgstr ""
+
+#: docking/applets/cpumonitor/applet.py:37
+msgid "CPU Monitor"
+msgstr ""
+
+#: docking/applets/cpumonitor/state.py:63
+#, python-brace-format
+msgid "CPU: {cpu}% | Mem: {mem}%"
+msgstr ""
+
+#: docking/applets/desktop/applet.py:22 docking/applets/workspaces/applet.py:79
+msgid "Desktop"
+msgstr ""
+
+#: docking/applets/hydration/applet.py:38
+msgid "Hydration"
+msgstr ""
+
+#: docking/applets/hydration/applet.py:111
+#: docking/applets/pomodoro/applet.py:156
+msgid "Show Timer"
+msgstr ""
+
+#: docking/applets/hydration/applet.py:119
+#: docking/applets/pomodoro/applet.py:168
+#: docking/applets/pomodoro/applet.py:181
+#: docking/applets/pomodoro/applet.py:194
+#, python-brace-format
+msgid "{mins} min"
+msgstr ""
+
+#: docking/applets/hydration/state.py:54
+msgid "Drink water!"
+msgstr ""
+
+#: docking/applets/hydration/state.py:55
+#, python-brace-format
+msgid "Next in {time}"
+msgstr ""
+
+#: docking/applets/moon/applet.py:47
+msgid "Moon"
+msgstr ""
+
+#: docking/applets/moon/applet.py:88
+msgid "Moon (loading...)"
+msgstr ""
+
+#: docking/applets/moon/applet.py:95
+#, python-brace-format
+msgid "Illumination: {pct}%"
+msgstr ""
+
+#: docking/applets/moon/applet.py:118
+msgid "Show Phase Name"
+msgstr ""
+
+#: docking/applets/moon/applet.py:123
+msgid "Refresh"
+msgstr ""
+
+#: docking/applets/moon/offline.py:215 docking/applets/moon/state.py:120
+msgid "New"
+msgstr ""
+
+#: docking/applets/moon/offline.py:217 docking/applets/moon/state.py:122
+msgid "Full"
+msgstr ""
+
+#: docking/applets/moon/offline.py:219
+msgid "Crescent"
+msgstr ""
+
+#: docking/applets/moon/offline.py:220
+msgid "Gibbous"
+msgstr ""
+
+#: docking/applets/moon/offline.py:233
+msgid "new moon"
+msgstr ""
+
+#: docking/applets/moon/offline.py:235
+msgid "first quarter"
+msgstr ""
+
+#: docking/applets/moon/offline.py:237
+msgid "full moon"
+msgstr ""
+
+#: docking/applets/moon/offline.py:239
+msgid "last quarter"
+msgstr ""
+
+#: docking/applets/moon/offline.py:241
+#, python-brace-format
+msgid "{days} days after new moon"
+msgstr ""
+
+#: docking/applets/moon/offline.py:244
+#, python-brace-format
+msgid "{days} days after full moon"
+msgstr ""
+
+#: docking/applets/moon/state.py:111
+msgid "Waxing Crescent"
+msgstr ""
+
+#: docking/applets/moon/state.py:113
+msgid "Waxing Gibbous"
+msgstr ""
+
+#: docking/applets/moon/state.py:115
+msgid "Waning Gibbous"
+msgstr ""
+
+#: docking/applets/moon/state.py:117
+msgid "Waning Crescent"
+msgstr ""
+
+#: docking/applets/moon/state.py:124
+msgid "1st Quarter"
+msgstr ""
+
+#: docking/applets/moon/state.py:126
+msgid "3rd Quarter"
+msgstr ""
+
+#: docking/applets/music/applet.py:43 docking/applets/music/state.py:137
+msgid "Music"
+msgstr ""
+
+#: docking/applets/music/applet.py:101
+msgid "No active player"
+msgstr ""
+
+#: docking/applets/music/applet.py:105
+msgid "Previous"
+msgstr ""
+
+#: docking/applets/music/applet.py:113
+msgid "Next"
+msgstr ""
+
+#: docking/applets/music/applet.py:117
+msgid "Volume Up"
+msgstr ""
+
+#: docking/applets/music/applet.py:123
+msgid "Volume Down"
+msgstr ""
+
+#: docking/applets/music/state.py:67
+msgid "Pause"
+msgstr ""
+
+#: docking/applets/music/state.py:67
+msgid "Play"
+msgstr ""
+
+#: docking/applets/music/state.py:74
+msgid "Playing"
+msgstr ""
+
+#: docking/applets/music/state.py:76
+msgid "Paused"
+msgstr ""
+
+#: docking/applets/music/state.py:78
+msgid "Stopped"
+msgstr ""
+
+#: docking/applets/music/state.py:80 docking/applets/powerprofiles/state.py:127
+msgid "Unknown"
+msgstr ""
+
+#: docking/applets/music/state.py:126
+msgid "Music: No active player"
+msgstr ""
+
+#: docking/applets/network/applet.py:40
+msgid "Network"
+msgstr ""
+
+#: docking/applets/network/applet.py:90
+#, python-brace-format
+msgid "WiFi: {ssid} ({pct}%)"
+msgstr ""
+
+#: docking/applets/network/applet.py:95
+#, python-brace-format
+msgid "Ethernet: {iface}"
+msgstr ""
+
+#: docking/applets/network/applet.py:99
+msgid "Not connected"
+msgstr ""
+
+#: docking/applets/network/applet.py:104
+#, python-brace-format
+msgid "IP: {ip}"
+msgstr ""
+
+#: docking/applets/network/state.py:88
+msgid "Network: Not connected"
+msgstr ""
+
+#: docking/applets/notifications/applet.py:51
+#: docking/applets/notifications/state.py:49
+msgid "Notifications"
+msgstr ""
+
+#: docking/applets/notifications/applet.py:116
+msgid "No notification backend available"
+msgstr ""
+
+#: docking/applets/notifications/applet.py:122
+msgid "Do Not Disturb"
+msgstr ""
+
+#: docking/applets/notifications/applet.py:128
+#: docking/applets/notifications/state.py:47
+#, python-brace-format
+msgid "Pending: {n}"
+msgstr ""
+
+#: docking/applets/notifications/applet.py:132
+msgid "Clear History"
+msgstr ""
+
+#: docking/applets/notifications/applet.py:137
+msgid "Clear Notifications"
+msgstr ""
+
+#: docking/applets/notifications/state.py:43
+msgid "Notifications: No backend available"
+msgstr ""
+
+#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:62
+msgid "Pomodoro"
+msgstr ""
+
+#: docking/applets/pomodoro/applet.py:152
+msgid "Reset"
+msgstr ""
+
+#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:65
+msgid "Work"
+msgstr ""
+
+#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:65
+msgid "Break"
+msgstr ""
+
+#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:65
+msgid "Long Break"
+msgstr ""
+
+#: docking/applets/pomodoro/state.py:64
+#, python-brace-format
+msgid "Paused - {time}"
+msgstr ""
+
+#: docking/applets/pomodoro/state.py:66
+#, python-brace-format
+msgid "{label}: {time} remaining"
+msgstr ""
+
+#: docking/applets/powerprofiles/applet.py:54
+msgid "Power Profiles"
+msgstr ""
+
+#: docking/applets/powerprofiles/applet.py:112
+#: docking/applets/powerprofiles/state.py:160
+#: docking/applets/powerprofiles/state.py:161
+msgid "Power Profiles unavailable"
+msgstr ""
+
+#: docking/applets/powerprofiles/applet.py:117
+msgid "Select Profile"
+msgstr ""
+
+#: docking/applets/powerprofiles/applet.py:136
+#, python-brace-format
+msgid "Limited: {reason}"
+msgstr ""
+
+#: docking/applets/powerprofiles/state.py:121
+msgid "Power Saver"
+msgstr ""
+
+#: docking/applets/powerprofiles/state.py:123
+msgid "Balanced"
+msgstr ""
+
+#: docking/applets/powerprofiles/state.py:125
+msgid "Performance"
+msgstr ""
+
+#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
+#: docking/applets/quote/applet.py:205 docking/applets/quote/applet.py:210
+msgid "Quote"
+msgstr ""
+
+#: docking/applets/quote/applet.py:86
+msgid "Next Quote"
+msgstr ""
+
+#: docking/applets/quote/applet.py:90
+msgid "Copy Quote"
+msgstr ""
+
+#: docking/applets/quote/applet.py:94
+msgid "Refresh from Web"
+msgstr ""
+
+#: docking/applets/quote/applet.py:100
+msgid "Source"
+msgstr ""
+
+#: docking/applets/quote/applet.py:205
+#, python-brace-format
+msgid "{source}: loading..."
+msgstr ""
+
+#: docking/applets/screenshot/applet.py:34
+msgid "Screenshot"
+msgstr ""
+
+#: docking/applets/screenshot/applet.py:73
+#, python-brace-format
+msgid "Full Screen in {delay}s"
+msgstr ""
+
+#: docking/applets/separator/applet.py:30
+msgid "Separator"
+msgstr ""
+
+#: docking/applets/separator/applet.py:78
+msgid "Increase Gap"
+msgstr ""
+
+#: docking/applets/separator/applet.py:80
+msgid "Decrease Gap"
+msgstr ""
+
+#: docking/applets/session/applet.py:27
+msgid "Session"
+msgstr ""
+
+#: docking/applets/session/state.py:23
+msgid "Lock Screen"
+msgstr ""
+
+#: docking/applets/session/state.py:24
+msgid "Log Out"
+msgstr ""
+
+#: docking/applets/session/state.py:25
+msgid "Suspend"
+msgstr ""
+
+#: docking/applets/session/state.py:26
+msgid "Restart"
+msgstr ""
+
+#: docking/applets/session/state.py:27
+msgid "Shut Down"
+msgstr ""
+
+#: docking/applets/trash/applet.py:33
+msgid "Trash"
+msgstr ""
+
+#: docking/applets/trash/applet.py:58
+msgid "Open Trash"
+msgstr ""
+
+#: docking/applets/trash/applet.py:62
+msgid "Empty Trash"
+msgstr ""
+
+#: docking/applets/trash/render.py:22
+msgid "No items in Trash"
+msgstr ""
+
+#: docking/applets/trash/render.py:24 docking/applets/trash/render.py:25
+#, python-brace-format
+msgid "{n} item in Trash"
+msgid_plural "{n} items in Trash"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/volume/applet.py:32
+msgid "Volume"
+msgstr ""
+
+#: docking/applets/volume/applet.py:50
+msgid "Muted"
+msgstr ""
+
+#: docking/applets/volume/applet.py:50
+#, python-brace-format
+msgid "Volume: {pct}%"
+msgstr ""
+
+#: docking/applets/weather/applet.py:45
+msgid "Weather"
+msgstr ""
+
+#: docking/applets/weather/applet.py:99
+msgid "Show Temperature"
+msgstr ""
+
+#: docking/applets/weather/applet.py:104
+msgid "Change City..."
+msgstr ""
+
+#: docking/applets/weather/applet.py:128
+msgid "Search for the city"
+msgstr ""
+
+#: docking/applets/weather/applet.py:142
+msgid "Type city name..."
+msgstr ""
+
+#: docking/applets/weather/applet.py:259
+#, python-brace-format
+msgid "{temp}°C, {desc}"
+msgstr ""
+
+#: docking/applets/weather/applet.py:264 docking/applets/weather/state.py:89
+#, python-brace-format
+msgid "Air: {label}"
+msgstr ""
+
+#: docking/applets/weather/applet.py:275
+#, python-brace-format
+msgid "{date}: {min_temp}/{max_temp}°C"
+msgstr ""
+
+#: docking/applets/weather/state.py:72
+#, python-brace-format
+msgid "{city}: {temp}°C"
+msgstr ""
+
+#: docking/applets/weather/state.py:83
+msgid "Weather (no city selected)"
+msgstr ""
+
+#: docking/applets/weather/state.py:85
+#, python-brace-format
+msgid "{city}: loading..."
+msgstr ""
+
+#: docking/applets/workspaces/applet.py:39
+msgid "Workspaces"
+msgstr ""
+
+#: docking/ui/about.py:44
+msgid "Website"
+msgstr ""
+
+#: docking/ui/dock_window.py:242
+msgid "Docking"
+msgstr ""
+
+#: docking/ui/dock_window.py:401
+#, python-brace-format
+msgid "Display {display}: {width}x{height}"
+msgstr ""
+
+#: docking/ui/menu.py:198 docking/ui/menu.py:215
+msgid "Remove from Dock"
+msgstr ""
+
+#: docking/ui/menu.py:222
+msgid "Keep in Dock"
+msgstr ""
+
+#: docking/ui/menu.py:231
+msgid "Close All"
+msgstr ""
+
+#: docking/ui/menu.py:231
+msgid "Close"
+msgstr ""
+
+#: docking/ui/menu.py:262
+msgid "Auto-hide"
+msgstr ""
+
+#: docking/ui/menu.py:268
+msgid "Window Previews"
+msgstr ""
+
+#: docking/ui/menu.py:278
+msgid "Display"
+msgstr ""
+
+#: docking/ui/menu.py:286
+msgid "Lock Icons"
+msgstr ""
+
+#: docking/ui/menu.py:298
+msgid "Themes"
+msgstr ""
+
+#: docking/ui/menu.py:311
+msgid "Icon Size"
+msgstr ""
+
+#: docking/ui/menu.py:322
+msgid "Position"
+msgstr ""
+
+#: docking/ui/menu.py:332
+msgid "Applets"
+msgstr ""
+
+#: docking/ui/menu.py:384
+msgid "Add Separator"
+msgstr ""
+
+#: docking/ui/menu.py:394
+msgid "About"
+msgstr ""
+
+#: docking/ui/menu.py:399
+msgid "Quit"
+msgstr ""
+
+#: docking/ui/menu.py:429
+msgid "Window"
+msgstr ""

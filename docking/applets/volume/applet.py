@@ -13,6 +13,7 @@ from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import create_volume_icon
@@ -28,7 +29,7 @@ class VolumeApplet(Applet):
     """Volume control via scroll and click."""
 
     id = AppletId.VOLUME
-    name = "Volume"
+    name = _("Volume")
     icon_name = "audio-volume-medium"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -46,7 +47,9 @@ class VolumeApplet(Applet):
         self._update_tooltip()
 
     def _update_tooltip(self) -> None:
-        self.item.name = "Muted" if self._muted else f"Volume: {self._volume}%"
+        self.item.name = (
+            _("Muted") if self._muted else _("Volume: {pct}%").format(pct=self._volume)
+        )
         self.item.icon_name = _volume_icon_name(volume=self._volume, muted=self._muted)
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:

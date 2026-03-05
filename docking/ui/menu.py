@@ -24,6 +24,7 @@ from docking.applets.identity import (
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
 from docking.core.zoom import compute_layout
+from docking.i18n import _
 from docking.ui.about import AboutDialogController
 
 if TYPE_CHECKING:
@@ -194,7 +195,7 @@ class MenuHandler:
                 if applet.get_menu_items():
                     menu.append(Gtk.SeparatorMenuItem())
             if not locked:
-                remove = Gtk.MenuItem(label="Remove from Dock")
+                remove = Gtk.MenuItem(label=_("Remove from Dock"))
                 remove.connect(
                     "activate",
                     lambda _: self._model.remove_applet(item.desktop_id),
@@ -211,14 +212,14 @@ class MenuHandler:
         # Pin/Unpin (hidden when icons are locked)
         if not locked:
             if item.is_pinned:
-                unpin = Gtk.MenuItem(label="Remove from Dock")
+                unpin = Gtk.MenuItem(label=_("Remove from Dock"))
                 unpin.connect(
                     "activate",
                     lambda _: self._model.unpin_item(item.desktop_id),
                 )
                 menu.append(unpin)
             else:
-                pin = Gtk.MenuItem(label="Keep in Dock")
+                pin = Gtk.MenuItem(label=_("Keep in Dock"))
                 pin.connect(
                     "activate",
                     lambda _: self._model.pin_item(item.desktop_id),
@@ -227,7 +228,7 @@ class MenuHandler:
 
         if item.is_running and item.instance_count > 0:
             menu.append(Gtk.SeparatorMenuItem())
-            label = "Close All" if item.instance_count > 1 else "Close"
+            label = _("Close All") if item.instance_count > 1 else _("Close")
             close = Gtk.MenuItem(label=label)
             close.connect(
                 "activate",
@@ -258,13 +259,13 @@ class MenuHandler:
         radio submenus, applet toggle checkboxes, quit.
         """
         # Auto-hide toggle
-        autohide = Gtk.CheckMenuItem(label="Auto-hide")
+        autohide = Gtk.CheckMenuItem(label=_("Auto-hide"))
         autohide.set_active(self._config.autohide)
         autohide.connect("toggled", self._on_autohide_toggled)
         menu.append(autohide)
 
         # Window previews toggle
-        previews = Gtk.CheckMenuItem(label="Window Previews")
+        previews = Gtk.CheckMenuItem(label=_("Window Previews"))
         previews.set_active(self._config.previews_enabled)
         previews.connect("toggled", self._on_previews_toggled)
         menu.append(previews)
@@ -274,7 +275,7 @@ class MenuHandler:
         if monitor_items:
             menu.append(
                 _build_radio_submenu(
-                    label="Display",
+                    label=_("Display"),
                     items=monitor_items,
                     current=self._current_monitor_choice(),
                     on_changed=self._on_monitor_changed,
@@ -282,7 +283,7 @@ class MenuHandler:
             )
 
         # Lock icons toggle
-        lock = Gtk.CheckMenuItem(label="Lock Icons")
+        lock = Gtk.CheckMenuItem(label=_("Lock Icons"))
         lock.set_active(self._config.lock_icons)
         lock.connect("toggled", self._on_lock_toggled)
         menu.append(lock)
@@ -294,7 +295,7 @@ class MenuHandler:
         theme_items = [(n.replace("-", " ").capitalize(), n) for n in theme_names]
         menu.append(
             _build_radio_submenu(
-                label="Themes",
+                label=_("Themes"),
                 items=theme_items,
                 current=self._config.theme,
                 on_changed=self._on_theme_changed,
@@ -307,7 +308,7 @@ class MenuHandler:
         size_items = [(f"{s}px", s) for s in ICON_SIZE_OPTIONS]
         menu.append(
             _build_radio_submenu(
-                label="Icon Size",
+                label=_("Icon Size"),
                 items=size_items,
                 current=self._config.icon_size,
                 on_changed=self._on_icon_size_changed,
@@ -318,7 +319,7 @@ class MenuHandler:
         pos_items = [(p.value.capitalize(), p.value) for p in Position]
         menu.append(
             _build_radio_submenu(
-                label="Position",
+                label=_("Position"),
                 items=pos_items,
                 current=self._config.position,
                 on_changed=self._on_position_changed,
@@ -328,7 +329,7 @@ class MenuHandler:
         # Applets submenu -- toggle each applet on/off
         registry = get_registry()
         if registry:
-            dock_item = Gtk.MenuItem(label="Applets")
+            dock_item = Gtk.MenuItem(label=_("Applets"))
             dock_menu = Gtk.Menu()
             active_ids = {
                 item.desktop_id
@@ -354,7 +355,7 @@ class MenuHandler:
                 key for key in APPLET_CATEGORY_ORDER if grouped_typed.get(key)
             ]
             for i, category in enumerate(non_empty_categories):
-                dock_menu.append(_make_menu_header(label=category.value))
+                dock_menu.append(_make_menu_header(label=_(category.value)))
                 for did, cls in sorted(
                     grouped_typed[category], key=lambda entry: entry[1].name.lower()
                 ):
@@ -380,7 +381,7 @@ class MenuHandler:
             menu.append(dock_item)
 
         # Add Separator (multi-instance, not a toggle)
-        add_sep = Gtk.MenuItem(label="Add Separator")
+        add_sep = Gtk.MenuItem(label=_("Add Separator"))
         add_sep.connect(
             "activate",
             lambda _, idx=insert_index: self._model.add_separator(index=idx),
@@ -390,12 +391,12 @@ class MenuHandler:
         menu.append(Gtk.SeparatorMenuItem())
 
         # About
-        about_item = Gtk.MenuItem(label="About")
+        about_item = Gtk.MenuItem(label=_("About"))
         about_item.connect("activate", lambda _: self._about.show())
         menu.append(about_item)
 
         # Quit
-        quit_item = Gtk.MenuItem(label="Quit")
+        quit_item = Gtk.MenuItem(label=_("Quit"))
         quit_item.connect("activate", lambda _: Gtk.main_quit())
         menu.append(quit_item)
 
@@ -425,7 +426,7 @@ class MenuHandler:
         if len(windows) < 2:
             return
         for window in windows:
-            title = window.get_name() or "Window"
+            title = window.get_name() or _("Window")
             if len(title) > 40:
                 title = title[:39] + "\u2026"
             mi = Gtk.MenuItem(label=title)

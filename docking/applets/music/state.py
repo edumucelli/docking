@@ -10,6 +10,8 @@ from typing import Any
 
 import gi
 
+from docking.i18n import _
+
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
@@ -63,20 +65,20 @@ def unavailable_state() -> MusicState:
 
 def play_pause_menu_label(state: MusicState) -> str:
     """Menu label for transport toggle."""
-    return "Pause" if state.playback_status == "Playing" else "Play"
+    return _("Pause") if state.playback_status == "Playing" else _("Play")
 
 
 def _normalize_playback_status(raw: str) -> str:
     """Normalize playback status values across backends."""
     value = raw.strip().lower()
     if value == "playing":
-        return "Playing"
+        return _("Playing")
     if value == "paused":
-        return "Paused"
+        return _("Paused")
     if value == "stopped":
-        return "Stopped"
+        return _("Stopped")
     if value == "unknown":
-        return "Unknown"
+        return _("Unknown")
     return raw.strip() or "Unknown"
 
 
@@ -122,7 +124,7 @@ def _icon_name_from_bus_name(bus_name: str) -> str:
 def tooltip_text(state: MusicState) -> str:
     """Detailed tooltip text for the music applet."""
     if not state.available:
-        return "Music: No active player"
+        return _("Music: No active player")
 
     lines: list[str] = []
     details = " - ".join(part for part in [state.artist, state.title] if part)
@@ -133,7 +135,7 @@ def tooltip_text(state: MusicState) -> str:
     if state.album:
         lines.append(f"Album: {state.album}")
     if not lines:
-        return "Music"
+        return _("Music")
     return "\n".join(lines)
 
 
