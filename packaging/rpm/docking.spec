@@ -26,7 +26,7 @@ and an extensible applet system.
 %install
 rm -rf %{buildroot}
 
-bash tools/compile_translations.sh
+bash tools/i18n.sh --compile
 
 mkdir -p %{buildroot}/usr/lib/docking/python
 python3 -m pip install --no-compile --no-deps \

@@ -63,7 +63,7 @@ TARGET_DEB_VERSION="${PROJECT_VERSION}-${DEB_REVISION}"
 cd "$PROJECT_ROOT"
 
 # Ensure compiled gettext catalogs are present in the build context.
-bash "${PROJECT_ROOT}/tools/compile_translations.sh"
+bash "${PROJECT_ROOT}/tools/i18n.sh" --compile
 
 if [ "${CURRENT_DEB_VERSION}" != "${TARGET_DEB_VERSION}" ]; then
     CHANGELOG_BACKUP="$(mktemp)"

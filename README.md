@@ -771,7 +771,7 @@ LANGUAGE=pt_BR python run.py
    msginit --input=docking/locale/docking.pot --locale=XX --output=docking/locale/XX/LC_MESSAGES/docking.po
    ```
 2. Edit the `.po` file with a PO editor (e.g. Poedit, Lokalize, or any text editor)
-3. Compile: `msgfmt docking/locale/XX/LC_MESSAGES/docking.po -o docking/locale/XX/LC_MESSAGES/docking.mo`
+3. Compile: `./tools/i18n.sh --compile`
 4. Submit a pull request
 
 ### Updating the string template
@@ -779,10 +779,31 @@ LANGUAGE=pt_BR python run.py
 After adding or modifying translatable strings in the source code:
 
 ```bash
-./tools/i18n-extract.sh
+./tools/i18n.sh --extract
 ```
 
 This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be updated with `msgmerge`.
+
+### Unified i18n command
+
+`./tools/i18n.sh` is the single translation utility. Common commands:
+
+```bash
+# Extract/update docking.pot
+./tools/i18n.sh --extract
+
+# Verify docking.pot is in sync with source strings
+./tools/i18n.sh --check-pot-sync
+
+# Validate locale catalogs (strict, fails on untranslated/fuzzy)
+./tools/i18n.sh --check-catalogs --require-complete
+
+# Validate locale catalogs but allow incomplete translation backlog
+./tools/i18n.sh --check-catalogs --allow-incomplete
+
+# Compile all .po catalogs to .mo
+./tools/i18n.sh --compile
+```
 
 ## Pre-commit Hooks
 
@@ -793,8 +814,8 @@ Runs automatically on `git commit`:
 - **ruff format** -- code formatting
 - **ruff check** -- linting (E, W, F, I rules)
 - **ty check** -- type checking
-- **i18n-pot-sync** -- ensure `docking/locale/docking.pot` matches source strings
-- **i18n-complete** -- fail if PO catalogs are out-of-sync, fuzzy, or untranslated
+- **i18n-pot-sync** -- ensure `docking/locale/docking.pot` matches source strings (`./tools/i18n.sh --check-pot-sync`)
+- **i18n-complete** -- fail if PO catalogs are out-of-sync, fuzzy, or untranslated (`./tools/i18n.sh --check-catalogs --require-complete`)
 - **pytest** -- full test suite
 
 Install/update the strict local hook with:

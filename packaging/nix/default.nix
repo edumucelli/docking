@@ -44,7 +44,7 @@ pyPkgs.buildPythonApplication rec {
   doCheck = false;
 
   preBuild = ''
-    bash tools/compile_translations.sh
+    bash tools/i18n.sh --compile
   '';
 
   postInstall = ''

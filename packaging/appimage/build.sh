@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-bash "${ROOT_DIR}/tools/compile_translations.sh"
+bash "${ROOT_DIR}/tools/i18n.sh" --compile
 
 mkdir -p artifacts
 

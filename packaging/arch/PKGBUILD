@@ -33,7 +33,7 @@ build() {
 package() {
   cd "${srcdir}/${pkgname}-${pkgver}"
 
-  bash tools/compile_translations.sh
+  bash tools/i18n.sh --compile
 
   install -d "${pkgdir}/usr/lib/docking/python"
   python -m pip install --no-compile --no-deps \

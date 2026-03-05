@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TOPDIR="${TOPDIR:-${ROOT_DIR}/.rpmbuild}"
 ARTIFACTS_DIR="${ROOT_DIR}/artifacts"
 
-bash "${ROOT_DIR}/tools/compile_translations.sh"
+bash "${ROOT_DIR}/tools/i18n.sh" --compile
 
 VERSION=$(
   awk -F ' *= *' '

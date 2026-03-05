@@ -20,7 +20,7 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	# Compile gettext catalogs so packaged installs include .mo files.
-	bash tools/compile_translations.sh
+	bash tools/i18n.sh --compile
 	dh_auto_install
 	# Ensure /usr/bin/docking exists even on older setuptools/pybuild stacks
 	# where project.scripts may not be emitted.

@@ -20,9 +20,9 @@ echo "Running ruff check..."
 echo "Running ty..."
 .venv/bin/ty check docking/
 echo "Checking i18n template sync..."
-bash tools/check_pot_sync.sh
+bash tools/i18n.sh --check-pot-sync
 echo "Checking i18n completeness..."
-I18N_REQUIRE_COMPLETE=1 bash tools/check_translations.sh
+bash tools/i18n.sh --check-catalogs --require-complete
 echo "Running tests..."
 .venv/bin/python -m pytest tests/ -q
 echo "All checks passed."
