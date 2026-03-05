@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import replace
 from unittest.mock import MagicMock
 
@@ -54,6 +55,7 @@ class TestStateParsing:
     def test_parse_bool_values(self):
         assert notifications_state_mod._parse_bool("true") is True
         assert notifications_state_mod._parse_bool("false") is False
+        assert notifications_state_mod._parse_bool(None) is None
         assert notifications_state_mod._parse_bool("invalid") is None
 
     def test_parse_pending_count_values(self):
@@ -65,6 +67,51 @@ class TestStateParsing:
             == 4
         )
         assert notifications_state_mod._parse_pending_count("oops") is None
+        assert notifications_state_mod._parse_pending_count("") is None
+        assert notifications_state_mod._parse_pending_count('{"waiting": -5}') == 0
+        assert notifications_state_mod._parse_pending_count("[]") is None
+
+    def test_pending_badge_count(self):
+        assert notifications_state_mod.pending_badge_count(unavailable_state()) == 0
+        assert (
+            notifications_state_mod.pending_badge_count(_state(pending_known=False))
+            == 0
+        )
+        assert notifications_state_mod.pending_badge_count(_state(pending=4)) == 4
+        assert notifications_state_mod.pending_badge_count(_state(pending=999)) == 99
+
+    def test_run_and_has_command_helpers(self, monkeypatch):
+        class _Proc:
+            def __init__(self, code=0, out=""):
+                self.returncode = code
+                self.stdout = out
+
+        monkeypatch.setattr(
+            notifications_state_mod.subprocess,
+            "run",
+            lambda *args, **kwargs: _Proc(0, "ok\n"),
+        )
+        assert notifications_state_mod._run(["echo"]) == "ok"
+
+        monkeypatch.setattr(
+            notifications_state_mod.subprocess,
+            "run",
+            lambda *args, **kwargs: _Proc(1, "no"),
+        )
+        assert notifications_state_mod._run(["echo"]) is None
+
+        def fail_run(*args, **kwargs):
+            raise subprocess.TimeoutExpired(cmd="x", timeout=1)
+
+        monkeypatch.setattr(notifications_state_mod.subprocess, "run", fail_run)
+        assert notifications_state_mod._run(["echo"]) is None
+
+        monkeypatch.setattr(notifications_state_mod.shutil, "which", lambda cmd: None)
+        assert notifications_state_mod._has_command("x") is False
+        monkeypatch.setattr(
+            notifications_state_mod.shutil, "which", lambda cmd: "/usr/bin/x"
+        )
+        assert notifications_state_mod._has_command("x") is True
 
     def test_dunst_backend_get_state(self, monkeypatch):
         def fake_run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
@@ -113,6 +160,30 @@ class TestStateParsing:
         assert state.available is True
         assert state.paused is True
         assert state.pending_known is False
+
+    def test_backend_command_methods_and_null_backend(self, monkeypatch):
+        monkeypatch.setattr(
+            notifications_state_mod,
+            "_run",
+            lambda cmd, timeout_s=2.0: "",
+        )
+        assert DunstBackend().set_paused(True) is True
+        assert DunstBackend().clear_notifications() is True
+        assert GnomeBackend().set_paused(False) is True
+        assert GnomeBackend().clear_notifications() is False
+        null = NullBackend()
+        assert null.get_state().available is False
+        assert null.set_paused(True) is False
+        assert null.clear_notifications() is False
+
+    def test_gnome_and_dunst_unavailable_paths(self, monkeypatch):
+        monkeypatch.setattr(
+            notifications_state_mod,
+            "_run",
+            lambda cmd, timeout_s=2.0: "maybe" if cmd[0] == "dunstctl" else None,
+        )
+        assert DunstBackend().get_state().available is False
+        assert GnomeBackend().get_state().available is False
 
 
 class TestBackendDetection:
@@ -192,6 +263,17 @@ class TestNotificationsApplet:
         applet.on_clicked()
         assert backend.set_paused_calls == [True]
         assert applet._state.paused is True
+
+    def test_click_noop_when_unavailable_or_backend_rejects(self, monkeypatch):
+        applet, backend = _make_applet(monkeypatch, unavailable_state())
+        applet.on_clicked()
+        assert backend.set_paused_calls == []
+
+        applet2, backend2 = _make_applet(monkeypatch, _state(paused=False))
+        backend2.set_paused = lambda paused: False  # type: ignore[method-assign]
+        applet2.refresh_presentation = MagicMock()
+        applet2.on_clicked()
+        applet2.refresh_presentation.assert_not_called()
 
     def test_unavailable_menu(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, unavailable_state())
@@ -359,6 +441,204 @@ class TestNotificationsApplet:
         applet._history_index = 0
         applet.on_scroll(direction_up=False)
         assert applet._history_index == 1
+
+    def test_start_stop_tick_and_toggle_dnd(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        started: list[str] = []
+        removed: list[int] = []
+        applet._start_activity_monitor = lambda: started.append("monitor")  # type: ignore[assignment]
+        applet._stop_activity_monitor = lambda: started.append("stop-monitor")  # type: ignore[assignment]
+        monkeypatch.setattr(
+            notifications_applet_mod.GLib,
+            "timeout_add_seconds",
+            lambda sec, cb: 10,
+        )
+        monkeypatch.setattr(
+            notifications_applet_mod.GLib,
+            "source_remove",
+            lambda source_id: removed.append(source_id),
+        )
+        applet.start(notify=lambda: None)
+        assert applet._timer_id == 10
+        assert started == ["monitor"]
+
+        applet._activity_clear_id = 12
+        applet.stop()
+        assert applet._timer_id == 0
+        assert applet._activity_clear_id == 0
+        assert started[-1] == "stop-monitor"
+        assert removed == [12, 10]
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(notifications_applet_mod.threading, "Thread", _Thread)
+        applet._poll_worker = lambda: started.append("poll")  # type: ignore[assignment]
+        assert applet._tick() is True
+        assert "poll" in started
+
+        class _Widget:
+            def __init__(self, active: bool):
+                self._active = active
+                self.last_set: bool | None = None
+
+            def get_active(self):
+                return self._active
+
+            def set_active(self, value: bool):
+                self.last_set = value
+
+        applet._state = _state(paused=True)
+        applet._on_toggle_dnd(_Widget(active=True))
+        widget = _Widget(active=False)
+        applet._backend.set_paused = lambda paused: False  # type: ignore[method-assign]
+        applet._on_toggle_dnd(widget)
+        assert widget.last_set is True
+
+    def test_poll_worker_refresh_and_activity_expired(self, monkeypatch):
+        applet, backend = _make_applet(monkeypatch, _state(available=False))
+        idle_calls: list[tuple[object, ...]] = []
+        monkeypatch.setattr(
+            notifications_applet_mod,
+            "detect_backend",
+            lambda: backend,
+        )
+        monkeypatch.setattr(
+            notifications_applet_mod.GLib,
+            "idle_add",
+            lambda func, state: idle_calls.append((func, state)),
+        )
+        applet._poll_worker()
+        assert idle_calls
+
+        applet._state = _state(available=True, pending_known=False)
+        applet._activity_until_monotonic = float("inf")
+        applet.refresh_presentation = MagicMock()
+        assert applet._on_activity_expired() is False
+        applet.refresh_presentation.assert_not_called()
+
+        applet._activity_until_monotonic = 0.0
+        assert applet._on_activity_expired() is False
+        applet.refresh_presentation.assert_called_once()
+
+    def test_activity_monitor_start_and_stop_paths(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        applet._activity_monitor_proc = object()  # type: ignore[assignment]
+        applet._start_activity_monitor()
+
+        applet._activity_monitor_proc = None
+        monkeypatch.setattr(notifications_applet_mod.shutil, "which", lambda cmd: None)
+        applet._start_activity_monitor()
+
+        monkeypatch.setattr(
+            notifications_applet_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/dbus-monitor",
+        )
+
+        def raise_popen(*args, **kwargs):
+            raise OSError("missing")
+
+        monkeypatch.setattr(notifications_applet_mod.subprocess, "Popen", raise_popen)
+        applet._start_activity_monitor()
+        assert applet._activity_monitor_proc is None
+
+        class _Proc:
+            def __init__(self):
+                self.stdout = []
+                self.killed = False
+                self.terminated = False
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self, timeout=0.0):
+                raise subprocess.TimeoutExpired(cmd="x", timeout=timeout)
+
+            def kill(self):
+                self.killed = True
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+                self.started = False
+
+            def start(self):
+                self.started = True
+
+        monkeypatch.setattr(notifications_applet_mod.threading, "Thread", _Thread)
+        proc = _Proc()
+        monkeypatch.setattr(
+            notifications_applet_mod.subprocess, "Popen", lambda *a, **k: proc
+        )
+        applet._start_activity_monitor()
+        assert applet._activity_monitor_proc is proc
+        applet._stop_activity_monitor()
+        assert proc.terminated is True
+        assert proc.killed is True
+
+        class _ProcOSError:
+            def terminate(self):
+                raise OSError("boom")
+
+            def wait(self, timeout=0.0):
+                return None
+
+        applet._activity_monitor_proc = _ProcOSError()  # type: ignore[assignment]
+        applet._stop_activity_monitor()
+
+    def test_activity_monitor_worker_and_tooltip_helpers(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        idle_calls: list[tuple[object, ...]] = []
+        monkeypatch.setattr(
+            notifications_applet_mod.GLib,
+            "idle_add",
+            lambda *args: idle_calls.append(args),
+        )
+
+        class _Proc:
+            stdout = [
+                "signal member=Notify\n",
+                '   string "Mail"\n',
+                '   string "Icon"\n',
+                '   string "Subject"\n',
+                '   string "Body"\n',
+                "   array [\n",
+                "signal member=Notify\n",
+                '   string "OnlyApp"\n',
+                "   int32 1\n",
+            ]
+
+        applet._activity_monitor_proc = _Proc()
+        applet._activity_monitor_worker()
+        assert any(call[0] == applet._on_notification_event for call in idle_calls)
+        assert any(call[0] == applet._on_notification_activity for call in idle_calls)
+
+        class _BrokenStdout:
+            def __iter__(self):
+                raise RuntimeError("boom")
+
+        class _BrokenProc:
+            stdout = _BrokenStdout()
+
+        applet._activity_monitor_proc = _BrokenProc()
+        applet._activity_monitor_worker()
+
+        applet._history = [
+            NotificationEntry(app_name="App", summary="Title", body="Body"),
+            NotificationEntry(app_name="", summary="", body=""),
+        ]
+        applet._history_index = 99
+        lines = applet._current_notification_lines()
+        assert lines[0].startswith("Notification 2/2:")
+        assert notifications_applet_mod.NotificationsApplet._shorten_for_tooltip(
+            "   long   spaced   text   ",
+            10,
+        ).endswith("...")
 
     def test_history_is_capped(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))

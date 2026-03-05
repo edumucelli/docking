@@ -1,5 +1,6 @@
 """Tests for the brightness applet."""
 
+import subprocess
 from unittest.mock import MagicMock, patch
 
 import docking.applets.brightness.state as brightness_state
@@ -36,6 +37,10 @@ class TestDetectOutput:
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
         assert detect_output() is None
 
+    def test_returns_none_when_line_has_too_few_parts(self, monkeypatch):
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: "Monitors: 1\n 0:\n")
+        assert detect_output() is None
+
 
 class TestGetBrightness:
     def test_parses_xrandr_verbose(self, monkeypatch):
@@ -50,6 +55,49 @@ class TestGetBrightness:
     def test_returns_none_on_failure(self, monkeypatch):
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
         assert get_brightness(backend=Backend(output="HDMI-1")) is None
+
+    def test_returns_none_when_output_not_found(self, monkeypatch):
+        output = "DP-1 connected\n\tBrightness: 0.55\n"
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
+        assert get_brightness(backend=Backend(output="HDMI-1")) is None
+
+
+class TestBrightnessStateHelpers:
+    def test_run_helper(self, monkeypatch):
+        class _Proc:
+            def __init__(self, code=0, out=""):
+                self.returncode = code
+                self.stdout = out
+
+        monkeypatch.setattr(
+            brightness_state.subprocess,
+            "run",
+            lambda *args, **kwargs: _Proc(0, "ok"),
+        )
+        assert brightness_state._run(["xrandr"]) == "ok"
+
+        monkeypatch.setattr(
+            brightness_state.subprocess,
+            "run",
+            lambda *args, **kwargs: _Proc(1, "fail"),
+        )
+        assert brightness_state._run(["xrandr"]) is None
+
+        def fail_run(*args, **kwargs):
+            raise subprocess.TimeoutExpired(cmd="xrandr", timeout=1)
+
+        monkeypatch.setattr(brightness_state.subprocess, "run", fail_run)
+        assert brightness_state._run(["xrandr"]) is None
+
+    def test_set_brightness_clamps(self, monkeypatch):
+        calls: list[list[str]] = []
+        monkeypatch.setattr(
+            brightness_state, "_run", lambda cmd: calls.append(cmd) or ""
+        )
+        brightness_state.set_brightness(Backend(output="HDMI-1"), -10.0)
+        brightness_state.set_brightness(Backend(output="HDMI-1"), 10.0)
+        assert calls[0][-1] == "0.10"
+        assert calls[1][-1] == "1.00"
 
 
 def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
@@ -116,6 +164,79 @@ class TestBrightnessApplet:
             applet = BrightnessApplet(48)
         applet.on_scroll(direction_up=True)
         applet.on_clicked()
+
+    def test_start_stop_menu_and_toggle(self, monkeypatch):
+        applet = _make_applet(brightness=0.5)
+        removed: list[int] = []
+        monkeypatch.setattr(
+            brightness_state,
+            "STEP",
+            STEP,
+        )
+        monkeypatch.setattr(
+            "docking.applets.brightness.applet.GLib.timeout_add_seconds",
+            lambda sec, cb: 11,
+        )
+        monkeypatch.setattr(
+            "docking.applets.brightness.applet.GLib.source_remove",
+            lambda source_id: removed.append(source_id),
+        )
+        applet.start(notify=lambda: None)
+        assert applet._timer_id == 11
+        applet.stop()
+        assert applet._timer_id == 0
+        assert removed == [11]
+
+        labels = [item.get_label() for item in applet.get_menu_items()]
+        assert "Show Level" in labels
+
+        class _Widget:
+            def __init__(self, active: bool):
+                self._active = active
+
+            def get_active(self):
+                return self._active
+
+        applet.refresh_presentation = MagicMock()
+        applet._on_toggle_level(_Widget(active=True))
+        assert applet._show_level is True
+        applet.refresh_presentation.assert_called_once()
+
+    def test_poll_and_tick_branches(self, monkeypatch):
+        applet = _make_applet(brightness=0.5)
+        applet._backend = None
+        assert applet._tick() is True
+        applet._poll()
+
+        backend = Backend(output="HDMI-1")
+        applet._backend = backend
+        monkeypatch.setattr(
+            "docking.applets.brightness.applet.get_brightness", lambda backend: None
+        )
+        applet._poll()
+        assert applet._brightness == 0.5
+
+        idle_calls: list[tuple[object, ...]] = []
+        monkeypatch.setattr(
+            "docking.applets.brightness.applet.GLib.idle_add",
+            lambda *args: idle_calls.append(args),
+        )
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(
+            "docking.applets.brightness.applet.threading.Thread", _Thread
+        )
+        monkeypatch.setattr(
+            "docking.applets.brightness.applet.get_brightness", lambda backend: 0.8
+        )
+        assert applet._tick() is True
+        assert idle_calls
 
     def test_poll_result_updates_on_change(self):
         applet = _make_applet(brightness=0.5)

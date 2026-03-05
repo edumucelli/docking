@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import replace
 
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
@@ -130,6 +131,33 @@ class TestBluetoothStateHelpers:
         assert "Paired" in label
         assert "77%" in label
 
+    def test_adapter_from_state_edge_cases(self):
+        assert adapter_from_state(_state(adapters=()), None) is None
+        state = _state(
+            adapters=(
+                _adapter(path="/org/bluez/hci0", alias="A", powered=False),
+                _adapter(path="/org/bluez/hci1", alias="B", powered=False),
+            )
+        )
+        assert adapter_from_state(state, None) == "/org/bluez/hci0"
+
+    def test_build_tooltip_error_and_missing_adapter(self):
+        assert build_tooltip(unavailable_state(error="service down"), "") == (
+            "Bluetooth: service down"
+        )
+        assert (
+            build_tooltip(_state(), "/org/bluez/unknown")
+            == "Bluetooth: No adapter/service"
+        )
+
+    def test_device_menu_label_without_tags(self):
+        label = device_menu_label(
+            _device(
+                path="/d", alias="", paired=False, connected=False, battery_percent=None
+            )
+        )
+        assert label == "11:22:33:44:55:66"
+
 
 class TestBluezBackend:
     def test_pair_device_uses_bluetoothctl_fallback_on_failure(self):
@@ -230,6 +258,359 @@ class TestBluezBackend:
         assert calls.count("set") == 1
         assert "disconnect" not in calls
         assert "fallback" in calls
+
+    def test_get_state_unavailable_and_success_paths(self):
+        backend = object.__new__(BluezBackend)
+        backend._has_bluez_owner = lambda: False  # type: ignore[attr-defined]
+        state = backend.get_state()
+        assert state.available is False
+        assert "unavailable" in state.error.lower()
+
+        backend._has_bluez_owner = lambda: True  # type: ignore[attr-defined]
+        backend._get_managed_objects = lambda: None  # type: ignore[attr-defined]
+        state = backend.get_state()
+        assert state.available is False
+        assert "query failed" in state.error.lower()
+
+        backend._get_managed_objects = lambda: {}  # type: ignore[attr-defined]
+        state = backend.get_state()
+        assert state.available is False
+        assert "no bluetooth adapter" in state.error.lower()
+
+        backend._get_managed_objects = lambda: {  # type: ignore[attr-defined]
+            "/org/bluez/hci0": {
+                bluetooth_state_mod.ADAPTER_IFACE: {
+                    "Name": "hci0",
+                    "Alias": "Adapter 0",
+                    "Powered": True,
+                }
+            }
+        }
+        state = backend.get_state(active_adapter_path="/org/bluez/hci0")
+        assert state.available is True
+        assert state.active_adapter_path == "/org/bluez/hci0"
+
+    def test_backend_wrapper_methods_call_internal_helpers(self):
+        backend = object.__new__(BluezBackend)
+        calls: list[tuple[str, str]] = []
+        backend._call_method = lambda **kwargs: (
+            calls.append(  # type: ignore[attr-defined]
+                (kwargs["interface"], kwargs["method"])
+            )
+            or True
+        )
+        backend._set_property = lambda **kwargs: (
+            calls.append(  # type: ignore[attr-defined]
+                (kwargs["interface"], kwargs["property_name"])
+            )
+            or True
+        )
+        assert backend.start_discovery("/a") is True
+        assert backend.stop_discovery("/a") is True
+        assert backend.connect_device("/d") is True
+        assert backend.disconnect_device("/d") is True
+        assert backend.remove_device("/a", "/d") is True
+        assert backend.set_trusted("/d", True) is True
+        assert (bluetooth_state_mod.ADAPTER_IFACE, "StartDiscovery") in calls
+        assert (bluetooth_state_mod.ADAPTER_IFACE, "StopDiscovery") in calls
+        assert (bluetooth_state_mod.DEVICE_IFACE, "Connect") in calls
+        assert (bluetooth_state_mod.DEVICE_IFACE, "Disconnect") in calls
+        assert (bluetooth_state_mod.ADAPTER_IFACE, "RemoveDevice") in calls
+        assert (bluetooth_state_mod.DEVICE_IFACE, "Trusted") in calls
+
+    def test_has_owner_and_get_managed_objects_branches(self, monkeypatch):
+        backend = object.__new__(BluezBackend)
+        backend._dbus_proxy = None
+        assert backend._has_bluez_owner() is False
+
+        class _Result:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def unpack(self):
+                return self._payload
+
+        class _Proxy:
+            def call_sync(self, *_args, **_kwargs):
+                return _Result((True,))
+
+        backend._dbus_proxy = _Proxy()
+        assert backend._has_bluez_owner() is True
+
+        class _ProxyFail:
+            def call_sync(self, *_args, **_kwargs):
+                raise Exception("dbus")
+
+        backend._dbus_proxy = _ProxyFail()
+        monkeypatch.setattr(bluetooth_state_mod.GLib, "Error", Exception)
+        assert backend._has_bluez_owner() is False
+
+        backend._bus = None
+        assert backend._get_managed_objects() is None
+
+        class _BusFail:
+            def call_sync(self, *_args, **_kwargs):
+                raise Exception("boom")
+
+        backend._bus = _BusFail()
+        assert backend._get_managed_objects() is None
+
+        class _BusEmpty:
+            def call_sync(self, *_args, **_kwargs):
+                return _Result(())
+
+        backend._bus = _BusEmpty()
+        assert backend._get_managed_objects() == {}
+
+    def test_call_method_and_set_property_branches(self, monkeypatch):
+        backend = object.__new__(BluezBackend)
+        backend._bus = None
+        assert (
+            backend._call_method(path="/x", interface="i", method="M", parameters=None)
+            is False
+        )
+        assert (
+            backend._set_property(
+                path="/x",
+                interface="i",
+                property_name="P",
+                signature="s",
+                value="v",
+            )
+            is False
+        )
+
+        class _Bus:
+            def __init__(self, error_text: str | None = None):
+                self.error_text = error_text
+
+            def call_sync(self, *_args, **_kwargs):
+                if self.error_text is not None:
+                    raise Exception(self.error_text)
+                return object()
+
+        monkeypatch.setattr(bluetooth_state_mod.GLib, "Error", Exception)
+        backend._bus = _Bus()
+        assert (
+            backend._call_method(path="/x", interface="i", method="M", parameters=None)
+            is True
+        )
+        backend._bus = _Bus("org.bluez.Error.NotReady")
+        assert (
+            backend._call_method(
+                path="/x",
+                interface="i",
+                method="M",
+                parameters=None,
+                tolerate_errors=("org.bluez.Error.NotReady",),
+            )
+            is True
+        )
+        assert (
+            backend._call_method(path="/x", interface="i", method="M", parameters=None)
+            is False
+        )
+        assert (
+            backend._set_property(
+                path="/x",
+                interface="i",
+                property_name="P",
+                signature="s",
+                value="v",
+                quiet=True,
+            )
+            is False
+        )
+
+    def test_bluetoothctl_helpers(self, monkeypatch):
+        backend = object.__new__(BluezBackend)
+        monkeypatch.setattr(bluetooth_state_mod.shutil, "which", lambda cmd: None)
+        assert backend._pair_with_bluetoothctl(address="", timeout_s=1) is False
+        assert backend._set_power_with_bluetoothctl(powered=True) is False
+
+        monkeypatch.setattr(bluetooth_state_mod.shutil, "which", lambda cmd: "/bin/bt")
+
+        def timeout_run(*_args, **_kwargs):
+            raise subprocess.TimeoutExpired(cmd="bluetoothctl", timeout=1)
+
+        monkeypatch.setattr(bluetooth_state_mod.subprocess, "run", timeout_run)
+        assert backend._pair_with_bluetoothctl(address="AA:BB", timeout_s=1) is False
+        assert backend._set_power_with_bluetoothctl(powered=False) is False
+
+        class _Result:
+            def __init__(self, returncode=0, stdout="", stderr=""):
+                self.returncode = returncode
+                self.stdout = stdout
+                self.stderr = stderr
+
+        monkeypatch.setattr(
+            bluetooth_state_mod.subprocess,
+            "run",
+            lambda *args, **kwargs: _Result(returncode=0, stdout="Failed"),
+        )
+        assert backend._pair_with_bluetoothctl(address="AA:BB", timeout_s=1) is False
+        assert backend._set_power_with_bluetoothctl(powered=False) is False
+
+        monkeypatch.setattr(
+            bluetooth_state_mod.subprocess,
+            "run",
+            lambda *args, **kwargs: _Result(returncode=0, stdout="ok"),
+        )
+        assert backend._pair_with_bluetoothctl(address="AA:BB", timeout_s=1) is True
+        assert backend._set_power_with_bluetoothctl(powered=True) is True
+
+    def test_disconnect_wait_and_adapter_props_helpers(self, monkeypatch):
+        backend = object.__new__(BluezBackend)
+        disconnected: list[str] = []
+        backend._call_method = lambda **kwargs: (
+            disconnected.append(kwargs["path"]) or True
+        )  # type: ignore[attr-defined]
+        backend._get_managed_objects = lambda: {  # type: ignore[attr-defined]
+            "/d1": {
+                bluetooth_state_mod.DEVICE_IFACE: {
+                    "Adapter": "/a0",
+                    "Connected": True,
+                }
+            },
+            "/d2": {
+                bluetooth_state_mod.DEVICE_IFACE: {
+                    "Adapter": "/a1",
+                    "Connected": True,
+                }
+            },
+            "/d3": {
+                bluetooth_state_mod.DEVICE_IFACE: {
+                    "Adapter": "/a0",
+                    "Connected": False,
+                }
+            },
+        }
+        backend._disconnect_connected_devices(adapter_path="/a0")
+        assert disconnected == ["/d1"]
+
+        backend._get_managed_objects = lambda: None  # type: ignore[attr-defined]
+        assert backend._get_adapter_props(adapter_path="/a0") is None
+
+        backend._get_managed_objects = lambda: {"/a0": "bad"}  # type: ignore[attr-defined]
+        assert backend._get_adapter_props(adapter_path="/a0") is None
+
+        backend._get_managed_objects = lambda: {  # type: ignore[attr-defined]
+            "/a0": {bluetooth_state_mod.ADAPTER_IFACE: {"Discovering": True}}
+        }
+        assert backend._get_adapter_props(adapter_path="/a0") == {"Discovering": True}
+
+        backend._get_adapter_props = lambda **kwargs: {"Discovering": False}  # type: ignore[attr-defined]
+        monkeypatch.setattr(bluetooth_state_mod.time, "sleep", lambda _s: None)
+        times = iter([0.0, 0.01])
+        monkeypatch.setattr(bluetooth_state_mod.time, "monotonic", lambda: next(times))
+        assert (
+            backend._wait_for_discovery_state(
+                adapter_path="/a0",
+                target_discovering=False,
+                timeout_s=1.0,
+            )
+            is True
+        )
+
+        backend._get_adapter_props = lambda **kwargs: None  # type: ignore[attr-defined]
+        times = iter([0.0, 0.01])
+        monkeypatch.setattr(bluetooth_state_mod.time, "monotonic", lambda: next(times))
+        assert (
+            backend._wait_for_discovery_state(
+                adapter_path="/a0",
+                target_discovering=False,
+                timeout_s=1.0,
+            )
+            is False
+        )
+
+    def test_parse_objects_and_helper_conversions(self):
+        objects = {
+            "/org/bluez/hci1": {
+                bluetooth_state_mod.ADAPTER_IFACE: {
+                    "Name": "hci1",
+                    "Alias": "",
+                    "Powered": True,
+                    "Discovering": False,
+                    "Address": "AA",
+                }
+            },
+            "/org/bluez/hci0": {
+                bluetooth_state_mod.ADAPTER_IFACE: {
+                    "Name": "",
+                    "Alias": "",
+                    "Powered": False,
+                    "Discovering": True,
+                    "Address": "BB",
+                }
+            },
+            "/dev/a": {
+                bluetooth_state_mod.DEVICE_IFACE: {
+                    "Adapter": "/org/bluez/hci0",
+                    "Name": "A",
+                    "Alias": "A",
+                    "Address": "11",
+                    "Icon": "audio",
+                    "Paired": True,
+                    "Trusted": True,
+                    "Connected": True,
+                    "RSSI": "-20",
+                },
+                bluetooth_state_mod.BATTERY_IFACE: {"Percentage": 88},
+            },
+            "/dev/b": {
+                bluetooth_state_mod.DEVICE_IFACE: {
+                    "Adapter": "/org/bluez/hci0",
+                    "Name": "B",
+                    "Alias": "B",
+                    "Address": "22",
+                    "Icon": "",
+                    "Paired": False,
+                    "Trusted": False,
+                    "Connected": False,
+                    "RSSI": "bad",
+                }
+            },
+            "/bad": "bad",
+        }
+        adapters, devices = bluetooth_state_mod._parse_objects(objects=objects)
+        assert [a.path for a in adapters] == ["/org/bluez/hci0", "/org/bluez/hci1"]
+        assert devices[0].path == "/dev/a"
+        assert devices[0].battery_percent == 88
+        assert devices[1].rssi is None
+        state = _state(adapters=tuple(adapters), devices=tuple(devices))
+        assert (
+            bluetooth_state_mod._find_adapter(state=state, path="/org/bluez/hci0")
+            is not None
+        )
+        assert bluetooth_state_mod._find_adapter(state=state, path="/missing") is None
+
+        nameless = _device(path="/d/x", alias="")
+        nameless = replace(nameless, name="", address="", path="/d/name")
+        assert bluetooth_state_mod._device_display_name(nameless) == "name"
+
+        class _Variant:
+            def __init__(self, value):
+                self._value = value
+
+            def unpack(self):
+                return self._value
+
+        class _BrokenVariant:
+            def unpack(self):
+                raise RuntimeError("bad")
+
+        assert bluetooth_state_mod._unpack({"k": _Variant([1, _Variant(2)])}) == {
+            "k": [1, 2]
+        }
+        broken = _BrokenVariant()
+        assert bluetooth_state_mod._unpack(broken) is broken
+        assert bluetooth_state_mod._as_str(None) == ""
+        assert bluetooth_state_mod._as_str(_Variant("x")) == "x"
+        assert bluetooth_state_mod._as_bool(_Variant(True)) is True
+        assert bluetooth_state_mod._as_bool("true") is False
+        assert bluetooth_state_mod._as_int(_Variant("7")) == 7
+        assert bluetooth_state_mod._as_int("bad", default=None) is None
 
 
 class _StubBackend:
@@ -370,6 +751,272 @@ class TestBluetoothApplet:
     def test_scroll_is_noop(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         applet.on_scroll(direction_up=True)
+
+    def test_start_and_stop_manage_poll_and_discovery_timers(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        timeout_calls: list[int] = []
+        removed: list[int] = []
+        applet._ensure_discovery = lambda: timeout_calls.append(99)  # type: ignore[assignment]
+        applet._stop_local_discovery = lambda quiet=True: True  # type: ignore[assignment]
+        monkeypatch.setattr(
+            bluetooth_applet_mod.GLib,
+            "timeout_add_seconds",
+            lambda sec, cb: 10 if sec == bluetooth_applet_mod.POLL_INTERVAL_S else 20,
+        )
+        monkeypatch.setattr(
+            bluetooth_applet_mod.GLib,
+            "source_remove",
+            lambda source_id: removed.append(source_id),
+        )
+
+        applet.start(notify=lambda: None)
+        assert applet._poll_id == 10
+        assert applet._discovery_id == 20
+        assert timeout_calls == [99]
+
+        applet.stop()
+        assert applet._poll_id == 0
+        assert applet._discovery_id == 0
+        assert removed == [10, 20]
+
+    def test_menu_handles_unavailable_and_missing_active_adapter(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, unavailable_state())
+        items = applet.get_menu_items()
+        assert items[0].get_label() == "Bluetooth unavailable"
+
+        state = _state(
+            adapters=(_adapter(path="/org/bluez/hci0"),), active_adapter_path=""
+        )
+        applet2, _backend2 = _make_applet(monkeypatch, state)
+        applet2._active_adapter_path = "/missing"
+        items = applet2.get_menu_items()
+        assert items[0].get_label() == "No Bluetooth adapter"
+
+    def test_make_header_creates_insensitive_item(self):
+        header = BluetoothApplet._make_header("Section")
+        assert header.get_label() == "Section"
+        assert header.get_sensitive() is False
+
+    def test_tick_and_discovery_tick(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        ticked: list[str] = []
+        applet._poll_worker = lambda: ticked.append("poll")  # type: ignore[assignment]
+        applet._ensure_discovery = lambda: ticked.append("discover")  # type: ignore[assignment]
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _Thread)
+        assert applet._tick() is True
+        assert applet._discovery_tick() is True
+        assert ticked == ["poll", "discover"]
+
+    def test_poll_worker_and_refresh_now_schedule_result(self, monkeypatch):
+        applet, backend = _make_applet(monkeypatch, _state())
+        idle_calls: list[BluetoothState] = []
+        monkeypatch.setattr(
+            bluetooth_applet_mod.GLib,
+            "idle_add",
+            lambda func, state: idle_calls.append(state),
+        )
+        applet._poll_worker()
+        assert idle_calls and idle_calls[0].available is True
+
+        results: list[BluetoothState] = []
+        applet._on_poll_result = lambda state: results.append(state) or False  # type: ignore[assignment]
+        applet._refresh_now()
+        assert results and results[0] == backend.get_state(
+            active_adapter_path=applet._active_adapter_path
+        )
+
+    def test_on_poll_result_syncs_adapter_and_resets_local_discovery(self, monkeypatch):
+        state = _state(adapters=(_adapter(path="/org/bluez/hci0", discovering=False),))
+        applet, _backend = _make_applet(monkeypatch, state)
+        applet._local_discovery_active = True
+        applet._ensure_discovery = lambda: None  # type: ignore[assignment]
+        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        assert applet._on_poll_result(state) is False
+        assert applet._local_discovery_active is False
+
+    def test_sync_selected_adapter_active_adapter_and_discovery_flow(self, monkeypatch):
+        applet, backend = _make_applet(monkeypatch, _state())
+        saved: list[dict[str, object]] = []
+        applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[assignment]
+        applet._active_adapter_path = "/invalid"
+        applet._sync_selected_adapter()
+        assert applet._active_adapter_path == "/org/bluez/hci0"
+        assert saved
+
+        applet._state = _state(adapters=())
+        assert applet._active_adapter() is None
+
+        applet._state = _state(adapters=(_adapter(powered=False),))
+        applet._continuous_discovery = True
+        applet._ensure_discovery()
+        assert backend.discovery_calls == []
+
+        applet._state = _state(adapters=(_adapter(powered=True, discovering=False),))
+        applet._continuous_discovery = False
+        applet._ensure_discovery()
+        assert backend.discovery_calls == []
+
+        applet._continuous_discovery = True
+        monkeypatch.setattr(bluetooth_applet_mod.time, "monotonic", lambda: 100.0)
+        applet._suppress_discovery_until = 120.0
+        applet._ensure_discovery()
+        assert backend.discovery_calls == []
+
+        applet._suppress_discovery_until = 0.0
+        applet._ensure_discovery()
+        assert backend.discovery_calls == ["/org/bluez/hci0"]
+        assert applet._local_discovery_active is True
+
+    def test_run_async_and_connect_device_paths(self, monkeypatch):
+        applet, backend = _make_applet(monkeypatch, _state())
+        idle_calls: list[BluetoothState] = []
+        monkeypatch.setattr(
+            bluetooth_applet_mod.GLib,
+            "idle_add",
+            lambda func, state: idle_calls.append(state),
+        )
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _Thread)
+        applet._run_async(lambda: True)
+        assert idle_calls
+
+        backend.connect_device = lambda path: path == "/d/ok"  # type: ignore[method-assign]
+        backend.pair_device = lambda path, address="", timeout_s=20: True  # type: ignore[method-assign]
+        assert applet._connect_device(_device(path="/d/ok", paired=True)) is True
+        assert applet._connect_device(_device(path="/d/new", paired=False)) is False
+
+    def test_select_adapter_power_toggle_and_power_async(self, monkeypatch):
+        applet, backend = _make_applet(monkeypatch, _state())
+        refreshed: list[str] = []
+        applet._refresh_now = lambda: refreshed.append("refresh")  # type: ignore[assignment]
+        saved: list[dict[str, object]] = []
+        applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[assignment]
+
+        class _Radio:
+            def __init__(self, active: bool):
+                self._active = active
+
+            def get_active(self):
+                return self._active
+
+        applet._on_select_adapter(_Radio(active=False), "/org/bluez/hci0")
+        applet._on_select_adapter(_Radio(active=True), "/org/bluez/hci0")
+        assert refreshed == ["refresh"]
+        assert saved
+
+        calls: list[bool] = []
+        applet._set_power_async = lambda *, target: calls.append(target)  # type: ignore[assignment]
+
+        class _Check:
+            def __init__(self, active: bool):
+                self._active = active
+                self.reverted = None
+
+            def get_active(self):
+                return self._active
+
+            def set_active(self, value: bool):
+                self.reverted = value
+
+        applet._power_transition_in_progress = True
+        widget = _Check(active=False)
+        applet._on_power_toggled(widget)
+        assert widget.reverted is True
+        applet._power_transition_in_progress = False
+
+        applet._state = _state(adapters=(_adapter(powered=True),))
+        applet._on_power_toggled(_Check(active=True))
+        assert calls == []
+        applet._on_power_toggled(_Check(active=False))
+        assert calls == [False]
+
+        applet._set_power_async = (
+            bluetooth_applet_mod.BluetoothApplet._set_power_async.__get__(  # type: ignore[method-assign]
+                applet,
+                bluetooth_applet_mod.BluetoothApplet,
+            )
+        )
+
+        applet._power_transition_in_progress = True
+        applet._set_power_async(target=True)
+        assert applet._power_transition_in_progress is True
+
+        applet._power_transition_in_progress = False
+        applet._state = _state(adapters=())
+        applet._set_power_async(target=True)
+        assert applet._power_transition_in_progress is False
+
+        applet._state = _state(adapters=(_adapter(powered=True),))
+        applet._active_adapter_path = "/org/bluez/hci0"
+        monkeypatch.setattr(bluetooth_applet_mod.time, "monotonic", lambda: 10.0)
+        monkeypatch.setattr(
+            bluetooth_applet_mod.GLib,
+            "idle_add",
+            lambda func, target, ok, state: func(target, ok, state),
+        )
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _Thread)
+        applet._stop_local_discovery = lambda quiet=True: True  # type: ignore[assignment]
+        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        applet._set_power_async(target=False)
+        assert backend.power_calls
+
+    def test_power_result_discovery_toggle_and_pref_bool(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        applet._local_discovery_active = True
+        applet._on_power_result(False, True, _state())
+        assert applet._local_discovery_active is False
+        applet._on_power_result(True, False, _state())
+        assert "Power on failed." == applet._action_error
+
+        class _Widget:
+            def __init__(self, active: bool):
+                self._active = active
+
+            def get_active(self):
+                return self._active
+
+        calls: list[str] = []
+        applet._ensure_discovery = lambda: calls.append("ensure")  # type: ignore[assignment]
+        applet._run_async = lambda action: calls.append("run")  # type: ignore[assignment]
+        applet._on_continuous_discovery_toggled(_Widget(active=True))
+        applet._on_continuous_discovery_toggled(_Widget(active=False))
+        assert calls == ["ensure", "run"]
+
+        applet._local_discovery_active = False
+        assert applet._stop_local_discovery(quiet=True) is True
+        applet._local_discovery_active = True
+        applet._backend.stop_discovery = lambda path, quiet=True: False  # type: ignore[attr-defined]
+        assert applet._stop_local_discovery(quiet=True) is False
+
+        assert bluetooth_applet_mod._as_pref_bool(True, default=False) is True
+        assert bluetooth_applet_mod._as_pref_bool("yes", default=False) is True
+        assert bluetooth_applet_mod._as_pref_bool("off", default=True) is False
+        assert bluetooth_applet_mod._as_pref_bool("unknown", default=True) is True
+        assert bluetooth_applet_mod._as_pref_bool(0, default=True) is False
 
 
 class TestBluetoothRender:

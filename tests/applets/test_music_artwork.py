@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import gi
@@ -141,3 +142,183 @@ class TestCoverArtResolver:
         assert first is not None
         assert second is first
         assert seen["count"] == 1
+
+    def test_resolve_handles_empty_key_and_recent_miss(self, monkeypatch):
+        resolver = CoverArtResolver()
+        assert resolver.resolve(_state(available=False)) is None
+
+        calls = {"count": 0}
+        monkeypatch.setattr(
+            resolver,
+            "_resolve_uncached",
+            lambda state: calls.__setitem__("count", calls["count"] + 1) or None,
+        )
+        monkeypatch.setattr(
+            "docking.applets.music.artwork.time.monotonic", lambda: 100.0
+        )
+        state = _state(art_url="", track_url="")
+        assert resolver.resolve(state) is None
+        assert resolver.resolve(state) is None
+        assert calls["count"] == 1
+
+    def test_cache_key_and_path_parsing(self):
+        resolver = CoverArtResolver()
+        assert resolver._cache_key(_state(available=False)) == ""
+        assert (
+            resolver._cache_key(_state(player_name="", artist="", album="", title=""))
+            != ""
+        )
+        assert resolver._path_from_uri_or_path("  ") is None
+        assert resolver._path_from_uri_or_path("file:///tmp/a%20b.mp3") == Path(
+            "/tmp/a b.mp3"
+        )
+        assert resolver._path_from_uri_or_path("/tmp/song.mp3") == Path("/tmp/song.mp3")
+        assert resolver._path_from_uri_or_path("https://example.com/x") is None
+
+    def test_find_local_cover_invalid_folder(self, tmp_path: Path):
+        resolver = CoverArtResolver()
+        track = tmp_path / "song.mp3"
+        track.write_bytes(b"track")
+        assert (
+            resolver._find_local_cover_path(track_url=(tmp_path / "missing").as_posix())
+            is None
+        )
+
+    def test_lookup_online_cover_url_branches(self, monkeypatch):
+        resolver = CoverArtResolver()
+        assert resolver._lookup_online_cover_url("", "", "") is None
+        monkeypatch.setattr(
+            resolver, "_download_bytes", lambda uri, require_image: None
+        )
+        assert resolver._lookup_online_cover_url("A", "B", "") is None
+
+        monkeypatch.setattr(
+            resolver,
+            "_download_bytes",
+            lambda uri, require_image: b"not-json",
+        )
+        assert resolver._lookup_online_cover_url("A", "B", "") is None
+
+        monkeypatch.setattr(
+            resolver,
+            "_download_bytes",
+            lambda uri, require_image: json.dumps({"results": []}).encode("utf-8"),
+        )
+        assert resolver._lookup_online_cover_url("A", "B", "") is None
+
+        monkeypatch.setattr(
+            resolver,
+            "_download_bytes",
+            lambda uri, require_image: json.dumps({"results": [{}]}).encode("utf-8"),
+        )
+        assert resolver._lookup_online_cover_url("A", "B", "") is None
+
+        monkeypatch.setattr(
+            resolver,
+            "_download_bytes",
+            lambda uri, require_image: json.dumps(
+                {"results": [{"artworkUrl100": "https://img/100x100bb.jpg"}]}
+            ).encode("utf-8"),
+        )
+        assert (
+            resolver._lookup_online_cover_url("A", "B", "")
+            == "https://img/600x600bb.jpg"
+        )
+
+    def test_load_from_path_and_uri_variants(self, monkeypatch, tmp_path: Path):
+        resolver = CoverArtResolver()
+        image = tmp_path / "cover.png"
+        image.write_bytes(b"not-image")
+        assert resolver._load_from_path(image) is None
+        assert resolver._load_from_uri("custom://cover") is None
+
+        monkeypatch.setattr(resolver, "_load_from_path", lambda path: _pixbuf())
+        assert resolver._load_from_uri(image.as_posix()) is not None
+        assert resolver._load_from_uri(f"file://{image}") is not None
+
+        monkeypatch.setattr(
+            resolver, "_download_bytes", lambda uri, require_image: b"abc"
+        )
+        monkeypatch.setattr(resolver, "_pixbuf_from_bytes", lambda payload: _pixbuf())
+        assert resolver._load_from_uri("https://example.com/art.jpg") is not None
+
+    def test_download_bytes_limits_and_errors(self, monkeypatch):
+        resolver = CoverArtResolver()
+
+        class _Headers:
+            def __init__(self, content_type: str):
+                self._content_type = content_type
+
+            def get_content_type(self):
+                return self._content_type
+
+        class _Response:
+            def __init__(self, chunks: list[bytes], content_type: str):
+                self._chunks = chunks
+                self._index = 0
+                self.headers = _Headers(content_type)
+
+            def read(self, _size: int):
+                if self._index >= len(self._chunks):
+                    return b""
+                chunk = self._chunks[self._index]
+                self._index += 1
+                return chunk
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        monkeypatch.setattr(
+            "docking.applets.music.artwork.urllib.request.urlopen",
+            lambda request, timeout: _Response([b"abc"], "text/plain"),
+        )
+        assert resolver._download_bytes("https://x", require_image=True) is None
+
+        monkeypatch.setattr(
+            "docking.applets.music.artwork.urllib.request.urlopen",
+            lambda request, timeout: _Response(
+                [b"a" * (5 * 1024 * 1024)], "image/jpeg"
+            ),
+        )
+        assert resolver._download_bytes("https://x", require_image=True) is None
+
+        monkeypatch.setattr(
+            "docking.applets.music.artwork.urllib.request.urlopen",
+            lambda request, timeout: _Response([b"a", b"b"], "image/jpeg"),
+        )
+        assert resolver._download_bytes("https://x", require_image=True) == b"ab"
+
+        def fail_open(*args, **kwargs):
+            raise OSError("offline")
+
+        monkeypatch.setattr(
+            "docking.applets.music.artwork.urllib.request.urlopen",
+            fail_open,
+        )
+        assert resolver._download_bytes("https://x", require_image=False) is None
+
+    def test_pixbuf_from_bytes_and_cache_eviction(self, monkeypatch):
+        resolver = CoverArtResolver(max_entries=1, max_bytes=10_000)
+        assert resolver._pixbuf_from_bytes(b"bad") is None
+
+        p1 = _pixbuf(size=2)
+        p2 = _pixbuf(size=3)
+        resolver._insert_cache("k1", p1)
+        resolver._insert_cache("k2", p2)
+        assert "k1" not in resolver._cache
+        assert "k2" in resolver._cache
+
+        class _PB:
+            def get_width(self):
+                return 2
+
+            def get_height(self):
+                return 3
+
+            def get_n_channels(self):
+                return 0
+
+        assert resolver._pixbuf_size_bytes(_PB()) == 24

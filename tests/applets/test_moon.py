@@ -1,7 +1,11 @@
 """Tests for the Moon phase applet."""
 
 from datetime import date
+from unittest.mock import MagicMock
 
+import docking.applets.moon.applet as moon_applet_mod
+import docking.applets.moon.offline as moon_offline_mod
+import docking.applets.moon.state as moon_state_mod
 from docking.applets.moon import (
     MoonApplet,
     MoonData,
@@ -64,6 +68,35 @@ class TestParseMoonHtml:
     def test_returns_none_for_garbage(self):
         assert _parse_moon_html(html="<html>nothing</html>") is None
 
+    def test_fetch_moon_from_network(self, monkeypatch):
+        class _Resp:
+            def read(self):
+                return _SAMPLE_HTML.encode("utf-8")
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        monkeypatch.setattr(moon_state_mod, "urlopen", lambda req, timeout=10: _Resp())
+        data = moon_state_mod.fetch_moon(day=date(2026, 3, 4))
+        assert data is not None
+        assert data.image_name == "moon10b"
+
+    def test_fetch_moon_falls_back_to_offline(self, monkeypatch):
+        monkeypatch.setattr(
+            moon_state_mod,
+            "urlopen",
+            lambda req, timeout=10: (_ for _ in ()).throw(OSError("offline")),
+        )
+        monkeypatch.setattr(
+            "docking.applets.moon.offline.fetch_moon_offline",
+            lambda d=None: _SAMPLE_MOON,
+        )
+        data = moon_state_mod.fetch_moon(day=date(2026, 3, 4))
+        assert data == _SAMPLE_MOON
+
 
 class TestPhaseName:
     def test_waning_gibbous(self):
@@ -90,6 +123,11 @@ class TestPhaseName:
     def test_first_quarter(self):
         assert phase_name(0.5, "first quarter") == "1st Quarter"
 
+    def test_other_phase_name_paths(self):
+        assert phase_name(0.6, "before full moon") == "Waxing Gibbous"
+        assert phase_name(0.4, "before new moon") == "Waning Crescent"
+        assert phase_name(0.4, "third quarter") == "3rd Quarter"
+
 
 class TestAstronomicalCalculation:
     def test_known_full_moon(self):
@@ -109,6 +147,61 @@ class TestAstronomicalCalculation:
         assert data.illumination > 0
         assert data.date_label == "Mar 4, 2026"
         assert data.description
+
+    def test_phase_from_illumination_buckets(self):
+        assert moon_offline_mod.phase_from_illumination(0.3) == "Crescent"
+        assert moon_offline_mod.phase_from_illumination(0.7) == "Gibbous"
+
+    def test_moon_phase_from_date_uses_today_when_none(self, monkeypatch):
+        class _FakeDate:
+            @staticmethod
+            def today():
+                return date(2026, 3, 4)
+
+        monkeypatch.setattr(moon_offline_mod, "date", _FakeDate)
+        phase = moon_offline_mod.moon_phase_from_date(d=None)
+        assert 0.0 <= phase <= 1.0
+
+    def test_fetch_moon_offline_description_branches(self, monkeypatch):
+        monkeypatch.setattr(
+            moon_offline_mod, "illumination_from_phase", lambda phase: 0.5
+        )
+
+        monkeypatch.setattr(moon_offline_mod, "moon_phase_from_date", lambda d: 0.01)
+        assert (
+            "new moon"
+            in moon_offline_mod.fetch_moon_offline(d=date(2026, 1, 1)).description
+        )
+
+        monkeypatch.setattr(moon_offline_mod, "moon_phase_from_date", lambda d: 0.24)
+        assert (
+            "first quarter"
+            in moon_offline_mod.fetch_moon_offline(d=date(2026, 1, 1)).description
+        )
+
+        monkeypatch.setattr(moon_offline_mod, "moon_phase_from_date", lambda d: 0.5)
+        assert (
+            "full moon"
+            in moon_offline_mod.fetch_moon_offline(d=date(2026, 1, 1)).description
+        )
+
+        monkeypatch.setattr(moon_offline_mod, "moon_phase_from_date", lambda d: 0.74)
+        assert (
+            "last quarter"
+            in moon_offline_mod.fetch_moon_offline(d=date(2026, 1, 1)).description
+        )
+
+        monkeypatch.setattr(moon_offline_mod, "moon_phase_from_date", lambda d: 0.3)
+        assert (
+            "after new moon"
+            in moon_offline_mod.fetch_moon_offline(d=date(2026, 1, 1)).description
+        )
+
+        monkeypatch.setattr(moon_offline_mod, "moon_phase_from_date", lambda d: 0.8)
+        assert (
+            "after full moon"
+            in moon_offline_mod.fetch_moon_offline(d=date(2026, 1, 1)).description
+        )
 
 
 class TestRenderIcon:
@@ -156,3 +249,79 @@ class TestMoonApplet:
         applet = MoonApplet(48)
         applet._moon = _SAMPLE_MOON
         assert applet.create_icon(size=48) is not None
+
+    def test_init_config_and_toggle_phase(self):
+        class _Cfg:
+            applet_prefs = {moon_applet_mod.AppletId.MOON: {"show_phase": False}}
+
+            def save(self):
+                return None
+
+        applet = MoonApplet(48, config=_Cfg())
+        assert applet._show_phase is False
+        applet.refresh_presentation = MagicMock()
+
+        class _Widget:
+            def __init__(self, active: bool):
+                self._active = active
+
+            def get_active(self):
+                return self._active
+
+        applet._on_toggle_phase(_Widget(active=True))
+        assert applet._show_phase is True
+        applet.refresh_presentation.assert_called_once()
+
+    def test_start_stop_tick_clicked_and_fetch_async(self, monkeypatch):
+        applet = MoonApplet(48)
+        calls: list[str] = []
+        removed: list[int] = []
+        applet._fetch_async = lambda: calls.append("fetch")  # type: ignore[assignment]
+        monkeypatch.setattr(
+            moon_applet_mod.GLib,
+            "timeout_add_seconds",
+            lambda sec, cb: 55,
+        )
+        monkeypatch.setattr(
+            moon_applet_mod.GLib,
+            "source_remove",
+            lambda source_id: removed.append(source_id),
+        )
+        applet.start(notify=lambda: None)
+        assert applet._timer_id == 55
+        assert calls == ["fetch"]
+        assert applet._tick() is True
+        assert calls[-1] == "fetch"
+        applet.on_clicked()
+        assert calls[-1] == "fetch"
+
+        applet.stop()
+        assert applet._timer_id == 0
+        assert removed == [55]
+
+    def test_fetch_async_and_on_result_branches(self, monkeypatch):
+        applet = MoonApplet(48)
+        idle_calls: list[tuple[object, ...]] = []
+        monkeypatch.setattr(moon_applet_mod, "fetch_moon", lambda: _SAMPLE_MOON)
+        monkeypatch.setattr(
+            moon_applet_mod.GLib,
+            "idle_add",
+            lambda *args: idle_calls.append(args),
+        )
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(moon_applet_mod.threading, "Thread", _Thread)
+        applet._fetch_async()
+        assert idle_calls and idle_calls[0][1] == _SAMPLE_MOON
+
+        applet.refresh_presentation = MagicMock()
+        assert applet._on_result(None) is False
+        applet.refresh_presentation.assert_not_called()
+        assert applet._on_result(_SAMPLE_MOON) is False
+        applet.refresh_presentation.assert_called_once()
