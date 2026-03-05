@@ -52,7 +52,7 @@ parts:
       - librsvg2-common
       - ca-certificates
     override-build: |
-      bash "$CRAFT_PROJECT_DIR/tools/compile_translations.sh"
+      bash "$CRAFT_PART_SRC/tools/compile_translations.sh"
       craftctl default
       desktop_file="${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
       install -d "$(dirname "${desktop_file}")"
