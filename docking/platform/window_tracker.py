@@ -120,6 +120,7 @@ def _wm_class_desktop_candidates(class_lower: str) -> list[str]:
 
 
 if TYPE_CHECKING:
+    from docking.core.config import Config
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
@@ -127,8 +128,14 @@ if TYPE_CHECKING:
 class WindowTracker:
     """Tracks running applications and maps them to dock items via WM_CLASS."""
 
-    def __init__(self, model: DockModel, launcher: Launcher) -> None:
+    def __init__(
+        self,
+        model: DockModel,
+        launcher: Launcher,
+        config: Config | None = None,
+    ) -> None:
         self._model = model
+        self._config = config
         self._launcher = launcher
         self._screen: Wnck.Screen | None = None
         self._wm_class_to_desktop: dict[str, str] = {}
@@ -423,9 +430,15 @@ class WindowTracker:
                 continue
 
         result: list[Wnck.Window] = []
+        workspace_only = bool(
+            self._config and getattr(self._config, "current_workspace_only", False)
+        )
+        active_ws = self._screen.get_active_workspace() if workspace_only else None
         for xid in self._running_xids_by_desktop.get(desktop_id, []):
             window = by_xid.get(xid)
             if window is not None:
+                if active_ws is not None and not window.is_on_workspace(active_ws):
+                    continue
                 result.append(window)
         return result
 

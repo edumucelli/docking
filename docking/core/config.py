@@ -26,7 +26,7 @@ class Config:
     icon_size: int = 48
     # Whether parabolic zoom on hover is enabled
     zoom_enabled: bool = True
-    # Max zoom multiplier (1.5 = 150%, Plank default)
+    # Max zoom multiplier (1.0-4.0, default 1.5 = 150%)
     zoom_percent: float = 1.5
     # Number of icon widths over which the zoom tapers off
     zoom_range: int = 3
@@ -46,8 +46,14 @@ class Config:
     previews_enabled: bool = True
     # Whether icon reordering, drag-in, and drag-off removal are locked
     lock_icons: bool = False
+    # Only show running apps from the active workspace
+    current_workspace_only: bool = False
+    # Whether applets are anchored to the end of the dock
+    anchor_applets: bool = False
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = "default"
+    # Gap between dock edge and screen edge (0 = flush, like Plank GapSize)
+    gap_size: int = 0
     # Desktop file IDs of pinned applications, in display order
     pinned: list[str] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")

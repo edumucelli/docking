@@ -288,6 +288,18 @@ class MenuHandler:
         lock.connect("toggled", self._on_lock_toggled)
         menu.append(lock)
 
+        workspace_only = Gtk.CheckMenuItem(label=_("Current Workspace Only"))
+        workspace_only.set_active(
+            bool(getattr(self._config, "current_workspace_only", False))
+        )
+        workspace_only.connect("toggled", self._on_workspace_only_toggled)
+        menu.append(workspace_only)
+
+        anchor = Gtk.CheckMenuItem(label=_("Anchor Applets to End"))
+        anchor.set_active(bool(getattr(self._config, "anchor_applets", False)))
+        anchor.connect("toggled", self._on_anchor_toggled)
+        menu.append(anchor)
+
         menu.append(Gtk.SeparatorMenuItem())
 
         # Themes submenu
@@ -515,6 +527,16 @@ class MenuHandler:
         self._config.save()
         if self._window._dnd:
             self._window._dnd.set_locked(self._config.lock_icons)
+
+    def _on_anchor_toggled(self, widget: Gtk.CheckMenuItem) -> None:
+        self._config.anchor_applets = widget.get_active()
+        self._config.save()
+        self._window.queue_draw()
+
+    def _on_workspace_only_toggled(self, widget: Gtk.CheckMenuItem) -> None:
+        self._config.current_workspace_only = widget.get_active()
+        self._config.save()
+        self._window.queue_draw()
 
     def _on_theme_changed(self, widget: Gtk.MenuItem, name: str) -> None:
         if not widget.get_active() or name == self._config.theme:

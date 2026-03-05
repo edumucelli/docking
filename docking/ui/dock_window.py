@@ -473,6 +473,7 @@ class DockWindow(Gtk.Window):
             + self.theme.bottom_padding
             + bounce_headroom
         )
+        gap_size = int(getattr(self.config, "gap_size", 0))
 
         pos = self.config.pos
         if is_horizontal(pos=pos):
@@ -481,18 +482,18 @@ class DockWindow(Gtk.Window):
             win_w, win_h = geom.width, cross
             if pos == Position.BOTTOM:
                 win_x = geom.x
-                win_y = geom.y + geom.height - win_h
+                win_y = geom.y + geom.height - win_h - gap_size
             else:  # TOP
                 win_x = geom.x
-                win_y = workarea.y
+                win_y = workarea.y + gap_size
         else:
             # Span workarea height to avoid overlapping top/bottom panels
             win_w, win_h = cross, workarea.height
             if pos == Position.LEFT:
-                win_x = geom.x
+                win_x = geom.x + gap_size
                 win_y = workarea.y
             else:  # RIGHT
-                win_x = geom.x + geom.width - win_w
+                win_x = geom.x + geom.width - win_w - gap_size
                 win_y = workarea.y
 
         _log.debug(
@@ -530,7 +531,8 @@ class DockWindow(Gtk.Window):
         # compute_dock_size returns shelf-based height (with negative
         # top_padding), but struts need the visible icon extent.
         icon_size = self.config.icon_size
-        strut_height = int(icon_size + self.theme.bottom_padding)
+        gap_size = int(getattr(self.config, "gap_size", 0))
+        strut_height = int(icon_size + self.theme.bottom_padding + gap_size)
 
         set_dock_struts(
             gdk_window=gdk_window,

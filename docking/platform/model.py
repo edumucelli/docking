@@ -239,8 +239,15 @@ class DockModel:
             applet.stop()
 
     def visible_items(self) -> list[DockItem]:
-        """All items to display: pinned first, then transient running apps."""
-        return self.pinned_items + self._transient
+        """All items to display, with optional applet-anchor ordering."""
+        items = self.pinned_items + self._transient
+        if not getattr(self._config, "anchor_applets", False):
+            return items
+        regular = [
+            i for i in items if not is_applet_desktop_id(desktop_id=i.desktop_id)
+        ]
+        applets = [i for i in items if is_applet_desktop_id(desktop_id=i.desktop_id)]
+        return regular + applets
 
     def find_by_desktop_id(self, desktop_id: str) -> DockItem | None:
         for item in self.pinned_items + self._transient:

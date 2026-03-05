@@ -47,7 +47,7 @@ def main() -> None:
     launcher = Launcher()
     model = DockModel(config, launcher)
     renderer = DockRenderer()
-    tracker = WindowTracker(model, launcher)
+    tracker = WindowTracker(model, launcher, config=config)
 
     window = DockWindow(config, model, renderer, theme, tracker)
 
