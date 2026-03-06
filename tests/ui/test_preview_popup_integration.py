@@ -207,6 +207,7 @@ def _make_popup():
     popup = object.__new__(preview_mod.PreviewPopup)
     popup._tracker = MagicMock()
     popup._autohide = None
+    popup._dock_window = None
     popup._hide_timer_id = 0
     popup._current_desktop_id = ""
     return popup
@@ -312,6 +313,8 @@ class TestPreviewPopupIntegration:
         # Given
         popup = _make_popup()
         popup._autohide = MagicMock()
+        popup._dock_window = MagicMock()
+        popup._dock_window.is_pointer_inside_dock.return_value = False
         popup._schedule_hide = MagicMock()
         inferior = SimpleNamespace(detail=preview_mod.Gdk.NotifyType.INFERIOR, mode=1)
         normal = SimpleNamespace(detail=object(), mode=1)
@@ -322,7 +325,7 @@ class TestPreviewPopupIntegration:
 
         # Then
         popup._schedule_hide.assert_called_once()
-        popup._autohide.on_mouse_leave.assert_called_once()
+        popup._autohide.on_mouse_leave.assert_not_called()
 
         # Given
         popup._hide_timer_id = 77
@@ -341,3 +344,33 @@ class TestPreviewPopupIntegration:
         assert popup._current_desktop_id == ""
         assert result is False
         popup.hide.assert_called_once()
+        popup._autohide.on_mouse_leave.assert_called_once()
+
+    def test_do_hide_keeps_dock_visible_when_pointer_returned_to_dock(self):
+        popup = _make_popup()
+        popup._autohide = MagicMock()
+        popup._dock_window = MagicMock()
+        popup._dock_window.is_pointer_inside_dock.return_value = True
+        popup.hide = MagicMock()
+
+        result = preview_mod.PreviewPopup._do_hide(popup)
+
+        assert result is False
+        popup.hide.assert_called_once()
+        popup._autohide.on_mouse_leave.assert_not_called()
+
+    def test_thumb_click_releases_autohide_when_pointer_is_off_dock(self):
+        popup = _make_popup()
+        popup._autohide = MagicMock()
+        popup._dock_window = MagicMock()
+        popup._dock_window.is_pointer_inside_dock.return_value = False
+        popup.hide = MagicMock()
+
+        handled = preview_mod.PreviewPopup._on_thumb_click(
+            popup, MagicMock(), MagicMock(), xid=42
+        )
+
+        assert handled is True
+        popup._tracker.activate_xid.assert_called_once_with(xid=42)
+        popup.hide.assert_called_once()
+        popup._autohide.on_mouse_leave.assert_called_once()

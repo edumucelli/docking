@@ -23,6 +23,7 @@ from docking.core.position import Position, is_horizontal
 if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.autohide import AutoHideController
+    from docking.ui.dock_window import DockWindow
 
 THUMB_W = 200
 THUMB_H = 150
@@ -244,6 +245,7 @@ class PreviewPopup(Gtk.Window):
 
         self._tracker = tracker
         self._autohide: AutoHideController | None = None
+        self._dock_window: DockWindow | None = None
         self._hide_timer_id: int = 0
         self._current_desktop_id: str = ""
 
@@ -265,6 +267,9 @@ class PreviewPopup(Gtk.Window):
 
     def set_autohide(self, controller: AutoHideController | None) -> None:
         self._autohide = controller
+
+    def set_dock_window(self, window: DockWindow) -> None:
+        self._dock_window = window
 
     def show_for_item(
         self,
@@ -395,6 +400,7 @@ class PreviewPopup(Gtk.Window):
         """Activate the clicked window."""
         self._tracker.activate_xid(xid=xid)
         self.hide()
+        self._release_dock_autohide_if_needed()
         return True
 
     def _on_enter(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
@@ -431,8 +437,6 @@ class PreviewPopup(Gtk.Window):
             return False
         log.debug(f"preview leave: detail={event.detail} mode={event.mode}")
         self._schedule_hide()
-        if self._autohide:
-            self._autohide.on_mouse_leave()
         return False
 
     def schedule_hide(self) -> None:
@@ -451,12 +455,36 @@ class PreviewPopup(Gtk.Window):
         self._hide_timer_id = 0
         self._current_desktop_id = ""
         self.hide()
+        self._release_dock_autohide_if_needed()
         return False
 
     def _cancel_hide_timer(self) -> None:
         if self._hide_timer_id:
             GLib.source_remove(self._hide_timer_id)
             self._hide_timer_id = 0
+
+    def _release_dock_autohide_if_needed(self) -> None:
+        """Let autohide continue once preview is gone and pointer is off-dock.
+
+        Preview/autohide policy in simple terms:
+
+        - preview visible => dock stays visible
+        - preview hidden => dock may autohide
+        - leaving dock should schedule preview hide when preview is visible
+        - autohide should trigger when the preview actually finishes hiding,
+          not at the first dock leave
+
+        In practice this means PreviewPopup is the final authority for ending
+        the combined dock+preview interaction. Dock leave only starts the
+        preview grace timer. When the preview truly disappears, this method
+        checks whether the pointer is already back on the dock; if it is not,
+        autohide is allowed to continue.
+        """
+        if not self._autohide:
+            return
+        if self._dock_window and self._dock_window.is_pointer_inside_dock():
+            return
+        self._autohide.on_mouse_leave()
 
     @property
     def current_desktop_id(self) -> str:

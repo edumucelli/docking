@@ -338,13 +338,28 @@ class DockWindow(Gtk.Window):
         self._hover.cancel()
         self._tooltip.hide()
 
-        preview_visible = self._preview and self._preview.get_visible()
-        if self._preview and not preview_visible:
+        # Preview/autohide policy in simple terms:
+        #
+        # - preview visible => dock stays visible
+        # - preview hidden => dock may autohide
+        # - leaving dock should schedule preview hide when preview is visible
+        # - autohide should trigger when the preview actually finishes hiding,
+        #   not at the first dock leave
+        #
+        # The preview is meant to be reachable, so once it is visible we treat
+        # the dock and preview as one temporary hover region. Leaving the dock
+        # does not mean the interaction is over yet; the user may be moving
+        # into the preview. Because of that, dock leave only arms the preview's
+        # grace timer here. If the user never reaches the preview, the preview
+        # will hide shortly after and only then will autohide be released.
+        preview_visible = bool(self._preview and self._preview.get_visible())
+        if self._preview and preview_visible:
             self._preview.schedule_hide()
 
         self._update_dock_size()
         self.drawing_area.queue_draw()
-        self.autohide.on_mouse_leave()
+        if not preview_visible:
+            self.autohide.on_mouse_leave()
 
     def _pointer_inside_input_rect(self) -> bool:
         """Return True when pointer is inside current dock input region."""
@@ -372,7 +387,12 @@ class DockWindow(Gtk.Window):
 
     def set_preview_popup(self, preview: PreviewPopup) -> None:
         self._preview = preview
+        self._preview.set_dock_window(self)
         self._hover.set_preview(preview)
+
+    def is_pointer_inside_dock(self) -> bool:
+        """Return True when the current pointer is inside the dock input area."""
+        return self._pointer_inside_input_rect()
 
     def current_monitor_choice(self) -> int:
         """Current monitor menu selection (-1=primary, >=0 specific monitor)."""
@@ -885,8 +905,21 @@ class DockWindow(Gtk.Window):
         self._hover.cancel()
         self._tooltip.hide()
 
-        preview_visible = self._preview and self._preview.get_visible()
-        if self._preview and not preview_visible:
+        # Preview/autohide policy in simple terms:
+        #
+        # - preview visible => dock stays visible
+        # - preview hidden => dock may autohide
+        # - leaving dock should schedule preview hide when preview is visible
+        # - autohide should trigger when the preview actually finishes hiding,
+        #   not at the first dock leave
+        #
+        # This keeps the preview reachable. A user moving from the dock toward
+        # the preview should not make the dock immediately hide underneath the
+        # interaction. When a preview is visible, dock leave only schedules the
+        # preview to disappear after its grace period; the preview layer decides
+        # whether autohide should proceed once that timer actually completes.
+        preview_visible = bool(self._preview and self._preview.get_visible())
+        if self._preview and preview_visible:
             self._preview.schedule_hide()
 
         autohide_on = bool(self.autohide and self.autohide.enabled)
@@ -898,7 +931,7 @@ class DockWindow(Gtk.Window):
 
         self._update_dock_size()
         widget.queue_draw()
-        if autohide_on and self.autohide:
+        if autohide_on and self.autohide and not preview_visible:
             self.autohide.on_mouse_leave()
         return True
 
