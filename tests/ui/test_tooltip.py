@@ -82,6 +82,22 @@ class TestTooltipHide:
         # Then
         tooltip._tooltip_window.hide.assert_not_called()
 
+    def test_update_hides_tooltip_when_disabled(self):
+        # Given
+        window = MagicMock()
+        config = MagicMock()
+        config.tooltips_enabled = False
+        model = MagicMock()
+        theme = MagicMock()
+        tooltip = TooltipManager(window, config, model, theme)
+        tooltip._tooltip_window = MagicMock()
+        item = MagicMock()
+        item.name = "Firefox"
+        # When
+        tooltip.update(item, [])
+        # Then
+        tooltip._tooltip_window.hide.assert_called_once()
+
 
 # Anchor point for tests
 AX, AY = 500.0, 300.0

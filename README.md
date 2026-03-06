@@ -239,6 +239,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "unhide_delay_ms": 0,
   "hide_time_ms": 250,
   "previews_enabled": true,
+  "tooltips_enabled": true,
   "lock_icons": false,
   "theme": "default",
   "pinned": ["firefox.desktop", "org.gnome.Nautilus.desktop"]
@@ -256,6 +257,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `hide_delay_ms` | 0 | Delay before hiding starts (0 = instant) |
 | `hide_time_ms` | 250 | Duration of hide/show slide animation |
 | `previews_enabled` | true | Show window preview thumbnails on hover |
+| `tooltips_enabled` | true | Show hover tooltips for dock items |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
 | `pinned` | [] | Desktop file IDs resolved via `$XDG_DATA_DIRS` |
 

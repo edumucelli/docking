@@ -50,6 +50,8 @@ class Config:
     current_workspace_only: bool = False
     # Whether applets are anchored to the end of the dock
     anchor_applets: bool = False
+    # Whether to show hover tooltips for dock items
+    tooltips_enabled: bool = True
     # Whether the dock follows the cursor across monitors
     active_display: bool = False
     # Theme name (loads from assets/themes/{name}.json)

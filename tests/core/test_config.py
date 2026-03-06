@@ -20,6 +20,7 @@ class TestConfigDefaults:
         assert c.autohide is False
         assert c.hide_delay_ms == 0
         assert c.previews_enabled is True
+        assert c.tooltips_enabled is True
         assert c.theme == "default"
         assert isinstance(c.pinned, list)
 
@@ -59,6 +60,16 @@ class TestConfigLoad:
         config = Config.load(path)
         # Then
         assert config.previews_enabled is False
+
+    def test_load_tooltips_enabled(self, tmp_path):
+        # Given
+        path = tmp_path / "dock.json"
+        data = {"tooltips_enabled": False}
+        path.write_text(json.dumps(data))
+        # When
+        config = Config.load(path)
+        # Then
+        assert config.tooltips_enabled is False
 
     def test_load_valid_file(self, tmp_path):
         # Given

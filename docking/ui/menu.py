@@ -315,6 +315,11 @@ class MenuHandler:
         anchor.connect("toggled", self._on_anchor_toggled)
         menu.append(anchor)
 
+        tooltips = Gtk.CheckMenuItem(label=_("Tooltips"))
+        tooltips.set_active(bool(getattr(self._config, "tooltips_enabled", True)))
+        tooltips.connect("toggled", self._on_tooltips_toggled)
+        menu.append(tooltips)
+
         menu.append(Gtk.SeparatorMenuItem())
 
         # Themes submenu
@@ -561,6 +566,12 @@ class MenuHandler:
         self._config.current_workspace_only = widget.get_active()
         self._config.save()
         self._window.queue_draw()
+
+    def _on_tooltips_toggled(self, widget: Gtk.CheckMenuItem) -> None:
+        self._config.tooltips_enabled = widget.get_active()
+        self._config.save()
+        if not self._config.tooltips_enabled:
+            self._window._tooltip.hide()
 
     def _on_theme_changed(self, widget: Gtk.MenuItem, name: str) -> None:
         if not widget.get_active() or name == self._config.theme:
