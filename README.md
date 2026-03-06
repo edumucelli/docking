@@ -12,75 +12,38 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 ![all.gif](images/all.gif)
 
+## Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Running](#running)
+- [Configuration](#configuration)
+- [Managing Dock Items](#managing-dock-items)
+- [Applets](#applets)
+- [Theming](#theming)
+- [Writing Custom Applets](#writing-custom-applets)
+- [Translations](#translations)
+- [Developer Workflow](#developer-workflow)
+- [Additional Docs](#additional-docs)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Features
 
-### Dock
+Docking is built around a few core capabilities:
 
-- Pinned launchers with click-to-launch, Ctrl+click or middle-click for new instance
-- Parabolic icon zoom on hover with per-icon displacement
-- Running indicators (dots or dashes per theme) with active window glow
-- Auto-hide with cubic easing, configurable delay, and pointer barrier reveal
-- Drag-and-drop reorder, drop `.desktop` files to add, drag off to remove (poof animation)
-- Multi-position: bottom, top, left, right
-- Multi-monitor with runtime display selection or automatic tracking behavior
-- Window preview thumbnails on hover with click-to-activate
-- Desktop actions (quicklists) and open windows in right-click menus
-- Lock Icons mode to prevent reordering and removal
+- Fast launcher workflow with running-state indicators and preview interactions.
+- Flexible layout with multi-position, multi-monitor, auto-hide, and drag-and-drop organization.
+- Broad customization through themes, icon sizing, menu options, and tooltip controls.
+- Native support for pinned files/folders, including stack-style folder menus.
+- Extensible applet surface for system status, productivity, media, and utilities.
 
-### Theming
-
-Nine built-in themes with full visual customization:
-
-| Theme | Style |
-|-------|-------|
-| Default, Default Dark | Classic Plank-style shelf |
-| Matte | Floating dock with rounded corners and dashes |
-| Transparent | Minimal, see-through |
-| Ubuntu MATE, Yaru Dark | DE-matching panel styles |
-| Nord, Gruvbox, Solarized | Popular color scheme ports |
-
-Themes control colors, shelf shape, indicator style (dots/dashes), corner rounding, edge distance, and all animation parameters. Layout values use a scaling unit that adapts to any icon size.
-
-### Applets
-
-26 built-in applets, toggleable via right-click menu:
-
-| Applet | Description |
-|--------|-------------|
-| Clock | Analog SVG or digital, 12/24h |
-| Trash | Real-time monitoring, empty via DBus |
-| Desktop | Toggle show desktop |
-| CPU Monitor | Circular gauge with CPU + memory |
-| Battery | Charge level with FreeDesktop icons |
-| Brightness | xrandr control, scroll to adjust |
-| Weather | Open-Meteo current + 5-day forecast + air quality |
-| Moon | Lunar phase with astronomical offline fallback |
-| Clippy | Clipboard history, scroll to cycle |
-| Color Picker | Eyedropper pixel sampler, hex to clipboard |
-| Applications | Categorized launcher from .desktop files |
-| Network | WiFi signal + live upload/download speeds |
-| Bluetooth | Full BlueZ adapter/device management |
-| Power Profiles | power-profiles-daemon / tuned / tlp |
-| Notifications | DND toggle via dunstctl or gsettings |
-| Music | MPRIS2 media controls with album art |
-| Session | Lock, logout, suspend, restart, shutdown |
-| Calendar | Date icon with popup calendar |
-| Workspaces | Workspace switcher with grid icon |
-| Screenshot | 6 backends, full/window/region + timed |
-| Volume | pactl/amixer, scroll to adjust, click to mute |
-| Pomodoro | Tomato timer with auto-cycling phases |
-| Separator | Transparent gap, multi-instance, scroll to resize |
-| Hydration | Water reminder, drains over time |
-| Quote | Quotes/jokes from multiple online sources |
-| Ambient | Looping nature sounds + white/pink noise |
-
-### Desktop Environment Integration
-
-Auto-detects MATE, Xfce, KDE, Cinnamon, GNOME, and others via `XDG_CURRENT_DESKTOP`. Applies DE-specific tweaks automatically (e.g., disabling xfwm4 dock shadow on Xfce). X11 pointer barriers ensure reliable autohide reveal with all input devices.
-
-### Translations
-
-80 locale catalogs plus English fallback. Uses your system locale automatically.
+Highlights:
+- 26 built-in applets enabled from the dock menu.
+- 9 built-in themes with scalable layout values.
+- Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
+- 74 locale catalogs plus English fallback.
 
 ## Requirements
 
@@ -129,86 +92,6 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-## Tests
-
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Run specific module
-pytest tests/applets/test_clock.py -v
-
-# Coverage report
-pytest tests/ -v --cov=docking --cov-report=term-missing
-```
-
-## Packages
-
-### Building a .deb package
-
-```bash
-# Install build dependencies
-sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
-  debhelper dh-python pybuild-plugin-pyproject
-
-# Build
-./packaging/deb/build.sh
-
-# Install generated package
-sudo dpkg -i ../docking_*_all.deb
-sudo apt-get -f install
-```
-
-### Building a Flatpak bundle
-
-```bash
-# Install tooling
-sudo apt install flatpak flatpak-builder
-
-# Build bundle
-./packaging/flatpak/build.sh
-
-# Install and run locally
-flatpak install --user ./artifacts/org.docking.Docking.flatpak
-flatpak run org.docking.Docking
-```
-
-### Building a Snap package
-
-```bash
-# Install tooling
-sudo apt install snapcraft
-
-# Build snap package
-snapcraft --destructive-mode --project-dir packaging/snap --output artifacts/docking.snap
-
-# Install locally
-sudo snap install --dangerous artifacts/docking.snap
-```
-
-### Building an Arch package
-
-```bash
-# Arch Linux tooling
-sudo pacman -S --needed base-devel git python python-pip
-
-# Build package
-./packaging/arch/build.sh
-
-# Install locally
-sudo pacman -U artifacts/docking-*.pkg.tar.*
-```
-
-### Building with Nix
-
-```bash
-# Build package output
-./packaging/nix/build.sh
-
-# Run from build output
-./result-nix/bin/docking
-```
-
 ## Running
 
 ```bash
@@ -241,31 +124,51 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "previews_enabled": true,
   "tooltips_enabled": true,
   "lock_icons": false,
+  "current_workspace_only": false,
+  "anchor_applets": false,
+  "anchor_files": false,
+  "active_display": false,
   "theme": "default",
-  "pinned": ["firefox.desktop", "org.gnome.Nautilus.desktop"]
+  "gap_size": 0,
+  "pinned": [
+    { "kind": "app", "target": "firefox.desktop" },
+    { "kind": "app", "target": "org.gnome.Nautilus.desktop" }
+  ],
+  "applet_prefs": {},
+  "item_prefs": {}
 }
 ```
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `icon_size` | 48 | Base icon size in pixels (all theme proportions scale with this) |
-| `zoom_percent` | 1.5 | Max zoom multiplier (1.5 = 150%) |
+| `zoom_enabled` | true | Enable or disable parabolic zoom on hover |
+| `zoom_percent` | 1.5 | Zoom multiplier from `1.0` to `4.0` (`1.5` = 150%, `4.0` = 400%) |
 | `zoom_range` | 3 | Icon widths over which zoom tapers off |
 | `position` | bottom | Dock edge: bottom, top, left, right |
 | `monitor_index` | -1 | Target monitor index (`-1` = primary monitor, `0..N` = specific monitor) |
 | `autohide` | false | Hide dock when cursor leaves |
 | `hide_delay_ms` | 0 | Delay before hiding starts (0 = instant) |
+| `unhide_delay_ms` | 0 | Delay before showing the dock again |
 | `hide_time_ms` | 250 | Duration of hide/show slide animation |
 | `previews_enabled` | true | Show window preview thumbnails on hover |
+| `lock_icons` | false | Prevent reordering, drag-in, and drag-off removal |
+| `current_workspace_only` | false | Only show running apps from the active workspace |
+| `anchor_applets` | false | Keep applets anchored at the end of the dock |
+| `anchor_files` | false | Keep file and folder entries anchored at the end independently |
 | `tooltips_enabled` | true | Show hover tooltips for dock items |
+| `active_display` | false | Follow the active monitor instead of staying on one display |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
-| `pinned` | [] | Desktop file IDs resolved via `$XDG_DATA_DIRS` |
+| `gap_size` | 0 | Distance between the dock and the screen edge |
+| `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders |
+| `applet_prefs` | `{}` | Per-applet preference storage |
+| `item_prefs` | `{}` | Per-item preference storage for files and folders |
 
 All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor.
 
 ## Managing Dock Items
 
-- **Drag and drop**: Drag a `.desktop` file from your file manager onto the dock
+- **Drag and drop**: Drag a `.desktop` file, and application, a folder or a file from your file manager onto the dock
 - **Right-click running app**: "Keep in Dock" to pin
 - **Drag off**: Drag an icon upward off the dock to remove (poof animation)
 - **Right-click pinned app**: "Remove from Dock" to unpin
@@ -744,7 +647,7 @@ return {
 
 ## Translations
 
-Docking now ships 80 locale catalogs via standard gettext (plus English fallback).
+Docking now ships 74 locale catalogs via standard gettext (plus English fallback).
 
 Core locales include:
 
@@ -810,7 +713,89 @@ This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be 
 ./tools/i18n.sh --compile
 ```
 
-## Pre-commit Hooks
+## Developer Workflow
+
+### Tests
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific module
+pytest tests/applets/test_clock.py -v
+
+# Coverage report
+pytest tests/ -v --cov=docking --cov-report=term-missing
+```
+
+### Building Packages
+
+#### Building a .deb package
+
+```bash
+# Install build dependencies
+sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
+  debhelper dh-python pybuild-plugin-pyproject
+
+# Build
+./packaging/deb/build.sh
+
+# Install generated package
+sudo dpkg -i ../docking_*_all.deb
+sudo apt-get -f install
+```
+
+#### Building a Flatpak bundle
+
+```bash
+# Install tooling
+sudo apt install flatpak flatpak-builder
+
+# Build bundle
+./packaging/flatpak/build.sh
+
+# Install and run locally
+flatpak install --user ./artifacts/org.docking.Docking.flatpak
+flatpak run org.docking.Docking
+```
+
+#### Building a Snap package
+
+```bash
+# Install tooling
+sudo apt install snapcraft
+
+# Build snap package
+snapcraft --destructive-mode --project-dir packaging/snap --output artifacts/docking.snap
+
+# Install locally
+sudo snap install --dangerous artifacts/docking.snap
+```
+
+#### Building an Arch package
+
+```bash
+# Arch Linux tooling
+sudo pacman -S --needed base-devel git python python-pip
+
+# Build package
+./packaging/arch/build.sh
+
+# Install locally
+sudo pacman -U artifacts/docking-*.pkg.tar.*
+```
+
+#### Building with Nix
+
+```bash
+# Build package output
+./packaging/nix/build.sh
+
+# Run from build output
+./result-nix/bin/docking
+```
+
+### Pre-commit Hooks
 
 Runs automatically on `git commit`:
 - **check-yaml** -- validate YAML files
@@ -829,7 +814,7 @@ Install/update the strict local hook with:
 ./tools/install_precommit_hook.sh
 ```
 
-## CI/CD Pipeline
+### CI/CD Pipeline
 
 GitHub Actions is split across two workflows:
 
