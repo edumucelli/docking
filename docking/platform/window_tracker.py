@@ -387,6 +387,19 @@ class WindowTracker:
                     f"Failed to close window: {exc}"
                 )
 
+    def close_xid(self, xid: int) -> None:
+        """Close a specific window by XID, if still present."""
+        window = self._window_for_xid(xid=xid)
+        if window is None:
+            return
+        timestamp = Gtk.get_current_event_time() or 0
+        try:
+            window.close(timestamp)
+        except _RECOVERABLE_ERRORS as exc:
+            _log.bind(action="close_xid", xid=str(xid)).warning(
+                f"Failed to close window: {exc}"
+            )
+
     def _get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
         """Get windows for desktop_id using cached XIDs from last scan.
 

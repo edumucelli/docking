@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 01:27+0100\n"
+"POT-Creation-Date: 2026-03-06 20:03+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -60,7 +60,7 @@ msgstr "Pink Noise"
 #: docking/applets/ambient/state.py:83
 #, python-brace-format
 msgid "Playing: {sound} ({pct}%)"
-msgstr "Playing: {sound} ({pct}%)"
+msgstr "प्ले होत आहे: {sound} ({pct}%)"
 
 #: docking/applets/applications/applet.py:28
 msgid "Applications"
@@ -93,7 +93,7 @@ msgstr "No Bluetooth adapter"
 
 #: docking/applets/bluetooth/applet.py:156
 msgid "General"
-msgstr "General"
+msgstr "सामान्य"
 
 #: docking/applets/bluetooth/applet.py:158
 #: docking/applets/bluetooth/state.py:110
@@ -108,7 +108,7 @@ msgstr "Off"
 #: docking/applets/bluetooth/applet.py:161
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
-msgstr "{alias} ({powered}) - Connected {connected}"
+msgstr "{alias} ({powered}) - जोडलेले {connected}"
 
 #: docking/applets/bluetooth/applet.py:170
 msgid "Bluetooth On"
@@ -128,15 +128,15 @@ msgstr "Adapter"
 
 #: docking/applets/bluetooth/applet.py:219
 msgid "Connected Devices"
-msgstr "Connected Devices"
+msgstr "जोडलेली उपकरणे"
 
 #: docking/applets/bluetooth/applet.py:220
 msgid "Paired Devices"
-msgstr "Paired Devices"
+msgstr "जोडी केलेली उपकरणे"
 
 #: docking/applets/bluetooth/applet.py:221
 msgid "Discovered Devices"
-msgstr "Discovered Devices"
+msgstr "शोधलेली उपकरणे"
 
 #: docking/applets/bluetooth/applet.py:246
 msgid "Disconnect"
@@ -161,7 +161,7 @@ msgstr "Trusted"
 #: docking/applets/bluetooth/applet.py:306
 #, python-brace-format
 msgid "Battery: {percent}%"
-msgstr "Battery: {percent}%"
+msgstr "बॅटरी: {percent}%"
 
 #: docking/applets/bluetooth/state.py:103
 #, python-brace-format
@@ -233,7 +233,7 @@ msgstr "Clear"
 
 #: docking/applets/clippy/state.py:22
 msgid "Clippy (empty)"
-msgstr "Clippy (empty)"
+msgstr "क्लिपबोर्ड (रिकामे)"
 
 #: docking/applets/clock/applet.py:32
 msgid "Clock"
@@ -259,7 +259,7 @@ msgstr "Color Picker"
 #: docking/applets/colorpicker/applet.py:78
 #, python-brace-format
 msgid "Copy {hex}"
-msgstr "Copy {hex}"
+msgstr "कॉपी {hex}"
 
 #: docking/applets/colorpicker/applet.py:82
 msgid "Show Hex"
@@ -441,7 +441,7 @@ msgstr "Unknown"
 
 #: docking/applets/music/state.py:127
 msgid "Music: No active player"
-msgstr "Music: No active player"
+msgstr "संगीत: कोणताही सक्रिय प्लेयर नाही"
 
 #: docking/applets/network/applet.py:40
 msgid "Network"
@@ -499,7 +499,7 @@ msgstr "Clear Notifications"
 
 #: docking/applets/notifications/state.py:43
 msgid "Notifications: No backend available"
-msgstr "Notifications: No backend available"
+msgstr "सूचना: कोणतेही बॅकएंड उपलब्ध नाही"
 
 #: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
 msgid "Pomodoro"
@@ -548,19 +548,19 @@ msgstr "Select Profile"
 #: docking/applets/powerprofiles/applet.py:136
 #, python-brace-format
 msgid "Limited: {reason}"
-msgstr "Limited: {reason}"
+msgstr "मर्यादित: {reason}"
 
 #: docking/applets/powerprofiles/state.py:122
 msgid "Power Saver"
-msgstr "Power Saver"
+msgstr "ऊर्जा बचत"
 
 #: docking/applets/powerprofiles/state.py:124
 msgid "Balanced"
-msgstr "Balanced"
+msgstr "संतुलित"
 
 #: docking/applets/powerprofiles/state.py:126
 msgid "Performance"
-msgstr "Performance"
+msgstr "कार्यप्रदर्शन"
 
 #: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
 #: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
@@ -597,17 +597,33 @@ msgstr "Screenshot"
 msgid "Full Screen in {delay}s"
 msgstr "Full Screen in {delay}s"
 
-#: docking/applets/separator/applet.py:30
+#: docking/applets/separator/applet.py:37
 msgid "Separator"
 msgstr "Separator"
 
-#: docking/applets/separator/applet.py:78
+#: docking/applets/separator/applet.py:117
 msgid "Increase Gap"
 msgstr "Increase Gap"
 
-#: docking/applets/separator/applet.py:80
+#: docking/applets/separator/applet.py:119
 msgid "Decrease Gap"
 msgstr "Decrease Gap"
+
+#: docking/applets/separator/applet.py:121
+msgid "Style"
+msgstr "Style"
+
+#: docking/applets/separator/applet.py:125
+msgid "Line"
+msgstr "Line"
+
+#: docking/applets/separator/applet.py:134
+msgid "Space"
+msgstr "Space"
+
+#: docking/applets/separator/applet.py:143
+msgid "Invert Color"
+msgstr "Invert Color"
 
 #: docking/applets/session/applet.py:27
 msgid "Session"
@@ -653,8 +669,8 @@ msgstr "No items in Trash"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} item in Trash"
-msgstr[1] "{n} items in Trash"
+msgstr[0] "कचरापेटीत {n} आयटम"
+msgstr[1] "कचरापेटीत {n} आयटम"
 
 #: docking/applets/volume/applet.py:32
 msgid "Volume"
@@ -683,11 +699,11 @@ msgstr "Change City..."
 
 #: docking/applets/weather/applet.py:128
 msgid "Search for the city"
-msgstr "Search for the city"
+msgstr "शहर शोधा"
 
 #: docking/applets/weather/applet.py:142
 msgid "Type city name..."
-msgstr "Type city name..."
+msgstr "शहराचे नाव टाइप करा..."
 
 #: docking/applets/weather/applet.py:260
 #, python-brace-format
@@ -722,84 +738,125 @@ msgstr "{city}: loading..."
 msgid "Workspaces"
 msgstr "Workspaces"
 
-#: docking/ui/about.py:46
+#: docking/ui/about.py:47
 msgid "Website"
 msgstr "Website"
 
-#: docking/ui/dock_window.py:248
+#: docking/ui/dock_window.py:251
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/dock_window.py:407
+#: docking/ui/dock_window.py:414
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
-msgstr "Display {display}: {width}x{height}"
+msgstr "डिस्प्ले {display}: {width}x{height}"
 
-#: docking/ui/menu.py:198 docking/ui/menu.py:215
+#: docking/ui/menu.py:47
+msgid "Name"
+msgstr "Name"
+
+#: docking/ui/menu.py:48
+msgid "Kind"
+msgstr "Kind"
+
+#: docking/ui/menu.py:49
+msgid "Size"
+msgstr "Size"
+
+#: docking/ui/menu.py:50
+msgid "Created"
+msgstr "Created"
+
+#: docking/ui/menu.py:51
+msgid "Modified"
+msgstr "Modified"
+
+#: docking/ui/menu.py:260 docking/ui/menu.py:280 docking/ui/menu.py:296
+#: docking/ui/menu.py:349
 msgid "Remove from Dock"
 msgstr "Remove from Dock"
 
-#: docking/ui/menu.py:222
+#: docking/ui/menu.py:273
+msgid "Open"
+msgstr "Open"
+
+#: docking/ui/menu.py:303
 msgid "Keep in Dock"
 msgstr "Keep in Dock"
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close All"
 msgstr "Close All"
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close"
 msgstr "Close"
 
-#: docking/ui/menu.py:262
+#: docking/ui/menu.py:329
+msgid "Sort By"
+msgstr "Sort By"
+
+#: docking/ui/menu.py:337
+msgid "Show Hidden Files"
+msgstr "Show Hidden Files"
+
+#: docking/ui/menu.py:342
+msgid "Large Icons"
+msgstr "Large Icons"
+
+#: docking/ui/menu.py:378
 msgid "Auto-hide"
 msgstr "Auto-hide"
 
-#: docking/ui/menu.py:268
+#: docking/ui/menu.py:384
 msgid "Window Previews"
 msgstr "Window Previews"
 
-#: docking/ui/menu.py:276
+#: docking/ui/menu.py:392
 msgid "Display"
 msgstr "Display"
 
-#: docking/ui/menu.py:279
+#: docking/ui/menu.py:395
 msgid "Follow Cursor"
 msgstr "Follow Cursor"
 
-#: docking/ui/menu.py:302
+#: docking/ui/menu.py:418
 msgid "Anchor Applets to End"
 msgstr "Anchor Applets to End"
 
-#: docking/ui/menu.py:316
+#: docking/ui/menu.py:423
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#: docking/ui/menu.py:437
 msgid "Current Workspace Only"
 msgstr "Current Workspace Only"
 
-#: docking/ui/menu.py:346
+#: docking/ui/menu.py:467
 msgid "Themes"
 msgstr "Themes"
 
-#: docking/ui/menu.py:359
+#: docking/ui/menu.py:480
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/menu.py:369
+#: docking/ui/menu.py:493
 msgid "Applets"
 msgstr "Applets"
 
-#: docking/ui/menu.py:421
+#: docking/ui/menu.py:545
 msgid "Add Separator"
 msgstr "Add Separator"
 
-#: docking/ui/menu.py:431
+#: docking/ui/menu.py:555
 msgid "About"
 msgstr "About"
 
-#: docking/ui/menu.py:436
+#: docking/ui/menu.py:560
 msgid "Quit"
 msgstr "Quit"
 
-#: docking/ui/menu.py:466
+#: docking/ui/menu.py:597
 msgid "Window"
 msgstr "Window"
 

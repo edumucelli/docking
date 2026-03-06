@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.ui.dock_window as dock_window_mod
+from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
@@ -142,6 +143,55 @@ class TestButtonReleaseFlow:
         assert launch_calls == ["firefox.desktop"]
         assert item.last_launched == 2020
         stub._hover.start_anim_pump.assert_called_once_with(700)
+
+    def test_left_click_file_item_opens_target(self, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/notes.txt",
+            kind=FILE_KIND,
+            target="file:///tmp/notes.txt",
+        )
+        stub, _ = _make_stub(item=item)
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(
+            dock_window_mod, "compute_layout", lambda *_a, **_k: _layout()
+        )
+        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 3030)
+        opened: list[str] = []
+        monkeypatch.setattr(
+            dock_window_mod, "open_target", lambda target: opened.append(target)
+        )
+
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+
+        assert handled is True
+        assert opened == ["file:///tmp/notes.txt"]
+        assert item.last_launched == 3030
+
+    def test_left_click_folder_item_opens_item_menu(self, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        stub, _ = _make_stub(item=item)
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(
+            dock_window_mod, "compute_layout", lambda *_a, **_k: _layout()
+        )
+        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 4040)
+
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+
+        assert handled is True
+        stub._menu.show_item.assert_called_once_with(event, item)
 
     def test_drag_delta_above_threshold_is_ignored(self):
         # Given
@@ -392,6 +442,8 @@ class TestDockWindowSetupAndGeometry:
         screen = SimpleNamespace(
             get_rgba_visual=lambda: None,
             get_system_visual=lambda: "sys-visual",
+            connect=MagicMock(side_effect=[11, 12]),
+            disconnect=MagicMock(),
         )
         stub = SimpleNamespace(
             set_title=MagicMock(),
@@ -407,6 +459,11 @@ class TestDockWindowSetupAndGeometry:
             set_visual=MagicMock(),
             connect=MagicMock(),
             _on_realize=MagicMock(),
+            _on_screen_changed=MagicMock(),
+            _on_scale_factor_changed=MagicMock(),
+            _on_destroy=MagicMock(),
+            _on_screen_metrics_changed=MagicMock(),
+            _screen_signal_handlers=[],
         )
 
         # When
@@ -415,7 +472,11 @@ class TestDockWindowSetupAndGeometry:
         # Then
         stub.set_title.assert_called_once_with("Docking")
         stub.set_visual.assert_called_once_with("sys-visual")
-        assert stub.connect.call_count == 2
+        assert stub.connect.call_count == 5
+        screen.connect.assert_any_call(
+            "monitors-changed", stub._on_screen_metrics_changed
+        )
+        screen.connect.assert_any_call("size-changed", stub._on_screen_metrics_changed)
 
     def test_setup_drawing_area_initializes_events(self, monkeypatch):
         # Given
@@ -475,12 +536,18 @@ class TestDockWindowSetupAndGeometry:
 
     def test_on_realize_calls_position_struts_and_input_update(self):
         # Given
+        screen = SimpleNamespace(
+            connect=MagicMock(side_effect=[21, 22]), disconnect=MagicMock()
+        )
         stub = SimpleNamespace(
             get_display=lambda: None,
+            get_screen=lambda: screen,
             config=SimpleNamespace(active_display=False),
             _position_dock=MagicMock(),
             _set_struts=MagicMock(),
             _update_input_region=MagicMock(),
+            _on_screen_metrics_changed=MagicMock(),
+            _screen_signal_handlers=[],
         )
 
         # When
@@ -490,6 +557,77 @@ class TestDockWindowSetupAndGeometry:
         stub._position_dock.assert_called_once()
         stub._set_struts.assert_called_once()
         stub._update_input_region.assert_called_once()
+        assert len(stub._screen_signal_handlers) == 2
+
+    def test_on_screen_changed_reattaches_and_schedules_reposition(self):
+        screen = SimpleNamespace(
+            connect=MagicMock(side_effect=[31, 32]), disconnect=MagicMock()
+        )
+        stub = SimpleNamespace(
+            get_screen=lambda: screen,
+            get_realized=lambda: True,
+            _on_screen_metrics_changed=MagicMock(),
+            _screen_signal_handlers=[],
+            _geometry_refresh_source=0,
+        )
+
+        idle_calls: list[tuple[object, tuple[object, ...]]] = []
+        dock_window_mod.GLib.idle_add = MagicMock(
+            side_effect=lambda cb, *args: idle_calls.append((cb, args)) or 77
+        )
+
+        dock_window_mod.DockWindow._on_screen_changed(stub, MagicMock(), None)
+
+        assert len(stub._screen_signal_handlers) == 2
+        assert stub._geometry_refresh_source == 77
+        assert (
+            idle_calls[0][0] == dock_window_mod.DockWindow._apply_scheduled_reposition
+        )
+        assert idle_calls[0][1] == (stub,)
+
+    def test_schedule_reposition_coalesces_until_idle_runs(self, monkeypatch):
+        stub = SimpleNamespace(
+            get_realized=lambda: True,
+            _geometry_refresh_source=0,
+            reposition=MagicMock(),
+        )
+        idle_calls: list[tuple[object, tuple[object, ...]]] = []
+        monkeypatch.setattr(
+            dock_window_mod.GLib,
+            "idle_add",
+            lambda cb, *args: idle_calls.append((cb, args)) or 88,
+        )
+
+        dock_window_mod.DockWindow._schedule_reposition(stub)
+        dock_window_mod.DockWindow._schedule_reposition(stub)
+
+        assert stub._geometry_refresh_source == 88
+        assert len(idle_calls) == 1
+
+        result = dock_window_mod.DockWindow._apply_scheduled_reposition(stub)
+
+        assert result is False
+        assert stub._geometry_refresh_source == 0
+        stub.reposition.assert_called_once()
+
+    def test_on_destroy_cleans_geometry_refresh_and_screen_handlers(self, monkeypatch):
+        screen = SimpleNamespace(disconnect=MagicMock())
+        removed: list[int] = []
+        stub = SimpleNamespace(
+            _geometry_refresh_source=91,
+            _screen_signal_handlers=[(screen, 4), (screen, 5)],
+        )
+        monkeypatch.setattr(
+            dock_window_mod.GLib, "source_remove", lambda source: removed.append(source)
+        )
+
+        dock_window_mod.DockWindow._on_destroy(stub, MagicMock())
+
+        assert removed == [91]
+        assert stub._geometry_refresh_source == 0
+        assert stub._screen_signal_handlers == []
+        screen.disconnect.assert_any_call(4)
+        screen.disconnect.assert_any_call(5)
 
     def test_position_dock_horizontal_bottom(self):
         # Given

@@ -15,6 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.ui.dnd as dnd_mod  # noqa: E402
+from docking.core.items import FILE_KIND, FOLDER_KIND  # noqa: E402
 from docking.core.position import Position  # noqa: E402
 from docking.platform.model import DockItem  # noqa: E402
 
@@ -237,6 +238,40 @@ class TestDropAndReceive:
         handler._model.sync_pinned_to_config.assert_called_once()
         handler._model.notify.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 77)
+
+    def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
+        handler = _make_handler(monkeypatch)
+        folder_uri = tmp_path.as_uri()
+        handler._launcher.resolve_file.return_value = SimpleNamespace(
+            target=folder_uri,
+            name=tmp_path.name,
+            icon_name="folder",
+            icon=object(),
+            is_dir=True,
+        )
+
+        item = handler._item_from_uri(folder_uri)
+
+        assert item is not None
+        assert item.kind == FOLDER_KIND
+        assert item.target == folder_uri
+
+    def test_item_from_uri_builds_file_item(self, monkeypatch, tmp_path):
+        handler = _make_handler(monkeypatch)
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        handler._launcher.resolve_file.return_value = SimpleNamespace(
+            target=file_uri,
+            name="notes.txt",
+            icon_name="text-x-generic",
+            icon=object(),
+            is_dir=False,
+        )
+
+        item = handler._item_from_uri(file_uri)
+
+        assert item is not None
+        assert item.kind == FILE_KIND
+        assert item.target == file_uri
 
 
 class TestDragLeaveEnd:

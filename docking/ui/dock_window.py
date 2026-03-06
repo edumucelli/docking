@@ -89,12 +89,13 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkX11, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import is_applet
+from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout, content_bounds
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.barriers import PointerBarrier
-from docking.platform.launcher import launch
+from docking.platform.launcher import launch, open_target
 from docking.platform.struts import clear_struts, set_dock_struts
 from docking.ui.autohide import HideState
 from docking.ui.hover import HoverManager
@@ -234,6 +235,8 @@ class DockWindow(Gtk.Window):
         self._active_display_timer: int = 0
         self._active_monitor: Gdk.Monitor | None = None
         self._barrier = PointerBarrier()
+        self._screen_signal_handlers: list[tuple[object, int]] = []
+        self._geometry_refresh_source: int = 0
 
         self._setup_window()
         self._setup_drawing_area()
@@ -260,7 +263,11 @@ class DockWindow(Gtk.Window):
         visual = screen.get_rgba_visual() or screen.get_system_visual()
         self.set_visual(visual)
 
+        DockWindow._attach_screen_signals(self, screen)
         self.connect("realize", self._on_realize)
+        self.connect("screen-changed", self._on_screen_changed)
+        self.connect("notify::scale-factor", self._on_scale_factor_changed)
+        self.connect("destroy", self._on_destroy)
         self.connect("destroy", Gtk.main_quit)
 
     def _setup_drawing_area(self) -> None:
@@ -451,6 +458,7 @@ class DockWindow(Gtk.Window):
 
     def _on_realize(self, _widget: Gtk.Widget) -> None:
         """Position dock and set struts after window is realized."""
+        DockWindow._attach_screen_signals(self, self.get_screen())
         display = self.get_display()
         if display and isinstance(display, GdkX11.X11Display):
             self._barrier.initialize(gdk_display=display)
@@ -459,6 +467,63 @@ class DockWindow(Gtk.Window):
         self._update_input_region()
         if self.config.active_display:
             self.start_active_display()
+
+    def _attach_screen_signals(self, screen: Gdk.Screen | None) -> None:
+        DockWindow._disconnect_screen_signals(self)
+        if screen is None:
+            return
+        connect = getattr(screen, "connect", None)
+        if not callable(connect):
+            return
+        self._screen_signal_handlers = [
+            (screen, connect("monitors-changed", self._on_screen_metrics_changed)),
+            (screen, connect("size-changed", self._on_screen_metrics_changed)),
+        ]
+
+    def _disconnect_screen_signals(self) -> None:
+        for obj, handler_id in getattr(self, "_screen_signal_handlers", []):
+            disconnect = getattr(obj, "disconnect", None)
+            if callable(disconnect):
+                disconnect(handler_id)
+        self._screen_signal_handlers = []
+
+    def _on_screen_changed(
+        self, _widget: Gtk.Widget, _previous_screen: Gdk.Screen | None
+    ) -> None:
+        DockWindow._attach_screen_signals(self, self.get_screen())
+        DockWindow._schedule_reposition(self)
+
+    def _on_screen_metrics_changed(self, *_args: object) -> None:
+        DockWindow._schedule_reposition(self)
+
+    def _on_scale_factor_changed(self, *_args: object) -> None:
+        DockWindow._schedule_reposition(self)
+
+    def _schedule_reposition(self) -> None:
+        get_realized = getattr(self, "get_realized", None)
+        if callable(get_realized) and not get_realized():
+            return
+        if getattr(self, "_geometry_refresh_source", 0):
+            return
+        self._geometry_refresh_source = GLib.idle_add(
+            DockWindow._apply_scheduled_reposition, self
+        )
+
+    def _apply_scheduled_reposition(self) -> bool:
+        self._geometry_refresh_source = 0
+        reposition = getattr(self, "reposition", None)
+        if callable(reposition):
+            reposition()
+        else:
+            DockWindow.reposition(self)
+        return False
+
+    def _on_destroy(self, _widget: Gtk.Widget) -> None:
+        refresh_source = getattr(self, "_geometry_refresh_source", 0)
+        if refresh_source:
+            GLib.source_remove(refresh_source)
+            self._geometry_refresh_source = 0
+        DockWindow._disconnect_screen_signals(self)
 
     def _position_dock(self) -> None:
         """Position the dock window at the configured screen edge.
@@ -743,6 +808,18 @@ class DockWindow(Gtk.Window):
                     # Refresh tooltip immediately so applet name/tooltip
                     # changes are visible without waiting for pointer motion.
                     self._tooltip.update(item, layout)
+                self._hover.start_anim_pump(350)
+                return True
+
+            if item.kind == FOLDER_KIND:
+                if self._menu:
+                    self._menu.show_item(event, item)
+                self._hover.start_anim_pump(350)
+                return True
+
+            if item.kind == FILE_KIND:
+                item.last_launched = now
+                open_target(item.target)
                 self._hover.start_anim_pump(350)
                 return True
 

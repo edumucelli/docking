@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 01:27+0100\n"
+"POT-Creation-Date: 2026-03-06 20:03+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -60,7 +60,7 @@ msgstr "Ruido Rosa"
 #: docking/applets/ambient/state.py:83
 #, python-brace-format
 msgid "Playing: {sound} ({pct}%)"
-msgstr "Playing: {sound} ({pct}%)"
+msgstr "Reproduciendo: {sound} ({pct}%)"
 
 #: docking/applets/applications/applet.py:28
 msgid "Applications"
@@ -108,7 +108,7 @@ msgstr "Apagado"
 #: docking/applets/bluetooth/applet.py:161
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
-msgstr "{alias} ({powered}) - Connected {connected}"
+msgstr "{alias} ({powered}) - Conectados {connected}"
 
 #: docking/applets/bluetooth/applet.py:170
 msgid "Bluetooth On"
@@ -128,15 +128,15 @@ msgstr "Adaptador"
 
 #: docking/applets/bluetooth/applet.py:219
 msgid "Connected Devices"
-msgstr "Connected Devices"
+msgstr "Dispositivos conectados"
 
 #: docking/applets/bluetooth/applet.py:220
 msgid "Paired Devices"
-msgstr "Paired Devices"
+msgstr "Dispositivos emparejados"
 
 #: docking/applets/bluetooth/applet.py:221
 msgid "Discovered Devices"
-msgstr "Discovered Devices"
+msgstr "Dispositivos descubiertos"
 
 #: docking/applets/bluetooth/applet.py:246
 msgid "Disconnect"
@@ -161,7 +161,7 @@ msgstr "Confiable"
 #: docking/applets/bluetooth/applet.py:306
 #, python-brace-format
 msgid "Battery: {percent}%"
-msgstr "Battery: {percent}%"
+msgstr "Batería: {percent}%"
 
 #: docking/applets/bluetooth/state.py:103
 #, python-brace-format
@@ -233,7 +233,7 @@ msgstr "Limpiar"
 
 #: docking/applets/clippy/state.py:22
 msgid "Clippy (empty)"
-msgstr "Clippy (empty)"
+msgstr "Portapapeles (vacío)"
 
 #: docking/applets/clock/applet.py:32
 msgid "Clock"
@@ -259,7 +259,7 @@ msgstr "Selector de Color"
 #: docking/applets/colorpicker/applet.py:78
 #, python-brace-format
 msgid "Copy {hex}"
-msgstr "Copy {hex}"
+msgstr "Copiar {hex}"
 
 #: docking/applets/colorpicker/applet.py:82
 msgid "Show Hex"
@@ -441,7 +441,7 @@ msgstr "Desconocido"
 
 #: docking/applets/music/state.py:127
 msgid "Music: No active player"
-msgstr "Music: No active player"
+msgstr "Música: Sin reproductor activo"
 
 #: docking/applets/network/applet.py:40
 msgid "Network"
@@ -499,7 +499,7 @@ msgstr "Limpiar Notificaciones"
 
 #: docking/applets/notifications/state.py:43
 msgid "Notifications: No backend available"
-msgstr "Notifications: No backend available"
+msgstr "Notificaciones: Sin backend disponible"
 
 #: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
 msgid "Pomodoro"
@@ -548,19 +548,19 @@ msgstr "Seleccionar Perfil"
 #: docking/applets/powerprofiles/applet.py:136
 #, python-brace-format
 msgid "Limited: {reason}"
-msgstr "Limited: {reason}"
+msgstr "Limitado: {reason}"
 
 #: docking/applets/powerprofiles/state.py:122
 msgid "Power Saver"
-msgstr "Power Saver"
+msgstr "Ahorro de energía"
 
 #: docking/applets/powerprofiles/state.py:124
 msgid "Balanced"
-msgstr "Balanced"
+msgstr "Equilibrado"
 
 #: docking/applets/powerprofiles/state.py:126
 msgid "Performance"
-msgstr "Performance"
+msgstr "Rendimiento"
 
 #: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
 #: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
@@ -597,17 +597,33 @@ msgstr "Captura de Pantalla"
 msgid "Full Screen in {delay}s"
 msgstr "Pantalla Completa en {delay}s"
 
-#: docking/applets/separator/applet.py:30
+#: docking/applets/separator/applet.py:37
 msgid "Separator"
 msgstr "Separador"
 
-#: docking/applets/separator/applet.py:78
+#: docking/applets/separator/applet.py:117
 msgid "Increase Gap"
 msgstr "Aumentar Espacio"
 
-#: docking/applets/separator/applet.py:80
+#: docking/applets/separator/applet.py:119
 msgid "Decrease Gap"
 msgstr "Reducir Espacio"
+
+#: docking/applets/separator/applet.py:121
+msgid "Style"
+msgstr "Style"
+
+#: docking/applets/separator/applet.py:125
+msgid "Line"
+msgstr "Line"
+
+#: docking/applets/separator/applet.py:134
+msgid "Space"
+msgstr "Space"
+
+#: docking/applets/separator/applet.py:143
+msgid "Invert Color"
+msgstr "Invert Color"
 
 #: docking/applets/session/applet.py:27
 msgid "Session"
@@ -653,8 +669,8 @@ msgstr "No hay elementos en la Papelera"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} item in Trash"
-msgstr[1] "{n} items in Trash"
+msgstr[0] "{n} elemento en la Papelera"
+msgstr[1] "{n} elementos en la Papelera"
 
 #: docking/applets/volume/applet.py:32
 msgid "Volume"
@@ -683,11 +699,11 @@ msgstr "Cambiar Ciudad..."
 
 #: docking/applets/weather/applet.py:128
 msgid "Search for the city"
-msgstr "Search for the city"
+msgstr "Buscar ciudad"
 
 #: docking/applets/weather/applet.py:142
 msgid "Type city name..."
-msgstr "Type city name..."
+msgstr "Escribir nombre de ciudad..."
 
 #: docking/applets/weather/applet.py:260
 #, python-brace-format
@@ -722,84 +738,125 @@ msgstr "{city}: cargando..."
 msgid "Workspaces"
 msgstr "Espacios de Trabajo"
 
-#: docking/ui/about.py:46
+#: docking/ui/about.py:47
 msgid "Website"
 msgstr "Sitio Web"
 
-#: docking/ui/dock_window.py:248
+#: docking/ui/dock_window.py:251
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/dock_window.py:407
+#: docking/ui/dock_window.py:414
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
-msgstr "Display {display}: {width}x{height}"
+msgstr "Pantalla {display}: {width}x{height}"
 
-#: docking/ui/menu.py:198 docking/ui/menu.py:215
+#: docking/ui/menu.py:47
+msgid "Name"
+msgstr "Name"
+
+#: docking/ui/menu.py:48
+msgid "Kind"
+msgstr "Kind"
+
+#: docking/ui/menu.py:49
+msgid "Size"
+msgstr "Size"
+
+#: docking/ui/menu.py:50
+msgid "Created"
+msgstr "Created"
+
+#: docking/ui/menu.py:51
+msgid "Modified"
+msgstr "Modified"
+
+#: docking/ui/menu.py:260 docking/ui/menu.py:280 docking/ui/menu.py:296
+#: docking/ui/menu.py:349
 msgid "Remove from Dock"
 msgstr "Quitar del Dock"
 
-#: docking/ui/menu.py:222
+#: docking/ui/menu.py:273
+msgid "Open"
+msgstr "Open"
+
+#: docking/ui/menu.py:303
 msgid "Keep in Dock"
 msgstr "Mantener en el Dock"
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close All"
 msgstr "Cerrar Todo"
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close"
 msgstr "Cerrar"
 
-#: docking/ui/menu.py:262
+#: docking/ui/menu.py:329
+msgid "Sort By"
+msgstr "Sort By"
+
+#: docking/ui/menu.py:337
+msgid "Show Hidden Files"
+msgstr "Show Hidden Files"
+
+#: docking/ui/menu.py:342
+msgid "Large Icons"
+msgstr "Large Icons"
+
+#: docking/ui/menu.py:378
 msgid "Auto-hide"
 msgstr "Ocultar automáticamente"
 
-#: docking/ui/menu.py:268
+#: docking/ui/menu.py:384
 msgid "Window Previews"
 msgstr "Vista Previa de Ventanas"
 
-#: docking/ui/menu.py:276
+#: docking/ui/menu.py:392
 msgid "Display"
 msgstr "Pantalla"
 
-#: docking/ui/menu.py:279
+#: docking/ui/menu.py:395
 msgid "Follow Cursor"
 msgstr "Seguir cursor"
 
-#: docking/ui/menu.py:302
+#: docking/ui/menu.py:418
 msgid "Anchor Applets to End"
 msgstr "Anclar applets al final"
 
-#: docking/ui/menu.py:316
+#: docking/ui/menu.py:423
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#: docking/ui/menu.py:437
 msgid "Current Workspace Only"
 msgstr "Solo espacio de trabajo actual"
 
-#: docking/ui/menu.py:346
+#: docking/ui/menu.py:467
 msgid "Themes"
 msgstr "Temas"
 
-#: docking/ui/menu.py:359
+#: docking/ui/menu.py:480
 msgid "Position"
 msgstr "Posición"
 
-#: docking/ui/menu.py:369
+#: docking/ui/menu.py:493
 msgid "Applets"
 msgstr "Applets"
 
-#: docking/ui/menu.py:421
+#: docking/ui/menu.py:545
 msgid "Add Separator"
 msgstr "Agregar Separador"
 
-#: docking/ui/menu.py:431
+#: docking/ui/menu.py:555
 msgid "About"
 msgstr "Acerca de"
 
-#: docking/ui/menu.py:436
+#: docking/ui/menu.py:560
 msgid "Quit"
 msgstr "Salir"
 
-#: docking/ui/menu.py:466
+#: docking/ui/menu.py:597
 msgid "Window"
 msgstr "Ventana"
 

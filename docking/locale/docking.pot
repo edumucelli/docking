@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 01:27+0100\n"
+"POT-Creation-Date: 2026-03-06 20:03+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -598,16 +598,32 @@ msgstr ""
 msgid "Full Screen in {delay}s"
 msgstr ""
 
-#: docking/applets/separator/applet.py:30
+#: docking/applets/separator/applet.py:37
 msgid "Separator"
 msgstr ""
 
-#: docking/applets/separator/applet.py:78
+#: docking/applets/separator/applet.py:117
 msgid "Increase Gap"
 msgstr ""
 
-#: docking/applets/separator/applet.py:80
+#: docking/applets/separator/applet.py:119
 msgid "Decrease Gap"
+msgstr ""
+
+#: docking/applets/separator/applet.py:121
+msgid "Style"
+msgstr ""
+
+#: docking/applets/separator/applet.py:125
+msgid "Line"
+msgstr ""
+
+#: docking/applets/separator/applet.py:134
+msgid "Space"
+msgstr ""
+
+#: docking/applets/separator/applet.py:143
+msgid "Invert Color"
 msgstr ""
 
 #: docking/applets/session/applet.py:27
@@ -723,83 +739,124 @@ msgstr ""
 msgid "Workspaces"
 msgstr ""
 
-#: docking/ui/about.py:46
+#: docking/ui/about.py:47
 msgid "Website"
 msgstr ""
 
-#: docking/ui/dock_window.py:248
+#: docking/ui/dock_window.py:251
 msgid "Docking"
 msgstr ""
 
-#: docking/ui/dock_window.py:407
+#: docking/ui/dock_window.py:414
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr ""
 
-#: docking/ui/menu.py:198 docking/ui/menu.py:215
+#: docking/ui/menu.py:47
+msgid "Name"
+msgstr ""
+
+#: docking/ui/menu.py:48
+msgid "Kind"
+msgstr ""
+
+#: docking/ui/menu.py:49
+msgid "Size"
+msgstr ""
+
+#: docking/ui/menu.py:50
+msgid "Created"
+msgstr ""
+
+#: docking/ui/menu.py:51
+msgid "Modified"
+msgstr ""
+
+#: docking/ui/menu.py:260 docking/ui/menu.py:280 docking/ui/menu.py:296
+#: docking/ui/menu.py:349
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:222
+#: docking/ui/menu.py:273
+msgid "Open"
+msgstr ""
+
+#: docking/ui/menu.py:303
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close"
 msgstr ""
 
-#: docking/ui/menu.py:262
+#: docking/ui/menu.py:329
+msgid "Sort By"
+msgstr ""
+
+#: docking/ui/menu.py:337
+msgid "Show Hidden Files"
+msgstr ""
+
+#: docking/ui/menu.py:342
+msgid "Large Icons"
+msgstr ""
+
+#: docking/ui/menu.py:378
 msgid "Auto-hide"
 msgstr ""
 
-#: docking/ui/menu.py:268
+#: docking/ui/menu.py:384
 msgid "Window Previews"
 msgstr ""
 
-#: docking/ui/menu.py:276
+#: docking/ui/menu.py:392
 msgid "Display"
 msgstr ""
 
-#: docking/ui/menu.py:279
+#: docking/ui/menu.py:395
 msgid "Follow Cursor"
 msgstr ""
 
-#: docking/ui/menu.py:302
+#: docking/ui/menu.py:418
 msgid "Anchor Applets to End"
 msgstr ""
 
-#: docking/ui/menu.py:316
+#: docking/ui/menu.py:423
+msgid "Anchor Files to End"
+msgstr ""
+
+#: docking/ui/menu.py:437
 msgid "Current Workspace Only"
 msgstr ""
 
-#: docking/ui/menu.py:346
+#: docking/ui/menu.py:467
 msgid "Themes"
 msgstr ""
 
-#: docking/ui/menu.py:359
+#: docking/ui/menu.py:480
 msgid "Position"
 msgstr ""
 
-#: docking/ui/menu.py:369
+#: docking/ui/menu.py:493
 msgid "Applets"
 msgstr ""
 
-#: docking/ui/menu.py:421
+#: docking/ui/menu.py:545
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:431
+#: docking/ui/menu.py:555
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:436
+#: docking/ui/menu.py:560
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:466
+#: docking/ui/menu.py:597
 msgid "Window"
 msgstr ""

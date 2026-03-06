@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Literal
+
+ItemKind = Literal["app", "applet", "file", "folder"]
+
+APP_KIND: ItemKind = "app"
+APPLET_KIND: ItemKind = "applet"
+FILE_KIND: ItemKind = "file"
+FOLDER_KIND: ItemKind = "folder"
 
 
 @dataclass
@@ -11,6 +18,10 @@ class DockItem:
     """A single item in the dock."""
 
     desktop_id: str
+    kind: ItemKind = APP_KIND
+    # Canonical launch/open target. Apps keep desktop_id here; files/folders
+    # use normalized file:// URIs so identity remains stable across the UI.
+    target: str = ""
     name: str = ""
     icon_name: str = "application-x-executable"
     wm_class: str = ""
@@ -29,3 +40,13 @@ class DockItem:
     last_urgent: int = 0
     # Callable returning tooltip widget/content; used by applets for rich tooltips
     tooltip_builder: Callable[[], Any] | None = None
+    # Optional key for per-item preferences (folder sort/view options, etc.).
+    prefs_key: str = ""
+    # Some items, like separators, should keep a fixed size under hover.
+    allow_zoom: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.target:
+            self.target = self.desktop_id
+        if not self.prefs_key:
+            self.prefs_key = self.target

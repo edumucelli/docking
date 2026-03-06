@@ -69,7 +69,7 @@ from docking.applets.identity import (
 from docking.applets.identity import (
     applet_id_from as _applet_id_from,
 )
-from docking.core.items import DockItem
+from docking.core.items import APPLET_KIND, DockItem
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -250,10 +250,13 @@ class Applet(ABC):
         self._notify: Callable[[], None] | None = None
         self.item = DockItem(
             desktop_id=self.desktop_id,
+            kind=APPLET_KIND,
+            target=self.desktop_id,
             name=self.name,
             icon_name=self.icon_name,
             is_pinned=True,
             icon=None,
+            prefs_key=self.desktop_id,
         )
         self.refresh_presentation()
 

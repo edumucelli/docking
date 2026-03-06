@@ -78,6 +78,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
+from docking.applets.separator.state import STYLE_LINE
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import RGB, IndicatorStyle
 from docking.core.zoom import compute_layout, content_bounds
@@ -162,6 +163,22 @@ def map_icon_position(
         return edge_padding - hide_cross + bounce, main_pos
     else:  # RIGHT
         return cross_rest + hide_cross - bounce, main_pos
+
+
+def _is_separator_item(item: DockItem) -> bool:
+    return item.desktop_id.startswith("applet://separator")
+
+
+def _separator_prefs(item: DockItem, config: Config) -> tuple[str, bool]:
+    key = item.desktop_id.removeprefix("applet://")
+    prefs = getattr(config, "applet_prefs", {}).get(key, {})
+    style = prefs.get("style", "space")
+    invert = bool(prefs.get("invert_color", False))
+    return str(style), invert
+
+
+def _brightness(rgba: tuple[float, float, float, float]) -> float:
+    return 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
 
 
 class DockRenderer:
@@ -433,6 +450,20 @@ class DockRenderer:
             item_w = li.width or icon_size
             scaled_size = item_w * li.scale
             main_pos = li.x + icon_offset + slide + drop_shift
+            if _is_separator_item(item):
+                self._draw_separator(
+                    cr=cr,
+                    item=item,
+                    config=config,
+                    theme=theme,
+                    pos=pos,
+                    main_pos=main_pos,
+                    cross_size=cross_size,
+                    main_size=scaled_size,
+                    hide_cross=hide_cross,
+                    bounce=bounce,
+                )
+                continue
             ix, iy = map_icon_position(
                 pos=pos,
                 main_pos=main_pos,
@@ -445,6 +476,7 @@ class DockRenderer:
             self._draw_icon(
                 cr=cr,
                 item=item,
+                config=config,
                 li=li,
                 base_size=item_w,
                 x=ix,
@@ -579,10 +611,11 @@ class DockRenderer:
 
         self.prev_positions = new_positions
 
-    @staticmethod
     def _draw_icon(
+        self,
         cr: cairo.Context,
         item: DockItem,
+        config: Config,
         li: LayoutItem,
         base_size: int,
         x: float,
@@ -591,17 +624,18 @@ class DockRenderer:
         darken: float = 0.0,
     ) -> None:
         """Draw a single dock icon at (x, y) with hover/click effects."""
-        if item.icon is None:
+        source_surface = self._icon_surface_for_item(
+            item=item, config=config, base_size=base_size
+        )
+        if source_surface is None:
             return
 
         scaled_size = base_size * li.scale
-        icon_width = item.icon.get_width()
-        icon_height = item.icon.get_height()
-
+        icon_width = source_surface.get_width()
+        icon_height = source_surface.get_height()
         icon_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, icon_width, icon_height)
         icon_cr = cairo.Context(icon_surface)
-
-        Gdk.cairo_set_source_pixbuf(icon_cr, item.icon, 0, 0)
+        icon_cr.set_source_surface(source_surface, 0, 0)
         icon_cr.paint()
 
         if lighten > 0:
@@ -619,6 +653,82 @@ class DockRenderer:
         cr.set_source_surface(icon_surface, 0, 0)
         cr.paint()
         cr.restore()
+
+    def _draw_separator(
+        self,
+        cr: cairo.Context,
+        item: DockItem,
+        config: Config,
+        theme: Theme,
+        pos: Position,
+        main_pos: float,
+        cross_size: float,
+        main_size: float,
+        hide_cross: float = 0.0,
+        bounce: float = 0.0,
+    ) -> None:
+        style, invert_color = _separator_prefs(item=item, config=config)
+        if style != STYLE_LINE:
+            return
+
+        render_main = max(main_size, 1.0)
+        render_cross = float(config.icon_size)
+        edge_padding = theme.bottom_padding
+        cross_rest = cross_size - edge_padding - render_cross
+
+        if pos == Position.BOTTOM:
+            x = main_pos
+            y = cross_rest + hide_cross - bounce
+        elif pos == Position.TOP:
+            x = main_pos
+            y = edge_padding - hide_cross + bounce
+        elif pos == Position.LEFT:
+            x = edge_padding - hide_cross + bounce
+            y = main_pos
+        else:
+            x = cross_rest + hide_cross - bounce
+            y = main_pos
+
+        brightness = _brightness(theme.fill_start)
+        use_dark = brightness > 0.5
+        if invert_color:
+            use_dark = not use_dark
+        color = (0.0, 0.0, 0.0, 0.4) if use_dark else (1.0, 1.0, 1.0, 0.4)
+
+        cr.save()
+        cr.set_source_rgba(*color)
+        cr.set_line_width(2.0)
+
+        if is_horizontal(pos=pos):
+            line_x = x + render_main / 2.0
+            cr.move_to(line_x, y + render_cross * 0.1)
+            cr.line_to(line_x, y + render_cross * 0.9)
+        else:
+            line_y = y + render_main / 2.0
+            cr.move_to(x + render_cross * 0.1, line_y)
+            cr.line_to(x + render_cross * 0.9, line_y)
+
+        cr.stroke()
+        cr.restore()
+
+    def _icon_surface_for_item(
+        self, item: DockItem, config: Config, base_size: int
+    ) -> cairo.ImageSurface | None:
+        if item.icon is None:
+            return None
+        return self._pixbuf_surface(pixbuf=item.icon)
+
+    @staticmethod
+    def _pixbuf_surface(pixbuf: object) -> cairo.ImageSurface | None:
+        if pixbuf is None:
+            return None
+        width = pixbuf.get_width()
+        height = pixbuf.get_height()
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        cr = cairo.Context(surface)
+        Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, 0)
+        cr.paint()
+        return surface
 
     @staticmethod
     def _draw_active_glow(

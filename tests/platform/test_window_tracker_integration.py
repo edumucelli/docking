@@ -377,6 +377,17 @@ class TestWindowActions:
         assert w1.closed_with == [123]
         assert w2.closed_with == [123]
 
+    def test_close_xid_closes_only_matching_window(self, tracker_env):
+        tracker, _model, _launcher = tracker_env
+        w1 = FakeWindow(1)
+        w2 = FakeWindow(2)
+        tracker._screen = FakeScreen(windows=[w1, w2], active_window=None)
+
+        tracker.close_xid(2)
+
+        assert w1.closed_with == []
+        assert w2.closed_with == [123]
+
     def test_activate_window_handles_broken_native_calls(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env

@@ -303,6 +303,47 @@ class TestTryLoadIcon:
         # Then
         assert out is None
 
+    def test_load_gicon_uses_lookup_by_gicon_when_available(self, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        icon_info = MagicMock()
+        icon_info.load_icon.return_value = "pixbuf"
+        theme = MagicMock()
+        theme.lookup_by_gicon.return_value = icon_info
+        monkeypatch.setattr(
+            launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
+        )
+        gicon = MagicMock()
+        gicon.to_string.return_value = "folder"
+
+        out = launcher.load_gicon(gicon, 48)
+
+        assert out == "pixbuf"
+        theme.lookup_by_gicon.assert_called_once()
+
+    def test_resolve_file_prefers_gicon_then_falls_back(self, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        gicon = MagicMock()
+        gicon.to_string.return_value = "folder"
+        info = MagicMock()
+        info.get_icon.return_value = gicon
+        info.get_file_type.return_value = launcher_mod.Gio.FileType.DIRECTORY
+        info.get_display_name.return_value = "Docs"
+        gfile = MagicMock()
+        gfile.query_info.return_value = info
+        monkeypatch.setattr(launcher_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+        launcher.load_gicon = MagicMock(return_value="gicon-pixbuf")
+        launcher.load_icon = MagicMock(return_value="fallback-pixbuf")
+
+        resolved = launcher.resolve_file("file:///tmp/docs", 48)
+
+        assert resolved is not None
+        assert resolved.icon == "gicon-pixbuf"
+        launcher.load_gicon.assert_called_once_with(gicon=gicon, size=48)
+
 
 class TestLaunch:
     @patch("subprocess.Popen")

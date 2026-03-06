@@ -64,7 +64,8 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
-from docking.core.items import DockItem
+import docking.platform.launcher as launcher_mod
+from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
 from docking.core.zoom import compute_layout
 from docking.ui.poof import show_poof
@@ -333,7 +334,7 @@ class DnDHandler:
 
         Internal reorder is already handled live in drag-motion; this just
         acknowledges completion. External drops parse URI list, resolve
-        .desktop files, and insert pinned items at the drop position.
+        apps/files/folders, and insert pinned items at the drop position.
         """
         # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
@@ -352,33 +353,18 @@ class DnDHandler:
 
         added = False
         for uri in uris:
-            desktop_id = self._uri_to_desktop_id(uri=uri)
-            if desktop_id and not self._model.find_by_desktop_id(desktop_id):
-                resolved = self._launcher.resolve(desktop_id)
-                if resolved:
-                    icon_size = int(self._config.icon_size * self._config.zoom_percent)
-                    icon = self._launcher.load_icon(resolved.icon_name, icon_size)
-                    item = DockItem(
-                        desktop_id=desktop_id,
-                        name=resolved.name,
-                        icon_name=resolved.icon_name,
-                        wm_class=resolved.wm_class,
-                        is_pinned=True,
-                        icon=icon,
-                    )
-                    # Insert at drop position
-                    insert_at = min(insert_at, len(self._model.pinned_items))
-                    self._model.pinned_items.insert(insert_at, item)
-                    self._config.pinned.insert(insert_at, desktop_id)
-                    insert_at += 1
-                    added = True
+            item = self._item_from_uri(uri=uri)
+            if item and not self._model.find_by_desktop_id(item.desktop_id):
+                insert_at = min(insert_at, len(self._model.pinned_items))
+                self._model.pinned_items.insert(insert_at, item)
+                self._config.pinned.insert(insert_at, item.desktop_id)
+                self._model.sync_pinned_to_config()
+                self._config.save()
+                self._model.notify()
+                insert_at += 1
+                added = True
 
         self.drop_insert_index = -1
-        if added:
-            self._config.save()
-            self._model.sync_pinned_to_config()
-            self._model.notify()
-
         Gtk.drag_finish(context, added, False, time)
 
     def _on_drag_leave(
@@ -465,18 +451,47 @@ class DnDHandler:
         self._config.save()
         widget.queue_draw()
 
+    def _item_from_uri(self, uri: str) -> DockItem | None:
+        """Build a pinned DockItem from an external URI drop."""
+        desktop_id = self._uri_to_desktop_id(uri)
+        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        if desktop_id:
+            resolved = self._launcher.resolve(desktop_id)
+            if resolved is None:
+                return None
+            icon = self._launcher.load_icon(resolved.icon_name, icon_size)
+            return DockItem(
+                desktop_id=desktop_id,
+                kind=APP_KIND,
+                target=desktop_id,
+                name=resolved.name,
+                icon_name=resolved.icon_name,
+                wm_class=resolved.wm_class,
+                is_pinned=True,
+                icon=icon,
+            )
+
+        info = self._launcher.resolve_file(target=uri, size=icon_size)
+        if info is None:
+            return None
+        return DockItem(
+            desktop_id=info.target,
+            kind=FOLDER_KIND if info.is_dir else FILE_KIND,
+            target=info.target,
+            name=info.name,
+            icon_name=info.icon_name,
+            is_pinned=True,
+            icon=info.icon,
+            prefs_key=info.target,
+        )
+
     @staticmethod
     def _uri_to_desktop_id(uri: str) -> str | None:
         """Extract a .desktop ID from a file URI or path."""
-        parsed = urlparse(uri)
-        if parsed.scheme == "file":
-            path = Path(unquote(parsed.path))
-        elif parsed.scheme == "" and uri.endswith(".desktop"):
-            path = Path(uri)
-        else:
+        normalized = launcher_mod.normalize_file_target(uri)
+        if normalized is None:
             return None
-
+        path = Path(unquote(urlparse(normalized).path))
         if not path.name.endswith(".desktop"):
             return None
-
         return path.name

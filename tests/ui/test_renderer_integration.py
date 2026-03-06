@@ -121,6 +121,58 @@ class TestRendererContentFlow:
         assert "firefox.desktop" in renderer._hover_lighten
         assert renderer.smooth_shelf_w > 0
 
+    def test_draw_content_uses_separator_drawer_for_separator_items(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            applet_prefs={"separator#0": {"style": "line", "invert_color": False}},
+        )
+        item = DockItem(
+            desktop_id="applet://separator#0",
+            kind="applet",
+            main_size=12,
+            allow_zoom=False,
+        )
+        model = MagicMock()
+        model.visible_items.return_value = [item]
+
+        monkeypatch.setattr(
+            renderer_mod,
+            "compute_layout",
+            lambda *args, **kwargs: [SimpleNamespace(x=0.0, scale=1.0, width=12.0)],
+        )
+        monkeypatch.setattr(
+            renderer_mod, "content_bounds", lambda **kwargs: (0.0, 24.0)
+        )
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+
+        renderer._draw_icon = MagicMock()
+        renderer._draw_separator = MagicMock()
+
+        cr = _surface_context()
+        renderer._draw_content(
+            cr=cr,
+            width=420,
+            height=90,
+            model=model,
+            config=config,
+            theme=theme,
+            cursor_main=10.0,
+            hide_offset=0.0,
+            drag_index=-1,
+            drop_insert_index=-1,
+            zoom_progress=1.0,
+            hovered_id="",
+        )
+
+        renderer._draw_icon.assert_not_called()
+        renderer._draw_separator.assert_called_once()
+
     def test_draw_content_returns_early_for_empty_items(self):
         # Given
         renderer = renderer_mod.DockRenderer()

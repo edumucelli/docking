@@ -1,16 +1,55 @@
 """Tests for menu constants and configuration."""
 
-import sys
 from unittest.mock import MagicMock
 
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
+import docking.ui.menu as menu_mod
+from docking.core.position import Position
+from docking.core.theme import _BUILTIN_THEMES_DIR
+from docking.ui.menu import ICON_SIZE_OPTIONS, _build_radio_submenu
 
-from docking.core.position import Position  # noqa: E402
-from docking.core.theme import _BUILTIN_THEMES_DIR  # noqa: E402
-from docking.ui.menu import ICON_SIZE_OPTIONS, _build_radio_submenu  # noqa: E402
+
+class _FakeMenu:
+    def __init__(self) -> None:
+        self.children = []
+
+    def append(self, item) -> None:
+        self.children.append(item)
+
+    def get_children(self):
+        return list(self.children)
+
+
+class _FakeMenuItem:
+    def __init__(self, label: str = "") -> None:
+        self._label = label
+        self._submenu = None
+
+    def set_submenu(self, submenu) -> None:
+        self._submenu = submenu
+
+    def get_submenu(self):
+        return self._submenu
+
+    def get_label(self) -> str:
+        return self._label
+
+
+class _FakeRadioMenuItem(_FakeMenuItem):
+    def __init__(self, label: str = "") -> None:
+        super().__init__(label=label)
+        self._active = False
+
+    def join_group(self, _other) -> None:
+        return
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+
+    def get_active(self) -> bool:
+        return self._active
+
+    def connect(self, *_args, **_kwargs) -> None:
+        return
 
 
 class TestIconSizeOptions:
@@ -54,7 +93,20 @@ class TestThemeDiscovery:
 
 
 class TestBuildRadioSubmenu:
-    def test_returns_menu_item_with_submenu(self):
+    def test_returns_menu_item_with_submenu(self, monkeypatch):
+        monkeypatch.setattr(
+            menu_mod,
+            "Gtk",
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "Menu": _FakeMenu,
+                    "MenuItem": _FakeMenuItem,
+                    "RadioMenuItem": _FakeRadioMenuItem,
+                },
+            ),
+        )
         callback = MagicMock()
         item = _build_radio_submenu(
             label="Test", items=[("A", 1), ("B", 2)], current=1, on_changed=callback
@@ -62,7 +114,20 @@ class TestBuildRadioSubmenu:
         assert item.get_label() == "Test"
         assert item.get_submenu() is not None
 
-    def test_correct_number_of_children(self):
+    def test_correct_number_of_children(self, monkeypatch):
+        monkeypatch.setattr(
+            menu_mod,
+            "Gtk",
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "Menu": _FakeMenu,
+                    "MenuItem": _FakeMenuItem,
+                    "RadioMenuItem": _FakeRadioMenuItem,
+                },
+            ),
+        )
         item = _build_radio_submenu(
             label="Test",
             items=[("A", 1), ("B", 2), ("C", 3)],
@@ -72,7 +137,20 @@ class TestBuildRadioSubmenu:
         children = item.get_submenu().get_children()
         assert len(children) == 3
 
-    def test_active_item_is_set(self):
+    def test_active_item_is_set(self, monkeypatch):
+        monkeypatch.setattr(
+            menu_mod,
+            "Gtk",
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "Menu": _FakeMenu,
+                    "MenuItem": _FakeMenuItem,
+                    "RadioMenuItem": _FakeRadioMenuItem,
+                },
+            ),
+        )
         item = _build_radio_submenu(
             label="Test", items=[("A", 1), ("B", 2)], current=2, on_changed=MagicMock()
         )

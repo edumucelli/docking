@@ -71,7 +71,14 @@ from docking.applets.identity import (
     applet_id_from,
     is_applet_desktop_id,
 )
-from docking.core.items import DockItem
+from docking.core.config import PinnedEntry
+from docking.core.items import (
+    APP_KIND,
+    APPLET_KIND,
+    FILE_KIND,
+    FOLDER_KIND,
+    DockItem,
+)
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
@@ -97,52 +104,79 @@ class DockModel:
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
         self.on_change: Callable[[], None] | None = None
+        raw_pinned = getattr(self._config, "pinned", [])
+        if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
+            from docking.core.config import normalize_pinned_entries
+
+            self._config.pinned = normalize_pinned_entries(list(raw_pinned))
 
         self._load_pinned()
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
+        for entry in self._config.pinned:
+            item = self._build_pinned_item(entry=entry)
+            if item is not None:
+                self.pinned_items.append(item)
+
+    def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
-        registry = applets.get_registry()
-
-        for desktop_id in self._config.pinned:
-            if is_applet_desktop_id(desktop_id=desktop_id):
-                did = applet_id_from(desktop_id=desktop_id)
-                cls = registry.get(did)
-                if cls:
-                    try:
-                        applet = cls(icon_size=icon_size, config=self._config)
-                        applet.item.desktop_id = desktop_id
-                        applet.apply_prefs()
-                        self._applets[desktop_id] = applet
-                        self.pinned_items.append(applet.item)
-                        _log.bind(applet_id=str(did), action="load_applet").info(
-                            f"Loaded applet {did} (icon={applet.item.icon})"
-                        )
-                    except Exception:
-                        _log.bind(applet_id=str(did), action="load_applet").exception(
-                            f"Failed to create applet {did}"
-                        )
-                else:
-                    _log.bind(applet_id=str(did), action="load_applet").warning(
-                        f"Unknown applet id: {did}"
+        if entry.kind == APPLET_KIND:
+            registry = applets.get_registry()
+            did = applet_id_from(desktop_id=entry.target)
+            cls = registry.get(did)
+            if cls:
+                try:
+                    applet = cls(icon_size=icon_size, config=self._config)
+                    applet.item.desktop_id = entry.id
+                    applet.item.kind = APPLET_KIND
+                    applet.item.target = entry.target
+                    applet.item.prefs_key = entry.target
+                    applet.apply_prefs()
+                    self._applets[entry.id] = applet
+                    _log.bind(applet_id=str(did), action="load_applet").info(
+                        f"Loaded applet {did} (icon={applet.item.icon})"
                     )
-                continue
-
-            info = self._launcher.resolve(desktop_id=desktop_id)
-            if info is None:
-                continue
-            icon = self._launcher.load_icon(icon_name=info.icon_name, size=icon_size)
-            self.pinned_items.append(
-                DockItem(
-                    desktop_id=desktop_id,
-                    name=info.name,
-                    icon_name=info.icon_name,
-                    wm_class=info.wm_class,
-                    is_pinned=True,
-                    icon=icon,
+                    return applet.item
+                except Exception:
+                    _log.bind(applet_id=str(did), action="load_applet").exception(
+                        f"Failed to create applet {did}"
+                    )
+            else:
+                _log.bind(applet_id=str(did), action="load_applet").warning(
+                    f"Unknown applet id: {did}"
                 )
+            return None
+
+        if entry.kind == APP_KIND:
+            info = self._launcher.resolve(desktop_id=entry.target)
+            if info is None:
+                return None
+            icon = self._launcher.load_icon(icon_name=info.icon_name, size=icon_size)
+            return DockItem(
+                desktop_id=entry.id,
+                kind=APP_KIND,
+                target=entry.target,
+                name=info.name,
+                icon_name=info.icon_name,
+                wm_class=info.wm_class,
+                is_pinned=True,
+                icon=icon,
             )
+
+        info = self._launcher.resolve_file(target=entry.target, size=icon_size)
+        if info is None:
+            return None
+        return DockItem(
+            desktop_id=entry.id,
+            kind=entry.kind,
+            target=entry.target,
+            name=info.name,
+            icon_name=info.icon_name,
+            is_pinned=True,
+            icon=info.icon,
+            prefs_key=entry.target,
+        )
 
     def get_applet(self, desktop_id: str) -> Applet | None:
         """Look up active applet by desktop_id."""
@@ -179,6 +213,9 @@ class DockModel:
             )
             return
         self._applets[desktop_id] = applet
+        applet.item.kind = APPLET_KIND
+        applet.item.target = desktop_id
+        applet.item.prefs_key = desktop_id
         self.pinned_items.append(applet.item)
         applet.start(notify=self.notify)
         self.sync_pinned_to_config()
@@ -206,6 +243,9 @@ class DockModel:
             )
             return
         applet.item.desktop_id = desktop_id
+        applet.item.kind = APPLET_KIND
+        applet.item.target = desktop_id
+        applet.item.prefs_key = desktop_id
         applet.apply_prefs()
         self._applets[desktop_id] = applet
         if index < 0 or index >= len(self.pinned_items):
@@ -239,15 +279,21 @@ class DockModel:
             applet.stop()
 
     def visible_items(self) -> list[DockItem]:
-        """All items to display: pinned + transient, optionally anchor applets."""
+        """All items to display with optional independent anchoring rules."""
         items = self.pinned_items + self._transient
-        if not self._config.anchor_applets:
-            return items
+        anchor_applets = bool(getattr(self._config, "anchor_applets", False))
+        anchor_files = bool(getattr(self._config, "anchor_files", False))
         regular = [
-            i for i in items if not is_applet_desktop_id(desktop_id=i.desktop_id)
+            i
+            for i in items
+            if not (anchor_applets and i.kind == APPLET_KIND)
+            and not (anchor_files and i.kind in {FILE_KIND, FOLDER_KIND})
         ]
-        applets = [i for i in items if is_applet_desktop_id(desktop_id=i.desktop_id)]
-        return regular + applets
+        files = [
+            i for i in items if anchor_files and i.kind in {FILE_KIND, FOLDER_KIND}
+        ]
+        applet_items = [i for i in items if anchor_applets and i.kind == APPLET_KIND]
+        return regular + files + applet_items
 
     def find_by_desktop_id(self, desktop_id: str) -> DockItem | None:
         for item in self.pinned_items + self._transient:
@@ -270,6 +316,8 @@ class DockModel:
         """
         # Reset running state (preserve is_urgent for transition detection)
         for item in self.pinned_items:
+            if item.kind != APP_KIND:
+                continue
             item.is_running = False
             item.is_active = False
             item.instance_count = 0
@@ -277,6 +325,8 @@ class DockModel:
         # Update pinned items that are running
         matched_ids = set()
         for item in self.pinned_items:
+            if item.kind != APP_KIND:
+                continue
             if item.desktop_id not in running:
                 item.is_urgent = False
                 continue
@@ -317,6 +367,8 @@ class DockModel:
                     new_transient.append(
                         DockItem(
                             desktop_id=desktop_id,
+                            kind=APP_KIND,
+                            target=desktop_id,
                             name=resolved.name if resolved else desktop_id,
                             icon_name=(
                                 resolved.icon_name
@@ -345,6 +397,17 @@ class DockModel:
             self.sync_pinned_to_config()
             self.notify()
 
+    def add_pinned_item(self, item: DockItem, index: int = -1) -> None:
+        """Insert a already-resolved pinned item at the given pinned index."""
+        item.is_pinned = True
+        if index < 0 or index >= len(self.pinned_items):
+            self.pinned_items.append(item)
+        else:
+            self.pinned_items.insert(index, item)
+        self.sync_pinned_to_config()
+        self._config.save()
+        self.notify()
+
     def unpin_item(self, desktop_id: str) -> None:
         """Unpin an item. If running, becomes transient; otherwise removed.
 
@@ -357,7 +420,7 @@ class DockModel:
         if item:
             self.pinned_items.remove(item)
             item.is_pinned = False
-            if item.is_running:
+            if item.kind == APP_KIND and item.is_running:
                 self._transient.append(item)
             self.sync_pinned_to_config()
             self.notify()
@@ -414,7 +477,19 @@ class DockModel:
 
     def sync_pinned_to_config(self) -> None:
         """Write current pinned_items order back to config (does not save to disk)."""
-        self._config.pinned = [item.desktop_id for item in self.pinned_items]
+        self._config.pinned = [
+            self._entry_from_item(item=item) for item in self.pinned_items
+        ]
+
+    @staticmethod
+    def _entry_from_item(item: DockItem) -> PinnedEntry:
+        if item.kind == APPLET_KIND:
+            return PinnedEntry(kind=APPLET_KIND, target=item.desktop_id)
+        if item.kind == APP_KIND:
+            return PinnedEntry(kind=APP_KIND, target=item.desktop_id)
+        if item.kind == FOLDER_KIND:
+            return PinnedEntry(kind=FOLDER_KIND, target=item.target)
+        return PinnedEntry(kind=FILE_KIND, target=item.target)
 
     def notify(self) -> None:
         """Fire on_change callback to trigger a dock redraw."""

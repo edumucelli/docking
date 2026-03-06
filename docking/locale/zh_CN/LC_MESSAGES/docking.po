@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 01:27+0100\n"
+"POT-Creation-Date: 2026-03-06 20:03+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -15,6 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 
 #: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:86
 msgid "Ambient"
@@ -59,7 +60,7 @@ msgstr "粉红噪音"
 #: docking/applets/ambient/state.py:83
 #, python-brace-format
 msgid "Playing: {sound} ({pct}%)"
-msgstr "Playing: {sound} ({pct}%)"
+msgstr "播放中: {sound} ({pct}%)"
 
 #: docking/applets/applications/applet.py:28
 msgid "Applications"
@@ -92,7 +93,7 @@ msgstr "无蓝牙适配器"
 
 #: docking/applets/bluetooth/applet.py:156
 msgid "General"
-msgstr "General"
+msgstr "常规"
 
 #: docking/applets/bluetooth/applet.py:158
 #: docking/applets/bluetooth/state.py:110
@@ -107,7 +108,7 @@ msgstr "关"
 #: docking/applets/bluetooth/applet.py:161
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
-msgstr "{alias} ({powered}) - Connected {connected}"
+msgstr "{alias} ({powered}) - 已连接 {connected}"
 
 #: docking/applets/bluetooth/applet.py:170
 msgid "Bluetooth On"
@@ -127,15 +128,15 @@ msgstr "适配器"
 
 #: docking/applets/bluetooth/applet.py:219
 msgid "Connected Devices"
-msgstr "Connected Devices"
+msgstr "已连接设备"
 
 #: docking/applets/bluetooth/applet.py:220
 msgid "Paired Devices"
-msgstr "Paired Devices"
+msgstr "已配对设备"
 
 #: docking/applets/bluetooth/applet.py:221
 msgid "Discovered Devices"
-msgstr "Discovered Devices"
+msgstr "已发现设备"
 
 #: docking/applets/bluetooth/applet.py:246
 msgid "Disconnect"
@@ -160,7 +161,7 @@ msgstr "已信任"
 #: docking/applets/bluetooth/applet.py:306
 #, python-brace-format
 msgid "Battery: {percent}%"
-msgstr "Battery: {percent}%"
+msgstr "电池: {percent}%"
 
 #: docking/applets/bluetooth/state.py:103
 #, python-brace-format
@@ -232,7 +233,7 @@ msgstr "清除"
 
 #: docking/applets/clippy/state.py:22
 msgid "Clippy (empty)"
-msgstr "Clippy (empty)"
+msgstr "剪贴板 (空)"
 
 #: docking/applets/clock/applet.py:32
 msgid "Clock"
@@ -258,7 +259,7 @@ msgstr "取色器"
 #: docking/applets/colorpicker/applet.py:78
 #, python-brace-format
 msgid "Copy {hex}"
-msgstr "Copy {hex}"
+msgstr "复制 {hex}"
 
 #: docking/applets/colorpicker/applet.py:82
 msgid "Show Hex"
@@ -440,7 +441,7 @@ msgstr "未知"
 
 #: docking/applets/music/state.py:127
 msgid "Music: No active player"
-msgstr "Music: No active player"
+msgstr "音乐: 无活动播放器"
 
 #: docking/applets/network/applet.py:40
 msgid "Network"
@@ -498,7 +499,7 @@ msgstr "清除通知"
 
 #: docking/applets/notifications/state.py:43
 msgid "Notifications: No backend available"
-msgstr "Notifications: No backend available"
+msgstr "通知: 无可用后端"
 
 #: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
 msgid "Pomodoro"
@@ -547,19 +548,19 @@ msgstr "选择配置"
 #: docking/applets/powerprofiles/applet.py:136
 #, python-brace-format
 msgid "Limited: {reason}"
-msgstr "Limited: {reason}"
+msgstr "受限: {reason}"
 
 #: docking/applets/powerprofiles/state.py:122
 msgid "Power Saver"
-msgstr "Power Saver"
+msgstr "省电"
 
 #: docking/applets/powerprofiles/state.py:124
 msgid "Balanced"
-msgstr "Balanced"
+msgstr "均衡"
 
 #: docking/applets/powerprofiles/state.py:126
 msgid "Performance"
-msgstr "Performance"
+msgstr "性能"
 
 #: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
 #: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
@@ -596,17 +597,33 @@ msgstr "截图"
 msgid "Full Screen in {delay}s"
 msgstr "{delay}秒后全屏"
 
-#: docking/applets/separator/applet.py:30
+#: docking/applets/separator/applet.py:37
 msgid "Separator"
 msgstr "分隔符"
 
-#: docking/applets/separator/applet.py:78
+#: docking/applets/separator/applet.py:117
 msgid "Increase Gap"
 msgstr "增大间距"
 
-#: docking/applets/separator/applet.py:80
+#: docking/applets/separator/applet.py:119
 msgid "Decrease Gap"
 msgstr "减小间距"
+
+#: docking/applets/separator/applet.py:121
+msgid "Style"
+msgstr "Style"
+
+#: docking/applets/separator/applet.py:125
+msgid "Line"
+msgstr "Line"
+
+#: docking/applets/separator/applet.py:134
+msgid "Space"
+msgstr "Space"
+
+#: docking/applets/separator/applet.py:143
+msgid "Invert Color"
+msgstr "Invert Color"
 
 #: docking/applets/session/applet.py:27
 msgid "Session"
@@ -652,8 +669,7 @@ msgstr "回收站为空"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} item in Trash"
-msgstr[1] "{n} items in Trash"
+msgstr[0] "{n} 个项目在回收站中"
 
 #: docking/applets/volume/applet.py:32
 msgid "Volume"
@@ -682,11 +698,11 @@ msgstr "更改城市..."
 
 #: docking/applets/weather/applet.py:128
 msgid "Search for the city"
-msgstr "Search for the city"
+msgstr "搜索城市"
 
 #: docking/applets/weather/applet.py:142
 msgid "Type city name..."
-msgstr "Type city name..."
+msgstr "输入城市名称..."
 
 #: docking/applets/weather/applet.py:260
 #, python-brace-format
@@ -721,84 +737,125 @@ msgstr "{city}：加载中..."
 msgid "Workspaces"
 msgstr "工作区"
 
-#: docking/ui/about.py:46
+#: docking/ui/about.py:47
 msgid "Website"
 msgstr "网站"
 
-#: docking/ui/dock_window.py:248
+#: docking/ui/dock_window.py:251
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/dock_window.py:407
+#: docking/ui/dock_window.py:414
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
-msgstr "Display {display}: {width}x{height}"
+msgstr "显示器 {display}: {width}x{height}"
 
-#: docking/ui/menu.py:198 docking/ui/menu.py:215
+#: docking/ui/menu.py:47
+msgid "Name"
+msgstr "Name"
+
+#: docking/ui/menu.py:48
+msgid "Kind"
+msgstr "Kind"
+
+#: docking/ui/menu.py:49
+msgid "Size"
+msgstr "Size"
+
+#: docking/ui/menu.py:50
+msgid "Created"
+msgstr "Created"
+
+#: docking/ui/menu.py:51
+msgid "Modified"
+msgstr "Modified"
+
+#: docking/ui/menu.py:260 docking/ui/menu.py:280 docking/ui/menu.py:296
+#: docking/ui/menu.py:349
 msgid "Remove from Dock"
 msgstr "从Dock中移除"
 
-#: docking/ui/menu.py:222
+#: docking/ui/menu.py:273
+msgid "Open"
+msgstr "Open"
+
+#: docking/ui/menu.py:303
 msgid "Keep in Dock"
 msgstr "保留在Dock中"
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close All"
 msgstr "全部关闭"
 
-#: docking/ui/menu.py:231
+#: docking/ui/menu.py:312
 msgid "Close"
 msgstr "关闭"
 
-#: docking/ui/menu.py:262
+#: docking/ui/menu.py:329
+msgid "Sort By"
+msgstr "Sort By"
+
+#: docking/ui/menu.py:337
+msgid "Show Hidden Files"
+msgstr "Show Hidden Files"
+
+#: docking/ui/menu.py:342
+msgid "Large Icons"
+msgstr "Large Icons"
+
+#: docking/ui/menu.py:378
 msgid "Auto-hide"
 msgstr "自动隐藏"
 
-#: docking/ui/menu.py:268
+#: docking/ui/menu.py:384
 msgid "Window Previews"
 msgstr "窗口预览"
 
-#: docking/ui/menu.py:276
+#: docking/ui/menu.py:392
 msgid "Display"
 msgstr "显示"
 
-#: docking/ui/menu.py:279
+#: docking/ui/menu.py:395
 msgid "Follow Cursor"
 msgstr "跟随光标"
 
-#: docking/ui/menu.py:302
+#: docking/ui/menu.py:418
 msgid "Anchor Applets to End"
 msgstr "将小程序锚定到末尾"
 
-#: docking/ui/menu.py:316
+#: docking/ui/menu.py:423
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#: docking/ui/menu.py:437
 msgid "Current Workspace Only"
 msgstr "仅当前工作区"
 
-#: docking/ui/menu.py:346
+#: docking/ui/menu.py:467
 msgid "Themes"
 msgstr "主题"
 
-#: docking/ui/menu.py:359
+#: docking/ui/menu.py:480
 msgid "Position"
 msgstr "位置"
 
-#: docking/ui/menu.py:369
+#: docking/ui/menu.py:493
 msgid "Applets"
 msgstr "小程序"
 
-#: docking/ui/menu.py:421
+#: docking/ui/menu.py:545
 msgid "Add Separator"
 msgstr "添加分隔符"
 
-#: docking/ui/menu.py:431
+#: docking/ui/menu.py:555
 msgid "About"
 msgstr "关于"
 
-#: docking/ui/menu.py:436
+#: docking/ui/menu.py:560
 msgid "Quit"
 msgstr "退出"
 
-#: docking/ui/menu.py:466
+#: docking/ui/menu.py:597
 msgid "Window"
 msgstr "窗口"
 

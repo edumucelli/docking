@@ -2,7 +2,7 @@
 
 import json
 
-from docking.core.config import Config
+from docking.core.config import APP_KIND, FILE_KIND, FOLDER_KIND, Config, PinnedEntry
 from docking.core.position import Position
 
 
@@ -121,6 +121,22 @@ class TestConfigLoad:
 
         assert config.monitor_index == -1
 
+    def test_load_migrates_legacy_string_pins_to_typed_entries(self, tmp_path):
+        path = tmp_path / "dock.json"
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        folder_uri = tmp_path.as_uri()
+        path.write_text(
+            json.dumps({"pinned": ["firefox.desktop", file_uri, folder_uri]})
+        )
+
+        config = Config.load(path)
+
+        assert config.pinned == [
+            PinnedEntry(kind=APP_KIND, target="firefox.desktop"),
+            PinnedEntry(kind=FILE_KIND, target=file_uri),
+            PinnedEntry(kind=FOLDER_KIND, target=folder_uri),
+        ]
+
 
 class TestConfigSave:
     def test_save_creates_parent_dirs(self, tmp_path):
@@ -161,3 +177,20 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["icon_size"] == 72
+
+    def test_save_persists_typed_pinned_entries(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(
+            pinned=[
+                PinnedEntry(kind=APP_KIND, target="firefox.desktop"),
+                PinnedEntry(kind=FILE_KIND, target=(tmp_path / "notes.txt").as_uri()),
+            ]
+        )
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["pinned"] == [
+            {"kind": "app", "target": "firefox.desktop"},
+            {"kind": "file", "target": (tmp_path / "notes.txt").as_uri()},
+        ]

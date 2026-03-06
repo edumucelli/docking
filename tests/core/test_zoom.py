@@ -9,6 +9,7 @@ The scaling unit for h_padding and item_padding is pixels (already scaled
 from the theme's "tenths of one percent of icon_size" at load time).
 """
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -132,6 +133,25 @@ class TestZoomedPositions:
         )
         # Then
         assert layout[0].scale == pytest.approx(1.5)
+
+    def test_item_can_opt_out_of_zoom(self):
+        config = MagicMock(main_size=0)
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [
+            SimpleNamespace(main_size=0, allow_zoom=True),
+            SimpleNamespace(main_size=16, allow_zoom=False),
+            SimpleNamespace(main_size=0, allow_zoom=True),
+        ]
+        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+
+        layout = compute_layout(
+            items, config, rest[1].x + 8, item_padding=10, h_padding=12
+        )
+
+        assert layout[1].scale == pytest.approx(1.0)
 
 
 class TestEdgeCases:

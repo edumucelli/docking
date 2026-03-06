@@ -8,6 +8,7 @@ import shlex
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import unquote, urlparse
 
 import gi
 
@@ -32,6 +33,16 @@ class DesktopInfo(NamedTuple):
     icon_name: str
     wm_class: str
     exec_line: str
+
+
+class FileTargetInfo(NamedTuple):
+    """Resolved file/folder metadata for dock entries."""
+
+    target: str
+    name: str
+    icon_name: str
+    icon: GdkPixbuf.Pixbuf | None
+    is_dir: bool
 
 
 class Launcher:
@@ -98,9 +109,81 @@ class Launcher:
         self._icon_cache[key] = pixbuf
         return pixbuf
 
+    def load_gicon(self, gicon: Gio.Icon | None, size: int) -> GdkPixbuf.Pixbuf | None:
+        """Load a pixbuf directly from a Gio.Icon when available."""
+        if gicon is None:
+            return None
+        cache_key = (f"gicon:{gicon.to_string()}", size)
+        if cache_key in self._icon_cache:
+            return self._icon_cache[cache_key]
+
+        pixbuf = self._try_load_gicon(gicon=gicon, size=size)
+        self._icon_cache[cache_key] = pixbuf
+        return pixbuf
+
+    def resolve_file(self, target: str, size: int) -> FileTargetInfo | None:
+        """Resolve a file:// URI or local path into display metadata."""
+        uri = normalize_file_target(target)
+        if uri is None:
+            return None
+        try:
+            gfile = Gio.File.new_for_uri(uri)
+            info = gfile.query_info(
+                "standard::display-name,standard::icon,standard::type",
+                Gio.FileQueryInfoFlags.NONE,
+                None,
+            )
+        except GLib.Error as exc:
+            _log.bind(target=target, action="resolve_file").warning(
+                f"Failed to query file info: {exc}"
+            )
+            return None
+
+        icon = info.get_icon()
+        icon_name = (
+            "folder"
+            if info.get_file_type() == Gio.FileType.DIRECTORY
+            else "text-x-generic"
+        )
+        return FileTargetInfo(
+            target=uri,
+            name=info.get_display_name()
+            or Path(unquote(urlparse(uri).path)).name
+            or uri,
+            icon_name=icon_name,
+            icon=self.load_gicon(gicon=icon, size=size)
+            or self.load_icon(icon_name=icon_name, size=size),
+            is_dir=info.get_file_type() == Gio.FileType.DIRECTORY,
+        )
+
+    def _try_load_gicon(self, gicon: Gio.Icon, size: int) -> GdkPixbuf.Pixbuf | None:
+        theme = Gtk.IconTheme.get_default()
+        if theme is None:
+            theme = Gtk.IconTheme()
+            theme.set_custom_theme("hicolor")
+
+        lookup_by_gicon = getattr(theme, "lookup_by_gicon", None)
+        if callable(lookup_by_gicon):
+            try:
+                info = lookup_by_gicon(gicon, size, Gtk.IconLookupFlags.FORCE_SIZE)
+            except TypeError:
+                info = None
+            if info is not None:
+                try:
+                    return info.load_icon()
+                except GLib.Error as exc:
+                    _log.bind(action="load_gicon").debug(
+                        "Theme gicon not found (%s): %s", gicon.to_string(), exc
+                    )
+
+        return self.load_icon(icon_name=gicon.to_string(), size=size)
+
     def _try_load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Attempt to load icon from theme or file path."""
         theme = Gtk.IconTheme.get_default()
+        if theme is None:
+            theme = Gtk.IconTheme()
+            theme.set_custom_theme("hicolor")
 
         # If it's an absolute path
         if os.path.isabs(icon_name) and os.path.exists(icon_name):
@@ -236,3 +319,35 @@ def launch(desktop_id: str) -> None:
         _log.bind(desktop_id=desktop_id, action="launch").warning(
             f"Failed to launch {desktop_id}: {e}"
         )
+
+
+def normalize_file_target(target: str) -> str | None:
+    """Normalize a local path or file:// URI into a file:// URI."""
+    if not target:
+        return None
+    parsed = urlparse(target)
+    if parsed.scheme == "file":
+        path = Path(unquote(parsed.path))
+    elif parsed.scheme == "":
+        path = Path(target).expanduser()
+    else:
+        return None
+    try:
+        return path.resolve().as_uri()
+    except ValueError:
+        return None
+
+
+def open_target(target: str) -> bool:
+    """Open a local file or directory with the default application."""
+    uri = normalize_file_target(target)
+    if uri is None:
+        return False
+    try:
+        Gio.AppInfo.launch_default_for_uri(uri, None)
+        return True
+    except GLib.Error as exc:
+        _log.bind(target=target, action="open_target").warning(
+            f"Failed to open target {target}: {exc}"
+        )
+        return False

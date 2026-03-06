@@ -3,12 +3,16 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock gi before importing dock_model
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
+try:
+    import gi  # noqa: F401
+except ModuleNotFoundError:  # pragma: no cover
+    gi_mock = MagicMock()
+    gi_mock.require_version = MagicMock()
+    sys.modules.setdefault("gi", gi_mock)
+    sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+from docking.core.config import PinnedEntry  # noqa: E402
+from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND  # noqa: E402
 from docking.platform.model import DockItem, DockModel  # noqa: E402
 
 
@@ -37,6 +41,9 @@ def _make_config(pinned: list[str]):
     config.pinned = list(pinned)
     config.icon_size = 48
     config.zoom_percent = 2.0
+    config.anchor_applets = False
+    config.anchor_files = False
+    config.item_prefs = {}
     return config
 
 
@@ -311,6 +318,40 @@ class TestReorderVisible:
         model.reorder_visible(0, 5)
         # Then
         assert len(model.visible_items()) == 1
+
+    def test_anchor_files_moves_files_and_folders_after_apps(self):
+        config = _make_config([])
+        config.pinned = [
+            PinnedEntry(kind=FILE_KIND, target="file:///tmp/readme.txt"),
+            PinnedEntry(kind=APP_KIND, target="a.desktop"),
+            PinnedEntry(kind=FOLDER_KIND, target="file:///tmp/docs"),
+        ]
+        config.anchor_files = True
+        launcher = _make_launcher("a.desktop")
+        launcher.resolve_file.side_effect = [
+            MagicMock(
+                target="file:///tmp/readme.txt",
+                name="readme.txt",
+                icon_name="text-x-generic",
+                icon=MagicMock(),
+                is_dir=False,
+            ),
+            MagicMock(
+                target="file:///tmp/docs",
+                name="docs",
+                icon_name="folder",
+                icon=MagicMock(),
+                is_dir=True,
+            ),
+        ]
+
+        model = DockModel(config, launcher)
+
+        assert [item.kind for item in model.visible_items()] == [
+            APP_KIND,
+            FILE_KIND,
+            FOLDER_KIND,
+        ]
 
 
 class TestCallbacks:
