@@ -299,26 +299,42 @@ class MenuHandler:
             display_item.set_submenu(display_submenu)
             menu.append(display_item)
 
-        # Lock icons toggle
-        lock = Gtk.CheckMenuItem(label=_("Lock Icons"))
-        lock.set_active(self._config.lock_icons)
-        lock.connect("toggled", self._on_lock_toggled)
-        menu.append(lock)
-
-        workspace_only = Gtk.CheckMenuItem(label=_("Current Workspace Only"))
-        workspace_only.set_active(self._config.current_workspace_only)
-        workspace_only.connect("toggled", self._on_workspace_only_toggled)
-        menu.append(workspace_only)
-
         anchor = Gtk.CheckMenuItem(label=_("Anchor Applets to End"))
         anchor.set_active(self._config.anchor_applets)
         anchor.connect("toggled", self._on_anchor_toggled)
         menu.append(anchor)
 
-        tooltips = Gtk.CheckMenuItem(label=_("Tooltips"))
-        tooltips.set_active(bool(getattr(self._config, "tooltips_enabled", True)))
+        # Icons submenu (block/size/tooltip controls grouped together)
+        icons_item = Gtk.MenuItem(label="Icons")
+        icons_submenu = Gtk.Menu()
+
+        block = Gtk.CheckMenuItem(label="Lock Positions")
+        block.set_active(self._config.lock_icons)
+        block.connect("toggled", self._on_lock_toggled)
+        icons_submenu.append(block)
+
+        workspace_only = Gtk.CheckMenuItem(label=_("Current Workspace Only"))
+        workspace_only.set_active(self._config.current_workspace_only)
+        workspace_only.connect("toggled", self._on_workspace_only_toggled)
+        icons_submenu.append(workspace_only)
+
+        size_items = [(f"{s}px", s) for s in ICON_SIZE_OPTIONS]
+        icons_submenu.append(
+            _build_radio_submenu(
+                label="Change Size",
+                items=size_items,
+                current=self._config.icon_size,
+                on_changed=self._on_icon_size_changed,
+            )
+        )
+
+        tooltips = Gtk.CheckMenuItem(label="Show Tooltips")
+        tooltips.set_active(self._config.tooltips_enabled)
         tooltips.connect("toggled", self._on_tooltips_toggled)
-        menu.append(tooltips)
+        icons_submenu.append(tooltips)
+
+        icons_item.set_submenu(icons_submenu)
+        menu.append(icons_item)
 
         menu.append(Gtk.SeparatorMenuItem())
 
@@ -335,17 +351,6 @@ class MenuHandler:
         )
 
         menu.append(Gtk.SeparatorMenuItem())
-
-        # Icon size submenu
-        size_items = [(f"{s}px", s) for s in ICON_SIZE_OPTIONS]
-        menu.append(
-            _build_radio_submenu(
-                label=_("Icon Size"),
-                items=size_items,
-                current=self._config.icon_size,
-                on_changed=self._on_icon_size_changed,
-            )
-        )
 
         # Position submenu
         pos_items = [(p.value.capitalize(), p.value) for p in Position]

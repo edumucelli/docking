@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 01:17+0100\n"
+"POT-Creation-Date: 2026-03-06 01:27+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -766,53 +766,50 @@ msgstr "प्रदर्शन"
 msgid "Follow Cursor"
 msgstr "कर्सर का अनुसरण करें"
 
-#: docking/ui/menu.py:303
-msgid "Lock Icons"
-msgstr "आइकन लॉक करें"
-
-#: docking/ui/menu.py:308
-msgid "Current Workspace Only"
-msgstr "केवल वर्तमान कार्यक्षेत्र"
-
-#: docking/ui/menu.py:313
+#: docking/ui/menu.py:302
 msgid "Anchor Applets to End"
 msgstr "ऐपलेट्स को अंत में एंकर करें"
 
-#: docking/ui/menu.py:318
-msgid "Tooltips"
-msgstr "Tooltips"
+#: docking/ui/menu.py:316
+msgid "Current Workspace Only"
+msgstr "केवल वर्तमान कार्यक्षेत्र"
 
-#: docking/ui/menu.py:330
+#: docking/ui/menu.py:346
 msgid "Themes"
 msgstr "थीम"
 
-#: docking/ui/menu.py:343
-msgid "Icon Size"
-msgstr "आइकन आकार"
-
-#: docking/ui/menu.py:354
+#: docking/ui/menu.py:359
 msgid "Position"
 msgstr "स्थिति"
 
-#: docking/ui/menu.py:364
+#: docking/ui/menu.py:369
 msgid "Applets"
 msgstr "एप्लेट"
 
-#: docking/ui/menu.py:416
+#: docking/ui/menu.py:421
 msgid "Add Separator"
 msgstr "विभाजक जोड़ें"
 
-#: docking/ui/menu.py:426
+#: docking/ui/menu.py:431
 msgid "About"
 msgstr "के बारे में"
 
-#: docking/ui/menu.py:431
+#: docking/ui/menu.py:436
 msgid "Quit"
 msgstr "बाहर निकलें"
 
-#: docking/ui/menu.py:461
+#: docking/ui/menu.py:466
 msgid "Window"
 msgstr "विंडो"
+
+#~ msgid "Lock Icons"
+#~ msgstr "आइकन लॉक करें"
+
+#~ msgid "Tooltips"
+#~ msgstr "Tooltips"
+
+#~ msgid "Icon Size"
+#~ msgstr "आइकन आकार"
 
 #, python-brace-format
 #~ msgid "WiFi: {ssid}"

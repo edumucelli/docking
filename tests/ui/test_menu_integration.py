@@ -183,6 +183,7 @@ def handler(monkeypatch):
         lock_icons=False,
         autohide=True,
         previews_enabled=True,
+        tooltips_enabled=True,
         monitor_index=-1,
         active_display=False,
         current_workspace_only=False,
@@ -293,12 +294,19 @@ class TestDockMenu:
         assert "Auto-hide" in labels
         assert "Window Previews" in labels
         assert "Display" not in labels
-        assert "Lock Icons" in labels
+        assert "Icons" in labels
         assert "Add Separator" in labels
         assert "About" in labels
         assert "Quit" in labels
         assert "Applets" in labels
         assert labels.index("About") == labels.index("Quit") - 1
+
+        icons_item = next(mi for mi in menu.children if mi.get_label() == "Icons")
+        icons_labels = _labels(icons_item.get_submenu())
+        assert "Lock Positions" in icons_labels
+        assert "Current Workspace Only" in icons_labels
+        assert "Change Size" in icons_labels
+        assert "Show Tooltips" in icons_labels
 
         next(mi for mi in menu.children if mi.get_label() == "Add Separator").activate()
         handler._model.add_separator.assert_called_once_with(index=3)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 01:17+0100\n"
+"POT-Creation-Date: 2026-03-06 01:27+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -768,50 +768,38 @@ msgstr ""
 msgid "Follow Cursor"
 msgstr ""
 
-#: docking/ui/menu.py:303
-msgid "Lock Icons"
-msgstr ""
-
-#: docking/ui/menu.py:308
-msgid "Current Workspace Only"
-msgstr ""
-
-#: docking/ui/menu.py:313
+#: docking/ui/menu.py:302
 msgid "Anchor Applets to End"
 msgstr ""
 
-#: docking/ui/menu.py:318
-msgid "Tooltips"
+#: docking/ui/menu.py:316
+msgid "Current Workspace Only"
 msgstr ""
 
-#: docking/ui/menu.py:330
+#: docking/ui/menu.py:346
 msgid "Themes"
 msgstr ""
 
-#: docking/ui/menu.py:343
-msgid "Icon Size"
-msgstr ""
-
-#: docking/ui/menu.py:354
+#: docking/ui/menu.py:359
 msgid "Position"
 msgstr ""
 
-#: docking/ui/menu.py:364
+#: docking/ui/menu.py:369
 msgid "Applets"
 msgstr ""
 
-#: docking/ui/menu.py:416
+#: docking/ui/menu.py:421
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:426
+#: docking/ui/menu.py:431
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:431
+#: docking/ui/menu.py:436
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:461
+#: docking/ui/menu.py:466
 msgid "Window"
 msgstr ""

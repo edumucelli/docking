@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 01:17+0100\n"
+"POT-Creation-Date: 2026-03-06 01:27+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -767,53 +767,50 @@ msgstr "Anzeige"
 msgid "Follow Cursor"
 msgstr "Cursor folgen"
 
-#: docking/ui/menu.py:303
-msgid "Lock Icons"
-msgstr "Symbole sperren"
-
-#: docking/ui/menu.py:308
-msgid "Current Workspace Only"
-msgstr "Nur aktueller Arbeitsbereich"
-
-#: docking/ui/menu.py:313
+#: docking/ui/menu.py:302
 msgid "Anchor Applets to End"
 msgstr "Applets am Ende verankern"
 
-#: docking/ui/menu.py:318
-msgid "Tooltips"
-msgstr "Tooltips"
+#: docking/ui/menu.py:316
+msgid "Current Workspace Only"
+msgstr "Nur aktueller Arbeitsbereich"
 
-#: docking/ui/menu.py:330
+#: docking/ui/menu.py:346
 msgid "Themes"
 msgstr "Designs"
 
-#: docking/ui/menu.py:343
-msgid "Icon Size"
-msgstr "Symbolgröße"
-
-#: docking/ui/menu.py:354
+#: docking/ui/menu.py:359
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/menu.py:364
+#: docking/ui/menu.py:369
 msgid "Applets"
 msgstr "Applets"
 
-#: docking/ui/menu.py:416
+#: docking/ui/menu.py:421
 msgid "Add Separator"
 msgstr "Trennlinie hinzufügen"
 
-#: docking/ui/menu.py:426
+#: docking/ui/menu.py:431
 msgid "About"
 msgstr "Über"
 
-#: docking/ui/menu.py:431
+#: docking/ui/menu.py:436
 msgid "Quit"
 msgstr "Beenden"
 
-#: docking/ui/menu.py:461
+#: docking/ui/menu.py:466
 msgid "Window"
 msgstr "Fenster"
+
+#~ msgid "Lock Icons"
+#~ msgstr "Symbole sperren"
+
+#~ msgid "Tooltips"
+#~ msgstr "Tooltips"
+
+#~ msgid "Icon Size"
+#~ msgstr "Symbolgröße"
 
 #, python-brace-format
 #~ msgid "WiFi: {ssid}"
