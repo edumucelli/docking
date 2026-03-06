@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 00:18+0100\n"
+"POT-Creation-Date: 2026-03-06 01:17+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -778,35 +778,39 @@ msgstr "仅当前工作区"
 msgid "Anchor Applets to End"
 msgstr "将小程序锚定到末尾"
 
-#: docking/ui/menu.py:325
+#: docking/ui/menu.py:318
+msgid "Tooltips"
+msgstr "Tooltips"
+
+#: docking/ui/menu.py:330
 msgid "Themes"
 msgstr "主题"
 
-#: docking/ui/menu.py:338
+#: docking/ui/menu.py:343
 msgid "Icon Size"
 msgstr "图标大小"
 
-#: docking/ui/menu.py:349
+#: docking/ui/menu.py:354
 msgid "Position"
 msgstr "位置"
 
-#: docking/ui/menu.py:359
+#: docking/ui/menu.py:364
 msgid "Applets"
 msgstr "小程序"
 
-#: docking/ui/menu.py:411
+#: docking/ui/menu.py:416
 msgid "Add Separator"
 msgstr "添加分隔符"
 
-#: docking/ui/menu.py:421
+#: docking/ui/menu.py:426
 msgid "About"
 msgstr "关于"
 
-#: docking/ui/menu.py:426
+#: docking/ui/menu.py:431
 msgid "Quit"
 msgstr "退出"
 
-#: docking/ui/menu.py:456
+#: docking/ui/menu.py:461
 msgid "Window"
 msgstr "窗口"
 
