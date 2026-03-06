@@ -421,7 +421,7 @@ class MenuHandler:
         menu.append(anchor)
 
         anchor_files = Gtk.CheckMenuItem(label=_("Anchor Files to End"))
-        anchor_files.set_active(getattr(self._config, "anchor_files", False))
+        anchor_files.set_active(self._config.anchor_files)
         anchor_files.connect("toggled", self._on_anchor_files_toggled)
         menu.append(anchor_files)
 
@@ -760,7 +760,7 @@ class MenuHandler:
                     return value
             except Exception:
                 pass
-        return int(getattr(self._config, "monitor_index", -1))
+        return int(self._config.monitor_index)
 
     def _on_monitor_changed(self, widget: Gtk.MenuItem, monitor_index: int) -> None:
         if not widget.get_active():
@@ -775,7 +775,7 @@ class MenuHandler:
             except Exception:
                 pass
         new_value = -1 if monitor_index == primary_idx else monitor_index
-        if int(getattr(self._config, "monitor_index", -1)) == new_value:
+        if int(self._config.monitor_index) == new_value:
             return
         self._config.monitor_index = new_value
         self._config.save()
@@ -841,7 +841,7 @@ class MenuHandler:
             # Would need a full reload to update icons at new size
 
     def _folder_prefs(self, item: DockItem) -> dict[str, Any]:
-        item_prefs = getattr(self._config, "item_prefs", {})
+        item_prefs = self._config.item_prefs
         stored = dict(item_prefs.get(item.prefs_key or item.target, {}))
         return {
             "sort": stored.get("sort", "name"),
@@ -850,8 +850,6 @@ class MenuHandler:
         }
 
     def _save_folder_prefs(self, item: DockItem, prefs: dict[str, Any]) -> None:
-        if not hasattr(self._config, "item_prefs"):
-            self._config.item_prefs = {}
         self._config.item_prefs[item.prefs_key or item.target] = prefs
         self._config.save()
         self._window.queue_draw()

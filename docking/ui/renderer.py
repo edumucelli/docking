@@ -171,7 +171,7 @@ def _is_separator_item(item: DockItem) -> bool:
 
 def _separator_prefs(item: DockItem, config: Config) -> tuple[str, bool]:
     key = item.desktop_id.removeprefix("applet://")
-    prefs = getattr(config, "applet_prefs", {}).get(key, {})
+    prefs = config.applet_prefs.get(key, {})
     style = prefs.get("style", "space")
     invert = bool(prefs.get("invert_color", False))
     return str(style), invert

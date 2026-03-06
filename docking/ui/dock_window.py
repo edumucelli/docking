@@ -382,7 +382,7 @@ class DockWindow(Gtk.Window):
         n_monitors = display.get_n_monitors()
         if n_monitors <= 0:
             return -1
-        selected = int(getattr(self.config, "monitor_index", -1))
+        selected = int(self.config.monitor_index)
         if selected == -1:
             return self.primary_monitor_index()
         if selected < 0 or selected >= n_monitors:
@@ -448,7 +448,7 @@ class DockWindow(Gtk.Window):
         if n_monitors <= 0:
             return None
 
-        selected = int(getattr(self.config, "monitor_index", -1))
+        selected = int(self.config.monitor_index)
         if 0 <= selected < n_monitors:
             monitor = display.get_monitor(selected)
             if monitor is not None:
@@ -481,7 +481,7 @@ class DockWindow(Gtk.Window):
         ]
 
     def _disconnect_screen_signals(self) -> None:
-        for obj, handler_id in getattr(self, "_screen_signal_handlers", []):
+        for obj, handler_id in self._screen_signal_handlers:
             disconnect = getattr(obj, "disconnect", None)
             if callable(disconnect):
                 disconnect(handler_id)
@@ -500,10 +500,9 @@ class DockWindow(Gtk.Window):
         DockWindow._schedule_reposition(self)
 
     def _schedule_reposition(self) -> None:
-        get_realized = getattr(self, "get_realized", None)
-        if callable(get_realized) and not get_realized():
+        if not self.get_realized():
             return
-        if getattr(self, "_geometry_refresh_source", 0):
+        if self._geometry_refresh_source:
             return
         self._geometry_refresh_source = GLib.idle_add(
             DockWindow._apply_scheduled_reposition, self
@@ -511,15 +510,11 @@ class DockWindow(Gtk.Window):
 
     def _apply_scheduled_reposition(self) -> bool:
         self._geometry_refresh_source = 0
-        reposition = getattr(self, "reposition", None)
-        if callable(reposition):
-            reposition()
-        else:
-            DockWindow.reposition(self)
+        self.reposition()
         return False
 
     def _on_destroy(self, _widget: Gtk.Widget) -> None:
-        refresh_source = getattr(self, "_geometry_refresh_source", 0)
+        refresh_source = self._geometry_refresh_source
         if refresh_source:
             GLib.source_remove(refresh_source)
             self._geometry_refresh_source = 0

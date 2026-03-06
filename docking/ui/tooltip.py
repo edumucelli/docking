@@ -90,7 +90,7 @@ class TooltipManager:
         tooltip visible to avoid flicker. The dock's _on_leave hides it
         when the mouse actually exits the dock.
         """
-        if not bool(getattr(self._config, "tooltips_enabled", True)):
+        if not self._config.tooltips_enabled:
             self.hide()
             return
 

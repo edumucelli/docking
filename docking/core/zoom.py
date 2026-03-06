@@ -248,7 +248,7 @@ def compute_layout(
         # a gentle taper to its neighbors.
         zoom = 1.0 - offset_pct**2
         scale = 1.0 + zoom * (zoom_percent - 1.0)
-        if not getattr(items[i], "allow_zoom", True):
+        if not items[i].allow_zoom:
             scale = 1.0
 
         # Position: center minus half the zoomed item size

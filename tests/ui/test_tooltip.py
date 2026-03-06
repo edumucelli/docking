@@ -4,15 +4,8 @@ Covers positioning math, content caching (flicker prevention), and
 the hide/show lifecycle that prevents spurious crossing events.
 """
 
-import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-
-# Mock gi before importing
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.ui.tooltip as tooltip_mod  # noqa: E402
 from docking.core.position import Position  # noqa: E402
@@ -504,7 +497,11 @@ class TestTooltipIntegrationBranches:
         window = MagicMock()
         window.get_size.return_value = (300, 80)
         window.get_position.return_value = (10, 10)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            tooltips_enabled=True,
+        )
         model = MagicMock()
         model.visible_items.return_value = []
         theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
@@ -526,7 +523,11 @@ class TestTooltipIntegrationBranches:
         window = MagicMock()
         window.get_size.return_value = (300, 80)
         window.get_position.return_value = (10, 10)
-        config = SimpleNamespace(pos=Position.LEFT, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.LEFT,
+            icon_size=48,
+            tooltips_enabled=True,
+        )
         model = MagicMock()
         item = MagicMock()
         item.name = "CPU: 30%"

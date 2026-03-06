@@ -104,7 +104,7 @@ class DockModel:
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
         self.on_change: Callable[[], None] | None = None
-        raw_pinned = getattr(self._config, "pinned", [])
+        raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             from docking.core.config import normalize_pinned_entries
 
@@ -281,8 +281,8 @@ class DockModel:
     def visible_items(self) -> list[DockItem]:
         """All items to display with optional independent anchoring rules."""
         items = self.pinned_items + self._transient
-        anchor_applets = bool(getattr(self._config, "anchor_applets", False))
-        anchor_files = bool(getattr(self._config, "anchor_files", False))
+        anchor_applets = self._config.anchor_applets
+        anchor_files = self._config.anchor_files
         regular = [
             i
             for i in items
