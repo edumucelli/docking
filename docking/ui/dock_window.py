@@ -552,10 +552,8 @@ class DockWindow(Gtk.Window):
             + self.theme.bottom_padding
             + bounce_headroom
         )
-        gap_size = int(getattr(self.config, "gap_size", 0))
-
         pos = self.config.pos
-        gap = self.theme.distance_from_edge
+        gap = max(0, int(self.theme.distance_from_edge))
         # Window includes the gap in its cross-axis size so it still
         # touches the screen edge. This lets the autohide trigger strip
         # catch the mouse at the physical edge. The renderer draws dock
@@ -564,17 +562,17 @@ class DockWindow(Gtk.Window):
             win_w, win_h = geom.width, cross + gap
             if pos == Position.BOTTOM:
                 win_x = geom.x
-                win_y = geom.y + geom.height - win_h - gap_size
+                win_y = geom.y + geom.height - win_h
             else:  # TOP
                 win_x = geom.x
-                win_y = workarea.y + gap_size
+                win_y = workarea.y
         else:
             win_w, win_h = cross + gap, workarea.height
             if pos == Position.LEFT:
-                win_x = geom.x + gap_size
+                win_x = geom.x
                 win_y = workarea.y
             else:  # RIGHT
-                win_x = geom.x + geom.width - win_w - gap_size
+                win_x = geom.x + geom.width - win_w
                 win_y = workarea.y
 
         _log.debug(
@@ -614,8 +612,8 @@ class DockWindow(Gtk.Window):
         # compute_dock_size returns shelf-based height (with negative
         # top_padding), but struts need the visible icon extent.
         icon_size = self.config.icon_size
-        gap_size = int(getattr(self.config, "gap_size", 0))
-        strut_height = int(icon_size + self.theme.bottom_padding + gap_size)
+        gap = max(0, int(self.theme.distance_from_edge))
+        strut_height = int(icon_size + self.theme.bottom_padding + gap)
 
         set_dock_struts(
             gdk_window=gdk_window,
@@ -1036,7 +1034,7 @@ class DockWindow(Gtk.Window):
             content_w=int(content_w),
             content_cross=content_cross,
             autohide_state=autohide_state,
-            distance_from_edge=self.theme.distance_from_edge,
+            distance_from_edge=max(0, int(self.theme.distance_from_edge)),
         )
         if new_rect != self._last_input_rect:
             self._last_input_rect = new_rect

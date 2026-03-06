@@ -285,7 +285,7 @@ class DockRenderer:
         pos = config.pos
         horizontal = is_horizontal(pos=pos)
         main_size = width if horizontal else height
-        gap = theme.distance_from_edge
+        gap = max(0, int(theme.distance_from_edge))
         cross_size = (height if horizontal else width) - gap
 
         # Offset content away from the screen edge so the gap area

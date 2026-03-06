@@ -129,7 +129,6 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "anchor_files": false,
   "active_display": false,
   "theme": "default",
-  "gap_size": 0,
   "pinned": [
     { "kind": "app", "target": "firefox.desktop" },
     { "kind": "app", "target": "org.gnome.Nautilus.desktop" }
@@ -159,7 +158,6 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `tooltips_enabled` | true | Show hover tooltips for dock items |
 | `active_display` | false | Follow the active monitor instead of staying on one display |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
-| `gap_size` | 0 | Distance between the dock and the screen edge |
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders |
 | `applet_prefs` | `{}` | Per-applet preference storage |
 | `item_prefs` | `{}` | Per-item preference storage for files and folders |
@@ -574,6 +572,8 @@ Themes are JSON files in `docking/assets/themes/`. Nine built-in themes are incl
 - `solarized` -- soft light Solarized variant
 
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
+
+Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `matte` keep the dock visually separated from the screen edge.
 
 **Creating a custom theme:** Copy an existing theme JSON and modify the colors and proportions. Place it in the `assets/themes/` directory -- it will appear in the right-click Themes menu.
 

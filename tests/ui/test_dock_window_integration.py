@@ -668,6 +668,80 @@ class TestDockWindowSetupAndGeometry:
         stub.resize.assert_called_once()
         stub.move.assert_called_once()
 
+    def test_position_dock_bottom_keeps_window_on_screen_edge_with_theme_gap(self):
+        # Given
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        display = SimpleNamespace(
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        stub = SimpleNamespace(
+            get_display=lambda: display,
+            config=SimpleNamespace(
+                icon_size=48,
+                zoom_enabled=False,
+                zoom_percent=1.0,
+                pos=Position.BOTTOM,
+                active_display=False,
+            ),
+            theme=SimpleNamespace(
+                top_padding=4,
+                bottom_padding=8,
+                urgent_bounce_height=0.0,
+                distance_from_edge=6,
+            ),
+            _active_monitor=None,
+            _update_barrier=MagicMock(),
+            set_size_request=MagicMock(),
+            resize=MagicMock(),
+            move=MagicMock(),
+        )
+
+        # When
+        dock_window_mod.DockWindow._position_dock(stub)
+
+        # Then
+        stub.move.assert_called_once_with(0, 1014)
+
+    def test_position_dock_right_keeps_window_on_screen_edge_with_theme_gap(self):
+        # Given
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        work = SimpleNamespace(x=0, y=24, width=1920, height=1000)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        display = SimpleNamespace(
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        stub = SimpleNamespace(
+            get_display=lambda: display,
+            config=SimpleNamespace(
+                icon_size=48,
+                zoom_enabled=False,
+                zoom_percent=1.0,
+                pos=Position.RIGHT,
+                active_display=False,
+            ),
+            theme=SimpleNamespace(
+                top_padding=4,
+                bottom_padding=8,
+                urgent_bounce_height=0.0,
+                distance_from_edge=6,
+            ),
+            _active_monitor=None,
+            _update_barrier=MagicMock(),
+            set_size_request=MagicMock(),
+            resize=MagicMock(),
+            move=MagicMock(),
+        )
+
+        # When
+        dock_window_mod.DockWindow._position_dock(stub)
+
+        # Then
+        stub.move.assert_called_once_with(1854, 24)
+
     def test_position_dock_vertical_right(self):
         # Given
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -790,7 +864,8 @@ class TestDockWindowStrutsAndRegion:
     def test_set_struts_clears_when_autohide_enabled(self):
         # Given
         stub = SimpleNamespace(
-            config=SimpleNamespace(autohide=True), _clear_struts=MagicMock()
+            config=SimpleNamespace(autohide=True),
+            _clear_struts=MagicMock(),
         )
 
         # When
@@ -836,7 +911,7 @@ class TestDockWindowStrutsAndRegion:
                 pos=Position.BOTTOM,
                 active_display=False,
             ),
-            theme=SimpleNamespace(bottom_padding=8),
+            theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
             _active_monitor=None,
             get_window=lambda: gdk_window,
             get_display=lambda: display,

@@ -117,8 +117,6 @@ class Config:
     active_display: bool = False
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = "default"
-    # Gap between dock edge and screen edge (0 = flush, like Plank GapSize)
-    gap_size: int = 0
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
@@ -192,7 +190,6 @@ class Config:
             "tooltips_enabled": self.tooltips_enabled,
             "active_display": self.active_display,
             "theme": self.theme,
-            "gap_size": self.gap_size,
             "pinned": [entry.to_dict() for entry in self.pinned],
             "applet_prefs": self.applet_prefs,
             "item_prefs": self.item_prefs,
