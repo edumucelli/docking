@@ -37,6 +37,7 @@ def _frame(items, layout, *, cross_size: float = 90.0, offset: float = 0.0):
                 layout_item=li,
                 draw_rect=Rect(int(li.x + offset), 10, max(width, 1), max(width, 1)),
                 hover_rect=Rect(int(li.x + offset), 0, max(width, 1), 70),
+                hit_rect=Rect(int(li.x + offset), 8, max(width, 1), 62),
                 background_rect=Rect(int(li.x + offset), 48, max(width, 1), 22),
                 anchor_x=float(li.x + offset + width / 2),
                 anchor_y=10.0,

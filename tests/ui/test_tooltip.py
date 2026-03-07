@@ -218,6 +218,7 @@ def _frame_for_item(
         layout_item=layout_item,
         draw_rect=Rect(0, 0, 48, 48),
         hover_rect=Rect(0, 0, 48, 48),
+        hit_rect=Rect(0, 0, 48, 48),
         background_rect=Rect(0, 24, 48, 24),
         anchor_x=anchor_x,
         anchor_y=anchor_y,

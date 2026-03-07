@@ -31,6 +31,7 @@ def _make_hover():
     window.cursor_y = 10.0
     frame = SimpleNamespace(
         item_at_point=MagicMock(return_value=None),
+        hover_item_at_point=MagicMock(return_value=None),
         geometry_for_item=MagicMock(
             return_value=SimpleNamespace(
                 draw_rect=SimpleNamespace(x=15, y=4, w=48, h=48)
@@ -66,7 +67,7 @@ class TestHoverUpdates:
             instance_count=1,
         )
         model.visible_items.return_value = [item]
-        frame.item_at_point.return_value = item
+        frame.hover_item_at_point.return_value = item
         hover.set_preview(MagicMock())
         monkeypatch.setattr(hover_mod.GLib, "timeout_add", lambda _ms, _cb, *_args: 77)
 
@@ -83,7 +84,7 @@ class TestHoverUpdates:
         item = DockItem(desktop_id="x.desktop", name="X")
         hover.hovered_item = item
         model.visible_items.return_value = [item]
-        frame.item_at_point.return_value = item
+        frame.hover_item_at_point.return_value = item
 
         hover.cancel = MagicMock()
         # When
@@ -99,7 +100,7 @@ class TestHoverUpdates:
             desktop_id="x.desktop", name="X", is_running=False, instance_count=0
         )
         model.visible_items.return_value = [item]
-        frame.item_at_point.return_value = item
+        frame.hover_item_at_point.return_value = item
         preview = MagicMock()
         hover.set_preview(preview)
         config.previews_enabled = True

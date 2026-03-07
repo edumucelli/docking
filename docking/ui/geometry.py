@@ -70,6 +70,7 @@ class ItemGeometry:
     layout_item: LayoutItem
     draw_rect: Rect
     hover_rect: Rect
+    hit_rect: Rect
     background_rect: Rect
     anchor_x: float
     anchor_y: float
@@ -95,6 +96,14 @@ class DockGeometryFrame:
         if not self.cursor_rect.contains(x=x, y=y):
             return None
         for item_geometry in self.item_geometries:
+            if item_geometry.hit_rect.contains(x=x, y=y):
+                return item_geometry.item
+        return None
+
+    def hover_item_at_point(self, x: float, y: float) -> "DockItem | None":
+        if not self.cursor_rect.contains(x=x, y=y):
+            return None
+        for item_geometry in self.item_geometries:
             if item_geometry.hover_rect.contains(x=x, y=y):
                 return item_geometry.item
         return None
@@ -103,7 +112,7 @@ class DockGeometryFrame:
         if not self.cursor_rect.contains(x=x, y=y):
             return -1
         for index, item_geometry in enumerate(self.item_geometries):
-            if item_geometry.hover_rect.contains(x=x, y=y):
+            if item_geometry.hit_rect.contains(x=x, y=y):
                 return index
         return -1
 
@@ -344,6 +353,12 @@ def _build_item_geometries(
         background_rect=background_rect,
         theme=theme,
     )
+    hit_rects = _compute_item_hit_rects(
+        pos=pos,
+        draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
+        background_rect=background_rect,
+        theme=theme,
+    )
 
     item_geometries: list[ItemGeometry] = []
     for (
@@ -354,13 +369,14 @@ def _build_item_geometries(
         anchor_y,
         scaled_size,
         main_pos,
-    ), hover_rect in zip(partial_geometries, hover_rects):
+    ), hover_rect, hit_rect in zip(partial_geometries, hover_rects, hit_rects):
         item_geometries.append(
             ItemGeometry(
                 item=item,
                 layout_item=layout_item,
                 draw_rect=draw_rect,
                 hover_rect=hover_rect,
+                hit_rect=hit_rect,
                 background_rect=hover_rect.intersection(background_rect)
                 or Rect(0, 0, 0, 0),
                 anchor_x=anchor_x,
@@ -459,6 +475,50 @@ def _compute_item_hover_base_rect(
     if overlap is None:
         return draw_rect
     return overlap.union(draw_rect)
+
+
+def _compute_item_hit_rects(
+    *,
+    pos: Position,
+    draw_rects: list[Rect],
+    background_rect: Rect,
+    theme: "Theme",
+) -> list[Rect]:
+    return [
+        _compute_item_hit_rect(
+            pos=pos,
+            draw_rect=draw_rect,
+            background_rect=background_rect,
+            theme=theme,
+        )
+        for draw_rect in draw_rects
+    ]
+
+
+def _compute_item_hit_rect(
+    *,
+    pos: Position,
+    draw_rect: Rect,
+    background_rect: Rect,
+    theme: "Theme",
+) -> Rect:
+    main_pad = max(0, int(round(theme.item_padding / 2)))
+    if is_horizontal(pos=pos):
+        center_x = draw_rect.x + draw_rect.w / 2
+        width = draw_rect.w + main_pad
+        left = int(round(center_x - width / 2))
+        right = left + max(1, width)
+        top = min(draw_rect.y, background_rect.y)
+        bottom = max(draw_rect.y + draw_rect.h, background_rect.y + background_rect.h)
+        return Rect(left, top, max(1, right - left), max(1, bottom - top))
+
+    center_y = draw_rect.y + draw_rect.h / 2
+    height = draw_rect.h + main_pad
+    top = int(round(center_y - height / 2))
+    bottom = top + max(1, height)
+    left = min(draw_rect.x, background_rect.x)
+    right = max(draw_rect.x + draw_rect.w, background_rect.x + background_rect.w)
+    return Rect(left, top, max(1, right - left), max(1, bottom - top))
 
 
 def _compute_main_axis_boundaries(

@@ -71,7 +71,7 @@ def _sweep_until_none(
     y: int,
 ) -> int:
     for x in range(start_x, stop_x, step):
-        if frame.item_at_point(x, y) is None:
+        if frame.hover_item_at_point(x, y) is None:
             return x
     raise AssertionError("sweep never exited hover region")
 
@@ -116,7 +116,7 @@ class TestEdgeHoverSweep:
             frame.background_rect.x,
             frame.background_rect.x + frame.background_rect.w,
         ):
-            if frame.item_at_point(x, y) is None:
+            if frame.hover_item_at_point(x, y) is None:
                 first_gap = x
                 break
 

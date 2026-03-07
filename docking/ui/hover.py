@@ -105,7 +105,7 @@ class HoverManager:
         """Detect which item the cursor is over and manage preview timer."""
         frame = frame or self._window._get_geometry_frame()
         item = (
-            frame.item_at_point(self._window.cursor_x, self._window.cursor_y)
+            frame.hover_item_at_point(self._window.cursor_x, self._window.cursor_y)
             if cursor_main >= 0
             else None
         )

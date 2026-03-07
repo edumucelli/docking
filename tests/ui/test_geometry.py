@@ -113,6 +113,37 @@ class TestDockGeometryFrame:
             frame.background_rect.x + frame.background_rect.w
         )
 
+    def test_background_click_zone_exists_between_hit_rects(self):
+        items = [
+            DockItem(desktop_id="firefox.desktop"),
+            DockItem(desktop_id="code.desktop"),
+            DockItem(desktop_id="chrome.desktop"),
+        ]
+
+        frame = build_geometry_frame(
+            items=items,
+            config=_config(),
+            theme=_theme(),
+            window_w=420,
+            window_h=90,
+            cursor_main=120.0,
+            autohide_state=None,
+        )
+
+        background_y = frame.background_rect.y + frame.background_rect.h - 1
+        gap_x = None
+        for x in range(
+            frame.background_rect.x,
+            frame.background_rect.x + frame.background_rect.w,
+        ):
+            if frame.item_at_point(x, background_y) is None:
+                gap_x = x
+                break
+
+        assert gap_x is not None
+        assert frame.cursor_rect.contains(gap_x, background_y) is True
+        assert frame.hover_item_at_point(gap_x, background_y) is not None
+
     def test_background_rect_tracks_visible_shelf_extent(self):
         items = [
             DockItem(desktop_id="firefox.desktop"),
