@@ -117,6 +117,18 @@ class DnDHandler:
 
         self._setup_dnd()
 
+    def _reconcile_autohide_after_drag(self, *, reason: str) -> None:
+        """Release drag autohide disable state based on current pointer position."""
+        if not self._window.autohide:
+            return
+        if self._window.is_pointer_inside_dock():
+            self._window.autohide.set_hovered(True)
+            self._window.autohide.set_disabled(False, reason=f"{reason}-inside")
+            return
+        self._window.autohide.set_hovered(False)
+        self._window.autohide.set_disabled(False, reason=f"{reason}-outside")
+        self._window.autohide.on_mouse_leave()
+
     def _setup_dnd(self) -> None:
         """Configure GTK drag-and-drop on the drawing area.
 
@@ -317,6 +329,7 @@ class DnDHandler:
         # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
             log.debug("drag-data-received: internal reorder complete")
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
             Gtk.drag_finish(context, True, False, time)
             return
 
@@ -346,6 +359,7 @@ class DnDHandler:
                 added = True
 
         self.drop_insert_index = -1
+        self._reconcile_autohide_after_drag(reason="drag-data-received")
         Gtk.drag_finish(context, added, False, time)
 
     def _on_drag_leave(
@@ -362,14 +376,12 @@ class DnDHandler:
         if self._drag_from < 0 and self.drop_insert_index >= 0:
             GLib.timeout_add(100, self._deferred_clear_drop_gap, widget)
         widget.queue_draw()
-        if self._window.autohide:
-            self._window.autohide.set_disabled(False, reason="drag-leave")
-            self._window.autohide.on_mouse_leave()
 
     def _deferred_clear_drop_gap(self, widget: Gtk.DrawingArea) -> bool:
         """Clear stale drop gap if it wasn't consumed by a drop."""
         if self.drop_insert_index >= 0 and self._drag_from < 0:
             self.drop_insert_index = -1
+            self._reconcile_autohide_after_drag(reason="drag-leave")
             widget.queue_draw()
         return False
 
@@ -431,8 +443,7 @@ class DnDHandler:
         self.drop_insert_index = -1
         self._drag_from = -1
         self._config.save()
-        if self._window.autohide:
-            self._window.autohide.set_disabled(False, reason="drag-end")
+        self._reconcile_autohide_after_drag(reason="drag-end")
         widget.queue_draw()
 
     def _item_from_uri(self, uri: str) -> DockItem | None:

@@ -41,6 +41,7 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
     window.cursor_x = 20.0
     window.cursor_y = 8.0
     window.autohide = MagicMock()
+    window.is_pointer_inside_dock.return_value = False
     default_frame = _frame()
 
     model = MagicMock()
@@ -213,6 +214,10 @@ class TestDropAndReceive:
             123,
         )
         # Then
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-data-received-outside"
+        )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 123)
 
     def test_drag_data_received_external_adds_pinned_item(self, monkeypatch):
@@ -233,6 +238,7 @@ class TestDropAndReceive:
         selection.get_uris.return_value = [
             "file:///usr/share/applications/firefox.desktop"
         ]
+        handler._window.is_pointer_inside_dock.return_value = True
         finish = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
 
@@ -252,6 +258,11 @@ class TestDropAndReceive:
         handler._config.save.assert_called_once()
         handler._model.sync_pinned_to_config.assert_called_once()
         handler._model.notify.assert_called_once()
+        handler._window.autohide.set_hovered.assert_called_once_with(True)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-data-received-inside"
+        )
+        handler._window.autohide.on_mouse_leave.assert_not_called()
         finish.assert_called_once_with(ANY, True, False, 77)
 
     def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
@@ -290,7 +301,9 @@ class TestDropAndReceive:
 
 
 class TestDragLeaveEnd:
-    def test_drag_leave_schedules_deferred_clear_and_autohide(self, monkeypatch):
+    def test_drag_leave_schedules_deferred_clear_without_releasing_autohide(
+        self, monkeypatch
+    ):
         # Given
         handler = _make_handler(monkeypatch)
         handler._drag_from = -1
@@ -307,10 +320,13 @@ class TestDragLeaveEnd:
         handler._on_drag_leave(widget, MagicMock(), 0)
         # Then
         assert timeout_calls and timeout_calls[0][0] == 100
-        handler._window.autohide.on_mouse_leave.assert_called_once()
+        handler._window.autohide.on_mouse_leave.assert_not_called()
+        handler._window.autohide.set_disabled.assert_not_called()
         widget.queue_draw.assert_called()
 
-    def test_deferred_clear_drop_gap(self, monkeypatch):
+    def test_deferred_clear_drop_gap_releases_autohide_when_still_outside(
+        self, monkeypatch
+    ):
         # Given
         handler = _make_handler(monkeypatch)
         handler._drag_from = -1
@@ -320,6 +336,10 @@ class TestDragLeaveEnd:
         # When
         assert handler._deferred_clear_drop_gap(widget) is False
         assert handler.drop_insert_index == -1
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-leave-outside"
+        )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called_once()
 
     def test_drag_end_unpins_when_dropped_outside(self, monkeypatch):
