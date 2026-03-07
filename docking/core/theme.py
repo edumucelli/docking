@@ -1,23 +1,120 @@
-"""Theme loading and color accessors.
+"""Theme loading for dock colors, layout proportions, and animation constants.
 
-The theme system uses a scaling unit for all layout values stored in the
-JSON theme files.  The unit is "tenths of one percent of icon_size":
+What a theme controls in this dock
+
+A theme is not just "colors". In this project it defines three categories of
+visual behavior:
+
+1. colors
+   shelf fill, strokes, indicators, glows
+
+2. layout proportions
+   padding, spacing, shelf height, roundness, distance from edge
+
+3. animation constants
+   bounce heights, durations, glow timing, hover lighten amounts
+
+So the theme layer is the visual design system for the dock.
+
+Why themes use scaled layout units
+
+Theme JSON files store most layout values in a unit tied to icon size:
 
     pixel_value = json_value * (icon_size / 10.0)
 
-For example, with icon_size=48 the scale factor is 4.8:
-    json h_padding=0  -> 0 * 4.8 =  0.0 px
-    json item_padding=2.5 -> 2.5 * 4.8 = 12.0 px
-    json top_padding=-7  -> -7 * 4.8 = -33.6 px (icons overflow above shelf)
+That means one theme can scale proportionally across several icon sizes without
+needing separate 32px / 48px / 64px variants.
 
-This scaling unit means a single theme JSON produces correct proportions
-at any icon size -- 32px, 48px, 64px, 128px, etc.  All downstream code
-receives pixel values from the Theme dataclass and never touches the raw
-JSON scaling values.
+Example with `icon_size = 48`:
 
-Animation parameters (bounce heights, durations, opacity) are not scaled
--- they are stored as-is from the JSON since they are already in their
-final units (fractions, milliseconds, opacity 0-1).
+    scale factor = 48 / 10 = 4.8
+
+    json item_padding = 2.5
+      -> 2.5 * 4.8 = 12px
+
+    json top_padding = -7
+      -> -7 * 4.8 = -33.6px
+
+Why negative padding exists
+
+Negative top padding is not a bug. It is how the theme makes icons overflow
+above the shelf instead of sitting entirely inside a rectangular bar.
+
+ASCII view:
+
+        icon overflow
+           /\
+          /  \
+         |    |
+    -----+----+-----  shelf top
+    |   shelf body  |
+    -----------------  screen edge / shelf bottom
+
+This is the classic dock look: icons appear to stand on a shelf rather than sit
+inside a toolbar.
+
+Derived shelf height
+
+The theme file does not directly store final shelf height in pixels. Shelf
+height is derived from:
+
+- icon size
+- top padding
+- bottom padding
+- stroke width
+
+That matters because shelf height is the result of how the icon and shelf are
+supposed to overlap, not an arbitrary separate constant.
+
+Conceptually:
+
+    shelf_height =
+        icon_size
+      + top_offset
+      + bottom_offset
+
+where top offset may be negative.
+
+Color conversion boundary
+
+Theme JSON stores colors as 0-255 RGBA integer arrays. The renderer uses Cairo,
+which wants 0.0-1.0 float tuples. This module is the conversion boundary:
+
+    JSON [R, G, B, A]
+      |
+      +--> Theme RGBA tuple (0.0-1.0)
+
+That means downstream rendering code never needs to know the raw JSON format.
+
+Scaled vs unscaled values
+
+Not everything in a theme should scale with icon size.
+
+Scaled:
+- shelf/layout proportions
+- spacing/padding
+
+Not scaled:
+- milliseconds
+- opacity fractions
+- relative bounce fractions
+- style enums/booleans
+
+This distinction is important. A theme should keep the same temporal feel at
+different icon sizes rather than making all timing longer just because icons got
+bigger.
+
+Theme as runtime input
+
+By the time the rest of the dock sees a `Theme` instance, it is already a
+fully-resolved runtime object:
+
+- pixel values are computed,
+- colors are normalized,
+- enums are parsed,
+- derived shelf geometry is available.
+
+Downstream code should not need to re-interpret raw JSON theme semantics.
 """
 
 from __future__ import annotations

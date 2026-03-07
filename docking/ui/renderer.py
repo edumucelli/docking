@@ -1,70 +1,153 @@
-"""Cairo renderer for all visual dock output.
+"""Cairo renderer for the dock's visible output and micro-animations.
 
-This module turns DockModel state + runtime interaction state into pixels.
-It is intentionally "view-only": it does not mutate model state, launch apps,
-or decide hover/menu behavior. Its responsibility is deterministic drawing.
+What this renderer is responsible for
 
-What the renderer draws
+This module answers one question:
 
-A frame is composed in layers:
+    "Given the current dock frame and visual state, what pixels should be drawn?"
 
-1. shelf background (panel body),
-2. active-item glow on the shelf,
-3. icons (with hover/click/launch/urgent animation effects),
-4. running indicators,
-5. urgent edge glow when dock is fully hidden.
+It is intentionally view-only. It should not:
 
-Because these layers overlap, their order is part of behavior. For example,
-indicators should sit above shelf and below icon contents, while urgent edge
-glow is an edge-only signal that appears only in hidden state.
+- decide hover policy,
+- decide autohide policy,
+- mutate the model,
+- launch applications,
+- resolve item targeting.
 
-Why this renderer works in one-dimensional layout space
+Those decisions happen elsewhere. The renderer consumes their results.
 
-Icon layout is computed in 1D main-axis coordinates by ``compute_layout``:
+Why renderer and geometry are separate
 
-- top/bottom docks use X as the main axis,
-- left/right docks use Y as the main axis.
+The renderer used to be a tempting place to re-derive visual bounds and item
+positions. That leads to drift:
 
-Renderer maps that 1D result to 2D ``(x, y)`` with ``map_icon_position``.
-This keeps zoom/hit-test/dnd geometry consistent across orientations and avoids
-duplicating layout logic per edge.
+- renderer says icon is here,
+- hover says icon is slightly elsewhere,
+- menus use another targeting model,
+- tooltips anchor from yet another guess.
 
-How autohide affects rendering
+The current model is:
 
-Autohide feeds two rendering parameters:
+    DockGeometryFrame
+      |
+      +--> renderer draws from it
+      +--> hover/mouse/menu/dnd also consume it
 
-- ``hide_offset``: how far content is shifted toward the screen edge,
-- ``zoom_progress``: how much zoom/displacement remains during transitions.
+That means the renderer is no longer the owner of item placement. It is the
+consumer of an authoritative frame.
 
-As hide progresses, icons slide toward the edge while zoom influence decays.
-This produces smooth collapse/expand behavior rather than abrupt scale resets.
+Rendering layers
 
-Why offscreen composition is used
+The dock is painted in a specific order because layers overlap semantically:
 
-Transparent RGBA windows can flicker if each draw step paints directly to the
-window surface (especially when clear + repaint occurs under compositor timing).
-To avoid that, renderer paints the full frame into an offscreen surface first,
-then blits once with ``OPERATOR_SOURCE``. The visible surface is touched
-atomically, reducing intermediate artifacts.
+1. shelf background
+2. shelf active-item glow
+3. icons / applets / separators
+4. running indicators
+5. urgent edge glow when hidden
+
+ASCII view:
+
+    +----------------------------------------------+
+    | urgent edge glow (only when hidden)          |
+    |----------------------------------------------|
+    | running indicators                           |
+    | icons / applets / separators                 |
+    | shelf glow                                   |
+    | shelf background                             |
+    +----------------------------------------------+
+
+Changing that order changes behavior, not just aesthetics.
+
+One-dimensional layout, two-dimensional drawing
+
+The dock layout is fundamentally one-dimensional:
+
+- bottom/top dock -> items arranged along X
+- left/right dock -> items arranged along Y
+
+The geometry/layout system computes positions in that 1D main-axis space.
+The renderer then maps those results into actual 2D draw positions.
+
+That design matters because it keeps all of these aligned:
+
+- zoom math,
+- hit testing,
+- insertion logic,
+- icon positions,
+- popup anchors.
+
+If the renderer had its own separate 2D placement logic, the dock would drift
+again.
+
+Autohide and rendering
+
+Autohide contributes two visual parameters:
+
+- hide_offset
+  how far the dock has moved toward the edge
+
+- zoom_progress
+  how much zoom/displacement influence remains during the transition
+
+Visually:
+
+    fully visible
+    [ icons centered on shelf ]
+
+    hiding
+    [ icons slide toward edge ] + [ zoom influence decays ]
+
+    hidden
+    [ dock mostly gone ] + [ optional urgent edge signal ]
+
+The renderer does not decide those values; it simply makes them visible.
+
+Why offscreen composition is required
+
+The dock window is transparent and compositor-managed. Painting directly to the
+target surface in several incremental steps can produce transient clear/repaint
+artifacts that the compositor catches as flicker.
+
+So the renderer uses this pattern:
+
+    draw entire frame offscreen
+       |
+       +--> single blit to visible surface
+
+That makes the result appear atomically instead of revealing intermediate
+painting stages.
 
 Shelf transform model
 
-Shelf code is authored once as "bottom-oriented" geometry. For top/left/right
-docks, Cairo transforms are applied before drawing shelf primitives. This keeps
-corner/gradient math in one place while still supporting all orientations.
+Shelf primitives are conceptually authored in one orientation and then
+transformed for the others. That avoids maintaining four almost-identical
+variants of corner, gradient, and body math.
 
-Animation state owned here
+In other words:
 
-DockRenderer owns short-lived visual interpolation caches:
+    one shelf language
+      +
+    position-dependent transform
+      =
+    all dock edges
 
-- slide offsets for item reordering transitions,
-- smoothed shelf width during layout changes,
-- hover lighten fade values,
-- icon average-color cache for glows.
+Renderer-local animation state
 
-These are renderer-local presentation states. They are derived from model
-inputs and decay over time, so they belong to the view layer rather than the
-domain model.
+Not all visual state belongs in the model. Some values are purely presentational
+and exist only to make transitions look continuous:
+
+- slide offsets during reorder
+- smoothed shelf width
+- hover lighten fade values
+- average icon-color cache for glows
+
+These caches belong here because they are:
+
+- derived from current UI inputs,
+- short-lived,
+- irrelevant to application/domain state,
+- purely about how the dock looks while changing.
 """
 
 from __future__ import annotations

@@ -1,43 +1,154 @@
-"""Hover state machine and preview timing orchestration.
+"""Hover coordination for items, tooltips, previews, and short animation pumps.
 
-HoverManager sits between raw pointer movement and user-facing hover effects.
-Its job is to keep hover-dependent UI behavior synchronized: tooltips, preview
-show/hide timers, and short redraw pumps for time-based animations.
+Why hover needs its own module
 
-What problem this module solves
+"Hovered item" sounds simple until you list everything that depends on it:
 
-Several features depend on "current hovered item," but they react on different
-timescales:
+- icon zoom/displacement,
+- tooltip text and position,
+- preview show delay,
+- preview hide policy,
+- redraw pumping for short-lived visual effects,
+- the distinction between "pointer is on the dock" and "pointer is on this item".
 
-- tooltip text should update immediately,
-- preview popup should appear only after a delay,
-- preview should hide when hover changes,
-- click/urgent animations require bounded frame pumping.
+If each of those features ran its own local hover state, they would drift.
+The classic failure modes are:
 
-If each subsystem ran independent hover/timer logic, they would drift and race
-(for example, tooltip over one icon while preview opens for another). This
-manager centralizes the state transitions.
+- tooltip for item A while preview is opening for item B,
+- preview timer firing after the pointer already moved away,
+- repeated micro-timers trying to pump redraws independently,
+- hover clearing too early while autohide is still smoothing the dock out.
 
-Hover and preview lifecycle
+This module centralizes that state.
 
-The behavior is:
+What this module owns
 
-1. pointer moves -> hit-test current item from latest layout,
-2. tooltip is updated on every move,
-3. if hovered item changed, cancel pending preview show,
-4. if new item is previewable (running app with windows), arm delayed show,
-5. on timer fire, recompute layout and position preview from current geometry.
+HoverManager owns:
 
-That final recomputation is critical: layout captured when timer was created may
-be stale due to cursor movement, zoom animation, autohide movement, or model
-changes.
+- the currently hovered item,
+- preview show timer lifecycle,
+- cancellation of stale preview requests,
+- tooltip update decisions tied to hovered item changes,
+- a shared short-lived redraw pump for click/urgent animations.
 
-Animation pump responsibility
+It does not own:
 
-Some visual effects are short and time-based (click darken, urgent bounce).
-HoverManager provides one shared frame pump (~60 fps for bounded duration)
-instead of many ad-hoc timers. This keeps redraw behavior predictable and
-reduces timer proliferation across the UI layer.
+- dock-wide hover (`dock_hovered` belongs to interaction policy),
+- geometry building (it consumes a frame),
+- autohide state,
+- preview rendering,
+- tooltip rendering.
+
+The distinction between dock hover and item hover
+
+These are different concepts:
+
+- dock hover
+  The pointer is inside the dock's active cursor region.
+
+- item hover
+  The pointer is inside one item's hover_rect.
+
+ASCII view:
+
+    +-----------------------------------------------+
+    |                cursor_rect                    |
+    |   +-----+  +-----+  +-----+  +-----+          |
+    |   |item |  |item |  |item |  |item |          |
+    |   +-----+  +-----+  +-----+  +-----+          |
+    |                                               |
+    |    background zone: on dock, but no item      |
+    +-----------------------------------------------+
+
+The manager only decides item hover. Whether the dock is effectively hovered is
+decided elsewhere by interaction policy.
+
+Normal hover flow
+
+The usual path is:
+
+    motion event
+      |
+      +--> current geometry frame
+      |
+      +--> hit hover_item_at_point(...)
+      |
+      +--> update tooltip immediately
+      |
+      +--> if item changed:
+              cancel pending preview timer
+              set new hovered_item
+              maybe arm preview timer
+
+Timeline:
+
+    pointer enters item
+       |
+       +-- tooltip updates immediately
+       |
+       +-- preview waits PREVIEW_SHOW_DELAY_MS
+       |
+       +-- if pointer is still on that item, preview shows
+
+That delay matters because previews are heavier and more disruptive than a
+simple tooltip. The user should be able to glide across icons without opening a
+full preview popup for each one.
+
+Why preview show recomputes from fresh geometry
+
+The preview timer stores intent, not stale positions.
+
+When the delayed callback fires, the dock may have changed due to:
+
+- cursor movement,
+- zoom animation,
+- autohide slide position,
+- item reorder,
+- model changes,
+- monitor/display changes.
+
+So the preview must use fresh geometry at timer-fire time, not the geometry
+that existed when the timer was armed.
+
+Tooltip policy in this module
+
+Tooltip updates are intentionally immediate when allowed because they are the
+lightweight feedback channel. But they are not allowed in every dock state.
+
+One important policy encoded here:
+
+    SHOWING state => suppress tooltip display
+
+Why:
+- during SHOWING the dock is still sliding in,
+- tooltip anchors would be valid but transient,
+- the tooltip would appear too close to the screen edge and visibly chase the
+  dock upward/downward.
+
+So hover state still updates, but tooltip visibility waits for stable geometry.
+
+Animation pump ownership
+
+Some visual effects need a bounded redraw loop:
+
+- click darken,
+- launch bounce,
+- urgent bounce/glow.
+
+This module owns one shared short-lived redraw pump instead of letting every
+effect create its own timer. That keeps redraw activity bounded and easier to
+reason about:
+
+    effect starts
+      |
+      +--> HoverManager starts anim pump
+      |
+      +--> queue_draw at ~60fps for duration
+      |
+      +--> timer stops itself
+
+This is not "hover logic" in the narrow sense, but it belongs here because
+these effects are driven by the same user-attention transitions around items.
 """
 
 from __future__ import annotations

@@ -1,4 +1,127 @@
-"""Desktop file resolution and application launching via XDG and Gio."""
+"""Desktop-entry resolution, icon loading, file-target metadata, and launching.
+
+Why this module exists
+
+The dock cannot work directly with desktop IDs and file URIs as opaque strings.
+To draw and launch something meaningful it needs to answer questions such as:
+
+- what user-visible name should appear,
+- which icon should be loaded,
+- what WM_CLASS should be matched against running windows,
+- what command or URI should actually be launched,
+- how should a file/folder target be represented in the dock.
+
+Those are not UI concerns and they are not model concerns. They are platform
+integration concerns, which is why they live here.
+
+Two major jobs
+
+This module has two distinct responsibilities:
+
+1. Resolve targets into metadata
+   - desktop entry -> DesktopInfo
+   - file/folder target -> FileTargetInfo
+
+2. Execute launch/open actions
+   - start applications from desktop files
+   - open files/folders with the desktop environment
+
+The rest of the dock should not need to know how XDG directories, Gio, icon
+themes, or command placeholders work.
+
+Desktop entry resolution
+
+Application dock entries are identified by desktop IDs such as:
+
+    firefox.desktop
+    org.gnome.Nautilus.desktop
+
+Those IDs are packaging/runtime artifacts, not rich metadata by themselves.
+The dock needs to expand them into:
+
+- display name
+- icon name
+- startup WM_CLASS
+- exec line
+
+That is the purpose of `DesktopInfo`.
+
+Resolution flow:
+
+    desktop_id
+      |
+      +--> Gio.DesktopAppInfo.new(...)
+      |
+      +--> fallback search in XDG desktop dirs if necessary
+      |
+      +--> extract name/icon/wm_class/exec
+
+Why WM_CLASS fallback exists
+
+Not every desktop file gives a clean startup WM_CLASS. When it is missing, the
+dock still needs a plausible identity string for window matching. So this module
+derives a fallback from the executable or desktop filename.
+
+That fallback is not perfect, but it is far better than leaving the dock with no
+runtime identity bridge at all.
+
+Icon loading model
+
+The dock consumes icons from several possible sources:
+
+- named theme icon
+- Gio.Icon
+- absolute file path
+- generic fallback icon
+
+So icon loading works in layers:
+
+    requested icon
+      |
+      +--> load from Gio.Icon if available
+      |
+      +--> otherwise load named icon from theme
+      |
+      +--> otherwise load absolute path
+      |
+      +--> otherwise fallback icon
+
+Icons are cached by `(icon identity, size)` because the dock requests the same
+art assets repeatedly during rendering and model refresh.
+
+File and folder targets
+
+The dock also supports file/folder entries. Those are different from apps:
+
+- they are opened, not launched as desktop apps,
+- their icon/name come from filesystem metadata,
+- directories and regular files have different default icon semantics.
+
+So this module normalizes file targets into `FileTargetInfo` with:
+
+- resolved display name
+- icon or theme fallback
+- whether the target is a directory
+
+That keeps file/folder handling aligned with the rest of the dock item model.
+
+Why this module is deliberately defensive
+
+Desktop metadata is not always clean:
+
+- invalid desktop files exist,
+- icons may be missing,
+- files may disappear,
+- Gio may fail to resolve specific targets.
+
+The dock should degrade gracefully:
+
+    no desktop info -> item may not resolve
+    no icon         -> generic fallback icon
+    bad file target -> no dock entry metadata
+
+This module treats those failures as data-quality issues, not fatal UI errors.
+"""
 
 from __future__ import annotations
 

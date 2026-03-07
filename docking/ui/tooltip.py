@@ -1,4 +1,150 @@
-"""Tooltip manager -- custom positioned tooltips near dock icons."""
+"""Tooltip management for dock items, anchored from shared geometry.
+
+What a tooltip means in this dock
+
+The dock tooltip is intentionally simple:
+
+- it is visual only,
+- it is anchored to one hovered item,
+- it must never become a second interactive surface that competes with the dock,
+- it must follow shared geometry instead of inventing its own icon positions.
+
+That sounds straightforward, but dock tooltips have a few failure modes that
+ordinary GTK widgets do not:
+
+- showing too early while the dock itself is still animating,
+- rebuilding too aggressively while the pointer churns across adjacent items,
+- staying visible after the dock has already hidden,
+- looking attached to the wrong icon because the hover changed faster than the
+  popup content could be rebuilt.
+
+This module exists to manage those problems explicitly.
+
+What this module owns
+
+TooltipManager owns:
+
+- delayed/coalesced tooltip popup rebuilds,
+- tooltip window creation and reuse,
+- tooltip text/widget content replacement,
+- tooltip positioning from item anchor points,
+- screen clamping,
+- hide/cancel logic.
+
+It does not own:
+
+- hover decisions,
+- whether the dock should remain visible,
+- autohide policy,
+- item geometry itself.
+
+Those come from HoverManager, interaction policy, and shared geometry.
+
+Anchor model
+
+Tooltips are positioned from an item anchor, not from ad hoc event coordinates.
+The anchor is the icon edge closest to the tooltip:
+
+    bottom dock:
+        tooltip
+           ^
+           |
+        [ icon ]
+    ---------------- screen edge
+
+    top dock:
+    ---------------- screen edge
+        [ icon ]
+           |
+           v
+        tooltip
+
+    left dock:
+    screen edge | [ icon ] -> tooltip
+
+    right dock:
+    tooltip <- [ icon ] | screen edge
+
+The shared geometry frame supplies:
+
+- anchor_x
+- anchor_y
+
+That is why the tooltip does not need to know how icons are laid out or zoomed.
+
+Immediate reposition vs delayed rebuild
+
+There are two tooltip update modes:
+
+1. Reposition only
+   Same item, same text. Move the popup cheaply.
+
+2. Rebuild content
+   New item or changed label/widget. This is more expensive because GTK widget
+   rebuilding and `show_all()` can trigger crossing events and popup churn.
+
+The manager therefore treats these paths differently:
+
+    same item/text
+      -> move only
+
+    changed item/text
+      -> coalesce through idle callback
+
+That coalescing matters when the pointer moves quickly across adjacent icons.
+Without it, the tooltip can briefly show the last item the hover touched even
+though the pointer already moved on.
+
+Why this module reuses one popup window
+
+Creating and destroying popup windows repeatedly is expensive and noisy.
+Reusing a single popup window gives:
+
+- less GTK churn,
+- more stable positioning,
+- fewer crossing side effects,
+- less visual flashing.
+
+So the common path is:
+
+    create once
+      |
+      +--> replace contents as needed
+      +--> move popup as hover changes
+      +--> hide when hover/dock policy requires
+
+Tooltip and autohide
+
+Tooltips do not keep the dock open. That is an important invariant.
+
+Previews are different because they are an intended continuation of interaction.
+Tooltips are not. They are decoration and context.
+
+So the intended behavior is:
+
+    tooltip visible
+      !=
+    dock should remain shown
+
+That means this module must cooperate with hover/interaction policy rather than
+attempting to own dock visibility.
+
+Why screen clamping belongs here
+
+The geometry frame gives the ideal anchor. But the tooltip is a real popup
+window that can run off-screen on small displays or near monitor edges.
+
+That last step is tooltip-specific:
+
+    ideal anchor position
+        |
+        +--> compute orientation-relative placement
+        |
+        +--> clamp to screen bounds
+
+That is why screen clamping belongs in this module and not in the shared dock
+geometry model.
+"""
 
 from __future__ import annotations
 

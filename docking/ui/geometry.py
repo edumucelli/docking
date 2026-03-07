@@ -1,8 +1,220 @@
-"""Shared dock geometry for input, hover, and popup anchoring.
+"""Shared dock geometry used by rendering, hover, input masking, and popups.
 
-This module centralizes the runtime geometry that the dock needs while a frame
-is active: item rectangles, current cursor region, and popup anchor positions.
-It intentionally stays free of GTK/GDK objects so the math is easy to test.
+Why this module exists
+
+The dock used to compute "where things are" in several different places:
+
+- drawing code decided where the shelf and icons appeared,
+- event handlers decided independently what counted as "inside" the dock,
+- hover code had its own idea of which icon was active,
+- tooltip/preview code rebuilt anchor positions again.
+
+That arrangement always drifts. The visible dock can say "the icon is here"
+while the input region says "the icon is slightly over there". The result is
+the class of bugs that feel like:
+
+- the pointer leaves an icon and it snaps too early,
+- the dock hides on one edge before the other,
+- right-clicking the visible shelf opens an item menu instead of the dock menu,
+- a popup appears attached to the wrong moving point.
+
+This module is the answer to that problem. It builds one explicit geometry
+snapshot for the current dock state and gives every consumer the same numbers.
+
+What this module owns
+
+This module owns geometry only. In concrete terms that means:
+
+- converting runtime inputs into one dock frame,
+- describing where the dock background lives inside the GTK window,
+- describing where each item draws,
+- describing where each item is hovered,
+- describing where each item is clickable,
+- describing the current dock cursor/input region,
+- describing popup anchor coordinates.
+
+This module does not own:
+
+- GTK signal handling,
+- autohide policy decisions,
+- drag/drop policy,
+- tooltip timing,
+- preview timing,
+- window manager integration.
+
+Those subsystems consume geometry; they do not define it.
+
+Coordinate systems
+
+There are three coordinate ideas that matter here:
+
+1. Window-local coordinates
+   Every Rect in this module is in the dock window's local space.
+
+2. Main axis
+   The dock is treated as if it always grows along one axis:
+
+       top / bottom dock  -> main axis is X
+       left / right dock  -> main axis is Y
+
+   This lets layout, hit testing, insertion logic, and hover logic share the
+   same math instead of branching into four nearly-identical copies.
+
+3. Cross axis
+   The axis perpendicular to the main axis. This is where "distance from edge",
+   shelf thickness, and hidden trigger thickness matter.
+
+The window, background, and item regions
+
+The GTK window is intentionally larger and more stable than the actual active
+dock region. The window can stay edge-aligned and avoid resize wobble while the
+interactive part shrinks, expands, or animates inside it.
+
+The important rectangles are:
+
+    window_rect
+    +-------------------------------------------------------------+
+    |                                                             |
+    |   static_dock_rect / background_rect                        |
+    |   +-----------------------------------------------+         |
+    |   | item 0 | item 1 | item 2 | item 3 | item 4   |         |
+    |   +-----------------------------------------------+         |
+    |                                                             |
+    +-------------------------------------------------------------+
+
+The dock does not use one item rectangle for everything. Each item has:
+
+- draw_rect
+  The pixels used by the renderer for the icon in this frame.
+
+- hover_rect
+  The broader region that should still count as "hovering this item".
+  This is intentionally more forgiving than the exact draw rectangle so that
+  pointer movement near edges feels smooth.
+
+- hit_rect
+  The narrower region used for click/menu targeting.
+  This is what allows the state "inside the dock, but not on any item", which
+  is required for the dock background menu.
+
+- background_rect
+  The portion of the shelf/background conceptually associated with that item.
+  This matters when the outer shelf shape and the icon shape are not identical.
+
+One dock-wide region matters just as much:
+
+- cursor_rect
+  The region that means "the pointer is on the dock".
+  Autohide, effective enter/leave, and input masking treat this as the dock's
+  authoritative interactive band.
+
+Why half-open rectangles are mandatory
+
+Containment uses half-open bounds:
+
+    x in [left, right)
+    y in [top, bottom)
+
+In code:
+
+    left <= x < right
+    top  <= y < bottom
+
+This matters because adjacent regions must meet without overlap and without
+gaps. If both neighboring regions treated their right/bottom edge as inclusive,
+the same pixel could belong to two items. If both excluded too much, one pixel
+strips appear where no item or dock region claims the pointer.
+
+The edge bugs fixed during the geometry refactor were largely caused by this
+kind of mismatch.
+
+How one frame is built
+
+The builder follows this sequence:
+
+1. Capture runtime state:
+   - items
+   - theme/config
+   - window size
+   - main-axis cursor
+   - autohide state
+   - hide offset / zoom progress
+   - active drag insertion index
+
+2. Compute zoom/layout output from the current main-axis cursor.
+
+3. Derive the dock band and background rectangle.
+
+4. Derive one ItemGeometry per visible item.
+
+5. Derive cursor_rect, which may differ from the fully visible background:
+   - when hidden, it collapses to a thin trigger strip,
+   - when visible, it expands to cover the active dock band.
+
+6. Publish the result as one DockGeometryFrame.
+
+Why DockGeometryInputs exists
+
+This module separates runtime capture from pure geometry math:
+
+- DockGeometryBuilder
+  Lives at the UI boundary and knows how to ask the dock window for live state.
+
+- DockGeometryInputs
+  An explicit snapshot of those live inputs.
+
+- build_geometry_frame(...)
+  Pure geometry math that can be tested without GTK.
+
+That split prevents geometry code from gradually turning into another
+"everything knows about DockWindow" layer.
+
+How the frame is consumed
+
+The same frame, or frames built from the same rules, are used by:
+
+- renderer:
+  draw shelf and icons from draw_rect/background_rect
+
+- hover:
+  determine hovered item from hover_rect
+
+- menus and button targeting:
+  determine item-vs-background hit from hit_rect
+
+- input mask:
+  determine what part of the window should intercept pointer input
+
+- tooltips and previews:
+  anchor popups to item anchor coordinates
+
+Visually, the relationship is:
+
+    pointer
+      |
+      v
+    cursor_rect ? -------------------- no -> outside dock
+      |
+      +-- hover_rect match? ---------- yes -> hovered item
+      |
+      +-- hit_rect match? ------------ yes -> click targets item
+      |
+      +-- otherwise ------------------ dock background
+
+This distinction is intentional. Hover and click are not the same problem.
+
+What "good" looks like
+
+If this module is doing its job, the rest of the dock code should not need
+geometry hacks such as:
+
+- "pad the left edge by a few pixels",
+- "if the right-most icon is hovered, special case the exit",
+- "this popup should guess where the icon is from event coordinates",
+- "rebuild a second hit-test model for menus".
+
+When one of those appears, the right fix is almost always to extend or correct
+the geometry frame here, not to patch individual consumers elsewhere.
 """
 
 from __future__ import annotations

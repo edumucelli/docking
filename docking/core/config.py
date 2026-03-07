@@ -1,4 +1,132 @@
-"""Configuration loading, saving, and defaults for the dock."""
+"""Configuration schema, defaults, normalization, loading, and saving.
+
+What configuration means in this project
+
+Configuration is the persisted expression of user intent:
+
+- where the dock lives,
+- whether it autohides,
+- how large icons are,
+- which items are pinned,
+- which theme is active,
+- applet- and item-specific preferences.
+
+This module is the authoritative schema for that intent. It is intentionally
+simple and explicit: the dock should not have several competing "settings"
+shapes spread across menus, runtime state, and disk files.
+
+Why a schema module matters
+
+Without a real configuration schema, settings drift in several ways:
+
+- JSON on disk can contain stale or malformed values,
+- menus can assume fields exist that persistence never writes,
+- runtime code can quietly invent settings that are not durable,
+- tests can accidentally pass against shapes users cannot actually store.
+
+This module prevents that by defining:
+
+- the persisted fields,
+- their defaults,
+- normalization rules,
+- how disk data is filtered,
+- how typed entries are reconstructed.
+
+Pinned entries are structured, not opaque strings
+
+One of the most important evolutions in the config model is that pinned items
+are stored as typed entries:
+
+    {
+      "kind": "...",
+      "target": "..."
+    }
+
+Instead of an untyped list of strings.
+
+Why:
+- apps, applets, files, and folders do not mean the same thing,
+- two entries may both look like strings but need different runtime handling,
+- persistence should preserve meaning, not just syntax.
+
+ASCII view:
+
+    pinned:
+      [ {kind: app,    target: firefox.desktop},
+        {kind: applet, target: applet://clock},
+        {kind: folder, target: file:///home/user/Downloads} ]
+
+That is what `PinnedEntry` represents.
+
+Load model
+
+Loading a config file follows this sequence:
+
+    JSON on disk
+      |
+      +--> filter to known dataclass fields
+      |
+      +--> normalize pinned entries
+      |
+      +--> construct Config
+      |
+      +--> validate/coerce selected values
+
+Important behavior:
+
+- unknown keys are ignored instead of crashing load,
+- invalid pinned entries are dropped during normalization,
+- invalid position falls back to `"bottom"`,
+- invalid monitor index is clamped to `-1` or a non-negative choice.
+
+This is a user-facing file. It must be robust against manual edits, older
+versions, and partial corruption.
+
+Save model
+
+Saving is the reverse:
+
+    Config instance
+      |
+      +--> to_dict()
+      |
+      +--> JSON with stable field names
+      |
+      +--> newline-terminated file on disk
+
+The important property is that save only writes the schema this module owns.
+Runtime-only state should not quietly leak into persisted config.
+
+Defaults as product behavior
+
+The defaults in this module are not arbitrary. They define the out-of-the-box
+behavior of the dock:
+
+- icon size
+- zoom enabled and default factor
+- bottom position
+- autohide off
+- previews on
+- tooltips on
+- no pinned items by default
+
+Changing a default here is a user-visible product decision, not just a code
+cleanup.
+
+Boundary with runtime objects
+
+This module owns persisted preference state, not live UI state. For example:
+
+- current hovered item -> not config
+- current geometry frame -> not config
+- current monitor in active-display mode -> not config
+- theme name -> config
+- active-display enabled flag -> config
+
+That boundary is important. The dock should be able to rebuild its live runtime
+state entirely from config plus current environment, not from hidden mutable
+state that was never persisted.
+"""
 
 from __future__ import annotations
 

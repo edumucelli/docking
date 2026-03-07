@@ -1,4 +1,136 @@
-"""Right-click context menus for dock items and the dock itself."""
+"""Context menu construction for dock items, applets, folders, and background.
+
+Why the dock menu logic is centralized
+
+Right-click behavior in a dock is deceptively broad. Depending on where the
+pointer is, the same action can mean:
+
+- item menu for an application launcher,
+- applet menu with applet-specific actions,
+- folder stack menu,
+- dock background menu,
+- live menu for currently open application windows.
+
+If each item type built its own menus independently, the dock would lose
+consistency in:
+
+- popup lifecycle,
+- autohide/menu interaction,
+- item targeting,
+- icon/title formatting,
+- shared commands like pin/unpin, lock positions, theme changes, and position.
+
+This module is the centralized menu builder for those cases.
+
+What this module owns
+
+MenuHandler owns:
+
+- deciding whether a right-click targets an item or the dock background,
+- constructing GTK menu trees,
+- building item-specific and dock-specific actions,
+- applet submenu organization,
+- folder stack menus,
+- live window menu entries with thumbnails,
+- popup creation and lifecycle hookup.
+
+It does not own:
+
+- dock geometry,
+- autohide policy directly,
+- tooltip/preview lifecycle directly,
+- actual runtime side effects on the dock shell.
+
+Those imperative side effects are routed through `DockRuntime`.
+
+Why geometry matters for menus
+
+The dock must support this state:
+
+    pointer inside dock
+      but
+    pointer not on any item
+
+That is what makes the dock background menu reachable.
+
+So menu targeting follows shared geometry:
+
+    event point
+      |
+      +--> item_at_point(...) ? ---- yes --> build item/applet/folder menu
+      |
+      +--> no -----------------------> build dock background menu
+
+This is one of the reasons click/hit geometry is intentionally narrower than
+hover geometry. The background needs to remain a real target.
+
+Runtime command boundary
+
+This module is intentionally not allowed to mutate DockWindow internals freely.
+The important split is:
+
+- MenuHandler
+  decides what commands exist and when they are offered
+
+- DockRuntime
+  performs dock-wide side effects such as:
+    - menu popup open/close hooks,
+    - reposition,
+    - strut updates,
+    - redraws,
+    - active-display toggles,
+    - hover UI cleanup
+
+That boundary matters because menu code is broad enough already; it should not
+also become the place where raw window internals are orchestrated directly.
+
+Kinds of menus built here
+
+1. Application item menu
+   Launch, pin/unpin, close windows, desktop actions, etc.
+
+2. Applet menu
+   Applet-specific commands and applet insertion choices.
+
+3. Folder stack menu
+   A live view into a directory with sorting/filtering behavior.
+
+4. Dock background menu
+   Global dock behavior such as:
+   - position
+   - autohide
+   - icon options
+   - theme selection
+   - applet insertion
+   - quit/about
+
+Window thumbnails in menus
+
+For running applications, the menu may include live window entries. Those use
+the same preview capture machinery as the preview popup, but at smaller sizes.
+That gives the user recognition value directly inside the menu without having to
+switch to the larger preview surface.
+
+Popup lifecycle
+
+Menu popups affect dock behavior even though they are not part of the dock
+window itself:
+
+    menu opens
+      |
+      +--> runtime.menu_popup_opened()
+      |
+      +--> autohide disabled while menu is active
+
+    menu hides
+      |
+      +--> runtime.menu_popup_closed()
+      |
+      +--> interaction policy re-evaluates pointer position
+
+That lifecycle is why menu creation and menu popup hookup are not separate
+concerns in practice.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,169 @@
-"""Dock interaction policy shared across event handlers and menu/runtime hooks."""
+"""Dock interaction policy shared across raw events, menus, previews, and hover.
+
+Why this module exists
+
+The raw GTK events that hit the dock are lower-level than the behavior users
+actually expect. A dock should react to concepts such as:
+
+- "the pointer effectively entered the dock",
+- "the pointer effectively left the dock",
+- "a menu is open so the dock must stay alive",
+- "a preview is visible, so leaving the icon does not immediately mean hide".
+
+Those concepts cannot live comfortably in raw `enter-notify`, `leave-notify`,
+and `motion-notify` handlers because the event stream alone is not enough.
+The dock must reconcile events with geometry, autohide policy, previews, and
+temporary UI state.
+
+This module is that policy layer.
+
+What this module owns
+
+This coordinator owns:
+
+- the public notion of `dock_hovered`,
+- effective enter handling,
+- effective leave handling,
+- menu popup open/close policy,
+- "is the pointer inside the current dock input region?" checks,
+- leave behavior when previews are visible,
+- "keep cursor identity" rules used for smooth hide animations.
+
+This module does not own:
+
+- raw GTK signal registration,
+- geometry building,
+- autohide animation math,
+- tooltip rendering,
+- preview rendering.
+
+Think of it as the translation layer between:
+
+    raw event stream
+          +
+    current dock frame
+          +
+    transient UI state
+          =
+    interaction decisions
+
+The distinction between raw and effective enter/leave
+
+GTK can report events that are technically true for the window but not true for
+the dock as the user experiences it. For example:
+
+- the pointer enters the GTK window but is still above the actual dock band,
+- a popup or grab creates a crossing event,
+- the pointer leaves an icon while a preview is still the intended target.
+
+So the dock uses the idea of effective enter/leave:
+
+    raw event
+      |
+      +-- inside current dock input region? -- no --> ignore as non-dock event
+      |
+      +-- yes --> effective enter/leave policy runs
+
+This is how geometry and interaction are kept aligned. The dock should not hide
+or show based on widget boundaries that do not match the actual active band.
+
+Menu policy
+
+Menus are special because the user is still actively interacting with the dock,
+but the pointer may no longer be physically inside the dock's input region.
+While a dock context menu is open:
+
+- autohide is disabled,
+- the dock remains available,
+- closing the menu re-checks whether the pointer is back inside the dock.
+
+That re-check is important:
+
+    menu closes
+      |
+      +-- pointer inside dock --> remain effectively hovered
+      |
+      +-- pointer outside dock
+            |
+            +-- preview visible? schedule preview hide first
+            +-- otherwise allow autohide leave
+
+Preview-aware leave policy
+
+Preview popups are intentionally not treated like ordinary tooltips. They are
+the continuation of the same interaction. The intended user flow is:
+
+    hover item
+      |
+      +-- preview appears
+      |
+      +-- pointer may move from dock toward preview
+
+If leaving the dock immediately triggered autohide, the preview would become
+unreachable or the dock would flicker underneath it. So this module applies the
+rule:
+
+    preview visible => schedule preview hide, do not immediately autohide
+
+That creates one temporary interaction region:
+
+    [ dock ] <---- intended movement ----> [ preview ]
+
+ASCII view:
+
+    pointer path
+         \\
+          \\        +-----------+
+           +-----> | preview   |
+    +-----------+  +-----------+
+    | dock      |
+    +-----------+
+
+Leaving the dock while the preview is visible means:
+"the user may be transitioning to the preview", not "interaction is over".
+
+Keep-cursor policy
+
+On leave, the dock sometimes preserves hover identity and cursor state briefly
+instead of clearing them immediately. That sounds odd until you consider hide
+animation:
+
+    immediate clear on leave:
+      icon snap -> then dock hides
+
+    preserved cursor during hide:
+      icon stays visually stable -> dock glides away
+
+This coordinator decides when that preservation is appropriate:
+
+- autohide enabled -> preserve during hide
+- preview visible  -> preserve while preview policy is active
+- neither          -> clear immediately
+
+That is the purpose of `should_keep_cursor_on_leave(...)`.
+
+What "pointer inside dock" really means
+
+The dock does not use the full GTK window as its hover authority. It uses the
+current input frame:
+
+    _current_geometry_frame or _applied_input_frame
+
+The reason for the fallback is practical:
+
+- `_current_geometry_frame`
+  freshest frame from the current event/draw cycle
+
+- `_applied_input_frame`
+  last frame that was actually installed as the live input mask
+
+If the freshest frame is not available yet, the interaction layer can still ask
+the correct question:
+
+    "Would the active dock input region consider this pointer inside?"
+
+That is a much better test than widget-level enter/leave.
+"""
 
 from __future__ import annotations
 

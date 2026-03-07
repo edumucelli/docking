@@ -1,4 +1,178 @@
-"""Auto-hide controller -- state machine with cubic easing animation."""
+"""Autohide controller for the dock's visible/hidden state and motion.
+
+Autohide from first principles
+
+An edge dock has two conflicting jobs:
+
+1. stay out of the way when the user is not using it,
+2. appear quickly and predictably when the user approaches it.
+
+If the dock hides too aggressively, it flickers when the pointer briefly arcs
+out and back in. If it shows too aggressively, it fights menus, drags, previews,
+or other temporary UI that should keep it present. If animation reversals are
+not continuous, the dock appears to jump instead of glide.
+
+This module exists to keep those concerns in one state machine.
+
+What this module owns
+
+This controller owns:
+
+- whether the dock is logically visible, hiding, hidden, or showing,
+- hide/show delays,
+- the animation progress for transitions,
+- the current hide offset used by the renderer and geometry,
+- the current zoom progress while hidden or showing,
+- policy inputs for:
+  - pointer hovered/not hovered,
+  - temporarily disabled/not disabled.
+
+This module does not own:
+
+- the geometry of the dock,
+- how hover is determined,
+- menu logic,
+- preview logic,
+- tooltip logic,
+- GTK event handling.
+
+Those systems tell autohide whether the dock should currently be considered
+"held open" or not. Autohide translates that into smooth state transitions.
+
+The four states
+
+The dock has four visible states:
+
+    VISIBLE  -> fully shown, idle, ready to hide
+    HIDING   -> moving from shown to hidden
+    HIDDEN   -> collapsed to edge trigger only
+    SHOWING  -> moving from hidden to shown
+
+The usual path is:
+
+    pointer enters
+        V
+    HIDDEN --> SHOWING --> VISIBLE
+
+    pointer leaves
+        V
+    VISIBLE --> HIDING --> HIDDEN
+
+But real use is more complicated. The user often changes their mind mid-flight:
+
+    VISIBLE --> HIDING -- pointer returns --> SHOWING --> VISIBLE
+
+That reversal must be continuous. The dock should resume from its current
+position, not restart from a fully hidden or fully visible endpoint.
+
+Animation outputs
+
+Two outputs matter to the rest of the dock:
+
+- hide_offset
+  0.0 means fully visible
+  1.0 means fully hidden
+
+- zoom_progress
+  1.0 means normal zoom behavior is fully active
+  0.0 means no zoom while fully hidden
+
+The renderer and geometry read these values to decide:
+
+- how far the dock is shifted off-screen,
+- whether the active input region is the full dock band or the thin trigger,
+- how much hover zoom should still be visible during transitions.
+
+Why disabled exists
+
+Hovered alone is not enough. There are periods where the pointer may not be
+strictly "on the dock", but the dock still must not hide:
+
+- a context menu is open,
+- a drag operation is active,
+- another interaction temporarily owns pointer flow.
+
+That is what disabled means:
+
+    effective_should_show = hovered or disabled
+
+When disabled is true, autohide behaves as if the dock is being actively held
+open by a transient UI policy rather than by raw pointer presence.
+
+Timer model
+
+Hide/show changes are not always immediate. The controller can use:
+
+- hide delay
+- unhide delay
+- animation ticks
+
+There is also a small minimum hide grace used to absorb fast pointer arcs:
+
+    pointer leaves briefly
+         |
+         +-- if it returns quickly, do not visibly start hiding
+
+Without that grace, the dock flickers on short U-shaped movements that are not
+meaningful leaves from the user's perspective.
+
+Timeline example:
+
+    t0   pointer leaves
+    t1   hide grace expires
+    t2   HIDING begins
+    t3   pointer re-enters
+    t4   SHOWING begins from current hide_offset
+
+Not:
+
+    t3   pointer re-enters
+    t4   dock jumps to "almost hidden"
+    t5   dock restarts show from the wrong baseline
+
+That incorrect jump was a real bug fixed by preserving continuity when the
+direction changes mid-animation.
+
+Easing model
+
+The dock uses cubic easing in each direction:
+
+    hiding  -> ease_in_cubic
+    showing -> ease_out_cubic
+
+This produces:
+
+- gentle start when hiding,
+- quick recovery when showing,
+- more natural motion than linear interpolation.
+
+The inverse easing helpers matter because reversal continuity needs to answer:
+
+    "Given the dock is already 37% hidden, what progress value would produce
+    exactly that visual position if we now reverse direction?"
+
+That is why this module has both:
+
+- ease_* functions
+- inverse_ease_* functions
+
+Without the inverse functions, reversal code would restart the opposite
+animation from progress 0.0 and the dock would visibly teleport.
+
+Operational model
+
+Consumers do not tell the controller "hide now" and "show now" directly.
+They normally report higher-level facts:
+
+- set_hovered(True/False)
+- set_disabled(True/False)
+
+The controller then reconciles those facts into motion.
+
+That separation is important. It keeps timing and state ownership here instead
+of spreading "should I hide immediately?" decisions across menu, drag, hover,
+and event code.
+"""
 
 from __future__ import annotations
 

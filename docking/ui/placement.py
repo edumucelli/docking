@@ -1,4 +1,148 @@
-"""Dock placement, monitor selection, and X11 edge integration."""
+"""Dock placement, monitor choice, struts, barriers, and edge integration.
+
+Why placement is its own module
+
+The dock's visible behavior depends on more than its internal geometry. It also
+has to answer platform-facing questions:
+
+- which monitor should the dock attach to,
+- where should the top-level window actually be moved,
+- what screen space should be reserved for maximized windows,
+- when should pointer barriers be updated,
+- how should active-display mode follow the pointer between monitors.
+
+Those concerns are related, but they are not interaction policy and they are
+not rendering. This module owns that platform/placement layer.
+
+What this module owns
+
+DockPlacementController owns:
+
+- monitor selection and monitor menu choices,
+- realization-time positioning,
+- monitor/screen signal tracking,
+- deferred reposition scheduling,
+- X11 strut application and clearing,
+- pointer barrier updates,
+- active-display polling.
+
+It does not own:
+
+- hover policy,
+- tooltip/preview behavior,
+- drag/drop behavior,
+- item geometry,
+- Cairo rendering.
+
+Logical screen vs monitor geometry
+
+Multi-monitor placement is the main reason this module exists. The dock must
+distinguish:
+
+- logical screen geometry
+- individual monitor geometry
+- current monitor workarea
+
+ASCII example:
+
+    logical screen
+    +-----------------------------------------------+
+    | monitor 0                 | monitor 1         |
+    |                           |                   |
+    |                           |                   |
+    +-----------------------------------------------+
+
+The dock may live on only one monitor, but X11 struts are expressed relative to
+the logical screen edge. That mismatch is why placement and strut logic must be
+coordinated carefully.
+
+Workarea vs monitor bounds
+
+Placement does not always use the same rectangle for both axes.
+
+Why:
+- along the dock edge, the monitor edge matters,
+- along the perpendicular axis, workarea may matter more so the dock avoids
+  conflicting with reserved desktop areas.
+
+For example:
+
+    bottom dock on a monitor
+      |
+      +--> X spans monitor width
+      +--> Y aligns to bottom edge
+
+    left dock
+      |
+      +--> X aligns to left edge
+      +--> Y spans workarea height
+
+That split is subtle but important for correct monitor-edge behavior.
+
+Placement sequence
+
+The normal flow is:
+
+    window realized
+      |
+      +--> attach screen signals
+      +--> initialize pointer barrier backend if available
+      +--> compute target monitor
+      +--> move/resize dock window
+      +--> set struts if appropriate
+      +--> refresh input region
+      +--> start active-display polling if enabled
+
+Reposition scheduling
+
+Monitor and scale changes often arrive in bursts. Repositioning immediately on
+every signal can cause redundant work and more geometry churn than necessary.
+
+So this module uses deferred reposition:
+
+    monitors-changed / size-changed / scale-factor-changed
+      |
+      +--> schedule_reposition()
+      |
+      +--> one idle callback performs the actual reposition
+
+That keeps placement responsive without making every platform signal a full dock
+re-layout in place.
+
+Struts and barriers
+
+Two platform-facing edge integrations live here:
+
+1. Struts
+   Reserve workspace so maximized windows do not cover an always-visible dock.
+
+2. Pointer barriers
+   Improve edge interaction by helping the pointer stop at the intended edge in
+   some environments.
+
+They are grouped here because they both depend on the final resolved monitor
+placement of the dock window.
+
+Active-display mode
+
+Active-display mode means:
+
+    "follow the monitor the pointer is currently on"
+
+This is intentionally a placement concern, not an interaction concern. The dock
+rebinds itself to a different monitor when the pointer moves across displays.
+
+The loop is:
+
+    poll pointer monitor
+      |
+      +--> if active monitor changed:
+              reposition dock
+              refresh edge integrations
+
+That is why active-display logic belongs here instead of in the event/hover
+stack.
+"""
 
 from __future__ import annotations
 

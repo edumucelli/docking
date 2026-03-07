@@ -1,62 +1,129 @@
-"""DockModel: canonical dock state, ordering, and applet ownership.
+"""Canonical dock state: visible item order, persistence, and applet ownership.
 
-This module is the source of truth for "what icons currently exist in the dock
-and in what order." Renderers, input handlers, menus, hover logic, and window
-tracking all consume model state, but only DockModel owns mutation rules.
+Why this module exists
 
-What data does the model own?
+The dock has many consumers of item state:
 
-DockModel composes two logical lists:
+- the renderer needs a stable ordered list of visible items,
+- hover/menu/dnd need consistent item identity,
+- window tracking needs somewhere to publish running/active/urgent status,
+- applets need lifecycle ownership,
+- configuration needs pinned order persisted back to disk.
 
-1. pinned items: persistent entries from config (apps, applets, separators),
-2. transient items: non-pinned apps that are currently running.
+If each of those subsystems mutated its own partial state, the dock would drift.
+The renderer might still think an applet exists after it was removed, or window
+tracking might mark an app active without the pinned order reflecting the same
+item set.
 
-The visual dock list is ``pinned + transient`` (via ``visible_items()``).
-Pinned order is user-controlled and persisted. Transient entries appear only
-while running and disappear when no windows remain.
+This module is the source of truth that prevents that.
 
-Why this layer exists
+What the model owns
 
-Without a dedicated model, each subsystem would mutate partial state:
-WindowTracker might toggle running flags, menu actions might reorder entries,
-and applet code might update labels independently. That creates drift and race
-conditions. DockModel centralizes those writes so each operation has a single
-place to enforce invariants.
+The model owns "what items exist in the dock" and "in what order they appear".
+It combines two logical populations:
 
-Identity model used by DockModel
+1. pinned items
+   Persistent entries loaded from config:
+   - applications
+   - applets
+   - files/folders
+   - separators
 
-Each visible entry is a ``DockItem`` with a ``desktop_id`` key:
+2. transient items
+   Non-pinned running applications that should appear only while active.
 
-- regular apps use desktop entry IDs (``firefox.desktop``),
-- applets use ``applet://<id>`` (for example ``applet://clock``),
-- multi-instance applets include instance suffixes
-  (for example ``applet://separator#2``).
+Visual order is:
 
-This uniform keying lets the renderer and input logic treat apps and applets
-with the same container type while preserving applet-specific lifecycle hooks.
+    visible_items = pinned_items + transient_items
 
-Ownership boundaries across modules
+That rule is simple, but it is the basis for almost every dock interaction.
 
-- Launcher: resolves desktop metadata and loads theme icons.
-- WindowTracker: reports running/active/urgent window aggregates.
-- DockModel: applies those aggregates to DockItem flags and counts.
-- UI modules: render and interact with DockItems; they do not own state.
+ASCII view:
 
-Lifecycle and persistence responsibilities
+    pinned:    [ Files ][ Firefox ][ Clock ][ Separator ]
+    transient: [ Slack ][ Discord ]
 
-DockModel is responsible for:
+    visible:   [ Files ][ Firefox ][ Clock ][ Separator ][ Slack ][ Discord ]
 
-- constructing applets from registry IDs and managing their lifetime,
-- inserting/removing separator instances with stable instance numbering,
-- starting/stopping applets with dock notify callbacks,
-- synchronizing pinned order back to config and saving.
+Pinned order is user-owned and persisted. Transient order is runtime-owned and
+disappears when the underlying windows are gone.
 
-Core invariant
+Uniform item identity
 
-After every mutating operation, ``visible_items()`` must remain renderer-safe:
-stable order, coherent running/active/urgent flags, and applet object registry
-in sync with corresponding DockItem entries. If this invariant holds, all UI
-paths can assume consistent model semantics.
+Every visible entry is represented as a `DockItem` with a stable `desktop_id`.
+That identity model unifies several different kinds of entries:
+
+- application launcher:
+  `firefox.desktop`
+
+- applet:
+  `applet://clock`
+
+- multi-instance applet/separator:
+  `applet://separator#2`
+
+- file/folder:
+  stable file URI in the pinned entry target
+
+The important point is not the exact string format. The important point is that
+all UI layers can talk about "the same item" through one stable identity key.
+
+What this module does not own
+
+DockModel does not resolve desktop files or icons itself. It relies on:
+
+- Launcher
+  desktop metadata, icon loading, file target resolution
+
+- WindowTracker
+  aggregation of real runtime windows into running/active/urgent state
+
+- UI layer
+  drawing, hover, menus, drag/drop, popup behavior
+
+The model applies and preserves state; it does not interpret window manager or
+GTK behavior directly.
+
+Applet ownership
+
+Applets are more than rows in a list. They are live objects with lifecycle:
+
+- create applet instance from registry,
+- own the applet object while its DockItem exists,
+- start it with dock notify callbacks,
+- stop and remove it when the model removes that entry,
+- keep item registry and applet registry in sync.
+
+That is why applet ownership belongs in the model instead of being spread across
+menus, config, and UI code.
+
+Persistence responsibilities
+
+The model is also the place where user intent becomes persisted order:
+
+    menu / dnd / user action
+      |
+      +--> mutate pinned_items
+      |
+      +--> rebuild persisted PinnedEntry list
+      |
+      +--> config.save()
+
+Keeping that flow in one place ensures the dock that the user sees is the dock
+that will return next launch.
+
+Core invariants
+
+After every mutation, these must remain true:
+
+1. `visible_items()` is safe to render immediately.
+2. Pinned order matches persisted config order.
+3. Applet registry and DockItem list agree on which applets exist.
+4. Running/active/urgent fields on items are coherent with the latest
+   WindowTracker aggregate.
+5. Stable identifiers continue to point to the same conceptual item.
+
+If these invariants hold, the rest of the dock can remain much simpler.
 """
 
 from __future__ import annotations

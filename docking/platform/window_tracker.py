@@ -1,86 +1,143 @@
-"""Window tracking and app identity matching for X11/libwnck.
+"""Runtime window tracking and matching between Wnck windows and dock entries.
 
-This module answers a core dock question: "which running window belongs to
-which launcher entry in the dock?" The dock model is keyed by desktop entry
-IDs such as ``firefox.desktop`` or ``org.gnome.Nautilus.desktop``, but runtime
-windows arrive as ``Wnck.Window`` objects. WindowTracker is the translation
-layer between those two identities.
+The core problem
 
-X11 identity basics
+The dock model is keyed by desktop-oriented identities such as:
 
-Every X11 toplevel has several identity hints. The most important here is
-``WM_CLASS``, which you can inspect with ``xprop``:
+    firefox.desktop
+    org.gnome.Nautilus.desktop
 
-    WM_CLASS(STRING) = "Navigator", "firefox"
+But the running desktop gives the dock live windows, not desktop files:
 
-WM_CLASS has two strings:
+    Wnck.Window
 
-1. instance name (often a per-process/toolkit string),
-2. class name (usually the stable application family name).
+Some module has to answer:
 
-libwnck also exposes a class-group name (``window.get_class_group_name()``).
-Conceptually, class-group is "the label used to group related windows"
-according to the window manager, and is often closer to what users expect as
-the app name. It is not guaranteed to be identical to WM_CLASS and it is not
-guaranteed to match any desktop file on disk.
+    "Which running window belongs to which dock item?"
 
-Examples of values seen in practice:
+That translation layer is WindowTracker.
 
-    WM_CLASS class      class-group          likely desktop entry
-    ----------------------------------------------------------------
-    firefox             firefox              firefox.desktop
-    Code                code                 code.desktop / org...Code.desktop
-    mongodb compass     mongodb compass      mongodb-compass.desktop
-    aws vpn client      aws vpn client       aws-vpn-client.desktop
+Why this is harder than it sounds
 
-Why this is difficult
+Desktop file names, WM_CLASS values, and window-manager class-group names are
+related but not the same naming system.
 
-Desktop file IDs are packaging artifacts (``*.desktop`` filenames). WM_CLASS
-and class-group come from running processes and toolkits. Those naming systems
-evolved independently, so exact string equality is often insufficient.
+Example:
 
-For example, one app may expose ``"mongodb compass"`` at runtime while the
-desktop file is ``mongodb-compass.desktop``. Another app may use a vendor
-prefix such as ``org.gnome.Nautilus.desktop`` even when runtime strings are
-plain ``nautilus``.
+    desktop file:   mongodb-compass.desktop
+    WM_CLASS:       "mongodb compass"
+    class-group:    "mongodb compass"
 
-Matching strategy used here
+Another application may look like:
 
-WindowTracker applies layered heuristics, from strongest to broadest:
+    desktop file:   org.gnome.Nautilus.desktop
+    WM_CLASS:       "nautilus"
+    class-group:    "Files"
 
-1. direct lookup from cached WM_CLASS/class-group to known desktop IDs,
-2. fallback to class-instance value when class-group is unhelpful,
-3. synthesize desktop ID candidates from runtime names:
-   plain, hyphenated, and no-space variants,
-4. try GNOME-prefixed naming (``org.gnome.<Name>.desktop``).
+So exact string equality is not enough. Matching has to be heuristic and
+practical rather than theoretically perfect.
 
-When a match succeeds, it is cached. Future scans can resolve the same app with
-a fast dictionary hit instead of repeated heuristic work.
+Identity sources used here
 
-Runtime data flow
+The most important runtime identity hints are:
 
-Wnck emits ``window-opened``, ``window-closed``, and
-``active-window-changed``. On each signal we rescan current windows and build
-an aggregated structure:
+- WM_CLASS instance name
+- WM_CLASS class name
+- class-group name from libwnck
 
-    {desktop_id: {
+ASCII view:
+
+    running window
+      |
+      +--> WM_CLASS instance
+      +--> WM_CLASS class
+      +--> class-group
+      |
+      +--> candidate desktop ids
+      |
+      +--> matched dock desktop_id
+
+Matching strategy
+
+The tracker applies layered matching, strongest first:
+
+1. direct cache lookup from previous successful matches
+2. class-group / WM_CLASS lookup against known dock entries
+3. synthesized desktop-id candidates from runtime names
+4. GNOME-style prefixed candidates
+
+This is deliberately heuristic because the runtime desktop is heuristic.
+
+Examples of candidate synthesis:
+
+    "mongodb compass"
+      -> mongodb compass.desktop
+      -> mongodb-compass.desktop
+      -> mongodbcompass.desktop
+
+This is enough to solve many real-world mismatches without hard-coding one app
+at a time.
+
+Aggregation model
+
+The tracker does not push individual windows into the UI layer directly.
+Instead, it builds one aggregate per matched desktop ID:
+
+    {
+      desktop_id: {
         "count": n,
         "active": bool,
         "urgent": bool,
-        "windows": [Wnck.Window...],
-        "xids": [int...],
-    }}
+        "windows": [...],
+        "xids": [...],
+      }
+    }
 
-That aggregate is then pushed into DockModel, which updates running dots,
-active highlights, urgency animation, preview sources, and click behavior.
+That aggregate is what the model actually needs. From it, the dock can derive:
 
-Why defensive exception handling is intentional
+- running indicators,
+- active-item state,
+- urgent highlights,
+- preview sources,
+- click/toggle behavior.
 
-Wnck objects are live views over X11 state. During rapid close/minimize/focus
-changes, reading one property can succeed and a subsequent property can fail
-because the window disappeared in between. This module treats those failures as
-recoverable: log, skip that unstable window read, and continue scanning. The
-goal is resilient convergence of dock state, not strict all-or-nothing updates.
+Why full rescans are acceptable
+
+Wnck emits:
+
+- window-opened
+- window-closed
+- active-window-changed
+
+On each relevant signal, this module rescans the current window list and
+rebuilds the aggregate. That is a pragmatic design:
+
+- simpler than maintaining many incremental partial updates,
+- resilient to window-manager state changing underneath us,
+- easy to reconcile back into the model.
+
+This is a convergence-oriented module, not a fragile event-delta tracker.
+
+Why defensive exception handling is required
+
+Wnck objects are live wrappers around X11 state. A window can disappear between:
+
+- getting the window list,
+- reading the window type,
+- reading WM_CLASS,
+- reading active/urgent state,
+- reading XID.
+
+So this module intentionally treats many read failures as recoverable:
+
+    log problem
+      |
+      +--> skip unstable window read
+      |
+      +--> continue rebuilding the aggregate
+
+The dock cares more about quickly converging back to correct state than about
+pretending the X11 world is stable during every scan.
 """
 
 from __future__ import annotations

@@ -1,4 +1,109 @@
-"""Window preview popup -- shows thumbnails of running windows on hover."""
+"""Window preview popup for running applications hovered in the dock.
+
+What a preview is supposed to do
+
+The preview popup is not just a tooltip with thumbnails. It is the continuation
+of the user's interaction with a running application icon.
+
+Typical user flow:
+
+    pointer hovers running app
+       |
+       +--> preview delay expires
+       |
+       +--> popup with window thumbnails appears
+       |
+       +--> user moves from dock to preview
+       |
+       +--> user activates a window from the preview
+
+That flow has one major consequence:
+
+    dock + preview behave like one temporary interaction region
+
+If the dock hid the moment the pointer left the icon, the preview would become
+unusable. This is why preview behavior is intentionally different from tooltip
+behavior.
+
+What this module owns
+
+This module owns:
+
+- preview popup creation and widget structure,
+- thumbnail capture and fallback logic,
+- delayed hide of the preview popup,
+- preview enter/leave tracking,
+- window activation from thumbnail clicks,
+- releasing autohide only when the preview truly stops being relevant.
+
+It does not own:
+
+- hover detection,
+- the decision to arm preview show,
+- dock-wide effective hover state,
+- autohide animation math.
+
+Those belong to HoverManager and the interaction/autohide layers.
+
+Why preview leave is not normal leave
+
+The important policy is:
+
+    preview visible => leaving the dock does not immediately mean hide
+
+ASCII view:
+
+    +-----------+        gap        +----------------------+
+    |   dock    |  ------------->   | preview popup        |
+    |   icon    |                   | [thumb] [thumb] ...  |
+    +-----------+                   +----------------------+
+
+The gap exists because the preview is a separate popup window. The pointer must
+physically cross that space. If the dock hid instantly on dock leave, the user
+would see a hide/show flicker or lose the target before reaching it.
+
+So the practical policy is:
+
+- leave dock while preview visible -> schedule preview hide, do not autohide yet
+- enter preview -> keep interaction alive
+- leave preview and do not return -> preview hides, then autohide may proceed
+
+That policy is one of the key behavioral differences between preview and
+tooltip.
+
+Thumbnail capture model
+
+Preview thumbnails try to show real window contents, but X11 capture is not
+perfectly reliable. Windows can disappear mid-capture, minimized windows may
+have no usable pixels, and some captures come back effectively black.
+
+So the capture pipeline is:
+
+    Wnck.Window
+      |
+      +--> capture XID pixels if possible
+      |
+      +--> detect unavailable/black captures
+      |
+      +--> fall back to generic app icon on dark background
+
+That fallback is intentional. A stable generic preview is better than a broken
+or flashing thumbnail.
+
+Why CSS and widget structure live here
+
+The preview popup is a fairly self-contained UI surface:
+
+- popup window
+- thumbnail widgets
+- labels
+- hover styling
+- click behavior
+
+Unlike the dock itself, it does not need to participate in the full draw/input
+shape model. So it is reasonable for this module to own its CSS and widget tree
+instead of pushing those concerns into the main renderer.
+"""
 
 from __future__ import annotations
 

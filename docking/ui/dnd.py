@@ -1,51 +1,140 @@
-"""Drag-and-drop controller for dock reordering and external launcher drops.
+"""Drag-and-drop controller for internal reorder and external application drops.
 
-This module handles two drag scenarios through one GTK DnD destination:
+Why drag-and-drop needs its own controller
 
-1. internal drag: reorder existing dock icons (MOVE semantics),
-2. external drag: drop a ``.desktop`` URI onto the dock (COPY semantics).
+GTK drag-and-drop is not just "pointer motion with extra data". During a drag,
+normal pointer event assumptions break:
 
-Why DnD has dedicated logic
+- regular hover enter/leave flow is not authoritative,
+- the dock can receive drag-motion without ordinary motion,
+- drag-leave can occur before drop,
+- external drags and internal drags have different semantics.
 
-GTK drag events are not the same as normal pointer motion events. During an
-active drag, ``drag-motion`` is delivered but regular enter/motion/leave flow
-is not. That means systems like autohide and hover cannot rely on their normal
-signals while dragging. DnDHandler bridges that gap explicitly.
+If the dock treated drag-over like normal pointer movement, autohide and hover
+would become inconsistent very quickly. This module exists to keep drag state,
+visual insertion state, and autohide policy coherent during those operations.
 
-In practice, this handler must keep several subsystems coherent while drag is
-in progress:
+Two drag scenarios handled here
 
-- keep dock visible during drag-over,
-- maintain external drop insertion gap,
-- perform live reorder as cursor crosses icon centers,
-- clear transient drag state on leave/end/drop.
+This module intentionally keeps both major drag paths together:
 
-Data formats accepted
+1. Internal reorder
+   Move an existing dock item to a new index.
 
-Two GTK target types are used:
+2. External drop
+   Drop a `.desktop` URI onto the dock to pin a launcher.
 
-- ``dock-item-index``: internal reorder payload from this same widget,
-- ``text/uri-list``: external URI drops from file managers.
+Those are not split into separate classes because they share:
 
-The first maps to "move an existing index." The second maps to "resolve this
-URI to a desktop file ID and pin it at insertion index."
+- GTK DnD registration,
+- cursor-to-insertion logic,
+- drag state cleanup,
+- autohide suppression while dragging,
+- redraw/insertion-gap behavior.
 
-Geometry model used for decisions
+The difference is semantic:
 
-Drag-and-drop decisions are made from the shared dock geometry frame. That
-keeps reorder and insert behavior aligned with the same item rectangles used
-by rendering, hover, and input masking instead of rebuilding ad-hoc layout
-math in the DnD path.
+    internal drag
+      payload: dock-item-index
+      action:  MOVE
 
-Operational invariant
+    external drag
+      payload: text/uri-list
+      action:  COPY
 
-Drag state is represented by mutually exclusive fields:
+Shared geometry model
 
-- internal mode: ``_drag_from`` and ``drag_index``,
-- external mode: ``drop_insert_index``.
+DnD decisions use the same geometry frame as hover, menus, and rendering.
+That matters for two reasons:
 
-Only one mode should be active at a time. Keeping this invariant makes drawing
-and drop finalization deterministic and easier to debug.
+1. Reorder thresholds should line up with what the user sees.
+2. External insertion gaps should line up with icon centers and dock spacing.
+
+The important question during drag is:
+
+    "Given the current pointer, where would an item land?"
+
+That answer comes from shared geometry, not from DnD-specific layout code.
+
+Internal reorder flow
+
+The basic reorder sequence is:
+
+    drag-begin
+      |
+      +--> determine dragged item from geometry
+      +--> store _drag_from / drag_index
+      +--> set scaled drag icon
+      +--> keep dock open during drag
+
+    drag-motion
+      |
+      +--> compute current insertion point
+      +--> if item crossed a new boundary, reorder model
+      +--> update drag_index for drawing
+
+    drag-end
+      |
+      +--> clear drag visuals/state
+      +--> reconcile autohide based on whether pointer is still on dock
+
+External drop flow
+
+External drops use a different visual model:
+
+    drag-motion
+      |
+      +--> compute drop_insert_index
+      +--> show insertion gap
+
+    drag-drop / drag-data-received
+      |
+      +--> parse URI list
+      +--> resolve launcher metadata
+      +--> pin launcher at insert index
+      +--> clear insertion gap
+      +--> keep dock open if pointer is still on dock
+
+One subtle but important rule:
+
+    drag-leave does not automatically mean "hide now"
+
+GTK can emit drag-leave before drag-drop. If the dock hid immediately there,
+dropping onto the dock would feel broken. So this module defers reconciliation
+until it knows whether the pointer truly left or a drop is about to complete.
+
+Mutually exclusive drag modes
+
+The state model is intentionally simple:
+
+- internal drag state:
+  `_drag_from`, `drag_index`
+
+- external drag state:
+  `drop_insert_index`
+
+Only one mode should be active at a time.
+
+ASCII sketch:
+
+    internal reorder:
+    [ A ][ B ][ C ][ D ]
+             ^
+             drag C left/right through item centers
+
+    external drop:
+    [ A ][ B ] |gap| [ C ][ D ]
+                ^
+                new launcher will be inserted here
+
+That separation keeps rendering and drop finalization deterministic.
+
+Autohide during drag
+
+Dragging is a temporary "keep dock alive" interaction, even if normal hover
+signals are unreliable during the operation. So this module explicitly toggles
+autohide disable/hover state around drag begin/motion/leave/end/data-received
+instead of assuming the ordinary event path will do it.
 """
 
 from __future__ import annotations

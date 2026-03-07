@@ -1,29 +1,86 @@
-"""X11 pointer barrier for pressure-based dock reveal.
+"""X11 pointer barriers used to reinforce edge interaction for the dock.
 
-Pointer barriers are invisible walls at a screen edge that prevent the
-cursor from leaving the edge region. When the cursor hits the barrier,
-XInput2 generates BARRIER_HIT events with velocity data that can be
-accumulated as "pressure" to reveal a hidden dock.
+What a pointer barrier is
 
-This is the same mechanism Plank Reloaded uses (HideManager.vala).
+A pointer barrier is an invisible line managed by X11 that resists pointer
+movement across a chosen edge. It is not a visible widget and it is not the
+dock window itself. Conceptually it is:
 
-Why barriers help:
+    "treat this edge like a wall"
 
-1. **Graphics tablets**: Tablet input may not generate normal GTK
-   enter/leave events in the thin trigger strip. A barrier catches
-   all pointer movement at the edge regardless of input device.
+for pointer motion.
 
-2. **Floating docks**: Although the dock window already extends to
-   the screen edge (trigger strip in the gap), some compositors
-   may not deliver enter events reliably at the physical pixel edge.
-   A barrier provides a second, lower-level trigger.
+Why the dock cares
 
-Requirements:
-- XFixes >= 5.0 (libXfixes) for XFixesCreatePointerBarrier
-- XInput >= 2.3 (libXi) for barrier hit/leave events
+The dock already has an input trigger strip when hidden, but edge interaction is
+not always equally reliable across devices and environments. Pointer barriers
+provide a lower-level reinforcement for edge behavior, especially when reveal is
+supposed to happen right at a monitor boundary.
 
-Both are standard on modern X11 desktops. If unavailable, the dock
-falls back to enter-event-only reveal (current behavior).
+Typical reasons barriers help:
+
+1. tablet or unusual input devices may not generate the expected dock-enter flow
+2. some compositor/edge combinations are less reliable at the physical pixel edge
+3. floating dock themes still want strong "hit the edge to reveal" behavior
+
+ASCII sketch:
+
+    screen content
+    +-----------------------------------+
+    |                                   |
+    |                                   |
+    |                                   |
+    +===================================+  <- pointer barrier line
+                                         \\
+                                          \\ hidden dock trigger lives here
+
+The barrier does not replace the dock trigger; it reinforces the edge.
+
+Why this module is platform-specific
+
+Pointer barriers are X11/XInput/XFixes concepts. They are not GTK concepts.
+That is why this functionality lives under `platform/` rather than in the UI
+modules that own hover or autohide policy.
+
+Requirements and graceful fallback
+
+Barriers require:
+
+- XFixes support for pointer barrier creation
+- sufficiently new XInput support
+
+If those pieces are unavailable, the dock should still function normally. It
+simply falls back to its regular input-region based reveal behavior.
+
+So the contract here is:
+
+    barriers available
+      -> create/update barrier along dock edge
+
+    barriers unavailable
+      -> do nothing, keep rest of dock working
+
+That graceful fallback is essential because barrier support depends on the
+actual runtime X11 stack.
+
+What this module owns
+
+This module owns:
+
+- runtime capability detection,
+- creating the current barrier,
+- destroying the current barrier,
+- translating dock edge choice into a monitor-edge line segment.
+
+It does not own:
+
+- reveal policy,
+- pointer pressure interpretation,
+- autohide state,
+- monitor selection.
+
+Those decisions are handled by placement and autohide layers. This module only
+provides the platform primitive.
 """
 
 from __future__ import annotations

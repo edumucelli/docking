@@ -1,80 +1,176 @@
-"""Main dock window and interaction hub.
+"""GTK dock window shell that binds together rendering, geometry, and policy.
 
-DockWindow is the top-level GTK window that hosts the dock drawing area and
-coordinates most UI subsystems: rendering, hover tracking, tooltip/preview
-behavior, drag-and-drop, menus, autohide, and X11 panel integration.
+What this class is
+
+`DockWindow` is the real GTK/X11 window that the user sees and interacts with.
+It is not "the dock logic" in the abstract. It is the shell that:
+
+- owns the GTK window and drawing area,
+- receives raw pointer/button/scroll/crossing events,
+- owns long-lived UI collaborators,
+- turns raw events into calls to the right subsystem.
+
+It is intentionally the composition root of the runtime UI layer.
+
+What this class is not
+
+`DockWindow` is no longer meant to directly implement every dock concern.
+That decomposition matters because this file used to become the place where
+every cross-feature fix landed. The current split is:
+
+- DockWindow
+  GTK shell and event adapter
+
+- DockPlacementController
+  monitor choice, reposition, struts, barriers, active-display polling
+
+- DockInteractionCoordinator
+  effective enter/leave, menu-open policy, preview-aware leave policy
+
+- DockGeometryBuilder
+  window state -> shared geometry frame
+
+- HoverManager / TooltipManager / PreviewPopup / DnDHandler / MenuHandler
+  focused feature owners
+
+The point of this file is to connect those pieces, not to replace them.
 
 What kind of window this is
 
-This is not a normal application window. It is created with X11 dock/panel
-hints (``WindowTypeHint.DOCK``), marked sticky and keep-above, and usually
-placed at a screen edge. In always-visible mode it also publishes struts so
-the window manager reserves screen space for it.
+This is not a normal application window. It is created as a dock/panel window:
 
-Two important geometries
+- `WindowTypeHint.DOCK`
+- sticky across workspaces
+- keep-above
+- edge-positioned
 
-DockWindow intentionally separates:
+In always-visible mode it may also publish struts so the window manager reserves
+space for it. In autohide mode it still exists at the edge, but only a thin
+trigger strip may remain interactive while hidden.
 
-1. visual window geometry
-2. interactive input geometry
+Visual window vs interactive dock
 
-The GTK window is sized to a stable edge-aligned box (often spanning the full
-main axis) to avoid resize wobble during zoom and animation. But only a subset
-of that window should intercept mouse input. Transparent areas around icons
-must pass through to the desktop/applications beneath.
+The GTK window is not the same thing as the active dock band.
 
-To achieve this, the code uses an X11 input shape region (via
-``input_shape_combine_region``). This makes the dock feel visually smooth while
-remaining non-obstructive for clicks outside the actual icon area.
+Why:
+- the window wants to stay stable and edge-aligned,
+- zooming icons should not force the whole top-level window to wobble,
+- transparent space should pass clicks through,
+- hidden autohide state should still leave a tiny trigger at the edge.
 
-Main-axis model used throughout
+Visually:
 
-Dock math is orientation-agnostic by projecting everything onto a single
-"main axis":
+    GTK window
+    +-------------------------------------------------------------+
+    |                                                             |
+    |   active dock band / cursor_rect                            |
+    |   +-----------------------------------------------+         |
+    |   | icons / shelf / hover / popup anchors         |         |
+    |   +-----------------------------------------------+         |
+    |                                                             |
+    +-------------------------------------------------------------+
 
-- top/bottom dock: main axis is X
-- left/right dock: main axis is Y
+Only the active band should intercept pointer input. The rest of the window is
+structural space used to keep animation and rendering stable.
 
-Zoom layout, hit-testing, drag insertion, and hover decisions all use this
-shared axis mapping. That keeps behavior consistent across orientations.
+That is why DockWindow owns the X11 input shape update path while geometry owns
+the actual rectangle math.
 
-How a frame is produced
+Main runtime data flow
 
-For each draw cycle:
+The most important runtime cycle is:
 
-1. compute current autohide/zoom parameters,
-2. ask renderer to draw with current cursor state and drag state,
-3. refresh input region if hide state/content bounds changed,
-4. schedule additional redraw ticks only when needed (urgent glow, animations).
+    raw GTK event
+        |
+        v
+    DockWindow updates cursor / button context
+        |
+        v
+    DockWindow asks geometry builder for current frame
+        |
+        +--> interaction policy consumes frame
+        +--> hover consumes frame
+        +--> renderer consumes frame
+        +--> input mask may be refreshed from frame
+        +--> menus / drag/drop may target items from frame
 
-This means draw is both a rendering path and a place where window-level
-interaction masks stay in sync with the current dock state.
+This "one shared frame" model is the main reason the dock now behaves more
+consistently than before the geometry refactor.
 
-Event flow responsibilities
+Draw path responsibilities
 
-DockWindow owns raw GTK pointer/button/scroll/enter/leave events and delegates
-high-level behavior:
+Draw does more than paint pixels. A draw/update cycle is also where the dock:
 
-- hover updates go through HoverManager,
-- right-click context menus go through MenuHandler,
-- drag behavior goes through DnDHandler,
-- app launch/focus goes through launcher + WindowTracker,
-- applet clicks/scrolls are delegated to applet instances.
+1. builds the current frame,
+2. gives the frame to the renderer,
+3. updates the active input region if needed,
+4. performs any post-transition reconciliation tied to autohide state,
+5. schedules another redraw only when animation or visual effects require it.
 
-Keeping this wiring in one class prevents conflicting event ownership and makes
-cross-feature behavior (for example autohide + previews + drag) predictable.
+That may sound unusual, but it is deliberate. Rendering, input shape, and
+autohide state all depend on the same live geometry and must stay aligned.
 
-Autohide-specific behavior
+Event routing responsibilities
 
-When autohide is enabled, DockWindow participates in a small state machine:
+DockWindow receives these raw categories:
 
-- visible/showing: input region covers icon content,
-- hidden: input region shrinks to a thin edge trigger strip,
-- transitions: cursor and zoom state are preserved long enough for smooth
-  animation instead of abrupt resets.
+- motion
+- enter / leave
+- button press / release
+- scroll
+- draw
 
-This is why some cursor resets and input-shape updates are intentionally tied
-to draw/autohide state rather than immediate enter/leave events.
+And routes them approximately like this:
+
+    motion
+      |
+      +--> geometry.build_frame(...)
+      +--> interaction enter/leave reconciliation
+      +--> hover.update(...)
+      +--> redraw if visuals changed
+
+    button press/release
+      |
+      +--> geometry target lookup
+      +--> launcher / item action / applet action / menu
+
+    scroll
+      |
+      +--> applet scroll or dock-level behavior
+
+    draw
+      |
+      +--> renderer.draw(frame)
+      +--> update_input_region(frame)
+
+This file should stay focused on that routing. If a new block of logic starts
+describing placement policy, hover policy, or menu policy in detail, it likely
+belongs elsewhere.
+
+Autohide and cursor preservation
+
+DockWindow participates in autohide, but it does not own the autohide state
+machine. Its job is to supply the controller with correct higher-level facts:
+
+- pointer effectively entered,
+- pointer effectively left,
+- a menu or drag temporarily disables hiding,
+- draw/update must reflect the current hide offset.
+
+The dock also intentionally preserves cursor/hover identity across some leave
+transitions so that icons do not snap before the hide animation carries them
+away. That policy is coordinated with `DockInteractionCoordinator`.
+
+Why raw leave events are not enough
+
+The GTK window boundary is not the same as the dock boundary. So a raw leave is
+only a candidate signal. The dock must ask:
+
+    "Did the pointer really leave the current input region?"
+
+That question is answered with the shared geometry frame, not with the widget
+size alone. This is one of the main architectural lessons encoded in the
+current codebase.
 """
 
 from __future__ import annotations
