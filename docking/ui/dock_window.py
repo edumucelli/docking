@@ -86,16 +86,14 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GdkX11, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from docking.applets.base import is_applet
 from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.core.position import Position, is_horizontal
+from docking.core.position import is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.barriers import PointerBarrier
 from docking.platform.launcher import launch, open_target
-from docking.platform.struts import clear_struts, set_dock_struts
 from docking.ui import geometry
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
@@ -103,9 +101,10 @@ from docking.ui.geometry import (
     build_geometry_frame_from_inputs,
     capture_geometry_inputs,
     current_input_rect,
-    point_inside_input_rect,
 )
 from docking.ui.hover import HoverManager
+from docking.ui.interaction import DockInteractionCoordinator
+from docking.ui.placement import DockPlacementController
 from docking.ui.tooltip import TooltipManager
 
 _log = get_logger(name="dock_window")
@@ -135,15 +134,6 @@ CLICK_DRAG_THRESHOLD = 10
 
 # Thin input region at screen edge when dock is hidden, allowing the
 # mouse to re-enter and trigger the show animation.
-def should_keep_cursor_on_leave(autohide_enabled: bool, preview_visible: bool) -> bool:
-    """Whether to preserve cursor position when mouse leaves the dock.
-
-    True when autohide is active (smooth zoom decay during hide animation)
-    or preview popup is visible (mouse moved into preview, zoom should hold).
-    """
-    return autohide_enabled or preview_visible
-
-
 # X11 mouse button codes
 MOUSE_LEFT = 1
 MOUSE_MIDDLE = 2
@@ -179,11 +169,11 @@ class DockWindow(Gtk.Window):
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController | None = None
-        self._dnd: DnDHandler | None = None
+        self.dnd: DnDHandler | None = None
         self._menu: MenuHandler | None = None
         self._menu_popup_visible: bool = False
-        self._preview: PreviewPopup | None = None
-        self._tooltip = TooltipManager(self, config, model, theme)
+        self.preview: PreviewPopup | None = None
+        self.tooltip = TooltipManager(self, config, model, theme)
 
         def geometry_frame_provider(
             _window: DockWindow,
@@ -208,15 +198,12 @@ class DockWindow(Gtk.Window):
             config,
             model,
             theme,
-            self._tooltip,
+            self.tooltip,
             geometry_frame_provider=geometry_frame_provider,
         )
 
-        self._active_display_timer: int = 0
-        self._active_monitor: Gdk.Monitor | None = None
-        self._barrier = PointerBarrier()
-        self._screen_signal_handlers: list[tuple[object, int]] = []
-        self._geometry_refresh_source: int = 0
+        self.placement = DockPlacementController(self)
+        self.interaction = DockInteractionCoordinator(self)
         self._current_geometry_frame: DockGeometryFrame | None = None
         self._applied_input_frame: DockGeometryFrame | None = None
         self.dock_hovered: bool = False
@@ -247,11 +234,11 @@ class DockWindow(Gtk.Window):
         visual = screen.get_rgba_visual() or screen.get_system_visual()
         self.set_visual(visual)
 
-        DockWindow._attach_screen_signals(self, screen)
-        self.connect("realize", self._on_realize)
-        self.connect("screen-changed", self._on_screen_changed)
-        self.connect("notify::scale-factor", self._on_scale_factor_changed)
-        self.connect("destroy", self._on_destroy)
+        self.placement.attach_screen_signals(screen)
+        self.connect("realize", self.placement.on_realize)
+        self.connect("screen-changed", self.placement.on_screen_changed)
+        self.connect("notify::scale-factor", self.placement.on_scale_factor_changed)
+        self.connect("destroy", self.placement.on_destroy)
         self.connect("destroy", Gtk.main_quit)
 
     def _setup_drawing_area(self) -> None:
@@ -297,412 +284,37 @@ class DockWindow(Gtk.Window):
         self.autohide = controller
 
     def set_dnd_handler(self, handler: DnDHandler) -> None:
-        self._dnd = handler
+        self.dnd = handler
 
     def set_menu_handler(self, handler: MenuHandler) -> None:
         self._menu = handler
 
     def on_menu_popup_opened(self) -> None:
         """Track that a dock context menu popup is currently active."""
-        self._menu_popup_visible = True
-        if self.autohide and self.autohide.enabled:
-            self.autohide.set_disabled(True, reason="menu-open")
+        self.interaction.menu_popup_opened()
 
     def on_menu_popup_closed(self) -> None:
         """Reconcile autohide state when the context menu closes."""
-        if not self._menu_popup_visible:
-            return
-        self._menu_popup_visible = False
-
-        if not self.autohide or not self.autohide.enabled:
-            return
-        pointer_inside = self._pointer_inside_input_rect()
-        if pointer_inside:
-            self.autohide.set_hovered(True)
-            self.autohide.set_disabled(False, reason="menu-close-pointer-inside")
-            return
-
-        self._hover.hovered_item = None
-        self._hover.cancel()
-        self._tooltip.hide()
-
-        # Preview/autohide policy in simple terms:
-        #
-        # - preview visible => dock stays visible
-        # - preview hidden => dock may autohide
-        # - leaving dock should schedule preview hide when preview is visible
-        # - autohide should trigger when the preview actually finishes hiding,
-        #   not at the first dock leave
-        #
-        # The preview is meant to be reachable, so once it is visible we treat
-        # the dock and preview as one temporary hover region. Leaving the dock
-        # does not mean the interaction is over yet; the user may be moving
-        # into the preview. Because of that, dock leave only arms the preview's
-        # grace timer here. If the user never reaches the preview, the preview
-        # will hide shortly after and only then will autohide be released.
-        preview_visible = bool(self._preview and self._preview.get_visible())
-        if self._preview and preview_visible:
-            self._preview.schedule_hide()
-
-        self._update_dock_size()
-        self.drawing_area.queue_draw()
-        self.autohide.set_hovered(False)
-        self.autohide.set_disabled(False, reason="menu-close-pointer-outside")
-        if not preview_visible:
-            self.autohide.on_mouse_leave()
+        self.interaction.menu_popup_closed()
 
     def _pointer_inside_input_rect(self) -> bool:
         """Return True when pointer is inside current dock input region."""
-        frame = self._current_geometry_frame or self._applied_input_frame
-        input_rect = current_input_rect(frame)
-        if input_rect is None or not self.get_realized():
-            return False
-        display = self.get_display()
-        if not display:
-            return False
-        seat = display.get_default_seat()
-        if not seat:
-            return False
-        pointer = seat.get_pointer()
-        if not pointer:
-            return False
-        try:
-            _, screen_x, screen_y = pointer.get_position()
-            win_x, win_y = self.get_position()
-        except Exception:
-            return False
-
-        local_x = screen_x - win_x
-        local_y = screen_y - win_y
-        return point_inside_input_rect(frame, x=local_x, y=local_y)
+        return self.interaction.pointer_inside_input_rect()
 
     def _on_effective_enter(self) -> None:
-        if self.dock_hovered:
-            return
-        self.dock_hovered = True
-        if self.autohide:
-            self.autohide.on_mouse_enter()
+        self.interaction.on_effective_enter()
 
     def _on_effective_leave(self, widget: Gtk.DrawingArea) -> None:
-        preview_visible = bool(self._preview and self._preview.get_visible())
-        if self._preview and preview_visible:
-            self._preview.schedule_hide()
-
-        autohide_on = bool(self.autohide and self.autohide.enabled)
-        hovered_before = (
-            self._hover.hovered_item.desktop_id if self._hover.hovered_item else "-"
-        )
-        keep_cursor = should_keep_cursor_on_leave(
-            autohide_enabled=autohide_on, preview_visible=bool(preview_visible)
-        )
-        self.dock_hovered = False
-        if not keep_cursor:
-            self._hover.hovered_item = None
-            self.cursor_x = -1.0
-            self.cursor_y = -1.0
-
-        _log.debug(
-            (
-                "leave-policy: hovered_before=%s keep_cursor=%s "
-                "preview_visible=%s autohide=%s hovered_after=%s "
-                "cursor=(%.0f,%.0f)"
-            ),
-            hovered_before,
-            keep_cursor,
-            preview_visible,
-            autohide_on,
-            self._hover.hovered_item.desktop_id if self._hover.hovered_item else "-",
-            self.cursor_x,
-            self.cursor_y,
-        )
-
-        self._hover.cancel()
-        self._tooltip.hide()
-        self._update_dock_size()
-        widget.queue_draw()
-        if autohide_on and self.autohide and not preview_visible:
-            self.autohide.on_mouse_leave()
+        self.interaction.on_effective_leave(widget)
 
     def set_preview_popup(self, preview: PreviewPopup) -> None:
-        self._preview = preview
-        self._preview.set_dock_window(self)
+        self.preview = preview
+        self.preview.set_dock_window(self)
         self._hover.set_preview(preview)
 
     def is_pointer_inside_dock(self) -> bool:
         """Return True when the current pointer is inside the dock input area."""
-        return self._pointer_inside_input_rect()
-
-    def current_monitor_choice(self) -> int:
-        """Current monitor menu selection (-1=primary, >=0 specific monitor)."""
-        display = self.get_display()
-        if not display:
-            return -1
-        n_monitors = display.get_n_monitors()
-        if n_monitors <= 0:
-            return -1
-        selected = int(self.config.monitor_index)
-        if selected == -1:
-            return self.primary_monitor_index()
-        if selected < 0 or selected >= n_monitors:
-            return self.primary_monitor_index()
-        return selected
-
-    def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
-        """Monitor choices for menu display. Empty when only one monitor."""
-        display = self.get_display()
-        if not display:
-            return []
-        n_monitors = display.get_n_monitors()
-        if n_monitors <= 1:
-            return []
-
-        primary = display.get_primary_monitor() or display.get_monitor(0)
-        primary_idx = 0
-        for idx in range(n_monitors):
-            if display.get_monitor(idx) is primary:
-                primary_idx = idx
-                break
-
-        choices: list[tuple[str, int]] = []
-        for idx in range(n_monitors):
-            monitor = display.get_monitor(idx)
-            if monitor is None:
-                continue
-            geom = monitor.get_geometry()
-            label = _("Display {display}: {width}x{height}").format(
-                display=idx + 1,
-                width=geom.width,
-                height=geom.height,
-            )
-            if idx == primary_idx:
-                label += f" ({_('Primary')})"
-            choices.append((label, idx))
-        return choices
-
-    def primary_monitor_index(self) -> int:
-        """Index of primary monitor, or zero as a stable fallback."""
-        display = self.get_display()
-        if not display:
-            return 0
-        n_monitors = display.get_n_monitors()
-        if n_monitors <= 0:
-            return 0
-        primary = display.get_primary_monitor() or display.get_monitor(0)
-        for idx in range(n_monitors):
-            if display.get_monitor(idx) is primary:
-                return idx
-        return 0
-
-    def _resolve_target_monitor(self, display: Gdk.Display) -> Gdk.Monitor | None:
-        """Resolve configured monitor, falling back to primary monitor."""
-        if self.config.active_display and self._active_monitor is not None:
-            return self._active_monitor
-
-        get_n = getattr(display, "get_n_monitors", None)
-        if not callable(get_n):
-            return display.get_primary_monitor() or display.get_monitor(0)
-
-        n_monitors = get_n()
-        if n_monitors <= 0:
-            return None
-
-        selected = int(self.config.monitor_index)
-        if 0 <= selected < n_monitors:
-            monitor = display.get_monitor(selected)
-            if monitor is not None:
-                return monitor
-
-        return display.get_primary_monitor() or display.get_monitor(0)
-
-    def _on_realize(self, _widget: Gtk.Widget) -> None:
-        """Position dock and set struts after window is realized."""
-        DockWindow._attach_screen_signals(self, self.get_screen())
-        display = self.get_display()
-        if display and isinstance(display, GdkX11.X11Display):
-            self._barrier.initialize(gdk_display=display)
-        self._position_dock()
-        self._set_struts()
-        self._update_input_region()
-        if self.config.active_display:
-            self.start_active_display()
-
-    def _attach_screen_signals(self, screen: Gdk.Screen | None) -> None:
-        DockWindow._disconnect_screen_signals(self)
-        if screen is None:
-            return
-        connect = getattr(screen, "connect", None)
-        if not callable(connect):
-            return
-        self._screen_signal_handlers = [
-            (screen, connect("monitors-changed", self._on_screen_metrics_changed)),
-            (screen, connect("size-changed", self._on_screen_metrics_changed)),
-        ]
-
-    def _disconnect_screen_signals(self) -> None:
-        for obj, handler_id in self._screen_signal_handlers:
-            disconnect = getattr(obj, "disconnect", None)
-            if callable(disconnect):
-                disconnect(handler_id)
-        self._screen_signal_handlers = []
-
-    def _on_screen_changed(
-        self, _widget: Gtk.Widget, _previous_screen: Gdk.Screen | None
-    ) -> None:
-        DockWindow._attach_screen_signals(self, self.get_screen())
-        DockWindow._schedule_reposition(self)
-
-    def _on_screen_metrics_changed(self, *_args: object) -> None:
-        DockWindow._schedule_reposition(self)
-
-    def _on_scale_factor_changed(self, *_args: object) -> None:
-        DockWindow._schedule_reposition(self)
-
-    def _schedule_reposition(self) -> None:
-        if not self.get_realized():
-            return
-        if self._geometry_refresh_source:
-            return
-        self._geometry_refresh_source = GLib.idle_add(
-            DockWindow._apply_scheduled_reposition, self
-        )
-
-    def _apply_scheduled_reposition(self) -> bool:
-        self._geometry_refresh_source = 0
-        self.reposition()
-        return False
-
-    def _on_destroy(self, _widget: Gtk.Widget) -> None:
-        refresh_source = self._geometry_refresh_source
-        if refresh_source:
-            GLib.source_remove(refresh_source)
-            self._geometry_refresh_source = 0
-        DockWindow._disconnect_screen_signals(self)
-
-    def _position_dock(self) -> None:
-        """Position the dock window at the configured screen edge.
-
-        The window spans the full monitor extent along its main axis
-        (width for horizontal, height for vertical) to prevent resize
-        wobble during zoom. The cross-axis dimension accommodates the
-        max zoomed icon size plus padding and bounce headroom.
-        """
-        display = self.get_display()
-        monitor = DockWindow._resolve_target_monitor(self, display=display)
-        if monitor is None:
-            return
-        geom = monitor.get_geometry()
-        # Work area excludes other panels (e.g. MATE panel) so we don't
-        # overlap them. Use full monitor geometry only for the edge where
-        # we place the dock (we are a panel), work area for the other axis.
-        workarea = monitor.get_workarea()
-
-        icon_size = self.config.icon_size
-        zoom = self.config.zoom_percent if self.config.zoom_enabled else 1.0
-        bounce_headroom = int(icon_size * self.theme.urgent_bounce_height)
-        cross = int(
-            icon_size * zoom
-            + self.theme.top_padding
-            + self.theme.bottom_padding
-            + bounce_headroom
-        )
-        pos = self.config.pos
-        gap = max(0, int(self.theme.distance_from_edge))
-        # Window includes the gap in its cross-axis size so it still
-        # touches the screen edge. This lets the autohide trigger strip
-        # catch the mouse at the physical edge. The renderer draws dock
-        # content offset by the gap, keeping the visual floating effect.
-        if is_horizontal(pos=pos):
-            win_w, win_h = geom.width, cross + gap
-            if pos == Position.BOTTOM:
-                win_x = geom.x
-                win_y = geom.y + geom.height - win_h
-            else:  # TOP
-                win_x = geom.x
-                win_y = workarea.y
-        else:
-            win_w, win_h = cross + gap, workarea.height
-            if pos == Position.LEFT:
-                win_x = geom.x
-                win_y = workarea.y
-            else:  # RIGHT
-                win_x = geom.x + geom.width - win_w
-                win_y = workarea.y
-
-        _log.debug(
-            "dock position: win=(%d,%d) size=%dx%d cross=%d bounce_headroom=%d",
-            win_x,
-            win_y,
-            win_w,
-            win_h,
-            cross,
-            bounce_headroom,
-        )
-        self.set_size_request(win_w, win_h)
-        self.resize(win_w, win_h)
-        self.move(win_x, win_y)
-
-        self._update_barrier()
-
-    def _set_struts(self) -> None:
-        """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
-        if self.config.autohide:
-            self._clear_struts()
-            return
-
-        gdk_window = self.get_window()
-        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
-            return
-
-        display = self.get_display()
-        monitor = DockWindow._resolve_target_monitor(self, display=display)
-        if monitor is None:
-            return
-        geom = monitor.get_geometry()
-        screen = self.get_screen()
-
-        # Reserve space for the full icon height + bottom padding so
-        # windows sit above the icons, not just above the shelf.
-        # compute_dock_size returns shelf-based height (with negative
-        # top_padding), but struts need the visible icon extent.
-        icon_size = self.config.icon_size
-        gap = max(0, int(self.theme.distance_from_edge))
-        strut_height = int(icon_size + self.theme.bottom_padding + gap)
-
-        set_dock_struts(
-            gdk_window=gdk_window,
-            dock_height=strut_height,
-            monitor_geom=geom,
-            screen=screen,
-            position=self.config.pos,
-        )
-
-    def _update_barrier(self) -> None:
-        """Create or destroy the pointer barrier based on autohide state."""
-        if not self._barrier.supported:
-            return
-        if not self.config.autohide:
-            self._barrier.destroy()
-            return
-        display = self.get_display()
-        monitor = DockWindow._resolve_target_monitor(self, display=display)
-        if monitor is None:
-            self._barrier.destroy()
-            return
-        geom = monitor.get_geometry()
-        self._barrier.update(
-            position=self.config.pos,
-            monitor_x=geom.x,
-            monitor_y=geom.y,
-            monitor_w=geom.width,
-            monitor_h=geom.height,
-        )
-
-    def _clear_struts(self) -> None:
-        """Remove strut reservation by setting all struts to zero."""
-        gdk_window = self.get_window()
-        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
-            return
-        clear_struts(gdk_window=gdk_window)
+        return self.interaction.is_pointer_inside_dock()
 
     def update_struts(self) -> None:
         """Public method to refresh struts and barrier after autohide toggle.
@@ -712,8 +324,7 @@ class DockWindow(Gtk.Window):
         reservation so the window manager resizes application windows,
         and creates/destroys the pointer barrier accordingly.
         """
-        self._set_struts()
-        self._update_barrier()
+        self.placement.update_struts()
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """GTK draw signal handler -- orchestrates each frame.
@@ -737,8 +348,8 @@ class DockWindow(Gtk.Window):
             zoom_progress = self.autohide.zoom_progress
         else:
             zoom_progress = 1.0
-        drag_index = self._dnd.drag_index if self._dnd else -1
-        drop_insert = self._dnd.drop_insert_index if self._dnd else -1
+        drag_index = self.dnd.drag_index if self.dnd else -1
+        drop_insert = self.dnd.drop_insert_index if self.dnd else -1
         hovered_id = (
             self._hover.hovered_item.desktop_id
             if self._hover and self._hover.hovered_item
@@ -776,7 +387,7 @@ class DockWindow(Gtk.Window):
             hovered_id,
         )
         # Update input region as hide state changes (shrink when hidden)
-        self._update_input_region(frame=frame)
+        self.update_input_region(frame=frame)
 
         # Reset cursor/hover after hide completes
         if self.autohide and self.autohide.state == HideState.HIDDEN:
@@ -784,7 +395,7 @@ class DockWindow(Gtk.Window):
             self.cursor_y = -1.0
             self._hover.hovered_item = None
             self.dock_hovered = False
-            self._tooltip.hide()
+            self.tooltip.hide()
         elif (
             self._last_autohide_state == HideState.SHOWING
             and current_autohide_state == HideState.VISIBLE
@@ -811,7 +422,7 @@ class DockWindow(Gtk.Window):
         self.cursor_y = event.y
         frame = build_geometry_frame_from_inputs(capture_geometry_inputs(self))
         self._current_geometry_frame = frame
-        self._update_dock_size(frame=frame)
+        self.update_dock_size(frame=frame)
         widget.queue_draw()
         if frame.cursor_rect.contains(event.x, event.y):
             self._on_effective_enter()
@@ -889,7 +500,7 @@ class DockWindow(Gtk.Window):
                     applet.on_clicked()
                     # Refresh tooltip immediately so applet name/tooltip
                     # changes are visible without waiting for pointer motion.
-                    self._tooltip.update(item, frame)
+                    self.tooltip.update(item, frame)
                 self._hover.start_anim_pump(350)
                 return True
 
@@ -936,7 +547,7 @@ class DockWindow(Gtk.Window):
                 direction_up = event.direction == Gdk.ScrollDirection.UP
                 applet.on_scroll(direction_up)
                 # Refresh tooltip immediately (item.name may have changed)
-                self._tooltip.update(item, frame)
+                self.tooltip.update(item, frame)
                 return True
         return False
 
@@ -965,7 +576,7 @@ class DockWindow(Gtk.Window):
         frame = self._current_geometry_frame or self._applied_input_frame
         input_rect = current_input_rect(frame)
         if input_rect is not None:
-            if input_rect.contains(event.x, event.y):
+            if self.interaction.point_inside_event_frame(x=event.x, y=event.y):
                 return False
 
         if not self.dock_hovered:
@@ -1024,7 +635,7 @@ class DockWindow(Gtk.Window):
 
     def _on_model_changed(self) -> None:
         """Reposition and redraw when the model changes."""
-        self._update_dock_size()
+        self.update_dock_size()
         self._hover.on_model_changed()
         # Refresh hover/tooltip state even without mouse motion so applets
         # that update item.name asynchronously (e.g. workspace switcher)
@@ -1033,15 +644,15 @@ class DockWindow(Gtk.Window):
             self._hover.update(self._main_axis_cursor())
         self.drawing_area.queue_draw()
 
-    def _update_dock_size(self, frame: DockGeometryFrame | None = None) -> None:
+    def update_dock_size(self, frame: DockGeometryFrame | None = None) -> None:
         """Refresh the input region after model or cursor changes.
 
         The window itself doesn't resize (it spans the full monitor),
         but the clickable input region needs to track the content bounds.
         """
-        self._update_input_region(frame=frame)
+        self.update_input_region(frame=frame)
 
-    def _update_input_region(self, frame: DockGeometryFrame | None = None) -> None:
+    def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:
         """Define which part of the window responds to mouse events.
 
         GTK windows receive ALL mouse events (clicks, hover, scroll) within
@@ -1103,45 +714,6 @@ class DockWindow(Gtk.Window):
         if is_horizontal(pos=self.config.pos):
             return self.cursor_x
         return self.cursor_y
-
-    def start_active_display(self) -> None:
-        """Start polling cursor position for active display tracking."""
-        if self._active_display_timer:
-            return
-        self._active_display_timer = GLib.timeout_add_seconds(
-            2, self._poll_active_display
-        )
-
-    def stop_active_display(self) -> None:
-        """Stop active display polling."""
-        if self._active_display_timer:
-            GLib.source_remove(self._active_display_timer)
-            self._active_display_timer = 0
-
-    def _poll_active_display(self) -> bool:
-        """Poll cursor position and move dock to the monitor under cursor."""
-        display = self.get_display()
-        if not display:
-            return True
-        seat = display.get_default_seat()
-        if not seat:
-            return True
-        pointer = seat.get_pointer()
-        if not pointer:
-            return True
-        _, x, y = pointer.get_position()
-        monitor = display.get_monitor_at_point(x, y)
-        if monitor is not None and monitor != self._active_monitor:
-            self._active_monitor = monitor
-            self.reposition()
-        return True
-
-    def reposition(self) -> None:
-        """Re-layout after position change -- reposition window, struts, input."""
-        self._position_dock()
-        self._set_struts()
-        self._update_input_region()
-        self.drawing_area.queue_draw()
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""

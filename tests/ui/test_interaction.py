@@ -1,0 +1,206 @@
+"""Tests for DockInteractionCoordinator policy behavior."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+from docking.core.position import Position
+from docking.platform.model import DockItem
+from docking.ui.geometry import Rect
+from docking.ui.interaction import DockInteractionCoordinator
+
+
+def _make_window(item: DockItem | None = None):
+    item = item or DockItem(desktop_id="firefox.desktop")
+    frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
+    window = SimpleNamespace(
+        config=SimpleNamespace(pos=Position.BOTTOM),
+        model=MagicMock(),
+        theme=SimpleNamespace(item_padding=8, h_padding=10, urgent_glow_time_ms=500),
+        _menu=MagicMock(),
+        tooltip=MagicMock(),
+        _hover=MagicMock(),
+        preview=None,
+        _menu_popup_visible=False,
+        autohide=None,
+        cursor_x=12.0,
+        cursor_y=6.0,
+        update_dock_size=MagicMock(),
+        drawing_area=MagicMock(),
+        _current_geometry_frame=frame,
+        _applied_input_frame=frame,
+        dock_hovered=True,
+        get_realized=MagicMock(return_value=True),
+        get_display=MagicMock(return_value=None),
+        get_position=MagicMock(return_value=(0, 0)),
+    )
+    window._hover.hovered_item = item
+    window._hover.cancel = MagicMock()
+    return window, item
+
+
+class TestEffectiveLeavePolicy:
+    def test_leave_clears_hover_and_resets_cursor_without_preview_or_autohide(self):
+        window, _item = _make_window()
+        widget = MagicMock()
+        window._current_geometry_frame = None
+        window._applied_input_frame = None
+        window.preview = MagicMock()
+        window.preview.get_visible.return_value = False
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.on_effective_leave(widget)
+
+        assert window._hover.hovered_item is None
+        window._hover.cancel.assert_called_once()
+        window.tooltip.hide.assert_called_once()
+        window.preview.schedule_hide.assert_not_called()
+        assert window.cursor_x == -1.0
+        assert window.cursor_y == -1.0
+        window.update_dock_size.assert_called_once()
+        widget.queue_draw.assert_called_once()
+
+    def test_leave_with_visible_preview_defers_autohide_until_preview_hides(self):
+        window, _item = _make_window()
+        widget = MagicMock()
+        window._current_geometry_frame = None
+        window._applied_input_frame = None
+        window.preview = MagicMock()
+        window.preview.get_visible.return_value = True
+        window.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.on_effective_leave(widget)
+
+        window.preview.schedule_hide.assert_called_once()
+        window.autohide.on_mouse_leave.assert_not_called()
+        assert window._hover.hovered_item is not None
+        assert window.cursor_x == 12.0
+        assert window.cursor_y == 6.0
+
+    def test_leave_with_autohide_keeps_hover_identity_until_hidden(self):
+        window, item = _make_window()
+        widget = MagicMock()
+        window._current_geometry_frame = None
+        window._applied_input_frame = None
+        window.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.on_effective_leave(widget)
+
+        assert window._hover.hovered_item is item
+        assert window.cursor_x == 12.0
+        assert window.cursor_y == 6.0
+        window.autohide.on_mouse_leave.assert_called_once()
+
+    def test_effective_enter_notifies_autohide(self):
+        window, _item = _make_window()
+        window.autohide = MagicMock()
+        window.dock_hovered = False
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.on_effective_enter()
+
+        assert window.dock_hovered is True
+        window.autohide.on_mouse_enter.assert_called_once()
+
+
+class TestMenuPopupPolicy:
+    def test_menu_close_triggers_autohide_when_pointer_outside(self):
+        window, _item = _make_window()
+        window._menu_popup_visible = True
+        window.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
+        window.preview = MagicMock()
+        window.preview.get_visible.return_value = False
+        coordinator = DockInteractionCoordinator(window)
+        coordinator.pointer_inside_input_rect = MagicMock(return_value=False)
+
+        coordinator.menu_popup_closed()
+
+        assert window._menu_popup_visible is False
+        window._hover.cancel.assert_called_once()
+        window.tooltip.hide.assert_called_once()
+        window.preview.schedule_hide.assert_not_called()
+        window.update_dock_size.assert_called_once()
+        window.drawing_area.queue_draw.assert_called_once()
+        window.autohide.set_hovered.assert_called_once_with(False)
+        window.autohide.set_disabled.assert_called_once_with(
+            False, reason="menu-close-pointer-outside"
+        )
+        window.autohide.on_mouse_leave.assert_called_once()
+
+    def test_menu_close_with_visible_preview_defers_autohide(self):
+        window, _item = _make_window()
+        window._menu_popup_visible = True
+        window.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
+        window.preview = MagicMock()
+        window.preview.get_visible.return_value = True
+        coordinator = DockInteractionCoordinator(window)
+        coordinator.pointer_inside_input_rect = MagicMock(return_value=False)
+
+        coordinator.menu_popup_closed()
+
+        assert window._menu_popup_visible is False
+        window.preview.schedule_hide.assert_called_once()
+        window.autohide.set_hovered.assert_called_once_with(False)
+        window.autohide.set_disabled.assert_called_once_with(
+            False, reason="menu-close-pointer-outside"
+        )
+        window.autohide.on_mouse_leave.assert_not_called()
+
+    def test_menu_close_does_not_hide_when_pointer_is_back_on_dock(self):
+        window, _item = _make_window()
+        window._menu_popup_visible = True
+        window.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
+        coordinator = DockInteractionCoordinator(window)
+        coordinator.pointer_inside_input_rect = MagicMock(return_value=True)
+
+        coordinator.menu_popup_closed()
+
+        assert window._menu_popup_visible is False
+        window.autohide.set_hovered.assert_called_once_with(True)
+        window.autohide.set_disabled.assert_called_once_with(
+            False, reason="menu-close-pointer-inside"
+        )
+        window.autohide.on_mouse_leave.assert_not_called()
+        window._hover.cancel.assert_not_called()
+
+    def test_menu_close_is_noop_when_no_popup_is_tracked(self):
+        window, _item = _make_window()
+        window.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.menu_popup_closed()
+
+        window.autohide.on_mouse_leave.assert_not_called()

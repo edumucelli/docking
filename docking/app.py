@@ -43,6 +43,7 @@ from docking.ui.geometry import (
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import PreviewPopup
 from docking.ui.renderer import DockRenderer
+from docking.ui.runtime import DockRuntime
 
 
 def main() -> None:
@@ -79,6 +80,7 @@ def main() -> None:
 
     autohide = AutoHideController(window, config)
     window.set_autohide_controller(autohide)
+    runtime = DockRuntime(window)
 
     dnd = DnDHandler(
         window,
@@ -92,10 +94,11 @@ def main() -> None:
     window.set_dnd_handler(dnd)
 
     menu = MenuHandler(
-        window,
-        model,
-        config,
-        tracker,
+        parent_window=window,
+        runtime=runtime,
+        model=model,
+        config=config,
+        tracker=tracker,
         geometry_frame_provider=geometry_frame_provider,
         launcher=launcher,
     )

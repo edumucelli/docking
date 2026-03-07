@@ -464,16 +464,12 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
-    window = MagicMock()
-    window.theme = MagicMock(item_padding=8, h_padding=12)
-    window.autohide = MagicMock()
-    window._dnd = MagicMock()
-    window.drawing_area = MagicMock()
-    window.get_monitor_menu_choices.return_value = []
-    window.current_monitor_choice.return_value = -1
-    window.primary_monitor_index.return_value = 0
-    window.cursor_x = 20.0
-    window.cursor_y = 8.0
+    parent_window = MagicMock()
+    runtime = MagicMock()
+    runtime.get_monitor_menu_choices.return_value = []
+    runtime.current_monitor_choice.return_value = -1
+    runtime.primary_monitor_index.return_value = 0
+    runtime.cursor_position.return_value = (20.0, 8.0)
     frame = _frame()
 
     model = MagicMock()
@@ -499,7 +495,8 @@ def handler(monkeypatch):
     tracker.get_windows_for.return_value = []
     tracker.get_window_title_for_xid.side_effect = lambda xid: f"Window {xid}"
     return menu_mod.MenuHandler(
-        window=window,
+        parent_window=parent_window,
+        runtime=runtime,
         model=model,
         config=config,
         tracker=tracker,
@@ -747,8 +744,6 @@ class TestItemMenus:
         self, handler, monkeypatch
     ):
         menu = FakeMenu()
-        handler._window._tooltip = MagicMock()
-        handler._window._preview = MagicMock()
         item = DockItem(
             desktop_id="firefox.desktop",
             is_running=True,
@@ -778,8 +773,7 @@ class TestItemMenus:
         assert row.emit("button-press-event", close_event) is True
         assert row.emit("button-release-event", close_event) is True
         handler._tracker.close_xid.assert_called_once_with(7)
-        handler._window._tooltip.hide.assert_called_once()
-        handler._window._preview.hide.assert_called_once()
+        handler._runtime.hide_hover_ui.assert_called_once()
         assert row.hidden is True
         assert row.destroyed is True
         assert row not in menu.children
@@ -895,18 +889,18 @@ class TestDockMenu:
         assert captured_menu is not None
         assert captured_menu.shown is True
         assert captured_menu.popup_event is event
-        handler._window.on_menu_popup_opened.assert_called_once()
+        handler._runtime.menu_popup_opened.assert_called_once()
         captured_menu.emit("deactivate")
-        handler._window.on_menu_popup_closed.assert_called_once()
+        handler._runtime.menu_popup_closed.assert_called_once()
 
     def test_build_dock_menu_shows_display_submenu_for_multiple_monitors(self, handler):
         # Given
         menu = FakeMenu()
-        handler._window.get_monitor_menu_choices.return_value = [
+        handler._runtime.get_monitor_menu_choices.return_value = [
             ("Display 1: 1920x1080 (Primary)", 0),
             ("Display 2: 2560x1440", 1),
         ]
-        handler._window.current_monitor_choice.return_value = 0
+        handler._runtime.current_monitor_choice.return_value = 0
 
         # When
         handler._build_dock_menu(menu=menu, insert_index=0)
@@ -926,11 +920,11 @@ class TestDockMenu:
         # Given
         menu = FakeMenu()
         handler._config.active_display = True
-        handler._window.get_monitor_menu_choices.return_value = [
+        handler._runtime.get_monitor_menu_choices.return_value = [
             ("Display 1: 1920x1080 (Primary)", 0),
             ("Display 2: 2560x1440", 1),
         ]
-        handler._window.current_monitor_choice.return_value = 0
+        handler._runtime.current_monitor_choice.return_value = 0
 
         # When
         handler._build_dock_menu(menu=menu, insert_index=0)
@@ -973,8 +967,8 @@ class TestMenuCallbacks:
         # Then
         assert handler._config.autohide is False
         handler._config.save.assert_called_once()
-        handler._window.autohide.reset.assert_called_once()
-        handler._window.update_struts.assert_called_once()
+        handler._runtime.reset_autohide.assert_called_once()
+        handler._runtime.update_struts.assert_called_once()
 
     def test_theme_position_and_size_callbacks(self, handler, monkeypatch):
         # Given
@@ -986,15 +980,15 @@ class TestMenuCallbacks:
         handler._on_theme_changed(widget, "solar")
         # Then
         assert handler._config.theme == "solar"
-        assert handler._window.theme is new_theme
-        handler._window.reposition.assert_called_once()
-        handler._window.drawing_area.queue_draw.assert_called()
+        handler._runtime.set_theme.assert_called_once_with(new_theme)
+        handler._runtime.reposition.assert_called_once()
+        handler._runtime.queue_draw.assert_called()
 
         pos_widget = FakeCheckMenuItem("Position")
         pos_widget.set_active(True)
         handler._on_position_changed(pos_widget, "left")
         assert handler._config.position == "left"
-        assert handler._window.reposition.call_count == 2
+        assert handler._runtime.reposition.call_count == 2
 
         size_widget = FakeCheckMenuItem("Icon Size")
         size_widget.set_active(True)
@@ -1013,14 +1007,14 @@ class TestMenuCallbacks:
         # Then
         assert handler._config.monitor_index == 1
         handler._config.save.assert_called_once()
-        handler._window.reposition.assert_called_once()
+        handler._runtime.reposition.assert_called_once()
 
     def test_monitor_changed_primary_persists_as_follow_primary(self, handler):
         # Given
         widget = FakeCheckMenuItem("Display")
         widget.set_active(True)
         handler._config.monitor_index = 1
-        handler._window.primary_monitor_index.return_value = 0
+        handler._runtime.primary_monitor_index.return_value = 0
 
         # When
         handler._on_monitor_changed(widget, 0)
@@ -1028,13 +1022,12 @@ class TestMenuCallbacks:
         # Then
         assert handler._config.monitor_index == -1
         handler._config.save.assert_called_once()
-        handler._window.reposition.assert_called_once()
+        handler._runtime.reposition.assert_called_once()
 
     def test_hit_test_and_insert_index(self, handler):
         # Given
         items = [DockItem(desktop_id="a.desktop"), DockItem(desktop_id="b.desktop")]
-        handler._window.cursor_x = 20.0
-        handler._window.cursor_y = 8.0
+        handler._runtime.cursor_position.return_value = (20.0, 8.0)
         frame = _frame(item=items[0], item_index=0, insert_index=1)
 
         found = handler._hit_test(main_coord=20, items=items, frame=frame)

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.dock_window import DockWindow
+    from docking.ui.runtime import DockRuntime
 
 
 ICON_SIZE_OPTIONS = (32, 48, 64, 80)
@@ -172,20 +173,22 @@ class MenuHandler:
 
     def __init__(
         self,
-        window: DockWindow,
+        parent_window: DockWindow,
+        runtime: DockRuntime,
         model: DockModel,
         config: Config,
         tracker: WindowTracker,
         geometry_frame_provider: Callable[..., DockGeometryFrame],
         launcher: Launcher | None = None,
     ) -> None:
-        self._window = window
+        self._parent_window = parent_window
+        self._runtime = runtime
         self._model = model
         self._config = config
         self._tracker = tracker
         self._launcher = launcher
         self._geometry_frame_provider = geometry_frame_provider
-        self._about = AboutDialogController(parent=self._window)
+        self._about = AboutDialogController(parent=self._parent_window)
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
         self._folder_menu_refresh_sources: dict[int, int] = {}
@@ -199,7 +202,7 @@ class MenuHandler:
         (autohide, theme, position, applets, quit).
         """
         frame = self._geometry_frame_provider(
-            self._window, cursor_x=event.x, cursor_y=event.y
+            self._parent_window, cursor_x=event.x, cursor_y=event.y
         )
         item = frame.item_at_point(event.x, event.y)
 
@@ -223,14 +226,14 @@ class MenuHandler:
 
     def _new_popup_menu(self) -> Gtk.Menu:
         menu = Gtk.Menu()
-        self._window.on_menu_popup_opened()
+        self._runtime.menu_popup_opened()
         menu.connect("hide", self._on_menu_popup_closed)
         menu.connect("deactivate", self._on_menu_popup_closed)
         return menu
 
     def _on_menu_popup_closed(self, _menu: Gtk.Menu) -> None:
         self._cleanup_folder_menu_tree(_menu)
-        self._window.on_menu_popup_closed()
+        self._runtime.menu_popup_closed()
 
     def _build_item_menu(self, menu: Gtk.Menu, item: DockItem) -> None:
         """Build context menu for a specific dock item.
@@ -685,12 +688,7 @@ class MenuHandler:
             popup_at_pointer(event)
 
     def _hide_window_hover_ui(self) -> None:
-        tooltip = getattr(self._window, "_tooltip", None)
-        if tooltip is not None:
-            tooltip.hide()
-        preview = getattr(self._window, "_preview", None)
-        if preview is not None:
-            preview.hide()
+        self._runtime.hide_hover_ui()
 
     def _on_applet_toggled(self, widget: Gtk.CheckMenuItem, applet_id: str) -> None:
         if widget.get_active():
@@ -701,24 +699,20 @@ class MenuHandler:
     def _on_autohide_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.autohide = widget.get_active()
         self._config.save()
-        # Reset hide state when toggling off so dock becomes visible immediately
-        if not self._config.autohide and self._window.autohide:
-            self._window.autohide.reset()
+        if not self._config.autohide:
+            self._runtime.reset_autohide()
         # Update struts immediately so windows adapt to the new mode:
         # autohide on  -> clear struts (windows use full screen)
         # autohide off -> set struts (windows shrink above dock)
-        self._window.update_struts()
+        self._runtime.update_struts()
 
     def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.previews_enabled = widget.get_active()
         self._config.save()
 
     def _monitor_items(self) -> list[tuple[str, int]]:
-        getter = getattr(self._window, "get_monitor_menu_choices", None)
-        if not callable(getter):
-            return []
         try:
-            raw = getter()
+            raw = self._runtime.get_monitor_menu_choices()
         except Exception:
             return []
         if not isinstance(raw, list):
@@ -736,70 +730,62 @@ class MenuHandler:
         return items
 
     def _current_monitor_choice(self) -> int:
-        getter = getattr(self._window, "current_monitor_choice", None)
-        if callable(getter):
-            try:
-                value = getter()
-                if isinstance(value, int):
-                    return value
-            except Exception:
-                pass
+        try:
+            value = self._runtime.current_monitor_choice()
+            if isinstance(value, int):
+                return value
+        except Exception:
+            pass
         return int(self._config.monitor_index)
 
     def _on_monitor_changed(self, widget: Gtk.MenuItem, monitor_index: int) -> None:
         if not widget.get_active():
             return
         primary_idx = monitor_index
-        getter = getattr(self._window, "primary_monitor_index", None)
-        if callable(getter):
-            try:
-                value = getter()
-                if isinstance(value, int):
-                    primary_idx = value
-            except Exception:
-                pass
+        try:
+            value = self._runtime.primary_monitor_index()
+            if isinstance(value, int):
+                primary_idx = value
+        except Exception:
+            pass
         new_value = -1 if monitor_index == primary_idx else monitor_index
         if int(self._config.monitor_index) == new_value:
             return
         self._config.monitor_index = new_value
         self._config.save()
-        self._window.reposition()
+        self._runtime.reposition()
 
     def _on_active_display_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.active_display = widget.get_active()
         self._config.save()
-        if self._config.active_display:
-            self._window.start_active_display()
-        else:
-            self._window.stop_active_display()
-        self._window.reposition()
+        self._runtime.set_active_display(self._config.active_display)
+        self._runtime.reposition()
 
     def _on_lock_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.lock_icons = widget.get_active()
         self._config.save()
-        if self._window._dnd:
-            self._window._dnd.set_locked(self._config.lock_icons)
+        self._runtime.set_icons_locked(self._config.lock_icons)
 
     def _on_anchor_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.anchor_applets = widget.get_active()
         self._config.save()
-        self._window.queue_draw()
+        self._runtime.queue_draw()
 
     def _on_anchor_files_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.anchor_files = widget.get_active()
         self._config.save()
-        self._window.queue_draw()
+        self._runtime.queue_draw()
 
     def _on_workspace_only_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.current_workspace_only = widget.get_active()
         self._config.save()
-        self._window.queue_draw()
+        self._runtime.queue_draw()
 
     def _on_tooltips_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.tooltips_enabled = widget.get_active()
         self._config.save()
         if not self._config.tooltips_enabled:
-            self._window._tooltip.hide()
+            self._runtime.hide_tooltip()
 
     def _on_theme_changed(self, widget: Gtk.MenuItem, name: str) -> None:
         if not widget.get_active() or name == self._config.theme:
@@ -807,16 +793,16 @@ class MenuHandler:
         self._config.theme = name
         self._config.save()
         new_theme = Theme.load(name, self._config.icon_size)
-        self._window.theme = new_theme
-        self._window.reposition()
-        self._window.drawing_area.queue_draw()
+        self._runtime.set_theme(new_theme)
+        self._runtime.reposition()
+        self._runtime.queue_draw()
 
     def _on_position_changed(self, widget: Gtk.MenuItem, position: str) -> None:
         if not widget.get_active() or position == self._config.position:
             return
         self._config.position = position
         self._config.save()
-        self._window.reposition()
+        self._runtime.reposition()
 
     def _on_icon_size_changed(self, widget: Gtk.MenuItem, size: int) -> None:
         if widget.get_active():
@@ -836,7 +822,7 @@ class MenuHandler:
     def _save_folder_prefs(self, item: DockItem, prefs: dict[str, Any]) -> None:
         self._config.item_prefs[item.prefs_key or item.target] = prefs
         self._config.save()
-        self._window.queue_draw()
+        self._runtime.queue_draw()
 
     def _populate_directory_menu(
         self, menu: Gtk.Menu, folder_item: DockItem, target: str
@@ -1126,9 +1112,10 @@ class MenuHandler:
         frame: DockGeometryFrame,
     ) -> DockItem | None:
         """Find which DockItem is under cursor along the main axis."""
-        if self._window.cursor_x < 0 or self._window.cursor_y < 0:
+        cursor_x, cursor_y = self._runtime.cursor_position()
+        if cursor_x < 0 or cursor_y < 0:
             return None
-        index = frame.item_index_at_point(self._window.cursor_x, self._window.cursor_y)
+        index = frame.item_index_at_point(cursor_x, cursor_y)
         if index < 0 or index >= len(items):
             return None
         return items[index]

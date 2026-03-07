@@ -24,6 +24,7 @@ from docking.ui.geometry import (
     capture_geometry_inputs,
 )
 from docking.ui.hover import HoverManager
+from docking.ui.interaction import DockInteractionCoordinator
 
 
 def _config() -> SimpleNamespace:
@@ -121,13 +122,13 @@ class _Harness:
         self.dock_hovered = False
         self._current_geometry_frame = None
         self._applied_input_frame = None
-        self._preview = None
+        self.preview = None
         self._menu = None
         self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
         self._click_button = 0
-        self._tooltip = MagicMock()
+        self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
         self.autohide = SimpleNamespace(
             enabled=True,
@@ -143,13 +144,14 @@ class _Harness:
             config=self.config,
             model=self.model,
             theme=self.theme,
-            tooltip=self._tooltip,
+            tooltip=self.tooltip,
             geometry_frame_provider=lambda _window, **kwargs: (
                 build_geometry_frame_from_inputs(
                     capture_geometry_inputs(self, **kwargs)
                 )
             ),
         )
+        self.interaction = DockInteractionCoordinator(self)
 
     def get_size(self) -> tuple[int, int]:
         return (1920, 122)
@@ -174,11 +176,11 @@ def _attach_runtime_methods(harness: _Harness) -> None:
         ),
         harness,
     )
-    harness._update_input_region = MethodType(
-        dock_window_mod.DockWindow._update_input_region, harness
+    harness.update_input_region = MethodType(
+        dock_window_mod.DockWindow.update_input_region, harness
     )
-    harness._update_dock_size = MethodType(
-        dock_window_mod.DockWindow._update_dock_size, harness
+    harness.update_dock_size = MethodType(
+        dock_window_mod.DockWindow.update_dock_size, harness
     )
     harness._on_effective_enter = MethodType(
         dock_window_mod.DockWindow._on_effective_enter, harness

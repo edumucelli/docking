@@ -5,7 +5,7 @@ visible (mouse moved into preview popup) or autohide is active (smooth
 zoom decay during hide animation).
 """
 
-from docking.ui.dock_window import should_keep_cursor_on_leave
+from docking.ui.interaction import should_keep_cursor_on_leave
 
 
 class TestKeepCursorWithPreview:
