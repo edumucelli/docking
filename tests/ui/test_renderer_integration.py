@@ -12,6 +12,7 @@ import docking.ui.renderer as renderer_mod
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.model import DockItem
+from docking.ui.geometry import DockGeometryFrame, ItemGeometry, Rect
 
 
 def _surface_context(width: int = 420, height: int = 90):
@@ -24,6 +25,36 @@ def _layout():
         SimpleNamespace(x=0.0, scale=1.0, width=48.0),
         SimpleNamespace(x=70.0, scale=1.15, width=48.0),
     ]
+
+
+def _frame(items, layout, *, cross_size: float = 90.0, offset: float = 0.0):
+    item_geometries = []
+    for item, li in zip(items, layout):
+        width = int(li.width * li.scale)
+        item_geometries.append(
+            ItemGeometry(
+                item=item,
+                layout_item=li,
+                draw_rect=Rect(int(li.x + offset), 10, max(width, 1), max(width, 1)),
+                hover_rect=Rect(int(li.x + offset), 0, max(width, 1), 70),
+                background_rect=Rect(int(li.x + offset), 48, max(width, 1), 22),
+                anchor_x=float(li.x + offset + width / 2),
+                anchor_y=10.0,
+                scaled_size=float(width),
+                main_pos=float(li.x + offset),
+            )
+        )
+    return DockGeometryFrame(
+        window_rect=Rect(0, 0, 420, 90),
+        static_dock_rect=Rect(0, 0, 160, 70),
+        cursor_rect=Rect(0, 0, 160, 70),
+        background_rect=Rect(0, 48, 160, 21),
+        layout=tuple(layout),
+        item_geometries=tuple(item_geometries),
+        local_cursor_main=0.0,
+        zoomed_main_offset=offset,
+        cross_size=cross_size,
+    )
 
 
 class TestRendererDrawEntry:
@@ -76,12 +107,12 @@ class TestRendererContentFlow:
         )
         model = MagicMock()
         model.visible_items.return_value = [i1, i2]
+        layout = _layout()
 
         monkeypatch.setattr(
-            renderer_mod, "compute_layout", lambda *args, **kwargs: _layout()
-        )
-        monkeypatch.setattr(
-            renderer_mod, "content_bounds", lambda **kwargs: (0.0, 140.0)
+            renderer_mod,
+            "build_geometry_frame",
+            lambda **_kwargs: _frame([i1, i2], layout),
         )
         monkeypatch.setattr(
             renderer_mod, "draw_shelf_background", lambda **kwargs: None
@@ -121,6 +152,62 @@ class TestRendererContentFlow:
         assert "firefox.desktop" in renderer._hover_lighten
         assert renderer.smooth_shelf_w > 0
 
+    def test_draw_content_uses_frame_background_rect_for_shelf(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        model = MagicMock()
+        model.visible_items.return_value = [item]
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
+        frame = _frame([item], layout)
+        frame = DockGeometryFrame(
+            window_rect=frame.window_rect,
+            static_dock_rect=frame.static_dock_rect,
+            cursor_rect=frame.cursor_rect,
+            background_rect=Rect(24, 50, 120, 21),
+            layout=frame.layout,
+            item_geometries=frame.item_geometries,
+            local_cursor_main=frame.local_cursor_main,
+            zoomed_main_offset=frame.zoomed_main_offset,
+            cross_size=frame.cross_size,
+        )
+
+        shelf_calls: list[dict[str, float]] = []
+        monkeypatch.setattr(
+            renderer_mod, "build_geometry_frame", lambda **_kwargs: frame
+        )
+        monkeypatch.setattr(
+            renderer_mod,
+            "draw_shelf_background",
+            lambda **kwargs: shelf_calls.append(kwargs),
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_active_glow = MagicMock()
+        renderer._draw_urgent_glow = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            width=420,
+            height=90,
+            model=model,
+            config=config,
+            theme=theme,
+            cursor_main=12.0,
+            hide_offset=0.0,
+            drag_index=-1,
+            drop_insert_index=-1,
+            zoom_progress=1.0,
+            hovered_id="",
+        )
+
+        assert shelf_calls
+        assert shelf_calls[0]["x"] == 24
+        assert shelf_calls[0]["w"] == 120
+        assert shelf_calls[0]["h"] == 21
+
     def test_draw_content_uses_separator_drawer_for_separator_items(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
@@ -137,14 +224,12 @@ class TestRendererContentFlow:
         )
         model = MagicMock()
         model.visible_items.return_value = [item]
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=12.0)]
 
         monkeypatch.setattr(
             renderer_mod,
-            "compute_layout",
-            lambda *args, **kwargs: [SimpleNamespace(x=0.0, scale=1.0, width=12.0)],
-        )
-        monkeypatch.setattr(
-            renderer_mod, "content_bounds", lambda **kwargs: (0.0, 24.0)
+            "build_geometry_frame",
+            lambda **_kwargs: _frame([item], layout),
         )
         monkeypatch.setattr(
             renderer_mod, "draw_shelf_background", lambda **kwargs: None

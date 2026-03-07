@@ -85,6 +85,12 @@ if TYPE_CHECKING:
 # "twitch" when hovering near the zoom boundary. Snapping at 0.99
 # ensures these edge icons are treated as fully outside the zoom range.
 OFFSET_PCT_SNAP = 0.99
+NO_CURSOR_SENTINEL = -1e6
+
+
+def _has_cursor(cursor_x: float) -> bool:
+    """Return True when the cursor value represents a real local coordinate."""
+    return cursor_x > (NO_CURSOR_SENTINEL / 2)
 
 
 @dataclass
@@ -109,7 +115,8 @@ def compute_icon_zoom(
     scaled to the configured zoom_percent.
 
     Args:
-        cursor_x: Current cursor X position, or -1 if cursor is off dock.
+        cursor_x: Current cursor X position, or `NO_CURSOR_SENTINEL` if the
+            pointer is not present on the dock at all.
         icon_center_x: Center X of the icon at rest (no zoom).
         icon_size: Base icon size in pixels.
         zoom_percent: Maximum zoom multiplier (e.g. 2.0 for 2x).
@@ -118,7 +125,7 @@ def compute_icon_zoom(
     Returns:
         Scale factor (1.0 = no zoom, zoom_percent = full zoom).
     """
-    if cursor_x < 0:
+    if not _has_cursor(cursor_x):
         return 1.0
 
     max_distance = icon_size * zoom_range
@@ -187,7 +194,7 @@ def compute_layout(
         center = rest_centers[i]
         w = widths[i]
 
-        if cursor_x < 0:
+        if not _has_cursor(cursor_x):
             # No hover -- rest positions
             result.append(LayoutItem(x=center - w / 2, scale=1.0, width=w))
             continue

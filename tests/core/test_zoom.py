@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from docking.core.zoom import (
+    NO_CURSOR_SENTINEL,
     OFFSET_PCT_SNAP,
     compute_layout,
     content_bounds,
@@ -22,7 +23,7 @@ from docking.core.zoom import (
 
 
 class TestRestPositions:
-    """When cursor_x < 0 (no hover), icons should be at rest scale (1.0x)."""
+    """When cursor_x is the no-cursor sentinel, icons stay at rest scale."""
 
     def test_all_scales_are_1(self):
         # Given
@@ -33,7 +34,7 @@ class TestRestPositions:
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(5)]
         # When
-        layout = compute_layout(items, config, -1.0)
+        layout = compute_layout(items, config, NO_CURSOR_SENTINEL)
         # Then
         for li in layout:
             assert li.scale == pytest.approx(1.0)
@@ -47,7 +48,9 @@ class TestRestPositions:
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(5)]
         # When
-        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # Then
         for i in range(1, len(layout)):
             gap = layout[i].x - layout[i - 1].x
@@ -62,7 +65,9 @@ class TestRestPositions:
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(3)]
         # When
-        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # Then
         assert layout[0].x == pytest.approx(12.0)
 
@@ -78,7 +83,9 @@ class TestZoomedPositions:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         center_x = rest[2].x + 24  # center of 3rd icon
         layout = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
@@ -93,7 +100,9 @@ class TestZoomedPositions:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(10)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         layout = compute_layout(
             items, config, rest[0].x + 24, item_padding=10, h_padding=12
@@ -109,7 +118,9 @@ class TestZoomedPositions:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         layout = compute_layout(
             items, config, rest[2].x + 24, item_padding=10, h_padding=12
@@ -126,7 +137,9 @@ class TestZoomedPositions:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         layout = compute_layout(
             items, config, rest[0].x + 24, item_padding=10, h_padding=12
@@ -145,7 +158,9 @@ class TestZoomedPositions:
             SimpleNamespace(main_size=16, allow_zoom=False),
             SimpleNamespace(main_size=0, allow_zoom=True),
         ]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
 
         layout = compute_layout(
             items, config, rest[1].x + 8, item_padding=10, h_padding=12
@@ -185,7 +200,9 @@ class TestEdgeCases:
         config.zoom_percent = 2.0
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(2)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         center_x = (rest[0].x + rest[1].x + 48) / 2
         layout = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
@@ -200,7 +217,9 @@ class TestEdgeCases:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         layout = compute_layout(
             items, config, rest[0].x + 24, item_padding=10, h_padding=12
@@ -208,6 +227,19 @@ class TestEdgeCases:
         # Then
         assert layout[0].scale == pytest.approx(1.5)
         assert layout[-1].scale == pytest.approx(1.0)
+
+    def test_small_negative_local_cursor_still_tapers_left_edge_zoom(self):
+        """Negative local coordinates near the left edge are valid hover input."""
+        config = MagicMock(main_size=0)
+        config.icon_size = 48
+        config.zoom_enabled = True
+        config.zoom_percent = 1.5
+        config.zoom_range = 3
+        items = [MagicMock(main_size=0) for _ in range(5)]
+
+        layout = compute_layout(items, config, -2.0, item_padding=10, h_padding=12)
+
+        assert layout[0].scale > 1.0
 
 
 class TestContentBounds:
@@ -231,7 +263,9 @@ class TestContentBounds:
         config.zoom_percent = 1.0
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(3)]
-        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         left, right = content_bounds(layout, 48, 12, item_padding=10)
         # Then
@@ -247,7 +281,9 @@ class TestContentBounds:
         config.zoom_percent = 1.0
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(3)]
-        layout = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         with_ipad = content_bounds(layout, 48, 12, item_padding=10)
         without_ipad = content_bounds(layout, 48, 12, item_padding=0)
@@ -263,7 +299,9 @@ class TestContentBounds:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         rest_l, rest_r = content_bounds(rest, 48, 12, item_padding=10)
         # When
         zoomed = compute_layout(items, config, 150.0, item_padding=10, h_padding=12)
@@ -280,7 +318,9 @@ class TestContentBounds:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=10, h_padding=12)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+        )
         # When
         zoomed = compute_layout(
             items, config, rest[-1].x + 24, item_padding=10, h_padding=12
@@ -316,7 +356,11 @@ class TestBaseWConsistency:
         pad = h_padding + item_padding / 2
         base_w = pad * 2 + n * icon_size + max(0, n - 1) * item_padding
         layout = compute_layout(
-            items, config, -1.0, item_padding=item_padding, h_padding=h_padding
+            items,
+            config,
+            NO_CURSOR_SENTINEL,
+            item_padding=item_padding,
+            h_padding=h_padding,
         )
         left, right = content_bounds(
             layout=layout,
@@ -340,7 +384,7 @@ class TestBaseWConsistency:
             pad = h_pad + i_pad / 2
             base_w = pad * 2 + n * size + max(0, n - 1) * i_pad
             layout = compute_layout(
-                items, config, -1.0, item_padding=i_pad, h_padding=h_pad
+                items, config, NO_CURSOR_SENTINEL, item_padding=i_pad, h_padding=h_pad
             )
             left, right = content_bounds(
                 layout=layout, icon_size=size, h_padding=h_pad, item_padding=i_pad
@@ -364,7 +408,7 @@ class TestBaseWConsistency:
         layout = compute_layout(
             items,
             config,
-            -1.0,
+            NO_CURSOR_SENTINEL,
             item_padding=theme.item_padding,
             h_padding=theme.h_padding,
         )
@@ -397,7 +441,9 @@ class TestZoomProgressDecay:
         # Given
         config = self._make_config()
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+        )
         cursor = rest[2].x + 24
         # When
         full = compute_layout(
@@ -410,7 +456,9 @@ class TestZoomProgressDecay:
         # Given
         config = self._make_config()
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+        )
         cursor = rest[2].x + 24
         # When
         decayed = compute_layout(
@@ -425,7 +473,9 @@ class TestZoomProgressDecay:
         # Given
         config = self._make_config()
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+        )
         cursor = rest[2].x + 24
         full = compute_layout(
             items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0
@@ -450,7 +500,9 @@ class TestZoomProgressDecay:
         """Shelf width should track zoom decay -- no growing edge gaps."""
         config = self._make_config()
         items = [MagicMock(main_size=0) for _ in range(5)]
-        rest = compute_layout(items, config, -1.0, item_padding=12, h_padding=2)
+        rest = compute_layout(
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+        )
         cursor = rest[2].x + 24
         full = compute_layout(
             items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0

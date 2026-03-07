@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import docking.ui.tooltip as tooltip_mod  # noqa: E402
 from docking.core.position import Position  # noqa: E402
+from docking.ui.geometry import DockGeometryFrame, ItemGeometry, Rect  # noqa: E402
 from docking.ui.tooltip import (  # noqa: E402
     TOOLTIP_BASE_GAP,
     TooltipManager,
@@ -56,7 +57,7 @@ class TestTooltipHide:
         tooltip = TooltipManager(window, config, model, theme)
         tooltip._tooltip_window = MagicMock()
         # When
-        tooltip.update(None, [])
+        tooltip.update(None, None)
         # Then
         tooltip._tooltip_window.hide.assert_not_called()
 
@@ -71,7 +72,7 @@ class TestTooltipHide:
         item = MagicMock()
         item.name = ""
         # When
-        tooltip.update(item, [])
+        tooltip.update(item, None)
         # Then
         tooltip._tooltip_window.hide.assert_not_called()
 
@@ -87,7 +88,7 @@ class TestTooltipHide:
         item = MagicMock()
         item.name = "Firefox"
         # When
-        tooltip.update(item, [])
+        tooltip.update(item, _frame_for_item(item))
         # Then
         tooltip._tooltip_window.hide.assert_called_once()
 
@@ -191,6 +192,7 @@ class TestTooltipDirection:
 def _make_tooltip() -> TooltipManager:
     """Create a TooltipManager with mocked dependencies."""
     window = MagicMock()
+    window.get_position.return_value = (0, 0)
     config = MagicMock()
     model = MagicMock()
     theme = MagicMock()
@@ -202,6 +204,37 @@ def _make_item(name: str, builder: bool = False) -> MagicMock:
     item.name = name
     item.tooltip_builder = (lambda: MagicMock()) if builder else None
     return item
+
+
+def _frame_for_item(
+    item,
+    *,
+    anchor_x: float = 24.0,
+    anchor_y: float = 8.0,
+) -> DockGeometryFrame:
+    layout_item = SimpleNamespace(x=0.0, scale=1.0, width=48.0)
+    item_geometry = ItemGeometry(
+        item=item,
+        layout_item=layout_item,
+        draw_rect=Rect(0, 0, 48, 48),
+        hover_rect=Rect(0, 0, 48, 48),
+        background_rect=Rect(0, 24, 48, 24),
+        anchor_x=anchor_x,
+        anchor_y=anchor_y,
+        scaled_size=48.0,
+        main_pos=0.0,
+    )
+    return DockGeometryFrame(
+        window_rect=Rect(0, 0, 300, 80),
+        static_dock_rect=Rect(0, 0, 100, 60),
+        cursor_rect=Rect(0, 0, 100, 60),
+        background_rect=Rect(0, 36, 100, 24),
+        layout=(layout_item,),
+        item_geometries=(item_geometry,),
+        local_cursor_main=0.0,
+        zoomed_main_offset=0.0,
+        cross_size=60.0,
+    )
 
 
 class TestContentCaching:
@@ -217,10 +250,12 @@ class TestContentCaching:
         item = _make_item("Firefox")
         tooltip._last_item = item
         tooltip._last_name = "Firefox"
+        tooltip._show_tooltip = MagicMock()
         # When
-        tooltip.update(item, [])
+        tooltip.update(item, _frame_for_item(item))
         # Then
-        # The early return means no _show_tooltip call
+        tooltip._show_tooltip.assert_called_once()
+        assert tooltip._show_tooltip.call_args.kwargs["content_changed"] is False
 
     def test_different_item_triggers_rebuild(self):
         # Given
@@ -272,14 +307,14 @@ class TestTooltipGapBehavior:
     def test_none_item_does_not_hide(self):
         tooltip = _make_tooltip()
         tooltip._tooltip_window = MagicMock()
-        tooltip.update(None, [])
+        tooltip.update(None, None)
         tooltip._tooltip_window.hide.assert_not_called()
 
     def test_empty_name_does_not_hide(self):
         tooltip = _make_tooltip()
         tooltip._tooltip_window = MagicMock()
         item = _make_item("")
-        tooltip.update(item, [])
+        tooltip.update(item, None)
         tooltip._tooltip_window.hide.assert_not_called()
 
     def test_explicit_hide_works(self):
@@ -510,15 +545,15 @@ class TestTooltipIntegrationBranches:
         item = MagicMock()
         item.name = "Firefox"
         item.tooltip_builder = None
-        layout = [SimpleNamespace(x=0.0, scale=1.0)]
+        frame = SimpleNamespace(geometry_for_item=MagicMock(return_value=None))
 
         # When
-        tooltip.update(item=item, layout=layout)
+        tooltip.update(item=item, geometry=frame)
 
         # Then
         tooltip.hide.assert_called_once()
 
-    def test_update_uses_builder_widget_when_content_changes(self, monkeypatch):
+    def test_update_uses_builder_widget_when_content_changes(self):
         # Given
         window = MagicMock()
         window.get_size.return_value = (300, 80)
@@ -537,13 +572,10 @@ class TestTooltipIntegrationBranches:
         theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
         tooltip = TooltipManager(window, config, model, theme)
         tooltip._show_tooltip = MagicMock()
-        monkeypatch.setattr(
-            tooltip_mod, "content_bounds", lambda **_kwargs: (0.0, 48.0)
-        )
-        layout = [SimpleNamespace(x=5.0, scale=1.0)]
+        frame = _frame_for_item(item, anchor_x=52.0, anchor_y=24.0)
 
         # When
-        tooltip.update(item=item, layout=layout)
+        tooltip.update(item=item, geometry=frame)
 
         # Then
         tooltip._show_tooltip.assert_called_once()

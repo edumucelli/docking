@@ -447,19 +447,34 @@ def _labels(menu: FakeMenu) -> list[str]:
     return [child.get_label() for child in menu.get_children()]
 
 
+def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
+    item_geometries = []
+    if item is not None:
+        item_geometries.append(
+            SimpleNamespace(item=item, draw_rect=SimpleNamespace(x=0, y=0, w=48, h=48))
+        )
+    return SimpleNamespace(
+        item_at_point=MagicMock(return_value=item),
+        item_index_at_point=MagicMock(return_value=item_index),
+        insertion_index_for_main=MagicMock(return_value=insert_index),
+        item_geometries=item_geometries,
+    )
+
+
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
     window = MagicMock()
     window.theme = MagicMock(item_padding=8, h_padding=12)
-    window.local_cursor_main.return_value = 20.0
-    window.zoomed_main_offset.return_value = 0.0
     window.autohide = MagicMock()
     window._dnd = MagicMock()
     window.drawing_area = MagicMock()
     window.get_monitor_menu_choices.return_value = []
     window.current_monitor_choice.return_value = -1
     window.primary_monitor_index.return_value = 0
+    window.cursor_x = 20.0
+    window.cursor_y = 8.0
+    window._get_geometry_frame = MagicMock(return_value=_frame())
 
     model = MagicMock()
     model.pinned_items = []
@@ -846,14 +861,9 @@ class TestDockMenu:
         self, handler, monkeypatch
     ):
         # Given
-        event = object()
-        handler._model.visible_items.return_value = [DockItem(desktop_id="x.desktop")]
-        monkeypatch.setattr(
-            menu_mod,
-            "compute_layout",
-            lambda *args, **kwargs: [SimpleNamespace(x=0, width=48, scale=1.0)],
-        )
-        monkeypatch.setattr(handler, "_hit_test", lambda *args, **kwargs: None)
+        event = SimpleNamespace(x=10.0, y=5.0)
+        frame = _frame(item=None, insert_index=1)
+        handler._window._get_geometry_frame.return_value = frame
         captured_menu = None
 
         class CaptureMenu(FakeMenu):
@@ -1021,19 +1031,17 @@ class TestMenuCallbacks:
 
     def test_hit_test_and_insert_index(self, handler):
         # Given
-        handler._window.zoomed_main_offset.return_value = 0.0
         items = [DockItem(desktop_id="a.desktop"), DockItem(desktop_id="b.desktop")]
-        layout = [
-            SimpleNamespace(x=0, width=48, scale=1.0),
-            SimpleNamespace(x=70, width=48, scale=1.0),
-        ]
+        handler._window.cursor_x = 20.0
+        handler._window.cursor_y = 8.0
+        frame = _frame(item=items[0], item_index=0, insert_index=1)
 
-        found = handler._hit_test(main_coord=20, items=items, layout=layout)
+        found = handler._hit_test(main_coord=20, items=items, frame=frame)
         # Then
         assert found is items[0]
 
         # When
-        idx = handler._insert_index(cursor_main=40, items=items, layout=layout)
+        idx = handler._insert_index(cursor_main=40, frame=frame)
         assert idx == 1
 
     def test_folder_pref_callbacks_persist(self, handler):

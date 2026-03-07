@@ -50,8 +50,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib  # noqa: E402
 
 from docking.core.position import Position
-from docking.core.zoom import compute_layout
 from docking.log import get_logger
+from docking.ui.geometry import DockGeometryFrame
 
 _log = get_logger(name="hover")
 
@@ -99,24 +99,38 @@ class HoverManager:
     def set_preview(self, preview: PreviewPopup) -> None:
         self._preview = preview
 
-    def update(self, cursor_main: float) -> None:
+    def update(
+        self, cursor_main: float, frame: DockGeometryFrame | None = None
+    ) -> None:
         """Detect which item the cursor is over and manage preview timer."""
-        items = self._model.visible_items()
-        layout = compute_layout(
-            items,
-            self._config,
-            self._window.local_cursor_main(),
-            item_padding=self._theme.item_padding,
-            h_padding=self._theme.h_padding,
+        frame = frame or self._window._get_geometry_frame()
+        item = (
+            frame.item_at_point(self._window.cursor_x, self._window.cursor_y)
+            if cursor_main >= 0
+            else None
         )
-        item = self._window.hit_test(cursor_main, layout)
 
         # Always refresh tooltip (item.name may change while hovered)
-        self._tooltip.update(item, layout)
+        self._tooltip.update(item, frame)
 
         if item is self.hovered_item:
             return
 
+        previous_item = self.hovered_item
+        if previous_item is not None and item is None:
+            previous_geometry = frame.geometry_for_item(previous_item)
+            _log.debug(
+                (
+                    "hover exit: item=%s cursor=(%.0f,%.0f) "
+                    "cursor_rect=%s hover_rect=%s draw_rect=%s"
+                ),
+                previous_item.desktop_id,
+                self._window.cursor_x,
+                self._window.cursor_y,
+                frame.cursor_rect,
+                previous_geometry.hover_rect if previous_geometry else None,
+                previous_geometry.draw_rect if previous_geometry else None,
+            )
         _log.debug(
             f"hover changed: "
             f"{self.hovered_item.name if self.hovered_item else None} -> "
@@ -128,7 +142,7 @@ class HoverManager:
         if self._preview and self._config.previews_enabled:
             if item and item.is_running and item.instance_count > 0:
                 self._preview_timer_id = GLib.timeout_add(
-                    PREVIEW_SHOW_DELAY_MS, self._show_preview, item, layout
+                    PREVIEW_SHOW_DELAY_MS, self._show_preview, item, frame
                 )
             else:
                 self._preview.schedule_hide()
@@ -181,56 +195,40 @@ class HoverManager:
         if not self._window.get_realized():
             return False
 
-        items = self._model.visible_items()
-        layout = compute_layout(
-            items,
-            self._config,
-            self._window.local_cursor_main(),
-            item_padding=self._theme.item_padding,
-            h_padding=self._theme.h_padding,
-        )
-
-        idx = None
-        for i, it in enumerate(items):
-            if it is item:
-                idx = i
-                break
-        if idx is None or idx >= len(layout):
+        frame = self._window._get_geometry_frame()
+        geometry = frame.geometry_for_item(item)
+        if geometry is None:
             return False
-
-        li = layout[idx]
-        icon_w = li.scale * self._config.icon_size
         pos = self._config.pos
 
         win_x, win_y = self._window.get_position()
-
-        main_offset = self._window.zoomed_main_offset(layout)
-        win_w, win_h = self._window.get_size()
-        edge_padding = self._theme.bottom_padding
-        scaled_size = li.scale * self._config.icon_size
+        draw_rect = geometry.draw_rect
+        main_size = (
+            draw_rect.w if pos in (Position.BOTTOM, Position.TOP) else draw_rect.h
+        )
 
         if pos == Position.BOTTOM:
-            icon_abs_x = win_x + li.x + main_offset
-            icon_top_y = win_y + win_h - edge_padding - scaled_size
+            icon_abs_x = win_x + draw_rect.x
+            icon_top_y = win_y + draw_rect.y
             self._preview.show_for_item(
-                item.desktop_id, icon_abs_x, icon_w, icon_top_y, pos
+                item.desktop_id, icon_abs_x, main_size, icon_top_y, pos
             )
         elif pos == Position.TOP:
-            icon_abs_x = win_x + li.x + main_offset
-            icon_bottom_y = win_y + edge_padding + scaled_size
+            icon_abs_x = win_x + draw_rect.x
+            icon_bottom_y = win_y + draw_rect.y + draw_rect.h
             self._preview.show_for_item(
-                item.desktop_id, icon_abs_x, icon_w, icon_bottom_y, pos
+                item.desktop_id, icon_abs_x, main_size, icon_bottom_y, pos
             )
         elif pos == Position.LEFT:
-            icon_abs_y = win_y + li.x + main_offset
-            icon_right_x = win_x + edge_padding + scaled_size
+            icon_abs_y = win_y + draw_rect.y
+            icon_right_x = win_x + draw_rect.x + draw_rect.w
             self._preview.show_for_item(
-                item.desktop_id, icon_right_x, icon_w, icon_abs_y, pos
+                item.desktop_id, icon_right_x, main_size, icon_abs_y, pos
             )
         else:  # RIGHT
-            icon_abs_y = win_y + li.x + main_offset
-            icon_left_x = win_x + win_w - edge_padding - scaled_size
+            icon_abs_y = win_y + draw_rect.y
+            icon_left_x = win_x + draw_rect.x
             self._preview.show_for_item(
-                item.desktop_id, icon_left_x, icon_w, icon_abs_y, pos
+                item.desktop_id, icon_left_x, main_size, icon_abs_y, pos
             )
         return False

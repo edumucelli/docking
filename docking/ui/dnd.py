@@ -32,10 +32,10 @@ URI to a desktop file ID and pin it at insertion index."
 
 Geometry model used for decisions
 
-All insert/reorder decisions are made in the same main-axis coordinate space
-used by rendering. The handler calls ``compute_layout(...)`` and compares
-cursor position against item centers. This guarantees DnD behavior matches
-visible icon geometry under zoom, scaling, and orientation changes.
+Drag-and-drop decisions are made from the shared dock geometry frame. That
+keeps reorder and insert behavior aligned with the same item rectangles used
+by rendering, hover, and input masking instead of rebuilding ad-hoc layout
+math in the DnD path.
 
 Operational invariant
 
@@ -65,9 +65,9 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 import docking.platform.launcher as launcher_mod
+from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
-from docking.core.zoom import compute_layout
 from docking.ui.poof import show_poof
 
 if TYPE_CHECKING:
@@ -164,38 +164,33 @@ class DnDHandler:
     def _on_drag_begin(self, widget: Gtk.DrawingArea, context: Gdk.DragContext) -> None:
         """Identify which item is being dragged and set the drag icon.
 
-        Hit-tests the current cursor against the layout to find the
-        dragged item, stores its index in drag_index/_drag_from, and
-        sets a scaled pixbuf as the drag icon.
+        Hit-tests the current cursor against the shared geometry frame to find
+        the dragged item, stores its index in drag_index/_drag_from, and sets
+        a scaled pixbuf as the drag icon.
         """
+        frame = self._window._get_geometry_frame()
         items = self._model.visible_items()
-        local_cx = self._window.local_cursor_main()
-        layout = compute_layout(
-            items,
-            self._config,
-            local_cx,
-            item_padding=self._theme.item_padding,
-            h_padding=self._theme.h_padding,
-        )
-
-        offset = self._window.zoomed_main_offset(layout)
         horizontal = is_horizontal(pos=self._config.pos)
         win_cx = self._window.cursor_x if horizontal else self._window.cursor_y
+        dragged_index = frame.item_index_at_point(
+            self._window.cursor_x, self._window.cursor_y
+        )
         log.debug(
-            "drag-begin: win_cx=%.1f local_cx=%.1f offset=%.1f items=%d",
+            "drag-begin: win_cx=%.1f items=%d",
             win_cx,
-            local_cx,
-            offset,
             len(items),
         )
-        for i, li in enumerate(layout):
-            icon_width = li.scale * self._config.icon_size
-            left = li.x + offset
-            right = left + icon_width
+        for i, item_geometry in enumerate(frame.item_geometries):
+            left = (
+                item_geometry.draw_rect.x if horizontal else item_geometry.draw_rect.y
+            )
+            right = left + (
+                item_geometry.draw_rect.w if horizontal else item_geometry.draw_rect.h
+            )
             log.debug(
                 "  item %d: left=%.1f right=%.1f (win_cx=%.1f)", i, left, right, win_cx
             )
-            if left <= win_cx <= right:
+            if i == dragged_index:
                 self._drag_from = i
                 self.drag_index = i
 
@@ -248,43 +243,20 @@ class DnDHandler:
 
         if self._drag_from < 0:
             # External drag -- compute insert position for gap effect
-            items = self._model.visible_items()
-            layout = compute_layout(
-                items,
-                self._config,
-                -1.0,
-                item_padding=self._theme.item_padding,
-                h_padding=self._theme.h_padding,
-            )
-            main_offset = self._window.zoomed_main_offset(layout)
-            insert = len(layout)
-            for i, li in enumerate(layout):
-                center = li.x + main_offset + self._config.icon_size / 2
-                if main_coord < center:
-                    insert = i
-                    break
+            frame = self._window._get_geometry_frame(main_cursor=-1.0)
+            insert = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
             if insert != self.drop_insert_index:
                 self.drop_insert_index = insert
                 widget.queue_draw()
             Gdk.drag_status(context, Gdk.DragAction.COPY, time)
             return True
 
-        items = self._model.visible_items()
-        layout = compute_layout(
-            items,
-            self._config,
-            -1.0,
-            item_padding=self._theme.item_padding,
-            h_padding=self._theme.h_padding,
-        )
-
-        main_offset = self._window.zoomed_main_offset(layout)
-        new_index = len(layout) - 1
-        for i, li in enumerate(layout):
-            center = li.x + main_offset + self._config.icon_size / 2
-            if main_coord < center:
-                new_index = i
-                break
+        frame = self._window._get_geometry_frame(main_cursor=-1.0)
+        new_index = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
+        if frame.item_geometries:
+            new_index = min(new_index, len(frame.item_geometries) - 1)
+        else:
+            new_index = -1
 
         if new_index != self.drag_index:
             log.debug(f"drag-motion: reorder {self.drag_index} -> {new_index}")
@@ -357,7 +329,10 @@ class DnDHandler:
             if item and not self._model.find_by_desktop_id(item.desktop_id):
                 insert_at = min(insert_at, len(self._model.pinned_items))
                 self._model.pinned_items.insert(insert_at, item)
-                self._config.pinned.insert(insert_at, item.desktop_id)
+                self._config.pinned.insert(
+                    insert_at,
+                    PinnedEntry(kind=item.kind, target=item.target),
+                )
                 self._model.sync_pinned_to_config()
                 self._config.save()
                 self._model.notify()
