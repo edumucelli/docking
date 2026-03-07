@@ -1005,7 +1005,9 @@ class DockWindow(Gtk.Window):
         """
         self.cursor_x = event.x
         self.cursor_y = event.y
-        self._on_effective_enter()
+        frame = self._get_geometry_frame(cursor_x=event.x, cursor_y=event.y)
+        if frame.cursor_rect.contains(event.x, event.y):
+            self._on_effective_enter()
         return True
 
     def _has_active_urgent_glow(self) -> bool:

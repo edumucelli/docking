@@ -371,6 +371,22 @@ class TestLeaveEnterFlow:
         assert stub.cursor_y == 11.0
         stub.autohide.on_mouse_enter.assert_called_once()
 
+    def test_enter_does_not_trigger_effective_enter_when_outside_cursor_rect(self):
+        stub, _item = _make_stub()
+        stub.autohide = MagicMock()
+        stub._dock_hovered = False
+        outside_frame = SimpleNamespace(cursor_rect=Rect(292, 70, 1335, 148))
+        stub._get_geometry_frame = MagicMock(return_value=outside_frame)
+        event = SimpleNamespace(x=556.0, y=3.0)
+
+        handled = dock_window_mod.DockWindow._on_enter(stub, MagicMock(), event)
+
+        assert handled is True
+        assert stub.cursor_x == 556.0
+        assert stub.cursor_y == 3.0
+        stub.autohide.on_mouse_enter.assert_not_called()
+        assert stub._dock_hovered is False
+
 
 class TestMenuPopupFlow:
     def test_menu_close_triggers_autohide_when_pointer_outside(self):

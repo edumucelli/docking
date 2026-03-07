@@ -9,7 +9,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from docking.core.position import Position
 from docking.log import get_logger
@@ -81,6 +81,7 @@ class TooltipManager:
         # dynamically (e.g. clippy updates the tooltip on scroll).
         self._last_item: DockItem | None = None
         self._last_name: str = ""
+        self._pending_show_source: int = 0
 
     def update(
         self,
@@ -108,8 +109,6 @@ class TooltipManager:
         content_changed = not (item is self._last_item and item.name == self._last_name)
         if content_changed:
             _log.debug(f"content changed: {item.name}")
-        self._last_item = item
-        self._last_name = item.name
 
         item_geometry = geometry.geometry_for_item(item)
         if item_geometry is None:
@@ -120,47 +119,62 @@ class TooltipManager:
         anchor_x = win_x + item_geometry.anchor_x
         anchor_y = win_y + item_geometry.anchor_y
 
-        # Only rebuild widget content when item or text changed
-        widget = None
-        if content_changed:
-            widget = item.tooltip_builder() if item.tooltip_builder else None
+        if not content_changed:
+            self._cancel_pending_show()
+            self._show_tooltip(
+                text=item.name,
+                pos=pos,
+                anchor_x=anchor_x,
+                anchor_y=anchor_y,
+                content_changed=False,
+            )
+            return
 
-        if pos == Position.BOTTOM:
+        # Content rebuilds are the expensive branch. Coalesce them through an
+        # idle callback so rapid hover churn across adjacent items only shows
+        # the final stable item instead of briefly flashing stale tooltips.
+        widget = item.tooltip_builder() if item.tooltip_builder else None
+        self._schedule_show(
+            item=item,
+            text=item.name,
+            pos=pos,
+            anchor_x=anchor_x,
+            anchor_y=anchor_y,
+            widget=widget,
+        )
+
+    def _schedule_show(
+        self,
+        *,
+        item: "DockItem",
+        text: str,
+        pos: Position,
+        anchor_x: float,
+        anchor_y: float,
+        widget: Gtk.Widget | None,
+    ) -> None:
+        self._cancel_pending_show()
+
+        def run() -> bool:
+            self._pending_show_source = 0
+            self._last_item = item
+            self._last_name = text
             self._show_tooltip(
-                text=item.name,
+                text=text,
                 pos=pos,
                 anchor_x=anchor_x,
                 anchor_y=anchor_y,
                 widget=widget,
-                content_changed=content_changed,
+                content_changed=True,
             )
-        elif pos == Position.TOP:
-            self._show_tooltip(
-                text=item.name,
-                pos=pos,
-                anchor_x=anchor_x,
-                anchor_y=anchor_y,
-                widget=widget,
-                content_changed=content_changed,
-            )
-        elif pos == Position.LEFT:
-            self._show_tooltip(
-                text=item.name,
-                pos=pos,
-                anchor_x=anchor_x,
-                anchor_y=anchor_y,
-                widget=widget,
-                content_changed=content_changed,
-            )
-        else:  # RIGHT
-            self._show_tooltip(
-                text=item.name,
-                pos=pos,
-                anchor_x=anchor_x,
-                anchor_y=anchor_y,
-                widget=widget,
-                content_changed=content_changed,
-            )
+            return False
+
+        self._pending_show_source = GLib.idle_add(run)
+
+    def _cancel_pending_show(self) -> None:
+        if self._pending_show_source:
+            GLib.source_remove(self._pending_show_source)
+            self._pending_show_source = 0
 
     def _show_tooltip(
         self,
@@ -269,6 +283,7 @@ class TooltipManager:
 
     def hide(self) -> None:
         """Hide the tooltip window and clear tracking state."""
+        self._cancel_pending_show()
         self._last_item = None
         self._last_name = ""
         if self._tooltip_window:
