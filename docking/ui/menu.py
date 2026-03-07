@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -25,15 +25,14 @@ from docking.applets.identity import (
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
-from docking.core.zoom import compute_layout
 from docking.i18n import _
 from docking.ui.about import AboutDialogController
+from docking.ui.geometry import DockGeometryFrame
 from docking.ui.preview import capture_window
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
-    from docking.core.zoom import LayoutItem
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
@@ -177,6 +176,7 @@ class MenuHandler:
         model: DockModel,
         config: Config,
         tracker: WindowTracker,
+        geometry_frame_provider: Callable[..., DockGeometryFrame],
         launcher: Launcher | None = None,
     ) -> None:
         self._window = window
@@ -184,6 +184,7 @@ class MenuHandler:
         self._config = config
         self._tracker = tracker
         self._launcher = launcher
+        self._geometry_frame_provider = geometry_frame_provider
         self._about = AboutDialogController(parent=self._window)
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
@@ -197,26 +198,17 @@ class MenuHandler:
         menu (desktop actions, pin/unpin, close) or a dock background menu
         (autohide, theme, position, applets, quit).
         """
-        items = self._model.visible_items()
-        theme = self._window.theme
-        local_main = self._window.local_cursor_main()
-        layout = compute_layout(
-            items,
-            self._config,
-            local_main,
-            item_padding=theme.item_padding,
-            h_padding=theme.h_padding,
+        frame = self._geometry_frame_provider(
+            self._window, cursor_x=event.x, cursor_y=event.y
         )
-        item = self._hit_test(main_coord=cursor_main, items=items, layout=layout)
+        item = frame.item_at_point(event.x, event.y)
 
         if item:
             menu = self._new_popup_menu()
             self._build_item_menu(menu=menu, item=item)
         else:
             menu = self._new_popup_menu()
-            insert_idx = self._insert_index(
-                cursor_main=cursor_main, items=items, layout=layout
-            )
+            insert_idx = self._insert_index(cursor_main=cursor_main, frame=frame)
             self._build_dock_menu(menu=menu, insert_index=insert_idx)
 
         menu.show_all()
@@ -355,18 +347,10 @@ class MenuHandler:
     def _insert_index(
         self,
         cursor_main: float,
-        items: list[DockItem],
-        layout: list[LayoutItem],
+        frame: DockGeometryFrame,
     ) -> int:
         """Compute pinned insertion index from cursor position."""
-        main_offset = self._window.zoomed_main_offset(layout)
-        icon_size = self._config.icon_size
-        for i, li in enumerate(layout):
-            w = li.width or icon_size
-            center = li.x + main_offset + w / 2
-            if cursor_main < center:
-                return i
-        return len(layout)
+        return frame.insertion_index_for_main(cursor_main, pos=self._config.pos)
 
     def _build_dock_menu(self, menu: Gtk.Menu, insert_index: int = -1) -> None:
         """Build context menu for the dock background (no item under cursor).
@@ -1139,13 +1123,12 @@ class MenuHandler:
         self,
         main_coord: float,
         items: list[DockItem],
-        layout: list[LayoutItem],
+        frame: DockGeometryFrame,
     ) -> DockItem | None:
         """Find which DockItem is under cursor along the main axis."""
-        offset = self._window.zoomed_main_offset(layout)
-        for i, li in enumerate(layout):
-            icon_width = li.scale * self._config.icon_size
-            left = li.x + offset
-            if left <= main_coord <= left + icon_width:
-                return items[i]
-        return None
+        if self._window.cursor_x < 0 or self._window.cursor_y < 0:
+            return None
+        index = frame.item_index_at_point(self._window.cursor_x, self._window.cursor_y)
+        if index < 0 or index >= len(items):
+            return None
+        return items[index]

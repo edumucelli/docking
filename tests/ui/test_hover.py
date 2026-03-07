@@ -3,11 +3,13 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock gi before importing
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
+try:
+    import gi  # noqa: F401
+except ModuleNotFoundError:  # pragma: no cover
+    gi_mock = MagicMock()
+    gi_mock.require_version = MagicMock()
+    sys.modules.setdefault("gi", gi_mock)
+    sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.ui.hover import PREVIEW_SHOW_DELAY_MS, HoverManager  # noqa: E402
 
@@ -20,7 +22,14 @@ class TestHoverManagerInit:
         model = MagicMock()
         theme = MagicMock()
         # When
-        hover = HoverManager(window, config, model, theme, MagicMock())
+        hover = HoverManager(
+            window,
+            config,
+            model,
+            theme,
+            MagicMock(),
+            geometry_frame_provider=MagicMock(),
+        )
         # Then
         assert hover.hovered_item is None
         assert hover._preview_timer_id == 0
@@ -38,7 +47,14 @@ class TestHoverManagerPreview:
         config = MagicMock()
         model = MagicMock()
         theme = MagicMock()
-        hover = HoverManager(window, config, model, theme, MagicMock())
+        hover = HoverManager(
+            window,
+            config,
+            model,
+            theme,
+            MagicMock(),
+            geometry_frame_provider=MagicMock(),
+        )
         preview = MagicMock()
         # When
         hover.set_preview(preview)
@@ -53,6 +69,13 @@ class TestHoverManagerPreview:
         theme = MagicMock()
         tooltip = MagicMock()
         # When
-        hover = HoverManager(window, config, model, theme, tooltip)
+        hover = HoverManager(
+            window,
+            config,
+            model,
+            theme,
+            tooltip,
+            geometry_frame_provider=MagicMock(),
+        )
         # Then
         assert hover._tooltip is tooltip

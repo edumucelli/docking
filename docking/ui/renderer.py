@@ -81,8 +81,8 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 from docking.applets.separator.state import STYLE_LINE
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import RGB, IndicatorStyle
-from docking.core.zoom import compute_layout, content_bounds
 from docking.ui.effects import average_icon_color, easing_bounce
+from docking.ui.geometry import DockGeometryFrame, map_icon_position
 from docking.ui.shelf import draw_shelf_background, rounded_rect
 
 if TYPE_CHECKING:
@@ -141,30 +141,6 @@ def compute_urgent_glow_opacity(
     return 0.2 + 0.75 * (math.sin(phase) + 1) / 2
 
 
-def map_icon_position(
-    pos: Position,
-    main_pos: float,
-    cross_size: float,
-    edge_padding: float,
-    scaled_size: float,
-    hide_cross: float = 0.0,
-    bounce: float = 0.0,
-) -> tuple[float, float]:
-    """Map 1D main-axis position to (x, y) for a given dock position.
-
-    Returns the top-left corner of the icon in window coordinates.
-    """
-    cross_rest = cross_size - edge_padding - scaled_size
-    if pos == Position.BOTTOM:
-        return main_pos, cross_rest + hide_cross - bounce
-    elif pos == Position.TOP:
-        return main_pos, edge_padding - hide_cross + bounce
-    elif pos == Position.LEFT:
-        return edge_padding - hide_cross + bounce, main_pos
-    else:  # RIGHT
-        return cross_rest + hide_cross - bounce, main_pos
-
-
 def _is_separator_item(item: DockItem) -> bool:
     return item.desktop_id.startswith("applet://separator")
 
@@ -220,10 +196,9 @@ class DockRenderer:
         self,
         cr: cairo.Context,
         widget: Gtk.DrawingArea,
-        model: DockModel,
+        frame: DockGeometryFrame,
         config: Config,
         theme: Theme,
-        cursor_main: float,
         hide_offset: float = 0.0,
         drag_index: int = -1,
         drop_insert_index: int = -1,
@@ -232,9 +207,9 @@ class DockRenderer:
     ) -> None:
         """Main draw entry point -- called on every 'draw' signal.
 
-        cursor_main is the cursor position along the main axis (the axis
-        icons are laid out along). For horizontal docks this is X, for
-        vertical docks this is Y.
+        The current `DockGeometryFrame` is built by the window/event layer and
+        reused here so rendering does not rebuild a conflicting geometry
+        snapshot.
         """
         alloc = widget.get_allocation()
         width, height = alloc.width, alloc.height
@@ -250,12 +225,9 @@ class DockRenderer:
         ocr = cairo.Context(offscreen)
         self._draw_content(
             cr=ocr,
-            width=width,
-            height=height,
-            model=model,
+            frame=frame,
             config=config,
             theme=theme,
-            cursor_main=cursor_main,
             hide_offset=hide_offset,
             drag_index=drag_index,
             drop_insert_index=drop_insert_index,
@@ -269,12 +241,9 @@ class DockRenderer:
     def _draw_content(
         self,
         cr: cairo.Context,
-        width: int,
-        height: int,
-        model: DockModel,
+        frame: DockGeometryFrame,
         config: Config,
         theme: Theme,
-        cursor_main: float,
         hide_offset: float,
         drag_index: int,
         drop_insert_index: int,
@@ -284,12 +253,13 @@ class DockRenderer:
         """Render all dock content to a Cairo context."""
         pos = config.pos
         horizontal = is_horizontal(pos=pos)
+        width = frame.window_rect.w
+        height = frame.window_rect.h
         main_size = width if horizontal else height
-        gap = max(0, int(theme.distance_from_edge))
-        cross_size = (height if horizontal else width) - gap
 
         # Offset content away from the screen edge so the gap area
         # (at the edge) stays transparent for the autohide trigger.
+        gap = max(0, int(theme.distance_from_edge))
         if gap > 0:
             if pos == Position.TOP:
                 cr.translate(0, gap)
@@ -298,53 +268,28 @@ class DockRenderer:
             # BOTTOM/RIGHT: gap is at high-y/high-x end, content is
             # already drawn from y=0/x=0 so no translate needed.
 
+        items = [item_geometry.item for item_geometry in frame.item_geometries]
+        if not items:
+            return
+
+        icon_size = config.icon_size
+        layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
+        cross_size = frame.cross_size
         icon_hide = hide_offset
         bg_extra = (
             hide_offset * (cross_size - theme.shelf_height) if hide_offset > 0 else 0.0
         )
 
-        items = model.visible_items()
-        if not items:
-            return
-
-        num_items = len(items)
-        icon_size = config.icon_size
-
-        # Layout in 1D content-space (same for all positions).
-        # Matches content_bounds: h_padding + item_padding/2 on each side.
-        total_main = sum(item.main_size or icon_size for item in items)
-        base_w = (
-            (theme.h_padding + theme.item_padding / 2) * 2
-            + total_main
-            + max(0, num_items - 1) * theme.item_padding
-        )
-        base_offset = (main_size - base_w) / 2
-        local_cursor = cursor_main - base_offset if cursor_main >= 0 else -1.0
-        layout = compute_layout(
-            items,
-            config,
-            local_cursor,
-            item_padding=theme.item_padding,
-            h_padding=theme.h_padding,
-            zoom_progress=zoom_progress,
-        )
-
-        # Content bounds and centering offset along main axis
-        left_edge, right_edge = content_bounds(
-            layout=layout,
-            icon_size=icon_size,
-            h_padding=theme.h_padding,
-            item_padding=theme.item_padding,
-        )
-        zoomed_w = right_edge - left_edge
         # Include the drop gap so shelf expands to cover displaced items
         drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
-        zoomed_w += drop_gap
-        icon_offset = (main_size - zoomed_w) / 2 - left_edge
+        icon_offset = frame.zoomed_main_offset
 
         # Shelf width smoothing - snap during hide/show and drop gap so
         # the shelf tracks icon positions exactly (no lag = no edge gaps).
-        target_shelf_w = zoomed_w
+        base_shelf_extent = (
+            frame.background_rect.w if horizontal else frame.background_rect.h
+        )
+        target_shelf_w = base_shelf_extent
         if self.smooth_shelf_w == 0.0 or drop_gap > 0 or hide_offset > 0:
             self.smooth_shelf_w = target_shelf_w
         else:
@@ -352,9 +297,11 @@ class DockRenderer:
                 target_shelf_w - self.smooth_shelf_w
             ) * SHELF_SMOOTH_FACTOR
         shelf_main_extent = self.smooth_shelf_w
-        shelf_main_pos = (main_size - shelf_main_extent) / 2
+        shelf_main_pos = (
+            frame.background_rect.x if horizontal else frame.background_rect.y
+        )
 
-        bg_height = theme.shelf_height
+        bg_height = frame.background_rect.h if horizontal else frame.background_rect.w
 
         # --- Draw shelf background with Cairo transform ---
         # Always draw as-if-bottom, then transform for other positions.
@@ -371,7 +318,7 @@ class DockRenderer:
             width=width,
             height=height,
             main_size=main_size,
-            cross_size=cross_size,
+            cross_size=int(cross_size),
         )
         draw_shelf_background(
             cr=cr,

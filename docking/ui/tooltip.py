@@ -9,11 +9,11 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
-from docking.core.position import Position, is_horizontal
-from docking.core.zoom import content_bounds
+from docking.core.position import Position
 from docking.log import get_logger
+from docking.ui.geometry import DockGeometryFrame
 
 _log = get_logger(name="tooltip")
 
@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
     from docking.core.theme import Theme
-    from docking.core.zoom import LayoutItem
     from docking.platform.model import DockModel
 
 
@@ -82,8 +81,13 @@ class TooltipManager:
         # dynamically (e.g. clippy updates the tooltip on scroll).
         self._last_item: DockItem | None = None
         self._last_name: str = ""
+        self._pending_show_source: int = 0
 
-    def update(self, item: DockItem | None, layout: list[LayoutItem]) -> None:
+    def update(
+        self,
+        item: DockItem | None,
+        geometry: DockGeometryFrame | None = None,
+    ) -> None:
         """Show or reposition tooltip for the hovered icon.
 
         When item is None (cursor in gap between icons), keeps the last
@@ -97,95 +101,80 @@ class TooltipManager:
         if not item or not item.name:
             return
 
+        if geometry is None:
+            return
+
         # Check if content needs rebuilding (expensive: show_all triggers
         # crossing events) vs just repositioning (cheap: move only).
         content_changed = not (item is self._last_item and item.name == self._last_name)
         if content_changed:
             _log.debug(f"content changed: {item.name}")
-        self._last_item = item
-        self._last_name = item.name
 
-        items = self._model.visible_items()
-        idx = None
-        for i, it in enumerate(items):
-            if it is item:
-                idx = i
-                break
-        if idx is None or idx >= len(layout):
+        item_geometry = geometry.geometry_for_item(item)
+        if item_geometry is None:
             self.hide()
             return
-
-        li = layout[idx]
-        left_edge, right_edge = content_bounds(
-            layout=layout,
-            icon_size=self._config.icon_size,
-            h_padding=self._theme.h_padding,
-            item_padding=self._theme.item_padding,
-        )
-        zoomed_w = right_edge - left_edge
-
         pos = self._config.pos
-        horizontal = is_horizontal(pos=pos)
-        if horizontal:
-            main_win_size = self._window.get_size()[0]
-        else:
-            main_win_size = self._window.get_size()[1]
-        offset = (main_win_size - zoomed_w) / 2 - left_edge
-
-        scaled_size = li.scale * self._config.icon_size
-        edge_padding = self._theme.bottom_padding
         win_x, win_y = self._window.get_position()
-        win_w, win_h = self._window.get_size()
+        anchor_x = win_x + item_geometry.anchor_x
+        anchor_y = win_y + item_geometry.anchor_y
 
-        # Only rebuild widget content when item or text changed
-        widget = None
-        if content_changed:
-            widget = item.tooltip_builder() if item.tooltip_builder else None
+        if not content_changed:
+            self._cancel_pending_show()
+            self._show_tooltip(
+                text=item.name,
+                pos=pos,
+                anchor_x=anchor_x,
+                anchor_y=anchor_y,
+                content_changed=False,
+            )
+            return
 
-        if pos == Position.BOTTOM:
-            icon_center_x = win_x + li.x + offset + scaled_size / 2
-            icon_top_y = win_y + win_h - edge_padding - scaled_size
+        # Content rebuilds are the expensive branch. Coalesce them through an
+        # idle callback so rapid hover churn across adjacent items only shows
+        # the final stable item instead of briefly flashing stale tooltips.
+        widget = item.tooltip_builder() if item.tooltip_builder else None
+        self._schedule_show(
+            item=item,
+            text=item.name,
+            pos=pos,
+            anchor_x=anchor_x,
+            anchor_y=anchor_y,
+            widget=widget,
+        )
+
+    def _schedule_show(
+        self,
+        *,
+        item: "DockItem",
+        text: str,
+        pos: Position,
+        anchor_x: float,
+        anchor_y: float,
+        widget: Gtk.Widget | None,
+    ) -> None:
+        self._cancel_pending_show()
+
+        def run() -> bool:
+            self._pending_show_source = 0
+            self._last_item = item
+            self._last_name = text
             self._show_tooltip(
-                text=item.name,
+                text=text,
                 pos=pos,
-                anchor_x=icon_center_x,
-                anchor_y=icon_top_y,
+                anchor_x=anchor_x,
+                anchor_y=anchor_y,
                 widget=widget,
-                content_changed=content_changed,
+                content_changed=True,
             )
-        elif pos == Position.TOP:
-            icon_center_x = win_x + li.x + offset + scaled_size / 2
-            icon_bottom_y = win_y + edge_padding + scaled_size
-            self._show_tooltip(
-                text=item.name,
-                pos=pos,
-                anchor_x=icon_center_x,
-                anchor_y=icon_bottom_y,
-                widget=widget,
-                content_changed=content_changed,
-            )
-        elif pos == Position.LEFT:
-            icon_center_y = win_y + li.x + offset + scaled_size / 2
-            icon_right_x = win_x + edge_padding + scaled_size
-            self._show_tooltip(
-                text=item.name,
-                pos=pos,
-                anchor_x=icon_right_x,
-                anchor_y=icon_center_y,
-                widget=widget,
-                content_changed=content_changed,
-            )
-        else:  # RIGHT
-            icon_center_y = win_y + li.x + offset + scaled_size / 2
-            icon_left_x = win_x + win_w - edge_padding - scaled_size
-            self._show_tooltip(
-                text=item.name,
-                pos=pos,
-                anchor_x=icon_left_x,
-                anchor_y=icon_center_y,
-                widget=widget,
-                content_changed=content_changed,
-            )
+            return False
+
+        self._pending_show_source = GLib.idle_add(run)
+
+    def _cancel_pending_show(self) -> None:
+        if self._pending_show_source:
+            GLib.source_remove(self._pending_show_source)
+            self._pending_show_source = 0
 
     def _show_tooltip(
         self,
@@ -294,6 +283,7 @@ class TooltipManager:
 
     def hide(self) -> None:
         """Hide the tooltip window and clear tracking state."""
+        self._cancel_pending_show()
         self._last_item = None
         self._last_name = ""
         if self._tooltip_window:

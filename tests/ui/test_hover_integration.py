@@ -19,16 +19,28 @@ except ModuleNotFoundError:  # pragma: no cover
 import docking.ui.hover as hover_mod  # noqa: E402
 from docking.core.position import Position  # noqa: E402
 from docking.platform.model import DockItem  # noqa: E402
+from docking.ui.autohide import HideState  # noqa: E402
 
 
 def _make_hover():
     window = MagicMock()
-    window.local_cursor_main.return_value = 10.0
-    window.zoomed_main_offset.return_value = 0.0
     window.get_realized.return_value = True
     window.get_position.return_value = (100, 200)
     window.get_size.return_value = (500, 60)
+    window.dock_hovered = True
     window.drawing_area = MagicMock()
+    window.cursor_x = 20.0
+    window.cursor_y = 10.0
+    frame = SimpleNamespace(
+        item_at_point=MagicMock(return_value=None),
+        hover_item_at_point=MagicMock(return_value=None),
+        geometry_for_item=MagicMock(
+            return_value=SimpleNamespace(
+                draw_rect=SimpleNamespace(x=15, y=4, w=48, h=48)
+            )
+        ),
+        cursor_rect=SimpleNamespace(contains=lambda *_args, **_kwargs: True),
+    )
     model = MagicMock()
     config = SimpleNamespace(
         previews_enabled=True,
@@ -37,8 +49,15 @@ def _make_hover():
     )
     theme = SimpleNamespace(item_padding=8, h_padding=10, bottom_padding=12)
     tooltip = MagicMock()
-    hover = hover_mod.HoverManager(window, config, model, theme, tooltip)
-    return hover, window, model, config, tooltip
+    hover = hover_mod.HoverManager(
+        window,
+        config,
+        model,
+        theme,
+        tooltip,
+        geometry_frame_provider=lambda _window, **_kwargs: frame,
+    )
+    return hover, window, model, config, tooltip, frame
 
 
 def _layout():
@@ -48,7 +67,7 @@ def _layout():
 class TestHoverUpdates:
     def test_update_changes_hover_and_starts_preview_timer(self, monkeypatch):
         # Given
-        hover, window, model, _config, tooltip = _make_hover()
+        hover, window, model, _config, tooltip, frame = _make_hover()
         item = DockItem(
             desktop_id="firefox.desktop",
             name="Firefox",
@@ -56,63 +75,81 @@ class TestHoverUpdates:
             instance_count=1,
         )
         model.visible_items.return_value = [item]
-        window.hit_test.return_value = item
+        frame.hover_item_at_point.return_value = item
         hover.set_preview(MagicMock())
-        monkeypatch.setattr(
-            hover_mod, "compute_layout", lambda *args, **kwargs: _layout()
-        )
         monkeypatch.setattr(hover_mod.GLib, "timeout_add", lambda _ms, _cb, *_args: 77)
 
         # When
         hover.update(cursor_main=20.0)
         # Then
         assert hover.hovered_item is item
-        tooltip.update.assert_called_once_with(item, _layout())
+        tooltip.update.assert_called_once_with(item, frame)
         assert hover._preview_timer_id == 77
 
-    def test_update_same_item_only_refreshes_tooltip(self, monkeypatch):
+    def test_update_same_item_only_refreshes_tooltip(self):
         # Given
-        hover, window, model, _config, tooltip = _make_hover()
+        hover, window, model, _config, tooltip, frame = _make_hover()
         item = DockItem(desktop_id="x.desktop", name="X")
         hover.hovered_item = item
         model.visible_items.return_value = [item]
-        window.hit_test.return_value = item
-        monkeypatch.setattr(
-            hover_mod, "compute_layout", lambda *args, **kwargs: _layout()
-        )
+        frame.hover_item_at_point.return_value = item
 
         hover.cancel = MagicMock()
         # When
         hover.update(cursor_main=20.0)
         # Then
-        tooltip.update.assert_called_once_with(item, _layout())
+        tooltip.update.assert_called_once_with(item, frame)
         hover.cancel.assert_not_called()
 
-    def test_update_non_running_item_schedules_hide(self, monkeypatch):
+    def test_update_non_running_item_schedules_hide(self):
         # Given
-        hover, window, model, config, _tooltip = _make_hover()
+        hover, window, model, config, _tooltip, frame = _make_hover()
         item = DockItem(
             desktop_id="x.desktop", name="X", is_running=False, instance_count=0
         )
         model.visible_items.return_value = [item]
-        window.hit_test.return_value = item
+        frame.hover_item_at_point.return_value = item
         preview = MagicMock()
         hover.set_preview(preview)
         config.previews_enabled = True
-        monkeypatch.setattr(
-            hover_mod, "compute_layout", lambda *args, **kwargs: _layout()
-        )
 
         # When
         hover.update(cursor_main=20.0)
         # Then
         preview.schedule_hide.assert_called_once()
 
+    def test_update_does_not_re_show_tooltip_when_dock_is_not_effectively_hovered(self):
+        hover, window, model, _config, tooltip, frame = _make_hover()
+        item = DockItem(desktop_id="terminator.desktop", name="Terminator")
+        hover.hovered_item = item
+        window.dock_hovered = False
+        model.visible_items.return_value = [item]
+        frame.hover_item_at_point.return_value = item
+
+        hover.update(cursor_main=20.0)
+
+        tooltip.hide.assert_called_once()
+        tooltip.update.assert_not_called()
+        assert hover.hovered_item is item
+
+    def test_update_suppresses_tooltip_while_dock_is_showing(self):
+        hover, window, model, _config, tooltip, frame = _make_hover()
+        item = DockItem(desktop_id="terminator.desktop", name="Terminator")
+        window.autohide = SimpleNamespace(enabled=True, state=HideState.SHOWING)
+        model.visible_items.return_value = [item]
+        frame.hover_item_at_point.return_value = item
+
+        hover.update(cursor_main=20.0)
+
+        assert hover.hovered_item is item
+        tooltip.hide.assert_called_once()
+        tooltip.update.assert_not_called()
+
 
 class TestHoverTimers:
     def test_cancel_removes_preview_timer(self, monkeypatch):
         # Given
-        hover, _window, _model, _config, _tooltip = _make_hover()
+        hover, _window, _model, _config, _tooltip, _frame = _make_hover()
         hover._preview_timer_id = 9
         removed = []
         monkeypatch.setattr(
@@ -127,7 +164,7 @@ class TestHoverTimers:
 
     def test_start_anim_pump_ticks_and_stops(self, monkeypatch):
         # Given
-        hover, window, _model, _config, _tooltip = _make_hover()
+        hover, window, _model, _config, _tooltip, _frame = _make_hover()
         callbacks = []
         monkeypatch.setattr(
             hover_mod.GLib,
@@ -148,7 +185,7 @@ class TestHoverTimers:
 
     def test_on_model_changed_starts_pump_for_urgent_item(self):
         # Given
-        hover, _window, model, _config, _tooltip = _make_hover()
+        hover, _window, model, _config, _tooltip, _frame = _make_hover()
         urgent = DockItem(desktop_id="u.desktop", is_urgent=True, last_urgent=123)
         model.visible_items.return_value = [urgent]
         hover.start_anim_pump = MagicMock()
@@ -178,7 +215,7 @@ class TestShowPreview:
         position,
         expected_method,
     ):
-        hover, window, model, config, _tooltip = _make_hover()
+        hover, window, model, config, _tooltip, frame = _make_hover()
         item = DockItem(
             desktop_id="firefox.desktop",
             name="Firefox",
@@ -190,9 +227,6 @@ class TestShowPreview:
         config.pos = position
         preview = MagicMock()
         hover.set_preview(preview)
-        monkeypatch.setattr(
-            hover_mod, "compute_layout", lambda *args, **kwargs: _layout()
-        )
 
         assert hover._show_preview(item, object()) is False
         preview.show_for_item.assert_called_once()
@@ -204,14 +238,11 @@ class TestShowPreview:
         self, monkeypatch
     ):
         # Given
-        hover, window, model, _config, _tooltip = _make_hover()
+        hover, window, model, _config, _tooltip, _frame = _make_hover()
         item = DockItem(desktop_id="x.desktop", name="X")
         hover.hovered_item = None
         hover.set_preview(MagicMock())
         model.visible_items.return_value = [item]
-        monkeypatch.setattr(
-            hover_mod, "compute_layout", lambda *args, **kwargs: _layout()
-        )
         # Then
         # When
         assert hover._show_preview(item, object()) is False

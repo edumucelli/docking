@@ -17,6 +17,8 @@ from docking.ui.autohide import (  # noqa: E402
     HideState,
     ease_in_cubic,
     ease_out_cubic,
+    inverse_ease_in_cubic,
+    inverse_ease_out_cubic,
 )
 
 
@@ -70,6 +72,14 @@ class TestEasing:
         result = ease_out_cubic(t=0.1)
         # Then
         assert result > 0.1
+
+    def test_inverse_ease_in_round_trip(self):
+        value = ease_in_cubic(0.4)
+        assert inverse_ease_in_cubic(value) == pytest.approx(0.4)
+
+    def test_inverse_ease_out_round_trip(self):
+        value = ease_out_cubic(0.6)
+        assert inverse_ease_out_cubic(value) == pytest.approx(0.6)
 
 
 class TestAutoHideState:
@@ -248,8 +258,99 @@ class TestAutoHideTimersAndDelays:
     def test_mouse_leave_with_delay_schedules_hide_timer(self, monkeypatch):
         ctrl = self._make_controller(hide_delay=120)
         monkeypatch.setattr(autohide_mod.GLib, "timeout_add", lambda delay, cb: 901)
+        ctrl.on_mouse_enter()
         ctrl.on_mouse_leave()
         assert ctrl._hide_timer_id == 901
+
+    def test_mouse_leave_from_visible_with_zero_delay_uses_min_hide_grace(
+        self, monkeypatch
+    ):
+        ctrl = self._make_controller(hide_delay=0)
+        scheduled: list[int] = []
+
+        def fake_timeout_add(delay, cb):
+            scheduled.append(delay)
+            return 903
+
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", fake_timeout_add)
+
+        ctrl.on_mouse_enter()
+        ctrl.on_mouse_leave()
+
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl._hide_timer_id == 903
+        assert scheduled == [autohide_mod.MIN_HIDE_GRACE_MS]
+
+    def test_mouse_enter_cancels_pending_min_hide_grace(self, monkeypatch):
+        ctrl = self._make_controller(hide_delay=0)
+        removed: list[int] = []
+
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", lambda delay, cb: 904)
+        monkeypatch.setattr(
+            autohide_mod,
+            "_clear_source",
+            lambda source_id: removed.append(source_id) or 0,
+        )
+
+        ctrl.on_mouse_enter()
+        ctrl.on_mouse_leave()
+        ctrl.on_mouse_enter()
+
+        assert removed == [904]
+        assert ctrl._hide_timer_id == 0
+        assert ctrl.state == HideState.VISIBLE
+
+    def test_set_disabled_cancels_pending_hide_timer(self, monkeypatch):
+        ctrl = self._make_controller(hide_delay=0)
+        removed: list[int] = []
+
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", lambda delay, cb: 907)
+        monkeypatch.setattr(
+            autohide_mod,
+            "_clear_source",
+            lambda source_id: removed.append(source_id) or 0,
+        )
+
+        ctrl.on_mouse_enter()
+        ctrl.on_mouse_leave()
+        ctrl.set_disabled(True)
+
+        assert ctrl._hide_timer_id == 0
+        assert removed == [907]
+
+    def test_set_disabled_false_schedules_hide_when_not_hovered(self, monkeypatch):
+        ctrl = self._make_controller(hide_delay=0)
+        scheduled: list[int] = []
+
+        def fake_timeout_add(delay, cb):
+            scheduled.append(delay)
+            return 908
+
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", fake_timeout_add)
+
+        ctrl.set_disabled(True)
+        ctrl.set_disabled(False)
+
+        assert ctrl._hide_timer_id == 908
+        assert scheduled == [autohide_mod.MIN_HIDE_GRACE_MS]
+
+    def test_mouse_leave_preserves_explicit_hide_delay_over_min_grace(
+        self, monkeypatch
+    ):
+        ctrl = self._make_controller(hide_delay=120)
+        scheduled: list[int] = []
+
+        def fake_timeout_add(delay, cb):
+            scheduled.append(delay)
+            return 905
+
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", fake_timeout_add)
+
+        ctrl.on_mouse_enter()
+        ctrl.on_mouse_leave()
+
+        assert ctrl._hide_timer_id == 905
+        assert scheduled == [120]
 
     def test_mouse_enter_with_delay_schedules_unhide_timer(self, monkeypatch):
         ctrl = self._make_controller(unhide_delay=140)
@@ -287,3 +388,76 @@ class TestAutoHideTimersAndDelays:
         ctrl._cancel_unhide_timer()
         assert ctrl._hide_timer_id == 0
         assert ctrl._unhide_timer_id == 0
+
+    def test_mouse_leave_during_showing_defers_hide_until_animation_finishes(self):
+        ctrl = self._make_controller(hide_delay=0)
+        ctrl.state = HideState.SHOWING
+        ctrl._hovered = True
+        ctrl._start_animation = MagicMock()
+
+        ctrl.on_mouse_leave()
+
+        assert ctrl.state == HideState.SHOWING
+        assert ctrl._hide_after_show is True
+        ctrl._start_animation.assert_not_called()
+
+    def test_showing_completion_hides_if_leave_was_deferred(self, monkeypatch):
+        ctrl = self._make_controller(hide_delay=0)
+        ctrl.state = HideState.SHOWING
+        ctrl._hide_after_show = True
+        ctrl._hovered = False
+        ctrl._anim_progress = 0.99
+        scheduled: list[int] = []
+
+        def fake_timeout_add(delay, cb):
+            scheduled.append(delay)
+            return 906
+
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", fake_timeout_add)
+
+        result = ctrl._animation_tick()
+
+        assert result is False
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl._hide_after_show is False
+        assert ctrl._hide_timer_id == 906
+        assert scheduled == [autohide_mod.MIN_HIDE_GRACE_MS]
+
+    def test_mouse_enter_during_showing_clears_deferred_hide(self):
+        ctrl = self._make_controller(hide_delay=0)
+        ctrl.state = HideState.SHOWING
+        ctrl._hide_after_show = True
+        ctrl._anim_progress = 0.99
+
+        ctrl.on_mouse_enter()
+        result = ctrl._animation_tick()
+
+        assert ctrl._hide_after_show is False
+        assert result is False
+        assert ctrl.state == HideState.VISIBLE
+
+    def test_reversing_from_hiding_to_showing_keeps_hide_offset_continuous(self):
+        ctrl = self._make_controller()
+        ctrl.state = HideState.HIDING
+        ctrl.hide_offset = 0.191
+        ctrl._start_animation = MagicMock()
+
+        ctrl._start_showing()
+
+        assert ctrl.state == HideState.SHOWING
+        assert 0.0 < ctrl._anim_progress < 1.0
+        assert 1.0 - ease_out_cubic(ctrl._anim_progress) == pytest.approx(
+            0.191, abs=0.001
+        )
+
+    def test_reversing_from_showing_to_hiding_keeps_hide_offset_continuous(self):
+        ctrl = self._make_controller()
+        ctrl.state = HideState.SHOWING
+        ctrl.hide_offset = 0.412
+        ctrl._start_animation = MagicMock()
+
+        ctrl._start_hiding()
+
+        assert ctrl.state == HideState.HIDING
+        assert 0.0 < ctrl._anim_progress < 1.0
+        assert ease_in_cubic(ctrl._anim_progress) == pytest.approx(0.412, abs=0.001)
