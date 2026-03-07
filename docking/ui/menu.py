@@ -27,7 +27,7 @@ from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
 from docking.i18n import _
 from docking.ui.about import AboutDialogController
-from docking.ui.geometry import DockGeometryFrame
+from docking.ui.geometry import DockGeometryFrame, build_geometry_frame_for_window
 from docking.ui.preview import capture_window
 
 if TYPE_CHECKING:
@@ -196,7 +196,9 @@ class MenuHandler:
         menu (desktop actions, pin/unpin, close) or a dock background menu
         (autohide, theme, position, applets, quit).
         """
-        frame = self._window._get_geometry_frame(cursor_x=event.x, cursor_y=event.y)
+        frame = build_geometry_frame_for_window(
+            self._window, cursor_x=event.x, cursor_y=event.y
+        )
         item = frame.item_at_point(event.x, event.y)
 
         if item:

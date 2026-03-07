@@ -21,6 +21,19 @@ from docking.core.items import FILE_KIND, FOLDER_KIND  # noqa: E402
 from docking.platform.model import DockItem  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _route_stub_geometry(monkeypatch):
+    original = menu_mod.build_geometry_frame_for_window
+
+    def _resolve(window, **kwargs):
+        frame = getattr(window, "_test_geometry_frame", None)
+        if frame is not None:
+            return frame
+        return original(window, **kwargs)
+
+    monkeypatch.setattr(menu_mod, "build_geometry_frame_for_window", _resolve)
+
+
 class FakeMenu:
     def __init__(self) -> None:
         self.children: list[FakeMenuItem] = []
@@ -474,7 +487,7 @@ def handler(monkeypatch):
     window.primary_monitor_index.return_value = 0
     window.cursor_x = 20.0
     window.cursor_y = 8.0
-    window._get_geometry_frame = MagicMock(return_value=_frame())
+    window._test_geometry_frame = _frame()
 
     model = MagicMock()
     model.pinned_items = []
@@ -863,7 +876,7 @@ class TestDockMenu:
         # Given
         event = SimpleNamespace(x=10.0, y=5.0)
         frame = _frame(item=None, insert_index=1)
-        handler._window._get_geometry_frame.return_value = frame
+        handler._window._test_geometry_frame = frame
         captured_menu = None
 
         class CaptureMenu(FakeMenu):

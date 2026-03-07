@@ -98,7 +98,12 @@ from docking.platform.launcher import launch, open_target
 from docking.platform.struts import clear_struts, set_dock_struts
 from docking.ui import geometry
 from docking.ui.autohide import HideState
-from docking.ui.geometry import DockGeometryFrame, Rect, build_geometry_frame
+from docking.ui.geometry import (
+    DockGeometryFrame,
+    build_geometry_frame_for_window,
+    current_input_rect,
+    point_inside_input_rect,
+)
 from docking.ui.hover import HoverManager
 from docking.ui.tooltip import TooltipManager
 
@@ -320,7 +325,7 @@ class DockWindow(Gtk.Window):
 
     def _pointer_inside_input_rect(self) -> bool:
         """Return True when pointer is inside current dock input region."""
-        input_rect = self._current_input_rect()
+        input_rect = current_input_rect(self._last_geometry_frame)
         if input_rect is None or not self.get_realized():
             return False
         display = self.get_display()
@@ -340,64 +345,7 @@ class DockWindow(Gtk.Window):
 
         local_x = screen_x - win_x
         local_y = screen_y - win_y
-        return input_rect.contains(x=local_x, y=local_y)
-
-    def _get_geometry_frame(
-        self,
-        *,
-        main_cursor: float | None = None,
-        cursor_x: float | None = None,
-        cursor_y: float | None = None,
-    ) -> DockGeometryFrame:
-        """Build a shared geometry frame for the current dock state."""
-        width, height = self.get_size()
-        pos = self.config.pos
-        if main_cursor is not None:
-            resolved_main_cursor = main_cursor
-        elif cursor_x is not None and cursor_y is not None:
-            main_cursor = cursor_x if is_horizontal(pos=pos) else cursor_y
-            resolved_main_cursor = main_cursor
-        else:
-            resolved_main_cursor = self._main_axis_cursor()
-        autohide_state = (
-            self.autohide.state if self.autohide and self.autohide.enabled else None
-        )
-        zoom_progress = (
-            self.autohide.zoom_progress
-            if self.autohide and self.autohide.enabled
-            else 1.0
-        )
-        hide_offset = (
-            self.autohide.hide_offset
-            if self.autohide and self.autohide.enabled
-            else 0.0
-        )
-        return build_geometry_frame(
-            items=self.model.visible_items(),
-            config=self.config,
-            theme=self.theme,
-            window_w=width,
-            window_h=height,
-            cursor_main=(
-                -1.0 if resolved_main_cursor is None else float(resolved_main_cursor)
-            ),
-            autohide_state=autohide_state,
-            zoom_progress=zoom_progress,
-            hide_offset=hide_offset,
-        )
-
-    def _point_inside_input_rect(self, x: float, y: float) -> bool:
-        """Return True when the given local-window point is inside input rect."""
-        input_rect = self._current_input_rect()
-        if input_rect is None:
-            return False
-        return input_rect.contains(x=x, y=y)
-
-    def _current_input_rect(self) -> Rect | None:
-        frame = self._last_geometry_frame
-        if frame is None:
-            return None
-        return frame.cursor_rect
+        return point_inside_input_rect(self._last_geometry_frame, x=local_x, y=local_y)
 
     def _on_effective_enter(self) -> None:
         if self._dock_hovered:
@@ -812,7 +760,7 @@ class DockWindow(Gtk.Window):
             and self._dock_hovered
             and self._hover.hovered_item is not None
         ):
-            frame = self._get_geometry_frame()
+            frame = build_geometry_frame_for_window(self)
             self._hover.update(self._main_axis_cursor(), frame=frame)
 
         # Keep redraw pump alive while urgent glow is visible (dock hidden)
@@ -831,7 +779,7 @@ class DockWindow(Gtk.Window):
         """
         self.cursor_x = event.x
         self.cursor_y = event.y
-        frame = self._get_geometry_frame()
+        frame = build_geometry_frame_for_window(self)
         self._update_dock_size(frame=frame)
         widget.queue_draw()
         if frame.cursor_rect.contains(event.x, event.y):
@@ -873,7 +821,9 @@ class DockWindow(Gtk.Window):
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
-            frame = self._get_geometry_frame(cursor_x=event.x, cursor_y=event.y)
+            frame = build_geometry_frame_for_window(
+                self, cursor_x=event.x, cursor_y=event.y
+            )
             item = frame.item_at_point(event.x, event.y)
             if item is None:
                 return True
@@ -943,7 +893,9 @@ class DockWindow(Gtk.Window):
         item. If it's an applet, delegates to its on_scroll() and refreshes
         the tooltip (applet name/state may change on scroll, e.g. clippy).
         """
-        frame = self._get_geometry_frame(cursor_x=event.x, cursor_y=event.y)
+        frame = build_geometry_frame_for_window(
+            self, cursor_x=event.x, cursor_y=event.y
+        )
         item = frame.item_at_point(event.x, event.y)
         if item and is_applet(desktop_id=item.desktop_id):
             applet = self.model.get_applet(item.desktop_id)
@@ -977,7 +929,7 @@ class DockWindow(Gtk.Window):
         # inside the dock's current cursor region. Ignore those leaves
         # using the same half-open region semantics as the rest of the
         # shared geometry layer.
-        input_rect = self._current_input_rect()
+        input_rect = current_input_rect(self._last_geometry_frame)
         if input_rect is not None:
             if input_rect.contains(event.x, event.y):
                 return False
@@ -1012,7 +964,9 @@ class DockWindow(Gtk.Window):
         """
         self.cursor_x = event.x
         self.cursor_y = event.y
-        frame = self._get_geometry_frame(cursor_x=event.x, cursor_y=event.y)
+        frame = build_geometry_frame_for_window(
+            self, cursor_x=event.x, cursor_y=event.y
+        )
         if frame.cursor_rect.contains(event.x, event.y):
             self._on_effective_enter()
         return True
@@ -1084,8 +1038,8 @@ class DockWindow(Gtk.Window):
         gdk_window = self.get_window()
         if not gdk_window:
             return
-        frame = frame or self._get_geometry_frame()
-        old_rect = self._current_input_rect()
+        frame = frame or build_geometry_frame_for_window(self)
+        old_rect = current_input_rect(self._last_geometry_frame)
         self._last_geometry_frame = frame
         new_rect = frame.cursor_rect
         if new_rect != old_rect:

@@ -68,6 +68,7 @@ import docking.platform.launcher as launcher_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
+from docking.ui.geometry import build_geometry_frame_for_window
 from docking.ui.poof import show_poof
 
 if TYPE_CHECKING:
@@ -168,7 +169,7 @@ class DnDHandler:
         the dragged item, stores its index in drag_index/_drag_from, and sets
         a scaled pixbuf as the drag icon.
         """
-        frame = self._window._get_geometry_frame()
+        frame = build_geometry_frame_for_window(self._window)
         if self._window.autohide and self._window.autohide.enabled:
             self._window.autohide.set_disabled(True, reason="drag-begin")
         items = self._model.visible_items()
@@ -246,7 +247,7 @@ class DnDHandler:
 
         if self._drag_from < 0:
             # External drag -- compute insert position for gap effect
-            frame = self._window._get_geometry_frame(main_cursor=-1.0)
+            frame = build_geometry_frame_for_window(self._window, main_cursor=-1.0)
             insert = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
             if insert != self.drop_insert_index:
                 self.drop_insert_index = insert
@@ -254,7 +255,7 @@ class DnDHandler:
             Gdk.drag_status(context, Gdk.DragAction.COPY, time)
             return True
 
-        frame = self._window._get_geometry_frame(main_cursor=-1.0)
+        frame = build_geometry_frame_for_window(self._window, main_cursor=-1.0)
         new_index = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
         if frame.item_geometries:
             new_index = min(new_index, len(frame.item_geometries) - 1)

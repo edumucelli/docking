@@ -20,6 +20,18 @@ from docking.core.position import Position  # noqa: E402
 from docking.platform.model import DockItem  # noqa: E402
 
 
+def _route_stub_geometry(monkeypatch):
+    original = dnd_mod.build_geometry_frame_for_window
+
+    def _resolve(window, **kwargs):
+        frame = getattr(window, "_test_geometry_frame", None)
+        if frame is not None:
+            return frame
+        return original(window, **kwargs)
+
+    monkeypatch.setattr(dnd_mod, "build_geometry_frame_for_window", _resolve)
+
+
 def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
     item_geometries = [
         SimpleNamespace(
@@ -35,6 +47,7 @@ def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
 
 
 def _make_handler(monkeypatch, lock_icons: bool = False):
+    _route_stub_geometry(monkeypatch)
     drawing_area = MagicMock()
     window = MagicMock()
     window.drawing_area = drawing_area
@@ -42,7 +55,7 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
     window.cursor_y = 8.0
     window.autohide = MagicMock()
     default_frame = _frame()
-    window._get_geometry_frame = MagicMock(return_value=default_frame)
+    window._test_geometry_frame = default_frame
 
     model = MagicMock()
     config = SimpleNamespace(
@@ -94,7 +107,7 @@ class TestDragBeginMotion:
         handler._model.visible_items.return_value = [
             DockItem(desktop_id="firefox.desktop", name="Firefox", icon=icon)
         ]
-        handler._window._get_geometry_frame.return_value = _frame(item_index=0, count=1)
+        handler._window._test_geometry_frame = _frame(item_index=0, count=1)
         icon_set = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_set_icon_pixbuf", icon_set)
 
@@ -115,7 +128,7 @@ class TestDragBeginMotion:
             DockItem("b.desktop"),
         ]
         rest_frame = _frame(insert_index=0, count=2)
-        handler._window._get_geometry_frame.side_effect = lambda **kwargs: rest_frame
+        handler._window._test_geometry_frame = rest_frame
         status_calls = []
         monkeypatch.setattr(
             dnd_mod.Gdk,
@@ -142,7 +155,7 @@ class TestDragBeginMotion:
             DockItem("b.desktop"),
         ]
         rest_frame = _frame(insert_index=2, count=2)
-        handler._window._get_geometry_frame.side_effect = lambda **kwargs: rest_frame
+        handler._window._test_geometry_frame = rest_frame
         monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_a, **_k: None)
 
         # When

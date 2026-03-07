@@ -22,6 +22,19 @@ from docking.platform.model import DockItem  # noqa: E402
 from docking.ui.autohide import HideState  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _route_stub_geometry(monkeypatch):
+    original = hover_mod.build_geometry_frame_for_window
+
+    def _resolve(window, **kwargs):
+        frame = getattr(window, "_test_geometry_frame", None)
+        if frame is not None:
+            return frame
+        return original(window, **kwargs)
+
+    monkeypatch.setattr(hover_mod, "build_geometry_frame_for_window", _resolve)
+
+
 def _make_hover():
     window = MagicMock()
     window.get_realized.return_value = True
@@ -41,7 +54,7 @@ def _make_hover():
         ),
         cursor_rect=SimpleNamespace(contains=lambda *_args, **_kwargs: True),
     )
-    window._get_geometry_frame = MagicMock(return_value=frame)
+    window._test_geometry_frame = frame
     model = MagicMock()
     config = SimpleNamespace(
         previews_enabled=True,

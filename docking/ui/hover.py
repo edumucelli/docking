@@ -52,7 +52,7 @@ from gi.repository import GLib  # noqa: E402
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.ui.autohide import HideState
-from docking.ui.geometry import DockGeometryFrame
+from docking.ui.geometry import DockGeometryFrame, build_geometry_frame_for_window
 
 _log = get_logger(name="hover")
 
@@ -104,7 +104,7 @@ class HoverManager:
         self, cursor_main: float, frame: DockGeometryFrame | None = None
     ) -> None:
         """Detect which item the cursor is over and manage preview timer."""
-        frame = frame or self._window._get_geometry_frame()
+        frame = frame or build_geometry_frame_for_window(self._window)
         if not self._window._dock_hovered:
             self._tooltip.hide()
             return
@@ -209,7 +209,7 @@ class HoverManager:
         if not self._window.get_realized():
             return False
 
-        frame = self._window._get_geometry_frame()
+        frame = build_geometry_frame_for_window(self._window)
         geometry = frame.geometry_for_item(item)
         if geometry is None:
             return False

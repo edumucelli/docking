@@ -5,12 +5,27 @@ from __future__ import annotations
 from types import MethodType, SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.ui.dock_window as dock_window_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import Rect
+
+
+@pytest.fixture(autouse=True)
+def _route_stub_geometry(monkeypatch):
+    original = dock_window_mod.build_geometry_frame_for_window
+
+    def _resolve(window, **kwargs):
+        frame = getattr(window, "_test_geometry_frame", None)
+        if frame is not None:
+            return frame
+        return original(window, **kwargs)
+
+    monkeypatch.setattr(dock_window_mod, "build_geometry_frame_for_window", _resolve)
 
 
 def _make_stub(item: DockItem | None = None):
@@ -45,7 +60,7 @@ def _make_stub(item: DockItem | None = None):
     stub._update_dock_size = MagicMock()
     stub.drawing_area = MagicMock()
     stub._pointer_inside_input_rect = MagicMock(return_value=False)
-    stub._get_geometry_frame = MagicMock(return_value=frame)
+    stub._test_geometry_frame = frame
     stub._last_geometry_frame = frame
     stub._dock_hovered = True
     stub._on_effective_enter = MethodType(
@@ -53,11 +68,6 @@ def _make_stub(item: DockItem | None = None):
     )
     stub._on_effective_leave = MethodType(
         dock_window_mod.DockWindow._on_effective_leave, stub
-    )
-    stub._current_input_rect = lambda: (
-        None
-        if getattr(stub, "_last_geometry_frame", None) is None
-        else stub._last_geometry_frame.cursor_rect
     )
     return stub, item
 
@@ -101,9 +111,7 @@ class TestButtonReleaseFlow:
         # Then
         assert handled is True
         applet.on_clicked.assert_called_once()
-        stub._tooltip.update.assert_called_once_with(
-            item, stub._get_geometry_frame.return_value
-        )
+        stub._tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
         stub._hover.start_anim_pump.assert_called_once_with(350)
 
     def test_left_click_running_app_toggles_focus(self, monkeypatch):
@@ -235,9 +243,7 @@ class TestScrollAndHoverFlow:
         # Then
         assert handled is True
         applet.on_scroll.assert_called_once_with(True)
-        stub._tooltip.update.assert_called_once_with(
-            item, stub._get_geometry_frame.return_value
-        )
+        stub._tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
 
     def test_scroll_on_non_applet_returns_false(self, monkeypatch):
         # Given
@@ -386,7 +392,7 @@ class TestLeaveEnterFlow:
         stub.autohide = MagicMock()
         stub._dock_hovered = False
         outside_frame = SimpleNamespace(cursor_rect=Rect(292, 70, 1335, 148))
-        stub._get_geometry_frame = MagicMock(return_value=outside_frame)
+        stub._test_geometry_frame = outside_frame
         event = SimpleNamespace(x=556.0, y=3.0)
 
         handled = dock_window_mod.DockWindow._on_enter(stub, MagicMock(), event)
@@ -1067,13 +1073,8 @@ class TestDockWindowStrutsAndRegion:
         frame = SimpleNamespace(cursor_rect=Rect(140, 36, 120, 54))
         stub = SimpleNamespace(
             get_window=lambda: gdk_window,
-            _get_geometry_frame=MagicMock(return_value=frame),
+            _test_geometry_frame=frame,
             _last_geometry_frame=None,
-            _current_input_rect=lambda: (
-                None
-                if getattr(stub, "_last_geometry_frame", None) is None
-                else stub._last_geometry_frame.cursor_rect
-            ),
         )
 
         # When
@@ -1165,7 +1166,7 @@ class TestDockWindowDrawAndHelpers:
             theme=MagicMock(),
             _tooltip=MagicMock(),
             _main_axis_cursor=lambda: 12.0,
-            _get_geometry_frame=MagicMock(return_value=frame),
+            _test_geometry_frame=frame,
             _update_input_region=MagicMock(),
             _has_active_urgent_glow=lambda: False,
             cursor_x=25.0,
@@ -1184,9 +1185,7 @@ class TestDockWindowDrawAndHelpers:
             cursor_x=-1.0,
             cursor_y=-1.0,
             _dock_hovered=False,
-            _get_geometry_frame=MagicMock(
-                return_value=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
-            ),
+            _test_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
             _update_dock_size=MagicMock(),
             _hover=SimpleNamespace(update=MagicMock()),
             _main_axis_cursor=lambda: 12.0,

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
     from docking.core.theme import Theme
+    from docking.ui.dock_window import DockWindow
 
 
 TRIGGER_PX = 2
@@ -127,6 +128,23 @@ class DockGeometryFrame:
             if _item_main_center(item_geometry=item_geometry, pos=pos) > main_coord:
                 return index
         return len(self.item_geometries)
+
+
+def current_input_rect(frame: DockGeometryFrame | None) -> Rect | None:
+    """Return the current dock input rect from a geometry frame, if any."""
+    if frame is None:
+        return None
+    return frame.cursor_rect
+
+
+def point_inside_input_rect(
+    frame: DockGeometryFrame | None, x: float, y: float
+) -> bool:
+    """Return True when the given local-window point is inside the input rect."""
+    input_rect = current_input_rect(frame)
+    if input_rect is None:
+        return False
+    return input_rect.contains(x=x, y=y)
 
 
 def compute_input_rect(
@@ -276,6 +294,53 @@ def build_geometry_frame(
         local_cursor_main=local_cursor_main,
         zoomed_main_offset=zoomed_main_offset,
         cross_size=cross_size,
+    )
+
+
+def build_geometry_frame_for_window(
+    window: "DockWindow",
+    *,
+    main_cursor: float | None = None,
+    cursor_x: float | None = None,
+    cursor_y: float | None = None,
+) -> DockGeometryFrame:
+    """Build a geometry frame directly from a dock window's current state."""
+    width, height = window.get_size()
+    pos = window.config.pos
+    if main_cursor is not None:
+        resolved_main_cursor = main_cursor
+    elif cursor_x is not None and cursor_y is not None:
+        resolved_main_cursor = cursor_x if is_horizontal(pos=pos) else cursor_y
+    else:
+        resolved_main_cursor = (
+            window.cursor_x if is_horizontal(pos=pos) else window.cursor_y
+        )
+
+    autohide_state = (
+        window.autohide.state if window.autohide and window.autohide.enabled else None
+    )
+    zoom_progress = (
+        window.autohide.zoom_progress
+        if window.autohide and window.autohide.enabled
+        else 1.0
+    )
+    hide_offset = (
+        window.autohide.hide_offset
+        if window.autohide and window.autohide.enabled
+        else 0.0
+    )
+    return build_geometry_frame(
+        items=window.model.visible_items(),
+        config=window.config,
+        theme=window.theme,
+        window_w=width,
+        window_h=height,
+        cursor_main=(
+            -1.0 if resolved_main_cursor is None else float(resolved_main_cursor)
+        ),
+        autohide_state=autohide_state,
+        zoom_progress=zoom_progress,
+        hide_offset=hide_offset,
     )
 
 
