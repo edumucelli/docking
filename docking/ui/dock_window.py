@@ -272,6 +272,8 @@ class DockWindow(Gtk.Window):
     def on_menu_popup_opened(self) -> None:
         """Track that a dock context menu popup is currently active."""
         self._menu_popup_visible = True
+        if self.autohide and self.autohide.enabled:
+            self.autohide.set_disabled(True, reason="menu-open")
 
     def on_menu_popup_closed(self) -> None:
         """Reconcile autohide state when the context menu closes."""
@@ -281,7 +283,10 @@ class DockWindow(Gtk.Window):
 
         if not self.autohide or not self.autohide.enabled:
             return
-        if self._pointer_inside_input_rect():
+        pointer_inside = self._pointer_inside_input_rect()
+        if pointer_inside:
+            self.autohide.set_hovered(True)
+            self.autohide.set_disabled(False, reason="menu-close-pointer-inside")
             return
 
         self._hover.hovered_item = None
@@ -308,6 +313,8 @@ class DockWindow(Gtk.Window):
 
         self._update_dock_size()
         self.drawing_area.queue_draw()
+        self.autohide.set_hovered(False)
+        self.autohide.set_disabled(False, reason="menu-close-pointer-outside")
         if not preview_visible:
             self.autohide.on_mouse_leave()
 

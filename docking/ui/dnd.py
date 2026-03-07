@@ -169,6 +169,8 @@ class DnDHandler:
         a scaled pixbuf as the drag icon.
         """
         frame = self._window._get_geometry_frame()
+        if self._window.autohide and self._window.autohide.enabled:
+            self._window.autohide.set_disabled(True, reason="drag-begin")
         items = self._model.visible_items()
         horizontal = is_horizontal(pos=self._config.pos)
         win_cx = self._window.cursor_x if horizontal else self._window.cursor_y
@@ -238,6 +240,7 @@ class DnDHandler:
         # To fix this, we explicitly call autohide.on_mouse_enter() from
         # the drag-motion handler, which IS delivered during DnD.
         if self._window.autohide:
+            self._window.autohide.set_disabled(True, reason="drag-motion")
             self._window.autohide.on_mouse_enter()
         main_coord = x if is_horizontal(pos=self._config.pos) else y
 
@@ -357,6 +360,7 @@ class DnDHandler:
             GLib.timeout_add(100, self._deferred_clear_drop_gap, widget)
         widget.queue_draw()
         if self._window.autohide:
+            self._window.autohide.set_disabled(False, reason="drag-leave")
             self._window.autohide.on_mouse_leave()
 
     def _deferred_clear_drop_gap(self, widget: Gtk.DrawingArea) -> bool:
@@ -424,6 +428,8 @@ class DnDHandler:
         self.drop_insert_index = -1
         self._drag_from = -1
         self._config.save()
+        if self._window.autohide:
+            self._window.autohide.set_disabled(False, reason="drag-end")
         widget.queue_draw()
 
     def _item_from_uri(self, uri: str) -> DockItem | None:

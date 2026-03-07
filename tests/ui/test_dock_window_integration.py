@@ -320,7 +320,12 @@ class TestLeaveEnterFlow:
         stub._last_geometry_frame = None
         stub._preview = MagicMock()
         stub._preview.get_visible.return_value = True
-        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
         event = SimpleNamespace(
             detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
             mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
@@ -341,7 +346,12 @@ class TestLeaveEnterFlow:
         stub, item = _make_stub()
         widget = MagicMock()
         stub._last_geometry_frame = None
-        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
         event = SimpleNamespace(
             detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
             mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
@@ -393,7 +403,12 @@ class TestMenuPopupFlow:
         # Given
         stub, _item = _make_stub()
         stub._menu_popup_visible = True
-        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
         stub._preview = MagicMock()
         stub._preview.get_visible.return_value = False
 
@@ -407,12 +422,21 @@ class TestMenuPopupFlow:
         stub._preview.schedule_hide.assert_not_called()
         stub._update_dock_size.assert_called_once()
         stub.drawing_area.queue_draw.assert_called_once()
+        stub.autohide.set_hovered.assert_called_once_with(False)
+        stub.autohide.set_disabled.assert_called_once_with(
+            False, reason="menu-close-pointer-outside"
+        )
         stub.autohide.on_mouse_leave.assert_called_once()
 
     def test_menu_close_with_visible_preview_defers_autohide(self):
         stub, _item = _make_stub()
         stub._menu_popup_visible = True
-        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
         stub._preview = MagicMock()
         stub._preview.get_visible.return_value = True
 
@@ -420,13 +444,22 @@ class TestMenuPopupFlow:
 
         assert stub._menu_popup_visible is False
         stub._preview.schedule_hide.assert_called_once()
+        stub.autohide.set_hovered.assert_called_once_with(False)
+        stub.autohide.set_disabled.assert_called_once_with(
+            False, reason="menu-close-pointer-outside"
+        )
         stub.autohide.on_mouse_leave.assert_not_called()
 
     def test_menu_close_does_not_hide_when_pointer_is_back_on_dock(self):
         # Given
         stub, _item = _make_stub()
         stub._menu_popup_visible = True
-        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
         stub._pointer_inside_input_rect.return_value = True
 
         # When
@@ -434,13 +467,22 @@ class TestMenuPopupFlow:
 
         # Then
         assert stub._menu_popup_visible is False
+        stub.autohide.set_hovered.assert_called_once_with(True)
+        stub.autohide.set_disabled.assert_called_once_with(
+            False, reason="menu-close-pointer-inside"
+        )
         stub.autohide.on_mouse_leave.assert_not_called()
         stub._hover.cancel.assert_not_called()
 
     def test_menu_close_is_noop_when_no_popup_is_tracked(self):
         # Given
         stub, _item = _make_stub()
-        stub.autohide = SimpleNamespace(enabled=True, on_mouse_leave=MagicMock())
+        stub.autohide = SimpleNamespace(
+            enabled=True,
+            on_mouse_leave=MagicMock(),
+            set_hovered=MagicMock(),
+            set_disabled=MagicMock(),
+        )
 
         # When
         dock_window_mod.DockWindow.on_menu_popup_closed(stub)

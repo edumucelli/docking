@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
 
 FRAME_INTERVAL_MS = 16  # ~60fps
+MIN_HIDE_GRACE_MS = 60
 
 
 class HideState(enum.Enum):
@@ -36,6 +37,24 @@ def ease_in_cubic(t: float) -> float:
 def ease_out_cubic(t: float) -> float:
     """Cubic ease-out: fast start, decelerating."""
     return 1.0 - (1.0 - t) ** 3
+
+
+def inverse_ease_in_cubic(value: float) -> float:
+    """Return t such that ease_in_cubic(t) ~= value."""
+    if value <= 0.0:
+        return 0.0
+    if value >= 1.0:
+        return 1.0
+    return value ** (1.0 / 3.0)
+
+
+def inverse_ease_out_cubic(value: float) -> float:
+    """Return t such that ease_out_cubic(t) ~= value."""
+    if value <= 0.0:
+        return 0.0
+    if value >= 1.0:
+        return 1.0
+    return 1.0 - (1.0 - value) ** (1.0 / 3.0)
 
 
 def _source_exists(source_id: int) -> bool:
@@ -67,11 +86,14 @@ class AutoHideController:
         self.state = HideState.VISIBLE
         self.hide_offset: float = 0.0  # 0.0 = fully visible, 1.0 = fully hidden
         self.zoom_progress: float = 0.0  # 0.0 = no zoom, 1.0 = full zoom
+        self._hovered: bool = False
+        self._disabled: bool = False
 
         self._hide_timer_id: int = 0
         self._unhide_timer_id: int = 0
         self._anim_timer_id: int = 0
         self._anim_progress: float = 0.0
+        self._hide_after_show: bool = False
 
     @property
     def enabled(self) -> bool:
@@ -86,32 +108,61 @@ class AutoHideController:
         self.state = HideState.VISIBLE
         self.hide_offset = 0.0
         self.zoom_progress = 0.0
+        self._hovered = False
+        self._disabled = False
+        self._hide_after_show = False
         self._window.queue_redraw()
 
     def on_mouse_leave(self) -> None:
         """Called when mouse leaves the dock area."""
-        if not self.enabled:
-            return
-        log.debug(f"on_mouse_leave: state={self.state.value}")
-
-        self._cancel_unhide_timer()
-
-        if self.state in (HideState.VISIBLE, HideState.SHOWING):
-            delay = self._config.hide_delay_ms
-            if delay <= 0:
-                self._start_hiding()
-            else:
-                self._hide_timer_id = GLib.timeout_add(delay, self._start_hiding)
+        self.set_hovered(hovered=False)
 
     def on_mouse_enter(self) -> None:
         """Called when mouse enters the dock area."""
+        self.set_hovered(hovered=True)
+
+    def set_hovered(self, hovered: bool) -> None:
+        """Update dock hover state and reconcile hide/show policy."""
         if not self.enabled:
             return
-        log.debug(f"on_mouse_enter: state={self.state.value}")
+        if self._hovered == hovered:
+            return
+        self._hovered = hovered
+        log.debug(
+            "set_hovered: hovered=%s disabled=%s state=%s",
+            hovered,
+            self._disabled,
+            self.state.value,
+        )
+        self._update_hidden()
 
+    def set_disabled(self, disabled: bool, *, reason: str = "unknown") -> None:
+        """Disable or enable autohide reactions while menus/drags are active."""
+        if not self.enabled:
+            return
+        if self._disabled == disabled:
+            return
+        self._disabled = disabled
+        log.debug(
+            "set_disabled: hovered=%s disabled=%s state=%s reason=%s",
+            self._hovered,
+            disabled,
+            self.state.value,
+            reason,
+        )
+        self._update_hidden()
+
+    def _update_hidden(self) -> None:
+        """Reconcile hover/disabled state into show-or-hide behavior."""
+        if self._disabled or self._hovered:
+            self._show()
+        else:
+            self._hide()
+
+    def _show(self) -> None:
         self.zoom_progress = 1.0
         self._cancel_hide_timer()
-
+        self._hide_after_show = False
         if self.state in (HideState.HIDDEN, HideState.HIDING):
             delay = self._config.unhide_delay_ms
             if delay <= 0:
@@ -119,11 +170,25 @@ class AutoHideController:
             else:
                 self._unhide_timer_id = GLib.timeout_add(delay, self._start_showing)
 
+    def _hide(self) -> None:
+        self._cancel_unhide_timer()
+
+        if self.state == HideState.SHOWING:
+            self._hide_after_show = True
+            return
+
+        if self.state == HideState.VISIBLE:
+            self._schedule_hide()
+
     def _start_hiding(self) -> bool:
         """Begin hide animation."""
         self._hide_timer_id = 0
+        self._hide_after_show = False
         self.state = HideState.HIDING
-        self._anim_progress = 0.0
+        if self.hide_offset > 0.0:
+            self._anim_progress = inverse_ease_in_cubic(self.hide_offset)
+        else:
+            self._anim_progress = 0.0
         self._start_animation()
         return False
 
@@ -131,9 +196,22 @@ class AutoHideController:
         """Begin show animation."""
         self._unhide_timer_id = 0
         self.state = HideState.SHOWING
-        self._anim_progress = 0.0
+        if self.hide_offset > 0.0:
+            self._anim_progress = inverse_ease_out_cubic(1.0 - self.hide_offset)
+        else:
+            self._anim_progress = 0.0
         self._start_animation()
         return False
+
+    def _schedule_hide(self) -> None:
+        delay = self._config.hide_delay_ms
+        if delay <= 0 and self.state == HideState.VISIBLE:
+            delay = MIN_HIDE_GRACE_MS
+
+        if delay <= 0:
+            self._start_hiding()
+        else:
+            self._hide_timer_id = GLib.timeout_add(delay, self._start_hiding)
 
     def _start_animation(self) -> None:
         """Start the animation tick loop."""
@@ -202,6 +280,9 @@ class AutoHideController:
                 self.state = HideState.VISIBLE
                 self.hide_offset = 0.0
                 self._anim_timer_id = 0
+                if self._hide_after_show:
+                    self._hide_after_show = False
+                    self._schedule_hide()
                 self._window.queue_redraw()
                 return False
 
