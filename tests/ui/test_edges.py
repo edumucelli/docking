@@ -145,7 +145,9 @@ class _Harness:
             theme=self.theme,
             tooltip=self._tooltip,
             geometry_frame_provider=lambda _window, **kwargs: (
-                build_geometry_frame_from_inputs(capture_geometry_inputs(self, **kwargs))
+                build_geometry_frame_from_inputs(
+                    capture_geometry_inputs(self, **kwargs)
+                )
             ),
         )
 

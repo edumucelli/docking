@@ -101,8 +101,8 @@ class TestDragBeginMotion:
         handler._model.visible_items.return_value = [
             DockItem(desktop_id="firefox.desktop", name="Firefox", icon=icon)
         ]
-        handler._geometry_frame_provider = (
-            lambda _window, **_kwargs: _frame(item_index=0, count=1)
+        handler._geometry_frame_provider = lambda _window, **_kwargs: _frame(
+            item_index=0, count=1
         )
         icon_set = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_set_icon_pixbuf", icon_set)

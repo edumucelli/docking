@@ -377,6 +377,7 @@ def capture_geometry_inputs(
         drop_insert_index=drop_insert_index,
     )
 
+
 def _local_cursor_main(
     *,
     items: list["DockItem"],
