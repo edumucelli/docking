@@ -28,7 +28,7 @@ class TestHoverManagerInit:
             model,
             theme,
             MagicMock(),
-            geometry_frame_provider=MagicMock(),
+            geometry_builder=MagicMock(),
         )
         # Then
         assert hover.hovered_item is None
@@ -53,7 +53,7 @@ class TestHoverManagerPreview:
             model,
             theme,
             MagicMock(),
-            geometry_frame_provider=MagicMock(),
+            geometry_builder=MagicMock(),
         )
         preview = MagicMock()
         # When
@@ -75,7 +75,7 @@ class TestHoverManagerPreview:
             model,
             theme,
             tooltip,
-            geometry_frame_provider=MagicMock(),
+            geometry_builder=MagicMock(),
         )
         # Then
         assert hover._tooltip is tooltip

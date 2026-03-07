@@ -501,7 +501,7 @@ def handler(monkeypatch):
         config=config,
         tracker=tracker,
         launcher=MagicMock(),
-        geometry_frame_provider=lambda _window, **_kwargs: frame,
+        geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )
 
 
@@ -858,7 +858,7 @@ class TestDockMenu:
         # Given
         event = SimpleNamespace(x=10.0, y=5.0)
         frame = _frame(item=None, insert_index=1)
-        handler._geometry_frame_provider = lambda _window, **_kwargs: frame
+        handler._geometry_builder = SimpleNamespace(build_frame=lambda **_kwargs: frame)
         captured_menu = None
 
         class CaptureMenu(FakeMenu):

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -27,7 +27,7 @@ from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
 from docking.i18n import _
 from docking.ui.about import AboutDialogController
-from docking.ui.geometry import DockGeometryFrame
+from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.preview import capture_window
 
 if TYPE_CHECKING:
@@ -178,7 +178,7 @@ class MenuHandler:
         model: DockModel,
         config: Config,
         tracker: WindowTracker,
-        geometry_frame_provider: Callable[..., DockGeometryFrame],
+        geometry_builder: DockGeometryBuilder,
         launcher: Launcher | None = None,
     ) -> None:
         self._parent_window = parent_window
@@ -187,7 +187,7 @@ class MenuHandler:
         self._config = config
         self._tracker = tracker
         self._launcher = launcher
-        self._geometry_frame_provider = geometry_frame_provider
+        self._geometry_builder = geometry_builder
         self._about = AboutDialogController(parent=self._parent_window)
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
@@ -201,9 +201,7 @@ class MenuHandler:
         menu (desktop actions, pin/unpin, close) or a dock background menu
         (autohide, theme, position, applets, quit).
         """
-        frame = self._geometry_frame_provider(
-            self._parent_window, cursor_x=event.x, cursor_y=event.y
-        )
+        frame = self._geometry_builder.build_frame(cursor_x=event.x, cursor_y=event.y)
         item = frame.item_at_point(event.x, event.y)
 
         if item:

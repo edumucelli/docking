@@ -5,8 +5,6 @@ from __future__ import annotations
 from types import MethodType, SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 import docking.ui.dock_window as dock_window_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
@@ -14,26 +12,6 @@ from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import Rect
 from docking.ui.interaction import DockInteractionCoordinator
-
-
-@pytest.fixture(autouse=True)
-def _route_stub_geometry(monkeypatch):
-    original_capture = dock_window_mod.capture_geometry_inputs
-    original_build = dock_window_mod.build_geometry_frame_from_inputs
-
-    def _capture(window, **kwargs):
-        frame = getattr(window, "_test_geometry_frame", None)
-        if frame is not None:
-            return frame
-        return original_capture(window, **kwargs)
-
-    def _build(inputs):
-        if hasattr(inputs, "cursor_rect"):
-            return inputs
-        return original_build(inputs)
-
-    monkeypatch.setattr(dock_window_mod, "capture_geometry_inputs", _capture)
-    monkeypatch.setattr(dock_window_mod, "build_geometry_frame_from_inputs", _build)
 
 
 def _make_stub(item: DockItem | None = None):
@@ -71,6 +49,7 @@ def _make_stub(item: DockItem | None = None):
     stub._test_geometry_frame = frame
     stub._current_geometry_frame = frame
     stub._applied_input_frame = frame
+    stub.geometry = SimpleNamespace(build_frame=lambda **_kwargs: frame)
     stub.dock_hovered = True
     stub.interaction = MagicMock()
     stub._on_effective_enter = MethodType(
@@ -642,6 +621,7 @@ class TestDockWindowStrutsAndRegion:
             _test_geometry_frame=frame,
             _current_geometry_frame=None,
             _applied_input_frame=None,
+            geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
         )
 
         # When
@@ -675,6 +655,9 @@ class TestDockWindowDrawAndHelpers:
             _has_active_urgent_glow=lambda: False,
             cursor_x=1.0,
             cursor_y=2.0,
+            geometry=SimpleNamespace(
+                build_frame=lambda **_kwargs: stub._test_geometry_frame
+            ),
         )
 
         # When
@@ -705,6 +688,9 @@ class TestDockWindowDrawAndHelpers:
             _has_active_urgent_glow=lambda: False,
             cursor_x=25.0,
             cursor_y=33.0,
+            geometry=SimpleNamespace(
+                build_frame=lambda **_kwargs: stub._test_geometry_frame
+            ),
         )
 
         # When
@@ -741,6 +727,7 @@ class TestDockWindowDrawAndHelpers:
             _has_active_urgent_glow=lambda: False,
             cursor_x=25.0,
             cursor_y=33.0,
+            geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
         )
 
         dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
@@ -760,6 +747,9 @@ class TestDockWindowDrawAndHelpers:
             _hover=SimpleNamespace(update=MagicMock()),
             _main_axis_cursor=lambda: 12.0,
             autohide=None,
+            geometry=SimpleNamespace(
+                build_frame=lambda **_kwargs: stub._test_geometry_frame
+            ),
         )
         stub.interaction = DockInteractionCoordinator(stub)
         stub._on_effective_enter = MethodType(

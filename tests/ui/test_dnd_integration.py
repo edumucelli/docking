@@ -63,7 +63,7 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         renderer,
         theme,
         launcher,
-        geometry_frame_provider=lambda _window, **_kwargs: default_frame,
+        geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: default_frame),
     )
 
 
@@ -101,8 +101,8 @@ class TestDragBeginMotion:
         handler._model.visible_items.return_value = [
             DockItem(desktop_id="firefox.desktop", name="Firefox", icon=icon)
         ]
-        handler._geometry_frame_provider = lambda _window, **_kwargs: _frame(
-            item_index=0, count=1
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: _frame(item_index=0, count=1)
         )
         icon_set = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_set_icon_pixbuf", icon_set)
@@ -124,7 +124,9 @@ class TestDragBeginMotion:
             DockItem("b.desktop"),
         ]
         rest_frame = _frame(insert_index=0, count=2)
-        handler._geometry_frame_provider = lambda _window, **_kwargs: rest_frame
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: rest_frame
+        )
         status_calls = []
         monkeypatch.setattr(
             dnd_mod.Gdk,
@@ -151,7 +153,9 @@ class TestDragBeginMotion:
             DockItem("b.desktop"),
         ]
         rest_frame = _frame(insert_index=2, count=2)
-        handler._geometry_frame_provider = lambda _window, **_kwargs: rest_frame
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: rest_frame
+        )
         monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_a, **_k: None)
 
         # When

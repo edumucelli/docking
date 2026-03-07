@@ -146,6 +146,41 @@ class DockGeometryInputs:
     drop_insert_index: int = -1
 
 
+class DockGeometryBuilder:
+    """Window-bound adapter that builds geometry frames from live runtime state."""
+
+    def __init__(self, window: "DockWindow") -> None:
+        self._window = window
+
+    def build_frame(
+        self,
+        *,
+        main_cursor: float | None = None,
+        cursor_x: float | None = None,
+        cursor_y: float | None = None,
+        drop_insert_index: int = -1,
+    ) -> DockGeometryFrame:
+        inputs = capture_geometry_inputs(
+            self._window,
+            main_cursor=main_cursor,
+            cursor_x=cursor_x,
+            cursor_y=cursor_y,
+            drop_insert_index=drop_insert_index,
+        )
+        return build_geometry_frame(
+            items=list(inputs.items),
+            config=inputs.config,
+            theme=inputs.theme,
+            window_w=inputs.window_w,
+            window_h=inputs.window_h,
+            cursor_main=inputs.cursor_main,
+            autohide_state=inputs.autohide_state,
+            zoom_progress=inputs.zoom_progress,
+            hide_offset=inputs.hide_offset,
+            drop_insert_index=inputs.drop_insert_index,
+        )
+
+
 def current_input_rect(frame: DockGeometryFrame | None) -> Rect | None:
     """Return the current dock input rect from a geometry frame, if any."""
     if frame is None:
@@ -310,22 +345,6 @@ def build_geometry_frame(
         local_cursor_main=local_cursor_main,
         zoomed_main_offset=zoomed_main_offset,
         cross_size=cross_size,
-    )
-
-
-def build_geometry_frame_from_inputs(inputs: DockGeometryInputs) -> DockGeometryFrame:
-    """Build a geometry frame from an explicit runtime input snapshot."""
-    return build_geometry_frame(
-        items=list(inputs.items),
-        config=inputs.config,
-        theme=inputs.theme,
-        window_w=inputs.window_w,
-        window_h=inputs.window_h,
-        cursor_main=inputs.cursor_main,
-        autohide_state=inputs.autohide_state,
-        zoom_progress=inputs.zoom_progress,
-        hide_offset=inputs.hide_offset,
-        drop_insert_index=inputs.drop_insert_index,
     )
 
 

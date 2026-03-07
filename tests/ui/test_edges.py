@@ -18,10 +18,9 @@ from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
+    DockGeometryBuilder,
     DockGeometryFrame,
     build_geometry_frame,
-    build_geometry_frame_from_inputs,
-    capture_geometry_inputs,
 )
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
@@ -139,17 +138,14 @@ class _Harness:
             on_mouse_enter=MagicMock(),
         )
         self._gdk_window = MagicMock()
+        self.geometry = DockGeometryBuilder(self)
         self._hover = HoverManager(
             window=self,
             config=self.config,
             model=self.model,
             theme=self.theme,
             tooltip=self.tooltip,
-            geometry_frame_provider=lambda _window, **kwargs: (
-                build_geometry_frame_from_inputs(
-                    capture_geometry_inputs(self, **kwargs)
-                )
-            ),
+            geometry_builder=self.geometry,
         )
         self.interaction = DockInteractionCoordinator(self)
 
@@ -171,9 +167,7 @@ def _attach_runtime_methods(harness: _Harness) -> None:
         dock_window_mod.DockWindow._main_axis_cursor, harness
     )
     harness.get_geometry_frame = MethodType(
-        lambda self, **kwargs: build_geometry_frame_from_inputs(
-            capture_geometry_inputs(self, **kwargs)
-        ),
+        lambda self, **kwargs: self.geometry.build_frame(**kwargs),
         harness,
     )
     harness.update_input_region = MethodType(

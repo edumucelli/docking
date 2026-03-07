@@ -42,7 +42,6 @@ reduces timer proliferation across the UI layer.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import gi
@@ -53,7 +52,7 @@ from gi.repository import GLib  # noqa: E402
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.ui.autohide import HideState
-from docking.ui.geometry import DockGeometryFrame
+from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 
 _log = get_logger(name="hover")
 
@@ -79,7 +78,7 @@ class HoverManager:
         model: DockModel,
         theme: Theme,
         tooltip: TooltipManager,
-        geometry_frame_provider: Callable[..., DockGeometryFrame],
+        geometry_builder: DockGeometryBuilder,
     ) -> None:
         """Initialize with references to dock subsystems.
 
@@ -93,7 +92,7 @@ class HoverManager:
         self._model = model
         self._theme = theme
         self._tooltip = tooltip
-        self._geometry_frame_provider = geometry_frame_provider
+        self._geometry_builder = geometry_builder
         self._preview: PreviewPopup | None = None
 
         self.hovered_item: DockItem | None = None
@@ -107,7 +106,7 @@ class HoverManager:
         self, cursor_main: float, frame: DockGeometryFrame | None = None
     ) -> None:
         """Detect which item the cursor is over and manage preview timer."""
-        frame = frame or self._geometry_frame_provider(self._window)
+        frame = frame or self._geometry_builder.build_frame()
         if not self._window.dock_hovered:
             self._tooltip.hide()
             return
@@ -212,7 +211,7 @@ class HoverManager:
         if not self._window.get_realized():
             return False
 
-        frame = self._geometry_frame_provider(self._window)
+        frame = self._geometry_builder.build_frame()
         geometry = frame.geometry_for_item(item)
         if geometry is None:
             return False

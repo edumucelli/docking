@@ -97,9 +97,8 @@ from docking.platform.launcher import launch, open_target
 from docking.ui import geometry
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
+    DockGeometryBuilder,
     DockGeometryFrame,
-    build_geometry_frame_from_inputs,
-    capture_geometry_inputs,
     current_input_rect,
 )
 from docking.ui.hover import HoverManager
@@ -174,24 +173,7 @@ class DockWindow(Gtk.Window):
         self._menu_popup_visible: bool = False
         self.preview: PreviewPopup | None = None
         self.tooltip = TooltipManager(self, config, model, theme)
-
-        def geometry_frame_provider(
-            _window: DockWindow,
-            *,
-            main_cursor: float | None = None,
-            cursor_x: float | None = None,
-            cursor_y: float | None = None,
-            drop_insert_index: int = -1,
-        ) -> DockGeometryFrame:
-            return build_geometry_frame_from_inputs(
-                capture_geometry_inputs(
-                    self,
-                    main_cursor=main_cursor,
-                    cursor_x=cursor_x,
-                    cursor_y=cursor_y,
-                    drop_insert_index=drop_insert_index,
-                )
-            )
+        self.geometry = DockGeometryBuilder(self)
 
         self._hover = HoverManager(
             self,
@@ -199,7 +181,7 @@ class DockWindow(Gtk.Window):
             model,
             theme,
             self.tooltip,
-            geometry_frame_provider=geometry_frame_provider,
+            geometry_builder=self.geometry,
         )
 
         self.placement = DockPlacementController(self)
@@ -370,9 +352,7 @@ class DockWindow(Gtk.Window):
                 self.cursor_x,
                 self.cursor_y,
             )
-        frame = build_geometry_frame_from_inputs(
-            capture_geometry_inputs(self, drop_insert_index=drop_insert)
-        )
+        frame = self.geometry.build_frame(drop_insert_index=drop_insert)
         self._current_geometry_frame = frame
         self.renderer.draw(
             cr,
@@ -420,7 +400,7 @@ class DockWindow(Gtk.Window):
         """
         self.cursor_x = event.x
         self.cursor_y = event.y
-        frame = build_geometry_frame_from_inputs(capture_geometry_inputs(self))
+        frame = self.geometry.build_frame()
         self._current_geometry_frame = frame
         self.update_dock_size(frame=frame)
         widget.queue_draw()
@@ -463,9 +443,7 @@ class DockWindow(Gtk.Window):
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
-            frame = build_geometry_frame_from_inputs(
-                capture_geometry_inputs(self, cursor_x=event.x, cursor_y=event.y)
-            )
+            frame = self.geometry.build_frame(cursor_x=event.x, cursor_y=event.y)
             self._current_geometry_frame = frame
             item = frame.item_at_point(event.x, event.y)
             if item is None:
@@ -536,9 +514,7 @@ class DockWindow(Gtk.Window):
         item. If it's an applet, delegates to its on_scroll() and refreshes
         the tooltip (applet name/state may change on scroll, e.g. clippy).
         """
-        frame = build_geometry_frame_from_inputs(
-            capture_geometry_inputs(self, cursor_x=event.x, cursor_y=event.y)
-        )
+        frame = self.geometry.build_frame(cursor_x=event.x, cursor_y=event.y)
         self._current_geometry_frame = frame
         item = frame.item_at_point(event.x, event.y)
         if item and is_applet(desktop_id=item.desktop_id):
@@ -609,9 +585,7 @@ class DockWindow(Gtk.Window):
         """
         self.cursor_x = event.x
         self.cursor_y = event.y
-        frame = build_geometry_frame_from_inputs(
-            capture_geometry_inputs(self, cursor_x=event.x, cursor_y=event.y)
-        )
+        frame = self.geometry.build_frame(cursor_x=event.x, cursor_y=event.y)
         self._current_geometry_frame = frame
         if frame.cursor_rect.contains(event.x, event.y):
             self._on_effective_enter()
@@ -684,7 +658,7 @@ class DockWindow(Gtk.Window):
         gdk_window = self.get_window()
         if not gdk_window:
             return
-        frame = frame or build_geometry_frame_from_inputs(capture_geometry_inputs(self))
+        frame = frame or self.geometry.build_frame()
         self._current_geometry_frame = frame
         old_rect = current_input_rect(self._applied_input_frame)
         new_rect = frame.cursor_rect

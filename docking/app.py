@@ -36,10 +36,6 @@ from docking.platform.window_tracker import WindowTracker
 from docking.ui.autohide import AutoHideController
 from docking.ui.dnd import DnDHandler
 from docking.ui.dock_window import DockWindow
-from docking.ui.geometry import (
-    build_geometry_frame_from_inputs,
-    capture_geometry_inputs,
-)
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import PreviewPopup
 from docking.ui.renderer import DockRenderer
@@ -60,36 +56,18 @@ def main() -> None:
 
     window = DockWindow(config, model, renderer, theme, tracker)
 
-    def geometry_frame_provider(
-        _window: DockWindow,
-        *,
-        main_cursor: float | None = None,
-        cursor_x: float | None = None,
-        cursor_y: float | None = None,
-        drop_insert_index: int = -1,
-    ):
-        return build_geometry_frame_from_inputs(
-            capture_geometry_inputs(
-                window,
-                main_cursor=main_cursor,
-                cursor_x=cursor_x,
-                cursor_y=cursor_y,
-                drop_insert_index=drop_insert_index,
-            )
-        )
-
     autohide = AutoHideController(window, config)
     window.set_autohide_controller(autohide)
     runtime = DockRuntime(window)
 
     dnd = DnDHandler(
-        window,
-        model,
-        config,
-        renderer,
-        theme,
-        launcher,
-        geometry_frame_provider=geometry_frame_provider,
+        window=window,
+        model=model,
+        config=config,
+        renderer=renderer,
+        theme=theme,
+        launcher=launcher,
+        geometry_builder=window.geometry,
     )
     window.set_dnd_handler(dnd)
 
@@ -99,7 +77,7 @@ def main() -> None:
         model=model,
         config=config,
         tracker=tracker,
-        geometry_frame_provider=geometry_frame_provider,
+        geometry_builder=window.geometry,
         launcher=launcher,
     )
     window.set_menu_handler(menu)

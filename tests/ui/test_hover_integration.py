@@ -55,7 +55,7 @@ def _make_hover():
         model,
         theme,
         tooltip,
-        geometry_frame_provider=lambda _window, **_kwargs: frame,
+        geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )
     return hover, window, model, config, tooltip, frame
 
