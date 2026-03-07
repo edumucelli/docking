@@ -130,6 +130,22 @@ class DockGeometryFrame:
         return len(self.item_geometries)
 
 
+@dataclass(frozen=True)
+class DockGeometryInputs:
+    """Explicit runtime inputs required to build one geometry frame."""
+
+    items: tuple["DockItem", ...]
+    config: "Config"
+    theme: "Theme"
+    window_w: int
+    window_h: int
+    cursor_main: float
+    autohide_state: HideState | None
+    zoom_progress: float
+    hide_offset: float
+    drop_insert_index: int = -1
+
+
 def current_input_rect(frame: DockGeometryFrame | None) -> Rect | None:
     """Return the current dock input rect from a geometry frame, if any."""
     if frame is None:
@@ -297,14 +313,31 @@ def build_geometry_frame(
     )
 
 
-def build_geometry_frame_for_window(
+def build_geometry_frame_from_inputs(inputs: DockGeometryInputs) -> DockGeometryFrame:
+    """Build a geometry frame from an explicit runtime input snapshot."""
+    return build_geometry_frame(
+        items=list(inputs.items),
+        config=inputs.config,
+        theme=inputs.theme,
+        window_w=inputs.window_w,
+        window_h=inputs.window_h,
+        cursor_main=inputs.cursor_main,
+        autohide_state=inputs.autohide_state,
+        zoom_progress=inputs.zoom_progress,
+        hide_offset=inputs.hide_offset,
+        drop_insert_index=inputs.drop_insert_index,
+    )
+
+
+def capture_geometry_inputs(
     window: "DockWindow",
     *,
     main_cursor: float | None = None,
     cursor_x: float | None = None,
     cursor_y: float | None = None,
-) -> DockGeometryFrame:
-    """Build a geometry frame directly from a dock window's current state."""
+    drop_insert_index: int = -1,
+) -> DockGeometryInputs:
+    """Capture explicit geometry inputs from the current dock window state."""
     width, height = window.get_size()
     pos = window.config.pos
     if main_cursor is not None:
@@ -329,8 +362,8 @@ def build_geometry_frame_for_window(
         if window.autohide and window.autohide.enabled
         else 0.0
     )
-    return build_geometry_frame(
-        items=window.model.visible_items(),
+    return DockGeometryInputs(
+        items=tuple(window.model.visible_items()),
         config=window.config,
         theme=window.theme,
         window_w=width,
@@ -341,8 +374,8 @@ def build_geometry_frame_for_window(
         autohide_state=autohide_state,
         zoom_progress=zoom_progress,
         hide_offset=hide_offset,
+        drop_insert_index=drop_insert_index,
     )
-
 
 def _local_cursor_main(
     *,

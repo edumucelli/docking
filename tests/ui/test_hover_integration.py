@@ -22,25 +22,12 @@ from docking.platform.model import DockItem  # noqa: E402
 from docking.ui.autohide import HideState  # noqa: E402
 
 
-@pytest.fixture(autouse=True)
-def _route_stub_geometry(monkeypatch):
-    original = hover_mod.build_geometry_frame_for_window
-
-    def _resolve(window, **kwargs):
-        frame = getattr(window, "_test_geometry_frame", None)
-        if frame is not None:
-            return frame
-        return original(window, **kwargs)
-
-    monkeypatch.setattr(hover_mod, "build_geometry_frame_for_window", _resolve)
-
-
 def _make_hover():
     window = MagicMock()
     window.get_realized.return_value = True
     window.get_position.return_value = (100, 200)
     window.get_size.return_value = (500, 60)
-    window._dock_hovered = True
+    window.dock_hovered = True
     window.drawing_area = MagicMock()
     window.cursor_x = 20.0
     window.cursor_y = 10.0
@@ -54,7 +41,6 @@ def _make_hover():
         ),
         cursor_rect=SimpleNamespace(contains=lambda *_args, **_kwargs: True),
     )
-    window._test_geometry_frame = frame
     model = MagicMock()
     config = SimpleNamespace(
         previews_enabled=True,
@@ -63,7 +49,14 @@ def _make_hover():
     )
     theme = SimpleNamespace(item_padding=8, h_padding=10, bottom_padding=12)
     tooltip = MagicMock()
-    hover = hover_mod.HoverManager(window, config, model, theme, tooltip)
+    hover = hover_mod.HoverManager(
+        window,
+        config,
+        model,
+        theme,
+        tooltip,
+        geometry_frame_provider=lambda _window, **_kwargs: frame,
+    )
     return hover, window, model, config, tooltip, frame
 
 
@@ -129,7 +122,7 @@ class TestHoverUpdates:
         hover, window, model, _config, tooltip, frame = _make_hover()
         item = DockItem(desktop_id="terminator.desktop", name="Terminator")
         hover.hovered_item = item
-        window._dock_hovered = False
+        window.dock_hovered = False
         model.visible_items.return_value = [item]
         frame.hover_item_at_point.return_value = item
 

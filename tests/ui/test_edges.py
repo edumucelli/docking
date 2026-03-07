@@ -20,7 +20,8 @@ from docking.ui.autohide import HideState
 from docking.ui.geometry import (
     DockGeometryFrame,
     build_geometry_frame,
-    build_geometry_frame_for_window,
+    build_geometry_frame_from_inputs,
+    capture_geometry_inputs,
 )
 from docking.ui.hover import HoverManager
 
@@ -117,8 +118,9 @@ class _Harness:
         ]
         self.cursor_x = -1.0
         self.cursor_y = -1.0
-        self._dock_hovered = False
-        self._last_geometry_frame = None
+        self.dock_hovered = False
+        self._current_geometry_frame = None
+        self._applied_input_frame = None
         self._preview = None
         self._menu = None
         self._menu_popup_visible = False
@@ -142,6 +144,9 @@ class _Harness:
             model=self.model,
             theme=self.theme,
             tooltip=self._tooltip,
+            geometry_frame_provider=lambda _window, **kwargs: (
+                build_geometry_frame_from_inputs(capture_geometry_inputs(self, **kwargs))
+            ),
         )
 
     def get_size(self) -> tuple[int, int]:
@@ -161,7 +166,12 @@ def _attach_runtime_methods(harness: _Harness) -> None:
     harness._main_axis_cursor = MethodType(
         dock_window_mod.DockWindow._main_axis_cursor, harness
     )
-    harness.get_geometry_frame = MethodType(build_geometry_frame_for_window, harness)
+    harness.get_geometry_frame = MethodType(
+        lambda self, **kwargs: build_geometry_frame_from_inputs(
+            capture_geometry_inputs(self, **kwargs)
+        ),
+        harness,
+    )
     harness._update_input_region = MethodType(
         dock_window_mod.DockWindow._update_input_region, harness
     )
@@ -261,7 +271,7 @@ class TestDockOuterEdgeBehavior:
         widget = MagicMock()
         _hover_first_item(harness, widget)
 
-        frame = harness._last_geometry_frame
+        frame = harness._current_geometry_frame
         assert frame is not None
         exit_x = frame.background_rect.x - 1
         y = (
@@ -277,7 +287,7 @@ class TestDockOuterEdgeBehavior:
         )
 
         harness.autohide.on_mouse_leave.assert_called_once()
-        assert harness._dock_hovered is False
+        assert harness.dock_hovered is False
 
     def test_gtk_leave_after_left_geometry_exit_is_ignored(self):
         harness = _Harness()
@@ -285,7 +295,7 @@ class TestDockOuterEdgeBehavior:
         widget = MagicMock()
         _hover_first_item(harness, widget)
 
-        frame = harness._last_geometry_frame
+        frame = harness._current_geometry_frame
         assert frame is not None
         exit_x = frame.background_rect.x - 1
         y = (
@@ -317,7 +327,7 @@ class TestDockOuterEdgeBehavior:
         widget = MagicMock()
         _hover_last_item(harness, widget)
 
-        frame = harness._last_geometry_frame
+        frame = harness._current_geometry_frame
         assert frame is not None
         exit_x = frame.background_rect.x + frame.background_rect.w
         y = (

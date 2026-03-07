@@ -50,6 +50,7 @@ and drop finalization deterministic and easier to debug.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import unquote, urlparse
@@ -68,7 +69,7 @@ import docking.platform.launcher as launcher_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
-from docking.ui.geometry import build_geometry_frame_for_window
+from docking.ui.geometry import DockGeometryFrame
 from docking.ui.poof import show_poof
 
 if TYPE_CHECKING:
@@ -101,6 +102,7 @@ class DnDHandler:
         renderer: DockRenderer,
         theme: Theme,
         launcher: Launcher,
+        geometry_frame_provider: Callable[..., DockGeometryFrame],
     ) -> None:
         self._window = window
         self._model = model
@@ -108,6 +110,7 @@ class DnDHandler:
         self._renderer = renderer
         self._theme = theme
         self._launcher = launcher
+        self._geometry_frame_provider = geometry_frame_provider
 
         self.drag_index: int = -1
         self._drag_from: int = -1
@@ -169,7 +172,7 @@ class DnDHandler:
         the dragged item, stores its index in drag_index/_drag_from, and sets
         a scaled pixbuf as the drag icon.
         """
-        frame = build_geometry_frame_for_window(self._window)
+        frame = self._geometry_frame_provider(self._window)
         if self._window.autohide and self._window.autohide.enabled:
             self._window.autohide.set_disabled(True, reason="drag-begin")
         items = self._model.visible_items()
@@ -247,7 +250,7 @@ class DnDHandler:
 
         if self._drag_from < 0:
             # External drag -- compute insert position for gap effect
-            frame = build_geometry_frame_for_window(self._window, main_cursor=-1.0)
+            frame = self._geometry_frame_provider(self._window, main_cursor=-1.0)
             insert = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
             if insert != self.drop_insert_index:
                 self.drop_insert_index = insert
@@ -255,7 +258,7 @@ class DnDHandler:
             Gdk.drag_status(context, Gdk.DragAction.COPY, time)
             return True
 
-        frame = build_geometry_frame_for_window(self._window, main_cursor=-1.0)
+        frame = self._geometry_frame_provider(self._window, main_cursor=-1.0)
         new_index = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
         if frame.item_geometries:
             new_index = min(new_index, len(frame.item_geometries) - 1)

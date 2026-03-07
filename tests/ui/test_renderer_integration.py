@@ -66,18 +66,17 @@ class TestRendererDrawEntry:
         widget = MagicMock()
         widget.get_allocation.return_value = SimpleNamespace(width=420, height=90)
         cr = _surface_context()
-        model = MagicMock()
         config = SimpleNamespace()
         theme = MagicMock()
+        frame = _frame([], [])
 
         # When
         renderer.draw(
             cr=cr,
             widget=widget,
-            model=model,
+            frame=frame,
             config=config,
             theme=theme,
-            cursor_main=30.0,
         )
         # Then
         renderer._draw_content.assert_called_once()
@@ -111,11 +110,6 @@ class TestRendererContentFlow:
         layout = _layout()
 
         monkeypatch.setattr(
-            renderer_mod,
-            "build_geometry_frame",
-            lambda **_kwargs: _frame([i1, i2], layout),
-        )
-        monkeypatch.setattr(
             renderer_mod, "draw_shelf_background", lambda **kwargs: None
         )
         monkeypatch.setattr(
@@ -131,12 +125,9 @@ class TestRendererContentFlow:
         cr = _surface_context()
         renderer._draw_content(
             cr=cr,
-            width=420,
-            height=90,
-            model=model,
+            frame=_frame([i1, i2], layout),
             config=config,
             theme=theme,
-            cursor_main=50.0,
             hide_offset=1.0,
             drag_index=-1,
             drop_insert_index=1,
@@ -176,9 +167,6 @@ class TestRendererContentFlow:
 
         shelf_calls: list[dict[str, float]] = []
         monkeypatch.setattr(
-            renderer_mod, "build_geometry_frame", lambda **_kwargs: frame
-        )
-        monkeypatch.setattr(
             renderer_mod,
             "draw_shelf_background",
             lambda **kwargs: shelf_calls.append(kwargs),
@@ -191,12 +179,9 @@ class TestRendererContentFlow:
 
         renderer._draw_content(
             cr=_surface_context(),
-            width=420,
-            height=90,
-            model=model,
+            frame=frame,
             config=config,
             theme=theme,
-            cursor_main=12.0,
             hide_offset=0.0,
             drag_index=-1,
             drop_insert_index=-1,
@@ -228,11 +213,6 @@ class TestRendererContentFlow:
         layout = [SimpleNamespace(x=0.0, scale=1.0, width=12.0)]
 
         monkeypatch.setattr(
-            renderer_mod,
-            "build_geometry_frame",
-            lambda **_kwargs: _frame([item], layout),
-        )
-        monkeypatch.setattr(
             renderer_mod, "draw_shelf_background", lambda **kwargs: None
         )
         monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
@@ -243,12 +223,9 @@ class TestRendererContentFlow:
         cr = _surface_context()
         renderer._draw_content(
             cr=cr,
-            width=420,
-            height=90,
-            model=model,
+            frame=_frame([item], layout),
             config=config,
             theme=theme,
-            cursor_main=10.0,
             hide_offset=0.0,
             drag_index=-1,
             drop_insert_index=-1,
@@ -270,12 +247,9 @@ class TestRendererContentFlow:
 
         renderer._draw_content(
             cr=cr,
-            width=400,
-            height=80,
-            model=model,
+            frame=_frame([], []),
             config=config,
             theme=theme,
-            cursor_main=10,
             hide_offset=0.0,
             drag_index=-1,
             drop_insert_index=-1,

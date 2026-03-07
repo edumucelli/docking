@@ -82,7 +82,7 @@ from docking.applets.separator.state import STYLE_LINE
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import RGB, IndicatorStyle
 from docking.ui.effects import average_icon_color, easing_bounce
-from docking.ui.geometry import build_geometry_frame, map_icon_position
+from docking.ui.geometry import DockGeometryFrame, map_icon_position
 from docking.ui.shelf import draw_shelf_background, rounded_rect
 
 if TYPE_CHECKING:
@@ -196,10 +196,9 @@ class DockRenderer:
         self,
         cr: cairo.Context,
         widget: Gtk.DrawingArea,
-        model: DockModel,
+        frame: DockGeometryFrame,
         config: Config,
         theme: Theme,
-        cursor_main: float,
         hide_offset: float = 0.0,
         drag_index: int = -1,
         drop_insert_index: int = -1,
@@ -208,9 +207,9 @@ class DockRenderer:
     ) -> None:
         """Main draw entry point -- called on every 'draw' signal.
 
-        cursor_main is the cursor position along the main axis (the axis
-        icons are laid out along). For horizontal docks this is X, for
-        vertical docks this is Y.
+        The current `DockGeometryFrame` is built by the window/event layer and
+        reused here so rendering does not rebuild a conflicting geometry
+        snapshot.
         """
         alloc = widget.get_allocation()
         width, height = alloc.width, alloc.height
@@ -226,12 +225,9 @@ class DockRenderer:
         ocr = cairo.Context(offscreen)
         self._draw_content(
             cr=ocr,
-            width=width,
-            height=height,
-            model=model,
+            frame=frame,
             config=config,
             theme=theme,
-            cursor_main=cursor_main,
             hide_offset=hide_offset,
             drag_index=drag_index,
             drop_insert_index=drop_insert_index,
@@ -245,12 +241,9 @@ class DockRenderer:
     def _draw_content(
         self,
         cr: cairo.Context,
-        width: int,
-        height: int,
-        model: DockModel,
+        frame: DockGeometryFrame,
         config: Config,
         theme: Theme,
-        cursor_main: float,
         hide_offset: float,
         drag_index: int,
         drop_insert_index: int,
@@ -260,6 +253,8 @@ class DockRenderer:
         """Render all dock content to a Cairo context."""
         pos = config.pos
         horizontal = is_horizontal(pos=pos)
+        width = frame.window_rect.w
+        height = frame.window_rect.h
         main_size = width if horizontal else height
 
         # Offset content away from the screen edge so the gap area
@@ -273,24 +268,12 @@ class DockRenderer:
             # BOTTOM/RIGHT: gap is at high-y/high-x end, content is
             # already drawn from y=0/x=0 so no translate needed.
 
-        items = model.visible_items()
+        items = [item_geometry.item for item_geometry in frame.item_geometries]
         if not items:
             return
 
         icon_size = config.icon_size
-        frame = build_geometry_frame(
-            items=items,
-            config=config,
-            theme=theme,
-            window_w=width,
-            window_h=height,
-            cursor_main=cursor_main,
-            autohide_state=None,
-            zoom_progress=zoom_progress,
-            hide_offset=hide_offset,
-            drop_insert_index=drop_insert_index,
-        )
-        layout = list(frame.layout)
+        layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
         cross_size = frame.cross_size
         icon_hide = hide_offset
         bg_extra = (
