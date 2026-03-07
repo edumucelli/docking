@@ -369,7 +369,7 @@ class TestMenuLifecycleScenarios:
             runtime=runtime,
             model=harness.model,
             config=cast(Any, harness.config),
-            tracker=harness.window_tracker,
+            window_tracker=harness.window_tracker,
             geometry_builder=cast(Any, _GeometryBuilder()),
         )
         created: list[_FakePopupMenu] = []

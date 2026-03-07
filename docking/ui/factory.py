@@ -73,10 +73,10 @@ def build_dock_window(
         runtime=runtime,
         model=model,
         config=config,
-        tracker=window_tracker,
+        window_tracker=window_tracker,
         geometry_builder=window.geometry,
         launcher=launcher,
     )
-    preview = PreviewPopup(window_tracker)
+    preview = PreviewPopup(window_tracker=window_tracker)
     window.attach_runtime(autohide=autohide, dnd=dnd, menu=menu, preview=preview)
     return window

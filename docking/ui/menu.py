@@ -309,7 +309,7 @@ class MenuHandler:
         runtime: DockRuntime,
         model: DockModel,
         config: Config,
-        tracker: WindowTracker,
+        window_tracker: WindowTracker,
         geometry_builder: DockGeometryBuilder,
         launcher: Launcher | None = None,
     ) -> None:
@@ -317,7 +317,7 @@ class MenuHandler:
         self._runtime = runtime
         self._model = model
         self._config = config
-        self._tracker = tracker
+        self._tracker = window_tracker
         self._launcher = launcher
         self._geometry_builder = geometry_builder
         self._about = AboutDialogController(parent=self._parent_window)

@@ -344,11 +344,11 @@ def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
 class PreviewPopup(Gtk.Window):
     """Floating popup showing window thumbnails for a dock item."""
 
-    def __init__(self, tracker: WindowTracker) -> None:
+    def __init__(self, window_tracker: WindowTracker) -> None:
         super().__init__(type=Gtk.WindowType.POPUP)
         _ensure_css()
 
-        self._tracker = tracker
+        self._tracker = window_tracker
         self._autohide: AutoHideController | None = None
         self._dock_window: DockWindow | None = None
         self._hide_timer_id: int = 0

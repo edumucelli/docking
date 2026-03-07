@@ -499,7 +499,7 @@ def handler(monkeypatch):
         runtime=runtime,
         model=model,
         config=config,
-        tracker=tracker,
+        window_tracker=tracker,
         launcher=MagicMock(),
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )
