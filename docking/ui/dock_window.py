@@ -795,6 +795,7 @@ class DockWindow(Gtk.Window):
             self.cursor_y = -1.0
             self._hover.hovered_item = None
             self._dock_hovered = False
+            self._tooltip.hide()
 
         # Keep redraw pump alive while urgent glow is visible (dock hidden)
         if self._has_active_urgent_glow():

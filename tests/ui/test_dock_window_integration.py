@@ -1067,6 +1067,7 @@ class TestDockWindowDrawAndHelpers:
             model=MagicMock(),
             config=MagicMock(),
             theme=MagicMock(),
+            _tooltip=MagicMock(),
             _main_axis_cursor=lambda: -1.0,
             _update_input_region=MagicMock(),
             _has_active_urgent_glow=lambda: False,
@@ -1081,6 +1082,7 @@ class TestDockWindowDrawAndHelpers:
         assert stub.cursor_x == -1.0
         assert stub.cursor_y == -1.0
         assert stub._hover.hovered_item is None
+        stub._tooltip.hide.assert_called_once()
 
     def test_on_motion_updates_cursor_and_hover(self):
         # Given

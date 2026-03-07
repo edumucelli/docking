@@ -26,6 +26,7 @@ def _make_hover():
     window.get_realized.return_value = True
     window.get_position.return_value = (100, 200)
     window.get_size.return_value = (500, 60)
+    window._dock_hovered = True
     window.drawing_area = MagicMock()
     window.cursor_x = 20.0
     window.cursor_y = 10.0
@@ -109,6 +110,20 @@ class TestHoverUpdates:
         hover.update(cursor_main=20.0)
         # Then
         preview.schedule_hide.assert_called_once()
+
+    def test_update_does_not_re_show_tooltip_when_dock_is_not_effectively_hovered(self):
+        hover, window, model, _config, tooltip, frame = _make_hover()
+        item = DockItem(desktop_id="terminator.desktop", name="Terminator")
+        hover.hovered_item = item
+        window._dock_hovered = False
+        model.visible_items.return_value = [item]
+        frame.hover_item_at_point.return_value = item
+
+        hover.update(cursor_main=20.0)
+
+        tooltip.hide.assert_called_once()
+        tooltip.update.assert_not_called()
+        assert hover.hovered_item is item
 
 
 class TestHoverTimers:
