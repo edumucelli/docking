@@ -36,12 +36,12 @@ def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
 
 def _make_handler(monkeypatch, lock_icons: bool = False):
     drawing_area = MagicMock()
-    window = MagicMock()
-    window.drawing_area = drawing_area
-    window.cursor_x = 20.0
-    window.cursor_y = 8.0
-    window.autohide = MagicMock()
-    window.is_pointer_inside_dock.return_value = False
+    runtime = MagicMock()
+    runtime.cursor_position.return_value = (20.0, 8.0)
+    runtime.is_pointer_inside_dock.return_value = False
+    runtime.pointer_screen_position.return_value = (0, 0)
+    runtime.window_position.return_value = (0, 0)
+    runtime.window_size.return_value = (400, 60)
     default_frame = _frame()
 
     model = MagicMock()
@@ -57,8 +57,9 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
     theme = SimpleNamespace(item_padding=8, h_padding=10)
     launcher = MagicMock()
     monkeypatch.setattr(dnd_mod, "show_poof", MagicMock())
-    return dnd_mod.DnDHandler(
-        window,
+    handler = dnd_mod.DnDHandler(
+        drawing_area,
+        runtime,
         model,
         config,
         renderer,
@@ -66,13 +67,14 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: default_frame),
     )
+    return handler
 
 
 class TestSetupAndToggle:
     def test_setup_enables_source_and_dest_when_unlocked(self, monkeypatch):
         # Given
         handler = _make_handler(monkeypatch, lock_icons=False)
-        da = handler._window.drawing_area
+        da = handler._drawing_area
         # Then
         # When
         da.drag_source_set.assert_called_once()
@@ -109,7 +111,7 @@ class TestDragBeginMotion:
         monkeypatch.setattr(dnd_mod.Gtk, "drag_set_icon_pixbuf", icon_set)
 
         # When
-        handler._on_drag_begin(handler._window.drawing_area, MagicMock())
+        handler._on_drag_begin(handler._drawing_area, MagicMock())
         # Then
         assert handler._drag_from == 0
         assert handler.drag_index == 0
@@ -134,14 +136,14 @@ class TestDragBeginMotion:
             "drag_status",
             lambda _ctx, action, _time: status_calls.append(action),
         )
-        widget = handler._window.drawing_area
+        widget = handler._drawing_area
 
         # When
         handled = handler._on_drag_motion(widget, MagicMock(), x=20, y=5, time=1)
         # Then
         assert handled is True
         assert handler.drop_insert_index == 0
-        handler._window.autohide.on_mouse_enter.assert_called_once()
+        handler._runtime.drag_motion_enter.assert_called_once()
         assert status_calls
 
     def test_drag_motion_internal_reorders(self, monkeypatch):
@@ -160,9 +162,7 @@ class TestDragBeginMotion:
         monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_a, **_k: None)
 
         # When
-        handled = handler._on_drag_motion(
-            handler._window.drawing_area, MagicMock(), 200, 5, 1
-        )
+        handled = handler._on_drag_motion(handler._drawing_area, MagicMock(), 200, 5, 1)
         # Then
         assert handled is True
         handler._model.reorder_visible.assert_called_once()
@@ -173,7 +173,7 @@ class TestDropAndReceive:
     def test_drag_drop_requests_target_data(self, monkeypatch):
         # Given
         handler = _make_handler(monkeypatch)
-        widget = handler._window.drawing_area
+        widget = handler._drawing_area
         widget.drag_dest_find_target.return_value = "text/uri-list"
 
         # When
@@ -186,7 +186,7 @@ class TestDropAndReceive:
         # Given
         handler = _make_handler(monkeypatch)
         handler.drop_insert_index = 2
-        widget = handler._window.drawing_area
+        widget = handler._drawing_area
         widget.drag_dest_find_target.return_value = None
 
         # When
@@ -205,7 +205,7 @@ class TestDropAndReceive:
 
         # When
         handler._on_drag_data_received(
-            handler._window.drawing_area,
+            handler._drawing_area,
             MagicMock(),
             0,
             0,
@@ -214,10 +214,9 @@ class TestDropAndReceive:
             123,
         )
         # Then
-        handler._window.autohide.set_disabled.assert_called_once_with(
-            False, reason="drag-data-received-outside"
+        handler._runtime.reconcile_after_drag.assert_called_once_with(
+            reason="drag-data-received"
         )
-        handler._window.autohide.on_mouse_leave.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 123)
 
     def test_drag_data_received_external_adds_pinned_item(self, monkeypatch):
@@ -240,13 +239,12 @@ class TestDropAndReceive:
         selection.get_uris.return_value = [
             "file:///usr/share/applications/firefox.desktop"
         ]
-        handler._window.is_pointer_inside_dock.return_value = True
         finish = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
 
         # When
         handler._on_drag_data_received(
-            handler._window.drawing_area,
+            handler._drawing_area,
             MagicMock(),
             0,
             0,
@@ -262,11 +260,9 @@ class TestDropAndReceive:
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._model.notify.assert_called_once()
-        handler._window.autohide.set_hovered.assert_called_once_with(True)
-        handler._window.autohide.set_disabled.assert_called_once_with(
-            False, reason="drag-data-received-inside"
+        handler._runtime.reconcile_after_drag.assert_called_once_with(
+            reason="drag-data-received"
         )
-        handler._window.autohide.on_mouse_leave.assert_not_called()
         finish.assert_called_once_with(ANY, True, False, 77)
 
     def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
@@ -318,14 +314,13 @@ class TestDragLeaveEnd:
             "timeout_add",
             lambda delay, cb, widget: timeout_calls.append((delay, cb, widget)) or 1,
         )
-        widget = handler._window.drawing_area
+        widget = handler._drawing_area
 
         # When
         handler._on_drag_leave(widget, MagicMock(), 0)
         # Then
         assert timeout_calls and timeout_calls[0][0] == 100
-        handler._window.autohide.on_mouse_leave.assert_not_called()
-        handler._window.autohide.set_disabled.assert_not_called()
+        handler._runtime.reconcile_after_drag.assert_not_called()
         widget.queue_draw.assert_called()
 
     def test_deferred_clear_drop_gap_releases_autohide_when_still_outside(
@@ -335,15 +330,14 @@ class TestDragLeaveEnd:
         handler = _make_handler(monkeypatch)
         handler._drag_from = -1
         handler.drop_insert_index = 2
-        widget = handler._window.drawing_area
+        widget = handler._drawing_area
         # Then
         # When
         assert handler._deferred_clear_drop_gap(widget) is False
         assert handler.drop_insert_index == -1
-        handler._window.autohide.set_disabled.assert_called_once_with(
-            False, reason="drag-leave-outside"
+        handler._runtime.reconcile_after_drag.assert_called_once_with(
+            reason="drag-leave"
         )
-        handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called_once()
 
     def test_drag_end_unpins_when_dropped_outside(self, monkeypatch):
@@ -353,16 +347,10 @@ class TestDragLeaveEnd:
         handler.drag_index = 0
         pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
         handler._model.visible_items.return_value = [pinned]
-        pointer = MagicMock()
-        pointer.get_position.return_value = (None, 200, 50)
-        seat = MagicMock()
-        seat.get_pointer.return_value = pointer
-        display = MagicMock()
-        display.get_default_seat.return_value = seat
-        handler._window.get_display.return_value = display
-        handler._window.get_position.return_value = (100, 200)
-        handler._window.get_size.return_value = (400, 60)
-        widget = handler._window.drawing_area
+        handler._runtime.pointer_screen_position.return_value = (200, 50)
+        handler._runtime.window_position.return_value = (100, 200)
+        handler._runtime.window_size.return_value = (400, 60)
+        widget = handler._drawing_area
 
         # When
         handler._on_drag_end(widget, MagicMock())
@@ -371,4 +359,5 @@ class TestDragLeaveEnd:
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._config.save.assert_called()
+        handler._runtime.reconcile_after_drag.assert_called_once_with(reason="drag-end")
         widget.queue_draw.assert_called()

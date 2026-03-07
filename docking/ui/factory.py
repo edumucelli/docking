@@ -29,13 +29,14 @@ from docking.core.theme import Theme
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.platform.window_tracker import WindowTracker
+from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController
 from docking.ui.dnd import DnDHandler
-from docking.ui.dock_window import DockWindow
+from docking.ui.dock_window import DockComponents, DockWindow
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import PreviewPopup
 from docking.ui.renderer import DockRenderer
-from docking.ui.runtime import DockRuntime
+from docking.ui.runtime import DockDragRuntime, DockRuntime
 
 
 def build_dock_window(
@@ -58,9 +59,12 @@ def build_dock_window(
 
     autohide = AutoHideController(window, config)
     runtime = DockRuntime(window)
+    drag_runtime = DockDragRuntime(window)
+    about = AboutDialogController(parent=window)
 
     dnd = DnDHandler(
-        window=window,
+        drawing_area=window.drawing_area,
+        runtime=drag_runtime,
         model=model,
         config=config,
         renderer=renderer,
@@ -69,7 +73,7 @@ def build_dock_window(
         geometry_builder=window.geometry,
     )
     menu = MenuHandler(
-        parent_window=window,
+        about=about,
         runtime=runtime,
         model=model,
         config=config,
@@ -78,5 +82,7 @@ def build_dock_window(
         launcher=launcher,
     )
     preview = PreviewPopup(window_tracker=window_tracker)
-    window.attach_runtime(autohide=autohide, dnd=dnd, menu=menu, preview=preview)
+    window.attach_components(
+        DockComponents(autohide=autohide, dnd=dnd, menu=menu, preview=preview)
+    )
     return window

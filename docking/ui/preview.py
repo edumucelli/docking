@@ -107,6 +107,7 @@ instead of pushing those concerns into the main renderer.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -128,7 +129,6 @@ from docking.core.position import Position, is_horizontal
 if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.autohide import AutoHideController
-    from docking.ui.dock_window import DockWindow
 
 THUMB_W = 200
 THUMB_H = 150
@@ -350,7 +350,7 @@ class PreviewPopup(Gtk.Window):
 
         self._tracker = window_tracker
         self._autohide: AutoHideController | None = None
-        self._dock_window: DockWindow | None = None
+        self._pointer_inside_dock: Callable[[], bool] | None = None
         self._hide_timer_id: int = 0
         self._current_desktop_id: str = ""
 
@@ -373,8 +373,8 @@ class PreviewPopup(Gtk.Window):
     def set_autohide(self, controller: AutoHideController | None) -> None:
         self._autohide = controller
 
-    def set_dock_window(self, window: DockWindow) -> None:
-        self._dock_window = window
+    def set_pointer_inside_dock_probe(self, probe: Callable[[], bool]) -> None:
+        self._pointer_inside_dock = probe
 
     def show_for_item(
         self,
@@ -587,7 +587,7 @@ class PreviewPopup(Gtk.Window):
         """
         if not self._autohide:
             return
-        if self._dock_window and self._dock_window.is_pointer_inside_dock():
+        if self._pointer_inside_dock and self._pointer_inside_dock():
             return
         self._autohide.on_mouse_leave()
 

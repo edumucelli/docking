@@ -168,7 +168,6 @@ if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
-    from docking.ui.dock_window import DockWindow
     from docking.ui.runtime import DockRuntime
 
 
@@ -305,7 +304,7 @@ class MenuHandler:
 
     def __init__(
         self,
-        parent_window: DockWindow,
+        about: AboutDialogController,
         runtime: DockRuntime,
         model: DockModel,
         config: Config,
@@ -313,14 +312,13 @@ class MenuHandler:
         geometry_builder: DockGeometryBuilder,
         launcher: Launcher | None = None,
     ) -> None:
-        self._parent_window = parent_window
+        self._about = about
         self._runtime = runtime
         self._model = model
         self._config = config
         self._tracker = window_tracker
         self._launcher = launcher
         self._geometry_builder = geometry_builder
-        self._about = AboutDialogController(parent=self._parent_window)
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
         self._folder_menu_refresh_sources: dict[int, int] = {}

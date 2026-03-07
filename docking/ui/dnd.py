@@ -165,8 +165,8 @@ if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
-    from docking.ui.dock_window import DockWindow
     from docking.ui.renderer import DockRenderer
+    from docking.ui.runtime import DockDragRuntime
 
 DRAG_ICON_SCALE = 1.2  # dragged icon shown at this multiplier of icon_size
 
@@ -184,7 +184,8 @@ class DnDHandler:
 
     def __init__(
         self,
-        window: DockWindow,
+        drawing_area: Gtk.DrawingArea,
+        runtime: DockDragRuntime,
         model: DockModel,
         config: Config,
         renderer: DockRenderer,
@@ -192,7 +193,8 @@ class DnDHandler:
         launcher: Launcher,
         geometry_builder: DockGeometryBuilder,
     ) -> None:
-        self._window = window
+        self._drawing_area = drawing_area
+        self._runtime = runtime
         self._model = model
         self._config = config
         self._renderer = renderer
@@ -206,18 +208,6 @@ class DnDHandler:
 
         self._setup_dnd()
 
-    def _reconcile_autohide_after_drag(self, *, reason: str) -> None:
-        """Release drag autohide disable state based on current pointer position."""
-        if not self._window.autohide:
-            return
-        if self._window.is_pointer_inside_dock():
-            self._window.autohide.set_hovered(True)
-            self._window.autohide.set_disabled(False, reason=f"{reason}-inside")
-            return
-        self._window.autohide.set_hovered(False)
-        self._window.autohide.set_disabled(False, reason=f"{reason}-outside")
-        self._window.autohide.on_mouse_leave()
-
     def _setup_dnd(self) -> None:
         """Configure GTK drag-and-drop on the drawing area.
 
@@ -226,7 +216,7 @@ class DnDHandler:
         both dock-item-index and text/uri-list for external .desktop drops.
         Skips source/dest setup if icons are locked.
         """
-        da = self._window.drawing_area
+        da = self._drawing_area
 
         if not self._config.lock_icons:
             self._enable_dnd(da=da)
@@ -240,7 +230,7 @@ class DnDHandler:
 
     def _enable_dnd(self, da: Gtk.DrawingArea | None = None) -> None:
         """Enable drag source and dest on the drawing area."""
-        da = da or self._window.drawing_area
+        da = da or self._drawing_area
         da.drag_source_set(
             Gdk.ModifierType.BUTTON1_MASK,
             [_DOCK_ITEM_TARGET],
@@ -254,7 +244,7 @@ class DnDHandler:
 
     def _disable_dnd(self, da: Gtk.DrawingArea | None = None) -> None:
         """Disable drag source and dest on the drawing area."""
-        da = da or self._window.drawing_area
+        da = da or self._drawing_area
         da.drag_source_unset()
         da.drag_dest_unset()
 
@@ -273,14 +263,12 @@ class DnDHandler:
         a scaled pixbuf as the drag icon.
         """
         frame = self._geometry_builder.build_frame()
-        if self._window.autohide and self._window.autohide.enabled:
-            self._window.autohide.set_disabled(True, reason="drag-begin")
+        self._runtime.begin_drag()
         items = self._model.visible_items()
         horizontal = is_horizontal(pos=self._config.pos)
-        win_cx = self._window.cursor_x if horizontal else self._window.cursor_y
-        dragged_index = frame.item_index_at_point(
-            self._window.cursor_x, self._window.cursor_y
-        )
+        cursor_x, cursor_y = self._runtime.cursor_position()
+        win_cx = cursor_x if horizontal else cursor_y
+        dragged_index = frame.item_index_at_point(cursor_x, cursor_y)
         log.debug(
             "drag-begin: win_cx=%.1f items=%d",
             win_cx,
@@ -343,9 +331,7 @@ class DnDHandler:
         #
         # To fix this, we explicitly call autohide.on_mouse_enter() from
         # the drag-motion handler, which IS delivered during DnD.
-        if self._window.autohide:
-            self._window.autohide.set_disabled(True, reason="drag-motion")
-            self._window.autohide.on_mouse_enter()
+        self._runtime.drag_motion_enter()
         main_coord = x if is_horizontal(pos=self._config.pos) else y
 
         if self._drag_from < 0:
@@ -418,7 +404,7 @@ class DnDHandler:
         # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
             log.debug("drag-data-received: internal reorder complete")
-            self._reconcile_autohide_after_drag(reason="drag-data-received")
+            self._runtime.reconcile_after_drag(reason="drag-data-received")
             Gtk.drag_finish(context, True, False, time)
             return
 
@@ -455,7 +441,7 @@ class DnDHandler:
                 added = True
 
         self.drop_insert_index = -1
-        self._reconcile_autohide_after_drag(reason="drag-data-received")
+        self._runtime.reconcile_after_drag(reason="drag-data-received")
         Gtk.drag_finish(context, added, False, time)
 
     def _on_drag_leave(
@@ -477,7 +463,7 @@ class DnDHandler:
         """Clear stale drop gap if it wasn't consumed by a drop."""
         if self.drop_insert_index >= 0 and self._drag_from < 0:
             self.drop_insert_index = -1
-            self._reconcile_autohide_after_drag(reason="drag-leave")
+            self._runtime.reconcile_after_drag(reason="drag-leave")
             widget.queue_draw()
         return False
 
@@ -489,12 +475,9 @@ class DnDHandler:
         """
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position
-            display = self._window.get_display()
-            seat = display.get_default_seat()
-            pointer = seat.get_pointer()
-            _, screen_x, screen_y = pointer.get_position()
-            win_x, win_y = self._window.get_position()
-            win_w, win_h = self._window.get_size()
+            screen_x, screen_y = self._runtime.pointer_screen_position()
+            win_x, win_y = self._runtime.window_position()
+            win_w, win_h = self._runtime.window_size()
 
             # Outside if cursor moved away from the dock edge
             items = self._model.visible_items()
@@ -539,7 +522,7 @@ class DnDHandler:
         self.drop_insert_index = -1
         self._drag_from = -1
         self._config.save()
-        self._reconcile_autohide_after_drag(reason="drag-end")
+        self._runtime.reconcile_after_drag(reason="drag-end")
         widget.queue_draw()
 
     def _item_from_uri(self, uri: str) -> DockItem | None:

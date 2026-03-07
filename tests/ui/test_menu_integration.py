@@ -464,7 +464,7 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
-    parent_window = MagicMock()
+    about = MagicMock()
     runtime = MagicMock()
     runtime.get_monitor_menu_choices.return_value = []
     runtime.current_monitor_choice.return_value = -1
@@ -495,7 +495,7 @@ def handler(monkeypatch):
     tracker.get_windows_for.return_value = []
     tracker.get_window_title_for_xid.side_effect = lambda xid: f"Window {xid}"
     return menu_mod.MenuHandler(
-        parent_window=parent_window,
+        about=about,
         runtime=runtime,
         model=model,
         config=config,

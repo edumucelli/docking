@@ -45,6 +45,9 @@ class TestBuildDockWindow:
         )
 
         assert result is window
-        window.attach_runtime.assert_called_once_with(
-            autohide=autohide, dnd=dnd, menu=menu, preview=preview
-        )
+        window.attach_components.assert_called_once()
+        attached = window.attach_components.call_args.args[0]
+        assert attached.autohide is autohide
+        assert attached.dnd is dnd
+        assert attached.menu is menu
+        assert attached.preview is preview

@@ -175,6 +175,7 @@ current codebase.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import cairo
@@ -241,6 +242,16 @@ def _queue_widget_redraw(widget: Gtk.Widget) -> bool:
     return False
 
 
+@dataclass(frozen=True)
+class DockComponents:
+    """Late-attached collaborators that depend on the live dock window shell."""
+
+    autohide: AutoHideController
+    dnd: DnDHandler
+    menu: MenuHandler
+    preview: PreviewPopup
+
+
 class DockWindow(Gtk.Window):
     """Top-level dock window that owns event routing and edge integration.
 
@@ -269,7 +280,7 @@ class DockWindow(Gtk.Window):
         self.window_tracker = window_tracker
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
-        self._runtime_attached: bool = False
+        self._components_attached: bool = False
         self.autohide: AutoHideController
         self._dnd: DnDHandler
         self._menu: MenuHandler
@@ -365,41 +376,34 @@ class DockWindow(Gtk.Window):
         """Listen for model changes to trigger redraws."""
         self.model.on_change = self._on_model_changed
 
-    def attach_runtime(
-        self,
-        *,
-        autohide: AutoHideController,
-        dnd: DnDHandler,
-        menu: MenuHandler,
-        preview: PreviewPopup,
-    ) -> None:
-        """Attach runtime collaborators in one atomic assembly step."""
-        if self._runtime_attached:
-            raise RuntimeError("DockWindow runtime already attached")
-        self.autohide = autohide
-        self._dnd = dnd
-        self._menu = menu
-        self._preview = preview
-        self._preview.set_dock_window(window=self)
-        self._preview.set_autohide(controller=autohide)
-        self._hover.set_preview(preview=preview)
-        self._runtime_attached = True
+    def attach_components(self, components: DockComponents) -> None:
+        """Attach late-built UI components in one atomic assembly step."""
+        if self._components_attached:
+            raise RuntimeError("DockWindow components already attached")
+        self.autohide = components.autohide
+        self._dnd = components.dnd
+        self._menu = components.menu
+        self._preview = components.preview
+        self._preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
+        self._preview.set_autohide(controller=components.autohide)
+        self._hover.set_preview(preview=components.preview)
+        self._components_attached = True
 
     @property
     def dnd(self) -> DnDHandler:
-        if not self._runtime_attached:
+        if not self._components_attached:
             raise RuntimeError("DockWindow DnD handler accessed before assembly")
         return self._dnd
 
     @property
     def menu(self) -> MenuHandler:
-        if not self._runtime_attached:
+        if not self._components_attached:
             raise RuntimeError("DockWindow menu handler accessed before assembly")
         return self._menu
 
     @property
     def preview(self) -> PreviewPopup:
-        if not self._runtime_attached:
+        if not self._components_attached:
             raise RuntimeError("DockWindow preview popup accessed before assembly")
         return self._preview
 

@@ -70,6 +70,8 @@ class BluetoothApplet(Applet):
         # Serializes power transitions. Prevents repeated calls when users click
         # quickly or when menu toggle events fire while the backend is busy.
         self._power_transition_in_progress = False
+        self._discovery_request_in_progress = False
+        self._refresh_request_in_progress = False
         # Optional user-facing line appended to tooltip when an action fails.
         self._action_error: str = ""
 
@@ -231,8 +233,7 @@ class BluetoothApplet(Applet):
         title: str,
         devices: list[BluetoothDeviceState],
     ) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-        items.append(self._make_header(label=title))
+        items: list[Gtk.MenuItem] = [self._make_header(label=title)]
 
         if not devices:
             return items
@@ -346,9 +347,20 @@ class BluetoothApplet(Applet):
         return False
 
     def _refresh_now(self) -> None:
-        self._on_poll_result(
-            self._backend.get_state(active_adapter_path=self._active_adapter_path)
-        )
+        if self._refresh_request_in_progress:
+            return
+        self._refresh_request_in_progress = True
+
+        def worker() -> None:
+            state = self._state
+            try:
+                state = self._backend.get_state(
+                    active_adapter_path=self._active_adapter_path
+                )
+            finally:
+                GLib.idle_add(self._on_refresh_result, state)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _sync_selected_adapter(self, persist: bool = True) -> None:
         selected = adapter_from_state(
@@ -383,8 +395,18 @@ class BluetoothApplet(Applet):
             return
         if time.monotonic() < self._suppress_discovery_until:
             return
-        if self._backend.start_discovery(adapter.path):
-            self._local_discovery_active = True
+        if self._discovery_request_in_progress:
+            return
+        self._discovery_request_in_progress = True
+
+        def worker() -> None:
+            started = False
+            try:
+                started = self._backend.start_discovery(adapter_path=adapter.path)
+            finally:
+                GLib.idle_add(self._on_discovery_result, started)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _run_async(self, action: Callable[[], bool]) -> None:
         def worker() -> None:
@@ -403,17 +425,27 @@ class BluetoothApplet(Applet):
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def _on_refresh_result(self, state: BluetoothState) -> bool:
+        self._refresh_request_in_progress = False
+        return self._on_poll_result(state=state)
+
+    def _on_discovery_result(self, started: bool) -> bool:
+        self._discovery_request_in_progress = False
+        if started:
+            self._local_discovery_active = True
+        return False
+
     def _connect_device(self, device: BluetoothDeviceState) -> bool:
         if device.paired:
-            return self._backend.connect_device(device.path)
+            return self._backend.connect_device(device_path=device.path)
         paired = self._backend.pair_device(
-            device.path,
+            device_path=device.path,
             address=device.address,
             timeout_s=PAIR_TIMEOUT_S,
         )
         if not paired:
             return False
-        return self._backend.connect_device(device.path)
+        return self._backend.connect_device(device_path=device.path)
 
     def _on_select_adapter(self, widget: Gtk.RadioMenuItem, adapter_path: str) -> None:
         if not widget.get_active():
@@ -457,7 +489,10 @@ class BluetoothApplet(Applet):
         def worker() -> None:
             if not target:
                 self._stop_local_discovery(quiet=True)
-            ok = self._backend.set_adapter_power(adapter.path, target)
+            ok = self._backend.set_adapter_power(
+                adapter_path=adapter.path,
+                powered=target,
+            )
             state = self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             )
@@ -512,7 +547,7 @@ class BluetoothApplet(Applet):
         adapter = self._active_adapter()
         if adapter is None or not self._local_discovery_active:
             return True
-        stopped = self._backend.stop_discovery(adapter.path, quiet=quiet)
+        stopped = self._backend.stop_discovery(adapter_path=adapter.path, quiet=quiet)
         if stopped:
             self._local_discovery_active = False
         return stopped

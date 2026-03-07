@@ -1,4 +1,4 @@
-"""Runtime command surface exposed by the dock UI shell to handlers."""
+"""Runtime command surfaces exposed by the dock UI shell to handlers."""
 
 from __future__ import annotations
 
@@ -64,3 +64,53 @@ class DockRuntime:
 
     def cursor_position(self) -> tuple[float, float]:
         return self._window.cursor_x, self._window.cursor_y
+
+
+class DockDragRuntime:
+    """Drag/drop-specific runtime surface for DnDHandler.
+
+    This is narrower than DockWindow on purpose. Drag-and-drop needs real shell
+    services, but it does not need the entire window object graph.
+    """
+
+    def __init__(self, window: DockWindow) -> None:
+        self._window = window
+
+    def is_pointer_inside_dock(self) -> bool:
+        return self._window.is_pointer_inside_dock()
+
+    def cursor_position(self) -> tuple[float, float]:
+        return self._window.cursor_x, self._window.cursor_y
+
+    def pointer_screen_position(self) -> tuple[int, int]:
+        display = self._window.get_display()
+        seat = display.get_default_seat()
+        pointer = seat.get_pointer()
+        _, screen_x, screen_y = pointer.get_position()
+        return int(screen_x), int(screen_y)
+
+    def window_position(self) -> tuple[int, int]:
+        return self._window.get_position()
+
+    def window_size(self) -> tuple[int, int]:
+        return self._window.get_size()
+
+    def begin_drag(self) -> None:
+        if self._window.autohide and self._window.autohide.enabled:
+            self._window.autohide.set_disabled(True, reason="drag-begin")
+
+    def drag_motion_enter(self) -> None:
+        if self._window.autohide:
+            self._window.autohide.set_disabled(True, reason="drag-motion")
+            self._window.autohide.on_mouse_enter()
+
+    def reconcile_after_drag(self, *, reason: str) -> None:
+        if not self._window.autohide:
+            return
+        if self._window.is_pointer_inside_dock():
+            self._window.autohide.set_hovered(True)
+            self._window.autohide.set_disabled(False, reason=f"{reason}-inside")
+            return
+        self._window.autohide.set_hovered(False)
+        self._window.autohide.set_disabled(False, reason=f"{reason}-outside")
+        self._window.autohide.on_mouse_leave()

@@ -33,7 +33,7 @@ from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.menu import MenuHandler
-from docking.ui.runtime import DockRuntime
+from docking.ui.runtime import DockDragRuntime, DockRuntime
 
 
 class _Seat:
@@ -132,7 +132,8 @@ class _ScenarioHarness:
         self.launcher = MagicMock()
         self.window_tracker = MagicMock()
         self.dnd = DnDHandler(
-            window=cast(Any, self),
+            drawing_area=self.drawing_area,
+            runtime=DockDragRuntime(cast(Any, self)),
             model=self.model,
             config=cast(Any, self.config),
             renderer=cast(Any, self.renderer),
@@ -365,7 +366,7 @@ class TestMenuLifecycleScenarios:
 
         runtime = DockRuntime(cast(Any, harness))
         handler = MenuHandler(
-            parent_window=cast(Any, harness),
+            about=MagicMock(),
             runtime=runtime,
             model=harness.model,
             config=cast(Any, harness.config),

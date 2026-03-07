@@ -22,6 +22,15 @@ from docking.applets.bluetooth import (
 )
 
 
+class _ImmediateThread:
+    def __init__(self, target, daemon=True):
+        _ = daemon
+        self._target = target
+
+    def start(self):
+        self._target()
+
+
 def _adapter(
     *,
     path: str = "/org/bluez/hci0",
@@ -803,14 +812,7 @@ class TestBluetoothApplet:
         applet._poll_worker = lambda: ticked.append("poll")  # type: ignore[assignment]
         applet._ensure_discovery = lambda: ticked.append("discover")  # type: ignore[assignment]
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
-
-            def start(self):
-                self._target()
-
-        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _Thread)
+        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
         assert applet._tick() is True
         assert applet._discovery_tick() is True
         assert ticked == ["poll", "discover"]
@@ -821,17 +823,19 @@ class TestBluetoothApplet:
         monkeypatch.setattr(
             bluetooth_applet_mod.GLib,
             "idle_add",
-            lambda func, state: idle_calls.append(state),
+            lambda func, state: idle_calls.append(state) or func(state),
         )
         applet._poll_worker()
         assert idle_calls and idle_calls[0].available is True
 
+        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
         results: list[BluetoothState] = []
         applet._on_poll_result = lambda state: results.append(state) or False  # type: ignore[assignment]
         applet._refresh_now()
         assert results and results[0] == backend.get_state(
             active_adapter_path=applet._active_adapter_path
         )
+        assert applet._refresh_request_in_progress is False
 
     def test_on_poll_result_syncs_adapter_and_resets_local_discovery(self, monkeypatch):
         state = _state(adapters=(_adapter(path="/org/bluez/hci0", discovering=False),))
@@ -844,6 +848,12 @@ class TestBluetoothApplet:
 
     def test_sync_selected_adapter_active_adapter_and_discovery_flow(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
+        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
+        monkeypatch.setattr(
+            bluetooth_applet_mod.GLib,
+            "idle_add",
+            lambda func, started: func(started),
+        )
         saved: list[dict[str, object]] = []
         applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[assignment]
         applet._active_adapter_path = "/invalid"
@@ -874,6 +884,7 @@ class TestBluetoothApplet:
         applet._ensure_discovery()
         assert backend.discovery_calls == ["/org/bluez/hci0"]
         assert applet._local_discovery_active is True
+        assert applet._discovery_request_in_progress is False
 
     def test_run_async_and_connect_device_paths(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
@@ -884,19 +895,16 @@ class TestBluetoothApplet:
             lambda func, state: idle_calls.append(state),
         )
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
-
-            def start(self):
-                self._target()
-
-        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _Thread)
+        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
         applet._run_async(lambda: True)
         assert idle_calls
 
-        backend.connect_device = lambda path: path == "/d/ok"  # type: ignore[method-assign]
-        backend.pair_device = lambda path, address="", timeout_s=20: True  # type: ignore[method-assign]
+        backend.connect_device = (  # type: ignore[method-assign]
+            lambda device_path: device_path == "/d/ok"
+        )
+        backend.pair_device = (  # type: ignore[method-assign]
+            lambda device_path, address="", timeout_s=20: True
+        )
         assert applet._connect_device(_device(path="/d/ok", paired=True)) is True
         assert applet._connect_device(_device(path="/d/new", paired=False)) is False
 
@@ -1009,7 +1017,9 @@ class TestBluetoothApplet:
         applet._local_discovery_active = False
         assert applet._stop_local_discovery(quiet=True) is True
         applet._local_discovery_active = True
-        applet._backend.stop_discovery = lambda path, quiet=True: False  # type: ignore[attr-defined]
+        applet._backend.stop_discovery = (  # type: ignore[attr-defined]
+            lambda adapter_path, quiet=True: False
+        )
         assert applet._stop_local_discovery(quiet=True) is False
 
         assert bluetooth_applet_mod._as_pref_bool(True, default=False) is True
