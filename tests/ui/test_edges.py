@@ -166,21 +166,11 @@ def _attach_runtime_methods(harness: _Harness) -> None:
     harness._main_axis_cursor = MethodType(
         dock_window_mod.DockWindow._main_axis_cursor, harness
     )
-    harness.get_geometry_frame = MethodType(
-        lambda self, **kwargs: self.geometry.build_frame(**kwargs),
-        harness,
-    )
     harness.update_input_region = MethodType(
         dock_window_mod.DockWindow.update_input_region, harness
     )
     harness.update_dock_size = MethodType(
         dock_window_mod.DockWindow.update_dock_size, harness
-    )
-    harness._on_effective_enter = MethodType(
-        dock_window_mod.DockWindow._on_effective_enter, harness
-    )
-    harness._on_effective_leave = MethodType(
-        dock_window_mod.DockWindow._on_effective_leave, harness
     )
 
 
@@ -198,7 +188,7 @@ def _leave_event(x: float, y: float) -> SimpleNamespace:
 
 
 def _hover_first_item(harness: _Harness, widget: MagicMock) -> tuple[float, float]:
-    frame = harness.get_geometry_frame(main_cursor=330.0)
+    frame = harness.geometry.build_frame(main_cursor=330.0)
     first = frame.item_geometries[0]
     x = float(first.draw_rect.x + first.draw_rect.w // 2)
     y = float(first.draw_rect.y + first.draw_rect.h - 1)
@@ -208,7 +198,7 @@ def _hover_first_item(harness: _Harness, widget: MagicMock) -> tuple[float, floa
 
 
 def _hover_last_item(harness: _Harness, widget: MagicMock) -> tuple[float, float]:
-    frame = harness.get_geometry_frame(main_cursor=1590.0)
+    frame = harness.geometry.build_frame(main_cursor=1590.0)
     last = frame.item_geometries[-1]
     x = float(last.draw_rect.x + last.draw_rect.w // 2)
     y = float(last.draw_rect.y + last.draw_rect.h - 1)

@@ -271,24 +271,6 @@ class DockWindow(Gtk.Window):
     def set_menu_handler(self, handler: MenuHandler) -> None:
         self._menu = handler
 
-    def on_menu_popup_opened(self) -> None:
-        """Track that a dock context menu popup is currently active."""
-        self.interaction.menu_popup_opened()
-
-    def on_menu_popup_closed(self) -> None:
-        """Reconcile autohide state when the context menu closes."""
-        self.interaction.menu_popup_closed()
-
-    def _pointer_inside_input_rect(self) -> bool:
-        """Return True when pointer is inside current dock input region."""
-        return self.interaction.pointer_inside_input_rect()
-
-    def _on_effective_enter(self) -> None:
-        self.interaction.on_effective_enter()
-
-    def _on_effective_leave(self, widget: Gtk.DrawingArea) -> None:
-        self.interaction.on_effective_leave(widget)
-
     def set_preview_popup(self, preview: PreviewPopup) -> None:
         self.preview = preview
         self.preview.set_dock_window(self)
@@ -405,10 +387,10 @@ class DockWindow(Gtk.Window):
         self.update_dock_size(frame=frame)
         widget.queue_draw()
         if frame.cursor_rect.contains(event.x, event.y):
-            self._on_effective_enter()
+            self.interaction.on_effective_enter()
             self._hover.update(self._main_axis_cursor(), frame=frame)
         elif self.dock_hovered:
-            self._on_effective_leave(widget)
+            self.interaction.on_effective_leave(widget)
         return False  # Propagate so GTK drag source can detect drag threshold
 
     def _on_button_press(
@@ -571,7 +553,7 @@ class DockWindow(Gtk.Window):
         # interaction. When a preview is visible, dock leave only schedules the
         # preview to disappear after its grace period; the preview layer decides
         # whether autohide should proceed once that timer actually completes.
-        self._on_effective_leave(widget)
+        self.interaction.on_effective_leave(widget)
         return True
 
     def _on_enter(self, _widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
@@ -588,7 +570,7 @@ class DockWindow(Gtk.Window):
         frame = self.geometry.build_frame(cursor_x=event.x, cursor_y=event.y)
         self._current_geometry_frame = frame
         if frame.cursor_rect.contains(event.x, event.y):
-            self._on_effective_enter()
+            self.interaction.on_effective_enter()
         return True
 
     def _has_active_urgent_glow(self) -> bool:

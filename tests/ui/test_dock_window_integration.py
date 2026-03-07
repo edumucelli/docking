@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from types import MethodType, SimpleNamespace
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.ui.dock_window as dock_window_mod
@@ -45,19 +45,14 @@ def _make_stub(item: DockItem | None = None):
     stub.hit_test = MagicMock(return_value=item)
     stub.update_dock_size = MagicMock()
     stub.drawing_area = MagicMock()
-    stub._pointer_inside_input_rect = MagicMock(return_value=False)
     stub._test_geometry_frame = frame
     stub._current_geometry_frame = frame
     stub._applied_input_frame = frame
     stub.geometry = SimpleNamespace(build_frame=lambda **_kwargs: frame)
     stub.dock_hovered = True
     stub.interaction = MagicMock()
-    stub._on_effective_enter = MethodType(
-        dock_window_mod.DockWindow._on_effective_enter, stub
-    )
-    stub._on_effective_leave = MethodType(
-        dock_window_mod.DockWindow._on_effective_leave, stub
-    )
+    stub.interaction.on_effective_enter = MagicMock()
+    stub.interaction.on_effective_leave = MagicMock()
     return stub, item
 
 
@@ -385,73 +380,6 @@ class TestLeaveEnterFlow:
         assert stub.dock_hovered is False
 
 
-class TestMenuPopupFlow:
-    def test_menu_close_triggers_autohide_when_pointer_outside(self):
-        # Given
-        stub, _item = _make_stub()
-        stub._menu_popup_visible = True
-        stub.autohide = SimpleNamespace(
-            enabled=True,
-            on_mouse_leave=MagicMock(),
-            set_hovered=MagicMock(),
-            set_disabled=MagicMock(),
-        )
-        stub.preview = MagicMock()
-        stub.preview.get_visible.return_value = False
-
-        # When
-        dock_window_mod.DockWindow.on_menu_popup_closed(stub)
-
-        # Then
-        stub.interaction.menu_popup_closed.assert_called_once()
-
-    def test_menu_close_with_visible_preview_defers_autohide(self):
-        stub, _item = _make_stub()
-        stub._menu_popup_visible = True
-        stub.autohide = SimpleNamespace(
-            enabled=True,
-            on_mouse_leave=MagicMock(),
-            set_hovered=MagicMock(),
-            set_disabled=MagicMock(),
-        )
-        stub.preview = MagicMock()
-        stub.preview.get_visible.return_value = True
-
-        dock_window_mod.DockWindow.on_menu_popup_closed(stub)
-
-        stub.interaction.menu_popup_closed.assert_called_once()
-
-    def test_menu_close_does_not_hide_when_pointer_is_back_on_dock(self):
-        # Given
-        stub, _item = _make_stub()
-        stub._menu_popup_visible = True
-        stub.autohide = SimpleNamespace(
-            enabled=True,
-            on_mouse_leave=MagicMock(),
-            set_hovered=MagicMock(),
-            set_disabled=MagicMock(),
-        )
-        dock_window_mod.DockWindow.on_menu_popup_closed(stub)
-
-        stub.interaction.menu_popup_closed.assert_called_once()
-
-    def test_menu_close_is_noop_when_no_popup_is_tracked(self):
-        # Given
-        stub, _item = _make_stub()
-        stub.autohide = SimpleNamespace(
-            enabled=True,
-            on_mouse_leave=MagicMock(),
-            set_hovered=MagicMock(),
-            set_disabled=MagicMock(),
-        )
-
-        # When
-        dock_window_mod.DockWindow.on_menu_popup_closed(stub)
-
-        # Then
-        stub.interaction.menu_popup_closed.assert_called_once()
-
-
 class TestUrgentGlow:
     def test_has_active_urgent_glow_only_when_hidden_and_recent(self, monkeypatch):
         # Given
@@ -752,12 +680,6 @@ class TestDockWindowDrawAndHelpers:
             ),
         )
         stub.interaction = DockInteractionCoordinator(stub)
-        stub._on_effective_enter = MethodType(
-            dock_window_mod.DockWindow._on_effective_enter, stub
-        )
-        stub._on_effective_leave = MethodType(
-            dock_window_mod.DockWindow._on_effective_leave, stub
-        )
         event = SimpleNamespace(x=7.0, y=9.0)
 
         # When
