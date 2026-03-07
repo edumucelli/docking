@@ -235,6 +235,12 @@ MOUSE_MIDDLE = 2
 MOUSE_RIGHT = 3
 
 
+def _queue_widget_redraw(widget: Gtk.Widget) -> bool:
+    """Schedule a single redraw tick and stop the GLib timeout."""
+    widget.queue_draw()
+    return False
+
+
 class DockWindow(Gtk.Window):
     """Top-level dock window that owns event routing and edge integration.
 
@@ -376,16 +382,6 @@ class DockWindow(Gtk.Window):
         """Return True when the current pointer is inside the dock input area."""
         return self.interaction.is_pointer_inside_dock()
 
-    def update_struts(self) -> None:
-        """Public method to refresh struts and barrier after autohide toggle.
-
-        Called from the menu when the user switches between autohide
-        and always-visible modes. Immediately updates the X11 strut
-        reservation so the window manager resizes application windows,
-        and creates/destroys the pointer barrier accordingly.
-        """
-        self.placement.update_struts()
-
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """GTK draw signal handler -- orchestrates each frame.
 
@@ -460,11 +456,19 @@ class DockWindow(Gtk.Window):
             and self.dock_hovered
             and self._hover.hovered_item is not None
         ):
-            self._hover.update(self._main_axis_cursor(), frame=frame)
+            cursor_main = (
+                self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
+            )
+            self._hover.update(cursor_main, frame=frame)
 
         # Keep redraw pump alive while urgent glow is visible (dock hidden)
-        if self._has_active_urgent_glow():
-            GLib.timeout_add(16, self._urgent_glow_tick)
+        if self.renderer.has_active_urgent_glow(
+            model=self.model,
+            theme=self.theme,
+            autohide_state=current_autohide_state,
+            now_us=GLib.get_monotonic_time(),
+        ):
+            GLib.timeout_add(16, _queue_widget_redraw, self.drawing_area)
 
         self._last_autohide_state = current_autohide_state
 
@@ -480,11 +484,14 @@ class DockWindow(Gtk.Window):
         self.cursor_y = event.y
         frame = self.geometry.build_frame()
         self._current_geometry_frame = frame
-        self.update_dock_size(frame=frame)
+        self.update_input_region(frame=frame)
         widget.queue_draw()
         if frame.cursor_rect.contains(event.x, event.y):
             self.interaction.on_effective_enter()
-            self._hover.update(self._main_axis_cursor(), frame=frame)
+            cursor_main = (
+                self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
+            )
+            self._hover.update(cursor_main, frame=frame)
         elif self.dock_hovered:
             self.interaction.on_effective_leave(widget)
         return False  # Propagate so GTK drag source can detect drag threshold
@@ -517,7 +524,8 @@ class DockWindow(Gtk.Window):
 
         if event.button == MOUSE_RIGHT:
             if self._menu:
-                self._menu.show(event, self._main_axis_cursor())
+                cursor_main = event.x if is_horizontal(pos=self.config.pos) else event.y
+                self._menu.show(event, cursor_main)
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
@@ -669,40 +677,19 @@ class DockWindow(Gtk.Window):
             self.interaction.on_effective_enter()
         return True
 
-    def _has_active_urgent_glow(self) -> bool:
-        """True if dock is hidden and any item has an active urgent glow."""
-        if not self.autohide or self.autohide.state != HideState.HIDDEN:
-            return False
-        now = GLib.get_monotonic_time()
-        glow_time_us = self.theme.urgent_glow_time_ms * 1000
-        for item in self.model.visible_items():
-            if item.last_urgent > 0 and (now - item.last_urgent) < glow_time_us:
-                return True
-        return False
-
-    def _urgent_glow_tick(self) -> bool:
-        """One-shot tick to keep redraws flowing during urgent glow."""
-        self.drawing_area.queue_draw()
-        return False  # don't repeat; _on_draw re-schedules if still needed
-
     def _on_model_changed(self) -> None:
         """Reposition and redraw when the model changes."""
-        self.update_dock_size()
+        self.update_input_region()
         self._hover.on_model_changed()
         # Refresh hover/tooltip state even without mouse motion so applets
         # that update item.name asynchronously (e.g. workspace switcher)
         # show the new tooltip text immediately.
         if self._hover.hovered_item is not None:
-            self._hover.update(self._main_axis_cursor())
+            cursor_main = (
+                self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
+            )
+            self._hover.update(cursor_main)
         self.drawing_area.queue_draw()
-
-    def update_dock_size(self, frame: DockGeometryFrame | None = None) -> None:
-        """Refresh the input region after model or cursor changes.
-
-        The window itself doesn't resize (it spans the full monitor),
-        but the clickable input region needs to track the content bounds.
-        """
-        self.update_input_region(frame=frame)
 
     def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:
         """Define which part of the window responds to mouse events.
@@ -756,16 +743,6 @@ class DockWindow(Gtk.Window):
     #
     # These methods convert between window-space and content-space
     # along the main axis.
-
-    def _main_axis_cursor(self) -> float:
-        """Cursor position along the dock's main axis in window-space.
-
-        Returns cursor_x for horizontal docks, cursor_y for vertical.
-        Negative when no cursor is present (mouse outside window).
-        """
-        if is_horizontal(pos=self.config.pos):
-            return self.cursor_x
-        return self.cursor_y
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""

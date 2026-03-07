@@ -140,14 +140,8 @@ class _ScenarioHarness:
             launcher=self.launcher,
             geometry_builder=self.geometry,
         )
-        self._main_axis_cursor = MethodType(
-            dock_window_mod.DockWindow._main_axis_cursor, self
-        )
         self.update_input_region = MethodType(
             dock_window_mod.DockWindow.update_input_region, self
-        )
-        self.update_dock_size = MethodType(
-            dock_window_mod.DockWindow.update_dock_size, self
         )
         self.is_pointer_inside_dock = MethodType(
             dock_window_mod.DockWindow.is_pointer_inside_dock, self

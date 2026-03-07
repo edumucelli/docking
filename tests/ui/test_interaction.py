@@ -26,7 +26,7 @@ def _make_window(item: DockItem | None = None):
         autohide=None,
         cursor_x=12.0,
         cursor_y=6.0,
-        update_dock_size=MagicMock(),
+        update_input_region=MagicMock(),
         drawing_area=MagicMock(),
         _current_geometry_frame=frame,
         _applied_input_frame=frame,
@@ -58,7 +58,7 @@ class TestEffectiveLeavePolicy:
         window.preview.schedule_hide.assert_not_called()
         assert window.cursor_x == -1.0
         assert window.cursor_y == -1.0
-        window.update_dock_size.assert_called_once()
+        window.update_input_region.assert_called_once()
         widget.queue_draw.assert_called_once()
 
     def test_leave_with_visible_preview_defers_autohide_until_preview_hides(self):
@@ -137,7 +137,7 @@ class TestMenuPopupPolicy:
         window._hover.cancel.assert_called_once()
         window.tooltip.hide.assert_called_once()
         window.preview.schedule_hide.assert_not_called()
-        window.update_dock_size.assert_called_once()
+        window.update_input_region.assert_called_once()
         window.drawing_area.queue_draw.assert_called_once()
         window.autohide.set_hovered.assert_called_once_with(False)
         window.autohide.set_disabled.assert_called_once_with(

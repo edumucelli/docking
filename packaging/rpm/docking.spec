@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:0.1.27}
+Version:        %{?pkg_version}%{!?pkg_version:0.1.28}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 

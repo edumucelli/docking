@@ -233,7 +233,7 @@ class DockInteractionCoordinator:
         if self._window.preview and preview_visible:
             self._window.preview.schedule_hide()
 
-        self._window.update_dock_size()
+        self._window.update_input_region()
         self._window.drawing_area.queue_draw()
         self._window.autohide.set_hovered(False)
         self._window.autohide.set_disabled(False, reason="menu-close-pointer-outside")
@@ -318,7 +318,7 @@ class DockInteractionCoordinator:
 
         self._window._hover.cancel()
         self._window.tooltip.hide()
-        self._window.update_dock_size()
+        self._window.update_input_region()
         widget.queue_draw()
         if autohide_on and self._window.autohide and not preview_visible:
             self._window.autohide.on_mouse_leave()

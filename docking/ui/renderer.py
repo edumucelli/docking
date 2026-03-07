@@ -164,6 +164,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 from docking.applets.separator.state import STYLE_LINE
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import RGB, IndicatorStyle
+from docking.ui.autohide import HideState
 from docking.ui.effects import average_icon_color, easing_bounce
 from docking.ui.geometry import DockGeometryFrame, map_icon_position
 from docking.ui.shelf import draw_shelf_background, rounded_rect
@@ -174,6 +175,7 @@ if TYPE_CHECKING:
     from docking.core.layout import LayoutItem
     from docking.core.theme import Theme
     from docking.platform.model import DockModel
+    from docking.ui.autohide import HideState
 
 
 SHELF_SMOOTH_FACTOR = 0.3
@@ -224,6 +226,23 @@ def compute_urgent_glow_opacity(
     return 0.2 + 0.75 * (math.sin(phase) + 1) / 2
 
 
+def has_active_urgent_glow(
+    *,
+    model: "DockModel",
+    theme: "Theme",
+    autohide_state: "HideState | None",
+    now_us: int,
+) -> bool:
+    """Return True when any urgent item should still be pulsing at the edge."""
+    if autohide_state != HideState.HIDDEN:
+        return False
+    glow_time_us = theme.urgent_glow_time_ms * 1000
+    for item in model.visible_items():
+        if item.last_urgent > 0 and (now_us - item.last_urgent) < glow_time_us:
+            return True
+    return False
+
+
 def _is_separator_item(item: DockItem) -> bool:
     return item.desktop_id.startswith("applet://separator")
 
@@ -255,6 +274,22 @@ class DockRenderer:
         self._hover_lighten: dict[str, float] = {}
         self._hovered_id: str = ""
         self._icon_colors: dict[str, RGB] = {}
+
+    @staticmethod
+    def has_active_urgent_glow(
+        *,
+        model: DockModel,
+        theme: Theme,
+        autohide_state: HideState | None,
+        now_us: int,
+    ) -> bool:
+        """Delegate urgent-edge redraw eligibility to the pure helper."""
+        return has_active_urgent_glow(
+            model=model,
+            theme=theme,
+            autohide_state=autohide_state,
+            now_us=now_us,
+        )
 
     @staticmethod
     def compute_dock_size(

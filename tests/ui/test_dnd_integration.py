@@ -225,6 +225,8 @@ class TestDropAndReceive:
         handler = _make_handler(monkeypatch)
         handler._drag_from = -1
         handler.drop_insert_index = 0
+        handler._renderer.slide_offsets = {"firefox.desktop": 12.0}
+        handler._renderer.prev_positions = {"firefox.desktop": 320.0}
         handler._model.pinned_items = []
         handler._model.find_by_desktop_id.return_value = None
         resolved = SimpleNamespace(
@@ -257,6 +259,8 @@ class TestDropAndReceive:
         assert len(handler._model.pinned_items) == 1
         handler._config.save.assert_called_once()
         handler._model.sync_pinned_to_config.assert_called_once()
+        assert handler._renderer.slide_offsets == {}
+        assert handler._renderer.prev_positions == {}
         handler._model.notify.assert_called_once()
         handler._window.autohide.set_hovered.assert_called_once_with(True)
         handler._window.autohide.set_disabled.assert_called_once_with(

@@ -163,14 +163,8 @@ class _Harness:
 
 
 def _attach_runtime_methods(harness: _Harness) -> None:
-    harness._main_axis_cursor = MethodType(
-        dock_window_mod.DockWindow._main_axis_cursor, harness
-    )
     harness.update_input_region = MethodType(
         dock_window_mod.DockWindow.update_input_region, harness
-    )
-    harness.update_dock_size = MethodType(
-        dock_window_mod.DockWindow.update_dock_size, harness
     )
 
 

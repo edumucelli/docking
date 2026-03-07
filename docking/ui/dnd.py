@@ -443,6 +443,13 @@ class DnDHandler:
                 )
                 self._model.sync_pinned_to_config()
                 self._config.save()
+                # External insertion should snap to the new final layout.
+                # Slide offsets are useful for internal reorder, but for a
+                # completed drop they make the dock look like it is slowly
+                # creating room for the new item after the user already
+                # committed the drop.
+                self._renderer.slide_offsets.clear()
+                self._renderer.prev_positions.clear()
                 self._model.notify()
                 insert_at += 1
                 added = True
