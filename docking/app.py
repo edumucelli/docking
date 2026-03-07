@@ -33,58 +33,29 @@ from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.platform.window_tracker import WindowTracker
-from docking.ui.autohide import AutoHideController
-from docking.ui.dnd import DnDHandler
-from docking.ui.dock_window import DockWindow
-from docking.ui.menu import MenuHandler
-from docking.ui.preview import PreviewPopup
+from docking.ui.factory import build_dock_window
 from docking.ui.renderer import DockRenderer
-from docking.ui.runtime import DockRuntime
 
 
 def main() -> None:
     """Entry point for the docking application."""
-    desktop = detect_desktop()
-    apply_tweaks(desktop)
+    apply_tweaks(desktop=detect_desktop())
 
     config = Config.load()
-    theme = Theme.load(config.theme, config.icon_size)
+    theme = Theme.load(name=config.theme, icon_size=config.icon_size)
     launcher = Launcher()
-    model = DockModel(config, launcher)
+    model = DockModel(config=config, launcher=launcher)
     renderer = DockRenderer()
-    tracker = WindowTracker(model, launcher, config=config)
+    tracker = WindowTracker(model=model, launcher=launcher, config=config)
 
-    window = DockWindow(config, model, renderer, theme, tracker)
-
-    autohide = AutoHideController(window, config)
-    window.set_autohide_controller(autohide)
-    runtime = DockRuntime(window)
-
-    dnd = DnDHandler(
-        window=window,
-        model=model,
+    window = build_dock_window(
         config=config,
+        model=model,
         renderer=renderer,
         theme=theme,
-        launcher=launcher,
-        geometry_builder=window.geometry,
-    )
-    window.set_dnd_handler(dnd)
-
-    menu = MenuHandler(
-        parent_window=window,
-        runtime=runtime,
-        model=model,
-        config=config,
-        tracker=tracker,
-        geometry_builder=window.geometry,
+        window_tracker=tracker,
         launcher=launcher,
     )
-    window.set_menu_handler(menu)
-
-    preview = PreviewPopup(tracker)
-    preview.set_autohide(autohide)
-    window.set_preview_popup(preview)
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)

@@ -47,8 +47,7 @@ class DockRuntime:
             self._window.placement.stop_active_display()
 
     def set_icons_locked(self, locked: bool) -> None:
-        if self._window.dnd:
-            self._window.dnd.set_locked(locked)
+        self._window.dnd.set_locked(locked)
 
     def queue_draw(self) -> None:
         self._window.queue_redraw()
@@ -58,8 +57,7 @@ class DockRuntime:
 
     def hide_hover_ui(self) -> None:
         self._window.tooltip.hide()
-        if self._window.preview is not None:
-            self._window.preview.hide()
+        self._window.preview.hide()
 
     def set_theme(self, theme: Theme) -> None:
         self._window.theme = theme

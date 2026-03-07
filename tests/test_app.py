@@ -23,16 +23,15 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     # Stub UI modules imported by docking.app so we don't depend on full GI
     # bindings during unit tests.
     ui_stubs = {
-        "docking.ui.autohide": "AutoHideController",
-        "docking.ui.dnd": "DnDHandler",
-        "docking.ui.dock_window": "DockWindow",
-        "docking.ui.menu": "MenuHandler",
-        "docking.ui.preview": "PreviewPopup",
+        "docking.ui.factory": "build_dock_window",
         "docking.ui.renderer": "DockRenderer",
     }
     for module_name, class_name in ui_stubs.items():
         stub_mod = types.ModuleType(module_name)
-        setattr(stub_mod, class_name, type(class_name, (), {}))
+        if class_name == "build_dock_window":
+            setattr(stub_mod, class_name, lambda **_kwargs: None)
+        else:
+            setattr(stub_mod, class_name, type(class_name, (), {}))
         monkeypatch.setitem(sys.modules, module_name, stub_mod)
 
     monkeypatch.setattr(
@@ -70,10 +69,6 @@ class TestAppMain:
         renderer = MagicMock()
         tracker = MagicMock()
         window = MagicMock()
-        autohide = MagicMock()
-        dnd = MagicMock()
-        menu = MagicMock()
-        preview = MagicMock()
 
         config_cls = MagicMock()
         config_cls.load.return_value = config
@@ -87,24 +82,22 @@ class TestAppMain:
         monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
         monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
         monkeypatch.setattr(app_mod, "WindowTracker", MagicMock(return_value=tracker))
-        monkeypatch.setattr(app_mod, "DockWindow", MagicMock(return_value=window))
-        monkeypatch.setattr(
-            app_mod, "AutoHideController", MagicMock(return_value=autohide)
-        )
-        monkeypatch.setattr(app_mod, "DnDHandler", MagicMock(return_value=dnd))
-        monkeypatch.setattr(app_mod, "MenuHandler", MagicMock(return_value=menu))
-        monkeypatch.setattr(app_mod, "PreviewPopup", MagicMock(return_value=preview))
+        factory = MagicMock(return_value=window)
+        monkeypatch.setattr(app_mod, "build_dock_window", factory)
 
         # When
         app_mod.main()
 
         # Then
-        theme_cls.load.assert_called_once_with("default", 48)
-        window.set_autohide_controller.assert_called_once_with(autohide)
-        window.set_dnd_handler.assert_called_once_with(dnd)
-        window.set_menu_handler.assert_called_once_with(menu)
-        preview.set_autohide.assert_called_once_with(autohide)
-        window.set_preview_popup.assert_called_once_with(preview)
+        theme_cls.load.assert_called_once_with(name="default", icon_size=48)
+        factory.assert_called_once_with(
+            config=config,
+            model=model,
+            renderer=renderer,
+            theme=theme,
+            window_tracker=tracker,
+            launcher=launcher,
+        )
         model.start_applets.assert_called_once()
         model.stop_applets.assert_called_once()
         fake_gtk.main.assert_called_once()

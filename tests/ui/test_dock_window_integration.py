@@ -579,7 +579,7 @@ class TestDockWindowDrawAndHelpers:
             autohide=None,
             _last_autohide_state=None,
             dock_hovered=False,
-            dnd=None,
+            _dnd=None,
             _hover=SimpleNamespace(hovered_item=None),
             model=MagicMock(),
             config=SimpleNamespace(pos=Position.BOTTOM),
@@ -615,7 +615,7 @@ class TestDockWindowDrawAndHelpers:
             ),
             _last_autohide_state=HideState.HIDDEN,
             dock_hovered=False,
-            dnd=None,
+            _dnd=None,
             _hover=SimpleNamespace(hovered_item=None),
             model=MagicMock(),
             config=SimpleNamespace(pos=Position.BOTTOM),
@@ -645,7 +645,7 @@ class TestDockWindowDrawAndHelpers:
             autohide=SimpleNamespace(
                 enabled=True, state=HideState.HIDDEN, hide_offset=0.0, zoom_progress=0.0
             ),
-            dnd=None,
+            _dnd=None,
             _hover=SimpleNamespace(hovered_item=hovered),
             renderer=SimpleNamespace(
                 draw=MagicMock(),
@@ -685,7 +685,7 @@ class TestDockWindowDrawAndHelpers:
             ),
             _last_autohide_state=HideState.SHOWING,
             dock_hovered=True,
-            dnd=None,
+            _dnd=None,
             _hover=SimpleNamespace(hovered_item=hovered, update=MagicMock()),
             renderer=SimpleNamespace(
                 draw=MagicMock(),

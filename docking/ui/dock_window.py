@@ -269,11 +269,12 @@ class DockWindow(Gtk.Window):
         self.window_tracker = window_tracker
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
-        self.autohide: AutoHideController | None = None
-        self.dnd: DnDHandler | None = None
-        self._menu: MenuHandler | None = None
+        self._runtime_attached: bool = False
+        self.autohide: AutoHideController
+        self._dnd: DnDHandler
+        self._menu: MenuHandler
+        self._preview: PreviewPopup
         self._menu_popup_visible: bool = False
-        self.preview: PreviewPopup | None = None
         self.tooltip = TooltipManager(self, config, model, theme)
         self.geometry = DockGeometryBuilder(self)
 
@@ -364,19 +365,43 @@ class DockWindow(Gtk.Window):
         """Listen for model changes to trigger redraws."""
         self.model.on_change = self._on_model_changed
 
-    def set_autohide_controller(self, controller: AutoHideController) -> None:
-        self.autohide = controller
+    def attach_runtime(
+        self,
+        *,
+        autohide: AutoHideController,
+        dnd: DnDHandler,
+        menu: MenuHandler,
+        preview: PreviewPopup,
+    ) -> None:
+        """Attach runtime collaborators in one atomic assembly step."""
+        if self._runtime_attached:
+            raise RuntimeError("DockWindow runtime already attached")
+        self.autohide = autohide
+        self._dnd = dnd
+        self._menu = menu
+        self._preview = preview
+        self._preview.set_dock_window(window=self)
+        self._preview.set_autohide(controller=autohide)
+        self._hover.set_preview(preview=preview)
+        self._runtime_attached = True
 
-    def set_dnd_handler(self, handler: DnDHandler) -> None:
-        self.dnd = handler
+    @property
+    def dnd(self) -> DnDHandler:
+        if not self._runtime_attached:
+            raise RuntimeError("DockWindow DnD handler accessed before assembly")
+        return self._dnd
 
-    def set_menu_handler(self, handler: MenuHandler) -> None:
-        self._menu = handler
+    @property
+    def menu(self) -> MenuHandler:
+        if not self._runtime_attached:
+            raise RuntimeError("DockWindow menu handler accessed before assembly")
+        return self._menu
 
-    def set_preview_popup(self, preview: PreviewPopup) -> None:
-        self.preview = preview
-        self.preview.set_dock_window(self)
-        self._hover.set_preview(preview)
+    @property
+    def preview(self) -> PreviewPopup:
+        if not self._runtime_attached:
+            raise RuntimeError("DockWindow preview popup accessed before assembly")
+        return self._preview
 
     def is_pointer_inside_dock(self) -> bool:
         """Return True when the current pointer is inside the dock input area."""
@@ -404,8 +429,8 @@ class DockWindow(Gtk.Window):
             zoom_progress = self.autohide.zoom_progress
         else:
             zoom_progress = 1.0
-        drag_index = self.dnd.drag_index if self.dnd else -1
-        drop_insert = self.dnd.drop_insert_index if self.dnd else -1
+        drag_index = self._dnd.drag_index if self._dnd else -1
+        drop_insert = self._dnd.drop_insert_index if self._dnd else -1
         hovered_id = (
             self._hover.hovered_item.desktop_id
             if self._hover and self._hover.hovered_item
