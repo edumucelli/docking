@@ -51,6 +51,7 @@ from gi.repository import GLib  # noqa: E402
 
 from docking.core.position import Position
 from docking.log import get_logger
+from docking.ui.autohide import HideState
 from docking.ui.geometry import DockGeometryFrame
 
 _log = get_logger(name="hover")
@@ -113,8 +114,18 @@ class HoverManager:
             else None
         )
 
-        # Always refresh tooltip (item.name may change while hovered)
-        self._tooltip.update(item, frame)
+        # Tooltip anchoring should use stable visible geometry. During SHOWING
+        # the dock is still sliding in, so tooltips would appear too close to
+        # the screen edge and then visibly chase the moving dock. Keep hover
+        # state updating, but suppress tooltip display until the dock reaches
+        # VISIBLE.
+        autohide = self._window.autohide
+        if autohide and autohide.enabled and autohide.state == HideState.SHOWING:
+            self._tooltip.hide()
+        else:
+            # Always refresh tooltip when allowed (item.name may change while
+            # hovered)
+            self._tooltip.update(item, frame)
 
         if item is self.hovered_item:
             return

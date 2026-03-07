@@ -1033,12 +1033,15 @@ class TestDockWindowDrawAndHelpers:
         # Given
         stub = SimpleNamespace(
             autohide=None,
+            _last_autohide_state=None,
+            _dock_hovered=False,
             _dnd=None,
             _hover=SimpleNamespace(hovered_item=None),
             renderer=SimpleNamespace(draw=MagicMock()),
             model=MagicMock(),
             config=MagicMock(),
             theme=MagicMock(),
+            _tooltip=MagicMock(),
             _main_axis_cursor=lambda: 12.0,
             _update_input_region=MagicMock(),
             _has_active_urgent_glow=lambda: False,
@@ -1083,6 +1086,38 @@ class TestDockWindowDrawAndHelpers:
         assert stub.cursor_y == -1.0
         assert stub._hover.hovered_item is None
         stub._tooltip.hide.assert_called_once()
+
+    def test_on_draw_refreshes_tooltip_once_when_showing_finishes(self):
+        hovered = DockItem(desktop_id="hovered.desktop")
+        frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
+        stub = SimpleNamespace(
+            autohide=SimpleNamespace(
+                enabled=True,
+                state=HideState.VISIBLE,
+                hide_offset=0.0,
+                zoom_progress=1.0,
+            ),
+            _last_autohide_state=HideState.SHOWING,
+            _dock_hovered=True,
+            _dnd=None,
+            _hover=SimpleNamespace(hovered_item=hovered, update=MagicMock()),
+            renderer=SimpleNamespace(draw=MagicMock()),
+            model=MagicMock(),
+            config=MagicMock(),
+            theme=MagicMock(),
+            _tooltip=MagicMock(),
+            _main_axis_cursor=lambda: 12.0,
+            _get_geometry_frame=MagicMock(return_value=frame),
+            _update_input_region=MagicMock(),
+            _has_active_urgent_glow=lambda: False,
+            cursor_x=25.0,
+            cursor_y=33.0,
+        )
+
+        dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+
+        stub._hover.update.assert_called_once_with(12.0, frame=frame)
+        assert stub._last_autohide_state == HideState.VISIBLE
 
     def test_on_motion_updates_cursor_and_hover(self):
         # Given

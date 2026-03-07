@@ -19,6 +19,7 @@ except ModuleNotFoundError:  # pragma: no cover
 import docking.ui.hover as hover_mod  # noqa: E402
 from docking.core.position import Position  # noqa: E402
 from docking.platform.model import DockItem  # noqa: E402
+from docking.ui.autohide import HideState  # noqa: E402
 
 
 def _make_hover():
@@ -124,6 +125,19 @@ class TestHoverUpdates:
         tooltip.hide.assert_called_once()
         tooltip.update.assert_not_called()
         assert hover.hovered_item is item
+
+    def test_update_suppresses_tooltip_while_dock_is_showing(self):
+        hover, window, model, _config, tooltip, frame = _make_hover()
+        item = DockItem(desktop_id="terminator.desktop", name="Terminator")
+        window.autohide = SimpleNamespace(enabled=True, state=HideState.SHOWING)
+        model.visible_items.return_value = [item]
+        frame.hover_item_at_point.return_value = item
+
+        hover.update(cursor_main=20.0)
+
+        assert hover.hovered_item is item
+        tooltip.hide.assert_called_once()
+        tooltip.update.assert_not_called()
 
 
 class TestHoverTimers:

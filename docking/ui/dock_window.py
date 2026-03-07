@@ -187,6 +187,7 @@ class DockWindow(Gtk.Window):
         self._geometry_refresh_source: int = 0
         self._last_geometry_frame: DockGeometryFrame | None = None
         self._dock_hovered: bool = False
+        self._last_autohide_state: HideState | None = None
 
         self._setup_window()
         self._setup_drawing_area()
@@ -759,7 +760,9 @@ class DockWindow(Gtk.Window):
             if self._hover and self._hover.hovered_item
             else ""
         )
+        current_autohide_state = None
         if self.autohide and self.autohide.enabled:
+            current_autohide_state = self.autohide.state
             _log.debug(
                 (
                     "draw: state=%s hide_offset=%.3f zoom_progress=%.3f "
@@ -796,10 +799,20 @@ class DockWindow(Gtk.Window):
             self._hover.hovered_item = None
             self._dock_hovered = False
             self._tooltip.hide()
+        elif (
+            self._last_autohide_state == HideState.SHOWING
+            and current_autohide_state == HideState.VISIBLE
+            and self._dock_hovered
+            and self._hover.hovered_item is not None
+        ):
+            frame = self._get_geometry_frame()
+            self._hover.update(self._main_axis_cursor(), frame=frame)
 
         # Keep redraw pump alive while urgent glow is visible (dock hidden)
         if self._has_active_urgent_glow():
             GLib.timeout_add(16, self._urgent_glow_tick)
+
+        self._last_autohide_state = current_autohide_state
 
         return True
 
