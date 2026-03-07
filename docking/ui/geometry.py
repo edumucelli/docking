@@ -223,13 +223,13 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
-from docking.core.position import Position, is_horizontal
-from docking.core.zoom import (
+from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
     compute_layout,
     content_bounds,
 )
+from docking.core.position import Position, is_horizontal
 from docking.ui.autohide import HideState
 
 if TYPE_CHECKING:

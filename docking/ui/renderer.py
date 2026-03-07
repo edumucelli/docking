@@ -171,8 +171,8 @@ from docking.ui.shelf import draw_shelf_background, rounded_rect
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
+    from docking.core.layout import LayoutItem
     from docking.core.theme import Theme
-    from docking.core.zoom import LayoutItem
     from docking.platform.model import DockModel
 
 

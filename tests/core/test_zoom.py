@@ -1,6 +1,6 @@
-"""Tests for the parabolic zoom layout engine.
+"""Tests for the dock layout engine.
 
-The zoom module computes per-icon positions using a parabolic displacement
+The layout module computes per-icon positions using a parabolic displacement
 formula derived from Plank's PositionManager.  Each icon is displaced from
 its REST position based on distance from the cursor, then scaled using a
 parabolic curve.
@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from docking.core.zoom import (
+from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     OFFSET_PCT_SNAP,
     compute_layout,

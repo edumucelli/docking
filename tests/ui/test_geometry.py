@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from docking.core.layout import content_bounds
 from docking.core.position import Position
-from docking.core.zoom import content_bounds
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import Rect, build_geometry_frame

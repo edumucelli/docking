@@ -9,8 +9,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.ui.tooltip as tooltip_mod  # noqa: E402
+from docking.core.layout import LayoutItem  # noqa: E402
 from docking.core.position import Position  # noqa: E402
-from docking.core.zoom import LayoutItem  # noqa: E402
 from docking.ui.geometry import DockGeometryFrame, ItemGeometry, Rect  # noqa: E402
 from docking.ui.tooltip import (  # noqa: E402
     TOOLTIP_BASE_GAP,
