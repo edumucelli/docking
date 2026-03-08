@@ -260,7 +260,11 @@ class DockInteractionCoordinator:
         try:
             _, screen_x, screen_y = pointer.get_position()
             win_x, win_y = self._window.get_position()
-        except Exception:
+        except Exception as exc:
+            _log.debug(
+                "Failed to query pointer/window position for dock hit test: %s",
+                exc,
+            )
             return False
 
         local_x = screen_x - win_x

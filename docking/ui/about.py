@@ -13,10 +13,13 @@ from gi.repository import Gtk  # noqa: E402
 
 from docking import __version__ as DOCKING_VERSION
 from docking.i18n import _
+from docking.log import get_logger
 
 PROJECT_VERSION_FALLBACK = DOCKING_VERSION
 PROJECT_LICENSE_FALLBACK = "GNU GPL v3.0 or later (GPL-3.0-or-later)"
 PROJECT_LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
+
+_log = get_logger("about")
 
 
 class AboutDialogController:
@@ -59,13 +62,15 @@ class AboutDialogController:
     def _project_version(self) -> str:
         try:
             return pkg_version("docking")
-        except PackageNotFoundError:
+        except PackageNotFoundError as exc:
+            _log.debug("Package metadata unavailable, using fallback version: %s", exc)
             return PROJECT_VERSION_FALLBACK
 
     def _project_license_text(self) -> str:
         try:
             return PROJECT_LICENSE_PATH.read_text(encoding="utf-8")
-        except OSError:
+        except OSError as exc:
+            _log.warning("Failed to read bundled LICENSE file: %s", exc)
             return PROJECT_LICENSE_FALLBACK
 
     def _on_response(self, dialog: Gtk.AboutDialog, _response: int) -> None:

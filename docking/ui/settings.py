@@ -44,6 +44,7 @@ from docking.applets.identity import (
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
 from docking.i18n import _
+from docking.log import get_logger
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 
 APPLET_LIST_ICON_PX = 32
 APPLET_GRID_COLUMNS = 3
+_log = get_logger("settings")
 
 
 @dataclass
@@ -435,7 +437,8 @@ class SettingsWindowController:
 
         try:
             registry = get_registry()
-        except Exception:
+        except Exception as exc:
+            _log.warning("Failed to read applet registry for settings catalog: %s", exc)
             registry = {}
 
         grouped: dict[AppletCategory, list[tuple[AppletId, Any]]] = {

@@ -140,6 +140,7 @@ from urllib.parse import unquote, urlparse
 from docking.applets.identity import is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
 from docking.core.position import Position
+from docking.log import get_logger
 
 DEFAULT_CONFIG_DIR = (
     Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
@@ -147,6 +148,12 @@ DEFAULT_CONFIG_DIR = (
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 
 DEFAULT_PINNED: list["PinnedEntry"] = []
+MIN_ICON_SIZE = 32
+MAX_ICON_SIZE = 128
+MIN_ZOOM_PERCENT = 1.0
+MAX_ZOOM_PERCENT = 4.0
+
+logger = get_logger("config")
 
 
 @dataclass
@@ -174,7 +181,11 @@ class PinnedEntry:
 
     @classmethod
     def from_raw(cls, raw: object) -> PinnedEntry | None:
+        if isinstance(raw, PinnedEntry):
+            return raw
         if isinstance(raw, str):
+            if not raw:
+                return None
             if raw.startswith("file://"):
                 return cls(
                     kind=FOLDER_KIND if _uri_is_dir(raw) else FILE_KIND,
@@ -187,9 +198,12 @@ class PinnedEntry:
         if not isinstance(raw, dict):
             return None
 
-        kind_raw = raw.get("kind")
-        target_raw = raw.get("target")
+        raw_dict = {str(k): v for k, v in raw.items()}
+        kind_raw = raw_dict.get("kind")
+        target_raw = raw_dict.get("target")
         if not isinstance(kind_raw, str) or not isinstance(target_raw, str):
+            return None
+        if not target_raw:
             return None
         if kind_raw not in {APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND}:
             return None
@@ -202,7 +216,105 @@ def _uri_is_dir(target: str) -> bool:
     try:
         return Path(unquote(urlparse(target).path)).is_dir()
     except ValueError:
+        logger.warning("Invalid file URI in persisted config: %r", target)
         return False
+
+
+def _normalize_bool(value: object, *, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    return default
+
+
+def _normalize_int(
+    value: object,
+    *,
+    default: int,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    try:
+        if isinstance(value, bool):
+            parsed = int(value)
+        elif isinstance(value, (int, float)):
+            parsed = int(value)
+        elif isinstance(value, str):
+            parsed = int(value.strip())
+        else:
+            return default
+    except (TypeError, ValueError):
+        logger.warning(
+            "Invalid integer config value %r; using default %r",
+            value,
+            default,
+        )
+        return default
+    if minimum is not None and parsed < minimum:
+        parsed = minimum
+    if maximum is not None and parsed > maximum:
+        parsed = maximum
+    return parsed
+
+
+def _normalize_float(
+    value: object,
+    *,
+    default: float,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    try:
+        if isinstance(value, bool):
+            parsed = float(int(value))
+        elif isinstance(value, (int, float)):
+            parsed = float(value)
+        elif isinstance(value, str):
+            parsed = float(value.strip())
+        else:
+            return default
+    except (TypeError, ValueError):
+        logger.warning(
+            "Invalid float config value %r; using default %r",
+            value,
+            default,
+        )
+        return default
+    if minimum is not None and parsed < minimum:
+        parsed = minimum
+    if maximum is not None and parsed > maximum:
+        parsed = maximum
+    return parsed
+
+
+def _normalize_position(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return Position(value=value).value
+        except ValueError:
+            return Position.BOTTOM.value
+    return Position.BOTTOM.value
+
+
+def _normalize_theme(value: object) -> str:
+    return value if isinstance(value, str) and value else "default"
+
+
+def _normalize_pref_map(raw: object) -> dict[str, dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return {}
+    result: dict[str, dict[str, Any]] = {}
+    for key, value in raw.items():
+        if isinstance(key, str) and isinstance(value, dict):
+            result[key] = dict(value)
+    return result
 
 
 @dataclass
@@ -259,8 +371,46 @@ class Config:
 
     def __post_init__(self) -> None:
         self._path: Path = DEFAULT_CONFIG_FILE
-        if self.pinned and not isinstance(self.pinned[0], PinnedEntry):
-            self.pinned = normalize_pinned_entries(list(self.pinned))
+        self.icon_size = _normalize_int(
+            self.icon_size,
+            default=48,
+            minimum=MIN_ICON_SIZE,
+            maximum=MAX_ICON_SIZE,
+        )
+        self.zoom_enabled = _normalize_bool(self.zoom_enabled, default=True)
+        self.zoom_percent = _normalize_float(
+            self.zoom_percent,
+            default=1.5,
+            minimum=MIN_ZOOM_PERCENT,
+            maximum=MAX_ZOOM_PERCENT,
+        )
+        self.zoom_range = _normalize_int(self.zoom_range, default=3, minimum=0)
+        self.position = _normalize_position(self.position)
+        self.monitor_index = max(
+            -1, _normalize_int(self.monitor_index, default=-1, minimum=-1)
+        )
+        self.autohide = _normalize_bool(self.autohide, default=False)
+        self.hide_delay_ms = _normalize_int(self.hide_delay_ms, default=0, minimum=0)
+        self.unhide_delay_ms = _normalize_int(
+            self.unhide_delay_ms,
+            default=0,
+            minimum=0,
+        )
+        self.hide_time_ms = _normalize_int(self.hide_time_ms, default=250, minimum=0)
+        self.previews_enabled = _normalize_bool(self.previews_enabled, default=True)
+        self.lock_icons = _normalize_bool(self.lock_icons, default=False)
+        self.current_workspace_only = _normalize_bool(
+            self.current_workspace_only,
+            default=False,
+        )
+        self.anchor_applets = _normalize_bool(self.anchor_applets, default=False)
+        self.anchor_files = _normalize_bool(self.anchor_files, default=False)
+        self.tooltips_enabled = _normalize_bool(self.tooltips_enabled, default=True)
+        self.active_display = _normalize_bool(self.active_display, default=False)
+        self.theme = _normalize_theme(self.theme)
+        self.pinned = normalize_pinned_entries(list(self.pinned))
+        self.applet_prefs = _normalize_pref_map(self.applet_prefs)
+        self.item_prefs = _normalize_pref_map(self.item_prefs)
 
     @classmethod
     def load(cls, path: Path | str | None = None) -> Config:
@@ -279,15 +429,10 @@ class Config:
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         if "pinned" in filtered and isinstance(filtered["pinned"], list):
             filtered["pinned"] = normalize_pinned_entries(filtered["pinned"])
+        filtered["applet_prefs"] = _normalize_pref_map(filtered.get("applet_prefs"))
+        filtered["item_prefs"] = _normalize_pref_map(filtered.get("item_prefs"))
         config = cls(**filtered)
         config._path = path
-        # Validate position (fallback to default if unknown)
-        try:
-            Position(value=config.position)
-        except ValueError:
-            config.position = "bottom"
-        if config.monitor_index < -1:
-            config.monitor_index = -1
         return config
 
     def save(self, path: Path | str | None = None) -> None:

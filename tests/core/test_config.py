@@ -81,7 +81,7 @@ class TestConfigLoad:
         # Then
         assert config.icon_size == 64
         assert config.zoom_percent == 1.5
-        assert config.pinned == ["foo.desktop"]
+        assert config.pinned == [PinnedEntry(kind=APP_KIND, target="foo.desktop")]
         # Unspecified keys use defaults
         assert config.autohide is False
 
@@ -121,6 +121,50 @@ class TestConfigLoad:
 
         assert config.monitor_index == -1
 
+    def test_load_clamps_scalar_ranges(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "icon_size": 999,
+                    "zoom_percent": 0.1,
+                    "zoom_range": -4,
+                    "hide_delay_ms": -50,
+                    "unhide_delay_ms": "-10",
+                    "hide_time_ms": -1,
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.icon_size == 128
+        assert config.zoom_percent == 1.0
+        assert config.zoom_range == 0
+        assert config.hide_delay_ms == 0
+        assert config.unhide_delay_ms == 0
+        assert config.hide_time_ms == 0
+
+    def test_load_normalizes_bool_like_values(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "autohide": 1,
+                    "previews_enabled": "false",
+                    "tooltips_enabled": "yes",
+                    "zoom_enabled": 0,
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.autohide is True
+        assert config.previews_enabled is False
+        assert config.tooltips_enabled is True
+        assert config.zoom_enabled is False
+
     def test_load_migrates_legacy_string_pins_to_typed_entries(self, tmp_path):
         path = tmp_path / "dock.json"
         file_uri = (tmp_path / "notes.txt").as_uri()
@@ -136,6 +180,46 @@ class TestConfigLoad:
             PinnedEntry(kind=FILE_KIND, target=file_uri),
             PinnedEntry(kind=FOLDER_KIND, target=folder_uri),
         ]
+
+    def test_load_drops_malformed_pins(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "pinned": [
+                        {"kind": "app", "target": "firefox.desktop"},
+                        {"kind": "broken"},
+                        {"kind": "nope", "target": "bad"},
+                        "",
+                    ]
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.pinned == [
+            PinnedEntry(kind=APP_KIND, target="firefox.desktop"),
+        ]
+
+    def test_load_filters_invalid_pref_map_shapes(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "applet_prefs": {
+                        "clock": {"show_seconds": True},
+                        "broken": [],
+                    },
+                    "item_prefs": ["wrong"],
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.applet_prefs == {"clock": {"show_seconds": True}}
+        assert config.item_prefs == {}
 
 
 class TestConfigSave:
@@ -166,7 +250,10 @@ class TestConfigSave:
         assert loaded.icon_size == 80
         assert loaded.zoom_percent == 1.5
         assert loaded.monitor_index == 1
-        assert loaded.pinned == ["a.desktop", "b.desktop"]
+        assert loaded.pinned == [
+            PinnedEntry(kind=APP_KIND, target="a.desktop"),
+            PinnedEntry(kind=APP_KIND, target="b.desktop"),
+        ]
 
     def test_save_without_path_uses_loaded_path(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -194,3 +281,16 @@ class TestConfigSave:
             {"kind": "app", "target": "firefox.desktop"},
             {"kind": "file", "target": (tmp_path / "notes.txt").as_uri()},
         ]
+
+    def test_save_writes_canonical_pref_map_shape(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(
+            applet_prefs={"clock": {"show_seconds": True}, "bad": []},
+            item_prefs={"item://a": {"show_hidden": False}, "bad": 1},
+        )
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["applet_prefs"] == {"clock": {"show_seconds": True}}
+        assert saved["item_prefs"] == {"item://a": {"show_hidden": False}}
