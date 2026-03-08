@@ -1,7 +1,10 @@
 """Tests for the brightness applet."""
 
 import subprocess
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+from gi import repository as gi_repository
 
 import docking.applets.brightness.state as brightness_state
 from docking.applets.brightness import (
@@ -113,6 +116,31 @@ def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
 
 
 class TestBrightnessApplet:
+    def _fake_gtk(self, monkeypatch):
+        class _FakeCheckMenuItem:
+            def __init__(self, label: str = "") -> None:
+                self._label = label
+                self._active = False
+                self._signals: dict[str, list[object]] = {}
+
+            def get_label(self) -> str:
+                return self._label
+
+            def set_active(self, active: bool) -> None:
+                self._active = active
+
+            def get_active(self):
+                return self._active
+
+            def connect(self, signal: str, callback) -> None:
+                self._signals.setdefault(signal, []).append(callback)
+
+        monkeypatch.setattr(
+            gi_repository,
+            "Gtk",
+            SimpleNamespace(CheckMenuItem=_FakeCheckMenuItem),
+        )
+
     def test_creates_with_icon(self):
         applet = _make_applet()
         assert applet.item.icon is not None
@@ -166,6 +194,7 @@ class TestBrightnessApplet:
         applet.on_clicked()
 
     def test_start_stop_menu_and_toggle(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         applet = _make_applet(brightness=0.5)
         removed: list[int] = []
         monkeypatch.setattr(

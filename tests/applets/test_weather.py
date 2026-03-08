@@ -550,6 +550,39 @@ class TestWeatherDialogAndWidget:
         created_dialog.destroy.assert_called_once()
 
     def test_build_tooltip_widget_minimal_branch(self):
+        class _FakeBox:
+            def __init__(self, orientation=None, spacing=0):
+                self._children: list[object] = []
+
+            def pack_start(self, child, expand, fill, padding):
+                _ = expand, fill, padding
+                self._children.append(child)
+
+            def get_children(self):
+                return self._children
+
+        class _FakeLabel:
+            def __init__(self, label=""):
+                self._label = label
+
+            def override_color(self, state, rgba):
+                _ = state, rgba
+
+            def set_markup(self, markup):
+                self._label = markup
+
+            def set_xalign(self, value):
+                _ = value
+
+        weather_applet_mod.Gtk = SimpleNamespace(  # type: ignore[assignment]
+            Box=_FakeBox,
+            Label=_FakeLabel,
+            Orientation=SimpleNamespace(VERTICAL=1, HORIZONTAL=2),
+            StateFlags=SimpleNamespace(NORMAL=1),
+            IconSize=SimpleNamespace(LARGE_TOOLBAR=1),
+            Image=SimpleNamespace(new_from_icon_name=lambda *args, **kwargs: object()),
+        )
+
         # Given
         applet = WeatherApplet(48)
         applet._city_display = ""
@@ -563,6 +596,39 @@ class TestWeatherDialogAndWidget:
         assert len(box.get_children()) == 1
 
     def test_build_tooltip_widget_with_weather_and_aqi(self):
+        class _FakeBox:
+            def __init__(self, orientation=None, spacing=0):
+                self._children: list[object] = []
+
+            def pack_start(self, child, expand, fill, padding):
+                _ = expand, fill, padding
+                self._children.append(child)
+
+            def get_children(self):
+                return self._children
+
+        class _FakeLabel:
+            def __init__(self, label=""):
+                self._label = label
+
+            def override_color(self, state, rgba):
+                _ = state, rgba
+
+            def set_markup(self, markup):
+                self._label = markup
+
+            def set_xalign(self, value):
+                _ = value
+
+        weather_applet_mod.Gtk = SimpleNamespace(  # type: ignore[assignment]
+            Box=_FakeBox,
+            Label=_FakeLabel,
+            Orientation=SimpleNamespace(VERTICAL=1, HORIZONTAL=2),
+            StateFlags=SimpleNamespace(NORMAL=1),
+            IconSize=SimpleNamespace(LARGE_TOOLBAR=1),
+            Image=SimpleNamespace(new_from_icon_name=lambda *args, **kwargs: object()),
+        )
+
         # Given
         applet = WeatherApplet(48)
         applet._city_display = "Berlin, Germany"

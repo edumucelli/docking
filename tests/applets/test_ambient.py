@@ -1,6 +1,7 @@
 """Tests for the ambient sound applet."""
 
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import docking.applets.ambient.applet as ambient_mod
@@ -14,6 +15,30 @@ from docking.applets.ambient import (
 from docking.applets.ambient.applet import SOUNDS_DIR
 
 
+class _FakeMenuItem:
+    def __init__(self, label: str = "") -> None:
+        self._label = label
+        self._signals: dict[str, list[object]] = {}
+
+    def get_label(self) -> str:
+        return self._label
+
+    def connect(self, signal: str, callback) -> None:
+        self._signals.setdefault(signal, []).append(callback)
+
+
+class _FakeCheckMenuItem(_FakeMenuItem):
+    def __init__(self, label: str = "") -> None:
+        super().__init__(label)
+        self._active = False
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+
+    def get_active(self) -> bool:
+        return self._active
+
+
 def _make_applet() -> AmbientApplet:
     """Create applet with mocked GStreamer."""
     with patch("docking.applets.ambient.applet.Gst"):
@@ -21,6 +46,10 @@ def _make_applet() -> AmbientApplet:
 
 
 class TestAmbientApplet:
+    def _fake_gtk(self, monkeypatch):
+        fake_gtk = SimpleNamespace(CheckMenuItem=_FakeCheckMenuItem)
+        monkeypatch.setattr(ambient_mod, "Gtk", fake_gtk)
+
     def test_creates_with_icon(self):
         applet = _make_applet()
         assert applet.item.icon is not None
@@ -50,7 +79,8 @@ class TestAmbientApplet:
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
-    def test_menu_has_all_sounds(self):
+    def test_menu_has_all_sounds(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         applet = _make_applet()
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         for sound in ALL_SOUNDS:

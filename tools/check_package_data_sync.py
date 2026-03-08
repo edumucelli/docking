@@ -4,15 +4,32 @@
 from __future__ import annotations
 
 import configparser
+import re
 import sys
 from pathlib import Path
 
-import tomllib
+try:
+    import tomllib  # type: ignore[attr-defined]
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback path
+    tomllib = None
+
+
+def _parse_pyproject_package_data_text(text: str) -> list[str]:
+    match = re.search(
+        r"(?ms)^\[tool\.setuptools\.package-data\]\s+docking\s*=\s*\[(?P<body>.*?)\]",
+        text,
+    )
+    if match is None:
+        raise KeyError("[tool.setuptools.package-data] docking")
+    return re.findall(r'"([^"]+)"', match.group("body"))
 
 
 def read_pyproject_package_data(root: Path) -> list[str]:
-    data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
-    return list(data["tool"]["setuptools"]["package-data"]["docking"])
+    text = (root / "pyproject.toml").read_text(encoding="utf-8")
+    if tomllib is not None:
+        data = tomllib.loads(text)
+        return list(data["tool"]["setuptools"]["package-data"]["docking"])
+    return _parse_pyproject_package_data_text(text)
 
 
 def read_setup_cfg_package_data(root: Path) -> list[str]:

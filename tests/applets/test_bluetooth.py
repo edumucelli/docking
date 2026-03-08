@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import replace
+from types import SimpleNamespace
 
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
 import docking.applets.bluetooth.state as bluetooth_state_mod
@@ -685,7 +686,70 @@ def _make_applet(
     return applet, backend
 
 
+class _FakeMenu:
+    def __init__(self) -> None:
+        self.children: list[object] = []
+
+    def append(self, item) -> None:
+        self.children.append(item)
+
+
+class _FakeMenuItem:
+    def __init__(self, label: str = "") -> None:
+        self._label = label
+        self._sensitive = True
+        self._submenu = None
+        self._signals: dict[str, list[object]] = {}
+
+    def get_label(self) -> str:
+        return self._label
+
+    def set_sensitive(self, value: bool) -> None:
+        self._sensitive = value
+
+    def get_sensitive(self) -> bool:
+        return self._sensitive
+
+    def connect(self, signal: str, callback, *args) -> None:
+        self._signals.setdefault(signal, []).append((callback, args))
+
+    def set_submenu(self, submenu) -> None:
+        self._submenu = submenu
+
+
+class _FakeCheckMenuItem(_FakeMenuItem):
+    def __init__(self, label: str = "") -> None:
+        super().__init__(label)
+        self._active = False
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+
+    def get_active(self) -> bool:
+        return self._active
+
+
+class _FakeRadioMenuItem(_FakeCheckMenuItem):
+    def join_group(self, first) -> None:
+        _ = first
+
+
+class _FakeSeparatorMenuItem(_FakeMenuItem):
+    def __init__(self) -> None:
+        super().__init__(label="")
+
+
 class TestBluetoothApplet:
+    def _fake_gtk(self, monkeypatch):
+        fake_gtk = SimpleNamespace(
+            Menu=_FakeMenu,
+            MenuItem=_FakeMenuItem,
+            CheckMenuItem=_FakeCheckMenuItem,
+            RadioMenuItem=_FakeRadioMenuItem,
+            SeparatorMenuItem=_FakeSeparatorMenuItem,
+        )
+        monkeypatch.setattr(bluetooth_applet_mod, "Gtk", fake_gtk)
+
     def test_creates_with_icon(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         assert applet.item.icon is not None
@@ -723,6 +787,7 @@ class TestBluetoothApplet:
         assert applet._power_transition_in_progress is False
 
     def test_menu_contains_expected_sections(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         state = _state(
             adapters=(
                 _adapter(path="/org/bluez/hci0", alias="A0"),
@@ -751,6 +816,7 @@ class TestBluetoothApplet:
         assert labels.index("Paired Devices") < labels.index("Discovered Devices")
 
     def test_empty_groups_do_not_add_none_entries(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         applet, _backend = _make_applet(monkeypatch, _state(devices=()))
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
@@ -789,6 +855,7 @@ class TestBluetoothApplet:
         assert removed == [10, 20]
 
     def test_menu_handles_unavailable_and_missing_active_adapter(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         applet, _backend = _make_applet(monkeypatch, unavailable_state())
         items = applet.get_menu_items()
         assert items[0].get_label() == "Bluetooth unavailable"
@@ -801,7 +868,8 @@ class TestBluetoothApplet:
         items = applet2.get_menu_items()
         assert items[0].get_label() == "No Bluetooth adapter"
 
-    def test_make_header_creates_insensitive_item(self):
+    def test_make_header_creates_insensitive_item(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         header = BluetoothApplet._make_header("Section")
         assert header.get_label() == "Section"
         assert header.get_sensitive() is False

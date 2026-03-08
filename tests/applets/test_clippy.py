@@ -1,5 +1,6 @@
 """Tests for the Clippy clipboard history applet."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.clippy.applet as clippy_mod
@@ -86,11 +87,44 @@ class TestClipScroll:
 
 
 class TestClipMenu:
+    def _fake_gtk(self, monkeypatch):
+        class _FakeMenuItem:
+            def __init__(self, label: str = "") -> None:
+                self._label = label
+                self._signals: dict[str, list[object]] = {}
+                self._sensitive = True
+
+            def get_label(self) -> str:
+                return self._label
+
+            def connect(self, signal: str, callback) -> None:
+                self._signals.setdefault(signal, []).append(callback)
+
+            def set_sensitive(self, value: bool) -> None:
+                self._sensitive = value
+
+            def get_sensitive(self) -> bool:
+                return self._sensitive
+
+        class _FakeSeparatorMenuItem(_FakeMenuItem):
+            def __init__(self) -> None:
+                super().__init__(label="")
+
+        monkeypatch.setattr(
+            clippy_mod,
+            "Gtk",
+            SimpleNamespace(
+                MenuItem=_FakeMenuItem,
+                SeparatorMenuItem=_FakeSeparatorMenuItem,
+            ),
+        )
+
     def test_empty_returns_empty(self):
         d = ClippyApplet(48)
         assert d.get_menu_items() == []
 
-    def test_returns_clips_newest_first(self):
+    def test_returns_clips_newest_first(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         d = ClippyApplet(48)
         d.add_clip("old")
         d.add_clip("new")

@@ -1,7 +1,9 @@
 """Tests for the Applications applet."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import docking.applets.applications.applet as applications_applet_mod
 from docking.applets.applications import (
     ApplicationsApplet,
     _build_app_categories,
@@ -29,6 +31,40 @@ class TestBuildAppCategories:
 
 
 class TestApplicationsApplet:
+    def _fake_gtk(self, monkeypatch):
+        class _FakeMenu:
+            def __init__(self) -> None:
+                self.children: list[object] = []
+
+            def append(self, item) -> None:
+                self.children.append(item)
+
+        class _FakeMenuItem:
+            def __init__(self, label: str) -> None:
+                self._label = label
+                self._submenu = None
+                self._signals: dict[str, list[object]] = {}
+
+            def get_label(self) -> str:
+                return self._label
+
+            def connect(self, signal: str, callback) -> None:
+                self._signals.setdefault(signal, []).append(callback)
+
+            def set_submenu(self, submenu) -> None:
+                self._submenu = submenu
+
+        monkeypatch.setattr(
+            applications_applet_mod,
+            "Gtk",
+            SimpleNamespace(Menu=_FakeMenu),
+        )
+        monkeypatch.setattr(
+            applications_applet_mod,
+            "make_menu_item_with_icon",
+            lambda label, **_kwargs: _FakeMenuItem(label),
+        )
+
     def test_creates_with_icon(self):
         d = ApplicationsApplet(48)
         assert d.item.icon is not None
@@ -38,7 +74,8 @@ class TestApplicationsApplet:
         # on_clicked is inherited no-op from Applet base
         d.on_clicked()  # should not crash
 
-    def test_menu_returns_items(self):
+    def test_menu_returns_items(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         d = ApplicationsApplet(48)
         items = d.get_menu_items()
         # Should have at least some categories on a real system

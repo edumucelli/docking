@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.music.applet as music_applet_mod
@@ -794,6 +795,43 @@ class TestMusicApplet:
         assert calls == ["thread"]
 
         applet._state = _state(title="Song", artist="Artist", album="Album")
+
+        class _FakeBox:
+            def __init__(self, orientation=None, spacing=0):
+                self._children: list[object] = []
+
+            def pack_start(self, child, expand, fill, padding):
+                _ = expand, fill, padding
+                self._children.append(child)
+
+            def get_children(self):
+                return self._children
+
+        class _FakeLabel:
+            def __init__(self, label=""):
+                self._label = label
+
+            def set_xalign(self, value):
+                _ = value
+
+            def set_justify(self, value):
+                _ = value
+
+            def override_color(self, state, rgba):
+                _ = state, rgba
+
+        monkeypatch.setattr(
+            music_applet_mod,
+            "Gtk",
+            SimpleNamespace(
+                Box=_FakeBox,
+                Label=_FakeLabel,
+                Orientation=SimpleNamespace(VERTICAL=1),
+                Justification=SimpleNamespace(CENTER=1),
+                StateFlags=SimpleNamespace(NORMAL=1),
+            ),
+        )
+
         widget = applet._build_tooltip_widget()
         assert widget.get_children()
 
