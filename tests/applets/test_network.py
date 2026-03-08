@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.network as network_mod
+import docking.applets.network.applet as network_applet_mod
 from docking.applets.network import (
     NetworkApplet,
     TrafficCounters,
@@ -25,6 +26,34 @@ Inter-|   Receive                                                |  Transmit
 wlp0s20f3: 138460662022 154167615    0 6749    0     0          0         0 49607734285  97547410    0    0    0     0       0          0
   eth0:  500000    1000    0    0    0     0          0         0   250000     500    0    0    0     0       0          0
 """
+
+
+class _FakeMenuItem:
+    def __init__(self, label: str = "") -> None:
+        self._label = label
+        self._sensitive = True
+        self._signals: dict[str, list[object]] = {}
+
+    def get_label(self) -> str:
+        return self._label
+
+    def set_sensitive(self, value: bool) -> None:
+        self._sensitive = value
+
+    def connect(self, signal: str, callback) -> None:
+        self._signals.setdefault(signal, []).append(callback)
+
+
+class _FakeCheckMenuItem(_FakeMenuItem):
+    def __init__(self, label: str = "") -> None:
+        super().__init__(label)
+        self._active = False
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+
+    def get_active(self) -> bool:
+        return self._active
 
 
 class TestParseProcNetDev:
@@ -149,6 +178,13 @@ class TestSignalToIcon:
 
 
 class TestNetworkApplet:
+    def _fake_gtk(self, monkeypatch):
+        fake_gtk = SimpleNamespace(
+            MenuItem=_FakeMenuItem,
+            CheckMenuItem=_FakeCheckMenuItem,
+        )
+        monkeypatch.setattr(network_applet_mod, "Gtk", fake_gtk)
+
     def test_creates_with_icon(self):
         applet = NetworkApplet(48)
         assert applet.item.icon is not None
@@ -164,7 +200,8 @@ class TestNetworkApplet:
         applet.refresh_tooltip()
         assert "not connected" in applet.item.name.lower()
 
-    def test_menu_returns_items(self):
+    def test_menu_returns_items(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
         applet = NetworkApplet(48)
         items = applet.get_menu_items()
         assert len(items) >= 1
@@ -300,7 +337,7 @@ class TestNetworkAppletInternals:
         monkeypatch.setattr(
             network_mod.NM,
             "DeviceType",
-            SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4),
+            SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4, LOOPBACK=5),
             raising=False,
         )
         monkeypatch.setattr(
@@ -369,7 +406,7 @@ class TestNetworkAppletInternals:
         monkeypatch.setattr(
             network_mod.NM,
             "DeviceType",
-            SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4),
+            SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4, LOOPBACK=5),
             raising=False,
         )
         monkeypatch.setattr(
@@ -394,6 +431,68 @@ class TestNetworkAppletInternals:
         # Then
         assert applet._is_connected is False
         assert applet._iface == ""
+
+    def test_update_nm_state_skips_loopback_when_connection_has_wifi_too(
+        self, monkeypatch
+    ):
+        # Given
+        applet = NetworkApplet(48)
+        monkeypatch.setattr(
+            network_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4, LOOPBACK=5),
+            raising=False,
+        )
+        monkeypatch.setattr(
+            network_mod.NM,
+            "ActiveConnectionState",
+            SimpleNamespace(ACTIVATED=9),
+            raising=False,
+        )
+
+        class FakeLoopbackDevice:
+            def get_device_type(self):
+                return 5
+
+            def get_iface(self):
+                return "lo"
+
+        class FakeWifiDevice:
+            def get_device_type(self):
+                return 2
+
+            def get_iface(self):
+                return "wlan0"
+
+            def get_ip4_config(self):
+                addr = MagicMock()
+                addr.get_address.return_value = "192.168.1.10"
+                cfg = MagicMock()
+                cfg.get_addresses.return_value = [addr]
+                return cfg
+
+            def get_active_access_point(self):
+                ssid = MagicMock()
+                ssid.get_data.return_value = b"MyWifi"
+                ap = MagicMock()
+                ap.get_ssid.return_value = ssid
+                ap.get_strength.return_value = 73
+                return ap
+
+        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+        conn_wifi = MagicMock()
+        conn_wifi.get_state.return_value = 9
+        conn_wifi.get_devices.return_value = [FakeLoopbackDevice(), FakeWifiDevice()]
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_active_connections.return_value = [conn_wifi]
+        # When
+        applet._update_nm_state()
+        # Then
+        assert applet._is_connected is True
+        assert applet._is_wifi is True
+        assert applet._iface == "wlan0"
+        assert applet._ssid == "MyWifi"
+        assert applet._signal_strength == 73
 
     def test_tick_updates_and_refreshes(self, monkeypatch):
         # Given
@@ -523,6 +622,39 @@ class TestNetworkAppletInternals:
 
         applet._nm_client = MagicMock()
         applet._nm_client.get_active_connections.return_value = [conn_eth, conn_wifi]
+        # When
+        applet._update_wifi_signal()
+        # Then
+        assert applet._signal_strength == 67
+
+    def test_update_wifi_signal_skips_loopback_device_before_wifi(self, monkeypatch):
+        # Given
+        applet = NetworkApplet(48)
+        applet._is_wifi = True
+        monkeypatch.setattr(
+            network_mod.NM,
+            "ActiveConnectionState",
+            SimpleNamespace(ACTIVATED=9),
+            raising=False,
+        )
+
+        class FakeLoopbackDevice:
+            pass
+
+        class FakeWifiDevice:
+            def get_active_access_point(self):
+                ap = MagicMock()
+                ap.get_strength.return_value = 67
+                return ap
+
+        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+
+        conn = MagicMock()
+        conn.get_state.return_value = 9
+        conn.get_devices.return_value = [FakeLoopbackDevice(), FakeWifiDevice()]
+
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_active_connections.return_value = [conn]
         # When
         applet._update_wifi_signal()
         # Then

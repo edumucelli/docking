@@ -1,7 +1,7 @@
 name: docking
 title: Docking
 base: core22
-version: "0.1.32"
+version: "0.1.33"
 summary: Feature-rich Linux dock in Python with GTK 3 and Cairo
 description: |
   A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo.
@@ -63,7 +63,7 @@ parts:
         'Comment=A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo' \
         'Exec=docking' \
         'Icon=docking' \
-        'Categories=Utility;System;' \
+        'Categories=Utility;GTK;' \
         'Terminal=false' \
         'StartupNotify=false' \
         'X-GNOME-Autostart-enabled=false' \

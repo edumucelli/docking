@@ -816,7 +816,7 @@ class TestDockMenu:
         handler._build_dock_menu(menu=menu, insert_index=3)
         labels = _labels(menu)
         # Then
-        assert "Add Applet" in labels
+        assert menu_mod._("Add Applet") in labels
         assert "Add Separator" in labels
         assert "Preferences" in labels
         assert "About" in labels
@@ -846,7 +846,7 @@ class TestDockMenu:
         FakeGtk.main_quit.assert_called_once()
 
         applets_item = next(
-            mi for mi in menu.children if mi.get_label() == "Add Applet"
+            mi for mi in menu.children if mi.get_label() == menu_mod._("Add Applet")
         )
         submenu_labels = _labels(applets_item.get_submenu())
         assert "Time & Productivity" in submenu_labels
@@ -918,9 +918,11 @@ class TestDockMenu:
         ):
             handler._build_dock_menu(menu=menu, insert_index=0)
 
-        add_applet = next(mi for mi in menu.children if mi.get_label() == "Add Applet")
+        add_applet = next(
+            mi for mi in menu.children if mi.get_label() == menu_mod._("Add Applet")
+        )
         submenu_labels = _labels(add_applet.get_submenu())
-        assert submenu_labels == ["No Applets Available"]
+        assert submenu_labels == [menu_mod._("No Applets Available")]
 
 
 class TestMenuCallbacks:

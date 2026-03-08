@@ -190,27 +190,13 @@ class NetworkApplet(Applet):
             devices = conn.get_devices()
             if not devices:
                 continue
-            device = devices[0]
-            dev_type = device.get_device_type()
-
-            # Skip tun, bridge (VPN, Docker)
-            if dev_type in (
-                NM.DeviceType.TUN,
-                NM.DeviceType.BRIDGE,
-            ):
-                continue
-
-            # Priority: wifi=2, ethernet=1, other=0
-            if dev_type == NM.DeviceType.WIFI:
-                priority = 2
-            elif dev_type == NM.DeviceType.ETHERNET:
-                priority = 1
-            else:
-                priority = 0
-
-            if priority > best_priority:
-                best_priority = priority
-                best_device = device
+            for device in devices:
+                priority = self._device_priority(device=device)
+                if priority < 0:
+                    continue
+                if priority > best_priority:
+                    best_priority = priority
+                    best_device = device
 
         if not best_device:
             return
@@ -274,12 +260,12 @@ class NetworkApplet(Applet):
         for conn in self._nm_client.get_active_connections():
             if conn.get_state() != NM.ActiveConnectionState.ACTIVATED:
                 continue
-            devices = conn.get_devices()
-            if devices and isinstance(devices[0], NM.DeviceWifi):
-                ap = devices[0].get_active_access_point()
-                if ap:
-                    self._signal_strength = ap.get_strength()
-                break
+            for device in conn.get_devices() or ():
+                if isinstance(device, NM.DeviceWifi):
+                    ap = device.get_active_access_point()
+                    if ap:
+                        self._signal_strength = ap.get_strength()
+                    return
 
     def _build_tooltip(self) -> str:
         return build_tooltip(
@@ -291,3 +277,22 @@ class NetworkApplet(Applet):
             rx_speed=self._rx_speed,
             tx_speed=self._tx_speed,
         )
+
+    @staticmethod
+    def _device_priority(device: NM.Device) -> int:
+        """Rank devices so the applet prefers real uplinks over virtual links."""
+        dev_type = device.get_device_type()
+
+        # Skip virtual/internal links that should not represent the current network.
+        if dev_type in (
+            NM.DeviceType.TUN,
+            NM.DeviceType.BRIDGE,
+            NM.DeviceType.LOOPBACK,
+        ):
+            return -1
+
+        if dev_type == NM.DeviceType.WIFI:
+            return 2
+        if dev_type == NM.DeviceType.ETHERNET:
+            return 1
+        return 0

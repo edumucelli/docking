@@ -106,6 +106,8 @@ _BUNDLED_FALLBACK_ICON_PREFIXES = (
     "weather-",
 )
 
+CATALOG_ICON_DIR = "icons/applets"
+
 
 def _icon_name_candidates(name: str) -> tuple[str, ...]:
     names: list[str] = [name]
@@ -184,9 +186,6 @@ def load_theme_icon_centered(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         canvas, x, y, w, h, x, y, 1.0, 1.0, GdkPixbuf.InterpType.BILINEAR, 255
     )
     return canvas
-
-
-CATALOG_ICON_DIR = "icons/applets"
 
 
 def load_catalog_icon(*, applet_id: AppletId, size: int) -> GdkPixbuf.Pixbuf | None:
