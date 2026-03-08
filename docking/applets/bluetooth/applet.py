@@ -12,7 +12,6 @@ Design notes:
 
 from __future__ import annotations
 
-import threading
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -24,6 +23,7 @@ from gi.repository import GLib, Gtk  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -71,8 +71,7 @@ class BluetoothApplet(Applet):
         # Serializes power transitions. Prevents repeated calls when users click
         # quickly or when menu toggle events fire while the backend is busy.
         self._power_transition_in_progress = False
-        self._discovery_request_in_progress = False
-        self._refresh_request_in_progress = False
+        self._worker = BackgroundWorker(logger=_log)
         # Optional user-facing line appended to tooltip when an action fails.
         self._action_error: str = ""
 
@@ -324,16 +323,18 @@ class BluetoothApplet(Applet):
         return menu_item
 
     def _tick(self) -> bool:
-        threading.Thread(target=self._poll_worker, daemon=True).start()
+        self._worker.run(
+            name="bluetooth-poll",
+            fn=lambda: self._backend.get_state(
+                active_adapter_path=self._active_adapter_path
+            ),
+            on_result=self._on_poll_result,
+        )
         return True
 
     def _discovery_tick(self) -> bool:
         self._ensure_discovery()
         return True
-
-    def _poll_worker(self) -> None:
-        state = self._backend.get_state(active_adapter_path=self._active_adapter_path)
-        GLib.idle_add(self._on_poll_result, state)
 
     def _on_poll_result(self, state: BluetoothState) -> bool:
         self._state = state
@@ -348,20 +349,14 @@ class BluetoothApplet(Applet):
         return False
 
     def _refresh_now(self) -> None:
-        if self._refresh_request_in_progress:
-            return
-        self._refresh_request_in_progress = True
-
-        def worker() -> None:
-            state = self._state
-            try:
-                state = self._backend.get_state(
-                    active_adapter_path=self._active_adapter_path
-                )
-            finally:
-                GLib.idle_add(self._on_refresh_result, state)
-
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run_guarded(
+            key="refresh",
+            name="bluetooth-refresh",
+            fn=lambda: self._backend.get_state(
+                active_adapter_path=self._active_adapter_path
+            ),
+            on_result=self._on_refresh_result,
+        )
 
     def _sync_selected_adapter(self, persist: bool = True) -> None:
         selected = adapter_from_state(
@@ -396,21 +391,15 @@ class BluetoothApplet(Applet):
             return
         if time.monotonic() < self._suppress_discovery_until:
             return
-        if self._discovery_request_in_progress:
-            return
-        self._discovery_request_in_progress = True
-
-        def worker() -> None:
-            started = False
-            try:
-                started = self._backend.start_discovery(adapter_path=adapter.path)
-            finally:
-                GLib.idle_add(self._on_discovery_result, started)
-
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run_guarded(
+            key="discovery",
+            name="bluetooth-discovery",
+            fn=lambda: self._backend.start_discovery(adapter_path=adapter.path),
+            on_result=self._on_discovery_result,
+        )
 
     def _run_async(self, action: Callable[[], bool]) -> None:
-        def worker() -> None:
+        def task() -> BluetoothState:
             try:
                 action()
             except Exception as exc:
@@ -418,20 +407,20 @@ class BluetoothApplet(Applet):
                     "Bluetooth action failed: %s",
                     exc,
                 )
-            finally:
-                state = self._backend.get_state(
-                    active_adapter_path=self._active_adapter_path
-                )
-                GLib.idle_add(self._on_poll_result, state)
+            return self._backend.get_state(
+                active_adapter_path=self._active_adapter_path
+            )
 
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run(
+            name="bluetooth-action",
+            fn=task,
+            on_result=self._on_poll_result,
+        )
 
     def _on_refresh_result(self, state: BluetoothState) -> bool:
-        self._refresh_request_in_progress = False
         return self._on_poll_result(state=state)
 
     def _on_discovery_result(self, started: bool) -> bool:
-        self._discovery_request_in_progress = False
         if started:
             self._local_discovery_active = True
         return False
@@ -487,7 +476,7 @@ class BluetoothApplet(Applet):
                 time.monotonic() + DISCOVERY_SUPPRESS_AFTER_POWER_OFF_S
             )
 
-        def worker() -> None:
+        def task() -> tuple[bool, bool, BluetoothState]:
             if not target:
                 self._stop_local_discovery(quiet=True)
             ok = self._backend.set_adapter_power(
@@ -497,9 +486,13 @@ class BluetoothApplet(Applet):
             state = self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             )
-            GLib.idle_add(self._on_power_result, target, ok, state)
+            return target, ok, state
 
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run(
+            name="bluetooth-power",
+            fn=task,
+            on_result=lambda payload: self._on_power_result(*payload),
+        )
 
     def _on_power_result(
         self,

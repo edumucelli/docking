@@ -32,6 +32,34 @@ class _ImmediateThread:
         self._target()
 
 
+class _ImmediateWorker:
+    def __init__(self, *args, **kwargs):
+        _ = (args, kwargs)
+        self._active_keys: set[str] = set()
+
+    def run(self, *, name, fn, on_result=None, on_error=None):
+        _ = name
+        try:
+            result = fn()
+        except Exception as exc:
+            if on_error is not None:
+                on_error(exc)
+            return
+        if on_result is not None:
+            on_result(result)
+
+    def run_guarded(self, *, key, name, fn, on_result=None, on_error=None):
+        _ = name
+        if key in self._active_keys:
+            return False
+        self._active_keys.add(key)
+        try:
+            self.run(name=name, fn=fn, on_result=on_result, on_error=on_error)
+        finally:
+            self._active_keys.discard(key)
+        return True
+
+
 def _adapter(
     *,
     path: str = "/org/bluez/hci0",
@@ -682,6 +710,7 @@ def _make_applet(
 ) -> tuple[BluetoothApplet, _StubBackend]:
     backend = _StubBackend(initial_state=state)
     monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
+    monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
     applet = BluetoothApplet(48)
     return applet, backend
 
@@ -877,33 +906,25 @@ class TestBluetoothApplet:
     def test_tick_and_discovery_tick(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         ticked: list[str] = []
-        applet._poll_worker = lambda: ticked.append("poll")  # type: ignore[assignment]
+        applet._worker.run = lambda **kwargs: ticked.append("poll")  # type: ignore[assignment]
         applet._ensure_discovery = lambda: ticked.append("discover")  # type: ignore[assignment]
 
-        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
         assert applet._tick() is True
         assert applet._discovery_tick() is True
         assert ticked == ["poll", "discover"]
 
-    def test_poll_worker_and_refresh_now_schedule_result(self, monkeypatch):
+    def test_tick_and_refresh_now_schedule_result(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
-        idle_calls: list[BluetoothState] = []
-        monkeypatch.setattr(
-            bluetooth_applet_mod.GLib,
-            "idle_add",
-            lambda func, state: idle_calls.append(state) or func(state),
-        )
-        applet._poll_worker()
-        assert idle_calls and idle_calls[0].available is True
-
-        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
         results: list[BluetoothState] = []
         applet._on_poll_result = lambda state: results.append(state) or False  # type: ignore[assignment]
+
+        applet._tick()
+        assert results and results[0].available is True
+
         applet._refresh_now()
-        assert results and results[0] == backend.get_state(
+        assert results[-1] == backend.get_state(
             active_adapter_path=applet._active_adapter_path
         )
-        assert applet._refresh_request_in_progress is False
 
     def test_on_poll_result_syncs_adapter_and_resets_local_discovery(self, monkeypatch):
         state = _state(adapters=(_adapter(path="/org/bluez/hci0", discovering=False),))
@@ -916,7 +937,6 @@ class TestBluetoothApplet:
 
     def test_sync_selected_adapter_active_adapter_and_discovery_flow(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
-        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
         monkeypatch.setattr(
             bluetooth_applet_mod.GLib,
             "idle_add",
@@ -952,20 +972,14 @@ class TestBluetoothApplet:
         applet._ensure_discovery()
         assert backend.discovery_calls == ["/org/bluez/hci0"]
         assert applet._local_discovery_active is True
-        assert applet._discovery_request_in_progress is False
 
     def test_run_async_and_connect_device_paths(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
-        idle_calls: list[BluetoothState] = []
-        monkeypatch.setattr(
-            bluetooth_applet_mod.GLib,
-            "idle_add",
-            lambda func, state: idle_calls.append(state),
-        )
+        results: list[BluetoothState] = []
+        applet._on_poll_result = lambda state: results.append(state) or False  # type: ignore[assignment]
 
-        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _ImmediateThread)
         applet._run_async(lambda: True)
-        assert idle_calls
+        assert results
 
         backend.connect_device = (  # type: ignore[method-assign]
             lambda device_path: device_path == "/d/ok"
@@ -1053,7 +1067,6 @@ class TestBluetoothApplet:
             def start(self):
                 self._target()
 
-        monkeypatch.setattr(bluetooth_applet_mod.threading, "Thread", _Thread)
         applet._stop_local_discovery = lambda quiet=True: True  # type: ignore[assignment]
         applet.refresh_presentation = lambda: None  # type: ignore[assignment]
         applet._set_power_async(target=False)

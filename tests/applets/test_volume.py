@@ -14,6 +14,22 @@ from docking.applets.volume import (
     _volume_icon_name,
 )
 
+
+class _ImmediateWorker:
+    def __init__(self, **_kwargs) -> None:
+        pass
+
+    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
+        try:
+            result = fn()
+        except Exception as exc:
+            if on_error is not None:
+                on_error(exc)
+            return
+        if on_result is not None:
+            on_result(result)
+
+
 # -- Parsers ------------------------------------------------------------------
 
 
@@ -126,7 +142,10 @@ _MOCK_STATE = VolumeState(volume=45, muted=False)
 
 def _make_applet(state: VolumeState = _MOCK_STATE) -> VolumeApplet:
     """Create applet with mocked backend."""
-    with patch("docking.applets.volume.applet._detect_backend") as mock_detect:
+    with (
+        patch("docking.applets.volume.applet.BackgroundWorker", _ImmediateWorker),
+        patch("docking.applets.volume.applet._detect_backend") as mock_detect,
+    ):
         mock_backend = mock_detect.return_value
         mock_backend.command = "pactl"
         mock_backend.get_state.return_value = state
@@ -303,19 +322,7 @@ class TestVolumeAppletInternals:
         applet._backend.get_state.return_value = VolumeState(volume=70, muted=True)
         calls = []
         monkeypatch.setattr(
-            volume_applet_mod.GLib,
-            "idle_add",
-            lambda cb, state: calls.append((cb, state)),
+            applet, "_on_poll_result", lambda state: calls.append(state) or False
         )
-
-        class FakeThread:
-            def __init__(self, target, daemon):
-                self._target = target
-                self.daemon = daemon
-
-            def start(self):
-                self._target()
-
-        monkeypatch.setattr(volume_applet_mod.threading, "Thread", FakeThread)
         assert applet._tick() is True
-        assert calls == [(applet._on_poll_result, VolumeState(volume=70, muted=True))]
+        assert calls == [VolumeState(volume=70, muted=True)]

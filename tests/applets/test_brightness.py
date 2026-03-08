@@ -17,6 +17,21 @@ from docking.applets.brightness import (
 )
 
 
+class _ImmediateWorker:
+    def __init__(self, **_kwargs) -> None:
+        pass
+
+    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
+        try:
+            result = fn()
+        except Exception as exc:
+            if on_error is not None:
+                on_error(exc)
+            return
+        if on_result is not None:
+            on_result(result)
+
+
 class TestBrightnessIconName:
     def test_low(self):
         assert "low" in brightness_icon_name(brightness=0.2)
@@ -106,6 +121,7 @@ class TestBrightnessStateHelpers:
 def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
     backend = Backend(output="HDMI-1")
     with (
+        patch("docking.applets.brightness.applet.BackgroundWorker", _ImmediateWorker),
         patch("docking.applets.brightness.applet.detect_output", return_value=backend),
         patch(
             "docking.applets.brightness.applet.get_brightness",
@@ -245,27 +261,15 @@ class TestBrightnessApplet:
         applet._poll()
         assert applet._brightness == 0.5
 
-        idle_calls: list[tuple[object, ...]] = []
+        seen: list[float | None] = []
         monkeypatch.setattr(
-            "docking.applets.brightness.applet.GLib.idle_add",
-            lambda *args: idle_calls.append(args),
-        )
-
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
-
-            def start(self):
-                self._target()
-
-        monkeypatch.setattr(
-            "docking.applets.brightness.applet.threading.Thread", _Thread
+            applet, "_on_poll_result", lambda val: seen.append(val) or False
         )
         monkeypatch.setattr(
             "docking.applets.brightness.applet.get_brightness", lambda backend: 0.8
         )
         assert applet._tick() is True
-        assert idle_calls
+        assert seen == [0.8]
 
     def test_poll_result_updates_on_change(self):
         applet = _make_applet(brightness=0.5)

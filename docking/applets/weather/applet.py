@@ -30,6 +30,7 @@ from docking.applets.weather.state import (
     prefs_from_mapping,
     prefs_payload,
 )
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -51,6 +52,7 @@ class WeatherApplet(Applet):
         self._fetch_request_id: int = 0
         self._weather: WeatherData | None = None
         self._air_quality: AirQualityData | None = None
+        self._worker = BackgroundWorker(logger=_log)
 
         prefs = prefs_from_mapping(
             config.applet_prefs.get("weather", {}) if config else None
@@ -207,18 +209,20 @@ class WeatherApplet(Applet):
         lat = self._lat
         lng = self._lng
 
-        def worker() -> None:
+        def fetch() -> tuple[WeatherData | None, AirQualityData | None]:
             weather = weather_pkg.fetch_weather(lat=lat, lng=lng)
             aqi = weather_pkg.fetch_air_quality(lat=lat, lng=lng)
-            weather_pkg.GLib.idle_add(
-                lambda: self._on_fetch_result(
-                    request_id=request_id,
-                    weather=weather,
-                    aqi=aqi,
-                )
-            )
+            return weather, aqi
 
-        weather_pkg.threading.Thread(target=worker, daemon=True).start()
+        self._worker.run(
+            name="weather-fetch",
+            fn=fetch,
+            on_result=lambda result: self._on_fetch_result(
+                request_id=request_id,
+                weather=result[0],
+                aqi=result[1],
+            ),
+        )
 
     def _on_fetch_result(
         self,

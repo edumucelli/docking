@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import docking.applets.weather as weather_mod
 import docking.applets.weather.applet as weather_applet_mod
@@ -28,26 +28,46 @@ _SAMPLE_WEATHER = WeatherData(
 )
 
 
+class _ImmediateWorker:
+    def __init__(self, **_kwargs) -> None:
+        pass
+
+    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
+        try:
+            result = fn()
+        except Exception as exc:
+            if on_error is not None:
+                on_error(exc)
+            return
+        if on_result is not None:
+            on_result(result)
+
+
+def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> WeatherApplet:
+    with patch("docking.applets.weather.applet.BackgroundWorker", _ImmediateWorker):
+        return WeatherApplet(icon_size, config=config)
+
+
 class TestWeatherAppletCreation:
     def test_creates_with_default_icon(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         assert applet.item.icon is not None
 
     def test_default_tooltip_no_city(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet.refresh_tooltip()
         assert "no city" in applet.item.name.lower()
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = WeatherApplet(size)
+            applet = _make_applet(size)
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
 
 
 class TestWeatherTooltip:
     def test_tooltip_shows_city_and_temp(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
         applet.refresh_tooltip()
@@ -56,7 +76,7 @@ class TestWeatherTooltip:
         assert "Clear sky" in applet.item.name
 
     def test_tooltip_includes_daily_forecast(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
         applet.refresh_tooltip()
@@ -64,7 +84,7 @@ class TestWeatherTooltip:
         assert "Tue" in applet.item.name
 
     def test_tooltip_loading_state(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         applet._weather = None
         applet.refresh_tooltip()
@@ -73,7 +93,7 @@ class TestWeatherTooltip:
 
 class TestWeatherTemperatureOverlay:
     def test_overlay_renders_with_weather_data(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._weather = _SAMPLE_WEATHER
         applet._show_temperature = True
         pixbuf = applet.create_icon(48)
@@ -81,7 +101,7 @@ class TestWeatherTemperatureOverlay:
 
     def test_no_overlay_when_disabled(self):
         # Given temperature overlay disabled
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._weather = _SAMPLE_WEATHER
         applet._show_temperature = False
         # When
@@ -89,7 +109,7 @@ class TestWeatherTemperatureOverlay:
         assert pixbuf is not None
 
     def test_no_overlay_without_weather_data(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._weather = None
         applet._show_temperature = True
         pixbuf = applet.create_icon(48)
@@ -98,14 +118,14 @@ class TestWeatherTemperatureOverlay:
 
 class TestWeatherMenu:
     def test_menu_has_show_temp_and_change_city(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items]
         assert "Show Temperature" in labels
         assert "Change City..." in labels
 
     def test_menu_includes_city_header_when_set(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Tokyo, Japan"
         applet._weather = _SAMPLE_WEATHER
         items = applet.get_menu_items()
@@ -114,7 +134,7 @@ class TestWeatherMenu:
         assert not items[0].get_sensitive()
 
     def test_menu_no_city_header_when_unset(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         items = applet.get_menu_items()
         # No city header, just show_temp + change_city
         assert len(items) == 2
@@ -151,7 +171,7 @@ class TestAqiLabel:
 
 class TestAirQualityInTooltip:
     def test_tooltip_includes_aqi_when_available(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
         applet._air_quality = _SAMPLE_AQI
@@ -159,7 +179,7 @@ class TestAirQualityInTooltip:
         assert "Air: Fair" in applet.item.name
 
     def test_tooltip_no_aqi_when_unavailable(self):
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
         applet._air_quality = None
@@ -179,7 +199,7 @@ class TestWeatherPrefs:
                 }
             }
         )
-        applet = WeatherApplet(48, config=config)
+        applet = _make_applet(config=config)
         assert applet._city_display == "Paris, France"
         assert applet._lat == 48.85
         assert applet._show_temperature is False
@@ -189,7 +209,7 @@ class TestWeatherPrefs:
         config = Config()
         config.save(path)
         config = Config.load(path)
-        applet = WeatherApplet(48, config=config)
+        applet = _make_applet(config=config)
 
         applet._select_city("London, United Kingdom", 51.51, -0.13)
 
@@ -203,7 +223,7 @@ class TestWeatherPrefs:
         config = Config()
         config.save(path)
         config = Config.load(path)
-        applet = WeatherApplet(48, config=config)
+        applet = _make_applet(config=config)
 
         applet._show_temperature = False
         applet._save_prefs()
@@ -212,19 +232,10 @@ class TestWeatherPrefs:
         assert reloaded.applet_prefs["weather"]["show_temperature"] is False
 
 
-class _ImmediateThread:
-    def __init__(self, target, daemon=True):
-        self._target = target
-        self.daemon = daemon
-
-    def start(self):
-        self._target()
-
-
 class TestWeatherAsyncFetch:
     def test_on_fetch_result_ignores_stale_request(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._fetch_request_id = 2
         applet._weather = None
         applet._air_quality = None
@@ -240,7 +251,7 @@ class TestWeatherAsyncFetch:
 
     def test_on_fetch_result_applies_latest_request(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._fetch_request_id = 3
         refresh = MagicMock()
         monkeypatch.setattr(applet, "refresh_presentation", refresh)
@@ -254,7 +265,7 @@ class TestWeatherAsyncFetch:
 
     def test_fetch_async_uses_coordinate_snapshot(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._lat = 10.0
         applet._lng = 20.0
 
@@ -268,8 +279,6 @@ class TestWeatherAsyncFetch:
         fetch_aqi = MagicMock(return_value=_SAMPLE_AQI)
         monkeypatch.setattr(weather_mod, "fetch_weather", fake_fetch_weather)
         monkeypatch.setattr(weather_mod, "fetch_air_quality", fetch_aqi)
-        monkeypatch.setattr(weather_mod.threading, "Thread", _ImmediateThread)
-        monkeypatch.setattr(weather_mod.GLib, "idle_add", lambda cb: cb())
         # When
         applet._fetch_async()
         # Then
@@ -281,7 +290,7 @@ class TestWeatherAsyncFetch:
 class TestWeatherLifecycleAndInteractions:
     def test_start_schedules_timer_and_fetches_when_city_selected(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         fetch = MagicMock()
         monkeypatch.setattr(applet, "_fetch_async", fetch)
@@ -296,7 +305,7 @@ class TestWeatherLifecycleAndInteractions:
 
     def test_stop_removes_active_timer(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._timer_id = 77
         remove = MagicMock()
         monkeypatch.setattr(weather_mod.GLib, "source_remove", remove)
@@ -310,7 +319,7 @@ class TestWeatherLifecycleAndInteractions:
 
     def test_tick_fetches_when_city_is_set(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Tokyo, Japan"
         fetch = MagicMock()
         monkeypatch.setattr(applet, "_fetch_async", fetch)
@@ -324,7 +333,7 @@ class TestWeatherLifecycleAndInteractions:
 
     def test_on_toggle_temperature_saves_and_refreshes(self):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._save_prefs = MagicMock()
         applet.refresh_presentation = MagicMock()
         widget = MagicMock()
@@ -340,7 +349,7 @@ class TestWeatherLifecycleAndInteractions:
 
     def test_on_clicked_noops_without_city(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = ""
         launch = MagicMock()
         monkeypatch.setattr(
@@ -357,7 +366,7 @@ class TestWeatherLifecycleAndInteractions:
 
     def test_start_without_city_does_not_fetch(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = ""
         fetch = MagicMock()
         monkeypatch.setattr(applet, "_fetch_async", fetch)
@@ -372,7 +381,7 @@ class TestWeatherLifecycleAndInteractions:
 
     def test_tick_without_city_does_not_fetch(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = ""
         fetch = MagicMock()
         monkeypatch.setattr(applet, "_fetch_async", fetch)
@@ -386,7 +395,7 @@ class TestWeatherLifecycleAndInteractions:
 
     def test_on_clicked_logs_when_launch_fails(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         monkeypatch.setattr(weather_applet_mod.GLib, "Error", Exception)
         monkeypatch.setattr(
@@ -506,7 +515,7 @@ class _FakeWeatherDialog:
 class TestWeatherDialogAndWidget:
     def test_show_city_dialog_search_and_select(self, monkeypatch):
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         created_entry = _FakeWeatherEntry()
         created_completion = _FakeWeatherCompletion()
         created_dialog = _FakeWeatherDialog()
@@ -584,7 +593,7 @@ class TestWeatherDialogAndWidget:
         )
 
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = ""
         applet._weather = None
 
@@ -630,7 +639,7 @@ class TestWeatherDialogAndWidget:
         )
 
         # Given
-        applet = WeatherApplet(48)
+        applet = _make_applet()
         applet._city_display = "Berlin, Germany"
         applet._weather = _SAMPLE_WEATHER
         applet._air_quality = _SAMPLE_AQI

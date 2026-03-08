@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -14,6 +13,7 @@ from gi.repository import GdkPixbuf, GLib  # noqa: E402
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -43,6 +43,7 @@ class VolumeApplet(Applet):
         self._volume = 0
         self._muted = False
         self._timer_id: int = 0
+        self._worker = BackgroundWorker(logger=_log)
         self._poll()
         super().__init__(icon_size, config)
         self._update_tooltip()
@@ -100,12 +101,11 @@ class VolumeApplet(Applet):
         """Periodic poll - fetch state in background thread."""
         if not self._backend:
             return True
-
-        def worker() -> None:
-            state = self._backend.get_state()
-            GLib.idle_add(self._on_poll_result, state)
-
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run(
+            name="volume-poll",
+            fn=self._backend.get_state,
+            on_result=self._on_poll_result,
+        )
         return True
 
     def _on_poll_result(self, state: VolumeState | None) -> bool:

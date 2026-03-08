@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -20,6 +19,7 @@ from docking.applets.brightness.state import (
     set_brightness,
 )
 from docking.applets.identity import AppletId
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -49,6 +49,7 @@ class BrightnessApplet(Applet):
         self._brightness = 1.0
         self._show_level = False
         self._timer_id: int = 0
+        self._worker = BackgroundWorker(logger=_log)
 
         if config:
             prefs = config.applet_prefs.get(AppletId.BRIGHTNESS, {})
@@ -122,14 +123,14 @@ class BrightnessApplet(Applet):
 
     def _tick(self) -> bool:
         """Periodic poll in background thread."""
-        if not self._backend:
+        backend = self._backend
+        if not backend:
             return True
-
-        def worker() -> None:
-            val = get_brightness(backend=self._backend)
-            GLib.idle_add(self._on_poll_result, val)
-
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run(
+            name="brightness-poll",
+            fn=lambda: get_brightness(backend=backend),
+            on_result=self._on_poll_result,
+        )
         return True
 
     def _on_poll_result(self, val: float | None) -> bool:
