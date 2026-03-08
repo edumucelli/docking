@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Mapping
+from typing import Any
 
 from docking.applets.weather.api import AirQualityData, WeatherData
 from docking.applets.weather.cities import CityEntry, load_cities

@@ -54,6 +54,7 @@ if TYPE_CHECKING:
 
 APPLET_LIST_ICON_PX = 32
 APPLET_GRID_COLUMNS = 3
+APPLET_CELL_WIDTH_PX = 220
 _log = get_logger("settings")
 
 
@@ -484,18 +485,24 @@ class SettingsWindowController:
         grid = Gtk.Grid()
         grid.set_column_spacing(16)
         grid.set_row_spacing(8)
+        grid.set_column_homogeneous(True)
         for index, (did, cls) in enumerate(members):
             desktop_id = applet_desktop_id(applet_id=did)
             check = Gtk.CheckButton()
             check.set_active(desktop_id in active_ids)
             check.connect("toggled", self._on_applet_toggled, str(did))
+            check.set_hexpand(True)
+            check.set_size_request(APPLET_CELL_WIDTH_PX, -1)
             content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            content.set_hexpand(True)
             image = self._build_applet_image(applet_id=did)
             if image is not None:
                 content.pack_start(image, False, False, 0)
             title = Gtk.Label(label=cls.name)
             title.set_xalign(0.0)
-            content.pack_start(title, False, False, 0)
+            title.set_hexpand(True)
+            title.set_line_wrap(True)
+            content.pack_start(title, True, True, 0)
             check.add(content)
             self._applet_checks[desktop_id] = check
             grid.attach(
@@ -505,6 +512,12 @@ class SettingsWindowController:
                 1,
                 1,
             )
+
+        # Force short sections to reserve the same number of columns as fuller ones.
+        for column in range(len(members), APPLET_GRID_COLUMNS):
+            spacer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            spacer.set_size_request(APPLET_CELL_WIDTH_PX, -1)
+            grid.attach(spacer, column, 0, 1, 1)
         return grid
 
     def _build_applet_image(self, *, applet_id: AppletId) -> Gtk.Widget | None:

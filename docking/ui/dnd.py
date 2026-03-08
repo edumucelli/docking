@@ -503,20 +503,19 @@ class DnDHandler:
                 outside,
             )
 
-            if outside:
-                if self.drag_index >= 0 and self.drag_index < len(items):
-                    item = items[self.drag_index]
-                    if item.is_pinned:
-                        log.debug(
-                            "drag-end: unpinning %s (running=%s)",
-                            item.name,
-                            item.is_running,
-                        )
-                        show_poof(x=int(screen_x), y=int(screen_y))
-                        # Clear slide state to avoid stale offsets
-                        self._renderer.slide_offsets.clear()
-                        self._renderer.prev_positions.clear()
-                        self._model.unpin_item(item.desktop_id)
+            if outside and 0 <= self.drag_index < len(items):
+                item = items[self.drag_index]
+                if item.is_pinned:
+                    log.debug(
+                        "drag-end: unpinning %s (running=%s)",
+                        item.name,
+                        item.is_running,
+                    )
+                    show_poof(x=int(screen_x), y=int(screen_y))
+                    # Clear slide state to avoid stale offsets
+                    self._renderer.slide_offsets.clear()
+                    self._renderer.prev_positions.clear()
+                    self._model.unpin_item(item.desktop_id)
 
         self.drag_index = -1
         self.drop_insert_index = -1

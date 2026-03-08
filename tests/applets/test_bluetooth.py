@@ -1066,7 +1066,7 @@ class TestBluetoothApplet:
         applet._on_power_result(False, True, _state())
         assert applet._local_discovery_active is False
         applet._on_power_result(True, False, _state())
-        assert "Power on failed." == applet._action_error
+        assert applet._action_error == "Power on failed."
 
         class _Widget:
             def __init__(self, active: bool):

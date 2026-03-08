@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Any, Mapping, NamedTuple
+from typing import Any, NamedTuple
 
 from docking.i18n import _
 

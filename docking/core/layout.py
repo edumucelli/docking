@@ -139,8 +139,8 @@ class Bounds(NamedTuple):
 
 
 def compute_layout(
-    items: list["DockItem"],
-    config: "Config",
+    items: list[DockItem],
+    config: Config,
     cursor_x: float,
     item_padding: float = 6.0,
     h_padding: float = 12.0,

@@ -25,6 +25,7 @@ class FakeLabel:
         self.hexpand = False
         self.margin_top = 0
         self.margin_bottom = 0
+        self.line_wrap = False
 
     def get_label(self) -> str:
         return self._label
@@ -41,6 +42,9 @@ class FakeLabel:
     def set_hexpand(self, value: bool) -> None:
         self.hexpand = value
 
+    def set_line_wrap(self, value: bool) -> None:
+        self.line_wrap = value
+
     def set_margin_top(self, value: int) -> None:
         self.margin_top = value
 
@@ -52,9 +56,17 @@ class FakeBox:
     def __init__(self, **_kwargs) -> None:
         self.children: list[object] = []
         self.border_width = 0
+        self.hexpand = False
+        self.size_request = None
 
     def set_border_width(self, value: int) -> None:
         self.border_width = value
+
+    def set_hexpand(self, value: bool) -> None:
+        self.hexpand = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
 
     def pack_start(self, child, *_args) -> None:
         self.children.append(child)
@@ -76,12 +88,16 @@ class FakeGrid:
         self.attachments: list[tuple[object, int, int, int, int]] = []
         self.column_spacing = 0
         self.row_spacing = 0
+        self.column_homogeneous = False
 
     def set_column_spacing(self, value: int) -> None:
         self.column_spacing = value
 
     def set_row_spacing(self, value: int) -> None:
         self.row_spacing = value
+
+    def set_column_homogeneous(self, value: bool) -> None:
+        self.column_homogeneous = value
 
     def attach(self, child, left: int, top: int, width: int, height: int) -> None:
         self.children.append(child)
@@ -114,6 +130,12 @@ class FakeWindow:
 
     def add(self, child) -> None:
         self.child = child
+
+    def set_hexpand(self, value: bool) -> None:
+        self.hexpand = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
 
     def show_all(self) -> None:
         self.show_count += 1
@@ -239,6 +261,8 @@ class FakeCheckButton(FakeSwitch):
         self._label = label
         self.tooltip_text = None
         self.child = None
+        self.hexpand = False
+        self.size_request = None
 
     def get_label(self) -> str:
         return self._label
@@ -248,6 +272,12 @@ class FakeCheckButton(FakeSwitch):
 
     def add(self, child) -> None:
         self.child = child
+
+    def set_hexpand(self, value: bool) -> None:
+        self.hexpand = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
 
 
 class FakeImage:
@@ -275,7 +305,7 @@ class FakePixbuf:
     def get_height(self) -> int:
         return self.height
 
-    def scale_simple(self, width: int, height: int, _interp) -> "FakePixbuf":
+    def scale_simple(self, width: int, height: int, _interp) -> FakePixbuf:
         return FakePixbuf(self.name, width=width, height=height)
 
     def __eq__(self, other: object) -> bool:
@@ -297,6 +327,12 @@ class FakeScrolledWindow:
 
     def add(self, child) -> None:
         self.child = child
+
+    def set_hexpand(self, value: bool) -> None:
+        self.hexpand = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
 
 
 class FakeOrientation:
@@ -577,10 +613,23 @@ class TestSettingsWindowController:
         assert len(applet_grids) == 2
         assert all(grid.column_spacing == 16 for grid in applet_grids)
         assert all(grid.row_spacing == 8 for grid in applet_grids)
+        assert all(grid.column_homogeneous is True for grid in applet_grids)
         first_grid = applet_grids[0]
-        assert [attachment[1:3] for attachment in first_grid.attachments] == [(0, 0)]
+        assert [attachment[1:3] for attachment in first_grid.attachments] == [
+            (0, 0),
+            (1, 0),
+            (2, 0),
+        ]
+        assert isinstance(first_grid.attachments[1][0], FakeBox)
+        assert isinstance(first_grid.attachments[2][0], FakeBox)
         second_grid = applet_grids[1]
-        assert [attachment[1:3] for attachment in second_grid.attachments] == [(0, 0)]
+        assert [attachment[1:3] for attachment in second_grid.attachments] == [
+            (0, 0),
+            (1, 0),
+            (2, 0),
+        ]
+        assert isinstance(second_grid.attachments[1][0], FakeBox)
+        assert isinstance(second_grid.attachments[2][0], FakeBox)
         first_check = first_grid.children[0]
         assert isinstance(first_check, FakeCheckButton)
         assert isinstance(first_check.child, FakeBox)

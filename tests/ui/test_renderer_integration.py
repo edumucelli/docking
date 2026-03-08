@@ -29,7 +29,7 @@ def _layout():
 
 def _frame(items, layout, *, cross_size: float = 90.0, offset: float = 0.0):
     item_geometries = []
-    for item, li in zip(items, layout):
+    for item, li in zip(items, layout, strict=True):
         width = int(li.width * li.scale)
         item_geometries.append(
             ItemGeometry(

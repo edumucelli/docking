@@ -292,7 +292,7 @@ class TooltipManager:
     def _schedule_show(
         self,
         *,
-        item: "DockItem",
+        item: DockItem,
         text: str,
         pos: Position,
         anchor_x: float,

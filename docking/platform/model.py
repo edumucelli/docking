@@ -128,7 +128,8 @@ If these invariants hold, the rest of the dock can remain much simpler.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import docking.applets as applets
 from docking.applets.identity import (

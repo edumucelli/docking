@@ -19,7 +19,8 @@ prevents overlapping backend writes when users click/toggle rapidly.
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import gi
 

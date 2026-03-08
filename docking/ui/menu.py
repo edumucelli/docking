@@ -604,7 +604,7 @@ class MenuHandler:
         for window in windows:
             menu.append(self._build_window_menu_row(window=window))
         separator = Gtk.SeparatorMenuItem()
-        setattr(separator, "_window_rows_separator", True)
+        separator._window_rows_separator = True
         menu.append(separator)
 
     def _build_window_menu_row(self, window: Any) -> Gtk.MenuItem:
@@ -638,7 +638,7 @@ class MenuHandler:
         if child is not None:
             row.remove(child)
         row.add(box)
-        setattr(row, "_window_row", True)
+        row._window_row = True
         row.connect("button-press-event", self._on_window_row_button_press, xid)
         row.connect("button-release-event", self._on_window_row_button_release, xid)
         row.connect("activate", lambda *_a: self._tracker.activate_xid(xid))

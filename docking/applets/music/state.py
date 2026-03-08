@@ -1009,12 +1009,12 @@ class HybridBackend:
     def play_pause(self, state: MusicState) -> bool:
         if not state.available:
             return False
-        if self._is_rhythmbox_state(state):
-            if self._rhythmbox.play_pause():
-                return True
-        if state.player_bus_name.startswith(_MPRIS_PREFIX):
-            if self._mpris.play_pause(state.player_bus_name):
-                return True
+        if self._is_rhythmbox_state(state) and self._rhythmbox.play_pause():
+            return True
+        if state.player_bus_name.startswith(_MPRIS_PREFIX) and self._mpris.play_pause(
+            state.player_bus_name
+        ):
+            return True
         if self._playerctl.play_pause(
             preferred=state.player_bus_name or state.player_name,
         ):
@@ -1024,12 +1024,12 @@ class HybridBackend:
     def next_track(self, state: MusicState) -> bool:
         if not state.available:
             return False
-        if self._is_rhythmbox_state(state):
-            if self._rhythmbox.next_track():
-                return True
-        if state.player_bus_name.startswith(_MPRIS_PREFIX):
-            if self._mpris.next_track(state.player_bus_name):
-                return True
+        if self._is_rhythmbox_state(state) and self._rhythmbox.next_track():
+            return True
+        if state.player_bus_name.startswith(_MPRIS_PREFIX) and self._mpris.next_track(
+            state.player_bus_name
+        ):
+            return True
         if self._playerctl.next_track(
             preferred=state.player_bus_name or state.player_name,
         ):
@@ -1039,12 +1039,12 @@ class HybridBackend:
     def previous_track(self, state: MusicState) -> bool:
         if not state.available:
             return False
-        if self._is_rhythmbox_state(state):
-            if self._rhythmbox.previous_track():
-                return True
-        if state.player_bus_name.startswith(_MPRIS_PREFIX):
-            if self._mpris.previous_track(state.player_bus_name):
-                return True
+        if self._is_rhythmbox_state(state) and self._rhythmbox.previous_track():
+            return True
+        if state.player_bus_name.startswith(
+            _MPRIS_PREFIX
+        ) and self._mpris.previous_track(state.player_bus_name):
+            return True
         if self._playerctl.previous_track(
             preferred=state.player_bus_name or state.player_name,
         ):
@@ -1054,12 +1054,14 @@ class HybridBackend:
     def set_volume(self, state: MusicState, volume_percent: int) -> bool:
         if not state.available:
             return False
-        if self._is_rhythmbox_state(state):
-            if self._rhythmbox.set_volume(volume_percent=volume_percent):
-                return True
-        if state.player_bus_name.startswith(_MPRIS_PREFIX):
-            if self._mpris.set_volume(state.player_bus_name, volume_percent):
-                return True
+        if self._is_rhythmbox_state(state) and self._rhythmbox.set_volume(
+            volume_percent=volume_percent
+        ):
+            return True
+        if state.player_bus_name.startswith(_MPRIS_PREFIX) and self._mpris.set_volume(
+            state.player_bus_name, volume_percent
+        ):
+            return True
         if self._playerctl.set_volume(
             preferred=state.player_bus_name or state.player_name,
             volume_percent=volume_percent,

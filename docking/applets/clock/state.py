@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 import time
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 # Default preferences
 DEFAULT_PREFS: dict[str, Any] = {

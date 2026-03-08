@@ -162,12 +162,14 @@ class TestTrashAppletDeletePaths:
             applet = TrashApplet(48)
         bus = MagicMock()
         bus.call_sync.side_effect = [GLib.Error("caja"), GLib.Error("nautilus")]
-        with patch("docking.applets.trash.applet.Gio.bus_get_sync", return_value=bus):
-            with patch.object(applet, "_delete_trash_contents") as delete_mock:
-                # When
-                applet._empty_trash()
-                # Then
-                delete_mock.assert_called_once()
+        with (
+            patch("docking.applets.trash.applet.Gio.bus_get_sync", return_value=bus),
+            patch.object(applet, "_delete_trash_contents") as delete_mock,
+        ):
+            # When
+            applet._empty_trash()
+            # Then
+            delete_mock.assert_called_once()
 
     def test_delete_trash_contents_deletes_children(self):
         # Given

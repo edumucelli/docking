@@ -254,7 +254,7 @@ class Rect(NamedTuple):
     def contains(self, x: float, y: float) -> bool:
         return self.x <= x < self.x + self.w and self.y <= y < self.y + self.h
 
-    def union(self, other: "Rect") -> "Rect":
+    def union(self, other: Rect) -> Rect:
         if self.w <= 0 or self.h <= 0:
             return other
         if other.w <= 0 or other.h <= 0:
@@ -265,7 +265,7 @@ class Rect(NamedTuple):
         bottom = max(self.y + self.h, other.y + other.h)
         return Rect(left, top, right - left, bottom - top)
 
-    def intersection(self, other: "Rect") -> "Rect | None":
+    def intersection(self, other: Rect) -> Rect | None:
         left = max(self.x, other.x)
         top = max(self.y, other.y)
         right = min(self.x + self.w, other.x + other.w)
@@ -279,7 +279,7 @@ class Rect(NamedTuple):
 class ItemGeometry:
     """Geometry for a single item in the current dock frame."""
 
-    item: "DockItem"
+    item: DockItem
     layout_item: LayoutItem
     draw_rect: Rect
     hover_rect: Rect
@@ -305,7 +305,7 @@ class DockGeometryFrame:
     zoomed_main_offset: float
     cross_size: float
 
-    def item_at_point(self, x: float, y: float) -> "DockItem | None":
+    def item_at_point(self, x: float, y: float) -> DockItem | None:
         if not self.cursor_rect.contains(x=x, y=y):
             return None
         for item_geometry in self.item_geometries:
@@ -313,7 +313,7 @@ class DockGeometryFrame:
                 return item_geometry.item
         return None
 
-    def hover_item_at_point(self, x: float, y: float) -> "DockItem | None":
+    def hover_item_at_point(self, x: float, y: float) -> DockItem | None:
         if not self.cursor_rect.contains(x=x, y=y):
             return None
         for item_geometry in self.item_geometries:
@@ -329,7 +329,7 @@ class DockGeometryFrame:
                 return index
         return -1
 
-    def geometry_for_item(self, item: "DockItem") -> ItemGeometry | None:
+    def geometry_for_item(self, item: DockItem) -> ItemGeometry | None:
         for item_geometry in self.item_geometries:
             if item_geometry.item is item:
                 return item_geometry
@@ -346,9 +346,9 @@ class DockGeometryFrame:
 class DockGeometryInputs:
     """Explicit runtime inputs required to build one geometry frame."""
 
-    items: tuple["DockItem", ...]
-    config: "Config"
-    theme: "Theme"
+    items: tuple[DockItem, ...]
+    config: Config
+    theme: Theme
     window_w: int
     window_h: int
     cursor_main: float
@@ -361,7 +361,7 @@ class DockGeometryInputs:
 class DockGeometryBuilder:
     """Window-bound adapter that builds geometry frames from live runtime state."""
 
-    def __init__(self, window: "DockWindow") -> None:
+    def __init__(self, window: DockWindow) -> None:
         self._window = window
 
     def build_frame(
@@ -459,9 +459,9 @@ def map_icon_position(
 
 def build_geometry_frame(
     *,
-    items: list["DockItem"],
-    config: "Config",
-    theme: "Theme",
+    items: list[DockItem],
+    config: Config,
+    theme: Theme,
     window_w: int,
     window_h: int,
     cursor_main: float,
@@ -561,7 +561,7 @@ def build_geometry_frame(
 
 
 def capture_geometry_inputs(
-    window: "DockWindow",
+    window: DockWindow,
     *,
     main_cursor: float | None = None,
     cursor_x: float | None = None,
@@ -611,9 +611,9 @@ def capture_geometry_inputs(
 
 def _local_cursor_main(
     *,
-    items: list["DockItem"],
-    config: "Config",
-    theme: "Theme",
+    items: list[DockItem],
+    config: Config,
+    theme: Theme,
     main_size: int,
     cursor_main: float,
 ) -> float:
@@ -627,10 +627,10 @@ def _local_cursor_main(
 
 def _build_item_geometries(
     *,
-    items: list["DockItem"],
+    items: list[DockItem],
     layout: tuple[LayoutItem, ...],
-    config: "Config",
-    theme: "Theme",
+    config: Config,
+    theme: Theme,
     pos: Position,
     static_dock_rect: Rect,
     zoomed_main_offset: float,
@@ -643,7 +643,7 @@ def _build_item_geometries(
     ] = []
     hide_cross = hide_offset * cross_size
 
-    for item, layout_item in zip(items, layout):
+    for item, layout_item in zip(items, layout, strict=True):
         base_size = layout_item.width or config.icon_size
         scaled_size = base_size * layout_item.scale
         main_pos = layout_item.x + zoomed_main_offset
@@ -699,7 +699,9 @@ def _build_item_geometries(
         anchor_y,
         scaled_size,
         main_pos,
-    ), hover_rect, hit_rect in zip(partial_geometries, hover_rects, hit_rects):
+    ), hover_rect, hit_rect in zip(
+        partial_geometries, hover_rects, hit_rects, strict=True
+    ):
         item_geometries.append(
             ItemGeometry(
                 item=item,
@@ -725,7 +727,7 @@ def _compute_item_hover_rects(
     draw_rects: list[Rect],
     static_dock_rect: Rect,
     background_rect: Rect,
-    theme: "Theme",
+    theme: Theme,
 ) -> list[Rect]:
     if not draw_rects:
         return []
@@ -747,7 +749,9 @@ def _compute_item_hover_rects(
     )
     hover_rects: list[Rect] = []
     if is_horizontal(pos=pos):
-        for base_rect, left, right in zip(base_hover_rects, boundaries, boundaries[1:]):
+        for base_rect, left, right in zip(
+            base_hover_rects, boundaries, boundaries[1:], strict=False
+        ):
             hover_rects.append(
                 Rect(
                     left,
@@ -758,7 +762,9 @@ def _compute_item_hover_rects(
             )
         return hover_rects
 
-    for base_rect, top, bottom in zip(base_hover_rects, boundaries, boundaries[1:]):
+    for base_rect, top, bottom in zip(
+        base_hover_rects, boundaries, boundaries[1:], strict=False
+    ):
         hover_rects.append(
             Rect(
                 base_rect.x,
@@ -775,7 +781,7 @@ def _compute_item_hover_base_rect(
     pos: Position,
     draw_rect: Rect,
     background_rect: Rect,
-    theme: "Theme",
+    theme: Theme,
 ) -> Rect:
     item_padding = max(0, int(round(theme.item_padding)))
     top_padding = max(0, int(math.ceil(theme.top_padding)))
@@ -812,7 +818,7 @@ def _compute_item_hit_rects(
     pos: Position,
     draw_rects: list[Rect],
     background_rect: Rect,
-    theme: "Theme",
+    theme: Theme,
 ) -> list[Rect]:
     return [
         _compute_item_hit_rect(
@@ -830,7 +836,7 @@ def _compute_item_hit_rect(
     pos: Position,
     draw_rect: Rect,
     background_rect: Rect,
-    theme: "Theme",
+    theme: Theme,
 ) -> Rect:
     main_pad = max(0, int(round(theme.item_padding / 2)))
     if is_horizontal(pos=pos):
@@ -861,7 +867,7 @@ def _compute_main_axis_boundaries(
     if is_horizontal(pos=pos):
         starts = [min(static_dock_rect.x, background_rect.x)]
         centers = [hover_rect.x + hover_rect.w / 2 for hover_rect in hover_rects]
-        for left_center, right_center in zip(centers, centers[1:]):
+        for left_center, right_center in zip(centers, centers[1:], strict=False):
             starts.append(int(round((left_center + right_center) / 2)))
         starts.append(
             max(
@@ -873,7 +879,7 @@ def _compute_main_axis_boundaries(
 
     starts = [min(static_dock_rect.y, background_rect.y)]
     centers = [hover_rect.y + hover_rect.h / 2 for hover_rect in hover_rects]
-    for top_center, bottom_center in zip(centers, centers[1:]):
+    for top_center, bottom_center in zip(centers, centers[1:], strict=False):
         starts.append(int(round((top_center + bottom_center) / 2)))
     starts.append(
         max(
@@ -889,7 +895,7 @@ def _compute_background_rect(
     pos: Position,
     draw_rects: list[Rect],
     static_dock_rect: Rect,
-    theme: "Theme",
+    theme: Theme,
     hide_offset: float,
     drop_gap: float,
 ) -> Rect:

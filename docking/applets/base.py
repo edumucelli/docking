@@ -49,8 +49,9 @@ consistent visual behavior across applets.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from importlib import resources
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import cairo
 import gi
@@ -305,12 +306,16 @@ class Applet(ABC):
 
     def refresh_tooltip(self) -> None:
         """Sync tooltip/text presentation fields on self.item."""
+        return None
 
     def on_clicked(self) -> None:
         """Handle left-click (default: no-op)."""
+        return None
 
     def on_scroll(self, direction_up: bool) -> None:
         """Handle scroll wheel on applet icon (default: no-op)."""
+        _ = direction_up
+        return None
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Extra right-click menu items (default: empty)."""
@@ -322,6 +327,7 @@ class Applet(ABC):
         Applets that need per-instance or late-bound preference loading can
         override this method. Default applets have nothing to apply.
         """
+        return None
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start timers/monitors. Call notify() to trigger redraw."""

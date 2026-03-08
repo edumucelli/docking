@@ -170,7 +170,7 @@ class TestAboutDialogController:
 
         # Then
         assert result == about_mod.PROJECT_VERSION_FALLBACK
-        assert result == about_mod.DOCKING_VERSION
+        assert result == about_mod.docking_version
 
     def test_show_sets_license(self, monkeypatch):
         # Given

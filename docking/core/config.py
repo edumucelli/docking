@@ -147,7 +147,7 @@ DEFAULT_CONFIG_DIR = (
 )
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 
-DEFAULT_PINNED: list["PinnedEntry"] = []
+DEFAULT_PINNED: list[PinnedEntry] = []
 MIN_ICON_SIZE = 32
 MAX_ICON_SIZE = 128
 MIN_ZOOM_PERCENT = 1.0
@@ -242,9 +242,7 @@ def _normalize_int(
     maximum: int | None = None,
 ) -> int:
     try:
-        if isinstance(value, bool):
-            parsed = int(value)
-        elif isinstance(value, (int, float)):
+        if isinstance(value, (bool, int, float)):
             parsed = int(value)
         elif isinstance(value, str):
             parsed = int(value.strip())

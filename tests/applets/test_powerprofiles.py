@@ -538,7 +538,7 @@ class TestPowerProfilesApplet:
         )
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert any(
-            "Limited: Fallback backend: tlp mode mapping" == label for label in labels
+            label == "Limited: Fallback backend: tlp mode mapping" for label in labels
         )
 
     def test_ordered_profiles_fallbacks(self, monkeypatch):

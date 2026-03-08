@@ -666,9 +666,10 @@ class DockWindow(Gtk.Window):
         # shared geometry layer.
         frame = self._current_geometry_frame or self._applied_input_frame
         input_rect = current_input_rect(frame)
-        if input_rect is not None:
-            if self.interaction.point_inside_event_frame(x=event.x, y=event.y):
-                return False
+        if input_rect is not None and self.interaction.point_inside_event_frame(
+            x=event.x, y=event.y
+        ):
+            return False
 
         if not self.dock_hovered:
             return False

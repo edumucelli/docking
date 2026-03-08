@@ -11,11 +11,11 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
 
-from docking import __version__ as DOCKING_VERSION
+from docking import __version__ as docking_version
 from docking.i18n import _
 from docking.log import get_logger
 
-PROJECT_VERSION_FALLBACK = DOCKING_VERSION
+PROJECT_VERSION_FALLBACK = docking_version
 PROJECT_LICENSE_FALLBACK = "GNU GPL v3.0 or later (GPL-3.0-or-later)"
 PROJECT_LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
 

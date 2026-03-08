@@ -187,7 +187,7 @@ class Theme:
     distance_from_edge: int = 0  # gap between dock and screen edge in pixels
 
     @classmethod
-    def load(cls, name: str = "default", icon_size: int = 48) -> "Theme":
+    def load(cls, name: str = "default", icon_size: int = 48) -> Theme:
         """Load theme by name, applying the scaling unit system.
 
         The JSON theme file stores layout values in a scaling unit:

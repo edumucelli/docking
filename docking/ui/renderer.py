@@ -228,9 +228,9 @@ def compute_urgent_glow_opacity(
 
 def has_active_urgent_glow(
     *,
-    model: "DockModel",
-    theme: "Theme",
-    autohide_state: "HideState | None",
+    model: DockModel,
+    theme: Theme,
+    autohide_state: HideState | None,
     now_us: int,
 ) -> bool:
     """Return True when any urgent item should still be pulsing at the edge."""
@@ -448,7 +448,7 @@ class DockRenderer:
         )
 
         # Active glow (drawn in shelf transform space)
-        for item, li in zip(items, layout):
+        for item, li in zip(items, layout, strict=True):
             if item.is_active:
                 if item.desktop_id not in self._icon_colors:
                     self._icon_colors[item.desktop_id] = average_icon_color(
@@ -479,7 +479,7 @@ class DockRenderer:
         hide_cross = icon_hide * cross_size
 
         now = GLib.get_monotonic_time()
-        for i, (item, li) in enumerate(zip(items, layout)):
+        for i, (item, li) in enumerate(zip(items, layout, strict=True)):
             if i == drag_index:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
@@ -551,7 +551,7 @@ class DockRenderer:
             )
 
         # --- Draw indicators ---
-        for i, (item, li) in enumerate(zip(items, layout)):
+        for i, (item, li) in enumerate(zip(items, layout, strict=True)):
             if item.is_running:
                 slide = self.slide_offsets.get(item.desktop_id, 0.0)
                 drop_shift = (
@@ -571,7 +571,7 @@ class DockRenderer:
 
         # --- Urgent glow at screen edge (only when fully hidden) ---
         if hide_offset >= 1.0:
-            for item, li in zip(items, layout):
+            for item, li in zip(items, layout, strict=True):
                 if item.last_urgent > 0:
                     elapsed = now - item.last_urgent
                     opacity = compute_urgent_glow_opacity(
@@ -656,7 +656,7 @@ class DockRenderer:
     ) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}
-        for item, li in zip(items, layout):
+        for item, li in zip(items, layout, strict=True):
             new_positions[item.desktop_id] = li.x + icon_offset
 
         for desktop_id, new_x in new_positions.items():

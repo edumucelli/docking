@@ -34,11 +34,12 @@ class TestPreviewConstants:
 
     def test_hide_delay_reasonable(self):
         # Enough time to move mouse to popup, not so long it feels stuck
-        assert 100 <= PREVIEW_HIDE_DELAY_MS <= 1000
+        assert PREVIEW_HIDE_DELAY_MS >= 100
+        assert PREVIEW_HIDE_DELAY_MS <= 1000
 
     def test_icon_fallback_size(self):
         assert ICON_FALLBACK_SIZE > 0
-        assert ICON_FALLBACK_SIZE <= min(THUMB_W, THUMB_H)
+        assert min(THUMB_W, THUMB_H) >= ICON_FALLBACK_SIZE
 
 
 class TestPreviewCss:

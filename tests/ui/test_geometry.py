@@ -234,9 +234,9 @@ class TestDockGeometryFrame:
             )
             right_scales.append(frame.item_geometries[-1].layout_item.scale)
 
-        assert all(a > b for a, b in zip(left_scales, left_scales[1:]))
+        assert all(a > b for a, b in zip(left_scales, left_scales[1:], strict=False))
         assert all(scale > 1.0 for scale in left_scales)
         assert left_scales[-1] > 1.0
 
-        assert all(a > b for a, b in zip(right_scales, right_scales[1:]))
+        assert all(a > b for a, b in zip(right_scales, right_scales[1:], strict=False))
         assert all(scale > 1.0 for scale in right_scales)

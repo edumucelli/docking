@@ -10,7 +10,8 @@ same website — coming full circle after over a decade.
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import gi
 

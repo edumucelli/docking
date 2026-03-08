@@ -14,8 +14,9 @@ handlers plus the real DnDHandler so we can validate user-shaped paths:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import MethodType, SimpleNamespace
-from typing import Any, Callable, cast
+from typing import Any, cast
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -37,7 +38,7 @@ from docking.ui.runtime import DockDragRuntime, DockRuntime
 
 
 class _Seat:
-    def __init__(self, harness: "_ScenarioHarness") -> None:
+    def __init__(self, harness: _ScenarioHarness) -> None:
         self._harness = harness
 
     def get_pointer(self):
@@ -48,7 +49,7 @@ class _Seat:
 
 
 class _Display:
-    def __init__(self, harness: "_ScenarioHarness") -> None:
+    def __init__(self, harness: _ScenarioHarness) -> None:
         self._harness = harness
 
     def get_default_seat(self):

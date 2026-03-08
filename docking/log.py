@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Mapping
-from typing import Any, MutableMapping, cast
+from collections.abc import Mapping, MutableMapping
+from typing import Any, cast
 
 LOG_LEVEL = os.environ.get("DOCKING_LOG_LEVEL", "WARNING").upper()
 _CONTEXT_FIELDS = ("applet_id", "desktop_id", "action")

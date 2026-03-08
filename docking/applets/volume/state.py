@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-from typing import Callable, NamedTuple
+from collections.abc import Callable
+from typing import NamedTuple
 
 from docking.applets.identity import AppletId
 from docking.log import get_logger, with_context
