@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-08 01:15+0100\n"
+"POT-Creation-Date: 2026-03-08 01:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -745,116 +745,84 @@ msgstr "Veb-sayt"
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/menu.py:179
+#: docking/ui/menu.py:178
 msgid "Name"
 msgstr "Name"
 
-#: docking/ui/menu.py:180
+#: docking/ui/menu.py:179
 msgid "Kind"
 msgstr "Kind"
 
-#: docking/ui/menu.py:181
+#: docking/ui/menu.py:180
 msgid "Size"
 msgstr "Size"
 
-#: docking/ui/menu.py:182
+#: docking/ui/menu.py:181
 msgid "Created"
 msgstr "Created"
 
-#: docking/ui/menu.py:183
+#: docking/ui/menu.py:182
 msgid "Modified"
 msgstr "Modified"
 
-#: docking/ui/menu.py:386 docking/ui/menu.py:406 docking/ui/menu.py:422
-#: docking/ui/menu.py:475
+#: docking/ui/menu.py:385 docking/ui/menu.py:405 docking/ui/menu.py:421
+#: docking/ui/menu.py:474
 msgid "Remove from Dock"
 msgstr "Dokdan Sil"
 
-#: docking/ui/menu.py:399
+#: docking/ui/menu.py:398
 msgid "Open"
 msgstr "Open"
 
-#: docking/ui/menu.py:429
+#: docking/ui/menu.py:428
 msgid "Keep in Dock"
 msgstr "Dokda Saxla"
 
-#: docking/ui/menu.py:438
+#: docking/ui/menu.py:437
 msgid "Close All"
 msgstr "Hamısını Bağla"
 
-#: docking/ui/menu.py:438
+#: docking/ui/menu.py:437
 msgid "Close"
 msgstr "Bağla"
 
-#: docking/ui/menu.py:455
+#: docking/ui/menu.py:454
 msgid "Sort By"
 msgstr "Sort By"
 
-#: docking/ui/menu.py:463
+#: docking/ui/menu.py:462
 msgid "Show Hidden Files"
 msgstr "Show Hidden Files"
 
-#: docking/ui/menu.py:468
+#: docking/ui/menu.py:467
 msgid "Large Icons"
 msgstr "Large Icons"
 
-#: docking/ui/menu.py:496 docking/ui/settings.py:182
-msgid "Auto-hide"
-msgstr "Avtogizlə"
-
-#: docking/ui/menu.py:502 docking/ui/settings.py:175
-msgid "Window Previews"
-msgstr "Pəncərə Önbaxışları"
-
-#: docking/ui/menu.py:510
-msgid "Display"
-msgstr "Ekran"
-
-#: docking/ui/menu.py:513 docking/ui/settings.py:192
-msgid "Follow Cursor"
-msgstr "Kursoru İzlə"
-
-#: docking/ui/menu.py:536 docking/ui/settings.py:201
-msgid "Anchor Applets to End"
-msgstr "Appletləri Sona Bərkid"
-
-#: docking/ui/menu.py:541 docking/ui/settings.py:202
-msgid "Anchor Files to End"
-msgstr "Anchor Files to End"
-
-#: docking/ui/menu.py:555 docking/ui/settings.py:193
-msgid "Current Workspace Only"
-msgstr "Yalnız Cari İş Sahəsi"
-
-#: docking/ui/menu.py:585
-msgid "Themes"
-msgstr "Mövzular"
-
-#: docking/ui/menu.py:598 docking/ui/settings.py:191
-msgid "Position"
-msgstr "Mövqe"
-
-#: docking/ui/menu.py:611 docking/ui/settings.py:123
-msgid "Applets"
+#: docking/ui/menu.py:503
+msgid "Add Applet"
 msgstr "Appletlər"
 
-#: docking/ui/menu.py:663
+#: docking/ui/menu.py:545
+msgid "No Applets Available"
+msgstr "Enerji Profilləri mövcud deyil"
+
+#: docking/ui/menu.py:552
 msgid "Add Separator"
 msgstr "Ayırıcı Əlavə Et"
 
-#: docking/ui/menu.py:673 docking/ui/settings.py:104
+#: docking/ui/menu.py:562 docking/ui/settings.py:104
 msgid "Preferences"
 msgstr "Preferences"
 
-#: docking/ui/menu.py:678
+#: docking/ui/menu.py:567
 msgid "About"
 msgstr "Haqqında"
 
-#: docking/ui/menu.py:683
+#: docking/ui/menu.py:572
 msgid "Quit"
 msgstr "Çıx"
 
-#: docking/ui/menu.py:720
+#: docking/ui/menu.py:609
 msgid "Window"
 msgstr "Pəncərə"
 
@@ -866,6 +834,10 @@ msgstr "Ekran {display}: {width}x{height}"
 #: docking/ui/settings.py:122
 msgid "Appearance"
 msgstr "Appearance"
+
+#: docking/ui/settings.py:123
+msgid "Applets"
+msgstr "Appletlər"
 
 #: docking/ui/settings.py:168
 msgid "Look"
@@ -891,9 +863,17 @@ msgstr "Zoom Percent"
 msgid "Show Tooltips"
 msgstr "Show Tooltips"
 
+#: docking/ui/settings.py:175
+msgid "Window Previews"
+msgstr "Pəncərə Önbaxışları"
+
 #: docking/ui/settings.py:180
 msgid "Behavior"
 msgstr "Behavior"
+
+#: docking/ui/settings.py:182
+msgid "Auto-hide"
+msgstr "Avtogizlə"
 
 #: docking/ui/settings.py:183
 msgid "Hide Delay"
@@ -907,6 +887,18 @@ msgstr "Unhide Delay"
 msgid "Placement"
 msgstr "Placement"
 
+#: docking/ui/settings.py:191
+msgid "Position"
+msgstr "Mövqe"
+
+#: docking/ui/settings.py:192
+msgid "Follow Cursor"
+msgstr "Kursoru İzlə"
+
+#: docking/ui/settings.py:193
+msgid "Current Workspace Only"
+msgstr "Yalnız Cari İş Sahəsi"
+
 #: docking/ui/settings.py:198
 msgid "Layout"
 msgstr "Layout"
@@ -914,6 +906,20 @@ msgstr "Layout"
 #: docking/ui/settings.py:200
 msgid "Lock Positions"
 msgstr "Lock Positions"
+
+#: docking/ui/settings.py:201
+msgid "Anchor Applets to End"
+msgstr "Appletləri Sona Bərkid"
+
+#: docking/ui/settings.py:202
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#~ msgid "Display"
+#~ msgstr "Ekran"
+
+#~ msgid "Themes"
+#~ msgstr "Mövzular"
 
 #~ msgid "Lock Icons"
 #~ msgstr "Nişanları Kilidlə"

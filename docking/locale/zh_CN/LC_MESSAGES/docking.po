@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-08 01:15+0100\n"
+"POT-Creation-Date: 2026-03-08 01:39+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -745,116 +745,84 @@ msgstr "网站"
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/menu.py:179
+#: docking/ui/menu.py:178
 msgid "Name"
 msgstr "Name"
 
-#: docking/ui/menu.py:180
+#: docking/ui/menu.py:179
 msgid "Kind"
 msgstr "Kind"
 
-#: docking/ui/menu.py:181
+#: docking/ui/menu.py:180
 msgid "Size"
 msgstr "Size"
 
-#: docking/ui/menu.py:182
+#: docking/ui/menu.py:181
 msgid "Created"
 msgstr "Created"
 
-#: docking/ui/menu.py:183
+#: docking/ui/menu.py:182
 msgid "Modified"
 msgstr "Modified"
 
-#: docking/ui/menu.py:386 docking/ui/menu.py:406 docking/ui/menu.py:422
-#: docking/ui/menu.py:475
+#: docking/ui/menu.py:385 docking/ui/menu.py:405 docking/ui/menu.py:421
+#: docking/ui/menu.py:474
 msgid "Remove from Dock"
 msgstr "从Dock中移除"
 
-#: docking/ui/menu.py:399
+#: docking/ui/menu.py:398
 msgid "Open"
 msgstr "Open"
 
-#: docking/ui/menu.py:429
+#: docking/ui/menu.py:428
 msgid "Keep in Dock"
 msgstr "保留在Dock中"
 
-#: docking/ui/menu.py:438
+#: docking/ui/menu.py:437
 msgid "Close All"
 msgstr "全部关闭"
 
-#: docking/ui/menu.py:438
+#: docking/ui/menu.py:437
 msgid "Close"
 msgstr "关闭"
 
-#: docking/ui/menu.py:455
+#: docking/ui/menu.py:454
 msgid "Sort By"
 msgstr "Sort By"
 
-#: docking/ui/menu.py:463
+#: docking/ui/menu.py:462
 msgid "Show Hidden Files"
 msgstr "Show Hidden Files"
 
-#: docking/ui/menu.py:468
+#: docking/ui/menu.py:467
 msgid "Large Icons"
 msgstr "Large Icons"
 
-#: docking/ui/menu.py:496 docking/ui/settings.py:182
-msgid "Auto-hide"
-msgstr "自动隐藏"
-
-#: docking/ui/menu.py:502 docking/ui/settings.py:175
-msgid "Window Previews"
-msgstr "窗口预览"
-
-#: docking/ui/menu.py:510
-msgid "Display"
-msgstr "显示"
-
-#: docking/ui/menu.py:513 docking/ui/settings.py:192
-msgid "Follow Cursor"
-msgstr "跟随光标"
-
-#: docking/ui/menu.py:536 docking/ui/settings.py:201
-msgid "Anchor Applets to End"
-msgstr "将小程序锚定到末尾"
-
-#: docking/ui/menu.py:541 docking/ui/settings.py:202
-msgid "Anchor Files to End"
-msgstr "Anchor Files to End"
-
-#: docking/ui/menu.py:555 docking/ui/settings.py:193
-msgid "Current Workspace Only"
-msgstr "仅当前工作区"
-
-#: docking/ui/menu.py:585
-msgid "Themes"
-msgstr "主题"
-
-#: docking/ui/menu.py:598 docking/ui/settings.py:191
-msgid "Position"
-msgstr "位置"
-
-#: docking/ui/menu.py:611 docking/ui/settings.py:123
-msgid "Applets"
+#: docking/ui/menu.py:503
+msgid "Add Applet"
 msgstr "小程序"
 
-#: docking/ui/menu.py:663
+#: docking/ui/menu.py:545
+msgid "No Applets Available"
+msgstr "电源配置不可用"
+
+#: docking/ui/menu.py:552
 msgid "Add Separator"
 msgstr "添加分隔符"
 
-#: docking/ui/menu.py:673 docking/ui/settings.py:104
+#: docking/ui/menu.py:562 docking/ui/settings.py:104
 msgid "Preferences"
 msgstr "Preferences"
 
-#: docking/ui/menu.py:678
+#: docking/ui/menu.py:567
 msgid "About"
 msgstr "关于"
 
-#: docking/ui/menu.py:683
+#: docking/ui/menu.py:572
 msgid "Quit"
 msgstr "退出"
 
-#: docking/ui/menu.py:720
+#: docking/ui/menu.py:609
 msgid "Window"
 msgstr "窗口"
 
@@ -866,6 +834,10 @@ msgstr "显示器 {display}: {width}x{height}"
 #: docking/ui/settings.py:122
 msgid "Appearance"
 msgstr "Appearance"
+
+#: docking/ui/settings.py:123
+msgid "Applets"
+msgstr "小程序"
 
 #: docking/ui/settings.py:168
 msgid "Look"
@@ -891,9 +863,17 @@ msgstr "Zoom Percent"
 msgid "Show Tooltips"
 msgstr "Show Tooltips"
 
+#: docking/ui/settings.py:175
+msgid "Window Previews"
+msgstr "窗口预览"
+
 #: docking/ui/settings.py:180
 msgid "Behavior"
 msgstr "Behavior"
+
+#: docking/ui/settings.py:182
+msgid "Auto-hide"
+msgstr "自动隐藏"
 
 #: docking/ui/settings.py:183
 msgid "Hide Delay"
@@ -907,6 +887,18 @@ msgstr "Unhide Delay"
 msgid "Placement"
 msgstr "Placement"
 
+#: docking/ui/settings.py:191
+msgid "Position"
+msgstr "位置"
+
+#: docking/ui/settings.py:192
+msgid "Follow Cursor"
+msgstr "跟随光标"
+
+#: docking/ui/settings.py:193
+msgid "Current Workspace Only"
+msgstr "仅当前工作区"
+
 #: docking/ui/settings.py:198
 msgid "Layout"
 msgstr "Layout"
@@ -914,6 +906,20 @@ msgstr "Layout"
 #: docking/ui/settings.py:200
 msgid "Lock Positions"
 msgstr "Lock Positions"
+
+#: docking/ui/settings.py:201
+msgid "Anchor Applets to End"
+msgstr "将小程序锚定到末尾"
+
+#: docking/ui/settings.py:202
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#~ msgid "Display"
+#~ msgstr "显示"
+
+#~ msgid "Themes"
+#~ msgstr "主题"
 
 #~ msgid "Lock Icons"
 #~ msgstr "锁定图标"

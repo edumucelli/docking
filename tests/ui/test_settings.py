@@ -335,7 +335,9 @@ def _config():
 class TestSettingsWindowController:
     def test_show_reuses_single_window_and_builds_two_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
-        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
         monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
         controller = settings_mod.SettingsWindowController(
             parent=object(),
@@ -376,7 +378,9 @@ class TestSettingsWindowController:
 
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
-        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
         monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
         theme_obj = object()
         monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: theme_obj)
@@ -401,7 +405,9 @@ class TestSettingsWindowController:
 
     def test_autohide_toggle_updates_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
-        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
         monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
         runtime = MagicMock()
         config = _config()
@@ -422,7 +428,9 @@ class TestSettingsWindowController:
 
     def test_applet_toggle_adds_and_removes_items(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
-        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
         monkeypatch.setattr(
             settings_mod,
             "get_registry",
@@ -457,8 +465,8 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod,
-            "load_theme_icon",
-            lambda name, size: FakePixbuf(f"{name}:{size}"),
+            "load_catalog_icon",
+            lambda applet_id, size: FakePixbuf(f"{applet_id.value}:{size}"),
         )
         monkeypatch.setattr(
             settings_mod,
@@ -504,15 +512,15 @@ class TestSettingsWindowController:
         assert isinstance(first_check.child.children[0], FakeImage)
         image = first_check.child.children[0]
         assert image.source[0] == "pixbuf"
-        assert image.source[1].name == f"clock-icon:{settings_mod.APPLET_LIST_ICON_PX}"
+        assert image.source[1].name == f"clock:{settings_mod.APPLET_LIST_ICON_PX}"
         assert image.pixel_size == settings_mod.APPLET_LIST_ICON_PX
         assert isinstance(first_check.child.children[1], FakeLabel)
         assert first_check.child.children[1].get_label() == "Clock"
 
-    def test_applet_tab_prefers_live_applet_icon_over_class_fallback(self, monkeypatch):
+    def test_applet_tab_uses_catalog_icon_assets(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
-        fallback_loader = MagicMock(return_value=FakePixbuf("fallback"))
-        monkeypatch.setattr(settings_mod, "load_theme_icon", fallback_loader)
+        catalog_loader = MagicMock(return_value=FakePixbuf("clock"))
+        monkeypatch.setattr(settings_mod, "load_catalog_icon", catalog_loader)
         monkeypatch.setattr(
             settings_mod,
             "get_registry",
@@ -522,11 +530,10 @@ class TestSettingsWindowController:
                 ),
             },
         )
-        live_pixbuf = FakePixbuf("live-clock", width=32, height=32)
         model = SimpleNamespace(
             pinned_items=[],
             get_applet=lambda _desktop_id: SimpleNamespace(
-                item=SimpleNamespace(icon=live_pixbuf)
+                item=SimpleNamespace(icon=FakePixbuf("live-clock", width=32, height=32))
             ),
         )
         controller = settings_mod.SettingsWindowController(
@@ -542,20 +549,20 @@ class TestSettingsWindowController:
         first_check = applets_scroller.child.children[1].children[0]
         assert first_check.child.children[0].source == (
             "pixbuf",
-            live_pixbuf.scale_simple(
-                settings_mod.APPLET_LIST_ICON_PX,
-                settings_mod.APPLET_LIST_ICON_PX,
-                None,
-            ),
+            FakePixbuf("clock"),
         )
-        fallback_loader.assert_not_called()
+        assert catalog_loader.call_count >= 1
+        assert catalog_loader.call_args_list[0].kwargs == {
+            "applet_id": settings_mod.AppletId.CLOCK,
+            "size": settings_mod.APPLET_LIST_ICON_PX,
+        }
 
-    def test_applet_grid_places_two_items_per_row(self, monkeypatch):
+    def test_applet_grid_places_three_items_per_row(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod,
-            "load_theme_icon",
-            lambda name, size: FakePixbuf(f"{name}:{size}"),
+            "load_catalog_icon",
+            lambda applet_id, size: FakePixbuf(f"{applet_id.value}:{size}"),
         )
         monkeypatch.setattr(
             settings_mod,

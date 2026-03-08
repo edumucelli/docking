@@ -146,7 +146,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 import docking.platform.launcher as launcher_mod
 from docking.applets import get_registry
-from docking.applets.base import is_applet, load_theme_icon
+from docking.applets.base import is_applet, load_catalog_icon
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
     AppletCategory,
@@ -155,8 +155,7 @@ from docking.applets.identity import (
     category_for,
 )
 from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.core.position import Position
-from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
+from docking.core.theme import Theme
 from docking.i18n import _
 from docking.ui.about import AboutDialogController
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
@@ -489,175 +488,65 @@ class MenuHandler:
     def _build_dock_menu(self, menu: Gtk.Menu, insert_index: int = -1) -> None:
         """Build context menu for the dock background (no item under cursor).
 
-        Sections: autohide toggle, preview toggle, theme/icon size/position
-        radio submenus, applet toggle checkboxes, quit.
+        Sections: add actions plus preferences/about/quit.
         """
-        # Auto-hide toggle
-        autohide = Gtk.CheckMenuItem(label=_("Auto-hide"))
-        autohide.set_active(self._config.autohide)
-        autohide.connect("toggled", self._on_autohide_toggled)
-        menu.append(autohide)
-
-        # Window previews toggle
-        previews = Gtk.CheckMenuItem(label=_("Window Previews"))
-        previews.set_active(self._config.previews_enabled)
-        previews.connect("toggled", self._on_previews_toggled)
-        menu.append(previews)
-
-        # Monitor selection submenu (only when multiple monitors are available)
-        monitor_items = self._monitor_items()
-        if monitor_items:
-            display_item = Gtk.MenuItem(label=_("Display"))
-            display_submenu = Gtk.Menu()
-
-            follow = Gtk.CheckMenuItem(label=_("Follow Cursor"))
-            follow.set_active(self._config.active_display)
-            follow.connect("toggled", self._on_active_display_toggled)
-            display_submenu.append(follow)
-            display_submenu.append(Gtk.SeparatorMenuItem())
-
-            first: Gtk.RadioMenuItem | None = None
-            current = self._current_monitor_choice()
-            for label, value in monitor_items:
-                radio = Gtk.RadioMenuItem(label=label)
-                if first:
-                    radio.join_group(first)
-                else:
-                    first = radio
-                if value == current:
-                    radio.set_active(True)
-                radio.set_sensitive(not self._config.active_display)
-                radio.connect("activate", self._on_monitor_changed, value)
-                display_submenu.append(radio)
-
-            display_item.set_submenu(display_submenu)
-            menu.append(display_item)
-
-        anchor = Gtk.CheckMenuItem(label=_("Anchor Applets to End"))
-        anchor.set_active(self._config.anchor_applets)
-        anchor.connect("toggled", self._on_anchor_toggled)
-        menu.append(anchor)
-
-        anchor_files = Gtk.CheckMenuItem(label=_("Anchor Files to End"))
-        anchor_files.set_active(self._config.anchor_files)
-        anchor_files.connect("toggled", self._on_anchor_files_toggled)
-        menu.append(anchor_files)
-
-        # Icons submenu (block/size/tooltip controls grouped together)
-        icons_item = Gtk.MenuItem(label="Icons")
-        icons_submenu = Gtk.Menu()
-
-        block = Gtk.CheckMenuItem(label="Lock Positions")
-        block.set_active(self._config.lock_icons)
-        block.connect("toggled", self._on_lock_toggled)
-        icons_submenu.append(block)
-
-        workspace_only = Gtk.CheckMenuItem(label=_("Current Workspace Only"))
-        workspace_only.set_active(self._config.current_workspace_only)
-        workspace_only.connect("toggled", self._on_workspace_only_toggled)
-        icons_submenu.append(workspace_only)
-
-        size_items = [(f"{s}px", s) for s in ICON_SIZE_OPTIONS]
-        icons_submenu.append(
-            _build_radio_submenu(
-                label="Change Size",
-                items=size_items,
-                current=self._config.icon_size,
-                on_changed=self._on_icon_size_changed,
-            )
-        )
-
-        tooltips = Gtk.CheckMenuItem(label="Show Tooltips")
-        tooltips.set_active(self._config.tooltips_enabled)
-        tooltips.connect("toggled", self._on_tooltips_toggled)
-        icons_submenu.append(tooltips)
-
-        icons_item.set_submenu(icons_submenu)
-        menu.append(icons_item)
-
-        menu.append(Gtk.SeparatorMenuItem())
-
-        # Themes submenu
-        theme_names = [p.stem for p in sorted(_BUILTIN_THEMES_DIR.glob("*.json"))]
-        theme_items = [(n.replace("-", " ").capitalize(), n) for n in theme_names]
-        menu.append(
-            _build_radio_submenu(
-                label=_("Themes"),
-                items=theme_items,
-                current=self._config.theme,
-                on_changed=self._on_theme_changed,
-            )
-        )
-
-        menu.append(Gtk.SeparatorMenuItem())
-
-        # Position submenu
-        pos_items = [(p.value.capitalize(), p.value) for p in Position]
-        menu.append(
-            _build_radio_submenu(
-                label=_("Position"),
-                items=pos_items,
-                current=self._config.position,
-                on_changed=self._on_position_changed,
-            )
-        )
-
-        # Applets submenu -- toggle each applet on/off
+        # Add Applet submenu
         try:
             registry = get_registry()
         except Exception:
             registry = {}
-        if registry:
-            dock_item = Gtk.MenuItem(label=_("Applets"))
-            dock_menu = Gtk.Menu()
-            active_ids = {
-                item.desktop_id
-                for item in self._model.pinned_items
-                if is_applet(desktop_id=item.desktop_id)
-            }
-            grouped: dict[AppletCategory, list[tuple[AppletId, Any]]] = {}
-            for category in APPLET_CATEGORY_ORDER:
-                grouped[category] = []
-            # Type narrows through category_for(AppletId).
-            grouped_typed = grouped  # alias used for clarity below
+        active_ids = {
+            item.desktop_id
+            for item in self._model.pinned_items
+            if is_applet(desktop_id=item.desktop_id)
+        }
+        add_applet = Gtk.MenuItem(label=_("Add Applet"))
+        add_applet_menu = Gtk.Menu()
+        grouped: dict[AppletCategory, list[tuple[AppletId, Any]]] = {
+            category: [] for category in APPLET_CATEGORY_ORDER
+        }
+        for did, cls in sorted(registry.items(), key=lambda entry: str(entry[0])):
+            try:
+                did_enum = did if isinstance(did, AppletId) else AppletId(str(did))
+            except ValueError:
+                continue
+            if did_enum == AppletId.SEPARATOR:
+                continue
+            desktop_id = applet_desktop_id(applet_id=did_enum)
+            if desktop_id in active_ids:
+                continue
+            grouped[category_for(applet_id=did_enum)].append((did_enum, cls))
 
-            for did, cls in sorted(registry.items(), key=lambda entry: str(entry[0])):
-                try:
-                    did_enum = did if isinstance(did, AppletId) else AppletId(str(did))
-                except ValueError:
-                    continue
-                if did_enum == AppletId.SEPARATOR:
-                    continue
-                grouped_typed[category_for(applet_id=did_enum)].append((did_enum, cls))
-
-            non_empty_categories = [
-                key for key in APPLET_CATEGORY_ORDER if grouped_typed.get(key)
-            ]
+        non_empty_categories = [
+            key for key in APPLET_CATEGORY_ORDER if grouped.get(key)
+        ]
+        if non_empty_categories:
             for i, category in enumerate(non_empty_categories):
-                dock_menu.append(_make_menu_header(label=_(category.value)))
+                add_applet_menu.append(_make_menu_header(label=_(category.value)))
                 for did, cls in sorted(
-                    grouped_typed[category], key=lambda entry: entry[1].name.lower()
+                    grouped[category], key=lambda entry: entry[1].name.lower()
                 ):
-                    desktop_id = applet_desktop_id(applet_id=did)
-                    check = Gtk.CheckMenuItem(label=cls.name)
-                    check.set_active(desktop_id in active_ids)
-                    applet = self._model.get_applet(desktop_id)
-                    pixbuf: GdkPixbuf.Pixbuf | None = None
-                    if applet is not None and applet.item.icon is not None:
-                        pixbuf = applet.item.icon
-                    else:
-                        icon_name = cls.icon_name
-                        if icon_name:
-                            pixbuf = load_theme_icon(
-                                name=str(icon_name), size=APPLET_MENU_ICON_PX
-                            )
-                    _set_check_menu_item_icon(item=check, label=cls.name, pixbuf=pixbuf)
-                    check.connect("toggled", self._on_applet_toggled, str(did))
-                    dock_menu.append(check)
+                    item = Gtk.MenuItem(label=cls.name)
+                    pixbuf: GdkPixbuf.Pixbuf | None = load_catalog_icon(
+                        applet_id=did,
+                        size=APPLET_MENU_ICON_PX,
+                    )
+                    _set_menu_item_icon(
+                        item=item,
+                        label=cls.name,
+                        pixbuf=pixbuf,
+                        icon_px=APPLET_MENU_ICON_PX,
+                    )
+                    item.connect("activate", self._on_add_applet_activate, str(did))
+                    add_applet_menu.append(item)
                 if i < len(non_empty_categories) - 1:
-                    dock_menu.append(Gtk.SeparatorMenuItem())
-            dock_item.set_submenu(dock_menu)
-            menu.append(dock_item)
+                    add_applet_menu.append(Gtk.SeparatorMenuItem())
+        else:
+            empty = Gtk.MenuItem(label=_("No Applets Available"))
+            empty.set_sensitive(False)
+            add_applet_menu.append(empty)
+        add_applet.set_submenu(add_applet_menu)
+        menu.append(add_applet)
 
         # Add Separator (multi-instance, not a toggle)
         add_sep = Gtk.MenuItem(label=_("Add Separator"))
@@ -825,6 +714,9 @@ class MenuHandler:
 
     def _hide_window_hover_ui(self) -> None:
         self._runtime.hide_hover_ui()
+
+    def _on_add_applet_activate(self, _widget: Gtk.MenuItem, applet_id: str) -> None:
+        self._model.add_applet(applet_id)
 
     def _on_applet_toggled(self, widget: Gtk.CheckMenuItem, applet_id: str) -> None:
         if widget.get_active():

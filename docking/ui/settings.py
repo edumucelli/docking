@@ -29,10 +29,10 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib, Gtk  # noqa: E402
+from gi.repository import GLib, Gtk  # noqa: E402
 
 from docking.applets import get_registry
-from docking.applets.base import is_applet, load_theme_icon
+from docking.applets.base import is_applet, load_catalog_icon
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
     AppletCategory,
@@ -315,7 +315,11 @@ class SettingsWindowController:
             if is_applet(desktop_id=item.desktop_id)
         }
         for category in APPLET_CATEGORY_ORDER:
-            members = grouped.get(category, [])
+            members = [
+                entry
+                for entry in grouped.get(category, [])
+                if entry[0] != AppletId.SEPARATOR
+            ]
             if not members:
                 continue
             header = self._build_section_header(title=_(category.value))
@@ -342,10 +346,7 @@ class SettingsWindowController:
             check.set_active(desktop_id in active_ids)
             check.connect("toggled", self._on_applet_toggled, str(did))
             content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-            image = self._build_applet_image(
-                desktop_id=desktop_id,
-                icon_name=cls.icon_name,
-            )
+            image = self._build_applet_image(applet_id=did)
             if image is not None:
                 content.pack_start(image, False, False, 0)
             title = Gtk.Label(label=cls.name)
@@ -362,33 +363,13 @@ class SettingsWindowController:
             )
         return grid
 
-    def _build_applet_image(
-        self, *, desktop_id: str, icon_name: str
-    ) -> Gtk.Widget | None:
-        pixbuf = None
-        applet = self._model.get_applet(desktop_id)
-        if applet is not None:
-            pixbuf = applet.item.icon
-        if pixbuf is None and icon_name:
-            pixbuf = load_theme_icon(name=str(icon_name), size=APPLET_LIST_ICON_PX)
+    def _build_applet_image(self, *, applet_id: AppletId) -> Gtk.Widget | None:
+        pixbuf = load_catalog_icon(applet_id=applet_id, size=APPLET_LIST_ICON_PX)
         if pixbuf is None:
             return None
-        image = Gtk.Image.new_from_pixbuf(self._small_applet_icon_pixbuf(pixbuf))
+        image = Gtk.Image.new_from_pixbuf(pixbuf)
         image.set_pixel_size(APPLET_LIST_ICON_PX)
         return image
-
-    def _small_applet_icon_pixbuf(self, pixbuf: GdkPixbuf.Pixbuf) -> GdkPixbuf.Pixbuf:
-        if (
-            pixbuf.get_width() == APPLET_LIST_ICON_PX
-            and pixbuf.get_height() == APPLET_LIST_ICON_PX
-        ):
-            return pixbuf
-        scaled = pixbuf.scale_simple(
-            APPLET_LIST_ICON_PX,
-            APPLET_LIST_ICON_PX,
-            GdkPixbuf.InterpType.BILINEAR,
-        )
-        return scaled or pixbuf
 
     def _save(self) -> None:
         self._config.save()

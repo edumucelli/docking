@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -464,6 +464,7 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
     about = MagicMock()
     settings = MagicMock()
     runtime = MagicMock()
@@ -806,6 +807,7 @@ class TestDockMenu:
             "get_registry",
             lambda: {
                 "clock": SimpleNamespace(name="Clock", icon_name="clock"),
+                "calendar": SimpleNamespace(name="Calendar", icon_name="calendar"),
                 "separator": SimpleNamespace(name="Separator", icon_name="list-remove"),
             },
         )
@@ -814,24 +816,18 @@ class TestDockMenu:
         handler._build_dock_menu(menu=menu, insert_index=3)
         labels = _labels(menu)
         # Then
-        assert "Auto-hide" in labels
-        assert "Window Previews" in labels
-        assert "Display" not in labels
-        assert "Icons" in labels
+        assert "Add Applet" in labels
         assert "Add Separator" in labels
         assert "Preferences" in labels
         assert "About" in labels
         assert "Quit" in labels
-        assert "Applets" in labels
+        assert "Auto-hide" not in labels
+        assert "Window Previews" not in labels
+        assert "Icons" not in labels
+        assert "Themes" not in labels
+        assert "Position" not in labels
         assert labels.index("Preferences") == labels.index("About") - 1
         assert labels.index("About") == labels.index("Quit") - 1
-
-        icons_item = next(mi for mi in menu.children if mi.get_label() == "Icons")
-        icons_labels = _labels(icons_item.get_submenu())
-        assert "Lock Positions" in icons_labels
-        assert "Current Workspace Only" in icons_labels
-        assert "Change Size" in icons_labels
-        assert "Show Tooltips" in icons_labels
 
         next(mi for mi in menu.children if mi.get_label() == "Add Separator").activate()
         handler._model.add_separator.assert_called_once_with(index=3)
@@ -849,17 +845,20 @@ class TestDockMenu:
         next(mi for mi in menu.children if mi.get_label() == "Quit").activate()
         FakeGtk.main_quit.assert_called_once()
 
-        applets_item = next(mi for mi in menu.children if mi.get_label() == "Applets")
+        applets_item = next(
+            mi for mi in menu.children if mi.get_label() == "Add Applet"
+        )
         submenu_labels = _labels(applets_item.get_submenu())
         assert "Time & Productivity" in submenu_labels
-        check = next(
+        item = next(
             mi
             for mi in applets_item.get_submenu().get_children()
-            if mi.get_label() == "Clock"
+            if mi.get_label() == "Calendar"
         )
-        check.set_active(False)
-        check.activate()
-        handler._model.remove_applet.assert_called_once_with("applet://clock")
+        item.activate()
+        handler._model.add_applet.assert_called_once_with(
+            str(menu_mod.AppletId.CALENDAR)
+        )
 
     def test_show_builds_background_menu_and_pops_at_pointer(
         self, handler, monkeypatch
@@ -902,49 +901,26 @@ class TestDockMenu:
         captured_menu.emit("deactivate")
         handler._runtime.menu_popup_closed.assert_called_once()
 
-    def test_build_dock_menu_shows_display_submenu_for_multiple_monitors(self, handler):
-        # Given
+    def test_build_dock_menu_shows_empty_add_applet_submenu_when_all_active(
+        self, handler
+    ):
         menu = FakeMenu()
-        handler._runtime.get_monitor_menu_choices.return_value = [
-            ("Display 1: 1920x1080 (Primary)", 0),
-            ("Display 2: 2560x1440", 1),
-        ]
-        handler._runtime.current_monitor_choice.return_value = 0
+        handler._model.pinned_items = [DockItem(desktop_id="applet://clock")]
+        handler._model.get_applet.return_value = None
+        with patch.object(
+            menu_mod,
+            "get_registry",
+            return_value={
+                menu_mod.AppletId.CLOCK: SimpleNamespace(
+                    name="Clock", icon_name="clock"
+                )
+            },
+        ):
+            handler._build_dock_menu(menu=menu, insert_index=0)
 
-        # When
-        handler._build_dock_menu(menu=menu, insert_index=0)
-        labels = _labels(menu)
-
-        # Then
-        assert "Display" in labels
-        display_item = next(mi for mi in menu.children if mi.get_label() == "Display")
-        submenu_children = display_item.get_submenu().get_children()
-        assert submenu_children[0].get_label() == "Follow Cursor"
-        assert submenu_children[0].get_active() is False
-        assert submenu_children[1].get_label() == "---"
-        assert submenu_children[2].get_label() == "Display 1: 1920x1080 (Primary)"
-        assert submenu_children[3].get_label() == "Display 2: 2560x1440"
-
-    def test_display_submenu_disables_radio_when_follow_cursor_enabled(self, handler):
-        # Given
-        menu = FakeMenu()
-        handler._config.active_display = True
-        handler._runtime.get_monitor_menu_choices.return_value = [
-            ("Display 1: 1920x1080 (Primary)", 0),
-            ("Display 2: 2560x1440", 1),
-        ]
-        handler._runtime.current_monitor_choice.return_value = 0
-
-        # When
-        handler._build_dock_menu(menu=menu, insert_index=0)
-
-        # Then
-        display_item = next(mi for mi in menu.children if mi.get_label() == "Display")
-        submenu_children = display_item.get_submenu().get_children()
-        assert submenu_children[0].get_label() == "Follow Cursor"
-        assert submenu_children[0].get_active() is True
-        assert submenu_children[2]._sensitive is False
-        assert submenu_children[3]._sensitive is False
+        add_applet = next(mi for mi in menu.children if mi.get_label() == "Add Applet")
+        submenu_labels = _labels(add_applet.get_submenu())
+        assert submenu_labels == ["No Applets Available"]
 
 
 class TestMenuCallbacks:
