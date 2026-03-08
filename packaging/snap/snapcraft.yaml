@@ -54,13 +54,13 @@ parts:
     override-build: |
       bash "$CRAFT_PART_SRC/tools/i18n.sh" --compile
       craftctl default
-      install -Dm644 "$CRAFT_PART_SRC/packaging/shared/org.docking.Docking.desktop" \
+      install -Dm644 "$CRAFT_PROJECT_DIR/../shared/org.docking.Docking.desktop" \
         "${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
 
-      if [ -f "$CRAFT_PART_SRC/images/docking.png" ]; then
-        install -Dm644 "$CRAFT_PART_SRC/images/docking.png" \
+      if [ -f "$CRAFT_PROJECT_DIR/../../images/docking.png" ]; then
+        install -Dm644 "$CRAFT_PROJECT_DIR/../../images/docking.png" \
           "${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/512x512/apps/org.docking.Docking.png"
-        install -Dm644 "$CRAFT_PART_SRC/images/docking.png" \
+        install -Dm644 "$CRAFT_PROJECT_DIR/../../images/docking.png" \
           "${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/512x512/apps/docking.png"
       else
         echo "Required icon not found: images/docking.png"

@@ -50,7 +50,7 @@ def test_packaging_uses_shared_canonical_desktop_entry():
     expected = "packaging/shared/org.docking.Docking.desktop"
     assert expected in install
     assert expected in flatpak
-    assert expected in snap
+    assert "$CRAFT_PROJECT_DIR/../shared/org.docking.Docking.desktop" in snap
     assert expected in rpm
     assert expected in arch
     assert expected in appimage
