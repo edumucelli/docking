@@ -159,6 +159,7 @@ class FakeComboBoxText:
         self.items: list[tuple[str, str]] = []
         self._active_id: str | None = None
         self.callbacks: dict[str, object] = {}
+        self.sensitive = True
 
     def append(self, item_id: str, text: str) -> None:
         self.items.append((item_id, text))
@@ -172,11 +173,20 @@ class FakeComboBoxText:
     def get_active_id(self) -> str | None:
         return self._active_id
 
+    def emit_changed(self) -> None:
+        callback = self.callbacks.get("changed")
+        if callback is not None:
+            callback(self)
+
+    def set_sensitive(self, value: bool) -> None:
+        self.sensitive = value
+
 
 class FakeSpinButton:
     def __init__(self) -> None:
         self._value = 0.0
         self.callbacks: dict[str, object] = {}
+        self.sensitive = True
 
     @classmethod
     def new_with_range(cls, *_args):
@@ -191,11 +201,20 @@ class FakeSpinButton:
     def get_value(self) -> float:
         return self._value
 
+    def emit_value_changed(self) -> None:
+        callback = self.callbacks.get("value-changed")
+        if callback is not None:
+            callback(self)
+
+    def set_sensitive(self, value: bool) -> None:
+        self.sensitive = value
+
 
 class FakeSwitch:
     def __init__(self) -> None:
         self._active = False
         self.callbacks: dict[str, object] = {}
+        self.sensitive = True
 
     def connect(self, signal: str, callback, *args) -> None:
         self.callbacks[signal] = (callback, args)
@@ -205,6 +224,13 @@ class FakeSwitch:
 
     def get_active(self) -> bool:
         return self._active
+
+    def emit_notify_active(self) -> None:
+        callback, args = self.callbacks["notify::active"]
+        callback(self, *args)
+
+    def set_sensitive(self, value: bool) -> None:
+        self.sensitive = value
 
 
 class FakeCheckButton(FakeSwitch):
@@ -393,9 +419,10 @@ class TestSettingsWindowController:
             config=config,
         )
 
-        widget = FakeComboBoxText()
+        controller.show()
+        widget = controller._theme_combo
         widget.set_active_id("matte")
-        controller._on_theme_changed(widget)
+        widget.emit_changed()
 
         assert config.theme == "matte"
         config.save.assert_called_once()
@@ -418,13 +445,61 @@ class TestSettingsWindowController:
             config=config,
         )
 
-        widget = FakeSwitch()
+        controller.show()
+        widget = controller._autohide_switch
         widget.set_active(False)
-        controller._on_autohide_toggled(widget, None)
+        widget.emit_notify_active()
 
         assert config.autohide is False
         runtime.reset_autohide.assert_called_once()
         runtime.update_struts.assert_called_once()
+
+    def test_binding_sync_updates_dependent_sensitivity(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        config = _config()
+        config.autohide = False
+        config.zoom_enabled = False
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+
+        assert controller._hide_delay_spin.sensitive is False
+        assert controller._unhide_delay_spin.sensitive is False
+        assert controller._zoom_percent_spin.sensitive is False
+
+    def test_binding_change_updates_config_once_and_runtime(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        save_before = config.save.call_count
+        controller._zoom_enabled_switch.set_active(False)
+        controller._zoom_enabled_switch.emit_notify_active()
+
+        assert config.zoom_enabled is False
+        assert config.save.call_count == save_before + 1
+        runtime.queue_draw.assert_called_once()
+        assert controller._zoom_percent_spin.sensitive is False
 
     def test_applet_toggle_adds_and_removes_items(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

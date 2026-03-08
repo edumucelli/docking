@@ -23,6 +23,7 @@ settings a persistent, easier-to-scan home.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -52,6 +53,17 @@ if TYPE_CHECKING:
 
 APPLET_LIST_ICON_PX = 32
 APPLET_GRID_COLUMNS = 3
+
+
+@dataclass
+class _ScalarBinding:
+    """Bind one scalar config attribute to one widget."""
+
+    config_attr: str
+    widget: Gtk.Widget
+    read_widget: Any
+    write_widget: Any
+    on_change: Any = None
 
 
 class SettingsWindowController:
@@ -89,6 +101,7 @@ class SettingsWindowController:
         self._unhide_delay_spin: Any = None
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
+        self._bindings: list[_ScalarBinding] = []
 
     def show(self) -> None:
         """Show the preferences window, creating it on first use."""
@@ -130,38 +143,32 @@ class SettingsWindowController:
     def _build_appearance_tab(self) -> Gtk.Widget:
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         outer.set_border_width(16)
+        self._bindings.clear()
 
-        self._autohide_switch = self._new_switch(self._on_autohide_toggled)
-        self._previews_switch = self._new_switch(self._on_previews_toggled)
-        self._tooltips_switch = self._new_switch(self._on_tooltips_toggled)
-        self._lock_icons_switch = self._new_switch(self._on_lock_icons_toggled)
-        self._workspace_only_switch = self._new_switch(self._on_workspace_only_toggled)
-        self._active_display_switch = self._new_switch(self._on_active_display_toggled)
-        self._anchor_applets_switch = self._new_switch(self._on_anchor_applets_toggled)
-        self._anchor_files_switch = self._new_switch(self._on_anchor_files_toggled)
-        self._zoom_enabled_switch = self._new_switch(self._on_zoom_enabled_toggled)
+        self._autohide_switch = self._new_switch()
+        self._previews_switch = self._new_switch()
+        self._tooltips_switch = self._new_switch()
+        self._lock_icons_switch = self._new_switch()
+        self._workspace_only_switch = self._new_switch()
+        self._active_display_switch = self._new_switch()
+        self._anchor_applets_switch = self._new_switch()
+        self._anchor_files_switch = self._new_switch()
+        self._zoom_enabled_switch = self._new_switch()
 
         self._theme_combo = Gtk.ComboBoxText()
         for theme_name in sorted(p.stem for p in _BUILTIN_THEMES_DIR.glob("*.json")):
             self._theme_combo.append(theme_name, theme_name.replace("-", " ").title())
-        self._theme_combo.connect("changed", self._on_theme_changed)
 
         self._position_combo = Gtk.ComboBoxText()
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
-        self._position_combo.connect("changed", self._on_position_changed)
 
         self._icon_size_spin = Gtk.SpinButton.new_with_range(32, 128, 1)
-        self._icon_size_spin.connect("value-changed", self._on_icon_size_changed)
-
         self._zoom_percent_spin = Gtk.SpinButton.new_with_range(100, 400, 5)
-        self._zoom_percent_spin.connect("value-changed", self._on_zoom_percent_changed)
-
         self._hide_delay_spin = Gtk.SpinButton.new_with_range(0, 5000, 50)
-        self._hide_delay_spin.connect("value-changed", self._on_hide_delay_changed)
-
         self._unhide_delay_spin = Gtk.SpinButton.new_with_range(0, 5000, 50)
-        self._unhide_delay_spin.connect("value-changed", self._on_unhide_delay_changed)
+
+        self._register_bindings()
 
         self._append_section(
             outer=outer,
@@ -247,33 +254,166 @@ class SettingsWindowController:
         header.set_margin_bottom(2)
         return header
 
-    def _new_switch(self, callback: Any) -> Gtk.Switch:
+    def _new_switch(self) -> Gtk.Switch:
         switch = Gtk.Switch()
-        switch.connect("notify::active", callback)
         return switch
+
+    def _register_bindings(self) -> None:
+        self._bindings = [
+            self._register_switch_binding(
+                config_attr="autohide",
+                widget=self._autohide_switch,
+                on_change=self._after_autohide_changed,
+            ),
+            self._register_switch_binding(
+                config_attr="previews_enabled",
+                widget=self._previews_switch,
+            ),
+            self._register_switch_binding(
+                config_attr="tooltips_enabled",
+                widget=self._tooltips_switch,
+                on_change=self._after_tooltips_changed,
+            ),
+            self._register_switch_binding(
+                config_attr="lock_icons",
+                widget=self._lock_icons_switch,
+                on_change=self._runtime.set_icons_locked,
+            ),
+            self._register_switch_binding(
+                config_attr="current_workspace_only",
+                widget=self._workspace_only_switch,
+                on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            self._register_switch_binding(
+                config_attr="active_display",
+                widget=self._active_display_switch,
+                on_change=self._after_active_display_changed,
+            ),
+            self._register_switch_binding(
+                config_attr="anchor_applets",
+                widget=self._anchor_applets_switch,
+                on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            self._register_switch_binding(
+                config_attr="anchor_files",
+                widget=self._anchor_files_switch,
+                on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            self._register_switch_binding(
+                config_attr="zoom_enabled",
+                widget=self._zoom_enabled_switch,
+                on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            self._register_choice_binding(
+                config_attr="theme",
+                widget=self._theme_combo,
+                on_change=self._after_theme_changed,
+            ),
+            self._register_choice_binding(
+                config_attr="position",
+                widget=self._position_combo,
+                on_change=lambda _value: self._runtime.reposition(),
+            ),
+            self._register_int_binding(
+                config_attr="icon_size",
+                widget=self._icon_size_spin,
+                on_change=self._after_icon_size_changed,
+            ),
+            self._register_numeric_binding(
+                config_attr="zoom_percent",
+                widget=self._zoom_percent_spin,
+                read_widget=lambda: float(self._zoom_percent_spin.get_value()) / 100.0,
+                write_widget=lambda value: self._zoom_percent_spin.set_value(
+                    float(value) * 100.0
+                ),
+                signal="value-changed",
+                on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            self._register_int_binding(
+                config_attr="hide_delay_ms",
+                widget=self._hide_delay_spin,
+            ),
+            self._register_int_binding(
+                config_attr="unhide_delay_ms",
+                widget=self._unhide_delay_spin,
+            ),
+        ]
+
+    def _register_switch_binding(
+        self,
+        *,
+        config_attr: str,
+        widget: Gtk.Switch,
+        on_change: Any = None,
+    ) -> _ScalarBinding:
+        return self._register_numeric_binding(
+            config_attr=config_attr,
+            widget=widget,
+            read_widget=lambda: bool(widget.get_active()),
+            write_widget=lambda value: widget.set_active(bool(value)),
+            signal="notify::active",
+            on_change=on_change,
+        )
+
+    def _register_choice_binding(
+        self,
+        *,
+        config_attr: str,
+        widget: Gtk.ComboBoxText,
+        on_change: Any = None,
+    ) -> _ScalarBinding:
+        return self._register_numeric_binding(
+            config_attr=config_attr,
+            widget=widget,
+            read_widget=widget.get_active_id,
+            write_widget=lambda value: widget.set_active_id(str(value)),
+            signal="changed",
+            on_change=on_change,
+        )
+
+    def _register_int_binding(
+        self,
+        *,
+        config_attr: str,
+        widget: Gtk.SpinButton,
+        on_change: Any = None,
+    ) -> _ScalarBinding:
+        return self._register_numeric_binding(
+            config_attr=config_attr,
+            widget=widget,
+            read_widget=lambda: int(widget.get_value()),
+            write_widget=lambda value: widget.set_value(float(value)),
+            signal="value-changed",
+            on_change=on_change,
+        )
+
+    def _register_numeric_binding(
+        self,
+        *,
+        config_attr: str,
+        widget: Gtk.Widget,
+        read_widget: Any,
+        write_widget: Any,
+        signal: str,
+        on_change: Any = None,
+    ) -> _ScalarBinding:
+        binding = _ScalarBinding(
+            config_attr=config_attr,
+            widget=widget,
+            read_widget=read_widget,
+            write_widget=write_widget,
+            on_change=on_change,
+        )
+        widget.connect(signal, lambda *_args, b=binding: self._on_binding_changed(b))
+        return binding
 
     def _sync_widgets(self) -> None:
         if self._window is None:
             return
         self._syncing_widgets = True
         try:
-            self._autohide_switch.set_active(bool(self._config.autohide))
-            self._previews_switch.set_active(bool(self._config.previews_enabled))
-            self._tooltips_switch.set_active(bool(self._config.tooltips_enabled))
-            self._lock_icons_switch.set_active(bool(self._config.lock_icons))
-            self._workspace_only_switch.set_active(
-                bool(self._config.current_workspace_only)
-            )
-            self._active_display_switch.set_active(bool(self._config.active_display))
-            self._anchor_applets_switch.set_active(bool(self._config.anchor_applets))
-            self._anchor_files_switch.set_active(bool(self._config.anchor_files))
-            self._zoom_enabled_switch.set_active(bool(self._config.zoom_enabled))
-            self._theme_combo.set_active_id(str(self._config.theme))
-            self._position_combo.set_active_id(str(self._config.position))
-            self._icon_size_spin.set_value(float(self._config.icon_size))
-            self._zoom_percent_spin.set_value(float(self._config.zoom_percent * 100.0))
-            self._hide_delay_spin.set_value(float(self._config.hide_delay_ms))
-            self._unhide_delay_spin.set_value(float(self._config.unhide_delay_ms))
+            for binding in self._bindings:
+                binding.write_widget(getattr(self._config, binding.config_attr))
             active_ids = {
                 item.desktop_id
                 for item in self._model.pinned_items
@@ -283,6 +423,7 @@ class SettingsWindowController:
                 check.set_active(desktop_id in active_ids)
         finally:
             self._syncing_widgets = False
+        self._update_dependent_sensitivity()
 
     def _rebuild_applet_tab(self) -> None:
         box = self._applets_box
@@ -378,160 +519,52 @@ class SettingsWindowController:
         if self._window is window:
             self._window = None
 
-    def _on_theme_changed(self, widget: Gtk.ComboBoxText) -> None:
+    def _on_binding_changed(self, binding: _ScalarBinding) -> None:
         if self._syncing_widgets:
             return
-        name = widget.get_active_id()
-        if not name or name == self._config.theme:
+        value = binding.read_widget()
+        if value is None:
             return
-        self._config.theme = str(name)
+        current_value = getattr(self._config, binding.config_attr)
+        if value == current_value:
+            return
+        setattr(self._config, binding.config_attr, value)
         self._save()
+        if binding.on_change is not None:
+            binding.on_change(value)
+        self._update_dependent_sensitivity()
+
+    def _after_theme_changed(self, name: str) -> None:
         theme = Theme.load(str(name), self._config.icon_size)
         self._runtime.set_theme(theme)
         self._runtime.reposition()
         self._runtime.queue_draw()
 
-    def _on_position_changed(self, widget: Gtk.ComboBoxText) -> None:
-        if self._syncing_widgets:
-            return
-        position = widget.get_active_id()
-        if not position or position == self._config.position:
-            return
-        self._config.position = str(position)
-        self._save()
-        self._runtime.reposition()
-
-    def _on_icon_size_changed(self, widget: Gtk.SpinButton) -> None:
-        if self._syncing_widgets:
-            return
-        size = int(widget.get_value())
-        if size == int(self._config.icon_size):
-            return
-        self._config.icon_size = size
-        self._save()
+    def _after_icon_size_changed(self, _value: int) -> None:
         self._runtime.reposition()
         self._runtime.queue_draw()
 
-    def _on_zoom_percent_changed(self, widget: Gtk.SpinButton) -> None:
-        if self._syncing_widgets:
-            return
-        value = float(widget.get_value()) / 100.0
-        if value == float(self._config.zoom_percent):
-            return
-        self._config.zoom_percent = value
-        self._save()
-        self._runtime.queue_draw()
-
-    def _on_hide_delay_changed(self, widget: Gtk.SpinButton) -> None:
-        if self._syncing_widgets:
-            return
-        value = int(widget.get_value())
-        if value == int(self._config.hide_delay_ms):
-            return
-        self._config.hide_delay_ms = value
-        self._save()
-
-    def _on_unhide_delay_changed(self, widget: Gtk.SpinButton) -> None:
-        if self._syncing_widgets:
-            return
-        value = int(widget.get_value())
-        if value == int(self._config.unhide_delay_ms):
-            return
-        self._config.unhide_delay_ms = value
-        self._save()
-
-    def _on_zoom_enabled_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.zoom_enabled):
-            return
-        self._config.zoom_enabled = active
-        self._save()
-        self._runtime.queue_draw()
-
-    def _on_autohide_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.autohide):
-            return
-        self._config.autohide = active
-        self._save()
+    def _after_autohide_changed(self, active: bool) -> None:
         if not active:
             self._runtime.reset_autohide()
         self._runtime.update_struts()
 
-    def _on_previews_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.previews_enabled):
-            return
-        self._config.previews_enabled = active
-        self._save()
-
-    def _on_tooltips_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.tooltips_enabled):
-            return
-        self._config.tooltips_enabled = active
-        self._save()
+    def _after_tooltips_changed(self, active: bool) -> None:
         if not active:
             self._runtime.hide_tooltip()
 
-    def _on_lock_icons_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.lock_icons):
-            return
-        self._config.lock_icons = active
-        self._save()
-        self._runtime.set_icons_locked(active)
-
-    def _on_workspace_only_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.current_workspace_only):
-            return
-        self._config.current_workspace_only = active
-        self._save()
-        self._runtime.queue_draw()
-
-    def _on_active_display_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.active_display):
-            return
-        self._config.active_display = active
-        self._save()
+    def _after_active_display_changed(self, active: bool) -> None:
         self._runtime.set_active_display(active)
         self._runtime.reposition()
 
-    def _on_anchor_applets_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.anchor_applets):
-            return
-        self._config.anchor_applets = active
-        self._save()
-        self._runtime.queue_draw()
-
-    def _on_anchor_files_toggled(self, widget: Gtk.Switch, _param: object) -> None:
-        if self._syncing_widgets:
-            return
-        active = bool(widget.get_active())
-        if active == bool(self._config.anchor_files):
-            return
-        self._config.anchor_files = active
-        self._save()
-        self._runtime.queue_draw()
+    def _update_dependent_sensitivity(self) -> None:
+        if self._zoom_percent_spin is not None:
+            self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
+        hide_controls_sensitive = bool(self._config.autohide)
+        if self._hide_delay_spin is not None:
+            self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
+        if self._unhide_delay_spin is not None:
+            self._unhide_delay_spin.set_sensitive(hide_controls_sensitive)
 
     def _on_applet_toggled(
         self,
