@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docking"
-version = "0.1.31"
+version = "0.1.32"
 description = "A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
@@ -30,6 +30,7 @@ docking = [
     "assets/clock/Default/*.svg",
     "assets/clock/Default24/*.svg",
     "assets/icons/*.png",
+    "assets/icons/applets/*.png",
     "assets/themes/*.json",
     "assets/weather/*.csv.gz",
     "assets/sounds/*.ogg",
