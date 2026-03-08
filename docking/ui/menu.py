@@ -161,6 +161,7 @@ from docking.i18n import _
 from docking.ui.about import AboutDialogController
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.preview import capture_window
+from docking.ui.settings import SettingsWindowController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -305,6 +306,7 @@ class MenuHandler:
     def __init__(
         self,
         about: AboutDialogController,
+        settings: SettingsWindowController,
         runtime: DockRuntime,
         model: DockModel,
         config: Config,
@@ -313,6 +315,7 @@ class MenuHandler:
         launcher: Launcher | None = None,
     ) -> None:
         self._about = about
+        self._settings = settings
         self._runtime = runtime
         self._model = model
         self._config = config
@@ -665,6 +668,11 @@ class MenuHandler:
         menu.append(add_sep)
 
         menu.append(Gtk.SeparatorMenuItem())
+
+        # Preferences
+        prefs_item = Gtk.MenuItem(label=_("Preferences"))
+        prefs_item.connect("activate", lambda _: self._settings.show())
+        menu.append(prefs_item)
 
         # About
         about_item = Gtk.MenuItem(label=_("About"))

@@ -1,0 +1,871 @@
+# Slovak translation for docking.
+# Copyright (C) YEAR Eduardo Mucelli Rezende Oliveira
+# This file is distributed under the same license as the docking package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: docking\n"
+"Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
+"POT-Creation-Date: 2026-03-06 20:03+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: sk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n>=2 && n<=4 ? 1 : 2);\n"
+
+#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:86
+msgid "Ambient"
+msgstr "Prostredie"
+
+#: docking/applets/ambient/state.py:23
+msgid "Birds"
+msgstr "Vtáky"
+
+#: docking/applets/ambient/state.py:24
+msgid "Boat"
+msgstr "Loď"
+
+#: docking/applets/ambient/state.py:25
+msgid "Coffee Shop"
+msgstr "Kaviareň"
+
+#: docking/applets/ambient/state.py:26
+msgid "Fireplace"
+msgstr "Krb"
+
+#: docking/applets/ambient/state.py:27
+msgid "Stream"
+msgstr "Potok"
+
+#: docking/applets/ambient/state.py:28
+msgid "Summer Night"
+msgstr "Letná noc"
+
+#: docking/applets/ambient/state.py:29
+msgid "Wind"
+msgstr "Vietor"
+
+#: docking/applets/ambient/state.py:34
+msgid "White Noise"
+msgstr "Biely šum"
+
+#: docking/applets/ambient/state.py:35
+msgid "Pink Noise"
+msgstr "Ružový šum"
+
+#: docking/applets/ambient/state.py:83
+#, python-brace-format
+msgid "Playing: {sound} ({pct}%)"
+msgstr "Prehrávanie: {sound} ({pct}%)"
+
+#: docking/applets/applications/applet.py:28
+msgid "Applications"
+msgstr "Aplikácie"
+
+#: docking/applets/battery/applet.py:26
+msgid "Battery"
+msgstr "Batéria"
+
+#: docking/applets/battery/state.py:59
+msgid "No battery"
+msgstr "Žiadna batéria"
+
+#: docking/applets/battery/state.py:60
+#, python-brace-format
+msgid "Battery: {pct}%"
+msgstr "Batéria: {pct}%"
+
+#: docking/applets/bluetooth/applet.py:57
+msgid "Bluetooth"
+msgstr "Bluetooth"
+
+#: docking/applets/bluetooth/applet.py:145
+msgid "Bluetooth unavailable"
+msgstr "Bluetooth nedostupný"
+
+#: docking/applets/bluetooth/applet.py:152
+msgid "No Bluetooth adapter"
+msgstr "Žiadny Bluetooth adaptér"
+
+#: docking/applets/bluetooth/applet.py:156
+msgid "General"
+msgstr "Všeobecné"
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:110
+msgid "On"
+msgstr "Zapnuté"
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:110
+msgid "Off"
+msgstr "Vypnuté"
+
+#: docking/applets/bluetooth/applet.py:161
+#, python-brace-format
+msgid "{alias} ({powered}) - Connected {connected}"
+msgstr "{alias} ({powered}) - Pripojených {connected}"
+
+#: docking/applets/bluetooth/applet.py:170
+msgid "Bluetooth On"
+msgstr "Bluetooth zapnutý"
+
+#: docking/applets/bluetooth/applet.py:175
+msgid "Continuous Discovery"
+msgstr "Priebežné vyhľadávanie"
+
+#: docking/applets/bluetooth/applet.py:186
+msgid "Refresh Now"
+msgstr "Obnoviť teraz"
+
+#: docking/applets/bluetooth/applet.py:193
+msgid "Adapter"
+msgstr "Adaptér"
+
+#: docking/applets/bluetooth/applet.py:219
+msgid "Connected Devices"
+msgstr "Pripojené zariadenia"
+
+#: docking/applets/bluetooth/applet.py:220
+msgid "Paired Devices"
+msgstr "Spárované zariadenia"
+
+#: docking/applets/bluetooth/applet.py:221
+msgid "Discovered Devices"
+msgstr "Objavené zariadenia"
+
+#: docking/applets/bluetooth/applet.py:246
+msgid "Disconnect"
+msgstr "Odpojiť"
+
+#: docking/applets/bluetooth/applet.py:255
+msgid "Connect"
+msgstr "Pripojiť"
+
+#: docking/applets/bluetooth/applet.py:265
+msgid "Pair"
+msgstr "Spárovať"
+
+#: docking/applets/bluetooth/applet.py:279
+msgid "Remove Pairing"
+msgstr "Zrušiť párovanie"
+
+#: docking/applets/bluetooth/applet.py:291
+msgid "Trusted"
+msgstr "Dôveryhodné"
+
+#: docking/applets/bluetooth/applet.py:306
+#, python-brace-format
+msgid "Battery: {percent}%"
+msgstr "Batéria: {percent}%"
+
+#: docking/applets/bluetooth/state.py:103
+#, python-brace-format
+msgid "Bluetooth: {error}"
+msgstr "Bluetooth: {error}"
+
+#: docking/applets/bluetooth/state.py:104
+#: docking/applets/bluetooth/state.py:108
+msgid "Bluetooth: No adapter/service"
+msgstr "Bluetooth: Žiadny adaptér/služba"
+
+#: docking/applets/bluetooth/state.py:115
+#, python-brace-format
+msgid "Bluetooth: {state}"
+msgstr "Bluetooth: {state}"
+
+#: docking/applets/bluetooth/state.py:116
+#, python-brace-format
+msgid "Adapter: {name}"
+msgstr "Adaptér: {name}"
+
+#: docking/applets/bluetooth/state.py:117
+#, python-brace-format
+msgid "Connected: {n}"
+msgstr "Pripojených: {n}"
+
+#: docking/applets/bluetooth/state.py:118
+#, python-brace-format
+msgid "Paired: {n}"
+msgstr "Spárovaných: {n}"
+
+#: docking/applets/bluetooth/state.py:119
+#, python-brace-format
+msgid "Discovering: {state}"
+msgstr "Vyhľadávanie: {state}"
+
+#: docking/applets/bluetooth/state.py:120
+msgid "Yes"
+msgstr "Áno"
+
+#: docking/applets/bluetooth/state.py:120
+msgid "No"
+msgstr "Nie"
+
+#: docking/applets/brightness/applet.py:41
+msgid "Brightness"
+msgstr "Jas"
+
+#: docking/applets/brightness/applet.py:68
+#, python-brace-format
+msgid "Brightness: {pct}%"
+msgstr "Jas: {pct}%"
+
+#: docking/applets/brightness/applet.py:91
+msgid "Show Level"
+msgstr "Zobraziť úroveň"
+
+#: docking/applets/calendar/applet.py:30 docking/applets/calendar/applet.py:36
+msgid "Calendar"
+msgstr "Kalendár"
+
+#: docking/applets/clippy/applet.py:33
+msgid "Clippy"
+msgstr "Clippy"
+
+#: docking/applets/clippy/applet.py:92
+msgid "Clear"
+msgstr "Vymazať"
+
+#: docking/applets/clippy/state.py:22
+msgid "Clippy (empty)"
+msgstr "Schránka (prázdna)"
+
+#: docking/applets/clock/applet.py:32
+msgid "Clock"
+msgstr "Hodiny"
+
+#: docking/applets/clock/applet.py:67
+msgid "Digital Clock"
+msgstr "Digitálne hodiny"
+
+#: docking/applets/clock/applet.py:72
+msgid "24-Hour Clock"
+msgstr "24-hodinový formát"
+
+#: docking/applets/clock/applet.py:77
+msgid "Show Date"
+msgstr "Zobraziť dátum"
+
+#: docking/applets/colorpicker/applet.py:38
+#: docking/applets/colorpicker/applet.py:68
+msgid "Color Picker"
+msgstr "Výber farby"
+
+#: docking/applets/colorpicker/applet.py:78
+#, python-brace-format
+msgid "Copy {hex}"
+msgstr "Kopírovať {hex}"
+
+#: docking/applets/colorpicker/applet.py:82
+msgid "Show Hex"
+msgstr "Zobraziť hex"
+
+#: docking/applets/cpumonitor/applet.py:37
+msgid "CPU Monitor"
+msgstr "Monitor CPU"
+
+#: docking/applets/cpumonitor/state.py:64
+#, python-brace-format
+msgid "CPU: {cpu}% | Mem: {mem}%"
+msgstr "CPU: {cpu}% | Pamäť: {mem}%"
+
+#: docking/applets/desktop/applet.py:22 docking/applets/workspaces/applet.py:79
+msgid "Desktop"
+msgstr "Plocha"
+
+#: docking/applets/hydration/applet.py:38
+msgid "Hydration"
+msgstr "Hydratácia"
+
+#: docking/applets/hydration/applet.py:111
+#: docking/applets/pomodoro/applet.py:156
+msgid "Show Timer"
+msgstr "Zobraziť časovač"
+
+#: docking/applets/hydration/applet.py:119
+#: docking/applets/pomodoro/applet.py:168
+#: docking/applets/pomodoro/applet.py:181
+#: docking/applets/pomodoro/applet.py:194
+#, python-brace-format
+msgid "{mins} min"
+msgstr "{mins} min"
+
+#: docking/applets/hydration/state.py:55
+msgid "Drink water!"
+msgstr "Napi sa vody!"
+
+#: docking/applets/hydration/state.py:56
+#, python-brace-format
+msgid "Next in {time}"
+msgstr "Ďalší za {time}"
+
+#: docking/applets/moon/applet.py:47
+msgid "Moon"
+msgstr "Mesiac"
+
+#: docking/applets/moon/applet.py:88
+msgid "Moon (loading...)"
+msgstr "Mesiac (načítanie...)"
+
+#: docking/applets/moon/applet.py:95
+#, python-brace-format
+msgid "Illumination: {pct}%"
+msgstr "Osvetlenie: {pct}%"
+
+#: docking/applets/moon/applet.py:118
+msgid "Show Phase Name"
+msgstr "Zobraziť názov fázy"
+
+#: docking/applets/moon/applet.py:123
+msgid "Refresh"
+msgstr "Obnoviť"
+
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
+msgid "New"
+msgstr "Nov"
+
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
+msgid "Full"
+msgstr "Spln"
+
+#: docking/applets/moon/offline.py:220
+msgid "Crescent"
+msgstr "Srpok"
+
+#: docking/applets/moon/offline.py:221
+msgid "Gibbous"
+msgstr "Dorastajúci"
+
+#: docking/applets/moon/offline.py:234
+msgid "new moon"
+msgstr "nov"
+
+#: docking/applets/moon/offline.py:236
+msgid "first quarter"
+msgstr "prvá štvrť"
+
+#: docking/applets/moon/offline.py:238
+msgid "full moon"
+msgstr "spln"
+
+#: docking/applets/moon/offline.py:240
+msgid "last quarter"
+msgstr "posledná štvrť"
+
+#: docking/applets/moon/offline.py:242
+#, python-brace-format
+msgid "{days} days after new moon"
+msgstr "{days} dní po nove"
+
+#: docking/applets/moon/offline.py:247
+#, python-brace-format
+msgid "{days} days after full moon"
+msgstr "{days} dní po splne"
+
+#: docking/applets/moon/state.py:111
+msgid "Waxing Crescent"
+msgstr "Dorastajúci srpok"
+
+#: docking/applets/moon/state.py:113
+msgid "Waxing Gibbous"
+msgstr "Dorastajúci mesiac"
+
+#: docking/applets/moon/state.py:115
+msgid "Waning Gibbous"
+msgstr "Cúvajúci mesiac"
+
+#: docking/applets/moon/state.py:117
+msgid "Waning Crescent"
+msgstr "Cúvajúci srpok"
+
+#: docking/applets/moon/state.py:124
+msgid "1st Quarter"
+msgstr "Prvá štvrť"
+
+#: docking/applets/moon/state.py:126
+msgid "3rd Quarter"
+msgstr "Tretia štvrť"
+
+#: docking/applets/music/applet.py:43 docking/applets/music/state.py:138
+msgid "Music"
+msgstr "Hudba"
+
+#: docking/applets/music/applet.py:101
+msgid "No active player"
+msgstr "Žiadny aktívny prehrávač"
+
+#: docking/applets/music/applet.py:105
+msgid "Previous"
+msgstr "Predchádzajúci"
+
+#: docking/applets/music/applet.py:113
+msgid "Next"
+msgstr "Ďalší"
+
+#: docking/applets/music/applet.py:117
+msgid "Volume Up"
+msgstr "Zvýšiť hlasitosť"
+
+#: docking/applets/music/applet.py:123
+msgid "Volume Down"
+msgstr "Znížiť hlasitosť"
+
+#: docking/applets/music/state.py:68
+msgid "Pause"
+msgstr "Pozastaviť"
+
+#: docking/applets/music/state.py:68
+msgid "Play"
+msgstr "Prehrať"
+
+#: docking/applets/music/state.py:75
+msgid "Playing"
+msgstr "Prehrávanie"
+
+#: docking/applets/music/state.py:77
+msgid "Paused"
+msgstr "Pozastavené"
+
+#: docking/applets/music/state.py:79
+msgid "Stopped"
+msgstr "Zastavené"
+
+#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:128
+msgid "Unknown"
+msgstr "Neznámy"
+
+#: docking/applets/music/state.py:127
+msgid "Music: No active player"
+msgstr "Hudba: Žiadny aktívny prehrávač"
+
+#: docking/applets/network/applet.py:40
+msgid "Network"
+msgstr "Sieť"
+
+#: docking/applets/network/applet.py:90
+#, python-brace-format
+msgid "WiFi: {ssid} ({pct}%)"
+msgstr "WiFi: {ssid} ({pct}%)"
+
+#: docking/applets/network/applet.py:98
+#, python-brace-format
+msgid "Ethernet: {iface}"
+msgstr "Ethernet: {iface}"
+
+#: docking/applets/network/applet.py:103
+msgid "Not connected"
+msgstr "Nepripojené"
+
+#: docking/applets/network/applet.py:108
+#, python-brace-format
+msgid "IP: {ip}"
+msgstr "IP: {ip}"
+
+#: docking/applets/network/state.py:89
+msgid "Network: Not connected"
+msgstr "Sieť: Nepripojené"
+
+#: docking/applets/notifications/applet.py:51
+#: docking/applets/notifications/state.py:49
+msgid "Notifications"
+msgstr "Oznámenia"
+
+#: docking/applets/notifications/applet.py:116
+msgid "No notification backend available"
+msgstr "Žiadny backend pre oznámenia"
+
+#: docking/applets/notifications/applet.py:122
+msgid "Do Not Disturb"
+msgstr "Nerušiť"
+
+#: docking/applets/notifications/applet.py:129
+#: docking/applets/notifications/state.py:47
+#, python-brace-format
+msgid "Pending: {n}"
+msgstr "Čakajúce: {n}"
+
+#: docking/applets/notifications/applet.py:134
+msgid "Clear History"
+msgstr "Vymazať históriu"
+
+#: docking/applets/notifications/applet.py:139
+msgid "Clear Notifications"
+msgstr "Vymazať oznámenia"
+
+#: docking/applets/notifications/state.py:43
+msgid "Notifications: No backend available"
+msgstr "Oznámenia: Žiadny backend k dispozícii"
+
+#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
+msgid "Pomodoro"
+msgstr "Pomodoro"
+
+#: docking/applets/pomodoro/applet.py:152
+msgid "Reset"
+msgstr "Resetovať"
+
+#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:67
+msgid "Work"
+msgstr "Práca"
+
+#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:68
+msgid "Break"
+msgstr "Prestávka"
+
+#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:69
+msgid "Long Break"
+msgstr "Dlhá prestávka"
+
+#: docking/applets/pomodoro/state.py:65
+#, python-brace-format
+msgid "Paused - {time}"
+msgstr "Pozastavené - {time}"
+
+#: docking/applets/pomodoro/state.py:71
+#, python-brace-format
+msgid "{label}: {time} remaining"
+msgstr "{label}: zostáva {time}"
+
+#: docking/applets/powerprofiles/applet.py:54
+msgid "Power Profiles"
+msgstr "Profily napájania"
+
+#: docking/applets/powerprofiles/applet.py:112
+#: docking/applets/powerprofiles/state.py:161
+#: docking/applets/powerprofiles/state.py:162
+msgid "Power Profiles unavailable"
+msgstr "Profily napájania nedostupné"
+
+#: docking/applets/powerprofiles/applet.py:117
+msgid "Select Profile"
+msgstr "Vybrať profil"
+
+#: docking/applets/powerprofiles/applet.py:136
+#, python-brace-format
+msgid "Limited: {reason}"
+msgstr "Obmedzené: {reason}"
+
+#: docking/applets/powerprofiles/state.py:122
+msgid "Power Saver"
+msgstr "Úspora energie"
+
+#: docking/applets/powerprofiles/state.py:124
+msgid "Balanced"
+msgstr "Vyvážený"
+
+#: docking/applets/powerprofiles/state.py:126
+msgid "Performance"
+msgstr "Výkon"
+
+#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
+#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
+msgid "Quote"
+msgstr "Citát"
+
+#: docking/applets/quote/applet.py:86
+msgid "Next Quote"
+msgstr "Ďalší citát"
+
+#: docking/applets/quote/applet.py:90
+msgid "Copy Quote"
+msgstr "Kopírovať citát"
+
+#: docking/applets/quote/applet.py:94
+msgid "Refresh from Web"
+msgstr "Obnoviť z webu"
+
+#: docking/applets/quote/applet.py:100
+msgid "Source"
+msgstr "Zdroj"
+
+#: docking/applets/quote/applet.py:205
+#, python-brace-format
+msgid "{source}: loading..."
+msgstr "{source}: načítanie..."
+
+#: docking/applets/screenshot/applet.py:34
+msgid "Screenshot"
+msgstr "Snímka obrazovky"
+
+#: docking/applets/screenshot/applet.py:73
+#, python-brace-format
+msgid "Full Screen in {delay}s"
+msgstr "Celá obrazovka za {delay}s"
+
+#: docking/applets/separator/applet.py:37
+msgid "Separator"
+msgstr "Oddeľovač"
+
+#: docking/applets/separator/applet.py:117
+msgid "Increase Gap"
+msgstr "Zväčšiť medzeru"
+
+#: docking/applets/separator/applet.py:119
+msgid "Decrease Gap"
+msgstr "Zmenšiť medzeru"
+
+#: docking/applets/separator/applet.py:121
+msgid "Style"
+msgstr "Style"
+
+#: docking/applets/separator/applet.py:125
+msgid "Line"
+msgstr "Line"
+
+#: docking/applets/separator/applet.py:134
+msgid "Space"
+msgstr "Space"
+
+#: docking/applets/separator/applet.py:143
+msgid "Invert Color"
+msgstr "Invert Color"
+
+#: docking/applets/session/applet.py:27
+msgid "Session"
+msgstr "Relácia"
+
+#: docking/applets/session/state.py:23
+msgid "Lock Screen"
+msgstr "Zamknúť obrazovku"
+
+#: docking/applets/session/state.py:24
+msgid "Log Out"
+msgstr "Odhlásiť sa"
+
+#: docking/applets/session/state.py:25
+msgid "Suspend"
+msgstr "Uspať"
+
+#: docking/applets/session/state.py:26
+msgid "Restart"
+msgstr "Reštartovať"
+
+#: docking/applets/session/state.py:27
+msgid "Shut Down"
+msgstr "Vypnúť"
+
+#: docking/applets/trash/applet.py:33
+msgid "Trash"
+msgstr "Kôš"
+
+#: docking/applets/trash/applet.py:58
+msgid "Open Trash"
+msgstr "Otvoriť kôš"
+
+#: docking/applets/trash/applet.py:62
+msgid "Empty Trash"
+msgstr "Vysypať kôš"
+
+#: docking/applets/trash/render.py:23
+msgid "No items in Trash"
+msgstr "Žiadne položky v Koši"
+
+#: docking/applets/trash/render.py:25 docking/applets/trash/render.py:26
+#, python-brace-format
+msgid "{n} item in Trash"
+msgid_plural "{n} items in Trash"
+msgstr[0] "{n} položka v Koši"
+msgstr[1] "{n} položky v Koši"
+msgstr[2] "{n} položiek v Koši"
+
+#: docking/applets/volume/applet.py:32
+msgid "Volume"
+msgstr "Hlasitosť"
+
+#: docking/applets/volume/applet.py:51
+msgid "Muted"
+msgstr "Stlmené"
+
+#: docking/applets/volume/applet.py:51
+#, python-brace-format
+msgid "Volume: {pct}%"
+msgstr "Hlasitosť: {pct}%"
+
+#: docking/applets/weather/applet.py:45
+msgid "Weather"
+msgstr "Počasie"
+
+#: docking/applets/weather/applet.py:99
+msgid "Show Temperature"
+msgstr "Zobraziť teplotu"
+
+#: docking/applets/weather/applet.py:104
+msgid "Change City..."
+msgstr "Zmeniť mesto..."
+
+#: docking/applets/weather/applet.py:128
+msgid "Search for the city"
+msgstr "Hľadať mesto"
+
+#: docking/applets/weather/applet.py:142
+msgid "Type city name..."
+msgstr "Zadajte názov mesta..."
+
+#: docking/applets/weather/applet.py:260
+#, python-brace-format
+msgid "{temp}°C, {desc}"
+msgstr "{temp}°C, {desc}"
+
+#: docking/applets/weather/applet.py:269 docking/applets/weather/state.py:91
+#, python-brace-format
+msgid "Air: {label}"
+msgstr "Vzduch: {label}"
+
+#: docking/applets/weather/applet.py:281
+#, python-brace-format
+msgid "{date}: {min_temp}/{max_temp}°C"
+msgstr "{date}: {min_temp}/{max_temp}°C"
+
+#: docking/applets/weather/state.py:72
+#, python-brace-format
+msgid "{city}: {temp}°C"
+msgstr "{city}: {temp}°C"
+
+#: docking/applets/weather/state.py:85
+msgid "Weather (no city selected)"
+msgstr "Počasie (mesto nevybrané)"
+
+#: docking/applets/weather/state.py:87
+#, python-brace-format
+msgid "{city}: loading..."
+msgstr "{city}: načítanie..."
+
+#: docking/applets/workspaces/applet.py:39
+msgid "Workspaces"
+msgstr "Pracovné plochy"
+
+#: docking/ui/about.py:47
+msgid "Website"
+msgstr "Webová stránka"
+
+#: docking/ui/dock_window.py:251
+msgid "Docking"
+msgstr "Docking"
+
+#: docking/ui/dock_window.py:414
+#, python-brace-format
+msgid "Display {display}: {width}x{height}"
+msgstr "Displej {display}: {width}x{height}"
+
+#: docking/ui/menu.py:47
+msgid "Name"
+msgstr "Name"
+
+#: docking/ui/menu.py:48
+msgid "Kind"
+msgstr "Kind"
+
+#: docking/ui/menu.py:49
+msgid "Size"
+msgstr "Size"
+
+#: docking/ui/menu.py:50
+msgid "Created"
+msgstr "Created"
+
+#: docking/ui/menu.py:51
+msgid "Modified"
+msgstr "Modified"
+
+#: docking/ui/menu.py:260 docking/ui/menu.py:280 docking/ui/menu.py:296
+#: docking/ui/menu.py:349
+msgid "Remove from Dock"
+msgstr "Odstrániť z doku"
+
+#: docking/ui/menu.py:273
+msgid "Open"
+msgstr "Open"
+
+#: docking/ui/menu.py:303
+msgid "Keep in Dock"
+msgstr "Ponechať v doku"
+
+#: docking/ui/menu.py:312
+msgid "Close All"
+msgstr "Zavrieť všetko"
+
+#: docking/ui/menu.py:312
+msgid "Close"
+msgstr "Zavrieť"
+
+#: docking/ui/menu.py:329
+msgid "Sort By"
+msgstr "Sort By"
+
+#: docking/ui/menu.py:337
+msgid "Show Hidden Files"
+msgstr "Show Hidden Files"
+
+#: docking/ui/menu.py:342
+msgid "Large Icons"
+msgstr "Large Icons"
+
+#: docking/ui/menu.py:378
+msgid "Auto-hide"
+msgstr "Automaticky skrývať"
+
+#: docking/ui/menu.py:384
+msgid "Window Previews"
+msgstr "Náhľady okien"
+
+#: docking/ui/menu.py:392
+msgid "Display"
+msgstr "Displej"
+
+#: docking/ui/menu.py:395
+msgid "Follow Cursor"
+msgstr "Sledovať kurzor"
+
+#: docking/ui/menu.py:418
+msgid "Anchor Applets to End"
+msgstr "Ukotviť aplety na koniec"
+
+#: docking/ui/menu.py:423
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#: docking/ui/menu.py:437
+msgid "Current Workspace Only"
+msgstr "Iba aktuálna plocha"
+
+#: docking/ui/menu.py:467
+msgid "Themes"
+msgstr "Témy"
+
+#: docking/ui/menu.py:480
+msgid "Position"
+msgstr "Pozícia"
+
+#: docking/ui/menu.py:493
+msgid "Applets"
+msgstr "Aplety"
+
+#: docking/ui/menu.py:545
+msgid "Add Separator"
+msgstr "Pridať oddeľovač"
+
+#: docking/ui/menu.py:555
+msgid "About"
+msgstr "O aplikácii"
+
+#: docking/ui/menu.py:560
+msgid "Quit"
+msgstr "Ukončiť"
+
+#: docking/ui/menu.py:597
+msgid "Window"
+msgstr "Okno"
+
+#~ msgid "Lock Icons"
+#~ msgstr "Zamknúť ikony"
+
+#~ msgid "Tooltips"
+#~ msgstr "Popisky"
+
+#~ msgid "Icon Size"
+#~ msgstr "Veľkosť ikon"

@@ -37,6 +37,7 @@ from docking.ui.menu import MenuHandler
 from docking.ui.preview import PreviewPopup
 from docking.ui.renderer import DockRenderer
 from docking.ui.runtime import DockDragRuntime, DockRuntime
+from docking.ui.settings import SettingsWindowController
 
 
 def build_dock_window(
@@ -61,6 +62,12 @@ def build_dock_window(
     runtime = DockRuntime(window)
     drag_runtime = DockDragRuntime(window)
     about = AboutDialogController(parent=window)
+    settings = SettingsWindowController(
+        parent=window,
+        runtime=runtime,
+        model=model,
+        config=config,
+    )
 
     dnd = DnDHandler(
         drawing_area=window.drawing_area,
@@ -74,6 +81,7 @@ def build_dock_window(
     )
     menu = MenuHandler(
         about=about,
+        settings=settings,
         runtime=runtime,
         model=model,
         config=config,

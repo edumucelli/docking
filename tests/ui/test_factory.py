@@ -20,19 +20,31 @@ class TestBuildDockWindow:
         window.geometry = MagicMock()
         autohide = MagicMock()
         runtime = MagicMock()
+        settings = MagicMock()
         dnd = MagicMock()
         menu = MagicMock()
         preview = MagicMock()
+        about = MagicMock()
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
         monkeypatch.setattr(
             factory_mod, "AutoHideController", MagicMock(return_value=autohide)
         )
         monkeypatch.setattr(factory_mod, "DockRuntime", MagicMock(return_value=runtime))
+        monkeypatch.setattr(
+            factory_mod,
+            "SettingsWindowController",
+            MagicMock(return_value=settings),
+        )
         monkeypatch.setattr(factory_mod, "DnDHandler", MagicMock(return_value=dnd))
         monkeypatch.setattr(factory_mod, "MenuHandler", MagicMock(return_value=menu))
         monkeypatch.setattr(
             factory_mod, "PreviewPopup", MagicMock(return_value=preview)
+        )
+        monkeypatch.setattr(
+            factory_mod,
+            "AboutDialogController",
+            MagicMock(return_value=about),
         )
 
         result = factory_mod.build_dock_window(

@@ -367,6 +367,7 @@ class TestMenuLifecycleScenarios:
         runtime = DockRuntime(cast(Any, harness))
         handler = MenuHandler(
             about=MagicMock(),
+            settings=MagicMock(),
             runtime=runtime,
             model=harness.model,
             config=cast(Any, harness.config),

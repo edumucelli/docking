@@ -1,0 +1,870 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Eduardo Mucelli Rezende Oliveira
+# This file is distributed under the same license as the docking package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: docking\n"
+"Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
+"POT-Creation-Date: 2026-03-06 20:03+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: am\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: docking/applets/ambient/applet.py:64 docking/applets/ambient/state.py:86
+msgid "Ambient"
+msgstr "ድባብ"
+
+#: docking/applets/ambient/state.py:23
+msgid "Birds"
+msgstr "ወፎች"
+
+#: docking/applets/ambient/state.py:24
+msgid "Boat"
+msgstr "ጀልባ"
+
+#: docking/applets/ambient/state.py:25
+msgid "Coffee Shop"
+msgstr "ቡና ቤት"
+
+#: docking/applets/ambient/state.py:26
+msgid "Fireplace"
+msgstr "ምድጃ"
+
+#: docking/applets/ambient/state.py:27
+msgid "Stream"
+msgstr "ፏፏቴ"
+
+#: docking/applets/ambient/state.py:28
+msgid "Summer Night"
+msgstr "የበጋ ሌሊት"
+
+#: docking/applets/ambient/state.py:29
+msgid "Wind"
+msgstr "ነፋስ"
+
+#: docking/applets/ambient/state.py:34
+msgid "White Noise"
+msgstr "ነጭ ድምጽ"
+
+#: docking/applets/ambient/state.py:35
+msgid "Pink Noise"
+msgstr "ሮዝ ድምጽ"
+
+#: docking/applets/ambient/state.py:83
+#, python-brace-format
+msgid "Playing: {sound} ({pct}%)"
+msgstr "በማጫወት ላይ: {sound} ({pct}%)"
+
+#: docking/applets/applications/applet.py:28
+msgid "Applications"
+msgstr "መተግበሪያዎች"
+
+#: docking/applets/battery/applet.py:26
+msgid "Battery"
+msgstr "ባትሪ"
+
+#: docking/applets/battery/state.py:59
+msgid "No battery"
+msgstr "ባትሪ የለም"
+
+#: docking/applets/battery/state.py:60
+#, python-brace-format
+msgid "Battery: {pct}%"
+msgstr "ባትሪ: {pct}%"
+
+#: docking/applets/bluetooth/applet.py:57
+msgid "Bluetooth"
+msgstr "ብሉቱዝ"
+
+#: docking/applets/bluetooth/applet.py:145
+msgid "Bluetooth unavailable"
+msgstr "ብሉቱዝ አይገኝም"
+
+#: docking/applets/bluetooth/applet.py:152
+msgid "No Bluetooth adapter"
+msgstr "ብሉቱዝ አስማሚ የለም"
+
+#: docking/applets/bluetooth/applet.py:156
+msgid "General"
+msgstr "አጠቃላይ"
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:110
+msgid "On"
+msgstr "በርቷል"
+
+#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/state.py:110
+msgid "Off"
+msgstr "ጠፍቷል"
+
+#: docking/applets/bluetooth/applet.py:161
+#, python-brace-format
+msgid "{alias} ({powered}) - Connected {connected}"
+msgstr "{alias} ({powered}) - ተገናኝቷል {connected}"
+
+#: docking/applets/bluetooth/applet.py:170
+msgid "Bluetooth On"
+msgstr "ብሉቱዝ በርቷል"
+
+#: docking/applets/bluetooth/applet.py:175
+msgid "Continuous Discovery"
+msgstr "ቀጣይ ፍለጋ"
+
+#: docking/applets/bluetooth/applet.py:186
+msgid "Refresh Now"
+msgstr "አሁን አድስ"
+
+#: docking/applets/bluetooth/applet.py:193
+msgid "Adapter"
+msgstr "አስማሚ"
+
+#: docking/applets/bluetooth/applet.py:219
+msgid "Connected Devices"
+msgstr "የተገናኙ መሣሪያዎች"
+
+#: docking/applets/bluetooth/applet.py:220
+msgid "Paired Devices"
+msgstr "የተጣመሩ መሣሪያዎች"
+
+#: docking/applets/bluetooth/applet.py:221
+msgid "Discovered Devices"
+msgstr "የተገኙ መሣሪያዎች"
+
+#: docking/applets/bluetooth/applet.py:246
+msgid "Disconnect"
+msgstr "ግንኙነት ያቋርጡ"
+
+#: docking/applets/bluetooth/applet.py:255
+msgid "Connect"
+msgstr "ያገናኙ"
+
+#: docking/applets/bluetooth/applet.py:265
+msgid "Pair"
+msgstr "አጣምር"
+
+#: docking/applets/bluetooth/applet.py:279
+msgid "Remove Pairing"
+msgstr "ጥምረት አስወግድ"
+
+#: docking/applets/bluetooth/applet.py:291
+msgid "Trusted"
+msgstr "የታመነ"
+
+#: docking/applets/bluetooth/applet.py:306
+#, python-brace-format
+msgid "Battery: {percent}%"
+msgstr "ባትሪ: {percent}%"
+
+#: docking/applets/bluetooth/state.py:103
+#, python-brace-format
+msgid "Bluetooth: {error}"
+msgstr "ብሉቱዝ: {error}"
+
+#: docking/applets/bluetooth/state.py:104
+#: docking/applets/bluetooth/state.py:108
+msgid "Bluetooth: No adapter/service"
+msgstr "ብሉቱዝ: አስማሚ/አገልግሎት የለም"
+
+#: docking/applets/bluetooth/state.py:115
+#, python-brace-format
+msgid "Bluetooth: {state}"
+msgstr "ብሉቱዝ: {state}"
+
+#: docking/applets/bluetooth/state.py:116
+#, python-brace-format
+msgid "Adapter: {name}"
+msgstr "አስማሚ: {name}"
+
+#: docking/applets/bluetooth/state.py:117
+#, python-brace-format
+msgid "Connected: {n}"
+msgstr "የተገናኙ: {n}"
+
+#: docking/applets/bluetooth/state.py:118
+#, python-brace-format
+msgid "Paired: {n}"
+msgstr "የተጣመሩ: {n}"
+
+#: docking/applets/bluetooth/state.py:119
+#, python-brace-format
+msgid "Discovering: {state}"
+msgstr "በመፈለግ ላይ: {state}"
+
+#: docking/applets/bluetooth/state.py:120
+msgid "Yes"
+msgstr "አዎ"
+
+#: docking/applets/bluetooth/state.py:120
+msgid "No"
+msgstr "አይ"
+
+#: docking/applets/brightness/applet.py:41
+msgid "Brightness"
+msgstr "ብሩህነት"
+
+#: docking/applets/brightness/applet.py:68
+#, python-brace-format
+msgid "Brightness: {pct}%"
+msgstr "ብሩህነት: {pct}%"
+
+#: docking/applets/brightness/applet.py:91
+msgid "Show Level"
+msgstr "ደረጃ አሳይ"
+
+#: docking/applets/calendar/applet.py:30 docking/applets/calendar/applet.py:36
+msgid "Calendar"
+msgstr "ቀን መቁጠሪያ"
+
+#: docking/applets/clippy/applet.py:33
+msgid "Clippy"
+msgstr "ቅንጥብ ሰሌዳ"
+
+#: docking/applets/clippy/applet.py:92
+msgid "Clear"
+msgstr "አጽዳ"
+
+#: docking/applets/clippy/state.py:22
+msgid "Clippy (empty)"
+msgstr "ቅንጥብ ሰሌዳ (ባዶ)"
+
+#: docking/applets/clock/applet.py:32
+msgid "Clock"
+msgstr "ሰዓት"
+
+#: docking/applets/clock/applet.py:67
+msgid "Digital Clock"
+msgstr "ዲጂታል ሰዓት"
+
+#: docking/applets/clock/applet.py:72
+msgid "24-Hour Clock"
+msgstr "24-ሰዓት ሰዓት"
+
+#: docking/applets/clock/applet.py:77
+msgid "Show Date"
+msgstr "ቀን አሳይ"
+
+#: docking/applets/colorpicker/applet.py:38
+#: docking/applets/colorpicker/applet.py:68
+msgid "Color Picker"
+msgstr "ቀለም መራጭ"
+
+#: docking/applets/colorpicker/applet.py:78
+#, python-brace-format
+msgid "Copy {hex}"
+msgstr "ቅዳ {hex}"
+
+#: docking/applets/colorpicker/applet.py:82
+msgid "Show Hex"
+msgstr "Hex አሳይ"
+
+#: docking/applets/cpumonitor/applet.py:37
+msgid "CPU Monitor"
+msgstr "ሲፒዩ ቁጥጥር"
+
+#: docking/applets/cpumonitor/state.py:64
+#, python-brace-format
+msgid "CPU: {cpu}% | Mem: {mem}%"
+msgstr "ሲፒዩ: {cpu}% | ማህ: {mem}%"
+
+#: docking/applets/desktop/applet.py:22 docking/applets/workspaces/applet.py:79
+msgid "Desktop"
+msgstr "ዴስክቶፕ"
+
+#: docking/applets/hydration/applet.py:38
+msgid "Hydration"
+msgstr "ውሃ ጠጣ"
+
+#: docking/applets/hydration/applet.py:111
+#: docking/applets/pomodoro/applet.py:156
+msgid "Show Timer"
+msgstr "ሰዓት ቆጣሪ አሳይ"
+
+#: docking/applets/hydration/applet.py:119
+#: docking/applets/pomodoro/applet.py:168
+#: docking/applets/pomodoro/applet.py:181
+#: docking/applets/pomodoro/applet.py:194
+#, python-brace-format
+msgid "{mins} min"
+msgstr "{mins} ደቂቃ"
+
+#: docking/applets/hydration/state.py:55
+msgid "Drink water!"
+msgstr "ውሃ ጠጣ!"
+
+#: docking/applets/hydration/state.py:56
+#, python-brace-format
+msgid "Next in {time}"
+msgstr "ቀጣይ በ{time}"
+
+#: docking/applets/moon/applet.py:47
+msgid "Moon"
+msgstr "ጨረቃ"
+
+#: docking/applets/moon/applet.py:88
+msgid "Moon (loading...)"
+msgstr "ጨረቃ (በመጫን ላይ...)"
+
+#: docking/applets/moon/applet.py:95
+#, python-brace-format
+msgid "Illumination: {pct}%"
+msgstr "ብርሃን: {pct}%"
+
+#: docking/applets/moon/applet.py:118
+msgid "Show Phase Name"
+msgstr "የደረጃ ስም አሳይ"
+
+#: docking/applets/moon/applet.py:123
+msgid "Refresh"
+msgstr "አድስ"
+
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
+msgid "New"
+msgstr "አዲስ"
+
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
+msgid "Full"
+msgstr "ሙሉ"
+
+#: docking/applets/moon/offline.py:220
+msgid "Crescent"
+msgstr "ግማሽ ጨረቃ"
+
+#: docking/applets/moon/offline.py:221
+msgid "Gibbous"
+msgstr "ሰፊ ጨረቃ"
+
+#: docking/applets/moon/offline.py:234
+msgid "new moon"
+msgstr "አዲስ ጨረቃ"
+
+#: docking/applets/moon/offline.py:236
+msgid "first quarter"
+msgstr "የመጀመሪያ ሩብ"
+
+#: docking/applets/moon/offline.py:238
+msgid "full moon"
+msgstr "ሙሉ ጨረቃ"
+
+#: docking/applets/moon/offline.py:240
+msgid "last quarter"
+msgstr "የመጨረሻ ሩብ"
+
+#: docking/applets/moon/offline.py:242
+#, python-brace-format
+msgid "{days} days after new moon"
+msgstr "ከአዲስ ጨረቃ በኋላ {days} ቀናት"
+
+#: docking/applets/moon/offline.py:247
+#, python-brace-format
+msgid "{days} days after full moon"
+msgstr "ከሙሉ ጨረቃ በኋላ {days} ቀናት"
+
+#: docking/applets/moon/state.py:111
+msgid "Waxing Crescent"
+msgstr "እያደገ ግማሽ ጨረቃ"
+
+#: docking/applets/moon/state.py:113
+msgid "Waxing Gibbous"
+msgstr "እያደገ ሰፊ ጨረቃ"
+
+#: docking/applets/moon/state.py:115
+msgid "Waning Gibbous"
+msgstr "እየቀነሰ ሰፊ ጨረቃ"
+
+#: docking/applets/moon/state.py:117
+msgid "Waning Crescent"
+msgstr "እየቀነሰ ግማሽ ጨረቃ"
+
+#: docking/applets/moon/state.py:124
+msgid "1st Quarter"
+msgstr "1ኛ ሩብ"
+
+#: docking/applets/moon/state.py:126
+msgid "3rd Quarter"
+msgstr "3ኛ ሩብ"
+
+#: docking/applets/music/applet.py:43 docking/applets/music/state.py:138
+msgid "Music"
+msgstr "ሙዚቃ"
+
+#: docking/applets/music/applet.py:101
+msgid "No active player"
+msgstr "ንቁ ማጫወቻ የለም"
+
+#: docking/applets/music/applet.py:105
+msgid "Previous"
+msgstr "ቀዳሚ"
+
+#: docking/applets/music/applet.py:113
+msgid "Next"
+msgstr "ቀጣይ"
+
+#: docking/applets/music/applet.py:117
+msgid "Volume Up"
+msgstr "ድምጽ ጨምር"
+
+#: docking/applets/music/applet.py:123
+msgid "Volume Down"
+msgstr "ድምጽ ቀንስ"
+
+#: docking/applets/music/state.py:68
+msgid "Pause"
+msgstr "ላፍታ አቁም"
+
+#: docking/applets/music/state.py:68
+msgid "Play"
+msgstr "አጫውት"
+
+#: docking/applets/music/state.py:75
+msgid "Playing"
+msgstr "በማጫወት ላይ"
+
+#: docking/applets/music/state.py:77
+msgid "Paused"
+msgstr "ላፍታ ቆሟል"
+
+#: docking/applets/music/state.py:79
+msgid "Stopped"
+msgstr "ቆሟል"
+
+#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:128
+msgid "Unknown"
+msgstr "ያልታወቀ"
+
+#: docking/applets/music/state.py:127
+msgid "Music: No active player"
+msgstr "ሙዚቃ: ንቁ ማጫወቻ የለም"
+
+#: docking/applets/network/applet.py:40
+msgid "Network"
+msgstr "ኔትወርክ"
+
+#: docking/applets/network/applet.py:90
+#, python-brace-format
+msgid "WiFi: {ssid} ({pct}%)"
+msgstr "WiFi: {ssid} ({pct}%)"
+
+#: docking/applets/network/applet.py:98
+#, python-brace-format
+msgid "Ethernet: {iface}"
+msgstr "ኤተርኔት: {iface}"
+
+#: docking/applets/network/applet.py:103
+msgid "Not connected"
+msgstr "አልተገናኘም"
+
+#: docking/applets/network/applet.py:108
+#, python-brace-format
+msgid "IP: {ip}"
+msgstr "IP: {ip}"
+
+#: docking/applets/network/state.py:89
+msgid "Network: Not connected"
+msgstr "ኔትወርክ: አልተገናኘም"
+
+#: docking/applets/notifications/applet.py:51
+#: docking/applets/notifications/state.py:49
+msgid "Notifications"
+msgstr "ማሳወቂያዎች"
+
+#: docking/applets/notifications/applet.py:116
+msgid "No notification backend available"
+msgstr "ምንም የማሳወቂያ ባክኤንድ አይገኝም"
+
+#: docking/applets/notifications/applet.py:122
+msgid "Do Not Disturb"
+msgstr "አትረብሽ"
+
+#: docking/applets/notifications/applet.py:129
+#: docking/applets/notifications/state.py:47
+#, python-brace-format
+msgid "Pending: {n}"
+msgstr "በመጠባበቅ ላይ: {n}"
+
+#: docking/applets/notifications/applet.py:134
+msgid "Clear History"
+msgstr "ታሪክ አጽዳ"
+
+#: docking/applets/notifications/applet.py:139
+msgid "Clear Notifications"
+msgstr "ማሳወቂያዎችን አጽዳ"
+
+#: docking/applets/notifications/state.py:43
+msgid "Notifications: No backend available"
+msgstr "ማሳወቂያዎች: ምንም ባክኤንድ አይገኝም"
+
+#: docking/applets/pomodoro/applet.py:46 docking/applets/pomodoro/state.py:63
+msgid "Pomodoro"
+msgstr "ፖሞዶሮ"
+
+#: docking/applets/pomodoro/applet.py:152
+msgid "Reset"
+msgstr "ዳግም አስጀምር"
+
+#: docking/applets/pomodoro/applet.py:164 docking/applets/pomodoro/state.py:67
+msgid "Work"
+msgstr "ሥራ"
+
+#: docking/applets/pomodoro/applet.py:177 docking/applets/pomodoro/state.py:68
+msgid "Break"
+msgstr "ዕረፍት"
+
+#: docking/applets/pomodoro/applet.py:190 docking/applets/pomodoro/state.py:69
+msgid "Long Break"
+msgstr "ረጅም ዕረፍት"
+
+#: docking/applets/pomodoro/state.py:65
+#, python-brace-format
+msgid "Paused - {time}"
+msgstr "ላፍታ ቆሟል - {time}"
+
+#: docking/applets/pomodoro/state.py:71
+#, python-brace-format
+msgid "{label}: {time} remaining"
+msgstr "{label}: {time} ቀሪ"
+
+#: docking/applets/powerprofiles/applet.py:54
+msgid "Power Profiles"
+msgstr "የኃይል መገለጫዎች"
+
+#: docking/applets/powerprofiles/applet.py:112
+#: docking/applets/powerprofiles/state.py:161
+#: docking/applets/powerprofiles/state.py:162
+msgid "Power Profiles unavailable"
+msgstr "የኃይል መገለጫዎች አይገኙም"
+
+#: docking/applets/powerprofiles/applet.py:117
+msgid "Select Profile"
+msgstr "መገለጫ ምረጥ"
+
+#: docking/applets/powerprofiles/applet.py:136
+#, python-brace-format
+msgid "Limited: {reason}"
+msgstr "ውስን: {reason}"
+
+#: docking/applets/powerprofiles/state.py:122
+msgid "Power Saver"
+msgstr "ኃይል ቆጣቢ"
+
+#: docking/applets/powerprofiles/state.py:124
+msgid "Balanced"
+msgstr "ሚዛናዊ"
+
+#: docking/applets/powerprofiles/state.py:126
+msgid "Performance"
+msgstr "አፈጻጸም"
+
+#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
+#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
+msgid "Quote"
+msgstr "ጥቅስ"
+
+#: docking/applets/quote/applet.py:86
+msgid "Next Quote"
+msgstr "ቀጣይ ጥቅስ"
+
+#: docking/applets/quote/applet.py:90
+msgid "Copy Quote"
+msgstr "ጥቅስ ቅዳ"
+
+#: docking/applets/quote/applet.py:94
+msgid "Refresh from Web"
+msgstr "ከድር አድስ"
+
+#: docking/applets/quote/applet.py:100
+msgid "Source"
+msgstr "ምንጭ"
+
+#: docking/applets/quote/applet.py:205
+#, python-brace-format
+msgid "{source}: loading..."
+msgstr "{source}: በመጫን ላይ..."
+
+#: docking/applets/screenshot/applet.py:34
+msgid "Screenshot"
+msgstr "ቅጽበታዊ ገጽ እይታ"
+
+#: docking/applets/screenshot/applet.py:73
+#, python-brace-format
+msgid "Full Screen in {delay}s"
+msgstr "ሙሉ ገጽ በ{delay}ሰ"
+
+#: docking/applets/separator/applet.py:37
+msgid "Separator"
+msgstr "መለያ"
+
+#: docking/applets/separator/applet.py:117
+msgid "Increase Gap"
+msgstr "ክፍተት ጨምር"
+
+#: docking/applets/separator/applet.py:119
+msgid "Decrease Gap"
+msgstr "ክፍተት ቀንስ"
+
+#: docking/applets/separator/applet.py:121
+msgid "Style"
+msgstr "Style"
+
+#: docking/applets/separator/applet.py:125
+msgid "Line"
+msgstr "Line"
+
+#: docking/applets/separator/applet.py:134
+msgid "Space"
+msgstr "Space"
+
+#: docking/applets/separator/applet.py:143
+msgid "Invert Color"
+msgstr "Invert Color"
+
+#: docking/applets/session/applet.py:27
+msgid "Session"
+msgstr "ክፍለ ጊዜ"
+
+#: docking/applets/session/state.py:23
+msgid "Lock Screen"
+msgstr "ማያ ገጽ ቆልፍ"
+
+#: docking/applets/session/state.py:24
+msgid "Log Out"
+msgstr "ውጣ"
+
+#: docking/applets/session/state.py:25
+msgid "Suspend"
+msgstr "አቋርጥ"
+
+#: docking/applets/session/state.py:26
+msgid "Restart"
+msgstr "እንደገና አስጀምር"
+
+#: docking/applets/session/state.py:27
+msgid "Shut Down"
+msgstr "አጥፋ"
+
+#: docking/applets/trash/applet.py:33
+msgid "Trash"
+msgstr "ቆሻሻ"
+
+#: docking/applets/trash/applet.py:58
+msgid "Open Trash"
+msgstr "ቆሻሻ ክፈት"
+
+#: docking/applets/trash/applet.py:62
+msgid "Empty Trash"
+msgstr "ቆሻሻ ባዶ አድርግ"
+
+#: docking/applets/trash/render.py:23
+msgid "No items in Trash"
+msgstr "በቆሻሻ ውስጥ ምንም ነገር የለም"
+
+#: docking/applets/trash/render.py:25 docking/applets/trash/render.py:26
+#, python-brace-format
+msgid "{n} item in Trash"
+msgid_plural "{n} items in Trash"
+msgstr[0] "በቆሻሻ ውስጥ {n} ንጥል"
+msgstr[1] "በቆሻሻ ውስጥ {n} ንጥሎች"
+
+#: docking/applets/volume/applet.py:32
+msgid "Volume"
+msgstr "ድምጽ"
+
+#: docking/applets/volume/applet.py:51
+msgid "Muted"
+msgstr "ድምጽ ተዘግቷል"
+
+#: docking/applets/volume/applet.py:51
+#, python-brace-format
+msgid "Volume: {pct}%"
+msgstr "ድምጽ: {pct}%"
+
+#: docking/applets/weather/applet.py:45
+msgid "Weather"
+msgstr "የአየር ሁኔታ"
+
+#: docking/applets/weather/applet.py:99
+msgid "Show Temperature"
+msgstr "ሙቀት አሳይ"
+
+#: docking/applets/weather/applet.py:104
+msgid "Change City..."
+msgstr "ከተማ ቀይር..."
+
+#: docking/applets/weather/applet.py:128
+msgid "Search for the city"
+msgstr "ከተማ ፈልግ"
+
+#: docking/applets/weather/applet.py:142
+msgid "Type city name..."
+msgstr "የከተማ ስም ይተይቡ..."
+
+#: docking/applets/weather/applet.py:260
+#, python-brace-format
+msgid "{temp}°C, {desc}"
+msgstr "{temp}°C, {desc}"
+
+#: docking/applets/weather/applet.py:269 docking/applets/weather/state.py:91
+#, python-brace-format
+msgid "Air: {label}"
+msgstr "አየር: {label}"
+
+#: docking/applets/weather/applet.py:281
+#, python-brace-format
+msgid "{date}: {min_temp}/{max_temp}°C"
+msgstr "{date}: {min_temp}/{max_temp}°C"
+
+#: docking/applets/weather/state.py:72
+#, python-brace-format
+msgid "{city}: {temp}°C"
+msgstr "{city}: {temp}°C"
+
+#: docking/applets/weather/state.py:85
+msgid "Weather (no city selected)"
+msgstr "የአየር ሁኔታ (ከተማ አልተመረጠም)"
+
+#: docking/applets/weather/state.py:87
+#, python-brace-format
+msgid "{city}: loading..."
+msgstr "{city}: በመጫን ላይ..."
+
+#: docking/applets/workspaces/applet.py:39
+msgid "Workspaces"
+msgstr "የሥራ ቦታዎች"
+
+#: docking/ui/about.py:47
+msgid "Website"
+msgstr "ድረ-ገጽ"
+
+#: docking/ui/dock_window.py:251
+msgid "Docking"
+msgstr "Docking"
+
+#: docking/ui/dock_window.py:414
+#, python-brace-format
+msgid "Display {display}: {width}x{height}"
+msgstr "ማሳያ {display}: {width}x{height}"
+
+#: docking/ui/menu.py:47
+msgid "Name"
+msgstr "Name"
+
+#: docking/ui/menu.py:48
+msgid "Kind"
+msgstr "Kind"
+
+#: docking/ui/menu.py:49
+msgid "Size"
+msgstr "Size"
+
+#: docking/ui/menu.py:50
+msgid "Created"
+msgstr "Created"
+
+#: docking/ui/menu.py:51
+msgid "Modified"
+msgstr "Modified"
+
+#: docking/ui/menu.py:260 docking/ui/menu.py:280 docking/ui/menu.py:296
+#: docking/ui/menu.py:349
+msgid "Remove from Dock"
+msgstr "ከዶክ አስወግድ"
+
+#: docking/ui/menu.py:273
+msgid "Open"
+msgstr "Open"
+
+#: docking/ui/menu.py:303
+msgid "Keep in Dock"
+msgstr "በዶክ ውስጥ አቆይ"
+
+#: docking/ui/menu.py:312
+msgid "Close All"
+msgstr "ሁሉንም ዝጋ"
+
+#: docking/ui/menu.py:312
+msgid "Close"
+msgstr "ዝጋ"
+
+#: docking/ui/menu.py:329
+msgid "Sort By"
+msgstr "Sort By"
+
+#: docking/ui/menu.py:337
+msgid "Show Hidden Files"
+msgstr "Show Hidden Files"
+
+#: docking/ui/menu.py:342
+msgid "Large Icons"
+msgstr "Large Icons"
+
+#: docking/ui/menu.py:378
+msgid "Auto-hide"
+msgstr "በራስ-ደበቅ"
+
+#: docking/ui/menu.py:384
+msgid "Window Previews"
+msgstr "የመስኮት ቅድመ-እይታ"
+
+#: docking/ui/menu.py:392
+msgid "Display"
+msgstr "ማሳያ"
+
+#: docking/ui/menu.py:395
+msgid "Follow Cursor"
+msgstr "ጠቋሚን ተከተል"
+
+#: docking/ui/menu.py:418
+msgid "Anchor Applets to End"
+msgstr "አፕሌቶችን ወደ መጨረሻ ሰካ"
+
+#: docking/ui/menu.py:423
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#: docking/ui/menu.py:437
+msgid "Current Workspace Only"
+msgstr "የአሁኑ የሥራ ቦታ ብቻ"
+
+#: docking/ui/menu.py:467
+msgid "Themes"
+msgstr "ገጽታዎች"
+
+#: docking/ui/menu.py:480
+msgid "Position"
+msgstr "ቦታ"
+
+#: docking/ui/menu.py:493
+msgid "Applets"
+msgstr "አፕሌቶች"
+
+#: docking/ui/menu.py:545
+msgid "Add Separator"
+msgstr "መለያ ጨምር"
+
+#: docking/ui/menu.py:555
+msgid "About"
+msgstr "ስለ"
+
+#: docking/ui/menu.py:560
+msgid "Quit"
+msgstr "ውጣ"
+
+#: docking/ui/menu.py:597
+msgid "Window"
+msgstr "መስኮት"
+
+#~ msgid "Lock Icons"
+#~ msgstr "አዶዎችን ቆልፍ"
+
+#~ msgid "Tooltips"
+#~ msgstr "ምክሮች"
+
+#~ msgid "Icon Size"
+#~ msgstr "የአዶ መጠን"

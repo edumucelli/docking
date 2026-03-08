@@ -465,6 +465,7 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
     about = MagicMock()
+    settings = MagicMock()
     runtime = MagicMock()
     runtime.get_monitor_menu_choices.return_value = []
     runtime.current_monitor_choice.return_value = -1
@@ -496,6 +497,7 @@ def handler(monkeypatch):
     tracker.get_window_title_for_xid.side_effect = lambda xid: f"Window {xid}"
     return menu_mod.MenuHandler(
         about=about,
+        settings=settings,
         runtime=runtime,
         model=model,
         config=config,
@@ -817,9 +819,11 @@ class TestDockMenu:
         assert "Display" not in labels
         assert "Icons" in labels
         assert "Add Separator" in labels
+        assert "Preferences" in labels
         assert "About" in labels
         assert "Quit" in labels
         assert "Applets" in labels
+        assert labels.index("Preferences") == labels.index("About") - 1
         assert labels.index("About") == labels.index("Quit") - 1
 
         icons_item = next(mi for mi in menu.children if mi.get_label() == "Icons")
@@ -834,6 +838,11 @@ class TestDockMenu:
 
         show_about = MagicMock()
         handler._about.show = show_about
+        show_settings = MagicMock()
+        handler._settings.show = show_settings
+        next(mi for mi in menu.children if mi.get_label() == "Preferences").activate()
+        show_settings.assert_called_once()
+
         next(mi for mi in menu.children if mi.get_label() == "About").activate()
         show_about.assert_called_once()
 

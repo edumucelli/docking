@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-06 20:03+0100\n"
+"POT-Creation-Date: 2026-03-08 01:15+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -83,82 +83,82 @@ msgstr "Battery: {pct}%"
 msgid "Bluetooth"
 msgstr "Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:145
+#: docking/applets/bluetooth/applet.py:147
 msgid "Bluetooth unavailable"
 msgstr "Bluetooth unavailable"
 
-#: docking/applets/bluetooth/applet.py:152
+#: docking/applets/bluetooth/applet.py:154
 msgid "No Bluetooth adapter"
 msgstr "No Bluetooth adapter"
 
-#: docking/applets/bluetooth/applet.py:156
+#: docking/applets/bluetooth/applet.py:158
 msgid "General"
 msgstr "Bendra"
 
-#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/applet.py:160
 #: docking/applets/bluetooth/state.py:110
 msgid "On"
 msgstr "On"
 
-#: docking/applets/bluetooth/applet.py:158
+#: docking/applets/bluetooth/applet.py:160
 #: docking/applets/bluetooth/state.py:110
 msgid "Off"
 msgstr "Off"
 
-#: docking/applets/bluetooth/applet.py:161
+#: docking/applets/bluetooth/applet.py:163
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - Prijungta {connected}"
 
-#: docking/applets/bluetooth/applet.py:170
+#: docking/applets/bluetooth/applet.py:172
 msgid "Bluetooth On"
 msgstr "Bluetooth On"
 
-#: docking/applets/bluetooth/applet.py:175
+#: docking/applets/bluetooth/applet.py:177
 msgid "Continuous Discovery"
 msgstr "Continuous Discovery"
 
-#: docking/applets/bluetooth/applet.py:186
+#: docking/applets/bluetooth/applet.py:188
 msgid "Refresh Now"
 msgstr "Refresh Now"
 
-#: docking/applets/bluetooth/applet.py:193
+#: docking/applets/bluetooth/applet.py:195
 msgid "Adapter"
 msgstr "Adapter"
 
-#: docking/applets/bluetooth/applet.py:219
+#: docking/applets/bluetooth/applet.py:221
 msgid "Connected Devices"
 msgstr "Prijungti įrenginiai"
 
-#: docking/applets/bluetooth/applet.py:220
+#: docking/applets/bluetooth/applet.py:222
 msgid "Paired Devices"
 msgstr "Susieti įrenginiai"
 
-#: docking/applets/bluetooth/applet.py:221
+#: docking/applets/bluetooth/applet.py:223
 msgid "Discovered Devices"
 msgstr "Aptikti įrenginiai"
 
-#: docking/applets/bluetooth/applet.py:246
+#: docking/applets/bluetooth/applet.py:247
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: docking/applets/bluetooth/applet.py:255
+#: docking/applets/bluetooth/applet.py:256
 msgid "Connect"
 msgstr "Connect"
 
-#: docking/applets/bluetooth/applet.py:265
+#: docking/applets/bluetooth/applet.py:266
 msgid "Pair"
 msgstr "Pair"
 
-#: docking/applets/bluetooth/applet.py:279
+#: docking/applets/bluetooth/applet.py:280
 msgid "Remove Pairing"
 msgstr "Remove Pairing"
 
-#: docking/applets/bluetooth/applet.py:291
+#: docking/applets/bluetooth/applet.py:292
 msgid "Trusted"
 msgstr "Trusted"
 
-#: docking/applets/bluetooth/applet.py:306
+#: docking/applets/bluetooth/applet.py:307
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "Baterija: {percent}%"
@@ -742,129 +742,182 @@ msgstr "Workspaces"
 msgid "Website"
 msgstr "Website"
 
-#: docking/ui/dock_window.py:251
+#: docking/ui/dock_window.py:318
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/dock_window.py:414
+#: docking/ui/menu.py:179
+msgid "Name"
+msgstr "Name"
+
+#: docking/ui/menu.py:180
+msgid "Kind"
+msgstr "Kind"
+
+#: docking/ui/menu.py:181
+msgid "Size"
+msgstr "Size"
+
+#: docking/ui/menu.py:182
+msgid "Created"
+msgstr "Created"
+
+#: docking/ui/menu.py:183
+msgid "Modified"
+msgstr "Modified"
+
+#: docking/ui/menu.py:386 docking/ui/menu.py:406 docking/ui/menu.py:422
+#: docking/ui/menu.py:475
+msgid "Remove from Dock"
+msgstr "Remove from Dock"
+
+#: docking/ui/menu.py:399
+msgid "Open"
+msgstr "Open"
+
+#: docking/ui/menu.py:429
+msgid "Keep in Dock"
+msgstr "Keep in Dock"
+
+#: docking/ui/menu.py:438
+msgid "Close All"
+msgstr "Close All"
+
+#: docking/ui/menu.py:438
+msgid "Close"
+msgstr "Close"
+
+#: docking/ui/menu.py:455
+msgid "Sort By"
+msgstr "Sort By"
+
+#: docking/ui/menu.py:463
+msgid "Show Hidden Files"
+msgstr "Show Hidden Files"
+
+#: docking/ui/menu.py:468
+msgid "Large Icons"
+msgstr "Large Icons"
+
+#: docking/ui/menu.py:496 docking/ui/settings.py:182
+msgid "Auto-hide"
+msgstr "Auto-hide"
+
+#: docking/ui/menu.py:502 docking/ui/settings.py:175
+msgid "Window Previews"
+msgstr "Window Previews"
+
+#: docking/ui/menu.py:510
+msgid "Display"
+msgstr "Display"
+
+#: docking/ui/menu.py:513 docking/ui/settings.py:192
+msgid "Follow Cursor"
+msgstr "Follow Cursor"
+
+#: docking/ui/menu.py:536 docking/ui/settings.py:201
+msgid "Anchor Applets to End"
+msgstr "Anchor Applets to End"
+
+#: docking/ui/menu.py:541 docking/ui/settings.py:202
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#: docking/ui/menu.py:555 docking/ui/settings.py:193
+msgid "Current Workspace Only"
+msgstr "Current Workspace Only"
+
+#: docking/ui/menu.py:585
+msgid "Themes"
+msgstr "Themes"
+
+#: docking/ui/menu.py:598 docking/ui/settings.py:191
+msgid "Position"
+msgstr "Position"
+
+#: docking/ui/menu.py:611 docking/ui/settings.py:123
+msgid "Applets"
+msgstr "Applets"
+
+#: docking/ui/menu.py:663
+msgid "Add Separator"
+msgstr "Add Separator"
+
+#: docking/ui/menu.py:673 docking/ui/settings.py:104
+msgid "Preferences"
+msgstr "Preferences"
+
+#: docking/ui/menu.py:678
+msgid "About"
+msgstr "About"
+
+#: docking/ui/menu.py:683
+msgid "Quit"
+msgstr "Quit"
+
+#: docking/ui/menu.py:720
+msgid "Window"
+msgstr "Window"
+
+#: docking/ui/placement.py:222
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr "Ekranas {display}: {width}x{height}"
 
-#: docking/ui/menu.py:47
-msgid "Name"
-msgstr "Name"
+#: docking/ui/settings.py:122
+msgid "Appearance"
+msgstr "Appearance"
 
-#: docking/ui/menu.py:48
-msgid "Kind"
-msgstr "Kind"
+#: docking/ui/settings.py:168
+msgid "Look"
+msgstr "Look"
 
-#: docking/ui/menu.py:49
-msgid "Size"
-msgstr "Size"
+#: docking/ui/settings.py:170
+msgid "Theme"
+msgstr "Theme"
 
-#: docking/ui/menu.py:50
-msgid "Created"
-msgstr "Created"
+#: docking/ui/settings.py:171
+msgid "Icon Size"
+msgstr "Icon Size"
 
-#: docking/ui/menu.py:51
-msgid "Modified"
-msgstr "Modified"
+#: docking/ui/settings.py:172
+msgid "Zoom"
+msgstr "Zoom"
 
-#: docking/ui/menu.py:260 docking/ui/menu.py:280 docking/ui/menu.py:296
-#: docking/ui/menu.py:349
-msgid "Remove from Dock"
-msgstr "Remove from Dock"
+#: docking/ui/settings.py:173
+msgid "Zoom Percent"
+msgstr "Zoom Percent"
 
-#: docking/ui/menu.py:273
-msgid "Open"
-msgstr "Open"
+#: docking/ui/settings.py:174
+msgid "Show Tooltips"
+msgstr "Show Tooltips"
 
-#: docking/ui/menu.py:303
-msgid "Keep in Dock"
-msgstr "Keep in Dock"
+#: docking/ui/settings.py:180
+msgid "Behavior"
+msgstr "Behavior"
 
-#: docking/ui/menu.py:312
-msgid "Close All"
-msgstr "Close All"
+#: docking/ui/settings.py:183
+msgid "Hide Delay"
+msgstr "Hide Delay"
 
-#: docking/ui/menu.py:312
-msgid "Close"
-msgstr "Close"
+#: docking/ui/settings.py:184
+msgid "Unhide Delay"
+msgstr "Unhide Delay"
 
-#: docking/ui/menu.py:329
-msgid "Sort By"
-msgstr "Sort By"
+#: docking/ui/settings.py:189
+msgid "Placement"
+msgstr "Placement"
 
-#: docking/ui/menu.py:337
-msgid "Show Hidden Files"
-msgstr "Show Hidden Files"
+#: docking/ui/settings.py:198
+msgid "Layout"
+msgstr "Layout"
 
-#: docking/ui/menu.py:342
-msgid "Large Icons"
-msgstr "Large Icons"
-
-#: docking/ui/menu.py:378
-msgid "Auto-hide"
-msgstr "Auto-hide"
-
-#: docking/ui/menu.py:384
-msgid "Window Previews"
-msgstr "Window Previews"
-
-#: docking/ui/menu.py:392
-msgid "Display"
-msgstr "Display"
-
-#: docking/ui/menu.py:395
-msgid "Follow Cursor"
-msgstr "Follow Cursor"
-
-#: docking/ui/menu.py:418
-msgid "Anchor Applets to End"
-msgstr "Anchor Applets to End"
-
-#: docking/ui/menu.py:423
-msgid "Anchor Files to End"
-msgstr "Anchor Files to End"
-
-#: docking/ui/menu.py:437
-msgid "Current Workspace Only"
-msgstr "Current Workspace Only"
-
-#: docking/ui/menu.py:467
-msgid "Themes"
-msgstr "Themes"
-
-#: docking/ui/menu.py:480
-msgid "Position"
-msgstr "Position"
-
-#: docking/ui/menu.py:493
-msgid "Applets"
-msgstr "Applets"
-
-#: docking/ui/menu.py:545
-msgid "Add Separator"
-msgstr "Add Separator"
-
-#: docking/ui/menu.py:555
-msgid "About"
-msgstr "About"
-
-#: docking/ui/menu.py:560
-msgid "Quit"
-msgstr "Quit"
-
-#: docking/ui/menu.py:597
-msgid "Window"
-msgstr "Window"
+#: docking/ui/settings.py:200
+msgid "Lock Positions"
+msgstr "Lock Positions"
 
 #~ msgid "Lock Icons"
 #~ msgstr "Lock Icons"
 
 #~ msgid "Tooltips"
 #~ msgstr "Tooltips"
-
-#~ msgid "Icon Size"
-#~ msgstr "Icon Size"

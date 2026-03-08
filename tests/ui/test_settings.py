@@ -1,0 +1,594 @@
+"""Tests for the settings window controller."""
+
+from __future__ import annotations
+
+import sys
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+try:
+    import gi  # noqa: F401
+except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environments
+    gi_mock = MagicMock()
+    gi_mock.require_version = MagicMock()
+    sys.modules.setdefault("gi", gi_mock)
+    sys.modules.setdefault("gi.repository", gi_mock.repository)
+
+import docking.ui.settings as settings_mod  # noqa: E402
+
+
+class FakeLabel:
+    def __init__(self, label: str = "") -> None:
+        self._label = label
+        self.markup = None
+        self.xalign = 0.0
+        self.hexpand = False
+        self.margin_top = 0
+        self.margin_bottom = 0
+
+    def get_label(self) -> str:
+        return self._label
+
+    def set_label(self, value: str) -> None:
+        self._label = value
+
+    def set_markup(self, value: str) -> None:
+        self.markup = value
+
+    def set_xalign(self, value: float) -> None:
+        self.xalign = value
+
+    def set_hexpand(self, value: bool) -> None:
+        self.hexpand = value
+
+    def set_margin_top(self, value: int) -> None:
+        self.margin_top = value
+
+    def set_margin_bottom(self, value: int) -> None:
+        self.margin_bottom = value
+
+
+class FakeBox:
+    def __init__(self, **_kwargs) -> None:
+        self.children: list[object] = []
+        self.border_width = 0
+
+    def set_border_width(self, value: int) -> None:
+        self.border_width = value
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+    def pack_end(self, child, *_args) -> None:
+        self.children.append(child)
+
+    def get_children(self) -> list[object]:
+        return list(self.children)
+
+    def remove(self, child) -> None:
+        if child in self.children:
+            self.children.remove(child)
+
+
+class FakeGrid:
+    def __init__(self) -> None:
+        self.children: list[object] = []
+        self.attachments: list[tuple[object, int, int, int, int]] = []
+        self.column_spacing = 0
+        self.row_spacing = 0
+
+    def set_column_spacing(self, value: int) -> None:
+        self.column_spacing = value
+
+    def set_row_spacing(self, value: int) -> None:
+        self.row_spacing = value
+
+    def attach(self, child, left: int, top: int, width: int, height: int) -> None:
+        self.children.append(child)
+        self.attachments.append((child, left, top, width, height))
+
+
+class FakeWindow:
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.child = None
+        self.callbacks: dict[str, object] = {}
+        self.show_count = 0
+        self.present_count = 0
+        self.position = None
+
+    def set_default_size(self, *_args) -> None:
+        return
+
+    def set_modal(self, *_args) -> None:
+        return
+
+    def set_resizable(self, *_args) -> None:
+        return
+
+    def set_position(self, value) -> None:
+        self.position = value
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+    def add(self, child) -> None:
+        self.child = child
+
+    def show_all(self) -> None:
+        self.show_count += 1
+
+    def present(self) -> None:
+        self.present_count += 1
+
+
+class FakeNotebook:
+    def __init__(self) -> None:
+        self.pages: list[tuple[object, object]] = []
+        self.scrollable = False
+
+    def set_scrollable(self, value: bool) -> None:
+        self.scrollable = value
+
+    def append_page(self, child, tab_label) -> None:
+        self.pages.append((child, tab_label))
+
+
+class FakeStack:
+    def __init__(self) -> None:
+        self.pages: list[tuple[object, str, str]] = []
+
+    def add_titled(self, child, name: str, title: str) -> None:
+        self.pages.append((child, name, title))
+
+
+class FakeStackSwitcher:
+    def __init__(self) -> None:
+        self.stack = None
+        self.halign = None
+
+    def set_stack(self, stack) -> None:
+        self.stack = stack
+
+    def set_halign(self, value) -> None:
+        self.halign = value
+
+
+class FakeComboBoxText:
+    def __init__(self) -> None:
+        self.items: list[tuple[str, str]] = []
+        self._active_id: str | None = None
+        self.callbacks: dict[str, object] = {}
+
+    def append(self, item_id: str, text: str) -> None:
+        self.items.append((item_id, text))
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+    def set_active_id(self, value: str) -> None:
+        self._active_id = value
+
+    def get_active_id(self) -> str | None:
+        return self._active_id
+
+
+class FakeSpinButton:
+    def __init__(self) -> None:
+        self._value = 0.0
+        self.callbacks: dict[str, object] = {}
+
+    @classmethod
+    def new_with_range(cls, *_args):
+        return cls()
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+    def set_value(self, value: float) -> None:
+        self._value = value
+
+    def get_value(self) -> float:
+        return self._value
+
+
+class FakeSwitch:
+    def __init__(self) -> None:
+        self._active = False
+        self.callbacks: dict[str, object] = {}
+
+    def connect(self, signal: str, callback, *args) -> None:
+        self.callbacks[signal] = (callback, args)
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+
+    def get_active(self) -> bool:
+        return self._active
+
+
+class FakeCheckButton(FakeSwitch):
+    def __init__(self, label: str = "") -> None:
+        super().__init__()
+        self._label = label
+        self.tooltip_text = None
+        self.child = None
+
+    def get_label(self) -> str:
+        return self._label
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
+
+    def add(self, child) -> None:
+        self.child = child
+
+
+class FakeImage:
+    def __init__(self, source: object) -> None:
+        self.source = source
+        self.pixel_size = None
+
+    @classmethod
+    def new_from_pixbuf(cls, pixbuf):
+        return cls(("pixbuf", pixbuf))
+
+    def set_pixel_size(self, value: int) -> None:
+        self.pixel_size = value
+
+
+class FakePixbuf:
+    def __init__(self, name: str, width: int = 16, height: int = 16) -> None:
+        self.name = name
+        self.width = width
+        self.height = height
+
+    def get_width(self) -> int:
+        return self.width
+
+    def get_height(self) -> int:
+        return self.height
+
+    def scale_simple(self, width: int, height: int, _interp) -> "FakePixbuf":
+        return FakePixbuf(self.name, width=width, height=height)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, FakePixbuf):
+            return False
+        return (
+            self.name == other.name
+            and self.width == other.width
+            and self.height == other.height
+        )
+
+
+class FakeScrolledWindow:
+    def __init__(self) -> None:
+        self.child = None
+
+    def set_policy(self, *_args) -> None:
+        return
+
+    def add(self, child) -> None:
+        self.child = child
+
+
+class FakeOrientation:
+    HORIZONTAL = 0
+    VERTICAL = 1
+
+
+class FakePolicyType:
+    NEVER = 0
+    AUTOMATIC = 1
+
+
+class FakeAlign:
+    CENTER = 0
+
+
+class FakeWindowPosition:
+    CENTER = 0
+
+
+class FakeGtk:
+    Window = FakeWindow
+    Notebook = FakeNotebook
+    Stack = FakeStack
+    StackSwitcher = FakeStackSwitcher
+    Label = FakeLabel
+    Box = FakeBox
+    Grid = FakeGrid
+    ComboBoxText = FakeComboBoxText
+    SpinButton = FakeSpinButton
+    Switch = FakeSwitch
+    CheckButton = FakeCheckButton
+    Image = FakeImage
+    ScrolledWindow = FakeScrolledWindow
+    Orientation = FakeOrientation
+    PolicyType = FakePolicyType
+    Align = FakeAlign
+    WindowPosition = FakeWindowPosition
+
+
+def _config():
+    return SimpleNamespace(
+        autohide=True,
+        previews_enabled=True,
+        tooltips_enabled=True,
+        lock_icons=False,
+        current_workspace_only=False,
+        active_display=False,
+        anchor_applets=False,
+        anchor_files=False,
+        zoom_enabled=True,
+        theme="default",
+        position="bottom",
+        icon_size=48,
+        zoom_percent=1.5,
+        hide_delay_ms=0,
+        unhide_delay_ms=0,
+        save=MagicMock(),
+    )
+
+
+class TestSettingsWindowController:
+    def test_show_reuses_single_window_and_builds_two_tabs(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+        window = controller._window
+        assert window is not None
+        controller.show()
+
+        assert controller._window is window
+        assert window.show_count == 2
+        assert window.present_count == 2
+        assert window.position == FakeWindowPosition.CENTER
+        switcher, stack = window.child.children
+        assert isinstance(switcher, FakeStackSwitcher)
+        assert switcher.halign == FakeAlign.CENTER
+        assert switcher.stack is stack
+        assert [title for _, _, title in stack.pages] == [
+            "Appearance",
+            "Applets",
+        ]
+        appearance_box = stack.pages[0][0]
+        section_labels = [
+            child.get_children()[0].markup
+            for child in appearance_box.get_children()
+            if isinstance(child, FakeBox) and child.get_children()
+        ]
+        assert section_labels == [
+            "<b>Look</b>",
+            "<b>Behavior</b>",
+            "<b>Placement</b>",
+            "<b>Layout</b>",
+        ]
+
+    def test_theme_change_updates_config_and_runtime(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        theme_obj = object()
+        monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: theme_obj)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        widget = FakeComboBoxText()
+        widget.set_active_id("matte")
+        controller._on_theme_changed(widget)
+
+        assert config.theme == "matte"
+        config.save.assert_called_once()
+        runtime.set_theme.assert_called_once_with(theme_obj)
+        runtime.reposition.assert_called_once()
+        runtime.queue_draw.assert_called_once()
+
+    def test_autohide_toggle_updates_runtime(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        widget = FakeSwitch()
+        widget.set_active(False)
+        controller._on_autohide_toggled(widget, None)
+
+        assert config.autohide is False
+        runtime.reset_autohide.assert_called_once()
+        runtime.update_struts.assert_called_once()
+
+    def test_applet_toggle_adds_and_removes_items(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "load_theme_icon", lambda name, size: None)
+        monkeypatch.setattr(
+            settings_mod,
+            "get_registry",
+            lambda: {
+                settings_mod.AppletId.CLOCK: SimpleNamespace(
+                    name="Clock",
+                    icon_name="clock-icon",
+                ),
+            },
+        )
+        model = MagicMock()
+        model.pinned_items = []
+        model.get_applet.return_value = None
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=model,
+            config=_config(),
+        )
+
+        on_widget = FakeCheckButton(label="Clock")
+        on_widget.set_active(True)
+        controller._on_applet_toggled(on_widget, str(settings_mod.AppletId.CLOCK))
+        model.add_applet.assert_called_once_with(str(settings_mod.AppletId.CLOCK))
+
+        off_widget = FakeCheckButton(label="Clock")
+        off_widget.set_active(False)
+        controller._on_applet_toggled(off_widget, str(settings_mod.AppletId.CLOCK))
+        model.remove_applet.assert_called_once_with("applet://clock")
+
+    def test_applet_tab_uses_checkbox_grid_per_category(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_theme_icon",
+            lambda name, size: FakePixbuf(f"{name}:{size}"),
+        )
+        monkeypatch.setattr(
+            settings_mod,
+            "get_registry",
+            lambda: {
+                settings_mod.AppletId.CLOCK: SimpleNamespace(
+                    name="Clock", icon_name="clock-icon"
+                ),
+                settings_mod.AppletId.WEATHER: SimpleNamespace(
+                    name="Weather", icon_name="weather-icon"
+                ),
+            },
+        )
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+
+        applets_scroller = controller._window.child.children[1].pages[1][0]
+        applets_box = applets_scroller.child
+        section_headers = [
+            child for child in applets_box.children if isinstance(child, FakeLabel)
+        ]
+        applet_grids = [
+            child for child in applets_box.children if isinstance(child, FakeGrid)
+        ]
+        assert len(section_headers) == 2
+        assert all(header.markup is not None for header in section_headers)
+        assert len(applet_grids) == 2
+        assert all(grid.column_spacing == 16 for grid in applet_grids)
+        assert all(grid.row_spacing == 8 for grid in applet_grids)
+        first_grid = applet_grids[0]
+        assert [attachment[1:3] for attachment in first_grid.attachments] == [(0, 0)]
+        second_grid = applet_grids[1]
+        assert [attachment[1:3] for attachment in second_grid.attachments] == [(0, 0)]
+        first_check = first_grid.children[0]
+        assert isinstance(first_check, FakeCheckButton)
+        assert isinstance(first_check.child, FakeBox)
+        assert isinstance(first_check.child.children[0], FakeImage)
+        image = first_check.child.children[0]
+        assert image.source[0] == "pixbuf"
+        assert image.source[1].name == f"clock-icon:{settings_mod.APPLET_LIST_ICON_PX}"
+        assert image.pixel_size == settings_mod.APPLET_LIST_ICON_PX
+        assert isinstance(first_check.child.children[1], FakeLabel)
+        assert first_check.child.children[1].get_label() == "Clock"
+
+    def test_applet_tab_prefers_live_applet_icon_over_class_fallback(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        fallback_loader = MagicMock(return_value=FakePixbuf("fallback"))
+        monkeypatch.setattr(settings_mod, "load_theme_icon", fallback_loader)
+        monkeypatch.setattr(
+            settings_mod,
+            "get_registry",
+            lambda: {
+                settings_mod.AppletId.CLOCK: SimpleNamespace(
+                    name="Clock", icon_name="clock-icon"
+                ),
+            },
+        )
+        live_pixbuf = FakePixbuf("live-clock", width=32, height=32)
+        model = SimpleNamespace(
+            pinned_items=[],
+            get_applet=lambda _desktop_id: SimpleNamespace(
+                item=SimpleNamespace(icon=live_pixbuf)
+            ),
+        )
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=model,
+            config=_config(),
+        )
+
+        controller.show()
+
+        applets_scroller = controller._window.child.children[1].pages[1][0]
+        first_check = applets_scroller.child.children[1].children[0]
+        assert first_check.child.children[0].source == (
+            "pixbuf",
+            live_pixbuf.scale_simple(
+                settings_mod.APPLET_LIST_ICON_PX,
+                settings_mod.APPLET_LIST_ICON_PX,
+                None,
+            ),
+        )
+        fallback_loader.assert_not_called()
+
+    def test_applet_grid_places_two_items_per_row(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_theme_icon",
+            lambda name, size: FakePixbuf(f"{name}:{size}"),
+        )
+        monkeypatch.setattr(
+            settings_mod,
+            "get_registry",
+            lambda: {
+                settings_mod.AppletId.CLOCK: SimpleNamespace(
+                    name="Clock", icon_name="clock-icon"
+                ),
+                settings_mod.AppletId.CALENDAR: SimpleNamespace(
+                    name="Calendar", icon_name="calendar-icon"
+                ),
+                settings_mod.AppletId.POMODORO: SimpleNamespace(
+                    name="Pomodoro", icon_name="pomodoro-icon"
+                ),
+            },
+        )
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+
+        applets_scroller = controller._window.child.children[1].pages[1][0]
+        first_grid = next(
+            child
+            for child in applets_scroller.child.children
+            if isinstance(child, FakeGrid)
+        )
+        assert [attachment[1:3] for attachment in first_grid.attachments] == [
+            (0, 0),
+            (1, 0),
+            (2, 0),
+        ]
