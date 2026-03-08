@@ -6,7 +6,7 @@
 [![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
-<img src="images/docking-header.png" alt="Docking" height="48" style="display:block; margin:0 auto;">
+<img src="images/docking.png" alt="Docking" height="48" style="display:block; margin:0 auto;">
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
