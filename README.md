@@ -728,6 +728,32 @@ pytest tests/applets/test_clock.py -v
 pytest tests/ -v --cov=docking --cov-report=term-missing
 ```
 
+For the GUI/integration-oriented slice under a headless X11 session:
+
+```bash
+bash tools/test_gui_headless.sh
+```
+
+Requirements for that mode:
+- `xvfb-run`
+- `dbus-run-session`
+
+By default it runs the dock interaction/UI slice:
+- pointer scenarios
+- edges
+- menu integration
+- preview popup integration
+- dock window integration
+- interaction
+- DnD integration
+- renderer integration
+
+You can also pass explicit pytest targets:
+
+```bash
+bash tools/test_gui_headless.sh tests/ui/test_pointer_scenarios.py
+```
+
 ### Building Packages
 
 #### Building a .deb package

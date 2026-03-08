@@ -38,6 +38,18 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: package-data-sync
+        name: package-data-sync
+        entry: python3 tools/check_package_data_sync.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: translation-packaging
+        name: translation-packaging
+        entry: python3 tools/check_translation_packaging.py
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: pytest
         name: tests
         entry: .venv/bin/python -m pytest tests/ -q

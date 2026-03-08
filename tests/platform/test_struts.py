@@ -456,6 +456,38 @@ class TestStrutWriters:
         )
         set_mock.assert_called_once_with(gdk_window=gdk_window, struts=computed)
 
+    def test_set_dock_struts_reads_current_scale_factor_each_call(self, monkeypatch):
+        computed = [9] * 12
+        compute_mock = MagicMock(return_value=computed)
+        set_mock = MagicMock()
+        monkeypatch.setattr(struts_mod, "compute_struts", compute_mock)
+        monkeypatch.setattr(struts_mod, "set_struts", set_mock)
+
+        gdk_window = MagicMock()
+        gdk_window.get_scale_factor.side_effect = [1, 2]
+        monitor_geom = MagicMock(x=10, y=20, width=300, height=90)
+        screen = MagicMock()
+        screen.get_width.return_value = 1920
+        screen.get_height.return_value = 1080
+
+        set_dock_struts(
+            gdk_window=gdk_window,
+            dock_height=53,
+            monitor_geom=monitor_geom,
+            screen=screen,
+            position=Position.TOP,
+        )
+        set_dock_struts(
+            gdk_window=gdk_window,
+            dock_height=53,
+            monitor_geom=monitor_geom,
+            screen=screen,
+            position=Position.TOP,
+        )
+
+        assert compute_mock.call_args_list[0].kwargs["scale"] == 1
+        assert compute_mock.call_args_list[1].kwargs["scale"] == 2
+
     def test_clear_struts_sets_all_zeros(self, monkeypatch):
         # Given
         set_mock = MagicMock()

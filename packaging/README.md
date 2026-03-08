@@ -2,6 +2,35 @@
 
 Build scripts for distributing Docking in various formats.
 
+## Translation Ownership
+
+Docking translations have four distinct stages:
+
+1. Extract source strings into the template:
+   - `bash tools/i18n.sh --extract`
+2. Validate template/catalog consistency:
+   - `bash tools/i18n.sh --check-pot-sync`
+   - `bash tools/i18n.sh --check-catalogs --require-complete`
+3. Compile runtime catalogs:
+   - `bash tools/i18n.sh --compile`
+4. Ship compiled `.mo` files in package outputs
+
+Current ownership model:
+- `tools/i18n.sh` is the canonical translation workflow tool.
+- CI validates and compiles catalogs.
+- Package targets compile translations before install/build steps.
+- Python package metadata declares compiled `.mo` files as runtime package data.
+
+Verification helper:
+
+```bash
+python3 tools/check_translation_packaging.py
+```
+
+That check confirms:
+- compiled `.mo` catalogs are declared in both `pyproject.toml` and `setup.cfg`
+- packaging/CI paths still invoke `tools/i18n.sh --compile`
+
 ## DEB (Debian/Ubuntu)
 
 ```bash

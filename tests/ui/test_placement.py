@@ -73,6 +73,15 @@ class TestPlacementControllerLifecycle:
         assert len(controller._screen_signal_handlers) == 2
         controller.schedule_reposition.assert_called_once()
 
+    def test_on_scale_factor_changed_schedules_reposition(self):
+        window = _make_window()
+        controller = placement_mod.DockPlacementController(window)
+        controller.schedule_reposition = MagicMock()
+
+        controller.on_scale_factor_changed()
+
+        controller.schedule_reposition.assert_called_once()
+
     def test_schedule_reposition_coalesces_until_idle_runs(self, monkeypatch):
         window = _make_window()
         controller = placement_mod.DockPlacementController(window)
@@ -95,6 +104,28 @@ class TestPlacementControllerLifecycle:
         assert result is False
         assert controller._geometry_refresh_source == 0
         controller.reposition.assert_called_once()
+
+    def test_apply_scheduled_reposition_uses_latest_monitor_metrics(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        display = SimpleNamespace(
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        window = _make_window(get_display=lambda: display)
+        controller = placement_mod.DockPlacementController(window)
+        controller.update_barrier = MagicMock()
+        controller._geometry_refresh_source = 88
+
+        # Simulate a metrics change that happens after scheduling but before apply.
+        geom.width = 2560
+        work.width = 2560
+
+        controller.apply_scheduled_reposition()
+
+        window.resize.assert_called_with(2560, 93)
+        window.move.assert_called_with(0, 987)
 
     def test_on_destroy_cleans_geometry_refresh_and_screen_handlers(self, monkeypatch):
         screen = SimpleNamespace(disconnect=MagicMock())
@@ -327,6 +358,47 @@ class TestPlacementControllerStruts:
         controller.set_struts()
 
         set_struts.assert_called_once()
+
+    def test_set_struts_uses_active_display_monitor_when_enabled(self, monkeypatch):
+        class FakeX11Window:
+            pass
+
+        monkeypatch.setattr(
+            placement_mod.GdkX11,
+            "X11Window",
+            FakeX11Window,
+            raising=False,
+        )
+        set_struts = MagicMock()
+        monkeypatch.setattr(placement_mod, "set_dock_struts", set_struts)
+        primary_geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        active_geom = SimpleNamespace(x=1920, y=0, width=2560, height=1440)
+        primary = SimpleNamespace(get_geometry=lambda: primary_geom)
+        active = SimpleNamespace(get_geometry=lambda: active_geom)
+        display = SimpleNamespace(
+            get_primary_monitor=lambda: primary,
+            get_monitor=lambda _idx: primary,
+        )
+        gdk_window = FakeX11Window()
+        window = _make_window(
+            config=SimpleNamespace(
+                autohide=False,
+                icon_size=48,
+                pos=Position.BOTTOM,
+                active_display=True,
+                monitor_index=-1,
+            ),
+            theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
+            get_window=lambda: gdk_window,
+            get_display=lambda: display,
+            get_screen=lambda: MagicMock(),
+        )
+        controller = placement_mod.DockPlacementController(window)
+        controller._active_monitor = active
+
+        controller.set_struts()
+
+        assert set_struts.call_args.kwargs["monitor_geom"] is active_geom
 
     def test_clear_struts_calls_helper_for_x11(self, monkeypatch):
         class FakeX11Window:

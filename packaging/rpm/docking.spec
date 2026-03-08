@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:0.1.33}
+Version:        %{?pkg_version}%{!?pkg_version:0.1.34}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
@@ -47,12 +47,25 @@ export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
-install -Dm644 packaging/deb/org.docking.Docking.desktop \
+install -Dm644 packaging/shared/org.docking.Docking.desktop \
   %{buildroot}/usr/share/applications/org.docking.Docking.desktop
+
+install -Dm755 packaging/shared/refresh-desktop-caches.sh \
+  %{buildroot}/usr/lib/docking/refresh-desktop-caches
 
 if [ -d packaging/deb/icons/hicolor ]; then
   mkdir -p %{buildroot}/usr/share/icons/hicolor
   cp -a packaging/deb/icons/hicolor/. %{buildroot}/usr/share/icons/hicolor/
+fi
+
+%post
+if [ -x /usr/lib/docking/refresh-desktop-caches ]; then
+  /usr/lib/docking/refresh-desktop-caches
+fi
+
+%postun
+if [ -x /usr/lib/docking/refresh-desktop-caches ]; then
+  /usr/lib/docking/refresh-desktop-caches
 fi
 
 %files
@@ -60,10 +73,17 @@ fi
 /usr/bin/docking
 /usr/lib/docking/python
 /usr/lib/docking/vendor
+/usr/lib/docking/refresh-desktop-caches
 /usr/share/applications/org.docking.Docking.desktop
 /usr/share/icons/hicolor
 
 %changelog
+* Sun Mar 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 0.1.34-1
+- Release 0.1.34.
+
+* Sun Mar 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 0.1.33-1
+- Release 0.1.33.
+
 * Thu Mar 05 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 0.1.18-1
 - Release 0.1.18.
 

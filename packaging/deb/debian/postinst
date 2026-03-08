@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+case "${1:-}" in
+    configure|triggered)
+        if [ -f /usr/lib/docking/refresh-desktop-caches ]; then
+            sh /usr/lib/docking/refresh-desktop-caches
+        fi
+        ;;
+esac
+
+exit 0

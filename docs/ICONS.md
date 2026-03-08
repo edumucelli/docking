@@ -2,7 +2,7 @@
 
 ## Current Identifier
 
-- Desktop entry file: `packaging/deb/org.docking.Docking.desktop`
+- Desktop entry file: `packaging/shared/org.docking.Docking.desktop`
 - Desktop entry icon name: `Icon=org.docking.Docking`
 
 ## Source Files Used

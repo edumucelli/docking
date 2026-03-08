@@ -7,7 +7,7 @@ script:
   - mkdir -p AppDir/usr/share/icons
   - python3 -m pip install --upgrade pip
   - python3 -m pip install --no-cache-dir --target AppDir/usr/lib/python3/dist-packages .
-  - install -Dm644 packaging/deb/org.docking.Docking.desktop AppDir/usr/share/applications/org.docking.Docking.desktop
+  - install -Dm644 packaging/shared/org.docking.Docking.desktop AppDir/usr/share/applications/org.docking.Docking.desktop
   - cp -r packaging/deb/icons/hicolor AppDir/usr/share/icons/
 
 AppDir:

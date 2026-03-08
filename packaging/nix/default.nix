@@ -5,7 +5,7 @@ let
 in
 pyPkgs.buildPythonApplication rec {
   pname = "docking";
-  version = "0.1.18";
+  version = "0.1.34";
   format = "pyproject";
 
   src = ../..;
@@ -48,7 +48,7 @@ pyPkgs.buildPythonApplication rec {
   '';
 
   postInstall = ''
-    install -Dm644 ${../deb/org.docking.Docking.desktop} \
+    install -Dm644 ${../shared/org.docking.Docking.desktop} \
       "$out/share/applications/org.docking.Docking.desktop"
     substituteInPlace "$out/share/applications/org.docking.Docking.desktop" \
       --replace-fail "Exec=docking" "Exec=$out/bin/docking"

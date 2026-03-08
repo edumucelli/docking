@@ -15,6 +15,10 @@ echo "Checking i18n template sync..."
 bash tools/i18n.sh --check-pot-sync
 echo "Checking i18n completeness..."
 bash tools/i18n.sh --check-catalogs --require-complete
+echo "Checking package-data sync..."
+python3 tools/check_package_data_sync.py
+echo "Checking translation packaging..."
+python3 tools/check_translation_packaging.py
 echo "Running tests..."
 .venv/bin/python -m pytest tests/ -q
 echo "All checks passed."

@@ -43,6 +43,12 @@ jobs:
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
+      - name: Check package-data sync
+        run: python3 tools/check_package_data_sync.py
+
+      - name: Check translation packaging
+        run: python3 tools/check_translation_packaging.py
+
       - name: Lint (ruff check)
         run: .venv/bin/python -m ruff check docking/ tests/
 
