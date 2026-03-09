@@ -23,6 +23,7 @@ class _FakeMenuItem:
     def __init__(self, label: str = "") -> None:
         self._label = label
         self._submenu = None
+        self._child = None
 
     def set_submenu(self, submenu) -> None:
         self._submenu = submenu
@@ -32,6 +33,18 @@ class _FakeMenuItem:
 
     def get_label(self) -> str:
         return self._label
+
+    def set_label(self, label: str) -> None:
+        self._label = label
+
+    def get_child(self):
+        return self._child
+
+    def remove(self, _child) -> None:
+        self._child = None
+
+    def add(self, child) -> None:
+        self._child = child
 
 
 class _FakeRadioMenuItem(_FakeMenuItem):
@@ -50,6 +63,86 @@ class _FakeRadioMenuItem(_FakeMenuItem):
 
     def connect(self, *_args, **_kwargs) -> None:
         return
+
+
+class _FakeBox:
+    def __init__(self, **_kwargs) -> None:
+        self.children = []
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+
+class _FakeLabel:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.xalign = None
+        self.max_width_chars = None
+        self.ellipsize = None
+        self.single_line_mode = False
+
+    def set_xalign(self, value: float) -> None:
+        self.xalign = value
+
+    def set_max_width_chars(self, value: int) -> None:
+        self.max_width_chars = value
+
+    def set_ellipsize(self, value) -> None:
+        self.ellipsize = value
+
+    def set_single_line_mode(self, value: bool) -> None:
+        self.single_line_mode = value
+
+
+class _FakeImage:
+    def __init__(self) -> None:
+        self.pixel_size = None
+
+    @classmethod
+    def new_from_pixbuf(cls, pixbuf):
+        image = cls()
+        image.pixbuf = pixbuf
+        return image
+
+    def set_pixel_size(self, value: int) -> None:
+        self.pixel_size = value
+
+
+class _FakePixbuf:
+    def __init__(self, width: int, height: int, scaled=None) -> None:
+        self.width = width
+        self.height = height
+        self.scaled = scaled
+        self.scale_calls: list[tuple[int, int, object]] = []
+
+    def get_width(self) -> int:
+        return self.width
+
+    def get_height(self) -> int:
+        return self.height
+
+    def scale_simple(self, width: int, height: int, interp):
+        self.scale_calls.append((width, height, interp))
+        return self.scaled
+
+
+class _FakeGtk:
+    Menu = _FakeMenu
+    MenuItem = _FakeMenuItem
+    CheckMenuItem = _FakeMenuItem
+    RadioMenuItem = _FakeRadioMenuItem
+    Box = _FakeBox
+    Label = _FakeLabel
+    Image = _FakeImage
+    Orientation = type("Orientation", (), {"HORIZONTAL": 0})
+
+
+class _FakePango:
+    EllipsizeMode = type("EllipsizeMode", (), {"END": 1})
+
+
+class _FakeGdkPixbuf:
+    InterpType = type("InterpType", (), {"BILINEAR": 1})
 
 
 class TestIconSizeOptions:
@@ -157,3 +250,73 @@ class TestBuildRadioSubmenu:
         children = item.get_submenu().get_children()
         # Second item (value=2) should be active
         assert children[1].get_active()
+
+
+class TestMenuIcons:
+    def test_menu_icon_pixbuf_handles_none_and_exact_size(self):
+        assert menu_mod._menu_icon_pixbuf(None) is None
+
+        pixbuf = _FakePixbuf(
+            menu_mod.APPLET_MENU_ICON_PX,
+            menu_mod.APPLET_MENU_ICON_PX,
+        )
+
+        assert menu_mod._menu_icon_pixbuf(pixbuf) is pixbuf
+
+    def test_menu_icon_pixbuf_scales_and_falls_back_to_original(self, monkeypatch):
+        monkeypatch.setattr(menu_mod, "GdkPixbuf", _FakeGdkPixbuf)
+        scaled = object()
+        pixbuf = _FakePixbuf(64, 64, scaled=scaled)
+
+        assert menu_mod._menu_icon_pixbuf(pixbuf) is scaled
+
+        fallback = _FakePixbuf(64, 64, scaled=None)
+        assert menu_mod._menu_icon_pixbuf(fallback) is fallback
+
+    def test_set_check_menu_item_icon_replaces_existing_child(self, monkeypatch):
+        monkeypatch.setattr(menu_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(menu_mod, "Pango", _FakePango)
+        monkeypatch.setattr(menu_mod, "GdkPixbuf", _FakeGdkPixbuf)
+        item = _FakeMenuItem()
+        old_child = object()
+        item.add(old_child)
+        pixbuf = _FakePixbuf(
+            menu_mod.APPLET_MENU_ICON_PX,
+            menu_mod.APPLET_MENU_ICON_PX,
+        )
+
+        menu_mod._set_check_menu_item_icon(
+            item=item,
+            label="Clock",
+            pixbuf=pixbuf,
+        )
+
+        row = item.get_child()
+        assert item.get_label() == "Clock"
+        assert row is not old_child
+        assert len(row.children) == 2
+        assert row.children[0].pixel_size == menu_mod.APPLET_MENU_ICON_PX
+        assert row.children[1].label == "Clock"
+
+    def test_set_menu_item_icon_scales_pixbuf_and_replaces_child(self, monkeypatch):
+        monkeypatch.setattr(menu_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(menu_mod, "Pango", _FakePango)
+        monkeypatch.setattr(menu_mod, "GdkPixbuf", _FakeGdkPixbuf)
+        item = _FakeMenuItem()
+        item.add(object())
+        scaled = object()
+        pixbuf = _FakePixbuf(48, 48, scaled=scaled)
+
+        menu_mod._set_menu_item_icon(
+            item=item,
+            label="Folder",
+            pixbuf=pixbuf,
+            icon_px=24,
+        )
+
+        row = item.get_child()
+        assert item.get_label() == "Folder"
+        assert pixbuf.scale_calls == [(24, 24, _FakeGdkPixbuf.InterpType.BILINEAR)]
+        assert len(row.children) == 2
+        assert row.children[0].pixbuf is scaled
+        assert row.children[0].pixel_size == 24

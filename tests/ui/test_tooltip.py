@@ -94,6 +94,15 @@ class TestTooltipHide:
         # Then
         tooltip._tooltip_window.hide.assert_called_once()
 
+    def test_update_with_missing_geometry_returns_without_showing(self):
+        tooltip = _make_tooltip()
+        tooltip._show_tooltip = MagicMock()  # type: ignore[method-assign]
+        item = _make_item("Firefox")
+
+        tooltip.update(item, None)
+
+        tooltip._show_tooltip.assert_not_called()
+
 
 # Anchor point for tests
 AX, AY = 500.0, 300.0
@@ -594,6 +603,89 @@ class TestTooltipIntegrationBranches:
 
         # Then
         assert existing._removed == 0
+
+    def test_show_tooltip_draw_callback_builds_rounded_background(self, monkeypatch):
+        class FakeCairo:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, tuple[object, ...]]] = []
+
+            def new_sub_path(self) -> None:
+                self.calls.append(("new_sub_path", ()))
+
+            def arc(self, *args) -> None:
+                self.calls.append(("arc", args))
+
+            def close_path(self) -> None:
+                self.calls.append(("close_path", ()))
+
+            def set_source_rgba(self, *args) -> None:
+                self.calls.append(("set_source_rgba", args))
+
+            def fill(self) -> None:
+                self.calls.append(("fill", ()))
+
+        monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
+        tooltip = TooltipManager(
+            MagicMock(),
+            SimpleNamespace(icon_size=48),
+            MagicMock(),
+            SimpleNamespace(launch_bounce_height=0.0),
+        )
+
+        tooltip._show_tooltip(
+            text="Firefox",
+            pos=Position.BOTTOM,
+            anchor_x=40.0,
+            anchor_y=24.0,
+        )
+
+        cairo = FakeCairo()
+        widget = SimpleNamespace(
+            get_allocation=lambda: SimpleNamespace(width=120, height=30)
+        )
+        assert tooltip._tooltip_window._draw_cb(widget, cairo) is False
+        assert [name for name, _args in cairo.calls].count("arc") == 4
+        assert ("fill", ()) in cairo.calls
+
+    def test_show_tooltip_replaces_visible_content_and_accepts_custom_widget(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
+        tooltip = TooltipManager(
+            MagicMock(),
+            SimpleNamespace(icon_size=48),
+            MagicMock(),
+            SimpleNamespace(launch_bounce_height=0.0),
+        )
+        existing = _FakeTooltipWindow()
+        existing._visible = True
+        existing._child = _FakeTooltipLabel("Old")
+        tooltip._tooltip_window = existing
+        widget = MagicMock()
+
+        tooltip._show_tooltip(
+            text="New",
+            pos=Position.TOP,
+            anchor_x=100.0,
+            anchor_y=20.0,
+            content_changed=True,
+        )
+        assert existing._removed == 1
+        assert existing.get_child() is not None
+
+        tooltip._show_tooltip(
+            text="Widget",
+            pos=Position.LEFT,
+            anchor_x=120.0,
+            anchor_y=30.0,
+            widget=widget,
+            content_changed=True,
+        )
+
+        assert existing._removed == 2
+        assert existing.get_child() is widget
 
     def test_update_hides_when_hovered_item_not_in_visible_list(self):
         # Given

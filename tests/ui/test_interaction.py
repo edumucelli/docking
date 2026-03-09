@@ -117,6 +117,17 @@ class TestEffectiveLeavePolicy:
 
 
 class TestMenuPopupPolicy:
+    def test_menu_popup_opened_disables_autohide(self):
+        window, _item = _make_window()
+        window.autohide = SimpleNamespace(enabled=True, set_disabled=MagicMock())
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.menu_popup_opened()
+
+        assert coordinator.dock_hovered is True
+        assert window._menu_popup_visible is True
+        window.autohide.set_disabled.assert_called_once_with(True, reason="menu-open")
+
     def test_menu_close_triggers_autohide_when_pointer_outside(self):
         window, _item = _make_window()
         window._menu_popup_visible = True
@@ -204,3 +215,79 @@ class TestMenuPopupPolicy:
         coordinator.menu_popup_closed()
 
         window.autohide.on_mouse_leave.assert_not_called()
+
+    def test_menu_close_returns_early_when_autohide_is_missing(self):
+        window, _item = _make_window()
+        window._menu_popup_visible = True
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.menu_popup_closed()
+
+        assert window._menu_popup_visible is False
+        window._hover.cancel.assert_not_called()
+
+    def test_menu_close_returns_early_when_autohide_is_disabled(self):
+        window, _item = _make_window()
+        window._menu_popup_visible = True
+        window.autohide = SimpleNamespace(enabled=False, on_mouse_leave=MagicMock())
+        coordinator = DockInteractionCoordinator(window)
+
+        coordinator.menu_popup_closed()
+
+        assert window._menu_popup_visible is False
+        window.autohide.on_mouse_leave.assert_not_called()
+
+
+class TestPointerContainment:
+    def test_dock_hovered_property_proxies_window(self):
+        window, _item = _make_window()
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.dock_hovered is True
+        coordinator.dock_hovered = False
+
+        assert window.dock_hovered is False
+
+    def test_pointer_inside_input_rect_returns_false_without_display(self):
+        window, _item = _make_window()
+        window.get_display.return_value = None
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.pointer_inside_input_rect() is False
+
+    def test_pointer_inside_input_rect_returns_false_without_seat(self):
+        window, _item = _make_window()
+        display = SimpleNamespace(get_default_seat=lambda: None)
+        window.get_display.return_value = display
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.pointer_inside_input_rect() is False
+
+    def test_pointer_inside_input_rect_returns_false_without_pointer(self):
+        window, _item = _make_window()
+        seat = SimpleNamespace(get_pointer=lambda: None)
+        display = SimpleNamespace(get_default_seat=lambda: seat)
+        window.get_display.return_value = display
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.pointer_inside_input_rect() is False
+
+    def test_pointer_inside_input_rect_returns_false_on_position_error(self):
+        window, _item = _make_window()
+        pointer = SimpleNamespace(
+            get_position=MagicMock(side_effect=RuntimeError("boom"))
+        )
+        seat = SimpleNamespace(get_pointer=lambda: pointer)
+        display = SimpleNamespace(get_default_seat=lambda: seat)
+        window.get_display.return_value = display
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.pointer_inside_input_rect() is False
+
+    def test_point_inside_event_frame_returns_false_without_input_rect(self):
+        window, _item = _make_window()
+        window._current_geometry_frame = None
+        window._applied_input_frame = None
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.point_inside_event_frame(x=2.0, y=3.0) is False

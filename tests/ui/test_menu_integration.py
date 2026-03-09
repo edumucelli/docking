@@ -926,6 +926,27 @@ class TestDockMenu:
 
 
 class TestMenuCallbacks:
+    def test_show_builds_item_menu_and_show_item_pops_pointer(
+        self, handler, monkeypatch
+    ):
+        event = SimpleNamespace(x=20.0, y=9.0)
+        item = DockItem(desktop_id="firefox.desktop")
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: _frame(item=item)
+        )
+        built: list[tuple[str, object]] = []
+
+        def capture_build(*, menu, item):
+            built.append(("item", item))
+
+        monkeypatch.setattr(handler, "_build_item_menu", capture_build)
+
+        handler.show(event=event, cursor_main=20.0)
+        handler.show_item(event=event, item=item)
+
+        assert built == [("item", item), ("item", item)]
+        assert handler._runtime.menu_popup_opened.call_count == 2
+
     def test_append_desktop_actions_triggers_launch_action(self, handler, monkeypatch):
         # Given
         menu = FakeMenu()
@@ -1010,6 +1031,93 @@ class TestMenuCallbacks:
         assert handler._config.monitor_index == -1
         handler._config.save.assert_called_once()
         handler._runtime.reposition.assert_called_once()
+
+    def test_monitor_items_filters_invalid_payloads_and_handles_errors(self, handler):
+        handler._runtime.get_monitor_menu_choices.return_value = [
+            ("Display 1", 0),
+            ("bad", "1"),
+            "bad",
+            ("Display 2", 1, "extra"),
+        ]
+        assert handler._monitor_items() == [("Display 1", 0)]
+
+        handler._runtime.get_monitor_menu_choices.side_effect = RuntimeError("boom")
+        assert handler._monitor_items() == []
+
+    def test_current_monitor_choice_falls_back_when_runtime_is_invalid(self, handler):
+        handler._config.monitor_index = 3
+        handler._runtime.current_monitor_choice.return_value = "bad"
+        assert handler._current_monitor_choice() == 3
+
+        handler._runtime.current_monitor_choice.side_effect = RuntimeError("boom")
+        assert handler._current_monitor_choice() == 3
+
+    def test_monitor_changed_noops_for_inactive_or_unchanged_selection(self, handler):
+        widget = FakeCheckMenuItem("Display")
+        widget.set_active(False)
+
+        handler._on_monitor_changed(widget, 1)
+
+        handler._config.save.assert_not_called()
+        handler._runtime.reposition.assert_not_called()
+
+        widget.set_active(True)
+        handler._config.monitor_index = -1
+        handler._runtime.primary_monitor_index.side_effect = RuntimeError("boom")
+        handler._on_monitor_changed(widget, 1)
+
+        handler._config.save.assert_not_called()
+        handler._runtime.reposition.assert_not_called()
+
+    def test_simple_toggle_callbacks_update_runtime_and_config(self, handler):
+        toggle = FakeCheckMenuItem("Toggle")
+        toggle.set_active(True)
+
+        handler._on_active_display_toggled(toggle)
+        handler._on_lock_toggled(toggle)
+        handler._on_anchor_toggled(toggle)
+        handler._on_anchor_files_toggled(toggle)
+        handler._on_workspace_only_toggled(toggle)
+        handler._on_tooltips_toggled(toggle)
+
+        assert handler._config.active_display is True
+        assert handler._config.lock_icons is True
+        assert handler._config.anchor_applets is True
+        assert handler._config.anchor_files is True
+        assert handler._config.current_workspace_only is True
+        assert handler._config.tooltips_enabled is True
+        handler._runtime.set_active_display.assert_called_once_with(True)
+        handler._runtime.set_icons_locked.assert_called_once_with(True)
+        assert handler._runtime.reposition.call_count == 1
+        assert handler._runtime.queue_draw.call_count == 3
+        handler._runtime.hide_tooltip.assert_not_called()
+
+        toggle.set_active(False)
+        handler._on_tooltips_toggled(toggle)
+        handler._runtime.hide_tooltip.assert_called_once()
+
+    def test_theme_and_position_changes_ignore_inactive_or_same_values(
+        self, handler, monkeypatch
+    ):
+        widget = FakeCheckMenuItem("Theme")
+        widget.set_active(False)
+
+        handler._on_theme_changed(widget, "default")
+        handler._on_position_changed(widget, "bottom")
+
+        handler._config.save.assert_not_called()
+        handler._runtime.set_theme.assert_not_called()
+
+        widget.set_active(True)
+        handler._config.theme = "default"
+        handler._config.position = "bottom"
+        monkeypatch.setattr(menu_mod.Theme, "load", MagicMock())
+
+        handler._on_theme_changed(widget, "default")
+        handler._on_position_changed(widget, "bottom")
+
+        handler._config.save.assert_not_called()
+        menu_mod.Theme.load.assert_not_called()
 
     def test_hit_test_and_insert_index(self, handler):
         # Given
