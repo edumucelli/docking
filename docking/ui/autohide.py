@@ -369,11 +369,15 @@ class AutoHideController:
     def _start_showing(self) -> bool:
         """Begin show animation."""
         self._unhide_timer_id = 0
+        if self.hide_offset <= 0.0:
+            # Already fully visible — skip animation entirely.
+            self.state = HideState.VISIBLE
+            self.hide_offset = 0.0
+            self.zoom_progress = 1.0
+            self._window.queue_redraw()
+            return False
         self.state = HideState.SHOWING
-        if self.hide_offset > 0.0:
-            self._anim_progress = inverse_ease_out_cubic(1.0 - self.hide_offset)
-        else:
-            self._anim_progress = 0.0
+        self._anim_progress = inverse_ease_out_cubic(1.0 - self.hide_offset)
         self._start_animation()
         return False
 

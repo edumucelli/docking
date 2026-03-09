@@ -366,10 +366,12 @@ class TestAutoHideTimersAndDelays:
         assert ctrl.state == HideState.HIDING
         assert ctrl._anim_progress == 0.0
 
+        # When hide_offset is still 0.0, _start_showing skips straight to VISIBLE
+        # to avoid the jump-to-hidden-then-animate-back bug.
         assert ctrl._start_showing() is False
-        assert ctrl.state == HideState.SHOWING
-        assert ctrl._anim_progress == 0.0
-        assert ctrl._start_animation.call_count == 2
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl.hide_offset == 0.0
+        assert ctrl._start_animation.call_count == 1
 
     def test_start_animation_replaces_existing_timer(self, monkeypatch):
         ctrl = self._make_controller()

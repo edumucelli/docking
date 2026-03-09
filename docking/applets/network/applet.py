@@ -29,6 +29,16 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
+
+def _skip_device_types() -> frozenset[object]:
+    """Return device types that should never represent the active network."""
+    return frozenset(
+        getattr(NM.DeviceType, name)
+        for name in ("TUN", "BRIDGE", "LOOPBACK", "DUMMY", "VETH")
+        if hasattr(NM.DeviceType, name)
+    )
+
+
 _log = with_context(get_logger(name="network"), applet_id=str(AppletId.NETWORK))
 
 POLL_INTERVAL_S = 2
@@ -285,11 +295,7 @@ class NetworkApplet(Applet):
         dev_type = device.get_device_type()
 
         # Skip virtual/internal links that should not represent the current network.
-        if dev_type in (
-            NM.DeviceType.TUN,
-            NM.DeviceType.BRIDGE,
-            NM.DeviceType.LOOPBACK,
-        ):
+        if dev_type in _skip_device_types():
             return -1
 
         if dev_type == NM.DeviceType.WIFI:

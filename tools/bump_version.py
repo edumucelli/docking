@@ -72,11 +72,14 @@ def _prepend_rpm_changelog(*, version: str) -> None:
         raise RuntimeError(f"Missing %changelog section in {path}")
 
     head, tail = text.split(marker, 1)
+    if re.match(
+        rf"\* .+ - {re.escape(version)}-1\n- Release {re.escape(version)}\.\n",
+        tail,
+    ):
+        return
     today = datetime.now().astimezone()
     maintainer = "Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>"
     first_line = f"* {today:%a %b %d %Y} {maintainer} - {version}-1\n"
-    if tail.startswith(first_line):
-        return
 
     entry = first_line + f"- Release {version}.\n\n"
     path.write_text(head + marker + entry + tail, encoding="utf-8")
@@ -85,11 +88,10 @@ def _prepend_rpm_changelog(*, version: str) -> None:
 def _upsert_metainfo_release(*, version: str) -> None:
     path = ROOT / "packaging/flatpak/org.docking.Docking.metainfo.xml"
     text = path.read_text(encoding="utf-8")
+    if re.search(rf'<release version="{re.escape(version)}" date="[^"]+" />', text):
+        return
     date = datetime.now().date().isoformat()
     entry = f'    <release version="{version}" date="{date}" />\n'
-
-    if entry in text:
-        return
 
     marker = "  <releases>\n"
     if marker not in text:
