@@ -1,183 +1,500 @@
 # Docking Architecture
 
-Maintainer map for the `docking` codebase: module ownership, runtime call graph, and extension points.
+This document describes the current architecture of `docking` as of the
+`0.1.38` release line. It replaces the older overview that predated the
+geometry refactor, the UI assembly split, and the first wave of `DockWindow`
+decomposition.
+
+Two companion documents cover adjacent topics:
+
+- `docs/DOCK_GEOMETRY_REFACTOR.md`
+  Current status of the geometry refactor and what already landed.
+- `docs/PLANK_AUTOHIDE_PARITY_PLAN.md`
+  Planned direction for making autohide more containment-led and Plank-like.
+
+This file focuses on what is true in production code today.
 
 ## Scope
 
-- App type: GTK3/X11 dock with pluggable applets.
-- Entrypoint: `docking/app.py` (`docking` console script and `run.py` both route here).
-- Main constraints: X11/`libwnck`, GI bindings, Cairo rendering, low-latency pointer interaction.
+- App type: GTK3/X11 dock with pluggable applets
+- Entrypoint: `docking/app.py`
+- UI assembly root: `docking/ui/factory.py`
+- Main runtime constraints:
+  - X11/`libwnck` integration
+  - GI bindings
+  - Cairo rendering
+  - low-latency pointer interaction
+  - geometry/input-mask correctness during autohide motion
 
-## Top-Level Responsibility Map
+## Architectural Shape
 
-- `docking/app.py`: composition root; wires config, model, renderer, window, controllers, and starts GTK main loop.
-- `docking/log.py`: logger config (`DOCKING_LOG_LEVEL`).
-- `docking/core/`: pure logic and immutable-ish domain types.
-- `docking/platform/`: OS/window-system integration.
-- `docking/ui/`: input handling, rendering, window geometry, animation orchestration.
-- `docking/applets/`: plugin system + built-in applets.
-- `docking/assets/`: themes, icons, sounds, weather city DB, poof sprite.
-- `tests/`: behavior contracts (math, state transitions, rendering structure, applet logic).
+The dock is now organized around a clearer split than it had originally:
 
-## Core Layer (`docking/core`)
+- `docking/app.py`
+  Bootstraps process-wide concerns and creates the top-level object graph.
+- `docking/core/`
+  Configuration, theme, position, zoom, and other mostly GTK-free logic.
+- `docking/platform/`
+  Window tracking, launch integration, barriers, struts, and environment tweaks.
+- `docking/ui/`
+  Runtime shell, geometry, rendering, interaction policy, placement, autohide,
+  hover, menus, previews, drag-and-drop, and focused controllers.
+- `docking/applets/`
+  Plugin-style built-in applets and their internal submodules.
 
-- `config.py`: persisted dock settings at `~/.config/docking/dock.json`.
-- `position.py`: edge enum (`bottom/top/left/right`) + orientation helper.
-- `theme.py`: loads JSON themes and converts scale units to pixels.
-- `zoom.py`: parabolic zoom/displacement layout math used by renderer and hit-testing.
+The most important structural changes since the older architecture document are:
 
-Design intent:
-- Keep logic GTK-free where possible for fast tests and deterministic behavior.
+- shared geometry is now a first-class module with an explicit frame type
+- UI assembly moved into `docking/ui/factory.py`
+- `DockWindow` is no longer expected to own every dock concern directly
+- narrow runtime surfaces exist for handlers that should not depend on the
+  entire window object graph
 
-## Platform Layer (`docking/platform`)
+## Startup and Assembly
 
-- `model.py`: source of truth for visible dock items.
-- Owns pinned items, transient running items, applet lifecycle, and animation timestamps.
-- `launcher.py`: `.desktop` resolution, icon loading cache, desktop actions, launch helpers.
-- `window_tracker.py`: maps Wnck windows to desktop IDs, running/active/urgent state updates.
-- `struts.py`: X11 `_NET_WM_STRUT_PARTIAL` management via ctypes/Xlib.
-
-Design intent:
-- Isolate system integration details from UI drawing and pure math.
-
-## UI Layer (`docking/ui`)
-
-- `dock_window.py`: main dock window; event wiring, cursor state, input region, positioning/struts coordination.
-- `renderer.py`: Cairo draw pipeline and animation rendering (shelf, icons, indicators, glows).
-- `autohide.py`: hide/show state machine and easing.
-- `hover.py`: hover tracking, preview timer, animation pump.
-- `tooltip.py`: custom tooltip popup placement/caching.
-- `preview.py`: window thumbnail popup and activation.
-- `menu.py`: context menus for item and dock background actions.
-- `dnd.py`: internal reorder + external `.desktop` drops + drag-off removal poof.
-- `effects.py`, `shelf.py`, `poof.py`: rendering helpers/assets-specific effects.
-
-Design intent:
-- Keep all event choreography in one place (`DockWindow`), delegate focused behavior to helpers.
-
-## Applet Layer (`docking/applets`)
-
-- Base API: `applets/base.py` (`Applet` abstract class).
-- Registry: `applets/__init__.py` (`get_registry()`).
-- Built-ins (20): ambient, applications, battery, calendar, clippy, clock, cpumonitor, desktop, hydration, music, network, pomodoro, quote, screenshot, separator, session, trash, volume, weather, workspaces.
-- Weather is a subpackage (`applets/weather/*`) with API client and city lookup DB access.
-
-Design intent:
-- Each applet owns its icon rendering, timers/signals, menu, and persisted prefs.
-
-## Startup Call Graph
+The startup path is now:
 
 ```text
-docking (console script) / run.py
+docking / run.py
   -> docking.app:main()
+     -> apply_tweaks(detect_desktop())
      -> Config.load()
-     -> Theme.load()
+     -> Theme.load(...)
      -> Launcher()
      -> DockModel(config, launcher)
      -> DockRenderer()
-     -> WindowTracker(model, launcher)
-     -> DockWindow(config, model, renderer, theme, tracker)
-     -> AutoHideController(window, config)
-     -> DnDHandler(window, model, config, renderer, theme, launcher)
-     -> MenuHandler(window, model, config, tracker, launcher)
-     -> PreviewPopup(tracker)
+     -> WindowTracker(model, launcher, config)
+     -> build_dock_window(...)
+        -> DockWindow(...)
+        -> AutoHideController(window, config)
+        -> DockRuntime(window)
+        -> DockDragRuntime(window)
+        -> AboutDialogController(...)
+        -> SettingsWindowController(...)
+        -> DnDHandler(...)
+        -> MenuHandler(...)
+        -> PreviewPopup(...)
+        -> window.attach_components(...)
      -> model.start_applets()
      -> window.show_all()
      -> Gtk.main()
+     -> model.stop_applets()
 ```
 
-## Runtime Interaction Call Graph
+`build_dock_window()` is now the composition root for the UI graph. That is an
+important change. `DockWindow` still owns the runtime shell, but app-level
+assembly no longer leaks a half-built window and then mutates it piecemeal from
+`app.py`.
+
+## Top-Level Ownership Map
+
+### `docking/app.py`
+
+Owns:
+
+- process bootstrap
+- GI setup
+- vendor path setup for packaged installs
+- config/theme/model/renderer/tracker creation
+- GTK main-loop lifecycle
+
+Does not own:
+
+- detailed UI graph wiring
+- geometry logic
+- autohide policy
+
+### `docking/ui/factory.py`
+
+Owns:
+
+- UI graph assembly
+- creation order for components that depend on a live `DockWindow`
+- atomic late attachment through `DockComponents`
+
+This module exists because several UI collaborators need a realized shell or a
+window-bound runtime surface. Forcing all of them into `DockWindow.__init__`
+would only hide the cycle.
+
+## Core Layer
+
+Primary modules:
+
+- `docking/core/config.py`
+- `docking/core/theme.py`
+- `docking/core/position.py`
+- `docking/core/zoom.py`
+- `docking/core/items.py`
+
+Responsibilities:
+
+- persisted user configuration and applet prefs
+- theme loading and scaling
+- dock-edge/orientation helpers
+- zoom/displacement math
+- shared item-level domain constants and data shapes
+
+Design rule:
+
+- keep deterministic logic GTK-free where practical
+- make math and data contracts easy to test in isolation
+
+## Platform Layer
+
+Primary modules:
+
+- `docking/platform/model.py`
+- `docking/platform/window_tracker.py`
+- `docking/platform/launcher.py`
+- `docking/platform/struts.py`
+- `docking/platform/barriers.py`
+- `docking/platform/environment.py`
+
+Responsibilities:
+
+- authoritative visible dock item list and applet lifecycle
+- running/active/urgent window tracking through Wnck
+- desktop-file resolution, launch helpers, and icon lookup
+- X11 strut writes and clearing
+- pointer barrier integration
+- desktop-environment-specific tweaks at startup
+
+Design rule:
+
+- isolate OS/window-system details from renderer and UI policy
+
+## UI Layer
+
+The UI layer is now much more intentionally split than it used to be.
+
+### `docking/ui/dock_window.py`
+
+Current role:
+
+- GTK/X11 shell
+- drawing-area event adapter
+- current pointer position storage
+- input shape application
+- runtime coordination between collaborators
+
+`DockWindow` is no longer the whole UI architecture. It is the shell that
+routes events and keeps the main runtime collaborators together.
+
+Important owned state:
+
+- `cursor_x` / `cursor_y`
+- `dock_hovered`
+- `_current_geometry_frame`
+- `_applied_input_frame`
+
+Important collaborators:
+
+- `DockGeometryBuilder`
+- `DockPlacementController`
+- `DockInteractionCoordinator`
+- `HoverManager`
+- `TooltipManager`
+- `AutoHideController`
+- `DnDHandler`
+- `MenuHandler`
+- `PreviewPopup`
+
+### `docking/ui/geometry.py`
+
+This is now one of the core architectural modules.
+
+Key types:
+
+- `Rect`
+- `ItemGeometry`
+- `DockGeometryFrame`
+- `DockGeometryInputs`
+- `DockGeometryBuilder`
+
+Responsibilities:
+
+- build one explicit geometry snapshot for the current dock state
+- define dock-wide interaction geometry via `cursor_rect`
+- define per-item `draw_rect`, `hover_rect`, `hit_rect`, and related regions
+- provide popup anchor geometry
+- keep input masking, hover, rendering, and hit-testing aligned
+
+Important invariant:
+
+- geometry containment uses normalized half-open bounds
+
+This shared frame model is the main reason edge behavior, hover targeting, and
+popup anchoring are more coherent than in the earlier codebase.
+
+### `docking/ui/renderer.py`
+
+Responsibilities:
+
+- Cairo draw pipeline
+- shelf/background/icon rendering
+- glow, urgent, click, and launch visual effects
+- consuming a provided `DockGeometryFrame`
+
+Important rule:
+
+- the renderer should consume geometry, not invent a second layout model
+
+### `docking/ui/autohide.py`
+
+Responsibilities:
+
+- the four-state autohide state machine:
+  - `VISIBLE`
+  - `HIDING`
+  - `HIDDEN`
+  - `SHOWING`
+- hide/show delays
+- animation progress
+- `hide_offset`
+- `zoom_progress`
+- hover/disabled reconciliation into hide/show intent
+
+Recent important behavior:
+
+- hide/show reversal continuity is preserved through inverse easing
+- if `_start_showing()` is called while `hide_offset <= 0.0`, the controller
+  now snaps directly to `VISIBLE` instead of starting a bogus zero-offset show
+  animation
+
+That last fix is the production fix for the autohide "jump out" bug that was
+still present before `0.1.38`.
+
+### `docking/ui/interaction.py`
+
+Responsibilities today:
+
+- effective enter handling
+- effective leave handling
+- menu popup open/close policy
+- pointer-inside-current-input-rect checks
+- preview-aware leave policy
+- cursor-preservation policy during hide
+
+Important current status:
+
+- this module is a real policy layer now
+- but it is not yet the full Plank-style containment authority described in
+  `docs/PLANK_AUTOHIDE_PARITY_PLAN.md`
+
+Current behavior is still event-led with geometry confirmation:
+
+- `DockWindow` receives raw crossing/motion events
+- interaction filters them through the current input frame
+- effective leave/enter is then applied
+
+That is an improvement over raw widget-boundary behavior, but it is still not
+the final containment-led model planned in the parity doc.
+
+### `docking/ui/placement.py`
+
+Responsibilities:
+
+- monitor selection
+- workarea/monitor-edge placement
+- deferred reposition scheduling
+- X11 struts
+- pointer barriers
+- active-display polling
+
+This module exists because placement concerns are platform-facing and should
+not be mixed into hover or renderer logic.
+
+### `docking/ui/hover.py`
+
+Responsibilities:
+
+- hovered-item tracking from shared geometry
+- tooltip refresh coordination
+- preview show timer lifecycle
+- short-lived animation pump for click/launch/urgent redraws
+
+Important current behavior:
+
+- hover uses geometry-provided hover regions
+- tooltip display is suppressed while autohide is in `SHOWING` so tooltips do
+  not visibly chase a moving dock
+
+### `docking/ui/tooltip.py`
+
+Responsibilities:
+
+- tooltip popup lifecycle
+- stable tooltip placement from shared geometry
+- text caching/update rules
+
+### `docking/ui/preview.py`
+
+Responsibilities:
+
+- window-thumbnail popup lifecycle
+- preview show/hide timers
+- activation of selected windows
+- cooperation with autohide through explicit preview-aware policy
+
+Current production model:
+
+- leaving the dock while preview is visible schedules preview hide first
+- preview disappearance is what may eventually release autohide
+- this keeps the dock/preview interaction reachable
+
+### `docking/ui/menu.py`
+
+Responsibilities:
+
+- dock background menu
+- item context menus
+- settings/about integration
+- monitor-selection actions
+- runtime calls through `DockRuntime`
+
+### `docking/ui/dnd.py`
+
+Responsibilities:
+
+- internal reorder drag-and-drop
+- external desktop-file/file drops
+- drag-off removal behavior
+- autohide disable/re-enable coordination during drag
+
+### `docking/ui/runtime.py`
+
+This is another important architectural improvement since the older document.
+
+Current runtime surfaces:
+
+- `DockRuntime`
+- `DockDragRuntime`
+
+Purpose:
+
+- expose narrow imperative APIs to handlers/controllers
+- stop passing the full `DockWindow` object to every subsystem
+
+Examples:
+
+- menu handlers ask runtime to open/close popup state, reposition, or hide UI
+- drag handlers ask runtime about pointer position, window bounds, and autohide
+  transitions without owning the full shell
+
+## Runtime Data Flow
+
+The key runtime loop is now:
 
 ```text
-Pointer motion
-  DockWindow._on_motion
-    -> HoverManager.update
-       -> compute_layout(...)
-       -> hit_test(...)
-       -> TooltipManager.update(...)
-    -> queue_draw
-    -> DockRenderer.draw(...)
-
-Click release
-  DockWindow._on_button_release
-    -> hit_test
-    -> if applet: Applet.on_clicked()
-    -> else launch() or WindowTracker.toggle_focus()
-    -> set animation timestamps
-    -> HoverManager.start_anim_pump()
-
-Window changes (open/close/active/urgent)
-  WindowTracker signals
-    -> _update_running()
-    -> DockModel.update_running(...)
-    -> DockWindow._on_model_changed()
-    -> queue_draw
+raw GTK event
+  -> DockWindow stores cursor/button context
+  -> DockWindow builds current geometry frame
+  -> interaction / hover / DnD / menu consume that shared geometry
+  -> renderer draws from the same frame
+  -> input mask is refreshed from the same frame if needed
 ```
 
-## Data Ownership and State Boundaries
+That shared-frame rule matters more than any single module split. It is the
+main protection against the old class of bugs where rendering, hover, and input
+all had slightly different ideas of where the dock really was.
 
-- `Config`: persisted user settings and applet prefs.
-- `DockModel`: authoritative visible-item order and per-item runtime state.
-- `DockWindow`: current pointer coordinates and input-region shape.
-- `AutoHideController`: hide/show state (`VISIBLE/HIDING/HIDDEN/SHOWING`) and progress.
-- `DockRenderer`: visual transient state (`slide_offsets`, hover lighten accumulators, smoothed shelf width).
+## State Ownership
 
-## Extension Points
+Current authoritative owners:
 
-### Add a New Applet
+- `Config`
+  persisted settings and applet prefs
+- `DockModel`
+  visible items, item ordering, applet lifecycle, and item runtime state
+- `DockWindow`
+  shell-level pointer coordinates and active geometry frames
+- `AutoHideController`
+  hide/show state, delays, animation progress, hide offset, zoom progress
+- `DockPlacementController`
+  monitor and placement state
+- `HoverManager`
+  currently hovered item and preview show timer
+- `PreviewPopup`
+  preview hide timer and preview popup lifecycle
 
-- Implement subclass of `Applet` in `docking/applets/<name>.py`.
-- Set `id`, `name`, `icon_name`, and implement at minimum `create_icon`.
-- Optionally implement `on_clicked`, `on_scroll`, `get_menu_items`, `start`, `stop`.
-- Register class in `docking/applets/__init__.py`.
-- Add tests in `tests/applets/test_<name>.py`.
+## Applet Architecture
 
-### Add/Adjust Theme
+Base API:
 
-- Create/edit JSON in `docking/assets/themes/`.
-- Layout keys use scaled units interpreted by `Theme.load`.
-- Animation keys are direct values (ms/fractions/opacity).
+- `docking/applets/base.py`
 
-### Change Dock Behavior
+Registry:
 
-- Input/event policy: `docking/ui/dock_window.py`.
-- Autohide timing/easing: `docking/ui/autohide.py`.
-- Rendered effects/layout visuals: `docking/ui/renderer.py` and helpers.
-- Right-click menu actions: `docking/ui/menu.py`.
-- DnD and pin/reorder semantics: `docking/ui/dnd.py` + `platform/model.py`.
+- `docking/applets/__init__.py`
 
-### Change Platform Integration
+Applet responsibilities:
 
-- `.desktop` resolution/actions/launching: `docking/platform/launcher.py`.
-- Running window matching policy: `docking/platform/window_tracker.py`.
-- Strut math and X11 property writes: `docking/platform/struts.py`.
+- icon rendering or icon composition
+- click/scroll behavior
+- applet-specific timers/signals
+- menu items
+- persisted applet preferences
+
+Design rule:
+
+- applets should own their own behavior and presentation contracts
+- renderer and dock window should deal in `DockItem` state and the applet API,
+  not applet-specific internals
 
 ## Testing Map
 
-- `tests/core/`: pure math/config/theme contracts.
-- `tests/platform/`: model and integration math (launcher/struts/window mapping).
-- `tests/ui/`: geometry/state machine/renderer structure/regression behaviors.
-- `tests/applets/`: applet parsing/state/menu/rendering/prefs.
+Main test layout:
 
-Useful invariant examples enforced by tests:
-- Zoom/rest bounds contracts in `core.zoom`.
-- Input region two-state model (content rect vs hidden trigger strip).
-- Offscreen + atomic blit renderer pattern (anti-flicker regression guard).
-- Model transition correctness for running/urgent/pin/reorder.
+- `tests/core/`
+- `tests/platform/`
+- `tests/ui/`
+- `tests/applets/`
 
-## Packaging and Delivery Notes
+Important current regression areas:
 
-- Python project metadata in `pyproject.toml`; Debian packaging under `packaging/deb/`.
-- Debian build vendors pip deps into `/usr/lib/docking/vendor` and prepends that path at runtime in `app.py`.
-- CI workflow in `.github/workflows/ci.yml` runs lint/format/type/tests and `.deb` build.
+- geometry contracts and edge symmetry
+- autohide state-machine behavior and reversal continuity
+- renderer structure and anti-flicker behavior
+- menu/preview/hover integration
+- applet behavior and packaging helpers
 
-## Maintainer Checklist (When Changing Behavior)
+## Packaging and Release Surfaces
 
-- Update tests first or in lockstep, especially for UI geometry/state transitions.
-- Keep pure logic in `core/` where feasible.
-- Avoid coupling applet internals into renderer/window; use `DockItem` fields and applet API.
-- For pointer or autohide changes, validate interaction among:
-  - input region updates,
-  - hover/tooltip/preview crossing events,
-  - hide/show state transitions,
-  - DnD motion/leave behavior.
+Version surfaces that must stay in sync:
+
+- `pyproject.toml`
+- `setup.cfg`
+- `docking/__init__.py`
+- `packaging/rpm/docking.spec`
+- `packaging/snap/snapcraft.yaml`
+
+Release tooling also touches:
+
+- `tools/bump_version.py`
+- packaging metadata for Arch, Nix, Debian, and Flatpak
+
+Recent maintenance note:
+
+- `tools/bump_version.py` is now expected to be idempotent when asked to bump
+  to the version already present in packaging metadata
+
+## Current Status vs Planned Direction
+
+The architecture is materially ahead of where it was when the original
+`ARCHITECTURE.md` was written:
+
+- geometry is shared and explicit
+- UI assembly is explicit
+- placement, interaction, and runtime surfaces are split into their own modules
+- autohide behavior is more coherent and the `0.1.38` jump bug is fixed in the
+  state machine
+
+But some work is still intentionally described as planned rather than complete:
+
+- a fully containment-led hover/autohide authority is still future work
+- the Plank-parity effort in `docs/PLANK_AUTOHIDE_PARITY_PLAN.md` is still a
+  roadmap, not a description of current production behavior
+
+That distinction matters. This document should remain a map of the current
+codebase, while the parity and refactor docs describe either the status of a
+subsystem or the next architectural step.
