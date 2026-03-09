@@ -54,7 +54,8 @@ if TYPE_CHECKING:
 
 APPLET_LIST_ICON_PX = 32
 APPLET_GRID_COLUMNS = 3
-APPLET_CELL_WIDTH_PX = 220
+APPLET_CELL_WIDTH_PX = 168
+APPEARANCE_ROW_WIDTH_PX = 428
 _log = get_logger("settings")
 
 
@@ -121,7 +122,7 @@ class SettingsWindowController:
             transient_for=self._parent,
             destroy_with_parent=True,
         )
-        window.set_default_size(560, 420)
+        window.set_default_size(460, 420)
         window.set_modal(False)
         window.set_resizable(True)
         window.set_position(Gtk.WindowPosition.CENTER)
@@ -226,6 +227,7 @@ class SettingsWindowController:
 
     def _build_row(self, *, label: str, widget: Gtk.Widget) -> Gtk.Box:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        row.set_size_request(APPEARANCE_ROW_WIDTH_PX, -1)
         title = Gtk.Label(label=label)
         title.set_xalign(0.0)
         title.set_hexpand(True)
@@ -243,10 +245,14 @@ class SettingsWindowController:
         section = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         header = self._build_section_header(title=title)
         section.pack_start(header, False, False, 0)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        content.set_margin_start(18)
+        content.set_margin_end(18)
         for label, widget in rows:
-            section.pack_start(
+            content.pack_start(
                 self._build_row(label=label, widget=widget), False, False, 0
             )
+        section.pack_start(content, False, False, 0)
         outer.pack_start(section, False, False, 0)
 
     def _build_section_header(self, *, title: str) -> Gtk.Label:

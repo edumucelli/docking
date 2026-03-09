@@ -58,9 +58,17 @@ class FakeBox:
         self.border_width = 0
         self.hexpand = False
         self.size_request = None
+        self.margin_start = 0
+        self.margin_end = 0
 
     def set_border_width(self, value: int) -> None:
         self.border_width = value
+
+    def set_margin_start(self, value: int) -> None:
+        self.margin_start = value
+
+    def set_margin_end(self, value: int) -> None:
+        self.margin_end = value
 
     def set_hexpand(self, value: bool) -> None:
         self.hexpand = value
