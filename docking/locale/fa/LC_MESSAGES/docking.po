@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-10 23:52+0100\n"
+"POT-Creation-Date: 2026-03-11 00:10+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -62,9 +62,13 @@ msgstr "Pink Noise"
 msgid "Playing: {sound} ({pct}%)"
 msgstr "در حال پخش: {sound} ({pct}%)"
 
-#: docking/applets/applications/applet.py:28
+#: docking/applets/applications/applet.py:30
 msgid "Applications"
 msgstr "Applications"
+
+#: docking/applets/applications/applet.py:45
+msgid "Search applications..."
+msgstr "Search applications..."
 
 #: docking/applets/battery/applet.py:27
 msgid "Battery"
