@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 26 built-in applets enabled from the dock menu.
+- 30 built-in applets enabled from the dock menu, plus a dock separator item.
 - 9 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - 74 locale catalogs plus English fallback.
@@ -314,6 +314,40 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 
 **Preferences stored:** `max_entries`
 
+### Bookmarks
+
+Bookmarks launcher for pinned URLs.
+
+**Click:** Open the first saved bookmark in the default browser
+**Right-click options:**
+- **Add Bookmark...** -- save a name + URL pair
+- individual bookmark entries -- open that bookmark directly
+- **Remove All** -- clear the saved bookmark list
+
+**Tooltip:** summary of the saved bookmark set
+
+### Quick Note
+
+Sticky note applet for a single quick text note.
+
+**Click:** Open the note editor dialog
+**Right-click options:**
+- **Edit Note** -- open the editor
+- **Clear Note** -- empty the note
+
+**Tooltip:** note preview or empty-note fallback
+
+### Recent Files
+
+Launcher for the most recently opened files from `Gtk.RecentManager`.
+
+**Click:** Open the newest recent file
+**Right-click options:**
+- recent file entries -- open the selected file
+- **Clear Recent Files** -- purge the recent-files list
+
+**Tooltip:** most recent file name or empty-state fallback
+
 ### Color Picker
 
 ![Color Picker applet](images/color.png)
@@ -335,7 +369,17 @@ Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel colo
 
 Categorized application launcher. Groups all installed `.desktop` applications by FreeDesktop category (Multimedia, Development, Internet, etc.) with icons.
 
-**Right-click:** Categorized submenus with application icons. Click an app to launch it.
+**Right-click:** Categorized submenus with application icons. The top of the menu includes a search field that filters applications as you type.
+
+### Keyboard Layout
+
+Keyboard layout switcher with a compact keyboard icon and active layout code overlay.
+
+**Click:** Cycle to the next available layout
+**Scroll:** Move forward/backward through available layouts
+**Right-click options:** direct selection of each detected layout
+
+**Tooltip:** active layout code or no-layout fallback
 
 ### Network
 
@@ -506,6 +550,15 @@ Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases wi
 - **Long break duration** -- 15/20/30 min presets
 
 **Preferences stored:** `work`, `break_`, `long_break`
+
+### Pet
+
+Animated companion applet that reacts to system activity with different moods.
+
+**Click:** reset the pet back to a happy state
+**Tooltip:** current mood and CPU percentage
+
+**Data source:** `/proc/stat` via the shared CPU sampling helpers
 
 ### Separator
 
