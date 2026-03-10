@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 import cairo
 import gi
 
@@ -12,29 +10,12 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
 from docking.applets.battery.state import BatteryState
+from docking.applets.draw import rounded_rect
 
 _GREEN = (0.00, 0.62, 0.32)
 _GREEN_DARK = (0.00, 0.55, 0.28)
 _BG = (1.0, 1.0, 1.0)
 _DISABLED = (0.72, 0.72, 0.72)
-
-
-def _rounded_rect(
-    *,
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    r = max(0.0, min(r, min(w, h) / 2))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
 
 
 def _draw_no_battery(*, cr: cairo.Context, size: int) -> None:
@@ -49,17 +30,17 @@ def _draw_no_battery(*, cr: cairo.Context, size: int) -> None:
     cap_x = x + (w - cap_w) / 2
     cap_y = y - cap_h - size * 0.015
 
-    _rounded_rect(cr=cr, x=cap_x, y=cap_y, w=cap_w, h=cap_h, r=size * 0.02)
+    rounded_rect(cr=cr, x=cap_x, y=cap_y, width=cap_w, height=cap_h, radius=size * 0.02)
     cr.set_source_rgb(*_BG)
     cr.fill()
 
-    _rounded_rect(
+    rounded_rect(
         cr=cr,
         x=x,
         y=y,
-        w=w,
-        h=h,
-        r=r,
+        width=w,
+        height=h,
+        radius=r,
     )
     cr.set_source_rgb(*_DISABLED)
     cr.set_line_width(max(1.6, size * 0.07))
@@ -88,12 +69,12 @@ def _draw_battery(
     cap_h = size * 0.075
     cap_x = x + (w - cap_w) / 2
     cap_y = y - cap_h - size * 0.015
-    _rounded_rect(cr=cr, x=cap_x, y=cap_y, w=cap_w, h=cap_h, r=size * 0.02)
+    rounded_rect(cr=cr, x=cap_x, y=cap_y, width=cap_w, height=cap_h, radius=size * 0.02)
     cr.set_source_rgb(*_BG)
     cr.fill()
 
     # Outer frame
-    _rounded_rect(cr=cr, x=x, y=y, w=w, h=h, r=r)
+    rounded_rect(cr=cr, x=x, y=y, width=w, height=h, radius=r)
     cr.set_source_rgb(*_GREEN)
     cr.set_line_width(max(1.8, size * 0.08))
     cr.stroke_preserve()

@@ -172,8 +172,7 @@ def _wm_class_desktop_candidates(class_lower: str) -> list[str]:
         candidates.append(class_lower.replace(" ", "-"))
         candidates.append(class_lower.replace(" ", ""))
     # Deduplicate while preserving order
-    seen: set[str] = set()
-    return [c for c in candidates if not (c in seen or seen.add(c))]
+    return list(dict.fromkeys(candidates))
 
 
 if TYPE_CHECKING:

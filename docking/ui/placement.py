@@ -159,6 +159,7 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.barriers import PointerBarrier
 from docking.platform.struts import clear_struts, set_dock_struts
+from docking.ui.runtime import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
@@ -447,13 +448,10 @@ class DockPlacementController:
         display = self._window.get_display()
         if not display:
             return True
-        seat = display.get_default_seat()
-        if not seat:
+        pos = get_pointer_position(display)
+        if pos is None:
             return True
-        pointer = seat.get_pointer()
-        if not pointer:
-            return True
-        _, x, y = pointer.get_position()
+        x, y = pos
         monitor = display.get_monitor_at_point(x, y)
         if monitor is not None and monitor != self._active_monitor:
             self._active_monitor = monitor

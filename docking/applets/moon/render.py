@@ -20,8 +20,6 @@ from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
 from docking.applets.base import draw_icon_label
 
-TWO_PI = 2 * math.pi
-
 # Moon colors
 _LIT = (0.95, 0.93, 0.82)  # warm white/cream for lit surface
 _DARK = (0.18, 0.20, 0.25)  # dark grey-blue for shadowed surface
@@ -49,7 +47,7 @@ def create_icon(
     illum = max(0.0, min(1.0, illumination))
 
     # Dark disc (shadow)
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgb(*_DARK)
     cr.fill()
 
@@ -63,7 +61,7 @@ def create_icon(
     if illum > 0.001:
         cr.save()
         # Clip to disc
-        cr.arc(cx, cy, radius, 0, TWO_PI)
+        cr.arc(cx, cy, radius, 0, math.tau)
         cr.clip()
 
         # The lit side semicircle
@@ -117,7 +115,7 @@ def create_icon(
         cr.restore()
 
     # Thin outline
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgba(*_OUTLINE, 0.4)
     cr.set_line_width(max(1.0, size * 0.02))
     cr.stroke()

@@ -19,6 +19,7 @@ from docking.applets.calendar.render import render_icon
 from docking.applets.calendar.state import snapshot_from
 from docking.applets.identity import AppletId
 from docking.i18n import _
+from docking.ui.runtime import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -119,9 +120,8 @@ class CalendarApplet(Applet):
 
         # Position near mouse
         display = Gdk.Display.get_default()
-        seat = display.get_default_seat()
-        pointer = seat.get_pointer()
-        _, mouse_x, mouse_y = pointer.get_position()
+        pos = get_pointer_position(display)
+        mouse_x, mouse_y = pos if pos else (0, 0)
 
         pref = self._popup.get_preferred_size()[1]
         popup_w = max(pref.width, 1)

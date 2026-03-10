@@ -13,7 +13,6 @@ from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
 from docking.applets.base import draw_icon_label
 
-TWO_PI = 2 * math.pi
 _NUM_RAYS = 8
 
 # Colors from the reference icon
@@ -53,7 +52,7 @@ def create_icon(
     cr.set_line_cap(cairo.LINE_CAP_BUTT)
 
     for i in range(_NUM_RAYS):
-        angle = TWO_PI * i / _NUM_RAYS - math.pi / 2
+        angle = math.tau * i / _NUM_RAYS - math.pi / 2
         x0 = cx + math.cos(angle) * ray_inner
         y0 = cy + math.sin(angle) * ray_inner
         x1 = cx + math.cos(angle) * ray_outer
@@ -75,7 +74,7 @@ def create_icon(
     cr.save()
     cr.rectangle(0, 0, split_x, size)
     cr.clip()
-    cr.arc(cx, cy, disc_r, 0, TWO_PI)
+    cr.arc(cx, cy, disc_r, 0, math.tau)
     cr.set_source_rgb(*_YELLOW)
     cr.fill()
     cr.restore()
@@ -84,7 +83,7 @@ def create_icon(
     cr.save()
     cr.rectangle(split_x, 0, size, size)
     cr.clip()
-    cr.arc(cx, cy, disc_r, 0, TWO_PI)
+    cr.arc(cx, cy, disc_r, 0, math.tau)
     cr.set_source_rgb(*_BLUE)
     cr.fill()
     cr.restore()

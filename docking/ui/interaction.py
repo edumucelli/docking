@@ -171,6 +171,7 @@ from typing import TYPE_CHECKING
 
 from docking.log import get_logger
 from docking.ui.geometry import current_input_rect, point_inside_input_rect
+from docking.ui.runtime import get_pointer_position
 
 if TYPE_CHECKING:
     from gi.repository import Gtk
@@ -251,14 +252,11 @@ class DockInteractionCoordinator:
         display = self._window.get_display()
         if not display:
             return False
-        seat = display.get_default_seat()
-        if not seat:
-            return False
-        pointer = seat.get_pointer()
-        if not pointer:
+        pos = get_pointer_position(display)
+        if pos is None:
             return False
         try:
-            _, screen_x, screen_y = pointer.get_position()
+            screen_x, screen_y = pos
             win_x, win_y = self._window.get_position()
         except Exception as exc:
             _log.debug(

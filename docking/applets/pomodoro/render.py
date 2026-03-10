@@ -14,8 +14,6 @@ from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 from docking.applets.base import draw_icon_label
 from docking.applets.pomodoro.state import PomodoroState, State, format_time
 
-TWO_PI = 2 * math.pi
-
 # RGB tuples per state (tomato body color)
 STATE_COLORS: dict[State, tuple[float, float, float]] = {
     State.IDLE: (0.85, 0.16, 0.12),
@@ -45,7 +43,7 @@ def _draw_tomato(
     cr.save()
     cr.translate(cx, cy)
     cr.scale(radius_x, radius_y)
-    cr.arc(0, 0, 1.0, 0, TWO_PI)
+    cr.arc(0, 0, 1.0, 0, math.tau)
     cr.restore()
     cr.set_source_rgba(red, green, blue, alpha)
     cr.fill()
@@ -54,7 +52,7 @@ def _draw_tomato(
     cr.save()
     cr.translate(cx - radius_x * 0.25, cy - radius_y * 0.30)
     cr.scale(radius_x * 0.45, radius_y * 0.35)
-    cr.arc(0, 0, 1.0, 0, TWO_PI)
+    cr.arc(0, 0, 1.0, 0, math.tau)
     cr.restore()
     cr.set_source_rgba(1, 1, 1, 0.18 * alpha)
     cr.fill()
@@ -75,7 +73,7 @@ def _draw_tomato(
     cr.translate(leaf_cx, leaf_cy)
     cr.rotate(0.5)  # slight tilt
     cr.scale(size * 0.10, size * 0.05)
-    cr.arc(0, 0, 1.0, 0, TWO_PI)
+    cr.arc(0, 0, 1.0, 0, math.tau)
     cr.restore()
     cr.set_source_rgba(0.30, 0.65, 0.25, alpha)
     cr.fill()
@@ -91,9 +89,9 @@ def _draw_face(cr: cairo.Context, size: int) -> None:
 
     # Eyes
     cr.set_source_rgba(0.15, 0.15, 0.15, 1)
-    cr.arc(cx - eye_offset, eye_y, eye_r, 0, TWO_PI)
+    cr.arc(cx - eye_offset, eye_y, eye_r, 0, math.tau)
     cr.fill()
-    cr.arc(cx + eye_offset, eye_y, eye_r, 0, TWO_PI)
+    cr.arc(cx + eye_offset, eye_y, eye_r, 0, math.tau)
     cr.fill()
 
     # Smile (arc)

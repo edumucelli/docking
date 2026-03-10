@@ -1,0 +1,108 @@
+"""GTK lifecycle glue for quick note applet."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf, Gtk  # noqa: E402
+
+from docking.applets.base import Applet
+from docking.applets.identity import AppletId
+from docking.applets.quicknote.render import render_icon
+from docking.applets.quicknote.state import (
+    note_from_prefs,
+    prefs_from_note,
+    tooltip_text,
+)
+from docking.i18n import _
+from docking.log import get_logger, with_context
+
+if TYPE_CHECKING:
+    from docking.core.config import Config
+
+_log = with_context(get_logger(name="quicknote"), applet_id=str(AppletId.QUICKNOTE))
+
+
+class QuickNoteApplet(Applet):
+    """Sticky note applet -- click to edit, tooltip shows content preview."""
+
+    id = AppletId.QUICKNOTE
+    name = _("Quick Note")
+    icon_name = "text-editor"
+
+    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        prefs = config.applet_prefs.get("quicknote", {}) if config else None
+        self._note = note_from_prefs(prefs)
+        super().__init__(icon_size=icon_size, config=config)
+
+    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+        return render_icon(size=size, has_content=bool(self._note.strip()))
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = tooltip_text(note=self._note)
+
+    def on_clicked(self) -> None:
+        self._show_edit_dialog()
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        items: list[Gtk.MenuItem] = []
+
+        edit = Gtk.MenuItem(label=_("Edit Note"))
+        edit.connect("activate", lambda _: self._show_edit_dialog())
+        items.append(edit)
+
+        clear = Gtk.MenuItem(label=_("Clear Note"))
+        clear.connect("activate", lambda _: self._clear_note())
+        items.append(clear)
+
+        return items
+
+    def _show_edit_dialog(self) -> None:
+        dialog = Gtk.Dialog(
+            title=_("Quick Note"),
+            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+        )
+        dialog.set_default_size(350, 250)
+        dialog.set_position(Gtk.WindowPosition.MOUSE)
+        dialog.add_button(_("OK"), Gtk.ResponseType.OK)
+
+        box = dialog.get_content_area()
+        box.set_spacing(8)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
+        box.set_margin_top(8)
+        box.set_margin_bottom(8)
+
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_vexpand(True)
+
+        text_view = Gtk.TextView()
+        text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        text_view.get_buffer().set_text(self._note)
+        scroll.add(text_view)
+        box.pack_start(scroll, True, True, 0)
+
+        def on_response(_dlg: Gtk.Dialog, response_id: int) -> None:
+            buf = text_view.get_buffer()
+            start, end = buf.get_bounds()
+            self._note = buf.get_text(start, end, include_hidden_chars=True)
+            self._save()
+            self.refresh_presentation()
+            dialog.destroy()
+
+        dialog.connect("response", on_response)
+        dialog.show_all()
+        text_view.grab_focus()
+
+    def _clear_note(self) -> None:
+        self._note = ""
+        self._save()
+        self.refresh_presentation()
+
+    def _save(self) -> None:
+        self.save_prefs(prefs=prefs_from_note(note=self._note))

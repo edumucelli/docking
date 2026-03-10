@@ -5,13 +5,6 @@ This document describes the current architecture of `docking` as of the
 geometry refactor, the UI assembly split, and the first wave of `DockWindow`
 decomposition.
 
-Two companion documents cover adjacent topics:
-
-- `docs/DOCK_GEOMETRY_REFACTOR.md`
-  Current status of the geometry refactor and what already landed.
-- `docs/PLANK_AUTOHIDE_PARITY_PLAN.md`
-  Planned direction for making autohide more containment-led and Plank-like.
-
 This file focuses on what is true in production code today.
 
 ## Scope
@@ -278,8 +271,6 @@ Responsibilities today:
 Important current status:
 
 - this module is a real policy layer now
-- but it is not yet the full Plank-style containment authority described in
-  `docs/PLANK_AUTOHIDE_PARITY_PLAN.md`
 
 Current behavior is still event-led with geometry confirmation:
 
@@ -492,8 +483,6 @@ The architecture is materially ahead of where it was when the original
 But some work is still intentionally described as planned rather than complete:
 
 - a fully containment-led hover/autohide authority is still future work
-- the Plank-parity effort in `docs/PLANK_AUTOHIDE_PARITY_PLAN.md` is still a
-  roadmap, not a description of current production behavior
 
 That distinction matters. This document should remain a map of the current
 codebase, while the parity and refactor docs describe either the status of a

@@ -11,27 +11,11 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
+from docking.applets.draw import rounded_rect
+
 _FRAME = (0.10, 0.24, 0.48)
 _SCREEN = (0.60, 0.84, 0.74)
 _BEZEL = (0.92, 0.60, 0.60)
-
-
-def _rounded_rect(
-    *,
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    r = max(0.0, min(r, min(w, h) / 2))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
 
 
 def _bottom_rounded_rect(
@@ -66,7 +50,7 @@ def create_icon(*, size: int) -> GdkPixbuf.Pixbuf | None:
     my = size * 0.10
     mw = size * 0.76
     mh = size * 0.64
-    _rounded_rect(cr=cr, x=mx, y=my, w=mw, h=mh, r=size * 0.11)
+    rounded_rect(cr=cr, x=mx, y=my, width=mw, height=mh, radius=size * 0.11)
     cr.set_source_rgb(*_FRAME)
     cr.fill()
 
@@ -76,7 +60,7 @@ def create_icon(*, size: int) -> GdkPixbuf.Pixbuf | None:
     iy = my + pad
     iw = mw - 2 * pad
     ih = mh - 2 * pad
-    _rounded_rect(cr=cr, x=ix, y=iy, w=iw, h=ih, r=size * 0.07)
+    rounded_rect(cr=cr, x=ix, y=iy, width=iw, height=ih, radius=size * 0.07)
     cr.set_source_rgb(*_SCREEN)
     cr.fill()
 

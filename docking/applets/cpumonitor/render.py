@@ -13,7 +13,6 @@ from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
 from docking.applets.cpumonitor.state import cpu_hue_rgb
 
-TWO_PI = 2 * math.pi
 RADIUS_PERCENT = 0.9
 
 
@@ -27,7 +26,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     cpu_clamped = max(0.001, min(cpu * 1.3, 1.0))
 
     # 1. Black underlay
-    cr.arc(center, center, radius, 0, TWO_PI)
+    cr.arc(center, center, radius, 0, math.tau)
     cr.set_source_rgba(0, 0, 0, 0.5)
     cr.fill_preserve()
 
@@ -49,7 +48,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     cr.fill()
 
     # 4. White highlight (gloss in upper portion)
-    cr.arc(center, center * 0.8, center * 0.6, 0, TWO_PI)
+    cr.arc(center, center * 0.8, center * 0.6, 0, math.tau)
     highlight = cairo.LinearGradient(0, 0, 0, center)
     highlight.add_color_stop_rgba(0, 1, 1, 1, 0.35)
     highlight.add_color_stop_rgba(1, 1, 1, 1, 0)
@@ -58,12 +57,12 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
 
     # 5. Double border rings
     cr.set_line_width(1.0)
-    cr.arc(center, center, radius, 0, TWO_PI)
+    cr.arc(center, center, radius, 0, math.tau)
     cr.set_source_rgba(1, 1, 1, 0.75)
     cr.stroke()
 
     cr.set_line_width(1.0)
-    cr.arc(center, center, radius - 1, 0, TWO_PI)
+    cr.arc(center, center, radius - 1, 0, math.tau)
     cr.set_source_rgba(0.8, 0.8, 0.8, 0.75)
     cr.stroke()
 

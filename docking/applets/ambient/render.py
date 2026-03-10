@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 import cairo
 import gi
 
@@ -11,23 +9,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
-
-def _rounded_rect_path(
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    """Build a rounded-rectangle path."""
-    r = max(0.0, min(r, min(w, h) / 2.0))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
+from docking.applets.draw import rounded_rect
 
 
 def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
@@ -40,13 +22,13 @@ def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
     radius = 0.13 * w
 
     # Subtle drop shadow.
-    _rounded_rect_path(
+    rounded_rect(
         cr=cr,
         x=x + (size * 0.01),
         y=y + (size * 0.018),
-        w=w,
-        h=h,
-        r=radius,
+        width=w,
+        height=h,
+        radius=radius,
     )
     cr.set_source_rgba(0.0, 0.0, 0.0, 0.20)
     cr.fill()
@@ -55,7 +37,7 @@ def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
     gradient = cairo.LinearGradient(x, y, x + w, y + h)
     gradient.add_color_stop_rgb(0.0, 0xD2 / 255.0, 0x80 / 255.0, 0xB9 / 255.0)
     gradient.add_color_stop_rgb(1.0, 0x89 / 255.0, 0x40 / 255.0, 0xA8 / 255.0)
-    _rounded_rect_path(cr=cr, x=x, y=y, w=w, h=h, r=radius)
+    rounded_rect(cr=cr, x=x, y=y, width=w, height=h, radius=radius)
     cr.set_source(gradient)
     cr.fill_preserve()
 
@@ -102,7 +84,9 @@ def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
         bar_x = start_x + i * (bar_w + spacing)
         bar_y = center_y - (bar_h / 2)
         bar_radius = bar_w * 0.35
-        _rounded_rect_path(cr=cr, x=bar_x, y=bar_y, w=bar_w, h=bar_h, r=bar_radius)
+        rounded_rect(
+            cr=cr, x=bar_x, y=bar_y, width=bar_w, height=bar_h, radius=bar_radius
+        )
         cr.fill()
 
 

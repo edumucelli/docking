@@ -11,6 +11,7 @@ class AppletId(str, Enum):
     AMBIENT = "ambient"
     APPLICATIONS = "applications"
     BATTERY = "battery"
+    BOOKMARKS = "bookmarks"
     BLUETOOTH = "bluetooth"
     BRIGHTNESS = "brightness"
     CALENDAR = "calendar"
@@ -20,13 +21,17 @@ class AppletId(str, Enum):
     CPUMONITOR = "cpumonitor"
     DESKTOP = "desktop"
     HYDRATION = "hydration"
+    KEYBOARDLAYOUT = "keyboardlayout"
     NETWORK = "network"
     MOON = "moon"
+    QUICKNOTE = "quicknote"
     MUSIC = "music"
     NOTIFICATIONS = "notifications"
+    PET = "pet"
     POWERPROFILES = "powerprofiles"
     POMODORO = "pomodoro"
     QUOTE = "quote"
+    RECENTFILES = "recentfiles"
     SCREENSHOT = "screenshot"
     SEPARATOR = "separator"
     SESSION = "session"
@@ -64,11 +69,15 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.CALENDAR: AppletCategory.PRODUCTIVITY,
     AppletId.CLOCK: AppletCategory.PRODUCTIVITY,
     AppletId.CLIPPY: AppletCategory.PRODUCTIVITY,
+    AppletId.BOOKMARKS: AppletCategory.PRODUCTIVITY,
     AppletId.COLORPICKER: AppletCategory.PRODUCTIVITY,
     AppletId.POMODORO: AppletCategory.PRODUCTIVITY,
+    AppletId.QUICKNOTE: AppletCategory.PRODUCTIVITY,
+    AppletId.RECENTFILES: AppletCategory.PRODUCTIVITY,
     AppletId.BATTERY: AppletCategory.SYSTEM,
     AppletId.BLUETOOTH: AppletCategory.SYSTEM,
     AppletId.BRIGHTNESS: AppletCategory.SYSTEM,
+    AppletId.KEYBOARDLAYOUT: AppletCategory.SYSTEM,
     AppletId.NETWORK: AppletCategory.SYSTEM,
     AppletId.NOTIFICATIONS: AppletCategory.SYSTEM,
     AppletId.POWERPROFILES: AppletCategory.SYSTEM,
@@ -80,6 +89,7 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.VOLUME: AppletCategory.SYSTEM,
     AppletId.AMBIENT: AppletCategory.WELLNESS,
     AppletId.HYDRATION: AppletCategory.WELLNESS,
+    AppletId.PET: AppletCategory.WELLNESS,
     AppletId.CPUMONITOR: AppletCategory.SYSTEM,
     AppletId.QUOTE: AppletCategory.INFORMATION,
     AppletId.WEATHER: AppletCategory.INFORMATION,

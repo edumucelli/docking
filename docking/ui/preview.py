@@ -125,6 +125,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Wnck  # noqa: E402
 
 from docking.core.position import Position, is_horizontal
+from docking.ui.runtime import clamp_to_screen
 
 if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
@@ -451,8 +452,9 @@ class PreviewPopup(Gtk.Window):
         screen = self.get_screen()
         screen_w = screen.get_width()
         screen_h = screen.get_height()
-        popup_x = max(0, min(popup_x, screen_w - popup_width))
-        popup_y = max(0, min(popup_y, screen_h - popup_height))
+        popup_x, popup_y = clamp_to_screen(
+            popup_x, popup_y, popup_width, popup_height, screen_w, screen_h
+        )
 
         self.move(popup_x, popup_y)
         self.show_all()

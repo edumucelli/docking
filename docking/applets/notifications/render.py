@@ -11,23 +11,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
-TWO_PI = 2 * math.pi
-
-
-def _rounded_rect(
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
+from docking.applets.draw import rounded_rect
 
 
 def create_notifications_icon(
@@ -44,7 +28,9 @@ def create_notifications_icon(
 
     pad = size * 0.10
     radius = size * 0.22
-    _rounded_rect(cr, pad, pad, size - 2 * pad, size - 2 * pad, radius)
+    rounded_rect(
+        cr=cr, x=pad, y=pad, width=size - 2 * pad, height=size - 2 * pad, radius=radius
+    )
     if not available:
         cr.set_source_rgba(0.44, 0.44, 0.46, 0.92)
     elif paused:
@@ -91,7 +77,7 @@ def create_notifications_icon(
     cr.move_to(cx, top - size * 0.095)
     cr.line_to(cx, top - size * 0.02)
     cr.stroke()
-    cr.arc(cx, top - size * 0.105, size * 0.038, 0, TWO_PI)
+    cr.arc(cx, top - size * 0.105, size * 0.038, 0, math.tau)
     cr.fill()
 
     # Bell rim
@@ -102,7 +88,7 @@ def create_notifications_icon(
 
     # Clapper
     clapper_y = base + size * 0.048
-    cr.arc(cx, clapper_y, size * 0.058, 0, TWO_PI)
+    cr.arc(cx, clapper_y, size * 0.058, 0, math.tau)
     cr.fill()
 
     if paused:
@@ -139,7 +125,7 @@ def _draw_notification_badge(
     cy = size - radius - size * 0.06
 
     if badge_count > 0:
-        cr.arc(cx, cy, radius, 0, TWO_PI)
+        cr.arc(cx, cy, radius, 0, math.tau)
         cr.set_source_rgba(0.89, 0.17, 0.19, 1.0)
         cr.fill()
 
@@ -162,9 +148,9 @@ def _draw_notification_badge(
         return
 
     # Unknown count backends: a simple activity chip.
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgba(0.98, 0.86, 0.18, 0.98)
     cr.fill()
-    cr.arc(cx, cy, radius * 0.34, 0, TWO_PI)
+    cr.arc(cx, cy, radius * 0.34, 0, math.tau)
     cr.set_source_rgba(1, 1, 1, 0.98)
     cr.fill()

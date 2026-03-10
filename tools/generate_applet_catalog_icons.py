@@ -44,6 +44,7 @@ from docking.applets.applications.render import create_icon as render_applicatio
 from docking.applets.battery.render import render_icon as render_battery
 from docking.applets.battery.state import BatteryState
 from docking.applets.bluetooth.render import create_bluetooth_icon
+from docking.applets.bookmarks.render import render_icon as render_bookmarks
 from docking.applets.brightness.render import create_icon as render_brightness
 from docking.applets.calendar.render import render_icon as render_calendar
 from docking.applets.calendar.state import snapshot_from
@@ -55,16 +56,21 @@ from docking.applets.desktop.render import create_icon as render_desktop
 from docking.applets.hydration.render import render_icon as render_hydration
 from docking.applets.hydration.state import HydrationState
 from docking.applets.identity import AppletId
+from docking.applets.keyboardlayout.render import render_icon as render_keyboardlayout
 from docking.applets.moon.offline import fetch_moon_offline
 from docking.applets.moon.render import create_icon as render_moon
 from docking.applets.moon.state import phase_name
 from docking.applets.music.render import create_music_icon
 from docking.applets.network.render import create_icon as render_network
 from docking.applets.notifications.render import create_notifications_icon
+from docking.applets.pet.render import render_icon as render_pet
+from docking.applets.pet.state import PetState
 from docking.applets.pomodoro.render import render_icon as render_pomodoro
 from docking.applets.pomodoro.state import PomodoroState
 from docking.applets.powerprofiles.render import create_power_profiles_icon
+from docking.applets.quicknote.render import render_icon as render_quicknote
 from docking.applets.quote.render import draw_bulb_icon
+from docking.applets.recentfiles.render import render_icon as render_recentfiles
 from docking.applets.screenshot.applet import _draw_screenshot_icon
 from docking.applets.session.render import create_session_icon
 from docking.applets.trash.render import create_trash_icon
@@ -147,6 +153,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             size=size,
             state=BatteryState(icon_name="battery-good", capacity=75),
         ),
+        AppletId.BOOKMARKS: render_bookmarks(size=size, count=3),
         AppletId.BLUETOOTH: create_bluetooth_icon(
             size=size,
             available=True,
@@ -178,6 +185,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.CPUMONITOR: render_cpumonitor(size=size, cpu=0.42, mem=0.28),
         AppletId.DESKTOP: render_desktop(size=size),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
+        AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
         AppletId.MOON: _moon_pixbuf(size=size),
         AppletId.MUSIC: create_music_icon(
             size=size,
@@ -202,13 +210,16 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             badge_count=0,
             activity=False,
         ),
+        AppletId.PET: render_pet(size=size, state=PetState()),
         AppletId.POMODORO: render_pomodoro(size=size, state=PomodoroState()),
         AppletId.POWERPROFILES: create_power_profiles_icon(
             size=size,
             profile="balanced",
             available=True,
         ),
+        AppletId.QUICKNOTE: render_quicknote(size=size, has_content=True),
         AppletId.QUOTE: _quote_pixbuf(size=size),
+        AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),
         AppletId.SESSION: create_session_icon(size=size),
         AppletId.TRASH: create_trash_icon(size=size, item_count=0),

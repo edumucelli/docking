@@ -119,6 +119,19 @@ from gi.repository import Gdk, GdkX11
 
 from docking.core.position import Position
 
+_IDX_EDGE = {
+    Position.LEFT: 0,
+    Position.RIGHT: 1,
+    Position.TOP: 2,
+    Position.BOTTOM: 3,
+}
+_IDX_START = {
+    Position.LEFT: 4,
+    Position.RIGHT: 6,
+    Position.TOP: 8,
+    Position.BOTTOM: 10,
+}
+
 ATOM_STRUT_PARTIAL = b"_NET_WM_STRUT_PARTIAL"
 ATOM_STRUT = b"_NET_WM_STRUT"
 ATOM_CARDINAL = b"CARDINAL"
@@ -148,14 +161,14 @@ def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
         ctypes.c_int,
     ]
 
-    arr12 = (ctypes.c_long * 12)(*struts)
-    arr4 = (ctypes.c_long * 4)(*struts[:4])
+    strut_partial = (ctypes.c_long * 12)(*struts)
+    strut_legacy = (ctypes.c_long * 4)(*struts[:4])
 
     xlib.XChangeProperty(
-        xdisplay, xid, atom_partial, xa_cardinal, 32, 0, ctypes.byref(arr12), 12
+        xdisplay, xid, atom_partial, xa_cardinal, 32, 0, ctypes.byref(strut_partial), 12
     )
     xlib.XChangeProperty(
-        xdisplay, xid, atom_strut, xa_cardinal, 32, 0, ctypes.byref(arr4), 4
+        xdisplay, xid, atom_strut, xa_cardinal, 32, 0, ctypes.byref(strut_legacy), 4
     )
     xlib.XFlush(xdisplay)
 
@@ -180,19 +193,6 @@ def compute_struts(
     #           left  right  top  bottom  left_start/end_y  right_start/end_y
     #   Index:  8..9            10..11
     #           top_start/end_x  bottom_start/end_x
-    idx_edge = {
-        Position.LEFT: 0,
-        Position.RIGHT: 1,
-        Position.TOP: 2,
-        Position.BOTTOM: 3,
-    }
-    idx_start = {
-        Position.LEFT: 4,
-        Position.RIGHT: 6,
-        Position.TOP: 8,
-        Position.BOTTOM: 10,
-    }
-
     # Gap between monitor edge and logical screen edge (multi-monitor)
     gap = {
         Position.BOTTOM: screen_h - monitor_y - monitor_h,
@@ -209,9 +209,9 @@ def compute_struts(
     )
 
     struts = [0] * 12
-    struts[idx_edge[position]] = int((dock_height + gap[position]) * scale)
-    struts[idx_start[position]] = span_start
-    struts[idx_start[position] + 1] = span_end
+    struts[_IDX_EDGE[position]] = int((dock_height + gap[position]) * scale)
+    struts[_IDX_START[position]] = span_start
+    struts[_IDX_START[position] + 1] = span_end
     return struts
 
 

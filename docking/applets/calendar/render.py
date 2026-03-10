@@ -57,7 +57,7 @@ def _render_calendar_icon(
         Pango.FontDescription(f"Sans Bold {weekday_font_size}px")
     )
     layout.set_text(weekday.upper(), -1)
-    _ink, logical = layout.get_pixel_extents()
+    _, logical = layout.get_pixel_extents()
     tx = body_x + (body_w - logical.width) / 2 - logical.x
     ty = body_y + (header_h - logical.height) / 2 - logical.y
     cr.move_to(tx, ty)
@@ -70,7 +70,7 @@ def _render_calendar_icon(
     layout = PangoCairo.create_layout(cr)
     layout.set_font_description(Pango.FontDescription(f"Sans Bold {day_font_size}px"))
     layout.set_text(str(day), -1)
-    _ink, logical = layout.get_pixel_extents()
+    _, logical = layout.get_pixel_extents()
     tx = body_x + (body_w - logical.width) / 2 - logical.x
     ty = body_y + header_h + (day_area_h - logical.height) / 2 - logical.y
     cr.move_to(tx, ty)

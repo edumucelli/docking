@@ -150,6 +150,8 @@ class TestMusicRenderInternals:
         )
 
     def test_rounded_rect_path_executes(self):
+        from docking.applets.draw import rounded_rect
+
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 20, 20)
         cr = cairo.Context(surface)
-        music_render_mod._rounded_rect_path(cr, 0, 0, 10, 10, 100)
+        rounded_rect(cr=cr, x=0, y=0, width=10, height=10, radius=100)

@@ -11,24 +11,9 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
+from docking.applets.draw import rounded_rect
+
 _NO_PLAYER_ICON_CACHE: dict[int, GdkPixbuf.Pixbuf] = {}
-
-
-def _rounded_rect_path(
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    r = max(0.0, min(r, min(w, h) / 2.0))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
 
 
 def _crop_center_square(pixbuf: GdkPixbuf.Pixbuf, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -62,13 +47,13 @@ def _draw_album_art(cr: cairo.Context, size: int, art: GdkPixbuf.Pixbuf) -> None
     y = margin
     radius = tile_size * 0.14
 
-    _rounded_rect_path(cr=cr, x=x, y=y, w=tile_size, h=tile_size, r=radius)
+    rounded_rect(cr=cr, x=x, y=y, width=tile_size, height=tile_size, radius=radius)
     cr.clip()
     Gdk.cairo_set_source_pixbuf(cr, cropped, x, y)
     cr.paint()
     cr.reset_clip()
 
-    _rounded_rect_path(cr=cr, x=x, y=y, w=tile_size, h=tile_size, r=radius)
+    rounded_rect(cr=cr, x=x, y=y, width=tile_size, height=tile_size, radius=radius)
     cr.set_source_rgba(1, 1, 1, 0.20)
     cr.set_line_width(max(1.0, size * 0.02))
     cr.stroke()
@@ -199,26 +184,26 @@ def _draw_idle_music_tile(cr: cairo.Context, size: int) -> None:
     tile_radius = tile_size * 0.10
 
     # Soft shadow to match rounded-tile applets.
-    _rounded_rect_path(
+    rounded_rect(
         cr=cr,
         x=tile_x + (size * 0.01),
         y=tile_y + (size * 0.018),
-        w=tile_size,
-        h=tile_size,
-        r=tile_radius,
+        width=tile_size,
+        height=tile_size,
+        radius=tile_radius,
     )
     cr.set_source_rgba(0.0, 0.0, 0.0, 0.16)
     cr.fill()
 
     pixbuf = _idle_music_tile_pixbuf(size=tile_size)
     if pixbuf is None:
-        _rounded_rect_path(
+        rounded_rect(
             cr=cr,
             x=tile_x,
             y=tile_y,
-            w=tile_size,
-            h=tile_size,
-            r=tile_radius,
+            width=tile_size,
+            height=tile_size,
+            radius=tile_radius,
         )
         cr.save()
         cr.clip()
@@ -228,13 +213,13 @@ def _draw_idle_music_tile(cr: cairo.Context, size: int) -> None:
         cr.reset_clip()
         return
 
-    _rounded_rect_path(
+    rounded_rect(
         cr=cr,
         x=tile_x,
         y=tile_y,
-        w=tile_size,
-        h=tile_size,
-        r=tile_radius,
+        width=tile_size,
+        height=tile_size,
+        radius=tile_radius,
     )
     cr.clip()
     Gdk.cairo_set_source_pixbuf(cr, pixbuf, tile_x, tile_y)
@@ -249,7 +234,7 @@ def _draw_fallback_music_glyph(cr: cairo.Context, size: int) -> None:
     y = margin
     w = size - 2 * margin
     h = w
-    _rounded_rect_path(cr=cr, x=x, y=y, w=w, h=h, r=w * 0.16)
+    rounded_rect(cr=cr, x=x, y=y, width=w, height=h, radius=w * 0.16)
     grad = cairo.LinearGradient(x, y, x + w, y + h)
     grad.add_color_stop_rgb(0.0, 0.22, 0.29, 0.50)
     grad.add_color_stop_rgb(1.0, 0.08, 0.12, 0.27)
@@ -306,26 +291,26 @@ def _draw_volume_badge(cr: cairo.Context, size: int, volume_percent: int) -> Non
     body_h = size * 0.042
     body_x = cx - size * 0.090
     body_y = cy - body_h / 2
-    _rounded_rect_path(
+    rounded_rect(
         cr=cr,
         x=body_x,
         y=body_y,
-        w=body_w,
-        h=body_h,
-        r=body_w * 0.45,
+        width=body_w,
+        height=body_h,
+        radius=body_w * 0.45,
     )
     cr.fill()
 
     horn_w = size * 0.030
     horn_h = size * 0.055
     horn_x = body_x + body_w
-    _rounded_rect_path(
+    rounded_rect(
         cr=cr,
         x=horn_x,
         y=cy - horn_h / 2,
-        w=horn_w,
-        h=horn_h,
-        r=horn_h * 0.40,
+        width=horn_w,
+        height=horn_h,
+        radius=horn_h * 0.40,
     )
     cr.fill()
 

@@ -18,6 +18,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
     from docking.applets.applications import ApplicationsApplet
     from docking.applets.battery import BatteryApplet
     from docking.applets.bluetooth import BluetoothApplet
+    from docking.applets.bookmarks import BookmarksApplet
     from docking.applets.brightness import BrightnessApplet
     from docking.applets.calendar import CalendarApplet
     from docking.applets.clippy import ClippyApplet
@@ -26,13 +27,17 @@ def get_registry() -> dict[AppletId, type[Applet]]:
     from docking.applets.cpumonitor import CpuMonitorApplet
     from docking.applets.desktop import DesktopApplet
     from docking.applets.hydration import HydrationApplet
+    from docking.applets.keyboardlayout import KeyboardLayoutApplet
     from docking.applets.moon import MoonApplet
     from docking.applets.music import MusicApplet
     from docking.applets.network import NetworkApplet
     from docking.applets.notifications import NotificationsApplet
+    from docking.applets.pet import PetApplet
     from docking.applets.pomodoro import PomodoroApplet
     from docking.applets.powerprofiles import PowerProfilesApplet
+    from docking.applets.quicknote import QuickNoteApplet
     from docking.applets.quote import QuoteApplet
+    from docking.applets.recentfiles import RecentFilesApplet
     from docking.applets.screenshot import ScreenshotApplet
     from docking.applets.separator import SeparatorApplet
     from docking.applets.session import SessionApplet
@@ -45,6 +50,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
         AppletId.AMBIENT: AmbientApplet,
         AppletId.APPLICATIONS: ApplicationsApplet,
         AppletId.BATTERY: BatteryApplet,
+        AppletId.BOOKMARKS: BookmarksApplet,
         AppletId.BLUETOOTH: BluetoothApplet,
         AppletId.BRIGHTNESS: BrightnessApplet,
         AppletId.CALENDAR: CalendarApplet,
@@ -54,16 +60,20 @@ def get_registry() -> dict[AppletId, type[Applet]]:
         AppletId.CPUMONITOR: CpuMonitorApplet,
         AppletId.DESKTOP: DesktopApplet,
         AppletId.HYDRATION: HydrationApplet,
+        AppletId.KEYBOARDLAYOUT: KeyboardLayoutApplet,
         AppletId.MOON: MoonApplet,
         AppletId.MUSIC: MusicApplet,
         AppletId.NETWORK: NetworkApplet,
         AppletId.NOTIFICATIONS: NotificationsApplet,
+        AppletId.PET: PetApplet,
         AppletId.POWERPROFILES: PowerProfilesApplet,
         AppletId.QUOTE: QuoteApplet,
+        AppletId.RECENTFILES: RecentFilesApplet,
         AppletId.SCREENSHOT: ScreenshotApplet,
         AppletId.SEPARATOR: SeparatorApplet,
         AppletId.SESSION: SessionApplet,
         AppletId.POMODORO: PomodoroApplet,
+        AppletId.QUICKNOTE: QuickNoteApplet,
         AppletId.TRASH: TrashApplet,
         AppletId.VOLUME: VolumeApplet,
         AppletId.WEATHER: WeatherApplet,

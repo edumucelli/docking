@@ -11,8 +11,6 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
-TWO_PI = 2 * math.pi
-
 
 def create_session_icon(*, size: int) -> GdkPixbuf.Pixbuf | None:
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -26,18 +24,18 @@ def create_session_icon(*, size: int) -> GdkPixbuf.Pixbuf | None:
 
     # Filled circular background.
     cr.set_source_rgb(*fill)
-    cr.arc(cx, cy, ring_r, 0, TWO_PI)
+    cr.arc(cx, cy, ring_r, 0, math.tau)
     cr.fill()
 
     # Outer ring (thinner stroke).
     cr.set_source_rgb(*stroke)
     cr.set_line_width(max(1.2, size * 0.05))
     cr.set_line_cap(cairo.LINE_CAP_ROUND)
-    cr.arc(cx, cy, ring_r, 0, TWO_PI)
+    cr.arc(cx, cy, ring_r, 0, math.tau)
     cr.stroke()
 
     # Head.
-    cr.arc(cx, cy - size * 0.11, size * 0.12, 0, TWO_PI)
+    cr.arc(cx, cy - size * 0.11, size * 0.12, 0, math.tau)
     cr.set_source_rgb(0.79, 0.88, 0.99)
     cr.fill_preserve()
     cr.set_source_rgb(*stroke)

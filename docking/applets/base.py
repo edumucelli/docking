@@ -220,7 +220,7 @@ def draw_icon_label(cr: cairo.Context, text: str, size: int) -> None:
     layout = PangoCairo.create_layout(cr)
     layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
     layout.set_text(text, -1)
-    _ink, logical = layout.get_pixel_extents()
+    _, logical = layout.get_pixel_extents()
 
     tx = (size - logical.width) / 2 - logical.x
     ty = size - logical.height - max(1, size * 0.02) - logical.y

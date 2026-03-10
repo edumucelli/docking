@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import math
-
 import cairo
 import gi
 
+from docking.applets.draw import rounded_rect
 from docking.i18n import _, ngettext
 
 gi.require_version("Gdk", "3.0")
@@ -28,24 +27,6 @@ def trash_tooltip(*, item_count: int) -> str:
     )
 
 
-def _rounded_rect(
-    *,
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    r = max(0.0, min(r, min(w, h) / 2))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
-
-
 def _draw_trash_can(*, cr: cairo.Context, size: int, item_count: int) -> None:
     """Draw stylized trash-can icon matching Dock identity."""
     # Slightly darker when non-empty so users can still perceive state.
@@ -61,7 +42,7 @@ def _draw_trash_can(*, cr: cairo.Context, size: int, item_count: int) -> None:
     hy = size * 0.07
     hw = size * 0.38
     hh = size * 0.12
-    _rounded_rect(cr=cr, x=hx, y=hy, w=hw, h=hh, r=size * 0.045)
+    rounded_rect(cr=cr, x=hx, y=hy, width=hw, height=hh, radius=size * 0.045)
     cr.set_source_rgb(*lid)
     cr.set_line_width(max(1.4, size * 0.06))
     cr.stroke()
@@ -71,7 +52,7 @@ def _draw_trash_can(*, cr: cairo.Context, size: int, item_count: int) -> None:
     ly = size * 0.20
     lw = size * 0.88
     lh = size * 0.17
-    _rounded_rect(cr=cr, x=lx, y=ly, w=lw, h=lh, r=size * 0.12)
+    rounded_rect(cr=cr, x=lx, y=ly, width=lw, height=lh, radius=size * 0.12)
     cr.set_source_rgb(*lid)
     cr.fill()
 

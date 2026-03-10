@@ -160,6 +160,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.ui.geometry import DockGeometryFrame
+from docking.ui.runtime import clamp_to_screen
 
 _log = get_logger(name="tooltip")
 
@@ -411,8 +412,7 @@ class TooltipManager:
         screen = self._tooltip_window.get_screen()
         screen_w = screen.get_width()
         screen_h = screen.get_height()
-        tx = max(0, min(tx, screen_w - tw))
-        ty = max(0, min(ty, screen_h - th))
+        tx, ty = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
 
         _log.debug(
             "pos=(%d,%d) anchor=(%.0f,%.0f) size=%dx%d rebuild=%s",

@@ -124,7 +124,7 @@ def _draw_am_pm(
         layout = PangoCairo.create_layout(cr)
         layout.set_font_description(font)
         layout.set_text(label, -1)
-        _ink, logical = layout.get_pixel_extents()
+        _, logical = layout.get_pixel_extents()
         tx = x_center - logical.width / 2 - logical.x
         alpha = 1.0 if active else 0.35
         _draw_outlined_text(
@@ -174,7 +174,7 @@ def render_digital(
         layout = PangoCairo.create_layout(cr)
         layout.set_font_description(font)
         layout.set_text(text, -1)
-        _ink, logical = layout.get_pixel_extents()
+        _, logical = layout.get_pixel_extents()
         layouts.append((layout, logical))
         total_h += logical.height
 

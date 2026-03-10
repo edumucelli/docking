@@ -2,22 +2,9 @@
 
 from __future__ import annotations
 
-import math
-
 import cairo
 
-
-def _rounded_rect_path(
-    *, cr: cairo.Context, x: float, y: float, w: float, h: float, r: float
-) -> None:
-    """Add a rounded-rectangle path to the Cairo context."""
-    r = max(0.0, min(r, min(w, h) / 2.0))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -0.5 * math.pi, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, 0.5 * math.pi)
-    cr.arc(x + r, y + h - r, r, 0.5 * math.pi, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 1.5 * math.pi)
-    cr.close_path()
+from docking.applets.draw import rounded_rect
 
 
 def _draw_soft_shadow(
@@ -41,13 +28,13 @@ def _draw_soft_shadow(
         alpha = base_alpha * (1.0 - t)
         cr.save()
         cr.set_source_rgba(0.0, 0.0, 0.0, alpha)
-        _rounded_rect_path(
+        rounded_rect(
             cr=cr,
             x=x - expand + dx,
             y=y - expand + dy,
-            w=w + (2 * expand),
-            h=h + (2 * expand),
-            r=r + expand,
+            width=w + (2 * expand),
+            height=h + (2 * expand),
+            radius=r + expand,
         )
         cr.fill()
         cr.restore()
@@ -77,7 +64,9 @@ def _draw_screenshot_icon(*, cr: cairo.Context, size: int) -> None:
     )
 
     # Main blue tile.
-    _rounded_rect_path(cr=cr, x=tile_x, y=tile_y, w=tile_w, h=tile_h, r=tile_radius)
+    rounded_rect(
+        cr=cr, x=tile_x, y=tile_y, width=tile_w, height=tile_h, radius=tile_radius
+    )
     cr.set_source_rgb(0x62 / 255.0, 0x8C / 255.0, 0xF6 / 255.0)
     cr.fill()
 
@@ -91,13 +80,17 @@ def _draw_screenshot_icon(*, cr: cairo.Context, size: int) -> None:
     stroke_w = max(1.0, 0.032 * tile_w)
 
     # Second blue tone inside the crop contour.
-    _rounded_rect_path(cr=cr, x=inner_x, y=inner_y, w=inner_w, h=inner_h, r=inner_r)
+    rounded_rect(
+        cr=cr, x=inner_x, y=inner_y, width=inner_w, height=inner_h, radius=inner_r
+    )
     cr.set_source_rgb(0x86 / 255.0, 0xA6 / 255.0, 0xF8 / 255.0)
     cr.fill()
 
     # Subtle lower-half opacity ramp across all blue areas.
     cr.save()
-    _rounded_rect_path(cr=cr, x=tile_x, y=tile_y, w=tile_w, h=tile_h, r=tile_radius)
+    rounded_rect(
+        cr=cr, x=tile_x, y=tile_y, width=tile_w, height=tile_h, radius=tile_radius
+    )
     cr.clip()
     mid_y = tile_y + (tile_h * 0.48)
     shade = cairo.LinearGradient(0, mid_y, 0, tile_y + tile_h)
@@ -115,7 +108,9 @@ def _draw_screenshot_icon(*, cr: cairo.Context, size: int) -> None:
     cr.set_line_join(cairo.LINE_JOIN_ROUND)
     dash_len = stroke_w * 2.0
     cr.set_dash([dash_len, dash_len], 0)
-    _rounded_rect_path(cr=cr, x=inner_x, y=inner_y, w=inner_w, h=inner_h, r=inner_r)
+    rounded_rect(
+        cr=cr, x=inner_x, y=inner_y, width=inner_w, height=inner_h, radius=inner_r
+    )
     cr.stroke()
     cr.set_dash([])
 

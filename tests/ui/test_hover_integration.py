@@ -183,6 +183,88 @@ class TestHoverTimers:
         window.drawing_area.queue_draw.assert_called()
         assert hover._anim_timer_id == 0
 
+    def test_start_anim_pump_cancels_previous_timer(self, monkeypatch):
+        # Given
+        hover, _window, _model, _config, _tooltip, _frame = _make_hover()
+        removed = []
+        monkeypatch.setattr(
+            hover_mod.GLib, "source_remove", lambda sid: removed.append(sid)
+        )
+        timer_ids = iter([10, 20])
+        monkeypatch.setattr(
+            hover_mod.GLib,
+            "timeout_add",
+            lambda _ms, _cb: next(timer_ids),
+        )
+
+        # When — first pump sets timer id 10
+        hover.start_anim_pump(duration_ms=48)
+        assert hover._anim_timer_id == 10
+        # When — second pump cancels timer 10
+        hover.start_anim_pump(duration_ms=48)
+
+        # Then
+        assert removed == [10]
+        assert hover._anim_timer_id == 20
+
+    def test_start_anim_pump_zero_duration_no_timer(self, monkeypatch):
+        # Given
+        hover, _window, _model, _config, _tooltip, _frame = _make_hover()
+        callbacks = []
+        monkeypatch.setattr(
+            hover_mod.GLib,
+            "timeout_add",
+            lambda _ms, cb: callbacks.append(cb) or 1,
+        )
+
+        # When
+        hover.start_anim_pump(duration_ms=0)
+
+        # Then — timer fires once and immediately stops
+        assert callbacks
+        tick = callbacks[0]
+        assert tick() is False
+        assert hover._anim_timer_id == 0
+
+    def test_start_anim_pump_queue_draw_called_each_tick(self, monkeypatch):
+        # Given
+        hover, window, _model, _config, _tooltip, _frame = _make_hover()
+        callbacks = []
+        monkeypatch.setattr(
+            hover_mod.GLib,
+            "timeout_add",
+            lambda _ms, cb: callbacks.append(cb) or 1,
+        )
+        hover.start_anim_pump(duration_ms=32)
+        tick = callbacks[0]
+
+        # When
+        window.drawing_area.queue_draw.reset_mock()
+        tick()
+
+        # Then — each live tick triggers a redraw
+        window.drawing_area.queue_draw.assert_called_once()
+
+    def test_start_anim_pump_from_idle_no_source_remove(self, monkeypatch):
+        # Given — no prior timer running
+        hover, _window, _model, _config, _tooltip, _frame = _make_hover()
+        assert hover._anim_timer_id == 0
+        removed = []
+        monkeypatch.setattr(
+            hover_mod.GLib, "source_remove", lambda sid: removed.append(sid)
+        )
+        monkeypatch.setattr(
+            hover_mod.GLib,
+            "timeout_add",
+            lambda _ms, _cb: 1,
+        )
+
+        # When
+        hover.start_anim_pump(duration_ms=48)
+
+        # Then — no source_remove called when there was no active timer
+        assert removed == []
+
     def test_on_model_changed_starts_pump_for_urgent_item(self):
         # Given
         hover, _window, model, _config, _tooltip, _frame = _make_hover()

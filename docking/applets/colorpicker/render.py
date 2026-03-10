@@ -13,8 +13,6 @@ from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
 from docking.applets.base import draw_icon_label
 
-TWO_PI = 2 * math.pi
-
 
 def create_icon(
     size: int,
@@ -32,12 +30,12 @@ def create_icon(
     radius = size * 0.34
 
     # Colored circle
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgb(r, g, b)
     cr.fill()
 
     # Thin white border
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgba(1, 1, 1, 0.8)
     cr.set_line_width(max(1.0, size * 0.03))
     cr.stroke()

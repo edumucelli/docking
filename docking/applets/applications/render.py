@@ -12,25 +12,9 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, Gtk  # noqa: E402
 
+from docking.applets.draw import rounded_rect
+
 MENU_ICON_PX = 16
-
-
-def _rounded_rect(
-    *,
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    r = max(0.0, min(r, min(w, h) / 2))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
 
 
 def _draw_applications_icon(*, cr: cairo.Context, size: int) -> None:
@@ -44,7 +28,7 @@ def _draw_applications_icon(*, cr: cairo.Context, size: int) -> None:
     y = size * 0.08
     w = size * 0.90
     h = size * 0.88
-    _rounded_rect(cr=cr, x=x, y=y, w=w, h=h, r=size * 0.10)
+    rounded_rect(cr=cr, x=x, y=y, width=w, height=h, radius=size * 0.10)
     cr.set_source_rgb(*outline)
     cr.fill()
 
@@ -53,12 +37,12 @@ def _draw_applications_icon(*, cr: cairo.Context, size: int) -> None:
     iy = y + inner
     iw = w - 2 * inner
     ih = h - 2 * inner
-    _rounded_rect(cr=cr, x=ix, y=iy, w=iw, h=ih, r=size * 0.08)
+    rounded_rect(cr=cr, x=ix, y=iy, width=iw, height=ih, radius=size * 0.08)
     cr.set_source_rgb(*body)
     cr.fill()
 
     hh = ih * 0.30
-    _rounded_rect(cr=cr, x=ix, y=iy, w=iw, h=hh, r=size * 0.07)
+    rounded_rect(cr=cr, x=ix, y=iy, width=iw, height=hh, radius=size * 0.07)
     cr.set_source_rgb(*header)
     cr.fill()
 
@@ -117,13 +101,13 @@ def _draw_applications_icon(*, cr: cairo.Context, size: int) -> None:
         for col in range(cols):
             cx = gx + col * (cell + gap)
             cy = gy + row * (cell + gap)
-            _rounded_rect(
+            rounded_rect(
                 cr=cr,
                 x=cx,
                 y=cy,
-                w=cell,
-                h=cell,
-                r=size * 0.035,
+                width=cell,
+                height=cell,
+                radius=size * 0.035,
             )
             cr.set_source_rgb(*outline)
             cr.fill()
@@ -134,13 +118,13 @@ def _draw_applications_icon(*, cr: cairo.Context, size: int) -> None:
             inner_w = cell - 2 * inset
             inner_h = cell - 2 * inset
             color = palette[idx]
-            _rounded_rect(
+            rounded_rect(
                 cr=cr,
                 x=inner_x,
                 y=inner_y,
-                w=inner_w,
-                h=inner_h,
-                r=size * 0.018,
+                width=inner_w,
+                height=inner_h,
+                radius=size * 0.018,
             )
             cr.set_source_rgb(*color)
             cr.fill()

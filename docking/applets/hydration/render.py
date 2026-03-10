@@ -19,8 +19,6 @@ from docking.applets.hydration.state import (
     water_color,
 )
 
-TWO_PI = 2 * math.pi
-
 
 def _draw_drop_path(cr: cairo.Context, size: int) -> None:
     """Draw a teardrop/water drop path centered in size x size."""
@@ -106,7 +104,7 @@ def _render_drop(cr: cairo.Context, size: int, fill: float) -> None:
     highlight_y = size * 0.45
     cr.translate(highlight_x, highlight_y)
     cr.scale(size * 0.08, size * 0.12)
-    cr.arc(0, 0, 1.0, 0, TWO_PI)
+    cr.arc(0, 0, 1.0, 0, math.tau)
     cr.restore()
     cr.set_source_rgba(1, 1, 1, 0.3 * max(0.0, fill))
     cr.fill()
@@ -125,9 +123,9 @@ def _render_drop(cr: cairo.Context, size: int, fill: float) -> None:
 
     # Eyes
     cr.set_source_rgba(0.12, 0.12, 0.16, 0.95)
-    cr.arc(cx - eye_dx, eye_y, eye_radius, 0, TWO_PI)
+    cr.arc(cx - eye_dx, eye_y, eye_radius, 0, math.tau)
     cr.fill()
-    cr.arc(cx + eye_dx, eye_y, eye_radius, 0, TWO_PI)
+    cr.arc(cx + eye_dx, eye_y, eye_radius, 0, math.tau)
     cr.fill()
 
     # Mouth (Pomodoro-like arc; flips as fill decreases)
@@ -162,7 +160,7 @@ def _render_drop(cr: cairo.Context, size: int, fill: float) -> None:
             mouth_y + size * 0.03,
             smile_radius,
             math.pi + 0.2,
-            TWO_PI - 0.2,
+            math.tau - 0.2,
         )
     cr.stroke()
     cr.restore()

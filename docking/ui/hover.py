@@ -289,11 +289,12 @@ class HoverManager:
         if self._anim_timer_id:
             GLib.source_remove(self._anim_timer_id)
 
-        frames_left = [duration_ms // 16]
+        frames_left = duration_ms // 16
 
         def tick() -> bool:
-            frames_left[0] -= 1
-            if frames_left[0] <= 0:
+            nonlocal frames_left
+            frames_left -= 1
+            if frames_left <= 0:
                 self._anim_timer_id = 0
                 return False
             self._window.drawing_area.queue_draw()
@@ -303,10 +304,11 @@ class HoverManager:
 
     def on_model_changed(self) -> None:
         """Start anim pump if any item became urgent (needs bounce animation)."""
-        for item in self._model.visible_items():
-            if item.is_urgent and item.last_urgent > 0:
-                self.start_anim_pump(duration_ms=700)
-                break
+        if any(
+            item.is_urgent and item.last_urgent > 0
+            for item in self._model.visible_items()
+        ):
+            self.start_anim_pump(duration_ms=700)
 
     def _show_preview(self, item: DockItem, _layout: object) -> bool:
         """Show the preview popup near the hovered icon.

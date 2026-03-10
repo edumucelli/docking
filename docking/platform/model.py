@@ -139,7 +139,7 @@ from docking.applets.identity import (
     applet_id_from,
     is_applet_desktop_id,
 )
-from docking.core.config import PinnedEntry
+from docking.core.config import PinnedEntry, normalize_pinned_entries
 from docking.core.items import (
     APP_KIND,
     APPLET_KIND,
@@ -174,8 +174,6 @@ class DockModel:
         self.on_change: Callable[[], None] | None = None
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
-            from docking.core.config import normalize_pinned_entries
-
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
 
         self._load_pinned()
@@ -351,16 +349,18 @@ class DockModel:
         items = self.pinned_items + self._transient
         anchor_applets = self._config.anchor_applets
         anchor_files = self._config.anchor_files
-        regular = [
-            i
-            for i in items
-            if not (anchor_applets and i.kind == APPLET_KIND)
-            and not (anchor_files and i.kind in {FILE_KIND, FOLDER_KIND})
-        ]
-        files = [
-            i for i in items if anchor_files and i.kind in {FILE_KIND, FOLDER_KIND}
-        ]
-        applet_items = [i for i in items if anchor_applets and i.kind == APPLET_KIND]
+        if not anchor_applets and not anchor_files:
+            return list(items)
+        regular: list[DockItem] = []
+        files: list[DockItem] = []
+        applet_items: list[DockItem] = []
+        for item in items:
+            if anchor_applets and item.kind == APPLET_KIND:
+                applet_items.append(item)
+            elif anchor_files and item.kind in {FILE_KIND, FOLDER_KIND}:
+                files.append(item)
+            else:
+                regular.append(item)
         return regular + files + applet_items
 
     def find_by_desktop_id(self, desktop_id: str) -> DockItem | None:

@@ -11,8 +11,6 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
-TWO_PI = 2 * math.pi
-
 
 def create_bluetooth_icon(
     *,
@@ -28,7 +26,7 @@ def create_bluetooth_icon(
     cx = size * 0.5
     cy = size * 0.5
     radius = size * 0.40
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
 
     if not available:
         cr.set_source_rgba(0.42, 0.42, 0.44, 0.95)
@@ -38,13 +36,13 @@ def create_bluetooth_icon(
         cr.set_source_rgba(0.16, 0.53, 0.92, 0.96)
     cr.fill()
 
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgba(1, 1, 1, 0.18)
     cr.set_line_width(max(1.0, size * 0.018))
     cr.stroke()
 
     if discovering and available and powered:
-        cr.arc(cx, cy, size * 0.43, 0, TWO_PI)
+        cr.arc(cx, cy, size * 0.43, 0, math.tau)
         cr.set_source_rgba(1, 1, 1, 0.28)
         cr.set_line_width(max(1.2, size * 0.03))
         cr.stroke()
@@ -101,7 +99,7 @@ def _draw_connected_badge(*, cr: cairo.Context, size: int, count: int) -> None:
     cx = size - radius - size * 0.06
     cy = size - radius - size * 0.06
 
-    cr.arc(cx, cy, radius, 0, TWO_PI)
+    cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgba(0.20, 0.75, 0.43, 0.98)
     cr.fill()
 

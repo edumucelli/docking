@@ -12,6 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf  # noqa: E402
 
 from docking.applets.base import draw_icon_label
+from docking.applets.draw import rounded_rect
 
 _BG_ARC = (0.72, 0.84, 0.97)
 _FG = (0.42, 0.64, 0.90)
@@ -73,24 +74,6 @@ def _draw_wifi_icon(
         cr.stroke()
 
 
-def _rounded_rect(
-    *,
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    r = max(0.0, min(r, min(w, h) / 2))
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
-
-
 def _draw_wired_icon(*, cr: cairo.Context, size: int, connected: bool) -> None:
     """Draw ethernet/RJ45-like glyph."""
     x = size * 0.18
@@ -100,7 +83,7 @@ def _draw_wired_icon(*, cr: cairo.Context, size: int, connected: bool) -> None:
     radius = size * 0.07
 
     cr.set_source_rgb(*_FG if connected else _BG_ARC)
-    _rounded_rect(cr=cr, x=x, y=y, w=w, h=h, r=radius)
+    rounded_rect(cr=cr, x=x, y=y, width=w, height=h, radius=radius)
     cr.set_line_width(max(1.6, size * 0.065))
     cr.stroke()
 
