@@ -41,6 +41,12 @@ from docking.applets.identity import (
     applet_desktop_id,
     category_for,
 )
+from docking.core.config import (
+    MAX_ICON_SIZE,
+    MAX_ZOOM_PERCENT,
+    MIN_ICON_SIZE,
+    MIN_ZOOM_PERCENT,
+)
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
 from docking.i18n import _
@@ -56,6 +62,29 @@ APPLET_LIST_ICON_PX = 32
 APPLET_GRID_COLUMNS = 3
 APPLET_CELL_WIDTH_PX = 168
 APPEARANCE_ROW_WIDTH_PX = 428
+PREFERENCES_WINDOW_WIDTH_PX = 460
+PREFERENCES_WINDOW_HEIGHT_PX = 420
+WINDOW_OUTER_SPACING_PX = 8
+WINDOW_OUTER_BORDER_PX = 12
+APPEARANCE_TAB_SPACING_PX = 12
+APPEARANCE_TAB_BORDER_PX = 16
+APPLET_TAB_SPACING_PX = 10
+APPLET_TAB_BORDER_PX = 16
+SECTION_SPACING_PX = 8
+SECTION_CONTENT_INSET_PX = 18
+SECTION_HEADER_TOP_MARGIN_PX = 6
+SECTION_HEADER_BOTTOM_MARGIN_PX = 2
+ROW_SPACING_PX = 12
+HIDE_MODE_COMBO_WIDTH_PX = 180
+HIDE_MODE_DESC_MAX_CHARS = 28
+HIDE_MODE_BOX_SPACING_PX = 4
+APPLET_GRID_COLUMN_SPACING_PX = 16
+APPLET_GRID_ROW_SPACING_PX = 8
+APPLET_ROW_CONTENT_SPACING_PX = 6
+ZOOM_PERCENT_SCALE = 100
+ZOOM_PERCENT_STEP = 5
+HIDE_DELAY_MAX_MS = 5000
+HIDE_DELAY_STEP_MS = 50
 _log = get_logger("settings")
 
 
@@ -122,14 +151,20 @@ class SettingsWindowController:
             transient_for=self._parent,
             destroy_with_parent=True,
         )
-        window.set_default_size(460, 420)
+        window.set_default_size(
+            PREFERENCES_WINDOW_WIDTH_PX,
+            PREFERENCES_WINDOW_HEIGHT_PX,
+        )
         window.set_modal(False)
         window.set_resizable(True)
         window.set_position(Gtk.WindowPosition.CENTER)
         window.connect("destroy", self._on_destroy)
 
-        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        outer.set_border_width(12)
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=WINDOW_OUTER_SPACING_PX,
+        )
+        outer.set_border_width(WINDOW_OUTER_BORDER_PX)
 
         stack = Gtk.Stack()
         switcher = Gtk.StackSwitcher()
@@ -145,12 +180,15 @@ class SettingsWindowController:
         return window
 
     def _build_appearance_tab(self) -> Gtk.Widget:
-        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        outer.set_border_width(16)
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPEARANCE_TAB_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
         self._bindings.clear()
 
         self._hide_mode_combo = Gtk.ComboBoxText()
-        self._hide_mode_combo.set_size_request(180, -1)
+        self._hide_mode_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
         for mode_value, mode_label in [
             ("none", _("Don't Hide")),
             ("autohide", _("Auto-hide")),
@@ -165,7 +203,7 @@ class SettingsWindowController:
         self._hide_mode_desc.set_xalign(0.0)
         self._hide_mode_desc.set_line_wrap(True)
         self._hide_mode_desc.set_line_wrap_mode(2)  # Pango.WrapMode.WORD_CHAR
-        self._hide_mode_desc.set_max_width_chars(28)
+        self._hide_mode_desc.set_max_width_chars(HIDE_MODE_DESC_MAX_CHARS)
         ctx = self._hide_mode_desc.get_style_context()
         ctx.add_class("dim-label")
         self._hide_mode_combo.connect("changed", self._on_hide_mode_combo_changed)
@@ -188,10 +226,26 @@ class SettingsWindowController:
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
 
-        self._icon_size_spin = Gtk.SpinButton.new_with_range(32, 128, 1)
-        self._zoom_percent_spin = Gtk.SpinButton.new_with_range(100, 400, 5)
-        self._hide_delay_spin = Gtk.SpinButton.new_with_range(0, 5000, 50)
-        self._unhide_delay_spin = Gtk.SpinButton.new_with_range(0, 5000, 50)
+        self._icon_size_spin = Gtk.SpinButton.new_with_range(
+            MIN_ICON_SIZE,
+            MAX_ICON_SIZE,
+            1,
+        )
+        self._zoom_percent_spin = Gtk.SpinButton.new_with_range(
+            int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            ZOOM_PERCENT_STEP,
+        )
+        self._hide_delay_spin = Gtk.SpinButton.new_with_range(
+            0,
+            HIDE_DELAY_MAX_MS,
+            HIDE_DELAY_STEP_MS,
+        )
+        self._unhide_delay_spin = Gtk.SpinButton.new_with_range(
+            0,
+            HIDE_DELAY_MAX_MS,
+            HIDE_DELAY_STEP_MS,
+        )
 
         self._register_bindings()
 
@@ -209,7 +263,7 @@ class SettingsWindowController:
         )
         hide_mode_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
-            spacing=4,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
         )
         hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
         hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
@@ -247,14 +301,17 @@ class SettingsWindowController:
     def _build_applets_tab(self) -> Gtk.Widget:
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self._applets_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        self._applets_box.set_border_width(16)
+        self._applets_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPLET_TAB_SPACING_PX,
+        )
+        self._applets_box.set_border_width(APPLET_TAB_BORDER_PX)
         scroller.add(self._applets_box)
         self._rebuild_applet_tab()
         return scroller
 
     def _build_row(self, *, label: str, widget: Gtk.Widget) -> Gtk.Box:
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=ROW_SPACING_PX)
         row.set_size_request(APPEARANCE_ROW_WIDTH_PX, -1)
         title = Gtk.Label(label=label)
         title.set_xalign(0.0)
@@ -270,12 +327,16 @@ class SettingsWindowController:
         title: str,
         rows: list[tuple[str, Gtk.Widget]],
     ) -> None:
-        section = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        section = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=SECTION_SPACING_PX
+        )
         header = self._build_section_header(title=title)
         section.pack_start(header, False, False, 0)
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        content.set_margin_start(18)
-        content.set_margin_end(18)
+        content = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=SECTION_SPACING_PX
+        )
+        content.set_margin_start(SECTION_CONTENT_INSET_PX)
+        content.set_margin_end(SECTION_CONTENT_INSET_PX)
         for label, widget in rows:
             content.pack_start(
                 self._build_row(label=label, widget=widget), False, False, 0
@@ -287,8 +348,8 @@ class SettingsWindowController:
         header = Gtk.Label()
         header.set_xalign(0.0)
         header.set_markup(f"<b>{GLib.markup_escape_text(title)}</b>")
-        header.set_margin_top(6)
-        header.set_margin_bottom(2)
+        header.set_margin_top(SECTION_HEADER_TOP_MARGIN_PX)
+        header.set_margin_bottom(SECTION_HEADER_BOTTOM_MARGIN_PX)
         return header
 
     def _new_switch(self) -> Gtk.Switch:
@@ -359,9 +420,11 @@ class SettingsWindowController:
             self._register_numeric_binding(
                 config_attr="zoom_percent",
                 widget=self._zoom_percent_spin,
-                read_widget=lambda: float(self._zoom_percent_spin.get_value()) / 100.0,
+                read_widget=lambda: (
+                    float(self._zoom_percent_spin.get_value()) / ZOOM_PERCENT_SCALE
+                ),
                 write_widget=lambda value: self._zoom_percent_spin.set_value(
-                    float(value) * 100.0
+                    float(value) * ZOOM_PERCENT_SCALE
                 ),
                 signal="value-changed",
                 on_change=lambda _value: self._runtime.queue_draw(),
@@ -517,8 +580,8 @@ class SettingsWindowController:
         active_ids: set[str],
     ) -> Gtk.Widget:
         grid = Gtk.Grid()
-        grid.set_column_spacing(16)
-        grid.set_row_spacing(8)
+        grid.set_column_spacing(APPLET_GRID_COLUMN_SPACING_PX)
+        grid.set_row_spacing(APPLET_GRID_ROW_SPACING_PX)
         grid.set_column_homogeneous(True)
         for index, (did, cls) in enumerate(members):
             desktop_id = applet_desktop_id(applet_id=did)
@@ -527,7 +590,10 @@ class SettingsWindowController:
             check.connect("toggled", self._on_applet_toggled, str(did))
             check.set_hexpand(True)
             check.set_size_request(APPLET_CELL_WIDTH_PX, -1)
-            content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            content = Gtk.Box(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                spacing=APPLET_ROW_CONTENT_SPACING_PX,
+            )
             content.set_hexpand(True)
             image = self._build_applet_image(applet_id=did)
             if image is not None:

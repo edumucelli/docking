@@ -39,6 +39,13 @@ if TYPE_CHECKING:
 
 _log = with_context(get_logger(name="weather"), applet_id=str(AppletId.WEATHER))
 
+CITY_DIALOG_WIDTH_PX = 350
+DIALOG_CONTENT_SPACING_PX = 8
+DIALOG_HORIZONTAL_MARGIN_PX = 12
+DIALOG_VERTICAL_MARGIN_PX = 8
+CITY_SEARCH_MIN_CHARS = 2
+CITY_SEARCH_RESULT_LIMIT = 10
+
 
 class WeatherApplet(Applet):
     """Shows current weather icon + temperature for a selected city."""
@@ -131,15 +138,15 @@ class WeatherApplet(Applet):
             title=_("Search for the city"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        dialog.set_default_size(350, -1)
+        dialog.set_default_size(CITY_DIALOG_WIDTH_PX, -1)
         dialog.set_position(Gtk.WindowPosition.MOUSE)
 
         box = dialog.get_content_area()
-        box.set_spacing(8)
-        box.set_margin_start(12)
-        box.set_margin_end(12)
-        box.set_margin_top(8)
-        box.set_margin_bottom(8)
+        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
+        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
+        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
+        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
+        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
 
         entry = Gtk.Entry()
         entry.set_placeholder_text(_("Type city name..."))
@@ -149,14 +156,18 @@ class WeatherApplet(Applet):
         store = Gtk.ListStore(str, float, float)  # display, lat, lng
         completion.set_model(store)
         completion.set_text_column(0)
-        completion.set_minimum_key_length(2)
+        completion.set_minimum_key_length(CITY_SEARCH_MIN_CHARS)
 
         def on_changed(changed_entry: Gtk.Entry) -> None:
             text = changed_entry.get_text()
             store.clear()
-            if len(text) < 2:
+            if len(text) < CITY_SEARCH_MIN_CHARS:
                 return
-            for city in search_cities(text, cached_cities(), limit=10):
+            for city in search_cities(
+                text,
+                cached_cities(),
+                limit=CITY_SEARCH_RESULT_LIMIT,
+            ):
                 store.append([city.display, city.lat, city.lng])
 
         def on_match_selected(

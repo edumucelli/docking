@@ -36,6 +36,9 @@ HISTORY_LIMIT = 40
 TOOLTIP_APP_LIMIT = 36
 TOOLTIP_SUMMARY_LIMIT = 72
 TOOLTIP_BODY_LIMIT = 96
+MAX_HISTORY_BADGE_COUNT = 99
+ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S = 0.4
+ELLIPSIS_RESERVED_CHARS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,7 +195,7 @@ class NotificationsApplet(Applet):
         )
 
     def _history_badge_count(self) -> int:
-        return max(0, min(99, len(self._history)))
+        return max(0, min(MAX_HISTORY_BADGE_COUNT, len(self._history)))
 
     def _on_notification_activity(self, force_refresh: bool = False) -> bool:
         previous = self._show_activity_badge()
@@ -249,7 +252,7 @@ class NotificationsApplet(Applet):
             return
         try:
             proc.terminate()
-            proc.wait(timeout=0.4)
+            proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
         except subprocess.TimeoutExpired:
             proc.kill()
         except OSError:
@@ -330,4 +333,4 @@ class NotificationsApplet(Applet):
         normalized = " ".join(text.split())
         if len(normalized) <= limit:
             return normalized
-        return normalized[: max(1, limit - 3)].rstrip() + "..."
+        return normalized[: max(1, limit - ELLIPSIS_RESERVED_CHARS)].rstrip() + "..."

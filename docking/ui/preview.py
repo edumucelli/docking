@@ -138,6 +138,11 @@ THUMB_SPACING = 8
 LABEL_MAX_CHARS = 25
 PREVIEW_HIDE_DELAY_MS = 300
 ICON_FALLBACK_SIZE = 64
+PREVIEW_GAP_PX = 40
+CAPTURE_SAMPLE_GRID_MAX = 8
+CAPTURE_ALPHA_MIN = 8
+CAPTURE_MAX_CHANNEL_THRESHOLD = 10
+CAPTURE_AVERAGE_LUMA_THRESHOLD = 5
 
 _CSS = b"""
 .preview-popup {
@@ -262,8 +267,8 @@ def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
     if not isinstance(data, (bytes, bytearray, memoryview)):
         return False
 
-    sample_x = max(1, min(8, width))
-    sample_y = max(1, min(8, height))
+    sample_x = max(1, min(CAPTURE_SAMPLE_GRID_MAX, width))
+    sample_y = max(1, min(CAPTURE_SAMPLE_GRID_MAX, height))
     max_channel = 0
     total_luma = 0
     count = 0
@@ -281,7 +286,7 @@ def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
             g = data[p + 1]
             b = data[p + 2]
             a = data[p + 3] if has_alpha and channels >= 4 else 255
-            if a < 8:
+            if a < CAPTURE_ALPHA_MIN:
                 continue
             max_channel = max(max_channel, r, g, b)
             total_luma += (r + g + b) // 3
@@ -291,7 +296,10 @@ def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
         return True
 
     avg_luma = total_luma / count
-    return max_channel < 10 and avg_luma < 5
+    return (
+        max_channel < CAPTURE_MAX_CHANNEL_THRESHOLD
+        and avg_luma < CAPTURE_AVERAGE_LUMA_THRESHOLD
+    )
 
 
 def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
@@ -433,19 +441,17 @@ class PreviewPopup(Gtk.Window):
         popup_width = max(preferred.width + 2 * POPUP_PADDING, 1)
         popup_height = max(preferred.height + 2 * POPUP_PADDING, 1)
 
-        preview_gap = 40
-
         if position == Position.BOTTOM:
             popup_x = int(anchor_x + icon_w / 2 - popup_width / 2)
-            popup_y = int(anchor_y - popup_height - preview_gap)
+            popup_y = int(anchor_y - popup_height - PREVIEW_GAP_PX)
         elif position == Position.TOP:
             popup_x = int(anchor_x + icon_w / 2 - popup_width / 2)
-            popup_y = int(anchor_y + preview_gap)
+            popup_y = int(anchor_y + PREVIEW_GAP_PX)
         elif position == Position.LEFT:
-            popup_x = int(anchor_x + preview_gap)
+            popup_x = int(anchor_x + PREVIEW_GAP_PX)
             popup_y = int(anchor_y + icon_w / 2 - popup_height / 2)
         else:  # RIGHT
-            popup_x = int(anchor_x - popup_width - preview_gap)
+            popup_x = int(anchor_x - popup_width - PREVIEW_GAP_PX)
             popup_y = int(anchor_y + icon_w / 2 - popup_height / 2)
 
         # Clamp to screen

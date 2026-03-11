@@ -146,6 +146,7 @@ from urllib.parse import unquote, urlparse
 from docking.log import get_logger
 
 log = get_logger(name="dnd")
+DROP_GAP_CLEAR_DELAY_MS = 100
 
 import gi
 
@@ -456,7 +457,11 @@ class DnDHandler:
         drag truly left (cancelled), the deferred clear closes the gap.
         """
         if self._drag_from < 0 and self.drop_insert_index >= 0:
-            GLib.timeout_add(100, self._deferred_clear_drop_gap, widget)
+            GLib.timeout_add(
+                DROP_GAP_CLEAR_DELAY_MS,
+                self._deferred_clear_drop_gap,
+                widget,
+            )
         widget.queue_draw()
 
     def _deferred_clear_drop_gap(self, widget: Gtk.DrawingArea) -> bool:

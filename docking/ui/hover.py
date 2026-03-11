@@ -177,6 +177,8 @@ if TYPE_CHECKING:
     from docking.ui.tooltip import TooltipManager
 
 PREVIEW_SHOW_DELAY_MS = 400
+ANIM_PUMP_DEFAULT_DURATION_MS = 700
+ANIM_PUMP_FRAME_INTERVAL_MS = 16
 
 
 class HoverManager:
@@ -280,7 +282,10 @@ class HoverManager:
             GLib.source_remove(self._preview_timer_id)
             self._preview_timer_id = 0
 
-    def start_anim_pump(self, duration_ms: int = 700) -> None:
+    def start_anim_pump(
+        self,
+        duration_ms: int = ANIM_PUMP_DEFAULT_DURATION_MS,
+    ) -> None:
         """Start a temporary 60fps redraw loop for time-based animations.
 
         Used for click darken (300ms), launch bounce (600ms), and urgent
@@ -289,7 +294,7 @@ class HoverManager:
         if self._anim_timer_id:
             GLib.source_remove(self._anim_timer_id)
 
-        frames_left = duration_ms // 16
+        frames_left = duration_ms // ANIM_PUMP_FRAME_INTERVAL_MS
 
         def tick() -> bool:
             nonlocal frames_left
@@ -300,7 +305,7 @@ class HoverManager:
             self._window.drawing_area.queue_draw()
             return True
 
-        self._anim_timer_id = GLib.timeout_add(16, tick)
+        self._anim_timer_id = GLib.timeout_add(ANIM_PUMP_FRAME_INTERVAL_MS, tick)
 
     def on_model_changed(self) -> None:
         """Start anim pump if any item became urgent (needs bounce animation)."""
@@ -308,7 +313,7 @@ class HoverManager:
             item.is_urgent and item.last_urgent > 0
             for item in self._model.visible_items()
         ):
-            self.start_anim_pump(duration_ms=700)
+            self.start_anim_pump(duration_ms=ANIM_PUMP_DEFAULT_DURATION_MS)
 
     def _show_preview(self, item: DockItem, _layout: object) -> bool:
         """Show the preview popup near the hovered icon.

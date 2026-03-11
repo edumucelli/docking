@@ -26,6 +26,12 @@ if TYPE_CHECKING:
 
 _log = with_context(get_logger(name="quicknote"), applet_id=str(AppletId.QUICKNOTE))
 
+EDIT_DIALOG_WIDTH_PX = 350
+EDIT_DIALOG_HEIGHT_PX = 250
+DIALOG_CONTENT_SPACING_PX = 8
+DIALOG_HORIZONTAL_MARGIN_PX = 12
+DIALOG_VERTICAL_MARGIN_PX = 8
+
 
 class QuickNoteApplet(Applet):
     """Sticky note applet -- click to edit, tooltip shows content preview."""
@@ -66,16 +72,16 @@ class QuickNoteApplet(Applet):
             title=_("Quick Note"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        dialog.set_default_size(350, 250)
+        dialog.set_default_size(EDIT_DIALOG_WIDTH_PX, EDIT_DIALOG_HEIGHT_PX)
         dialog.set_position(Gtk.WindowPosition.MOUSE)
         dialog.add_button(_("OK"), Gtk.ResponseType.OK)
 
         box = dialog.get_content_area()
-        box.set_spacing(8)
-        box.set_margin_start(12)
-        box.set_margin_end(12)
-        box.set_margin_top(8)
-        box.set_margin_bottom(8)
+        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
+        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
+        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
+        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
+        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)

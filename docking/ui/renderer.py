@@ -186,6 +186,15 @@ INDICATOR_SPACING_MULT = 3
 
 SLIDE_DURATION_MS = 300
 SLIDE_FRAME_MS = 16
+HOVER_LIGHTEN_FRAME_MS = 16
+SEPARATOR_LINE_WIDTH_PX = 2.0
+SEPARATOR_LINE_START_RATIO = 0.1
+SEPARATOR_LINE_END_RATIO = 0.9
+ACTIVE_GLOW_PADDING_RATIO = 0.15
+URGENT_GLOW_INNER_STOP = 0.33
+URGENT_GLOW_INNER_ALPHA = 0.66
+URGENT_GLOW_OUTER_STOP = 0.66
+URGENT_GLOW_OUTER_ALPHA = 0.33
 
 
 def _draw_indicator_dashes(
@@ -630,7 +639,7 @@ class DockRenderer:
         self, items: list[DockItem], hovered_id: str, theme: Theme
     ) -> None:
         """Update per-icon lighten values for hover highlight effect."""
-        fade_frames = max(1, theme.active_time_ms // 16)
+        fade_frames = max(1, theme.active_time_ms // HOVER_LIGHTEN_FRAME_MS)
         hover_max = theme.hover_lighten
         step = hover_max / fade_frames
         active_ids = {item.desktop_id for item in items}
@@ -762,16 +771,16 @@ class DockRenderer:
 
         cr.save()
         cr.set_source_rgba(*color)
-        cr.set_line_width(2.0)
+        cr.set_line_width(SEPARATOR_LINE_WIDTH_PX)
 
         if is_horizontal(pos=pos):
             line_x = x + render_main / 2.0
-            cr.move_to(line_x, y + render_cross * 0.1)
-            cr.line_to(line_x, y + render_cross * 0.9)
+            cr.move_to(line_x, y + render_cross * SEPARATOR_LINE_START_RATIO)
+            cr.line_to(line_x, y + render_cross * SEPARATOR_LINE_END_RATIO)
         else:
             line_y = y + render_main / 2.0
-            cr.move_to(x + render_cross * 0.1, line_y)
-            cr.line_to(x + render_cross * 0.9, line_y)
+            cr.move_to(x + render_cross * SEPARATOR_LINE_START_RATIO, line_y)
+            cr.line_to(x + render_cross * SEPARATOR_LINE_END_RATIO, line_y)
 
         cr.stroke()
         cr.restore()
@@ -814,7 +823,7 @@ class DockRenderer:
         """
         glow_x = li.x + icon_offset
         glow_width = icon_size * li.scale
-        glow_pad = glow_width * 0.15
+        glow_pad = glow_width * ACTIVE_GLOW_PADDING_RATIO
 
         glow_red, glow_green, glow_blue = color
         gradient = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
@@ -863,8 +872,20 @@ class DockRenderer:
 
         grad = cairo.RadialGradient(gx, gy, 0, gx, gy, glow_r)
         grad.add_color_stop_rgba(0, 1, 1, 1, 1.0)
-        grad.add_color_stop_rgba(0.33, r, g, b, 0.66)
-        grad.add_color_stop_rgba(0.66, r, g, b, 0.33)
+        grad.add_color_stop_rgba(
+            URGENT_GLOW_INNER_STOP,
+            r,
+            g,
+            b,
+            URGENT_GLOW_INNER_ALPHA,
+        )
+        grad.add_color_stop_rgba(
+            URGENT_GLOW_OUTER_STOP,
+            r,
+            g,
+            b,
+            URGENT_GLOW_OUTER_ALPHA,
+        )
         grad.add_color_stop_rgba(1.0, r, g, b, 0.0)
 
         cr.arc(gx, gy, glow_r, 0, 2 * math.pi)

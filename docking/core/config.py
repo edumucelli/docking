@@ -149,6 +149,24 @@ DEFAULT_CONFIG_DIR = (
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 
 DEFAULT_PINNED: list[PinnedEntry] = []
+DEFAULT_ICON_SIZE = 48
+DEFAULT_ZOOM_ENABLED = True
+DEFAULT_ZOOM_PERCENT = 1.5
+DEFAULT_ZOOM_RANGE = 3
+DEFAULT_POSITION = Position.BOTTOM.value
+DEFAULT_MONITOR_INDEX = -1
+DEFAULT_HIDE_MODE = "none"
+DEFAULT_HIDE_DELAY_MS = 0
+DEFAULT_UNHIDE_DELAY_MS = 0
+DEFAULT_HIDE_TIME_MS = 250
+DEFAULT_PREVIEWS_ENABLED = True
+DEFAULT_LOCK_ICONS = False
+DEFAULT_CURRENT_WORKSPACE_ONLY = False
+DEFAULT_ANCHOR_APPLETS = False
+DEFAULT_ANCHOR_FILES = False
+DEFAULT_TOOLTIPS_ENABLED = True
+DEFAULT_ACTIVE_DISPLAY = False
+DEFAULT_THEME = "default"
 MIN_ICON_SIZE = 32
 MAX_ICON_SIZE = 128
 MIN_ZOOM_PERCENT = 1.0
@@ -362,41 +380,41 @@ class Config:
     """Dock configuration with sensible defaults."""
 
     # Base icon size in pixels (before zoom)
-    icon_size: int = 48
+    icon_size: int = DEFAULT_ICON_SIZE
     # Whether parabolic zoom on hover is enabled
-    zoom_enabled: bool = True
+    zoom_enabled: bool = DEFAULT_ZOOM_ENABLED
     # Max zoom multiplier (1.0-4.0, default 1.5 = 150%)
-    zoom_percent: float = 1.5
+    zoom_percent: float = DEFAULT_ZOOM_PERCENT
     # Number of icon widths over which the zoom tapers off
-    zoom_range: int = 3
+    zoom_range: int = DEFAULT_ZOOM_RANGE
     # Screen edge where the dock is placed
-    position: str = "bottom"
+    position: str = DEFAULT_POSITION
     # Target monitor index (-1 means "primary monitor")
-    monitor_index: int = -1
+    monitor_index: int = DEFAULT_MONITOR_INDEX
     # Dock hide behavior (see HideMode enum)
-    hide_mode: str = "none"
+    hide_mode: str = DEFAULT_HIDE_MODE
     # Delay in ms before the dock starts hiding after cursor leaves (Plank default: 0)
-    hide_delay_ms: int = 0
+    hide_delay_ms: int = DEFAULT_HIDE_DELAY_MS
     # Delay in ms before the dock starts showing when cursor returns
-    unhide_delay_ms: int = 0
+    unhide_delay_ms: int = DEFAULT_UNHIDE_DELAY_MS
     # Duration of the hide/show slide animation in ms
-    hide_time_ms: int = 250
+    hide_time_ms: int = DEFAULT_HIDE_TIME_MS
     # Whether to show window preview thumbnails on hover
-    previews_enabled: bool = True
+    previews_enabled: bool = DEFAULT_PREVIEWS_ENABLED
     # Whether icon reordering, drag-in, and drag-off removal are locked
-    lock_icons: bool = False
+    lock_icons: bool = DEFAULT_LOCK_ICONS
     # Only show running apps from the active workspace
-    current_workspace_only: bool = False
+    current_workspace_only: bool = DEFAULT_CURRENT_WORKSPACE_ONLY
     # Whether applets are anchored to the end of the dock
-    anchor_applets: bool = False
+    anchor_applets: bool = DEFAULT_ANCHOR_APPLETS
     # Whether file/folder entries are anchored to the end independently
-    anchor_files: bool = False
+    anchor_files: bool = DEFAULT_ANCHOR_FILES
     # Whether to show hover tooltips for dock items
-    tooltips_enabled: bool = True
+    tooltips_enabled: bool = DEFAULT_TOOLTIPS_ENABLED
     # Whether the dock follows the cursor across monitors
-    active_display: bool = False
+    active_display: bool = DEFAULT_ACTIVE_DISPLAY
     # Theme name (loads from assets/themes/{name}.json)
-    theme: str = "default"
+    theme: str = DEFAULT_THEME
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
@@ -418,40 +436,78 @@ class Config:
         self._path: Path = DEFAULT_CONFIG_FILE
         self.icon_size = _normalize_int(
             self.icon_size,
-            default=48,
+            default=DEFAULT_ICON_SIZE,
             minimum=MIN_ICON_SIZE,
             maximum=MAX_ICON_SIZE,
         )
-        self.zoom_enabled = _normalize_bool(self.zoom_enabled, default=True)
+        self.zoom_enabled = _normalize_bool(
+            self.zoom_enabled,
+            default=DEFAULT_ZOOM_ENABLED,
+        )
         self.zoom_percent = _normalize_float(
             self.zoom_percent,
-            default=1.5,
+            default=DEFAULT_ZOOM_PERCENT,
             minimum=MIN_ZOOM_PERCENT,
             maximum=MAX_ZOOM_PERCENT,
         )
-        self.zoom_range = _normalize_int(self.zoom_range, default=3, minimum=0)
-        self.position = _normalize_position(self.position)
-        self.monitor_index = max(
-            -1, _normalize_int(self.monitor_index, default=-1, minimum=-1)
-        )
-        self.hide_mode = _normalize_hide_mode(self.hide_mode)
-        self.hide_delay_ms = _normalize_int(self.hide_delay_ms, default=0, minimum=0)
-        self.unhide_delay_ms = _normalize_int(
-            self.unhide_delay_ms,
-            default=0,
+        self.zoom_range = _normalize_int(
+            self.zoom_range,
+            default=DEFAULT_ZOOM_RANGE,
             minimum=0,
         )
-        self.hide_time_ms = _normalize_int(self.hide_time_ms, default=250, minimum=0)
-        self.previews_enabled = _normalize_bool(self.previews_enabled, default=True)
-        self.lock_icons = _normalize_bool(self.lock_icons, default=False)
+        self.position = _normalize_position(self.position)
+        self.monitor_index = max(
+            DEFAULT_MONITOR_INDEX,
+            _normalize_int(
+                self.monitor_index,
+                default=DEFAULT_MONITOR_INDEX,
+                minimum=DEFAULT_MONITOR_INDEX,
+            ),
+        )
+        self.hide_mode = _normalize_hide_mode(self.hide_mode)
+        self.hide_delay_ms = _normalize_int(
+            self.hide_delay_ms,
+            default=DEFAULT_HIDE_DELAY_MS,
+            minimum=0,
+        )
+        self.unhide_delay_ms = _normalize_int(
+            self.unhide_delay_ms,
+            default=DEFAULT_UNHIDE_DELAY_MS,
+            minimum=0,
+        )
+        self.hide_time_ms = _normalize_int(
+            self.hide_time_ms,
+            default=DEFAULT_HIDE_TIME_MS,
+            minimum=0,
+        )
+        self.previews_enabled = _normalize_bool(
+            self.previews_enabled,
+            default=DEFAULT_PREVIEWS_ENABLED,
+        )
+        self.lock_icons = _normalize_bool(
+            self.lock_icons,
+            default=DEFAULT_LOCK_ICONS,
+        )
         self.current_workspace_only = _normalize_bool(
             self.current_workspace_only,
-            default=False,
+            default=DEFAULT_CURRENT_WORKSPACE_ONLY,
         )
-        self.anchor_applets = _normalize_bool(self.anchor_applets, default=False)
-        self.anchor_files = _normalize_bool(self.anchor_files, default=False)
-        self.tooltips_enabled = _normalize_bool(self.tooltips_enabled, default=True)
-        self.active_display = _normalize_bool(self.active_display, default=False)
+        self.anchor_applets = _normalize_bool(
+            self.anchor_applets,
+            default=DEFAULT_ANCHOR_APPLETS,
+        )
+        self.anchor_files = _normalize_bool(
+            self.anchor_files,
+            default=DEFAULT_ANCHOR_FILES,
+        )
+        self.tooltips_enabled = _normalize_bool(
+            self.tooltips_enabled,
+            default=DEFAULT_TOOLTIPS_ENABLED,
+        )
+        self.active_display = _normalize_bool(
+            self.active_display,
+            default=DEFAULT_ACTIVE_DISPLAY,
+        )
         self.theme = _normalize_theme(self.theme)
         self.pinned = normalize_pinned_entries(list(self.pinned))
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)

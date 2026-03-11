@@ -226,6 +226,9 @@ if TYPE_CHECKING:
 # rather than a click. Prevents accidental launches when slightly moving
 # the mouse during a click.
 CLICK_DRAG_THRESHOLD = 10
+REDRAW_FRAME_INTERVAL_MS = 16
+SHORT_ANIMATION_PUMP_MS = 350
+BOUNCE_ANIMATION_PUMP_MS = 700
 
 
 # Thin input region at screen edge when dock is hidden, allowing the
@@ -497,7 +500,11 @@ class DockWindow(Gtk.Window):
             autohide_state=current_autohide_state,
             now_us=GLib.get_monotonic_time(),
         ):
-            GLib.timeout_add(16, _queue_widget_redraw, self.drawing_area)
+            GLib.timeout_add(
+                REDRAW_FRAME_INTERVAL_MS,
+                _queue_widget_redraw,
+                self.drawing_area,
+            )
 
         self._last_autohide_state = current_autohide_state
 
@@ -594,19 +601,19 @@ class DockWindow(Gtk.Window):
                     # Refresh tooltip immediately so applet name/tooltip
                     # changes are visible without waiting for pointer motion.
                     self.tooltip.update(item, frame)
-                self._hover.start_anim_pump(350)
-                return True
+                    self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                    return True
 
             if item.kind == FOLDER_KIND:
                 if self._menu:
                     self._menu.show_item(event, item)
-                self._hover.start_anim_pump(350)
+                self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
             if item.kind == FILE_KIND:
                 item.last_launched = now
                 open_target(item.target)
-                self._hover.start_anim_pump(350)
+                self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
             force_launch = event.button == MOUSE_MIDDLE or (
@@ -615,10 +622,10 @@ class DockWindow(Gtk.Window):
             if force_launch or not item.is_running:
                 item.last_launched = now
                 launch(desktop_id=item.desktop_id)
-                self._hover.start_anim_pump(700)  # 600ms bounce + margin
+                self._hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
-                self._hover.start_anim_pump(350)  # 300ms click darken
+                self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
 
         return True
 

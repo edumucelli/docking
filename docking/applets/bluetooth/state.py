@@ -33,6 +33,17 @@ DEVICE_IFACE = "org.bluez.Device1"
 BATTERY_IFACE = "org.bluez.Battery1"
 BLUEZ_ERR_NOT_READY = "org.bluez.Error.NotReady"
 BLUEZ_ERR_BUSY = "org.bluez.Error.Busy"
+POWER_OFF_RETRY_COUNT = 5
+POWER_OFF_FINAL_RETRY_COUNT = 3
+POWER_RETRY_SLEEP_S = 0.15
+DISCOVERY_STOP_SETTLE_TIMEOUT_S = 1.2
+DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S = 2.5
+DISCOVERY_POLL_INTERVAL_S = 0.1
+DBUS_NAME_HAS_OWNER_TIMEOUT_MS = 1200
+DBUS_GET_MANAGED_OBJECTS_TIMEOUT_MS = 1800
+DBUS_SET_PROPERTY_TIMEOUT_MS = 1800
+DBUS_METHOD_TIMEOUT_MS = 5000
+BLUETOOTHCTL_POWER_TIMEOUT_S = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,7 +234,7 @@ class BluezBackend:
             self._wait_for_discovery_state(
                 adapter_path=adapter_path,
                 target_discovering=False,
-                timeout_s=1.2,
+                timeout_s=DISCOVERY_STOP_SETTLE_TIMEOUT_S,
             )
             props = self._get_adapter_props(adapter_path=adapter_path)
             if isinstance(props, dict) and _as_bool(props.get("Discovering")):
@@ -245,7 +256,7 @@ class BluezBackend:
                     "(adapter still discovering)."
                 )
                 return False
-            for _ in range(5):
+            for _ in range(POWER_OFF_RETRY_COUNT):
                 if self._set_property(
                     path=adapter_path,
                     interface=ADAPTER_IFACE,
@@ -255,16 +266,16 @@ class BluezBackend:
                     quiet=True,
                 ):
                     return True
-                time.sleep(0.15)
+                time.sleep(POWER_RETRY_SLEEP_S)
 
             self._disconnect_connected_devices(adapter_path=adapter_path)
             self.stop_discovery(adapter_path, quiet=True)
             self._wait_for_discovery_state(
                 adapter_path=adapter_path,
                 target_discovering=False,
-                timeout_s=2.5,
+                timeout_s=DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S,
             )
-            for _ in range(3):
+            for _ in range(POWER_OFF_FINAL_RETRY_COUNT):
                 if self._set_property(
                     path=adapter_path,
                     interface=ADAPTER_IFACE,
@@ -274,7 +285,7 @@ class BluezBackend:
                     quiet=True,
                 ):
                     return True
-                time.sleep(0.15)
+                time.sleep(POWER_RETRY_SLEEP_S)
             if self._set_power_with_bluetoothctl(powered=False):
                 return True
             _log.bind(action="set_Powered").debug(
@@ -364,7 +375,7 @@ class BluezBackend:
                 "NameHasOwner",
                 GLib.Variant("(s)", (BLUEZ_SERVICE,)),
                 Gio.DBusCallFlags.NONE,
-                1200,
+                DBUS_NAME_HAS_OWNER_TIMEOUT_MS,
                 None,
             )
             unpacked = result.unpack() if result is not None else ()
@@ -384,7 +395,7 @@ class BluezBackend:
                 None,
                 GLib.VariantType("(a{oa{sa{sv}}})"),
                 Gio.DBusCallFlags.NONE,
-                1800,
+                DBUS_GET_MANAGED_OBJECTS_TIMEOUT_MS,
                 None,
             )
         except GLib.Error as exc:
@@ -417,7 +428,7 @@ class BluezBackend:
                 parameters,
                 None,
                 Gio.DBusCallFlags.NONE,
-                5000,
+                DBUS_METHOD_TIMEOUT_MS,
                 None,
             )
             return True
@@ -458,7 +469,7 @@ class BluezBackend:
                 ),
                 None,
                 Gio.DBusCallFlags.NONE,
-                1800,
+                DBUS_SET_PROPERTY_TIMEOUT_MS,
                 None,
             )
             return True
@@ -521,7 +532,7 @@ class BluezBackend:
             discovering = _as_bool(props.get("Discovering"))
             if discovering == target_discovering:
                 return True
-            time.sleep(0.1)
+            time.sleep(DISCOVERY_POLL_INTERVAL_S)
         return False
 
     def _get_adapter_props(self, *, adapter_path: str) -> dict[str, Any] | None:
@@ -545,7 +556,7 @@ class BluezBackend:
                 ["bluetoothctl", "power", value],
                 capture_output=True,
                 text=True,
-                timeout=8,
+                timeout=BLUETOOTHCTL_POWER_TIMEOUT_S,
                 check=False,
             )
         except (subprocess.TimeoutExpired, OSError):

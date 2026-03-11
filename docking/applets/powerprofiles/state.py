@@ -72,6 +72,15 @@ PROPERTIES_IFACE = "org.freedesktop.DBus.Properties"
 DBUS_SERVICE = "org.freedesktop.DBus"
 DBUS_PATH = "/org/freedesktop/DBus"
 DBUS_IFACE = "org.freedesktop.DBus"
+DBUS_NAME_HAS_OWNER_TIMEOUT_MS = 1200
+DBUS_GET_ALL_TIMEOUT_MS = 2000
+DBUS_PROPERTY_SET_TIMEOUT_MS = 1800
+TUNED_SET_TIMEOUT_S = 4.0
+TUNED_ACTIVE_TIMEOUT_S = 3.0
+TUNED_LIST_TIMEOUT_S = 3.0
+TLP_STATUS_TIMEOUT_S = 3.0
+TLP_SET_TIMEOUT_S = 4.0
+DEFAULT_COMMAND_TIMEOUT_S = 2.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,7 +295,7 @@ class PowerProfilesBackend:
                 "NameHasOwner",
                 GLib.Variant("(s)", (SERVICE,)),
                 Gio.DBusCallFlags.NONE,
-                1200,
+                DBUS_NAME_HAS_OWNER_TIMEOUT_MS,
                 None,
             )
             unpacked = result.unpack() if result is not None else ()
@@ -307,7 +316,7 @@ class PowerProfilesBackend:
                 GLib.Variant("(s)", (POWER_PROFILES_IFACE,)),
                 GLib.VariantType("(a{sv})"),
                 Gio.DBusCallFlags.NONE,
-                2000,
+                DBUS_GET_ALL_TIMEOUT_MS,
                 None,
             )
         except GLib.Error as exc:
@@ -345,7 +354,7 @@ class PowerProfilesBackend:
                 ),
                 None,
                 Gio.DBusCallFlags.NONE,
-                1800,
+                DBUS_PROPERTY_SET_TIMEOUT_MS,
                 None,
             )
             return True
@@ -453,12 +462,12 @@ class TunedBackend:
         )
         if not target:
             return False
-        out = _run(cmd=["tuned-adm", "profile", target], timeout_s=4.0)
+        out = _run(cmd=["tuned-adm", "profile", target], timeout_s=TUNED_SET_TIMEOUT_S)
         return out is not None
 
     def _active_profile_name(self) -> str:
         """Parse active tuned profile from ``tuned-adm active`` output."""
-        text = _run(cmd=["tuned-adm", "active"], timeout_s=3.0) or ""
+        text = _run(cmd=["tuned-adm", "active"], timeout_s=TUNED_ACTIVE_TIMEOUT_S) or ""
         match = re.search(r"current active profile:\s*([^\n]+)", text, re.IGNORECASE)
         if match:
             return match.group(1).strip()
@@ -466,7 +475,7 @@ class TunedBackend:
 
     def _available_profile_names(self) -> tuple[str, ...]:
         """Parse available tuned profile names from ``tuned-adm list``."""
-        text = _run(cmd=["tuned-adm", "list"], timeout_s=3.0) or ""
+        text = _run(cmd=["tuned-adm", "list"], timeout_s=TUNED_LIST_TIMEOUT_S) or ""
         names: list[str] = []
         for raw in text.splitlines():
             line = raw.strip()
@@ -532,7 +541,7 @@ class TlpBackend:
         if not (_has_command("tlp") or _has_command("tlp-stat")):
             return unavailable_state(error="tlp not available")
 
-        status = _run(cmd=["tlp-stat", "-s"], timeout_s=3.0) or ""
+        status = _run(cmd=["tlp-stat", "-s"], timeout_s=TLP_STATUS_TIMEOUT_S) or ""
         lowered = status.lower()
         if "mode" in lowered and "battery" in lowered:
             active = "power-saver"
@@ -557,18 +566,18 @@ class TlpBackend:
         """Map canonical profiles to TLP commands."""
         canonical = normalize_profile(profile)
         if canonical == "power-saver":
-            out = _run(cmd=["tlp", "bat"], timeout_s=4.0)
+            out = _run(cmd=["tlp", "bat"], timeout_s=TLP_SET_TIMEOUT_S)
             return out is not None
         if canonical == "performance":
-            out = _run(cmd=["tlp", "ac"], timeout_s=4.0)
+            out = _run(cmd=["tlp", "ac"], timeout_s=TLP_SET_TIMEOUT_S)
             return out is not None
         if canonical == "balanced":
-            out = _run(cmd=["tlp", "start"], timeout_s=4.0)
+            out = _run(cmd=["tlp", "start"], timeout_s=TLP_SET_TIMEOUT_S)
             return out is not None
         return False
 
 
-def _run(cmd: list[str], timeout_s: float = 2.5) -> str | None:
+def _run(cmd: list[str], timeout_s: float = DEFAULT_COMMAND_TIMEOUT_S) -> str | None:
     """Run command and return stdout on success; ``None`` on failure."""
     try:
         proc = subprocess.run(

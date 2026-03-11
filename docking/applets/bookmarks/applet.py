@@ -28,6 +28,11 @@ if TYPE_CHECKING:
 
 _log = with_context(get_logger(name="bookmarks"), applet_id=str(AppletId.BOOKMARKS))
 
+ADD_DIALOG_WIDTH_PX = 350
+DIALOG_CONTENT_SPACING_PX = 8
+DIALOG_HORIZONTAL_MARGIN_PX = 12
+DIALOG_VERTICAL_MARGIN_PX = 8
+
 
 class BookmarksApplet(Applet):
     """Pinned URL bookmarks that open in the default browser."""
@@ -97,15 +102,15 @@ class BookmarksApplet(Applet):
             Gtk.STOCK_OK,
             Gtk.ResponseType.OK,
         )
-        dialog.set_default_size(350, -1)
+        dialog.set_default_size(ADD_DIALOG_WIDTH_PX, -1)
         dialog.set_position(Gtk.WindowPosition.MOUSE)
 
         box = dialog.get_content_area()
-        box.set_spacing(8)
-        box.set_margin_start(12)
-        box.set_margin_end(12)
-        box.set_margin_top(8)
-        box.set_margin_bottom(8)
+        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
+        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
+        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
+        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
+        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
 
         name_entry = Gtk.Entry()
         name_entry.set_placeholder_text(_("Bookmark name"))

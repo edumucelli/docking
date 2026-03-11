@@ -172,6 +172,10 @@ if TYPE_CHECKING:
 
 
 TOOLTIP_BASE_GAP = 10  # base gap between icon and tooltip
+TOOLTIP_CORNER_RADIUS_PX = 6
+TOOLTIP_CONTENT_MARGIN_PX = 6
+TOOLTIP_BACKGROUND_ALPHA = 0.85
+TOOLTIP_BOUNCE_HEADROOM_FACTOR = 0.5
 
 
 def compute_tooltip_position(
@@ -352,7 +356,7 @@ class TooltipManager:
 
             def on_draw(widget, cr):
                 alloc = widget.get_allocation()
-                radius = 6
+                radius = TOOLTIP_CORNER_RADIUS_PX
                 w, h = alloc.width, alloc.height
                 cr.new_sub_path()
                 cr.arc(w - radius, radius, radius, -math.pi / 2, 0)
@@ -360,7 +364,7 @@ class TooltipManager:
                 cr.arc(radius, h - radius, radius, math.pi / 2, math.pi)
                 cr.arc(radius, radius, radius, math.pi, 3 * math.pi / 2)
                 cr.close_path()
-                cr.set_source_rgba(0, 0, 0, 0.85)
+                cr.set_source_rgba(0, 0, 0, TOOLTIP_BACKGROUND_ALPHA)
                 cr.fill()
                 return False
 
@@ -383,10 +387,10 @@ class TooltipManager:
             else:
                 content = Gtk.Label(label=text)
                 content.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
-            content.set_margin_start(6)
-            content.set_margin_end(6)
-            content.set_margin_top(6)
-            content.set_margin_bottom(6)
+            content.set_margin_start(TOOLTIP_CONTENT_MARGIN_PX)
+            content.set_margin_end(TOOLTIP_CONTENT_MARGIN_PX)
+            content.set_margin_top(TOOLTIP_CONTENT_MARGIN_PX)
+            content.set_margin_bottom(TOOLTIP_CONTENT_MARGIN_PX)
             self._tooltip_window.add(content)
             # Realize child so get_preferred_size returns the new
             # content's dimensions, not the previous tooltip's.
@@ -398,7 +402,7 @@ class TooltipManager:
 
         # Gap = base gap + half bounce headroom (icon only briefly reaches peak)
         bounce_px = self._config.icon_size * self._theme.launch_bounce_height
-        gap = TOOLTIP_BASE_GAP + bounce_px * 0.5
+        gap = TOOLTIP_BASE_GAP + bounce_px * TOOLTIP_BOUNCE_HEADROOM_FACTOR
         tx, ty = compute_tooltip_position(
             pos=pos,
             anchor_x=anchor_x,

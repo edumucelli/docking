@@ -24,6 +24,11 @@ from docking.ui.runtime import get_pointer_position
 if TYPE_CHECKING:
     from docking.core.config import Config
 
+CALENDAR_TICK_INTERVAL_S = 30
+CALENDAR_POPUP_CORNER_RADIUS_PX = 8
+CALENDAR_POPUP_PADDING_PX = 8
+CALENDAR_POPUP_CURSOR_GAP_PX = 20
+
 
 class CalendarApplet(Applet):
     """Displays today's date as a dock icon with calendar popup on click."""
@@ -56,7 +61,7 @@ class CalendarApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
-        self._timer_id = GLib.timeout_add_seconds(30, self._tick)
+        self._timer_id = GLib.timeout_add_seconds(CALENDAR_TICK_INTERVAL_S, self._tick)
 
     def stop(self) -> None:
         if self._timer_id:
@@ -91,7 +96,7 @@ class CalendarApplet(Applet):
 
             def on_draw(widget: Gtk.Widget, cr: cairo.Context) -> bool:
                 alloc = widget.get_allocation()
-                radius = 8
+                radius = CALENDAR_POPUP_CORNER_RADIUS_PX
                 width, height = alloc.width, alloc.height
                 cr.new_sub_path()
                 cr.arc(width - radius, radius, radius, -math.pi / 2, 0)
@@ -110,10 +115,10 @@ class CalendarApplet(Applet):
             self._popup.remove(child)
 
         calendar = Gtk.Calendar()
-        calendar.set_margin_start(8)
-        calendar.set_margin_end(8)
-        calendar.set_margin_top(8)
-        calendar.set_margin_bottom(8)
+        calendar.set_margin_start(CALENDAR_POPUP_PADDING_PX)
+        calendar.set_margin_end(CALENDAR_POPUP_PADDING_PX)
+        calendar.set_margin_top(CALENDAR_POPUP_PADDING_PX)
+        calendar.set_margin_bottom(CALENDAR_POPUP_PADDING_PX)
         self._popup.add(calendar)
 
         self._popup.show_all()
@@ -132,6 +137,12 @@ class CalendarApplet(Applet):
         screen_h = screen.get_height()
 
         popup_x = max(0, min(int(mouse_x - popup_w / 2), screen_w - popup_w))
-        popup_y = max(0, min(int(mouse_y - popup_h - 20), screen_h - popup_h))
+        popup_y = max(
+            0,
+            min(
+                int(mouse_y - popup_h - CALENDAR_POPUP_CURSOR_GAP_PX),
+                screen_h - popup_h,
+            ),
+        )
 
         self._popup.move(popup_x, popup_y)

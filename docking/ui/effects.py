@@ -11,6 +11,10 @@ import math
 
 from docking.core.theme import RGB
 
+NEUTRAL_GRAY_RGB: RGB = (0.5, 0.5, 0.5)
+DOMINANT_COLOR_ALPHA_THRESHOLD = 25
+COLOR_CHANNEL_MAX = 255.0
+
 
 def average_icon_color(
     pixbuf: object,
@@ -48,7 +52,7 @@ def average_icon_color(
     # have no visual contribution. If ALL pixels are gray (score_total=0),
     # we fall back to neutral gray (0.5, 0.5, 0.5).
     if pixbuf is None:
-        return (0.5, 0.5, 0.5)
+        return NEUTRAL_GRAY_RGB
 
     pixels = pixbuf.get_pixels()
     n_channels = pixbuf.get_n_channels()
@@ -67,10 +71,10 @@ def average_icon_color(
             r = pixels[offset]
             g = pixels[offset + 1]
             b = pixels[offset + 2]
-            a = pixels[offset + 3] if n_channels >= 4 else 255
+            a = pixels[offset + 3] if n_channels >= 4 else int(COLOR_CHANNEL_MAX)
 
             # Skip nearly-transparent pixels
-            if a < 25:
+            if a < DOMINANT_COLOR_ALPHA_THRESHOLD:
                 continue
 
             min_channel = min(r, g, b)
@@ -79,14 +83,14 @@ def average_icon_color(
             # Saturation score: 0.0 for grays, 1.0 for fully saturated
             score = (delta / max_channel) if max_channel > 0 else 0.0
 
-            r_total += score * r / 255
-            g_total += score * g / 255
-            b_total += score * b / 255
+            r_total += score * r / COLOR_CHANNEL_MAX
+            g_total += score * g / COLOR_CHANNEL_MAX
+            b_total += score * b / COLOR_CHANNEL_MAX
             score_total += score
             count += 1
 
     if count == 0:
-        return (0.5, 0.5, 0.5)
+        return NEUTRAL_GRAY_RGB
 
     if score_total > 0:
         r_avg = r_total / score_total
@@ -94,7 +98,7 @@ def average_icon_color(
         b_avg = b_total / score_total
     else:
         # All pixels were gray (zero saturation) -- fall back to neutral
-        r_avg = g_avg = b_avg = 0.5
+        r_avg, g_avg, b_avg = NEUTRAL_GRAY_RGB
 
     # Clamp: ensure no channel exceeds 1.0 (can happen with
     # rounding in heavily saturated icons)

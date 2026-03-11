@@ -175,6 +175,7 @@ if TYPE_CHECKING:
 ICON_SIZE_OPTIONS = (32, 48, 64, 80)
 APPLET_MENU_ICON_PX = 16
 MENU_LABEL_MAX_CHARS = 32
+MENU_ROW_SPACING_PX = 6
 FOLDER_SORT_OPTIONS = (
     (_("Name"), "name"),
     (_("Kind"), "kind"),
@@ -185,6 +186,11 @@ FOLDER_SORT_OPTIONS = (
 WINDOW_MENU_THUMB_W = 28
 WINDOW_MENU_THUMB_H = 20
 WINDOW_MENU_CLOSE_HIT_W = 44
+WINDOW_MENU_CLOSE_LABEL_XALIGN = 0.5
+WINDOW_MENU_CLOSE_MARGIN_END_PX = 12
+FOLDER_MENU_REFRESH_DEBOUNCE_MS = 120
+FOLDER_SMALL_ICON_PX = 16
+FOLDER_LARGE_ICON_PX = 24
 _log = get_logger("menu")
 
 
@@ -250,7 +256,10 @@ def _set_check_menu_item_icon(
 ) -> None:
     """Attach icon + text row to a check menu item."""
     item.set_label(label)
-    row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+    row = Gtk.Box(
+        orientation=Gtk.Orientation.HORIZONTAL,
+        spacing=MENU_ROW_SPACING_PX,
+    )
     if pixbuf is not None:
         image = Gtk.Image.new_from_pixbuf(_menu_icon_pixbuf(pixbuf))
         image.set_pixel_size(APPLET_MENU_ICON_PX)
@@ -277,7 +286,10 @@ def _set_menu_item_icon(
     icon_px: int,
 ) -> None:
     item.set_label(label)
-    row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+    row = Gtk.Box(
+        orientation=Gtk.Orientation.HORIZONTAL,
+        spacing=MENU_ROW_SPACING_PX,
+    )
     if pixbuf is not None:
         scaled = pixbuf
         if pixbuf.get_width() != icon_px or pixbuf.get_height() != icon_px:
@@ -616,7 +628,10 @@ class MenuHandler:
             wnck_window=window, thumb_w=WINDOW_MENU_THUMB_W, thumb_h=WINDOW_MENU_THUMB_H
         )
 
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=MENU_ROW_SPACING_PX,
+        )
         image = Gtk.Image.new_from_pixbuf(thumb) if thumb is not None else Gtk.Image()
         image.set_pixel_size(WINDOW_MENU_THUMB_H)
         box.pack_start(image, False, False, 0)
@@ -630,8 +645,8 @@ class MenuHandler:
         box.pack_start(text, True, True, 0)
 
         close_label = Gtk.Label(label="\u00d7")
-        close_label.set_xalign(0.5)
-        close_label.set_margin_end(12)
+        close_label.set_xalign(WINDOW_MENU_CLOSE_LABEL_XALIGN)
+        close_label.set_margin_end(WINDOW_MENU_CLOSE_MARGIN_END_PX)
         box.pack_end(close_label, False, False, 0)
 
         child = row.get_child()
@@ -947,7 +962,11 @@ class MenuHandler:
         existing = self._folder_menu_refresh_sources.pop(menu_id, 0)
         if existing:
             GLib.source_remove(existing)
-        source = GLib.timeout_add(120, self._refresh_folder_menu, menu_id)
+        source = GLib.timeout_add(
+            FOLDER_MENU_REFRESH_DEBOUNCE_MS,
+            self._refresh_folder_menu,
+            menu_id,
+        )
         self._folder_menu_refresh_sources[menu_id] = source
 
     def _refresh_folder_menu(self, menu_id: int) -> bool:
@@ -1109,8 +1128,8 @@ class MenuHandler:
     def _folder_icon_px(self, folder_item: DockItem) -> int:
         prefs = self._folder_prefs(folder_item)
         if prefs["large_icons"]:
-            return 24
-        return 16
+            return FOLDER_LARGE_ICON_PX
+        return FOLDER_SMALL_ICON_PX
 
     def _update_folder_pref(self, item: DockItem, key: str, value: Any) -> None:
         prefs = self._folder_prefs(item)
