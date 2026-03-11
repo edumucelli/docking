@@ -362,7 +362,7 @@ class DockPlacementController:
 
     def set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
-        if self._window.config.autohide:
+        if self._window.config.hide_mode != "none":
             self.clear_struts()
             return
 
@@ -393,7 +393,7 @@ class DockPlacementController:
         """Create or destroy the pointer barrier based on autohide state."""
         if not self._barrier.supported:
             return
-        if not self._window.config.autohide:
+        if self._window.config.hide_mode == "none":
             self._barrier.destroy()
             return
         display = self._window.get_display()

@@ -404,7 +404,7 @@ class TestAutohideAnimationScenarios:
     def test_autohide_progresses_visible_to_hidden_and_back(self, monkeypatch):
         window = SimpleNamespace(queue_redraw=MagicMock())
         config = SimpleNamespace(
-            autohide=True,
+            hide_mode="autohide",
             hide_delay_ms=0,
             unhide_delay_ms=0,
             hide_time_ms=64,
@@ -459,7 +459,7 @@ class TestPlacementScenarios:
                 zoom_percent=1.2,
                 pos=Position.BOTTOM,
                 active_display=True,
-                autohide=False,
+                hide_mode="none",
                 monitor_index=-1,
             ),
             theme=SimpleNamespace(

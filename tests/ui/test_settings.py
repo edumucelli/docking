@@ -17,6 +17,11 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 import docking.ui.settings as settings_mod  # noqa: E402
 
 
+class FakeStyleContext:
+    def add_class(self, _name: str) -> None:
+        pass
+
+
 class FakeLabel:
     def __init__(self, label: str = "") -> None:
         self._label = label
@@ -26,6 +31,7 @@ class FakeLabel:
         self.margin_top = 0
         self.margin_bottom = 0
         self.line_wrap = False
+        self.max_width_chars = -1
 
     def get_label(self) -> str:
         return self._label
@@ -50,6 +56,18 @@ class FakeLabel:
 
     def set_margin_bottom(self, value: int) -> None:
         self.margin_bottom = value
+
+    def set_max_width_chars(self, value: int) -> None:
+        self.max_width_chars = value
+
+    def set_line_wrap_mode(self, mode: int) -> None:
+        pass
+
+    def get_style_context(self) -> FakeStyleContext:
+        return FakeStyleContext()
+
+    def set_size_request(self, width: int, height: int) -> None:
+        pass
 
 
 class FakeBox:
@@ -199,6 +217,9 @@ class FakeComboBoxText:
 
     def set_active_id(self, value: str) -> None:
         self._active_id = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        pass
 
     def get_active_id(self) -> str | None:
         return self._active_id
@@ -383,7 +404,7 @@ class FakeGtk:
 
 def _config():
     return SimpleNamespace(
-        autohide=True,
+        hide_mode="autohide",
         previews_enabled=True,
         tooltips_enabled=True,
         lock_icons=False,
@@ -474,7 +495,7 @@ class TestSettingsWindowController:
         runtime.reposition.assert_called_once()
         runtime.queue_draw.assert_called_once()
 
-    def test_autohide_toggle_updates_runtime(self, monkeypatch):
+    def test_hide_mode_change_updates_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
@@ -490,11 +511,11 @@ class TestSettingsWindowController:
         )
 
         controller.show()
-        widget = controller._autohide_switch
-        widget.set_active(False)
-        widget.emit_notify_active()
+        widget = controller._hide_mode_combo
+        widget.set_active_id("none")
+        widget.emit_changed()
 
-        assert config.autohide is False
+        assert config.hide_mode == "none"
         runtime.reset_autohide.assert_called_once()
         runtime.update_struts.assert_called_once()
 
@@ -505,7 +526,7 @@ class TestSettingsWindowController:
         )
         monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
         config = _config()
-        config.autohide = False
+        config.hide_mode = "none"
         config.zoom_enabled = False
         controller = settings_mod.SettingsWindowController(
             parent=object(),

@@ -86,7 +86,7 @@ class TestAutoHideState:
     def _make_controller(self, autohide=True, hide_delay=0, unhide_delay=0):
         window = MagicMock()
         config = MagicMock()
-        config.autohide = autohide
+        config.hide_mode = "autohide" if autohide else "none"
         config.hide_delay_ms = hide_delay
         config.unhide_delay_ms = unhide_delay
         config.hide_time_ms = 250
@@ -173,7 +173,7 @@ class TestZoomProgressFormula:
     def _make_controller(self):
         window = MagicMock()
         config = MagicMock()
-        config.autohide = True
+        config.hide_mode = "autohide"
         config.hide_delay_ms = 0
         config.unhide_delay_ms = 0
         config.hide_time_ms = 250
@@ -249,7 +249,7 @@ class TestAutoHideTimersAndDelays:
     def _make_controller(self, hide_delay=0, unhide_delay=0):
         window = MagicMock()
         config = MagicMock()
-        config.autohide = True
+        config.hide_mode = "autohide"
         config.hide_delay_ms = hide_delay
         config.unhide_delay_ms = unhide_delay
         config.hide_time_ms = 250

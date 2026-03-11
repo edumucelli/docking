@@ -5,7 +5,7 @@ What configuration means in this project
 Configuration is the persisted expression of user intent:
 
 - where the dock lives,
-- whether it autohides,
+- how it hides (hide mode),
 - how large icons are,
 - which items are pinned,
 - which theme is active,
@@ -105,7 +105,7 @@ behavior of the dock:
 - icon size
 - zoom enabled and default factor
 - bottom position
-- autohide off
+- hide mode none (no hiding)
 - previews on
 - tooltips on
 - no pinned items by default
@@ -133,6 +133,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -154,6 +155,49 @@ MIN_ZOOM_PERCENT = 1.0
 MAX_ZOOM_PERCENT = 4.0
 
 logger = get_logger("config")
+
+
+class HideMode(str, Enum):
+    """Dock hide behavior mode.
+
+    Mode            Behavior
+    ──────────────  ──────────────────────────────────────────────────────
+    NONE            Never hides, reserves struts for window managers.
+    AUTOHIDE        Hides when the mouse leaves the dock area.
+    INTELLIGENT     Hides when any window from the active app overlaps
+                    the dock (matched by WM_CLASS).
+    DODGE_ACTIVE    Hides when the focused window itself overlaps the dock.
+    WINDOW_DODGE    Hides when any window on the active workspace overlaps.
+    DODGE_MAXIMIZED Hides when the active window is maximized or a dialog
+                    window overlaps the dock.
+
+    Decision logic (pseudocode)::
+
+        show = hovered OR disabled OR (mode-specific):
+            AUTOHIDE:        always hide when not hovered
+            INTELLIGENT:     NOT active_app_overlaps
+            DODGE_ACTIVE:    NOT active_window_overlaps
+            WINDOW_DODGE:    NOT any_window_overlaps
+            DODGE_MAXIMIZED: NOT (maximized_overlaps OR dialog_overlaps)
+    """
+
+    NONE = "none"
+    AUTOHIDE = "autohide"
+    INTELLIGENT = "intelligent"
+    DODGE_ACTIVE = "dodge-active"
+    WINDOW_DODGE = "window-dodge"
+    DODGE_MAXIMIZED = "dodge-maximized"
+
+
+def _normalize_hide_mode(value: object) -> str:
+    if isinstance(value, bool):
+        return HideMode.AUTOHIDE.value if value else HideMode.NONE.value
+    if isinstance(value, str):
+        try:
+            return HideMode(value=value).value
+        except ValueError:
+            pass
+    return HideMode.NONE.value
 
 
 @dataclass
@@ -331,8 +375,8 @@ class Config:
     position: str = "bottom"
     # Target monitor index (-1 means "primary monitor")
     monitor_index: int = -1
-    # Whether the dock hides when the cursor leaves
-    autohide: bool = False
+    # Dock hide behavior (see HideMode enum)
+    hide_mode: str = "none"
     # Delay in ms before the dock starts hiding after cursor leaves (Plank default: 0)
     hide_delay_ms: int = 0
     # Delay in ms before the dock starts showing when cursor returns
@@ -367,6 +411,11 @@ class Config:
         """Position as enum."""
         return Position(value=self.position)
 
+    @property
+    def hide_mode_enum(self) -> HideMode:
+        """Hide mode as enum."""
+        return HideMode(value=self.hide_mode)
+
     def __post_init__(self) -> None:
         self._path: Path = DEFAULT_CONFIG_FILE
         self.icon_size = _normalize_int(
@@ -387,7 +436,7 @@ class Config:
         self.monitor_index = max(
             -1, _normalize_int(self.monitor_index, default=-1, minimum=-1)
         )
-        self.autohide = _normalize_bool(self.autohide, default=False)
+        self.hide_mode = _normalize_hide_mode(self.hide_mode)
         self.hide_delay_ms = _normalize_int(self.hide_delay_ms, default=0, minimum=0)
         self.unhide_delay_ms = _normalize_int(
             self.unhide_delay_ms,
@@ -449,7 +498,7 @@ class Config:
             "zoom_range": self.zoom_range,
             "position": self.position,
             "monitor_index": self.monitor_index,
-            "autohide": self.autohide,
+            "hide_mode": self.hide_mode,
             "hide_delay_ms": self.hide_delay_ms,
             "unhide_delay_ms": self.unhide_delay_ms,
             "hide_time_ms": self.hide_time_ms,

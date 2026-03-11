@@ -17,7 +17,7 @@ def _make_window(**overrides):
             zoom_percent=1.2,
             pos=Position.BOTTOM,
             active_display=False,
-            autohide=False,
+            hide_mode="none",
             monitor_index=-1,
         ),
         theme=SimpleNamespace(
@@ -302,7 +302,7 @@ class TestPlacementControllerGeometry:
                 zoom_percent=1.0,
                 pos=Position.BOTTOM,
                 active_display=False,
-                autohide=False,
+                hide_mode="none",
                 monitor_index=-1,
             ),
             theme=SimpleNamespace(
@@ -335,7 +335,7 @@ class TestPlacementControllerGeometry:
                 zoom_percent=1.0,
                 pos=Position.RIGHT,
                 active_display=False,
-                autohide=False,
+                hide_mode="none",
                 monitor_index=-1,
             ),
             theme=SimpleNamespace(
@@ -376,7 +376,7 @@ class TestPlacementControllerGeometry:
                 zoom_percent=1.2,
                 pos=Position.BOTTOM,
                 active_display=False,
-                autohide=False,
+                hide_mode="none",
                 monitor_index=1,
             ),
         )
@@ -433,7 +433,7 @@ class TestPlacementControllerGeometry:
 
 class TestPlacementControllerStruts:
     def test_set_struts_clears_when_autohide_enabled(self):
-        window = _make_window(config=SimpleNamespace(autohide=True))
+        window = _make_window(config=SimpleNamespace(hide_mode="autohide"))
         controller = placement_mod.DockPlacementController(window)
         controller.clear_struts = MagicMock()
 
@@ -443,7 +443,7 @@ class TestPlacementControllerStruts:
 
     def test_set_struts_returns_when_no_window(self):
         window = _make_window(
-            config=SimpleNamespace(autohide=False),
+            config=SimpleNamespace(hide_mode="none"),
             get_window=lambda: None,
         )
         controller = placement_mod.DockPlacementController(window)
@@ -464,7 +464,7 @@ class TestPlacementControllerStruts:
         monkeypatch.setattr(placement_mod, "set_dock_struts", set_struts)
         window = _make_window(
             config=SimpleNamespace(
-                autohide=False,
+                hide_mode="none",
                 icon_size=48,
                 pos=Position.BOTTOM,
                 active_display=False,
@@ -501,7 +501,7 @@ class TestPlacementControllerStruts:
         gdk_window = FakeX11Window()
         window = _make_window(
             config=SimpleNamespace(
-                autohide=False,
+                hide_mode="none",
                 icon_size=48,
                 pos=Position.BOTTOM,
                 active_display=False,
@@ -541,7 +541,7 @@ class TestPlacementControllerStruts:
         gdk_window = FakeX11Window()
         window = _make_window(
             config=SimpleNamespace(
-                autohide=False,
+                hide_mode="none",
                 icon_size=48,
                 pos=Position.BOTTOM,
                 active_display=True,
@@ -592,7 +592,7 @@ class TestPlacementControllerStruts:
         barrier.update.assert_not_called()
 
         barrier = MagicMock(supported=True)
-        window = _make_window(config=SimpleNamespace(autohide=False))
+        window = _make_window(config=SimpleNamespace(hide_mode="none"))
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
         controller.update_barrier()
         barrier.destroy.assert_called_once()
@@ -600,7 +600,7 @@ class TestPlacementControllerStruts:
     def test_update_barrier_destroys_when_monitor_missing(self):
         barrier = MagicMock(supported=True)
         window = _make_window(
-            config=SimpleNamespace(autohide=True, pos=Position.BOTTOM)
+            config=SimpleNamespace(hide_mode="autohide", pos=Position.BOTTOM)
         )
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
         controller._resolve_target_monitor = MagicMock(return_value=None)
@@ -613,7 +613,9 @@ class TestPlacementControllerStruts:
         barrier = MagicMock(supported=True)
         geom = SimpleNamespace(x=100, y=50, width=1280, height=720)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
-        window = _make_window(config=SimpleNamespace(autohide=True, pos=Position.RIGHT))
+        window = _make_window(
+            config=SimpleNamespace(hide_mode="autohide", pos=Position.RIGHT)
+        )
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
         controller._resolve_target_monitor = MagicMock(return_value=monitor)
 

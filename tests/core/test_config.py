@@ -17,7 +17,7 @@ class TestConfigDefaults:
         assert c.zoom_range == 3
         assert c.position == "bottom"
         assert c.monitor_index == -1
-        assert c.autohide is False
+        assert c.hide_mode == "none"
         assert c.hide_delay_ms == 0
         assert c.previews_enabled is True
         assert c.tooltips_enabled is True
@@ -83,7 +83,7 @@ class TestConfigLoad:
         assert config.zoom_percent == 1.5
         assert config.pinned == [PinnedEntry(kind=APP_KIND, target="foo.desktop")]
         # Unspecified keys use defaults
-        assert config.autohide is False
+        assert config.hide_mode == "none"
 
     def test_load_ignores_unknown_keys(self, tmp_path):
         # Given
@@ -150,7 +150,7 @@ class TestConfigLoad:
         path.write_text(
             json.dumps(
                 {
-                    "autohide": 1,
+                    "hide_mode": "autohide",
                     "previews_enabled": "false",
                     "tooltips_enabled": "yes",
                     "zoom_enabled": 0,
@@ -160,7 +160,7 @@ class TestConfigLoad:
 
         config = Config.load(path)
 
-        assert config.autohide is True
+        assert config.hide_mode == "autohide"
         assert config.previews_enabled is False
         assert config.tooltips_enabled is True
         assert config.zoom_enabled is False

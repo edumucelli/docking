@@ -88,7 +88,7 @@ class SettingsWindowController:
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
 
-        self._autohide_switch: Any = None
+        self._hide_mode_combo: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -149,7 +149,28 @@ class SettingsWindowController:
         outer.set_border_width(16)
         self._bindings.clear()
 
-        self._autohide_switch = self._new_switch()
+        self._hide_mode_combo = Gtk.ComboBoxText()
+        self._hide_mode_combo.set_size_request(180, -1)
+        for mode_value, mode_label in [
+            ("none", _("Don't Hide")),
+            ("autohide", _("Auto-hide")),
+            ("intelligent", _("Intelligent")),
+            ("dodge-active", _("Dodge Active Window")),
+            ("window-dodge", _("Dodge All Windows")),
+            ("dodge-maximized", _("Dodge Maximized")),
+        ]:
+            self._hide_mode_combo.append(mode_value, mode_label)
+
+        self._hide_mode_desc = Gtk.Label()
+        self._hide_mode_desc.set_xalign(0.0)
+        self._hide_mode_desc.set_line_wrap(True)
+        self._hide_mode_desc.set_line_wrap_mode(2)  # Pango.WrapMode.WORD_CHAR
+        self._hide_mode_desc.set_max_width_chars(28)
+        ctx = self._hide_mode_desc.get_style_context()
+        ctx.add_class("dim-label")
+        self._hide_mode_combo.connect("changed", self._on_hide_mode_combo_changed)
+        self._update_hide_mode_description()
+
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
@@ -186,11 +207,18 @@ class SettingsWindowController:
                 (_("Window Previews"), self._previews_switch),
             ],
         )
+        hide_mode_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=4,
+        )
+        hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
+        hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
+
         self._append_section(
             outer=outer,
             title=_("Behavior"),
             rows=[
-                (_("Auto-hide"), self._autohide_switch),
+                (_("Hide Mode"), hide_mode_box),
                 (_("Hide Delay"), self._hide_delay_spin),
                 (_("Unhide Delay"), self._unhide_delay_spin),
             ],
@@ -269,10 +297,10 @@ class SettingsWindowController:
 
     def _register_bindings(self) -> None:
         self._bindings = [
-            self._register_switch_binding(
-                config_attr="autohide",
-                widget=self._autohide_switch,
-                on_change=self._after_autohide_changed,
+            self._register_choice_binding(
+                config_attr="hide_mode",
+                widget=self._hide_mode_combo,
+                on_change=self._after_hide_mode_changed,
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",
@@ -566,10 +594,38 @@ class SettingsWindowController:
         self._runtime.reposition()
         self._runtime.queue_draw()
 
-    def _after_autohide_changed(self, active: bool) -> None:
-        if not active:
+    def _after_hide_mode_changed(self, mode: str) -> None:
+        if mode == "none":
             self._runtime.reset_autohide()
         self._runtime.update_struts()
+        self._update_hide_mode_description()
+
+    _HIDE_MODE_DESCRIPTIONS: dict[str, str] = {
+        "none": _("The dock is always visible and reserves screen space."),
+        "autohide": _("Hides when the mouse cursor leaves the dock."),
+        "intelligent": _(
+            "Hides when a window from the focused application overlaps the dock area."
+        ),
+        "dodge-active": _("Hides when the focused window overlaps the dock area."),
+        "window-dodge": _(
+            "Hides when any window on the current workspace overlaps the dock area."
+        ),
+        "dodge-maximized": _(
+            "Hides when the focused window is maximized or a dialog overlaps the dock."
+        ),
+    }
+
+    def _on_hide_mode_combo_changed(self, _widget: Gtk.ComboBoxText) -> None:
+        self._update_hide_mode_description()
+
+    def _update_hide_mode_description(self) -> None:
+        if not self._hide_mode_combo or not self._hide_mode_desc:
+            return
+        mode = self._hide_mode_combo.get_active_id() or "none"
+        desc = self._HIDE_MODE_DESCRIPTIONS.get(mode, "")
+        self._hide_mode_desc.set_markup(
+            f"<small>{GLib.markup_escape_text(desc)}</small>"
+        )
 
     def _after_tooltips_changed(self, active: bool) -> None:
         if not active:
@@ -582,7 +638,7 @@ class SettingsWindowController:
     def _update_dependent_sensitivity(self) -> None:
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
-        hide_controls_sensitive = bool(self._config.autohide)
+        hide_controls_sensitive = self._config.hide_mode != "none"
         if self._hide_delay_spin is not None:
             self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
         if self._unhide_delay_spin is not None:

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from docking.core.config import Config
 from docking.core.theme import Theme
+from docking.platform.dodge import ScreenRect, WindowDodgeMonitor
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.platform.window_tracker import WindowTracker
@@ -59,6 +60,21 @@ def build_dock_window(
     )
 
     autohide = AutoHideController(window, config)
+
+    def _get_dock_rect() -> ScreenRect | None:
+        if not window.get_realized():
+            return None
+        wx, wy = window.get_position()
+        ww, wh = window.get_size()
+        return ScreenRect(x=wx, y=wy, width=ww, height=wh)
+
+    dodge_monitor = WindowDodgeMonitor(
+        config=config,
+        get_dock_rect=_get_dock_rect,
+        on_change=autohide.set_window_should_hide,
+    )
+    dodge_monitor.start()
+
     runtime = DockRuntime(window)
     drag_runtime = DockDragRuntime(window)
     about = AboutDialogController(parent=window)

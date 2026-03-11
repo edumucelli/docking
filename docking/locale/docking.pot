@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-11 00:10+0100\n"
+"POT-Creation-Date: 2026-03-11 20:31+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -947,78 +947,128 @@ msgstr ""
 msgid "Applets"
 msgstr ""
 
-#: docking/ui/settings.py:179
-msgid "Look"
+#: docking/ui/settings.py:155
+msgid "Don't Hide"
 msgstr ""
 
-#: docking/ui/settings.py:181
-msgid "Theme"
-msgstr ""
-
-#: docking/ui/settings.py:182
-msgid "Icon Size"
-msgstr ""
-
-#: docking/ui/settings.py:183
-msgid "Zoom"
-msgstr ""
-
-#: docking/ui/settings.py:184
-msgid "Zoom Percent"
-msgstr ""
-
-#: docking/ui/settings.py:185
-msgid "Show Tooltips"
-msgstr ""
-
-#: docking/ui/settings.py:186
-msgid "Window Previews"
-msgstr ""
-
-#: docking/ui/settings.py:191
-msgid "Behavior"
-msgstr ""
-
-#: docking/ui/settings.py:193
+#: docking/ui/settings.py:156
 msgid "Auto-hide"
 msgstr ""
 
-#: docking/ui/settings.py:194
-msgid "Hide Delay"
+#: docking/ui/settings.py:157
+msgid "Intelligent"
 msgstr ""
 
-#: docking/ui/settings.py:195
-msgid "Unhide Delay"
+#: docking/ui/settings.py:158
+msgid "Dodge Active Window"
+msgstr ""
+
+#: docking/ui/settings.py:159
+msgid "Dodge All Windows"
+msgstr ""
+
+#: docking/ui/settings.py:160
+msgid "Dodge Maximized"
 msgstr ""
 
 #: docking/ui/settings.py:200
-msgid "Placement"
+msgid "Look"
 msgstr ""
 
 #: docking/ui/settings.py:202
-msgid "Position"
+msgid "Theme"
 msgstr ""
 
 #: docking/ui/settings.py:203
-msgid "Follow Cursor"
+msgid "Icon Size"
 msgstr ""
 
 #: docking/ui/settings.py:204
+msgid "Zoom"
+msgstr ""
+
+#: docking/ui/settings.py:205
+msgid "Zoom Percent"
+msgstr ""
+
+#: docking/ui/settings.py:206
+msgid "Show Tooltips"
+msgstr ""
+
+#: docking/ui/settings.py:207
+msgid "Window Previews"
+msgstr ""
+
+#: docking/ui/settings.py:219
+msgid "Behavior"
+msgstr ""
+
+#: docking/ui/settings.py:221
+msgid "Hide Mode"
+msgstr ""
+
+#: docking/ui/settings.py:222
+msgid "Hide Delay"
+msgstr ""
+
+#: docking/ui/settings.py:223
+msgid "Unhide Delay"
+msgstr ""
+
+#: docking/ui/settings.py:228
+msgid "Placement"
+msgstr ""
+
+#: docking/ui/settings.py:230
+msgid "Position"
+msgstr ""
+
+#: docking/ui/settings.py:231
+msgid "Follow Cursor"
+msgstr ""
+
+#: docking/ui/settings.py:232
 msgid "Current Workspace Only"
 msgstr ""
 
-#: docking/ui/settings.py:209
+#: docking/ui/settings.py:237
 msgid "Layout"
 msgstr ""
 
-#: docking/ui/settings.py:211
+#: docking/ui/settings.py:239
 msgid "Lock Positions"
 msgstr ""
 
-#: docking/ui/settings.py:212
+#: docking/ui/settings.py:240
 msgid "Anchor Applets to End"
 msgstr ""
 
-#: docking/ui/settings.py:213
+#: docking/ui/settings.py:241
 msgid "Anchor Files to End"
+msgstr ""
+
+#: docking/ui/settings.py:604
+msgid "The dock is always visible and reserves screen space."
+msgstr ""
+
+#: docking/ui/settings.py:605
+msgid "Hides when the mouse cursor leaves the dock."
+msgstr ""
+
+#: docking/ui/settings.py:607
+msgid ""
+"Hides when a window from the focused application overlaps the dock area."
+msgstr ""
+
+#: docking/ui/settings.py:609
+msgid "Hides when the focused window overlaps the dock area."
+msgstr ""
+
+#: docking/ui/settings.py:611
+msgid "Hides when any window on the current workspace overlaps the dock area."
+msgstr ""
+
+#: docking/ui/settings.py:614
+msgid ""
+"Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

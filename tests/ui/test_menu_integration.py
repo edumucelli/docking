@@ -478,7 +478,7 @@ def handler(monkeypatch):
     model.pinned_items = []
     config = SimpleNamespace(
         lock_icons=False,
-        autohide=True,
+        hide_mode="autohide",
         previews_enabled=True,
         tooltips_enabled=True,
         monitor_index=-1,
@@ -965,18 +965,6 @@ class TestMenuCallbacks:
         next(mi for mi in menu.children if mi.get_label() == "New Window").activate()
         # Then
         assert launch_calls == [("firefox.desktop", "new-window")]
-
-    def test_autohide_toggle_resets_and_updates_struts(self, handler):
-        # Given
-        widget = FakeCheckMenuItem("Auto-hide")
-        widget.set_active(False)
-        # When
-        handler._on_autohide_toggled(widget)
-        # Then
-        assert handler._config.autohide is False
-        handler._config.save.assert_called_once()
-        handler._runtime.reset_autohide.assert_called_once()
-        handler._runtime.update_struts.assert_called_once()
 
     def test_theme_position_and_size_callbacks(self, handler, monkeypatch):
         # Given

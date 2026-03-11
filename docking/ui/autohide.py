@@ -25,7 +25,18 @@ This controller owns:
 - the current zoom progress while hidden or showing,
 - policy inputs for:
   - pointer hovered/not hovered,
-  - temporarily disabled/not disabled.
+  - temporarily disabled/not disabled,
+  - window_should_hide (from WindowDodgeMonitor for dodge modes).
+
+Hide modes
+----------
+The controller supports six modes (see HideMode in config.py). Two inputs
+drive the decision:
+
+- AUTOHIDE: hide whenever not hovered (mouse-only).
+- Dodge modes (INTELLIGENT, DODGE_ACTIVE, WINDOW_DODGE, DODGE_MAXIMIZED):
+  hide only when ``window_should_hide`` is True (set by WindowDodgeMonitor).
+  Hover or disabled always override to show.
 
 This module does not own:
 
@@ -188,6 +199,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib  # noqa: E402
 
+from docking.core.config import HideMode
+
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.ui.dock_window import DockWindow
@@ -268,10 +281,11 @@ class AutoHideController:
         self._anim_timer_id: int = 0
         self._anim_progress: float = 0.0
         self._hide_after_show: bool = False
+        self._window_should_hide: bool = False
 
     @property
     def enabled(self) -> bool:
-        return self._config.autohide
+        return self._config.hide_mode != "none"
 
     def reset(self) -> None:
         """Force dock visible -- call when auto-hide is toggled off."""
@@ -285,6 +299,7 @@ class AutoHideController:
         self._hovered = False
         self._disabled = False
         self._hide_after_show = False
+        self._window_should_hide = False
         self._window.queue_redraw()
 
     def on_mouse_leave(self) -> None:
@@ -326,12 +341,23 @@ class AutoHideController:
         )
         self._update_hidden()
 
+    def set_window_should_hide(self, should_hide: bool) -> None:
+        if self._window_should_hide == should_hide:
+            return
+        self._window_should_hide = should_hide
+        self._update_hidden()
+
     def _update_hidden(self) -> None:
         """Reconcile hover/disabled state into show-or-hide behavior."""
         if self._disabled or self._hovered:
             self._show()
-        else:
+        elif (
+            self._config.hide_mode == HideMode.AUTOHIDE.value
+            or self._window_should_hide
+        ):
             self._hide()
+        else:
+            self._show()
 
     def _show(self) -> None:
         self.zoom_progress = 1.0

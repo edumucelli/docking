@@ -117,7 +117,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "zoom_range": 3,
   "position": "bottom",
   "monitor_index": -1,
-  "autohide": false,
+  "hide_mode": "none",
   "hide_delay_ms": 0,
   "unhide_delay_ms": 0,
   "hide_time_ms": 250,
@@ -146,7 +146,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `zoom_range` | 3 | Icon widths over which zoom tapers off |
 | `position` | bottom | Dock edge: bottom, top, left, right |
 | `monitor_index` | -1 | Target monitor index (`-1` = primary monitor, `0..N` = specific monitor) |
-| `autohide` | false | Hide dock when cursor leaves |
+| `hide_mode` | none | Dock hide behavior: `none`, `autohide`, `intelligent`, `dodge-active`, `window-dodge`, `dodge-maximized` |
 | `hide_delay_ms` | 0 | Delay before hiding starts (0 = instant) |
 | `unhide_delay_ms` | 0 | Delay before showing the dock again |
 | `hide_time_ms` | 250 | Duration of hide/show slide animation |
@@ -161,6 +161,17 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders |
 | `applet_prefs` | `{}` | Per-applet preference storage |
 | `item_prefs` | `{}` | Per-item preference storage for files and folders |
+
+`hide_mode` meanings:
+
+- `none`: Dock stays visible and reserves screen space.
+- `autohide`: Dock hides when the cursor leaves.
+- `intelligent`: Dock hides when a window from the focused app overlaps the dock.
+- `dodge-active`: Dock hides when the focused window overlaps the dock.
+- `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
+- `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
+
+The legacy boolean `autohide` key is still accepted when loading older configs and is mapped to `hide_mode`.
 
 All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor.
 

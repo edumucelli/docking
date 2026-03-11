@@ -727,16 +727,6 @@ class MenuHandler:
         else:
             self._model.remove_applet(applet_desktop_id(applet_id=AppletId(applet_id)))
 
-    def _on_autohide_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.autohide = widget.get_active()
-        self._config.save()
-        if not self._config.autohide:
-            self._runtime.reset_autohide()
-        # Update struts immediately so windows adapt to the new mode:
-        # autohide on  -> clear struts (windows use full screen)
-        # autohide off -> set struts (windows shrink above dock)
-        self._runtime.update_struts()
-
     def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.previews_enabled = widget.get_active()
         self._config.save()
