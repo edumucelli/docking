@@ -66,6 +66,26 @@ docking
   `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
 
+## PPA (Launchpad)
+
+```bash
+# Install tooling
+sudo apt install devscripts dput-ng
+
+# Build signed source package for a Ubuntu series
+./packaging/ppa/build.sh noble
+
+# Upload to your Launchpad PPA
+./packaging/ppa/upload.sh <launchpad-id>/<ppa-name>
+```
+
+Notes:
+
+- PPA uploads reuse the Debian metadata in `packaging/deb/debian/`.
+- Launchpad accepts signed source packages, not prebuilt `.deb` files.
+- Built source artifacts are copied to `artifacts/ppa/`.
+- See `packaging/ppa/README.md` for versioning and upload examples.
+
 ## PyPI
 
 ```bash
