@@ -190,8 +190,6 @@ class HideMode(str, Enum):
 
 
 def _normalize_hide_mode(value: object) -> str:
-    if isinstance(value, bool):
-        return HideMode.AUTOHIDE.value if value else HideMode.NONE.value
     if isinstance(value, str):
         try:
             return HideMode(value=value).value

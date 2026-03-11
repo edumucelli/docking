@@ -165,6 +165,14 @@ class TestConfigLoad:
         assert config.tooltips_enabled is True
         assert config.zoom_enabled is False
 
+    def test_load_ignores_legacy_autohide_key(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"autohide": True}))
+
+        config = Config.load(path)
+
+        assert config.hide_mode == "none"
+
     def test_load_migrates_legacy_string_pins_to_typed_entries(self, tmp_path):
         path = tmp_path / "dock.json"
         file_uri = (tmp_path / "notes.txt").as_uri()

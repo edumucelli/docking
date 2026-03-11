@@ -171,8 +171,6 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-The legacy boolean `autohide` key is still accepted when loading older configs and is mapped to `hide_mode`.
-
 All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor.
 
 ## Managing Dock Items
