@@ -1115,3 +1115,48 @@ msgstr ""
 
 #~ msgid "Tooltips"
 #~ msgstr "Tooltips"
+
+
+#: docking/applets/trivia/applet.py:40 docking/applets/trivia/applet.py:184
+msgid "Random Trivia"
+msgstr "Random Trivia"
+
+#: docking/applets/trivia/applet.py:77 docking/applets/trivia/state.py:101
+#, python-brace-format
+msgid "{category} / {difficulty}"
+msgstr "{category} / {difficulty}"
+
+#: docking/applets/trivia/applet.py:97 docking/applets/trivia/state.py:112
+#, python-brace-format
+msgid "Correct answer: {answer}"
+msgstr "Correct answer: {answer}"
+
+#: docking/applets/trivia/applet.py:105 docking/applets/trivia/state.py:111
+#, python-brace-format
+msgid "Your answer: {answer}"
+msgstr "Your answer: {answer}"
+
+#: docking/applets/trivia/applet.py:114
+msgid "Next Trivia"
+msgstr "Next Trivia"
+
+#: docking/applets/trivia/applet.py:179
+msgid "Trivia: loading..."
+msgstr "Trivia: loading..."
+
+#: docking/applets/trivia/state.py:87
+msgid "Easy"
+msgstr "Easy"
+
+#: docking/applets/trivia/state.py:88
+msgid "Medium"
+msgstr "Medium"
+
+#: docking/applets/trivia/state.py:89
+msgid "Hard"
+msgstr "Hard"
+
+#: docking/applets/trivia/state.py:109
+#, python-brace-format
+msgid "Correct: {answer}"
+msgstr "Correct: {answer}"

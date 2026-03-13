@@ -76,6 +76,7 @@ from docking.applets.session.render import create_session_icon
 from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
 from docking.applets.stretchcoach.state import StretchCoachState
 from docking.applets.trash.render import create_trash_icon
+from docking.applets.trivia.render import draw_trivia_icon
 from docking.applets.volume.render import create_volume_icon
 from docking.applets.weather.render import create_icon as render_weather
 from docking.applets.workspaces.render import _render_grid
@@ -135,6 +136,13 @@ def _screenshot_pixbuf(*, size: int) -> GdkPixbuf.Pixbuf | None:
     return _surface_to_pixbuf(
         size=size,
         draw_fn=lambda cr, s: _draw_screenshot_icon(cr=cr, size=s),
+    )
+
+
+def _trivia_pixbuf(*, size: int) -> GdkPixbuf.Pixbuf | None:
+    return _surface_to_pixbuf(
+        size=size,
+        draw_fn=lambda cr, s: draw_trivia_icon(cr=cr, size=s),
     )
 
 
@@ -228,6 +236,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             size=size,
             state=StretchCoachState(),
         ),
+        AppletId.TRIVIA: _trivia_pixbuf(size=size),
         AppletId.TRASH: create_trash_icon(size=size, item_count=0),
         AppletId.VOLUME: create_volume_icon(size=size, volume=60, muted=False),
         AppletId.WEATHER: render_weather(

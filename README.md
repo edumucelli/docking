@@ -621,6 +621,17 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 
 **Preferences stored:** `source`
 
+### Random Trivia
+
+Quick trivia applet backed by **Open Trivia DB** with a local fallback question set. Tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
+
+**Click:** Show the next trivia question
+**Scroll:** No-op
+**Right-click options:**
+- **Answer choices** -- pick an answer from the current question
+- **Next Trivia**
+- **Refresh from Web**
+
 ### Ambient
 
 ![Ambient applet](images/ambient.png)

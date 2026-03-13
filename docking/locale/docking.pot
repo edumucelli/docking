@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-14 00:30+0100\n"
+"POT-Creation-Date: 2026-03-14 00:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -675,7 +675,7 @@ msgstr ""
 msgid "Copy Quote"
 msgstr ""
 
-#: docking/applets/quote/applet.py:94
+#: docking/applets/quote/applet.py:94 docking/applets/trivia/applet.py:118
 msgid "Refresh from Web"
 msgstr ""
 
@@ -696,11 +696,11 @@ msgstr ""
 msgid "Clear Recent Files"
 msgstr ""
 
-#: docking/applets/screenshot/applet.py:34
+#: docking/applets/screenshot/applet.py:39
 msgid "Screenshot"
 msgstr ""
 
-#: docking/applets/screenshot/applet.py:73
+#: docking/applets/screenshot/applet.py:74
 #, python-brace-format
 msgid "Full Screen in {delay}s"
 msgstr ""
@@ -777,11 +777,11 @@ msgstr ""
 msgid "Random Stretch Cards"
 msgstr ""
 
-#: docking/applets/stretchcoach/state.py:146
+#: docking/applets/stretchcoach/state.py:152
 msgid "Time to stretch!"
 msgstr ""
 
-#: docking/applets/stretchcoach/state.py:150
+#: docking/applets/stretchcoach/state.py:156
 #, python-brace-format
 msgid "Next stretch in {time}"
 msgstr ""
@@ -808,6 +808,50 @@ msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
 msgstr[0] ""
 msgstr[1] ""
+
+#: docking/applets/trivia/applet.py:40 docking/applets/trivia/applet.py:184
+msgid "Random Trivia"
+msgstr ""
+
+#: docking/applets/trivia/applet.py:77 docking/applets/trivia/state.py:101
+#, python-brace-format
+msgid "{category} / {difficulty}"
+msgstr ""
+
+#: docking/applets/trivia/applet.py:97 docking/applets/trivia/state.py:112
+#, python-brace-format
+msgid "Correct answer: {answer}"
+msgstr ""
+
+#: docking/applets/trivia/applet.py:105 docking/applets/trivia/state.py:111
+#, python-brace-format
+msgid "Your answer: {answer}"
+msgstr ""
+
+#: docking/applets/trivia/applet.py:114
+msgid "Next Trivia"
+msgstr ""
+
+#: docking/applets/trivia/applet.py:179
+msgid "Trivia: loading..."
+msgstr ""
+
+#: docking/applets/trivia/state.py:87
+msgid "Easy"
+msgstr ""
+
+#: docking/applets/trivia/state.py:88
+msgid "Medium"
+msgstr ""
+
+#: docking/applets/trivia/state.py:89
+msgid "Hard"
+msgstr ""
+
+#: docking/applets/trivia/state.py:109
+#, python-brace-format
+msgid "Correct: {answer}"
+msgstr ""
 
 #: docking/applets/volume/applet.py:33
 msgid "Volume"

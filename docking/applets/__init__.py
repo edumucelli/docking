@@ -43,6 +43,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
     from docking.applets.session import SessionApplet
     from docking.applets.stretchcoach import StretchCoachApplet
     from docking.applets.trash import TrashApplet
+    from docking.applets.trivia import TriviaApplet
     from docking.applets.volume import VolumeApplet
     from docking.applets.weather import WeatherApplet
     from docking.applets.workspaces import WorkspacesApplet
@@ -77,6 +78,7 @@ def get_registry() -> dict[AppletId, type[Applet]]:
         AppletId.POMODORO: PomodoroApplet,
         AppletId.QUICKNOTE: QuickNoteApplet,
         AppletId.TRASH: TrashApplet,
+        AppletId.TRIVIA: TriviaApplet,
         AppletId.VOLUME: VolumeApplet,
         AppletId.WEATHER: WeatherApplet,
         AppletId.WORKSPACES: WorkspacesApplet,

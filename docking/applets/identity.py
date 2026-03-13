@@ -36,6 +36,7 @@ class AppletId(str, Enum):
     SEPARATOR = "separator"
     SESSION = "session"
     STRETCHCOACH = "stretchcoach"
+    TRIVIA = "trivia"
     TRASH = "trash"
     VOLUME = "volume"
     WEATHER = "weather"
@@ -94,6 +95,7 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.STRETCHCOACH: AppletCategory.WELLNESS,
     AppletId.CPUMONITOR: AppletCategory.SYSTEM,
     AppletId.QUOTE: AppletCategory.INFORMATION,
+    AppletId.TRIVIA: AppletCategory.INFORMATION,
     AppletId.WEATHER: AppletCategory.INFORMATION,
 }
 
