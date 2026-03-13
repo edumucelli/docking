@@ -135,7 +135,7 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import unquote, urlparse
 
 from docking.applets.identity import is_applet_desktop_id
@@ -267,7 +267,7 @@ class PinnedEntry:
             return None
         if kind_raw not in {APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND}:
             return None
-        return cls(kind=kind_raw, target=target_raw)
+        return cls(kind=cast(ItemKind, kind_raw), target=target_raw)
 
 
 def _uri_is_dir(target: str) -> bool:
@@ -371,7 +371,9 @@ def _normalize_pref_map(raw: object) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for key, value in raw.items():
         if isinstance(key, str) and isinstance(value, dict):
-            result[key] = dict(value)
+            result[key] = {
+                str(inner_key): inner_value for inner_key, inner_value in value.items()
+            }
     return result
 
 

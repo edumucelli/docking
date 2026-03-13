@@ -91,7 +91,7 @@ class WindowDodgeMonitor:
         self._screen = None
 
     def _connect(self, obj: object, signal: str, handler: Callable) -> None:
-        sid = obj.connect(signal, handler)  # type: ignore[union-attr]
+        sid = obj.connect(signal, handler)
         self._signal_ids.append((obj, sid))
 
     def _connect_window(self, window: Wnck.Window) -> None:

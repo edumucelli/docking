@@ -25,6 +25,11 @@ if TYPE_CHECKING:
 
 _log = with_context(get_logger(name="screenshot"), applet_id=str(AppletId.SCREENSHOT))
 _TIMED_DELAYS_S: tuple[int, ...] = (3, 5, 7, 9)
+_MODE_OPTIONS: tuple[tuple[str, Mode], ...] = (
+    ("Full Screen", "full"),
+    ("Window", "window"),
+    ("Region", "region"),
+)
 
 
 class ScreenshotApplet(Applet):
@@ -59,11 +64,7 @@ class ScreenshotApplet(Applet):
         tool = self._tool
         if not tool:
             return items
-        for label, mode in [
-            ("Full Screen", "full"),
-            ("Window", "window"),
-            ("Region", "region"),
-        ]:
+        for label, mode in _MODE_OPTIONS:
             mi = Gtk.MenuItem(label=label)
             mi.connect("activate", lambda _w, m=mode: self._run_mode(mode=m))
             items.append(mi)

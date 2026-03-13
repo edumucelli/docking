@@ -151,7 +151,12 @@ class SeparatorApplet(Applet):
 
 def _normalized_gap(*, value: object) -> int:
     try:
-        parsed = int(value)
+        if isinstance(value, (bool, int, float)):
+            parsed = int(value)
+        elif isinstance(value, str):
+            parsed = int(value.strip())
+        else:
+            parsed = DEFAULT_SIZE
     except (TypeError, ValueError):
         parsed = DEFAULT_SIZE
     return max(MIN_SIZE, min(MAX_SIZE, parsed))

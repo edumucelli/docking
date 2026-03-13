@@ -72,7 +72,12 @@ FALLBACK_CARDS: tuple[StretchCard, ...] = (
 
 def _parse_interval(value: object) -> int:
     try:
-        minutes = int(value)
+        if isinstance(value, (bool, int, float)):
+            minutes = int(value)
+        elif isinstance(value, str):
+            minutes = int(value.strip())
+        else:
+            return DEFAULT_INTERVAL
     except (TypeError, ValueError):
         return DEFAULT_INTERVAL
     return max(1, minutes)
@@ -88,8 +93,9 @@ def _parse_steps(raw: object) -> tuple[str, ...]:
 def _parse_card(raw: object) -> StretchCard | None:
     if not isinstance(raw, dict):
         return None
-    title = raw.get("title")
-    steps = _parse_steps(raw.get("steps"))
+    raw_dict = {str(key): value for key, value in raw.items()}
+    title = raw_dict.get("title")
+    steps = _parse_steps(raw_dict.get("steps"))
     if not isinstance(title, str):
         return None
     title = title.strip()
