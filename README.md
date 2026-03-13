@@ -594,6 +594,20 @@ Water drop icon that drains over a configurable interval, reminding you to drink
 
 **Preferences stored:** `interval`, `show_timer`
 
+### Stretch Coach
+
+Periodic micro-break reminder applet with offline stretch cards. Reminders stay inside the dock: the icon becomes urgent when a break is due, and clicking acknowledges the reminder and restarts the timer.
+
+**Click:** Trigger a break immediately when idle, or acknowledge the active reminder
+**Scroll:** No-op
+**Right-click options:**
+- **Take Break Now** / **Acknowledge Break**
+- **Show Random Stretch**
+- **Random Stretch Cards** -- toggle offline card attachment on reminders
+- **Interval presets** -- 15/30/45/60/90 min
+
+**Preferences stored:** `interval`, `cards_enabled`
+
 ### Quote
 
 Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with local fallback quotes and supports online refresh from active sources.

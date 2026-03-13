@@ -60,6 +60,8 @@ class AboutDialogController:
         self._dialog = dialog
 
     def _project_version(self) -> str:
+        if docking_version:
+            return docking_version
         try:
             return pkg_version("docking")
         except PackageNotFoundError as exc:

@@ -73,6 +73,8 @@ from docking.applets.quote.render import draw_bulb_icon
 from docking.applets.recentfiles.render import render_icon as render_recentfiles
 from docking.applets.screenshot.applet import _draw_screenshot_icon
 from docking.applets.session.render import create_session_icon
+from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
+from docking.applets.stretchcoach.state import StretchCoachState
 from docking.applets.trash.render import create_trash_icon
 from docking.applets.volume.render import create_volume_icon
 from docking.applets.weather.render import create_icon as render_weather
@@ -222,6 +224,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),
         AppletId.SESSION: create_session_icon(size=size),
+        AppletId.STRETCHCOACH: render_stretchcoach(
+            size=size,
+            state=StretchCoachState(),
+        ),
         AppletId.TRASH: create_trash_icon(size=size, item_count=0),
         AppletId.VOLUME: create_volume_icon(size=size, volume=60, muted=False),
         AppletId.WEATHER: render_weather(

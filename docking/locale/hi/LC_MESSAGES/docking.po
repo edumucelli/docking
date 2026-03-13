@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-11 20:31+0100\n"
+"POT-Creation-Date: 2026-03-14 00:30+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -17,148 +17,222 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: docking/applets/moon/state.py:124
-msgid "1st Quarter"
-msgstr "प्रथम चतुर्थांश"
-
-#: docking/applets/clock/applet.py:73
-msgid "24-Hour Clock"
-msgstr "24 घंटे की घड़ी"
-
-#: docking/applets/moon/state.py:126
-msgid "3rd Quarter"
-msgstr "तृतीय चतुर्थांश"
-
-#: docking/ui/menu.py:570
-msgid "About"
-msgstr "के बारे में"
-
-#: docking/applets/bluetooth/applet.py:195
-msgid "Adapter"
-msgstr "एडेप्टर"
-
-#: docking/applets/bluetooth/state.py:116
-#, python-brace-format
-msgid "Adapter: {name}"
-msgstr "एडेप्टर: {name}"
-
-#: docking/ui/menu.py:506
-msgid "Add Applet"
-msgstr "एप्लेट"
-
-#: docking/applets/bookmarks/applet.py:91
-msgid "Add Bookmark"
-msgstr "Add Bookmark"
-
-#: docking/applets/bookmarks/applet.py:70
-msgid "Add Bookmark..."
-msgstr "Add Bookmark..."
-
-#: docking/ui/menu.py:555
-msgid "Add Separator"
-msgstr "विभाजक जोड़ें"
-
-#: docking/applets/weather/applet.py:274 docking/applets/weather/state.py:92
-#, python-brace-format
-msgid "Air: {label}"
-msgstr "वायु: {label}"
-
 #: docking/applets/ambient/applet.py:65 docking/applets/ambient/state.py:87
 msgid "Ambient"
 msgstr "परिवेश"
 
-#: docking/ui/settings.py:240
-msgid "Anchor Applets to End"
-msgstr "ऐपलेट्स को अंत में एंकर करें"
+#: docking/applets/ambient/state.py:24
+msgid "Birds"
+msgstr "पक्षी"
 
-#: docking/ui/settings.py:241
-msgid "Anchor Files to End"
-msgstr "Anchor Files to End"
+#: docking/applets/ambient/state.py:25
+msgid "Boat"
+msgstr "नाव"
 
-#: docking/ui/settings.py:139
-msgid "Appearance"
-msgstr "Appearance"
+#: docking/applets/ambient/state.py:26
+msgid "Coffee Shop"
+msgstr "कॉफी शॉप"
 
-#: docking/ui/settings.py:140
-msgid "Applets"
-msgstr "एप्लेट"
+#: docking/applets/ambient/state.py:27
+msgid "Fireplace"
+msgstr "अंगीठी"
+
+#: docking/applets/ambient/state.py:28
+msgid "Stream"
+msgstr "नदी"
+
+#: docking/applets/ambient/state.py:29
+msgid "Summer Night"
+msgstr "गर्मी की रात"
+
+#: docking/applets/ambient/state.py:30
+msgid "Wind"
+msgstr "हवा"
+
+#: docking/applets/ambient/state.py:35
+msgid "White Noise"
+msgstr "सफेद शोर"
+
+#: docking/applets/ambient/state.py:36
+msgid "Pink Noise"
+msgstr "गुलाबी शोर"
+
+#: docking/applets/ambient/state.py:84
+#, python-brace-format
+msgid "Playing: {sound} ({pct}%)"
+msgstr "चल रहा है: {sound} ({pct}%)"
 
 #: docking/applets/applications/applet.py:30
 msgid "Applications"
 msgstr "अनुप्रयोग"
 
-#: docking/ui/settings.py:156
-msgid "Auto-hide"
-msgstr "स्वतः छिपाएँ"
-
-#: docking/applets/powerprofiles/state.py:124
-msgid "Balanced"
-msgstr "संतुलित"
+#: docking/applets/applications/applet.py:45
+msgid "Search applications..."
+msgstr "Search applications..."
 
 #: docking/applets/battery/applet.py:27
 msgid "Battery"
 msgstr "बैटरी"
+
+#: docking/applets/battery/state.py:59
+msgid "No battery"
+msgstr "कोई बैटरी नहीं"
 
 #: docking/applets/battery/state.py:60
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr "बैटरी: {pct}%"
 
-#: docking/applets/bluetooth/applet.py:307
-#, python-brace-format
-msgid "Battery: {percent}%"
-msgstr "बैटरी: {percent}%"
-
-#: docking/ui/settings.py:219
-msgid "Behavior"
-msgstr "Behavior"
-
-#: docking/applets/ambient/state.py:24
-msgid "Birds"
-msgstr "पक्षी"
-
 #: docking/applets/bluetooth/applet.py:58
 msgid "Bluetooth"
 msgstr "ब्लूटूथ"
-
-#: docking/applets/bluetooth/applet.py:172
-msgid "Bluetooth On"
-msgstr "ब्लूटूथ चालू"
 
 #: docking/applets/bluetooth/applet.py:147
 msgid "Bluetooth unavailable"
 msgstr "ब्लूटूथ अनुपलब्ध"
 
-#: docking/applets/bluetooth/state.py:104
-#: docking/applets/bluetooth/state.py:108
-msgid "Bluetooth: No adapter/service"
-msgstr "ब्लूटूथ: कोई एडेप्टर नहीं"
+#: docking/applets/bluetooth/applet.py:154
+msgid "No Bluetooth adapter"
+msgstr "कोई ब्लूटूथ एडेप्टर नहीं"
 
-#: docking/applets/bluetooth/state.py:103
+#: docking/applets/bluetooth/applet.py:158
+msgid "General"
+msgstr "सामान्य"
+
+#: docking/applets/bluetooth/applet.py:160
+#: docking/applets/bluetooth/state.py:121
+msgid "On"
+msgstr "चालू"
+
+#: docking/applets/bluetooth/applet.py:160
+#: docking/applets/bluetooth/state.py:121
+msgid "Off"
+msgstr "बंद"
+
+#: docking/applets/bluetooth/applet.py:163
+#, python-brace-format
+msgid "{alias} ({powered}) - Connected {connected}"
+msgstr "{alias} ({powered}) - जुड़े {connected}"
+
+#: docking/applets/bluetooth/applet.py:172
+msgid "Bluetooth On"
+msgstr "ब्लूटूथ चालू"
+
+#: docking/applets/bluetooth/applet.py:177
+msgid "Continuous Discovery"
+msgstr "निरंतर खोज"
+
+#: docking/applets/bluetooth/applet.py:188
+msgid "Refresh Now"
+msgstr "अभी रिफ्रेश करें"
+
+#: docking/applets/bluetooth/applet.py:195
+msgid "Adapter"
+msgstr "एडेप्टर"
+
+#: docking/applets/bluetooth/applet.py:221
+msgid "Connected Devices"
+msgstr "जुड़े उपकरण"
+
+#: docking/applets/bluetooth/applet.py:222
+msgid "Paired Devices"
+msgstr "युग्मित उपकरण"
+
+#: docking/applets/bluetooth/applet.py:223
+msgid "Discovered Devices"
+msgstr "खोजे गए उपकरण"
+
+#: docking/applets/bluetooth/applet.py:247
+msgid "Disconnect"
+msgstr "डिस्कनेक्ट"
+
+#: docking/applets/bluetooth/applet.py:256
+msgid "Connect"
+msgstr "कनेक्ट"
+
+#: docking/applets/bluetooth/applet.py:266
+msgid "Pair"
+msgstr "जोड़ी बनाएँ"
+
+#: docking/applets/bluetooth/applet.py:280
+msgid "Remove Pairing"
+msgstr "जोड़ी हटाएँ"
+
+#: docking/applets/bluetooth/applet.py:292
+msgid "Trusted"
+msgstr "विश्वसनीय"
+
+#: docking/applets/bluetooth/applet.py:307
+#, python-brace-format
+msgid "Battery: {percent}%"
+msgstr "बैटरी: {percent}%"
+
+#: docking/applets/bluetooth/state.py:114
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "Bluetooth: {error}"
 
 #: docking/applets/bluetooth/state.py:115
+#: docking/applets/bluetooth/state.py:119
+msgid "Bluetooth: No adapter/service"
+msgstr "ब्लूटूथ: कोई एडेप्टर नहीं"
+
+#: docking/applets/bluetooth/state.py:126
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "ब्लूटूथ: {state}"
 
-#: docking/applets/ambient/state.py:25
-msgid "Boat"
-msgstr "नाव"
+#: docking/applets/bluetooth/state.py:127
+#, python-brace-format
+msgid "Adapter: {name}"
+msgstr "एडेप्टर: {name}"
 
-#: docking/applets/bookmarks/applet.py:111
-msgid "Bookmark name"
-msgstr "Bookmark name"
+#: docking/applets/bluetooth/state.py:128
+#, python-brace-format
+msgid "Connected: {n}"
+msgstr "कनेक्टेड: {n}"
 
-#: docking/applets/bookmarks/applet.py:36
+#: docking/applets/bluetooth/state.py:129
+#, python-brace-format
+msgid "Paired: {n}"
+msgstr "जोड़े गए: {n}"
+
+#: docking/applets/bluetooth/state.py:130
+#, python-brace-format
+msgid "Discovering: {state}"
+msgstr "खोज रहे हैं: {state}"
+
+#: docking/applets/bluetooth/state.py:131
+msgid "Yes"
+msgstr "हाँ"
+
+#: docking/applets/bluetooth/state.py:131
+msgid "No"
+msgstr "नहीं"
+
+#: docking/applets/bookmarks/applet.py:41
 msgid "Bookmarks"
 msgstr "Bookmarks"
 
-#: docking/applets/pomodoro/applet.py:178 docking/applets/pomodoro/state.py:69
-msgid "Break"
-msgstr "विराम"
+#: docking/applets/bookmarks/applet.py:75
+msgid "Add Bookmark..."
+msgstr "Add Bookmark..."
+
+#: docking/applets/bookmarks/applet.py:79
+msgid "Remove All"
+msgstr "Remove All"
+
+#: docking/applets/bookmarks/applet.py:96
+msgid "Add Bookmark"
+msgstr "Add Bookmark"
+
+#: docking/applets/bookmarks/applet.py:116
+msgid "Bookmark name"
+msgstr "Bookmark name"
+
+#: docking/applets/bookmarks/applet.py:120
+msgid "https://..."
+msgstr "https://..."
 
 #: docking/applets/brightness/applet.py:42
 msgid "Brightness"
@@ -169,9 +243,55 @@ msgstr "चमक"
 msgid "Brightness: {pct}%"
 msgstr "चमक: {pct}%"
 
-#: docking/applets/pet/state.py:66
-msgid "Busy"
-msgstr "Busy"
+#: docking/applets/brightness/applet.py:93
+msgid "Show Level"
+msgstr "स्तर दिखाएँ"
+
+#: docking/applets/calendar/applet.py:37 docking/applets/calendar/applet.py:43
+msgid "Calendar"
+msgstr "कैलेंडर"
+
+#: docking/applets/clippy/applet.py:34
+msgid "Clippy"
+msgstr "क्लिपबोर्ड"
+
+#: docking/applets/clippy/applet.py:93
+msgid "Clear"
+msgstr "साफ़ करें"
+
+#: docking/applets/clippy/state.py:22
+msgid "Clippy (empty)"
+msgstr "क्लिपबोर्ड (खाली)"
+
+#: docking/applets/clock/applet.py:33
+msgid "Clock"
+msgstr "घड़ी"
+
+#: docking/applets/clock/applet.py:68
+msgid "Digital Clock"
+msgstr "डिजिटल घड़ी"
+
+#: docking/applets/clock/applet.py:73
+msgid "24-Hour Clock"
+msgstr "24 घंटे की घड़ी"
+
+#: docking/applets/clock/applet.py:78
+msgid "Show Date"
+msgstr "दिनांक दिखाएँ"
+
+#: docking/applets/colorpicker/applet.py:38
+#: docking/applets/colorpicker/applet.py:68
+msgid "Color Picker"
+msgstr "रंग चुनें"
+
+#: docking/applets/colorpicker/applet.py:78
+#, python-brace-format
+msgid "Copy {hex}"
+msgstr "कॉपी {hex}"
+
+#: docking/applets/colorpicker/applet.py:82
+msgid "Show Hex"
+msgstr "हेक्स दिखाएँ"
 
 #: docking/applets/cpumonitor/applet.py:38
 msgid "CPU Monitor"
@@ -182,323 +302,44 @@ msgstr "CPU मॉनिटर"
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr "CPU: {cpu}% | Mem: {mem}%"
 
-#: docking/applets/calendar/applet.py:32 docking/applets/calendar/applet.py:38
-msgid "Calendar"
-msgstr "कैलेंडर"
-
-#: docking/applets/weather/applet.py:107
-msgid "Change City..."
-msgstr "शहर बदलें..."
-
-#: docking/applets/clippy/applet.py:93
-msgid "Clear"
-msgstr "साफ़ करें"
-
-#: docking/applets/notifications/applet.py:135
-msgid "Clear History"
-msgstr "इतिहास साफ़ करें"
-
-#: docking/applets/quicknote/applet.py:58
-msgid "Clear Note"
-msgstr "Clear Note"
-
-#: docking/applets/notifications/applet.py:140
-msgid "Clear Notifications"
-msgstr "सूचनाएँ साफ़ करें"
-
-#: docking/applets/recentfiles/applet.py:83
-msgid "Clear Recent Files"
-msgstr "Clear Recent Files"
-
-#: docking/applets/clippy/applet.py:34
-msgid "Clippy"
-msgstr "क्लिपबोर्ड"
-
-#: docking/applets/clippy/state.py:22
-msgid "Clippy (empty)"
-msgstr "क्लिपबोर्ड (खाली)"
-
-#: docking/applets/clock/applet.py:33
-msgid "Clock"
-msgstr "घड़ी"
-
-#: docking/ui/menu.py:439
-msgid "Close"
-msgstr "बंद करें"
-
-#: docking/ui/menu.py:439
-msgid "Close All"
-msgstr "सभी बंद करें"
-
-#: docking/applets/ambient/state.py:26
-msgid "Coffee Shop"
-msgstr "कॉफी शॉप"
-
-#: docking/applets/colorpicker/applet.py:38
-#: docking/applets/colorpicker/applet.py:68
-msgid "Color Picker"
-msgstr "रंग चुनें"
-
-#: docking/applets/bluetooth/applet.py:256
-msgid "Connect"
-msgstr "कनेक्ट"
-
-#: docking/applets/bluetooth/applet.py:221
-msgid "Connected Devices"
-msgstr "जुड़े उपकरण"
-
-#: docking/applets/bluetooth/state.py:117
-#, python-brace-format
-msgid "Connected: {n}"
-msgstr "कनेक्टेड: {n}"
-
-#: docking/applets/bluetooth/applet.py:177
-msgid "Continuous Discovery"
-msgstr "निरंतर खोज"
-
-#: docking/applets/quote/applet.py:90
-msgid "Copy Quote"
-msgstr "उद्धरण कॉपी करें"
-
-#: docking/applets/colorpicker/applet.py:78
-#, python-brace-format
-msgid "Copy {hex}"
-msgstr "कॉपी {hex}"
-
-#: docking/ui/menu.py:182
-msgid "Created"
-msgstr "Created"
-
-#: docking/applets/moon/offline.py:220
-msgid "Crescent"
-msgstr "अर्धचंद्र"
-
-#: docking/ui/settings.py:232
-msgid "Current Workspace Only"
-msgstr "केवल वर्तमान कार्यक्षेत्र"
-
-#: docking/applets/separator/applet.py:119
-msgid "Decrease Gap"
-msgstr "अंतर घटाएँ"
-
 #: docking/applets/desktop/applet.py:22 docking/applets/workspaces/applet.py:80
 msgid "Desktop"
 msgstr "डेस्कटॉप"
-
-#: docking/applets/clock/applet.py:68
-msgid "Digital Clock"
-msgstr "डिजिटल घड़ी"
-
-#: docking/applets/bluetooth/applet.py:247
-msgid "Disconnect"
-msgstr "डिस्कनेक्ट"
-
-#: docking/applets/bluetooth/applet.py:223
-msgid "Discovered Devices"
-msgstr "खोजे गए उपकरण"
-
-#: docking/applets/bluetooth/state.py:119
-#, python-brace-format
-msgid "Discovering: {state}"
-msgstr "खोज रहे हैं: {state}"
-
-#: docking/ui/placement.py:223
-#, python-brace-format
-msgid "Display {display}: {width}x{height}"
-msgstr "डिस्प्ले {display}: {width}x{height}"
-
-#: docking/applets/notifications/applet.py:123
-msgid "Do Not Disturb"
-msgstr "परेशान न करें"
-
-#: docking/ui/dock_window.py:318
-msgid "Docking"
-msgstr "Docking"
-
-#: docking/ui/settings.py:158
-msgid "Dodge Active Window"
-msgstr "Dodge Active Window"
-
-#: docking/ui/settings.py:159
-msgid "Dodge All Windows"
-msgstr "Dodge All Windows"
-
-#: docking/ui/settings.py:160
-msgid "Dodge Maximized"
-msgstr "Dodge Maximized"
-
-#: docking/ui/settings.py:155
-msgid "Don't Hide"
-msgstr "Don't Hide"
-
-#: docking/applets/hydration/state.py:56
-msgid "Drink water!"
-msgstr "पानी पिएँ!"
-
-#: docking/applets/pet/state.py:62
-msgid "Drowsy"
-msgstr "Drowsy"
-
-#: docking/applets/quicknote/applet.py:54
-msgid "Edit Note"
-msgstr "Edit Note"
-
-#: docking/applets/trash/applet.py:63
-msgid "Empty Trash"
-msgstr "कूड़ेदान खाली करें"
-
-#: docking/applets/network/applet.py:109
-#, python-brace-format
-msgid "Ethernet: {iface}"
-msgstr "ईथरनेट: {iface}"
-
-#: docking/applets/pet/state.py:68
-msgid "Excited!"
-msgstr "Excited!"
-
-#: docking/applets/ambient/state.py:27
-msgid "Fireplace"
-msgstr "अंगीठी"
-
-#: docking/applets/pet/state.py:65
-msgid "Focused"
-msgstr "Focused"
-
-#: docking/ui/settings.py:231
-msgid "Follow Cursor"
-msgstr "कर्सर का अनुसरण करें"
-
-#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
-msgid "Full"
-msgstr "पूर्ण"
-
-#: docking/applets/screenshot/applet.py:73
-#, python-brace-format
-msgid "Full Screen in {delay}s"
-msgstr "{delay} सेकंड में पूर्ण स्क्रीन"
-
-#: docking/applets/bluetooth/applet.py:158
-msgid "General"
-msgstr "सामान्य"
-
-#: docking/applets/moon/offline.py:221
-msgid "Gibbous"
-msgstr "उन्नतोदर"
-
-#: docking/applets/pet/state.py:64
-msgid "Happy"
-msgstr "Happy"
-
-#: docking/ui/settings.py:222
-msgid "Hide Delay"
-msgstr "Hide Delay"
-
-#: docking/ui/settings.py:221
-msgid "Hide Mode"
-msgstr "Hide Mode"
-
-#: docking/ui/settings.py:607
-msgid "Hides when a window from the focused application overlaps the dock area."
-msgstr "Hides when a window from the focused application overlaps the dock area."
-
-#: docking/ui/settings.py:611
-msgid "Hides when any window on the current workspace overlaps the dock area."
-msgstr "Hides when any window on the current workspace overlaps the dock area."
-
-#: docking/ui/settings.py:614
-msgid "Hides when the focused window is maximized or a dialog overlaps the dock."
-msgstr "Hides when the focused window is maximized or a dialog overlaps the dock."
-
-#: docking/ui/settings.py:609
-msgid "Hides when the focused window overlaps the dock area."
-msgstr "Hides when the focused window overlaps the dock area."
-
-#: docking/ui/settings.py:605
-msgid "Hides when the mouse cursor leaves the dock."
-msgstr "Hides when the mouse cursor leaves the dock."
 
 #: docking/applets/hydration/applet.py:39
 msgid "Hydration"
 msgstr "जलयोजन"
 
-#: docking/applets/network/applet.py:119
+#: docking/applets/hydration/applet.py:112
+#: docking/applets/pomodoro/applet.py:157
+msgid "Show Timer"
+msgstr "टाइमर दिखाएँ"
+
+#: docking/applets/hydration/applet.py:120
+#: docking/applets/pomodoro/applet.py:169
+#: docking/applets/pomodoro/applet.py:182
+#: docking/applets/pomodoro/applet.py:195
+#: docking/applets/stretchcoach/applet.py:97
 #, python-brace-format
-msgid "IP: {ip}"
-msgstr "IP: {ip}"
+msgid "{mins} min"
+msgstr "{mins} min"
 
-#: docking/ui/settings.py:203
-msgid "Icon Size"
-msgstr "आइकन आकार"
+#: docking/applets/hydration/state.py:56
+msgid "Drink water!"
+msgstr "पानी पिएँ!"
 
-#: docking/applets/moon/applet.py:96
+#: docking/applets/hydration/state.py:57
 #, python-brace-format
-msgid "Illumination: {pct}%"
-msgstr "प्रकाश: {pct}%"
-
-#: docking/applets/separator/applet.py:117
-msgid "Increase Gap"
-msgstr "अंतर बढ़ाएँ"
-
-#: docking/ui/settings.py:157
-msgid "Intelligent"
-msgstr "Intelligent"
-
-#: docking/applets/separator/applet.py:143
-msgid "Invert Color"
-msgstr "Invert Color"
-
-#: docking/ui/menu.py:430
-msgid "Keep in Dock"
-msgstr "डॉक में रखें"
+msgid "Next in {time}"
+msgstr "{time} में अगला"
 
 #: docking/applets/keyboardlayout/applet.py:42
 msgid "Keyboard Layout"
 msgstr "Keyboard Layout"
 
-#: docking/ui/menu.py:180
-msgid "Kind"
-msgstr "Kind"
-
-#: docking/ui/menu.py:469
-msgid "Large Icons"
-msgstr "Large Icons"
-
-#: docking/ui/settings.py:237
-msgid "Layout"
-msgstr "Layout"
-
-#: docking/applets/powerprofiles/applet.py:137
-#, python-brace-format
-msgid "Limited: {reason}"
-msgstr "सीमित: {reason}"
-
-#: docking/applets/separator/applet.py:125
-msgid "Line"
-msgstr "Line"
-
-#: docking/ui/settings.py:239
-msgid "Lock Positions"
-msgstr "Lock Positions"
-
-#: docking/applets/session/state.py:23
-msgid "Lock Screen"
-msgstr "स्क्रीन लॉक"
-
-#: docking/applets/session/state.py:24
-msgid "Log Out"
-msgstr "लॉग आउट"
-
-#: docking/applets/pomodoro/applet.py:191 docking/applets/pomodoro/state.py:70
-msgid "Long Break"
-msgstr "लंबा विराम"
-
-#: docking/ui/settings.py:200
-msgid "Look"
-msgstr "Look"
-
-#: docking/ui/menu.py:183
-msgid "Modified"
-msgstr "Modified"
+#: docking/applets/keyboardlayout/applet.py:70
+msgid "No keyboard layout detected"
+msgstr "No keyboard layout detected"
 
 #: docking/applets/moon/applet.py:48
 msgid "Moon"
@@ -508,482 +349,38 @@ msgstr "चंद्रमा"
 msgid "Moon (loading...)"
 msgstr "चंद्रमा (लोड हो रहा है...)"
 
-#: docking/applets/music/applet.py:44 docking/applets/music/state.py:138
-msgid "Music"
-msgstr "संगीत"
-
-#: docking/applets/music/state.py:127
-msgid "Music: No active player"
-msgstr "संगीत: कोई सक्रिय प्लेयर नहीं"
-
-#: docking/applets/volume/applet.py:53
-msgid "Muted"
-msgstr "म्यूट"
-
-#: docking/ui/menu.py:179
-msgid "Name"
-msgstr "Name"
-
-#: docking/applets/network/applet.py:51
-msgid "Network"
-msgstr "नेटवर्क"
-
-#: docking/applets/network/state.py:89
-msgid "Network: Not connected"
-msgstr "नेटवर्क: कनेक्ट नहीं"
-
-#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
-msgid "New"
-msgstr "अमावस्या"
-
-#: docking/applets/music/applet.py:114
-msgid "Next"
-msgstr "अगला"
-
-#: docking/applets/quote/applet.py:86
-msgid "Next Quote"
-msgstr "अगला उद्धरण"
-
-#: docking/applets/hydration/state.py:57
+#: docking/applets/moon/applet.py:96
 #, python-brace-format
-msgid "Next in {time}"
-msgstr "{time} में अगला"
-
-#: docking/applets/bluetooth/state.py:120
-msgid "No"
-msgstr "नहीं"
-
-#: docking/ui/menu.py:548
-msgid "No Applets Available"
-msgstr "पावर प्रोफाइल अनुपलब्ध"
-
-#: docking/applets/bluetooth/applet.py:154
-msgid "No Bluetooth adapter"
-msgstr "कोई ब्लूटूथ एडेप्टर नहीं"
-
-#: docking/applets/music/applet.py:102
-msgid "No active player"
-msgstr "कोई सक्रिय प्लेयर नहीं"
-
-#: docking/applets/battery/state.py:59
-msgid "No battery"
-msgstr "कोई बैटरी नहीं"
-
-#: docking/applets/trash/render.py:22
-msgid "No items in Trash"
-msgstr "कूड़ेदान खाली है"
-
-#: docking/applets/keyboardlayout/applet.py:70
-msgid "No keyboard layout detected"
-msgstr "No keyboard layout detected"
-
-#: docking/applets/notifications/applet.py:117
-msgid "No notification backend available"
-msgstr "कोई सूचना बैकएंड नहीं"
-
-#: docking/applets/network/applet.py:114
-msgid "Not connected"
-msgstr "कनेक्ट नहीं"
-
-#: docking/applets/notifications/applet.py:52
-#: docking/applets/notifications/state.py:49
-msgid "Notifications"
-msgstr "सूचनाएँ"
-
-#: docking/applets/notifications/state.py:43
-msgid "Notifications: No backend available"
-msgstr "सूचनाएँ: कोई बैकएंड उपलब्ध नहीं"
-
-#: docking/applets/quicknote/applet.py:71
-msgid "OK"
-msgstr "OK"
-
-#: docking/applets/bluetooth/applet.py:160
-#: docking/applets/bluetooth/state.py:110
-msgid "Off"
-msgstr "बंद"
-
-#: docking/applets/bluetooth/applet.py:160
-#: docking/applets/bluetooth/state.py:110
-msgid "On"
-msgstr "चालू"
-
-#: docking/ui/menu.py:400
-msgid "Open"
-msgstr "Open"
-
-#: docking/applets/trash/applet.py:59
-msgid "Open Trash"
-msgstr "कूड़ेदान खोलें"
-
-#: docking/applets/bluetooth/applet.py:266
-msgid "Pair"
-msgstr "जोड़ी बनाएँ"
-
-#: docking/applets/bluetooth/applet.py:222
-msgid "Paired Devices"
-msgstr "युग्मित उपकरण"
-
-#: docking/applets/bluetooth/state.py:118
-#, python-brace-format
-msgid "Paired: {n}"
-msgstr "जोड़े गए: {n}"
-
-#: docking/applets/music/state.py:68
-msgid "Pause"
-msgstr "रोकें"
-
-#: docking/applets/music/state.py:77
-msgid "Paused"
-msgstr "रुका हुआ"
-
-#: docking/applets/pomodoro/state.py:66
-#, python-brace-format
-msgid "Paused - {time}"
-msgstr "रुका - {time}"
-
-#: docking/applets/notifications/applet.py:130
-#: docking/applets/notifications/state.py:47
-#, python-brace-format
-msgid "Pending: {n}"
-msgstr "लंबित: {n}"
-
-#: docking/applets/powerprofiles/state.py:126
-msgid "Performance"
-msgstr "प्रदर्शन"
-
-#: docking/applets/pet/applet.py:39
-msgid "Pet"
-msgstr "Pet"
-
-#: docking/applets/ambient/state.py:36
-msgid "Pink Noise"
-msgstr "गुलाबी शोर"
-
-#: docking/ui/settings.py:228
-msgid "Placement"
-msgstr "Placement"
-
-#: docking/applets/music/state.py:68
-msgid "Play"
-msgstr "चलाएँ"
-
-#: docking/applets/music/state.py:75
-msgid "Playing"
-msgstr "चल रहा है"
-
-#: docking/applets/ambient/state.py:84
-#, python-brace-format
-msgid "Playing: {sound} ({pct}%)"
-msgstr "चल रहा है: {sound} ({pct}%)"
-
-#: docking/applets/pomodoro/applet.py:47 docking/applets/pomodoro/state.py:64
-msgid "Pomodoro"
-msgstr "पोमोडोरो"
-
-#: docking/ui/settings.py:230
-msgid "Position"
-msgstr "स्थिति"
-
-#: docking/applets/powerprofiles/applet.py:55
-msgid "Power Profiles"
-msgstr "पावर प्रोफाइल"
-
-#: docking/applets/powerprofiles/applet.py:113
-#: docking/applets/powerprofiles/state.py:161
-#: docking/applets/powerprofiles/state.py:162
-msgid "Power Profiles unavailable"
-msgstr "पावर प्रोफाइल अनुपलब्ध"
-
-#: docking/applets/powerprofiles/state.py:122
-msgid "Power Saver"
-msgstr "ऊर्जा बचत"
-
-#: docking/ui/menu.py:565 docking/ui/settings.py:121
-msgid "Preferences"
-msgstr "Preferences"
-
-#: docking/applets/music/applet.py:106
-msgid "Previous"
-msgstr "पिछला"
-
-#: docking/applets/quicknote/applet.py:34
-#: docking/applets/quicknote/applet.py:66
-msgid "Quick Note"
-msgstr "Quick Note"
-
-#: docking/ui/menu.py:575
-msgid "Quit"
-msgstr "बाहर निकलें"
-
-#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
-#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
-msgid "Quote"
-msgstr "उद्धरण"
-
-#: docking/applets/recentfiles/applet.py:34
-msgid "Recent Files"
-msgstr "Recent Files"
-
-#: docking/applets/moon/applet.py:124
-msgid "Refresh"
-msgstr "रिफ्रेश"
-
-#: docking/applets/bluetooth/applet.py:188
-msgid "Refresh Now"
-msgstr "अभी रिफ्रेश करें"
-
-#: docking/applets/quote/applet.py:94
-msgid "Refresh from Web"
-msgstr "वेब से रिफ्रेश"
-
-#: docking/applets/pet/state.py:63
-msgid "Relaxed"
-msgstr "Relaxed"
-
-#: docking/applets/bookmarks/applet.py:74
-msgid "Remove All"
-msgstr "Remove All"
-
-#: docking/applets/bluetooth/applet.py:280
-msgid "Remove Pairing"
-msgstr "जोड़ी हटाएँ"
-
-#: docking/ui/menu.py:387 docking/ui/menu.py:407 docking/ui/menu.py:423
-#: docking/ui/menu.py:476
-msgid "Remove from Dock"
-msgstr "डॉक से हटाएँ"
-
-#: docking/applets/pomodoro/applet.py:153
-msgid "Reset"
-msgstr "रीसेट"
-
-#: docking/applets/session/state.py:26
-msgid "Restart"
-msgstr "पुनः आरंभ"
-
-#: docking/applets/screenshot/applet.py:34
-msgid "Screenshot"
-msgstr "स्क्रीनशॉट"
-
-#: docking/applets/applications/applet.py:45
-msgid "Search applications..."
-msgstr "Search applications..."
-
-#: docking/applets/weather/applet.py:131
-msgid "Search for the city"
-msgstr "शहर खोजें"
-
-#: docking/applets/powerprofiles/applet.py:118
-msgid "Select Profile"
-msgstr "प्रोफाइल चुनें"
-
-#: docking/applets/separator/applet.py:37
-msgid "Separator"
-msgstr "विभाजक"
-
-#: docking/applets/session/applet.py:27
-msgid "Session"
-msgstr "सत्र"
-
-#: docking/applets/clock/applet.py:78
-msgid "Show Date"
-msgstr "दिनांक दिखाएँ"
-
-#: docking/applets/colorpicker/applet.py:82
-msgid "Show Hex"
-msgstr "हेक्स दिखाएँ"
-
-#: docking/ui/menu.py:464
-msgid "Show Hidden Files"
-msgstr "Show Hidden Files"
-
-#: docking/applets/brightness/applet.py:93
-msgid "Show Level"
-msgstr "स्तर दिखाएँ"
+msgid "Illumination: {pct}%"
+msgstr "प्रकाश: {pct}%"
 
 #: docking/applets/moon/applet.py:119
 msgid "Show Phase Name"
 msgstr "चरण दिखाएँ"
 
-#: docking/applets/weather/applet.py:102
-msgid "Show Temperature"
-msgstr "तापमान दिखाएँ"
+#: docking/applets/moon/applet.py:124
+msgid "Refresh"
+msgstr "रिफ्रेश"
 
-#: docking/applets/hydration/applet.py:112
-#: docking/applets/pomodoro/applet.py:157
-msgid "Show Timer"
-msgstr "टाइमर दिखाएँ"
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
+msgid "New"
+msgstr "अमावस्या"
 
-#: docking/ui/settings.py:206
-msgid "Show Tooltips"
-msgstr "Show Tooltips"
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
+msgid "Full"
+msgstr "पूर्ण"
 
-#: docking/applets/session/state.py:27
-msgid "Shut Down"
-msgstr "बंद करें"
+#: docking/applets/moon/offline.py:220
+msgid "Crescent"
+msgstr "अर्धचंद्र"
 
-#: docking/ui/menu.py:181
-msgid "Size"
-msgstr "Size"
+#: docking/applets/moon/offline.py:221
+msgid "Gibbous"
+msgstr "उन्नतोदर"
 
-#: docking/applets/pet/state.py:60
-msgid "Sleeping"
-msgstr "Sleeping"
-
-#: docking/applets/pet/state.py:61
-msgid "Sleepy"
-msgstr "Sleepy"
-
-#: docking/ui/menu.py:456
-msgid "Sort By"
-msgstr "Sort By"
-
-#: docking/applets/quote/applet.py:100
-msgid "Source"
-msgstr "स्रोत"
-
-#: docking/applets/separator/applet.py:134
-msgid "Space"
-msgstr "Space"
-
-#: docking/applets/music/state.py:79
-msgid "Stopped"
-msgstr "रुका"
-
-#: docking/applets/ambient/state.py:28
-msgid "Stream"
-msgstr "नदी"
-
-#: docking/applets/pet/state.py:67
-msgid "Stressed"
-msgstr "Stressed"
-
-#: docking/applets/separator/applet.py:121
-msgid "Style"
-msgstr "Style"
-
-#: docking/applets/ambient/state.py:29
-msgid "Summer Night"
-msgstr "गर्मी की रात"
-
-#: docking/applets/session/state.py:25
-msgid "Suspend"
-msgstr "निलंबित"
-
-#: docking/ui/settings.py:604
-msgid "The dock is always visible and reserves screen space."
-msgstr "The dock is always visible and reserves screen space."
-
-#: docking/ui/settings.py:202
-msgid "Theme"
-msgstr "Theme"
-
-#: docking/applets/trash/applet.py:34
-msgid "Trash"
-msgstr "कूड़ेदान"
-
-#: docking/applets/bluetooth/applet.py:292
-msgid "Trusted"
-msgstr "विश्वसनीय"
-
-#: docking/applets/weather/applet.py:145
-msgid "Type city name..."
-msgstr "शहर का नाम लिखें..."
-
-#: docking/ui/settings.py:223
-msgid "Unhide Delay"
-msgstr "Unhide Delay"
-
-#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:128
-msgid "Unknown"
-msgstr "अज्ञात"
-
-#: docking/applets/volume/applet.py:33
-msgid "Volume"
-msgstr "ध्वनि"
-
-#: docking/applets/music/applet.py:124
-msgid "Volume Down"
-msgstr "ध्वनि कम"
-
-#: docking/applets/music/applet.py:118
-msgid "Volume Up"
-msgstr "ध्वनि अधिक"
-
-#: docking/applets/volume/applet.py:53
-#, python-brace-format
-msgid "Volume: {pct}%"
-msgstr "ध्वनि: {pct}%"
-
-#: docking/applets/moon/state.py:117
-msgid "Waning Crescent"
-msgstr "क्षीण अर्धचंद्र"
-
-#: docking/applets/moon/state.py:115
-msgid "Waning Gibbous"
-msgstr "क्षीण उन्नतोदर"
-
-#: docking/applets/moon/state.py:111
-msgid "Waxing Crescent"
-msgstr "बढ़ता अर्धचंद्र"
-
-#: docking/applets/moon/state.py:113
-msgid "Waxing Gibbous"
-msgstr "बढ़ता उन्नतोदर"
-
-#: docking/applets/weather/applet.py:47
-msgid "Weather"
-msgstr "मौसम"
-
-#: docking/applets/weather/state.py:86
-msgid "Weather (no city selected)"
-msgstr "मौसम (कोई शहर नहीं चुना)"
-
-#: docking/ui/about.py:50
-msgid "Website"
-msgstr "वेबसाइट"
-
-#: docking/applets/ambient/state.py:35
-msgid "White Noise"
-msgstr "सफेद शोर"
-
-#: docking/applets/network/applet.py:101
-#, python-brace-format
-msgid "WiFi: {ssid} ({pct}%)"
-msgstr "WiFi: {ssid} ({pct}%)"
-
-#: docking/applets/ambient/state.py:30
-msgid "Wind"
-msgstr "हवा"
-
-#: docking/ui/menu.py:612
-msgid "Window"
-msgstr "विंडो"
-
-#: docking/ui/settings.py:207
-msgid "Window Previews"
-msgstr "विंडो पूर्वावलोकन"
-
-#: docking/applets/pomodoro/applet.py:165 docking/applets/pomodoro/state.py:68
-msgid "Work"
-msgstr "कार्य"
-
-#: docking/applets/workspaces/applet.py:40
-msgid "Workspaces"
-msgstr "कार्यक्षेत्र"
-
-#: docking/applets/bluetooth/state.py:120
-msgid "Yes"
-msgstr "हाँ"
-
-#: docking/ui/settings.py:204
-msgid "Zoom"
-msgstr "Zoom"
-
-#: docking/ui/settings.py:205
-msgid "Zoom Percent"
-msgstr "Zoom Percent"
+#: docking/applets/moon/offline.py:234
+msgid "new moon"
+msgstr "अमावस्या"
 
 #: docking/applets/moon/offline.py:236
 msgid "first quarter"
@@ -993,65 +390,416 @@ msgstr "प्रथम चतुर्थांश"
 msgid "full moon"
 msgstr "पूर्णिमा"
 
-#: docking/applets/bookmarks/applet.py:115
-msgid "https://..."
-msgstr "https://..."
-
 #: docking/applets/moon/offline.py:240
 msgid "last quarter"
 msgstr "अंतिम चतुर्थांश"
-
-#: docking/applets/moon/offline.py:234
-msgid "new moon"
-msgstr "अमावस्या"
-
-#: docking/applets/bluetooth/applet.py:163
-#, python-brace-format
-msgid "{alias} ({powered}) - Connected {connected}"
-msgstr "{alias} ({powered}) - जुड़े {connected}"
-
-#: docking/applets/weather/state.py:88
-#, python-brace-format
-msgid "{city}: loading..."
-msgstr "{city}: लोड हो रहा है..."
-
-#: docking/applets/weather/state.py:73
-#, python-brace-format
-msgid "{city}: {temp}°C"
-msgstr "{city}: {temp}°C"
-
-#: docking/applets/weather/applet.py:286
-#, python-brace-format
-msgid "{date}: {min_temp}/{max_temp}°C"
-msgstr "{date}: {min_temp}/{max_temp}°C"
-
-#: docking/applets/moon/offline.py:247
-#, python-brace-format
-msgid "{days} days after full moon"
-msgstr "पूर्णिमा के {days} दिन बाद"
 
 #: docking/applets/moon/offline.py:242
 #, python-brace-format
 msgid "{days} days after new moon"
 msgstr "अमावस्या के {days} दिन बाद"
 
-#: docking/applets/pomodoro/state.py:72
+#: docking/applets/moon/offline.py:247
 #, python-brace-format
-msgid "{label}: {time} remaining"
-msgstr "{label}: {time} शेष"
+msgid "{days} days after full moon"
+msgstr "पूर्णिमा के {days} दिन बाद"
 
-#: docking/applets/hydration/applet.py:120
-#: docking/applets/pomodoro/applet.py:169
-#: docking/applets/pomodoro/applet.py:182
-#: docking/applets/pomodoro/applet.py:195
+#: docking/applets/moon/state.py:111
+msgid "Waxing Crescent"
+msgstr "बढ़ता अर्धचंद्र"
+
+#: docking/applets/moon/state.py:113
+msgid "Waxing Gibbous"
+msgstr "बढ़ता उन्नतोदर"
+
+#: docking/applets/moon/state.py:115
+msgid "Waning Gibbous"
+msgstr "क्षीण उन्नतोदर"
+
+#: docking/applets/moon/state.py:117
+msgid "Waning Crescent"
+msgstr "क्षीण अर्धचंद्र"
+
+#: docking/applets/moon/state.py:124
+msgid "1st Quarter"
+msgstr "प्रथम चतुर्थांश"
+
+#: docking/applets/moon/state.py:126
+msgid "3rd Quarter"
+msgstr "तृतीय चतुर्थांश"
+
+#: docking/applets/music/applet.py:44 docking/applets/music/state.py:138
+msgid "Music"
+msgstr "संगीत"
+
+#: docking/applets/music/applet.py:102
+msgid "No active player"
+msgstr "कोई सक्रिय प्लेयर नहीं"
+
+#: docking/applets/music/applet.py:106
+msgid "Previous"
+msgstr "पिछला"
+
+#: docking/applets/music/applet.py:114
+msgid "Next"
+msgstr "अगला"
+
+#: docking/applets/music/applet.py:118
+msgid "Volume Up"
+msgstr "ध्वनि अधिक"
+
+#: docking/applets/music/applet.py:124
+msgid "Volume Down"
+msgstr "ध्वनि कम"
+
+#: docking/applets/music/state.py:68
+msgid "Pause"
+msgstr "रोकें"
+
+#: docking/applets/music/state.py:68
+msgid "Play"
+msgstr "चलाएँ"
+
+#: docking/applets/music/state.py:75
+msgid "Playing"
+msgstr "चल रहा है"
+
+#: docking/applets/music/state.py:77
+msgid "Paused"
+msgstr "रुका हुआ"
+
+#: docking/applets/music/state.py:79
+msgid "Stopped"
+msgstr "रुका"
+
+#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:137
+msgid "Unknown"
+msgstr "अज्ञात"
+
+#: docking/applets/music/state.py:127
+msgid "Music: No active player"
+msgstr "संगीत: कोई सक्रिय प्लेयर नहीं"
+
+#: docking/applets/network/applet.py:51
+msgid "Network"
+msgstr "नेटवर्क"
+
+#: docking/applets/network/applet.py:101
 #, python-brace-format
-msgid "{mins} min"
-msgstr "{mins} min"
+msgid "WiFi: {ssid} ({pct}%)"
+msgstr "WiFi: {ssid} ({pct}%)"
+
+#: docking/applets/network/applet.py:109
+#, python-brace-format
+msgid "Ethernet: {iface}"
+msgstr "ईथरनेट: {iface}"
+
+#: docking/applets/network/applet.py:114
+msgid "Not connected"
+msgstr "कनेक्ट नहीं"
+
+#: docking/applets/network/applet.py:119
+#, python-brace-format
+msgid "IP: {ip}"
+msgstr "IP: {ip}"
+
+#: docking/applets/network/state.py:89
+msgid "Network: Not connected"
+msgstr "नेटवर्क: कनेक्ट नहीं"
+
+#: docking/applets/notifications/applet.py:55
+#: docking/applets/notifications/state.py:49
+msgid "Notifications"
+msgstr "सूचनाएँ"
+
+#: docking/applets/notifications/applet.py:120
+msgid "No notification backend available"
+msgstr "कोई सूचना बैकएंड नहीं"
+
+#: docking/applets/notifications/applet.py:126
+msgid "Do Not Disturb"
+msgstr "परेशान न करें"
+
+#: docking/applets/notifications/applet.py:133
+#: docking/applets/notifications/state.py:47
+#, python-brace-format
+msgid "Pending: {n}"
+msgstr "लंबित: {n}"
+
+#: docking/applets/notifications/applet.py:138
+msgid "Clear History"
+msgstr "इतिहास साफ़ करें"
+
+#: docking/applets/notifications/applet.py:143
+msgid "Clear Notifications"
+msgstr "सूचनाएँ साफ़ करें"
+
+#: docking/applets/notifications/state.py:43
+msgid "Notifications: No backend available"
+msgstr "सूचनाएँ: कोई बैकएंड उपलब्ध नहीं"
+
+#: docking/applets/pet/applet.py:39
+msgid "Pet"
+msgstr "Pet"
+
+#: docking/applets/pet/state.py:60
+msgid "Sleeping"
+msgstr "Sleeping"
+
+#: docking/applets/pet/state.py:61
+msgid "Sleepy"
+msgstr "Sleepy"
+
+#: docking/applets/pet/state.py:62
+msgid "Drowsy"
+msgstr "Drowsy"
+
+#: docking/applets/pet/state.py:63
+msgid "Relaxed"
+msgstr "Relaxed"
+
+#: docking/applets/pet/state.py:64
+msgid "Happy"
+msgstr "Happy"
+
+#: docking/applets/pet/state.py:65
+msgid "Focused"
+msgstr "Focused"
+
+#: docking/applets/pet/state.py:66
+msgid "Busy"
+msgstr "Busy"
+
+#: docking/applets/pet/state.py:67
+msgid "Stressed"
+msgstr "Stressed"
+
+#: docking/applets/pet/state.py:68
+msgid "Excited!"
+msgstr "Excited!"
 
 #: docking/applets/pet/state.py:191
 #, python-brace-format
 msgid "{mood} | CPU: {cpu}%"
 msgstr "{mood} | CPU: {cpu}%"
+
+#: docking/applets/pomodoro/applet.py:47 docking/applets/pomodoro/state.py:64
+msgid "Pomodoro"
+msgstr "पोमोडोरो"
+
+#: docking/applets/pomodoro/applet.py:153
+msgid "Reset"
+msgstr "रीसेट"
+
+#: docking/applets/pomodoro/applet.py:165 docking/applets/pomodoro/state.py:68
+msgid "Work"
+msgstr "कार्य"
+
+#: docking/applets/pomodoro/applet.py:178 docking/applets/pomodoro/state.py:69
+msgid "Break"
+msgstr "विराम"
+
+#: docking/applets/pomodoro/applet.py:191 docking/applets/pomodoro/state.py:70
+msgid "Long Break"
+msgstr "लंबा विराम"
+
+#: docking/applets/pomodoro/state.py:66
+#, python-brace-format
+msgid "Paused - {time}"
+msgstr "रुका - {time}"
+
+#: docking/applets/pomodoro/state.py:72
+#, python-brace-format
+msgid "{label}: {time} remaining"
+msgstr "{label}: {time} शेष"
+
+#: docking/applets/powerprofiles/applet.py:55
+msgid "Power Profiles"
+msgstr "पावर प्रोफाइल"
+
+#: docking/applets/powerprofiles/applet.py:113
+#: docking/applets/powerprofiles/state.py:170
+#: docking/applets/powerprofiles/state.py:171
+msgid "Power Profiles unavailable"
+msgstr "पावर प्रोफाइल अनुपलब्ध"
+
+#: docking/applets/powerprofiles/applet.py:118
+msgid "Select Profile"
+msgstr "प्रोफाइल चुनें"
+
+#: docking/applets/powerprofiles/applet.py:137
+#, python-brace-format
+msgid "Limited: {reason}"
+msgstr "सीमित: {reason}"
+
+#: docking/applets/powerprofiles/state.py:131
+msgid "Power Saver"
+msgstr "ऊर्जा बचत"
+
+#: docking/applets/powerprofiles/state.py:133
+msgid "Balanced"
+msgstr "संतुलित"
+
+#: docking/applets/powerprofiles/state.py:135
+msgid "Performance"
+msgstr "प्रदर्शन"
+
+#: docking/applets/quicknote/applet.py:40
+#: docking/applets/quicknote/applet.py:72
+msgid "Quick Note"
+msgstr "Quick Note"
+
+#: docking/applets/quicknote/applet.py:60
+msgid "Edit Note"
+msgstr "Edit Note"
+
+#: docking/applets/quicknote/applet.py:64
+msgid "Clear Note"
+msgstr "Clear Note"
+
+#: docking/applets/quicknote/applet.py:77
+msgid "OK"
+msgstr "OK"
+
+#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
+#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
+msgid "Quote"
+msgstr "उद्धरण"
+
+#: docking/applets/quote/applet.py:86
+msgid "Next Quote"
+msgstr "अगला उद्धरण"
+
+#: docking/applets/quote/applet.py:90
+msgid "Copy Quote"
+msgstr "उद्धरण कॉपी करें"
+
+#: docking/applets/quote/applet.py:94
+msgid "Refresh from Web"
+msgstr "वेब से रिफ्रेश"
+
+#: docking/applets/quote/applet.py:100
+msgid "Source"
+msgstr "स्रोत"
+
+#: docking/applets/quote/applet.py:205
+#, python-brace-format
+msgid "{source}: loading..."
+msgstr "{source}: लोड हो रहा है..."
+
+#: docking/applets/recentfiles/applet.py:34
+msgid "Recent Files"
+msgstr "Recent Files"
+
+#: docking/applets/recentfiles/applet.py:83
+msgid "Clear Recent Files"
+msgstr "Clear Recent Files"
+
+#: docking/applets/screenshot/applet.py:34
+msgid "Screenshot"
+msgstr "स्क्रीनशॉट"
+
+#: docking/applets/screenshot/applet.py:73
+#, python-brace-format
+msgid "Full Screen in {delay}s"
+msgstr "{delay} सेकंड में पूर्ण स्क्रीन"
+
+#: docking/applets/separator/applet.py:37
+msgid "Separator"
+msgstr "विभाजक"
+
+#: docking/applets/separator/applet.py:117
+msgid "Increase Gap"
+msgstr "अंतर बढ़ाएँ"
+
+#: docking/applets/separator/applet.py:119
+msgid "Decrease Gap"
+msgstr "अंतर घटाएँ"
+
+#: docking/applets/separator/applet.py:121
+msgid "Style"
+msgstr "Style"
+
+#: docking/applets/separator/applet.py:125
+msgid "Line"
+msgstr "Line"
+
+#: docking/applets/separator/applet.py:134
+msgid "Space"
+msgstr "Space"
+
+#: docking/applets/separator/applet.py:143
+msgid "Invert Color"
+msgstr "Invert Color"
+
+#: docking/applets/session/applet.py:27
+msgid "Session"
+msgstr "सत्र"
+
+#: docking/applets/session/state.py:23
+msgid "Lock Screen"
+msgstr "स्क्रीन लॉक"
+
+#: docking/applets/session/state.py:24
+msgid "Log Out"
+msgstr "लॉग आउट"
+
+#: docking/applets/session/state.py:25
+msgid "Suspend"
+msgstr "निलंबित"
+
+#: docking/applets/session/state.py:26
+msgid "Restart"
+msgstr "पुनः आरंभ"
+
+#: docking/applets/session/state.py:27
+msgid "Shut Down"
+msgstr "बंद करें"
+
+#: docking/applets/stretchcoach/applet.py:40
+msgid "Stretch Coach"
+msgstr "Stretch Coach"
+
+#: docking/applets/stretchcoach/applet.py:80
+msgid "Acknowledge Break"
+msgstr "Acknowledge Break"
+
+#: docking/applets/stretchcoach/applet.py:80
+msgid "Take Break Now"
+msgstr "Take Break Now"
+
+#: docking/applets/stretchcoach/applet.py:85
+msgid "Show Random Stretch"
+msgstr "Show Random Stretch"
+
+#: docking/applets/stretchcoach/applet.py:89
+msgid "Random Stretch Cards"
+msgstr "Random Stretch Cards"
+
+#: docking/applets/stretchcoach/state.py:146
+msgid "Time to stretch!"
+msgstr "Time to stretch!"
+
+#: docking/applets/stretchcoach/state.py:150
+#, python-brace-format
+msgid "Next stretch in {time}"
+msgstr "Next stretch in {time}"
+
+#: docking/applets/trash/applet.py:34
+msgid "Trash"
+msgstr "कूड़ेदान"
+
+#: docking/applets/trash/applet.py:59
+msgid "Open Trash"
+msgstr "कूड़ेदान खोलें"
+
+#: docking/applets/trash/applet.py:63
+msgid "Empty Trash"
+msgstr "कूड़ेदान खाली करें"
+
+#: docking/applets/trash/render.py:22
+msgid "No items in Trash"
+msgstr "कूड़ेदान खाली है"
 
 #: docking/applets/trash/render.py:24 docking/applets/trash/render.py:25
 #, python-brace-format
@@ -1060,15 +808,301 @@ msgid_plural "{n} items in Trash"
 msgstr[0] "{n} आइटम कूड़ेदान में"
 msgstr[1] "{n} आइटम कूड़ेदान में"
 
-#: docking/applets/quote/applet.py:205
-#, python-brace-format
-msgid "{source}: loading..."
-msgstr "{source}: लोड हो रहा है..."
+#: docking/applets/volume/applet.py:33
+msgid "Volume"
+msgstr "ध्वनि"
 
-#: docking/applets/weather/applet.py:265
+#: docking/applets/volume/applet.py:53
+msgid "Muted"
+msgstr "म्यूट"
+
+#: docking/applets/volume/applet.py:53
+#, python-brace-format
+msgid "Volume: {pct}%"
+msgstr "ध्वनि: {pct}%"
+
+#: docking/applets/weather/applet.py:54
+msgid "Weather"
+msgstr "मौसम"
+
+#: docking/applets/weather/applet.py:109
+msgid "Show Temperature"
+msgstr "तापमान दिखाएँ"
+
+#: docking/applets/weather/applet.py:114
+msgid "Change City..."
+msgstr "शहर बदलें..."
+
+#: docking/applets/weather/applet.py:138
+msgid "Search for the city"
+msgstr "शहर खोजें"
+
+#: docking/applets/weather/applet.py:152
+msgid "Type city name..."
+msgstr "शहर का नाम लिखें..."
+
+#: docking/applets/weather/applet.py:276
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr "{temp}°C, {desc}"
+
+#: docking/applets/weather/applet.py:285 docking/applets/weather/state.py:92
+#, python-brace-format
+msgid "Air: {label}"
+msgstr "वायु: {label}"
+
+#: docking/applets/weather/applet.py:297
+#, python-brace-format
+msgid "{date}: {min_temp}/{max_temp}°C"
+msgstr "{date}: {min_temp}/{max_temp}°C"
+
+#: docking/applets/weather/state.py:73
+#, python-brace-format
+msgid "{city}: {temp}°C"
+msgstr "{city}: {temp}°C"
+
+#: docking/applets/weather/state.py:86
+msgid "Weather (no city selected)"
+msgstr "मौसम (कोई शहर नहीं चुना)"
+
+#: docking/applets/weather/state.py:88
+#, python-brace-format
+msgid "{city}: loading..."
+msgstr "{city}: लोड हो रहा है..."
+
+#: docking/applets/workspaces/applet.py:40
+msgid "Workspaces"
+msgstr "कार्यक्षेत्र"
+
+#: docking/ui/about.py:50
+msgid "Website"
+msgstr "वेबसाइट"
+
+#: docking/ui/dock_window.py:321
+msgid "Docking"
+msgstr "Docking"
+
+#: docking/ui/menu.py:180
+msgid "Name"
+msgstr "Name"
+
+#: docking/ui/menu.py:181
+msgid "Kind"
+msgstr "Kind"
+
+#: docking/ui/menu.py:182
+msgid "Size"
+msgstr "Size"
+
+#: docking/ui/menu.py:183
+msgid "Created"
+msgstr "Created"
+
+#: docking/ui/menu.py:184
+msgid "Modified"
+msgstr "Modified"
+
+#: docking/ui/menu.py:399 docking/ui/menu.py:419 docking/ui/menu.py:435
+#: docking/ui/menu.py:488
+msgid "Remove from Dock"
+msgstr "डॉक से हटाएँ"
+
+#: docking/ui/menu.py:412
+msgid "Open"
+msgstr "Open"
+
+#: docking/ui/menu.py:442
+msgid "Keep in Dock"
+msgstr "डॉक में रखें"
+
+#: docking/ui/menu.py:451
+msgid "Close All"
+msgstr "सभी बंद करें"
+
+#: docking/ui/menu.py:451
+msgid "Close"
+msgstr "बंद करें"
+
+#: docking/ui/menu.py:468
+msgid "Sort By"
+msgstr "Sort By"
+
+#: docking/ui/menu.py:476
+msgid "Show Hidden Files"
+msgstr "Show Hidden Files"
+
+#: docking/ui/menu.py:481
+msgid "Large Icons"
+msgstr "Large Icons"
+
+#: docking/ui/menu.py:518
+msgid "Add Applet"
+msgstr "एप्लेट"
+
+#: docking/ui/menu.py:560
+msgid "No Applets Available"
+msgstr "पावर प्रोफाइल अनुपलब्ध"
+
+#: docking/ui/menu.py:567
+msgid "Add Separator"
+msgstr "विभाजक जोड़ें"
+
+#: docking/ui/menu.py:577 docking/ui/settings.py:150
+msgid "Preferences"
+msgstr "Preferences"
+
+#: docking/ui/menu.py:582
+msgid "About"
+msgstr "के बारे में"
+
+#: docking/ui/menu.py:587
+msgid "Quit"
+msgstr "बाहर निकलें"
+
+#: docking/ui/menu.py:624
+msgid "Window"
+msgstr "विंडो"
+
+#: docking/ui/placement.py:223
+#, python-brace-format
+msgid "Display {display}: {width}x{height}"
+msgstr "डिस्प्ले {display}: {width}x{height}"
+
+#: docking/ui/settings.py:174
+msgid "Appearance"
+msgstr "Appearance"
+
+#: docking/ui/settings.py:175
+msgid "Applets"
+msgstr "एप्लेट"
+
+#: docking/ui/settings.py:193
+msgid "Don't Hide"
+msgstr "Don't Hide"
+
+#: docking/ui/settings.py:194
+msgid "Auto-hide"
+msgstr "स्वतः छिपाएँ"
+
+#: docking/ui/settings.py:195
+msgid "Intelligent"
+msgstr "Intelligent"
+
+#: docking/ui/settings.py:196
+msgid "Dodge Active Window"
+msgstr "Dodge Active Window"
+
+#: docking/ui/settings.py:197
+msgid "Dodge All Windows"
+msgstr "Dodge All Windows"
+
+#: docking/ui/settings.py:198
+msgid "Dodge Maximized"
+msgstr "Dodge Maximized"
+
+#: docking/ui/settings.py:254
+msgid "Look"
+msgstr "Look"
+
+#: docking/ui/settings.py:256
+msgid "Theme"
+msgstr "Theme"
+
+#: docking/ui/settings.py:257
+msgid "Icon Size"
+msgstr "आइकन आकार"
+
+#: docking/ui/settings.py:258
+msgid "Zoom"
+msgstr "Zoom"
+
+#: docking/ui/settings.py:259
+msgid "Zoom Percent"
+msgstr "Zoom Percent"
+
+#: docking/ui/settings.py:260
+msgid "Show Tooltips"
+msgstr "Show Tooltips"
+
+#: docking/ui/settings.py:261
+msgid "Window Previews"
+msgstr "विंडो पूर्वावलोकन"
+
+#: docking/ui/settings.py:273
+msgid "Behavior"
+msgstr "Behavior"
+
+#: docking/ui/settings.py:275
+msgid "Hide Mode"
+msgstr "Hide Mode"
+
+#: docking/ui/settings.py:276
+msgid "Hide Delay"
+msgstr "Hide Delay"
+
+#: docking/ui/settings.py:277
+msgid "Unhide Delay"
+msgstr "Unhide Delay"
+
+#: docking/ui/settings.py:282
+msgid "Placement"
+msgstr "Placement"
+
+#: docking/ui/settings.py:284
+msgid "Position"
+msgstr "स्थिति"
+
+#: docking/ui/settings.py:285
+msgid "Follow Cursor"
+msgstr "कर्सर का अनुसरण करें"
+
+#: docking/ui/settings.py:286
+msgid "Current Workspace Only"
+msgstr "केवल वर्तमान कार्यक्षेत्र"
+
+#: docking/ui/settings.py:291
+msgid "Layout"
+msgstr "Layout"
+
+#: docking/ui/settings.py:293
+msgid "Lock Positions"
+msgstr "Lock Positions"
+
+#: docking/ui/settings.py:294
+msgid "Anchor Applets to End"
+msgstr "ऐपलेट्स को अंत में एंकर करें"
+
+#: docking/ui/settings.py:295
+msgid "Anchor Files to End"
+msgstr "Anchor Files to End"
+
+#: docking/ui/settings.py:670
+msgid "The dock is always visible and reserves screen space."
+msgstr "The dock is always visible and reserves screen space."
+
+#: docking/ui/settings.py:671
+msgid "Hides when the mouse cursor leaves the dock."
+msgstr "Hides when the mouse cursor leaves the dock."
+
+#: docking/ui/settings.py:673
+msgid ""
+"Hides when a window from the focused application overlaps the dock area."
+msgstr ""
+"Hides when a window from the focused application overlaps the dock area."
+
+#: docking/ui/settings.py:675
+msgid "Hides when the focused window overlaps the dock area."
+msgstr "Hides when the focused window overlaps the dock area."
+
+#: docking/ui/settings.py:677
+msgid "Hides when any window on the current workspace overlaps the dock area."
+msgstr "Hides when any window on the current workspace overlaps the dock area."
+
+#: docking/ui/settings.py:680
+msgid ""
+"Hides when the focused window is maximized or a dialog overlaps the dock."
+msgstr ""
+"Hides when the focused window is maximized or a dialog overlaps the dock."
 
 #~ msgid "Display"
 #~ msgstr "प्रदर्शन"

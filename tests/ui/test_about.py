@@ -39,6 +39,7 @@ class FakeAboutDialog:
         self.hidden = False
         self.destroyed = False
         self.callbacks: dict[str, object] = {}
+        self.version = None
         self.buttons: list[object] = [
             FakeButton(label="Credits"),
             FakeButton(label="License"),
@@ -52,8 +53,8 @@ class FakeAboutDialog:
     def set_program_name(self, _value: str) -> None:
         return
 
-    def set_version(self, _value: str) -> None:
-        return
+    def set_version(self, value: str) -> None:
+        self.version = value
 
     def set_comments(self, _value: str) -> None:
         return
@@ -172,6 +173,14 @@ class TestAboutDialogController:
         assert result == about_mod.PROJECT_VERSION_FALLBACK
         assert result == about_mod.docking_version
 
+    def test_source_version_is_preferred_over_installed_metadata(self, monkeypatch):
+        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "9.9.9")
+        controller = about_mod.AboutDialogController(parent=object())
+
+        result = controller._project_version()
+
+        assert result == about_mod.docking_version
+
     def test_show_sets_license(self, monkeypatch):
         # Given
         monkeypatch.setattr(
@@ -202,6 +211,30 @@ class TestAboutDialogController:
         assert dialog.license_type == "gpl3"
         assert dialog.license_text == "GPL text"
         assert dialog.wrap_license is True
+
+    def test_show_uses_source_tree_version(self, monkeypatch):
+        monkeypatch.setattr(
+            about_mod,
+            "Gtk",
+            type(
+                "FakeGtk",
+                (),
+                {
+                    "AboutDialog": FakeAboutDialog,
+                    "Button": FakeButton,
+                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
+                    "Window": object,
+                },
+            ),
+        )
+        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "9.9.9")
+        controller = about_mod.AboutDialogController(parent=object())
+
+        controller.show()
+        dialog = controller._dialog
+        assert dialog is not None
+
+        assert dialog.version == about_mod.docking_version
 
     def test_license_fallback_when_license_file_missing(self, monkeypatch):
         # Given
