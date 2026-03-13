@@ -228,10 +228,54 @@ jobs:
             tests/applets/test_registry.py \
             tests/applets/test_trivia.py
 
+  test-opensuse-smoke:
+    name: Smoke (openSUSE Tumbleweed)
+    needs: [quality]
+    runs-on: ubuntu-24.04
+    container:
+      image: opensuse/tumbleweed:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          zypper --non-interactive refresh
+          zypper --non-interactive install --no-recommends \
+            git \
+            python3 python3-pip \
+            python3-cairo python3-gobject python3-gobject-cairo \
+            cairo-devel gobject-introspection-devel pkgconf \
+            typelib-1_0-GdkPixbuf-2_0 \
+            typelib-1_0-GdkX11-3_0 \
+            typelib-1_0-Gst-1_0 \
+            typelib-1_0-Gtk-3_0 \
+            typelib-1_0-NM-1_0 \
+            typelib-1_0-Pango-1_0 \
+            typelib-1_0-Wnck-3_0 \
+            xauth xorg-x11-server-Xvfb \
+            adwaita-icon-theme hicolor-icon-theme librsvg
+
+      - name: Install project
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[dev]"
+
+      - name: Smoke tests
+        env:
+          GSETTINGS_BACKEND: memory
+          GTK_THEME: Adwaita
+        run: |
+          xvfb-run -a python3 -m pytest -q \
+            tests/core/test_config.py \
+            tests/ui/test_about.py \
+            tests/ui/test_menu_integration.py \
+            tests/applets/test_registry.py \
+            tests/applets/test_trivia.py
+
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -296,7 +340,7 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -322,7 +366,7 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -352,7 +396,7 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -383,7 +427,7 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -411,7 +455,7 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     container:
       image: archlinux:latest
     steps:
@@ -442,7 +486,7 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
       - uses: actions/checkout@v4
 
