@@ -189,10 +189,49 @@ jobs:
           GTK_THEME: Adwaita
         run: xvfb-run -a python -m pytest tests/ -v
 
+  test-fedora-smoke:
+    name: Smoke (Fedora 41)
+    needs: [quality]
+    runs-on: ubuntu-24.04
+    container:
+      image: fedora:41
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          dnf install -y \
+            git \
+            python3 python3-pip \
+            cairo-devel cairo-gobject-devel gobject-introspection-devel \
+            gtk3 gdk-pixbuf2 libwnck3 pango NetworkManager-libnm gstreamer1 \
+            python3-cairo python3-gobject \
+            xorg-x11-server-Xvfb xorg-x11-xauth \
+            adwaita-icon-theme hicolor-icon-theme librsvg2
+
+      - name: Install project
+        run: |
+          python3 -m venv --system-site-packages .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Smoke tests
+        env:
+          GSETTINGS_BACKEND: memory
+          GTK_THEME: Adwaita
+        run: |
+          xvfb-run -a .venv/bin/python -m pytest -q \
+            tests/core/test_config.py \
+            tests/ui/test_about.py \
+            tests/ui/test_menu_integration.py \
+            tests/applets/test_registry.py \
+            tests/applets/test_trivia.py
+
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -257,7 +296,7 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -283,7 +322,7 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -313,7 +352,7 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -344,7 +383,7 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke]
     steps:
       - uses: actions/checkout@v4
 
@@ -372,7 +411,7 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke]
     container:
       image: archlinux:latest
     steps:
@@ -403,7 +442,7 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian]
+    needs: [test-ubuntu, test-debian, test-fedora-smoke]
     steps:
       - uses: actions/checkout@v4
 
