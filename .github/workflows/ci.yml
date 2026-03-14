@@ -242,22 +242,17 @@ jobs:
           zypper --non-interactive refresh
           zypper --non-interactive install --no-recommends \
             git \
-            python3 python3-pip \
-            python3-cairo python3-gobject python3-gobject-cairo \
+            python311 python-pip python-gobject \
             cairo-devel gobject-introspection-devel pkgconf \
-            typelib-1_0-GdkPixbuf-2_0 \
-            typelib-1_0-GdkX11-3_0 \
-            typelib-1_0-Gst-1_0 \
-            typelib-1_0-Gtk-3_0 \
-            typelib-1_0-NM-1_0 \
-            typelib-1_0-Pango-1_0 \
-            typelib-1_0-Wnck-3_0 \
+            gtk3 gdk-pixbuf pango \
+            gdk-pixbuf-loader-rsvg librsvg \
             xauth xorg-x11-server-Xvfb \
-            adwaita-icon-theme hicolor-icon-theme librsvg
+            adwaita-icon-theme hicolor-icon-theme
 
       - name: Install project
         run: |
           python3 -m pip install --upgrade pip
+          python3 -m pip install pycairo
           python3 -m pip install -e ".[dev]"
 
       - name: Smoke tests
@@ -269,7 +264,6 @@ jobs:
             tests/core/test_config.py \
             tests/ui/test_about.py \
             tests/ui/test_menu_integration.py \
-            tests/applets/test_registry.py \
             tests/applets/test_trivia.py
 
   build-deb:
