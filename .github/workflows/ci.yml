@@ -268,7 +268,11 @@ jobs:
           GSETTINGS_BACKEND: memory
           GTK_THEME: Adwaita
         run: |
-          xvfb-run -a .venv/bin/python -m pytest -q \
+          Xvfb :99 -screen 0 1280x800x24 &
+          XVFB_PID=$!
+          trap 'kill $XVFB_PID' EXIT
+          export DISPLAY=:99
+          .venv/bin/python -m pytest -q \
             tests/core/test_config.py \
             tests/ui/test_about.py \
             tests/ui/test_menu_integration.py \
