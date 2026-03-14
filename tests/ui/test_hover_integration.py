@@ -16,10 +16,10 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.hover as hover_mod  # noqa: E402
-from docking.core.position import Position  # noqa: E402
-from docking.platform.model import DockItem  # noqa: E402
-from docking.ui.autohide import HideState  # noqa: E402
+import docking.ui.hover as hover_mod
+from docking.core.position import Position
+from docking.platform.model import DockItem
+from docking.ui.autohide import HideState
 
 
 def _make_hover():

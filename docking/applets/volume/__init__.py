@@ -16,10 +16,10 @@ from .state import (
 
 __all__ = [
     "STEP",
+    "_BACKENDS",
     "Backend",
     "VolumeApplet",
     "VolumeState",
-    "_BACKENDS",
     "_detect_backend",
     "_parse_amixer",
     "_parse_pactl_mute",

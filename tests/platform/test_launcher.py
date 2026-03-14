@@ -14,7 +14,7 @@ except Exception:
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.platform.launcher import (  # noqa: E402
+from docking.platform.launcher import (
     Launcher,
     get_actions,
     launch,
@@ -247,8 +247,8 @@ class TestTryLoadIcon:
         monkeypatch.setattr(
             launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
         )
-        monkeypatch.setattr(launcher_mod.os.path, "isabs", lambda p: True)
-        monkeypatch.setattr(launcher_mod.os.path, "exists", lambda p: True)
+        monkeypatch.setattr(launcher_mod.Path, "is_absolute", lambda self: True)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
 
         pix = object()
         pixbuf_cls = MagicMock()

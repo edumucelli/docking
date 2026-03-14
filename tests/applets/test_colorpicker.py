@@ -1,5 +1,7 @@
 """Tests for the Color Picker applet."""
 
+from typing import ClassVar
+
 import docking.applets.colorpicker.applet as colorpicker_applet_mod
 import docking.applets.colorpicker.state as colorpicker_state_mod
 from docking.applets.colorpicker import ColorPickerApplet, rgb_to_hex
@@ -248,7 +250,7 @@ class TestColorPickerApplet:
 
     def test_init_restores_prefs_from_config(self):
         class _Cfg:
-            applet_prefs = {
+            applet_prefs: ClassVar = {
                 colorpicker_applet_mod.AppletId.COLORPICKER: {
                     "show_hex": False,
                     "r": 0.1,

@@ -137,7 +137,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.log import get_logger, with_context
 
@@ -309,15 +309,16 @@ class Launcher:
             theme.set_custom_theme("hicolor")
 
         # If it's an absolute path
-        if os.path.isabs(icon_name) and os.path.exists(icon_name):
+        icon_path = Path(icon_name)
+        if icon_path.is_absolute() and icon_path.exists():
             try:
                 return GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                    icon_name, size, size, True
+                    str(icon_path), size, size, True
                 )
             except GLib.Error as exc:
                 _log.bind(action="load_icon").debug(
                     "Failed to load icon file %s: %s",
-                    icon_name,
+                    icon_path,
                     exc,
                 )
 

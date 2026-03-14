@@ -10,7 +10,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.about as about_mod  # noqa: E402
+import docking.ui.about as about_mod
 
 
 class FakeButton:

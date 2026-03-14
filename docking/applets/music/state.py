@@ -14,7 +14,7 @@ from docking.i18n import _
 
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
-from gi.repository import Gio, GLib  # noqa: E402
+from gi.repository import Gio, GLib
 
 from docking.applets.identity import AppletId
 from docking.log import get_logger, with_context
@@ -317,7 +317,7 @@ class MprisBackend:
     def _select_player(self, states: list[MusicState]) -> MusicState:
         playing = [state for state in states if state.playback_status == "Playing"]
         if playing:
-            selected = next(
+            return next(
                 (
                     state
                     for state in playing
@@ -325,8 +325,7 @@ class MprisBackend:
                 ),
                 playing[0],
             )
-            return selected
-        selected = next(
+        return next(
             (
                 state
                 for state in states
@@ -334,7 +333,6 @@ class MprisBackend:
             ),
             states[0],
         )
-        return selected
 
     def _player_display_name(self, bus_name: str) -> str:
         identity = self._get_property(
@@ -631,9 +629,16 @@ class PlayerctlBackend:
             ],
             timeout=1.8,
         )
-        parts = ((metadata or "").strip().split("\t") + ["", "", "", "", "", "", ""])[
-            :7
-        ]
+        parts = [
+            *(metadata or "").strip().split("\t"),
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ][:7]
         artist, title, album, art_url, track_url, player_name, desktop_entry = parts
 
         volume_raw = self._run(
@@ -809,7 +814,7 @@ class RhythmboxClientBackend:
         has_track_payload = text.count("\t") >= 3
         if has_track_payload:
             playback_status = "Playing"
-            parts = (text.split("\t") + ["", "", "", ""])[:4]
+            parts = [*text.split("\t"), "", "", "", ""][:4]
             title, artist, album, track_url = [part.strip() for part in parts]
 
         volume_percent = self._read_volume_percent()

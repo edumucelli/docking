@@ -10,8 +10,8 @@ from .state import (
 
 __all__ = [
     "ALL_SOUNDS",
-    "AmbientApplet",
     "DEFAULT_SOUND",
     "DEFAULT_VOLUME",
     "VOLUME_STEP",
+    "AmbientApplet",
 ]

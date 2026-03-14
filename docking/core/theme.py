@@ -263,7 +263,7 @@ class Theme:
         if not path.exists():
             return cls()
 
-        with open(file=path) as f:
+        with path.open() as f:
             data: dict[str, Any] = json.load(fp=f)
 
         # --- Scale factor ---

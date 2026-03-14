@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -11,7 +12,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("NM", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import NM, GLib, Gtk  # noqa: E402
+from gi.repository import NM, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
@@ -40,6 +41,7 @@ def _skip_device_types() -> frozenset[object]:
 
 
 _log = with_context(get_logger(name="network"), applet_id=str(AppletId.NETWORK))
+_PROC_NET_DEV = Path("/proc/net/dev")
 
 POLL_INTERVAL_S = 2
 
@@ -246,7 +248,7 @@ class NetworkApplet(Applet):
             self._tx_speed = 0.0
             return
         try:
-            with open("/proc/net/dev") as f:
+            with _PROC_NET_DEV.open() as f:
                 counters = parse_proc_net_dev(text=f.read())
         except OSError:
             return

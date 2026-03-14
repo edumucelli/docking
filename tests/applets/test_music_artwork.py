@@ -8,7 +8,7 @@ from pathlib import Path
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf  # noqa: E402
+from gi.repository import GdkPixbuf
 
 from docking.applets.music.artwork import CoverArtResolver
 from docking.applets.music.state import MusicState

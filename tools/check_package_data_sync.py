@@ -63,8 +63,7 @@ def check_package_data_sync(root: Path) -> list[str]:
     missing = sorted(expected_manifest - manifest)
     if missing:
         errors.append(
-            "MANIFEST.in is missing expected recursive includes: "
-            + ", ".join(missing)
+            "MANIFEST.in is missing expected recursive includes: " + ", ".join(missing)
         )
 
     return errors

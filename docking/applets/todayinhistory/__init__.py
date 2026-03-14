@@ -22,8 +22,8 @@ def fetch_today_in_history(month: int, day: int, limit: int = 20) -> list[Histor
 
 
 __all__ = [
-    "TodayInHistoryApplet",
     "HistoryEvent",
+    "TodayInHistoryApplet",
     "_http_get_json",
     "fallback_today_in_history",
     "fetch_today_in_history",

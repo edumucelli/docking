@@ -8,8 +8,8 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.core.config import Config  # noqa: E402
-from docking.platform.dodge import ScreenRect, WindowDodgeMonitor  # noqa: E402
+from docking.core.config import Config
+from docking.platform.dodge import ScreenRect, WindowDodgeMonitor
 
 # Dock sits at bottom of 1920x1080 screen
 DOCK_RECT = ScreenRect(x=600, y=1030, width=720, height=50)

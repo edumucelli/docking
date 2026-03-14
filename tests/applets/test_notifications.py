@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import replace
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import docking.applets.notifications.applet as notifications_applet_mod
@@ -347,7 +348,7 @@ class TestNotificationsApplet:
 
         def fake_create_notifications_icon(**kwargs):
             captured.update(kwargs)
-            return None
+            return
 
         monkeypatch.setattr(
             notifications_applet_mod,
@@ -601,7 +602,7 @@ class TestNotificationsApplet:
         )
 
         class _Proc:
-            stdout = [
+            stdout: ClassVar = [
                 "signal member=Notify\n",
                 '   string "Mail"\n',
                 '   string "Icon"\n',

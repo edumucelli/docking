@@ -91,7 +91,7 @@ class TestEasingBounce:
     def test_second_bounce_lower_than_first(self):
         # Given
         first_half = [
-            easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(0, 300)
+            easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(300)
         ]
         second_half = [
             easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(300, 600)
@@ -106,9 +106,7 @@ class TestEasingBounce:
     def test_always_non_negative(self):
         # Given
         # When
-        values = [
-            easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(0, 601)
-        ]
+        values = [easing_bounce(t=t * 1000, duration=600_000, n=2) for t in range(601)]
         # Then
         assert all(v >= 0.0 for v in values)
 

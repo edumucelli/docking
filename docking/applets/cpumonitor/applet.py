@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib  # noqa: E402
+from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
 from docking.applets.cpumonitor.render import render_icon
@@ -29,6 +30,8 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 _log = with_context(get_logger(name="cpumonitor"), applet_id=str(AppletId.CPUMONITOR))
+_PROC_STAT = Path("/proc/stat")
+_PROC_MEMINFO = Path("/proc/meminfo")
 
 
 class CpuMonitorApplet(Applet):
@@ -69,7 +72,7 @@ class CpuMonitorApplet(Applet):
     def _tick(self) -> bool:
         """Read CPU + memory, smooth, and redraw if change exceeds threshold."""
         try:
-            with open("/proc/stat") as f:
+            with _PROC_STAT.open() as f:
                 curr = parse_proc_stat(text=f.read())
         except OSError as exc:
             _log.bind(action="read_proc_stat").debug(
@@ -85,7 +88,7 @@ class CpuMonitorApplet(Applet):
         self._prev_sample = curr
 
         try:
-            with open("/proc/meminfo") as f:
+            with _PROC_MEMINFO.open() as f:
                 self._mem = parse_proc_meminfo(text=f.read())
         except OSError as exc:
             _log.bind(action="read_proc_meminfo").debug(

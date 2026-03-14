@@ -16,9 +16,9 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.menu as menu_mod  # noqa: E402
-from docking.core.items import FILE_KIND, FOLDER_KIND  # noqa: E402
-from docking.platform.model import DockItem  # noqa: E402
+import docking.ui.menu as menu_mod
+from docking.core.items import FILE_KIND, FOLDER_KIND
+from docking.platform.model import DockItem
 
 
 class FakeMenu:

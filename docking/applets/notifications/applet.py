@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
@@ -278,7 +278,7 @@ class NotificationsApplet(Applet):
                     notify_strings.append(value)
 
                 stripped = line.strip()
-                if stripped.startswith("array [") or stripped.startswith("int32 "):
+                if stripped.startswith(("array [", "int32 ")):
                     if len(notify_strings) >= 4:
                         app_name = notify_strings[0]
                         summary = notify_strings[2]

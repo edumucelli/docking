@@ -525,7 +525,7 @@ class Config:
             config.save(path=path)
             return config
 
-        with open(file=path) as f:
+        with path.open() as f:
             data: dict[str, Any] = json.load(fp=f)
 
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
@@ -542,7 +542,7 @@ class Config:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(file=path, mode="w") as f:
+        with path.open(mode="w") as f:
             json.dump(obj=self.to_dict(), fp=f, indent=2)
             f.write("\n")
 

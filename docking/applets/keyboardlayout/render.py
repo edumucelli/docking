@@ -7,7 +7,7 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 from docking.applets.draw import rounded_rect

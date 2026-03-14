@@ -9,7 +9,7 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 from docking.applets.draw import rounded_rect
@@ -58,5 +58,4 @@ def render_icon(*, size: int, count: int) -> GdkPixbuf.Pixbuf | None:
         draw_icon_label(cr=cr, text=str(count), size=size)
 
     # Convert to pixbuf
-    pixbuf = Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
-    return pixbuf
+    return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

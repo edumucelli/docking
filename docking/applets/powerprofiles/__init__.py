@@ -18,8 +18,8 @@ from .state import (
 )
 
 __all__ = [
-    "PowerProfilesApplet",
     "NullPowerProfilesBackend",
+    "PowerProfilesApplet",
     "PowerProfilesBackend",
     "PowerProfilesControlBackend",
     "PowerProfilesState",

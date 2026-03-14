@@ -142,7 +142,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gio", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 import docking.platform.launcher as launcher_mod
 from docking.applets import get_registry
@@ -696,7 +696,7 @@ class MenuHandler:
         destroy = getattr(widget, "destroy", None)
         if callable(destroy):
             destroy()
-        children = list(getattr(parent, "get_children", lambda: [])())
+        children = list(getattr(parent, "get_children", list)())
         if not any(getattr(child, "_window_row", False) for child in children):
             for child in children:
                 if getattr(child, "_window_rows_separator", False):

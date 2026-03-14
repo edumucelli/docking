@@ -122,7 +122,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("Wnck", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Wnck  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Wnck
 
 from docking.core.position import Position, is_horizontal
 from docking.ui.runtime import clamp_to_screen

@@ -11,7 +11,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gst", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gst, Gtk  # noqa: E402
+from gi.repository import GdkPixbuf, Gst, Gtk
 
 from docking.applets.ambient.render import render_icon
 from docking.applets.ambient.state import (

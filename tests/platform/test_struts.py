@@ -8,9 +8,9 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.core.position import Position  # noqa: E402
-from docking.platform import struts as struts_mod  # noqa: E402
-from docking.platform.struts import (  # noqa: E402
+from docking.core.position import Position
+from docking.platform import struts as struts_mod
+from docking.platform.struts import (
     clear_struts,
     compute_struts,
     set_dock_struts,

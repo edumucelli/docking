@@ -16,8 +16,8 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.window_tracker as window_tracker_mod  # noqa: E402
-from docking.platform.model import DockItem  # noqa: E402
+import docking.platform.window_tracker as window_tracker_mod
+from docking.platform.model import DockItem
 
 
 class FakeWindow:

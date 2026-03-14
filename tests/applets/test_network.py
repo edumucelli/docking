@@ -548,7 +548,8 @@ class TestNetworkAppletInternals:
         open_cm.__enter__.return_value = fake_file
         open_cm.__exit__.return_value = False
         monkeypatch.setattr(
-            "builtins.open",
+            type(network_applet_mod._PROC_NET_DEV),
+            "open",
             lambda *_a, **_k: open_cm,
         )
         monkeypatch.setattr(network_mod.time, "monotonic", lambda: 12.0)

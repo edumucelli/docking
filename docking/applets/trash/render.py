@@ -10,7 +10,7 @@ from docking.i18n import _, ngettext
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf
 
 
 def trash_icon_name(*, item_count: int) -> str:

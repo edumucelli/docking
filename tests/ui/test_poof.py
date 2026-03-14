@@ -11,8 +11,8 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.poof as poof_mod  # noqa: E402
-from docking.ui.poof import POOF_DURATION_MS  # noqa: E402
+import docking.ui.poof as poof_mod
+from docking.ui.poof import POOF_DURATION_MS
 
 
 class TestPoofConstants:

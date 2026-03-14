@@ -10,7 +10,7 @@ import gi
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gdk, GdkPixbuf, Pango, PangoCairo  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Pango, PangoCairo
 
 from docking.applets.calendar.state import CalendarSnapshot
 

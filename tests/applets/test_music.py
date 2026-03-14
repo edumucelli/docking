@@ -288,7 +288,7 @@ class TestMprisBackendInternals:
 
     def test_get_state_unavailable_when_no_players(self):
         backend = self._make_backend()
-        backend.list_players = lambda: []  # type: ignore[method-assign]
+        backend.list_players = list  # type: ignore[method-assign]
         assert backend.get_state().available is False
 
     def test_has_owner_and_list_players_branches(self, monkeypatch):
@@ -1235,7 +1235,7 @@ class TestMusicAdditionalBranches:
         assert backend._run_action(None, "play-pause") is False
         assert backend._run_action("spotify", "play-pause") is True
 
-        backend._list_players = lambda: []  # type: ignore[method-assign]
+        backend._list_players = list  # type: ignore[method-assign]
         assert backend._select_player() is None
         backend._list_players = lambda: ["vlc"]  # type: ignore[method-assign]
         backend._run = lambda **kwargs: None  # type: ignore[method-assign]

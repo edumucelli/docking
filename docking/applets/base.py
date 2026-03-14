@@ -60,7 +60,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo  # noqa: E402
+from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from docking.applets.identity import (
     AppletId,
@@ -306,16 +306,16 @@ class Applet(ABC):
 
     def refresh_tooltip(self) -> None:
         """Sync tooltip/text presentation fields on self.item."""
-        return None
+        return
 
     def on_clicked(self) -> None:
         """Handle left-click (default: no-op)."""
-        return None
+        return
 
     def on_scroll(self, direction_up: bool) -> None:
         """Handle scroll wheel on applet icon (default: no-op)."""
         _ = direction_up
-        return None
+        return
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Extra right-click menu items (default: empty)."""
@@ -327,7 +327,7 @@ class Applet(ABC):
         Applets that need per-instance or late-bound preference loading can
         override this method. Default applets have nothing to apply.
         """
-        return None
+        return
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start timers/monitors. Call notify() to trigger redraw."""

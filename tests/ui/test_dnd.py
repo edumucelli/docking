@@ -9,7 +9,7 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.ui.dnd import DRAG_ICON_SCALE, DnDHandler  # noqa: E402
+from docking.ui.dnd import DRAG_ICON_SCALE, DnDHandler
 
 
 class TestConstants:
@@ -51,7 +51,7 @@ class TestPoofAsset:
 
         svg = Path(__file__).parent.parent.parent / "docking" / "assets" / "poof.svg"
         # When
-        with open(svg) as f:
+        with svg.open() as f:
             content = f.read(500)
         import re
 

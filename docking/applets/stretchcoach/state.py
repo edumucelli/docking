@@ -86,8 +86,7 @@ def _parse_interval(value: object) -> int:
 def _parse_steps(raw: object) -> tuple[str, ...]:
     if not isinstance(raw, list):
         return ()
-    steps = tuple(str(step).strip() for step in raw if str(step).strip())
-    return steps
+    return tuple(str(step).strip() for step in raw if str(step).strip())
 
 
 def _parse_card(raw: object) -> StretchCard | None:

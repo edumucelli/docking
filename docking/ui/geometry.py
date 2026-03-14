@@ -221,6 +221,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
 from docking.core.layout import (
@@ -867,7 +868,7 @@ def _compute_main_axis_boundaries(
     if is_horizontal(pos=pos):
         starts = [min(static_dock_rect.x, background_rect.x)]
         centers = [hover_rect.x + hover_rect.w / 2 for hover_rect in hover_rects]
-        for left_center, right_center in zip(centers, centers[1:], strict=False):
+        for left_center, right_center in pairwise(centers):
             starts.append(int(round((left_center + right_center) / 2)))
         starts.append(
             max(
@@ -879,7 +880,7 @@ def _compute_main_axis_boundaries(
 
     starts = [min(static_dock_rect.y, background_rect.y)]
     centers = [hover_rect.y + hover_rect.h / 2 for hover_rect in hover_rects]
-    for top_center, bottom_center in zip(centers, centers[1:], strict=False):
+    for top_center, bottom_center in pairwise(centers):
         starts.append(int(round((top_center + bottom_center) / 2)))
     starts.append(
         max(

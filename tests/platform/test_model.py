@@ -11,9 +11,9 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.core.config import PinnedEntry  # noqa: E402
-from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND  # noqa: E402
-from docking.platform.model import DockItem, DockModel  # noqa: E402
+from docking.core.config import PinnedEntry
+from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
+from docking.platform.model import DockItem, DockModel
 
 
 def _make_launcher(*desktop_ids: str):

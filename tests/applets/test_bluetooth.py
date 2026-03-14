@@ -310,7 +310,7 @@ class TestBluezBackend:
         assert state.available is False
         assert "query failed" in state.error.lower()
 
-        backend._get_managed_objects = lambda: {}  # type: ignore[attr-defined]
+        backend._get_managed_objects = dict  # type: ignore[attr-defined]
         state = backend.get_state()
         assert state.available is False
         assert "no bluetooth adapter" in state.error.lower()

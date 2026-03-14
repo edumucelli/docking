@@ -14,7 +14,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.settings as settings_mod  # noqa: E402
+import docking.ui.settings as settings_mod
 
 
 class FakeStyleContext:
@@ -429,7 +429,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        monkeypatch.setattr(settings_mod, "get_registry", dict)
         controller = settings_mod.SettingsWindowController(
             parent=object(),
             runtime=MagicMock(),
@@ -472,7 +472,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        monkeypatch.setattr(settings_mod, "get_registry", dict)
         theme_obj = object()
         monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: theme_obj)
         runtime = MagicMock()
@@ -500,7 +500,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        monkeypatch.setattr(settings_mod, "get_registry", dict)
         runtime = MagicMock()
         config = _config()
         controller = settings_mod.SettingsWindowController(
@@ -524,7 +524,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        monkeypatch.setattr(settings_mod, "get_registry", dict)
         config = _config()
         config.hide_mode = "none"
         config.zoom_enabled = False
@@ -546,7 +546,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", lambda: {})
+        monkeypatch.setattr(settings_mod, "get_registry", dict)
         runtime = MagicMock()
         config = _config()
         controller = settings_mod.SettingsWindowController(

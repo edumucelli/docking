@@ -9,7 +9,7 @@ import gi
 
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, GLib  # noqa: E402
+from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId

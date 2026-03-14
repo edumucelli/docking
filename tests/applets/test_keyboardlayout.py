@@ -15,8 +15,8 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.applets.keyboardlayout.state as kbl_state  # noqa: E402
-from docking.applets.keyboardlayout.state import (  # noqa: E402
+import docking.applets.keyboardlayout.state as kbl_state
+from docking.applets.keyboardlayout.state import (
     Fcitx5Backend,
     IBusBackend,
     XkbBackend,

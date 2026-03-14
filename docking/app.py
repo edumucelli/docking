@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import faulthandler
-import os
 import signal
 import sys
+from pathlib import Path
 
 # Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
 # Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
@@ -15,7 +15,7 @@ faulthandler.register(signal.SIGUSR1)
 # Add vendor directory for bundled pip dependencies (.deb installs them
 # to /usr/lib/docking/vendor to avoid conflicts with system packages).
 _VENDOR_DIR = "/usr/lib/docking/vendor"
-if os.path.isdir(_VENDOR_DIR):
+if Path(_VENDOR_DIR).is_dir():
     sys.path.insert(0, _VENDOR_DIR)
 
 from docking.i18n import init as _init_i18n
@@ -25,7 +25,7 @@ _init_i18n()
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import GLib, Gtk
 
 from docking.core.config import Config
 from docking.core.theme import Theme

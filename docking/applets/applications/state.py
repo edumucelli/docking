@@ -7,7 +7,7 @@ from collections import defaultdict
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gio  # noqa: E402
+from gi.repository import Gio
 
 # FreeDesktop main categories -> display label
 CATEGORY_LABELS: dict[str, str] = {

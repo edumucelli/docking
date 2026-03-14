@@ -14,7 +14,7 @@ from docking.i18n import _
 
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
-from gi.repository import Gio, GLib  # noqa: E402
+from gi.repository import Gio, GLib
 
 from docking.applets.identity import AppletId
 from docking.log import get_logger, with_context

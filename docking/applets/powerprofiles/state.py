@@ -47,7 +47,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
 import gi
 
@@ -55,7 +55,7 @@ from docking.i18n import _
 
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
-from gi.repository import Gio, GLib  # noqa: E402
+from gi.repository import Gio, GLib
 
 from docking.applets.identity import AppletId
 from docking.log import get_logger, with_context
@@ -408,7 +408,7 @@ class TunedBackend:
     performance / balanced / power-saver.
     """
 
-    _PROFILE_PREFS: dict[str, tuple[str, ...]] = {
+    _PROFILE_PREFS: ClassVar[dict[str, tuple[str, ...]]] = {
         "performance": (
             "throughput-performance",
             "latency-performance",
@@ -433,7 +433,7 @@ class TunedBackend:
 
         active = self._canonical_profile(name=active_raw)
         if active and active not in profiles:
-            profiles = order_profiles(profiles + (active,))
+            profiles = order_profiles((*profiles, active))
 
         if not profiles:
             return unavailable_state(error="tuned profile data unavailable")

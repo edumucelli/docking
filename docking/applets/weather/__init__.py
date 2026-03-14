@@ -7,7 +7,7 @@ import threading as threading
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib as GLib  # noqa: E402
+from gi.repository import GLib as GLib
 
 from .api import fetch_air_quality as fetch_air_quality
 from .api import fetch_weather as fetch_weather

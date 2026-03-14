@@ -183,7 +183,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.base import is_applet
 from docking.core.items import FILE_KIND, FOLDER_KIND

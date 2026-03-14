@@ -10,7 +10,7 @@ import gi
 
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Wnck  # noqa: E402
+from gi.repository import GLib, Wnck
 
 from docking.core.config import HideMode
 from docking.log import get_logger, with_context

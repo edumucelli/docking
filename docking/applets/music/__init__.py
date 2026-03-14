@@ -17,6 +17,7 @@ from .state import (
 )
 
 __all__ = [
+    "VOLUME_STEP",
     "CoverArtResolver",
     "HybridBackend",
     "MprisBackend",
@@ -24,7 +25,6 @@ __all__ = [
     "MusicState",
     "PlayerctlBackend",
     "RhythmboxClientBackend",
-    "VOLUME_STEP",
     "clamp_percent",
     "create_music_icon",
     "play_pause_menu_label",

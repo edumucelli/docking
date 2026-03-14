@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId

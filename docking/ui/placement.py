@@ -152,7 +152,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GdkX11, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GdkX11, GLib, Gtk
 
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _

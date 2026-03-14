@@ -8,8 +8,8 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX  # noqa: E402
-from docking.platform.window_tracker import _wm_class_desktop_candidates  # noqa: E402
+from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
+from docking.platform.window_tracker import _wm_class_desktop_candidates
 
 
 class TestWmClassCandidates:

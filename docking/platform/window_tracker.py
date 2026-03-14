@@ -148,7 +148,7 @@ import gi
 
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk, Wnck  # noqa: E402
+from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX

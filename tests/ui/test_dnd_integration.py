@@ -14,10 +14,10 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.dnd as dnd_mod  # noqa: E402
-from docking.core.items import FILE_KIND, FOLDER_KIND  # noqa: E402
-from docking.core.position import Position  # noqa: E402
-from docking.platform.model import DockItem  # noqa: E402
+import docking.ui.dnd as dnd_mod
+from docking.core.items import FILE_KIND, FOLDER_KIND
+from docking.core.position import Position
+from docking.platform.model import DockItem
 
 
 def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
@@ -57,7 +57,7 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
     theme = SimpleNamespace(item_padding=8, h_padding=10)
     launcher = MagicMock()
     monkeypatch.setattr(dnd_mod, "show_poof", MagicMock())
-    handler = dnd_mod.DnDHandler(
+    return dnd_mod.DnDHandler(
         drawing_area,
         runtime,
         model,
@@ -67,7 +67,6 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: default_frame),
     )
-    return handler
 
 
 class TestSetupAndToggle:

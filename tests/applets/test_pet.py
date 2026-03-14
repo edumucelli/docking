@@ -15,7 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.applets.pet.state import (  # noqa: E402
+from docking.applets.pet.state import (
     HYSTERESIS,
     SLEEPING_TICKS,
     SLEEPY_TICKS,
@@ -382,6 +382,8 @@ class TestPetApplet:
         applet._prev_sample = CpuSample(total=1000, idle=0)
         # curr_sample: still 100% busy (2618 total, 0 idle)
         proc_data = "cpu  2000 0 500 0 10 5 3\n"
-        with patch("builtins.open", mock_open(read_data=proc_data)):
+        with patch.object(
+            type(pet_mod._PROC_STAT), "open", mock_open(read_data=proc_data)
+        ):
             applet._tick()
         assert applet.item.is_urgent is True

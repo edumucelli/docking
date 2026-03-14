@@ -5,7 +5,7 @@ from __future__ import annotations
 import gi
 
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk  # noqa: E402
+from gi.repository import Gdk
 
 
 def pick_pixel(x: int, y: int) -> tuple[int, int, int] | None:

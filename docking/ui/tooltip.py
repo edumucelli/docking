@@ -155,7 +155,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
@@ -199,12 +199,12 @@ def compute_tooltip_position(
     """
     if pos == Position.BOTTOM:
         return int(anchor_x - tooltip_w / 2), int(anchor_y - tooltip_h - gap)
-    elif pos == Position.TOP:
+    if pos == Position.TOP:
         return int(anchor_x - tooltip_w / 2), int(anchor_y + gap)
-    elif pos == Position.LEFT:
+    if pos == Position.LEFT:
         return int(anchor_x + gap), int(anchor_y - tooltip_h / 2)
-    else:  # RIGHT
-        return int(anchor_x - tooltip_w - gap), int(anchor_y - tooltip_h / 2)
+    # RIGHT
+    return int(anchor_x - tooltip_w - gap), int(anchor_y - tooltip_h / 2)
 
 
 class TooltipManager:

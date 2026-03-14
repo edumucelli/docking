@@ -37,7 +37,7 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.ambient.render import render_icon as render_ambient
 from docking.applets.applications.render import create_icon as render_applications
@@ -84,11 +84,7 @@ from docking.applets.workspaces.render import _render_grid
 
 ICON_SIZE = 64
 OUT_DIR = (
-    Path(__file__).resolve().parent.parent
-    / "docking"
-    / "assets"
-    / "icons"
-    / "applets"
+    Path(__file__).resolve().parent.parent / "docking" / "assets" / "icons" / "applets"
 )
 
 

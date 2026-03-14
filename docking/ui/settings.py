@@ -24,13 +24,13 @@ settings a persistent, easier-to-scan home.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import GLib, Gtk
 
 from docking.applets import get_registry
 from docking.applets.base import is_applet, load_catalog_icon
@@ -353,8 +353,7 @@ class SettingsWindowController:
         return header
 
     def _new_switch(self) -> Gtk.Switch:
-        switch = Gtk.Switch()
-        return switch
+        return Gtk.Switch()
 
     def _register_bindings(self) -> None:
         self._bindings = [
@@ -666,7 +665,7 @@ class SettingsWindowController:
         self._runtime.update_struts()
         self._update_hide_mode_description()
 
-    _HIDE_MODE_DESCRIPTIONS: dict[str, str] = {
+    _HIDE_MODE_DESCRIPTIONS: ClassVar[dict[str, str]] = {
         "none": _("The dock is always visible and reserves screen space."),
         "autohide": _("Hides when the mouse cursor leaves the dock."),
         "intelligent": _(

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib  # noqa: E402
+from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 _log = with_context(get_logger(name="pet"), applet_id=str(AppletId.PET))
+_PROC_STAT = Path("/proc/stat")
 
 
 class PetApplet(Applet):
@@ -71,7 +73,7 @@ class PetApplet(Applet):
     def _tick(self) -> bool:
         """Poll /proc/stat, update mood, redraw if needed."""
         try:
-            with open("/proc/stat") as fh:
+            with _PROC_STAT.open() as fh:
                 curr = parse_proc_stat(text=fh.read())
         except OSError as exc:
             _log.bind(action="read_proc_stat").debug(

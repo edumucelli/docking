@@ -1,6 +1,7 @@
 """Tests for the Moon phase applet."""
 
 from datetime import date
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import docking.applets.moon.applet as moon_applet_mod
@@ -252,7 +253,9 @@ class TestMoonApplet:
 
     def test_init_config_and_toggle_phase(self):
         class _Cfg:
-            applet_prefs = {moon_applet_mod.AppletId.MOON: {"show_phase": False}}
+            applet_prefs: ClassVar = {
+                moon_applet_mod.AppletId.MOON: {"show_phase": False}
+            }
 
             def save(self):
                 return None

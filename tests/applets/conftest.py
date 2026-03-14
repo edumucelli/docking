@@ -6,8 +6,8 @@ import pytest
 gi.require_version("Gtk", "3.0")
 gi.require_version("Wnck", "3.0")
 from gi.repository import (
-    Gtk,  # noqa: E402
-    Wnck,  # noqa: E402
+    Gtk,
+    Wnck,
 )
 
 

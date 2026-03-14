@@ -8,8 +8,8 @@ gi_mock.require_version = MagicMock()
 sys.modules.setdefault("gi", gi_mock)
 sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.preview as preview_mod  # noqa: E402
-from docking.ui.preview import (  # noqa: E402
+import docking.ui.preview as preview_mod
+from docking.ui.preview import (
     ICON_FALLBACK_SIZE,
     POPUP_PADDING,
     PREVIEW_HIDE_DELAY_MS,

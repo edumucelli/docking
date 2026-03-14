@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, GLib  # noqa: E402
+from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
 from docking.applets.brightness.render import create_icon
