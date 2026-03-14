@@ -186,6 +186,7 @@ class TestPinUnpin:
         assert len(items) == 2
         assert items[1].is_pinned
         assert "b.desktop" in config.pinned
+        config.save.assert_called_once()
 
     def test_unpin_running_becomes_transient(self):
         # Given
@@ -200,6 +201,7 @@ class TestPinUnpin:
         assert len(items) == 1
         assert not items[0].is_pinned
         assert "a.desktop" not in config.pinned
+        config.save.assert_called_once()
 
     def test_unpin_not_running_removes(self):
         # Given
@@ -210,6 +212,7 @@ class TestPinUnpin:
         model.unpin_item("b.desktop")
         # Then
         assert len(model.visible_items()) == 1
+        config.save.assert_called_once()
 
 
 class TestReorder:
@@ -224,6 +227,7 @@ class TestReorder:
         ids = [it.desktop_id for it in model.visible_items()]
         assert ids == ["b.desktop", "c.desktop", "a.desktop"]
         assert config.pinned == ["b.desktop", "c.desktop", "a.desktop"]
+        config.save.assert_called_once()
 
     def test_reorder_out_of_bounds_noop(self):
         # Given
@@ -234,6 +238,7 @@ class TestReorder:
         model.reorder(0, 5)  # out of bounds
         # Then
         assert len(model.visible_items()) == 1
+        config.save.assert_not_called()
 
 
 class TestReorderVisible:
@@ -273,6 +278,7 @@ class TestReorderVisible:
         # Then
         ids = [it.desktop_id for it in model.visible_items()]
         assert ids == ["b.desktop", "c.desktop", "a.desktop"]
+        config.save.assert_called_once()
 
     def test_reorder_auto_pins_transient(self):
         # Given
@@ -289,6 +295,7 @@ class TestReorderVisible:
         assert items[0].desktop_id == "b.desktop"
         assert items[0].is_pinned
         assert "b.desktop" in config.pinned
+        config.save.assert_called_once()
 
     def test_reorder_both_transients(self):
         # Given
@@ -308,6 +315,7 @@ class TestReorderVisible:
         items = model.visible_items()
         assert all(it.is_pinned for it in items)
         assert len(config.pinned) == 2
+        config.save.assert_called_once()
 
     def test_reorder_visible_out_of_bounds_noop(self):
         # Given
@@ -318,6 +326,7 @@ class TestReorderVisible:
         model.reorder_visible(0, 5)
         # Then
         assert len(model.visible_items()) == 1
+        config.save.assert_not_called()
 
     def test_anchor_files_moves_files_and_folders_after_apps(self):
         config = _make_config([])

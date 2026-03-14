@@ -462,7 +462,7 @@ class DockModel:
             self._transient.remove(item)
             item.is_pinned = True
             self.pinned_items.append(item)
-            self.sync_pinned_to_config()
+            self._persist_pinned_changes()
             self.notify()
 
     def add_pinned_item(self, item: DockItem, index: int = -1) -> None:
@@ -472,8 +472,7 @@ class DockModel:
             self.pinned_items.append(item)
         else:
             self.pinned_items.insert(index, item)
-        self.sync_pinned_to_config()
-        self._config.save()
+        self._persist_pinned_changes()
         self.notify()
 
     def unpin_item(self, desktop_id: str) -> None:
@@ -490,7 +489,7 @@ class DockModel:
             item.is_pinned = False
             if item.kind == APP_KIND and item.is_running:
                 self._transient.append(item)
-            self.sync_pinned_to_config()
+            self._persist_pinned_changes()
             self.notify()
 
     def reorder(self, from_index: int, to_index: int) -> None:
@@ -499,7 +498,7 @@ class DockModel:
         if 0 <= from_index < len(items) and 0 <= to_index < len(items):
             item = items.pop(from_index)
             items.insert(to_index, item)
-            self.sync_pinned_to_config()
+            self._persist_pinned_changes()
             self.notify()
 
     def reorder_visible(self, from_index: int, to_index: int) -> None:
@@ -540,7 +539,7 @@ class DockModel:
             self.pinned_items.pop(pinned_from)
             self.pinned_items.insert(pinned_to, item)
 
-        self.sync_pinned_to_config()
+        self._persist_pinned_changes()
         self.notify()
 
     def sync_pinned_to_config(self) -> None:
@@ -548,6 +547,11 @@ class DockModel:
         self._config.pinned = [
             self._entry_from_item(item=item) for item in self.pinned_items
         ]
+
+    def _persist_pinned_changes(self) -> None:
+        """Sync current pinned order to config and flush it to disk."""
+        self.sync_pinned_to_config()
+        self._config.save()
 
     @staticmethod
     def _entry_from_item(item: DockItem) -> PinnedEntry:
