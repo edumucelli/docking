@@ -252,6 +252,7 @@ jobs:
             typelib-1_0-GdkPixbuf-2_0 \
             typelib-1_0-Gtk-3_0 \
             typelib-1_0-Pango-1_0 \
+            typelib-1_0-Wnck-3_0 \
             libgtk-3-0 libgdk_pixbuf-2_0-0 libpango-1_0-0 \
             gdk-pixbuf-loader-rsvg librsvg \
             xauth xorg-x11-server-Xvfb \
