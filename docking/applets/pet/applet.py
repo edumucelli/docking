@@ -46,6 +46,7 @@ class PetApplet(Applet):
         self._prev_sample: CpuSample | None = None
         self._timer_id: int = 0
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size, state=self._state)
@@ -68,7 +69,7 @@ class PetApplet(Applet):
         self._state = reset_to_happy(state=self._state)
         self.item.is_urgent = False
         self.refresh_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def _tick(self) -> bool:
         """Poll /proc/stat, update mood, redraw if needed."""
@@ -98,6 +99,6 @@ class PetApplet(Applet):
 
         if result.should_refresh:
             self.refresh_tooltip()
-            self.refresh_presentation()
+            self.present()
 
         return True

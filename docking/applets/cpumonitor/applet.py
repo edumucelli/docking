@@ -49,6 +49,7 @@ class CpuMonitorApplet(Applet):
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Render circular gauge to pixbuf."""
@@ -102,6 +103,6 @@ class CpuMonitorApplet(Applet):
         if cpu_delta >= CPU_THRESHOLD or mem_delta >= MEM_THRESHOLD:
             self._last_drawn_cpu = self._cpu
             self._last_drawn_mem = self._mem
-            self.refresh_presentation()
+            self.present()
 
         return True

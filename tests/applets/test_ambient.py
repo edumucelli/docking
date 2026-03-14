@@ -250,14 +250,14 @@ class TestAmbientLifecycleAndPipelines:
         applet._stop_playback = MagicMock()
         applet._start_playback = MagicMock()
         applet._save = MagicMock()
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet._select_sound(name=target)
 
         applet._stop_playback.assert_called_once()
         applet._start_playback.assert_called_once()
         applet._save.assert_called_once()
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
         assert applet._current == target
 
     def test_start_playback_returns_when_sound_is_unknown(self):

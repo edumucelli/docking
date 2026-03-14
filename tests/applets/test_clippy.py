@@ -179,7 +179,7 @@ class TestClipRendering:
         d._cur_position = 2  # at "b"
         d.on_scroll(direction_up=False)  # wraps to "a"
         assert d._cur_position == 1
-        # create_icon is called by refresh_presentation inside on_scroll
+        # create_icon is called by present inside on_scroll
         # so item.name should already be updated
         assert "a" in d.item.name
 
@@ -224,12 +224,12 @@ class TestClipLifecycle:
         clipboard = MagicMock()
         clipboard.wait_for_text.return_value = "new text"
         applet.add_clip = MagicMock()
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet._on_owner_change(clipboard, None)
 
         applet.add_clip.assert_called_once_with(text="new text")
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_copy_to_clipboard_helper_uses_clipboard(self):
         applet = ClippyApplet(48)

@@ -46,6 +46,7 @@ class BookmarksApplet(Applet):
             config.applet_prefs.get("bookmarks", {}) if config else None
         )
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size, count=len(self._bookmarks))
@@ -129,13 +130,13 @@ class BookmarksApplet(Applet):
             if name and url:
                 self._bookmarks.append(Bookmark(name=name, url=url))
                 self._save_prefs()
-                self.refresh_presentation()
+                self.present()
         dialog.destroy()
 
     def _remove_all(self) -> None:
         self._bookmarks.clear()
         self._save_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def _save_prefs(self) -> None:
         self.save_prefs(prefs=prefs_from_bookmarks(bookmarks=self._bookmarks))

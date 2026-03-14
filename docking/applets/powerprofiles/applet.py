@@ -65,6 +65,7 @@ class PowerProfilesApplet(Applet):
         self._action_error = ""
         self._state = self._backend.get_state()
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int):
         """Render icon from the current canonical profile state."""
@@ -164,7 +165,7 @@ class PowerProfilesApplet(Applet):
         changed = state != self._state
         self._state = state
         if changed:
-            self.refresh_presentation()
+            self.present()
         return False
 
     def _on_profile_toggled(self, widget: Gtk.RadioMenuItem, profile: str) -> None:
@@ -201,5 +202,5 @@ class PowerProfilesApplet(Applet):
             self._action_error = ""
         else:
             self._action_error = f"Failed to set {profile_label(profile)}"
-        self.refresh_presentation()
+        self.present()
         return False

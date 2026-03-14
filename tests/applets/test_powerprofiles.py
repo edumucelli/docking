@@ -569,7 +569,7 @@ class TestPowerProfilesApplet:
     def test_poll_result_refreshes_only_on_change(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         refresh_calls: list[str] = []
-        applet.refresh_presentation = lambda: refresh_calls.append("refresh")  # type: ignore[assignment]
+        applet.present = lambda: refresh_calls.append("refresh")  # type: ignore[assignment]
         state = _state()
         assert applet._on_poll_result(state) is False
         assert refresh_calls == []
@@ -580,7 +580,7 @@ class TestPowerProfilesApplet:
     def test_set_result_sets_error_on_failure(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         refresh_calls: list[str] = []
-        applet.refresh_presentation = lambda: refresh_calls.append("refresh")  # type: ignore[assignment]
+        applet.present = lambda: refresh_calls.append("refresh")  # type: ignore[assignment]
         applet._set_in_progress = True
         assert applet._on_set_result("performance", False, _state()) is False
         assert applet._set_in_progress is False
@@ -672,7 +672,7 @@ class TestPowerProfilesApplet:
         assert idle_calls
         assert idle_calls[0][1] == "performance"
 
-        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        applet.present = lambda: None  # type: ignore[assignment]
         applet._action_error = "old"
         assert applet._on_set_result("performance", True, _state()) is False
         assert applet._action_error == ""

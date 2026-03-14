@@ -242,10 +242,10 @@ class TestBrightnessApplet:
             def get_active(self):
                 return self._active
 
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         applet._on_toggle_level(_Widget(active=True))
         assert applet._show_level is True
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_poll_and_tick_branches(self, monkeypatch):
         applet = _make_applet(brightness=0.5)
@@ -273,20 +273,20 @@ class TestBrightnessApplet:
 
     def test_poll_result_updates_on_change(self):
         applet = _make_applet(brightness=0.5)
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         applet._on_poll_result(0.8)
         assert applet._brightness == 0.8
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_poll_result_ignores_none(self):
         applet = _make_applet(brightness=0.5)
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         applet._on_poll_result(None)
         assert applet._brightness == 0.5
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
 
     def test_poll_result_ignores_small_change(self):
         applet = _make_applet(brightness=0.5)
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         applet._on_poll_result(0.505)
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()

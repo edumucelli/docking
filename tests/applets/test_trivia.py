@@ -199,11 +199,11 @@ class TestTriviaAppletBranches:
     def test_fetch_async_noop_when_loading(self):
         applet = TriviaApplet(48)
         applet._loading = True
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet._fetch_async(show_first=True)
 
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
 
     def test_fetch_async_runs_worker_and_posts_idle_result(self, monkeypatch):
         applet = TriviaApplet(48)
@@ -239,7 +239,7 @@ class TestTriviaAppletBranches:
     def test_on_fetch_result_applies_entries_and_fallback(self, monkeypatch):
         applet = TriviaApplet(48)
         applet._loading = True
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         assert applet._on_fetch_result([ENTRY], show_first=True) is False
         assert applet._current == ENTRY

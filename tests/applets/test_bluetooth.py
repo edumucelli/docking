@@ -806,7 +806,7 @@ class TestBluetoothApplet:
             _state(adapters=(_adapter(discovering=True),)),
         )
         applet._power_transition_in_progress = True
-        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        applet.present = lambda: None  # type: ignore[assignment]
 
         applet._on_power_result(
             False, False, _state(adapters=(_adapter(discovering=True),))
@@ -931,7 +931,7 @@ class TestBluetoothApplet:
         applet, _backend = _make_applet(monkeypatch, state)
         applet._local_discovery_active = True
         applet._ensure_discovery = lambda: None  # type: ignore[assignment]
-        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        applet.present = lambda: None  # type: ignore[assignment]
         assert applet._on_poll_result(state) is False
         assert applet._local_discovery_active is False
 
@@ -1068,13 +1068,13 @@ class TestBluetoothApplet:
                 self._target()
 
         applet._stop_local_discovery = lambda quiet=True: True  # type: ignore[assignment]
-        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        applet.present = lambda: None  # type: ignore[assignment]
         applet._set_power_async(target=False)
         assert backend.power_calls
 
     def test_power_result_discovery_toggle_and_pref_bool(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
-        applet.refresh_presentation = lambda: None  # type: ignore[assignment]
+        applet.present = lambda: None  # type: ignore[assignment]
         applet._local_discovery_active = True
         applet._on_power_result(False, True, _state())
         assert applet._local_discovery_active is False

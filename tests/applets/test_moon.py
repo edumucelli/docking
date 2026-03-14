@@ -262,7 +262,7 @@ class TestMoonApplet:
 
         applet = MoonApplet(48, config=_Cfg())
         assert applet._show_phase is False
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         class _Widget:
             def __init__(self, active: bool):
@@ -273,7 +273,7 @@ class TestMoonApplet:
 
         applet._on_toggle_phase(_Widget(active=True))
         assert applet._show_phase is True
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_start_stop_tick_clicked_and_fetch_async(self, monkeypatch):
         applet = MoonApplet(48)
@@ -323,8 +323,8 @@ class TestMoonApplet:
         applet._fetch_async()
         assert idle_calls and idle_calls[0][1] == _SAMPLE_MOON
 
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         assert applet._on_result(None) is False
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
         assert applet._on_result(_SAMPLE_MOON) is False
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()

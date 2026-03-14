@@ -324,7 +324,7 @@ class TestNetworkAppletInternals:
         update = MagicMock()
         refresh = MagicMock()
         monkeypatch.setattr(applet, "_update_nm_state", update)
-        monkeypatch.setattr(applet, "refresh_presentation", refresh)
+        monkeypatch.setattr(applet, "present", refresh)
         # When
         applet._on_nm_changed()
         # Then
@@ -502,7 +502,7 @@ class TestNetworkAppletInternals:
         refresh = MagicMock()
         monkeypatch.setattr(applet, "_update_traffic", update_traffic)
         monkeypatch.setattr(applet, "_update_wifi_signal", update_wifi)
-        monkeypatch.setattr(applet, "refresh_presentation", refresh)
+        monkeypatch.setattr(applet, "present", refresh)
         # When
         result = applet._tick()
         # Then

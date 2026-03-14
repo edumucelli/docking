@@ -53,7 +53,7 @@ class TodayInHistoryApplet(Applet):
         self._current_month, self._current_day = self._current_date()
         super().__init__(icon_size, config)
         self._load_fallback_for(month=self._current_month, day=self._current_day)
-        self.refresh_presentation()
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size)
@@ -75,7 +75,7 @@ class TodayInHistoryApplet(Applet):
             self._fetch_async(show_first=True)
             return
         self._advance_event()
-        self.refresh_presentation()
+        self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -148,7 +148,7 @@ class TodayInHistoryApplet(Applet):
         self._loading = True
         self._loading_key = request_key
         if show_first:
-            self.refresh_presentation()
+            self.present()
 
         def worker() -> None:
             entries = fetch_today_in_history(month=month, day=day)
@@ -188,7 +188,7 @@ class TodayInHistoryApplet(Applet):
             self._advance_event()
 
         self.refresh_tooltip()
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _poll_day_change(self) -> bool:
@@ -199,7 +199,7 @@ class TodayInHistoryApplet(Applet):
         self._current_month = month
         self._current_day = day
         self._load_fallback_for(month=month, day=day)
-        self.refresh_presentation()
+        self.present()
         self._fetch_async(show_first=False)
         return True
 

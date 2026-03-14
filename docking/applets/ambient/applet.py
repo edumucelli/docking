@@ -72,7 +72,7 @@ class AmbientApplet(Applet):
         self._bus_watching = False
 
         super().__init__(icon_size, config)
-        self._update_tooltip()
+        self.present()
 
     # Compatibility accessors used by existing tests
     @property
@@ -106,6 +106,9 @@ class AmbientApplet(Applet):
     def _update_tooltip(self) -> None:
         self.item.name = tooltip_text(state=self._state)
 
+    def refresh_tooltip(self) -> None:
+        self._update_tooltip()
+
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size)
 
@@ -122,14 +125,14 @@ class AmbientApplet(Applet):
         else:
             self._start_playback()
         self._update_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def on_scroll(self, direction_up: bool) -> None:
         self._state = adjust_volume(state=self._state, direction_up=direction_up)
         self._apply_volume()
         self._save()
         self._update_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -154,7 +157,7 @@ class AmbientApplet(Applet):
         if was_playing:
             self._start_playback()
         self._update_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def _start_playback(self) -> None:
         self._stop_playback()

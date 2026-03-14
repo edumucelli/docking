@@ -46,13 +46,16 @@ class VolumeApplet(Applet):
         self._worker = BackgroundWorker(logger=_log)
         self._poll()
         super().__init__(icon_size, config)
-        self._update_tooltip()
+        self.present()
 
     def _update_tooltip(self) -> None:
         self.item.name = (
             _("Muted") if self._muted else _("Volume: {pct}%").format(pct=self._volume)
         )
         self.item.icon_name = _volume_icon_name(volume=self._volume, muted=self._muted)
+
+    def refresh_tooltip(self) -> None:
+        self._update_tooltip()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_volume_icon(size=size, volume=self._volume, muted=self._muted)
@@ -73,7 +76,7 @@ class VolumeApplet(Applet):
             self._backend.toggle_mute()
             self._poll()
             self._update_tooltip()
-            self.refresh_presentation()
+            self.present()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Adjust volume ±5% on scroll."""
@@ -86,7 +89,7 @@ class VolumeApplet(Applet):
         self._backend.set_volume(new)
         self._poll()
         self._update_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def _poll(self) -> None:
         """Read current volume state from backend."""
@@ -116,5 +119,5 @@ class VolumeApplet(Applet):
             self._volume = state.volume
             self._muted = state.muted
             self._update_tooltip()
-            self.refresh_presentation()
+            self.present()
         return False

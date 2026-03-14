@@ -303,19 +303,19 @@ class TestVolumeAppletInternals:
         assert applet._on_poll_result(None) is False
         applet._volume = 45
         applet._muted = False
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         assert applet._on_poll_result(VolumeState(volume=45, muted=False)) is False
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
 
     def test_on_poll_result_updates_when_changed(self):
         applet = _make_applet()
         applet._volume = 10
         applet._muted = False
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         assert applet._on_poll_result(VolumeState(volume=60, muted=True)) is False
         assert applet._volume == 60
         assert applet._muted is True
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_tick_worker_posts_idle_callback(self, monkeypatch):
         applet = _make_applet()

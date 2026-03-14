@@ -39,6 +39,7 @@ class RecentFilesApplet(Applet):
         self._signal_id: int | None = None
         self._refresh_entries()
         super().__init__(icon_size, config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size, has_files=bool(self._entries))
@@ -100,7 +101,7 @@ class RecentFilesApplet(Applet):
 
     def _on_changed(self, *_args: object) -> None:
         self._refresh_entries()
-        self.refresh_presentation()
+        self.present()
 
     def _open_uri(self, *, uri: str) -> None:
         try:

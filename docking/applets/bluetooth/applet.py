@@ -88,6 +88,7 @@ class BluetoothApplet(Applet):
         )
         self._sync_selected_adapter(persist=False)
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int):
         adapter = self._active_adapter()
@@ -345,7 +346,7 @@ class BluetoothApplet(Applet):
             # still be active.
             self._local_discovery_active = False
         self._ensure_discovery()
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _refresh_now(self) -> None:
@@ -517,7 +518,7 @@ class BluetoothApplet(Applet):
                 self._action_error = "Power off failed."
         else:
             self._action_error = "Power on failed."
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _on_continuous_discovery_toggled(self, widget: Gtk.CheckMenuItem) -> None:

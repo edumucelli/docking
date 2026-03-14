@@ -57,6 +57,7 @@ class BrightnessApplet(Applet):
 
         self._poll()
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(
@@ -84,7 +85,7 @@ class BrightnessApplet(Applet):
         if self._backend:
             set_brightness(backend=self._backend, value=1.0)
             self._brightness = 1.0
-            self.refresh_presentation()
+            self.present()
 
     def get_menu_items(self) -> list:
         from gi.repository import Gtk
@@ -99,7 +100,7 @@ class BrightnessApplet(Applet):
     def _on_toggle_level(self, widget) -> None:
         self._show_level = widget.get_active()
         self.save_prefs(prefs={"show_level": self._show_level})
-        self.refresh_presentation()
+        self.present()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Adjust brightness ±2% on scroll."""
@@ -111,7 +112,7 @@ class BrightnessApplet(Applet):
             new = max(0.1, self._brightness - STEP)
         set_brightness(backend=self._backend, value=new)
         self._brightness = new
-        self.refresh_presentation()
+        self.present()
 
     def _poll(self) -> None:
         """Read current brightness synchronously."""
@@ -136,5 +137,5 @@ class BrightnessApplet(Applet):
     def _on_poll_result(self, val: float | None) -> bool:
         if val is not None and abs(val - self._brightness) > 0.01:
             self._brightness = val
-            self.refresh_presentation()
+            self.present()
         return False

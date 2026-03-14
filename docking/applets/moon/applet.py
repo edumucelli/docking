@@ -58,6 +58,7 @@ class MoonApplet(Applet):
             self._show_phase = prefs.get("show_phase", True)
 
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int):
         if not self._moon:
@@ -130,7 +131,7 @@ class MoonApplet(Applet):
     def _on_toggle_phase(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_phase = widget.get_active()
         self.save_prefs(prefs={"show_phase": self._show_phase})
-        self.refresh_presentation()
+        self.present()
 
     def _tick(self) -> bool:
         self._fetch_async()
@@ -146,5 +147,5 @@ class MoonApplet(Applet):
     def _on_result(self, data: MoonData | None) -> bool:
         if data:
             self._moon = data
-            self.refresh_presentation()
+            self.present()
         return False

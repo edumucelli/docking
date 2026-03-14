@@ -154,20 +154,18 @@ class TestHydrationLifecycle:
         widget = MagicMock()
         widget.get_active.return_value = False
         applet._save = MagicMock()
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet._on_toggle_timer(widget)
 
         assert applet._show_timer is False
         applet._save.assert_called_once()
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_tick_should_refresh_branch_updates_tooltip(self, monkeypatch):
         applet = HydrationApplet(48)
         refreshed = []
-        monkeypatch.setattr(
-            applet, "refresh_presentation", lambda: refreshed.append(True)
-        )
+        monkeypatch.setattr(applet, "present", lambda: refreshed.append(True))
         monkeypatch.setattr(
             hydration_mod,
             "tick",

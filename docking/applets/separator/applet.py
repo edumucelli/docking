@@ -44,6 +44,7 @@ class SeparatorApplet(Applet):
         super().__init__(icon_size, config)
         self.item.main_size = self._gap
         self.item.allow_zoom = False
+        self.present()
 
     def _prefs_key(self) -> str:
         """Per-instance prefs key (e.g. 'separator#0')."""
@@ -72,7 +73,7 @@ class SeparatorApplet(Applet):
             self._style,
             self._invert_color,
         )
-        self.refresh_presentation()
+        self.present()
 
     def _save_current_prefs(self) -> None:
         self.save_instance_prefs(
@@ -90,7 +91,7 @@ class SeparatorApplet(Applet):
             f"Separator size set to {self._gap}px"
         )
         self._save_current_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def _set_style(self, style: str) -> None:
         style = _normalized_style(value=style)
@@ -98,14 +99,14 @@ class SeparatorApplet(Applet):
             return
         self._style = style
         self._save_current_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def _set_invert_color(self, invert_color: bool) -> None:
         if invert_color == self._invert_color:
             return
         self._invert_color = invert_color
         self._save_current_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def create_icon(self, size: int):
         return create_separator_icon(gap=self._gap, size=size)

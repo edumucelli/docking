@@ -298,7 +298,7 @@ class TestClockInteractions:
     def test_toggle_handlers_update_state_and_refresh(self):
         clock = ClockApplet(48)
         clock._save_prefs = MagicMock()
-        clock.refresh_presentation = MagicMock()
+        clock.present = MagicMock()
 
         w_true = MagicMock()
         w_true.get_active.return_value = True
@@ -313,7 +313,7 @@ class TestClockInteractions:
         assert clock._show_military is True
         assert clock._show_date is False
         assert clock._save_prefs.call_count == 3
-        assert clock.refresh_presentation.call_count == 3
+        assert clock.present.call_count == 3
 
     def test_start_and_stop_delegate_to_minute_timer(self):
         clock = ClockApplet(48)

@@ -754,13 +754,13 @@ class TestMusicApplet:
         assert idle_calls and idle_calls[0][1] == polled
         assert idle_calls[0][2] is art
 
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         applet._state = polled
         applet._album_art = art
         assert applet._apply_poll_result(polled, art) is False
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
         assert applet._apply_poll_result(_state(title="Other"), None) is False
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_scroll_sync_and_tooltip_widget(self, monkeypatch):
         applet, _backend, _resolver = _make_applet(monkeypatch, _state())

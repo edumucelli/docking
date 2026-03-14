@@ -31,6 +31,7 @@ class BatteryApplet(Applet):
         self._timer_id: int = 0
         self._state: BatteryState | None = read_battery()
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load battery theme icon matching current state."""
@@ -54,5 +55,5 @@ class BatteryApplet(Applet):
     def _tick(self) -> bool:
         """Re-read sysfs and refresh icon."""
         self._state = read_battery()
-        self.refresh_presentation()
+        self.present()
         return True

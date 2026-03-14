@@ -156,9 +156,7 @@ class TestCpuMonitorLifecycle:
 
         monkeypatch.setattr("builtins.open", fake_open)
         refresh = []
-        monkeypatch.setattr(
-            applet, "refresh_presentation", lambda: refresh.append(True)
-        )
+        monkeypatch.setattr(applet, "present", lambda: refresh.append(True))
 
         assert applet._tick() is True
         assert applet._prev_sample is not None
@@ -206,9 +204,7 @@ class TestCpuMonitorLifecycle:
 
         monkeypatch.setattr("builtins.open", fake_open)
         refresh = []
-        monkeypatch.setattr(
-            applet, "refresh_presentation", lambda: refresh.append(True)
-        )
+        monkeypatch.setattr(applet, "present", lambda: refresh.append(True))
 
         assert applet._tick() is True
         assert refresh == []

@@ -46,7 +46,7 @@ class StretchCoachApplet(Applet):
         self._cards = load_cards()
         self._timer_id: int = 0
         super().__init__(icon_size=icon_size, config=config)
-        self.refresh_tooltip()
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size, state=self._state)
@@ -72,7 +72,7 @@ class StretchCoachApplet(Applet):
             self._state = trigger_reminder(self._state, cards=self._cards)
             self.item.is_urgent = True
             self.item.last_urgent = GLib.get_monotonic_time()
-        self.refresh_presentation()
+        self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -107,26 +107,26 @@ class StretchCoachApplet(Applet):
         if result.became_due:
             self.item.is_urgent = True
             self.item.last_urgent = GLib.get_monotonic_time()
-            self.refresh_presentation()
+            self.present()
         elif result.should_refresh:
-            self.refresh_presentation()
+            self.present()
         else:
             self._refresh_tooltip_only()
         return True
 
     def _show_random_stretch(self) -> None:
         self._state = show_preview_card(self._state, cards=self._cards)
-        self.refresh_presentation()
+        self.present()
 
     def _on_toggle_cards(self, widget: Gtk.CheckMenuItem) -> None:
         self._state = set_cards_enabled(self._state, widget.get_active())
         self._save()
-        self.refresh_presentation()
+        self.present()
 
     def _set_interval(self, minutes: int) -> None:
         self._state = set_interval(self._state, minutes=minutes)
         self._save()
-        self.refresh_presentation()
+        self.present()
 
     def _refresh_tooltip_only(self) -> None:
         self.refresh_tooltip()

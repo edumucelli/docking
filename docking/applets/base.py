@@ -10,14 +10,16 @@ Applets split their work into two explicit paths:
 
 1. ``create_icon(size)``: pure visual rendering to pixbuf,
 2. ``refresh_tooltip()``: update user-facing metadata (name/tooltip builder),
-3. ``refresh_presentation()``: perform both and notify the dock model/UI.
+3. ``present()``: perform both and notify the dock model/UI,
+4. ``present()``: explicit first presentation sync after subclass init completes.
 
 Why this split matters
 
 The current applet contract keeps rendering and metadata updates explicit.
 ``create_icon()`` is for pixels, ``refresh_tooltip()`` is for user-facing text,
-and ``refresh_presentation()`` is the coordinated update path. This keeps applet
-behavior predictable and testable:
+``present()`` is the coordinated update path for later state
+changes, and ``present()`` marks the first sync once subclass state is ready.
+This keeps applet behavior predictable and testable:
 
 - icon tests can assert drawing behavior independently,
 - tooltip/name tests can assert metadata logic independently,
@@ -28,10 +30,11 @@ Applet lifecycle model
 Applets are instantiated by DockModel with icon size and config, then started
 after dock startup. Typical lifecycle:
 
-1. ``__init__`` creates the DockItem and performs initial presentation sync,
-2. ``start(notify=...)`` enables timers/watchers/signal subscriptions,
-3. applet internals call ``refresh_presentation()`` on state changes,
-4. ``stop()`` tears down timers/watchers when removed or on shutdown.
+1. ``__init__`` creates the DockItem,
+2. ``present()`` performs the initial presentation sync once subclass init is complete,
+3. ``start(notify=...)`` enables timers/watchers/signal subscriptions,
+4. applet internals call ``present()`` on state changes,
+5. ``stop()`` tears down timers/watchers when removed or on shutdown.
 
 Shared helpers provided here
 
@@ -259,7 +262,8 @@ class Applet(ABC):
     renderer draws it like any other icon -- no renderer changes needed.
 
     Lifecycle:
-      __init__  -> create item, then initial presentation sync
+      __init__  -> create item
+      present() -> initial presentation sync once subclass state is ready
       start()   -> begin timers/monitors (called after dock is ready)
       stop()    -> cleanup (called on removal or shutdown)
     """
@@ -282,7 +286,6 @@ class Applet(ABC):
             icon=None,
             prefs_key=self.desktop_id,
         )
-        self.refresh_presentation()
 
     @property
     def desktop_id(self) -> str:
@@ -337,7 +340,7 @@ class Applet(ABC):
         """Cleanup timers/monitors."""
         self._notify = None
 
-    def refresh_presentation(self) -> None:
+    def present(self) -> None:
         """Refresh icon + tooltip fields and trigger a redraw."""
         self.item.icon = self.create_icon(size=self._icon_size)
         self.refresh_tooltip()

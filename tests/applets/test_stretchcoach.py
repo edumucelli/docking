@@ -249,37 +249,37 @@ class TestStretchCoachApplet:
         widget = MagicMock()
         widget.get_active.return_value = False
         applet._save = MagicMock()
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet._on_toggle_cards(widget)
 
         assert applet._state.cards_enabled is False
         applet._save.assert_called_once()
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_set_interval_saves_and_refreshes(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
         applet = StretchCoachApplet(48)
         applet._save = MagicMock()
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet._set_interval(45)
 
         assert applet._state.interval_min == 45
         assert applet._state.remaining == 45 * 60
         applet._save.assert_called_once()
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_tick_due_branch_marks_urgent(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
         applet = StretchCoachApplet(48)
         applet._state = StretchCoachState(remaining=1)
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         assert applet._tick() is True
         assert applet._state.due is True
         assert applet.item.is_urgent is True
-        assert applet.refresh_presentation.call_count == 1
+        assert applet.present.call_count == 1
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
@@ -326,7 +326,7 @@ class TestStretchCoachAppletBranches:
     def test_tick_refresh_branch_updates_presentation(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
         applet = StretchCoachApplet(48)
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         monkeypatch.setattr(
             stretchcoach_applet_mod,
             "tick",
@@ -338,12 +338,12 @@ class TestStretchCoachAppletBranches:
         )
 
         assert applet._tick() is True
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_tick_tooltip_only_branch_notifies_without_icon_refresh(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
         applet = StretchCoachApplet(48)
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         applet._notify = MagicMock()
         monkeypatch.setattr(
             stretchcoach_applet_mod,
@@ -357,5 +357,5 @@ class TestStretchCoachAppletBranches:
 
         assert applet._tick() is True
         assert applet.item.name == "Next stretch in 29:59"
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
         applet._notify.assert_called_once()

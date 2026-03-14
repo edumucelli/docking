@@ -81,7 +81,7 @@ class TestCalendarApplet:
         # Given
         applet = CalendarApplet(48)
         applet._last_day = 10
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         monkeypatch.setattr(
             calendar_applet_mod,
             "snapshot_from",
@@ -93,14 +93,14 @@ class TestCalendarApplet:
 
         # Then
         assert result is True
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
         assert "Jan 11" in applet._tooltip_text
 
     def test_tick_updates_tooltip_only_when_same_day(self, monkeypatch):
         # Given
         applet = CalendarApplet(48)
         applet._last_day = 10
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         monkeypatch.setattr(
             calendar_applet_mod,
             "snapshot_from",
@@ -112,7 +112,7 @@ class TestCalendarApplet:
 
         # Then
         assert result is True
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
         assert applet.item.name == "Mon, Jan 10"
 
     def test_on_clicked_hides_existing_popup(self):

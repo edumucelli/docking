@@ -58,7 +58,7 @@ class QuoteApplet(Applet):
         super().__init__(icon_size, config)
         self._quotes = source_fallback(source=self._source)
         self._advance_quote()
-        self.refresh_tooltip()
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -68,7 +68,7 @@ class QuoteApplet(Applet):
 
     def on_clicked(self) -> None:
         if self._advance_quote():
-            self.refresh_presentation()
+            self.present()
             # Fetch next batch in background when we reach the end.
             if self._index >= len(self._quotes) - 1:
                 self._fetch_async(show_first=False)
@@ -128,7 +128,7 @@ class QuoteApplet(Applet):
         self._index = -1
         self._current = None
         self._advance_quote()
-        self.refresh_presentation()
+        self.present()
         self._fetch_async(show_first=False)
 
     def _refresh_from_web(self) -> None:
@@ -154,7 +154,7 @@ class QuoteApplet(Applet):
             return
         self._loading = True
         if show_first:
-            self.refresh_presentation()
+            self.present()
 
         source = self._source
 
@@ -188,7 +188,7 @@ class QuoteApplet(Applet):
             self._advance_quote()
 
         self.refresh_tooltip()
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _advance_quote(self) -> bool:

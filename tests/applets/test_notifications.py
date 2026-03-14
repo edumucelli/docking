@@ -272,9 +272,9 @@ class TestNotificationsApplet:
 
         applet2, backend2 = _make_applet(monkeypatch, _state(paused=False))
         backend2.set_paused = lambda paused: False  # type: ignore[method-assign]
-        applet2.refresh_presentation = MagicMock()
+        applet2.present = MagicMock()
         applet2.on_clicked()
-        applet2.refresh_presentation.assert_not_called()
+        applet2.present.assert_not_called()
 
     def test_unavailable_menu(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, unavailable_state())
@@ -310,21 +310,21 @@ class TestNotificationsApplet:
             NotificationEntry(app_name="Chat", summary="C", body="D"),
         ]
         applet._history_index = 1
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet._on_clear_history()
 
         assert applet._history == []
         assert applet._history_index == 0
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_poll_result_refreshes_only_on_change(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending=1))
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         assert applet._on_poll_result(_state(pending=1)) is False
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
         assert applet._on_poll_result(_state(pending=2)) is False
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_activity_badge_shows_for_unknown_pending(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))
@@ -366,11 +366,11 @@ class TestNotificationsApplet:
             "timeout_add_seconds",
             lambda _seconds, _cb: 1,
         )
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         assert applet._on_notification_activity() is False
         assert applet._activity_until_monotonic == 108.0
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_notification_event_updates_last_content(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))
@@ -380,7 +380,7 @@ class TestNotificationsApplet:
             "timeout_add_seconds",
             lambda _seconds, _cb: 1,
         )
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         assert (
             applet._on_notification_event("Mail", "New message", "Hello world") is False
@@ -392,7 +392,7 @@ class TestNotificationsApplet:
             body="Hello world",
         )
         assert applet._history_index == 0
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_refresh_tooltip_includes_last_notification(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))
@@ -424,14 +424,14 @@ class TestNotificationsApplet:
             NotificationEntry(app_name="C", summary="Third", body=""),
         ]
         applet._history_index = 0
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         applet.on_scroll(direction_up=True)
         assert applet._history_index == 1
 
         applet.on_scroll(direction_up=False)
         assert applet._history_index == 0
-        assert applet.refresh_presentation.call_count == 2
+        assert applet.present.call_count == 2
 
     def test_scroll_wraps_history(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))
@@ -518,13 +518,13 @@ class TestNotificationsApplet:
 
         applet._state = _state(available=True, pending_known=False)
         applet._activity_until_monotonic = float("inf")
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         assert applet._on_activity_expired() is False
-        applet.refresh_presentation.assert_not_called()
+        applet.present.assert_not_called()
 
         applet._activity_until_monotonic = 0.0
         assert applet._on_activity_expired() is False
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_activity_monitor_start_and_stop_paths(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
@@ -652,7 +652,7 @@ class TestNotificationsApplet:
         monkeypatch.setattr(
             notifications_applet_mod.GLib, "source_remove", lambda _id: None
         )
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         for i in range(HISTORY_LIMIT + 5):
             applet._on_notification_event("App", f"S{i}", "Body")
         assert len(applet._history) == HISTORY_LIMIT

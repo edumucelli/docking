@@ -55,6 +55,7 @@ class MusicApplet(Applet):
         self._state = self._backend.poll()
         self._album_art = self._cover_art.resolve(state=self._state)
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_music_icon(
@@ -94,7 +95,7 @@ class MusicApplet(Applet):
         if self._backend.set_volume(state=self._state, volume_percent=target):
             # Avoid synchronous re-poll on rapid scroll bursts (can stall UI).
             self._state = replace(self._state, volume_percent=target)
-            self.refresh_presentation()
+            self.present()
             self._schedule_scroll_sync()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
@@ -173,7 +174,7 @@ class MusicApplet(Applet):
             return False
         self._state = state
         self._album_art = art
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _schedule_scroll_sync(self) -> None:

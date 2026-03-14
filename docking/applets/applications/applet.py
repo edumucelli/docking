@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -17,6 +18,9 @@ from docking.applets.identity import AppletId
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
+if TYPE_CHECKING:
+    from docking.core.config import Config
+
 _log = with_context(
     get_logger(name="applications"),
     applet_id=str(AppletId.APPLICATIONS),
@@ -29,6 +33,10 @@ class ApplicationsApplet(Applet):
     id = AppletId.APPLICATIONS
     name = _("Applications")
     icon_name = "view-app-grid"
+
+    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import gi
 
 gi.require_version("Wnck", "3.0")
@@ -14,6 +16,9 @@ from docking.applets.desktop.state import next_showing_desktop
 from docking.applets.identity import AppletId
 from docking.i18n import _
 
+if TYPE_CHECKING:
+    from docking.core.config import Config
+
 
 class DesktopApplet(Applet):
     """Click to toggle showing the desktop (minimize/restore all windows)."""
@@ -21,6 +26,10 @@ class DesktopApplet(Applet):
     id = AppletId.DESKTOP
     name = _("Desktop")
     icon_name = "user-desktop"
+
+    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)

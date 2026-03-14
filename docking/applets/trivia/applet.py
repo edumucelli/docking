@@ -48,7 +48,7 @@ class TriviaApplet(Applet):
         super().__init__(icon_size, config)
         self._entries = fallback_trivia()
         self._advance_entry()
-        self.refresh_tooltip()
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -58,7 +58,7 @@ class TriviaApplet(Applet):
 
     def on_clicked(self) -> None:
         if self._advance_entry():
-            self.refresh_presentation()
+            self.present()
             if self._index >= len(self._entries) - 1:
                 self._fetch_async(show_first=False)
             return
@@ -125,7 +125,7 @@ class TriviaApplet(Applet):
         if self._current is None or self._current.selected_answer:
             return
         self._current = answer_entry(self._current, answer)
-        self.refresh_presentation()
+        self.present()
 
     def _refresh_from_web(self) -> None:
         self._fetch_async(show_first=True)
@@ -135,7 +135,7 @@ class TriviaApplet(Applet):
             return
         self._loading = True
         if show_first:
-            self.refresh_presentation()
+            self.present()
 
         def worker() -> None:
             entries = fetch_trivia(limit=20)
@@ -162,7 +162,7 @@ class TriviaApplet(Applet):
             self._advance_entry()
 
         self.refresh_tooltip()
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _advance_entry(self) -> bool:

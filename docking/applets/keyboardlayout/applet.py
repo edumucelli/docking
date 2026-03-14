@@ -49,6 +49,7 @@ class KeyboardLayoutApplet(Applet):
         self._last_label: str = ""
         self._poll()
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     @property
     def _active(self) -> str:
@@ -93,7 +94,7 @@ class KeyboardLayoutApplet(Applet):
         self._backend.switch(layout_code=next_code)
         self._layout = self._layout._replace(active=next_code)
         self.refresh_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Scroll through available layouts."""
@@ -107,7 +108,7 @@ class KeyboardLayoutApplet(Applet):
         self._backend.switch(layout_code=next_code)
         self._layout = self._layout._replace(active=next_code)
         self.refresh_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -126,7 +127,7 @@ class KeyboardLayoutApplet(Applet):
         self._backend.switch(layout_code=code)
         self._layout = self._layout._replace(active=code)
         self.refresh_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def _poll(self) -> None:
         self._layout = self._backend.query()
@@ -140,5 +141,5 @@ class KeyboardLayoutApplet(Applet):
         self._layout = new_layout
         if changed:
             self.refresh_tooltip()
-            self.refresh_presentation()
+            self.present()
         return True

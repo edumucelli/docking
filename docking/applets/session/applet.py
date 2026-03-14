@@ -29,6 +29,7 @@ class SessionApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size, config)
+        self.present()
 
     def create_icon(self, size: int):
         return create_session_icon(size=size)

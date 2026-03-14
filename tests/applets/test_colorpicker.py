@@ -88,7 +88,7 @@ class TestColorPickerApplet:
         applet = ColorPickerApplet(48)
         calls: list[str] = []
         applet._save = lambda: calls.append("save")  # type: ignore[method-assign]
-        applet.refresh_presentation = lambda: calls.append("refresh")  # type: ignore[method-assign]
+        applet.present = lambda: calls.append("refresh")  # type: ignore[method-assign]
 
         class _Widget:
             def get_active(self):
@@ -117,7 +117,7 @@ class TestColorPickerApplet:
         applet._dismiss_overlay = lambda: calls.append("dismiss")  # type: ignore[method-assign]
         applet._copy_to_clipboard = lambda: calls.append("copy")  # type: ignore[method-assign]
         applet._save = lambda: calls.append("save")  # type: ignore[method-assign]
-        applet.refresh_presentation = lambda: calls.append("refresh")  # type: ignore[method-assign]
+        applet.present = lambda: calls.append("refresh")  # type: ignore[method-assign]
         monkeypatch.setattr(
             colorpicker_applet_mod, "pick_pixel", lambda x, y: (10, 20, 30)
         )

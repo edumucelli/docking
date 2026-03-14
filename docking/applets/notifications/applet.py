@@ -66,6 +66,7 @@ class NotificationsApplet(Applet):
         self._history: list[NotificationEntry] = []
         self._history_index: int = 0
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int):
         return create_notifications_icon(
@@ -105,7 +106,7 @@ class NotificationsApplet(Applet):
         target = not self._state.paused
         if self._backend.set_paused(target):
             self._state = replace(self._state, paused=target)
-            self.refresh_presentation()
+            self.present()
             self._refresh_now()
 
     def on_scroll(self, direction_up: bool) -> None:
@@ -113,7 +114,7 @@ class NotificationsApplet(Applet):
             return
         step = 1 if direction_up else -1
         self._history_index = (self._history_index + step) % len(self._history)
-        self.refresh_presentation()
+        self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
@@ -152,7 +153,7 @@ class NotificationsApplet(Applet):
             return
         if self._backend.set_paused(target):
             self._state = replace(self._state, paused=target)
-            self.refresh_presentation()
+            self.present()
             self._refresh_now()
             return
         widget.set_active(self._state.paused)
@@ -166,7 +167,7 @@ class NotificationsApplet(Applet):
             return
         self._history.clear()
         self._history_index = 0
-        self.refresh_presentation()
+        self.present()
 
     def _tick(self) -> bool:
         threading.Thread(target=self._poll_worker, daemon=True).start()
@@ -181,7 +182,7 @@ class NotificationsApplet(Applet):
     def _on_poll_result(self, state: NotificationsState) -> bool:
         if state != self._state:
             self._state = state
-            self.refresh_presentation()
+            self.present()
         return False
 
     def _refresh_now(self) -> None:
@@ -208,14 +209,14 @@ class NotificationsApplet(Applet):
             self._on_activity_expired,
         )
         if force_refresh or current != previous:
-            self.refresh_presentation()
+            self.present()
         return False
 
     def _on_activity_expired(self) -> bool:
         self._activity_clear_id = 0
         if self._show_activity_badge():
             return False
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _start_activity_monitor(self) -> None:

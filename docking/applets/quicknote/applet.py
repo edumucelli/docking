@@ -44,6 +44,7 @@ class QuickNoteApplet(Applet):
         prefs = config.applet_prefs.get("quicknote", {}) if config else None
         self._note = note_from_prefs(prefs)
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size, has_content=bool(self._note.strip()))
@@ -98,7 +99,7 @@ class QuickNoteApplet(Applet):
             start, end = buf.get_bounds()
             self._note = buf.get_text(start, end, include_hidden_chars=True)
             self._save()
-            self.refresh_presentation()
+            self.present()
             dialog.destroy()
 
         dialog.connect("response", on_response)
@@ -108,7 +109,7 @@ class QuickNoteApplet(Applet):
     def _clear_note(self) -> None:
         self._note = ""
         self._save()
-        self.refresh_presentation()
+        self.present()
 
     def _save(self) -> None:
         self.save_prefs(prefs=prefs_from_note(note=self._note))

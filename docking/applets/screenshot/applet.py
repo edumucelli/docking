@@ -46,6 +46,7 @@ class ScreenshotApplet(Applet):
                 f"No screenshot tool found ({', '.join(t.command for t in _TOOLS)})"
             )
         super().__init__(icon_size, config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)

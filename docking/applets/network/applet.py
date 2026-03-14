@@ -79,6 +79,7 @@ class NetworkApplet(Applet):
             self._speed_overlay = prefs.get("speed_overlay", "download")
 
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int):
         """Load network icon with optional speed overlay."""
@@ -147,7 +148,7 @@ class NetworkApplet(Applet):
     def _set_speed_overlay(self, mode: str) -> None:
         self._speed_overlay = mode
         self.save_prefs(prefs={"speed_overlay": mode})
-        self.refresh_presentation()
+        self.present()
 
     def start(self, notify: Callable[[], None]) -> None:
         """Connect to NetworkManager and start traffic polling."""
@@ -179,7 +180,7 @@ class NetworkApplet(Applet):
     def _on_nm_changed(self, *_args: object) -> None:
         """NM active-connections changed: update state immediately."""
         self._update_nm_state()
-        self.refresh_presentation()
+        self.present()
 
     def _update_nm_state(self) -> None:
         """Read current connection info from NetworkManager."""
@@ -238,7 +239,7 @@ class NetworkApplet(Applet):
         """Poll traffic counters and wifi signal."""
         self._update_traffic()
         self._update_wifi_signal()
-        self.refresh_presentation()
+        self.present()
         return True
 
     def _update_traffic(self) -> None:

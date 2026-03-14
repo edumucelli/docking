@@ -47,6 +47,7 @@ class ClippyApplet(Applet):
             self._max_entries = prefs.get("max_entries", 15)
 
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Static edit-paste icon."""
@@ -74,7 +75,7 @@ class ClippyApplet(Applet):
             direction_up=direction_up,
         )
         if self._cur_position:
-            self.refresh_presentation()
+            self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """List all clips (newest first) + Clear button."""
@@ -119,7 +120,7 @@ class ClippyApplet(Applet):
         if not text:
             return
         self.add_clip(text=text)
-        self.refresh_presentation()
+        self.present()
 
     def add_clip(self, text: str) -> None:
         """Add a clip to history (dedup, cap at max_entries)."""
@@ -139,4 +140,4 @@ class ClippyApplet(Applet):
         """Clear all clipboard history."""
         self._clips.clear()
         self._cur_position = 0
-        self.refresh_presentation()
+        self.present()

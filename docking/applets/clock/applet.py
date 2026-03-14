@@ -36,13 +36,14 @@ class ClockApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer = _MinuteTimer()
 
-        # Load prefs before super().__init__ which calls create_icon
+        # Load prefs before the initial presentation sync.
         prefs = config.applet_prefs.get("clock", {}) if config else None
         self._show_digital, self._show_military, self._show_date = load_prefs(
             prefs=prefs
         )
 
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int):
         """Render clock icon in current mode."""
@@ -86,17 +87,17 @@ class ClockApplet(Applet):
     def _on_toggle_digital(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_digital = widget.get_active()
         self._save_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def _on_toggle_military(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_military = widget.get_active()
         self._save_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def _on_toggle_date(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_date = widget.get_active()
         self._save_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def _save_prefs(self) -> None:
         self.save_prefs(
@@ -109,7 +110,7 @@ class ClockApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
-        self._timer.start(callback=self.refresh_presentation)
+        self._timer.start(callback=self.present)
 
     def stop(self) -> None:
         self._timer.stop()

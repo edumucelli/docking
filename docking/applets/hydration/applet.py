@@ -45,7 +45,7 @@ class HydrationApplet(Applet):
         self._timer_id: int = 0
 
         super().__init__(icon_size, config)
-        self._update_tooltip()
+        self.present()
 
     # Compatibility accessors used by existing tests
     @property
@@ -86,6 +86,9 @@ class HydrationApplet(Applet):
             interval_min=self._state.interval_min,
         )
 
+    def refresh_tooltip(self) -> None:
+        self._update_tooltip()
+
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return render_icon(size=size, state=self._state)
 
@@ -104,7 +107,7 @@ class HydrationApplet(Applet):
         self._state = refill(state=self._state)
         self.item.is_urgent = False
         self._update_tooltip()
-        self.refresh_presentation()
+        self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -132,7 +135,7 @@ class HydrationApplet(Applet):
             show_timer=widget.get_active(),
         )
         self._save()
-        self.refresh_presentation()
+        self.present()
 
     def _tick(self) -> bool:
         result = tick(state=self._state)
@@ -142,10 +145,10 @@ class HydrationApplet(Applet):
             self.item.is_urgent = True
             self.item.last_urgent = GLib.get_monotonic_time()
             self._update_tooltip()
-            self.refresh_presentation()
+            self.present()
         elif result.should_refresh:
             self._update_tooltip()
-            self.refresh_presentation()
+            self.present()
 
         return True
 

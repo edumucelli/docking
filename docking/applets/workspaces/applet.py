@@ -48,6 +48,7 @@ class WorkspacesApplet(Applet):
         self._active_num: int = -1
         self._active_name: str = ""
         super().__init__(icon_size, config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         screen = self._screen or Wnck.Screen.get_default()
@@ -190,7 +191,7 @@ class WorkspacesApplet(Applet):
             self._signal_id = self._screen.connect(
                 "active-workspace-changed", self._on_workspace_changed
             )
-            self.refresh_presentation()
+            self.present()
 
     def stop(self) -> None:
         if self._screen and self._signal_id:
@@ -202,4 +203,4 @@ class WorkspacesApplet(Applet):
         _log.bind(action="workspace_changed").debug("received active-workspace-changed")
         if self._screen:
             self._screen.force_update()
-        self.refresh_presentation()
+        self.present()

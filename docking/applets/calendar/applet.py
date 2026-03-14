@@ -43,6 +43,7 @@ class CalendarApplet(Applet):
         self._tooltip_text: str = _("Calendar")
         self._popup: Gtk.Window | None = None
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         snapshot = snapshot_from()
@@ -76,7 +77,7 @@ class CalendarApplet(Applet):
         snapshot = snapshot_from()
         self._tooltip_text = snapshot.tooltip
         if snapshot.day != self._last_day:
-            self.refresh_presentation()
+            self.present()
         else:
             self.refresh_tooltip()
         return True

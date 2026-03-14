@@ -271,7 +271,7 @@ class TestPomodoroInternals:
     def test_toggle_and_duration_setters_save(self):
         applet = PomodoroApplet(48)
         applet._save = MagicMock()
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
 
         widget = MagicMock()
         widget.get_active.return_value = False
@@ -285,7 +285,7 @@ class TestPomodoroInternals:
         assert applet._break_min == 7
         assert applet._long_break_min == 18
         assert applet._save.call_count == 4
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_make_duration_header_and_radio_item(self):
         header = PomodoroApplet._make_duration_header("Work")

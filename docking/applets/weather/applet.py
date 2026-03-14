@@ -70,6 +70,7 @@ class WeatherApplet(Applet):
         self._show_temperature = prefs.show_temperature
 
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(
@@ -131,7 +132,7 @@ class WeatherApplet(Applet):
     def _on_toggle_temperature(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_temperature = widget.get_active()
         self._save_prefs()
-        self.refresh_presentation()
+        self.present()
 
     def _show_city_dialog(self) -> None:
         dialog = Gtk.Dialog(
@@ -245,7 +246,7 @@ class WeatherApplet(Applet):
             return False
         self._weather = weather
         self._air_quality = aqi
-        self.refresh_presentation()
+        self.present()
         return False
 
     def _build_tooltip(self) -> str:

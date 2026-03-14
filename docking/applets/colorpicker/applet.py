@@ -54,6 +54,7 @@ class ColorPickerApplet(Applet):
             self._hex = prefs.get("hex", "")
 
         super().__init__(icon_size=icon_size, config=config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(
@@ -89,7 +90,7 @@ class ColorPickerApplet(Applet):
     def _on_toggle_hex(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_hex = widget.get_active()
         self._save()
-        self.refresh_presentation()
+        self.present()
 
     def _start_pick(self) -> None:
         """Create fullscreen transparent overlay to capture a click."""
@@ -154,7 +155,7 @@ class ColorPickerApplet(Applet):
             self._hex = rgb_to_hex(r=r, g=g, b=b)
             self._copy_to_clipboard()
             self._save()
-            self.refresh_presentation()
+            self.present()
 
         return True
 

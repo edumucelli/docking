@@ -38,6 +38,7 @@ class TrashApplet(Applet):
         self._item_count = _count_trash_items()
         self._monitor: Gio.FileMonitor | None = None
         super().__init__(icon_size, config)
+        self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_trash_icon(size=size, item_count=self._item_count)
@@ -90,7 +91,7 @@ class TrashApplet(Applet):
     def _on_trash_changed(self, *_args: object) -> None:
         """File monitor callback: re-count items and update icon."""
         self._item_count = _count_trash_items()
-        self.refresh_presentation()
+        self.present()
 
     def _empty_trash(self) -> None:
         """Empty trash via DBus, with fallback to Gio deletion."""

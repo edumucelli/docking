@@ -240,7 +240,7 @@ class TestWeatherAsyncFetch:
         applet._weather = None
         applet._air_quality = None
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "refresh_presentation", refresh)
+        monkeypatch.setattr(applet, "present", refresh)
         # When
         result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
         # Then
@@ -254,7 +254,7 @@ class TestWeatherAsyncFetch:
         applet = _make_applet()
         applet._fetch_request_id = 3
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "refresh_presentation", refresh)
+        monkeypatch.setattr(applet, "present", refresh)
         # When
         result = applet._on_fetch_result(3, _SAMPLE_WEATHER, _SAMPLE_AQI)
         # Then
@@ -335,7 +335,7 @@ class TestWeatherLifecycleAndInteractions:
         # Given
         applet = _make_applet()
         applet._save_prefs = MagicMock()
-        applet.refresh_presentation = MagicMock()
+        applet.present = MagicMock()
         widget = MagicMock()
         widget.get_active.return_value = False
 
@@ -345,7 +345,7 @@ class TestWeatherLifecycleAndInteractions:
         # Then
         assert applet._show_temperature is False
         applet._save_prefs.assert_called_once()
-        applet.refresh_presentation.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_on_clicked_noops_without_city(self, monkeypatch):
         # Given
