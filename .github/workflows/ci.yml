@@ -242,25 +242,29 @@ jobs:
           zypper --non-interactive refresh
           zypper --non-interactive install --no-recommends \
             git \
-            python311 python-pip python-gobject \
+            gcc \
+            python313 \
             cairo-devel gobject-introspection-devel pkgconf \
-            gtk3 gdk-pixbuf pango \
+            libgtk-3-0 libgdk_pixbuf-2_0-0 libpango-1_0-0 \
             gdk-pixbuf-loader-rsvg librsvg \
             xauth xorg-x11-server-Xvfb \
             adwaita-icon-theme hicolor-icon-theme
 
       - name: Install project
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pycairo
-          python3 -m pip install -e ".[dev]"
+          PYTHON="$(command -v python3 || command -v python313)"
+          "$PYTHON" -m ensurepip --upgrade || true
+          "$PYTHON" -m pip install --upgrade pip setuptools wheel
+          "$PYTHON" -m pip install pycairo PyGObject
+          "$PYTHON" -m pip install -e ".[dev]"
 
       - name: Smoke tests
         env:
           GSETTINGS_BACKEND: memory
           GTK_THEME: Adwaita
         run: |
-          xvfb-run -a python3 -m pytest -q \
+          PYTHON="$(command -v python3 || command -v python313)"
+          xvfb-run -a "$PYTHON" -m pytest -q \
             tests/core/test_config.py \
             tests/ui/test_about.py \
             tests/ui/test_menu_integration.py \
