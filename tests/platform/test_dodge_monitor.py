@@ -263,3 +263,33 @@ class TestNullDockRect:
         result = monitor._evaluate()
         # Then returns False
         assert result is False
+
+
+class TestLifecycle:
+    def test_stop_disconnects_window_signal_handlers(self):
+        config = Config(hide_mode="window-dodge")
+        monitor = WindowDodgeMonitor(
+            config=config,
+            get_dock_rect=lambda: DOCK_RECT,
+            on_change=MagicMock(),
+        )
+
+        screen = MagicMock()
+        monitor._signal_ids = [(screen, 10)]
+
+        first = _make_window(x=0, y=0, w=100, h=100)
+        first.connect.side_effect = [101, 102]
+        second = _make_window(x=0, y=0, w=100, h=100)
+        second.connect.side_effect = [201, 202]
+
+        monitor._connect_window(first)
+        monitor._connect_window(second)
+
+        monitor.stop()
+
+        screen.disconnect.assert_called_once_with(10)
+        first.disconnect.assert_any_call(101)
+        first.disconnect.assert_any_call(102)
+        second.disconnect.assert_any_call(201)
+        second.disconnect.assert_any_call(202)
+        assert monitor._window_signal_ids == {}

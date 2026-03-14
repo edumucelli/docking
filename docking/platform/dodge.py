@@ -65,7 +65,7 @@ class WindowDodgeMonitor:
         self._should_hide = False
         self._debounce_id: int = 0
         self._signal_ids: list[tuple[object, int]] = []
-        self._window_signal_ids: dict[int, list[int]] = {}
+        self._window_signal_ids: dict[int, tuple[Wnck.Window, list[int]]] = {}
 
     def start(self) -> None:
         self._screen = Wnck.Screen.get_default()
@@ -87,6 +87,10 @@ class WindowDodgeMonitor:
             with suppress(Exception):
                 obj.disconnect(sid)
         self._signal_ids.clear()
+        for window, sids in self._window_signal_ids.values():
+            for sid in sids:
+                with suppress(Exception):
+                    window.disconnect(sid)
         self._window_signal_ids.clear()
         self._screen = None
 
@@ -104,11 +108,11 @@ class WindowDodgeMonitor:
             sids.append(window.connect("state-changed", self._on_window_event))
         except Exception:
             pass
-        self._window_signal_ids[xid] = sids
+        self._window_signal_ids[xid] = (window, sids)
 
     def _disconnect_window(self, window: Wnck.Window) -> None:
         xid = window.get_xid()
-        sids = self._window_signal_ids.pop(xid, [])
+        _window, sids = self._window_signal_ids.pop(xid, (window, []))
         for sid in sids:
             with suppress(Exception):
                 window.disconnect(sid)
