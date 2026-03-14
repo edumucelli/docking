@@ -1,6 +1,9 @@
 """Tests for the applet registry and shared utilities."""
 
+import importlib.util
 from unittest.mock import patch
+
+import pytest
 
 from docking.applets import get_registry
 from docking.applets.base import Applet, load_theme_icon, load_theme_icon_centered
@@ -64,6 +67,12 @@ class TestRegistry:
 
     def test_contains_trivia(self):
         assert "trivia" in get_registry()
+
+    def test_contains_todayinhistory_when_available(self):
+        if importlib.util.find_spec("docking.applets.todayinhistory") is None:
+            pytest.skip("Today in History applet is not available in this checkout")
+
+        assert "todayinhistory" in get_registry()
 
 
 class TestLoadThemeIcon:

@@ -1,0 +1,126 @@
+{
+  "01-01": [
+    {
+      "year": 1801,
+      "title": "The Act of Union takes effect",
+      "summary": "Great Britain and Ireland are formally united into the United Kingdom of Great Britain and Ireland.",
+      "article_title": "Acts of Union 1800",
+      "article_url": "https://en.wikipedia.org/wiki/Acts_of_Union_1800"
+    }
+  ],
+  "01-24": [
+    {
+      "year": 1848,
+      "title": "Gold is discovered at Sutter's Mill",
+      "summary": "James W. Marshall finds gold in California, helping trigger the California Gold Rush.",
+      "article_title": "California Gold Rush",
+      "article_url": "https://en.wikipedia.org/wiki/California_Gold_Rush"
+    }
+  ],
+  "02-14": [
+    {
+      "year": 1876,
+      "title": "Bell applies for the telephone patent",
+      "summary": "Alexander Graham Bell submits the patent application that becomes central to the early history of the telephone.",
+      "article_title": "Alexander Graham Bell",
+      "article_url": "https://en.wikipedia.org/wiki/Alexander_Graham_Bell"
+    }
+  ],
+  "03-14": [
+    {
+      "year": 1879,
+      "title": "Albert Einstein is born",
+      "summary": "The physicist Albert Einstein is born in Ulm in the Kingdom of Wurttemberg.",
+      "article_title": "Albert Einstein",
+      "article_url": "https://en.wikipedia.org/wiki/Albert_Einstein"
+    },
+    {
+      "year": 1995,
+      "title": "NASA photographs Pluto's surface",
+      "summary": "The Hubble Space Telescope captures images that help reveal large-scale brightness differences on Pluto.",
+      "article_title": "Pluto",
+      "article_url": "https://en.wikipedia.org/wiki/Pluto"
+    }
+  ],
+  "04-12": [
+    {
+      "year": 1961,
+      "title": "Yuri Gagarin orbits Earth",
+      "summary": "Vostok 1 carries Yuri Gagarin into orbit, making him the first human in space.",
+      "article_title": "Yuri Gagarin",
+      "article_url": "https://en.wikipedia.org/wiki/Yuri_Gagarin"
+    }
+  ],
+  "05-05": [
+    {
+      "year": 1961,
+      "title": "Alan Shepard reaches space",
+      "summary": "Freedom 7 lifts Alan Shepard on a suborbital mission, the first American spaceflight.",
+      "article_title": "Alan Shepard",
+      "article_url": "https://en.wikipedia.org/wiki/Alan_Shepard"
+    }
+  ],
+  "06-16": [
+    {
+      "year": 1963,
+      "title": "Valentina Tereshkova launches into space",
+      "summary": "Vostok 6 carries Valentina Tereshkova, the first woman to fly in space.",
+      "article_title": "Valentina Tereshkova",
+      "article_url": "https://en.wikipedia.org/wiki/Valentina_Tereshkova"
+    }
+  ],
+  "07-20": [
+    {
+      "year": 1969,
+      "title": "Apollo 11 lands on the Moon",
+      "summary": "Neil Armstrong and Buzz Aldrin land in the Sea of Tranquility during humanity's first crewed lunar landing.",
+      "article_title": "Apollo 11",
+      "article_url": "https://en.wikipedia.org/wiki/Apollo_11"
+    }
+  ],
+  "08-15": [
+    {
+      "year": 1914,
+      "title": "The Panama Canal opens",
+      "summary": "The SS Ancon becomes the first ship to transit the Panama Canal after the official opening.",
+      "article_title": "Panama Canal",
+      "article_url": "https://en.wikipedia.org/wiki/Panama_Canal"
+    }
+  ],
+  "09-12": [
+    {
+      "year": 1959,
+      "title": "Luna 2 reaches the Moon",
+      "summary": "The Soviet Luna 2 mission becomes the first human-made object to reach the Moon.",
+      "article_title": "Luna 2",
+      "article_url": "https://en.wikipedia.org/wiki/Luna_2"
+    }
+  ],
+  "10-04": [
+    {
+      "year": 1957,
+      "title": "Sputnik 1 launches",
+      "summary": "The Soviet Union launches Sputnik 1, the first artificial Earth satellite.",
+      "article_title": "Sputnik 1",
+      "article_url": "https://en.wikipedia.org/wiki/Sputnik_1"
+    }
+  ],
+  "11-09": [
+    {
+      "year": 1989,
+      "title": "The Berlin Wall opens",
+      "summary": "East German authorities announce that citizens may cross the Berlin Wall, accelerating German reunification.",
+      "article_title": "Berlin Wall",
+      "article_url": "https://en.wikipedia.org/wiki/Berlin_Wall"
+    }
+  ],
+  "12-17": [
+    {
+      "year": 1903,
+      "title": "The Wright Flyer takes off",
+      "summary": "Orville and Wilbur Wright complete the first controlled, sustained flight of a powered aircraft.",
+      "article_title": "Wright Flyer",
+      "article_url": "https://en.wikipedia.org/wiki/Wright_Flyer"
+    }
+  ]
+}

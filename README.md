@@ -632,6 +632,17 @@ Quick trivia applet backed by **Open Trivia DB** with a local fallback question 
 - **Next Trivia**
 - **Refresh from Web**
 
+### Today in History
+
+One-event-at-a-time history applet backed by Wikipedia's "On this day" feed with a local fallback set for offline use. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
+
+**Click:** Show the next historical event for today
+**Scroll:** No-op
+**Right-click options:**
+- **Next Event**
+- **Refresh from Web**
+- **Open Article** -- open the current event's Wikipedia page when available
+
 ### Ambient
 
 ![Ambient applet](images/ambient.png)

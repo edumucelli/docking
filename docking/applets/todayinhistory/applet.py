@@ -1,0 +1,216 @@
+"""GTK wiring for the Today in History applet."""
+
+from __future__ import annotations
+
+import threading
+import time
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+import gi
+
+gi.require_version("Gio", "2.0")
+gi.require_version("GdkPixbuf", "2.0")
+gi.require_version("Gtk", "3.0")
+from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
+
+from docking.applets.base import Applet
+from docking.applets.identity import AppletId
+from docking.i18n import _
+from docking.log import get_logger, with_context
+
+from .render import render_icon
+from .state import (
+    HistoryEvent,
+    fallback_today_in_history,
+    fetch_today_in_history,
+    format_history_event,
+)
+
+if TYPE_CHECKING:
+    from docking.core.config import Config
+
+_log = with_context(
+    get_logger(name="todayinhistory"),
+    applet_id=str(AppletId.TODAYINHISTORY),
+)
+
+
+class TodayInHistoryApplet(Applet):
+    """Show notable historical events for the current local date."""
+
+    id = AppletId.TODAYINHISTORY
+    name = _("Today in History")
+    icon_name = "office-calendar"
+
+    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        self._events: list[HistoryEvent] = []
+        self._index = -1
+        self._current: HistoryEvent | None = None
+        self._loading = False
+        self._loading_key = ""
+        self._timer_id = 0
+        self._current_month, self._current_day = self._current_date()
+        super().__init__(icon_size, config)
+        self._load_fallback_for(month=self._current_month, day=self._current_day)
+        self.refresh_presentation()
+
+    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+        return render_icon(size=size)
+
+    def start(self, notify: Callable[[], None]) -> None:
+        super().start(notify=notify)
+        self._fetch_async(show_first=False)
+        self._timer_id = GLib.timeout_add_seconds(60, self._poll_day_change)
+
+    def stop(self) -> None:
+        if self._timer_id:
+            GLib.source_remove(self._timer_id)
+            self._timer_id = 0
+        super().stop()
+
+    def on_clicked(self) -> None:
+        if not self._events:
+            self._current = None
+            self._fetch_async(show_first=True)
+            return
+        self._advance_event()
+        self.refresh_presentation()
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        items: list[Gtk.MenuItem] = []
+
+        source_header = Gtk.MenuItem(label=self._source_label())
+        source_header.set_sensitive(False)
+        items.append(source_header)
+
+        if self._current is not None and self._current.article_url:
+            open_item = Gtk.MenuItem(label=_("Open Article"))
+            open_item.connect("activate", lambda _w: self._open_current_article())
+            items.append(open_item)
+
+        next_item = Gtk.MenuItem(label=_("Next Event"))
+        next_item.connect("activate", lambda _w: self.on_clicked())
+        items.append(next_item)
+
+        refresh_item = Gtk.MenuItem(label=_("Refresh from Web"))
+        refresh_item.connect("activate", lambda _w: self._refresh_from_web())
+        items.append(refresh_item)
+
+        return items
+
+    def refresh_tooltip(self) -> None:
+        if self._loading and self._current is None:
+            self.item.name = _("Today in History: loading...")
+            return
+        if self._current is not None:
+            self.item.name = format_history_event(self._current)
+            return
+        self.item.name = _("Today in History")
+
+    def _current_date(self) -> tuple[int, int]:
+        now = time.localtime()
+        return now.tm_mon, now.tm_mday
+
+    def _date_key(self, *, month: int, day: int) -> str:
+        return f"{month:02d}-{day:02d}"
+
+    def _source_label(self) -> str:
+        if self._current is not None:
+            return self._current.source_label
+        return _("Today in History")
+
+    def _load_fallback_for(self, *, month: int, day: int) -> None:
+        self._events = fallback_today_in_history(month=month, day=day)
+        self._index = -1
+        self._current = None
+        if self._events:
+            self._advance_event()
+
+    def _advance_event(self) -> None:
+        if not self._events:
+            self._index = -1
+            self._current = None
+            return
+        self._index = (self._index + 1) % len(self._events)
+        self._current = self._events[self._index]
+        self.refresh_tooltip()
+
+    def _refresh_from_web(self) -> None:
+        self._fetch_async(show_first=True)
+
+    def _fetch_async(self, show_first: bool) -> None:
+        month, day = self._current_date()
+        request_key = self._date_key(month=month, day=day)
+        if self._loading and request_key == self._loading_key:
+            return
+
+        self._loading = True
+        self._loading_key = request_key
+        if show_first:
+            self.refresh_presentation()
+
+        def worker() -> None:
+            entries = fetch_today_in_history(month=month, day=day)
+            GLib.idle_add(self._on_fetch_result, month, day, entries, show_first)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_fetch_result(
+        self,
+        month: int,
+        day: int,
+        entries: list[HistoryEvent],
+        show_first: bool,
+    ) -> bool:
+        request_key = self._date_key(month=month, day=day)
+        if request_key == self._loading_key:
+            self._loading = False
+            self._loading_key = ""
+
+        current_key = self._date_key(month=self._current_month, day=self._current_day)
+        if request_key != current_key:
+            if entries or self._current is not None:
+                return False
+            self._current_month = month
+            self._current_day = day
+
+        if entries:
+            self._events = entries
+            self._index = -1
+            if show_first or self._current is None:
+                self._current = None
+                self._advance_event()
+        elif self._current is None:
+            self._events = fallback_today_in_history(month=month, day=day)
+            self._index = -1
+            self._current = None
+            self._advance_event()
+
+        self.refresh_tooltip()
+        self.refresh_presentation()
+        return False
+
+    def _poll_day_change(self) -> bool:
+        month, day = self._current_date()
+        if (month, day) == (self._current_month, self._current_day):
+            return True
+
+        self._current_month = month
+        self._current_day = day
+        self._load_fallback_for(month=month, day=day)
+        self.refresh_presentation()
+        self._fetch_async(show_first=False)
+        return True
+
+    def _open_current_article(self) -> None:
+        if self._current is None or not self._current.article_url:
+            return
+        try:
+            Gio.AppInfo.launch_default_for_uri(self._current.article_url, None)
+        except Exception as exc:
+            _log.bind(action="open_article").warning(
+                "Failed to open %s: %s",
+                self._current.article_url,
+                exc,
+            )

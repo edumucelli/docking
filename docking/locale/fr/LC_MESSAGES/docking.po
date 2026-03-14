@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-14 00:39+0100\n"
+"POT-Creation-Date: 2026-03-14 23:29+0100\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -674,7 +674,9 @@ msgstr "Citation Suivante"
 msgid "Copy Quote"
 msgstr "Copier la Citation"
 
-#: docking/applets/quote/applet.py:94 docking/applets/trivia/applet.py:118
+#: docking/applets/quote/applet.py:94
+#: docking/applets/todayinhistory/applet.py:96
+#: docking/applets/trivia/applet.py:118
 msgid "Refresh from Web"
 msgstr "Actualiser depuis le Web"
 
@@ -784,6 +786,33 @@ msgstr "Time to stretch!"
 #, python-brace-format
 msgid "Next stretch in {time}"
 msgstr "Next stretch in {time}"
+
+#: docking/applets/todayinhistory/applet.py:43
+#: docking/applets/todayinhistory/applet.py:109
+#: docking/applets/todayinhistory/applet.py:121
+msgid "Today in History"
+msgstr "Today in History"
+
+#: docking/applets/todayinhistory/applet.py:88
+msgid "Open Article"
+msgstr "Open Article"
+
+#: docking/applets/todayinhistory/applet.py:92
+msgid "Next Event"
+msgstr "Next Event"
+
+#: docking/applets/todayinhistory/applet.py:104
+msgid "Today in History: loading..."
+msgstr "Today in History: loading..."
+
+#: docking/applets/todayinhistory/state.py:24
+msgid "Offline fallback"
+msgstr "Offline fallback"
+
+#: docking/applets/todayinhistory/state.py:43
+#, python-brace-format
+msgid "{year} - {title}"
+msgstr "{year} - {title}"
 
 #: docking/applets/trash/applet.py:34
 msgid "Trash"
