@@ -90,7 +90,7 @@ jobs:
           fi
           sudo apt-get install -y \
             python3-venv \
-            xvfb \
+            xvfb xauth \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
             gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
             gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
@@ -173,7 +173,7 @@ jobs:
           apt-get install -y \
             build-essential \
             ca-certificates curl git \
-            xvfb pkg-config gobject-introspection libcairo2-dev libgirepository1.0-dev \
+            xvfb xauth pkg-config gobject-introspection libcairo2-dev libgirepository1.0-dev \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 \
             gir1.2-pango-1.0 gir1.2-nm-1.0 gir1.2-gstreamer-1.0
 
@@ -240,27 +240,38 @@ jobs:
       - name: Install system dependencies
         run: |
           zypper --non-interactive refresh
+          choose_pkg() {
+            for pkg in "$@"; do
+              if zypper --non-interactive info "$pkg" >/dev/null 2>&1; then
+                printf '%s\n' "$pkg"
+                return 0
+              fi
+            done
+            return 1
+          }
+          PYTHON_PKG="$(choose_pkg python313 python312 python311 python3)"
+          PYTHON_DEV_PKG="$(choose_pkg python313-devel python312-devel python311-devel python3-devel)"
+          PYTHON_PIP_PKG="$(choose_pkg python313-pip python312-pip python311-pip python3-pip)"
           zypper --non-interactive install --no-recommends \
             git \
             gcc \
             meson \
             ninja \
-            python313 \
-            python313-devel \
-            python313-pip \
+            "$PYTHON_PKG" \
+            "$PYTHON_DEV_PKG" \
+            "$PYTHON_PIP_PKG" \
             cairo-devel glib2-devel gobject-introspection-devel pkgconf \
             typelib-1_0-GdkPixbuf-2_0 \
             typelib-1_0-Gtk-3_0 \
             typelib-1_0-Pango-1_0 \
             typelib-1_0-Wnck-3_0 \
-            libgtk-3-0 libgdk_pixbuf-2_0-0 libpango-1_0-0 \
             gdk-pixbuf-loader-rsvg librsvg \
             xauth xorg-x11-server-Xvfb \
             adwaita-icon-theme hicolor-icon-theme
 
       - name: Install project
         run: |
-          PYTHON="$(command -v python3 || command -v python313)"
+          PYTHON="$(command -v python3 || command -v python3.13 || command -v python3.12 || command -v python3.11)"
           "$PYTHON" -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
