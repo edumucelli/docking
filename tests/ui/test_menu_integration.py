@@ -21,6 +21,15 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.platform.model import DockItem
 
 
+def _catalog_entry(*, applet_id, name: str):
+    return menu_mod.AppletCatalogEntry(
+        applet_id=applet_id,
+        name=name,
+        module_path="tests.fake",
+        class_name="FakeApplet",
+    )
+
+
 class FakeMenu:
     def __init__(self) -> None:
         self.children: list[FakeMenuItem] = []
@@ -804,11 +813,17 @@ class TestDockMenu:
         handler._model.pinned_items = [DockItem(desktop_id="applet://clock")]
         monkeypatch.setattr(
             menu_mod,
-            "get_registry",
+            "get_applet_catalog",
             lambda: {
-                "clock": SimpleNamespace(name="Clock", icon_name="clock"),
-                "calendar": SimpleNamespace(name="Calendar", icon_name="calendar"),
-                "separator": SimpleNamespace(name="Separator", icon_name="list-remove"),
+                menu_mod.AppletId.CLOCK: _catalog_entry(
+                    applet_id=menu_mod.AppletId.CLOCK, name="Clock"
+                ),
+                menu_mod.AppletId.CALENDAR: _catalog_entry(
+                    applet_id=menu_mod.AppletId.CALENDAR, name="Calendar"
+                ),
+                menu_mod.AppletId.SEPARATOR: _catalog_entry(
+                    applet_id=menu_mod.AppletId.SEPARATOR, name="Separator"
+                ),
             },
         )
 
@@ -909,10 +924,10 @@ class TestDockMenu:
         handler._model.get_applet.return_value = None
         with patch.object(
             menu_mod,
-            "get_registry",
+            "get_applet_catalog",
             return_value={
-                menu_mod.AppletId.CLOCK: SimpleNamespace(
-                    name="Clock", icon_name="clock"
+                menu_mod.AppletId.CLOCK: _catalog_entry(
+                    applet_id=menu_mod.AppletId.CLOCK, name="Clock"
                 )
             },
         ):
@@ -923,6 +938,26 @@ class TestDockMenu:
         )
         submenu_labels = _labels(add_applet.get_submenu())
         assert submenu_labels == [menu_mod._("No Applets Available")]
+
+    def test_build_dock_menu_uses_catalog_without_importing_applet_modules(
+        self, handler, monkeypatch
+    ):
+        import docking.applets as applets_mod
+
+        menu = FakeMenu()
+        handler._model.pinned_items = []
+        monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
+
+        with patch.object(
+            applets_mod,
+            "import_module",
+            side_effect=AssertionError("unexpected import"),
+        ):
+            handler._build_dock_menu(menu=menu, insert_index=0)
+
+        assert any(
+            item.get_label() == menu_mod._("Add Applet") for item in menu.children
+        )
 
 
 class TestMenuCallbacks:

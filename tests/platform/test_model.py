@@ -378,6 +378,32 @@ class TestCallbacks:
 
 
 class TestAppletLifecycleIntegration:
+    def test_loads_pinned_applet_via_lazy_loader(self, monkeypatch):
+        config = MagicMock()
+        config.pinned = [PinnedEntry(kind="applet", target="applet://session")]
+        config.icon_size = 48
+        config.zoom_percent = 2.0
+        config.anchor_applets = False
+        config.anchor_files = False
+        config.item_prefs = {}
+        launcher = _make_launcher()
+
+        fake_item = DockItem(desktop_id="applet://session", name="Session")
+        fake_applet = MagicMock()
+        fake_applet.item = fake_item
+
+        import docking.applets as applets_mod
+        import docking.applets.identity as identity_mod
+
+        loader = MagicMock(return_value=lambda icon_size, config: fake_applet)
+        monkeypatch.setattr(applets_mod, "load_applet_class", loader)
+
+        model = DockModel(config, launcher)
+
+        loader.assert_called_once_with(identity_mod.AppletId.SESSION)
+        assert model.pinned_items == [fake_item]
+        assert model.get_applet("applet://session") is fake_applet
+
     def test_add_applet_and_remove_applet_updates_config_and_notifies(
         self, monkeypatch
     ):
@@ -401,8 +427,10 @@ class TestAppletLifecycleIntegration:
 
         monkeypatch.setattr(
             applets_mod,
-            "get_registry",
-            lambda: {identity_mod.AppletId.SESSION: FakeAppletClass},
+            "load_applet_class",
+            lambda applet_id: (
+                FakeAppletClass if applet_id == identity_mod.AppletId.SESSION else None
+            ),
         )
         # When
         model.add_applet("session")
@@ -441,8 +469,12 @@ class TestAppletLifecycleIntegration:
 
         monkeypatch.setattr(
             applets_mod,
-            "get_registry",
-            lambda: {identity_mod.AppletId.SEPARATOR: FakeSeparatorClass},
+            "load_applet_class",
+            lambda applet_id: (
+                FakeSeparatorClass
+                if applet_id == identity_mod.AppletId.SEPARATOR
+                else None
+            ),
         )
         # When
         model.add_separator(index=0)

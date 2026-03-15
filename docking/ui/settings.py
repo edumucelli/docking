@@ -32,7 +32,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GLib, Gtk
 
-from docking.applets import get_registry
+from docking.applets import AppletCatalogEntry, get_applet_catalog
 from docking.applets.base import is_applet, load_catalog_icon
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
@@ -533,22 +533,22 @@ class SettingsWindowController:
         self._applet_checks.clear()
 
         try:
-            registry = get_registry()
+            catalog = get_applet_catalog()
         except Exception as exc:
-            _log.warning("Failed to read applet registry for settings catalog: %s", exc)
-            registry = {}
+            _log.warning("Failed to read applet catalog for settings catalog: %s", exc)
+            catalog = {}
 
-        grouped: dict[AppletCategory, list[tuple[AppletId, Any]]] = {
+        grouped: dict[AppletCategory, list[tuple[AppletId, AppletCatalogEntry]]] = {
             category: [] for category in APPLET_CATEGORY_ORDER
         }
-        for did, cls in sorted(registry.items(), key=lambda entry: str(entry[0])):
+        for did, entry in sorted(catalog.items(), key=lambda item: str(item[0])):
             try:
                 did_enum = did if isinstance(did, AppletId) else AppletId(str(did))
             except ValueError:
                 continue
             if did_enum == AppletId.SEPARATOR:
                 continue
-            grouped[category_for(applet_id=did_enum)].append((did_enum, cls))
+            grouped[category_for(applet_id=did_enum)].append((did_enum, entry))
 
         active_ids = {
             item.desktop_id
@@ -575,14 +575,14 @@ class SettingsWindowController:
     def _build_applet_grid(
         self,
         *,
-        members: list[tuple[AppletId, Any]],
+        members: list[tuple[AppletId, AppletCatalogEntry]],
         active_ids: set[str],
     ) -> Gtk.Widget:
         grid = Gtk.Grid()
         grid.set_column_spacing(APPLET_GRID_COLUMN_SPACING_PX)
         grid.set_row_spacing(APPLET_GRID_ROW_SPACING_PX)
         grid.set_column_homogeneous(True)
-        for index, (did, cls) in enumerate(members):
+        for index, (did, entry) in enumerate(members):
             desktop_id = applet_desktop_id(applet_id=did)
             check = Gtk.CheckButton()
             check.set_active(desktop_id in active_ids)
@@ -597,7 +597,7 @@ class SettingsWindowController:
             image = self._build_applet_image(applet_id=did)
             if image is not None:
                 content.pack_start(image, False, False, 0)
-            title = Gtk.Label(label=cls.name)
+            title = Gtk.Label(label=entry.name)
             title.set_xalign(0.0)
             title.set_hexpand(True)
             title.set_line_wrap(True)

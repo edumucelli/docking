@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 try:
     import gi  # noqa: F401
@@ -15,6 +15,15 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.ui.settings as settings_mod
+
+
+def _catalog_entry(*, applet_id, name: str):
+    return settings_mod.AppletCatalogEntry(
+        applet_id=applet_id,
+        name=name,
+        module_path="tests.fake",
+        class_name="FakeApplet",
+    )
 
 
 class FakeStyleContext:
@@ -429,7 +438,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", dict)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=object(),
             runtime=MagicMock(),
@@ -472,7 +481,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", dict)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         theme_obj = object()
         monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: theme_obj)
         runtime = MagicMock()
@@ -500,7 +509,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", dict)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
         controller = settings_mod.SettingsWindowController(
@@ -524,7 +533,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", dict)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
         config.hide_mode = "none"
         config.zoom_enabled = False
@@ -546,7 +555,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        monkeypatch.setattr(settings_mod, "get_registry", dict)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
         controller = settings_mod.SettingsWindowController(
@@ -573,11 +582,11 @@ class TestSettingsWindowController:
         )
         monkeypatch.setattr(
             settings_mod,
-            "get_registry",
+            "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: SimpleNamespace(
+                settings_mod.AppletId.CLOCK: _catalog_entry(
+                    applet_id=settings_mod.AppletId.CLOCK,
                     name="Clock",
-                    icon_name="clock-icon",
                 ),
             },
         )
@@ -610,13 +619,13 @@ class TestSettingsWindowController:
         )
         monkeypatch.setattr(
             settings_mod,
-            "get_registry",
+            "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: SimpleNamespace(
-                    name="Clock", icon_name="clock-icon"
+                settings_mod.AppletId.CLOCK: _catalog_entry(
+                    applet_id=settings_mod.AppletId.CLOCK, name="Clock"
                 ),
-                settings_mod.AppletId.WEATHER: SimpleNamespace(
-                    name="Weather", icon_name="weather-icon"
+                settings_mod.AppletId.WEATHER: _catalog_entry(
+                    applet_id=settings_mod.AppletId.WEATHER, name="Weather"
                 ),
             },
         )
@@ -676,10 +685,10 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "load_catalog_icon", catalog_loader)
         monkeypatch.setattr(
             settings_mod,
-            "get_registry",
+            "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: SimpleNamespace(
-                    name="Clock", icon_name="clock-icon"
+                settings_mod.AppletId.CLOCK: _catalog_entry(
+                    applet_id=settings_mod.AppletId.CLOCK, name="Clock"
                 ),
             },
         )
@@ -719,16 +728,16 @@ class TestSettingsWindowController:
         )
         monkeypatch.setattr(
             settings_mod,
-            "get_registry",
+            "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: SimpleNamespace(
-                    name="Clock", icon_name="clock-icon"
+                settings_mod.AppletId.CLOCK: _catalog_entry(
+                    applet_id=settings_mod.AppletId.CLOCK, name="Clock"
                 ),
-                settings_mod.AppletId.CALENDAR: SimpleNamespace(
-                    name="Calendar", icon_name="calendar-icon"
+                settings_mod.AppletId.CALENDAR: _catalog_entry(
+                    applet_id=settings_mod.AppletId.CALENDAR, name="Calendar"
                 ),
-                settings_mod.AppletId.POMODORO: SimpleNamespace(
-                    name="Pomodoro", icon_name="pomodoro-icon"
+                settings_mod.AppletId.POMODORO: _catalog_entry(
+                    applet_id=settings_mod.AppletId.POMODORO, name="Pomodoro"
                 ),
             },
         )
@@ -752,3 +761,31 @@ class TestSettingsWindowController:
             (1, 0),
             (2, 0),
         ]
+
+    def test_applet_tab_uses_catalog_without_importing_applet_modules(
+        self, monkeypatch
+    ):
+        import docking.applets as applets_mod
+
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        with patch.object(
+            applets_mod,
+            "import_module",
+            side_effect=AssertionError("unexpected import"),
+        ):
+            controller.show()
+
+        assert controller._applets_box is not None
+        assert any(
+            isinstance(child, FakeGrid) for child in controller._applets_box.children
+        )

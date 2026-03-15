@@ -188,9 +188,8 @@ class DockModel:
     def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         if entry.kind == APPLET_KIND:
-            registry = applets.get_registry()
             did = applet_id_from(desktop_id=entry.target)
-            cls = registry.get(did)
+            cls = applets.load_applet_class(did)
             if cls:
                 try:
                     applet = cls(icon_size=icon_size, config=self._config)
@@ -264,7 +263,7 @@ class DockModel:
                 f"Applet already present: {did}"
             )
             return
-        cls = applets.get_registry().get(did)
+        cls = applets.load_applet_class(did)
         if not cls:
             _log.bind(applet_id=str(did), action="add_applet").warning(
                 f"No class registered for applet: {did}"
@@ -290,7 +289,7 @@ class DockModel:
 
     def add_separator(self, index: int = -1) -> None:
         """Add a separator instance at the given pinned index (-1 = end)."""
-        cls = applets.get_registry().get(AppletId.SEPARATOR)
+        cls = applets.load_applet_class(AppletId.SEPARATOR)
         if not cls:
             return
 

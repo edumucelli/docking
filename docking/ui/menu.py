@@ -145,7 +145,7 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 import docking.platform.launcher as launcher_mod
-from docking.applets import get_registry
+from docking.applets import AppletCatalogEntry, get_applet_catalog
 from docking.applets.base import is_applet, load_catalog_icon
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
@@ -506,10 +506,10 @@ class MenuHandler:
         """
         # Add Applet submenu
         try:
-            registry = get_registry()
+            catalog = get_applet_catalog()
         except Exception as exc:
-            _log.warning("Failed to read applet registry for add-applet menu: %s", exc)
-            registry = {}
+            _log.warning("Failed to read applet catalog for add-applet menu: %s", exc)
+            catalog = {}
         active_ids = {
             item.desktop_id
             for item in self._model.pinned_items
@@ -517,10 +517,10 @@ class MenuHandler:
         }
         add_applet = Gtk.MenuItem(label=_("Add Applet"))
         add_applet_menu = Gtk.Menu()
-        grouped: dict[AppletCategory, list[tuple[AppletId, Any]]] = {
+        grouped: dict[AppletCategory, list[tuple[AppletId, AppletCatalogEntry]]] = {
             category: [] for category in APPLET_CATEGORY_ORDER
         }
-        for did, cls in sorted(registry.items(), key=lambda entry: str(entry[0])):
+        for did, entry in sorted(catalog.items(), key=lambda item: str(item[0])):
             try:
                 did_enum = did if isinstance(did, AppletId) else AppletId(str(did))
             except ValueError:
@@ -530,7 +530,7 @@ class MenuHandler:
             desktop_id = applet_desktop_id(applet_id=did_enum)
             if desktop_id in active_ids:
                 continue
-            grouped[category_for(applet_id=did_enum)].append((did_enum, cls))
+            grouped[category_for(applet_id=did_enum)].append((did_enum, entry))
 
         non_empty_categories = [
             key for key in APPLET_CATEGORY_ORDER if grouped.get(key)
@@ -538,17 +538,17 @@ class MenuHandler:
         if non_empty_categories:
             for i, category in enumerate(non_empty_categories):
                 add_applet_menu.append(_make_menu_header(label=_(category.value)))
-                for did, cls in sorted(
-                    grouped[category], key=lambda entry: entry[1].name.lower()
+                for did, entry in sorted(
+                    grouped[category], key=lambda item: item[1].name.lower()
                 ):
-                    item = Gtk.MenuItem(label=cls.name)
+                    item = Gtk.MenuItem(label=entry.name)
                     pixbuf: GdkPixbuf.Pixbuf | None = load_catalog_icon(
                         applet_id=did,
                         size=APPLET_MENU_ICON_PX,
                     )
                     _set_menu_item_icon(
                         item=item,
-                        label=cls.name,
+                        label=entry.name,
                         pixbuf=pixbuf,
                         icon_px=APPLET_MENU_ICON_PX,
                     )
