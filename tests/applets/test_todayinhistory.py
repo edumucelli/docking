@@ -138,8 +138,11 @@ class TestTodayInHistoryApplet:
 
     def test_on_fetch_result_uses_fallback_when_api_returns_empty(self, monkeypatch):
         applet = TodayInHistoryApplet(48)
+        applet._current_month = 7
+        applet._current_day = 20
         applet._current = None
         applet._loading = True
+        applet._loading_key = "07-20"
         fallback_entries = [ENTRY]
         monkeypatch.setattr(
             today_applet_mod,
@@ -152,6 +155,90 @@ class TestTodayInHistoryApplet:
             is False
         )
         assert applet._current == ENTRY
+
+    def test_on_fetch_result_ignores_stale_day_results(self):
+        applet = TodayInHistoryApplet(48)
+        current = HistoryEvent(
+            year=2001,
+            title="Current day event",
+            summary="Current local day.",
+            article_title="Current day",
+            article_url="https://example.com/current",
+        )
+        stale = HistoryEvent(
+            year=1999,
+            title="Stale day event",
+            summary="Previous local day.",
+            article_title="Stale day",
+            article_url="https://example.com/stale",
+        )
+        applet._current_month = 3
+        applet._current_day = 15
+        applet._events = [current]
+        applet._index = 0
+        applet._current = current
+        applet._loading = True
+        applet._loading_key = "03-15"
+
+        assert (
+            applet._on_fetch_result(month=3, day=14, entries=[stale], show_first=True)
+            is False
+        )
+
+        assert (applet._current_month, applet._current_day) == (3, 15)
+        assert applet._current == current
+        assert applet._events == [current]
+        assert applet._loading is True
+        assert applet._loading_key == "03-15"
+
+    def test_refresh_from_web_syncs_to_new_local_day_immediately(self, monkeypatch):
+        applet = TodayInHistoryApplet(48)
+        old_entry = HistoryEvent(
+            year=1900,
+            title="Old day event",
+            summary="Before midnight.",
+            article_title="Old day",
+            article_url="https://example.com/old",
+        )
+        new_entry = HistoryEvent(
+            year=1901,
+            title="New day event",
+            summary="After midnight.",
+            article_title="New day",
+            article_url="https://example.com/new",
+        )
+        applet._current_month = 3
+        applet._current_day = 14
+        applet._events = [old_entry]
+        applet._index = 0
+        applet._current = old_entry
+        monkeypatch.setattr(applet, "_current_date", lambda: (3, 15))
+        monkeypatch.setattr(
+            today_applet_mod,
+            "fallback_today_in_history",
+            lambda month, day: [new_entry] if (month, day) == (3, 15) else [old_entry],
+        )
+
+        started: list[object] = []
+
+        class _FakeThread:
+            def __init__(self, *, target, daemon):
+                self.target = target
+                self.daemon = daemon
+
+            def start(self) -> None:
+                started.append(self)
+
+        monkeypatch.setattr(today_applet_mod.threading, "Thread", _FakeThread)
+
+        applet._refresh_from_web()
+
+        assert (applet._current_month, applet._current_day) == (3, 15)
+        assert applet._current == new_entry
+        assert applet._loading is True
+        assert applet._loading_key == "03-15"
+        assert "1901" in applet.item.name
+        assert started
 
     def test_refresh_tooltip_loading_state(self):
         applet = TodayInHistoryApplet(48)

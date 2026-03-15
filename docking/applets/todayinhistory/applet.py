@@ -127,6 +127,18 @@ class TodayInHistoryApplet(Applet):
         if self._events:
             self._advance_event()
 
+    def _sync_to_local_day(self) -> bool:
+        month, day = self._current_date()
+        if (month, day) == (self._current_month, self._current_day):
+            return False
+        self._current_month = month
+        self._current_day = day
+        # Any in-flight fetch for the previous day is now stale by definition.
+        self._loading = False
+        self._loading_key = ""
+        self._load_fallback_for(month=month, day=day)
+        return True
+
     def _advance_event(self) -> None:
         if not self._events:
             self._index = -1
@@ -140,7 +152,9 @@ class TodayInHistoryApplet(Applet):
         self._fetch_async(show_first=True)
 
     def _fetch_async(self, show_first: bool) -> None:
-        month, day = self._current_date()
+        self._sync_to_local_day()
+        month = self._current_month
+        day = self._current_day
         request_key = self._date_key(month=month, day=day)
         if self._loading and request_key == self._loading_key:
             return
@@ -170,10 +184,7 @@ class TodayInHistoryApplet(Applet):
 
         current_key = self._date_key(month=self._current_month, day=self._current_day)
         if request_key != current_key:
-            if entries or self._current is not None:
-                return False
-            self._current_month = month
-            self._current_day = day
+            return False
 
         if entries:
             self._events = entries
@@ -192,13 +203,9 @@ class TodayInHistoryApplet(Applet):
         return False
 
     def _poll_day_change(self) -> bool:
-        month, day = self._current_date()
-        if (month, day) == (self._current_month, self._current_day):
+        if not self._sync_to_local_day():
             return True
 
-        self._current_month = month
-        self._current_day = day
-        self._load_fallback_for(month=month, day=day)
         self.present()
         self._fetch_async(show_first=False)
         return True
