@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import importlib
-import os
 import signal
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -20,25 +20,52 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     monkeypatch.setitem(sys.modules, "gi", fake_gi)
     monkeypatch.setitem(sys.modules, "gi.repository", fake_repo)
 
-    # Stub UI modules imported by docking.app so we don't depend on full GI
-    # bindings during unit tests.
-    ui_stubs = {
-        "docking.ui.factory": "build_dock_window",
-        "docking.ui.renderer": "DockRenderer",
+    # Stub platform/UI modules imported by docking.app so we don't depend on the
+    # full GI-backed runtime during unit tests.
+    platform_pkg = types.ModuleType("docking.platform")
+    platform_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
+
+    ui_pkg = types.ModuleType("docking.ui")
+    ui_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
+
+    stub_modules = {
+        "docking.platform.environment": {
+            "apply_tweaks": lambda **_kwargs: None,
+            "detect_desktop": lambda: "test",
+        },
+        "docking.platform.launcher": {
+            "Launcher": type("Launcher", (), {}),
+        },
+        "docking.platform.model": {
+            "DockModel": type("DockModel", (), {}),
+        },
+        "docking.platform.window_tracker": {
+            "WindowTracker": type("WindowTracker", (), {}),
+        },
+        "docking.ui.factory": {
+            "build_dock_window": lambda **_kwargs: None,
+        },
+        "docking.ui.renderer": {
+            "DockRenderer": type("DockRenderer", (), {}),
+        },
     }
-    for module_name, class_name in ui_stubs.items():
+    for module_name, members in stub_modules.items():
         stub_mod = types.ModuleType(module_name)
-        if class_name == "build_dock_window":
-            setattr(stub_mod, class_name, lambda **_kwargs: None)
-        else:
-            setattr(stub_mod, class_name, type(class_name, (), {}))
+        for name, value in members.items():
+            setattr(stub_mod, name, value)
         monkeypatch.setitem(sys.modules, module_name, stub_mod)
 
-    monkeypatch.setattr(
-        os.path,
-        "isdir",
-        lambda p: vendor_exists and p == "/usr/lib/docking/vendor",
-    )
+    vendor_dir = "/usr/lib/docking/vendor"
+    path_is_dir = Path.is_dir
+
+    def _fake_is_dir(path: Path) -> bool:
+        if str(path) == vendor_dir:
+            return vendor_exists
+        return path_is_dir(path)
+
+    monkeypatch.setattr(Path, "is_dir", _fake_is_dir)
 
     sys.modules.pop("docking.app", None)
     return importlib.import_module("docking.app"), fake_glib, fake_gtk
