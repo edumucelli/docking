@@ -470,15 +470,15 @@ class TestNotificationsApplet:
         assert started[-1] == "stop-monitor"
         assert removed == [12, 10]
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
+        def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
+            _ = key, name, on_error
+            result = fn()
+            if on_result is not None:
+                on_result(result)
+            return True
 
-            def start(self):
-                self._target()
-
-        monkeypatch.setattr(notifications_applet_mod.threading, "Thread", _Thread)
-        applet._poll_worker = lambda: started.append("poll")  # type: ignore[assignment]
+        applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
+        applet._poll_worker = lambda: started.append("poll") or _state()  # type: ignore[assignment]
         assert applet._tick() is True
         assert "poll" in started
 
@@ -502,19 +502,12 @@ class TestNotificationsApplet:
 
     def test_poll_worker_refresh_and_activity_expired(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state(available=False))
-        idle_calls: list[tuple[object, ...]] = []
         monkeypatch.setattr(
             notifications_applet_mod,
             "detect_backend",
             lambda: backend,
         )
-        monkeypatch.setattr(
-            notifications_applet_mod.GLib,
-            "idle_add",
-            lambda func, state: idle_calls.append((func, state)),
-        )
-        applet._poll_worker()
-        assert idle_calls
+        assert applet._poll_worker() == backend.get_state()
 
         applet._state = _state(available=True, pending_known=False)
         applet._activity_until_monotonic = float("inf")

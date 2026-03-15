@@ -9,7 +9,6 @@ same website — coming full circle after over a decade.
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -22,6 +21,7 @@ from docking.applets.base import Applet
 from docking.applets.identity import AppletId
 from docking.applets.moon.render import create_icon
 from docking.applets.moon.state import MoonData, fetch_moon, phase_name
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -52,6 +52,7 @@ class MoonApplet(Applet):
         self._moon: MoonData | None = None
         self._show_phase = True
         self._timer_id: int = 0
+        self._worker = BackgroundWorker(logger=_log)
 
         if config:
             prefs = config.applet_prefs.get(AppletId.MOON, {})
@@ -138,11 +139,12 @@ class MoonApplet(Applet):
         return True
 
     def _fetch_async(self) -> None:
-        def worker() -> None:
-            data = fetch_moon()
-            GLib.idle_add(self._on_result, data)
-
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run_guarded(
+            key="fetch",
+            name="moon-fetch",
+            fn=fetch_moon,
+            on_result=self._on_result,
+        )
 
     def _on_result(self, data: MoonData | None) -> bool:
         if data:

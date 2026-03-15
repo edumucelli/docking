@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -16,6 +15,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
 from .artwork import CoverArtResolver
@@ -51,6 +51,7 @@ class MusicApplet(Applet):
         self._album_art: GdkPixbuf.Pixbuf | None = None
         self._timer_id: int = 0
         self._scroll_sync_id: int = 0
+        self._worker = BackgroundWorker()
 
         self._state = self._backend.poll()
         self._album_art = self._cover_art.resolve(state=self._state)
@@ -152,17 +153,28 @@ class MusicApplet(Applet):
         self.on_scroll(direction_up=direction_up)
 
     def _tick(self) -> bool:
-        threading.Thread(target=self._poll_worker, daemon=True).start()
+        self._worker.run_guarded(
+            key="poll",
+            name="music-poll",
+            fn=self._poll_worker,
+            on_result=self._on_poll_result,
+        )
         return True
 
-    def _poll_worker(self) -> None:
+    def _poll_worker(self) -> tuple[MusicState, GdkPixbuf.Pixbuf | None]:
         state = self._backend.poll()
         art = self._cover_art.resolve(state=state)
-        GLib.idle_add(self._apply_poll_result, state, art)
+        return state, art
+
+    def _on_poll_result(
+        self,
+        result: tuple[MusicState, GdkPixbuf.Pixbuf | None],
+    ) -> bool:
+        state, art = result
+        return self._apply_poll_result(state, art)
 
     def _refresh_now(self) -> None:
-        state = self._backend.poll()
-        art = self._cover_art.resolve(state=state)
+        state, art = self._poll_worker()
         self._apply_poll_result(state, art)
 
     def _apply_poll_result(
@@ -187,7 +199,12 @@ class MusicApplet(Applet):
 
     def _run_scroll_sync(self) -> bool:
         self._scroll_sync_id = 0
-        threading.Thread(target=self._poll_worker, daemon=True).start()
+        self._worker.run_guarded(
+            key="poll",
+            name="music-poll",
+            fn=self._poll_worker,
+            on_result=self._on_poll_result,
+        )
         return False
 
     def _build_tooltip_widget(self) -> Gtk.Box:

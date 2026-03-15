@@ -17,6 +17,7 @@ from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
 from .render import create_notifications_icon
@@ -65,6 +66,7 @@ class NotificationsApplet(Applet):
         self._activity_monitor_thread: threading.Thread | None = None
         self._history: list[NotificationEntry] = []
         self._history_index: int = 0
+        self._worker = BackgroundWorker()
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
@@ -170,14 +172,18 @@ class NotificationsApplet(Applet):
         self.present()
 
     def _tick(self) -> bool:
-        threading.Thread(target=self._poll_worker, daemon=True).start()
+        self._worker.run_guarded(
+            key="poll",
+            name="notifications-poll",
+            fn=self._poll_worker,
+            on_result=self._on_poll_result,
+        )
         return True
 
-    def _poll_worker(self) -> None:
+    def _poll_worker(self) -> NotificationsState:
         if not self._state.available:
             self._backend = detect_backend()
-        state = self._backend.get_state()
-        GLib.idle_add(self._on_poll_result, state)
+        return self._backend.get_state()
 
     def _on_poll_result(self, state: NotificationsState) -> bool:
         if state != self._state:
@@ -186,7 +192,7 @@ class NotificationsApplet(Applet):
         return False
 
     def _refresh_now(self) -> None:
-        self._on_poll_result(self._backend.get_state())
+        self._on_poll_result(self._poll_worker())
 
     def _show_activity_badge(self) -> bool:
         return (

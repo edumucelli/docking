@@ -700,18 +700,18 @@ class TestMusicApplet:
 
         calls: list[str] = []
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
+        def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
+            _ = name, on_error
+            calls.append(key)
+            result = fn()
+            if on_result is not None:
+                on_result(result)
+            return True
 
-            def start(self):
-                calls.append("thread")
-                self._target()
-
-        monkeypatch.setattr(music_applet_mod.threading, "Thread", _Thread)
-        applet._poll_worker = lambda: calls.append("poll")  # type: ignore[assignment]
+        applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
+        applet._poll_worker = lambda: (calls.append("poll"), (_state(), None))[1]  # type: ignore[assignment]
         assert applet._tick() is True
-        assert calls == ["thread", "poll"]
+        assert calls == ["poll", "poll"]
 
     def test_action_methods_poll_and_volume_alias(self, monkeypatch):
         applet, backend, _resolver = _make_applet(monkeypatch, _state())
@@ -744,15 +744,9 @@ class TestMusicApplet:
         backend.poll.return_value = polled
         art = MagicMock()
         resolver.resolve.return_value = art
-        idle_calls: list[tuple[object, ...]] = []
-        monkeypatch.setattr(
-            music_applet_mod.GLib,
-            "idle_add",
-            lambda *args: idle_calls.append(args),
-        )
-        applet._poll_worker()
-        assert idle_calls and idle_calls[0][1] == polled
-        assert idle_calls[0][2] is art
+        state, resolved_art = applet._poll_worker()
+        assert state == polled
+        assert resolved_art is art
 
         applet.present = MagicMock()
         applet._state = polled
@@ -782,17 +776,15 @@ class TestMusicApplet:
 
         calls: list[str] = []
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
+        def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
+            _ = name, fn, on_result, on_error
+            calls.append(key)
+            return True
 
-            def start(self):
-                calls.append("thread")
-
-        monkeypatch.setattr(music_applet_mod.threading, "Thread", _Thread)
+        applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
         assert applet._run_scroll_sync() is False
         assert applet._scroll_sync_id == 0
-        assert calls == ["thread"]
+        assert calls == ["poll"]
 
         applet._state = _state(title="Song", artist="Artist", album="Album")
 

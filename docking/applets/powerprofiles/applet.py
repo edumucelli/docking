@@ -18,7 +18,6 @@ prevents overlapping backend writes when users click/toggle rapidly.
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -29,6 +28,7 @@ from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
 from .render import create_power_profiles_icon
@@ -63,6 +63,7 @@ class PowerProfilesApplet(Applet):
         self._poll_id: int = 0
         self._set_in_progress = False
         self._action_error = ""
+        self._worker = BackgroundWorker()
         self._state = self._backend.get_state()
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -152,13 +153,17 @@ class PowerProfilesApplet(Applet):
 
     def _tick(self) -> bool:
         """Periodic GLib timer callback; delegates backend call to a thread."""
-        threading.Thread(target=self._poll_worker, daemon=True).start()
+        self._worker.run_guarded(
+            key="poll",
+            name="powerprofiles-poll",
+            fn=self._poll_worker,
+            on_result=self._on_poll_result,
+        )
         return True
 
-    def _poll_worker(self) -> None:
+    def _poll_worker(self) -> PowerProfilesState:
         """Background thread: fetch backend state, then hand off to GTK loop."""
-        state = self._backend.get_state()
-        GLib.idle_add(self._on_poll_result, state)
+        return self._backend.get_state()
 
     def _on_poll_result(self, state: PowerProfilesState) -> bool:
         """GTK-thread state update from periodic polling."""
@@ -182,12 +187,18 @@ class PowerProfilesApplet(Applet):
             return
         self._set_in_progress = True
 
-        def worker() -> None:
-            success = self._backend.set_active_profile(profile)
-            state = self._backend.get_state()
-            GLib.idle_add(self._on_set_result, profile, success, state)
+        def task() -> tuple[bool, PowerProfilesState]:
+            return (
+                self._backend.set_active_profile(profile),
+                self._backend.get_state(),
+            )
 
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker.run(
+            name="powerprofiles-set",
+            fn=task,
+            on_result=lambda result: self._on_set_result(profile, result[0], result[1]),
+            on_error=lambda exc: self._on_set_error(profile, exc),
+        )
 
     def _on_set_result(
         self,
@@ -202,5 +213,11 @@ class PowerProfilesApplet(Applet):
             self._action_error = ""
         else:
             self._action_error = f"Failed to set {profile_label(profile)}"
+        self.present()
+        return False
+
+    def _on_set_error(self, profile: str, _exc: Exception) -> bool:
+        self._set_in_progress = False
+        self._action_error = f"Failed to set {profile_label(profile)}"
         self.present()
         return False

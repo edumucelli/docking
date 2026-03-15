@@ -304,24 +304,19 @@ class TestMoonApplet:
 
     def test_fetch_async_and_on_result_branches(self, monkeypatch):
         applet = MoonApplet(48)
-        idle_calls: list[tuple[object, ...]] = []
+        calls: list[tuple[str, object]] = []
         monkeypatch.setattr(moon_applet_mod, "fetch_moon", lambda: _SAMPLE_MOON)
-        monkeypatch.setattr(
-            moon_applet_mod.GLib,
-            "idle_add",
-            lambda *args: idle_calls.append(args),
-        )
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
+        def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
+            _ = name, on_error
+            calls.append((key, fn()))
+            if on_result is not None:
+                on_result(calls[-1][1])
+            return True
 
-            def start(self):
-                self._target()
-
-        monkeypatch.setattr(moon_applet_mod.threading, "Thread", _Thread)
+        applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
         applet._fetch_async()
-        assert idle_calls and idle_calls[0][1] == _SAMPLE_MOON
+        assert calls == [("fetch", _SAMPLE_MOON)]
 
         applet.present = MagicMock()
         assert applet._on_result(None) is False

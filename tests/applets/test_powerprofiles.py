@@ -618,24 +618,20 @@ class TestPowerProfilesApplet:
         assert applet._poll_id == 0
         assert removed == [77]
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
+        calls: list[str] = []
 
-            def start(self):
-                self._target()
+        def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
+            _ = name, on_error
+            calls.append(key)
+            result = fn()
+            if on_result is not None:
+                on_result(result)
+            return True
 
-        idle_calls: list[tuple[object, ...]] = []
-        monkeypatch.setattr(powerprofiles_applet_mod.threading, "Thread", _Thread)
-        monkeypatch.setattr(
-            powerprofiles_applet_mod.GLib,
-            "idle_add",
-            lambda *args: idle_calls.append(args),
-        )
+        applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
         assert applet._tick() is True
-        applet._poll_worker()
-        assert idle_calls
-        assert idle_calls[-1][1] == backend.get_state()
+        assert calls == ["poll"]
+        assert applet._poll_worker() == backend.get_state()
 
     def test_on_clicked_handles_unknown_active_profile(self, monkeypatch):
         applet, backend = _make_applet(
@@ -652,30 +648,37 @@ class TestPowerProfilesApplet:
     def test_set_profile_async_worker_and_success_result(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
         applet._set_in_progress = False
-        idle_calls: list[tuple[object, ...]] = []
+        run_calls: list[dict[str, object]] = []
 
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
+        def fake_run(**kwargs):
+            run_calls.append(kwargs)
 
-            def start(self):
-                self._target()
-
-        monkeypatch.setattr(powerprofiles_applet_mod.threading, "Thread", _Thread)
-        monkeypatch.setattr(
-            powerprofiles_applet_mod.GLib,
-            "idle_add",
-            lambda *args: idle_calls.append(args),
-        )
+        applet._worker.run = fake_run  # type: ignore[method-assign]
         applet._set_profile_async(profile="performance")
         assert applet._set_in_progress is True
-        assert idle_calls
-        assert idle_calls[0][1] == "performance"
+        assert run_calls
+        assert run_calls[0]["name"] == "powerprofiles-set"
+        success, state = run_calls[0]["fn"]()
+        assert success is True
+        assert state.active_profile == "performance"
 
         applet.present = lambda: None  # type: ignore[assignment]
         applet._action_error = "old"
         assert applet._on_set_result("performance", True, _state()) is False
         assert applet._action_error == ""
+
+    def test_set_profile_async_error_clears_in_progress(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        applet.present = lambda: None  # type: ignore[assignment]
+
+        def fake_run(**kwargs):
+            kwargs["on_error"](RuntimeError("boom"))
+
+        applet._worker.run = fake_run  # type: ignore[method-assign]
+        applet._set_profile_async(profile="performance")
+
+        assert applet._set_in_progress is False
+        assert "Failed to set Performance" in applet._action_error
 
 
 class TestPowerProfilesStateHelpers:
