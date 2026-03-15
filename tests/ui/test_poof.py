@@ -6,10 +6,13 @@ from unittest.mock import MagicMock
 
 import cairo
 
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
+try:
+    import gi  # noqa: F401
+except ModuleNotFoundError:  # pragma: no cover
+    gi_mock = MagicMock()
+    gi_mock.require_version = MagicMock()
+    sys.modules.setdefault("gi", gi_mock)
+    sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.ui.poof as poof_mod
 from docking.ui.poof import POOF_DURATION_MS

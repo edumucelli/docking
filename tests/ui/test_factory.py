@@ -25,10 +25,16 @@ class TestBuildDockWindow:
         menu = MagicMock()
         preview = MagicMock()
         about = MagicMock()
+        dodge_monitor = MagicMock()
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
         monkeypatch.setattr(
             factory_mod, "AutoHideController", MagicMock(return_value=autohide)
+        )
+        monkeypatch.setattr(
+            factory_mod,
+            "WindowDodgeMonitor",
+            MagicMock(return_value=dodge_monitor),
         )
         monkeypatch.setattr(factory_mod, "DockRuntime", MagicMock(return_value=runtime))
         monkeypatch.setattr(
@@ -57,6 +63,7 @@ class TestBuildDockWindow:
         )
 
         assert result is window
+        dodge_monitor.start.assert_called_once_with()
         window.attach_components.assert_called_once()
         attached = window.attach_components.call_args.args[0]
         assert attached.autohide is autohide

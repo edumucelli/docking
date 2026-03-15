@@ -8,10 +8,13 @@ prevent oscillation from mouse re-entering a shrinking region.
 import sys
 from unittest.mock import MagicMock
 
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
+try:
+    import gi  # noqa: F401
+except ModuleNotFoundError:  # pragma: no cover
+    gi_mock = MagicMock()
+    gi_mock.require_version = MagicMock()
+    sys.modules.setdefault("gi", gi_mock)
+    sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.position import Position
 from docking.ui.autohide import HideState
