@@ -11,6 +11,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environments
     gi_mock = MagicMock()
     gi_mock.require_version = MagicMock()
+    gi_mock.repository.GLib.markup_escape_text.side_effect = lambda text: text
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
