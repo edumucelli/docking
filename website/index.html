@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
@@ -15,13 +14,14 @@
         theme: {
           extend: {
             colors: {
-              midnight: "#060816",
-              accent: "#8b5cf6",
-              skyline: "#38bdf8"
+              midnight: "#101827",
+              accent: "#ef4444",
+              skyline: "#3b82f6",
+              ember: "#f59e0b"
             },
             boxShadow: {
-              glow: "0 0 0 1px rgba(255,255,255,0.06), 0 24px 80px rgba(31,41,55,0.45), 0 0 80px rgba(99,102,241,0.16)",
-              soft: "0 20px 60px rgba(2,6,23,0.45)"
+              glow: "0 0 0 1px rgba(255,255,255,0.07), 0 30px 90px rgba(15,23,42,0.22), 0 16px 52px rgba(245,158,11,0.16)",
+              soft: "0 24px 70px rgba(15,23,42,0.2)"
             },
             keyframes: {
               drift: {
@@ -29,8 +29,8 @@
                 "50%": { transform: "translate3d(0, -14px, 0)" }
               },
               pulseGlow: {
-                "0%, 100%": { opacity: "0.38", transform: "scale(1)" },
-                "50%": { opacity: "0.75", transform: "scale(1.04)" }
+                "0%, 100%": { opacity: "0.34", transform: "scale(1)" },
+                "50%": { opacity: "0.62", transform: "scale(1.05)" }
               },
               marquee: {
                 "0%": { transform: "translateX(0)" },
@@ -39,7 +39,7 @@
             },
             animation: {
               drift: "drift 8s ease-in-out infinite",
-              pulseGlow: "pulseGlow 6s ease-in-out infinite",
+              pulseGlow: "pulseGlow 7s ease-in-out infinite",
               marquee: "marquee 24s linear infinite"
             }
           }
@@ -50,46 +50,82 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root { color-scheme: dark; }
+
     body {
       font-family: "Instrument Sans", sans-serif;
       background:
-        radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.16), transparent 28%),
-        radial-gradient(circle at 85% 15%, rgba(139, 92, 246, 0.18), transparent 30%),
-        radial-gradient(circle at 50% 55%, rgba(99, 102, 241, 0.12), transparent 45%),
-        linear-gradient(180deg, #050815 0%, #060816 35%, #080d1c 100%);
+        radial-gradient(circle at 16% 14%, rgba(239, 68, 68, 0.18), transparent 22%),
+        radial-gradient(circle at 80% 14%, rgba(59, 130, 246, 0.19), transparent 24%),
+        radial-gradient(circle at 52% 74%, rgba(245, 158, 11, 0.16), transparent 26%),
+        linear-gradient(180deg, #111a2c 0%, #152035 52%, #121b2e 100%);
     }
-    h1, h2, h3, .font-display { font-family: "Space Grotesk", sans-serif; }
+
+    h1,
+    h2,
+    h3,
+    .font-display {
+      font-family: "Space Grotesk", sans-serif;
+    }
+
     .grid-fade {
-      background-image: linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
       background-size: 72px 72px;
       mask-image: radial-gradient(circle at center, black 35%, transparent 78%);
     }
-    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.8s ease, transform 0.8s ease; }
-    .reveal.is-visible { opacity: 1; transform: translateY(0); }
-    .glow-ring { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 40px rgba(56, 189, 248, 0.1), 0 0 70px rgba(139, 92, 246, 0.12); }
-    .code-scroll::-webkit-scrollbar { height: 8px; }
-    .code-scroll::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 999px; }
-    .marquee-mask { mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent); }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .glow-ring {
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 0 30px rgba(239, 68, 68, 0.12),
+        0 0 60px rgba(245, 158, 11, 0.14),
+        0 0 52px rgba(59, 130, 246, 0.08);
+    }
+
+    .code-scroll::-webkit-scrollbar {
+      height: 8px;
+    }
+
+    .code-scroll::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.28);
+      border-radius: 999px;
+    }
+
+    .marquee-mask {
+      mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+    }
   </style>
 </head>
-<body class="min-h-screen overflow-x-hidden bg-midnight text-slate-100 antialiased selection:bg-skyline/30 selection:text-white">
+<body class="min-h-screen overflow-x-hidden bg-midnight text-slate-100 antialiased selection:bg-accent/25 selection:text-white">
   <div class="pointer-events-none fixed inset-0 overflow-hidden">
-    <div class="absolute inset-0 grid-fade opacity-40"></div>
-    <div class="absolute left-[-10rem] top-24 h-80 w-80 rounded-full bg-skyline/20 blur-3xl animate-pulseGlow"></div>
-    <div class="absolute right-[-8rem] top-20 h-96 w-96 rounded-full bg-accent/25 blur-3xl animate-pulseGlow"></div>
-    <div class="absolute bottom-[-8rem] left-1/2 h-80 w-[32rem] -translate-x-1/2 rounded-full bg-indigo-500/20 blur-3xl"></div>
+    <div class="absolute inset-0 grid-fade opacity-30"></div>
+    <div class="absolute left-[-8rem] top-20 h-80 w-80 rounded-full bg-accent/20 blur-3xl animate-pulseGlow"></div>
+    <div class="absolute right-[-7rem] top-14 h-96 w-96 rounded-full bg-skyline/20 blur-3xl animate-pulseGlow"></div>
+    <div class="absolute bottom-[-9rem] left-1/2 h-80 w-[36rem] -translate-x-1/2 rounded-full bg-ember/20 blur-3xl"></div>
   </div>
 
   <div class="relative isolate">
-    <header class="sticky top-0 z-50 border-b border-white/5 bg-slate-950/55 backdrop-blur-xl">
+    <header class="sticky top-0 z-50 border-b border-white/10 bg-slate-950/30 backdrop-blur-xl">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
         <a href="#top" class="flex items-center gap-3">
-          <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-1.5 shadow-glow">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-skyline/12 to-accent/10 p-1.5 shadow-glow backdrop-blur-xl">
             <img src="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/256x256/apps/org.docking.Docking.png" alt="Docking logo" class="h-full w-full object-contain">
           </div>
           <div>
-            <div class="font-display text-sm font-semibold tracking-[0.32em] text-slate-200 uppercase">Docking</div>
-            <div class="text-xs text-slate-400">Open source for Linux</div>
+            <div class="font-display text-sm font-semibold tracking-[0.32em] text-white uppercase">Docking</div>
+            <div class="text-xs text-slate-300">Open source for Linux</div>
           </div>
         </a>
         <nav class="hidden items-center gap-8 text-sm text-slate-300 md:flex">
@@ -98,7 +134,7 @@
           <a href="#install" class="transition hover:text-white">Install</a>
           <a href="#source" class="transition hover:text-white">From source</a>
         </nav>
-        <a href="https://github.com/edumucelli/docking/releases" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10" target="_blank" rel="noopener noreferrer">Download</a>
+        <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-4 py-2 text-sm font-medium text-white transition hover:border-skyline/35 hover:from-skyline/14 hover:to-skyline/10">Download</a>
       </div>
     </header>
 
@@ -106,95 +142,92 @@
       <section class="relative">
         <div class="mx-auto grid max-w-7xl gap-16 px-6 pb-20 pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:pb-28 lg:pt-24">
           <div class="reveal flex flex-col justify-center">
-            <div class="mb-8 inline-flex w-fit items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 shadow-soft backdrop-blur-xl">
-              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+            <div class="mb-8 inline-flex w-fit items-center gap-3 rounded-full border border-white/15 bg-gradient-to-r from-accent/12 to-skyline/10 px-4 py-2 text-sm text-slate-200 shadow-soft backdrop-blur-xl">
+              <span class="h-2 w-2 rounded-full bg-accent"></span>
               Feature-rich Linux dock with themes, applets, and desktop integration
             </div>
             <h1 class="max-w-3xl text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Docking</h1>
-            <p class="mt-5 max-w-2xl text-2xl font-medium tracking-tight text-slate-200 sm:text-3xl">A dock that adapts to your workflow.</p>
+            <p class="mt-5 max-w-2xl text-2xl font-medium tracking-tight text-slate-100 sm:text-3xl">A dock that adapts to your workflow.</p>
             <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Fast, customizable, and extensible — fully written in Python, with built-in applets and full Linux desktop integration.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
-              <a href="https://github.com/edumucelli/docking/releases" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-accent via-indigo-500 to-skyline px-6 py-3.5 text-base font-semibold text-white shadow-[0_14px_40px_rgba(99,102,241,0.38)] transition hover:scale-[1.02]" target="_blank" rel="noopener noreferrer">Download</a>
-              <a href="https://github.com/edumucelli/docking" class="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/20 hover:bg-white/10" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Download</a>
+              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-skyline/35 hover:from-skyline/14 hover:to-skyline/10">View on GitHub</a>
             </div>
-            <div class="mt-10 flex flex-wrap gap-3 text-sm text-slate-300">
-              <div class="rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-xl">Python</div>
-              <div class="rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-xl">GTK + Cairo</div>
-              <div class="rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-xl">Linux (X11)</div>
-              <div class="rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-xl">30+ Applets</div>
+            <div class="mt-10 flex flex-wrap gap-3 text-sm text-slate-200">
+              <div class="rounded-full border border-white/15 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2 backdrop-blur-xl">Python</div>
+              <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2 backdrop-blur-xl">GTK + Cairo</div>
+              <div class="rounded-full border border-white/15 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2 backdrop-blur-xl">Linux (X11)</div>
+              <div class="rounded-full border border-white/15 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2 backdrop-blur-xl">30+ Applets</div>
             </div>
           </div>
 
           <div class="reveal relative flex items-center justify-center lg:justify-end">
-            <div class="absolute inset-x-10 top-10 h-64 rounded-full bg-accent/20 blur-3xl"></div>
-            <div class="absolute inset-x-16 bottom-4 h-40 rounded-full bg-skyline/20 blur-3xl"></div>
+            <div class="absolute inset-x-8 bottom-10 h-60 rounded-full bg-ember/30 blur-3xl"></div>
+            <div class="absolute left-6 top-16 h-56 w-56 rounded-full bg-accent/18 blur-3xl"></div>
+            <div class="absolute right-4 top-8 h-60 w-60 rounded-full bg-skyline/18 blur-3xl"></div>
             <div class="relative w-full max-w-[42rem] lg:ml-auto">
-              <div class="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-glow backdrop-blur-2xl">
-                <div class="rounded-[1.7rem] border border-white/10 bg-slate-950/75 p-5">
-                  <div class="flex items-center justify-between rounded-[1.4rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <div class="overflow-hidden rounded-[2rem] border border-white/15 bg-gradient-to-br from-skyline/10 to-accent/10 p-4 shadow-glow backdrop-blur-2xl">
+                <div class="rounded-[1.7rem] border border-white/12 bg-gradient-to-br from-skyline/10 to-accent/8 p-5 backdrop-blur-xl">
+                  <div class="flex items-center justify-between rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/8 to-accent/8 px-4 py-3">
                     <div class="flex items-center gap-2">
                       <span class="h-2.5 w-2.5 rounded-full bg-rose-400"></span>
                       <span class="h-2.5 w-2.5 rounded-full bg-amber-300"></span>
-                      <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                      <span class="h-2.5 w-2.5 rounded-full bg-skyline"></span>
                     </div>
-                    <div class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">Docking session</div>
+                    <div class="rounded-full border border-white/12 bg-skyline/10 px-3 py-1 text-xs text-slate-200">Docking session</div>
                   </div>
 
                   <div class="mt-6 grid gap-4 lg:grid-cols-[1.18fr_0.82fr]">
                     <div class="space-y-4">
-                      <div class="overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/40 shadow-soft">
-                        <div class="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
-                          <div class="text-sm font-medium text-slate-200">Desktop preview</div>
-                          
+                      <div class="overflow-hidden rounded-[1.8rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 shadow-soft backdrop-blur-xl">
+                        <div class="flex items-center justify-between border-b border-white/12 bg-skyline/10 px-4 py-3">
+                          <div class="text-sm font-medium text-slate-100">Desktop preview</div>
                         </div>
                         <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/preview.png" alt="Docking desktop preview" class="aspect-[4/3] w-full object-cover object-top">
                       </div>
 
-                      <div class="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/40 shadow-soft">
-                        <div class="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
-                          <div class="text-sm font-medium text-slate-200">Dock strip</div>
-                          
+                      <div class="overflow-hidden rounded-[1.6rem] border border-white/12 bg-gradient-to-r from-accent/10 to-ember/10 shadow-soft backdrop-blur-xl">
+                        <div class="flex items-center justify-between border-b border-white/12 bg-amber-400/10 px-4 py-3">
+                          <div class="text-sm font-medium text-slate-100">Dock strip</div>
                         </div>
                         <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/all.png" alt="Docking dock strip with applets" class="aspect-[15/4] w-full object-cover object-center">
                       </div>
                     </div>
 
                     <div class="grid gap-4">
-                      <div class="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/40 shadow-soft">
-                        <div class="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
-                          <p class="text-sm font-medium text-slate-200">Applet gallery</p>
-                          <span class="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-xs text-emerald-200">30+</span>
+                      <div class="overflow-hidden rounded-[1.6rem] border border-white/12 bg-gradient-to-br from-accent/10 to-ember/8 shadow-soft backdrop-blur-xl">
+                        <div class="flex items-center justify-between border-b border-white/12 bg-accent/10 px-4 py-3">
+                          <p class="text-sm font-medium text-slate-100">Applet gallery</p>
+                          <span class="rounded-full border border-amber-300/25 bg-amber-300/12 px-2.5 py-1 text-xs text-amber-100">30+</span>
                         </div>
                         <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/applets.png" alt="Docking applet gallery" class="aspect-[4/3] w-full object-cover object-top">
                       </div>
 
                       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4">
+                        <div class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/10 to-skyline/6 p-4 backdrop-blur-xl">
                           <div class="flex items-center gap-3">
-                            <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-11 w-11 rounded-2xl border border-white/10 bg-white/5 p-2">
+                            <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-11 w-11 rounded-2xl border border-white/12 bg-white/10 p-2">
                             <div>
-                              <p class="text-sm font-medium text-slate-200">Weather</p>
-                              
+                              <p class="text-sm font-medium text-slate-100">Weather</p>
                             </div>
                           </div>
                         </div>
-                        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4">
+                        <div class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-ember/10 to-ember/6 p-4 backdrop-blur-xl">
                           <div class="flex items-center gap-3">
-                            <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/cpumonitor.png" alt="CPU Monitor applet icon" class="h-11 w-11 rounded-2xl border border-white/10 bg-white/5 p-2">
+                            <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/cpumonitor.png" alt="CPU Monitor applet icon" class="h-11 w-11 rounded-2xl border border-white/12 bg-white/10 p-2">
                             <div>
-                              <p class="text-sm font-medium text-slate-200">CPU Monitor</p>
-                              
+                              <p class="text-sm font-medium text-slate-100">CPU Monitor</p>
                             </div>
                           </div>
                         </div>
-                        <div class="rounded-[1.6rem] border border-white/10 bg-white/[0.03] p-5">
+                        <div class="rounded-[1.6rem] border border-white/12 bg-gradient-to-br from-accent/10 to-skyline/8 p-5 backdrop-blur-xl">
                           <div class="flex items-center justify-between">
                             <span class="text-xs uppercase tracking-[0.3em] text-slate-400">CPU</span>
                             <span class="text-xs text-emerald-300">stable</span>
                           </div>
                           <div class="mt-4 space-y-2">
-                            <div class="h-2 rounded-full bg-white/10"><div class="h-2 w-[34%] rounded-full bg-gradient-to-r from-emerald-300 to-skyline"></div></div>
-                            <div class="h-2 rounded-full bg-white/10"><div class="h-2 w-[48%] rounded-full bg-gradient-to-r from-accent to-indigo-300"></div></div>
+                            <div class="h-2 rounded-full bg-white/10"><div class="h-2 w-[34%] rounded-full bg-gradient-to-r from-accent to-ember"></div></div>
+                            <div class="h-2 rounded-full bg-white/10"><div class="h-2 w-[48%] rounded-full bg-gradient-to-r from-skyline to-cyan-200"></div></div>
                           </div>
                           <div class="mt-4 text-3xl font-semibold text-white">34%</div>
                         </div>
@@ -206,61 +239,64 @@
             </div>
           </div>
         </div>
+
         <div class="mx-auto max-w-7xl px-6 pb-10 lg:px-8">
-          <div class="marquee-mask overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6">
-            <div class="flex min-w-max animate-marquee gap-4 whitespace-nowrap pr-4 text-sm text-slate-300 sm:pr-6">
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Themeable</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Auto-hide</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Multi-monitor</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">GTK + Cairo</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Applet system</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Cross desktop environments</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Themeable</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Auto-hide</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Multi-monitor</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">GTK + Cairo</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Applet system</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Cross desktop environments</span>
-              <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2">Open source</span>
+          <div class="marquee-mask overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-r from-accent/8 to-skyline/8 px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6">
+            <div class="flex min-w-max animate-marquee gap-4 whitespace-nowrap pr-4 text-sm text-slate-200 sm:pr-6">
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">GTK + Cairo</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">GTK + Cairo</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
+              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
             </div>
           </div>
         </div>
       </section>
+
       <section id="features" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal max-w-3xl">
-          <div class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 backdrop-blur-xl">Core features</div>
+          <div class="inline-flex items-center rounded-full border border-white/15 bg-gradient-to-r from-accent/10 to-skyline/8 px-4 py-2 text-sm text-slate-200 backdrop-blur-xl">Core features</div>
           <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Built to feel native in real Linux workflows.</h2>
           <p class="mt-4 max-w-2xl text-lg leading-8 text-slate-300">Docking combines launcher speed, desktop awareness, and a modular widget system in one polished surface.</p>
         </div>
+
         <div class="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-soft backdrop-blur-xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-skyline/10 text-skyline"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V5l14 7-14 7Z"></path></svg></div>
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/14 text-rose-200"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V5l14 7-14 7Z"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Fast launcher workflow</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Quick access to your core apps, work surfaces, and utilities without visual noise or startup drag.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-soft backdrop-blur-xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-violet-300"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (30+)</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-soft backdrop-blur-xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-400/10 text-indigo-300"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15c2-4 5-6 8-6s6 2 8 6"></path><path d="M4 9c2 4 5 6 8 6s6-2 8-6"></path></svg></div>
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-skyline/16 text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15c2-4 5-6 8-6s6 2 8 6"></path><path d="M4 9c2 4 5 6 8 6s6-2 8-6"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Fully customizable themes</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Adjust the dock to your desktop instead of adapting your desktop to the dock.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-soft backdrop-blur-xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-300"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="8" height="14" rx="2"></rect><rect x="13" y="8" width="8" height="8" rx="2"></rect></svg></div>
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/14 text-rose-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="8" height="14" rx="2"></rect><rect x="13" y="8" width="8" height="8" rx="2"></rect></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Multi-monitor and auto-hide</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Keep the dock where it belongs, visible when needed and out of the way when focus matters.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-soft backdrop-blur-xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path><path d="M12 5v14"></path><path d="M4 4l16 16"></path></svg></div>
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path><path d="M12 5v14"></path><path d="M4 4l16 16"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Cross desktop compatibility</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Built for Linux setups that span more than one desktop environment and more than one way of working.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-soft backdrop-blur-xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-fuchsia-400/10 text-fuchsia-300"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V5a2 2 0 1 1 4 0v2"></path><path d="M12 7V5a2 2 0 1 1 4 0v2"></path><path d="M5 7h14v12H5z"></path><path d="M9 11h6M9 15h4"></path></svg></div>
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-skyline/16 text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V5a2 2 0 1 1 4 0v2"></path><path d="M12 7V5a2 2 0 1 1 4 0v2"></path><path d="M5 7h14v12H5z"></path><path d="M9 11h6M9 15h4"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Extensible applet system</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Add your own widgets and behaviors without compromising the dock’s main runtime model.</p>
           </article>
@@ -270,94 +306,96 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <div class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 backdrop-blur-xl">Applet showcase</div>
+            <div class="inline-flex items-center rounded-full border border-white/15 bg-gradient-to-r from-accent/10 to-skyline/8 px-4 py-2 text-sm text-slate-200 backdrop-blur-xl">Applet showcase</div>
             <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Useful widgets, already in the dock.</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Small tools with real utility: glanceable information, richer controls, and compact workflow helpers.</p>
           </div>
-          <div class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-300 backdrop-blur-xl">Clock, Weather, CPU, Clippy, Volume, Media, and much more</div>
+          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">Clock, Weather, CPU, Clippy, Volume, Media, and much more</div>
         </div>
+
         <div class="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-soft backdrop-blur-xl">
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl">
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clock.png" alt="Clock applet icon" class="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 p-2">
+              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clock.png" alt="Clock applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
               <div>
                 <h3 class="text-lg font-semibold text-white">Clock</h3>
-                
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/10 bg-black/40">
+            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-skyline/8 backdrop-blur-xl">
               <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/clock.png" alt="Clock applet screenshot" class="h-40 w-full object-cover object-top">
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Clean time display with polished, always-visible presence.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-soft backdrop-blur-xl">
+
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl">
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 p-2">
+              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
               <div>
                 <h3 class="text-lg font-semibold text-white">Weather</h3>
-                
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/10 bg-black/40">
+            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-skyline/8 backdrop-blur-xl">
               <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/weather.png" alt="Weather applet screenshot" class="h-40 w-full object-cover object-top">
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Forecast, conditions, and quick environmental context at a glance.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-soft backdrop-blur-xl">
+
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl">
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/cpumonitor.png" alt="CPU Monitor applet icon" class="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 p-2">
+              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/cpumonitor.png" alt="CPU Monitor applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
               <div>
                 <h3 class="text-lg font-semibold text-white">CPU Monitor</h3>
-                
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/10 bg-black/40">
+            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-amber-300/8 backdrop-blur-xl">
               <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/cpu_monitor.png" alt="CPU Monitor applet screenshot" class="h-40 w-full object-cover object-top">
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Live resource awareness without switching to a separate monitor app.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-soft backdrop-blur-xl">
+
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl">
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clippy.png" alt="Clippy applet icon" class="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 p-2">
+              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clippy.png" alt="Clippy applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
               <div>
                 <h3 class="text-lg font-semibold text-white">Clipboard (Clippy)</h3>
-                
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/10 bg-black/40">
+            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-accent/8 backdrop-blur-xl">
               <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/clippy.png" alt="Clippy applet screenshot" class="h-40 w-full object-cover object-top">
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Keep recent snippets close and move faster between repeated tasks.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-soft backdrop-blur-xl">
+
+          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl">
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/volume.png" alt="Volume applet icon" class="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 p-2">
+              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/volume.png" alt="Volume applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
               <div>
                 <h3 class="text-lg font-semibold text-white">Volume / Media</h3>
-                
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/10 bg-black/40">
+            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-amber-300/8 backdrop-blur-xl">
               <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/volume.png" alt="Volume applet screenshot" class="h-40 w-full object-cover object-top">
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Playback and audio control integrated into the same dock surface.</p>
           </article>
-                </div>
-</section>
+        </div>
+      </section>
+
       <section id="install" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
-        <div class="reveal overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.03] p-8 shadow-glow backdrop-blur-2xl lg:p-10">
+        <div class="reveal overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/8 p-8 shadow-glow backdrop-blur-2xl lg:p-10">
           <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
-              <div class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">Install</div>
+              <div class="inline-flex items-center rounded-full border border-white/15 bg-gradient-to-r from-accent/10 to-ember/8 px-4 py-2 text-sm text-slate-200">Install</div>
               <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install it your way.</h2>
               <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Download the latest release package that fits your Linux setup and get straight to work.</p>
             </div>
+
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" class="flex items-center justify-center rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-center font-medium text-white transition hover:border-skyline/40 hover:bg-skyline/10" target="_blank" rel="noopener noreferrer">AppImage</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb" class="rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-center font-medium text-white transition hover:border-skyline/40 hover:bg-skyline/10" target="_blank" rel="noopener noreferrer">.deb</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" class="rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-center font-medium text-white transition hover:border-skyline/40 hover:bg-skyline/10" target="_blank" rel="noopener noreferrer">Flatpak</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" class="rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-center font-medium text-white transition hover:border-skyline/40 hover:bg-skyline/10" target="_blank" rel="noopener noreferrer">Snap</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" class="rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-center font-medium text-white transition hover:border-skyline/40 hover:bg-skyline/10" target="_blank" rel="noopener noreferrer">Arch</a>
+              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-accent/12 to-ember/10 px-5 py-4 text-center font-medium text-white transition hover:border-accent/40 hover:from-accent/18 hover:to-ember/16">AppImage</a>
+              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb" target="_blank" rel="noopener noreferrer" class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-5 py-4 text-center font-medium text-white transition hover:border-accent/40 hover:from-accent/12 hover:to-accent/8">.deb</a>
+              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" target="_blank" rel="noopener noreferrer" class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-5 py-4 text-center font-medium text-white transition hover:border-skyline/35 hover:from-skyline/12 hover:to-skyline/8">Flatpak</a>
+              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" target="_blank" rel="noopener noreferrer" class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-5 py-4 text-center font-medium text-white transition hover:border-amber-300/35 hover:from-ember/12 hover:to-ember/8">Snap</a>
+              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" target="_blank" rel="noopener noreferrer" class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-5 py-4 text-center font-medium text-white transition hover:border-skyline/35 hover:from-skyline/12 hover:to-skyline/8">Arch</a>
             </div>
           </div>
         </div>
@@ -366,20 +404,21 @@
       <section id="source" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div class="reveal">
-            <div class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 backdrop-blur-xl">From source</div>
+            <div class="inline-flex items-center rounded-full border border-white/15 bg-gradient-to-r from-skyline/10 to-accent/8 px-4 py-2 text-sm text-slate-200 backdrop-blur-xl">From source</div>
             <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Clone it, hack on it, extend it.</h2>
             <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Docking is open source and built for people who want control, extensibility, and a clean code path into custom workflows.</p>
           </div>
-          <div class="reveal rounded-[2rem] border border-white/10 bg-slate-950/80 p-4 shadow-soft backdrop-blur-xl">
-            <div class="flex items-center justify-between rounded-[1.4rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+
+          <div class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/8 p-4 shadow-soft backdrop-blur-2xl">
+            <div class="flex items-center justify-between rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/10 to-accent/8 px-4 py-3">
               <div class="flex items-center gap-2">
                 <span class="h-2.5 w-2.5 rounded-full bg-rose-400"></span>
                 <span class="h-2.5 w-2.5 rounded-full bg-amber-300"></span>
-                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-skyline"></span>
               </div>
               <span class="text-xs uppercase tracking-[0.3em] text-slate-400">bash</span>
             </div>
-            <div class="code-scroll mt-4 overflow-x-auto rounded-[1.4rem] bg-black/60 p-5">
+            <div class="code-scroll mt-4 overflow-x-auto rounded-[1.4rem] border border-white/10 bg-gradient-to-br from-skyline/8 to-accent/6 p-5 backdrop-blur-xl">
               <pre class="text-sm leading-8 text-slate-200"><code>git clone https://github.com/edumucelli/docking.git
 cd docking
 python3 -m venv --system-site-packages .venv
@@ -391,8 +430,8 @@ pip install -e ".[dev]"</code></pre>
       </section>
 
       <section class="mx-auto max-w-5xl px-6 py-16 lg:px-8 lg:py-24">
-        <div class="reveal rounded-[2rem] border border-white/10 bg-white/[0.04] p-10 text-center shadow-glow backdrop-blur-2xl">
-          <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-gradient-to-br from-accent/30 to-skyline/20 text-white shadow-soft">
+        <div class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-skyline/8 p-10 text-center shadow-glow backdrop-blur-2xl">
+          <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-gradient-to-br from-accent/30 via-ember/24 to-skyline/20 text-white shadow-soft">
             <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18"></path><path d="M3 12h18"></path><path d="M6.5 6.5 17.5 17.5"></path></svg>
           </div>
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Flexible, extensible, and built for real workflows.</h2>
@@ -401,28 +440,30 @@ pip install -e ".[dev]"</code></pre>
       </section>
 
       <section class="mx-auto max-w-6xl px-6 pb-24 pt-8 lg:px-8">
-        <div class="reveal overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-accent/20 via-slate-900/70 to-skyline/15 p-10 shadow-glow backdrop-blur-2xl">
-          <div class="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+        <div class="reveal overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/10 p-10 shadow-glow backdrop-blur-2xl">
+          <div class="absolute inset-x-20 bottom-0 h-32 rounded-full bg-ember/22 blur-3xl"></div>
+          <div class="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div class="max-w-2xl">
-              <div class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200">Final call</div>
+              <div class="inline-flex items-center rounded-full border border-white/15 bg-gradient-to-r from-accent/10 to-ember/8 px-4 py-2 text-sm text-slate-100">Final call</div>
               <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Start using Docking today</h2>
               <p class="mt-4 text-lg leading-8 text-slate-300">Install a build, star the project, and shape a Linux dock that fits the way you actually work.</p>
             </div>
+
             <div class="flex flex-col gap-4 sm:flex-row">
-              <a href="https://github.com/edumucelli/docking/releases" class="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3.5 text-base font-semibold text-slate-950 transition hover:bg-slate-100" target="_blank" rel="noopener noreferrer">Download</a>
-              <a href="https://github.com/edumucelli/docking" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-white/10" target="_blank" rel="noopener noreferrer">GitHub Star</a>
+              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01]">Download</a>
+              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white transition hover:border-skyline/35 hover:from-skyline/14 hover:to-skyline/10">GitHub Star</a>
             </div>
           </div>
         </div>
       </section>
     </main>
 
-    <footer class="border-t border-white/5">
-      <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-slate-400 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+    <footer class="border-t border-white/10">
+      <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-slate-300 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div>Docking is an open source dock for Linux (X11), written in Python with GTK and Cairo.</div>
         <div class="flex items-center gap-6">
-          <a href="https://github.com/edumucelli/docking" class="transition hover:text-white" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="https://github.com/edumucelli/docking/releases" class="transition hover:text-white" target="_blank" rel="noopener noreferrer">Releases</a>
+          <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">GitHub</a>
+          <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">Releases</a>
         </div>
       </div>
     </footer>
@@ -437,6 +478,7 @@ pip install -e ".[dev]"</code></pre>
         }
       });
     }, { threshold: 0.18 });
+
     document.querySelectorAll(".reveal").forEach((element) => observer.observe(element));
   </script>
 </body>
