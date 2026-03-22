@@ -94,6 +94,15 @@
         0 0 52px rgba(59, 130, 246, 0.08);
     }
 
+    .carousel-track {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .carousel-track::-webkit-scrollbar {
+      display: none;
+    }
+
     .code-scroll::-webkit-scrollbar {
       height: 8px;
     }
@@ -348,77 +357,390 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Useful widgets, already in the dock.</h2>
-            <p class="mt-4 text-lg leading-8 text-slate-300">Small tools with real utility: glanceable information, richer controls, and compact workflow helpers.</p>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Useful widgets, already in the dock.</h2>
+            <p class="mt-4 text-lg leading-8 text-slate-300">Small tools with real utility: glanceable information, richer controls, and compact workflow helpers. Browse the full applet catalog without leaving the page.</p>
           </div>
-          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">Clock, Weather, CPU, Clippy, Volume, Media, and much more</div>
+          <div class="flex items-center gap-3 self-start lg:self-auto">
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">33 built-in applets, with more room to explore</div>
+            <div class="hidden items-center gap-2 sm:flex">
+              <button type="button" data-carousel-target="applets-carousel" data-carousel-direction="prev" class="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:border-white/30 hover:bg-white/14" aria-label="Previous applets">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"></path></svg>
+              </button>
+              <button type="button" data-carousel-target="applets-carousel" data-carousel-direction="next" class="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:border-white/30 hover:bg-white/14" aria-label="Next applets">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 6 6 6-6 6"></path></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div class="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl">
+        <div class="relative mt-12">
+          <div class="pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-12 bg-gradient-to-r from-midnight to-transparent lg:block"></div>
+          <div class="pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-12 bg-gradient-to-l from-midnight to-transparent lg:block"></div>
+          <div id="applets-carousel" class="carousel-track flex gap-5 overflow-x-auto scroll-smooth snap-x snap-proximity pb-4">
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clock.png" alt="Clock applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/ambient.png" alt="Ambient applet icon" class="h-full w-full object-contain">
+              </div>
               <div>
-                <h3 class="text-lg font-semibold text-white">Clock</h3>
+                <h3 class="text-lg font-semibold text-white">Ambient</h3>
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-skyline/8 backdrop-blur-xl">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/clock.png" alt="Clock applet screenshot" class="h-40 w-full object-cover object-top">
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Clean time display with polished, always-visible presence.</p>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Ambient controls for a calmer desktop atmosphere.</p>
           </article>
-
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl">
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/applications.png" alt="Applications applet icon" class="h-full w-full object-contain">
+              </div>
               <div>
-                <h3 class="text-lg font-semibold text-white">Weather</h3>
+                <h3 class="text-lg font-semibold text-white">Applications</h3>
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-skyline/8 backdrop-blur-xl">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/weather.png" alt="Weather applet screenshot" class="h-40 w-full object-cover object-top">
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Forecast, conditions, and quick environmental context at a glance.</p>
+            <p class="mt-4 text-sm leading-7 text-slate-300">A launcher-style entry point for your installed apps.</p>
           </article>
-
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl">
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/cpumonitor.png" alt="CPU Monitor applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/battery.png" alt="Battery applet icon" class="h-full w-full object-contain">
+              </div>
               <div>
-                <h3 class="text-lg font-semibold text-white">CPU Monitor</h3>
+                <h3 class="text-lg font-semibold text-white">Battery</h3>
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-amber-300/8 backdrop-blur-xl">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/cpu_monitor.png" alt="CPU Monitor applet screenshot" class="h-40 w-full object-cover object-top">
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Live resource awareness without switching to a separate monitor app.</p>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Battery level and charging status at a glance.</p>
           </article>
-
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl">
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clippy.png" alt="Clippy applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bluetooth.png" alt="Bluetooth applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Bluetooth</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Quick Bluetooth visibility and device awareness.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bookmarks.png" alt="Bookmarks applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Bookmarks</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Pinned shortcuts for the places and links you revisit.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/brightness.png" alt="Brightness applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Brightness</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Screen brightness control without leaving the dock.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/calendar.png" alt="Calendar applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Calendar</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Compact date browsing and schedule context.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clippy.png" alt="Clipboard (Clippy) applet icon" class="h-full w-full object-contain">
+              </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Clipboard (Clippy)</h3>
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-accent/8 backdrop-blur-xl">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/clippy.png" alt="Clippy applet screenshot" class="h-40 w-full object-cover object-top">
-            </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Keep recent snippets close and move faster between repeated tasks.</p>
           </article>
-
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl">
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/volume.png" alt="Volume applet icon" class="h-12 w-12 rounded-2xl border border-white/12 bg-white/10 p-2">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clock.png" alt="Clock applet icon" class="h-full w-full object-contain">
+              </div>
               <div>
-                <h3 class="text-lg font-semibold text-white">Volume / Media</h3>
+                <h3 class="text-lg font-semibold text-white">Clock</h3>
               </div>
             </div>
-            <div class="mt-4 overflow-hidden rounded-[1.4rem] border border-white/12 bg-amber-300/8 backdrop-blur-xl">
-              <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/volume.png" alt="Volume applet screenshot" class="h-40 w-full object-cover object-top">
+            <p class="mt-4 text-sm leading-7 text-slate-300">Clean time display with polished, always-visible presence.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/colorpicker.png" alt="Color Picker applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Color Picker</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Pick and inspect colors directly from the desktop.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/desktop.png" alt="Desktop applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Desktop</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Desktop actions and surface shortcuts in one place.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/hydration.png" alt="Hydration applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Hydration</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">A lightweight reminder to keep healthy breaks in view.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/keyboardlayout.png" alt="Keyboard Layout applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Keyboard Layout</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">See and switch your current keyboard layout.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/moon.png" alt="Moon Phase applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Moon Phase</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Current lunar phase and a bit of night-sky context.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/music.png" alt="Music applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Music</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Playback status and quick transport controls.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/network.png" alt="Network applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Network</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Connection state and quick network awareness.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/notifications.png" alt="Notifications applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Notifications</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Unread state and notification shortcuts in one widget.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pet.png" alt="Pet applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Pet</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">A playful companion that lives in the dock.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pomodoro.png" alt="Pomodoro applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Pomodoro</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Focused work sessions with built-in timer rhythm.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/powerprofiles.png" alt="Power Profiles applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Power Profiles</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Switch performance modes based on how you work.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quicknote.png" alt="Quick Note applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Quick Note</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Capture short notes without opening a larger app.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quote.png" alt="Quote applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Quote</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">A rotating quote for a little personality in the dock.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/recentfiles.png" alt="Recent Files applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Recent Files</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Jump back into documents you touched most recently.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/screenshot.png" alt="Screenshot applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Screenshot</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Launch capture actions directly from the dock.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/session.png" alt="Session applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Session</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Lock, logout, shutdown, and session actions close at hand.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/stretchcoach.png" alt="Stretch Coach applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Stretch Coach</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Healthy movement reminders during long sessions.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/systemmonitor.png" alt="System Monitor applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">System Monitor</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Live CPU, memory, and system activity in one widget.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/todayinhistory.png" alt="Today in History applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Today in History</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">A daily historical fact built right into the dock.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trash.png" alt="Trash applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Trash</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Trash state and cleanup access without opening a file manager.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trivia.png" alt="Trivia applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Trivia</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Short knowledge prompts for a lighter desktop moment.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/volume.png" alt="Volume applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Volume</h3>
+              </div>
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Playback and audio control integrated into the same dock surface.</p>
           </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Weather</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Forecast, conditions, and environmental context at a glance.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/workspaces.png" alt="Workspaces applet icon" class="h-full w-full object-contain">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Workspaces</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Switch and track workspaces from the dock.</p>
+          </article>
+          </div>
         </div>
       </section>
 
@@ -522,12 +844,94 @@ pip install -e ".[dev]"</code></pre>
 
     const mobileDockToggle = document.getElementById("mobile-dock-toggle");
     const mobileDockMenu = document.getElementById("mobile-dock-menu");
+    const carouselStates = new Map();
 
     if (mobileDockToggle && mobileDockMenu) {
       mobileDockToggle.addEventListener("click", () => {
         mobileDockMenu.classList.toggle("hidden");
       });
     }
+
+    const pauseCarousel = (track, delay = 5000) => {
+      const state = carouselStates.get(track);
+      if (!state) return;
+      state.pausedUntil = performance.now() + delay;
+    };
+
+    const setupCarousel = (track) => {
+      const state = {
+        direction: 1,
+        pausedUntil: performance.now() + 2600,
+        lastTimestamp: null
+      };
+
+      carouselStates.set(track, state);
+
+      const tick = (timestamp) => {
+        if (state.lastTimestamp === null) {
+          state.lastTimestamp = timestamp;
+        }
+
+        const elapsed = timestamp - state.lastTimestamp;
+        state.lastTimestamp = timestamp;
+        const limit = Math.max(0, track.scrollWidth - track.clientWidth);
+
+        if (limit > 0 && timestamp >= state.pausedUntil) {
+          const speed = 26 / 1000;
+          let next = track.scrollLeft + state.direction * elapsed * speed;
+
+          if (next <= 0) {
+            next = 0;
+            state.direction = 1;
+            state.pausedUntil = timestamp + 1400;
+          } else if (next >= limit) {
+            next = limit;
+            state.direction = -1;
+            state.pausedUntil = timestamp + 1400;
+          }
+
+          track.scrollTo({ left: next });
+        }
+
+        requestAnimationFrame(tick);
+      };
+
+      track.addEventListener("pointerdown", () => pauseCarousel(track));
+      track.addEventListener("mouseenter", () => pauseCarousel(track, 3200));
+      track.addEventListener("wheel", () => pauseCarousel(track, 4200), { passive: true });
+      track.addEventListener("touchstart", () => pauseCarousel(track, 4200), { passive: true });
+
+      requestAnimationFrame(tick);
+    };
+
+    document.querySelectorAll(".carousel-track").forEach((track) => {
+      setupCarousel(track);
+    });
+
+    document.querySelectorAll("[data-carousel-target]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const track = document.getElementById(button.dataset.carouselTarget);
+        if (!track) return;
+
+        const firstCard = track.querySelector("[data-carousel-card]");
+        const trackStyles = window.getComputedStyle(track);
+        const gap = parseFloat(trackStyles.gap || trackStyles.columnGap || 0);
+        const step = firstCard ? firstCard.getBoundingClientRect().width + gap : track.clientWidth * 0.85;
+        const direction = button.dataset.carouselDirection === "next" ? 1 : -1;
+        const state = carouselStates.get(track);
+
+        if (state) {
+          state.direction = direction;
+        }
+
+        pauseCarousel(track);
+
+        track.scrollBy({
+          left: step * direction,
+          behavior: "smooth"
+        });
+      });
+    });
   </script>
 </body>
 </html>
