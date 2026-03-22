@@ -374,9 +374,7 @@
         </div>
 
         <div class="relative mt-12">
-          <div class="pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-12 bg-gradient-to-r from-midnight to-transparent lg:block"></div>
-          <div class="pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-12 bg-gradient-to-l from-midnight to-transparent lg:block"></div>
-          <div id="applets-carousel" class="carousel-track flex gap-5 overflow-x-auto scroll-smooth snap-x snap-proximity pb-4">
+          <div id="applets-carousel" class="carousel-track flex gap-5 overflow-x-auto px-1 pb-4 snap-x snap-proximity">
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
@@ -844,69 +842,12 @@ pip install -e ".[dev]"</code></pre>
 
     const mobileDockToggle = document.getElementById("mobile-dock-toggle");
     const mobileDockMenu = document.getElementById("mobile-dock-menu");
-    const carouselStates = new Map();
 
     if (mobileDockToggle && mobileDockMenu) {
       mobileDockToggle.addEventListener("click", () => {
         mobileDockMenu.classList.toggle("hidden");
       });
     }
-
-    const pauseCarousel = (track, delay = 5000) => {
-      const state = carouselStates.get(track);
-      if (!state) return;
-      state.pausedUntil = performance.now() + delay;
-    };
-
-    const setupCarousel = (track) => {
-      const state = {
-        direction: 1,
-        pausedUntil: performance.now() + 2600,
-        lastTimestamp: null
-      };
-
-      carouselStates.set(track, state);
-
-      const tick = (timestamp) => {
-        if (state.lastTimestamp === null) {
-          state.lastTimestamp = timestamp;
-        }
-
-        const elapsed = timestamp - state.lastTimestamp;
-        state.lastTimestamp = timestamp;
-        const limit = Math.max(0, track.scrollWidth - track.clientWidth);
-
-        if (limit > 0 && timestamp >= state.pausedUntil) {
-          const speed = 26 / 1000;
-          let next = track.scrollLeft + state.direction * elapsed * speed;
-
-          if (next <= 0) {
-            next = 0;
-            state.direction = 1;
-            state.pausedUntil = timestamp + 1400;
-          } else if (next >= limit) {
-            next = limit;
-            state.direction = -1;
-            state.pausedUntil = timestamp + 1400;
-          }
-
-          track.scrollTo({ left: next });
-        }
-
-        requestAnimationFrame(tick);
-      };
-
-      track.addEventListener("pointerdown", () => pauseCarousel(track));
-      track.addEventListener("mouseenter", () => pauseCarousel(track, 3200));
-      track.addEventListener("wheel", () => pauseCarousel(track, 4200), { passive: true });
-      track.addEventListener("touchstart", () => pauseCarousel(track, 4200), { passive: true });
-
-      requestAnimationFrame(tick);
-    };
-
-    document.querySelectorAll(".carousel-track").forEach((track) => {
-      setupCarousel(track);
-    });
 
     document.querySelectorAll("[data-carousel-target]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -918,13 +859,6 @@ pip install -e ".[dev]"</code></pre>
         const gap = parseFloat(trackStyles.gap || trackStyles.columnGap || 0);
         const step = firstCard ? firstCard.getBoundingClientRect().width + gap : track.clientWidth * 0.85;
         const direction = button.dataset.carouselDirection === "next" ? 1 : -1;
-        const state = carouselStates.get(track);
-
-        if (state) {
-          state.direction = direction;
-        }
-
-        pauseCarousel(track);
 
         track.scrollBy({
           left: step * direction,
