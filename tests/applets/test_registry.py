@@ -44,8 +44,8 @@ class TestAppletCatalog:
     def test_contains_desktop(self):
         assert "desktop" in get_applet_catalog()
 
-    def test_contains_cpumonitor(self):
-        assert "cpumonitor" in get_applet_catalog()
+    def test_contains_systemmonitor(self):
+        assert "systemmonitor" in get_applet_catalog()
 
     def test_contains_battery(self):
         assert "battery" in get_applet_catalog()

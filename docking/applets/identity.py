@@ -18,7 +18,7 @@ class AppletId(str, Enum):
     CLIPPY = "clippy"
     CLOCK = "clock"
     COLORPICKER = "colorpicker"
-    CPUMONITOR = "cpumonitor"
+    SYSTEMMONITOR = "systemmonitor"
     DESKTOP = "desktop"
     HYDRATION = "hydration"
     KEYBOARDLAYOUT = "keyboardlayout"
@@ -94,7 +94,7 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.HYDRATION: AppletCategory.WELLNESS,
     AppletId.PET: AppletCategory.WELLNESS,
     AppletId.STRETCHCOACH: AppletCategory.WELLNESS,
-    AppletId.CPUMONITOR: AppletCategory.SYSTEM,
+    AppletId.SYSTEMMONITOR: AppletCategory.SYSTEM,
     AppletId.QUOTE: AppletCategory.INFORMATION,
     AppletId.TODAYINHISTORY: AppletCategory.INFORMATION,
     AppletId.TRIVIA: AppletCategory.INFORMATION,

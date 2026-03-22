@@ -1,4 +1,4 @@
-"""Pure Cairo rendering for CPU monitor applet."""
+"""Pure Cairo rendering for System Monitor applet."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
-from docking.applets.cpumonitor.state import cpu_hue_rgb
+from docking.applets.systemmonitor.state import cpu_hue_rgb
 
 RADIUS_PERCENT = 0.9
 
@@ -81,7 +81,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
 
 
 def render_icon(size: int, cpu: float, mem: float) -> GdkPixbuf.Pixbuf | None:
-    """Render CPU monitor gauge icon."""
+    """Render System Monitor gauge icon."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     cr = cairo.Context(surface)
     _render_gauge(cr=cr, size=size, cpu=cpu, mem=mem)

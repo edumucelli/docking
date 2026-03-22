@@ -1,6 +1,6 @@
-"""CPU Monitor applet public API."""
+"""System Monitor applet public API."""
 
-from .applet import CpuMonitorApplet
+from .applet import SystemMonitorApplet
 from .state import (
     CpuSample,
     cpu_hue_rgb,
@@ -10,8 +10,8 @@ from .state import (
 )
 
 __all__ = [
-    "CpuMonitorApplet",
     "CpuSample",
+    "SystemMonitorApplet",
     "cpu_hue_rgb",
     "cpu_percent",
     "parse_proc_meminfo",

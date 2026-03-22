@@ -1,4 +1,4 @@
-"""Pure state/parsing helpers for CPU monitor applet."""
+"""State and parsing helpers for System Monitor applet."""
 
 from __future__ import annotations
 
@@ -59,8 +59,14 @@ def cpu_hue_rgb(cpu: float) -> tuple[float, float, float]:
     return colorsys.hsv_to_rgb(hue, 1.0, 1.0)
 
 
-def tooltip_text(cpu: float, mem: float) -> str:
+def tooltip_text(cpu: float, mem: float, temperature_c: float | None = None) -> str:
     """Build tooltip text for current cpu/memory values."""
-    return _("CPU: {cpu}% | Mem: {mem}%").format(
+    text = _("CPU: {cpu}% | Mem: {mem}%").format(
         cpu=f"{cpu * 100:.1f}", mem=f"{mem * 100:.1f}"
+    )
+    if temperature_c is None:
+        return text
+    return _("{text} | Temp: {temp}°C").format(
+        text=text,
+        temp=f"{temperature_c:.1f}",
     )

@@ -1,4 +1,4 @@
-"""GTK lifecycle glue for CPU monitor applet."""
+"""GTK lifecycle glue for System Monitor applet."""
 
 from __future__ import annotations
 
@@ -12,8 +12,9 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
-from docking.applets.cpumonitor.render import render_icon
-from docking.applets.cpumonitor.state import (
+from docking.applets.identity import AppletId
+from docking.applets.systemmonitor.render import render_icon
+from docking.applets.systemmonitor.state import (
     CPU_THRESHOLD,
     MEM_THRESHOLD,
     CpuSample,
@@ -22,23 +23,26 @@ from docking.applets.cpumonitor.state import (
     parse_proc_stat,
     tooltip_text,
 )
-from docking.applets.identity import AppletId
+from docking.applets.systemmonitor.temperature import TemperatureReader
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="cpumonitor"), applet_id=str(AppletId.CPUMONITOR))
+_log = with_context(
+    get_logger(name="systemmonitor"),
+    applet_id=str(AppletId.SYSTEMMONITOR),
+)
 _PROC_STAT = Path("/proc/stat")
 _PROC_MEMINFO = Path("/proc/meminfo")
 
 
-class CpuMonitorApplet(Applet):
+class SystemMonitorApplet(Applet):
     """Circular gauge: CPU radial fill + memory arc at edge."""
 
-    id = AppletId.CPUMONITOR
-    name = _("CPU Monitor")
+    id = AppletId.SYSTEMMONITOR
+    name = _("System Monitor")
     icon_name = "utilities-system-monitor"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
@@ -46,6 +50,8 @@ class CpuMonitorApplet(Applet):
         self._prev_sample: CpuSample | None = None
         self._cpu: float = 0.0
         self._mem: float = 0.0
+        self._temperature_c: float | None = None
+        self._temperature_reader = TemperatureReader()
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
         super().__init__(icon_size=icon_size, config=config)
@@ -56,7 +62,11 @@ class CpuMonitorApplet(Applet):
         return render_icon(size=size, cpu=self._cpu, mem=self._mem)
 
     def refresh_tooltip(self) -> None:
-        self.item.name = tooltip_text(cpu=self._cpu, mem=self._mem)
+        self.item.name = tooltip_text(
+            cpu=self._cpu,
+            mem=self._mem,
+            temperature_c=self._temperature_c,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start 1-second polling timer for /proc/stat and /proc/meminfo."""
@@ -70,8 +80,19 @@ class CpuMonitorApplet(Applet):
             self._timer_id = 0
         super().stop()
 
+    def _refresh_tooltip_only(self) -> None:
+        self.refresh_tooltip()
+        if self._notify:
+            self._notify()
+
+    @staticmethod
+    def _display_temperature(value: float | None) -> float | None:
+        if value is None:
+            return None
+        return round(value, 1)
+
     def _tick(self) -> bool:
-        """Read CPU + memory, smooth, and redraw if change exceeds threshold."""
+        """Read CPU, memory, and temperature and refresh the applet state."""
         try:
             with _PROC_STAT.open() as f:
                 curr = parse_proc_stat(text=f.read())
@@ -97,12 +118,19 @@ class CpuMonitorApplet(Applet):
                 exc,
             )
 
-        # Only redraw if change exceeds threshold
+        previous_temperature = self._temperature_c
+        self._temperature_c = self._temperature_reader.read()
+
         cpu_delta = abs(self._cpu - self._last_drawn_cpu)
         mem_delta = abs(self._mem - self._last_drawn_mem)
         if cpu_delta >= CPU_THRESHOLD or mem_delta >= MEM_THRESHOLD:
             self._last_drawn_cpu = self._cpu
             self._last_drawn_mem = self._mem
             self.present()
+        else:
+            previous_display = self._display_temperature(previous_temperature)
+            current_display = self._display_temperature(self._temperature_c)
+            if previous_display != current_display:
+                self._refresh_tooltip_only()
 
         return True

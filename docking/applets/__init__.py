@@ -87,11 +87,11 @@ def get_applet_catalog() -> dict[AppletId, AppletCatalogEntry]:
             module_path="docking.applets.colorpicker.applet",
             class_name="ColorPickerApplet",
         ),
-        AppletId.CPUMONITOR: AppletCatalogEntry(
-            applet_id=AppletId.CPUMONITOR,
-            name="CPU Monitor",
-            module_path="docking.applets.cpumonitor.applet",
-            class_name="CpuMonitorApplet",
+        AppletId.SYSTEMMONITOR: AppletCatalogEntry(
+            applet_id=AppletId.SYSTEMMONITOR,
+            name="System Monitor",
+            module_path="docking.applets.systemmonitor.applet",
+            class_name="SystemMonitorApplet",
         ),
         AppletId.DESKTOP: AppletCatalogEntry(
             applet_id=AppletId.DESKTOP,

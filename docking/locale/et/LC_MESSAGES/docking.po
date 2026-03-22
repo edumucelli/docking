@@ -293,14 +293,19 @@ msgstr "Kopeeri {hex}"
 msgid "Show Hex"
 msgstr "Show Hex"
 
-#: docking/applets/cpumonitor/applet.py:38
-msgid "CPU Monitor"
+#: docking/applets/systemmonitor/applet.py:45
+msgid "System Monitor"
 msgstr "CPU Monitor"
 
-#: docking/applets/cpumonitor/state.py:64
+#: docking/applets/systemmonitor/state.py:64
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr "CPU: {cpu}% | Mem: {mem}%"
+
+#: docking/applets/systemmonitor/state.py:69
+#, python-brace-format
+msgid "{text} | Temp: {temp}°C"
+msgstr "{text} | Temp: {temp}°C"
 
 #: docking/applets/desktop/applet.py:22 docking/applets/workspaces/applet.py:80
 msgid "Desktop"

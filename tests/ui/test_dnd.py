@@ -80,8 +80,8 @@ class TestAppletUriRejection:
         # When / Then
         assert DnDHandler._uri_to_desktop_id(uri) is None
 
-    def test_applet_uri_cpumonitor(self):
-        assert DnDHandler._uri_to_desktop_id("applet://cpumonitor") is None
+    def test_applet_uri_systemmonitor(self):
+        assert DnDHandler._uri_to_desktop_id("applet://systemmonitor") is None
 
     def test_applet_uri_trash(self):
         assert DnDHandler._uri_to_desktop_id("applet://trash") is None

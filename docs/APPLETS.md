@@ -56,15 +56,17 @@ Toggle "show desktop" mode -- minimizes or restores all windows.
 
 **Click:** Toggle show/hide all windows
 
-## CPU Monitor
+## System Monitor
 
-![CPU Monitor applet](../images/cpu_monitor.png)
+![System Monitor applet](../images/system_monitor.png)
 
 Circular gauge showing real-time CPU and memory usage. The fill color shifts from green (idle) to red (busy). A white arc around the edge shows memory usage.
 
-**Tooltip:** `CPU: 23.5% | Mem: 67.2%`
+**Tooltip:** `CPU: 23.5% | Mem: 67.2% | Temp: 54.0°C` when CPU temperature is available
 
 **Update interval:** 1 second (with 3% CPU / 1% memory threshold to avoid excessive redraws)
+
+**Temperature sources:** Linux sysfs first, then common sensor tools such as `sensors`, `vcgencmd`, and `acpi` when installed
 
 ## Battery
 

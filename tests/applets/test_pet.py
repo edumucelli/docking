@@ -376,7 +376,7 @@ class TestPetApplet:
             pending_mood=Mood.EXCITED,
             pending_count=HYSTERESIS - 1,
         )
-        from docking.applets.cpumonitor.state import CpuSample
+        from docking.applets.systemmonitor.state import CpuSample
 
         # prev_sample: 100% busy (0 idle out of 1000 total)
         applet._prev_sample = CpuSample(total=1000, idle=0)

@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 from typing import NamedTuple
 
-from docking.applets.cpumonitor.state import CpuSample, cpu_percent, parse_proc_stat
+from docking.applets.systemmonitor.state import CpuSample, cpu_percent, parse_proc_stat
 from docking.i18n import _
 
 # CPU fraction thresholds (0.0–1.0)

@@ -75,8 +75,8 @@ class TestCategoryFor:
     def test_returns_mapped_category(self):
         assert category_for(applet_id=AppletId.POMODORO) == AppletCategory.PRODUCTIVITY
 
-    def test_cpu_monitor_is_grouped_under_system(self):
-        assert category_for(applet_id=AppletId.CPUMONITOR) == AppletCategory.SYSTEM
+    def test_systemmonitor_is_grouped_under_system(self):
+        assert category_for(applet_id=AppletId.SYSTEMMONITOR) == AppletCategory.SYSTEM
 
     def test_information_category_label(self):
         assert AppletCategory.INFORMATION.value == "Information and Environment"
