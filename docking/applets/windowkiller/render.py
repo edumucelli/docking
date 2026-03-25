@@ -1,4 +1,12 @@
-"""Icon rendering for Window Killer applet."""
+"""Procedural icon rendering for the Window Killer applet.
+
+The icon is intentionally blunt. A red crosshair reads as destructive and
+selection-oriented even at small sizes, which matches the applet's job better
+than a literal skull or generic close-button glyph would.
+
+As with the other small utility applets, Cairo rendering keeps the icon simple,
+resolution-independent, and easy to tweak alongside the rest of the codebase.
+"""
 
 from __future__ import annotations
 

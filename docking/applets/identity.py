@@ -1,4 +1,36 @@
-"""Typed applet identity and categorization helpers."""
+"""Stable applet identifiers and menu-grouping helpers.
+
+Why applet identity needs its own module
+
+Applets appear in several places at once:
+
+- persisted dock configuration,
+- runtime item models,
+- settings menus,
+- catalog lookups,
+- user-facing grouping in the applet picker.
+
+Those layers need one shared notion of "which applet is this?". If each layer
+reconstructed ids from strings ad hoc, subtle mismatches would accumulate and
+saved configurations would become brittle.
+
+The ``applet://`` desktop-id scheme
+
+Docking models applets alongside launchers and files, so applets need a desktop
+id that can live in the same pinned-item list. The custom ``applet://`` prefix
+creates that shared namespace while still making applets easy to recognize.
+Optional ``#<instance>`` suffixes let the same applet type appear multiple
+ times when the UX allows it, such as separators.
+
+What this module owns
+
+- the canonical ``AppletId`` enum,
+- category grouping used by the settings UI and documentation,
+- parser/builders for ``applet://...`` desktop ids.
+
+That makes this file the contract boundary between persistent config strings and
+higher-level applet objects.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,16 @@
-"""Bluetooth applet package."""
+"""Public package surface for the Bluetooth applet.
+
+This package keeps the import surface intentionally small while making the
+implementation split explicit. In the standard Docking applet layout:
+
+- ``applet.py`` owns GTK lifecycle and user interaction,
+- ``render.py`` owns dock-icon drawing,
+- ``state.py`` owns pure logic or platform-facing helpers.
+
+Re-exporting ``BluetoothApplet`` here gives the catalog, tests, and documentation a
+simple import path without turning the package ``__init__`` into an alternate
+implementation layer.
+"""
 
 from .applet import BluetoothApplet
 from .render import create_bluetooth_icon

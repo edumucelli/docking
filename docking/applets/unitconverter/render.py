@@ -1,4 +1,18 @@
-"""Icon rendering for Unit Converter applet."""
+"""Procedural icon rendering for the Unit Converter applet.
+
+The visual goal is not to depict every supported unit type. Instead the icon
+needs to say "conversion" quickly at small sizes. Two opposing arrows do that
+better than a literal ruler/scale/clock mash-up would.
+
+Why Cairo is a good fit here
+
+A conversion icon is mostly geometry: lines, arrow heads, and color contrast.
+Drawing it procedurally keeps it crisp at multiple dock sizes and avoids adding
+another static asset whose only job would be to encode a simple symbol.
+
+The top and bottom arrows use different colors so the bidirectional nature of
+conversion is legible even when the icon is very small.
+"""
 
 from __future__ import annotations
 

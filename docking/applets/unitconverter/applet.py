@@ -1,4 +1,32 @@
-"""GTK lifecycle for Unit Converter applet."""
+"""GTK lifecycle and popup UI for the Unit Converter applet.
+
+What makes this applet different
+
+Most converter logic is pure math, but the user experience depends on a fair
+amount of UI coordination:
+
+- a transient popup positioned near the pointer,
+- category and unit selectors that repopulate each other,
+- a live result label that updates on every input change,
+- background currency-rate loading that must not block GTK.
+
+This module owns those orchestration details. It is the adapter between the
+state layer and the popup controls.
+
+Why background work appears here
+
+Currency conversion is the one category that needs remote data. The applet uses
+``BackgroundWorker`` during startup so the dock can appear immediately while
+rates load off the main thread. Once those rates arrive, the popup can expose
+currency as just another category without changing the rest of the UI model.
+
+What stays out of this module
+
+Actual conversion rules, temperature special cases, result formatting, and rate
+fetching live in ``state.py``. The icon remains procedural in ``render.py``.
+That split keeps GTK code focused on user interaction rather than business
+logic.
+"""
 
 from __future__ import annotations
 

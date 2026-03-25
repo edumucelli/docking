@@ -1,4 +1,31 @@
-"""GTK lifecycle for Window Killer applet."""
+"""Overlay lifecycle and window-picking flow for the Window Killer applet.
+
+What this applet is trying to emulate
+
+The user experience is intentionally close to ``xkill``: click the dock icon,
+get a full-screen crosshair overlay, then click a window to terminate the
+process behind it.
+
+That means this module is mostly about control flow and event capture:
+
+- create a transparent full-screen popup window,
+- grab pointer and keyboard input so the next click is unambiguous,
+- translate a root-window click into the topmost Wnck window at that point,
+- hand the selected PID to the state layer,
+- cleanly dismiss the overlay on success or Escape.
+
+Why the kill call is delegated
+
+Actually sending ``SIGKILL`` is kept in ``state.py`` so the destructive act is
+small, explicit, and separately testable. This file stays focused on selection
+mechanics and GTK/Wnck integration.
+
+Why this module needs long-form explanation
+
+Overlay input grabs are one of the more fragile interaction patterns in the
+codebase. Documenting the intended flow here reduces the risk of future changes
+accidentally leaving the seat grabbed or changing the target-selection rules.
+"""
 
 from __future__ import annotations
 

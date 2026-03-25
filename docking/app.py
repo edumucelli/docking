@@ -1,4 +1,37 @@
-"""Application entry point -- bootstraps the dock and runs the GTK main loop."""
+"""Application bootstrap for the Docking process.
+
+What this module owns
+
+This file is the narrow runtime bridge between "Python package on disk" and
+"running GTK dock on screen". It performs the small set of process-wide steps
+that must happen in a specific order before the rest of the dock can operate.
+
+Boot order matters here
+
+Several actions in this module are deliberately early and global:
+
+1. enable ``faulthandler`` so hard crashes still produce Python tracebacks,
+2. add the vendor dependency directory when running from packaged installs,
+3. initialize gettext before importing modules that declare translated labels,
+4. require the GTK version before importing ``gi.repository`` objects,
+5. construct the core model / platform adapters / renderer / window objects,
+6. hand control to ``Gtk.main()``.
+
+Why this module should stay small
+
+Most behavior does not belong here. Once the initial process wiring is done,
+responsibility moves outward:
+
+- configuration and theme loading go through ``docking.core``,
+- environment tweaks and window tracking go through ``docking.platform``,
+- GTK assembly goes through ``docking.ui.factory`` and related UI modules,
+- applet lifecycle is delegated to the model.
+
+That separation is important because entrypoints tend to become accidental
+"god modules" when they start absorbing policy decisions. This file should
+continue to answer only one question: how does a Docking process start and stop
+cleanly?
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,20 @@
-"""Pure shortening logic for URL Shortener applet -- no GTK dependency."""
+"""Pure URL-shortening request logic for the URL Shortener applet.
+
+This module isolates the remote-service boundary used by the shortener applet.
+The GTK layer should not need to know how query parameters are built, which
+HTTP errors can occur, or how those failures are translated into user-facing
+messages.
+
+The logic here is intentionally small and explicit:
+
+- normalize the submitted URL,
+- call the is.gd simple API,
+- translate transport/HTTP failures into ``Error: ...`` strings,
+- provide the tiny persisted preference payload used by the dialog.
+
+That contract keeps the UI code straightforward: it asks for a shortened URL and
+renders whatever string comes back.
+"""
 
 from __future__ import annotations
 

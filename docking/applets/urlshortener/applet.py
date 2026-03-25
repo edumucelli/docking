@@ -1,4 +1,27 @@
-"""GTK lifecycle for URL Shortener applet."""
+"""GTK dialog lifecycle for the URL Shortener applet.
+
+How this applet is structured
+
+Unlike the calculator and converter, the shortener uses a ``Gtk.Dialog`` rather
+than a custom popup window. That choice fits the interaction model better: the
+user pastes a URL, triggers one network request, optionally copies the result,
+and closes the tool.
+
+This module owns the interaction shell around that flow:
+
+- show and dismiss the dialog,
+- gather URL input,
+- launch the shortening request off the main thread,
+- reveal result/copy controls only when they are useful,
+- persist the last submitted URL for convenience.
+
+Why the network call is not in the UI thread
+
+The is.gd request is small but still unbounded relative to GTK responsiveness.
+Spawning a background thread keeps the dialog responsive while the request is in
+flight. The pure request logic stays in ``state.py`` so the applet module only
+has to worry about UI transitions and result presentation.
+"""
 
 from __future__ import annotations
 

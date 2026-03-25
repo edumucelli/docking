@@ -1,4 +1,23 @@
-"""Icon rendering for Calculator applet."""
+"""Procedural icon rendering for the Calculator applet.
+
+Why this icon is drawn in code
+
+The calculator applet does not need a photo-realistic asset. A small, readable,
+resolution-independent icon is enough, and Cairo drawing keeps the icon crisp
+at the range of dock sizes the app supports.
+
+Visual intent
+
+The icon deliberately communicates three ideas with very few shapes:
+
+- a rounded calculator body,
+- a darker display bar,
+- a simple button grid.
+
+That is enough for recognition in the dock while keeping the implementation
+compact. The function returns a pixbuf so the rest of the dock can treat it like
+any other applet icon source, whether that icon came from a file or from Cairo.
+"""
 
 from __future__ import annotations
 

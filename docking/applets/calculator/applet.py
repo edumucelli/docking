@@ -1,4 +1,29 @@
-"""GTK lifecycle for Calculator applet."""
+"""GTK lifecycle and popup orchestration for the Calculator applet.
+
+How this applet works
+
+The calculator is intentionally implemented as a transient popup rather than a
+persistent dock widget. The icon stays compact in the dock, and the actual
+calculator UI is created only when the user asks for it.
+
+That design gives the applet three responsibilities:
+
+1. toggle and position a popup window near the pointer,
+2. translate button presses and entry activation into calculator actions,
+3. persist the last displayed expression/result so the tool feels stateful
+   across dock restarts.
+
+What this module does not do
+
+It does not evaluate expressions itself and it does not draw the dock icon.
+Those concerns live in ``state.py`` and ``render.py`` respectively. That split
+is important because popup lifecycle code is inherently GTK-heavy, while the
+math evaluator should remain testable without any UI dependency.
+
+The result is a small but representative applet module: GTK wiring here, pure
+logic elsewhere, and only the minimal persistence needed for a polished user
+experience.
+"""
 
 from __future__ import annotations
 

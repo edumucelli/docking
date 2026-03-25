@@ -1,4 +1,25 @@
-"""Pure evaluation logic for Calculator applet -- no GTK dependency."""
+"""Pure expression evaluation for the Calculator applet.
+
+Why this module exists
+
+A calculator applet looks like a UI problem, but the risky part is actually
+expression evaluation. The applet must accept user-entered arithmetic without
+opening the door to arbitrary Python execution.
+
+The approach here is intentionally narrow:
+
+- parse the expression with ``ast.parse(..., mode="eval")``,
+- accept only numeric constants plus a small whitelist of operators,
+- recurse over the AST and reject everything else.
+
+That gives the applet a predictable feature set: basic arithmetic, parentheses,
+and unary plus/minus. It also keeps the evaluator independent from GTK, which
+makes it cheap to test and easy to reuse from the popup controller.
+
+This module also owns the tiny preference payload used to persist the last
+expression/result. That persistence contract belongs with the calculator logic,
+not with the GTK event handlers.
+"""
 
 from __future__ import annotations
 

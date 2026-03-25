@@ -1,4 +1,29 @@
-"""Pure conversion logic for Unit Converter applet -- no GTK dependency."""
+"""Pure conversion rules and currency-rate support for the Unit Converter applet.
+
+This module carries the real semantic weight of the unit converter. The popup
+UI is only a shell around the data and formulas defined here.
+
+What lives here
+
+- the category enum shown by the applet,
+- the unit tables for static categories,
+- the conversion algorithm for base-unit categories,
+- temperature special-case math,
+- currency-rate fetching and installation,
+- result formatting and preference payload helpers.
+
+Why currency is handled specially
+
+Most categories can convert through a fixed base unit. Currency cannot, because
+exchange rates change over time. This module therefore treats currency as a
+runtime-populated category whose unit table is filled from a remote API. The
+applet layer does the asynchronous scheduling, but the data contract and math
+still belong here.
+
+Keeping all of that in one GTK-free module matters because it lets the converter
+remain testable and deterministic for the static categories while still making
+its dynamic behavior explicit.
+"""
 
 from __future__ import annotations
 

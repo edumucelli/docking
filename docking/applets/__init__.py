@@ -1,4 +1,34 @@
-"""Applet catalog and lazy applet class loading."""
+"""Applet catalog, metadata, and lazy class loading.
+
+Why applets are treated as a catalog
+
+Docking ships many optional applets, but most sessions only instantiate a small
+subset of them. Importing every applet module eagerly would pull GTK code,
+state helpers, background workers, and icon renderers into memory even when the
+user never enables those applets.
+
+This module solves that by splitting applet discovery into two phases:
+
+1. a cheap metadata catalog that describes what exists,
+2. lazy import of the concrete applet class only when one is actually needed.
+
+What this module owns
+
+- the static mapping from ``AppletId`` to display name and module path,
+- import-time lookup of applet classes,
+- a stable metadata shape used by menus and settings UI.
+
+What it deliberately does not own
+
+- per-applet runtime logic,
+- applet preferences,
+- GTK rendering,
+- background work.
+
+Those responsibilities stay inside the applet packages themselves. Keeping the
+catalog separate makes the applet system scalable: menus can list every applet
+without paying the cost of fully importing every applet implementation.
+"""
 
 from __future__ import annotations
 

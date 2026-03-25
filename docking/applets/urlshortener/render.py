@@ -1,4 +1,14 @@
-"""Icon rendering for URL Shortener applet."""
+"""Procedural icon rendering for the URL Shortener applet.
+
+The shortener icon needs to communicate "link" more than "network service".
+Two interlocking chain links are a familiar, compact metaphor that still reads
+well at dock sizes where fine detail would be lost.
+
+This module keeps the icon procedural for the same reason other lightweight
+applets do: the geometry is simple, scaling is important, and the rest of the
+app can consume a pixbuf without caring whether it came from Cairo or from a
+bundled asset.
+"""
 
 from __future__ import annotations
 
