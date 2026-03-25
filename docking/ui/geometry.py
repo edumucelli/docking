@@ -305,6 +305,14 @@ class DockGeometryFrame:
     local_cursor_main: float
     zoomed_main_offset: float
     cross_size: float
+    # Pre-computed shelf drawing coordinates (orientation-independent).
+    shelf_main_pos: float = 0.0
+    shelf_main_extent: float = 0.0
+    shelf_cross_pos: float = 0.0
+    shelf_cross_extent: float = 0.0
+    # Shelf Y in the renderer's canonical "as-if-bottom" coordinate space.
+    # Single source of truth - renderer uses this directly, no recomputation.
+    shelf_as_bottom_y: float = 0.0
 
     def item_at_point(self, x: float, y: float) -> DockItem | None:
         if not self.cursor_rect.contains(x=x, y=y):
@@ -548,6 +556,20 @@ def build_geometry_frame(
         for item_geometry in item_geometries:
             cursor_rect = cursor_rect.union(item_geometry.hover_rect)
 
+    horizontal = is_horizontal(pos=pos)
+    shelf_cross_pos = float(background_rect.y if horizontal else background_rect.x)
+    shelf_cross_extent = float(background_rect.h if horizontal else background_rect.w)
+
+    # Compute shelf Y in the renderer's canonical "as-if-bottom" space.
+    # BOTTOM/RIGHT: screen coords match as-if-bottom, use cross_pos directly.
+    # TOP/LEFT: the renderer's transform mirrors, so reverse-map.
+    if pos == Position.BOTTOM or pos == Position.RIGHT:
+        as_bottom_y = shelf_cross_pos
+    elif pos == Position.TOP:
+        as_bottom_y = float(window_h) - shelf_cross_pos - shelf_cross_extent
+    else:  # LEFT
+        as_bottom_y = float(window_w) - shelf_cross_pos - shelf_cross_extent
+
     return DockGeometryFrame(
         window_rect=Rect(0, 0, window_w, window_h),
         static_dock_rect=static_dock_rect,
@@ -558,6 +580,11 @@ def build_geometry_frame(
         local_cursor_main=local_cursor_main,
         zoomed_main_offset=zoomed_main_offset,
         cross_size=cross_size,
+        shelf_main_pos=float(background_rect.x if horizontal else background_rect.y),
+        shelf_main_extent=float(background_rect.w if horizontal else background_rect.h),
+        shelf_cross_pos=shelf_cross_pos,
+        shelf_cross_extent=shelf_cross_extent,
+        shelf_as_bottom_y=as_bottom_y,
     )
 
 
@@ -584,11 +611,12 @@ def capture_geometry_inputs(
     autohide_state = (
         window.autohide.state if window.autohide and window.autohide.enabled else None
     )
-    zoom_progress = (
+    autohide_zoom = (
         window.autohide.zoom_progress
         if window.autohide and window.autohide.enabled
         else 1.0
     )
+    zoom_progress = window.zoom_animator.progress * autohide_zoom
     hide_offset = (
         window.autohide.hide_offset
         if window.autohide and window.autohide.enabled
@@ -903,9 +931,7 @@ def _compute_background_rect(
     gap = max(0, int(theme.distance_from_edge))
     shelf_cross = max(1, int(round(theme.shelf_height)))
     stroke_width = max(0.0, float(theme.stroke_width))
-    main_padding = (
-        theme.item_padding + 2 * theme.h_padding + 4 * stroke_width + drop_gap
-    )
+    main_padding = theme.item_padding + 2 * theme.h_padding + 4 * stroke_width
 
     if draw_rects:
         if is_horizontal(pos=pos):
@@ -923,7 +949,7 @@ def _compute_background_rect(
             + main_padding
         ) / 2
         main_start = int(round(first_center - first_half))
-        main_end = int(round(last_center + last_half))
+        main_end = int(round(last_center + last_half + drop_gap))
     else:
         if is_horizontal(pos=pos):
             main_start = static_dock_rect.x
@@ -940,9 +966,7 @@ def _compute_background_rect(
         main_end = max(main_end, static_dock_rect.y + static_dock_rect.h)
 
     if pos == Position.BOTTOM:
-        shelf_slide = hide_offset * (static_dock_rect.h - gap) + hide_offset * max(
-            0, static_dock_rect.h - gap - shelf_cross
-        )
+        shelf_slide = hide_offset * (shelf_cross + gap)
         shelf_y = int(
             round(
                 static_dock_rect.y
@@ -954,20 +978,14 @@ def _compute_background_rect(
         )
         return Rect(main_start, shelf_y, max(1, main_end - main_start), shelf_cross)
     if pos == Position.TOP:
-        shelf_slide = hide_offset * (static_dock_rect.h - gap) + hide_offset * max(
-            0, static_dock_rect.h - gap - shelf_cross
-        )
+        shelf_slide = hide_offset * (shelf_cross + gap)
         shelf_y = int(round(static_dock_rect.y + gap - shelf_slide))
         return Rect(main_start, shelf_y, max(1, main_end - main_start), shelf_cross)
     if pos == Position.LEFT:
-        shelf_slide = hide_offset * (static_dock_rect.w - gap) + hide_offset * max(
-            0, static_dock_rect.w - gap - shelf_cross
-        )
+        shelf_slide = hide_offset * (shelf_cross + gap)
         shelf_x = int(round(static_dock_rect.x + gap - shelf_slide))
         return Rect(shelf_x, main_start, shelf_cross, max(1, main_end - main_start))
-    shelf_slide = hide_offset * (static_dock_rect.w - gap) + hide_offset * max(
-        0, static_dock_rect.w - gap - shelf_cross
-    )
+    shelf_slide = hide_offset * (shelf_cross + gap)
     shelf_x = int(
         round(static_dock_rect.x + static_dock_rect.w - gap - shelf_cross + shelf_slide)
     )

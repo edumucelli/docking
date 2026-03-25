@@ -273,10 +273,12 @@ class DockInteractionCoordinator:
         if self._window.dock_hovered:
             return
         self._window.dock_hovered = True
+        self._window.zoom_animator.on_enter()
         if self._window.autohide:
             self._window.autohide.on_mouse_enter()
 
     def on_effective_leave(self, widget: Gtk.DrawingArea) -> None:
+        self._window.zoom_animator.on_leave()
         preview_visible = bool(
             self._window.preview and self._window.preview.get_visible()
         )

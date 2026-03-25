@@ -14,6 +14,7 @@ class AppletId(str, Enum):
     BOOKMARKS = "bookmarks"
     BLUETOOTH = "bluetooth"
     BRIGHTNESS = "brightness"
+    CALCULATOR = "calculator"
     CALENDAR = "calendar"
     CLIPPY = "clippy"
     CLOCK = "clock"
@@ -39,8 +40,11 @@ class AppletId(str, Enum):
     TODAYINHISTORY = "todayinhistory"
     TRIVIA = "trivia"
     TRASH = "trash"
+    UNITCONVERTER = "unitconverter"
+    URLSHORTENER = "urlshortener"
     VOLUME = "volume"
     WEATHER = "weather"
+    WINDOWKILLER = "windowkiller"
     WORKSPACES = "workspaces"
 
     def __str__(self) -> str:
@@ -69,6 +73,7 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.APPLICATIONS: AppletCategory.LAUNCHER,
     AppletId.DESKTOP: AppletCategory.LAUNCHER,
     AppletId.WORKSPACES: AppletCategory.LAUNCHER,
+    AppletId.CALCULATOR: AppletCategory.PRODUCTIVITY,
     AppletId.CALENDAR: AppletCategory.PRODUCTIVITY,
     AppletId.CLOCK: AppletCategory.PRODUCTIVITY,
     AppletId.CLIPPY: AppletCategory.PRODUCTIVITY,
@@ -95,6 +100,9 @@ APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
     AppletId.PET: AppletCategory.WELLNESS,
     AppletId.STRETCHCOACH: AppletCategory.WELLNESS,
     AppletId.SYSTEMMONITOR: AppletCategory.SYSTEM,
+    AppletId.UNITCONVERTER: AppletCategory.PRODUCTIVITY,
+    AppletId.URLSHORTENER: AppletCategory.PRODUCTIVITY,
+    AppletId.WINDOWKILLER: AppletCategory.SYSTEM,
     AppletId.QUOTE: AppletCategory.INFORMATION,
     AppletId.TODAYINHISTORY: AppletCategory.INFORMATION,
     AppletId.TRIVIA: AppletCategory.INFORMATION,

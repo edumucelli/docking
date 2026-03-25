@@ -171,6 +171,7 @@ class DockModel:
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
+        self._animating_out: list[DockItem] = []
         self.on_change: Callable[[], None] | None = None
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
@@ -281,6 +282,7 @@ class DockModel:
         applet.item.kind = APPLET_KIND
         applet.item.target = desktop_id
         applet.item.prefs_key = desktop_id
+        applet.item.insert_factor = 0.0
         self.pinned_items.append(applet.item)
         applet.start(notify=self.notify)
         self.sync_pinned_to_config()
@@ -311,6 +313,7 @@ class DockModel:
         applet.item.kind = APPLET_KIND
         applet.item.target = desktop_id
         applet.item.prefs_key = desktop_id
+        applet.item.insert_factor = 0.0
         applet.apply_prefs()
         self._applets[desktop_id] = applet
         if index < 0 or index >= len(self.pinned_items):
@@ -323,12 +326,13 @@ class DockModel:
         self.notify()
 
     def remove_applet(self, desktop_id: str) -> None:
-        """Stop and remove a applet from the dock."""
+        """Stop and remove a applet from the dock (animated)."""
         applet = self._applets.pop(desktop_id, None)
         if applet:
             applet.stop()
             if applet.item in self.pinned_items:
                 self.pinned_items.remove(applet.item)
+                self._animating_out.append(applet.item)
             self.sync_pinned_to_config()
             self._config.save()
             self.notify()
@@ -345,7 +349,7 @@ class DockModel:
 
     def visible_items(self) -> list[DockItem]:
         """All items to display with optional independent anchoring rules."""
-        items = self.pinned_items + self._transient
+        items = self.pinned_items + self._transient + self._animating_out
         anchor_applets = self._config.anchor_applets
         anchor_files = self._config.anchor_files
         if not anchor_applets and not anchor_files:
@@ -467,6 +471,7 @@ class DockModel:
     def add_pinned_item(self, item: DockItem, index: int = -1) -> None:
         """Insert a already-resolved pinned item at the given pinned index."""
         item.is_pinned = True
+        item.insert_factor = 0.0
         if index < 0 or index >= len(self.pinned_items):
             self.pinned_items.append(item)
         else:
@@ -475,7 +480,7 @@ class DockModel:
         self.notify()
 
     def unpin_item(self, desktop_id: str) -> None:
-        """Unpin an item. If running, becomes transient; otherwise removed.
+        """Unpin an item. If running, becomes transient; otherwise animated out.
 
         Applets are fully removed (stop + cleanup) since they can't be transient.
         """
@@ -488,6 +493,8 @@ class DockModel:
             item.is_pinned = False
             if item.kind == APP_KIND and item.is_running:
                 self._transient.append(item)
+            else:
+                self._animating_out.append(item)
             self._persist_pinned_changes()
             self.notify()
 
@@ -566,3 +573,27 @@ class DockModel:
         """Fire on_change callback to trigger a dock redraw."""
         if self.on_change:
             self.on_change()
+
+    def tick_animations(self) -> bool:
+        """Advance insert/remove animations. Returns True if any are active."""
+        speed = 0.12
+        active = False
+
+        # Grow newly inserted items
+        for item in self.pinned_items + self._transient:
+            if item.insert_factor < 1.0:
+                item.insert_factor = min(1.0, item.insert_factor + speed)
+                active = True
+
+        # Shrink items being removed
+        done = []
+        for item in self._animating_out:
+            item.insert_factor = max(0.0, item.insert_factor - speed)
+            if item.insert_factor <= 0.0:
+                done.append(item)
+            else:
+                active = True
+        for item in done:
+            self._animating_out.remove(item)
+
+        return active

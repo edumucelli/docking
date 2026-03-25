@@ -1,15 +1,24 @@
-"""Animation effects -- easing functions and color extraction.
+"""Animation effects -- easing functions, color extraction, and zoom animator.
 
 Timing constants (click duration, bounce heights, hover lighten, etc.)
-are loaded from the theme JSON via Theme.load(). Only pure functions
-remain here.
+are loaded from the theme JSON via Theme.load(). Pure easing functions
+and the stateful ZoomAnimator for smooth enter/leave transitions live here.
 """
 
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
+
+from gi.repository import GLib
 
 from docking.core.theme import RGB
+
+if TYPE_CHECKING:
+    import gi
+
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gtk
 
 NEUTRAL_GRAY_RGB: RGB = (0.5, 0.5, 0.5)
 DOMINANT_COLOR_ALPHA_THRESHOLD = 25
@@ -149,3 +158,64 @@ def easing_bounce(t: float, duration: float, n: float = 1.0) -> float:
     p = t / duration
     envelope = min(1.0, (1.0 - p) * (2.0 * n) / (2.0 * n - 1.0))
     return abs(math.sin(n * math.pi * p)) * envelope
+
+
+def ease_out_cubic(t: float) -> float:
+    """Cubic ease-out: fast start, gradual deceleration. Input/output 0-1."""
+    t = max(0.0, min(1.0, t))
+    return 1.0 - (1.0 - t) ** 3
+
+
+_TICK_MS = 16  # ~60fps
+
+
+class ZoomAnimator:
+    """Smooth zoom enter/leave transitions.
+
+    Animates a progress value from 0 (rest) to 1 (full zoom) on enter,
+    and back to 0 on leave. Uses ease-out cubic for natural deceleration.
+    The timer only runs during transitions -- zero CPU when idle.
+    """
+
+    def __init__(
+        self,
+        drawing_area: Gtk.DrawingArea,
+        *,
+        enter_ms: int = 120,
+        leave_ms: int = 200,
+    ) -> None:
+        self._drawing_area = drawing_area
+        self._enter_ms = enter_ms
+        self._leave_ms = leave_ms
+        self._raw: float = 0.0  # linear 0-1, eased via property
+        self._target: float = 0.0
+        self._timer_id: int = 0
+
+    @property
+    def progress(self) -> float:
+        return ease_out_cubic(self._raw)
+
+    def on_enter(self) -> None:
+        self._target = 1.0
+        self._ensure_timer()
+
+    def on_leave(self) -> None:
+        self._target = 0.0
+        self._ensure_timer()
+
+    def _ensure_timer(self) -> None:
+        if not self._timer_id:
+            self._timer_id = GLib.timeout_add(_TICK_MS, self._tick)
+
+    def _tick(self) -> bool:
+        if self._target > self._raw:
+            step = _TICK_MS / self._enter_ms
+            self._raw = min(1.0, self._raw + step)
+        else:
+            step = _TICK_MS / self._leave_ms
+            self._raw = max(0.0, self._raw - step)
+        self._drawing_area.queue_draw()
+        if self._raw == self._target:
+            self._timer_id = 0
+            return False
+        return True

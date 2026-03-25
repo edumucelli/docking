@@ -303,8 +303,10 @@ class TestNetworkAppletInternals:
     def test_stop_disconnects_signal_and_timer(self, monkeypatch):
         # Given
         applet = NetworkApplet(48)
-        applet._nm_client = MagicMock()
+        nm_client = MagicMock()
+        applet._nm_client = nm_client
         applet._nm_handler_id = 17
+        applet._nm_state_handler_id = 18
         applet._timer_id = 88
         removed: list[int] = []
         monkeypatch.setattr(
@@ -313,10 +315,12 @@ class TestNetworkAppletInternals:
         # When
         applet.stop()
         # Then
-        applet._nm_client = None
         assert applet._nm_handler_id == 0
+        assert applet._nm_state_handler_id == 0
         assert applet._timer_id == 0
         assert removed == [88]
+        nm_client.disconnect.assert_any_call(17)
+        nm_client.disconnect.assert_any_call(18)
 
     def test_on_nm_changed_refreshes(self, monkeypatch):
         # Given

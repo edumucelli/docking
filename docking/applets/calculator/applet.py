@@ -1,0 +1,194 @@
+"""GTK lifecycle for Calculator applet."""
+
+from __future__ import annotations
+
+import math
+from typing import TYPE_CHECKING
+
+import cairo
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, Gtk
+
+from docking.applets.base import Applet
+from docking.applets.calculator.render import create_icon
+from docking.applets.calculator.state import evaluate, prefs_payload
+from docking.applets.identity import AppletId
+from docking.i18n import _
+from docking.ui.runtime import get_pointer_position
+
+if TYPE_CHECKING:
+    from docking.core.config import Config
+
+POPUP_CORNER_RADIUS_PX = 8
+POPUP_PADDING_PX = 10
+POPUP_CURSOR_GAP_PX = 20
+BUTTON_SPACING_PX = 4
+BUTTON_ROWS = (
+    ("7", "8", "9", "/"),
+    ("4", "5", "6", "*"),
+    ("1", "2", "3", "-"),
+    ("C", "0", ".", "+"),
+    ("(", ")", "\u2190", "="),
+)
+
+
+class CalculatorApplet(Applet):
+    """Basic four-function calculator with a popup interface."""
+
+    id = AppletId.CALCULATOR
+    name = _("Calculator")
+    icon_name = "accessories-calculator"
+
+    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        self._popup: Gtk.Window | None = None
+        self._entry: Gtk.Entry | None = None
+
+        prefs = config.applet_prefs.get("calculator", {}) if config else {}
+        self._last_expr = str(prefs.get("last_expression", ""))
+
+        super().__init__(icon_size=icon_size, config=config)
+        self.present()
+
+    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+        return create_icon(size=size)
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = _("Calculator")
+
+    def on_clicked(self) -> None:
+        if self._popup and self._popup.get_visible():
+            self._popup.hide()
+            return
+        self._show_popup()
+
+    def stop(self) -> None:
+        if self._popup:
+            self._popup.destroy()
+            self._popup = None
+        super().stop()
+
+    # -- Popup ----------------------------------------------------------------
+
+    def _show_popup(self) -> None:
+        if self._popup is None:
+            self._popup = Gtk.Window(type=Gtk.WindowType.POPUP)
+            self._popup.set_decorated(False)
+            self._popup.set_skip_taskbar_hint(True)
+            self._popup.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+            self._popup.set_app_paintable(True)
+
+            screen = self._popup.get_screen()
+            visual = screen.get_rgba_visual()
+            if visual:
+                self._popup.set_visual(visual)
+
+            def on_draw(widget: Gtk.Widget, cr: cairo.Context) -> bool:
+                alloc = widget.get_allocation()
+                r = POPUP_CORNER_RADIUS_PX
+                w, h = alloc.width, alloc.height
+                cr.new_sub_path()
+                cr.arc(w - r, r, r, -math.pi / 2, 0)
+                cr.arc(w - r, h - r, r, 0, math.pi / 2)
+                cr.arc(r, h - r, r, math.pi / 2, math.pi)
+                cr.arc(r, r, r, math.pi, 3 * math.pi / 2)
+                cr.close_path()
+                cr.set_source_rgba(0.12, 0.12, 0.12, 0.92)
+                cr.fill()
+                return False
+
+            self._popup.connect("draw", on_draw)
+
+        child = self._popup.get_child()
+        if child:
+            self._popup.remove(child)
+
+        self._popup.add(self._build_popup_content())
+        self._popup.show_all()
+
+        # Position near mouse
+        display = Gdk.Display.get_default()
+        pos = get_pointer_position(display)
+        mouse_x, mouse_y = pos if pos else (0, 0)
+
+        pref = self._popup.get_preferred_size()[1]
+        popup_w = max(pref.width, 1)
+        popup_h = max(pref.height, 1)
+
+        screen = self._popup.get_screen()
+        screen_w = screen.get_width()
+        screen_h = screen.get_height()
+
+        popup_x = max(0, min(int(mouse_x - popup_w / 2), screen_w - popup_w))
+        popup_y = max(
+            0,
+            min(
+                int(mouse_y - popup_h - POPUP_CURSOR_GAP_PX),
+                screen_h - popup_h,
+            ),
+        )
+
+        self._popup.move(popup_x, popup_y)
+
+    def _build_popup_content(self) -> Gtk.Box:
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=BUTTON_SPACING_PX)
+        box.set_margin_start(POPUP_PADDING_PX)
+        box.set_margin_end(POPUP_PADDING_PX)
+        box.set_margin_top(POPUP_PADDING_PX)
+        box.set_margin_bottom(POPUP_PADDING_PX)
+
+        # Display entry
+        self._entry = Gtk.Entry()
+        self._entry.set_text(self._last_expr)
+        self._entry.set_alignment(1.0)
+        self._entry.connect("activate", lambda _: self._do_evaluate())
+        font_desc = self._entry.get_pango_context().get_font_description()
+        font_desc.set_family("monospace")
+        self._entry.override_font(font_desc)
+        box.pack_start(self._entry, False, False, 0)
+
+        # Button grid
+        for row_labels in BUTTON_ROWS:
+            row = Gtk.Box(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                spacing=BUTTON_SPACING_PX,
+                homogeneous=True,
+            )
+            for label in row_labels:
+                btn = Gtk.Button(label=label)
+                btn.connect("clicked", self._on_button, label)
+                row.pack_start(btn, True, True, 0)
+            box.pack_start(row, False, False, 0)
+
+        return box
+
+    def _on_button(self, _btn: Gtk.Button, label: str) -> None:
+        if not self._entry:
+            return
+        if label == "C":
+            self._entry.set_text("")
+        elif label == "\u2190":
+            text = self._entry.get_text()
+            self._entry.set_text(text[:-1])
+        elif label == "=":
+            self._do_evaluate()
+        else:
+            pos = self._entry.get_position()
+            self._entry.insert_text(label, pos)
+            self._entry.set_position(pos + len(label))
+
+    def _do_evaluate(self) -> None:
+        if not self._entry:
+            return
+        expr = self._entry.get_text()
+        result = evaluate(expression=expr)
+        self._entry.set_text(result)
+        self._entry.set_position(-1)
+        self._last_expr = result
+        self._save_prefs()
+
+    def _save_prefs(self) -> None:
+        self.save_prefs(prefs=prefs_payload(last_expression=self._last_expr))

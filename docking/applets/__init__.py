@@ -63,6 +63,12 @@ def get_applet_catalog() -> dict[AppletId, AppletCatalogEntry]:
             module_path="docking.applets.brightness.applet",
             class_name="BrightnessApplet",
         ),
+        AppletId.CALCULATOR: AppletCatalogEntry(
+            applet_id=AppletId.CALCULATOR,
+            name="Calculator",
+            module_path="docking.applets.calculator.applet",
+            class_name="CalculatorApplet",
+        ),
         AppletId.CALENDAR: AppletCatalogEntry(
             applet_id=AppletId.CALENDAR,
             name="Calendar",
@@ -213,6 +219,18 @@ def get_applet_catalog() -> dict[AppletId, AppletCatalogEntry]:
             module_path="docking.applets.trivia.applet",
             class_name="TriviaApplet",
         ),
+        AppletId.UNITCONVERTER: AppletCatalogEntry(
+            applet_id=AppletId.UNITCONVERTER,
+            name="Unit Converter",
+            module_path="docking.applets.unitconverter.applet",
+            class_name="UnitConverterApplet",
+        ),
+        AppletId.URLSHORTENER: AppletCatalogEntry(
+            applet_id=AppletId.URLSHORTENER,
+            name="URL Shortener",
+            module_path="docking.applets.urlshortener.applet",
+            class_name="UrlShortenerApplet",
+        ),
         AppletId.VOLUME: AppletCatalogEntry(
             applet_id=AppletId.VOLUME,
             name="Volume",
@@ -224,6 +242,12 @@ def get_applet_catalog() -> dict[AppletId, AppletCatalogEntry]:
             name="Weather",
             module_path="docking.applets.weather.applet",
             class_name="WeatherApplet",
+        ),
+        AppletId.WINDOWKILLER: AppletCatalogEntry(
+            applet_id=AppletId.WINDOWKILLER,
+            name="Window Killer",
+            module_path="docking.applets.windowkiller.applet",
+            class_name="WindowKillerApplet",
         ),
         AppletId.WORKSPACES: AppletCatalogEntry(
             applet_id=AppletId.WORKSPACES,

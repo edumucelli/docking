@@ -3,8 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Docking | A dock that adapts to your workflow.</title>
-  <meta name="description" content="Docking is a fast, customizable, and extensible dock for Linux with built-in applets and full desktop integration.">
+  <title>Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration</title>
+  <meta name="description" content="Docking is an open source dock for Linux (X11) with 36 built-in applets, customizable themes, multi-monitor support, and full desktop integration. Written in Python with GTK and Cairo.">
+  <link rel="canonical" href="https://docking.cc">
+  <meta property="og:title" content="Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration">
+  <meta property="og:description" content="Fast, customizable dock for Linux (X11) with 36 built-in applets, themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://docking.cc">
+  <meta property="og:image" content="https://raw.githubusercontent.com/edumucelli/docking/master/website/hero.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Docking",
+    "description": "Open source dock for Linux (X11) with 36 built-in applets, customizable themes, multi-monitor support, and full desktop integration.",
+    "applicationCategory": "DesktopEnhancement",
+    "operatingSystem": "Linux",
+    "url": "https://docking.cc",
+    "downloadUrl": "https://github.com/edumucelli/docking/releases",
+    "softwareVersion": "1.0.0",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "programmingLanguage": "Python",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "Eduardo Mucelli",
+      "url": "https://github.com/edumucelli"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What Linux desktop environments does Docking support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Docking runs on any Linux desktop environment using X11, including GNOME, KDE Plasma, XFCE, MATE, Cinnamon, and others. It uses GTK 3 and Cairo for rendering, with Wnck for window tracking."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I create my own applets?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Docking has an extensible applet system. Each applet is a Python package with a state, render, and applet module. You can add custom widgets and behaviors without modifying the dock's core runtime."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Docking support Wayland?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Docking currently targets X11. Wayland support is not available yet due to fundamental differences in how Wayland handles window positioning, struts, and input grabbing."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Docking free and open source?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Docking is licensed under GPL-3.0-or-later and fully open source. The code is hosted on GitHub and contributions are welcome."
+        }
+      }
+    ]
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -128,36 +199,43 @@
   <div class="relative isolate">
     <header class="sticky top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
       <div class="mx-auto flex max-w-6xl justify-center">
-        <div class="relative hidden w-full max-w-4xl md:block">
-          <div class="relative overflow-hidden rounded-[2.15rem] border border-white/35 bg-[linear-gradient(180deg,rgba(255,255,255,0.32),rgba(255,255,255,0.18))] px-4 py-2.5 shadow-[0_24px_70px_rgba(15,23,42,0.18),0_14px_36px_rgba(245,158,11,0.08),inset_0_1px_0_rgba(255,255,255,0.52),inset_0_-1px_0_rgba(59,130,246,0.12)] backdrop-blur-2xl">
-            <div class="pointer-events-none absolute inset-x-10 top-1 h-7 rounded-full bg-white/35 blur-xl"></div>
-            <div class="pointer-events-none absolute inset-x-16 bottom-0 h-8 rounded-full bg-amber-300/20 blur-2xl"></div>
-            <nav class="relative flex items-center justify-center gap-2 lg:gap-3">
-              <a href="#top" title="Docking" aria-label="Docking home" class="group relative flex h-14 w-14 items-center justify-center rounded-[1.35rem] border border-white/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.34),rgba(255,255,255,0.16))] shadow-[0_10px_20px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.4)] transition duration-200 hover:-translate-y-1 hover:scale-[1.07] hover:border-white/40">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/256x256/apps/org.docking.Docking.png" alt="Docking logo" class="h-10 w-10 object-contain">
-                <span class="pointer-events-none absolute top-full mt-3 rounded-full border border-white/15 bg-slate-950/88 px-3 py-1 text-[11px] font-medium text-white opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.35)] transition duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">Docking</span>
+        <div class="relative hidden md:block">
+          <div class="relative rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.18)] backdrop-blur-lg">
+            <div class="pointer-events-none absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/[0.1] to-transparent"></div>
+            <nav class="relative flex items-center justify-center gap-3 lg:gap-4">
+              <a href="#top" title="Docking" aria-label="Docking home" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/256x256/apps/org.docking.Docking.png" alt="Docking logo" class="h-8 w-8 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">
+                <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Docking</span>
               </a>
 
-              <a href="#features" title="Features" aria-label="Features" class="group relative flex h-14 w-14 items-center justify-center rounded-[1.35rem] border border-white/18 bg-skyline/10 shadow-[0_8px_18px_rgba(59,130,246,0.10)] transition duration-200 hover:-translate-y-1 hover:scale-[1.07] hover:border-skyline/35 hover:bg-skyline/16">
-                <svg viewBox="0 0 24 24" class="h-6 w-6 text-blue-100" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"></path><path d="M7 12h10"></path><path d="M10 17h4"></path></svg>
-                <span class="pointer-events-none absolute top-full mt-3 rounded-full border border-white/15 bg-slate-950/88 px-3 py-1 text-[11px] font-medium text-white opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.35)] transition duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">Features</span>
+              <div class="h-6 w-px bg-white/[0.06]"></div>
+
+              <a href="#features" title="Features" aria-label="Features" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 text-slate-400 transition group-hover:text-slate-200" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16"></path><path d="M7 12h10"></path><path d="M10 17h4"></path></svg>
+                <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Features</span>
               </a>
 
-              <a href="#applets" title="Applets" aria-label="Applets" class="group relative flex h-14 w-14 items-center justify-center rounded-[1.35rem] border border-white/18 bg-accent/10 shadow-[0_8px_18px_rgba(239,68,68,0.10)] transition duration-200 hover:-translate-y-1 hover:scale-[1.07] hover:border-accent/35 hover:bg-accent/16">
-                <svg viewBox="0 0 24 24" class="h-6 w-6 text-rose-100" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg>
-                <span class="pointer-events-none absolute top-full mt-3 rounded-full border border-white/15 bg-slate-950/88 px-3 py-1 text-[11px] font-medium text-white opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.35)] transition duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">Applets</span>
+              <a href="#applets" title="Applets" aria-label="Applets" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 text-slate-400 transition group-hover:text-slate-200" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg>
+                <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Applets</span>
               </a>
 
-              <a href="#install" title="Install" aria-label="Install" class="group relative flex h-14 w-14 items-center justify-center rounded-[1.35rem] border border-white/18 bg-ember/10 shadow-[0_8px_18px_rgba(245,158,11,0.10)] transition duration-200 hover:-translate-y-1 hover:scale-[1.07] hover:border-amber-300/35 hover:bg-ember/16">
-                <svg viewBox="0 0 24 24" class="h-6 w-6 text-amber-100" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v11"></path><path d="m7 10 5 5 5-5"></path><path d="M5 19h14"></path></svg>
-                <span class="pointer-events-none absolute top-full mt-3 rounded-full border border-white/15 bg-slate-950/88 px-3 py-1 text-[11px] font-medium text-white opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.35)] transition duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">Install</span>
+              <a href="#install" title="Install" aria-label="Install" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 text-slate-400 transition group-hover:text-slate-200" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v11"></path><path d="m7 10 5 5 5-5"></path><path d="M5 19h14"></path></svg>
+                <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Install</span>
               </a>
 
-              <a href="#source" title="From Source" aria-label="From Source" class="group relative flex h-14 w-14 items-center justify-center rounded-[1.35rem] border border-white/18 bg-skyline/10 shadow-[0_8px_18px_rgba(59,130,246,0.10)] transition duration-200 hover:-translate-y-1 hover:scale-[1.07] hover:border-skyline/35 hover:bg-skyline/16">
-                <svg viewBox="0 0 24 24" class="h-6 w-6 text-blue-100" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18 3 12l6-6"></path><path d="m15 6 6 6-6 6"></path></svg>
-                <span class="pointer-events-none absolute top-full mt-3 rounded-full border border-white/15 bg-slate-950/88 px-3 py-1 text-[11px] font-medium text-white opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.35)] transition duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">From Source</span>
+              <a href="#source" title="From Source" aria-label="From Source" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 text-slate-400 transition group-hover:text-slate-200" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18 3 12l6-6"></path><path d="m15 6 6 6-6 6"></path></svg>
+                <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Source</span>
               </a>
 
+              <div class="h-6 w-px bg-white/[0.06]"></div>
+
+              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" title="Download" aria-label="Download" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 text-amber-300/80 drop-shadow-[0_0_3px_rgba(245,158,11,0.3)] transition group-hover:text-amber-200" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></svg>
+                <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Download</span>
+              </a>
             </nav>
           </div>
         </div>
@@ -192,106 +270,34 @@
 
     <main id="top">
       <section class="relative">
-        <div class="mx-auto grid max-w-7xl gap-16 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:pb-28 lg:pt-20">
-          <div class="reveal flex flex-col justify-center">
-            <div class="mb-8 inline-flex w-fit items-center gap-3 rounded-full border border-white/15 bg-gradient-to-r from-accent/12 to-skyline/10 px-4 py-2 text-sm text-slate-200 shadow-soft backdrop-blur-xl">
-              <span class="h-2 w-2 rounded-full bg-accent"></span>
-              Feature-rich Linux dock with themes, applets, and desktop integration
-            </div>
+        <!-- Hero text -->
+        <div class="mx-auto max-w-6xl px-6 pb-10 pt-16 text-center lg:px-8 lg:pt-20">
+          <div class="reveal flex flex-col items-center">
             <h1 class="max-w-3xl text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Docking</h1>
             <p class="mt-5 max-w-2xl text-2xl font-medium tracking-tight text-slate-100 sm:text-3xl">A dock that adapts to your workflow.</p>
-            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Fast, customizable, and extensible — fully written in Python, with built-in applets and full Linux desktop integration.</p>
+            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Fast, customizable, and extensible dock application -- fully written in Python, with built-in applets and full Linux desktop integration.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
               <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Download</a>
               <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">View on GitHub</a>
             </div>
-            <div class="mt-10 flex flex-wrap gap-3 text-sm text-slate-200">
-              <div class="rounded-full border border-white/15 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2 backdrop-blur-xl">Python</div>
-              <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2 backdrop-blur-xl">GTK + Cairo</div>
-              <div class="rounded-full border border-white/15 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2 backdrop-blur-xl">Linux (X11)</div>
-              <div class="rounded-full border border-white/15 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2 backdrop-blur-xl">30+ Applets</div>
-            </div>
           </div>
+        </div>
 
-          <div class="reveal relative flex items-center justify-center lg:justify-end">
-            <div class="absolute inset-x-8 bottom-10 h-60 rounded-full bg-ember/30 blur-3xl"></div>
-            <div class="absolute left-6 top-16 h-56 w-56 rounded-full bg-accent/18 blur-3xl"></div>
-            <div class="absolute right-4 top-8 h-60 w-60 rounded-full bg-skyline/18 blur-3xl"></div>
-            <div class="relative w-full max-w-[42rem] lg:ml-auto">
-              <div class="overflow-hidden rounded-[2rem] border border-white/15 bg-gradient-to-br from-skyline/10 to-accent/10 p-4 shadow-glow backdrop-blur-2xl">
-                <div class="rounded-[1.7rem] border border-white/12 bg-gradient-to-br from-skyline/10 to-accent/8 p-5 backdrop-blur-xl">
-                  <div class="flex items-center justify-between rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/8 to-accent/8 px-4 py-3">
-                    <div class="flex items-center gap-2">
-                      <span class="h-2.5 w-2.5 rounded-full bg-rose-400"></span>
-                      <span class="h-2.5 w-2.5 rounded-full bg-amber-300"></span>
-                      <span class="h-2.5 w-2.5 rounded-full bg-skyline"></span>
-                    </div>
-                    <div class="rounded-full border border-white/12 bg-skyline/10 px-3 py-1 text-xs text-slate-200">Docking session</div>
-                  </div>
-
-                  <div class="mt-6 grid gap-4 lg:grid-cols-[1.18fr_0.82fr]">
-                    <div class="space-y-4">
-                      <div class="overflow-hidden rounded-[1.8rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 shadow-soft backdrop-blur-xl">
-                        <div class="flex items-center justify-between border-b border-white/12 bg-skyline/10 px-4 py-3">
-                          <div class="text-sm font-medium text-slate-100">Desktop preview</div>
-                        </div>
-                        <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/preview.png" alt="Docking desktop preview" class="aspect-[4/3] w-full object-cover object-top">
-                      </div>
-
-                      <div class="overflow-hidden rounded-[1.6rem] border border-white/12 bg-gradient-to-r from-accent/10 to-ember/10 shadow-soft backdrop-blur-xl">
-                        <div class="flex items-center justify-between border-b border-white/12 bg-amber-400/10 px-4 py-3">
-                          <div class="text-sm font-medium text-slate-100">Dock strip</div>
-                        </div>
-                        <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/all.png" alt="Docking dock strip with applets" class="aspect-[15/4] w-full object-cover object-center">
-                      </div>
-                    </div>
-
-                    <div class="grid gap-4">
-                      <div class="overflow-hidden rounded-[1.6rem] border border-white/12 bg-gradient-to-br from-accent/10 to-ember/8 shadow-soft backdrop-blur-xl">
-                        <div class="flex items-center justify-between border-b border-white/12 bg-accent/10 px-4 py-3">
-                          <p class="text-sm font-medium text-slate-100">Applet gallery</p>
-                          <span class="rounded-full border border-amber-300/25 bg-amber-300/12 px-2.5 py-1 text-xs text-amber-100">30+</span>
-                        </div>
-                        <img src="https://raw.githubusercontent.com/edumucelli/docking/master/images/applets.png" alt="Docking applet gallery" class="aspect-[4/3] w-full object-cover object-top">
-                      </div>
-
-                      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                        <div class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/10 to-skyline/6 p-4 backdrop-blur-xl">
-                          <div class="flex items-center gap-3">
-                            <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-11 w-11 rounded-2xl border border-white/12 bg-white/10 p-2">
-                            <div>
-                              <p class="text-sm font-medium text-slate-100">Weather</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-ember/10 to-ember/6 p-4 backdrop-blur-xl">
-                          <div class="flex items-center gap-3">
-                            <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/cpumonitor.png" alt="CPU Monitor applet icon" class="h-11 w-11 rounded-2xl border border-white/12 bg-white/10 p-2">
-                            <div>
-                              <p class="text-sm font-medium text-slate-100">CPU Monitor</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="rounded-[1.6rem] border border-white/12 bg-gradient-to-br from-accent/10 to-skyline/8 p-5 backdrop-blur-xl">
-                          <div class="flex items-center justify-between">
-                            <span class="text-xs uppercase tracking-[0.3em] text-slate-400">CPU</span>
-                            <span class="text-xs text-emerald-300">stable</span>
-                          </div>
-                          <div class="mt-4 space-y-2">
-                            <div class="h-2 rounded-full bg-white/10"><div class="h-2 w-[34%] rounded-full bg-gradient-to-r from-accent to-ember"></div></div>
-                            <div class="h-2 rounded-full bg-white/10"><div class="h-2 w-[48%] rounded-full bg-gradient-to-r from-skyline to-cyan-200"></div></div>
-                          </div>
-                          <div class="mt-4 text-3xl font-semibold text-white">34%</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <!-- Hero dock preview -->
+        <div class="reveal mx-auto max-w-6xl px-6 pb-14 lg:px-8">
+          <div class="relative flex items-center justify-center">
+            <!-- Soft ambient glow -->
+            <div class="absolute inset-x-24 -bottom-4 h-28 rounded-full bg-ember/16 blur-[80px]"></div>
+            <div class="absolute -left-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-accent/10 blur-[70px]"></div>
+            <div class="absolute -right-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
+            <!-- Dock image -->
+            <div class="relative w-full transition duration-500 hover:scale-[1.008]">
+              <img src="hero.png" alt="Docking dock preview with applets" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
             </div>
           </div>
         </div>
 
+        <!-- Marquee -->
         <div class="mx-auto max-w-7xl px-6 pb-10 lg:px-8">
           <div class="marquee-mask overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-r from-accent/8 to-skyline/8 px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6">
             <div class="flex min-w-max animate-marquee gap-4 whitespace-nowrap pr-4 text-sm text-slate-200 sm:pr-6">
@@ -302,6 +308,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">36 Applets</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
@@ -309,6 +316,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">36 Applets</span>
             </div>
           </div>
         </div>
@@ -316,7 +324,7 @@
 
       <section id="features" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal max-w-3xl">
-          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Built to feel native in real Linux workflows.</h2>
+          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Features: built to feel native in real Linux workflows</h2>
           <p class="mt-4 max-w-2xl text-lg leading-8 text-slate-300">Docking combines launcher speed, desktop awareness, and a modular widget system in one polished surface.</p>
         </div>
 
@@ -328,7 +336,7 @@
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (30+)</h3>
+            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (36)</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.</p>
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
@@ -357,11 +365,11 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Useful widgets, already in the dock.</h2>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">36 built-in applets: useful widgets, already in the dock</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Small tools with real utility: glanceable information, richer controls, and compact workflow helpers. Browse the full applet catalog without leaving the page.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">33 built-in applets, with more room to explore</div>
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">36 built-in applets, with more room to explore</div>
             <div class="hidden items-center gap-2 sm:flex">
               <button type="button" data-carousel-target="applets-carousel" data-carousel-direction="prev" class="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:border-white/30 hover:bg-white/14" aria-label="Previous applets">
                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"></path></svg>
@@ -378,7 +386,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/ambient.png" alt="Ambient applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/ambient.png" alt="Ambient applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Ambient</h3>
@@ -389,7 +397,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/applications.png" alt="Applications applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/applications.png" alt="Applications applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Applications</h3>
@@ -400,7 +408,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/battery.png" alt="Battery applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/battery.png" alt="Battery applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Battery</h3>
@@ -411,7 +419,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bluetooth.png" alt="Bluetooth applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bluetooth.png" alt="Bluetooth applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Bluetooth</h3>
@@ -422,7 +430,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bookmarks.png" alt="Bookmarks applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bookmarks.png" alt="Bookmarks applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Bookmarks</h3>
@@ -433,7 +441,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/brightness.png" alt="Brightness applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/brightness.png" alt="Brightness applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Brightness</h3>
@@ -444,7 +452,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/calendar.png" alt="Calendar applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/calendar.png" alt="Calendar applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Calendar</h3>
@@ -455,7 +463,18 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clippy.png" alt="Clipboard (Clippy) applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/calculator.png" alt="Calculator applet icon" class="h-full w-full object-contain" loading="lazy">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Calculator</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Quick calculations without leaving the dock.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clippy.png" alt="Clipboard (Clippy) applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Clipboard (Clippy)</h3>
@@ -466,7 +485,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clock.png" alt="Clock applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clock.png" alt="Clock applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Clock</h3>
@@ -477,7 +496,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/colorpicker.png" alt="Color Picker applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/colorpicker.png" alt="Color Picker applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Color Picker</h3>
@@ -488,7 +507,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/desktop.png" alt="Desktop applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/desktop.png" alt="Desktop applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Desktop</h3>
@@ -499,7 +518,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/hydration.png" alt="Hydration applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/hydration.png" alt="Hydration applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Hydration</h3>
@@ -510,7 +529,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/keyboardlayout.png" alt="Keyboard Layout applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/keyboardlayout.png" alt="Keyboard Layout applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Keyboard Layout</h3>
@@ -521,7 +540,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/moon.png" alt="Moon Phase applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/moon.png" alt="Moon Phase applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Moon Phase</h3>
@@ -532,7 +551,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/music.png" alt="Music applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/music.png" alt="Music applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Music</h3>
@@ -543,7 +562,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/network.png" alt="Network applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/network.png" alt="Network applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Network</h3>
@@ -554,7 +573,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/notifications.png" alt="Notifications applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/notifications.png" alt="Notifications applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Notifications</h3>
@@ -565,7 +584,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pet.png" alt="Pet applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pet.png" alt="Pet applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Pet</h3>
@@ -576,7 +595,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pomodoro.png" alt="Pomodoro applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pomodoro.png" alt="Pomodoro applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Pomodoro</h3>
@@ -587,7 +606,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/powerprofiles.png" alt="Power Profiles applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/powerprofiles.png" alt="Power Profiles applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Power Profiles</h3>
@@ -598,7 +617,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quicknote.png" alt="Quick Note applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quicknote.png" alt="Quick Note applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Quick Note</h3>
@@ -609,7 +628,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quote.png" alt="Quote applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quote.png" alt="Quote applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Quote</h3>
@@ -620,7 +639,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/recentfiles.png" alt="Recent Files applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/recentfiles.png" alt="Recent Files applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Recent Files</h3>
@@ -631,7 +650,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/screenshot.png" alt="Screenshot applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/screenshot.png" alt="Screenshot applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Screenshot</h3>
@@ -642,7 +661,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/session.png" alt="Session applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/session.png" alt="Session applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Session</h3>
@@ -653,7 +672,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/stretchcoach.png" alt="Stretch Coach applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/stretchcoach.png" alt="Stretch Coach applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Stretch Coach</h3>
@@ -664,7 +683,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/systemmonitor.png" alt="System Monitor applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/systemmonitor.png" alt="System Monitor applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">System Monitor</h3>
@@ -675,7 +694,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/todayinhistory.png" alt="Today in History applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/todayinhistory.png" alt="Today in History applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Today in History</h3>
@@ -686,7 +705,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trash.png" alt="Trash applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trash.png" alt="Trash applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Trash</h3>
@@ -697,7 +716,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trivia.png" alt="Trivia applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trivia.png" alt="Trivia applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Trivia</h3>
@@ -708,7 +727,29 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/volume.png" alt="Volume applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/unitconverter.png" alt="Unit Converter applet icon" class="h-full w-full object-contain" loading="lazy">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Unit Converter</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Convert between units directly from the dock.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/urlshortener.png" alt="URL Shortener applet icon" class="h-full w-full object-contain" loading="lazy">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">URL Shortener</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Shorten URLs via is.gd and copy to clipboard.</p>
+          </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/volume.png" alt="Volume applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Volume</h3>
@@ -719,7 +760,7 @@
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Weather</h3>
@@ -727,10 +768,21 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Forecast, conditions, and environmental context at a glance.</p>
           </article>
+          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
+            <div class="flex items-center gap-3">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/windowkiller.png" alt="Window Killer applet icon" class="h-full w-full object-contain" loading="lazy">
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">Window Killer</h3>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Force-close any window with a single click.</p>
+          </article>
           <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
             <div class="flex items-center gap-3">
               <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/workspaces.png" alt="Workspaces applet icon" class="h-full w-full object-contain">
+                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/workspaces.png" alt="Workspaces applet icon" class="h-full w-full object-contain" loading="lazy">
               </div>
               <div>
                 <h3 class="text-lg font-semibold text-white">Workspaces</h3>
@@ -746,7 +798,7 @@
         <div class="reveal overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/8 p-8 shadow-glow backdrop-blur-2xl lg:p-10">
           <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
-              <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install it your way.</h2>
+              <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking on any Linux distribution</h2>
               <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Download the latest release package that fits your Linux setup and get straight to work.</p>
             </div>
 
@@ -764,7 +816,7 @@
       <section id="source" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div class="reveal">
-            <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Clone it, hack on it, extend it.</h2>
+            <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Build from source: clone it, hack on it, extend it</h2>
             <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Docking is open source and built for people who want control, extensibility, and a clean code path into custom workflows.</p>
           </div>
 
@@ -795,6 +847,30 @@ pip install -e ".[dev]"</code></pre>
           </div>
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Flexible, extensible, and built for real workflows.</h2>
           <p class="mx-auto mt-5 max-w-3xl text-xl leading-9 text-slate-300">Docking gives you control without getting in your way.</p>
+        </div>
+      </section>
+
+      <section id="faq" class="mx-auto max-w-4xl px-6 py-16 lg:px-8 lg:py-24">
+        <div class="reveal">
+          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Frequently asked questions</h2>
+          <div class="mt-10 space-y-6">
+            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-skyline/4 p-5 backdrop-blur-xl">
+              <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What Linux desktop environments does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Docking runs on any Linux desktop environment using X11, including GNOME, KDE Plasma, XFCE, MATE, Cinnamon, and others. It uses GTK 3 and Cairo for rendering, with Wnck for window tracking.</p>
+            </details>
+            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-accent/8 to-accent/4 p-5 backdrop-blur-xl">
+              <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Can I create my own applets?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking has an extensible applet system. Each applet is a Python package with a state, render, and applet module. You can add custom widgets and behaviors without modifying the dock's core runtime.</p>
+            </details>
+            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-accent/4 p-5 backdrop-blur-xl">
+              <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Does Docking support Wayland?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Docking currently targets X11. Wayland support is not available yet due to fundamental differences in how Wayland handles window positioning, struts, and input grabbing.</p>
+            </details>
+            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-ember/8 to-skyline/4 p-5 backdrop-blur-xl">
+              <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Is Docking free and open source?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking is licensed under GPL-3.0-or-later and fully open source. The code is hosted on GitHub and contributions are welcome.</p>
+            </details>
+          </div>
         </div>
       </section>
 
@@ -849,23 +925,60 @@ pip install -e ".[dev]"</code></pre>
       });
     }
 
-    document.querySelectorAll("[data-carousel-target]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const track = document.getElementById(button.dataset.carouselTarget);
-        if (!track) return;
+    /* Carousel: auto-drift + arrow navigation */
+    (function () {
+      const track = document.getElementById("applets-carousel");
+      if (!track) return;
 
+      const PX_PER_FRAME = 1;
+      let drift = 1;
+      let paused = false;
+
+      function cardStep() {
         const firstCard = track.querySelector("[data-carousel-card]");
-        const trackStyles = window.getComputedStyle(track);
-        const gap = parseFloat(trackStyles.gap || trackStyles.columnGap || 0);
-        const step = firstCard ? firstCard.getBoundingClientRect().width + gap : track.clientWidth * 0.85;
-        const direction = button.dataset.carouselDirection === "next" ? 1 : -1;
+        const gap = parseFloat(getComputedStyle(track).gap || 0);
+        return firstCard ? firstCard.getBoundingClientRect().width + gap : track.clientWidth * 0.85;
+      }
 
-        track.scrollBy({
-          left: step * direction,
-          behavior: "smooth"
+      function maxScroll() { return track.scrollWidth - track.clientWidth; }
+
+      function tick() {
+        if (!paused) {
+          var sl = track.scrollLeft;
+          if (sl >= maxScroll() - 1) drift = -1;
+          if (sl <= 1) drift = 1;
+          track.scrollLeft = sl + PX_PER_FRAME * drift;
+        }
+        requestAnimationFrame(tick);
+      }
+
+      /* Arrow buttons */
+      document.querySelectorAll("[data-carousel-target='applets-carousel']").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var dir = btn.dataset.carouselDirection === "next" ? 1 : -1;
+          var step = cardStep();
+          var raw = track.scrollLeft + step * dir;
+          var snapped = Math.max(0, Math.min(Math.round(raw / step) * step, maxScroll()));
+          track.scrollTo({ left: snapped, behavior: "smooth" });
+          drift = dir;
         });
+        btn.addEventListener("mouseenter", function () { paused = true; });
+        btn.addEventListener("mouseleave", function () { paused = false; });
       });
-    });
+
+      track.addEventListener("mouseenter", function () { paused = true; });
+      track.addEventListener("mouseleave", function () {
+        paused = false;
+        /* After hover ends, correct drift if at an edge */
+        if (track.scrollLeft >= maxScroll() - 1) drift = -1;
+        if (track.scrollLeft <= 1) drift = 1;
+      });
+      track.addEventListener("pointerdown", function () { paused = true; });
+      track.addEventListener("pointerup", function () { paused = false; });
+
+      track.style.scrollSnapType = "none";
+      requestAnimationFrame(tick);
+    })();
   </script>
 </body>
 </html>

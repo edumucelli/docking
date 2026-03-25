@@ -45,6 +45,9 @@ class DockItem:
     prefs_key: str = ""
     # Some items, like separators, should keep a fixed size under hover.
     allow_zoom: bool = True
+    # Insert/remove animation factor: 0.0 = fully collapsed, 1.0 = fully visible.
+    # Layout scales the item's effective width by this factor.
+    insert_factor: float = 1.0
 
     def __post_init__(self) -> None:
         if not self.target:

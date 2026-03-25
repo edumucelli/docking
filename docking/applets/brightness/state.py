@@ -1,20 +1,24 @@
-"""Pure state helpers for Brightness applet — no GTK dependency."""
+"""Pure state helpers for Brightness applet -- no GTK dependency."""
 
 from __future__ import annotations
 
 import re
 import subprocess
+from pathlib import Path
 from typing import NamedTuple
 
 from docking.log import get_logger
 
 _log = get_logger(name="brightness.state")
 
+_BACKLIGHT_DIR = Path("/sys/class/backlight")
+
 
 class Backend(NamedTuple):
-    """A brightness backend with its output name."""
+    """A brightness backend with its xrandr output and optional sysfs path."""
 
-    output: str  # xrandr output name (e.g. "HDMI-1")
+    output: str  # xrandr output name (e.g. "eDP-1")
+    sysfs: Path | None = None  # e.g. /sys/class/backlight/intel_backlight
 
 
 def _run(cmd: list[str]) -> str | None:
@@ -28,6 +32,19 @@ def _run(cmd: list[str]) -> str | None:
     return None
 
 
+def _find_sysfs_backlight() -> Path | None:
+    """Find the first sysfs backlight directory, if any."""
+    try:
+        for entry in sorted(_BACKLIGHT_DIR.iterdir()):
+            if (entry / "brightness").is_file() and (
+                entry / "max_brightness"
+            ).is_file():
+                return entry
+    except OSError:
+        pass
+    return None
+
+
 def detect_output() -> Backend | None:
     """Detect the primary connected xrandr output."""
     out = _run(cmd=["xrandr", "--listmonitors"])
@@ -37,16 +54,37 @@ def detect_output() -> Backend | None:
     for line in out.strip().splitlines()[1:]:
         parts = line.split()
         if len(parts) >= 4:
-            return Backend(output=parts[-1])
+            return Backend(output=parts[-1], sysfs=_find_sysfs_backlight())
     return None
 
 
 def get_brightness(backend: Backend) -> float | None:
-    """Read current brightness (0.0–1.0) via xrandr."""
+    """Read current brightness (0.0-1.0).
+
+    Prefers sysfs (instant, no X11 lock) over xrandr --verbose (slow).
+    """
+    if backend.sysfs:
+        return _get_brightness_sysfs(path=backend.sysfs)
+    return _get_brightness_xrandr(backend=backend)
+
+
+def _get_brightness_sysfs(path: Path) -> float | None:
+    """Read brightness from /sys/class/backlight as a 0.0-1.0 fraction."""
+    try:
+        current = int((path / "brightness").read_text().strip())
+        maximum = int((path / "max_brightness").read_text().strip())
+        if maximum > 0:
+            return current / maximum
+    except (OSError, ValueError) as exc:
+        _log.warning("Failed to read sysfs backlight: %s", exc)
+    return None
+
+
+def _get_brightness_xrandr(backend: Backend) -> float | None:
+    """Read brightness via xrandr --verbose (fallback, slow)."""
     out = _run(cmd=["xrandr", "--verbose"])
     if not out:
         return None
-    # Find brightness for our output
     in_output = False
     for line in out.splitlines():
         if line and not line[0].isspace() and backend.output in line:
@@ -61,7 +99,7 @@ def get_brightness(backend: Backend) -> float | None:
 
 
 def set_brightness(backend: Backend, value: float) -> None:
-    """Set brightness (0.1–1.0) via xrandr."""
+    """Set brightness (0.1-1.0) via xrandr."""
     clamped = max(0.1, min(1.0, value))
     _run(cmd=["xrandr", "--output", backend.output, "--brightness", f"{clamped:.2f}"])
 

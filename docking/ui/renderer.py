@@ -87,8 +87,7 @@ Autohide contributes two visual parameters:
 - hide_offset
   how far the dock has moved toward the edge
 
-- zoom_progress
-  how much zoom/displacement influence remains during the transition
+- zoom_progress (consumed by geometry layer, not the renderer)
 
 Visually:
 
@@ -329,8 +328,8 @@ class DockRenderer:
         hide_offset: float = 0.0,
         drag_index: int = -1,
         drop_insert_index: int = -1,
-        zoom_progress: float = 1.0,
         hovered_id: str = "",
+        drop_target_id: str = "",
     ) -> None:
         """Main draw entry point -- called on every 'draw' signal.
 
@@ -358,8 +357,8 @@ class DockRenderer:
             hide_offset=hide_offset,
             drag_index=drag_index,
             drop_insert_index=drop_insert_index,
-            zoom_progress=zoom_progress,
             hovered_id=hovered_id,
+            drop_target_id=drop_target_id,
         )
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_surface(offscreen, 0, 0)
@@ -374,8 +373,8 @@ class DockRenderer:
         hide_offset: float,
         drag_index: int,
         drop_insert_index: int,
-        zoom_progress: float,
         hovered_id: str,
+        drop_target_id: str = "",
     ) -> None:
         """Render all dock content to a Cairo context."""
         pos = config.pos
@@ -403,20 +402,13 @@ class DockRenderer:
         layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
         cross_size = frame.cross_size
         icon_hide = hide_offset
-        bg_extra = (
-            hide_offset * (cross_size - theme.shelf_height) if hide_offset > 0 else 0.0
-        )
 
         # Include the drop gap so shelf expands to cover displaced items
         drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         icon_offset = frame.zoomed_main_offset
 
-        # Shelf width smoothing - snap during hide/show and drop gap so
-        # the shelf tracks icon positions exactly (no lag = no edge gaps).
-        base_shelf_extent = (
-            frame.background_rect.w if horizontal else frame.background_rect.h
-        )
-        target_shelf_w = base_shelf_extent
+        # Shelf coordinates from pre-computed geometry frame (no recomputation)
+        target_shelf_w = frame.shelf_main_extent
         if self.smooth_shelf_w == 0.0 or drop_gap > 0 or hide_offset > 0:
             self.smooth_shelf_w = target_shelf_w
         else:
@@ -424,19 +416,9 @@ class DockRenderer:
                 target_shelf_w - self.smooth_shelf_w
             ) * SHELF_SMOOTH_FACTOR
         shelf_main_extent = self.smooth_shelf_w
-        shelf_main_pos = (
-            frame.background_rect.x if horizontal else frame.background_rect.y
-        )
-
-        bg_height = frame.background_rect.h if horizontal else frame.background_rect.w
-
-        # --- Draw shelf background with Cairo transform ---
-        # Always draw as-if-bottom, then transform for other positions.
-        # Shelf slides by the same base offset as icons (icon_hide * cross)
-        # plus an extra cascade boost so its top edge hits the screen edge
-        # at the same time the icons' top edge does.
-        shelf_slide = icon_hide * cross_size + bg_extra
-        as_bottom_bg_y = cross_size - bg_height + shelf_slide
+        shelf_main_pos = frame.shelf_main_pos
+        bg_height = frame.shelf_cross_extent
+        as_bottom_bg_y = frame.shelf_as_bottom_y
 
         cr.save()
         self._apply_shelf_transform(
@@ -476,6 +458,24 @@ class DockRenderer:
                     color=color,
                     glow_opacity=theme.glow_opacity,
                 )
+
+        # Drop-target glow: green highlight when dragging a file over a launcher
+        if drop_target_id:
+            for item, li in zip(items, layout, strict=True):
+                if item.desktop_id == drop_target_id:
+                    self._draw_active_glow(
+                        cr=cr,
+                        li=li,
+                        icon_size=icon_size,
+                        icon_offset=icon_offset,
+                        bg_y=as_bottom_bg_y,
+                        bg_height=bg_height,
+                        shelf_x=shelf_main_pos,
+                        shelf_w=shelf_main_extent,
+                        color=(0.2, 0.8, 0.3),
+                        glow_opacity=theme.glow_opacity,
+                    )
+                    break
         cr.restore()
 
         # --- Draw icons ---

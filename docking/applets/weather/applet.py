@@ -10,7 +10,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.identity import AppletId
@@ -23,9 +23,10 @@ from docking.applets.weather.api import (
 from docking.applets.weather.cities import search_cities
 from docking.applets.weather.render import create_icon
 from docking.applets.weather.state import (
-    build_forecast_url,
+    CityPref,
     build_tooltip,
     cached_cities,
+    cycle_active_index,
     menu_header_label,
     prefs_from_mapping,
     prefs_payload,
@@ -64,13 +65,18 @@ class WeatherApplet(Applet):
         prefs = prefs_from_mapping(
             config.applet_prefs.get("weather", {}) if config else None
         )
-        self._city_display = prefs.city_display
-        self._lat = prefs.lat
-        self._lng = prefs.lng
+        self._cities: list[CityPref] = list(prefs.cities)
+        self._active_index: int = prefs.active_index
         self._show_temperature = prefs.show_temperature
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    @property
+    def _active_city(self) -> CityPref | None:
+        if self._cities:
+            return self._cities[self._active_index]
+        return None
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(
@@ -84,23 +90,31 @@ class WeatherApplet(Applet):
         self.item.tooltip_builder = self._build_tooltip_widget
 
     def on_clicked(self) -> None:
-        if not self._city_display:
+        return
+
+    def on_scroll(self, direction_up: bool) -> None:
+        """Cycle through cities on scroll."""
+        if len(self._cities) <= 1:
             return
-        url = build_forecast_url(lat=self._lat, lng=self._lng)
-        try:
-            Gio.AppInfo.launch_default_for_uri(url, None)
-        except GLib.Error as exc:
-            _log.bind(action="open_url").warning(
-                f"Failed to open weather URL: {exc}",
-            )
+        self._active_index = cycle_active_index(
+            count=len(self._cities),
+            current=self._active_index,
+            direction_up=direction_up,
+        )
+        self._weather = None
+        self._air_quality = None
+        self._save_prefs()
+        self._fetch_async()
+        self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
+        active = self._active_city
 
-        if self._city_display:
+        if active:
             header = Gtk.MenuItem(
                 label=menu_header_label(
-                    city_display=self._city_display,
+                    city_display=active.city_display,
                     weather=self._weather,
                 )
             )
@@ -112,15 +126,23 @@ class WeatherApplet(Applet):
         show_temp.connect("toggled", self._on_toggle_temperature)
         items.append(show_temp)
 
-        change = Gtk.MenuItem(label=_("Change City..."))
-        change.connect("activate", lambda _: self._show_city_dialog())
-        items.append(change)
+        add_city = Gtk.MenuItem(label=_("Add City..."))
+        add_city.connect("activate", lambda _: self._show_city_dialog())
+        items.append(add_city)
+
+        if active and len(self._cities) > 1:
+            remove = Gtk.MenuItem(
+                label=_("Remove {city}").format(city=active.city_display)
+            )
+            remove.connect("activate", lambda _: self._remove_active_city())
+            items.append(remove)
+
         return items
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL, self._tick)
-        if self._city_display:
+        if self._active_city:
             self._fetch_async()
 
     def stop(self) -> None:
@@ -179,7 +201,7 @@ class WeatherApplet(Applet):
             display = model.get_value(tree_iter, 0)
             lat = model.get_value(tree_iter, 1)
             lng = model.get_value(tree_iter, 2)
-            self._select_city(display=display, lat=lat, lng=lng)
+            self._add_city(display=display, lat=lat, lng=lng)
             dialog.destroy()
             return True
 
@@ -191,23 +213,45 @@ class WeatherApplet(Applet):
         entry.grab_focus()
 
     def _tick(self) -> bool:
-        if self._city_display:
+        if self._active_city:
             self._fetch_async()
         return True
 
-    def _select_city(self, display: str, lat: float, lng: float) -> None:
-        self._city_display = display
-        self._lat = lat
-        self._lng = lng
+    def _add_city(self, display: str, lat: float, lng: float) -> None:
+        """Add a city or switch to it if it already exists."""
+        for i, c in enumerate(self._cities):
+            if c.lat == lat and c.lng == lng:
+                self._active_index = i
+                self._weather = None
+                self._air_quality = None
+                self._save_prefs()
+                self._fetch_async()
+                self.present()
+                return
+        self._cities.append(CityPref(city_display=display, lat=lat, lng=lng))
+        self._active_index = len(self._cities) - 1
+        self._weather = None
+        self._air_quality = None
         self._save_prefs()
         self._fetch_async()
+        self.present()
+
+    def _remove_active_city(self) -> None:
+        if len(self._cities) <= 1:
+            return
+        del self._cities[self._active_index]
+        self._active_index = min(self._active_index, len(self._cities) - 1)
+        self._weather = None
+        self._air_quality = None
+        self._save_prefs()
+        self._fetch_async()
+        self.present()
 
     def _save_prefs(self) -> None:
         self.save_prefs(
             prefs=prefs_payload(
-                city_display=self._city_display,
-                lat=self._lat,
-                lng=self._lng,
+                cities=tuple(self._cities),
+                active_index=self._active_index,
                 show_temperature=self._show_temperature,
             )
         )
@@ -216,10 +260,14 @@ class WeatherApplet(Applet):
         """Fetch weather + air quality in a background thread."""
         import docking.applets.weather as weather_pkg
 
+        active = self._active_city
+        if not active:
+            return
+
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
-        lat = self._lat
-        lng = self._lng
+        lat = active.lat
+        lng = active.lng
 
         def fetch() -> tuple[WeatherData | None, AirQualityData | None]:
             weather = weather_pkg.fetch_weather(lat=lat, lng=lng)
@@ -250,16 +298,18 @@ class WeatherApplet(Applet):
         return False
 
     def _build_tooltip(self) -> str:
+        active = self._active_city
         return build_tooltip(
-            city_display=self._city_display,
+            city_display=active.city_display if active else "",
             weather=self._weather,
             air_quality=self._air_quality,
         )
 
     def _build_tooltip_widget(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        active = self._active_city
 
-        if not self._city_display or not self._weather:
+        if not active or not self._weather:
             label = Gtk.Label(label=self._build_tooltip())
             label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
             box.pack_start(label, False, False, 0)
@@ -268,7 +318,7 @@ class WeatherApplet(Applet):
         weather = self._weather
 
         city = Gtk.Label()
-        city.set_markup(f"<b>{GLib.markup_escape_text(self._city_display)}</b>")
+        city.set_markup(f"<b>{GLib.markup_escape_text(active.city_display)}</b>")
         city.set_xalign(0.5)
         city.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
         box.pack_start(city, False, False, 0)

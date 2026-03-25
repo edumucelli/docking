@@ -12,7 +12,7 @@
   "active_indicator_color": [100, 180, 255, 255],
   "indicator_size": 5,
   "h_padding": 2,
-  "top_padding": 1,
+  "top_padding": 2.5,
   "bottom_padding": 2.5,
   "item_padding": 2.5,
   "urgent_bounce_height": 1.66,

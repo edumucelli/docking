@@ -57,6 +57,7 @@ class NetworkApplet(Applet):
         self._timer_id: int = 0
         self._nm_client: NM.Client | None = None
         self._nm_handler_id: int = 0
+        self._nm_state_handler_id: int = 0
 
         # State
         self._is_connected = False
@@ -159,6 +160,10 @@ class NetworkApplet(Applet):
                 "notify::active-connections",
                 self._on_nm_changed,
             )
+            self._nm_state_handler_id = self._nm_client.connect(
+                "notify::state",
+                self._on_nm_changed,
+            )
             self._update_nm_state()
         except GLib.Error:
             _log.bind(action="connect_nm").warning(
@@ -168,9 +173,13 @@ class NetworkApplet(Applet):
 
     def stop(self) -> None:
         """Disconnect NM signals and stop timer."""
-        if self._nm_client and self._nm_handler_id:
-            self._nm_client.disconnect(self._nm_handler_id)
-            self._nm_handler_id = 0
+        if self._nm_client:
+            if self._nm_handler_id:
+                self._nm_client.disconnect(self._nm_handler_id)
+                self._nm_handler_id = 0
+            if self._nm_state_handler_id:
+                self._nm_client.disconnect(self._nm_state_handler_id)
+                self._nm_state_handler_id = 0
         self._nm_client = None
         if self._timer_id:
             GLib.source_remove(self._timer_id)

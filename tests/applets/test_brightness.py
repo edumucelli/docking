@@ -31,6 +31,10 @@ class _ImmediateWorker:
         if on_result is not None:
             on_result(result)
 
+    def run_guarded(self, *, fn, on_result=None, on_error=None, **_kwargs) -> bool:
+        self.run(fn=fn, on_result=on_result, on_error=on_error)
+        return True
+
 
 class TestBrightnessIconName:
     def test_low(self):
@@ -48,8 +52,16 @@ class TestDetectOutput:
     def test_parses_xrandr_listmonitors(self, monkeypatch):
         output = "Monitors: 1\n 0: +*HDMI-1 1920/480x1080/270+0+0  HDMI-1\n"
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
+        monkeypatch.setattr(brightness_state, "_find_sysfs_backlight", lambda: None)
         result = detect_output()
-        assert result == Backend(output="HDMI-1")
+        assert result == Backend(output="HDMI-1", sysfs=None)
+
+    def test_includes_sysfs_when_available(self, monkeypatch, tmp_path):
+        output = "Monitors: 1\n 0: +*eDP-1 1920/300x1080/170+0+0  eDP-1\n"
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
+        monkeypatch.setattr(brightness_state, "_find_sysfs_backlight", lambda: tmp_path)
+        result = detect_output()
+        assert result == Backend(output="eDP-1", sysfs=tmp_path)
 
     def test_returns_none_on_failure(self, monkeypatch):
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
@@ -61,23 +73,62 @@ class TestDetectOutput:
 
 
 class TestGetBrightness:
-    def test_parses_xrandr_verbose(self, monkeypatch):
+    def test_prefers_sysfs_when_available(self, tmp_path):
+        # Given
+        (tmp_path / "brightness").write_text("150\n")
+        (tmp_path / "max_brightness").write_text("200\n")
+        backend = Backend(output="eDP-1", sysfs=tmp_path)
+        # When / Then
+        assert get_brightness(backend=backend) == 0.75
+
+    def test_sysfs_handles_read_error(self, tmp_path):
+        # Given - missing files
+        backend = Backend(output="eDP-1", sysfs=tmp_path)
+        # When / Then
+        assert get_brightness(backend=backend) is None
+
+    def test_falls_back_to_xrandr_without_sysfs(self, monkeypatch):
+        # Given
         output = (
             "HDMI-1 connected primary 1920x1080\n"
             "\tBrightness: 0.75\n"
             "\tGamma: 1.0:1.0:1.0\n"
         )
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
-        assert get_brightness(backend=Backend(output="HDMI-1")) == 0.75
+        backend = Backend(output="HDMI-1", sysfs=None)
+        # When / Then
+        assert get_brightness(backend=backend) == 0.75
 
-    def test_returns_none_on_failure(self, monkeypatch):
+    def test_xrandr_returns_none_on_failure(self, monkeypatch):
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
         assert get_brightness(backend=Backend(output="HDMI-1")) is None
 
-    def test_returns_none_when_output_not_found(self, monkeypatch):
+    def test_xrandr_returns_none_when_output_not_found(self, monkeypatch):
         output = "DP-1 connected\n\tBrightness: 0.55\n"
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
         assert get_brightness(backend=Backend(output="HDMI-1")) is None
+
+
+class TestFindSysfsBacklight:
+    def test_finds_backlight_dir(self, monkeypatch, tmp_path):
+        # Given
+        bl = tmp_path / "intel_backlight"
+        bl.mkdir()
+        (bl / "brightness").write_text("100\n")
+        (bl / "max_brightness").write_text("200\n")
+        monkeypatch.setattr(brightness_state, "_BACKLIGHT_DIR", tmp_path)
+        # When / Then
+        assert brightness_state._find_sysfs_backlight() == bl
+
+    def test_returns_none_when_no_backlight(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(brightness_state, "_BACKLIGHT_DIR", tmp_path)
+        assert brightness_state._find_sysfs_backlight() is None
+
+    def test_returns_none_when_dir_missing(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            brightness_state, "_BACKLIGHT_DIR", tmp_path / "nonexistent"
+        )
+        assert brightness_state._find_sysfs_backlight() is None
 
 
 class TestBrightnessStateHelpers:

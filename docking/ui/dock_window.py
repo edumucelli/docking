@@ -193,6 +193,7 @@ from docking.log import get_logger
 from docking.platform.launcher import launch, open_target
 from docking.ui import geometry
 from docking.ui.autohide import HideState
+from docking.ui.effects import ZoomAnimator
 from docking.ui.geometry import (
     DockGeometryBuilder,
     DockGeometryFrame,
@@ -310,6 +311,7 @@ class DockWindow(Gtk.Window):
 
         self._setup_window()
         self._setup_drawing_area()
+        self.zoom_animator = ZoomAnimator(self.drawing_area)
         self._connect_model()
 
     def _setup_window(self) -> None:
@@ -422,22 +424,17 @@ class DockWindow(Gtk.Window):
         after hide completes, and re-schedules redraws for urgent glow.
         """
         hide_offset = self.autohide.hide_offset if self.autohide else 0.0
-        # The renderer receives zoom_progress from the autohide controller.
-        # During normal hover (no autohide), zoom_progress is 1.0 and has
-        # no effect. During a hide animation, zoom_progress decays from 1.0
-        # toward 0.0, smoothly reducing icon scales.
-        #
-        # After the hide animation completes (state=HIDDEN), we finally
-        # reset cursor_x to -1.0. This is deferred from _on_leave to allow
-        # the smooth zoom decay described above.
-        # zoom_progress is only relevant during autohide animations.
-        # When autohide is disabled, zoom should always be at full strength.
-        if self.autohide and self.autohide.enabled:
-            zoom_progress = self.autohide.zoom_progress
-        else:
-            zoom_progress = 1.0
+        # zoom_progress for debug logging only -- the geometry layer
+        # composes hover zoom * autohide zoom in capture_geometry_inputs().
+        autohide_zoom = (
+            self.autohide.zoom_progress
+            if self.autohide and self.autohide.enabled
+            else 1.0
+        )
+        zoom_progress = self.zoom_animator.progress * autohide_zoom
         drag_index = self._dnd.drag_index if self._dnd else -1
         drop_insert = self._dnd.drop_insert_index if self._dnd else -1
+        drop_target = self._dnd.drop_target_id if self._dnd else ""
         hovered_id = (
             self._hover.hovered_item.desktop_id
             if self._hover and self._hover.hovered_item
@@ -458,6 +455,10 @@ class DockWindow(Gtk.Window):
                 self.cursor_x,
                 self.cursor_y,
             )
+        # Advance insert/remove animations; request another draw if active
+        if self.model.tick_animations():
+            widget.queue_draw()
+
         frame = self.geometry.build_frame(drop_insert_index=drop_insert)
         self._current_geometry_frame = frame
         self.renderer.draw(
@@ -469,8 +470,8 @@ class DockWindow(Gtk.Window):
             hide_offset,
             drag_index,
             drop_insert,
-            zoom_progress,
             hovered_id,
+            drop_target_id=drop_target,
         )
         # Update input region as hide state changes (shrink when hidden)
         self.update_input_region(frame=frame)

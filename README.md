@@ -207,7 +207,7 @@ This split keeps runtime behavior in one place while making parsers/rendering hi
 
 ### Clock
 
-![Clock applet](images/clock.png)
+<img src="docking/assets/icons/applets/clock.png" alt="Clock" width="48">
 
 Analog or digital clock face. The analog mode uses SVG layers for a realistic clock face with hour/minute hands.
 
@@ -220,7 +220,7 @@ Analog or digital clock face. The analog mode uses SVG layers for a realistic cl
 
 ### Trash
 
-![Trash applet](images/trash.png)
+<img src="docking/assets/icons/applets/trash.png" alt="Trash" width="48">
 
 Shows the current state of the system trash. Icon switches between empty and full automatically via file monitoring.
 
@@ -231,7 +231,7 @@ Shows the current state of the system trash. Icon switches between empty and ful
 
 ### Desktop
 
-![Desktop applet](images/desktop.png)
+<img src="docking/assets/icons/applets/desktop.png" alt="Desktop" width="48">
 
 Toggle "show desktop" mode -- minimizes or restores all windows.
 
@@ -239,7 +239,7 @@ Toggle "show desktop" mode -- minimizes or restores all windows.
 
 ### System Monitor
 
-![System Monitor applet](images/system_monitor.png)
+<img src="docking/assets/icons/applets/systemmonitor.png" alt="System Monitor" width="48">
 
 Circular gauge showing real-time CPU and memory usage. The fill color shifts from green (idle) to red (busy). A white arc around the edge shows memory usage.
 
@@ -251,7 +251,7 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 ### Battery
 
-![Battery applet](images/battery.png)
+<img src="docking/assets/icons/applets/battery.png" alt="Battery" width="48">
 
 Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/class/power_supply/BAT0/`. Icon changes based on charge level (full, good, low, caution, empty) and charging state.
 
@@ -261,7 +261,7 @@ Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/cl
 
 ### Brightness
 
-![Brightness applet](images/brightness.png)
+<img src="docking/assets/icons/applets/brightness.png" alt="Brightness" width="48">
 
 Screen brightness control via `xrandr`. Auto-detects the primary display output and tracks live brightness value.
 
@@ -276,7 +276,7 @@ Screen brightness control via `xrandr`. Auto-detects the primary display output 
 
 ### Weather
 
-![Weather applet](images/weather.png)
+<img src="docking/assets/icons/applets/weather.png" alt="Weather" width="48">
 
 Shows current weather and air quality for a selected city with a 5-day forecast. Uses the [Open-Meteo](https://open-meteo.com/) weather and air quality APIs with automatic caching and retry.
 
@@ -300,7 +300,7 @@ Tue: 28/32°C, Rain
 
 ### Moon
 
-![Moon applet](images/moon.png)
+<img src="docking/assets/icons/applets/moon.png" alt="Moon" width="48">
 
 Moon phase applet with Cairo-rendered moon disc and illumination shading. Fetches phase data asynchronously and falls back gracefully while loading.
 
@@ -315,7 +315,7 @@ Moon phase applet with Cairo-rendered moon disc and illumination shading. Fetche
 
 ### Clippy
 
-![Clippy applet](images/clippy.png)
+<img src="docking/assets/icons/applets/clippy.png" alt="Clippy" width="48">
 
 Clipboard history manager. Monitors the system clipboard and stores the last 15 text entries.
 
@@ -326,6 +326,8 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 **Preferences stored:** `max_entries`
 
 ### Bookmarks
+
+<img src="docking/assets/icons/applets/bookmarks.png" alt="Bookmarks" width="48">
 
 Bookmarks launcher for pinned URLs.
 
@@ -339,6 +341,8 @@ Bookmarks launcher for pinned URLs.
 
 ### Quick Note
 
+<img src="docking/assets/icons/applets/quicknote.png" alt="Quick Note" width="48">
+
 Sticky note applet for a single quick text note.
 
 **Click:** Open the note editor dialog
@@ -349,6 +353,8 @@ Sticky note applet for a single quick text note.
 **Tooltip:** note preview or empty-note fallback
 
 ### Recent Files
+
+<img src="docking/assets/icons/applets/recentfiles.png" alt="Recent Files" width="48">
 
 Launcher for the most recently opened files from `Gtk.RecentManager`.
 
@@ -361,7 +367,7 @@ Launcher for the most recently opened files from `Gtk.RecentManager`.
 
 ### Color Picker
 
-![Color Picker applet](images/color.png)
+<img src="docking/assets/icons/applets/colorpicker.png" alt="Color Picker" width="48">
 
 Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel color, copies hex value to clipboard, and updates the icon swatch.
 
@@ -376,13 +382,15 @@ Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel colo
 
 ### Applications
 
-![Applications applet](images/applications.png)
+<img src="docking/assets/icons/applets/applications.png" alt="Applications" width="48">
 
 Categorized application launcher. Groups all installed `.desktop` applications by FreeDesktop category (Multimedia, Development, Internet, etc.) with icons.
 
 **Right-click:** Categorized submenus with application icons. The top of the menu includes a search field that filters applications as you type.
 
 ### Keyboard Layout
+
+<img src="docking/assets/icons/applets/keyboardlayout.png" alt="Keyboard Layout" width="48">
 
 Keyboard layout switcher with a compact keyboard icon and active layout code overlay.
 
@@ -394,7 +402,7 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 
 ### Network
 
-![Network applet](images/network.png)
+<img src="docking/assets/icons/applets/network.png" alt="Network" width="48">
 
 Shows WiFi signal strength or wired connection status, with live upload/download speed overlay.
 
@@ -414,6 +422,8 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 **Update interval:** 2 seconds for traffic, instant for connection state changes (NM signals)
 
 ### Bluetooth
+
+<img src="docking/assets/icons/applets/bluetooth.png" alt="Bluetooth" width="48">
 
 BlueZ-based Bluetooth manager applet for quick adapter/device control from the dock.
 
@@ -439,6 +449,8 @@ block power-off (`org.bluez.Error.Busy`) until that external scan stops.
 
 ### Power Profiles
 
+<img src="docking/assets/icons/applets/powerprofiles.png" alt="Power Profiles" width="48">
+
 Power profile applet for quick laptop/handheld mode switching.
 
 **Click:** Cycle to next available profile
@@ -454,6 +466,8 @@ Power profile applet for quick laptop/handheld mode switching.
 - `tlp` fallback (`ac`/`bat`/`start` mapping)
 
 ### Notifications
+
+<img src="docking/assets/icons/applets/notifications.png" alt="Notifications" width="48">
 
 Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when supported.
 
@@ -471,7 +485,7 @@ Notification center applet with a compact status icon, Do Not Disturb toggle, an
 
 ### Session
 
-![Session applet](images/session.png)
+<img src="docking/assets/icons/applets/session.png" alt="Session" width="48">
 
 Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
@@ -485,7 +499,7 @@ Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
 ### Calendar
 
-![Calendar applet](images/calendar.png)
+<img src="docking/assets/icons/applets/calendar.png" alt="Calendar" width="48">
 
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
@@ -496,7 +510,7 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 
 ### Workspaces
 
-![Workspaces applet](images/workspace.png)
+<img src="docking/assets/icons/applets/workspaces.png" alt="Workspaces" width="48">
 
 Workspace switcher with a visual grid icon. Active workspace is highlighted in blue.
 
@@ -508,7 +522,7 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 ### Screenshot
 
-![Screenshot applet](images/screenshot.png)
+<img src="docking/assets/icons/applets/screenshot.png" alt="Screenshot" width="48">
 
 Capture screenshots via the best available tool. Auto-detects mate-screenshot, gnome-screenshot, xfce4-screenshooter, spectacle, flameshot, or scrot.
 
@@ -521,7 +535,7 @@ Capture screenshots via the best available tool. Auto-detects mate-screenshot, g
 
 ### Volume
 
-![Volume applet](images/volume.png)
+<img src="docking/assets/icons/applets/volume.png" alt="Volume" width="48">
 
 System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA). Icon switches between muted/low/medium/high based on level.
 
@@ -532,6 +546,8 @@ System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA)
 **Update interval:** 1 second (refreshes only on change)
 
 ### Music
+
+<img src="docking/assets/icons/applets/music.png" alt="Music" width="48">
 
 Media controller applet with album-art icon rendering. Uses MPRIS over DBus first, then playerctl fallback for controls when needed.
 
@@ -549,7 +565,7 @@ Current support note: tested with **VLC**, **Clementine**, **Amberol**, and **Re
 
 ### Pomodoro
 
-![Pomodoro applet](images/pomodoro.png)
+<img src="docking/assets/icons/applets/pomodoro.png" alt="Pomodoro" width="48">
 
 Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases with configurable durations. Triggers urgent bounce+glow on phase transitions.
 
@@ -563,6 +579,8 @@ Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases wi
 **Preferences stored:** `work`, `break_`, `long_break`
 
 ### Pet
+
+<img src="docking/assets/icons/applets/pet.png" alt="Pet" width="48">
 
 Animated companion applet that reacts to system activity with different moods.
 
@@ -584,7 +602,7 @@ Added via right-click on dock background -> **Add Separator** (inserts at click 
 
 ### Hydration
 
-![Hydration applet](images/hydration.png)
+<img src="docking/assets/icons/applets/hydration.png" alt="Hydration" width="48">
 
 Water drop icon that drains over a configurable interval, reminding you to drink water. Click to refill. Triggers urgent bounce when empty.
 
@@ -597,6 +615,8 @@ Water drop icon that drains over a configurable interval, reminding you to drink
 **Preferences stored:** `interval`, `show_timer`
 
 ### Stretch Coach
+
+<img src="docking/assets/icons/applets/stretchcoach.png" alt="Stretch Coach" width="48">
 
 Periodic micro-break reminder applet with offline stretch cards. Reminders stay inside the dock: the icon becomes urgent when a break is due, and clicking acknowledges the reminder and restarts the timer.
 
@@ -612,6 +632,8 @@ Periodic micro-break reminder applet with offline stretch cards. Reminders stay 
 
 ### Quote
 
+<img src="docking/assets/icons/applets/quote.png" alt="Quote" width="48">
+
 Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with local fallback quotes and supports online refresh from active sources.
 
 **Click:** Show next quote
@@ -625,6 +647,8 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 
 ### Random Trivia
 
+<img src="docking/assets/icons/applets/trivia.png" alt="Random Trivia" width="48">
+
 Quick trivia applet backed by **Open Trivia DB** with a local fallback question set. Tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
 
 **Click:** Show the next trivia question
@@ -635,6 +659,8 @@ Quick trivia applet backed by **Open Trivia DB** with a local fallback question 
 - **Refresh from Web**
 
 ### Today in History
+
+<img src="docking/assets/icons/applets/todayinhistory.png" alt="Today in History" width="48">
 
 One-event-at-a-time history applet backed by Wikipedia's "On this day" feed with a local fallback set for offline use. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
 
@@ -647,7 +673,7 @@ One-event-at-a-time history applet backed by Wikipedia's "On this day" feed with
 
 ### Ambient
 
-![Ambient applet](images/ambient.png)
+<img src="docking/assets/icons/applets/ambient.png" alt="Ambient" width="48">
 
 Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sounds plus procedural white/pink noise via GStreamer.
 
@@ -657,23 +683,64 @@ Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sound
 
 **Preferences stored:** `sound`, `volume`
 
+### Calculator
+
+<img src="docking/assets/icons/applets/calculator.png" alt="Calculator" width="48">
+
+Basic four-function calculator with a popup interface. Supports +, -, *, /, parentheses, and decimal numbers.
+
+**Click:** Toggle calculator popup
+**Keyboard:** Type expression, press Enter to evaluate
+
+**Preferences stored:** `last_expression`
+
+### Unit Converter
+
+<img src="docking/assets/icons/applets/unitconverter.png" alt="Unit Converter" width="48">
+
+Convert between units directly from the dock popup. Supports length, weight, temperature, volume, speed, and data categories.
+
+**Click:** Toggle converter popup
+
+**Preferences stored:** `last_category`
+
+### URL Shortener
+
+<img src="docking/assets/icons/applets/urlshortener.png" alt="URL Shortener" width="48">
+
+Shorten URLs via is.gd with one click. Paste a URL, hit Shorten, and copy the result to clipboard.
+
+**Click:** Toggle URL shortener dialog
+**Keyboard:** Paste URL, press Enter to shorten
+
+**Preferences stored:** `last_url`
+
+### Window Killer
+
+<img src="docking/assets/icons/applets/windowkiller.png" alt="Window Killer" width="48">
+
+Click the applet, then click any window to force-close it. Uses `xdotool selectwindow` + `wmctrl -ic` under the hood.
+
+**Click:** Enter kill mode (cursor changes to crosshair)
+
 ## Theming
 
-Themes are JSON files in `docking/assets/themes/`. Nine built-in themes are included:
+Themes are JSON files in `docking/assets/themes/`. Ten built-in themes are included:
 
 - `default` -- light theme
-- `default-dark` -- dark variant
-- `matte` -- flat appearance
+- `onyx` -- dark variant
+- `slate` -- flat appearance
 - `transparent` -- minimal, see-through
-- `ubuntu-mate` -- matches Ubuntu MATE panel style
-- `yaru-dark` -- matches Yaru dark theme
+- `olive` -- rounded olive-green theme
+- `ember` -- warm dark theme
 - `nord` -- cool, desaturated dark
+- `glass` -- translucent macOS-style floating pill
 - `gruvbox` -- warm earthy dark
 - `solarized` -- soft light Solarized variant
 
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
 
-Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `matte` keep the dock visually separated from the screen edge.
+Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
 
 **Creating a custom theme:** Copy an existing theme JSON and modify the colors and proportions. Place it in the `assets/themes/` directory -- it will appear in the right-click Themes menu.
 

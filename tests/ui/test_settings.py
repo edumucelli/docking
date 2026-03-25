@@ -496,10 +496,10 @@ class TestSettingsWindowController:
 
         controller.show()
         widget = controller._theme_combo
-        widget.set_active_id("matte")
+        widget.set_active_id("slate")
         widget.emit_changed()
 
-        assert config.theme == "matte"
+        assert config.theme == "slate"
         config.save.assert_called_once()
         runtime.set_theme.assert_called_once_with(theme_obj)
         runtime.reposition.assert_called_once()

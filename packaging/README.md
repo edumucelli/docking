@@ -146,7 +146,7 @@ sudo snap install --dangerous artifacts/docking.snap
 Notes:
 
 - Snap manifest: `packaging/snap/snapcraft.yaml`
-- Current confinement is `devmode` to support development/runtime integration paths.
+- Snap `grade` is `stable`; `confinement` remains `devmode` to support current desktop integration paths.
 
 ## AppImage
 

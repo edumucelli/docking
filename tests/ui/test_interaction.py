@@ -34,6 +34,7 @@ def _make_window(item: DockItem | None = None):
         get_realized=MagicMock(return_value=True),
         get_display=MagicMock(return_value=None),
         get_position=MagicMock(return_value=(0, 0)),
+        zoom_animator=MagicMock(),
     )
     window._hover.hovered_item = item
     window._hover.cancel = MagicMock()

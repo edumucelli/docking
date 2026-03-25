@@ -46,12 +46,13 @@ from docking.applets.battery.state import BatteryState
 from docking.applets.bluetooth.render import create_bluetooth_icon
 from docking.applets.bookmarks.render import render_icon as render_bookmarks
 from docking.applets.brightness.render import create_icon as render_brightness
+from docking.applets.calculator.render import create_icon as render_calculator
 from docking.applets.calendar.render import render_icon as render_calendar
 from docking.applets.calendar.state import snapshot_from
 from docking.applets.clippy.render import create_icon as render_clippy
 from docking.applets.clock.render import render_icon as render_clock
 from docking.applets.colorpicker.render import create_icon as render_colorpicker
-from docking.applets.cpumonitor.render import render_icon as render_cpumonitor
+from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
 from docking.applets.desktop.render import create_icon as render_desktop
 from docking.applets.hydration.render import render_icon as render_hydration
 from docking.applets.hydration.state import HydrationState
@@ -78,7 +79,10 @@ from docking.applets.stretchcoach.state import StretchCoachState
 from docking.applets.todayinhistory.render import render_icon as render_todayinhistory
 from docking.applets.trash.render import create_trash_icon
 from docking.applets.trivia.render import draw_trivia_icon
+from docking.applets.unitconverter.render import create_icon as render_unitconverter
+from docking.applets.urlshortener.render import create_icon as render_urlshortener
 from docking.applets.volume.render import create_volume_icon
+from docking.applets.windowkiller.render import create_icon as render_windowkiller
 from docking.applets.weather.render import create_icon as render_weather
 from docking.applets.workspaces.render import _render_grid
 
@@ -173,6 +177,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             brightness=0.70,
             show_level=False,
         ),
+        AppletId.CALCULATOR: render_calculator(size=size),
         AppletId.CALENDAR: render_calendar(size=size, snapshot=cal_snapshot),
         AppletId.CLIPPY: render_clippy(size=size),
         AppletId.CLOCK: render_clock(
@@ -189,7 +194,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             b=0.5,
             hex_label=None,
         ),
-        AppletId.CPUMONITOR: render_cpumonitor(size=size, cpu=0.42, mem=0.28),
+        AppletId.SYSTEMMONITOR: render_systemmonitor(size=size, cpu=0.42, mem=0.28),
         AppletId.DESKTOP: render_desktop(size=size),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
         AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
@@ -236,12 +241,15 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.TODAYINHISTORY: render_todayinhistory(size=size),
         AppletId.TRIVIA: _trivia_pixbuf(size=size),
         AppletId.TRASH: create_trash_icon(size=size, item_count=0),
+        AppletId.UNITCONVERTER: render_unitconverter(size=size),
+        AppletId.URLSHORTENER: render_urlshortener(size=size),
         AppletId.VOLUME: create_volume_icon(size=size, volume=60, muted=False),
         AppletId.WEATHER: render_weather(
             size=size,
             weather=None,
             show_temperature=True,
         ),
+        AppletId.WINDOWKILLER: render_windowkiller(size=size),
         AppletId.WORKSPACES: _workspaces_pixbuf(size=size),
     }
 

@@ -120,6 +120,9 @@ class _ScenarioHarness:
             set_hovered=MagicMock(),
         )
         self._gdk_window = MagicMock()
+        self.zoom_animator = SimpleNamespace(
+            progress=1.0, on_enter=lambda: None, on_leave=lambda: None
+        )
         self.geometry = DockGeometryBuilder(cast(Any, self))
         self._hover = HoverManager(
             window=cast(Any, self),
@@ -515,6 +518,7 @@ class TestDragDropScenarios:
             harness.drawing_area, MagicMock(), int(x), int(y), 1
         )
         harness.dnd._on_drag_leave(harness.drawing_area, MagicMock(), 1)
+        harness.dnd._drop_committed = True
         harness.dnd._on_drag_data_received(
             harness.drawing_area,
             MagicMock(),

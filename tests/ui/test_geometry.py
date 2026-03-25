@@ -5,8 +5,11 @@ from __future__ import annotations
 from itertools import pairwise
 from types import SimpleNamespace
 
+import pytest
+
 from docking.core.layout import content_bounds
 from docking.core.position import Position
+from docking.core.theme import Theme
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import Rect, build_geometry_frame
@@ -241,3 +244,181 @@ class TestDockGeometryFrame:
 
         assert all(a > b for a, b in pairwise(right_scales))
         assert all(scale > 1.0 for scale in right_scales)
+
+
+class TestShelfPosition:
+    """Verify background_rect shelf position is consistent across hide offsets."""
+
+    def _items(self):
+        return [
+            DockItem(desktop_id="a.desktop"),
+            DockItem(desktop_id="b.desktop"),
+            DockItem(desktop_id="c.desktop"),
+        ]
+
+    def test_shelf_y_moves_smoothly_with_hide_offset_bottom(self):
+        # Given - distance_from_edge > 0 to trigger the drift that was fixed
+        items = self._items()
+        prev_y = None
+        for hide_pct in range(11):
+            hide = hide_pct / 10.0
+            frame = build_geometry_frame(
+                items=items,
+                config=_config(Position.BOTTOM),
+                theme=_theme(distance_from_edge=6),
+                window_w=1920,
+                window_h=1080,
+                cursor_main=-1.0,
+                autohide_state=None,
+                hide_offset=hide,
+            )
+            y = frame.background_rect.y
+            # Shelf should move monotonically downward as hide_offset increases
+            if prev_y is not None:
+                assert y >= prev_y, (
+                    f"Shelf y went backwards at hide={hide}: {y} < {prev_y}"
+                )
+            prev_y = y
+
+    def test_shelf_x_moves_smoothly_with_hide_offset_left(self):
+        items = self._items()
+        prev_x = None
+        for hide_pct in range(11):
+            hide = hide_pct / 10.0
+            frame = build_geometry_frame(
+                items=items,
+                config=_config(Position.LEFT),
+                theme=_theme(distance_from_edge=6),
+                window_w=1920,
+                window_h=1080,
+                cursor_main=-1.0,
+                autohide_state=None,
+                hide_offset=hide,
+            )
+            x = frame.background_rect.x
+            # Shelf should move monotonically leftward as hide_offset increases
+            if prev_x is not None:
+                assert x <= prev_x, f"Shelf x went right at hide={hide}: {x} > {prev_x}"
+            prev_x = x
+
+    def test_shelf_fully_hidden_at_offset_1(self):
+        # Given
+        items = self._items()
+        gap = 6
+        frame = build_geometry_frame(
+            items=items,
+            config=_config(Position.BOTTOM),
+            theme=_theme(distance_from_edge=gap),
+            window_w=1920,
+            window_h=1080,
+            cursor_main=-1.0,
+            autohide_state=None,
+            hide_offset=1.0,
+        )
+        # Then - shelf should be at or beyond the window bottom edge
+        assert frame.background_rect.y >= 1080 - gap
+
+    def test_shelf_at_rest_with_distance_from_edge(self):
+        # Given
+        items = self._items()
+        gap = 10
+        frame = build_geometry_frame(
+            items=items,
+            config=_config(Position.BOTTOM),
+            theme=_theme(distance_from_edge=gap),
+            window_w=1920,
+            window_h=1080,
+            cursor_main=-1.0,
+            autohide_state=None,
+            hide_offset=0.0,
+        )
+        shelf_h = frame.background_rect.h
+        shelf_bottom = frame.background_rect.y + shelf_h
+        # Shelf bottom should sit above the distance_from_edge gap
+        assert shelf_bottom <= 1080 - gap + 1  # +1 for rounding
+
+    def test_shelf_fields_match_background_rect_horizontal(self):
+        items = self._items()
+        frame = build_geometry_frame(
+            items=items,
+            config=_config(Position.BOTTOM),
+            theme=_theme(distance_from_edge=6),
+            window_w=1920,
+            window_h=1080,
+            cursor_main=-1.0,
+            autohide_state=None,
+            hide_offset=0.3,
+        )
+        assert frame.shelf_main_pos == float(frame.background_rect.x)
+        assert frame.shelf_main_extent == float(frame.background_rect.w)
+        assert frame.shelf_cross_pos == float(frame.background_rect.y)
+        assert frame.shelf_cross_extent == float(frame.background_rect.h)
+
+    def test_shelf_fields_match_background_rect_vertical(self):
+        items = self._items()
+        frame = build_geometry_frame(
+            items=items,
+            config=_config(Position.LEFT),
+            theme=_theme(distance_from_edge=6),
+            window_w=1920,
+            window_h=1080,
+            cursor_main=-1.0,
+            autohide_state=None,
+            hide_offset=0.3,
+        )
+        # For vertical docks, main axis is Y, cross is X
+        assert frame.shelf_main_pos == float(frame.background_rect.y)
+        assert frame.shelf_main_extent == float(frame.background_rect.h)
+        assert frame.shelf_cross_pos == float(frame.background_rect.x)
+        assert frame.shelf_cross_extent == float(frame.background_rect.w)
+
+
+_ALL_THEMES = [
+    "default",
+    "onyx",
+    "slate",
+    "glass",
+    "transparent",
+    "olive",
+    "ember",
+    "nord",
+    "gruvbox",
+    "solarized",
+]
+
+
+class TestShelfHidesCompletely:
+    """Shelf background must be fully off-screen when hide_offset=1.0."""
+
+    @pytest.mark.parametrize("theme_name", _ALL_THEMES)
+    def test_shelf_hidden_for_bottom(self, theme_name):
+        icon_size = 48
+        theme = Theme.load(theme_name, icon_size)
+        zoom = 1.5
+        gap = max(0, int(theme.distance_from_edge))
+        bounce = int(icon_size * theme.urgent_bounce_height)
+        cross = int(
+            icon_size * zoom + theme.top_padding + theme.bottom_padding + bounce
+        )
+        window_h = cross + gap
+        items = [DockItem(desktop_id="firefox.desktop")]
+
+        frame = build_geometry_frame(
+            items=items,
+            config=SimpleNamespace(
+                pos=Position.BOTTOM,
+                icon_size=icon_size,
+                zoom_percent=zoom,
+                zoom_enabled=True,
+            ),
+            theme=theme,
+            window_w=1920,
+            window_h=window_h,
+            cursor_main=-1.0,
+            autohide_state=HideState.HIDDEN,
+            hide_offset=1.0,
+        )
+
+        assert frame.background_rect.y >= window_h, (
+            f"{theme_name}: shelf_y={frame.background_rect.y} but window_h={window_h}"
+        )

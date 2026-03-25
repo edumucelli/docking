@@ -83,9 +83,13 @@ class BrightnessApplet(Applet):
     def on_clicked(self) -> None:
         """Reset to 100% on click."""
         if self._backend:
-            set_brightness(backend=self._backend, value=1.0)
             self._brightness = 1.0
             self.present()
+            backend = self._backend
+            self._worker.run(
+                name="brightness-reset",
+                fn=lambda: set_brightness(backend=backend, value=1.0),
+            )
 
     def get_menu_items(self) -> list:
         from gi.repository import Gtk
@@ -103,16 +107,21 @@ class BrightnessApplet(Applet):
         self.present()
 
     def on_scroll(self, direction_up: bool) -> None:
-        """Adjust brightness ±2% on scroll."""
+        """Adjust brightness +-2% on scroll."""
         if not self._backend:
             return
         if direction_up:
             new = min(1.0, self._brightness + STEP)
         else:
             new = max(0.1, self._brightness - STEP)
-        set_brightness(backend=self._backend, value=new)
         self._brightness = new
         self.present()
+        backend, value = self._backend, new
+        self._worker.run_guarded(
+            key="brightness-set",
+            name="brightness-scroll",
+            fn=lambda: set_brightness(backend=backend, value=value),
+        )
 
     def _poll(self) -> None:
         """Read current brightness synchronously."""

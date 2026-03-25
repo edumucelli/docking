@@ -26,7 +26,7 @@ This split keeps runtime behavior in one place while making parsers/rendering hi
 
 ## Clock
 
-![Clock applet](../images/clock.png)
+<img src="../docking/assets/icons/applets/clock.png" alt="Clock" width="48">
 
 Analog or digital clock face. The analog mode uses SVG layers for a realistic clock face with hour/minute hands.
 
@@ -39,7 +39,7 @@ Analog or digital clock face. The analog mode uses SVG layers for a realistic cl
 
 ## Trash
 
-![Trash applet](../images/trash.png)
+<img src="../docking/assets/icons/applets/trash.png" alt="Trash" width="48">
 
 Shows the current state of the system trash. Icon switches between empty and full automatically via file monitoring.
 
@@ -50,7 +50,7 @@ Shows the current state of the system trash. Icon switches between empty and ful
 
 ## Desktop
 
-![Desktop applet](../images/desktop.png)
+<img src="../docking/assets/icons/applets/desktop.png" alt="Desktop" width="48">
 
 Toggle "show desktop" mode -- minimizes or restores all windows.
 
@@ -58,7 +58,7 @@ Toggle "show desktop" mode -- minimizes or restores all windows.
 
 ## System Monitor
 
-![System Monitor applet](../images/system_monitor.png)
+<img src="../docking/assets/icons/applets/systemmonitor.png" alt="System Monitor" width="48">
 
 Circular gauge showing real-time CPU and memory usage. The fill color shifts from green (idle) to red (busy). A white arc around the edge shows memory usage.
 
@@ -70,7 +70,7 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 ## Battery
 
-![Battery applet](../images/battery.png)
+<img src="../docking/assets/icons/applets/battery.png" alt="Battery" width="48">
 
 Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/class/power_supply/BAT0/`. Icon changes based on charge level (full, good, low, caution, empty) and charging state.
 
@@ -80,7 +80,7 @@ Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/cl
 
 ## Brightness
 
-![Brightness applet](../images/brightness.png)
+<img src="../docking/assets/icons/applets/brightness.png" alt="Brightness" width="48">
 
 Screen brightness control via `xrandr`. Auto-detects the primary display output and tracks live brightness value.
 
@@ -95,7 +95,7 @@ Screen brightness control via `xrandr`. Auto-detects the primary display output 
 
 ## Weather
 
-![Weather applet](../images/weather.png)
+<img src="../docking/assets/icons/applets/weather.png" alt="Weather" width="48">
 
 Shows current weather and air quality for a selected city with a 5-day forecast. Uses the [Open-Meteo](https://open-meteo.com/) weather and air quality APIs with automatic caching and retry.
 
@@ -119,7 +119,7 @@ Tue: 28/32 C, Rain
 
 ## Moon
 
-![Moon applet](../images/moon.png)
+<img src="../docking/assets/icons/applets/moon.png" alt="Moon" width="48">
 
 Moon phase applet with Cairo-rendered moon disc and illumination shading. Fetches phase data asynchronously and falls back gracefully while loading.
 
@@ -134,7 +134,7 @@ Moon phase applet with Cairo-rendered moon disc and illumination shading. Fetche
 
 ## Clippy
 
-![Clippy applet](../images/clippy.png)
+<img src="../docking/assets/icons/applets/clippy.png" alt="Clippy" width="48">
 
 Clipboard history manager. Monitors the system clipboard and stores the last 15 text entries.
 
@@ -146,7 +146,7 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 
 ## Color Picker
 
-![Color Picker applet](../images/color.png)
+<img src="../docking/assets/icons/applets/colorpicker.png" alt="Color Picker" width="48">
 
 Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel color, copies hex value to clipboard, and updates the icon swatch.
 
@@ -161,7 +161,7 @@ Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel colo
 
 ## Applications
 
-![Applications applet](../images/applications.png)
+<img src="../docking/assets/icons/applets/applications.png" alt="Applications" width="48">
 
 Categorized application launcher. Groups all installed `.desktop` applications by FreeDesktop category (Multimedia, Development, Internet, etc.) with icons.
 
@@ -169,7 +169,7 @@ Categorized application launcher. Groups all installed `.desktop` applications b
 
 ## Network
 
-![Network applet](../images/network.png)
+<img src="../docking/assets/icons/applets/network.png" alt="Network" width="48">
 
 Shows WiFi signal strength or wired connection status, with live upload/download speed overlay.
 
@@ -260,7 +260,7 @@ Tested with **VLC**, **Clementine**, **Amberol**, and **Recordbox**. Should work
 
 ## Session
 
-![Session applet](../images/session.png)
+<img src="../docking/assets/icons/applets/session.png" alt="Session" width="48">
 
 Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
@@ -274,7 +274,7 @@ Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
 ## Calendar
 
-![Calendar applet](../images/calendar.png)
+<img src="../docking/assets/icons/applets/calendar.png" alt="Calendar" width="48">
 
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
@@ -285,7 +285,7 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 
 ## Workspaces
 
-![Workspaces applet](../images/workspace.png)
+<img src="../docking/assets/icons/applets/workspaces.png" alt="Workspaces" width="48">
 
 Workspace switcher with a visual grid icon. Active workspace is highlighted in blue.
 
@@ -297,7 +297,7 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 ## Screenshot
 
-![Screenshot applet](../images/screenshot.png)
+<img src="../docking/assets/icons/applets/screenshot.png" alt="Screenshot" width="48">
 
 Capture screenshots via the best available tool. Auto-detects mate-screenshot, gnome-screenshot, xfce4-screenshooter, spectacle, flameshot, or scrot.
 
@@ -310,7 +310,7 @@ Capture screenshots via the best available tool. Auto-detects mate-screenshot, g
 
 ## Volume
 
-![Volume applet](../images/volume.png)
+<img src="../docking/assets/icons/applets/volume.png" alt="Volume" width="48">
 
 System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA). Icon switches between muted/low/medium/high based on level.
 
@@ -322,7 +322,7 @@ System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA)
 
 ## Pomodoro
 
-![Pomodoro applet](../images/pomodoro.png)
+<img src="../docking/assets/icons/applets/pomodoro.png" alt="Pomodoro" width="48">
 
 Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases with configurable durations. Triggers urgent bounce+glow on phase transitions.
 
@@ -348,7 +348,7 @@ Added via right-click on dock background -> **Add Separator** (inserts at click 
 
 ## Hydration
 
-![Hydration applet](../images/hydration.png)
+<img src="../docking/assets/icons/applets/hydration.png" alt="Hydration" width="48">
 
 Water drop icon that drains over a configurable interval, reminding you to drink water. Click to refill. Triggers urgent bounce when empty.
 
@@ -374,7 +374,7 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 
 ## Ambient
 
-![Ambient applet](../images/ambient.png)
+<img src="../docking/assets/icons/applets/ambient.png" alt="Ambient" width="48">
 
 Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sounds plus procedural white/pink noise via GStreamer.
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-22 12:45+0100\n"
+"POT-Creation-Date: 2026-03-26 00:18+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -244,8 +244,13 @@ msgstr ""
 msgid "Brightness: {pct}%"
 msgstr ""
 
-#: docking/applets/brightness/applet.py:94
+#: docking/applets/brightness/applet.py:98
 msgid "Show Level"
+msgstr ""
+
+#: docking/applets/calculator/applet.py:43
+#: docking/applets/calculator/applet.py:60
+msgid "Calculator"
 msgstr ""
 
 #: docking/applets/calendar/applet.py:37 docking/applets/calendar/applet.py:43
@@ -476,21 +481,21 @@ msgstr ""
 msgid "Network"
 msgstr ""
 
-#: docking/applets/network/applet.py:104
+#: docking/applets/network/applet.py:105
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr ""
 
-#: docking/applets/network/applet.py:112
+#: docking/applets/network/applet.py:113
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr ""
 
-#: docking/applets/network/applet.py:117
+#: docking/applets/network/applet.py:118
 msgid "Not connected"
 msgstr ""
 
-#: docking/applets/network/applet.py:122
+#: docking/applets/network/applet.py:123
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr ""
@@ -887,6 +892,42 @@ msgstr ""
 msgid "Correct: {answer}"
 msgstr ""
 
+#: docking/applets/unitconverter/applet.py:52
+#: docking/applets/unitconverter/applet.py:79
+msgid "Unit Converter"
+msgstr ""
+
+#: docking/applets/unitconverter/applet.py:194
+msgid "Swap units"
+msgstr ""
+
+#: docking/applets/unitconverter/applet.py:211
+msgid "Value"
+msgstr ""
+
+#: docking/applets/urlshortener/applet.py:34
+#: docking/applets/urlshortener/applet.py:55
+#: docking/applets/urlshortener/applet.py:73
+msgid "URL Shortener"
+msgstr ""
+
+#: docking/applets/urlshortener/applet.py:95
+msgid "Shorten"
+msgstr ""
+
+#: docking/applets/urlshortener/applet.py:121
+msgid "Shortening..."
+msgstr ""
+
+#: docking/applets/urlshortener/applet.py:155
+#: docking/applets/urlshortener/applet.py:174
+msgid "Copy"
+msgstr ""
+
+#: docking/applets/urlshortener/applet.py:169
+msgid "Copied!"
+msgstr ""
+
 #: docking/applets/volume/applet.py:33
 msgid "Volume"
 msgstr ""
@@ -900,53 +941,66 @@ msgstr ""
 msgid "Volume: {pct}%"
 msgstr ""
 
-#: docking/applets/weather/applet.py:54
+#: docking/applets/weather/applet.py:55
 msgid "Weather"
 msgstr ""
 
-#: docking/applets/weather/applet.py:110
+#: docking/applets/weather/applet.py:124
 msgid "Show Temperature"
 msgstr ""
 
-#: docking/applets/weather/applet.py:115
-msgid "Change City..."
+#: docking/applets/weather/applet.py:129
+msgid "Add City..."
 msgstr ""
 
-#: docking/applets/weather/applet.py:139
+#: docking/applets/weather/applet.py:135
+#, python-brace-format
+msgid "Remove {city}"
+msgstr ""
+
+#: docking/applets/weather/applet.py:161
 msgid "Search for the city"
 msgstr ""
 
-#: docking/applets/weather/applet.py:153
+#: docking/applets/weather/applet.py:175
 msgid "Type city name..."
 msgstr ""
 
-#: docking/applets/weather/applet.py:277
+#: docking/applets/weather/applet.py:327
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:286 docking/applets/weather/state.py:92
+#: docking/applets/weather/applet.py:336 docking/applets/weather/state.py:132
 #, python-brace-format
 msgid "Air: {label}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:298
+#: docking/applets/weather/applet.py:348
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
 msgstr ""
 
-#: docking/applets/weather/state.py:73
+#: docking/applets/weather/state.py:113
 #, python-brace-format
 msgid "{city}: {temp}°C"
 msgstr ""
 
-#: docking/applets/weather/state.py:86
+#: docking/applets/weather/state.py:126
 msgid "Weather (no city selected)"
 msgstr ""
 
-#: docking/applets/weather/state.py:88
+#: docking/applets/weather/state.py:128
 #, python-brace-format
 msgid "{city}: loading..."
+msgstr ""
+
+#: docking/applets/windowkiller/applet.py:34
+msgid "Window Killer"
+msgstr ""
+
+#: docking/applets/windowkiller/applet.py:46
+msgid "Click, then select a window to kill"
 msgstr ""
 
 #: docking/applets/workspaces/applet.py:40
@@ -957,7 +1011,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/dock_window.py:321
+#: docking/ui/dock_window.py:323
 msgid "Docking"
 msgstr ""
 

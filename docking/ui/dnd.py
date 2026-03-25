@@ -206,6 +206,10 @@ class DnDHandler:
         self.drag_index: int = -1
         self._drag_from: int = -1
         self.drop_insert_index: int = -1  # for external drops: where to insert
+        self.drop_target_id: str = (
+            ""  # launcher desktop_id under cursor during external drag
+        )
+        self._drop_committed: bool = False  # True after drag-drop fires
 
         self._setup_dnd()
 
@@ -339,8 +343,21 @@ class DnDHandler:
             # External drag -- compute insert position for gap effect
             frame = self._geometry_builder.build_frame(main_cursor=-1.0)
             insert = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
-            if insert != self.drop_insert_index:
+            changed = insert != self.drop_insert_index
+            if changed:
                 self.drop_insert_index = insert
+
+            # Green glow on any app icon under cursor during external drag
+            gap_frame = self._geometry_builder.build_frame(
+                main_cursor=-1.0, drop_insert_index=self.drop_insert_index
+            )
+            item = gap_frame.item_at_point(float(x), float(y))
+            new_target = item.desktop_id if item and item.kind == APP_KIND else ""
+            if new_target != self.drop_target_id:
+                self.drop_target_id = new_target
+                changed = True
+
+            if changed:
                 widget.queue_draw()
             Gdk.drag_status(context, Gdk.DragAction.COPY, time)
             return True
@@ -371,6 +388,7 @@ class DnDHandler:
         time: int,
     ) -> bool:
         """Handle the drop event -- request URI data for external drops."""
+        self._drop_committed = True
         target = widget.drag_dest_find_target(context, None)
         log.debug(
             "drag-drop: drag_from=%d insert=%d target=%s",
@@ -390,17 +408,17 @@ class DnDHandler:
         self,
         widget: Gtk.DrawingArea,
         context: Gdk.DragContext,
-        _x: int,
-        _y: int,
+        x: int,
+        y: int,
         selection: Gtk.SelectionData,
         _info: int,
         time: int,
     ) -> None:
-        """Process drop data -- noop for internal reorder, pin for external URIs.
+        """Process drop data -- noop for internal reorder, open or pin for external.
 
         Internal reorder is already handled live in drag-motion; this just
-        acknowledges completion. External drops parse URI list, resolve
-        apps/files/folders, and insert pinned items at the drop position.
+        acknowledges completion. External drops either open files with the
+        target app (if dropped onto an app icon) or insert pinned items.
         """
         # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
@@ -417,6 +435,13 @@ class DnDHandler:
             text = selection.get_text()
             if text:
                 uris = [line.strip() for line in text.splitlines() if line.strip()]
+
+        # Check if dropped onto a launcher icon -- open files with that app
+        if uris and self._try_open_with_launcher(x=x, y=y, uris=uris):
+            self.drop_insert_index = -1
+            self._runtime.reconcile_after_drag(reason="drag-data-received")
+            Gtk.drag_finish(context, True, False, time)
+            return
 
         added = False
         for uri in uris:
@@ -442,8 +467,38 @@ class DnDHandler:
                 added = True
 
         self.drop_insert_index = -1
+        self.drop_target_id = ""
+        self._drop_committed = False
         self._runtime.reconcile_after_drag(reason="drag-data-received")
         Gtk.drag_finish(context, added, False, time)
+
+    def _try_open_with_launcher(self, *, x: int, y: int, uris: list[str]) -> bool:
+        """If drop lands on an app icon, try opening the files with it."""
+        from gi.repository import Gio
+
+        frame = self._geometry_builder.build_frame(main_cursor=-1.0)
+        item = frame.item_at_point(float(x), float(y))
+        if not item or item.kind != APP_KIND:
+            return False
+
+        launchable = [u for u in uris if not u.endswith(".desktop")]
+        if not launchable:
+            return False
+
+        try:
+            app_info = Gio.DesktopAppInfo.new(item.desktop_id)
+        except (TypeError, GLib.Error):
+            return False
+        if not app_info:
+            return False
+
+        try:
+            app_info.launch_uris(launchable, None)
+            log.debug("Opened %d file(s) with %s", len(launchable), item.desktop_id)
+            return True
+        except GLib.Error as exc:
+            log.warning("Failed to open with %s: %s", item.desktop_id, exc)
+            return False
 
     def _on_drag_leave(
         self, widget: Gtk.DrawingArea, _context: Gdk.DragContext, _time: int
@@ -462,6 +517,7 @@ class DnDHandler:
                 self._deferred_clear_drop_gap,
                 widget,
             )
+        self.drop_target_id = ""
         widget.queue_draw()
 
     def _deferred_clear_drop_gap(self, widget: Gtk.DrawingArea) -> bool:
@@ -524,6 +580,8 @@ class DnDHandler:
 
         self.drag_index = -1
         self.drop_insert_index = -1
+        self.drop_target_id = ""
+        self._drop_committed = False
         self._drag_from = -1
         self._config.save()
         self._runtime.reconcile_after_drag(reason="drag-end")

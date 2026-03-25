@@ -156,14 +156,15 @@ def compute_layout(
     zoom_percent = 1.0 + (base_zoom - 1.0) * zoom_progress
     zoom_icon_size = icon_size * zoom_percent
 
-    widths = [item.main_size or icon_size for item in items]
+    widths = [int((item.main_size or icon_size) * item.insert_factor) for item in items]
 
     rest_centers: list[float] = []
     x = h_padding
     for w in widths:
+        pad = item_padding if w > 0 else 0
         x += w / 2
         rest_centers.append(x)
-        x += w / 2 + item_padding
+        x += w / 2 + pad
 
     result: list[LayoutItem] = []
     for i in range(num_items):

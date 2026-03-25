@@ -50,6 +50,7 @@ def _make_stub(item: DockItem | None = None):
     stub._applied_input_frame = frame
     stub.geometry = SimpleNamespace(build_frame=lambda **_kwargs: frame)
     stub.dock_hovered = True
+    stub.zoom_animator = SimpleNamespace(progress=1.0)
     stub.interaction = MagicMock()
     stub.interaction.on_effective_enter = MagicMock()
     stub.interaction.on_effective_leave = MagicMock()
@@ -590,6 +591,7 @@ class TestDockWindowDrawAndHelpers:
             renderer=renderer,
             cursor_x=1.0,
             cursor_y=2.0,
+            zoom_animator=SimpleNamespace(progress=1.0),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
             ),
@@ -626,6 +628,7 @@ class TestDockWindowDrawAndHelpers:
             renderer=renderer,
             cursor_x=-1.0,
             cursor_y=-1.0,
+            zoom_animator=SimpleNamespace(progress=0.0),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
             ),
@@ -659,6 +662,7 @@ class TestDockWindowDrawAndHelpers:
             update_input_region=MagicMock(),
             cursor_x=25.0,
             cursor_y=33.0,
+            zoom_animator=SimpleNamespace(progress=0.0),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
             ),
@@ -699,6 +703,7 @@ class TestDockWindowDrawAndHelpers:
             update_input_region=MagicMock(),
             cursor_x=25.0,
             cursor_y=33.0,
+            zoom_animator=SimpleNamespace(progress=1.0),
             geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
         )
 
@@ -719,6 +724,7 @@ class TestDockWindowDrawAndHelpers:
             update_input_region=MagicMock(),
             _hover=SimpleNamespace(update=MagicMock()),
             autohide=None,
+            zoom_animator=MagicMock(),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
             ),

@@ -210,7 +210,9 @@ class TestPinUnpin:
         model = DockModel(config, launcher)
         # When
         model.unpin_item("b.desktop")
-        # Then
+        # Then - item is animating out, flush animation to complete removal
+        while model.tick_animations():
+            pass
         assert len(model.visible_items()) == 1
         config.save.assert_called_once()
 

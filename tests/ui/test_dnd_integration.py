@@ -30,6 +30,7 @@ def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
     return SimpleNamespace(
         item_geometries=item_geometries,
         item_index_at_point=MagicMock(return_value=item_index),
+        item_at_point=MagicMock(return_value=None),
         insertion_index_for_main=MagicMock(return_value=insert_index),
     )
 
@@ -222,6 +223,7 @@ class TestDropAndReceive:
         # Given
         handler = _make_handler(monkeypatch)
         handler._drag_from = -1
+        handler._drop_committed = True
         handler.drop_insert_index = 0
         handler._renderer.slide_offsets = {"firefox.desktop": 12.0}
         handler._renderer.prev_positions = {"firefox.desktop": 320.0}

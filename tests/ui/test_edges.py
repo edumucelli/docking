@@ -138,6 +138,9 @@ class _Harness:
             on_mouse_enter=MagicMock(),
         )
         self._gdk_window = MagicMock()
+        self.zoom_animator = SimpleNamespace(
+            progress=1.0, on_enter=lambda: None, on_leave=lambda: None
+        )
         self.geometry = DockGeometryBuilder(self)
         self._hover = HoverManager(
             window=self,

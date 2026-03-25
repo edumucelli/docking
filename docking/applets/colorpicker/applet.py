@@ -126,7 +126,7 @@ class ColorPickerApplet(Applet):
         seat = display.get_default_seat()
         seat.grab(
             overlay.get_window(),
-            Gdk.SeatCapabilities.ALL_POINTING,
+            Gdk.SeatCapabilities.ALL_POINTING | Gdk.SeatCapabilities.KEYBOARD,
             True,
             crosshair,
             None,

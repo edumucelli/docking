@@ -45,16 +45,22 @@ def _frame(items, layout, *, cross_size: float = 90.0, offset: float = 0.0):
                 main_pos=float(li.x + offset),
             )
         )
+    bg = Rect(0, 48, 160, 21)
     return DockGeometryFrame(
         window_rect=Rect(0, 0, 420, 90),
         static_dock_rect=Rect(0, 0, 160, 70),
         cursor_rect=Rect(0, 0, 160, 70),
-        background_rect=Rect(0, 48, 160, 21),
+        background_rect=bg,
         layout=tuple(layout),
         item_geometries=tuple(item_geometries),
         local_cursor_main=0.0,
         zoomed_main_offset=offset,
         cross_size=cross_size,
+        shelf_main_pos=float(bg.x),
+        shelf_main_extent=float(bg.w),
+        shelf_cross_pos=float(bg.y),
+        shelf_cross_extent=float(bg.h),
+        shelf_as_bottom_y=float(bg.y),
     )
 
 
@@ -131,7 +137,6 @@ class TestRendererContentFlow:
             hide_offset=1.0,
             drag_index=-1,
             drop_insert_index=1,
-            zoom_progress=1.0,
             hovered_id="firefox.desktop",
         )
 
@@ -153,16 +158,22 @@ class TestRendererContentFlow:
         model.visible_items.return_value = [item]
         layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
         frame = _frame([item], layout)
+        custom_bg = Rect(24, 50, 120, 21)
         frame = DockGeometryFrame(
             window_rect=frame.window_rect,
             static_dock_rect=frame.static_dock_rect,
             cursor_rect=frame.cursor_rect,
-            background_rect=Rect(24, 50, 120, 21),
+            background_rect=custom_bg,
             layout=frame.layout,
             item_geometries=frame.item_geometries,
             local_cursor_main=frame.local_cursor_main,
             zoomed_main_offset=frame.zoomed_main_offset,
             cross_size=frame.cross_size,
+            shelf_main_pos=float(custom_bg.x),
+            shelf_main_extent=float(custom_bg.w),
+            shelf_cross_pos=float(custom_bg.y),
+            shelf_cross_extent=float(custom_bg.h),
+            shelf_as_bottom_y=float(custom_bg.y),
         )
 
         shelf_calls: list[dict[str, float]] = []
@@ -185,7 +196,6 @@ class TestRendererContentFlow:
             hide_offset=0.0,
             drag_index=-1,
             drop_insert_index=-1,
-            zoom_progress=1.0,
             hovered_id="",
         )
 
@@ -229,7 +239,6 @@ class TestRendererContentFlow:
             hide_offset=0.0,
             drag_index=-1,
             drop_insert_index=-1,
-            zoom_progress=1.0,
             hovered_id="",
         )
 
@@ -253,7 +262,6 @@ class TestRendererContentFlow:
             hide_offset=0.0,
             drag_index=-1,
             drop_insert_index=-1,
-            zoom_progress=1.0,
             hovered_id="",
         )
         # Then

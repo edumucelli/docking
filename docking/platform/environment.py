@@ -130,7 +130,48 @@ def _disable_xfce_dock_shadow() -> None:
         _log.warning("failed to disable xfce dock shadow: %s", e)
 
 
+def _check_compositor() -> None:
+    """Warn if no compositing manager is active.
+
+    Checks _NET_WM_CM_S{screen} selection owner via Xlib directly.
+    Gdk.Screen.is_composited() can return stale True if the compositor
+    crashed without releasing the selection, so we bypass GDK's cache.
+    """
+    try:
+        import ctypes
+
+        from gi.repository import GdkX11
+
+        display = GdkX11.X11Display.get_default()
+        if display is None:
+            return
+        screen_num = display.get_default_screen()
+
+        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+        xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
+
+        xlib.XInternAtom.restype = ctypes.c_ulong
+        xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        xlib.XGetSelectionOwner.restype = ctypes.c_ulong
+        xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+
+        atom = xlib.XInternAtom(xdisplay, f"_NET_WM_CM_S{screen_num}".encode(), 0)
+        owner = xlib.XGetSelectionOwner(xdisplay, atom)
+        if owner != 0:
+            return
+    except Exception:
+        return
+
+    _log.warning(
+        "no compositing manager detected (it may have crashed) -- "
+        "dock may appear behind maximized windows and transparency may not work; "
+        "enable compositing in your desktop settings or install a compositor "
+        "(picom, compton, xcompmgr)"
+    )
+
+
 def apply_tweaks(desktop: Desktop) -> None:
     """Apply DE-specific tweaks at startup."""
+    _check_compositor()
     if desktop & Desktop.XFCE:
         _disable_xfce_dock_shadow()
