@@ -62,6 +62,7 @@ from gi.repository import GLib, Gtk
 
 from docking.core.config import Config
 from docking.core.theme import Theme
+from docking.ipc import DockItemsService
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
@@ -89,17 +90,21 @@ def main() -> None:
         window_tracker=tracker,
         launcher=launcher,
     )
+    items_service = DockItemsService(model=model, window=window)
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
+    items_service.start()
     model.start_applets()
 
-    window.show_all()
-    Gtk.main()
-
-    model.stop_applets()
+    try:
+        window.show_all()
+        Gtk.main()
+    finally:
+        items_service.stop()
+        model.stop_applets()
 
 
 def _quit() -> bool:

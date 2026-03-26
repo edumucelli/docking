@@ -905,6 +905,34 @@ Requirements for that mode:
 - `xvfb-run`
 - `dbus-run-session`
 
+### D-Bus Remote Control
+
+Docking exposes a small session-bus API for item inspection and control.
+
+- Bus name: `org.docking.Docking`
+- Object path: `/org/docking/Docking`
+- Interface: `org.docking.Docking.Items1`
+
+Current methods:
+- `GetCount`
+- `ListPinnedIds`
+- `ListTransientIds`
+- `Pin`
+- `Unpin`
+- `Remove`
+- `GetHoverAnchor`
+
+Example:
+
+```bash
+gdbus call --session \
+  --dest org.docking.Docking \
+  --object-path /org/docking/Docking \
+  --method org.docking.Docking.Items1.ListPinnedIds
+```
+
+For full examples and expected responses, see [docs/DBUS.md](docs/DBUS.md).
+
 By default it runs the dock interaction/UI slice:
 - pointer scenarios
 - edges

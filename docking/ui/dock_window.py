@@ -187,7 +187,7 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.base import is_applet
 from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.core.position import is_horizontal
+from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.launcher import launch, open_target
@@ -197,6 +197,7 @@ from docking.ui.effects import ZoomAnimator
 from docking.ui.geometry import (
     DockGeometryBuilder,
     DockGeometryFrame,
+    Rect,
     current_input_rect,
 )
 from docking.ui.hover import HoverManager
@@ -244,6 +245,19 @@ def _queue_widget_redraw(widget: Gtk.Widget) -> bool:
     """Schedule a single redraw tick and stop the GLib timeout."""
     widget.queue_draw()
     return False
+
+
+def hover_anchor_from_draw_rect(
+    *, win_x: int, win_y: int, draw_rect: Rect, position: Position
+) -> tuple[int, int]:
+    """Translate an item draw rect into the preview/hover anchor point."""
+    if position == Position.BOTTOM:
+        return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
+    if position == Position.TOP:
+        return int(win_x + draw_rect.x), int(win_y + draw_rect.y + draw_rect.h)
+    if position == Position.LEFT:
+        return int(win_x + draw_rect.x + draw_rect.w), int(win_y + draw_rect.y)
+    return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
 
 
 @dataclass(frozen=True)
@@ -415,6 +429,26 @@ class DockWindow(Gtk.Window):
     def is_pointer_inside_dock(self) -> bool:
         """Return True when the current pointer is inside the dock input area."""
         return self.interaction.is_pointer_inside_dock()
+
+    def get_hover_anchor(self, *, desktop_id: str) -> tuple[int, int, str] | None:
+        """Return the absolute hover/preview anchor for one visible item."""
+        if not self.get_realized():
+            return None
+        item = self.model.find_by_desktop_id(desktop_id=desktop_id)
+        if item is None:
+            return None
+        frame = self.geometry.build_frame()
+        geometry = frame.geometry_for_item(item)
+        if geometry is None:
+            return None
+        win_x, win_y = self.get_position()
+        x, y = hover_anchor_from_draw_rect(
+            win_x=win_x,
+            win_y=win_y,
+            draw_rect=geometry.draw_rect,
+            position=self.config.pos,
+        )
+        return x, y, self.config.pos.value
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """GTK draw signal handler -- orchestrates each frame.

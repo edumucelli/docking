@@ -50,6 +50,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.ui.renderer": {
             "DockRenderer": type("DockRenderer", (), {}),
         },
+        "docking.ipc": {
+            "DockItemsService": type("DockItemsService", (), {}),
+        },
     }
     for module_name, members in stub_modules.items():
         stub_mod = types.ModuleType(module_name)
@@ -96,6 +99,7 @@ class TestAppMain:
         renderer = MagicMock()
         tracker = MagicMock()
         window = MagicMock()
+        items_service = MagicMock()
 
         config_cls = MagicMock()
         config_cls.load.return_value = config
@@ -111,6 +115,9 @@ class TestAppMain:
         monkeypatch.setattr(app_mod, "WindowTracker", MagicMock(return_value=tracker))
         factory = MagicMock(return_value=window)
         monkeypatch.setattr(app_mod, "build_dock_window", factory)
+        monkeypatch.setattr(
+            app_mod, "DockItemsService", MagicMock(return_value=items_service)
+        )
 
         # When
         app_mod.main()
@@ -127,6 +134,8 @@ class TestAppMain:
         )
         model.start_applets.assert_called_once()
         model.stop_applets.assert_called_once()
+        items_service.start.assert_called_once()
+        items_service.stop.assert_called_once()
         fake_gtk.main.assert_called_once()
 
         assert fake_glib.unix_signal_add.call_count == 2
