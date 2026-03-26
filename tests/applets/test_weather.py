@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import docking.applets.weather as weather_mod
 import docking.applets.weather.applet as weather_applet_mod
@@ -413,25 +413,47 @@ class TestWeatherAsyncFetch:
 
 
 class TestWeatherLifecycleAndInteractions:
-    def test_start_schedules_timer_and_fetches_when_city_selected(self, monkeypatch):
+    def test_start_schedules_poll_and_delayed_startup_fetch_when_city_selected(
+        self,
+        monkeypatch,
+    ):
         applet = _make_applet()
         applet._cities = [_BERLIN]
         applet._active_index = 0
-        fetch = MagicMock()
-        monkeypatch.setattr(applet, "_fetch_async", fetch)
-        monkeypatch.setattr(weather_mod.GLib, "timeout_add_seconds", lambda *_a: 99)
+        timer_ids = iter([99, 101])
+
+        def fake_timeout_add_seconds(_interval, _callback):
+            return next(timer_ids)
+
+        monkeypatch.setattr(
+            weather_mod.GLib,
+            "timeout_add_seconds",
+            fake_timeout_add_seconds,
+        )
         applet.start(notify=lambda: None)
         assert applet._timer_id == 99
+        assert applet._startup_fetch_timer_id == 101
+
+    def test_run_startup_fetch_triggers_fetch_once_and_clears_timer(self, monkeypatch):
+        applet = _make_applet()
+        applet._startup_fetch_timer_id = 88
+        fetch = MagicMock()
+        monkeypatch.setattr(applet, "_fetch_async", fetch)
+        result = applet._run_startup_fetch()
+        assert result is False
+        assert applet._startup_fetch_timer_id == 0
         fetch.assert_called_once()
 
     def test_stop_removes_active_timer(self, monkeypatch):
         applet = _make_applet()
         applet._timer_id = 77
+        applet._startup_fetch_timer_id = 78
         remove = MagicMock()
         monkeypatch.setattr(weather_mod.GLib, "source_remove", remove)
         applet.stop()
-        remove.assert_called_once_with(77)
+        assert remove.call_args_list == [call(77), call(78)]
         assert applet._timer_id == 0
+        assert applet._startup_fetch_timer_id == 0
 
     def test_tick_fetches_when_city_is_set(self, monkeypatch):
         applet = _make_applet()
@@ -468,6 +490,7 @@ class TestWeatherLifecycleAndInteractions:
         monkeypatch.setattr(weather_mod.GLib, "timeout_add_seconds", lambda *_a: 51)
         applet.start(notify=lambda: None)
         assert applet._timer_id == 51
+        assert applet._startup_fetch_timer_id == 0
         fetch.assert_not_called()
 
     def test_tick_without_city_does_not_fetch(self, monkeypatch):
@@ -477,6 +500,27 @@ class TestWeatherLifecycleAndInteractions:
         result = applet._tick()
         assert result is True
         fetch.assert_not_called()
+
+    def test_fetch_async_cancels_pending_startup_timer(self, monkeypatch):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._startup_fetch_timer_id = 44
+        remove = MagicMock()
+        monkeypatch.setattr(weather_mod.GLib, "source_remove", remove)
+        monkeypatch.setattr(
+            weather_mod,
+            "fetch_weather",
+            MagicMock(return_value=_SAMPLE_WEATHER),
+        )
+        monkeypatch.setattr(
+            weather_mod,
+            "fetch_air_quality",
+            MagicMock(return_value=_SAMPLE_AQI),
+        )
+        applet._fetch_async()
+        remove.assert_called_once_with(44)
+        assert applet._startup_fetch_timer_id == 0
 
 
 class TestMultiCity:

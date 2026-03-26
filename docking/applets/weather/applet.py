@@ -46,6 +46,7 @@ DIALOG_HORIZONTAL_MARGIN_PX = 12
 DIALOG_VERTICAL_MARGIN_PX = 8
 CITY_SEARCH_MIN_CHARS = 2
 CITY_SEARCH_RESULT_LIMIT = 10
+STARTUP_FETCH_DELAY_S = 1
 
 
 class WeatherApplet(Applet):
@@ -57,6 +58,7 @@ class WeatherApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer_id: int = 0
+        self._startup_fetch_timer_id: int = 0
         self._fetch_request_id: int = 0
         self._weather: WeatherData | None = None
         self._air_quality: AirQualityData | None = None
@@ -143,12 +145,18 @@ class WeatherApplet(Applet):
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL, self._tick)
         if self._active_city:
-            self._fetch_async()
+            self._startup_fetch_timer_id = GLib.timeout_add_seconds(
+                STARTUP_FETCH_DELAY_S,
+                self._run_startup_fetch,
+            )
 
     def stop(self) -> None:
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
+        if self._startup_fetch_timer_id:
+            GLib.source_remove(self._startup_fetch_timer_id)
+            self._startup_fetch_timer_id = 0
         super().stop()
 
     def _on_toggle_temperature(self, widget: Gtk.CheckMenuItem) -> None:
@@ -217,6 +225,11 @@ class WeatherApplet(Applet):
             self._fetch_async()
         return True
 
+    def _run_startup_fetch(self) -> bool:
+        self._startup_fetch_timer_id = 0
+        self._fetch_async()
+        return False
+
     def _add_city(self, display: str, lat: float, lng: float) -> None:
         """Add a city or switch to it if it already exists."""
         for i, c in enumerate(self._cities):
@@ -263,6 +276,9 @@ class WeatherApplet(Applet):
         active = self._active_city
         if not active:
             return
+        if self._startup_fetch_timer_id:
+            GLib.source_remove(self._startup_fetch_timer_id)
+            self._startup_fetch_timer_id = 0
 
         self._fetch_request_id += 1
         request_id = self._fetch_request_id

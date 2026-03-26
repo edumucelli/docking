@@ -96,15 +96,20 @@ def main() -> None:
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
-    items_service.start()
-    model.start_applets()
-
     try:
         window.show_all()
+        GLib.idle_add(_start_runtime, items_service, model)
         Gtk.main()
     finally:
         items_service.stop()
         model.stop_applets()
+
+
+def _start_runtime(items_service: DockItemsService, model: DockModel) -> bool:
+    """Start background runtime pieces after the window has been shown."""
+    items_service.start()
+    model.start_applets()
+    return False
 
 
 def _quit() -> bool:

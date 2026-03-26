@@ -12,7 +12,11 @@ from unittest.mock import MagicMock
 
 
 def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
-    fake_glib = SimpleNamespace(PRIORITY_HIGH=100, unix_signal_add=MagicMock())
+    fake_glib = SimpleNamespace(
+        PRIORITY_HIGH=100,
+        unix_signal_add=MagicMock(),
+        idle_add=MagicMock(),
+    )
     fake_gtk = SimpleNamespace(main=MagicMock(), main_quit=MagicMock())
     fake_repo = SimpleNamespace(GLib=fake_glib, Gtk=fake_gtk)
     fake_gi = SimpleNamespace(require_version=MagicMock(), repository=fake_repo)
@@ -100,6 +104,17 @@ class TestAppMain:
         tracker = MagicMock()
         window = MagicMock()
         items_service = MagicMock()
+        call_order: list[str] = []
+
+        window.show_all.side_effect = lambda: call_order.append("show_all")
+        items_service.start.side_effect = lambda: call_order.append("items_start")
+        model.start_applets.side_effect = lambda: call_order.append("applets_start")
+
+        def idle_add(callback, *args):
+            call_order.append("idle_add")
+            return callback(*args)
+
+        fake_glib.idle_add.side_effect = idle_add
 
         config_cls = MagicMock()
         config_cls.load.return_value = config
@@ -136,7 +151,13 @@ class TestAppMain:
         model.stop_applets.assert_called_once()
         items_service.start.assert_called_once()
         items_service.stop.assert_called_once()
+        fake_glib.idle_add.assert_called_once_with(
+            app_mod._start_runtime,
+            items_service,
+            model,
+        )
         fake_gtk.main.assert_called_once()
+        assert call_order == ["show_all", "idle_add", "items_start", "applets_start"]
 
         assert fake_glib.unix_signal_add.call_count == 2
         sig_calls = [c.args[1] for c in fake_glib.unix_signal_add.call_args_list]

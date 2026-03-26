@@ -13,10 +13,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, NamedTuple, cast
 
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
-
 from docking.applets.identity import AppletId
 from docking.log import get_logger, with_context
 
@@ -115,8 +111,12 @@ class WeatherData(NamedTuple):
 
 
 @lru_cache(maxsize=1)
-def _get_client() -> openmeteo_requests.Client:
+def _get_client() -> Any:
     """Return cached API client with retry and request caching."""
+    import openmeteo_requests
+    import requests_cache
+    from retry_requests import retry
+
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = str(_CACHE_DIR / "responses")
     cache_session = requests_cache.CachedSession(
