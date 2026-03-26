@@ -78,6 +78,9 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Fri Mar 27 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.1.1-1
+- Release 1.1.1.
+
 * Thu Mar 26 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.1.0-1
 - Release 1.1.0.
 
