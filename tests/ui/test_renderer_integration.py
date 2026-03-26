@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -12,7 +13,13 @@ import docking.ui.renderer as renderer_mod
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.model import DockItem
-from docking.ui.geometry import DockGeometryFrame, ItemGeometry, Rect
+from docking.ui.autohide import HideState
+from docking.ui.geometry import (
+    DockGeometryFrame,
+    ItemGeometry,
+    Rect,
+    build_geometry_frame,
+)
 
 
 def _surface_context(width: int = 420, height: int = 90):
@@ -203,6 +210,51 @@ class TestRendererContentFlow:
         assert shelf_calls[0]["x"] == 24
         assert shelf_calls[0]["w"] == 120
         assert shelf_calls[0]["h"] == 21
+
+    def test_draw_content_hides_shelf_when_dock_is_hidden_with_gap(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = replace(Theme.load("default", 48), distance_from_edge=6)
+        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        frame = build_geometry_frame(
+            items=[DockItem(desktop_id="firefox.desktop", is_running=True)],
+            config=SimpleNamespace(
+                pos=Position.BOTTOM,
+                icon_size=48,
+                zoom_percent=1.5,
+                zoom_enabled=True,
+            ),
+            theme=theme,
+            window_w=420,
+            window_h=82,
+            cursor_main=-1.0,
+            autohide_state=HideState.HIDDEN,
+            hide_offset=1.0,
+        )
+        shelf_calls: list[dict[str, float]] = []
+        monkeypatch.setattr(
+            renderer_mod,
+            "draw_shelf_background",
+            lambda **kwargs: shelf_calls.append(kwargs),
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_active_glow = MagicMock()
+        renderer._draw_urgent_glow = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            frame=frame,
+            config=config,
+            theme=theme,
+            hide_offset=1.0,
+            drag_index=-1,
+            drop_insert_index=-1,
+            hovered_id="",
+        )
+
+        assert shelf_calls
+        assert shelf_calls[0]["y"] >= frame.window_rect.h
 
     def test_draw_content_uses_separator_drawer_for_separator_items(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()

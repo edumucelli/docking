@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import docking.applets.unitconverter.applet as unitconverter_applet_mod
 import docking.applets.unitconverter.state as uc_state
 from docking.applets.unitconverter import UnitConverterApplet
 from docking.applets.unitconverter.state import (
@@ -387,6 +388,164 @@ class TestAppletPopup:
         applet._popup = popup
         applet.stop()
         popup.destroy.assert_called_once()
+
+    def test_start_queues_currency_fetch(self):
+        applet = _make_applet()
+        applet._worker.run = MagicMock()
+
+        applet.start(lambda: None)
+
+        applet._worker.run.assert_called_once_with(
+            name="currency-fetch",
+            fn=uc_state.fetch_currency_rates,
+            on_result=applet._on_currency_result,
+        )
+
+    def test_currency_result_updates_global_units_only_when_present(self, monkeypatch):
+        applet = _make_applet()
+        set_units = MagicMock()
+        monkeypatch.setattr(unitconverter_applet_mod, "set_currency_units", set_units)
+        units = (Unit("Euro", "EUR", 1.0),)
+
+        assert applet._on_currency_result(units) is False
+        set_units.assert_called_once_with(units)
+
+        set_units.reset_mock()
+        assert applet._on_currency_result(None) is False
+        set_units.assert_not_called()
+
+    def test_show_popup_builds_controls_and_reuses_window(self, monkeypatch):
+        applet = _make_applet()
+        monkeypatch.setattr(
+            unitconverter_applet_mod,
+            "get_pointer_position",
+            lambda _display: (150, 220),
+        )
+
+        applet._show_popup()
+        first_popup = applet._popup
+        first_child = first_popup.get_child()
+        assert applet._entry is not None
+        assert applet._from_combo is not None
+        assert applet._to_combo is not None
+
+        applet._show_popup()
+
+        assert applet._popup is first_popup
+        assert applet._popup.get_child() is not first_child
+        applet.stop()
+
+    def test_category_change_repopulates_and_saves(self):
+        applet = _make_applet()
+        applet._build_popup_content()
+        applet.save_prefs = MagicMock()
+        combo = MagicMock()
+        combo.get_active.return_value = 2
+
+        applet._on_category_changed(combo)
+
+        assert applet._cat_idx == 2
+        assert applet._from_idx == 0
+        assert applet._to_idx >= 0
+        applet.save_prefs.assert_called_once()
+
+    def test_category_change_ignores_negative_active(self):
+        applet = _make_applet()
+        combo = MagicMock()
+        combo.get_active.return_value = -1
+
+        applet._on_category_changed(combo)
+
+        assert applet._cat_idx == 0
+
+    def test_swap_exchanges_active_units(self):
+        applet = _make_applet()
+        applet._from_combo = MagicMock()
+        applet._to_combo = MagicMock()
+        applet._from_combo.get_active.return_value = 0
+        applet._to_combo.get_active.return_value = 1
+
+        applet._on_swap(MagicMock())
+
+        applet._from_combo.set_active.assert_called_once_with(1)
+        applet._to_combo.set_active.assert_called_once_with(0)
+
+    def test_swap_is_noop_without_combos(self):
+        applet = _make_applet()
+        applet._from_combo = None
+        applet._to_combo = None
+
+        applet._on_swap(MagicMock())
+
+    def test_unit_change_clamps_indexes_and_saves(self):
+        applet = _make_applet()
+        applet._build_popup_content()
+        applet.save_prefs = MagicMock()
+        assert applet._from_combo is not None
+        assert applet._to_combo is not None
+        applet._from_combo.set_active(-1)
+        applet._to_combo.set_active(-1)
+
+        applet._on_unit_changed(applet._from_combo)
+
+        assert applet._from_idx == 0
+        assert applet._to_idx == 0
+        applet.save_prefs.assert_called_once()
+
+    def test_input_change_recomputes_result(self):
+        applet = _make_applet()
+        applet._update_result = MagicMock()
+
+        applet._on_input_changed(MagicMock())
+
+        applet._update_result.assert_called_once_with()
+
+    def test_update_result_handles_missing_widgets(self):
+        applet = _make_applet()
+        applet._result_label = None
+        applet._entry = None
+
+        applet._update_result()
+
+    def test_update_result_handles_invalid_number(self):
+        applet = _make_applet()
+        applet._build_popup_content()
+        assert applet._entry is not None
+        assert applet._result_label is not None
+        applet._entry.set_text("not-a-number")
+
+        applet._update_result()
+
+        assert applet._result_label.get_text() == "Enter a number"
+
+    def test_update_result_handles_empty_unit_list(self, monkeypatch):
+        applet = _make_applet()
+        applet._build_popup_content()
+        assert applet._entry is not None
+        assert applet._result_label is not None
+        applet._entry.set_text("1")
+        monkeypatch.setattr(unitconverter_applet_mod, "get_units", lambda _cat: ())
+
+        applet._update_result()
+
+        assert applet._result_label.get_text() == "No units available"
+
+    def test_update_result_formats_conversion_output(self):
+        applet = _make_applet()
+        applet._build_popup_content()
+        assert applet._entry is not None
+        assert applet._result_label is not None
+        assert applet._cat_combo is not None
+        assert applet._from_combo is not None
+        assert applet._to_combo is not None
+        applet._cat_combo.set_active(get_categories().index(Category.LENGTH))
+        applet._on_category_changed(applet._cat_combo)
+        applet._entry.set_text("2")
+        applet._from_combo.set_active(0)
+        applet._to_combo.set_active(1)
+        applet._on_unit_changed(applet._from_combo)
+
+        assert applet._result_label.get_text()
         assert applet._popup is None
 
 

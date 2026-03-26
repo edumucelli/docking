@@ -5,6 +5,7 @@ from __future__ import annotations
 import urllib.error
 from unittest.mock import MagicMock, patch
 
+import docking.applets.urlshortener.applet as urlshortener_applet_mod
 from docking.applets.urlshortener import UrlShortenerApplet
 from docking.applets.urlshortener.state import prefs_payload, shorten_url
 from docking.core.config import Config
@@ -141,3 +142,152 @@ class TestAppletDialog:
     def test_stop_without_dialog(self):
         applet = _make_applet()
         applet.stop()  # should not raise
+
+    def test_show_dialog_builds_controls_and_cleans_up_on_response(self):
+        applet = _make_applet(
+            config=Config(
+                applet_prefs={"urlshortener": {"last_url": "https://example.com"}}
+            )
+        )
+
+        applet._show_dialog()
+
+        assert applet._dialog is not None
+        assert applet._url_entry is not None
+        assert applet._url_entry.get_text() == "https://example.com"
+        applet._dialog.emit("response", 0)
+        assert applet._dialog is None
+
+    def test_do_shorten_is_noop_without_widgets(self):
+        applet = _make_applet()
+        applet._url_entry = None
+        applet._shorten_btn = None
+
+        applet._do_shorten()
+
+    def test_do_shorten_is_noop_for_blank_url(self):
+        applet = _make_applet()
+        applet._show_dialog()
+        assert applet._url_entry is not None
+        assert applet._shorten_btn is not None
+        applet._url_entry.set_text("   ")
+
+        applet._do_shorten()
+
+        assert applet._shorten_btn.get_sensitive() is True
+        applet.stop()
+
+    def test_do_shorten_starts_worker_and_dispatches_result(self, monkeypatch):
+        applet = _make_applet()
+        applet._show_dialog()
+        applet._ensure_result_row()
+        assert applet._url_entry is not None
+        assert applet._shorten_btn is not None
+        applet._url_entry.set_text("https://example.com")
+        idle_add = MagicMock(side_effect=lambda fn, *args: fn(*args))
+        monkeypatch.setattr(urlshortener_applet_mod.GLib, "idle_add", idle_add)
+        monkeypatch.setattr(
+            urlshortener_applet_mod, "shorten_url", lambda url: "https://is.gd/abc"
+        )
+
+        class _Thread:
+            def __init__(self, *, target, daemon):
+                self._target = target
+                self.daemon = daemon
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(urlshortener_applet_mod.threading, "Thread", _Thread)
+
+        applet._do_shorten()
+
+        idle_add.assert_called_once()
+        assert applet._last_result == "https://is.gd/abc"
+        assert applet._shorten_btn.get_sensitive() is True
+        applet.stop()
+
+    def test_on_result_error_hides_copy_and_skips_save(self):
+        applet = _make_applet()
+        applet._show_dialog()
+        save = MagicMock()
+        applet.save_prefs = save
+
+        applet._on_result("https://example.com", "Error: bad url")
+
+        assert applet._result_label is not None
+        assert applet._result_label.get_text() == "Error: bad url"
+        assert applet._copy_btn is not None
+        assert applet._copy_btn.get_visible() is False
+        assert applet._last_result == ""
+        save.assert_not_called()
+        applet.stop()
+
+    def test_on_result_success_persists_and_shows_copy(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config()
+        config.save(path)
+        config = Config.load(path)
+        applet = _make_applet(config=config)
+        applet._show_dialog()
+
+        assert applet._on_result("https://example.com", "https://is.gd/ok") is False
+
+        assert applet._result_label is not None
+        assert applet._result_label.get_text() == "https://is.gd/ok"
+        assert applet._copy_btn is not None
+        assert applet._copy_btn.get_visible() is True
+        assert applet._last_url == "https://example.com"
+        reloaded = Config.load(path)
+        assert (
+            reloaded.applet_prefs["urlshortener"]["last_url"] == "https://example.com"
+        )
+        applet.stop()
+
+    def test_ensure_result_row_requires_dialog(self):
+        applet = _make_applet()
+        applet._dialog = None
+        applet._result_box = None
+
+        applet._ensure_result_row()
+
+        assert applet._result_box is None
+
+    def test_do_copy_is_noop_without_last_result(self, monkeypatch):
+        applet = _make_applet()
+        applet._last_result = ""
+        monkeypatch.setattr(
+            urlshortener_applet_mod.Gtk.Clipboard,
+            "get",
+            lambda *_args: (_ for _ in ()).throw(RuntimeError("should not be used")),
+        )
+
+        applet._do_copy()
+
+    def test_do_copy_updates_clipboard_and_button_label(self, monkeypatch):
+        applet = _make_applet()
+        applet._show_dialog()
+        applet._ensure_result_row()
+        applet._last_result = "https://is.gd/copied"
+        clipboard = MagicMock()
+        timeout_add = MagicMock()
+        monkeypatch.setattr(
+            urlshortener_applet_mod.Gtk.Clipboard, "get", lambda *_args: clipboard
+        )
+        monkeypatch.setattr(urlshortener_applet_mod.GLib, "timeout_add", timeout_add)
+
+        applet._do_copy()
+
+        clipboard.set_text.assert_called_once_with("https://is.gd/copied", -1)
+        clipboard.store.assert_called_once_with()
+        assert applet._copy_btn is not None
+        assert applet._copy_btn.get_label() == "Copied!"
+        timeout_add.assert_called_once()
+        applet.stop()
+
+    def test_reset_copy_label_restores_default(self):
+        applet = _make_applet()
+        applet._copy_btn = MagicMock()
+
+        assert applet._reset_copy_label() is False
+        applet._copy_btn.set_label.assert_called_once_with("Copy")

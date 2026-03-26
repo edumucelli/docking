@@ -127,3 +127,38 @@ def test_configure_root_logger_updates_existing_handlers(monkeypatch):
     finally:
         root.handlers = old_handlers
         root.setLevel(old_level)
+
+
+def test_adapter_process_merges_mapping_extra_over_existing():
+    logger = get_logger("test.log.process.merge")
+    adapter = with_context(logger, applet_id="network")
+
+    _msg, kwargs = adapter.process("hello", {"extra": {"action": "refresh"}})
+
+    assert kwargs["extra"] == {"applet_id": "network", "action": "refresh"}
+
+
+def test_configure_root_logger_adds_handler_when_missing(monkeypatch):
+    root = logging.getLogger()
+    old_handlers = list(root.handlers)
+    old_level = root.level
+    root.handlers = []
+    monkeypatch.setattr(log_mod, "LOG_LEVEL", "INFO")
+
+    try:
+        log_mod._configure_root_logger()
+        assert len(root.handlers) == 1
+        assert isinstance(root.handlers[0].formatter, DockingFormatter)
+        assert root.level == logging.INFO
+    finally:
+        root.handlers = old_handlers
+        root.setLevel(old_level)
+
+
+def test_with_context_reuses_existing_adapter():
+    logger = get_logger("test.log.adapter")
+    adapter = with_context(logger, applet_id="clock")
+
+    rebound = with_context(adapter, action="tick")
+
+    assert rebound.extra == {"applet_id": "clock", "action": "tick"}

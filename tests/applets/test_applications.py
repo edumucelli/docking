@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import docking.applets.applications.applet as applications_applet_mod
+import docking.applets.applications.render as applications_render_mod
 from docking.applets.applications import (
     ApplicationsApplet,
     _build_app_categories,
@@ -221,3 +222,128 @@ class TestApplicationsApplet:
         assert internet_item.visible is True
         assert office_item.visible is True
         assert len(internet_item.get_submenu().get_children()) == 2
+
+
+class TestApplicationsRenderHelpers:
+    def test_normalize_menu_icon_sets_consistent_metrics(self):
+        image = MagicMock()
+
+        applications_render_mod.normalize_menu_icon(image=image)
+
+        image.set_pixel_size.assert_called_once_with(
+            applications_render_mod.MENU_ICON_PX
+        )
+        image.set_size_request.assert_called_once_with(
+            applications_render_mod.MENU_ICON_PX,
+            applications_render_mod.MENU_ICON_PX,
+        )
+        image.set_valign.assert_called_once_with(
+            applications_render_mod.Gtk.Align.CENTER
+        )
+
+    def test_make_menu_item_with_icon_supports_gicon_icon_name_and_text_only(self):
+        class _FakeImage:
+            def __init__(self):
+                self.margin_start = 0
+                self.margin_end = 0
+
+            @staticmethod
+            def new_from_gicon(_gicon, _size):
+                return _FakeImage()
+
+            @staticmethod
+            def new_from_icon_name(_name, _size):
+                return _FakeImage()
+
+            def set_pixel_size(self, _value):
+                return
+
+            def set_size_request(self, *_args):
+                return
+
+            def set_valign(self, _value):
+                return
+
+            def set_margin_start(self, value):
+                self.margin_start = value
+
+            def set_margin_end(self, value):
+                self.margin_end = value
+
+        class _FakeLabel:
+            def __init__(self, label=""):
+                self.label = label
+
+            def set_xalign(self, _value):
+                return
+
+            def set_margin_start(self, _value):
+                return
+
+        class _FakeBox:
+            def __init__(self, **_kwargs):
+                self.children = []
+
+            def set_halign(self, _value):
+                return
+
+            def set_margin_start(self, _value):
+                return
+
+            def set_margin_end(self, _value):
+                return
+
+            def pack_start(self, child, *_args):
+                self.children.append(child)
+
+            def get_children(self):
+                return list(self.children)
+
+        class _FakeMenuItem:
+            def __init__(self):
+                self.child = None
+
+            def add(self, child):
+                self.child = child
+
+            def get_child(self):
+                return self.child
+
+        original_gtk = applications_render_mod.Gtk
+        applications_render_mod.Gtk = SimpleNamespace(  # type: ignore[assignment]
+            MenuItem=_FakeMenuItem,
+            Box=_FakeBox,
+            Image=_FakeImage,
+            Label=_FakeLabel,
+            Orientation=SimpleNamespace(HORIZONTAL=0),
+            Align=SimpleNamespace(START=0, CENTER=1),
+            IconSize=SimpleNamespace(MENU=1),
+        )
+
+        try:
+            item = applications_render_mod.make_menu_item_with_icon(
+                label="Calculator",
+                gicon=applications_render_mod.Gio.ThemedIcon.new(
+                    "accessories-calculator"
+                ),
+            )
+            row = item.get_child()
+            assert row is not None
+            assert len(row.get_children()) == 2
+
+            icon_name_item = applications_render_mod.make_menu_item_with_icon(
+                label="Weather",
+                icon_name="weather-clear",
+            )
+            icon_name_row = icon_name_item.get_child()
+            assert icon_name_row is not None
+            assert len(icon_name_row.get_children()) == 2
+
+            text_only_item = applications_render_mod.make_menu_item_with_icon(
+                label="Plain"
+            )
+            text_only_row = text_only_item.get_child()
+            assert text_only_row is not None
+            assert len(text_only_row.get_children()) == 1
+        finally:
+            applications_render_mod.Gtk = original_gtk  # type: ignore[assignment]

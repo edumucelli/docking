@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
+import docking.applets.bookmarks.applet as bookmarks_applet_mod
 from docking.applets.bookmarks.state import (
     Bookmark,
     bookmarks_from_prefs,
@@ -124,3 +126,229 @@ class TestApplet:
         with patch("docking.applets.bookmarks.applet.Gio") as mock_gio:
             applet.on_clicked()
             mock_gio.AppInfo.launch_default_for_uri.assert_not_called()
+
+    def test_menu_items_open_remove_and_add_callbacks(self, monkeypatch):
+        from docking.applets.bookmarks import BookmarksApplet
+
+        class _FakeMenuItem:
+            def __init__(self, label: str = "") -> None:
+                self._signals: dict[str, object] = {}
+
+            def connect(self, signal: str, callback) -> None:
+                self._signals[signal] = callback
+
+            def emit(self, signal: str) -> None:
+                self._signals[signal](self)
+
+            def set_sensitive(self, _value: bool) -> None:
+                return
+
+        monkeypatch.setattr(bookmarks_applet_mod.Gtk, "MenuItem", _FakeMenuItem)
+        monkeypatch.setattr(
+            bookmarks_applet_mod.Gtk, "SeparatorMenuItem", _FakeMenuItem
+        )
+
+        applet = BookmarksApplet(icon_size=48)
+        applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]
+        open_url = []
+        add_calls = []
+        remove_calls = []
+        monkeypatch.setattr(applet, "_open_url", lambda url: open_url.append(url))
+        monkeypatch.setattr(applet, "_show_add_dialog", lambda: add_calls.append(True))
+        monkeypatch.setattr(applet, "_remove_all", lambda: remove_calls.append(True))
+
+        items = applet.get_menu_items()
+
+        items[0].emit("activate")
+        items[2].emit("activate")
+        items[3].emit("activate")
+
+        assert open_url == ["https://example.com"]
+        assert add_calls == [True]
+        assert remove_calls == [True]
+
+    def test_open_url_logs_glib_error(self, monkeypatch):
+        from docking.applets.bookmarks import BookmarksApplet
+
+        applet = BookmarksApplet(icon_size=48)
+        logger = SimpleNamespace(warning=lambda *_args, **_kwargs: None)
+
+        def bind(**_kwargs):
+            return logger
+
+        monkeypatch.setattr(bookmarks_applet_mod.GLib, "Error", RuntimeError)
+        monkeypatch.setattr(
+            bookmarks_applet_mod.Gio.AppInfo,
+            "launch_default_for_uri",
+            lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")),
+        )
+        monkeypatch.setattr(bookmarks_applet_mod._log, "bind", bind)
+
+        applet._open_url("https://example.com")
+
+    def test_show_add_dialog_persists_valid_bookmark(self, monkeypatch):
+        from docking.applets.bookmarks import BookmarksApplet
+
+        class _FakeBox:
+            def __init__(self):
+                self.children = []
+
+            def set_spacing(self, _value):
+                return
+
+            def set_margin_start(self, _value):
+                return
+
+            def set_margin_end(self, _value):
+                return
+
+            def set_margin_top(self, _value):
+                return
+
+            def set_margin_bottom(self, _value):
+                return
+
+            def pack_start(self, child, *_args):
+                self.children.append(child)
+
+        class _FakeDialog:
+            def __init__(self, **_kwargs):
+                self.content = _FakeBox()
+                self.destroyed = False
+
+            def add_buttons(self, *_args):
+                return
+
+            def set_default_size(self, *_args):
+                return
+
+            def set_position(self, *_args):
+                return
+
+            def get_content_area(self):
+                return self.content
+
+            def show_all(self):
+                return
+
+            def run(self):
+                return bookmarks_applet_mod.Gtk.ResponseType.OK
+
+            def destroy(self):
+                self.destroyed = True
+
+        class _FakeEntry:
+            def __init__(self, text):
+                self._text = text
+
+            def set_placeholder_text(self, _text):
+                return
+
+            def get_text(self):
+                return self._text
+
+        entries = iter([_FakeEntry("Docs"), _FakeEntry("https://docs.python.org")])
+        monkeypatch.setattr(
+            bookmarks_applet_mod.Gtk, "Dialog", lambda **kwargs: _FakeDialog(**kwargs)
+        )
+        monkeypatch.setattr(bookmarks_applet_mod.Gtk, "Entry", lambda: next(entries))
+
+        applet = BookmarksApplet(icon_size=48)
+        applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[method-assign]
+        applet.present = lambda: presented.append(True)  # type: ignore[method-assign]
+        saved: list[dict[str, object]] = []
+        presented: list[bool] = []
+
+        applet._show_add_dialog()
+
+        assert applet._bookmarks == [
+            Bookmark(name="Docs", url="https://docs.python.org")
+        ]
+        assert saved
+        assert presented == [True]
+
+    def test_show_add_dialog_ignores_blank_values(self, monkeypatch):
+        from docking.applets.bookmarks import BookmarksApplet
+
+        class _FakeBox:
+            def set_spacing(self, _value):
+                return
+
+            def set_margin_start(self, _value):
+                return
+
+            def set_margin_end(self, _value):
+                return
+
+            def set_margin_top(self, _value):
+                return
+
+            def set_margin_bottom(self, _value):
+                return
+
+            def pack_start(self, *_args):
+                return
+
+        class _FakeDialog:
+            def __init__(self, **_kwargs):
+                self.content = _FakeBox()
+
+            def add_buttons(self, *_args):
+                return
+
+            def set_default_size(self, *_args):
+                return
+
+            def set_position(self, *_args):
+                return
+
+            def get_content_area(self):
+                return self.content
+
+            def show_all(self):
+                return
+
+            def run(self):
+                return bookmarks_applet_mod.Gtk.ResponseType.OK
+
+            def destroy(self):
+                return
+
+        class _FakeEntry:
+            def __init__(self, text):
+                self._text = text
+
+            def set_placeholder_text(self, _text):
+                return
+
+            def get_text(self):
+                return self._text
+
+        entries = iter([_FakeEntry(""), _FakeEntry("   ")])
+        monkeypatch.setattr(
+            bookmarks_applet_mod.Gtk, "Dialog", lambda **kwargs: _FakeDialog(**kwargs)
+        )
+        monkeypatch.setattr(bookmarks_applet_mod.Gtk, "Entry", lambda: next(entries))
+
+        applet = BookmarksApplet(icon_size=48)
+        applet.save_prefs = lambda prefs: (_ for _ in ()).throw(AssertionError(prefs))  # type: ignore[method-assign]
+
+        applet._show_add_dialog()
+
+        assert applet._bookmarks == []
+
+    def test_remove_all_clears_state_and_presents(self):
+        from docking.applets.bookmarks import BookmarksApplet
+
+        applet = BookmarksApplet(icon_size=48)
+        applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]
+        saved: list[dict[str, object]] = []
+        applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[method-assign]
+        presented: list[bool] = []
+        applet.present = lambda: presented.append(True)  # type: ignore[method-assign]
+
+        applet._remove_all()
+
+        assert applet._bookmarks == []
+        assert saved == [{"bookmarks": []}]
+        assert presented == [True]

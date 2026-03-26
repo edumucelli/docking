@@ -1,9 +1,10 @@
 """Tests for the battery applet -- sysfs parsing and icon mapping."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+import docking.applets.battery.applet as battery_applet_mod
 from docking.applets.battery import (
     BatteryApplet,
     read_battery,
@@ -113,3 +114,34 @@ class TestBatteryAppletRendering:
         state = read_battery("BAT0", base=tmp_path)
         assert state is not None
         assert state.icon_name == "battery-full-charging"
+
+    def test_start_stop_and_tick_manage_polling_lifecycle(self, monkeypatch):
+        timer_ids: list[int] = []
+        removed: list[int] = []
+        monkeypatch.setattr(
+            battery_applet_mod.GLib,
+            "timeout_add_seconds",
+            lambda interval, cb: timer_ids.append(interval) or 77,
+        )
+        monkeypatch.setattr(
+            battery_applet_mod.GLib,
+            "source_remove",
+            lambda source_id: removed.append(source_id),
+        )
+        next_state = MagicMock()
+        monkeypatch.setattr(battery_applet_mod, "read_battery", lambda: next_state)
+        monkeypatch.setattr(
+            battery_applet_mod, "render_icon", lambda **_kwargs: object()
+        )
+
+        applet = BatteryApplet(48)
+        applet.start(lambda: None)
+        assert applet._timer_id == 77
+        assert timer_ids == [60]
+
+        assert applet._tick() is True
+        assert applet._state is next_state
+
+        applet.stop()
+        assert removed == [77]
+        assert applet._timer_id == 0

@@ -11,7 +11,7 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
-from docking.ui.geometry import Rect
+from docking.ui.geometry import Rect, build_geometry_frame
 from docking.ui.interaction import DockInteractionCoordinator
 
 
@@ -380,6 +380,45 @@ class TestLeaveEnterFlow:
         stub.interaction.on_effective_enter.assert_not_called()
         assert stub.dock_hovered is False
 
+    def test_enter_treats_hidden_gap_trigger_as_inside_with_real_geometry(self):
+        theme = SimpleNamespace(
+            distance_from_edge=6,
+            item_padding=8,
+            h_padding=12,
+            top_padding=0,
+            bottom_padding=4,
+            shelf_height=21,
+            stroke_width=1.0,
+        )
+        frame = build_geometry_frame(
+            items=[DockItem(desktop_id="firefox.desktop")],
+            config=SimpleNamespace(
+                pos=Position.BOTTOM,
+                icon_size=48,
+                zoom_percent=1.5,
+                zoom_enabled=True,
+            ),
+            theme=theme,
+            window_w=420,
+            window_h=90,
+            cursor_main=-1.0,
+            autohide_state=HideState.HIDDEN,
+            hide_offset=1.0,
+        )
+        stub, _item = _make_stub()
+        stub._test_geometry_frame = frame
+        stub.geometry = SimpleNamespace(build_frame=lambda **_kwargs: frame)
+        stub.interaction = MagicMock()
+        event = SimpleNamespace(
+            x=float(frame.cursor_rect.x + frame.cursor_rect.w / 2),
+            y=float(frame.cursor_rect.y + 1),
+        )
+
+        handled = dock_window_mod.DockWindow._on_enter(stub, MagicMock(), event)
+
+        assert handled is True
+        stub.interaction.on_effective_enter.assert_called_once()
+
 
 class TestUrgentGlow:
     def test_has_active_urgent_glow_only_when_hidden_and_recent(self, monkeypatch):
@@ -569,6 +608,49 @@ class TestDockWindowStrutsAndRegion:
         assert first_rect is not None
         assert stub._applied_input_frame.cursor_rect == first_rect
         gdk_window.input_shape_combine_region.assert_called_once()
+
+    def test_update_input_region_uses_hidden_gap_trigger_from_real_geometry(self):
+        theme = SimpleNamespace(
+            distance_from_edge=6,
+            item_padding=8,
+            h_padding=12,
+            top_padding=0,
+            bottom_padding=4,
+            shelf_height=21,
+            stroke_width=1.0,
+        )
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_percent=1.5,
+            zoom_enabled=True,
+        )
+        frame = build_geometry_frame(
+            items=[DockItem(desktop_id="firefox.desktop")],
+            config=config,
+            theme=theme,
+            window_w=420,
+            window_h=90,
+            cursor_main=-1.0,
+            autohide_state=HideState.HIDDEN,
+            hide_offset=1.0,
+        )
+        gdk_window = MagicMock()
+        stub = SimpleNamespace(
+            get_window=lambda: gdk_window,
+            _test_geometry_frame=frame,
+            _current_geometry_frame=None,
+            _applied_input_frame=None,
+            geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
+        )
+
+        dock_window_mod.DockWindow.update_input_region(stub)
+
+        region = gdk_window.input_shape_combine_region.call_args.args[0]
+        extents = region.get_extents()
+        assert extents.height == frame.cursor_rect.h
+        assert extents.y == frame.cursor_rect.y
+        assert stub._applied_input_frame.cursor_rect == frame.cursor_rect
 
 
 class TestDockWindowDrawAndHelpers:
