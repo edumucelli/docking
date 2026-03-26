@@ -57,7 +57,7 @@ def _prepend_debian_changelog(*, version: str) -> None:
 
     timestamp = format_datetime(datetime.now().astimezone())
     entry = (
-        f"docking ({version}-1) unstable; urgency=medium\n\n"
+        f"docking ({version}-1) stable; urgency=medium\n\n"
         f"  * Release {version}.\n\n"
         f" -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  {timestamp}\n\n"
     )

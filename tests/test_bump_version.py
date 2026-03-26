@@ -39,7 +39,7 @@ def test_bump_version_updates_all_known_surfaces(tmp_path):
     _write(tmp_path / "packaging/nix/default.nix", '  version = "0.1.1";\n')
     _write(
         tmp_path / "packaging/deb/debian/changelog",
-        "docking (0.1.1-1) unstable; urgency=medium\n\n"
+        "docking (0.1.1-1) stable; urgency=medium\n\n"
         "  * Release 0.1.1.\n\n"
         " -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 20:00:00 +0100\n",
     )
@@ -70,7 +70,7 @@ def test_bump_version_updates_all_known_surfaces(tmp_path):
         tmp_path / "packaging/rpm/docking.spec"
     ).read_text(encoding="utf-8")
     assert (
-        "0.2.0-1"
+        "docking (0.2.0-1) stable; urgency=medium"
         in (tmp_path / "packaging/deb/debian/changelog")
         .read_text(encoding="utf-8")
         .splitlines()[0]
@@ -98,7 +98,7 @@ def test_bump_version_is_idempotent_for_current_version(tmp_path):
     _write(tmp_path / "packaging/nix/default.nix", '  version = "0.2.0";\n')
     _write(
         tmp_path / "packaging/deb/debian/changelog",
-        "docking (0.2.0-1) unstable; urgency=medium\n\n"
+        "docking (0.2.0-1) stable; urgency=medium\n\n"
         "  * Release 0.2.0.\n\n"
         " -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 11:00:00 +0100\n",
     )
