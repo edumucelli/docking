@@ -40,8 +40,8 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 30 built-in applets enabled from the dock menu, plus a dock separator item.
-- 9 built-in themes with scalable layout values.
+- 37 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 10 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - 74 locale catalogs plus English fallback.
 

@@ -1,6 +1,6 @@
 # Applets
 
-Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**. 26 built-in applets are available.
+Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**. 37 built-in applets are available.
 
 ## Architecture
 
