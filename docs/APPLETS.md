@@ -1,6 +1,6 @@
 # Applets
 
-Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**. 37 built-in applets are available.
+Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**. 38 built-in applets are available.
 
 ## Architecture
 
@@ -23,6 +23,21 @@ Docking applets follow a small, testable architecture:
 This split keeps runtime behavior in one place while making parsers/rendering highly testable without a live desktop session.
 
 ---
+
+## AI Usage
+
+<img src="../docking/assets/icons/applets/aiusage.png" alt="AI Usage" width="48">
+
+Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Codex usage are recorded through local hook integration, while OpenCode usage is merged from its local SQLite database.
+
+**Scroll:** Cycle provider focus between Auto, Claude, Codex, and OpenCode
+**Right-click options:**
+- **Auto / Claude / Codex / OpenCode** -- filter the displayed provider
+- **Reset Today** -- clear today’s tracked usage
+
+**Tooltip:** Today/week cost summary plus per-model usage for the selected provider
+
+**Update interval:** Hook-driven updates for Claude/Codex, plus a 60-second OpenCode poll
 
 ## Clock
 

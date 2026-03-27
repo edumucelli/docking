@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 37 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 38 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 10 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - 74 locale catalogs plus English fallback.
@@ -200,10 +200,28 @@ Docking applets follow a small, testable architecture:
   - `render.py`: Cairo/icon rendering helpers (no applet lifecycle logic)
   - `applet.py`: GTK/Wnck/Gio wiring, timers, click/scroll/menu behavior
 - Package `__init__.py` re-exports public symbols used by the registry/tests.
-- Applet classes are loaded through `docking/applets/__init__.py:get_registry()`.
-- Each applet declares a stable identity via `AppletId` from `docking/applets/identity.py`.
+- Applet metadata is auto-discovered through `docking/applets/__init__.py:get_applet_catalog()`.
+- Concrete applet classes are loaded on demand through `docking/applets/__init__.py:load_applet_class()`.
+- Each applet package declares a stable identity via `AppletMeta` in `__init__.py`.
 
 This split keeps runtime behavior in one place while making parsers/rendering highly testable without a live desktop session.
+
+### AI Usage
+
+<img src="docking/assets/icons/applets/aiusage.png" alt="AI Usage" width="48">
+
+Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Codex usage are recorded through local hook integration, while OpenCode usage is merged from its local SQLite database.
+
+**Scroll:** Cycle provider focus between Auto, Claude, Codex, and OpenCode
+**Right-click options:**
+- **Auto / Claude / Codex / OpenCode** -- filter the displayed provider
+- **Reset Today** -- clear today’s tracked usage
+
+**Tooltip:** Today/week cost summary plus per-model usage for the selected provider
+
+**Update interval:** Hook-driven updates for Claude/Codex, plus a 60-second OpenCode poll
+
+**Preferences stored:** rolling `days` usage history in `applet_prefs.aiusage`
 
 ### Clock
 
@@ -750,10 +768,9 @@ Applets extend the `Applet` abstract base class in `docking/applets/base.py`:
 
 ```python
 from docking.applets.base import Applet, load_theme_icon
-from docking.applets.identity import AppletId
 
 class MyApplet(Applet):
-    id = AppletId.MY_APPLET  # add enum entry in identity.py
+    id = "myapplet"
     name = "My Applet"       # display name in menus
     icon_name = "my-icon"    # fallback icon
 
@@ -791,23 +808,25 @@ class MyApplet(Applet):
 Recommended file layout:
 
 ```text
-docking/applets/my_applet/
-  __init__.py   # re-export MyApplet (+ public helpers if needed)
+docking/applets/myapplet/
+  __init__.py   # AppletMeta declaration + public re-exports
   applet.py     # GTK wiring and lifecycle
   state.py      # pure state/logic helpers
   render.py     # icon rendering helpers
 ```
 
-Register your applet in `docking/applets/__init__.py` (`get_registry()`):
+Declare applet metadata in `docking/applets/myapplet/__init__.py` so catalog discovery can find it:
 
 ```python
-from docking.applets.my_applet import MyApplet
-from docking.applets.identity import AppletId
+from docking.applets.identity import AppletCategory, AppletMeta
 
-return {
-    ...
-    AppletId.MY_APPLET: MyApplet,
-}
+meta = AppletMeta(
+    id="myapplet",
+    name="My Applet",
+    category=AppletCategory.PRODUCTIVITY,
+)
+
+from .applet import MyApplet
 ```
 
 **Design principle:** Complex logic is extracted as pure functions (no GTK dependency) so tests run fast without a display server. GTK-dependent tests use lightweight mocks.
