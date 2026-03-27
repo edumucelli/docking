@@ -24,7 +24,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="quicknote"), applet_id=meta.id)
+log = with_context(get_logger(name="quicknote"), applet_id=meta.id)
 
 EDIT_DIALOG_WIDTH_PX = 350
 EDIT_DIALOG_HEIGHT_PX = 250

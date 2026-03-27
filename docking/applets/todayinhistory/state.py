@@ -14,7 +14,7 @@ from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-_log = with_context(
+log = with_context(
     get_logger(name="todayinhistory"),
     applet_id=meta.id,
 )
@@ -222,7 +222,7 @@ def fetch_today_in_history(
         data = getter(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
         return _parse_wikipedia_events(data=data, limit=limit)
     except Exception as exc:
-        _log.bind(action="fetch_today_in_history").debug(
+        log.bind(action="fetch_today_in_history").debug(
             "Failed to fetch history events for %s: %s",
             _date_key(month=month, day=day),
             exc,
@@ -244,7 +244,7 @@ def _load_fallback_catalog() -> dict[str, list[HistoryEvent]]:
         OSError,
         json.JSONDecodeError,
     ) as exc:
-        _log.warning("Failed to load today-in-history fallback asset: %s", exc)
+        log.warning("Failed to load today-in-history fallback asset: %s", exc)
         return {}
 
     if not isinstance(payload, dict):

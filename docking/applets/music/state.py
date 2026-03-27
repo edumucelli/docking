@@ -19,7 +19,7 @@ from gi.repository import Gio, GLib
 from docking.applets.music import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="music"), applet_id=meta.id)
+log = with_context(get_logger(name="music"), applet_id=meta.id)
 
 VOLUME_STEP = 5
 
@@ -144,7 +144,7 @@ def _unpack(value: Any) -> Any:
         try:
             return value.unpack()
         except Exception as exc:
-            _log.debug("Failed to unpack GLib value %r: %s", value, exc)
+            log.debug("Failed to unpack GLib value %r: %s", value, exc)
             return value
     return value
 
@@ -168,7 +168,7 @@ def _as_float(value: Any, default: float = 0.0) -> float:
     try:
         return float(value)
     except (TypeError, ValueError) as exc:
-        _log.debug("Failed to coerce music value %r to float: %s", value, exc)
+        log.debug("Failed to coerce music value %r to float: %s", value, exc)
         return default
 
 
@@ -212,7 +212,7 @@ class MprisBackend:
                 None,
             )
         except GLib.Error as exc:
-            _log.debug("Failed to initialize MPRIS DBus proxies: %s", exc)
+            log.debug("Failed to initialize MPRIS DBus proxies: %s", exc)
             self._bus = None
             self._dbus_proxy = None
 
@@ -254,7 +254,7 @@ class MprisBackend:
             unpacked = result.unpack() if result is not None else ()
             return bool(unpacked[0]) if unpacked else False
         except GLib.Error as exc:
-            _log.debug("DBus NameHasOwner failed for %s: %s", bus_name, exc)
+            log.debug("DBus NameHasOwner failed for %s: %s", bus_name, exc)
             return False
 
     def list_players(self) -> list[str]:
@@ -276,7 +276,7 @@ class MprisBackend:
                 if isinstance(name, str) and name.startswith(_MPRIS_PREFIX)
             )
         except GLib.Error as exc:
-            _log.debug("DBus ListNames failed while listing MPRIS players: %s", exc)
+            log.debug("DBus ListNames failed while listing MPRIS players: %s", exc)
             return []
 
     def play_pause(self, player_bus_name: str) -> bool:
@@ -311,7 +311,7 @@ class MprisBackend:
             )
             return True
         except GLib.Error as exc:
-            _log.debug("Failed to set MPRIS volume for %s: %s", player_bus_name, exc)
+            log.debug("Failed to set MPRIS volume for %s: %s", player_bus_name, exc)
             return False
 
     def _select_player(self, states: list[MusicState]) -> MusicState:
@@ -459,7 +459,7 @@ class MprisBackend:
                 return None
             return _unpack(unpacked[0])
         except GLib.Error as exc:
-            _log.debug(
+            log.debug(
                 "Failed to read MPRIS property %s from %s: %s",
                 property_name,
                 bus_name,
@@ -475,7 +475,7 @@ class MprisBackend:
             player.call_sync(method, None, Gio.DBusCallFlags.NONE, 1200, None)
             return True
         except GLib.Error as exc:
-            _log.debug(
+            log.debug(
                 "Failed to call MPRIS method %s on %s: %s",
                 method,
                 player_bus_name,
@@ -502,7 +502,7 @@ class MprisBackend:
             self._player_proxies[bus_name] = proxy
             return proxy
         except GLib.Error as exc:
-            _log.debug("Failed to create MPRIS player proxy for %s: %s", bus_name, exc)
+            log.debug("Failed to create MPRIS player proxy for %s: %s", bus_name, exc)
             return None
 
     def _get_props_proxy(self, bus_name: str) -> Gio.DBusProxy | None:
@@ -524,7 +524,7 @@ class MprisBackend:
             self._props_proxies[bus_name] = proxy
             return proxy
         except GLib.Error as exc:
-            _log.debug(
+            log.debug(
                 "Failed to create MPRIS properties proxy for %s: %s",
                 bus_name,
                 exc,
@@ -771,7 +771,7 @@ class PlayerctlBackend:
             if result.returncode == 0:
                 return result.stdout
         except (OSError, subprocess.TimeoutExpired) as exc:
-            _log.bind(action="playerctl").debug("Failed to run %s: %s", cmd, exc)
+            log.bind(action="playerctl").debug("Failed to run %s: %s", cmd, exc)
         return None
 
 
@@ -866,7 +866,7 @@ class RhythmboxClientBackend:
             )
             return result.returncode == 0
         except (OSError, subprocess.TimeoutExpired) as exc:
-            _log.debug("Failed to probe Rhythmbox running state: %s", exc)
+            log.debug("Failed to probe Rhythmbox running state: %s", exc)
             return False
 
     def _read_volume_percent(self) -> int:
@@ -874,7 +874,7 @@ class RhythmboxClientBackend:
             try:
                 return _normalize_volume_percent(self._settings.get_double("volume"))
             except Exception as exc:
-                _log.debug("Failed to read Rhythmbox GSettings volume: %s", exc)
+                log.debug("Failed to read Rhythmbox GSettings volume: %s", exc)
         if not self._binary:
             return 0
         out = self._run(
@@ -926,7 +926,7 @@ class RhythmboxClientBackend:
             )
             return result.returncode == 0
         except (OSError, subprocess.TimeoutExpired) as exc:
-            _log.bind(action="rhythmbox_gdbus").debug(
+            log.bind(action="rhythmbox_gdbus").debug(
                 "Failed to invoke GTK action %s: %s",
                 action_name,
                 exc,
@@ -946,7 +946,7 @@ class RhythmboxClientBackend:
             if result.returncode == 0:
                 return result.stdout
         except (OSError, subprocess.TimeoutExpired) as exc:
-            _log.bind(action="rhythmbox_client").debug("Failed to run %s: %s", cmd, exc)
+            log.bind(action="rhythmbox_client").debug("Failed to run %s: %s", cmd, exc)
         return None
 
 

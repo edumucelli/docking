@@ -34,7 +34,7 @@ from typing import Any, NamedTuple
 
 from docking.log import get_logger
 
-_log = get_logger(name="unitconverter.state")
+log = get_logger(name="unitconverter.state")
 
 _FRANKFURTER_URL = "https://api.frankfurter.dev/v2/currencies"
 _FRANKFURTER_RATES_URL = "https://api.frankfurter.dev/v2/rates?base={base}"
@@ -152,7 +152,7 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
         with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_S) as resp:
             data = json.loads(resp.read())
     except Exception as exc:
-        _log.warning("Failed to fetch currency rates: %s", exc)
+        log.warning("Failed to fetch currency rates: %s", exc)
         return None
 
     # v2 response: [{"base": "EUR", "quote": "USD", "rate": 1.08}, ...]
@@ -167,7 +167,7 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
         rates = data["rates"]
 
     if not rates:
-        _log.warning("No currency rates in response")
+        log.warning("No currency rates in response")
         return None
 
     # Factor = how many EUR per 1 unit of this currency (inverse of rate).

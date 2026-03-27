@@ -25,7 +25,7 @@ from docking.applets.identity import AppletMeta
 if TYPE_CHECKING:
     from docking.applets.base import Applet
 
-_log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -34,29 +34,36 @@ def get_applet_catalog() -> dict[str, AppletMeta]:
     applets_dir = Path(__file__).parent
     result: dict[str, AppletMeta] = {}
     for pkg in sorted(applets_dir.iterdir()):
-        if not pkg.is_dir() or pkg.name.startswith("_"):
+        if not pkg.is_dir():
+            log.debug("Skipping non-package applet entry %s", pkg)
             continue
-        if not (pkg / "__init__.py").exists():
+        if pkg.name.startswith("_"):
+            log.debug("Skipping private applet package %s", pkg.name)
+            continue
+        init_py = pkg / "__init__.py"
+        if not init_py.exists():
+            log.warning("Skipping %s: missing __init__.py", pkg)
             continue
         module_name = f"docking.applets.{pkg.name}"
         try:
             mod = import_module(module_name)
         except Exception:
-            _log.warning("Failed to import %s, skipping", module_name, exc_info=True)
+            log.warning("Failed to import %s, skipping", module_name, exc_info=True)
             continue
         meta = getattr(mod, "meta", None)
         if meta is None:
+            log.warning("Skipping %s: missing meta declaration", module_name)
             continue
         if not isinstance(meta, AppletMeta):
-            _log.warning(
+            log.warning(
                 "%s.meta is %s, expected AppletMeta", module_name, type(meta).__name__
             )
             continue
         if meta.id in result:
-            _log.warning("Duplicate applet id %r from %s", meta.id, module_name)
+            log.warning("Duplicate applet id %r from %s", meta.id, module_name)
             continue
         result[meta.id] = meta
-    _log.debug("Discovered %d applets", len(result))
+    log.debug("Discovered %d applets", len(result))
     return result
 
 
@@ -65,19 +72,22 @@ def load_applet_class(applet_id: str) -> type[Applet] | None:
     """Import and return a specific applet class on demand."""
     meta = get_applet_catalog().get(applet_id)
     if meta is None:
-        _log.warning("No catalog entry for applet %r", applet_id)
+        log.warning("No catalog entry for applet %r", applet_id)
         return None
     module_name = f"docking.applets.{meta.id}.applet"
     try:
         module = import_module(module_name)
     except Exception:
-        _log.error("Failed to import %s", module_name, exc_info=True)
+        log.error("Failed to import %s", module_name, exc_info=True)
         return None
 
     from docking.applets.base import Applet as _Base
 
+    # Discover the concrete Applet subclass from the module instead of storing
+    # a class name in AppletMeta. That keeps metadata minimal and avoids
+    # duplicating another identifier that can drift during refactors.
     for obj in vars(module).values():
         if inspect.isclass(obj) and issubclass(obj, _Base) and obj is not _Base:
             return obj
-    _log.warning("No Applet subclass found in %s", module_name)
+    log.warning("No Applet subclass found in %s", module_name)
     return None

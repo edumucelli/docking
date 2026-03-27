@@ -60,7 +60,7 @@ from gi.repository import Gio, GLib
 from docking.applets.powerprofiles import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(
+log = with_context(
     get_logger(name="powerprofiles"),
     applet_id=meta.id,
 )
@@ -246,7 +246,7 @@ class PowerProfilesBackend:
                 None,
             )
         except GLib.Error as exc:
-            _log.bind(action="bus_init").warning(
+            log.bind(action="bus_init").warning(
                 "Failed to connect system bus: %s",
                 exc,
             )
@@ -320,7 +320,7 @@ class PowerProfilesBackend:
                 None,
             )
         except GLib.Error as exc:
-            _log.bind(action="GetAll").debug("PowerProfiles query failed: %s", exc)
+            log.bind(action="GetAll").debug("PowerProfiles query failed: %s", exc)
             return None
 
         unpacked = result.unpack() if result is not None else ()
@@ -359,7 +359,7 @@ class PowerProfilesBackend:
             )
             return True
         except GLib.Error as exc:
-            _log.bind(action=f"set_{property_name}").debug(
+            log.bind(action=f"set_{property_name}").debug(
                 "PowerProfiles set failed: %s",
                 exc,
             )
@@ -588,7 +588,7 @@ def _run(cmd: list[str], timeout_s: float = DEFAULT_COMMAND_TIMEOUT_S) -> str | 
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        _log.bind(action="run").debug("Failed running %s: %s", cmd, exc)
+        log.bind(action="run").debug("Failed running %s: %s", cmd, exc)
         return None
     if proc.returncode != 0:
         return None

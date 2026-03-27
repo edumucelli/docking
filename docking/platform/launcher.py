@@ -145,7 +145,7 @@ DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
 DEFAULT_XDG_DATA_DIRS = "/usr/local/share:/usr/share"
 GNOME_APP_PREFIX = "org.gnome."
-_log = with_context(get_logger(name="launcher"))
+log = with_context(get_logger(name="launcher"))
 
 
 class DesktopInfo(NamedTuple):
@@ -180,7 +180,7 @@ class Launcher:
         try:
             app_info = Gio.DesktopAppInfo.new(desktop_id)
         except (TypeError, GLib.Error) as exc:
-            _log.bind(desktop_id=desktop_id, action="resolve").warning(
+            log.bind(desktop_id=desktop_id, action="resolve").warning(
                 f"Failed to resolve desktop app info: {exc}"
             )
             app_info = None
@@ -192,7 +192,7 @@ class Launcher:
                     try:
                         app_info = Gio.DesktopAppInfo.new_from_filename(str(path))
                     except (TypeError, GLib.Error) as exc:
-                        _log.bind(
+                        log.bind(
                             desktop_id=desktop_id,
                             action="resolve_from_filename",
                             path=str(path),
@@ -257,7 +257,7 @@ class Launcher:
                 None,
             )
         except GLib.Error as exc:
-            _log.bind(target=target, action="resolve_file").warning(
+            log.bind(target=target, action="resolve_file").warning(
                 f"Failed to query file info: {exc}"
             )
             return None
@@ -295,7 +295,7 @@ class Launcher:
                 try:
                     return info.load_icon()
                 except GLib.Error as exc:
-                    _log.bind(action="load_gicon").debug(
+                    log.bind(action="load_gicon").debug(
                         "Theme gicon not found (%s): %s", gicon.to_string(), exc
                     )
 
@@ -316,7 +316,7 @@ class Launcher:
                     str(icon_path), size, size, True
                 )
             except GLib.Error as exc:
-                _log.bind(action="load_icon").debug(
+                log.bind(action="load_icon").debug(
                     "Failed to load icon file %s: %s",
                     icon_path,
                     exc,
@@ -326,7 +326,7 @@ class Launcher:
         try:
             return theme.load_icon(icon_name, size, Gtk.IconLookupFlags.FORCE_SIZE)
         except GLib.Error as exc:
-            _log.bind(action="load_icon").debug(
+            log.bind(action="load_icon").debug(
                 "Theme icon not found (%s): %s",
                 icon_name,
                 exc,
@@ -336,7 +336,7 @@ class Launcher:
         try:
             return theme.load_icon(FALLBACK_ICON, size, Gtk.IconLookupFlags.FORCE_SIZE)
         except GLib.Error as exc:
-            _log.bind(action="load_icon").warning(
+            log.bind(action="load_icon").warning(
                 f"Failed to load fallback icon {FALLBACK_ICON}: {exc}"
             )
             return None
@@ -370,7 +370,7 @@ def get_actions(desktop_id: str) -> list[DesktopAction]:
     try:
         app_info = Gio.DesktopAppInfo.new(desktop_id)
     except (TypeError, GLib.Error) as exc:
-        _log.bind(desktop_id=desktop_id, action="get_actions").warning(
+        log.bind(desktop_id=desktop_id, action="get_actions").warning(
             f"Failed to read desktop actions: {exc}"
         )
         return []
@@ -389,7 +389,7 @@ def launch_action(desktop_id: str, action_id: str) -> None:
     try:
         app_info = Gio.DesktopAppInfo.new(desktop_id)
     except (TypeError, GLib.Error) as exc:
-        _log.bind(desktop_id=desktop_id, action="launch_action").warning(
+        log.bind(desktop_id=desktop_id, action="launch_action").warning(
             f"Failed to resolve desktop app info for action {action_id}: {exc}"
         )
         return
@@ -397,7 +397,7 @@ def launch_action(desktop_id: str, action_id: str) -> None:
         try:
             app_info.launch_action(action_id, None)
         except GLib.Error as exc:
-            _log.bind(desktop_id=desktop_id, action="launch_action").warning(
+            log.bind(desktop_id=desktop_id, action="launch_action").warning(
                 "Failed to launch action %s for %s: %s",
                 action_id,
                 desktop_id,
@@ -424,7 +424,7 @@ def launch(desktop_id: str) -> None:
     try:
         argv = [arg for arg in shlex.split(cmd, posix=True) if arg]
     except ValueError as e:
-        _log.bind(desktop_id=desktop_id, action="parse_exec").warning(
+        log.bind(desktop_id=desktop_id, action="parse_exec").warning(
             f"Failed to parse launch command for {desktop_id}: {e}"
         )
         return
@@ -440,7 +440,7 @@ def launch(desktop_id: str) -> None:
             stderr=subprocess.DEVNULL,
         )
     except OSError as e:
-        _log.bind(desktop_id=desktop_id, action="launch").warning(
+        log.bind(desktop_id=desktop_id, action="launch").warning(
             f"Failed to launch {desktop_id}: {e}"
         )
 
@@ -471,7 +471,7 @@ def open_target(target: str) -> bool:
         Gio.AppInfo.launch_default_for_uri(uri, None)
         return True
     except GLib.Error as exc:
-        _log.bind(target=target, action="open_target").warning(
+        log.bind(target=target, action="open_target").warning(
             f"Failed to open target {target}: {exc}"
         )
         return False

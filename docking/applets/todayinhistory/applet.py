@@ -30,7 +30,7 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(
+log = with_context(
     get_logger(name="todayinhistory"),
     applet_id=meta.id,
 )
@@ -216,7 +216,7 @@ class TodayInHistoryApplet(Applet):
         try:
             Gio.AppInfo.launch_default_for_uri(self._current.article_url, None)
         except Exception as exc:
-            _log.bind(action="open_article").warning(
+            log.bind(action="open_article").warning(
                 "Failed to open %s: %s",
                 self._current.article_url,
                 exc,

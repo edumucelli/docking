@@ -16,7 +16,7 @@ DEFAULT_INTERVAL = 30
 INTERVAL_PRESETS = (15, 30, 45, 60, 90)
 REFRESH_EVERY_SECONDS = 10
 _CARDS_RESOURCE = "stretch/cards.json"
-_log = get_logger("stretchcoach")
+log = get_logger("stretchcoach")
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +119,7 @@ def load_cards() -> list[StretchCard]:
         OSError,
         json.JSONDecodeError,
     ) as exc:
-        _log.warning("Failed to load stretch cards asset: %s", exc)
+        log.warning("Failed to load stretch cards asset: %s", exc)
         return _fallback_cards()
 
     if not isinstance(payload, list):

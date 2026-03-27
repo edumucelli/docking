@@ -24,7 +24,7 @@ from .state import MAX_ENTRIES, RecentEntry, tooltip_text, truncate_name
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="recentfiles"), applet_id=meta.id)
+log = with_context(get_logger(name="recentfiles"), applet_id=meta.id)
 
 
 class RecentFilesApplet(Applet):
@@ -67,7 +67,7 @@ class RecentFilesApplet(Applet):
         try:
             Gio.AppInfo.launch_default_for_uri(uri, None)
         except GLib.Error as exc:
-            _log.bind(action="open_recent").warning("Failed to open %s: %s", uri, exc)
+            log.bind(action="open_recent").warning("Failed to open %s: %s", uri, exc)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
@@ -107,12 +107,12 @@ class RecentFilesApplet(Applet):
         try:
             Gio.AppInfo.launch_default_for_uri(uri, None)
         except GLib.Error as exc:
-            _log.bind(action="open_recent").warning("Failed to open %s: %s", uri, exc)
+            log.bind(action="open_recent").warning("Failed to open %s: %s", uri, exc)
 
     def _clear_recent(self) -> None:
         try:
             Gtk.RecentManager.get_default().purge_items()
         except GLib.Error as exc:
-            _log.bind(action="clear_recent").warning(
+            log.bind(action="clear_recent").warning(
                 "Failed to clear recent files: %s", exc
             )

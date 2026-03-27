@@ -11,7 +11,7 @@ from gi.repository import Gio, GLib
 from docking.applets.trash import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="trash"), applet_id=meta.id)
+log = with_context(get_logger(name="trash"), applet_id=meta.id)
 
 
 def _count_trash_items() -> int:
@@ -22,9 +22,7 @@ def _count_trash_items() -> int:
             Gio.FILE_ATTRIBUTE_STANDARD_NAME, Gio.FileQueryInfoFlags.NONE, None
         )
     except GLib.Error as exc:
-        _log.bind(action="count_items").debug(
-            "Could not enumerate trash items: %s", exc
-        )
+        log.bind(action="count_items").debug("Could not enumerate trash items: %s", exc)
         return 0
 
     count = 0

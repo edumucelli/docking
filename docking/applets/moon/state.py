@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 from docking.i18n import _
 from docking.log import get_logger
 
-_log = get_logger(name="moon.state")
+log = get_logger(name="moon.state")
 
 _MOON_URL = "https://briancasey.org/artifacts/astro/moon.cgi"
 _USER_AGENT = (
@@ -63,7 +63,7 @@ def fetch_moon(day: date | None = None) -> MoonData | None:
             html = resp.read().decode("utf-8", errors="replace")
         return _parse_moon_html(html=html)
     except (OSError, ValueError) as exc:
-        _log.warning("Failed to fetch moon data, using offline: %s", exc)
+        log.warning("Failed to fetch moon data, using offline: %s", exc)
         from docking.applets.moon.offline import fetch_moon_offline
 
         return fetch_moon_offline(d=day)

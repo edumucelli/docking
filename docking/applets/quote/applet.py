@@ -31,7 +31,7 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="quote"), applet_id=meta.id)
+log = with_context(get_logger(name="quote"), applet_id=meta.id)
 
 
 class QuoteApplet(Applet):
@@ -144,7 +144,7 @@ class QuoteApplet(Applet):
             self._clipboard.set_text(text, -1)
             self._clipboard.store()
         except Exception as exc:
-            _log.bind(action="copy_quote").warning(
+            log.bind(action="copy_quote").warning(
                 "Failed to copy quote to clipboard: %s",
                 exc,
             )

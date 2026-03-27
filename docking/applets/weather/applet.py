@@ -38,7 +38,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="weather"), applet_id=meta.id)
+log = with_context(get_logger(name="weather"), applet_id=meta.id)
 
 CITY_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
@@ -62,7 +62,7 @@ class WeatherApplet(Applet):
         self._fetch_request_id: int = 0
         self._weather: WeatherData | None = None
         self._air_quality: AirQualityData | None = None
-        self._worker = BackgroundWorker(logger=_log)
+        self._worker = BackgroundWorker(logger=log)
 
         prefs = prefs_from_mapping(
             config.applet_prefs.get("weather", {}) if config else None

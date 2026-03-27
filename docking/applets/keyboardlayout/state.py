@@ -19,7 +19,7 @@ from typing import NamedTuple
 
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="keyboardlayout"))
+log = with_context(get_logger(name="keyboardlayout"))
 
 _LAYOUT_RE = re.compile(r"^layout:\s+(.+)$", re.MULTILINE)
 _IBUS_XKB_RE = re.compile(r"^xkb:([^:]+):")
@@ -136,7 +136,7 @@ def _run(cmd: list[str]) -> str | None:
         if result.returncode == 0:
             return result.stdout.strip()
     except (OSError, subprocess.TimeoutExpired) as exc:
-        _log.bind(action="run_cmd").debug("Failed: %s: %s", cmd, exc)
+        log.bind(action="run_cmd").debug("Failed: %s: %s", cmd, exc)
     return None
 
 

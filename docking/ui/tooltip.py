@@ -162,7 +162,7 @@ from docking.log import get_logger
 from docking.ui.geometry import DockGeometryFrame
 from docking.ui.runtime import clamp_to_screen
 
-_log = get_logger(name="tooltip")
+log = get_logger(name="tooltip")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -259,7 +259,7 @@ class TooltipManager:
         # crossing events) vs just repositioning (cheap: move only).
         content_changed = not (item is self._last_item and item.name == self._last_name)
         if content_changed:
-            _log.debug(f"content changed: {item.name}")
+            log.debug(f"content changed: {item.name}")
 
         item_geometry = geometry.geometry_for_item(item)
         if item_geometry is None:
@@ -418,7 +418,7 @@ class TooltipManager:
         screen_h = screen.get_height()
         tx, ty = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
 
-        _log.debug(
+        log.debug(
             "pos=(%d,%d) anchor=(%.0f,%.0f) size=%dx%d rebuild=%s",
             tx,
             ty,

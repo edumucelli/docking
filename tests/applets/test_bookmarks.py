@@ -182,7 +182,7 @@ class TestApplet:
             "launch_default_for_uri",
             lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")),
         )
-        monkeypatch.setattr(bookmarks_applet_mod._log, "bind", bind)
+        monkeypatch.setattr(bookmarks_applet_mod.log, "bind", bind)
 
         applet._open_url("https://example.com")
 

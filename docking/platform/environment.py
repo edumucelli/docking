@@ -24,7 +24,7 @@ import subprocess
 
 from docking.log import get_logger
 
-_log = get_logger(name="environment")
+log = get_logger(name="environment")
 
 
 class Desktop(enum.Flag):
@@ -99,17 +99,17 @@ def detect_desktop() -> Desktop:
         if value:
             desktop = _parse_desktop(value)
             if desktop != Desktop.UNKNOWN:
-                _log.debug("detected %s from %s=%s", desktop, var, value)
+                log.debug("detected %s from %s=%s", desktop, var, value)
                 return desktop
 
-    _log.warning("could not detect desktop environment")
+    log.warning("could not detect desktop environment")
     return Desktop.UNKNOWN
 
 
 def _disable_xfce_dock_shadow() -> None:
     """Disable xfwm4's dock window shadow via xfconf-query."""
     if not shutil.which("xfconf-query"):
-        _log.warning("xfconf-query not found, cannot disable dock shadow")
+        log.warning("xfconf-query not found, cannot disable dock shadow")
         return
     try:
         subprocess.run(
@@ -125,9 +125,9 @@ def _disable_xfce_dock_shadow() -> None:
             check=True,
             capture_output=True,
         )
-        _log.info("disabled xfce dock shadow")
+        log.info("disabled xfce dock shadow")
     except subprocess.CalledProcessError as e:
-        _log.warning("failed to disable xfce dock shadow: %s", e)
+        log.warning("failed to disable xfce dock shadow: %s", e)
 
 
 def _check_compositor() -> None:
@@ -144,6 +144,7 @@ def _check_compositor() -> None:
 
         display = GdkX11.X11Display.get_default()
         if display is None:
+            log.debug("skipping compositor check: no X11 display")
             return
         screen_num = display.get_default_screen()
 
@@ -159,10 +160,11 @@ def _check_compositor() -> None:
         owner = xlib.XGetSelectionOwner(xdisplay, atom)
         if owner != 0:
             return
-    except Exception:
+    except Exception as exc:
+        log.warning("failed to check compositor status: %s", exc)
         return
 
-    _log.warning(
+    log.warning(
         "no compositing manager detected (it may have crashed) -- "
         "dock may appear behind maximized windows and transparency may not work; "
         "enable compositing in your desktop settings or install a compositor "

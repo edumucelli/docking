@@ -152,7 +152,6 @@ from docking.applets.identity import (
     AppletCategory,
     AppletMeta,
     applet_desktop_id,
-    category_for,
 )
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
@@ -193,7 +192,7 @@ WINDOW_MENU_CLOSE_MARGIN_END_PX = 12
 FOLDER_MENU_REFRESH_DEBOUNCE_MS = 120
 FOLDER_SMALL_ICON_PX = 16
 FOLDER_LARGE_ICON_PX = 24
-_log = get_logger("menu")
+log = get_logger("menu")
 
 
 def _make_menu_header(label: str) -> Gtk.MenuItem:
@@ -510,7 +509,7 @@ class MenuHandler:
         try:
             catalog = get_applet_catalog()
         except Exception as exc:
-            _log.warning("Failed to read applet catalog for add-applet menu: %s", exc)
+            log.warning("Failed to read applet catalog for add-applet menu: %s", exc)
             catalog = {}
         active_ids = {
             item.desktop_id
@@ -528,7 +527,7 @@ class MenuHandler:
             desktop_id = applet_desktop_id(applet_id=did)
             if desktop_id in active_ids:
                 continue
-            grouped[category_for(applet_id=did)].append((did, entry))
+            grouped[entry.category].append((did, entry))
 
         non_empty_categories = [
             key for key in APPLET_CATEGORY_ORDER if grouped.get(key)
@@ -748,7 +747,7 @@ class MenuHandler:
         try:
             raw = self._runtime.get_monitor_menu_choices()
         except Exception as exc:
-            _log.debug("Failed to read monitor menu choices: %s", exc)
+            log.debug("Failed to read monitor menu choices: %s", exc)
             return []
         if not isinstance(raw, list):
             return []
@@ -770,7 +769,7 @@ class MenuHandler:
             if isinstance(value, int):
                 return value
         except Exception as exc:
-            _log.debug("Failed to read current monitor choice from runtime: %s", exc)
+            log.debug("Failed to read current monitor choice from runtime: %s", exc)
         return int(self._config.monitor_index)
 
     def _on_monitor_changed(self, widget: Gtk.MenuItem, monitor_index: int) -> None:
@@ -782,7 +781,7 @@ class MenuHandler:
             if isinstance(value, int):
                 primary_idx = value
         except Exception as exc:
-            _log.debug("Failed to read primary monitor index from runtime: %s", exc)
+            log.debug("Failed to read primary monitor index from runtime: %s", exc)
         new_value = -1 if monitor_index == primary_idx else monitor_index
         if int(self._config.monitor_index) == new_value:
             return
@@ -943,7 +942,7 @@ class MenuHandler:
             monitor.connect("changed", self._on_folder_menu_changed, menu_id)
             self._folder_menu_monitors[menu_id] = monitor
         except GLib.Error as exc:
-            _log.warning("Failed to monitor folder menu target %s: %s", target, exc)
+            log.warning("Failed to monitor folder menu target %s: %s", target, exc)
             return
 
     def _on_folder_menu_hidden(self, menu: Gtk.Menu) -> None:
@@ -1033,7 +1032,7 @@ class MenuHandler:
                 None,
             )
         except Exception as exc:
-            _log.warning("Failed to enumerate folder menu target %s: %s", target, exc)
+            log.warning("Failed to enumerate folder menu target %s: %s", target, exc)
             return []
 
         prefs = self._folder_prefs(folder_item)
@@ -1098,7 +1097,7 @@ class MenuHandler:
                 None,
             )
         except Exception as exc:
-            _log.warning(
+            log.warning(
                 "Failed to inspect folder children for target %s: %s",
                 target,
                 exc,

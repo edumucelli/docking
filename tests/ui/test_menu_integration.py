@@ -22,11 +22,11 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.platform.model import DockItem
 
 
-def _catalog_entry(*, applet_id, name: str):
+def _catalog_entry(*, applet_id, name: str, category=None):
     return menu_mod.AppletMeta(
         id=str(applet_id),
         name=name,
-        category=menu_mod.AppletCategory.OTHER,
+        category=category or menu_mod.AppletCategory.OTHER,
     )
 
 
@@ -815,8 +815,16 @@ class TestDockMenu:
             menu_mod,
             "get_applet_catalog",
             lambda: {
-                "clock": _catalog_entry(applet_id="clock", name="Clock"),
-                "calendar": _catalog_entry(applet_id="calendar", name="Calendar"),
+                "clock": _catalog_entry(
+                    applet_id="clock",
+                    name="Clock",
+                    category=menu_mod.AppletCategory.PRODUCTIVITY,
+                ),
+                "calendar": _catalog_entry(
+                    applet_id="calendar",
+                    name="Calendar",
+                    category=menu_mod.AppletCategory.PRODUCTIVITY,
+                ),
                 "separator": _catalog_entry(applet_id="separator", name="Separator"),
             },
         )

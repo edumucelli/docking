@@ -30,7 +30,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="pet"), applet_id=meta.id)
+log = with_context(get_logger(name="pet"), applet_id=meta.id)
 _PROC_STAT = Path("/proc/stat")
 
 
@@ -77,7 +77,7 @@ class PetApplet(Applet):
             with _PROC_STAT.open() as fh:
                 curr = parse_proc_stat(text=fh.read())
         except OSError as exc:
-            _log.bind(action="read_proc_stat").debug(
+            log.bind(action="read_proc_stat").debug(
                 "Could not read /proc/stat: %s",
                 exc,
             )

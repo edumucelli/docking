@@ -27,7 +27,7 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="separator"), applet_id=meta.id)
+log = with_context(get_logger(name="separator"), applet_id=meta.id)
 
 
 class SeparatorApplet(Applet):
@@ -67,7 +67,7 @@ class SeparatorApplet(Applet):
         self._style = _normalized_style(value=prefs.get("style", STYLE_SPACE))
         self._invert_color = bool(prefs.get("invert_color", False))
         self.item.main_size = self._gap
-        _log.bind(action="apply_prefs", desktop_id=self.item.desktop_id).debug(
+        log.bind(action="apply_prefs", desktop_id=self.item.desktop_id).debug(
             "Separator prefs applied: gap=%d style=%s invert_color=%s",
             self._gap,
             self._style,
@@ -87,7 +87,7 @@ class SeparatorApplet(Applet):
     def _set_gap(self, gap: int) -> None:
         self._gap = _normalized_gap(value=gap)
         self.item.main_size = self._gap
-        _log.bind(action="set_gap", desktop_id=self.item.desktop_id).debug(
+        log.bind(action="set_gap", desktop_id=self.item.desktop_id).debug(
             f"Separator size set to {self._gap}px"
         )
         self._save_current_prefs()

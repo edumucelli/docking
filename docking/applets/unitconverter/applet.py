@@ -63,7 +63,7 @@ from docking.ui.runtime import get_pointer_position
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="unitconverter"), applet_id=meta.id)
+log = with_context(get_logger(name="unitconverter"), applet_id=meta.id)
 
 POPUP_CORNER_RADIUS_PX = 8
 POPUP_PADDING_PX = 12
@@ -85,7 +85,7 @@ class UnitConverterApplet(Applet):
         self._to_combo: Gtk.ComboBoxText | None = None
         self._entry: Gtk.Entry | None = None
         self._cat_combo: Gtk.ComboBoxText | None = None
-        self._worker = BackgroundWorker(logger=_log)
+        self._worker = BackgroundWorker(logger=log)
 
         prefs = config.applet_prefs.get("unitconverter", {}) if config else {}
         self._cat_idx = int(prefs.get("category_index", 0))

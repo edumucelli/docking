@@ -16,7 +16,7 @@ from typing import Any, NamedTuple, cast
 from docking.applets.weather import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
+log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 
 # How often weather data is refreshed (seconds). Used for both the
 # polling timer in the applet and the requests-cache expiry.
@@ -182,7 +182,7 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
             daily=daily,
         )
     except (OSError, ValueError, KeyError, IndexError, AttributeError):
-        _log.bind(action="fetch_weather").warning(
+        log.bind(action="fetch_weather").warning(
             "Failed to fetch weather", exc_info=True
         )
         return None
@@ -236,7 +236,7 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
         pm2_5 = round(current.Variables(2).Value(), 1)
         return AirQualityData(aqi=aqi, pm2_5=pm2_5, pm10=pm10, label=aqi_label(aqi=aqi))
     except (OSError, ValueError, KeyError, IndexError, AttributeError):
-        _log.bind(action="fetch_air_quality").warning(
+        log.bind(action="fetch_air_quality").warning(
             "Failed to fetch air quality",
             exc_info=True,
         )

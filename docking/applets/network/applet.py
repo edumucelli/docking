@@ -40,7 +40,7 @@ def _skip_device_types() -> frozenset[object]:
     )
 
 
-_log = with_context(get_logger(name="network"), applet_id=meta.id)
+log = with_context(get_logger(name="network"), applet_id=meta.id)
 _PROC_NET_DEV = Path("/proc/net/dev")
 
 POLL_INTERVAL_S = 2
@@ -166,7 +166,7 @@ class NetworkApplet(Applet):
             )
             self._update_nm_state()
         except GLib.Error:
-            _log.bind(action="connect_nm").warning(
+            log.bind(action="connect_nm").warning(
                 "Could not connect to NetworkManager",
             )
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)

@@ -27,7 +27,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(
+log = with_context(
     get_logger(name="keyboardlayout"),
     applet_id=meta.id,
 )

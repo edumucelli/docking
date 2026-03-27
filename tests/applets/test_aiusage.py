@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import docking.applets.aiusage.applet as aiusage_mod
 from docking.applets.aiusage.applet import AiUsageApplet
@@ -503,6 +504,21 @@ class TestAiUsageApplet:
         from gi.repository import Gtk
 
         assert isinstance(applet._build_tooltip_widget(), Gtk.Box)
+
+    def test_tick_warns_once_when_opencode_poll_fails(self, monkeypatch, caplog):
+        applet = AiUsageApplet(48)
+        monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+
+        def fail_query():
+            raise RuntimeError("database locked")
+
+        monkeypatch.setattr(aiusage_mod, "query_opencode_today", fail_query)
+
+        with caplog.at_level(logging.WARNING, logger="docking.aiusage"):
+            assert applet._tick() is True
+            assert applet._tick() is True
+
+        assert caplog.text.count("Failed to poll OpenCode usage") == 1
 
 
 # ---------------------------------------------------------------

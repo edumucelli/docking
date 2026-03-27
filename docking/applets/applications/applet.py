@@ -21,7 +21,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(
+log = with_context(
     get_logger(name="applications"),
     applet_id=meta.id,
 )
@@ -144,7 +144,7 @@ def _launch_app(app_info: Gio.DesktopAppInfo) -> None:
         app_info.launch([], None)
     except GLib.Error as exc:
         app_name = app_info.get_display_name() if app_info else None
-        _log.bind(desktop_id=desktop_id, action="launch_app").warning(
+        log.bind(desktop_id=desktop_id, action="launch_app").warning(
             "Failed to launch application %s: %s",
             app_name,
             exc,

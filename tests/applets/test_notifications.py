@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from dataclasses import replace
 from typing import ClassVar
@@ -519,14 +520,16 @@ class TestNotificationsApplet:
         assert applet._on_activity_expired() is False
         applet.present.assert_called_once()
 
-    def test_activity_monitor_start_and_stop_paths(self, monkeypatch):
+    def test_activity_monitor_start_and_stop_paths(self, monkeypatch, caplog):
         applet, _backend = _make_applet(monkeypatch, _state())
         applet._activity_monitor_proc = object()  # type: ignore[assignment]
         applet._start_activity_monitor()
 
         applet._activity_monitor_proc = None
         monkeypatch.setattr(notifications_applet_mod.shutil, "which", lambda cmd: None)
-        applet._start_activity_monitor()
+        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
+            applet._start_activity_monitor()
+        assert "dbus-monitor not found" in caplog.text
 
         monkeypatch.setattr(
             notifications_applet_mod.shutil,
@@ -538,8 +541,11 @@ class TestNotificationsApplet:
             raise OSError("missing")
 
         monkeypatch.setattr(notifications_applet_mod.subprocess, "Popen", raise_popen)
-        applet._start_activity_monitor()
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
+            applet._start_activity_monitor()
         assert applet._activity_monitor_proc is None
+        assert "Failed to start dbus-monitor" in caplog.text
 
         class _Proc:
             def __init__(self):
@@ -585,7 +591,7 @@ class TestNotificationsApplet:
         applet._activity_monitor_proc = _ProcOSError()  # type: ignore[assignment]
         applet._stop_activity_monitor()
 
-    def test_activity_monitor_worker_and_tooltip_helpers(self, monkeypatch):
+    def test_activity_monitor_worker_and_tooltip_helpers(self, monkeypatch, caplog):
         applet, _backend = _make_applet(monkeypatch, _state())
         idle_calls: list[tuple[object, ...]] = []
         monkeypatch.setattr(
@@ -620,7 +626,9 @@ class TestNotificationsApplet:
             stdout = _BrokenStdout()
 
         applet._activity_monitor_proc = _BrokenProc()
-        applet._activity_monitor_worker()
+        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
+            applet._activity_monitor_worker()
+        assert "Notification activity monitor stopped unexpectedly" in caplog.text
 
         applet._history = [
             NotificationEntry(app_name="App", summary="Title", body="Body"),

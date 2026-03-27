@@ -10,7 +10,7 @@ import docking.i18n as i18n_mod
 
 def test_init_logs_locale_fallback_and_binds_domain(monkeypatch):
     warning = MagicMock()
-    monkeypatch.setattr(i18n_mod._log, "warning", warning)
+    monkeypatch.setattr(i18n_mod.log, "warning", warning)
     monkeypatch.setattr(
         i18n_mod.locale,
         "setlocale",

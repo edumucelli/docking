@@ -18,11 +18,11 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 import docking.ui.settings as settings_mod
 
 
-def _catalog_entry(*, applet_id, name: str):
+def _catalog_entry(*, applet_id, name: str, category=None):
     return settings_mod.AppletMeta(
         id=str(applet_id),
         name=name,
-        category=settings_mod.AppletCategory.OTHER,
+        category=category or settings_mod.AppletCategory.OTHER,
     )
 
 
@@ -621,8 +621,16 @@ class TestSettingsWindowController:
             settings_mod,
             "get_applet_catalog",
             lambda: {
-                "clock": _catalog_entry(applet_id="clock", name="Clock"),
-                "weather": _catalog_entry(applet_id="weather", name="Weather"),
+                "clock": _catalog_entry(
+                    applet_id="clock",
+                    name="Clock",
+                    category=settings_mod.AppletCategory.PRODUCTIVITY,
+                ),
+                "weather": _catalog_entry(
+                    applet_id="weather",
+                    name="Weather",
+                    category=settings_mod.AppletCategory.INFORMATION,
+                ),
             },
         )
         controller = settings_mod.SettingsWindowController(
@@ -755,6 +763,8 @@ class TestSettingsWindowController:
     ):
         import docking.applets as applets_mod
 
+        applets_mod.get_applet_catalog.cache_clear()
+        applets_mod.get_applet_catalog()
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
@@ -777,3 +787,4 @@ class TestSettingsWindowController:
         assert any(
             isinstance(child, FakeGrid) for child in controller._applets_box.children
         )
+        applets_mod.get_applet_catalog.cache_clear()

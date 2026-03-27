@@ -165,7 +165,7 @@ from docking.log import get_logger
 from docking.ui.autohide import HideState
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 
-_log = get_logger(name="hover")
+log = get_logger(name="hover")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -248,7 +248,7 @@ class HoverManager:
         previous_item = self.hovered_item
         if previous_item is not None and item is None:
             previous_geometry = frame.geometry_for_item(previous_item)
-            _log.debug(
+            log.debug(
                 (
                     "hover exit: item=%s cursor=(%.0f,%.0f) "
                     "cursor_rect=%s hover_rect=%s draw_rect=%s"
@@ -260,7 +260,7 @@ class HoverManager:
                 previous_geometry.hover_rect if previous_geometry else None,
                 previous_geometry.draw_rect if previous_geometry else None,
             )
-        _log.debug(
+        log.debug(
             f"hover changed: "
             f"{self.hovered_item.name if self.hovered_item else None} -> "
             f"{item.name if item else None}"

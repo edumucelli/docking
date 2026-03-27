@@ -164,7 +164,7 @@ from docking.ui.runtime import get_pointer_position
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
 
-_log = get_logger(name="placement")
+log = get_logger(name="placement")
 
 
 class DockPlacementController:
@@ -345,7 +345,7 @@ class DockPlacementController:
                 win_x = geom.x + geom.width - win_w
                 win_y = workarea.y
 
-        _log.debug(
+        log.debug(
             "dock position: win=(%d,%d) size=%dx%d cross=%d bounce_headroom=%d",
             win_x,
             win_y,

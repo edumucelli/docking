@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
     from docking.ui.dock_window import DockWindow
 
-_log = get_logger(name="ipc.items")
+log = get_logger(name="ipc.items")
 _CHANGED_DEBOUNCE_MS = 500
 
 
@@ -73,7 +73,7 @@ class DockItemsService:
         try:
             connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         except Exception as exc:
-            _log.warning("Could not connect to session bus for D-Bus service: %s", exc)
+            log.warning("Could not connect to session bus for D-Bus service: %s", exc)
             return
 
         owner_id = 0
@@ -93,7 +93,7 @@ class DockItemsService:
                 None,
             )
         except Exception as exc:
-            _log.warning("Could not register D-Bus service: %s", exc)
+            log.warning("Could not register D-Bus service: %s", exc)
             if owner_id > 0:
                 Gio.bus_unown_name(owner_id)
             return
@@ -153,7 +153,7 @@ class DockItemsService:
                 None,
             )
         except Exception as exc:
-            _log.warning("Failed to emit D-Bus Changed signal: %s", exc)
+            log.warning("Failed to emit D-Bus Changed signal: %s", exc)
         return False
 
     def _handle_method_call(
@@ -176,7 +176,7 @@ class DockItemsService:
         try:
             result = self._dispatch_call(method_name=method_name, parameters=parameters)
         except Exception as exc:
-            _log.exception("Unhandled exception in D-Bus method %s", method_name)
+            log.exception("Unhandled exception in D-Bus method %s", method_name)
             invocation.return_dbus_error(
                 "org.docking.Docking.Error.Failed",
                 str(exc),

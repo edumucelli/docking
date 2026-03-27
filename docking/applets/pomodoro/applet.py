@@ -37,7 +37,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="pomodoro")
+log = get_logger(name="pomodoro")
 
 
 class PomodoroApplet(Applet):

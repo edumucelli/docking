@@ -159,7 +159,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-_log = with_context(get_logger(name="model"))
+log = with_context(get_logger(name="model"))
 
 
 class DockModel:
@@ -200,16 +200,16 @@ class DockModel:
                     applet.item.prefs_key = entry.target
                     applet.apply_prefs()
                     self._applets[entry.id] = applet
-                    _log.bind(applet_id=str(did), action="load_applet").info(
+                    log.bind(applet_id=str(did), action="load_applet").info(
                         f"Loaded applet {did} (icon={applet.item.icon})"
                     )
                     return applet.item
                 except Exception:
-                    _log.bind(applet_id=str(did), action="load_applet").exception(
+                    log.bind(applet_id=str(did), action="load_applet").exception(
                         f"Failed to create applet {did}"
                     )
             else:
-                _log.bind(applet_id=str(did), action="load_applet").warning(
+                log.bind(applet_id=str(did), action="load_applet").warning(
                     f"Unknown applet id: {did}"
                 )
             return None
@@ -252,20 +252,20 @@ class DockModel:
         """Instantiate a applet and add to the dock."""
         did = applet_id
         if did not in applets.get_applet_catalog():
-            _log.bind(applet_id=applet_id, action="add_applet").warning(
+            log.bind(applet_id=applet_id, action="add_applet").warning(
                 f"Invalid applet id: {applet_id}"
             )
             return
 
         desktop_id = applet_desktop_id(applet_id=did)
         if desktop_id in self._applets:
-            _log.bind(applet_id=str(did), action="add_applet").warning(
+            log.bind(applet_id=str(did), action="add_applet").warning(
                 f"Applet already present: {did}"
             )
             return
         cls = applets.load_applet_class(did)
         if not cls:
-            _log.bind(applet_id=str(did), action="add_applet").warning(
+            log.bind(applet_id=str(did), action="add_applet").warning(
                 f"No class registered for applet: {did}"
             )
             return
@@ -273,7 +273,7 @@ class DockModel:
         try:
             applet = cls(icon_size=icon_size, config=self._config)
         except Exception:
-            _log.bind(applet_id=str(did), action="add_applet").exception(
+            log.bind(applet_id=str(did), action="add_applet").exception(
                 f"Failed to create applet {did}"
             )
             return
@@ -304,7 +304,7 @@ class DockModel:
         try:
             applet = cls(icon_size=icon_size, config=self._config)
         except Exception:
-            _log.bind(applet_id="separator", action="add_separator").exception(
+            log.bind(applet_id="separator", action="add_separator").exception(
                 "Failed to create separator",
             )
             return

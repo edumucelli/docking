@@ -174,7 +174,7 @@ class TestAppletOverlay:
         killed = MagicMock(return_value=True)
         monkeypatch.setattr(windowkiller_applet_mod, "kill_pid", killed)
         monkeypatch.setattr(
-            windowkiller_applet_mod._log, "bind", lambda **_kwargs: logger
+            windowkiller_applet_mod.log, "bind", lambda **_kwargs: logger
         )
 
         event = SimpleNamespace(x_root=10, y_root=20)
@@ -195,7 +195,7 @@ class TestAppletOverlay:
         )
         monkeypatch.setattr(applet, "_window_at", lambda **_kwargs: target)
         monkeypatch.setattr(
-            windowkiller_applet_mod._log, "bind", lambda **_kwargs: logger
+            windowkiller_applet_mod.log, "bind", lambda **_kwargs: logger
         )
 
         assert (

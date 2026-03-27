@@ -30,7 +30,7 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="workspaces"), applet_id=meta.id)
+log = with_context(get_logger(name="workspaces"), applet_id=meta.id)
 
 
 class WorkspacesApplet(Applet):
@@ -89,7 +89,7 @@ class WorkspacesApplet(Applet):
         )
         if log_state != self._last_logged_state:
             self._last_logged_state = log_state
-            _log.bind(action="refresh_tooltip").debug(
+            log.bind(action="refresh_tooltip").debug(
                 "workspace state count=%s active_num=%s active_name=%r label=%r",
                 self._workspace_count,
                 self._active_num,
@@ -110,7 +110,7 @@ class WorkspacesApplet(Applet):
         next_num = next_workspace_index(
             current=active.get_number(), count=count, delta=1
         )
-        _log.bind(action="on_clicked").debug(
+        log.bind(action="on_clicked").debug(
             "workspace switch current=%s next=%s count=%s",
             active.get_number(),
             next_num,
@@ -136,7 +136,7 @@ class WorkspacesApplet(Applet):
             count=count,
             delta=delta,
         )
-        _log.bind(action="on_scroll").debug(
+        log.bind(action="on_scroll").debug(
             "workspace switch direction_up=%s current=%s next=%s count=%s",
             direction_up,
             active.get_number(),
@@ -176,7 +176,7 @@ class WorkspacesApplet(Applet):
     def _on_workspace_activate(
         self, _widget: Gtk.RadioMenuItem, workspace: Wnck.Workspace
     ) -> None:
-        _log.bind(action="menu_activate").debug(
+        log.bind(action="menu_activate").debug(
             "menu workspace activate number=%s name=%r",
             workspace.get_number(),
             workspace.get_name(),
@@ -200,7 +200,7 @@ class WorkspacesApplet(Applet):
         super().stop()
 
     def _on_workspace_changed(self, _screen: Wnck.Screen, *_args: Any) -> None:
-        _log.bind(action="workspace_changed").debug("received active-workspace-changed")
+        log.bind(action="workspace_changed").debug("received active-workspace-changed")
         if self._screen:
             self._screen.force_update()
         self.present()

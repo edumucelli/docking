@@ -1,12 +1,24 @@
 """Tests for the applet registry and shared utilities."""
 
 import importlib.util
+import logging
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
+import docking.applets as applets_mod
 from docking.applets import get_applet_catalog, load_applet_class
 from docking.applets.base import Applet, load_theme_icon
+
+
+@pytest.fixture(autouse=True)
+def _clear_registry_caches():
+    get_applet_catalog.cache_clear()
+    load_applet_class.cache_clear()
+    yield
+    get_applet_catalog.cache_clear()
+    load_applet_class.cache_clear()
 
 
 class TestAppletCatalog:
@@ -77,6 +89,41 @@ class TestAppletCatalog:
             pytest.skip("Today in History applet is not available in this checkout")
 
         assert "todayinhistory" in get_applet_catalog()
+
+    def test_logs_warning_for_package_missing_init_py(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        fake_applets = tmp_path / "applets"
+        fake_applets.mkdir()
+        (fake_applets / "broken").mkdir()
+        monkeypatch.setattr(applets_mod, "__file__", str(fake_applets / "__init__.py"))
+        get_applet_catalog.cache_clear()
+
+        with caplog.at_level(logging.WARNING, logger=applets_mod.__name__):
+            catalog = get_applet_catalog()
+
+        assert catalog == {}
+        assert "missing __init__.py" in caplog.text
+        get_applet_catalog.cache_clear()
+
+    def test_logs_warning_for_package_missing_meta(self, tmp_path, monkeypatch, caplog):
+        fake_applets = tmp_path / "applets"
+        fake_applets.mkdir()
+        pkg = fake_applets / "broken"
+        pkg.mkdir()
+        (pkg / "__init__.py").write_text("", encoding="utf-8")
+        monkeypatch.setattr(applets_mod, "__file__", str(fake_applets / "__init__.py"))
+        monkeypatch.setattr(
+            applets_mod, "import_module", lambda _name: SimpleNamespace()
+        )
+        get_applet_catalog.cache_clear()
+
+        with caplog.at_level(logging.WARNING, logger=applets_mod.__name__):
+            catalog = get_applet_catalog()
+
+        assert catalog == {}
+        assert "missing meta declaration" in caplog.text
+        get_applet_catalog.cache_clear()
 
 
 class TestLoadAppletClass:

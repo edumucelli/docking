@@ -34,7 +34,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = get_logger(name="ambient")
+log = get_logger(name="ambient")
 
 Gst.init(None)
 
@@ -170,7 +170,7 @@ class AmbientApplet(Applet):
         if sound.kind == "file":
             path = SOUNDS_DIR / f"{sound.name}.ogg"
             if not path.exists():
-                _log.warning(f"Sound file not found: {path}")
+                log.warning(f"Sound file not found: {path}")
                 return
             self._pipeline = _build_file_pipeline(path=path, volume=self._state.volume)
         else:
@@ -178,9 +178,7 @@ class AmbientApplet(Applet):
             self._pipeline = _build_noise_pipeline(wave=wave, volume=self._state.volume)
 
         if not self._pipeline:
-            _log.warning(
-                f"Failed to create pipeline for {sound_label(name=sound.name)}"
-            )
+            log.warning(f"Failed to create pipeline for {sound_label(name=sound.name)}")
             return
 
         # Loop on EOS (file sounds only -- noise is infinite)
@@ -196,7 +194,7 @@ class AmbientApplet(Applet):
 
     def _stop_playback(self) -> None:
         if self._pipeline:
-            _log.debug(f"Stopping pipeline: {self._state.current}")
+            log.debug(f"Stopping pipeline: {self._state.current}")
             if self._bus_watching:
                 bus = self._pipeline.get_bus()
                 if bus:
@@ -206,7 +204,7 @@ class AmbientApplet(Applet):
             # Wait for state change to complete
             self._pipeline.get_state(Gst.CLOCK_TIME_NONE)
             self._pipeline = None
-            _log.debug("Pipeline stopped")
+            log.debug("Pipeline stopped")
         self._state = set_playing(state=self._state, playing=False)
 
     def _on_eos(self, _bus: Gst.Bus, _msg: Gst.Message) -> None:

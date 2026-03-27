@@ -34,7 +34,7 @@ AppletId = str
 
 APPLET_PREFIX = "applet://"
 
-_log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class AppletCategory(str, Enum):
@@ -108,6 +108,6 @@ def category_for(applet_id: str) -> AppletCategory:
 
     meta = get_applet_catalog().get(applet_id)
     if meta is None:
-        _log.warning("No metadata for applet %s, falling back to OTHER", applet_id)
+        log.warning("No metadata for applet %s, falling back to OTHER", applet_id)
         return AppletCategory.OTHER
     return meta.category

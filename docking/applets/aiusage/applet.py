@@ -42,7 +42,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="aiusage"), applet_id=meta.id)
+log = with_context(get_logger(name="aiusage"), applet_id=meta.id)
 
 REFRESH_INTERVAL_S = 60
 PREFS_KEY = "aiusage"
@@ -92,6 +92,7 @@ class AiUsageApplet(Applet):
         self._state = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
         self._selected_provider: Provider | None = None
+        self._opencode_poll_error: str | None = None
 
         super().__init__(icon_size, config)
         self.present()
@@ -177,14 +178,20 @@ class AiUsageApplet(Applet):
         # Merge OpenCode sessions from SQLite (no hook, poll-based).
         try:
             oc_sessions = query_opencode_today()
+            self._opencode_poll_error = None
             for sid, model_usage in oc_sessions.items():
                 new_state = set_session(
                     state=new_state,
                     session_id=f"oc:{sid}",
                     model_usage=model_usage,
                 )
-        except Exception:
-            pass  # SQLite errors shouldn't crash the dock.
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            if error != self._opencode_poll_error:
+                self._opencode_poll_error = error
+                log.bind(action="poll_opencode").warning(
+                    "Failed to poll OpenCode usage: %s", error
+                )
 
         if new_state != self._state:
             self._state = new_state
@@ -278,9 +285,7 @@ def _register_claude_hooks() -> None:
         else:
             settings = {}
     except (OSError, json.JSONDecodeError):
-        _log.bind(action="register_hooks").warning(
-            "Could not read %s", _CLAUDE_SETTINGS
-        )
+        log.bind(action="register_hooks").warning("Could not read %s", _CLAUDE_SETTINGS)
         return
 
     hooks = settings.setdefault("hooks", {})
@@ -334,7 +339,7 @@ def _register_claude_hooks() -> None:
                 json.dumps(settings, indent=2) + "\n", encoding="utf-8"
             )
         except OSError:
-            _log.bind(action="register_hooks").warning(
+            log.bind(action="register_hooks").warning(
                 "Could not write %s", _CLAUDE_SETTINGS
             )
 
@@ -374,7 +379,7 @@ def _register_codex_hook() -> None:
         if "PYTHONPATH" in existing and "docking.applets.aiusage.hook" in existing:
             return  # Already ours with correct PYTHONPATH.
         if "codex-sync" in existing:
-            _log.bind(action="register_codex_hook").info(
+            log.bind(action="register_codex_hook").info(
                 "Codex notify already set to codex-sync, not overwriting"
             )
             return
@@ -397,6 +402,6 @@ def _register_codex_hook() -> None:
     try:
         _CODEX_CONFIG.write_text(content, encoding="utf-8")
     except OSError:
-        _log.bind(action="register_codex_hook").warning(
+        log.bind(action="register_codex_hook").warning(
             "Could not write %s", _CODEX_CONFIG
         )

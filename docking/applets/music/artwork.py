@@ -39,7 +39,7 @@ _LOCAL_FILENAMES: tuple[str, ...] = (
     "album.jpeg",
     "album.png",
 )
-_log = with_context(get_logger("music_artwork"), applet_id="music")
+log = with_context(get_logger("music_artwork"), applet_id="music")
 
 
 class _CacheEntry(NamedTuple):
@@ -176,14 +176,14 @@ class CoverArtResolver:
                 return None
             return art_url.replace("100x100bb", "600x600bb")
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            _log.debug("Failed to decode iTunes artwork lookup response: %s", exc)
+            log.debug("Failed to decode iTunes artwork lookup response: %s", exc)
             return None
 
     def _load_from_path(self, path: Path) -> GdkPixbuf.Pixbuf | None:
         try:
             return GdkPixbuf.Pixbuf.new_from_file(str(path))
         except (GLib.Error, FileNotFoundError, OSError) as exc:
-            _log.debug("Failed to load artwork from path %s: %s", path, exc)
+            log.debug("Failed to load artwork from path %s: %s", path, exc)
             return None
 
     def _load_from_uri(self, uri: str) -> GdkPixbuf.Pixbuf | None:
@@ -229,7 +229,7 @@ class CoverArtResolver:
                     chunks.append(chunk)
                 return b"".join(chunks)
         except (OSError, ValueError, urllib.error.URLError) as exc:
-            _log.debug("Failed to download artwork from %s: %s", uri, exc)
+            log.debug("Failed to download artwork from %s: %s", uri, exc)
             return None
 
     def _pixbuf_from_bytes(self, payload: bytes) -> GdkPixbuf.Pixbuf | None:
@@ -239,7 +239,7 @@ class CoverArtResolver:
             loader.close()
             return loader.get_pixbuf()
         except GLib.Error as exc:
-            _log.debug("Failed to decode artwork payload into pixbuf: %s", exc)
+            log.debug("Failed to decode artwork payload into pixbuf: %s", exc)
             return None
 
     def _path_from_uri_or_path(self, value: str) -> Path | None:

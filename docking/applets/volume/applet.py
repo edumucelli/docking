@@ -23,7 +23,7 @@ from .state import _BACKENDS, STEP, VolumeState, _detect_backend, _volume_icon_n
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="volume"), applet_id=meta.id)
+log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
 
 class VolumeApplet(Applet):
@@ -36,14 +36,14 @@ class VolumeApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._backend = _detect_backend()
         if not self._backend:
-            _log.bind(action="detect_backend").warning(
+            log.bind(action="detect_backend").warning(
                 "No audio backend found (%s)",
                 ", ".join(b.command for b in _BACKENDS),
             )
         self._volume = 0
         self._muted = False
         self._timer_id: int = 0
-        self._worker = BackgroundWorker(logger=_log)
+        self._worker = BackgroundWorker(logger=log)
         self._poll()
         super().__init__(icon_size, config)
         self.present()

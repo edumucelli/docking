@@ -28,7 +28,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="moon"), applet_id=meta.id)
+log = with_context(get_logger(name="moon"), applet_id=meta.id)
 
 # Refresh every 6 hours (moon phase changes slowly)
 REFRESH_INTERVAL = 6 * 60 * 60
@@ -52,7 +52,7 @@ class MoonApplet(Applet):
         self._moon: MoonData | None = None
         self._show_phase = True
         self._timer_id: int = 0
-        self._worker = BackgroundWorker(logger=_log)
+        self._worker = BackgroundWorker(logger=log)
 
         if config:
             prefs = config.applet_prefs.get(meta.id, {})

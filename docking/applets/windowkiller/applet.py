@@ -49,7 +49,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="windowkiller"), applet_id=meta.id)
+log = with_context(get_logger(name="windowkiller"), applet_id=meta.id)
 
 
 class WindowKillerApplet(Applet):
@@ -140,11 +140,11 @@ class WindowKillerApplet(Applet):
                 name = target.get_name() or "unknown"
                 if pid > 0:
                     killed = kill_pid(pid=pid)
-                    _log.bind(action="kill").info(
+                    log.bind(action="kill").info(
                         "Killed %s (pid=%d): %s", name, pid, killed
                     )
                 else:
-                    _log.bind(action="kill").warning("No PID for window: %s", name)
+                    log.bind(action="kill").warning("No PID for window: %s", name)
         return True
 
     def _on_overlay_key(self, _widget: Gtk.Window, event: Gdk.EventKey) -> bool:

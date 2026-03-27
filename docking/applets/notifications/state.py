@@ -12,7 +12,7 @@ from docking.applets.notifications import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-_log = with_context(
+log = with_context(
     get_logger(name="notifications"),
     applet_id=meta.id,
 )
@@ -68,7 +68,7 @@ def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        _log.bind(action="run").debug("Command failed %s: %s", cmd, exc)
+        log.bind(action="run").debug("Command failed %s: %s", cmd, exc)
         return None
     if result.returncode != 0:
         return None

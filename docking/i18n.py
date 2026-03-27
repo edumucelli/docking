@@ -23,7 +23,7 @@ DOMAIN = "docking"
 # In-tree locale directory (works for development and pip install -e).
 # Installed packages also keep .mo files here via package_data.
 _LOCALE_DIR = Path(__file__).resolve().parent / "locale"
-_log = get_logger("i18n")
+log = get_logger("i18n")
 
 
 def init() -> None:
@@ -35,7 +35,7 @@ def init() -> None:
     try:
         locale.setlocale(locale.LC_ALL, "")
     except locale.Error as exc:
-        _log.warning("Unsupported locale, falling back to C locale: %s", exc)
+        log.warning("Unsupported locale, falling back to C locale: %s", exc)
     gettext.bindtextdomain(DOMAIN, str(_LOCALE_DIR))
     gettext.textdomain(DOMAIN)
 

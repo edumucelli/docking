@@ -9,7 +9,7 @@ from docking.applets.session import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="session"), applet_id=meta.id)
+log = with_context(get_logger(name="session"), applet_id=meta.id)
 
 
 class SessionAction(NamedTuple):
@@ -33,4 +33,4 @@ def _run(*, cmd: list[str], action: str) -> None:
     try:
         subprocess.Popen(cmd, start_new_session=True)
     except OSError as exc:
-        _log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
+        log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")

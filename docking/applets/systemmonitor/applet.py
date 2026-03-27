@@ -30,7 +30,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(
+log = with_context(
     get_logger(name="systemmonitor"),
     applet_id=meta.id,
 )
@@ -97,7 +97,7 @@ class SystemMonitorApplet(Applet):
             with _PROC_STAT.open() as f:
                 curr = parse_proc_stat(text=f.read())
         except OSError as exc:
-            _log.bind(action="read_proc_stat").debug(
+            log.bind(action="read_proc_stat").debug(
                 "Could not read /proc/stat: %s",
                 exc,
             )
@@ -113,7 +113,7 @@ class SystemMonitorApplet(Applet):
             with _PROC_MEMINFO.open() as f:
                 self._mem = parse_proc_meminfo(text=f.read())
         except OSError as exc:
-            _log.bind(action="read_proc_meminfo").debug(
+            log.bind(action="read_proc_meminfo").debug(
                 "Could not read /proc/meminfo: %s",
                 exc,
             )

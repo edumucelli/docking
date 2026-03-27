@@ -26,7 +26,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="bookmarks"), applet_id=meta.id)
+log = with_context(get_logger(name="bookmarks"), applet_id=meta.id)
 
 ADD_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
@@ -88,7 +88,7 @@ class BookmarksApplet(Applet):
         try:
             Gio.AppInfo.launch_default_for_uri(url, None)
         except GLib.Error as exc:
-            _log.bind(action="open_url").warning(
+            log.bind(action="open_url").warning(
                 f"Failed to open URL: {exc}",
             )
 

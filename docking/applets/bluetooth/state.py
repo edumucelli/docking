@@ -19,7 +19,7 @@ from gi.repository import Gio, GLib
 from docking.applets.bluetooth import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
+log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
 
 BLUEZ_SERVICE = "org.bluez"
 OBJECT_MANAGER_IFACE = "org.freedesktop.DBus.ObjectManager"
@@ -186,7 +186,7 @@ class BluezBackend:
                 None,
             )
         except GLib.Error as exc:
-            _log.bind(action="bus_init").warning(
+            log.bind(action="bus_init").warning(
                 "Failed to connect system bus: %s",
                 exc,
             )
@@ -251,7 +251,7 @@ class BluezBackend:
                     return True
                 if self._set_power_with_bluetoothctl(powered=False):
                     return True
-                _log.bind(action="set_Powered").debug(
+                log.bind(action="set_Powered").debug(
                     "Power off blocked while discovery is externally owned "
                     "(adapter still discovering)."
                 )
@@ -288,7 +288,7 @@ class BluezBackend:
                 time.sleep(POWER_RETRY_SLEEP_S)
             if self._set_power_with_bluetoothctl(powered=False):
                 return True
-            _log.bind(action="set_Powered").debug(
+            log.bind(action="set_Powered").debug(
                 "Power off failed after retries/fallback "
                 "(Busy/NotReady likely external scan)",
             )
@@ -305,7 +305,7 @@ class BluezBackend:
             return True
         if self._set_power_with_bluetoothctl(powered=True):
             return True
-        _log.bind(action="set_Powered").debug("Power on failed after retries/fallback")
+        log.bind(action="set_Powered").debug("Power on failed after retries/fallback")
         return False
 
     def start_discovery(self, adapter_path: str) -> bool:
@@ -399,7 +399,7 @@ class BluezBackend:
                 None,
             )
         except GLib.Error as exc:
-            _log.bind(action="get_managed_objects").debug("BlueZ query failed: %s", exc)
+            log.bind(action="get_managed_objects").debug("BlueZ query failed: %s", exc)
             return None
 
         unpacked = result.unpack() if result is not None else ()
@@ -439,7 +439,7 @@ class BluezBackend:
             if any(token in str(exc) for token in tolerate_errors):
                 return True
             if not quiet:
-                _log.bind(action=method, object_path=path).debug(
+                log.bind(action=method, object_path=path).debug(
                     "BlueZ call failed: %s",
                     exc,
                 )
@@ -475,7 +475,7 @@ class BluezBackend:
             return True
         except GLib.Error as exc:
             if not quiet:
-                _log.bind(action=f"set_{property_name}", object_path=path).debug(
+                log.bind(action=f"set_{property_name}", object_path=path).debug(
                     "BlueZ set failed: %s",
                     exc,
                 )

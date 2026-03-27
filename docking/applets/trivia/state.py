@@ -14,7 +14,7 @@ from docking.applets.trivia import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="trivia"), applet_id=meta.id)
+log = with_context(get_logger(name="trivia"), applet_id=meta.id)
 _TRIVIA_ENDPOINT = "https://opentdb.com/api.php?amount={limit}"
 
 
@@ -205,7 +205,7 @@ def fetch_trivia(
             shuffle_answers=shuffle_answers,
         )
     except Exception as exc:
-        _log.bind(action="fetch_trivia").debug(
+        log.bind(action="fetch_trivia").debug(
             "Failed to fetch trivia questions: %s",
             exc,
         )

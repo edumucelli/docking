@@ -20,7 +20,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="colorpicker"), applet_id=meta.id)
+log = with_context(get_logger(name="colorpicker"), applet_id=meta.id)
 
 # Default grey swatch
 _DEFAULT_RGB = (0.5, 0.5, 0.5)

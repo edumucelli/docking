@@ -157,7 +157,7 @@ _RECOVERABLE_ERRORS: tuple[type[BaseException], ...] = (TypeError,)
 if isinstance(GLib.Error, type) and issubclass(GLib.Error, BaseException):
     _RECOVERABLE_ERRORS = (TypeError, GLib.Error)
 
-_log = with_context(get_logger(name="window_tracker"))
+log = with_context(get_logger(name="window_tracker"))
 
 
 def _wm_class_desktop_candidates(class_lower: str) -> list[str]:
@@ -243,7 +243,7 @@ class WindowTracker:
             try:
                 active_xid = active_window.get_xid()
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="active_xid").warning(
+                log.bind(action="active_xid").warning(
                     f"Failed to read active window xid: {exc}"
                 )
                 active_xid = 0
@@ -256,7 +256,7 @@ class WindowTracker:
             try:
                 window_type = window.get_window_type()
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="window_type").warning(
+                log.bind(action="window_type").warning(
                     f"Skipping window: failed to read window type: {exc}"
                 )
                 continue
@@ -266,7 +266,7 @@ class WindowTracker:
                 if window.is_skip_tasklist():
                     continue
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="skip_tasklist").warning(
+                log.bind(action="skip_tasklist").warning(
                     f"Skipping window: failed to read skip-tasklist state: {exc}"
                 )
                 continue
@@ -287,7 +287,7 @@ class WindowTracker:
             try:
                 xid = window.get_xid()
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="window_xid").warning(
+                log.bind(action="window_xid").warning(
                     f"Skipping window: failed to read xid: {exc}"
                 )
                 continue
@@ -300,7 +300,7 @@ class WindowTracker:
                 if window.needs_attention():
                     running[desktop_id]["urgent"] = True
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="needs_attention", desktop_id=desktop_id).warning(
+                log.bind(action="needs_attention", desktop_id=desktop_id).warning(
                     f"Failed to read urgent state: {exc}"
                 )
 
@@ -315,7 +315,7 @@ class WindowTracker:
         try:
             class_group = window.get_class_group_name()
         except _RECOVERABLE_ERRORS as exc:
-            _log.bind(action="class_group").warning(
+            log.bind(action="class_group").warning(
                 f"Skipping window: failed to read class group: {exc}"
             )
             return None
@@ -332,7 +332,7 @@ class WindowTracker:
         try:
             class_instance = window.get_class_instance_name()
         except _RECOVERABLE_ERRORS as exc:
-            _log.bind(action="class_instance").warning(
+            log.bind(action="class_instance").warning(
                 f"Failed to read class instance name: {exc}"
             )
             class_instance = None
@@ -381,7 +381,7 @@ class WindowTracker:
         try:
             title = window.get_name()
         except _RECOVERABLE_ERRORS as exc:
-            _log.bind(action="window_title", xid=str(xid)).warning(
+            log.bind(action="window_title", xid=str(xid)).warning(
                 f"Failed to read window title: {exc}"
             )
             return "Window"
@@ -396,7 +396,7 @@ class WindowTracker:
                 window.unminimize(timestamp)
             window.activate(timestamp)
         except _RECOVERABLE_ERRORS as exc:
-            _log.bind(action="activate_window").warning(
+            log.bind(action="activate_window").warning(
                 f"Failed to activate window: {exc}"
             )
             return
@@ -425,7 +425,7 @@ class WindowTracker:
                 try:
                     w.minimize()
                 except _RECOVERABLE_ERRORS as exc:
-                    _log.bind(action="minimize", desktop_id=desktop_id).warning(
+                    log.bind(action="minimize", desktop_id=desktop_id).warning(
                         f"Failed to minimize window: {exc}"
                     )
         else:
@@ -439,7 +439,7 @@ class WindowTracker:
             try:
                 w.close(timestamp)
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="close_all", desktop_id=desktop_id).warning(
+                log.bind(action="close_all", desktop_id=desktop_id).warning(
                     f"Failed to close window: {exc}"
                 )
 
@@ -452,7 +452,7 @@ class WindowTracker:
         try:
             window.close(timestamp)
         except _RECOVERABLE_ERRORS as exc:
-            _log.bind(action="close_xid", xid=str(xid)).warning(
+            log.bind(action="close_xid", xid=str(xid)).warning(
                 f"Failed to close window: {exc}"
             )
 
@@ -471,7 +471,7 @@ class WindowTracker:
             try:
                 window_type = window.get_window_type()
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="get_windows_type").warning(
+                log.bind(action="get_windows_type").warning(
                     f"Skipping window while collecting by xid: {exc}"
                 )
                 continue
@@ -483,14 +483,14 @@ class WindowTracker:
                 if window.is_skip_tasklist():
                     continue
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="get_windows_skip_tasklist").warning(
+                log.bind(action="get_windows_skip_tasklist").warning(
                     f"Skipping window while collecting by xid: {exc}"
                 )
                 continue
             try:
                 by_xid[window.get_xid()] = window
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="get_windows_xid").warning(
+                log.bind(action="get_windows_xid").warning(
                     f"Skipping window while collecting xid map: {exc}"
                 )
                 continue
@@ -518,7 +518,7 @@ class WindowTracker:
                 if window.get_xid() == xid:
                     return window
             except _RECOVERABLE_ERRORS as exc:
-                _log.bind(action="window_for_xid", xid=str(xid)).warning(
+                log.bind(action="window_for_xid", xid=str(xid)).warning(
                     f"Failed while scanning windows for xid: {exc}"
                 )
                 continue

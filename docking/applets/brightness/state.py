@@ -9,7 +9,7 @@ from typing import NamedTuple
 
 from docking.log import get_logger
 
-_log = get_logger(name="brightness.state")
+log = get_logger(name="brightness.state")
 
 _BACKLIGHT_DIR = Path("/sys/class/backlight")
 
@@ -28,7 +28,7 @@ def _run(cmd: list[str]) -> str | None:
         if result.returncode == 0:
             return result.stdout
     except (OSError, subprocess.TimeoutExpired) as exc:
-        _log.warning("Failed to run %s: %s", cmd, exc)
+        log.warning("Failed to run %s: %s", cmd, exc)
     return None
 
 
@@ -76,7 +76,7 @@ def _get_brightness_sysfs(path: Path) -> float | None:
         if maximum > 0:
             return current / maximum
     except (OSError, ValueError) as exc:
-        _log.warning("Failed to read sysfs backlight: %s", exc)
+        log.warning("Failed to read sysfs backlight: %s", exc)
     return None
 
 

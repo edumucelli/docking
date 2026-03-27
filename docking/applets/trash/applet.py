@@ -24,7 +24,7 @@ from .state import _count_trash_items
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="trash"), applet_id=meta.id)
+log = with_context(get_logger(name="trash"), applet_id=meta.id)
 
 
 class TrashApplet(Applet):
@@ -51,7 +51,7 @@ class TrashApplet(Applet):
         try:
             Gio.AppInfo.launch_default_for_uri("trash:///", None)
         except GLib.Error as exc:
-            _log.bind(action="open_trash").warning(f"Failed to open trash: {exc}")
+            log.bind(action="open_trash").warning(f"Failed to open trash: {exc}")
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Return 'Open Trash' and 'Empty Trash' menu items."""
@@ -76,7 +76,7 @@ class TrashApplet(Applet):
             self._monitor = trash.monitor(Gio.FileMonitorFlags.NONE, None)
             self._monitor.connect("changed", self._on_trash_changed)
         except GLib.Error as exc:
-            _log.bind(action="monitor_trash").warning(
+            log.bind(action="monitor_trash").warning(
                 "Could not start file monitor for trash: %s",
                 exc,
             )
@@ -115,14 +115,14 @@ class TrashApplet(Applet):
                     )
                     return
                 except GLib.Error as exc:
-                    _log.bind(action="empty_trash_dbus").debug(
+                    log.bind(action="empty_trash_dbus").debug(
                         "DBus EmptyTrash failed for %s at %s: %s",
                         bus_name,
                         obj_path,
                         exc,
                     )
         except GLib.Error as exc:
-            _log.bind(action="empty_trash_dbus").debug(
+            log.bind(action="empty_trash_dbus").debug(
                 "Could not connect to session bus for trash cleanup: %s",
                 exc,
             )
@@ -137,7 +137,7 @@ class TrashApplet(Applet):
                 Gio.FILE_ATTRIBUTE_STANDARD_NAME, Gio.FileQueryInfoFlags.NONE, None
             )
         except GLib.Error as exc:
-            _log.bind(action="empty_trash_delete").debug(
+            log.bind(action="empty_trash_delete").debug(
                 "Could not enumerate trash for deletion: %s",
                 exc,
             )
@@ -151,7 +151,7 @@ class TrashApplet(Applet):
             try:
                 child.delete(None)
             except GLib.Error as exc:
-                _log.bind(action="empty_trash_delete").debug(
+                log.bind(action="empty_trash_delete").debug(
                     "Could not delete trash item %s: %s",
                     info.get_name(),
                     exc,

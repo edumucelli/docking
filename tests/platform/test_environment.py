@@ -1,8 +1,16 @@
 """Tests for desktop environment detection and tweaks."""
 
+import logging
 from unittest.mock import patch
 
-from docking.platform.environment import Desktop, _parse_desktop, detect_desktop
+from gi.repository import GdkX11
+
+from docking.platform.environment import (
+    Desktop,
+    _check_compositor,
+    _parse_desktop,
+    detect_desktop,
+)
 
 
 class TestParseDesktop:
@@ -101,3 +109,22 @@ class TestUsesMonitorGeometry:
     def test_combined_flags(self):
         combined = Desktop.MATE | Desktop.GNOME
         assert combined.uses_monitor_geometry
+
+
+class TestCompositorCheck:
+    def test_logs_warning_when_probe_fails(self, caplog):
+        class _Display:
+            def get_default_screen(self):
+                return 0
+
+            def get_xdisplay(self):
+                return object()
+
+        with (
+            patch.object(GdkX11.X11Display, "get_default", return_value=_Display()),
+            patch("ctypes.cdll.LoadLibrary", side_effect=RuntimeError("boom")),
+            caplog.at_level(logging.WARNING, logger="docking.environment"),
+        ):
+            _check_compositor()
+
+        assert "failed to check compositor status" in caplog.text

@@ -94,7 +94,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from gi.repository import GdkX11
 
-_log = get_logger(name="barriers")
+log = get_logger(name="barriers")
 
 
 def _load_libs() -> tuple[ctypes.CDLL, ctypes.CDLL, ctypes.CDLL] | None:
@@ -105,7 +105,7 @@ def _load_libs() -> tuple[ctypes.CDLL, ctypes.CDLL, ctypes.CDLL] | None:
         xi = ctypes.cdll.LoadLibrary("libXi.so.6")
         return xlib, xfixes, xi
     except OSError as e:
-        _log.debug("barrier libs unavailable: %s", e)
+        log.debug("barrier libs unavailable: %s", e)
         return None
 
 
@@ -165,7 +165,7 @@ class PointerBarrier:
             ctypes.byref(evt),
             ctypes.byref(err),
         ):
-            _log.debug("XInput extension not available")
+            log.debug("XInput extension not available")
             return False
 
         # Verify XInput >= 2.3
@@ -181,17 +181,17 @@ class PointerBarrier:
             xi.XIQueryVersion(self._xdisplay, ctypes.byref(major), ctypes.byref(minor))
             != 0
         ):
-            _log.debug("XInput2 query failed")
+            log.debug("XInput2 query failed")
             return False
         if major.value < 2 or (major.value == 2 and minor.value < 3):
-            _log.debug(
+            log.debug(
                 "XInput %d.%d insufficient (need 2.3+)",
                 major.value,
                 minor.value,
             )
             return False
 
-        _log.info(
+        log.info(
             "barriers supported (XInput %d.%d)",
             major.value,
             minor.value,
@@ -258,7 +258,7 @@ class PointerBarrier:
         )
 
         if self._barrier_id:
-            _log.debug(
+            log.debug(
                 "barrier created: (%d,%d)-(%d,%d) id=%d",
                 x1,
                 y1,
@@ -267,7 +267,7 @@ class PointerBarrier:
                 self._barrier_id,
             )
         else:
-            _log.warning("failed to create pointer barrier")
+            log.warning("failed to create pointer barrier")
 
     def destroy(self) -> None:
         """Remove the current barrier if any."""
@@ -278,5 +278,5 @@ class PointerBarrier:
                 ctypes.c_ulong,
             ]
             xfixes.XFixesDestroyPointerBarrier(self._xdisplay, self._barrier_id)
-            _log.debug("barrier destroyed: id=%d", self._barrier_id)
+            log.debug("barrier destroyed: id=%d", self._barrier_id)
             self._barrier_id = 0

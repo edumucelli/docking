@@ -178,7 +178,7 @@ if TYPE_CHECKING:
 
     from docking.ui.dock_window import DockWindow
 
-_log = get_logger(name="interaction")
+log = get_logger(name="interaction")
 
 
 def should_keep_cursor_on_leave(
@@ -259,7 +259,7 @@ class DockInteractionCoordinator:
             screen_x, screen_y = pos
             win_x, win_y = self._window.get_position()
         except Exception as exc:
-            _log.debug(
+            log.debug(
                 "Failed to query pointer/window position for dock hit test: %s",
                 exc,
             )
@@ -301,7 +301,7 @@ class DockInteractionCoordinator:
             self._window.cursor_x = -1.0
             self._window.cursor_y = -1.0
 
-        _log.debug(
+        log.debug(
             (
                 "leave-policy: hovered_before=%s keep_cursor=%s "
                 "preview_visible=%s autohide=%s hovered_after=%s "

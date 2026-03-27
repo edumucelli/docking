@@ -30,7 +30,7 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="trivia"), applet_id=meta.id)
+log = with_context(get_logger(name="trivia"), applet_id=meta.id)
 
 
 class TriviaApplet(Applet):

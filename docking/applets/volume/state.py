@@ -11,7 +11,7 @@ from typing import NamedTuple
 from docking.applets.volume import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="volume"), applet_id=meta.id)
+log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
 STEP = 5
 
@@ -77,7 +77,7 @@ def _run(cmd: list[str], action: str) -> str | None:
         if result.returncode == 0:
             return result.stdout
     except (OSError, subprocess.TimeoutExpired) as exc:
-        _log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
+        log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
     return None
 
 

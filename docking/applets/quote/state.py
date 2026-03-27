@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 from docking.applets.quote import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="quote"), applet_id=meta.id)
+log = with_context(get_logger(name="quote"), applet_id=meta.id)
 
 DEFAULT_SOURCE = "quotationspage"
 
@@ -167,7 +167,7 @@ def fetch_quotes(
         data = getter(f"https://v2.jokeapi.dev/joke/Any?type=single&amount={limit}")
         return _parse_jokeapi(data=data, limit=limit)
     except Exception as exc:
-        _log.bind(action="fetch_quotes").debug(
+        log.bind(action="fetch_quotes").debug(
             "Failed to fetch quotes for source=%s: %s",
             source,
             exc,

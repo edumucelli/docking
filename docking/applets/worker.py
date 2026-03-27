@@ -43,7 +43,7 @@ class BackgroundWorker:
     ) -> None:
         self._idle_add = idle_add
         self._thread_factory = thread_factory
-        self._log = logger or with_context(get_logger("worker"))
+        self.log = logger or with_context(get_logger("worker"))
         self._active_keys: set[str] = set()
         self._lock = threading.Lock()
 
@@ -55,7 +55,7 @@ class BackgroundWorker:
         on_result: Callable[[T], Any] | None = None,
         on_error: Callable[[Exception], Any] | None = None,
     ) -> None:
-        log = self._log.bind(action=name)
+        log = self.log.bind(action=name)
 
         def worker() -> None:
             try:
@@ -105,7 +105,7 @@ class BackgroundWorker:
             try:
                 result = fn()
             except Exception as exc:
-                self._log.bind(action=name).debug("Background task failed: %s", exc)
+                self.log.bind(action=name).debug("Background task failed: %s", exc)
                 self._idle_add(guarded_error, exc)
                 return
             if on_result is None:

@@ -19,6 +19,7 @@ from docking.applets.base import Applet
 from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
+from docking.log import get_logger, with_context
 
 from .render import create_notifications_icon
 from .state import (
@@ -30,6 +31,8 @@ from .state import (
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+
+log = with_context(get_logger(name="notifications"), applet_id=meta.id)
 
 POLL_INTERVAL_S = 2
 ACTIVITY_WINDOW_S = 8
@@ -229,6 +232,9 @@ class NotificationsApplet(Applet):
         if self._activity_monitor_proc is not None:
             return
         if shutil.which("dbus-monitor") is None:
+            log.bind(action="activity_monitor").warning(
+                "dbus-monitor not found; notification activity monitoring is disabled"
+            )
             return
         try:
             self._activity_monitor_proc = subprocess.Popen(
@@ -242,8 +248,11 @@ class NotificationsApplet(Applet):
                 text=True,
                 bufsize=1,
             )
-        except OSError:
+        except OSError as exc:
             self._activity_monitor_proc = None
+            log.bind(action="activity_monitor").warning(
+                "Failed to start dbus-monitor: %s", exc
+            )
             return
 
         self._activity_monitor_thread = threading.Thread(
@@ -299,7 +308,10 @@ class NotificationsApplet(Applet):
                     else:
                         GLib.idle_add(self._on_notification_activity)
                     capture_notify = False
-        except Exception:
+        except Exception as exc:
+            log.bind(action="activity_monitor").warning(
+                "Notification activity monitor stopped unexpectedly: %s", exc
+            )
             return
 
     def _on_notification_event(self, app_name: str, summary: str, body: str) -> bool:

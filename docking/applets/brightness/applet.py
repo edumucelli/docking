@@ -26,7 +26,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="brightness"), applet_id=meta.id)
+log = with_context(get_logger(name="brightness"), applet_id=meta.id)
 
 POLL_INTERVAL_S = 5
 
@@ -45,11 +45,11 @@ class BrightnessApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._backend = detect_output()
         if not self._backend:
-            _log.warning("No xrandr output detected")
+            log.warning("No xrandr output detected")
         self._brightness = 1.0
         self._show_level = False
         self._timer_id: int = 0
-        self._worker = BackgroundWorker(logger=_log)
+        self._worker = BackgroundWorker(logger=log)
 
         if config:
             prefs = config.applet_prefs.get(meta.id, {})

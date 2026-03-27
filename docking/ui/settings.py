@@ -39,7 +39,6 @@ from docking.applets.identity import (
     AppletCategory,
     AppletMeta,
     applet_desktop_id,
-    category_for,
 )
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
@@ -87,7 +86,7 @@ ZOOM_PERCENT_SCALE = 100
 ZOOM_PERCENT_STEP = 5
 HIDE_DELAY_MAX_MS = 5000
 HIDE_DELAY_STEP_MS = 50
-_log = get_logger("settings")
+log = get_logger("settings")
 
 
 @dataclass
@@ -537,7 +536,7 @@ class SettingsWindowController:
         try:
             catalog = get_applet_catalog()
         except Exception as exc:
-            _log.warning("Failed to read applet catalog for settings catalog: %s", exc)
+            log.warning("Failed to read applet catalog for settings catalog: %s", exc)
             catalog = {}
 
         grouped: dict[AppletCategory, list[tuple[str, AppletMeta]]] = {
@@ -546,7 +545,7 @@ class SettingsWindowController:
         for did, entry in sorted(catalog.items(), key=lambda item: str(item[0])):
             if did == _separator_meta.id:
                 continue
-            grouped[category_for(applet_id=did)].append((did, entry))
+            grouped[entry.category].append((did, entry))
 
         active_ids = {
             item.desktop_id

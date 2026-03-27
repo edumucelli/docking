@@ -205,7 +205,7 @@ from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.placement import DockPlacementController
 from docking.ui.tooltip import TooltipManager
 
-_log = get_logger(name="dock_window")
+log = get_logger(name="dock_window")
 
 # Re-exported for existing callers/tests.
 TRIGGER_PX = geometry.TRIGGER_PX
@@ -477,7 +477,7 @@ class DockWindow(Gtk.Window):
         current_autohide_state = None
         if self.autohide and self.autohide.enabled:
             current_autohide_state = self.autohide.state
-            _log.debug(
+            log.debug(
                 (
                     "draw: state=%s hide_offset=%.3f zoom_progress=%.3f "
                     "hovered=%s cursor=(%.0f,%.0f)"
@@ -691,7 +691,7 @@ class DockWindow(Gtk.Window):
         coordinates several subsystems: zoom state, preview popups,
         autohide, and cursor tracking.
         """
-        _log.debug(
+        log.debug(
             "leave: detail=%s mode=%s x=%.0f y=%.0f",
             event.detail,
             event.mode,

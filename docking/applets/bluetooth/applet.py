@@ -43,7 +43,7 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
+log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
 
 POLL_INTERVAL_S = 2
 DISCOVERY_KEEPALIVE_S = 8
@@ -71,7 +71,7 @@ class BluetoothApplet(Applet):
         # Serializes power transitions. Prevents repeated calls when users click
         # quickly or when menu toggle events fire while the backend is busy.
         self._power_transition_in_progress = False
-        self._worker = BackgroundWorker(logger=_log)
+        self._worker = BackgroundWorker(logger=log)
         # Optional user-facing line appended to tooltip when an action fails.
         self._action_error: str = ""
 
@@ -404,7 +404,7 @@ class BluetoothApplet(Applet):
             try:
                 action()
             except Exception as exc:
-                _log.bind(action="async_action").debug(
+                log.bind(action="async_action").debug(
                     "Bluetooth action failed: %s",
                     exc,
                 )

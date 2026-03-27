@@ -23,7 +23,7 @@ from .state import _TOOLS, Mode, _detect_tool, _run
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="screenshot"), applet_id=meta.id)
+log = with_context(get_logger(name="screenshot"), applet_id=meta.id)
 _TIMED_DELAYS_S: tuple[int, ...] = (3, 5, 7, 9)
 _MODE_OPTIONS: tuple[tuple[str, Mode], ...] = (
     ("Full Screen", "full"),
@@ -42,7 +42,7 @@ class ScreenshotApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._tool = _detect_tool()
         if not self._tool:
-            _log.bind(action="detect_tool").warning(
+            log.bind(action="detect_tool").warning(
                 f"No screenshot tool found ({', '.join(t.command for t in _TOOLS)})"
             )
         super().__init__(icon_size, config)
@@ -86,7 +86,7 @@ class ScreenshotApplet(Applet):
         try:
             _run(tool=self._tool, mode=mode, delay_seconds=delay_seconds)
         except OSError as exc:
-            _log.bind(action=f"screenshot_{mode}").warning(
+            log.bind(action=f"screenshot_{mode}").warning(
                 "Failed to run screenshot command: %s",
                 exc,
             )
