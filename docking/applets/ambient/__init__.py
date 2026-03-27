@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="ambient",
+    name="Ambient",
+    category=AppletCategory.WELLNESS,
+)
+
 from .applet import AmbientApplet
 from .state import (
     ALL_SOUNDS,
@@ -26,4 +36,5 @@ __all__ = [
     "DEFAULT_VOLUME",
     "VOLUME_STEP",
     "AmbientApplet",
+    "meta",
 ]

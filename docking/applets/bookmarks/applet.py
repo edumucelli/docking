@@ -11,6 +11,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.bookmarks import meta
 from docking.applets.bookmarks.render import render_icon
 from docking.applets.bookmarks.state import (
     Bookmark,
@@ -19,14 +20,13 @@ from docking.applets.bookmarks.state import (
     tooltip_text,
     truncate_label,
 )
-from docking.applets.identity import AppletId
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="bookmarks"), applet_id=str(AppletId.BOOKMARKS))
+_log = with_context(get_logger(name="bookmarks"), applet_id=meta.id)
 
 ADD_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
@@ -37,7 +37,7 @@ DIALOG_VERTICAL_MARGIN_PX = 8
 class BookmarksApplet(Applet):
     """Pinned URL bookmarks that open in the default browser."""
 
-    id = AppletId.BOOKMARKS
+    id = meta.id
     name = _("Bookmarks")
     icon_name = "user-bookmarks"
 

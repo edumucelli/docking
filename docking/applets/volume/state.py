@@ -8,10 +8,10 @@ import subprocess
 from collections.abc import Callable
 from typing import NamedTuple
 
-from docking.applets.identity import AppletId
+from docking.applets.volume import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="volume"), applet_id=str(AppletId.VOLUME))
+_log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
 STEP = 5
 

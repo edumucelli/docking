@@ -13,6 +13,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.clippy import meta
 from docking.applets.clippy.render import create_icon
 from docking.applets.clippy.state import (
     _truncate,
@@ -20,7 +21,6 @@ from docking.applets.clippy.state import (
     cycle_position,
     tooltip_text,
 )
-from docking.applets.identity import AppletId
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class ClippyApplet(Applet):
     """Clipboard history applet. Scroll to cycle, click to paste, menu to pick."""
 
-    id = AppletId.CLIPPY
+    id = meta.id
     name = _("Clippy")
     icon_name = "edit-paste"
 

@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="volume",
+    name="Volume",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import VolumeApplet
 from .state import (
     _BACKENDS,
@@ -38,4 +48,5 @@ __all__ = [
     "_parse_pactl_volume",
     "_run",
     "_volume_icon_name",
+    "meta",
 ]

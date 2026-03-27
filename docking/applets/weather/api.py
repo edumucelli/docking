@@ -13,10 +13,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, NamedTuple, cast
 
-from docking.applets.identity import AppletId
+from docking.applets.weather import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="weather.api"), applet_id=str(AppletId.WEATHER))
+_log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 
 # How often weather data is refreshed (seconds). Used for both the
 # polling timer in the applet and the requests-cache expiry.

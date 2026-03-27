@@ -12,10 +12,21 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="workspaces",
+    name="Workspaces",
+    category=AppletCategory.LAUNCHER,
+)
+
 from .applet import Gtk, Wnck, WorkspacesApplet  # noqa: F401
 from .render import _render_grid
 
 __all__ = [
     "WorkspacesApplet",
     "_render_grid",
+    "meta",
 ]

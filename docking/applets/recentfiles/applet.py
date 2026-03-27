@@ -14,7 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.recentfiles import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -24,13 +24,13 @@ from .state import MAX_ENTRIES, RecentEntry, tooltip_text, truncate_name
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="recentfiles"), applet_id=str(AppletId.RECENTFILES))
+_log = with_context(get_logger(name="recentfiles"), applet_id=meta.id)
 
 
 class RecentFilesApplet(Applet):
     """Shows recently opened files; click opens the most recent."""
 
-    id = AppletId.RECENTFILES
+    id = meta.id
     name = _("Recent Files")
     icon_name = "document-open-recent"
 

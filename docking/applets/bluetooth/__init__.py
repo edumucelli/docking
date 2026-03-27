@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="bluetooth",
+    name="Bluetooth",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import BluetoothApplet
 from .render import create_bluetooth_icon
 from .state import (
@@ -37,5 +47,6 @@ __all__ = [
     "connected_count",
     "create_bluetooth_icon",
     "device_menu_label",
+    "meta",
     "unavailable_state",
 ]

@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="separator",
+    name="Separator",
+    category=AppletCategory.OTHER,
+)
+
 from .applet import SeparatorApplet
 from .state import DEFAULT_SIZE, MAX_SIZE, MIN_SIZE, STEP, STYLE_LINE, STYLE_SPACE
 
@@ -23,4 +33,5 @@ __all__ = [
     "STYLE_LINE",
     "STYLE_SPACE",
     "SeparatorApplet",
+    "meta",
 ]

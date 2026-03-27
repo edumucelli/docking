@@ -32,15 +32,17 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GLib, Gtk
 
-from docking.applets import AppletCatalogEntry, get_applet_catalog
-from docking.applets.base import is_applet, load_catalog_icon
+from docking.applets import get_applet_catalog
+from docking.applets.base import load_catalog_icon
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
     AppletCategory,
-    AppletId,
+    AppletMeta,
     applet_desktop_id,
     category_for,
 )
+from docking.applets.identity import is_applet_desktop_id as is_applet
+from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
     MAX_ICON_SIZE,
     MAX_ZOOM_PERCENT,
@@ -538,17 +540,13 @@ class SettingsWindowController:
             _log.warning("Failed to read applet catalog for settings catalog: %s", exc)
             catalog = {}
 
-        grouped: dict[AppletCategory, list[tuple[AppletId, AppletCatalogEntry]]] = {
+        grouped: dict[AppletCategory, list[tuple[str, AppletMeta]]] = {
             category: [] for category in APPLET_CATEGORY_ORDER
         }
         for did, entry in sorted(catalog.items(), key=lambda item: str(item[0])):
-            try:
-                did_enum = did if isinstance(did, AppletId) else AppletId(str(did))
-            except ValueError:
+            if did == _separator_meta.id:
                 continue
-            if did_enum == AppletId.SEPARATOR:
-                continue
-            grouped[category_for(applet_id=did_enum)].append((did_enum, entry))
+            grouped[category_for(applet_id=did)].append((did, entry))
 
         active_ids = {
             item.desktop_id
@@ -556,11 +554,7 @@ class SettingsWindowController:
             if is_applet(desktop_id=item.desktop_id)
         }
         for category in APPLET_CATEGORY_ORDER:
-            members = [
-                entry
-                for entry in grouped.get(category, [])
-                if entry[0] != AppletId.SEPARATOR
-            ]
+            members = grouped.get(category, [])
             if not members:
                 continue
             header = self._build_section_header(title=_(category.value))
@@ -575,7 +569,7 @@ class SettingsWindowController:
     def _build_applet_grid(
         self,
         *,
-        members: list[tuple[AppletId, AppletCatalogEntry]],
+        members: list[tuple[str, AppletMeta]],
         active_ids: set[str],
     ) -> Gtk.Widget:
         grid = Gtk.Grid()
@@ -619,7 +613,7 @@ class SettingsWindowController:
             grid.attach(spacer, column, 0, 1, 1)
         return grid
 
-    def _build_applet_image(self, *, applet_id: AppletId) -> Gtk.Widget | None:
+    def _build_applet_image(self, *, applet_id: str) -> Gtk.Widget | None:
         pixbuf = load_catalog_icon(applet_id=applet_id, size=APPLET_LIST_ICON_PX)
         if pixbuf is None:
             return None
@@ -719,4 +713,4 @@ class SettingsWindowController:
         if widget.get_active():
             self._model.add_applet(applet_id)
             return
-        self._model.remove_applet(applet_desktop_id(applet_id=AppletId(applet_id)))
+        self._model.remove_applet(applet_desktop_id(applet_id=applet_id))

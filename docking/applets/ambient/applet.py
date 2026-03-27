@@ -13,6 +13,7 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gst, Gtk
 
+from docking.applets.ambient import meta
 from docking.applets.ambient.render import render_icon
 from docking.applets.ambient.state import (
     ALL_SOUNDS,
@@ -27,7 +28,6 @@ from docking.applets.ambient.state import (
     tooltip_text,
 )
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -61,7 +61,7 @@ def _build_noise_pipeline(wave: int, volume: float) -> Gst.Element | None:
 class AmbientApplet(Applet):
     """Looping ambient soundscape player."""
 
-    id = AppletId.AMBIENT
+    id = meta.id
     name = _("Ambient")
     icon_name = "audio-speakers"
 

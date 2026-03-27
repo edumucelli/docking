@@ -16,7 +16,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
@@ -52,7 +52,7 @@ class NotificationEntry:
 class NotificationsApplet(Applet):
     """Notification status and Do Not Disturb toggle."""
 
-    id = AppletId.NOTIFICATIONS
+    id = meta.id
     name = _("Notifications")
     icon_name = "preferences-system-notifications"
 

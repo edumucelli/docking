@@ -16,10 +16,10 @@ gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
-from docking.applets.identity import AppletId
+from docking.applets.music import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="music"), applet_id=str(AppletId.MUSIC))
+_log = with_context(get_logger(name="music"), applet_id=meta.id)
 
 VOLUME_STEP = 5
 

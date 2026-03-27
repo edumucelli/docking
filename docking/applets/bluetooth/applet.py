@@ -22,7 +22,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.bluetooth import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -43,7 +43,7 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="bluetooth"), applet_id=str(AppletId.BLUETOOTH))
+_log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
 
 POLL_INTERVAL_S = 2
 DISCOVERY_KEEPALIVE_S = 8
@@ -54,7 +54,7 @@ DISCOVERY_SUPPRESS_AFTER_POWER_OFF_S = 4.0
 class BluetoothApplet(Applet):
     """Bluetooth quick manager with multi-adapter support."""
 
-    id = AppletId.BLUETOOTH
+    id = meta.id
     name = _("Bluetooth")
     icon_name = "bluetooth-active-symbolic"
 
@@ -76,7 +76,7 @@ class BluetoothApplet(Applet):
         self._action_error: str = ""
 
         if config:
-            prefs = config.applet_prefs.get(AppletId.BLUETOOTH, {})
+            prefs = config.applet_prefs.get(meta.id, {})
             self._active_adapter_path = str(prefs.get("active_adapter_path", "") or "")
             self._continuous_discovery = _as_pref_bool(
                 prefs.get("continuous_discovery", True),

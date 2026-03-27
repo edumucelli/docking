@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="network",
+    name="Network",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import NM, GLib, Gtk, NetworkApplet, time  # noqa: F401
 from .state import (
     TrafficCounters,
@@ -28,6 +38,7 @@ __all__ = [
     "TrafficSpeeds",
     "compute_speeds",
     "format_speed",
+    "meta",
     "parse_proc_net_dev",
     "signal_to_icon",
     "time",

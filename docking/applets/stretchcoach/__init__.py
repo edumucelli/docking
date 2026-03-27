@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="stretchcoach",
+    name="Stretch Coach",
+    category=AppletCategory.WELLNESS,
+)
+
 from .applet import StretchCoachApplet
 from .state import (
     DEFAULT_INTERVAL,
@@ -42,6 +52,7 @@ __all__ = [
     "acknowledge_reminder",
     "choose_random_card",
     "load_cards",
+    "meta",
     "prefs_from_state",
     "set_cards_enabled",
     "set_interval",

@@ -185,7 +185,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
-from docking.applets.base import is_applet
+from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _

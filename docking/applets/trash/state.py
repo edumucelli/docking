@@ -8,10 +8,10 @@ gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
-from docking.applets.identity import AppletId
+from docking.applets.trash import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="trash"), applet_id=str(AppletId.TRASH))
+_log = with_context(get_logger(name="trash"), applet_id=meta.id)
 
 
 def _count_trash_items() -> int:

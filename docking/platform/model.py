@@ -134,11 +134,11 @@ from typing import TYPE_CHECKING, Any
 import docking.applets as applets
 from docking.applets.identity import (
     APPLET_PREFIX,
-    AppletId,
     applet_desktop_id,
     applet_id_from,
     is_applet_desktop_id,
 )
+from docking.applets.separator import meta as _separator_meta
 from docking.core.config import PinnedEntry, normalize_pinned_entries
 from docking.core.items import (
     APP_KIND,
@@ -250,9 +250,8 @@ class DockModel:
 
     def add_applet(self, applet_id: str) -> None:
         """Instantiate a applet and add to the dock."""
-        try:
-            did = AppletId(applet_id)
-        except ValueError:
+        did = applet_id
+        if did not in applets.get_applet_catalog():
             _log.bind(applet_id=applet_id, action="add_applet").warning(
                 f"Invalid applet id: {applet_id}"
             )
@@ -291,15 +290,15 @@ class DockModel:
 
     def add_separator(self, index: int = -1) -> None:
         """Add a separator instance at the given pinned index (-1 = end)."""
-        cls = applets.load_applet_class(AppletId.SEPARATOR)
+        cls = applets.load_applet_class(_separator_meta.id)
         if not cls:
             return
 
         # Find next unused instance number
-        prefix = f"{APPLET_PREFIX}{AppletId.SEPARATOR}#"
+        prefix = f"{APPLET_PREFIX}{_separator_meta.id}#"
         nums = [int(k[len(prefix) :]) for k in self._applets if k.startswith(prefix)]
         n = max(nums, default=-1) + 1
-        desktop_id = applet_desktop_id(applet_id=AppletId.SEPARATOR, instance=n)
+        desktop_id = applet_desktop_id(applet_id=_separator_meta.id, instance=n)
 
         icon_size = int(self._config.icon_size * self._config.zoom_percent)
         try:

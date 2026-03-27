@@ -13,6 +13,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.hydration import meta
 from docking.applets.hydration.render import render_icon
 from docking.applets.hydration.state import (
     INTERVAL_PRESETS,
@@ -25,7 +26,6 @@ from docking.applets.hydration.state import (
     tooltip_text,
     with_fill,
 )
-from docking.applets.identity import AppletId
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 class HydrationApplet(Applet):
     """Reminds you to drink water at configurable intervals."""
 
-    id = AppletId.HYDRATION
+    id = meta.id
     name = _("Hydration")
     icon_name = "weather-showers"
 

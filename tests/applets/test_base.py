@@ -3,11 +3,10 @@
 from unittest.mock import MagicMock
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
 
 
 class _DeferredInitApplet(Applet):
-    id = AppletId.SESSION
+    id = "session"
     name = "Deferred Init"
     icon_name = "system-log-out"
 
@@ -37,7 +36,7 @@ class TestAppletBaseLifecycle:
 
 
 class _BasicApplet(Applet):
-    id = AppletId.SESSION
+    id = "session"
     name = "Basic"
     icon_name = "system-log-out"
 
@@ -57,7 +56,7 @@ class _BasicApplet(Applet):
 class TestAppletBaseHelpers:
     def test_load_prefs_reads_config_for_applet_id(self):
         config = MagicMock()
-        config.applet_prefs = {AppletId.SESSION: {"enabled": True}}
+        config.applet_prefs = {"session": {"enabled": True}}
         applet = _BasicApplet(config=config)
 
         assert applet.load_prefs() == {"enabled": True}
@@ -74,7 +73,7 @@ class TestAppletBaseHelpers:
 
         applet.save_prefs({"foo": "bar"})
 
-        assert config.applet_prefs[AppletId.SESSION] == {"foo": "bar"}
+        assert config.applet_prefs["session"] == {"foo": "bar"}
         config.save.assert_called_once_with()
 
     def test_default_hooks_are_safe_and_present_notifies(self):

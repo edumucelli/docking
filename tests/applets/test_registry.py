@@ -1,14 +1,12 @@
 """Tests for the applet registry and shared utilities."""
 
 import importlib.util
-from typing import cast
 from unittest.mock import patch
 
 import pytest
 
 from docking.applets import get_applet_catalog, load_applet_class
-from docking.applets.base import Applet, load_theme_icon, load_theme_icon_centered
-from docking.applets.identity import AppletId
+from docking.applets.base import Applet, load_theme_icon
 
 
 class TestAppletCatalog:
@@ -21,19 +19,11 @@ class TestAppletCatalog:
         c2 = get_applet_catalog()
         assert c1 is c2
 
-    def test_does_not_import_modules(self):
-        get_applet_catalog.cache_clear()
-        with patch("docking.applets.import_module", side_effect=AssertionError):
-            catalog = get_applet_catalog()
-
-        assert AppletId.CLOCK in catalog
-
-    def test_all_values_are_catalog_entries(self):
+    def test_all_entries_have_required_fields(self):
         for applet_id, entry in get_applet_catalog().items():
-            assert entry.applet_id == applet_id
+            assert entry.id == applet_id
             assert entry.name
-            assert entry.module_path
-            assert entry.class_name
+            assert entry.category
 
     def test_contains_clock(self):
         assert "clock" in get_applet_catalog()
@@ -50,7 +40,9 @@ class TestAppletCatalog:
     def test_contains_battery(self):
         assert "battery" in get_applet_catalog()
 
-    def test_contains_weather(self):
+    def test_contains_weather_when_available(self):
+        if importlib.util.find_spec("openmeteo_requests") is None:
+            pytest.skip("openmeteo_requests not installed")
         assert "weather" in get_applet_catalog()
 
     def test_contains_session(self):
@@ -95,12 +87,12 @@ class TestLoadAppletClass:
 
     def test_cached_returns_same_object(self):
         load_applet_class.cache_clear()
-        c1 = load_applet_class(AppletId.CLOCK)
-        c2 = load_applet_class(AppletId.CLOCK)
+        c1 = load_applet_class("clock")
+        c2 = load_applet_class("clock")
         assert c1 is c2
 
     def test_unknown_applet_returns_none(self):
-        assert load_applet_class(cast(AppletId, "unknown")) is None
+        assert load_applet_class("unknown") is None
 
     def test_catalog_name_matches_loaded_class_name(self):
         for applet_id, entry in get_applet_catalog().items():
@@ -117,14 +109,6 @@ class TestLoadThemeIcon:
 
     def test_returns_none_for_unknown(self):
         assert load_theme_icon(name="nonexistent-icon-xyz", size=48) is None
-
-    def test_centered_returns_square(self):
-        pixbuf = load_theme_icon_centered(name="user-trash", size=48)
-        assert pixbuf is not None
-        assert pixbuf.get_width() == pixbuf.get_height()
-
-    def test_centered_returns_none_for_unknown(self):
-        assert load_theme_icon_centered(name="nonexistent-icon-xyz", size=48) is None
 
     def test_uses_bundled_fallback_for_known_icon_when_theme_unavailable(self):
         with patch("docking.applets.base._icon_theme_candidates", return_value=()):

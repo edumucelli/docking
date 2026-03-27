@@ -57,12 +57,12 @@ gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
-from docking.applets.identity import AppletId
+from docking.applets.powerprofiles import meta
 from docking.log import get_logger, with_context
 
 _log = with_context(
     get_logger(name="powerprofiles"),
-    applet_id=str(AppletId.POWERPROFILES),
+    applet_id=meta.id,
 )
 
 SERVICE = "net.hadess.PowerProfiles"

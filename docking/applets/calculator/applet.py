@@ -39,9 +39,9 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.calculator import meta
 from docking.applets.calculator.render import create_icon
 from docking.applets.calculator.state import evaluate, prefs_payload
-from docking.applets.identity import AppletId
 from docking.i18n import _
 from docking.ui.runtime import get_pointer_position
 
@@ -64,7 +64,7 @@ BUTTON_ROWS = (
 class CalculatorApplet(Applet):
     """Basic four-function calculator with a popup interface."""
 
-    id = AppletId.CALCULATOR
+    id = meta.id
     name = _("Calculator")
     icon_name = "accessories-calculator"
 

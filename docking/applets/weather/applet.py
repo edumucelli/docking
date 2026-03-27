@@ -13,7 +13,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.weather import meta
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
     AirQualityData,
@@ -38,7 +38,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="weather"), applet_id=str(AppletId.WEATHER))
+_log = with_context(get_logger(name="weather"), applet_id=meta.id)
 
 CITY_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
@@ -52,7 +52,7 @@ STARTUP_FETCH_DELAY_S = 1
 class WeatherApplet(Applet):
     """Shows current weather icon + temperature for a selected city."""
 
-    id = AppletId.WEATHER
+    id = meta.id
     name = _("Weather")
     icon_name = "weather-few-clouds"
 

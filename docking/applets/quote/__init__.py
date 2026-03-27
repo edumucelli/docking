@@ -14,6 +14,14 @@ implementation layer.
 
 from __future__ import annotations
 
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="quote",
+    name="Quote",
+    category=AppletCategory.INFORMATION,
+)
+
 from .applet import QuoteApplet
 from .state import (
     DEFAULT_SOURCE,
@@ -44,5 +52,6 @@ __all__ = [
     "_http_get_json",
     "fetch_quotes",
     "format_quote",
+    "meta",
     "source_fallback",
 ]

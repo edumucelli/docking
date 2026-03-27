@@ -12,7 +12,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.volume import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -23,13 +23,13 @@ from .state import _BACKENDS, STEP, VolumeState, _detect_backend, _volume_icon_n
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="volume"), applet_id=str(AppletId.VOLUME))
+_log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
 
 class VolumeApplet(Applet):
     """Volume control via scroll and click."""
 
-    id = AppletId.VOLUME
+    id = meta.id
     name = _("Volume")
     icon_name = "audio-volume-medium"
 

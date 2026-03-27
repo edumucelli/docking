@@ -15,7 +15,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import NM, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.network import meta
 from docking.applets.network.render import create_icon
 from docking.applets.network.state import (
     TrafficCounters,
@@ -40,7 +40,7 @@ def _skip_device_types() -> frozenset[object]:
     )
 
 
-_log = with_context(get_logger(name="network"), applet_id=str(AppletId.NETWORK))
+_log = with_context(get_logger(name="network"), applet_id=meta.id)
 _PROC_NET_DEV = Path("/proc/net/dev")
 
 POLL_INTERVAL_S = 2
@@ -49,7 +49,7 @@ POLL_INTERVAL_S = 2
 class NetworkApplet(Applet):
     """Shows network connection state, wifi signal, and traffic speeds."""
 
-    id = AppletId.NETWORK
+    id = meta.id
     name = _("Network")
     icon_name = "network-wireless-symbolic"
 
@@ -76,7 +76,7 @@ class NetworkApplet(Applet):
         self._prev_time: float = 0.0
 
         if config:
-            prefs = config.applet_prefs.get(AppletId.NETWORK, {})
+            prefs = config.applet_prefs.get(meta.id, {})
             self._speed_overlay = prefs.get("speed_overlay", "download")
 
         super().__init__(icon_size=icon_size, config=config)

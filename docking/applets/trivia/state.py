@@ -10,11 +10,11 @@ from dataclasses import dataclass, replace
 from typing import Any
 from urllib.request import Request, urlopen
 
-from docking.applets.identity import AppletId
+from docking.applets.trivia import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="trivia"), applet_id=str(AppletId.TRIVIA))
+_log = with_context(get_logger(name="trivia"), applet_id=meta.id)
 _TRIVIA_ENDPOINT = "https://opentdb.com/api.php?amount={limit}"
 
 

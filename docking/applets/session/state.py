@@ -5,11 +5,11 @@ from __future__ import annotations
 import subprocess
 from typing import NamedTuple
 
-from docking.applets.identity import AppletId
+from docking.applets.session import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="session"), applet_id=str(AppletId.SESSION))
+_log = with_context(get_logger(name="session"), applet_id=meta.id)
 
 
 class SessionAction(NamedTuple):

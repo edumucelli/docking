@@ -3,8 +3,7 @@
 from types import SimpleNamespace
 
 import docking.applets.separator.applet as separator_applet_mod
-from docking.applets.base import applet_id_from
-from docking.applets.identity import AppletId
+from docking.applets.identity import applet_id_from
 from docking.applets.separator import (
     DEFAULT_SIZE,
     MAX_SIZE,
@@ -67,16 +66,16 @@ class FakeSeparatorMenuItem(FakeMenuItem):
 
 class TestAppletIdFrom:
     def test_simple_applet(self):
-        assert applet_id_from(desktop_id="applet://clock") == AppletId.CLOCK
+        assert applet_id_from(desktop_id="applet://clock") == "clock"
 
     def test_separator_instance(self):
-        assert applet_id_from(desktop_id="applet://separator#0") == AppletId.SEPARATOR
+        assert applet_id_from(desktop_id="applet://separator#0") == "separator"
 
     def test_separator_high_instance(self):
-        assert applet_id_from(desktop_id="applet://separator#42") == AppletId.SEPARATOR
+        assert applet_id_from(desktop_id="applet://separator#42") == "separator"
 
     def test_no_instance_suffix(self):
-        assert applet_id_from(desktop_id="applet://weather") == AppletId.WEATHER
+        assert applet_id_from(desktop_id="applet://weather") == "weather"
 
 
 class TestSeparatorApplet:

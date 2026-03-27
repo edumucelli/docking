@@ -23,11 +23,10 @@ from docking.platform.model import DockItem
 
 
 def _catalog_entry(*, applet_id, name: str):
-    return menu_mod.AppletCatalogEntry(
-        applet_id=applet_id,
+    return menu_mod.AppletMeta(
+        id=str(applet_id),
         name=name,
-        module_path="tests.fake",
-        class_name="FakeApplet",
+        category=menu_mod.AppletCategory.OTHER,
     )
 
 
@@ -816,15 +815,9 @@ class TestDockMenu:
             menu_mod,
             "get_applet_catalog",
             lambda: {
-                menu_mod.AppletId.CLOCK: _catalog_entry(
-                    applet_id=menu_mod.AppletId.CLOCK, name="Clock"
-                ),
-                menu_mod.AppletId.CALENDAR: _catalog_entry(
-                    applet_id=menu_mod.AppletId.CALENDAR, name="Calendar"
-                ),
-                menu_mod.AppletId.SEPARATOR: _catalog_entry(
-                    applet_id=menu_mod.AppletId.SEPARATOR, name="Separator"
-                ),
+                "clock": _catalog_entry(applet_id="clock", name="Clock"),
+                "calendar": _catalog_entry(applet_id="calendar", name="Calendar"),
+                "separator": _catalog_entry(applet_id="separator", name="Separator"),
             },
         )
 
@@ -872,9 +865,7 @@ class TestDockMenu:
             if mi.get_label() == "Calendar"
         )
         item.activate()
-        handler._model.add_applet.assert_called_once_with(
-            str(menu_mod.AppletId.CALENDAR)
-        )
+        handler._model.add_applet.assert_called_once_with("calendar")
 
     def test_show_builds_background_menu_and_pops_at_pointer(
         self, handler, monkeypatch
@@ -926,11 +917,7 @@ class TestDockMenu:
         with patch.object(
             menu_mod,
             "get_applet_catalog",
-            return_value={
-                menu_mod.AppletId.CLOCK: _catalog_entry(
-                    applet_id=menu_mod.AppletId.CLOCK, name="Clock"
-                )
-            },
+            return_value={"clock": _catalog_entry(applet_id="clock", name="Clock")},
         ):
             handler._build_dock_menu(menu=menu, insert_index=0)
 

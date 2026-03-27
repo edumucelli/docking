@@ -15,9 +15,9 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.calendar import meta
 from docking.applets.calendar.render import render_icon
 from docking.applets.calendar.state import snapshot_from
-from docking.applets.identity import AppletId
 from docking.i18n import _
 from docking.ui.runtime import get_pointer_position
 
@@ -33,7 +33,7 @@ CALENDAR_POPUP_CURSOR_GAP_PX = 20
 class CalendarApplet(Applet):
     """Displays today's date as a dock icon with calendar popup on click."""
 
-    id = AppletId.CALENDAR
+    id = meta.id
     name = _("Calendar")
     icon_name = "office-calendar"
 

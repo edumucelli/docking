@@ -12,7 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.keyboardlayout import meta
 from docking.applets.keyboardlayout.render import render_icon
 from docking.applets.keyboardlayout.state import (
     LayoutState,
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 _log = with_context(
     get_logger(name="keyboardlayout"),
-    applet_id=str(AppletId.KEYBOARDLAYOUT),
+    applet_id=meta.id,
 )
 
 POLL_INTERVAL_S = 2
@@ -38,7 +38,7 @@ POLL_INTERVAL_S = 2
 class KeyboardLayoutApplet(Applet):
     """Switch and display the current keyboard layout."""
 
-    id = AppletId.KEYBOARDLAYOUT
+    id = meta.id
     name = _("Keyboard Layout")
     icon_name = "input-keyboard"
 

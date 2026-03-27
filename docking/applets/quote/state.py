@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.request import Request, urlopen
 
-from docking.applets.identity import AppletId
+from docking.applets.quote import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="quote"), applet_id=str(AppletId.QUOTE))
+_log = with_context(get_logger(name="quote"), applet_id=meta.id)
 
 DEFAULT_SOURCE = "quotationspage"
 

@@ -43,7 +43,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.unitconverter import meta
 from docking.applets.unitconverter.render import create_icon
 from docking.applets.unitconverter.state import (
     Unit,
@@ -63,9 +63,7 @@ from docking.ui.runtime import get_pointer_position
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(
-    get_logger(name="unitconverter"), applet_id=str(AppletId.UNITCONVERTER)
-)
+_log = with_context(get_logger(name="unitconverter"), applet_id=meta.id)
 
 POPUP_CORNER_RADIUS_PX = 8
 POPUP_PADDING_PX = 12
@@ -76,7 +74,7 @@ POPUP_WIDTH_PX = 280
 class UnitConverterApplet(Applet):
     """Instant unit conversion via a click-to-open popup."""
 
-    id = AppletId.UNITCONVERTER
+    id = meta.id
     name = _("Unit Converter")
     icon_name = "emblem-synchronizing-symbolic"
 

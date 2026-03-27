@@ -11,7 +11,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.quicknote import meta
 from docking.applets.quicknote.render import render_icon
 from docking.applets.quicknote.state import (
     note_from_prefs,
@@ -24,7 +24,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="quicknote"), applet_id=str(AppletId.QUICKNOTE))
+_log = with_context(get_logger(name="quicknote"), applet_id=meta.id)
 
 EDIT_DIALOG_WIDTH_PX = 350
 EDIT_DIALOG_HEIGHT_PX = 250
@@ -36,7 +36,7 @@ DIALOG_VERTICAL_MARGIN_PX = 8
 class QuickNoteApplet(Applet):
     """Sticky note applet -- click to edit, tooltip shows content preview."""
 
-    id = AppletId.QUICKNOTE
+    id = meta.id
     name = _("Quick Note")
     icon_name = "text-editor"
 

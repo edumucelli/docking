@@ -1,3 +1,15 @@
+"""Public surface for the Recent Files applet."""
+
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="recentfiles",
+    name="Recent Files",
+    category=AppletCategory.PRODUCTIVITY,
+)
+
 from .applet import RecentFilesApplet
 
-__all__ = ["RecentFilesApplet"]
+__all__ = ["RecentFilesApplet", "meta"]

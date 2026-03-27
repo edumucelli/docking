@@ -12,7 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.systemmonitor import meta
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
     CPU_THRESHOLD,
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 _log = with_context(
     get_logger(name="systemmonitor"),
-    applet_id=str(AppletId.SYSTEMMONITOR),
+    applet_id=meta.id,
 )
 _PROC_STAT = Path("/proc/stat")
 _PROC_MEMINFO = Path("/proc/meminfo")
@@ -41,7 +41,7 @@ _PROC_MEMINFO = Path("/proc/meminfo")
 class SystemMonitorApplet(Applet):
     """Circular gauge: CPU radial fill + memory arc at edge."""
 
-    id = AppletId.SYSTEMMONITOR
+    id = meta.id
     name = _("System Monitor")
     icon_name = "utilities-system-monitor"
 

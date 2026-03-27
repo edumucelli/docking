@@ -14,7 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.trash import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -24,13 +24,13 @@ from .state import _count_trash_items
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="trash"), applet_id=str(AppletId.TRASH))
+_log = with_context(get_logger(name="trash"), applet_id=meta.id)
 
 
 class TrashApplet(Applet):
     """Shows trash state icon; click opens, menu allows emptying."""
 
-    id = AppletId.TRASH
+    id = meta.id
     name = _("Trash")
     icon_name = "user-trash"
 

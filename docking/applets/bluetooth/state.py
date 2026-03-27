@@ -16,10 +16,10 @@ gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
-from docking.applets.identity import AppletId
+from docking.applets.bluetooth import meta
 from docking.log import get_logger, with_context
 
-_log = with_context(get_logger(name="bluetooth"), applet_id=str(AppletId.BLUETOOTH))
+_log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
 
 BLUEZ_SERVICE = "org.bluez"
 OBJECT_MANAGER_IFACE = "org.freedesktop.DBus.ObjectManager"

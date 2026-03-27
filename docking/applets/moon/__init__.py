@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="moon",
+    name="Moon",
+    category=AppletCategory.INFORMATION,
+)
+
 from .applet import MoonApplet
 from .offline import fetch_moon_offline, illumination_from_phase, moon_phase_from_date
 from .state import MoonData, fetch_moon, phase_name
@@ -22,6 +32,7 @@ __all__ = [
     "fetch_moon",
     "fetch_moon_offline",
     "illumination_from_phase",
+    "meta",
     "moon_phase_from_date",
     "phase_name",
 ]

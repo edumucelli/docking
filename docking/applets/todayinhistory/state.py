@@ -10,13 +10,13 @@ from importlib import resources
 from typing import Any
 from urllib.request import Request, urlopen
 
-from docking.applets.identity import AppletId
+from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 _log = with_context(
     get_logger(name="todayinhistory"),
-    applet_id=str(AppletId.TODAYINHISTORY),
+    applet_id=meta.id,
 )
 _EVENTS_RESOURCE = "history/todayinhistory.json"
 _WIKIPEDIA_ENDPOINT = (

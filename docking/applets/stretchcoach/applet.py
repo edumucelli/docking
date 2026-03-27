@@ -12,7 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.stretchcoach import meta
 from docking.applets.stretchcoach.render import render_icon
 from docking.applets.stretchcoach.state import (
     INTERVAL_PRESETS,
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 class StretchCoachApplet(Applet):
     """Periodic micro-break reminder applet with offline stretch cards."""
 
-    id = AppletId.STRETCHCOACH
+    id = meta.id
     name = _("Stretch Coach")
     icon_name = "alarm"
 

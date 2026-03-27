@@ -18,7 +18,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.moon import meta
 from docking.applets.moon.render import create_icon
 from docking.applets.moon.state import MoonData, fetch_moon, phase_name
 from docking.applets.worker import BackgroundWorker
@@ -28,7 +28,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="moon"), applet_id=str(AppletId.MOON))
+_log = with_context(get_logger(name="moon"), applet_id=meta.id)
 
 # Refresh every 6 hours (moon phase changes slowly)
 REFRESH_INTERVAL = 6 * 60 * 60
@@ -44,7 +44,7 @@ class MoonApplet(Applet):
     website used by the original Cairo-Dock Moon applet from 2012.
     """
 
-    id = AppletId.MOON
+    id = meta.id
     name = _("Moon")
     icon_name = "weather-clear-night"
 
@@ -55,7 +55,7 @@ class MoonApplet(Applet):
         self._worker = BackgroundWorker(logger=_log)
 
         if config:
-            prefs = config.applet_prefs.get(AppletId.MOON, {})
+            prefs = config.applet_prefs.get(meta.id, {})
             self._show_phase = prefs.get("show_phase", True)
 
         super().__init__(icon_size=icon_size, config=config)

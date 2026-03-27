@@ -10,7 +10,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.separator import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -27,13 +27,13 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="separator"), applet_id=str(AppletId.SEPARATOR))
+_log = with_context(get_logger(name="separator"), applet_id=meta.id)
 
 
 class SeparatorApplet(Applet):
     """A thin transparent gap that can be inserted multiple times."""
 
-    id = AppletId.SEPARATOR
+    id = meta.id
     name = _("Separator")
     icon_name = "list-remove"
 

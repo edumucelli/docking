@@ -15,7 +15,7 @@ gi.require_version("Wnck", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk, Wnck
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.workspaces import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -30,13 +30,13 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="workspaces"), applet_id=str(AppletId.WORKSPACES))
+_log = with_context(get_logger(name="workspaces"), applet_id=meta.id)
 
 
 class WorkspacesApplet(Applet):
     """Shows workspace grid icon, click cycles, scroll switches."""
 
-    id = AppletId.WORKSPACES
+    id = meta.id
     name = _("Workspaces")
     icon_name = "preferences-desktop-workspaces"
 

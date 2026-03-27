@@ -13,13 +13,13 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.clock import meta
 from docking.applets.clock.render import render_icon
 from docking.applets.clock.state import (
     build_tooltip,
     load_prefs,
     save_payload,
 )
-from docking.applets.identity import AppletId
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class ClockApplet(Applet):
     """Displays current time as an analog clock face or digital readout."""
 
-    id = AppletId.CLOCK
+    id = meta.id
     name = _("Clock")
     icon_name = "clock"
 

@@ -36,7 +36,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.urlshortener import meta
 from docking.applets.urlshortener.render import create_icon
 from docking.applets.urlshortener.state import prefs_payload, shorten_url
 from docking.i18n import _
@@ -53,7 +53,7 @@ DIALOG_VERTICAL_MARGIN_PX = 8
 class UrlShortenerApplet(Applet):
     """Shorten URLs via is.gd with one click."""
 
-    id = AppletId.URLSHORTENER
+    id = meta.id
     name = _("URL Shortener")
     icon_name = "chain"
 

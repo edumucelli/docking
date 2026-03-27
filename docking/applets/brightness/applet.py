@@ -11,6 +11,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
+from docking.applets.brightness import meta
 from docking.applets.brightness.render import create_icon
 from docking.applets.brightness.state import (
     STEP,
@@ -18,7 +19,6 @@ from docking.applets.brightness.state import (
     get_brightness,
     set_brightness,
 )
-from docking.applets.identity import AppletId
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -26,7 +26,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="brightness"), applet_id=str(AppletId.BRIGHTNESS))
+_log = with_context(get_logger(name="brightness"), applet_id=meta.id)
 
 POLL_INTERVAL_S = 5
 
@@ -38,7 +38,7 @@ class BrightnessApplet(Applet):
     Auto-detects primary xrandr output.
     """
 
-    id = AppletId.BRIGHTNESS
+    id = meta.id
     name = _("Brightness")
     icon_name = "display-brightness-symbolic"
 
@@ -52,7 +52,7 @@ class BrightnessApplet(Applet):
         self._worker = BackgroundWorker(logger=_log)
 
         if config:
-            prefs = config.applet_prefs.get(AppletId.BRIGHTNESS, {})
+            prefs = config.applet_prefs.get(meta.id, {})
             self._show_level = prefs.get("show_level", False)
 
         self._poll()

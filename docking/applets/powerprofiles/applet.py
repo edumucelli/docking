@@ -27,7 +27,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.powerprofiles import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
@@ -51,7 +51,7 @@ POLL_INTERVAL_S = 5
 class PowerProfilesApplet(Applet):
     """Quick selector for power profile backends (PPD/tuned/TLP)."""
 
-    id = AppletId.POWERPROFILES
+    id = meta.id
     name = _("Power Profiles")
     icon_name = "battery-good-symbolic"
 

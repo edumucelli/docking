@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="screenshot",
+    name="Screenshot",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import ScreenshotApplet
 from .state import _TOOLS, Tool, _detect_tool, _run
 
@@ -21,4 +31,5 @@ __all__ = [
     "Tool",
     "_detect_tool",
     "_run",
+    "meta",
 ]

@@ -145,15 +145,17 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 import docking.platform.launcher as launcher_mod
-from docking.applets import AppletCatalogEntry, get_applet_catalog
-from docking.applets.base import is_applet, load_catalog_icon
+from docking.applets import get_applet_catalog
+from docking.applets.base import load_catalog_icon
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
     AppletCategory,
-    AppletId,
+    AppletMeta,
     applet_desktop_id,
     category_for,
 )
+from docking.applets.identity import is_applet_desktop_id as is_applet
+from docking.applets.separator import meta as _separator_meta
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.theme import Theme
 from docking.i18n import _
@@ -517,20 +519,16 @@ class MenuHandler:
         }
         add_applet = Gtk.MenuItem(label=_("Add Applet"))
         add_applet_menu = Gtk.Menu()
-        grouped: dict[AppletCategory, list[tuple[AppletId, AppletCatalogEntry]]] = {
+        grouped: dict[AppletCategory, list[tuple[str, AppletMeta]]] = {
             category: [] for category in APPLET_CATEGORY_ORDER
         }
         for did, entry in sorted(catalog.items(), key=lambda item: str(item[0])):
-            try:
-                did_enum = did if isinstance(did, AppletId) else AppletId(str(did))
-            except ValueError:
+            if did == _separator_meta.id:
                 continue
-            if did_enum == AppletId.SEPARATOR:
-                continue
-            desktop_id = applet_desktop_id(applet_id=did_enum)
+            desktop_id = applet_desktop_id(applet_id=did)
             if desktop_id in active_ids:
                 continue
-            grouped[category_for(applet_id=did_enum)].append((did_enum, entry))
+            grouped[category_for(applet_id=did)].append((did, entry))
 
         non_empty_categories = [
             key for key in APPLET_CATEGORY_ORDER if grouped.get(key)
@@ -740,7 +738,7 @@ class MenuHandler:
         if widget.get_active():
             self._model.add_applet(applet_id)
         else:
-            self._model.remove_applet(applet_desktop_id(applet_id=AppletId(applet_id)))
+            self._model.remove_applet(applet_desktop_id(applet_id=applet_id))
 
     def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         self._config.previews_enabled = widget.get_active()

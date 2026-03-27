@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="clock",
+    name="Clock",
+    category=AppletCategory.PRODUCTIVITY,
+)
+
 from .applet import ClockApplet
 from .state import (
     hour_rotation_12h,
@@ -23,5 +33,6 @@ __all__ = [
     "ClockApplet",
     "hour_rotation_12h",
     "hour_rotation_24h",
+    "meta",
     "minute_rotation",
 ]

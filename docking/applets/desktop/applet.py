@@ -11,9 +11,9 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Wnck
 
 from docking.applets.base import Applet
+from docking.applets.desktop import meta
 from docking.applets.desktop.render import create_icon
 from docking.applets.desktop.state import next_showing_desktop
-from docking.applets.identity import AppletId
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class DesktopApplet(Applet):
     """Click to toggle showing the desktop (minimize/restore all windows)."""
 
-    id = AppletId.DESKTOP
+    id = meta.id
     name = _("Desktop")
     icon_name = "user-desktop"
 

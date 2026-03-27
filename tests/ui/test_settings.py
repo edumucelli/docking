@@ -19,11 +19,10 @@ import docking.ui.settings as settings_mod
 
 
 def _catalog_entry(*, applet_id, name: str):
-    return settings_mod.AppletCatalogEntry(
-        applet_id=applet_id,
+    return settings_mod.AppletMeta(
+        id=str(applet_id),
         name=name,
-        module_path="tests.fake",
-        class_name="FakeApplet",
+        category=settings_mod.AppletCategory.OTHER,
     )
 
 
@@ -585,8 +584,8 @@ class TestSettingsWindowController:
             settings_mod,
             "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: _catalog_entry(
-                    applet_id=settings_mod.AppletId.CLOCK,
+                "clock": _catalog_entry(
+                    applet_id="clock",
                     name="Clock",
                 ),
             },
@@ -603,12 +602,12 @@ class TestSettingsWindowController:
 
         on_widget = FakeCheckButton(label="Clock")
         on_widget.set_active(True)
-        controller._on_applet_toggled(on_widget, str(settings_mod.AppletId.CLOCK))
-        model.add_applet.assert_called_once_with(str(settings_mod.AppletId.CLOCK))
+        controller._on_applet_toggled(on_widget, "clock")
+        model.add_applet.assert_called_once_with("clock")
 
         off_widget = FakeCheckButton(label="Clock")
         off_widget.set_active(False)
-        controller._on_applet_toggled(off_widget, str(settings_mod.AppletId.CLOCK))
+        controller._on_applet_toggled(off_widget, "clock")
         model.remove_applet.assert_called_once_with("applet://clock")
 
     def test_applet_tab_uses_checkbox_grid_per_category(self, monkeypatch):
@@ -616,18 +615,14 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod,
             "load_catalog_icon",
-            lambda applet_id, size: FakePixbuf(f"{applet_id.value}:{size}"),
+            lambda applet_id, size: FakePixbuf(f"{applet_id}:{size}"),
         )
         monkeypatch.setattr(
             settings_mod,
             "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: _catalog_entry(
-                    applet_id=settings_mod.AppletId.CLOCK, name="Clock"
-                ),
-                settings_mod.AppletId.WEATHER: _catalog_entry(
-                    applet_id=settings_mod.AppletId.WEATHER, name="Weather"
-                ),
+                "clock": _catalog_entry(applet_id="clock", name="Clock"),
+                "weather": _catalog_entry(applet_id="weather", name="Weather"),
             },
         )
         controller = settings_mod.SettingsWindowController(
@@ -688,9 +683,7 @@ class TestSettingsWindowController:
             settings_mod,
             "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: _catalog_entry(
-                    applet_id=settings_mod.AppletId.CLOCK, name="Clock"
-                ),
+                "clock": _catalog_entry(applet_id="clock", name="Clock"),
             },
         )
         model = SimpleNamespace(
@@ -716,7 +709,7 @@ class TestSettingsWindowController:
         )
         assert catalog_loader.call_count >= 1
         assert catalog_loader.call_args_list[0].kwargs == {
-            "applet_id": settings_mod.AppletId.CLOCK,
+            "applet_id": "clock",
             "size": settings_mod.APPLET_LIST_ICON_PX,
         }
 
@@ -725,21 +718,15 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod,
             "load_catalog_icon",
-            lambda applet_id, size: FakePixbuf(f"{applet_id.value}:{size}"),
+            lambda applet_id, size: FakePixbuf(f"{applet_id}:{size}"),
         )
         monkeypatch.setattr(
             settings_mod,
             "get_applet_catalog",
             lambda: {
-                settings_mod.AppletId.CLOCK: _catalog_entry(
-                    applet_id=settings_mod.AppletId.CLOCK, name="Clock"
-                ),
-                settings_mod.AppletId.CALENDAR: _catalog_entry(
-                    applet_id=settings_mod.AppletId.CALENDAR, name="Calendar"
-                ),
-                settings_mod.AppletId.POMODORO: _catalog_entry(
-                    applet_id=settings_mod.AppletId.POMODORO, name="Pomodoro"
-                ),
+                "clock": _catalog_entry(applet_id="clock", name="Clock"),
+                "calendar": _catalog_entry(applet_id="calendar", name="Calendar"),
+                "pomodoro": _catalog_entry(applet_id="pomodoro", name="Pomodoro"),
             },
         )
         controller = settings_mod.SettingsWindowController(

@@ -8,13 +8,13 @@ import subprocess
 from dataclasses import dataclass
 from typing import Protocol
 
-from docking.applets.identity import AppletId
+from docking.applets.notifications import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 _log = with_context(
     get_logger(name="notifications"),
-    applet_id=str(AppletId.NOTIFICATIONS),
+    applet_id=meta.id,
 )
 
 _GNOME_SCHEMA = "org.gnome.desktop.notifications"

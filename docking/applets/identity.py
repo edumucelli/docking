@@ -1,18 +1,8 @@
-"""Stable applet identifiers and menu-grouping helpers.
+"""Applet identity, metadata, and menu-grouping helpers.
 
-Why applet identity needs its own module
-
-Applets appear in several places at once:
-
-- persisted dock configuration,
-- runtime item models,
-- settings menus,
-- catalog lookups,
-- user-facing grouping in the applet picker.
-
-Those layers need one shared notion of "which applet is this?". If each layer
-reconstructed ids from strings ad hoc, subtle mismatches would accumulate and
-saved configurations would become brittle.
+Applets appear in several places at once: persisted dock configuration, runtime
+item models, settings menus, catalog lookups, and user-facing grouping in the
+applet picker. Those layers need one shared notion of "which applet is this?".
 
 The ``applet://`` desktop-id scheme
 
@@ -20,67 +10,31 @@ Docking models applets alongside launchers and files, so applets need a desktop
 id that can live in the same pinned-item list. The custom ``applet://`` prefix
 creates that shared namespace while still making applets easy to recognize.
 Optional ``#<instance>`` suffixes let the same applet type appear multiple
- times when the UX allows it, such as separators.
+times when the UX allows it, such as separators.
 
 What this module owns
 
-- the canonical ``AppletId`` enum,
-- category grouping used by the settings UI and documentation,
+- ``AppletMeta`` dataclass declared by each applet package,
+- ``AppletCategory`` enum for menu grouping,
 - parser/builders for ``applet://...`` desktop ids.
 
-That makes this file the contract boundary between persistent config strings and
-higher-level applet objects.
+Each applet's identity is defined in its own ``__init__.py`` via an
+``AppletMeta`` instance. This module provides the shared types and helpers
+that make that work.
 """
 
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass
 from enum import Enum
+
+AppletId = str
+"""Type alias for applet identifiers (e.g. ``"clock"``, ``"separator"``)."""
 
 APPLET_PREFIX = "applet://"
 
-
-class AppletId(str, Enum):
-    AMBIENT = "ambient"
-    APPLICATIONS = "applications"
-    BATTERY = "battery"
-    BOOKMARKS = "bookmarks"
-    BLUETOOTH = "bluetooth"
-    BRIGHTNESS = "brightness"
-    CALCULATOR = "calculator"
-    CALENDAR = "calendar"
-    CLIPPY = "clippy"
-    CLOCK = "clock"
-    COLORPICKER = "colorpicker"
-    SYSTEMMONITOR = "systemmonitor"
-    DESKTOP = "desktop"
-    HYDRATION = "hydration"
-    KEYBOARDLAYOUT = "keyboardlayout"
-    NETWORK = "network"
-    MOON = "moon"
-    QUICKNOTE = "quicknote"
-    MUSIC = "music"
-    NOTIFICATIONS = "notifications"
-    PET = "pet"
-    POWERPROFILES = "powerprofiles"
-    POMODORO = "pomodoro"
-    QUOTE = "quote"
-    RECENTFILES = "recentfiles"
-    SCREENSHOT = "screenshot"
-    SEPARATOR = "separator"
-    SESSION = "session"
-    STRETCHCOACH = "stretchcoach"
-    TODAYINHISTORY = "todayinhistory"
-    TRIVIA = "trivia"
-    TRASH = "trash"
-    UNITCONVERTER = "unitconverter"
-    URLSHORTENER = "urlshortener"
-    VOLUME = "volume"
-    WEATHER = "weather"
-    WINDOWKILLER = "windowkiller"
-    WORKSPACES = "workspaces"
-
-    def __str__(self) -> str:
-        return self.value
+_log = logging.getLogger(__name__)
 
 
 class AppletCategory(str, Enum):
@@ -101,67 +55,34 @@ APPLET_CATEGORY_ORDER: tuple[AppletCategory, ...] = (
     AppletCategory.OTHER,
 )
 
-APPLET_CATEGORY_BY_ID: dict[AppletId, AppletCategory] = {
-    AppletId.APPLICATIONS: AppletCategory.LAUNCHER,
-    AppletId.DESKTOP: AppletCategory.LAUNCHER,
-    AppletId.WORKSPACES: AppletCategory.LAUNCHER,
-    AppletId.CALCULATOR: AppletCategory.PRODUCTIVITY,
-    AppletId.CALENDAR: AppletCategory.PRODUCTIVITY,
-    AppletId.CLOCK: AppletCategory.PRODUCTIVITY,
-    AppletId.CLIPPY: AppletCategory.PRODUCTIVITY,
-    AppletId.BOOKMARKS: AppletCategory.PRODUCTIVITY,
-    AppletId.COLORPICKER: AppletCategory.PRODUCTIVITY,
-    AppletId.POMODORO: AppletCategory.PRODUCTIVITY,
-    AppletId.QUICKNOTE: AppletCategory.PRODUCTIVITY,
-    AppletId.RECENTFILES: AppletCategory.PRODUCTIVITY,
-    AppletId.BATTERY: AppletCategory.SYSTEM,
-    AppletId.BLUETOOTH: AppletCategory.SYSTEM,
-    AppletId.BRIGHTNESS: AppletCategory.SYSTEM,
-    AppletId.KEYBOARDLAYOUT: AppletCategory.SYSTEM,
-    AppletId.NETWORK: AppletCategory.SYSTEM,
-    AppletId.NOTIFICATIONS: AppletCategory.SYSTEM,
-    AppletId.POWERPROFILES: AppletCategory.SYSTEM,
-    AppletId.MOON: AppletCategory.INFORMATION,
-    AppletId.MUSIC: AppletCategory.SYSTEM,
-    AppletId.SCREENSHOT: AppletCategory.SYSTEM,
-    AppletId.SESSION: AppletCategory.SYSTEM,
-    AppletId.TRASH: AppletCategory.SYSTEM,
-    AppletId.VOLUME: AppletCategory.SYSTEM,
-    AppletId.AMBIENT: AppletCategory.WELLNESS,
-    AppletId.HYDRATION: AppletCategory.WELLNESS,
-    AppletId.PET: AppletCategory.WELLNESS,
-    AppletId.STRETCHCOACH: AppletCategory.WELLNESS,
-    AppletId.SYSTEMMONITOR: AppletCategory.SYSTEM,
-    AppletId.UNITCONVERTER: AppletCategory.PRODUCTIVITY,
-    AppletId.URLSHORTENER: AppletCategory.PRODUCTIVITY,
-    AppletId.WINDOWKILLER: AppletCategory.SYSTEM,
-    AppletId.QUOTE: AppletCategory.INFORMATION,
-    AppletId.TODAYINHISTORY: AppletCategory.INFORMATION,
-    AppletId.TRIVIA: AppletCategory.INFORMATION,
-    AppletId.WEATHER: AppletCategory.INFORMATION,
-}
+
+@dataclass(frozen=True, slots=True)
+class AppletMeta:
+    """Lightweight metadata declared in each applet's ``__init__.py``."""
+
+    id: AppletId
+    name: str
+    category: AppletCategory
 
 
-def parse_applet_id(desktop_id: str) -> AppletId | None:
-    """Parse `applet://...` desktop ids into AppletId.
+def parse_applet_id(desktop_id: str) -> str | None:
+    """Parse ``applet://...`` desktop ids into an applet id string.
 
-    Supports instance suffixes like `applet://separator#2`.
-    Returns None for non-applet IDs or unknown applet IDs.
+    Supports instance suffixes like ``applet://separator#2``.
+    Returns None for non-applet desktop IDs.
     """
     if not desktop_id.startswith(APPLET_PREFIX):
         return None
     raw = desktop_id[len(APPLET_PREFIX) :]
     raw_id = raw.split("#", 1)[0]
-    try:
-        return AppletId(raw_id)
-    except ValueError:
-        return None
+    return raw_id if raw_id else None
 
 
-def applet_id_from(desktop_id: str) -> AppletId:
-    """Extract AppletId from desktop id.
+def applet_id_from(desktop_id: str) -> str:
+    """Extract applet id from desktop id.
 
-    Raises ValueError for non-applet ids or unknown applet ids.
+    Raises ValueError for non-applet ids. Returns the id string even for
+    applets not currently in the catalog (they may fail to load later).
     """
     parsed = parse_applet_id(desktop_id=desktop_id)
     if parsed is None:
@@ -174,13 +95,19 @@ def is_applet_desktop_id(desktop_id: str) -> bool:
     return desktop_id.startswith(APPLET_PREFIX)
 
 
-def applet_desktop_id(applet_id: AppletId, instance: int | None = None) -> str:
+def applet_desktop_id(applet_id: str, instance: int | None = None) -> str:
     """Build a canonical applet desktop id, optionally with instance suffix."""
     if instance is None:
         return f"{APPLET_PREFIX}{applet_id}"
     return f"{APPLET_PREFIX}{applet_id}#{instance}"
 
 
-def category_for(applet_id: AppletId) -> AppletCategory:
+def category_for(applet_id: str) -> AppletCategory:
     """Resolve applet category for menu grouping."""
-    return APPLET_CATEGORY_BY_ID.get(applet_id, AppletCategory.OTHER)
+    from docking.applets import get_applet_catalog
+
+    meta = get_applet_catalog().get(applet_id)
+    if meta is None:
+        _log.warning("No metadata for applet %s, falling back to OTHER", applet_id)
+        return AppletCategory.OTHER
+    return meta.category

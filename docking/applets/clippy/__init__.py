@@ -12,7 +12,17 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="clippy",
+    name="Clippy",
+    category=AppletCategory.PRODUCTIVITY,
+)
+
 from .applet import ClippyApplet
 from .state import _truncate
 
-__all__ = ["ClippyApplet", "_truncate"]
+__all__ = ["ClippyApplet", "_truncate", "meta"]

@@ -11,16 +11,16 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.colorpicker import meta
 from docking.applets.colorpicker.render import create_icon
 from docking.applets.colorpicker.state import pick_pixel, rgb_to_hex
-from docking.applets.identity import AppletId
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="colorpicker"), applet_id=str(AppletId.COLORPICKER))
+_log = with_context(get_logger(name="colorpicker"), applet_id=meta.id)
 
 # Default grey swatch
 _DEFAULT_RGB = (0.5, 0.5, 0.5)
@@ -34,7 +34,7 @@ class ColorPickerApplet(Applet):
     and updates the icon swatch.
     """
 
-    id = AppletId.COLORPICKER
+    id = meta.id
     name = _("Color Picker")
     icon_name = "color-select"
 
@@ -45,7 +45,7 @@ class ColorPickerApplet(Applet):
         self._overlay: Gtk.Window | None = None
 
         if config:
-            prefs = config.applet_prefs.get(AppletId.COLORPICKER, {})
+            prefs = config.applet_prefs.get(meta.id, {})
             self._show_hex = prefs.get("show_hex", True)
             # Restore last picked color
             self._r = prefs.get("r", _DEFAULT_RGB[0])

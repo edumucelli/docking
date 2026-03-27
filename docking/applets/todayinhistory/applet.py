@@ -15,7 +15,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -32,14 +32,14 @@ if TYPE_CHECKING:
 
 _log = with_context(
     get_logger(name="todayinhistory"),
-    applet_id=str(AppletId.TODAYINHISTORY),
+    applet_id=meta.id,
 )
 
 
 class TodayInHistoryApplet(Applet):
     """Show notable historical events for the current local date."""
 
-    id = AppletId.TODAYINHISTORY
+    id = meta.id
     name = _("Today in History")
     icon_name = "office-calendar"
 

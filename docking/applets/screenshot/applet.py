@@ -13,7 +13,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.screenshot import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -23,7 +23,7 @@ from .state import _TOOLS, Mode, _detect_tool, _run
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="screenshot"), applet_id=str(AppletId.SCREENSHOT))
+_log = with_context(get_logger(name="screenshot"), applet_id=meta.id)
 _TIMED_DELAYS_S: tuple[int, ...] = (3, 5, 7, 9)
 _MODE_OPTIONS: tuple[tuple[str, Mode], ...] = (
     ("Full Screen", "full"),
@@ -35,7 +35,7 @@ _MODE_OPTIONS: tuple[tuple[str, Mode], ...] = (
 class ScreenshotApplet(Applet):
     """Capture screenshots via the best available tool."""
 
-    id = AppletId.SCREENSHOT
+    id = meta.id
     name = _("Screenshot")
     icon_name = "applets-screenshooter"
 

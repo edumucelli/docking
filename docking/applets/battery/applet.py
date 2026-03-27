@@ -11,9 +11,9 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
+from docking.applets.battery import meta
 from docking.applets.battery.render import render_icon
 from docking.applets.battery.state import BatteryState, read_battery, tooltip_text
-from docking.applets.identity import AppletId
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class BatteryApplet(Applet):
     """Shows battery charge icon from sysfs, polled every 60 seconds."""
 
-    id = AppletId.BATTERY
+    id = meta.id
     name = _("Battery")
     icon_name = "battery-good"
 

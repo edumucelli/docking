@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="music",
+    name="Music",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import MusicApplet
 from .artwork import CoverArtResolver
 from .render import create_music_icon
@@ -39,6 +49,7 @@ __all__ = [
     "RhythmboxClientBackend",
     "clamp_percent",
     "create_music_icon",
+    "meta",
     "play_pause_menu_label",
     "tooltip_text",
     "unavailable_state",

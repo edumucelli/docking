@@ -253,9 +253,7 @@ class TestMoonApplet:
 
     def test_init_config_and_toggle_phase(self):
         class _Cfg:
-            applet_prefs: ClassVar = {
-                moon_applet_mod.AppletId.MOON: {"show_phase": False}
-            }
+            applet_prefs: ClassVar = {"moon": {"show_phase": False}}
 
             def save(self):
                 return None

@@ -13,7 +13,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.pomodoro import meta
 from docking.applets.pomodoro.render import render_icon
 from docking.applets.pomodoro.state import (
     BREAK_PRESETS,
@@ -43,7 +43,7 @@ _log = get_logger(name="pomodoro")
 class PomodoroApplet(Applet):
     """Pomodoro timer with flat tomato icon."""
 
-    id = AppletId.POMODORO
+    id = meta.id
     name = _("Pomodoro")
     icon_name = "alarm"
 

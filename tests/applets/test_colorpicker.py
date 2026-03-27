@@ -251,7 +251,7 @@ class TestColorPickerApplet:
     def test_init_restores_prefs_from_config(self):
         class _Cfg:
             applet_prefs: ClassVar = {
-                colorpicker_applet_mod.AppletId.COLORPICKER: {
+                "colorpicker": {
                     "show_hex": False,
                     "r": 0.1,
                     "g": 0.2,

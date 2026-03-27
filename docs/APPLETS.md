@@ -16,8 +16,8 @@ Docking applets follow a small, testable architecture:
   - `state.py`: pure logic, parsing, command/state helpers (easy to unit test)
   - `render.py`: Cairo/icon rendering helpers (no applet lifecycle logic)
   - `applet.py`: GTK/Wnck/Gio wiring, timers, click/scroll/menu behavior
-- Package `__init__.py` re-exports public symbols used by the registry/tests.
-- Applet classes are loaded through `docking/applets/__init__.py:get_registry()`.
+- Package `__init__.py` declares an `AppletMeta` for auto-discovery and re-exports public symbols.
+- Applet classes are loaded lazily through `docking/applets/__init__.py:load_applet_class()`.
 - Each applet declares a stable identity via `AppletId` from `docking/applets/identity.py`.
 
 This split keeps runtime behavior in one place while making parsers/rendering highly testable without a live desktop session.
@@ -386,70 +386,62 @@ Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sound
 
 ---
 
-## Writing Custom Applets
+## Contributing an Applet
 
-Applets extend the `Applet` abstract base class in `docking/applets/base.py`:
+### Quick start
 
-```python
-from docking.applets.base import Applet, load_theme_icon
-from docking.applets.identity import AppletId
-
-class MyApplet(Applet):
-    id = AppletId.MY_APPLET  # add enum entry in identity.py
-    name = "My Applet"       # display name in menus
-    icon_name = "my-icon"    # fallback icon
-
-    def create_icon(self, size):
-        """Render your icon as a GdkPixbuf at the given size."""
-        return load_theme_icon(name="my-icon", size=size)
-
-    def on_clicked(self):
-        """Handle left-click."""
-
-    def on_scroll(self, direction_up):
-        """Handle scroll wheel."""
-
-    def get_menu_items(self):
-        """Return list of Gtk.MenuItem for right-click menu."""
-        return []
-
-    def start(self, notify):
-        """Called after dock is ready. Start timers/monitors."""
-        super().start(notify)
-
-    def stop(self):
-        """Cleanup. Called on removal or shutdown."""
-        super().stop()
+```bash
+python -m docking.scaffold myapplet --category PRODUCTIVITY
 ```
 
-**Key patterns:**
-- Call `self.refresh_icon()` to trigger a redraw after state changes
-- Use `self.save_prefs(dict)` / `self.load_prefs()` for persistent preferences
-- Use `load_theme_icon(name, size)` for GTK theme icons
-- Use `load_theme_icon_centered(name, size)` for non-square icons (e.g. battery)
-- For Cairo rendering: create a surface, draw, return via `Gdk.pixbuf_get_from_surface()`
-- For background work: use `threading.Thread` + `GLib.idle_add()` to dispatch results to main thread
+This creates the full package + test + adds the `AppletId` enum entry:
 
-Recommended file layout:
-
-```text
-docking/applets/my_applet/
-  __init__.py   # re-export MyApplet (+ public helpers if needed)
-  applet.py     # GTK wiring and lifecycle
-  state.py      # pure state/logic helpers
-  render.py     # icon rendering helpers
+```
+docking/applets/myapplet/
+  __init__.py   # AppletMeta declaration + class re-export
+  state.py      # pure state/logic (no GTK)
+  render.py     # icon rendering
+  applet.py     # GTK lifecycle
+tests/applets/test_myapplet.py
 ```
 
-Register your applet in `docking/applets/__init__.py` (`get_registry()`):
+Run `python -m pytest tests/applets/test_myapplet.py -v` to verify.
 
-```python
-from docking.applets.my_applet import MyApplet
-from docking.applets.identity import AppletId
+### What you edit
 
-return {
-    ...
-    AppletId.MY_APPLET: MyApplet,
-}
-```
+1. **`state.py`** - Pure logic. Frozen dataclasses, prefs serialization (`state_from_prefs` / `prefs_from_state`), tooltip text formatting. No GTK imports - easy to test.
 
-**Design principle:** Complex logic is extracted as pure functions (no GTK dependency) so tests run fast without a display server. GTK-dependent tests use lightweight mocks.
+2. **`render.py`** - Icon rendering. `render_icon(size=...) -> GdkPixbuf.Pixbuf`. Use `load_theme_icon(name, size)` for theme icons or Cairo for custom drawing. Use `draw_icon_label(cr, text, size)` for text overlays.
+
+3. **`applet.py`** - GTK lifecycle. Subclass of `Applet` with:
+   - `create_icon(size)` - delegate to render.py
+   - `refresh_tooltip()` - set `self.item.name` (text) or `self.item.tooltip_builder` (widget)
+   - `on_clicked()` / `on_scroll(direction_up)` - interaction
+   - `get_menu_items()` - right-click menu items
+   - `start(notify)` / `stop()` - timers, monitors, cleanup
+
+4. **`__init__.py`** - Already generated with `AppletMeta`. Add re-exports for any public helpers tests need.
+
+### Key patterns
+
+- **Redraw:** Call `self.present()` after state changes (updates icon + tooltip + triggers redraw)
+- **Preferences:** `self.save_prefs(dict)` / `self.load_prefs()` for persistent config in dock.json
+- **Timers:** `GLib.timeout_add_seconds(interval, callback)` in `start()`, `GLib.source_remove(id)` in `stop()`. Callback returns `True` to keep running.
+- **Urgent:** Set `self.item.is_urgent = True` + `self.item.last_urgent = GLib.get_monotonic_time()` for bounce+glow animation
+- **Background work:** Use `BackgroundWorker` from `docking/applets/worker.py` for async tasks marshalled back to the GTK main loop
+- **Widget tooltips:** Set `self.item.tooltip_builder = self._build_widget` where the method returns a `Gtk.Box` with labels. See weather applet for a rich example.
+
+### Testing
+
+- **State tests** (pure functions, no GTK): test `state_from_prefs` round-trips, tooltip formatting, logic helpers
+- **Applet tests** (GTK lifecycle): test icon renders at various sizes, timer start/stop via monkeypatch, menu items
+- Monkeypatch `GLib.timeout_add_seconds` and `GLib.source_remove` in lifecycle tests
+
+### Checklist
+
+- [ ] `python -m pytest tests/applets/test_myapplet.py -v` passes
+- [ ] `ruff check docking/applets/myapplet/` clean
+- [ ] Icon renders at 32, 48, 64px
+- [ ] Tooltip shows meaningful content
+- [ ] Timers/monitors cleaned up in `stop()`
+- [ ] Prefs round-trip: `state_from_prefs(prefs_from_state(s)) == s`

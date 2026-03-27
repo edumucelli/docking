@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="powerprofiles",
+    name="Power Profiles",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import PowerProfilesApplet
 from .render import create_power_profiles_icon
 from .state import (
@@ -39,6 +49,7 @@ __all__ = [
     "TunedBackend",
     "create_power_profiles_icon",
     "detect_backend",
+    "meta",
     "normalize_profile",
     "order_profiles",
     "profile_label",

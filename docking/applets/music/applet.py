@@ -14,7 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.music import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
@@ -40,7 +40,7 @@ SCROLL_SYNC_DELAY_MS = 220
 class MusicApplet(Applet):
     """Media control applet with album-art rendering."""
 
-    id = AppletId.MUSIC
+    id = meta.id
     name = _("Music")
     icon_name = "audio-x-generic"
 

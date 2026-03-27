@@ -14,6 +14,14 @@ implementation layer.
 
 from __future__ import annotations
 
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="trivia",
+    name="Random Trivia",
+    category=AppletCategory.INFORMATION,
+)
+
 from .applet import TriviaApplet
 from .state import (
     TriviaEntry,
@@ -47,5 +55,6 @@ __all__ = [
     "fetch_trivia",
     "format_difficulty",
     "format_trivia",
+    "meta",
     "normalize_text",
 ]

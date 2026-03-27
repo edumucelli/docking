@@ -395,14 +395,13 @@ class TestAppletLifecycleIntegration:
         fake_applet.item = fake_item
 
         import docking.applets as applets_mod
-        import docking.applets.identity as identity_mod
 
         loader = MagicMock(return_value=lambda icon_size, config: fake_applet)
         monkeypatch.setattr(applets_mod, "load_applet_class", loader)
 
         model = DockModel(config, launcher)
 
-        loader.assert_called_once_with(identity_mod.AppletId.SESSION)
+        loader.assert_called_once_with("session")
         assert model.pinned_items == [fake_item]
         assert model.get_applet("applet://session") is fake_applet
 
@@ -425,14 +424,11 @@ class TestAppletLifecycleIntegration:
                 return fake_applet
 
         import docking.applets as applets_mod
-        import docking.applets.identity as identity_mod
 
         monkeypatch.setattr(
             applets_mod,
             "load_applet_class",
-            lambda applet_id: (
-                FakeAppletClass if applet_id == identity_mod.AppletId.SESSION else None
-            ),
+            lambda applet_id: FakeAppletClass if applet_id == "session" else None,
         )
         # When
         model.add_applet("session")
@@ -458,7 +454,6 @@ class TestAppletLifecycleIntegration:
         model = DockModel(config, launcher)
 
         import docking.applets as applets_mod
-        import docking.applets.identity as identity_mod
 
         created: list[MagicMock] = []
 
@@ -472,11 +467,7 @@ class TestAppletLifecycleIntegration:
         monkeypatch.setattr(
             applets_mod,
             "load_applet_class",
-            lambda applet_id: (
-                FakeSeparatorClass
-                if applet_id == identity_mod.AppletId.SEPARATOR
-                else None
-            ),
+            lambda applet_id: FakeSeparatorClass if applet_id == "separator" else None,
         )
         # When
         model.add_separator(index=0)

@@ -14,7 +14,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.trivia import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -30,13 +30,13 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="trivia"), applet_id=str(AppletId.TRIVIA))
+_log = with_context(get_logger(name="trivia"), applet_id=meta.id)
 
 
 class TriviaApplet(Applet):
     """Quick trivia applet backed by Open Trivia DB with local fallback."""
 
-    id = AppletId.TRIVIA
+    id = meta.id
     name = _("Random Trivia")
     icon_name = "dialog-question"
 

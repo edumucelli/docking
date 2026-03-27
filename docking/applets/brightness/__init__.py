@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="brightness",
+    name="Brightness",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import BrightnessApplet
 from .state import (
     STEP,
@@ -29,5 +39,6 @@ __all__ = [
     "brightness_icon_name",
     "detect_output",
     "get_brightness",
+    "meta",
     "set_brightness",
 ]

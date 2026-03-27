@@ -14,6 +14,14 @@ implementation layer.
 
 from __future__ import annotations
 
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="todayinhistory",
+    name="Today in History",
+    category=AppletCategory.INFORMATION,
+)
+
 from .applet import TodayInHistoryApplet
 from .state import (
     HistoryEvent,
@@ -40,4 +48,5 @@ __all__ = [
     "fallback_today_in_history",
     "fetch_today_in_history",
     "format_history_event",
+    "meta",
 ]

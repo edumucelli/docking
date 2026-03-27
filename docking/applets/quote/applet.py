@@ -14,7 +14,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.quote import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -31,13 +31,13 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="quote"), applet_id=str(AppletId.QUOTE))
+_log = with_context(get_logger(name="quote"), applet_id=meta.id)
 
 
 class QuoteApplet(Applet):
     """Quote of the day style applet inspired by the legacy Cairo-Dock plugin."""
 
-    id = AppletId.QUOTE
+    id = meta.id
     name = _("Quote")
     icon_name = "idea"
 

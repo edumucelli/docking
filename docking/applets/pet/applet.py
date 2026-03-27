@@ -12,7 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.pet import meta
 from docking.applets.pet.render import render_icon
 from docking.applets.pet.state import (
     CpuSample,
@@ -30,14 +30,14 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-_log = with_context(get_logger(name="pet"), applet_id=str(AppletId.PET))
+_log = with_context(get_logger(name="pet"), applet_id=meta.id)
 _PROC_STAT = Path("/proc/stat")
 
 
 class PetApplet(Applet):
     """Tamagotchi-style blob that reacts to CPU load and idle time."""
 
-    id = AppletId.PET
+    id = meta.id
     name = _("Pet")
     icon_name = "face-smile"
 

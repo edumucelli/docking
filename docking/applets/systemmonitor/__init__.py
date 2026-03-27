@@ -12,6 +12,16 @@ simple import path without turning the package ``__init__`` into an alternate
 implementation layer.
 """
 
+from __future__ import annotations
+
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="systemmonitor",
+    name="System Monitor",
+    category=AppletCategory.SYSTEM,
+)
+
 from .applet import SystemMonitorApplet
 from .state import (
     CpuSample,
@@ -26,6 +36,7 @@ __all__ = [
     "SystemMonitorApplet",
     "cpu_hue_rgb",
     "cpu_percent",
+    "meta",
     "parse_proc_meminfo",
     "parse_proc_stat",
 ]

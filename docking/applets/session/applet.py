@@ -10,7 +10,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.applets.base import Applet
-from docking.applets.identity import AppletId
+from docking.applets.session import meta
 from docking.i18n import _
 
 from .render import create_session_icon
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class SessionApplet(Applet):
     """Provides session and power management actions."""
 
-    id = AppletId.SESSION
+    id = meta.id
     name = _("Session")
     icon_name = "system-log-out"
 

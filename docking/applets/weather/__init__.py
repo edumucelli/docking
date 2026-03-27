@@ -14,7 +14,13 @@ implementation layer.
 
 from __future__ import annotations
 
-import threading as threading
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="weather",
+    name="Weather",
+    category=AppletCategory.INFORMATION,
+)
 
 import gi
 
@@ -25,4 +31,4 @@ from .api import fetch_air_quality as fetch_air_quality
 from .api import fetch_weather as fetch_weather
 from .applet import WeatherApplet
 
-__all__ = ["WeatherApplet"]
+__all__ = ["WeatherApplet", "meta"]
