@@ -18,14 +18,7 @@ import os
 import sys
 from pathlib import Path
 
-from docking.applets.aiusage.state import (
-    find_codex_session,
-    parse_claude_transcript,
-    parse_codex_transcript,
-    prefs_from_state,
-    set_session,
-    state_from_prefs,
-)
+from docking.applets.aiusage import state as aiusage_state
 
 PREFS_KEY = "aiusage"
 PREFS_KEY_LEGACY = "claude"
@@ -53,9 +46,13 @@ def _update_config(session_id: str, model_usage: dict) -> None:
 
         applet_prefs = config.setdefault("applet_prefs", {})
         prefs = applet_prefs.get(PREFS_KEY) or applet_prefs.get(PREFS_KEY_LEGACY, {})
-        state = state_from_prefs(prefs=prefs)
-        state = set_session(state=state, session_id=session_id, model_usage=model_usage)
-        applet_prefs[PREFS_KEY] = prefs_from_state(state=state)
+        state = aiusage_state.state_from_prefs(prefs=prefs)
+        state = aiusage_state.set_session(
+            state=state,
+            session_id=session_id,
+            model_usage=model_usage,
+        )
+        applet_prefs[PREFS_KEY] = aiusage_state.prefs_from_state(state=state)
 
         data = json.dumps(config, indent=2) + "\n"
         os.lseek(fd, 0, os.SEEK_SET)
@@ -76,7 +73,7 @@ def _handle_claude_stop(data: dict) -> None:
     if not transcript_path:
         return
     session_id = data.get("session_id") or Path(transcript_path).stem
-    model_usage = parse_claude_transcript(path=Path(transcript_path))
+    model_usage = aiusage_state.parse_claude_transcript(path=Path(transcript_path))
     if not model_usage:
         return
     _update_config(session_id=session_id, model_usage=model_usage)
@@ -94,11 +91,11 @@ def _handle_codex_turn(json_arg: str) -> None:
         data = {}
 
     thread_id = data.get("thread-id")
-    session_path = find_codex_session(thread_id=thread_id)
+    session_path = aiusage_state.find_codex_session(thread_id=thread_id)
     if not session_path:
         return
     session_id = thread_id or session_path.stem
-    model_usage = parse_codex_transcript(path=session_path)
+    model_usage = aiusage_state.parse_codex_transcript(path=session_path)
     if not model_usage:
         return
     _update_config(session_id=session_id, model_usage=model_usage)
