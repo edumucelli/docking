@@ -75,6 +75,7 @@ def _make_model() -> SimpleNamespace:
     pinned = [_make_item("firefox.desktop", is_pinned=True)]
     transient = [_make_item("slack.desktop", is_pinned=False)]
     lookup = {item.desktop_id: item for item in pinned + transient}
+    listeners: list[object] = []
     model = SimpleNamespace()
     model.pinned_items = list(pinned)
     model.visible_items = MagicMock(return_value=list(pinned + transient))
@@ -83,7 +84,11 @@ def _make_model() -> SimpleNamespace:
     )
     model.pin_item = MagicMock()
     model.unpin_item = MagicMock()
-    model.on_change = None
+    model._listeners = listeners
+    model.add_change_listener = MagicMock(side_effect=listeners.append)
+    model.remove_change_listener = MagicMock(
+        side_effect=lambda callback: listeners.remove(callback)
+    )
     return model
 
 
@@ -98,8 +103,6 @@ class TestDockItemsServiceLifecycle:
         model = _make_model()
         window = _make_window()
         connection = _FakeConnection()
-        previous = MagicMock()
-        model.on_change = previous
 
         monkeypatch.setattr(
             "docking.ipc.items_service.Gio.bus_get_sync",
@@ -124,19 +127,17 @@ class TestDockItemsServiceLifecycle:
         assert connection.register_calls == [
             (OBJECT_PATH, ITEMS_INTERFACE, service._handle_method_call, None, None)
         ]
-        assert model.on_change is service._model_change_hook
+        model.add_change_listener.assert_called_once_with(service._handle_model_change)
+        assert model._listeners == [service._handle_model_change]
 
-        model.on_change()
+        model._listeners[0]()
 
-        previous.assert_called_once()
         assert timeouts and timeouts[0][0] == 500
 
-    def test_stop_unregisters_and_restores_model_callback(self, monkeypatch):
+    def test_stop_unregisters_and_detaches_model_listener(self, monkeypatch):
         model = _make_model()
         window = _make_window()
         connection = _FakeConnection()
-        previous = MagicMock()
-        model.on_change = previous
         unowned: list[int] = []
         removed: list[int] = []
 
@@ -163,14 +164,17 @@ class TestDockItemsServiceLifecycle:
 
         service = DockItemsService(model=model, window=window)
         service.start()
-        model.on_change()
+        model._listeners[0]()
 
         service.stop()
 
         assert connection.unregistered == [17]
         assert unowned == [23]
         assert removed == [77]
-        assert model.on_change is previous
+        model.remove_change_listener.assert_called_once_with(
+            service._handle_model_change
+        )
+        assert model._listeners == []
 
 
 class TestDockItemsServiceDispatch:

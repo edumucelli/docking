@@ -508,6 +508,7 @@ class TestDockWindowSetupAndGeometry:
             get_screen=MagicMock(return_value=screen),
             set_visual=MagicMock(),
             connect=MagicMock(),
+            _on_destroy=MagicMock(),
             placement=SimpleNamespace(
                 attach_screen_signals=MagicMock(),
                 on_realize=MagicMock(),
@@ -523,7 +524,7 @@ class TestDockWindowSetupAndGeometry:
         # Then
         stub.set_title.assert_called_once_with("Docking")
         stub.set_visual.assert_called_once_with("sys-visual")
-        assert stub.connect.call_count == 5
+        assert stub.connect.call_count == 6
         stub.placement.attach_screen_signals.assert_called_once_with(screen)
 
     def test_setup_drawing_area_initializes_events(self, monkeypatch):
@@ -573,17 +574,39 @@ class TestDockWindowSetupAndGeometry:
         assert stub._current_geometry_frame == "sentinel-current"
         assert stub._applied_input_frame == "sentinel-applied"
 
-    def test_connect_model_sets_on_change_handler(self):
+    def test_connect_model_registers_change_listener(self):
         # Given
+        add_change_listener = MagicMock()
         stub = SimpleNamespace(
-            model=SimpleNamespace(on_change=None), _on_model_changed=lambda: None
+            model=SimpleNamespace(add_change_listener=add_change_listener),
+            _on_model_changed=lambda: None,
         )
 
         # When
         dock_window_mod.DockWindow._connect_model(stub)
 
         # Then
-        assert stub.model.on_change == stub._on_model_changed
+        add_change_listener.assert_called_once_with(stub._on_model_changed)
+
+    def test_on_destroy_disconnects_model_listener(self):
+        stub = SimpleNamespace(
+            _disconnect_model=MagicMock(),
+        )
+
+        dock_window_mod.DockWindow._on_destroy(stub, MagicMock())
+
+        stub._disconnect_model.assert_called_once_with()
+
+    def test_disconnect_model_unregisters_change_listener(self):
+        remove_change_listener = MagicMock()
+        stub = SimpleNamespace(
+            model=SimpleNamespace(remove_change_listener=remove_change_listener),
+            _on_model_changed=lambda: None,
+        )
+
+        dock_window_mod.DockWindow._disconnect_model(stub)
+
+        remove_change_listener.assert_called_once_with(stub._on_model_changed)
 
 
 class TestDockWindowStrutsAndRegion:

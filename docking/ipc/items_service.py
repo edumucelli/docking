@@ -21,7 +21,6 @@ Isolation rules
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import gi
@@ -56,8 +55,7 @@ class DockItemsService:
         self._owner_id: int = 0
         self._registration_id: int = 0
         self._changed_source_id: int = 0
-        self._previous_on_change: Callable[[], None] | None = None
-        self._model_change_hook: Callable[[], None] = self._handle_model_change
+        self._subscribed_to_model = False
         self._interface_info = Gio.DBusNodeInfo.new_for_xml(
             ITEMS_INTROSPECTION_XML
         ).interfaces[0]
@@ -101,10 +99,10 @@ class DockItemsService:
         self._connection = connection
         self._owner_id = owner_id
         self._registration_id = registration_id
-        self._attach_model_change_hook()
+        self._attach_model_change_listener()
 
     def stop(self) -> None:
-        """Detach bus resources and restore the previous model callback."""
+        """Detach bus resources and unsubscribe from model changes."""
         if self._changed_source_id > 0:
             GLib.source_remove(self._changed_source_id)
             self._changed_source_id = 0
@@ -118,17 +116,21 @@ class DockItemsService:
         self._owner_id = 0
         self._connection = None
 
-        if self._model.on_change is self._model_change_hook:
-            self._model.on_change = self._previous_on_change
-        self._previous_on_change = None
+        self._detach_model_change_listener()
 
-    def _attach_model_change_hook(self) -> None:
-        self._previous_on_change = self._model.on_change
-        self._model.on_change = self._model_change_hook
+    def _attach_model_change_listener(self) -> None:
+        if self._subscribed_to_model:
+            return
+        self._model.add_change_listener(self._handle_model_change)
+        self._subscribed_to_model = True
+
+    def _detach_model_change_listener(self) -> None:
+        if not self._subscribed_to_model:
+            return
+        self._model.remove_change_listener(self._handle_model_change)
+        self._subscribed_to_model = False
 
     def _handle_model_change(self) -> None:
-        if self._previous_on_change:
-            self._previous_on_change()
         self._schedule_changed_signal()
 
     def _schedule_changed_signal(self) -> None:

@@ -48,6 +48,9 @@ class DockItem:
     # Insert/remove animation factor: 0.0 = fully collapsed, 1.0 = fully visible.
     # Layout scales the item's effective width by this factor.
     insert_factor: float = 1.0
+    # Former visible index used to keep shrink-out animations in place instead of
+    # appending them at the end of the dock.
+    removal_index: int = -1
 
     def __post_init__(self) -> None:
         if not self.target:

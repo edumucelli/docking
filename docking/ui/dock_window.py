@@ -354,6 +354,7 @@ class DockWindow(Gtk.Window):
         self.connect("screen-changed", self.placement.on_screen_changed)
         self.connect("notify::scale-factor", self.placement.on_scale_factor_changed)
         self.connect("destroy", self.placement.on_destroy)
+        self.connect("destroy", self._on_destroy)
         self.connect("destroy", Gtk.main_quit)
 
     def _setup_drawing_area(self) -> None:
@@ -393,7 +394,15 @@ class DockWindow(Gtk.Window):
 
     def _connect_model(self) -> None:
         """Listen for model changes to trigger redraws."""
-        self.model.on_change = self._on_model_changed
+        self.model.add_change_listener(self._on_model_changed)
+
+    def _disconnect_model(self) -> None:
+        """Remove model listener during shutdown."""
+        self.model.remove_change_listener(self._on_model_changed)
+
+    def _on_destroy(self, _window: Gtk.Window) -> None:
+        """Release model subscriptions owned by the dock shell."""
+        self._disconnect_model()
 
     def attach_components(self, components: DockComponents) -> None:
         """Attach late-built UI components in one atomic assembly step."""

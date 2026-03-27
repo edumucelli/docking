@@ -261,7 +261,7 @@ class TestReorderVisible:
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
         callback = MagicMock()
-        model.on_change = callback
+        model.add_change_listener(callback)
         # When
         model.pinned_items.reverse()
         model.sync_pinned_to_config()
@@ -366,17 +366,63 @@ class TestReorderVisible:
 
 
 class TestCallbacks:
-    def test_on_change_fires(self):
+    def test_change_listener_fires(self):
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
         callback = MagicMock()
-        model.on_change = callback
+        model.add_change_listener(callback)
         # When
         model.update_running({"a.desktop": {"count": 1, "active": False}})
         # Then
         callback.assert_called_once()
+
+    def test_removed_change_listener_does_not_fire(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        callback = MagicMock()
+        model.add_change_listener(callback)
+        model.remove_change_listener(callback)
+
+        model.notify()
+
+        callback.assert_not_called()
+
+    def test_change_listeners_fire_in_registration_order(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        calls: list[str] = []
+
+        model.add_change_listener(lambda: calls.append("first"))
+        model.add_change_listener(lambda: calls.append("second"))
+
+        model.notify()
+
+        assert calls == ["first", "second"]
+
+    def test_listener_can_remove_itself_during_notify(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        calls: list[str] = []
+
+        def first() -> None:
+            calls.append("first")
+            model.remove_change_listener(first)
+
+        def second() -> None:
+            calls.append("second")
+
+        model.add_change_listener(first)
+        model.add_change_listener(second)
+
+        model.notify()
+        model.notify()
+
+        assert calls == ["first", "second", "second"]
 
 
 class TestAppletLifecycleIntegration:
@@ -413,7 +459,7 @@ class TestAppletLifecycleIntegration:
         launcher = _make_launcher()
         model = DockModel(config, launcher)
         callback = MagicMock()
-        model.on_change = callback
+        model.add_change_listener(callback)
 
         fake_item = DockItem(desktop_id="applet://session", name="Session")
         fake_applet = MagicMock()
@@ -478,6 +524,38 @@ class TestAppletLifecycleIntegration:
         assert created[0].start.called
         assert config.save.called
 
+    def test_removed_separator_keeps_former_visible_position_while_animating(
+        self, monkeypatch
+    ):
+        config = _make_config(["a.desktop", "b.desktop"])
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher)
+
+        import docking.applets as applets_mod
+
+        class FakeSeparatorClass:
+            def __new__(cls, icon_size, config):
+                app = MagicMock()
+                app.item = DockItem(desktop_id="applet://separator", name="Separator")
+                return app
+
+        monkeypatch.setattr(
+            applets_mod,
+            "load_applet_class",
+            lambda applet_id: FakeSeparatorClass if applet_id == "separator" else None,
+        )
+
+        model.add_separator(index=1)
+        separator_id = model.pinned_items[1].desktop_id
+
+        model.remove_applet(separator_id)
+
+        assert [item.desktop_id for item in model.visible_items()] == [
+            "a.desktop",
+            separator_id,
+            "b.desktop",
+        ]
+
     def test_start_stop_applets_and_get_applet(self):
         # Given
         config = _make_config([])
@@ -501,7 +579,7 @@ class TestAppletLifecycleIntegration:
         launcher = _make_launcher()
         model = DockModel(config, launcher)
         callback = MagicMock()
-        model.on_change = callback
+        model.add_change_listener(callback)
 
         class StrictApplet:
             def __init__(self):

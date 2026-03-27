@@ -172,12 +172,27 @@ class DockModel:
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
         self._animating_out: list[DockItem] = []
-        self.on_change: Callable[[], None] | None = None
+        self._change_listeners: list[Callable[[], None]] = []
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
 
         self._load_pinned()
+
+    def add_change_listener(self, callback: Callable[[], None]) -> None:
+        """Register a callback fired whenever model-visible state changes.
+
+        Callbacks fire in registration order.
+        """
+        if callback not in self._change_listeners:
+            self._change_listeners.append(callback)
+
+    def remove_change_listener(self, callback: Callable[[], None]) -> None:
+        """Remove a previously registered change callback."""
+        try:
+            self._change_listeners.remove(callback)
+        except ValueError:
+            return
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
@@ -330,6 +345,7 @@ class DockModel:
         if applet:
             applet.stop()
             if applet.item in self.pinned_items:
+                applet.item.removal_index = self.visible_items().index(applet.item)
                 self.pinned_items.remove(applet.item)
                 self._animating_out.append(applet.item)
             self.sync_pinned_to_config()
@@ -348,22 +364,48 @@ class DockModel:
 
     def visible_items(self) -> list[DockItem]:
         """All items to display with optional independent anchoring rules."""
-        items = self.pinned_items + self._transient + self._animating_out
+        items = self.pinned_items + self._transient
         anchor_applets = self._config.anchor_applets
         anchor_files = self._config.anchor_files
         if not anchor_applets and not anchor_files:
-            return list(items)
-        regular: list[DockItem] = []
-        files: list[DockItem] = []
-        applet_items: list[DockItem] = []
-        for item in items:
-            if anchor_applets and item.kind == APPLET_KIND:
-                applet_items.append(item)
-            elif anchor_files and item.kind in {FILE_KIND, FOLDER_KIND}:
-                files.append(item)
+            ordered = list(items)
+        else:
+            # Rebuild the visible order with the optional "anchor applets/files
+            # to the end" policy applied. This is a presentation rule only; the
+            # underlying pinned/transient ownership does not change here.
+            regular: list[DockItem] = []
+            files: list[DockItem] = []
+            applet_items: list[DockItem] = []
+            for item in items:
+                if anchor_applets and item.kind == APPLET_KIND:
+                    applet_items.append(item)
+                elif anchor_files and item.kind in {FILE_KIND, FOLDER_KIND}:
+                    files.append(item)
+                else:
+                    regular.append(item)
+            ordered = regular + files + applet_items
+
+        if not self._animating_out:
+            return ordered
+
+        result = list(ordered)
+        # Removed items keep animating in their former visible slot instead of
+        # being appended at the end. Appending them would make the shelf grow on
+        # the trailing edge while the icon shrinks, which looks like the wrong
+        # item is being removed.
+        for item in sorted(
+            self._animating_out,
+            key=lambda outgoing: (
+                outgoing.removal_index
+                if outgoing.removal_index >= 0
+                else len(ordered) + len(self._animating_out)
+            ),
+        ):
+            if item.removal_index < 0 or item.removal_index > len(result):
+                result.append(item)
             else:
-                regular.append(item)
-        return regular + files + applet_items
+                result.insert(item.removal_index, item)
+        return result
 
     def find_by_desktop_id(self, desktop_id: str) -> DockItem | None:
         for item in self.pinned_items + self._transient:
@@ -488,11 +530,14 @@ class DockModel:
             return
         item = next((p for p in self.pinned_items if p.desktop_id == desktop_id), None)
         if item:
+            visible_index = self.visible_items().index(item)
             self.pinned_items.remove(item)
             item.is_pinned = False
             if item.kind == APP_KIND and item.is_running:
+                item.removal_index = -1
                 self._transient.append(item)
             else:
+                item.removal_index = visible_index
                 self._animating_out.append(item)
             self._persist_pinned_changes()
             self.notify()
@@ -569,9 +614,13 @@ class DockModel:
         return PinnedEntry(kind=FILE_KIND, target=item.target)
 
     def notify(self) -> None:
-        """Fire on_change callback to trigger a dock redraw."""
-        if self.on_change:
-            self.on_change()
+        """Fire change callbacks to trigger redraws and side effects.
+
+        Iterate over a shallow copy so listeners can unsubscribe themselves
+        safely while notifications are in flight.
+        """
+        for callback in list(self._change_listeners):
+            callback()
 
     def tick_animations(self) -> bool:
         """Advance insert/remove animations. Returns True if any are active."""
@@ -594,5 +643,6 @@ class DockModel:
                 active = True
         for item in done:
             self._animating_out.remove(item)
+            item.removal_index = -1
 
         return active
