@@ -8,8 +8,78 @@ on:
     branches: [master]
 
 jobs:
+  changes:
+    name: Detect CI-relevant changes
+    runs-on: ubuntu-24.04
+    outputs:
+      run_ci: ${{ steps.filter.outputs.run_ci }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether CI is required
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          EVENT_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+
+          if [ "${REF_TYPE}" = "tag" ]; then
+            echo "Tag push detected; CI will run."
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            base_sha="${PR_BASE_SHA}"
+            head_sha="${PR_HEAD_SHA}"
+          else
+            base_sha="${EVENT_BEFORE}"
+            head_sha="${EVENT_SHA}"
+          fi
+
+          if [ -z "${base_sha}" ] || [ "${base_sha}" = "0000000000000000000000000000000000000000" ]; then
+            echo "No comparable base commit; CI will run."
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          mapfile -t changed_files < <(git diff --name-only "${base_sha}" "${head_sha}")
+
+          if [ "${#changed_files[@]}" -eq 0 ]; then
+            echo "No changed files detected; CI will run."
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          printf 'Changed files:\n'
+          printf ' - %s\n' "${changed_files[@]}"
+
+          for path in "${changed_files[@]}"; do
+            case "${path}" in
+              docs/*|website/*|images/*)
+                ;;
+              *)
+                echo "CI-relevant change detected: ${path}"
+                echo "run_ci=true" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+          done
+
+          echo "Only docs/ website/ and images/ changed; skipping CI."
+          echo "run_ci=false" >> "$GITHUB_OUTPUT"
+
   quality:
     name: Quality (ruff + ty)
+    needs: [changes]
+    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +130,8 @@ jobs:
 
   test-ubuntu:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
-    needs: [quality]
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-${{ matrix.ubuntu }}
     strategy:
       matrix:
@@ -173,7 +244,8 @@ jobs:
 
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
-    needs: [quality]
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -244,7 +316,8 @@ jobs:
 
   test-fedora-smoke:
     name: Smoke (Fedora 41)
-    needs: [quality]
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: fedora:41
@@ -283,7 +356,8 @@ jobs:
 
   test-opensuse-smoke:
     name: Smoke (openSUSE Tumbleweed)
-    needs: [quality]
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: opensuse/tumbleweed:latest
@@ -349,7 +423,8 @@ jobs:
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -414,7 +489,8 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -440,7 +516,8 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -470,7 +547,8 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -501,7 +579,8 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -529,7 +608,8 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    if: needs.changes.outputs.run_ci == 'true'
     container:
       image: archlinux:latest
     steps:
@@ -560,7 +640,8 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
-    needs: [test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -593,8 +674,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [build-deb, build-rpm, build-flatpak, build-snap, build-appimage, build-arch, build-nix]
-    if: github.ref == 'refs/heads/master'
+    needs: [changes, build-deb, build-rpm, build-flatpak, build-snap, build-appimage, build-arch, build-nix]
+    if: github.ref == 'refs/heads/master' && needs.changes.outputs.run_ci == 'true'
     permissions:
       contents: write
     steps:
