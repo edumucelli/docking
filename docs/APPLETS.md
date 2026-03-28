@@ -180,7 +180,7 @@ Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel colo
 
 Categorized application launcher. Groups all installed `.desktop` applications by FreeDesktop category (Multimedia, Development, Internet, etc.) with icons.
 
-**Right-click:** Categorized submenus with application icons. Click an app to launch it.
+**Click:** Open the categorized launcher menu with a search field that filters applications as you type.
 
 ## Network
 

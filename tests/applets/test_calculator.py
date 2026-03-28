@@ -168,6 +168,19 @@ class TestAppletPopup:
 
         applet.stop()
 
+    def test_show_popup_uses_themed_surface_wrapper(self, monkeypatch):
+        applet = _make_applet()
+        monkeypatch.setattr(
+            calculator_applet_mod, "get_pointer_position", lambda _display: (120, 140)
+        )
+
+        applet._show_popup()
+
+        popup_child = applet._popup.get_child()
+        assert isinstance(popup_child, calculator_applet_mod.Gtk.Frame)
+        assert "applet-popup-surface" in popup_child.get_style_context().list_classes()
+        applet.stop()
+
     def test_activate_signal_evaluates_entry(self, monkeypatch):
         applet = _make_applet()
         monkeypatch.setattr(

@@ -435,6 +435,21 @@ class TestAppletPopup:
         assert applet._popup.get_child() is not first_child
         applet.stop()
 
+    def test_show_popup_uses_themed_surface_wrapper(self, monkeypatch):
+        applet = _make_applet()
+        monkeypatch.setattr(
+            unitconverter_applet_mod,
+            "get_pointer_position",
+            lambda _display: (150, 220),
+        )
+
+        applet._show_popup()
+
+        popup_child = applet._popup.get_child()
+        assert isinstance(popup_child, unitconverter_applet_mod.Gtk.Frame)
+        assert "applet-popup-surface" in popup_child.get_style_context().list_classes()
+        applet.stop()
+
     def test_category_change_repopulates_and_saves(self):
         applet = _make_applet()
         applet._build_popup_content()
@@ -547,6 +562,18 @@ class TestAppletPopup:
 
         assert applet._result_label.get_text()
         assert applet._popup is None
+
+    def test_update_result_does_not_force_white_text_on_themed_popup(self):
+        applet = _make_applet()
+        applet._entry = MagicMock()
+        applet._entry.get_text.return_value = "2"
+        applet._result_label = MagicMock()
+
+        applet._update_result()
+
+        markup = applet._result_label.set_markup.call_args.args[0]
+        assert 'color="white"' not in markup
+        assert 'weight="bold"' in markup
 
 
 class TestCategories:

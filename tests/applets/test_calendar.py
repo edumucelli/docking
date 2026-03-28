@@ -149,6 +149,33 @@ class _FakeCalendar:
         return
 
 
+class _FakeStyleContext:
+    def __init__(self) -> None:
+        self.classes: list[str] = []
+
+    def add_class(self, name: str) -> None:
+        self.classes.append(name)
+
+    def list_classes(self) -> list[str]:
+        return list(self.classes)
+
+
+class _FakeFrame:
+    def __init__(self) -> None:
+        self.child = None
+        self.shadow_type = None
+        self._style_context = _FakeStyleContext()
+
+    def set_shadow_type(self, shadow_type) -> None:
+        self.shadow_type = shadow_type
+
+    def get_style_context(self) -> _FakeStyleContext:
+        return self._style_context
+
+    def add(self, child) -> None:
+        self.child = child
+
+
 class _FakePopupScreen:
     def __init__(self, width: int = 500, height: int = 320) -> None:
         self._width = width
@@ -210,6 +237,7 @@ class TestCalendarPopup:
         seat.get_pointer.return_value = pointer
         display = MagicMock()
         display.get_default_seat.return_value = seat
+        wrapped = _FakeFrame()
 
         monkeypatch.setattr(
             calendar_applet_mod,
@@ -218,13 +246,19 @@ class TestCalendarPopup:
                 Window=lambda **_kwargs: fake_popup,
                 WindowType=SimpleNamespace(POPUP=1),
                 Calendar=_FakeCalendar,
-                Widget=object,
+                Frame=_FakeFrame,
+                ShadowType=SimpleNamespace(NONE=0),
             ),
         )
         monkeypatch.setattr(
             calendar_applet_mod.Gdk.Display,
             "get_default",
             lambda: display,
+        )
+        monkeypatch.setattr(
+            calendar_applet_mod,
+            "wrap_popup",
+            lambda child: wrapped.add(child) or wrapped,
         )
 
         # When
@@ -236,6 +270,8 @@ class TestCalendarPopup:
         fake_popup.add.assert_called_once()
         fake_popup.show_all.assert_called_once()
         fake_popup.move.assert_called_once_with(0, 0)
+        assert fake_popup.get_child() is wrapped
+        assert wrapped.child is not None
 
     def test_stop_destroys_popup(self):
         # Given

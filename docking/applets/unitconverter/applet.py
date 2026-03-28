@@ -30,11 +30,9 @@ logic.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -43,6 +41,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.popup import wrap_popup
 from docking.applets.unitconverter import meta
 from docking.applets.unitconverter.render import create_icon
 from docking.applets.unitconverter.state import (
@@ -137,34 +136,12 @@ class UnitConverterApplet(Applet):
             self._popup.set_decorated(False)
             self._popup.set_skip_taskbar_hint(True)
             self._popup.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
-            self._popup.set_app_paintable(True)
-
-            screen = self._popup.get_screen()
-            visual = screen.get_rgba_visual()
-            if visual:
-                self._popup.set_visual(visual)
-
-            def on_draw(widget: Gtk.Widget, cr: cairo.Context) -> bool:
-                alloc = widget.get_allocation()
-                r = POPUP_CORNER_RADIUS_PX
-                w, h = alloc.width, alloc.height
-                cr.new_sub_path()
-                cr.arc(w - r, r, r, -math.pi / 2, 0)
-                cr.arc(w - r, h - r, r, 0, math.pi / 2)
-                cr.arc(r, h - r, r, math.pi / 2, math.pi)
-                cr.arc(r, r, r, math.pi, 3 * math.pi / 2)
-                cr.close_path()
-                cr.set_source_rgba(0.12, 0.12, 0.12, 0.92)
-                cr.fill()
-                return False
-
-            self._popup.connect("draw", on_draw)
 
         child = self._popup.get_child()
         if child:
             self._popup.remove(child)
 
-        self._popup.add(self._build_popup_content())
+        self._popup.add(wrap_popup(self._build_popup_content()))
         self._popup.show_all()
 
         # Position near mouse
@@ -328,8 +305,7 @@ class UnitConverterApplet(Applet):
         formatted = format_result(result)
         symbol = units[ti].symbol
         self._result_label.set_markup(
-            f'<span size="large" weight="bold" color="white">'
-            f"{formatted} {symbol}</span>"
+            f'<span size="large" weight="bold">{formatted} {symbol}</span>'
         )
 
     def _save_prefs(self) -> None:

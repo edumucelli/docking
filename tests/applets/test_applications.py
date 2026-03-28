@@ -35,6 +35,8 @@ class TestApplicationsApplet:
             def __init__(self) -> None:
                 self.children: list[object] = []
                 self.shown = False
+                self.popup_event = None
+                self._signals: dict[str, list[object]] = {}
 
             def append(self, item) -> None:
                 self.children.append(item)
@@ -48,6 +50,12 @@ class TestApplicationsApplet:
 
             def show_all(self) -> None:
                 self.shown = True
+
+            def connect(self, signal: str, callback) -> None:
+                self._signals.setdefault(signal, []).append(callback)
+
+            def popup_at_pointer(self, event) -> None:
+                self.popup_event = event
 
         class _FakeMenuItem:
             def __init__(self, label: str = "") -> None:
@@ -141,17 +149,26 @@ class TestApplicationsApplet:
         d = ApplicationsApplet(48)
         assert d.item.icon is not None
 
-    def test_no_click_action(self):
-        d = ApplicationsApplet(48)
-        # on_clicked is inherited no-op from Applet base
-        d.on_clicked()  # should not crash
-
-    def test_menu_returns_items(self, monkeypatch):
+    def test_left_click_opens_launcher_menu(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         d = ApplicationsApplet(48)
-        items = d.get_menu_items()
+        d.on_clicked()
+
+        assert d._popup_menu is not None
+        assert d._popup_menu.shown is True
+        assert d._popup_menu.popup_event is None
+
+    def test_launcher_menu_contains_search_entry(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        d = ApplicationsApplet(48)
+        menu = d._build_launcher_menu()
+        items = menu.get_children()
         assert items[0]._child.children[0].placeholder == "Search applications..."
-        assert isinstance(items, list)
+        assert isinstance(menu, applications_applet_mod.Gtk.Menu)
+
+    def test_right_click_menu_items_are_empty(self):
+        d = ApplicationsApplet(48)
+        assert d.get_menu_items() == []
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
@@ -181,7 +198,7 @@ class TestApplicationsApplet:
         )
 
         applet = ApplicationsApplet(48)
-        items = applet.get_menu_items()
+        items = applet._build_launcher_menu().get_children()
         search_entry = items[0]._child.children[0]
         internet_item = items[2]
         office_item = items[3]

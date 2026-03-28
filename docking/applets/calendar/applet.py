@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -18,6 +16,7 @@ from docking.applets.base import Applet
 from docking.applets.calendar import meta
 from docking.applets.calendar.render import render_icon
 from docking.applets.calendar.state import snapshot_from
+from docking.applets.popup import wrap_popup
 from docking.i18n import _
 from docking.ui.runtime import get_pointer_position
 
@@ -25,7 +24,6 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 CALENDAR_TICK_INTERVAL_S = 30
-CALENDAR_POPUP_CORNER_RADIUS_PX = 8
 CALENDAR_POPUP_PADDING_PX = 8
 CALENDAR_POPUP_CURSOR_GAP_PX = 20
 
@@ -88,28 +86,6 @@ class CalendarApplet(Applet):
             self._popup.set_decorated(False)
             self._popup.set_skip_taskbar_hint(True)
             self._popup.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
-            self._popup.set_app_paintable(True)
-
-            screen = self._popup.get_screen()
-            visual = screen.get_rgba_visual()
-            if visual:
-                self._popup.set_visual(visual)
-
-            def on_draw(widget: Gtk.Widget, cr: cairo.Context) -> bool:
-                alloc = widget.get_allocation()
-                radius = CALENDAR_POPUP_CORNER_RADIUS_PX
-                width, height = alloc.width, alloc.height
-                cr.new_sub_path()
-                cr.arc(width - radius, radius, radius, -math.pi / 2, 0)
-                cr.arc(width - radius, height - radius, radius, 0, math.pi / 2)
-                cr.arc(radius, height - radius, radius, math.pi / 2, math.pi)
-                cr.arc(radius, radius, radius, math.pi, 3 * math.pi / 2)
-                cr.close_path()
-                cr.set_source_rgba(0.12, 0.12, 0.12, 0.92)
-                cr.fill()
-                return False
-
-            self._popup.connect("draw", on_draw)
 
         child = self._popup.get_child()
         if child:
@@ -120,7 +96,7 @@ class CalendarApplet(Applet):
         calendar.set_margin_end(CALENDAR_POPUP_PADDING_PX)
         calendar.set_margin_top(CALENDAR_POPUP_PADDING_PX)
         calendar.set_margin_bottom(CALENDAR_POPUP_PADDING_PX)
-        self._popup.add(calendar)
+        self._popup.add(wrap_popup(calendar))
 
         self._popup.show_all()
 

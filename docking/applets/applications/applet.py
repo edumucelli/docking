@@ -28,7 +28,7 @@ log = with_context(
 
 
 class ApplicationsApplet(Applet):
-    """Categorized application launcher via right-click menu."""
+    """Categorized application launcher via left-click menu."""
 
     id = meta.id
     name = _("Applications")
@@ -36,14 +36,35 @@ class ApplicationsApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size=icon_size, config=config)
+        self._popup_menu: Gtk.Menu | None = None
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)
 
+    def on_clicked(self) -> None:
+        """Show the categorized application menu on left-click."""
+        menu = self._build_launcher_menu()
+        if not menu.get_children():
+            return
+
+        self._popup_menu = menu
+
+        def clear_popup(*_args: object) -> None:
+            self._popup_menu = None
+
+        menu.connect("hide", clear_popup)
+        menu.connect("deactivate", clear_popup)
+        menu.show_all()
+        menu.popup_at_pointer(None)
+
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        """Build categorized app menu (lazy: scans on each open)."""
-        items: list[Gtk.MenuItem] = []
+        """Use left-click for the launcher menu; keep right-click minimal."""
+        return []
+
+    def _build_launcher_menu(self) -> Gtk.Menu:
+        """Build the categorized launcher menu lazily on each open."""
+        menu = Gtk.Menu()
         categories = _build_app_categories()
         category_rows: list[
             tuple[Gtk.MenuItem, Gtk.Menu, list[Gio.DesktopAppInfo]]
@@ -56,8 +77,8 @@ class ApplicationsApplet(Applet):
         search_box.pack_start(search_entry, True, True, 0)
         search_item = Gtk.MenuItem()
         search_item.add(search_box)
-        items.append(search_item)
-        items.append(Gtk.SeparatorMenuItem())
+        menu.append(search_item)
+        menu.append(Gtk.SeparatorMenuItem())
 
         for cat_name in sorted(categories.keys()):
             apps = categories[cat_name]
@@ -73,7 +94,7 @@ class ApplicationsApplet(Applet):
             _populate_app_submenu(submenu=submenu, apps=apps)
 
             cat_item.set_submenu(submenu)
-            items.append(cat_item)
+            menu.append(cat_item)
             category_rows.append((cat_item, submenu, apps))
 
         def apply_filter(query: str) -> None:
@@ -96,7 +117,7 @@ class ApplicationsApplet(Applet):
         search_entry.connect("changed", on_search_changed)
         search_entry.connect("map", on_search_mapped)
 
-        return items
+        return menu
 
 
 def _app_name(app_info: Gio.DesktopAppInfo) -> str:
