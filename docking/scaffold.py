@@ -23,7 +23,7 @@ _TESTS_DIR = _ROOT.parent / "tests" / "applets"
 # ---------------------------------------------------------------------------
 
 _INIT_PY = '''\
-"""Public surface for the {display} applet."""
+"""Applet metadata for the {display} applet."""
 
 from __future__ import annotations
 
@@ -35,9 +35,7 @@ meta = AppletMeta(
     category=AppletCategory.{category},
 )
 
-from .applet import {class_name}  # noqa: E402, F401
-
-__all__ = ["meta", "{class_name}"]
+__all__ = ["meta"]
 '''
 
 _STATE_PY = '''\
@@ -135,7 +133,7 @@ _TEST_PY = '''\
 
 from __future__ import annotations
 
-from docking.applets.{aid} import {class_name}
+from docking.applets.{aid}.applet import {class_name}
 
 
 class Test{class_name}:

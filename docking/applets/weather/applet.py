@@ -18,6 +18,8 @@ from docking.applets.weather.api import (
     REFRESH_INTERVAL,
     AirQualityData,
     WeatherData,
+    fetch_air_quality,
+    fetch_weather,
     wmo_icon_name,
 )
 from docking.applets.weather.cities import search_cities
@@ -271,8 +273,6 @@ class WeatherApplet(Applet):
 
     def _fetch_async(self) -> None:
         """Fetch weather + air quality in a background thread."""
-        import docking.applets.weather as weather_pkg
-
         active = self._active_city
         if not active:
             return
@@ -286,8 +286,8 @@ class WeatherApplet(Applet):
         lng = active.lng
 
         def fetch() -> tuple[WeatherData | None, AirQualityData | None]:
-            weather = weather_pkg.fetch_weather(lat=lat, lng=lng)
-            aqi = weather_pkg.fetch_air_quality(lat=lat, lng=lng)
+            weather = fetch_weather(lat=lat, lng=lng)
+            aqi = fetch_air_quality(lat=lat, lng=lng)
             return weather, aqi
 
         self._worker.run(

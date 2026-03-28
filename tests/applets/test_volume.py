@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import docking.applets.volume.applet as volume_applet_mod
 import docking.applets.volume.state as volume_state_mod
-from docking.applets.volume import (
-    VolumeApplet,
+from docking.applets.volume.applet import VolumeApplet
+from docking.applets.volume.state import (
     VolumeState,
     _detect_backend,
     _parse_amixer,

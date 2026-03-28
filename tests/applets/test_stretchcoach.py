@@ -8,10 +8,11 @@ from unittest.mock import MagicMock
 
 import docking.applets.stretchcoach.applet as stretchcoach_applet_mod
 import docking.applets.stretchcoach.state as stretchcoach_state_mod
-from docking.applets.stretchcoach import (
+from docking.applets.stretchcoach.applet import StretchCoachApplet
+from docking.applets.stretchcoach.render import render_icon
+from docking.applets.stretchcoach.state import (
     DEFAULT_INTERVAL,
     StretchCard,
-    StretchCoachApplet,
     StretchCoachState,
     acknowledge_reminder,
     load_cards,
@@ -23,7 +24,6 @@ from docking.applets.stretchcoach import (
     tooltip_text,
     trigger_reminder,
 )
-from docking.applets.stretchcoach.render import render_icon
 from docking.core.config import Config
 
 CARD = StretchCard(

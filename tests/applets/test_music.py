@@ -8,21 +8,19 @@ from unittest.mock import MagicMock
 
 import docking.applets.music.applet as music_applet_mod
 import docking.applets.music.state as music_state_mod
-from docking.applets.music import (
+from docking.applets.music.applet import MusicApplet
+from docking.applets.music.render import create_music_icon
+from docking.applets.music.state import (
     HybridBackend,
-    MusicApplet,
     MusicState,
     PlayerctlBackend,
     RhythmboxClientBackend,
+    _normalize_desktop_entry,
+    _normalize_volume_percent,
     clamp_percent,
     play_pause_menu_label,
     tooltip_text,
     unavailable_state,
-)
-from docking.applets.music.render import create_music_icon
-from docking.applets.music.state import (
-    _normalize_desktop_entry,
-    _normalize_volume_percent,
 )
 
 

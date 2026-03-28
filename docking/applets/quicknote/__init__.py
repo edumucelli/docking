@@ -1,4 +1,4 @@
-"""Public surface for the Quick Note applet."""
+"""Applet metadata for the Quick Note applet."""
 
 from __future__ import annotations
 
@@ -10,6 +10,4 @@ meta = AppletMeta(
     category=AppletCategory.PRODUCTIVITY,
 )
 
-from .applet import QuickNoteApplet
-
-__all__ = ["QuickNoteApplet", "meta"]
+__all__ = ["meta"]

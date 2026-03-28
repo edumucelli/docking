@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 from gi import repository as gi_repository
 
 import docking.applets.brightness.state as brightness_state
-from docking.applets.brightness import (
+from docking.applets.brightness.applet import BrightnessApplet
+from docking.applets.brightness.state import (
     STEP,
     Backend,
-    BrightnessApplet,
     brightness_icon_name,
     detect_output,
     get_brightness,

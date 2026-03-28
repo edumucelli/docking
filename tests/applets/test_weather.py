@@ -5,15 +5,14 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
-import docking.applets.weather as weather_mod
 import docking.applets.weather.applet as weather_applet_mod
-from docking.applets.weather import WeatherApplet
 from docking.applets.weather.api import (
     AirQualityData,
     DailyForecast,
     WeatherData,
     aqi_label,
 )
+from docking.applets.weather.applet import WeatherApplet
 from docking.applets.weather.state import (
     CityPref,
     WeatherPrefs,
@@ -403,9 +402,11 @@ class TestWeatherAsyncFetch:
             captured["lng"] = lng
             return _SAMPLE_WEATHER
 
-        monkeypatch.setattr(weather_mod, "fetch_weather", fake_fetch_weather)
+        monkeypatch.setattr(weather_applet_mod, "fetch_weather", fake_fetch_weather)
         monkeypatch.setattr(
-            weather_mod, "fetch_air_quality", MagicMock(return_value=_SAMPLE_AQI)
+            weather_applet_mod,
+            "fetch_air_quality",
+            MagicMock(return_value=_SAMPLE_AQI),
         )
         applet._fetch_async()
         assert captured["lat"] == _TOKYO.lat
@@ -426,7 +427,7 @@ class TestWeatherLifecycleAndInteractions:
             return next(timer_ids)
 
         monkeypatch.setattr(
-            weather_mod.GLib,
+            weather_applet_mod.GLib,
             "timeout_add_seconds",
             fake_timeout_add_seconds,
         )
@@ -449,7 +450,7 @@ class TestWeatherLifecycleAndInteractions:
         applet._timer_id = 77
         applet._startup_fetch_timer_id = 78
         remove = MagicMock()
-        monkeypatch.setattr(weather_mod.GLib, "source_remove", remove)
+        monkeypatch.setattr(weather_applet_mod.GLib, "source_remove", remove)
         applet.stop()
         assert remove.call_args_list == [call(77), call(78)]
         assert applet._timer_id == 0
@@ -487,7 +488,9 @@ class TestWeatherLifecycleAndInteractions:
         applet = _make_applet()
         fetch = MagicMock()
         monkeypatch.setattr(applet, "_fetch_async", fetch)
-        monkeypatch.setattr(weather_mod.GLib, "timeout_add_seconds", lambda *_a: 51)
+        monkeypatch.setattr(
+            weather_applet_mod.GLib, "timeout_add_seconds", lambda *_a: 51
+        )
         applet.start(notify=lambda: None)
         assert applet._timer_id == 51
         assert applet._startup_fetch_timer_id == 0
@@ -507,14 +510,14 @@ class TestWeatherLifecycleAndInteractions:
         applet._active_index = 0
         applet._startup_fetch_timer_id = 44
         remove = MagicMock()
-        monkeypatch.setattr(weather_mod.GLib, "source_remove", remove)
+        monkeypatch.setattr(weather_applet_mod.GLib, "source_remove", remove)
         monkeypatch.setattr(
-            weather_mod,
+            weather_applet_mod,
             "fetch_weather",
             MagicMock(return_value=_SAMPLE_WEATHER),
         )
         monkeypatch.setattr(
-            weather_mod,
+            weather_applet_mod,
             "fetch_air_quality",
             MagicMock(return_value=_SAMPLE_AQI),
         )

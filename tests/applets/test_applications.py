@@ -5,10 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
-from docking.applets.applications import (
-    ApplicationsApplet,
-    _build_app_categories,
-)
+from docking.applets.applications.applet import ApplicationsApplet
+from docking.applets.applications.state import _build_app_categories
 
 
 class TestBuildAppCategories:

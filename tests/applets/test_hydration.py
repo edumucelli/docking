@@ -4,9 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.hydration.applet as hydration_mod
-from docking.applets.hydration import (
-    HydrationApplet,
-)
+from docking.applets.hydration.applet import HydrationApplet
 from docking.applets.hydration.state import (
     DEFAULT_INTERVAL,
     mouth_curvature,

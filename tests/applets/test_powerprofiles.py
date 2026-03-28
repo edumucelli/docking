@@ -7,14 +7,14 @@ from dataclasses import replace
 
 import docking.applets.powerprofiles.applet as powerprofiles_applet_mod
 import docking.applets.powerprofiles.state as powerprofiles_state_mod
-from docking.applets.powerprofiles import (
+from docking.applets.powerprofiles.applet import PowerProfilesApplet
+from docking.applets.powerprofiles.render import create_power_profiles_icon
+from docking.applets.powerprofiles.state import (
     NullPowerProfilesBackend,
-    PowerProfilesApplet,
     PowerProfilesBackend,
     PowerProfilesState,
     TlpBackend,
     TunedBackend,
-    create_power_profiles_icon,
     detect_backend,
     normalize_profile,
     order_profiles,

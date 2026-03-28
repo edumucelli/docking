@@ -4,8 +4,9 @@ from typing import ClassVar
 
 import docking.applets.colorpicker.applet as colorpicker_applet_mod
 import docking.applets.colorpicker.state as colorpicker_state_mod
-from docking.applets.colorpicker import ColorPickerApplet, rgb_to_hex
+from docking.applets.colorpicker.applet import ColorPickerApplet
 from docking.applets.colorpicker.render import create_icon
+from docking.applets.colorpicker.state import rgb_to_hex
 
 
 class TestRgbToHex:

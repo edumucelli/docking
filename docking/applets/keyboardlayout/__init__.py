@@ -1,4 +1,4 @@
-"""Public surface for the Keyboard Layout applet."""
+"""Applet metadata for the Keyboard Layout applet."""
 
 from __future__ import annotations
 
@@ -10,6 +10,4 @@ meta = AppletMeta(
     category=AppletCategory.SYSTEM,
 )
 
-from .applet import KeyboardLayoutApplet
-
-__all__ = ["KeyboardLayoutApplet", "meta"]
+__all__ = ["meta"]

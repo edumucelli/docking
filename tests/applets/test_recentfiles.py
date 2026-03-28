@@ -98,7 +98,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -115,7 +115,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -134,7 +134,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -152,7 +152,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -173,7 +173,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -198,7 +198,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -220,7 +220,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -238,7 +238,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 
@@ -258,7 +258,7 @@ class TestApplet:
             "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
             return_value=manager,
         ):
-            from docking.applets.recentfiles import RecentFilesApplet
+            from docking.applets.recentfiles.applet import RecentFilesApplet
 
             applet = RecentFilesApplet(48)
 

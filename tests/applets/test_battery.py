@@ -5,11 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import docking.applets.battery.applet as battery_applet_mod
-from docking.applets.battery import (
-    BatteryApplet,
-    read_battery,
-    resolve_battery_icon,
-)
+from docking.applets.battery.applet import BatteryApplet
+from docking.applets.battery.state import read_battery, resolve_battery_icon
 
 
 class TestResolveBatteryIcon:

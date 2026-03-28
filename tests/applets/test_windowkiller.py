@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.windowkiller.applet as windowkiller_applet_mod
-from docking.applets.windowkiller import WindowKillerApplet
+from docking.applets.windowkiller.applet import WindowKillerApplet
 from docking.applets.windowkiller.state import kill_pid
 
 

@@ -16,7 +16,7 @@ Docking applets follow a small, testable architecture:
   - `state.py`: pure logic, parsing, command/state helpers (easy to unit test)
   - `render.py`: Cairo/icon rendering helpers (no applet lifecycle logic)
   - `applet.py`: GTK/Wnck/Gio wiring, timers, click/scroll/menu behavior
-- Package `__init__.py` declares an `AppletMeta` for auto-discovery and re-exports public symbols.
+- Package `__init__.py` is metadata-only: it declares `AppletMeta` for auto-discovery and should not re-export runtime classes or helpers.
 - Applet classes are loaded lazily through `docking/applets/__init__.py:load_applet_class()`.
 - Each applet declares a stable identity via `AppletId` from `docking/applets/identity.py`.
 

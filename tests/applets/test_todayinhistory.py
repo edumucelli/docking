@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-today_public = pytest.importorskip(
+pytest.importorskip(
     "docking.applets.todayinhistory",
     reason="Today in History applet is not available in this checkout",
 )
@@ -14,12 +14,16 @@ today_applet_mod = pytest.importorskip(
     "docking.applets.todayinhistory.applet",
     reason="Today in History applet wiring is not available in this checkout",
 )
+today_state_mod = pytest.importorskip(
+    "docking.applets.todayinhistory.state",
+    reason="Today in History applet helpers are not available in this checkout",
+)
 
-TodayInHistoryApplet = today_public.TodayInHistoryApplet
-HistoryEvent = today_public.HistoryEvent
-fallback_today_in_history = today_public.fallback_today_in_history
-fetch_today_in_history = today_public.fetch_today_in_history
-format_history_event = today_public.format_history_event
+TodayInHistoryApplet = today_applet_mod.TodayInHistoryApplet
+HistoryEvent = today_state_mod.HistoryEvent
+fallback_today_in_history = today_state_mod.fallback_today_in_history
+fetch_today_in_history = today_state_mod.fetch_today_in_history
+format_history_event = today_state_mod.format_history_event
 
 ENTRY = HistoryEvent(
     year=1969,
@@ -38,7 +42,7 @@ class TestHistoryHelpers:
         assert "Apollo 11" in text
         assert "Sea of Tranquility" in text
 
-    @patch("docking.applets.todayinhistory._http_get_json")
+    @patch("docking.applets.todayinhistory.state._http_get_json")
     def test_fetch_today_in_history_parses_wikipedia_response(self, mock_get):
         mock_get.return_value = {
             "events": [
@@ -67,7 +71,10 @@ class TestHistoryHelpers:
         assert "Moon" in entries[0].summary
         assert entries[0].article_url.endswith("/Apollo_11")
 
-    @patch("docking.applets.todayinhistory._http_get_json", side_effect=RuntimeError)
+    @patch(
+        "docking.applets.todayinhistory.state._http_get_json",
+        side_effect=RuntimeError,
+    )
     def test_fetch_failure_returns_empty(self, _mock_get):
         assert fetch_today_in_history(month=7, day=20) == []
 

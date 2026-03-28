@@ -2,6 +2,8 @@
 
 import importlib.util
 import logging
+import subprocess
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -124,6 +126,31 @@ class TestAppletCatalog:
         assert catalog == {}
         assert "missing meta declaration" in caplog.text
         get_applet_catalog.cache_clear()
+
+    def test_catalog_discovery_does_not_import_applet_modules(self):
+        script = """
+import json
+import sys
+
+from docking.applets import get_applet_catalog
+
+get_applet_catalog()
+loaded = sorted(
+    name
+    for name in sys.modules
+    if name.startswith("docking.applets.") and name.endswith(".applet")
+)
+print(json.dumps(loaded))
+"""
+
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.stdout.strip() == "[]"
 
 
 class TestLoadAppletClass:

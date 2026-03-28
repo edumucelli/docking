@@ -1,16 +1,4 @@
-"""Public package surface for the Applications applet.
-
-This package keeps the import surface intentionally small while making the
-implementation split explicit. In the standard Docking applet layout:
-
-- ``applet.py`` owns GTK lifecycle and user interaction,
-- ``render.py`` owns dock-icon drawing,
-- ``state.py`` owns pure logic or platform-facing helpers.
-
-Re-exporting ``ApplicationsApplet`` here gives the catalog, tests, and documentation a
-simple import path without turning the package ``__init__`` into an alternate
-implementation layer.
-"""
+"""Applet metadata for the Applications applet."""
 
 from __future__ import annotations
 
@@ -22,7 +10,4 @@ meta = AppletMeta(
     category=AppletCategory.LAUNCHER,
 )
 
-from .applet import ApplicationsApplet
-from .state import _build_app_categories
-
-__all__ = ["ApplicationsApplet", "_build_app_categories", "meta"]
+__all__ = ["meta"]

@@ -8,16 +8,16 @@ from types import SimpleNamespace
 
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
 import docking.applets.bluetooth.state as bluetooth_state_mod
-from docking.applets.bluetooth import (
+from docking.applets.bluetooth.applet import BluetoothApplet
+from docking.applets.bluetooth.render import create_bluetooth_icon
+from docking.applets.bluetooth.state import (
     BluetoothAdapterState,
-    BluetoothApplet,
     BluetoothDeviceState,
     BluetoothState,
     BluezBackend,
     adapter_from_state,
     build_tooltip,
     connected_count,
-    create_bluetooth_icon,
     device_menu_label,
     unavailable_state,
 )

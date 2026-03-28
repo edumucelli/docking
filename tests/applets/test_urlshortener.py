@@ -6,7 +6,7 @@ import urllib.error
 from unittest.mock import MagicMock, patch
 
 import docking.applets.urlshortener.applet as urlshortener_applet_mod
-from docking.applets.urlshortener import UrlShortenerApplet
+from docking.applets.urlshortener.applet import UrlShortenerApplet
 from docking.applets.urlshortener.state import prefs_payload, shorten_url
 from docking.core.config import Config
 

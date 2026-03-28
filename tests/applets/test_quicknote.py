@@ -98,7 +98,7 @@ class TestApplet:
 
     def test_creates_with_empty_note(self):
         """Given no config, applet starts with empty note."""
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         applet = QuickNoteApplet(48)
         assert applet._note == ""
@@ -106,7 +106,7 @@ class TestApplet:
 
     def test_loads_note_from_prefs(self):
         """Given config with saved note, applet loads it."""
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         config = MagicMock()
         config.applet_prefs = {"quicknote": {"note": "Remember this"}}
@@ -116,7 +116,7 @@ class TestApplet:
 
     def test_clear_note(self):
         """Given a note, clear resets to empty."""
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         config = MagicMock()
         config.applet_prefs = {"quicknote": {"note": "Some text"}}
@@ -126,7 +126,7 @@ class TestApplet:
 
     def test_icon_renders(self):
         """Given an applet, create_icon returns pixbuf."""
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         applet = QuickNoteApplet(48)
         pixbuf = applet.create_icon(size=48)
@@ -134,14 +134,14 @@ class TestApplet:
 
     def test_get_menu_items(self):
         """Given an applet, menu has edit and clear items."""
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         applet = QuickNoteApplet(48)
         items = applet.get_menu_items()
         assert len(items) == 2
 
     def test_on_clicked_opens_edit_dialog(self, monkeypatch):
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         applet = QuickNoteApplet(48)
         show = MagicMock()
@@ -152,7 +152,7 @@ class TestApplet:
         show.assert_called_once_with()
 
     def test_menu_items_trigger_edit_and_clear_actions(self, monkeypatch):
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         class _FakeMenuItem:
             def __init__(self, label: str = "") -> None:
@@ -180,7 +180,7 @@ class TestApplet:
         clear.assert_called_once_with()
 
     def test_show_edit_dialog_saves_buffer_contents_on_response(self, monkeypatch):
-        from docking.applets.quicknote import QuickNoteApplet
+        from docking.applets.quicknote.applet import QuickNoteApplet
 
         class _FakeBuffer:
             def __init__(self):

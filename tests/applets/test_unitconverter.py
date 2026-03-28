@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import docking.applets.unitconverter.applet as unitconverter_applet_mod
 import docking.applets.unitconverter.state as uc_state
-from docking.applets.unitconverter import UnitConverterApplet
+from docking.applets.unitconverter.applet import UnitConverterApplet
 from docking.applets.unitconverter.state import (
     Category,
     Unit,

@@ -5,8 +5,9 @@ from unittest.mock import MagicMock
 import cairo
 import pytest
 
-import docking.applets.workspaces as workspaces_mod
-from docking.applets.workspaces import WorkspacesApplet, _render_grid
+import docking.applets.workspaces.applet as workspaces_mod
+from docking.applets.workspaces.applet import WorkspacesApplet
+from docking.applets.workspaces.render import _render_grid
 
 
 class TestRenderGrid:

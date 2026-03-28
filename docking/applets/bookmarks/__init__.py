@@ -1,4 +1,4 @@
-"""Public surface for the Bookmarks applet."""
+"""Applet metadata for the Bookmarks applet."""
 
 from __future__ import annotations
 
@@ -10,6 +10,4 @@ meta = AppletMeta(
     category=AppletCategory.PRODUCTIVITY,
 )
 
-from .applet import BookmarksApplet
-
-__all__ = ["BookmarksApplet", "meta"]
+__all__ = ["meta"]

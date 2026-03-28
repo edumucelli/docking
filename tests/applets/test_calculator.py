@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import docking.applets.calculator.applet as calculator_applet_mod
-from docking.applets.calculator import CalculatorApplet
+from docking.applets.calculator.applet import CalculatorApplet
 from docking.applets.calculator.state import evaluate, prefs_payload
 from docking.core.config import Config
 

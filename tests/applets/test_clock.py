@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.clock.applet as clock_mod
-from docking.applets.clock import (
-    ClockApplet,
+from docking.applets.clock.applet import ClockApplet
+from docking.applets.clock.state import (
     hour_rotation_12h,
     hour_rotation_24h,
     minute_rotation,

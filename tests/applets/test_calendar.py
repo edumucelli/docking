@@ -10,7 +10,8 @@ import cairo
 import pytest
 
 import docking.applets.calendar.applet as calendar_applet_mod
-from docking.applets.calendar import CalendarApplet, _render_calendar_icon
+from docking.applets.calendar.applet import CalendarApplet
+from docking.applets.calendar.render import _render_calendar_icon
 
 
 class TestRenderCalendarIcon:

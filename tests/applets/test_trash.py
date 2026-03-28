@@ -2,7 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from docking.applets.trash import TrashApplet, _count_trash_items
+from docking.applets.trash.applet import TrashApplet
+from docking.applets.trash.state import _count_trash_items
 
 
 class TestCountTrashItems:

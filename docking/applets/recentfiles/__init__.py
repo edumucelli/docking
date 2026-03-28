@@ -1,4 +1,4 @@
-"""Public surface for the Recent Files applet."""
+"""Applet metadata for the Recent Files applet."""
 
 from __future__ import annotations
 
@@ -10,6 +10,4 @@ meta = AppletMeta(
     category=AppletCategory.PRODUCTIVITY,
 )
 
-from .applet import RecentFilesApplet
-
-__all__ = ["RecentFilesApplet", "meta"]
+__all__ = ["meta"]

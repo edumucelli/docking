@@ -86,7 +86,7 @@ class TestApplet:
 
     def test_creates_with_empty_bookmarks(self):
         """Given no config, when created, then empty bookmarks."""
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         applet = BookmarksApplet(icon_size=48)
         assert applet.item.icon is not None
@@ -94,7 +94,7 @@ class TestApplet:
 
     def test_loads_from_prefs(self):
         """Given config with bookmarks, when created, then loaded."""
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
         from docking.core.config import Config
 
         config = Config()
@@ -107,7 +107,7 @@ class TestApplet:
 
     def test_on_clicked_opens_first_url(self):
         """Given bookmarks, when clicked, then opens first URL."""
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         applet = BookmarksApplet(icon_size=48)
         applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]
@@ -120,7 +120,7 @@ class TestApplet:
 
     def test_on_clicked_noop_when_empty(self):
         """Given no bookmarks, when clicked, then no-op."""
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         applet = BookmarksApplet(icon_size=48)
         with patch("docking.applets.bookmarks.applet.Gio") as mock_gio:
@@ -128,7 +128,7 @@ class TestApplet:
             mock_gio.AppInfo.launch_default_for_uri.assert_not_called()
 
     def test_menu_items_open_remove_and_add_callbacks(self, monkeypatch):
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         class _FakeMenuItem:
             def __init__(self, label: str = "") -> None:
@@ -168,7 +168,7 @@ class TestApplet:
         assert remove_calls == [True]
 
     def test_open_url_logs_glib_error(self, monkeypatch):
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         applet = BookmarksApplet(icon_size=48)
         logger = SimpleNamespace(warning=lambda *_args, **_kwargs: None)
@@ -187,7 +187,7 @@ class TestApplet:
         applet._open_url("https://example.com")
 
     def test_show_add_dialog_persists_valid_bookmark(self, monkeypatch):
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         class _FakeBox:
             def __init__(self):
@@ -268,7 +268,7 @@ class TestApplet:
         assert presented == [True]
 
     def test_show_add_dialog_ignores_blank_values(self, monkeypatch):
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         class _FakeBox:
             def set_spacing(self, _value):
@@ -338,7 +338,7 @@ class TestApplet:
         assert applet._bookmarks == []
 
     def test_remove_all_clears_state_and_presents(self):
-        from docking.applets.bookmarks import BookmarksApplet
+        from docking.applets.bookmarks.applet import BookmarksApplet
 
         applet = BookmarksApplet(icon_size=48)
         applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]

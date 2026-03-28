@@ -3,8 +3,9 @@
 from unittest.mock import MagicMock, patch
 
 import docking.applets.trivia.applet as trivia_mod
-from docking.applets.trivia import (
-    TriviaApplet,
+from docking.applets.trivia.applet import TriviaApplet
+from docking.applets.trivia.render import draw_trivia_icon
+from docking.applets.trivia.state import (
     TriviaEntry,
     answer_entry,
     fallback_trivia,
@@ -13,7 +14,6 @@ from docking.applets.trivia import (
     format_trivia,
     normalize_text,
 )
-from docking.applets.trivia.render import draw_trivia_icon
 
 ENTRY = TriviaEntry(
     category="Science",
@@ -56,7 +56,7 @@ class TestTriviaHelpers:
 
 
 class TestFetchTrivia:
-    @patch("docking.applets.trivia._http_get_json")
+    @patch("docking.applets.trivia.state._http_get_json")
     def test_fetches_entries_from_api(self, mock_get):
         mock_get.return_value = {
             "response_code": 0,
@@ -81,7 +81,10 @@ class TestFetchTrivia:
         assert entries[0].correct_answer == "Mars"
         assert entries[0].answers[0] == "Mercury"
 
-    @patch("docking.applets.trivia._http_get_json", side_effect=RuntimeError("boom"))
+    @patch(
+        "docking.applets.trivia.state._http_get_json",
+        side_effect=RuntimeError("boom"),
+    )
     def test_fetch_failure_returns_empty(self, _mock_get):
         assert fetch_trivia(limit=5) == []
 

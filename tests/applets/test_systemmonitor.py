@@ -3,15 +3,15 @@
 import pytest
 
 import docking.applets.systemmonitor.applet as systemmonitor_mod
-from docking.applets.systemmonitor import (
+from docking.applets.systemmonitor.applet import SystemMonitorApplet
+from docking.applets.systemmonitor.state import (
     CpuSample,
-    SystemMonitorApplet,
     cpu_hue_rgb,
     cpu_percent,
     parse_proc_meminfo,
     parse_proc_stat,
+    tooltip_text,
 )
-from docking.applets.systemmonitor.state import tooltip_text
 from docking.applets.systemmonitor.temperature import (
     TemperatureReader,
     parse_acpi_output,

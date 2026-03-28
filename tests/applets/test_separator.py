@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import docking.applets.separator.applet as separator_applet_mod
 from docking.applets.identity import applet_id_from
-from docking.applets.separator import (
+from docking.applets.separator.applet import SeparatorApplet
+from docking.applets.separator.state import (
     DEFAULT_SIZE,
     MAX_SIZE,
     MIN_SIZE,
     STEP,
     STYLE_LINE,
     STYLE_SPACE,
-    SeparatorApplet,
 )
 
 

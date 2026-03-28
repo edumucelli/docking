@@ -5,14 +5,13 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import docking.applets.ambient.applet as ambient_mod
-from docking.applets.ambient import (
+from docking.applets.ambient.applet import SOUNDS_DIR, AmbientApplet
+from docking.applets.ambient.state import (
     ALL_SOUNDS,
     DEFAULT_SOUND,
     DEFAULT_VOLUME,
     VOLUME_STEP,
-    AmbientApplet,
 )
-from docking.applets.ambient.applet import SOUNDS_DIR
 
 
 class _FakeMenuItem:

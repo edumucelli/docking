@@ -7,16 +7,14 @@ from unittest.mock import MagicMock
 import docking.applets.moon.applet as moon_applet_mod
 import docking.applets.moon.offline as moon_offline_mod
 import docking.applets.moon.state as moon_state_mod
-from docking.applets.moon import (
-    MoonApplet,
-    MoonData,
+from docking.applets.moon.applet import MoonApplet
+from docking.applets.moon.offline import (
     fetch_moon_offline,
     illumination_from_phase,
     moon_phase_from_date,
-    phase_name,
 )
 from docking.applets.moon.render import create_icon
-from docking.applets.moon.state import _parse_moon_html
+from docking.applets.moon.state import MoonData, _parse_moon_html, phase_name
 
 _SAMPLE_HTML = """
 <html><head><title>The Moon's Phase</title></head>

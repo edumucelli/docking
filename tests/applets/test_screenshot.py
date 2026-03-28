@@ -2,13 +2,8 @@
 
 from unittest.mock import patch
 
-from docking.applets.screenshot import (
-    _TOOLS,
-    ScreenshotApplet,
-    Tool,
-    _detect_tool,
-    _run,
-)
+from docking.applets.screenshot.applet import ScreenshotApplet
+from docking.applets.screenshot.state import _TOOLS, Tool, _detect_tool, _run
 
 _MATE = Tool("mate-screenshot", [], ["-w"], ["-a"])
 _GNOME = Tool("gnome-screenshot", [], ["-w"], ["-a"])

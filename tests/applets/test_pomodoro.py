@@ -3,12 +3,12 @@
 from unittest.mock import MagicMock
 
 import docking.applets.pomodoro.applet as pomodoro_mod
-from docking.applets.pomodoro import (
+from docking.applets.pomodoro.applet import PomodoroApplet
+from docking.applets.pomodoro.state import (
     DEFAULT_BREAK,
     DEFAULT_LONG_BREAK,
     DEFAULT_WORK,
     LONG_BREAK_EVERY,
-    PomodoroApplet,
     State,
     format_time,
     tooltip_text,

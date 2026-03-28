@@ -4,7 +4,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.clippy.applet as clippy_mod
-from docking.applets.clippy import ClippyApplet, _truncate
+from docking.applets.clippy.applet import ClippyApplet
+from docking.applets.clippy.state import _truncate
 from docking.core.config import Config
 
 

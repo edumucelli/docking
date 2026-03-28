@@ -1,4 +1,4 @@
-"""Public surface for the Pet applet."""
+"""Applet metadata for the Pet applet."""
 
 from __future__ import annotations
 
@@ -10,6 +10,4 @@ meta = AppletMeta(
     category=AppletCategory.WELLNESS,
 )
 
-from .applet import PetApplet
-
-__all__ = ["PetApplet", "meta"]
+__all__ = ["meta"]

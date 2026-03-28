@@ -1,6 +1,6 @@
 """Tests for the desktop (show desktop) applet."""
 
-from docking.applets.desktop import DesktopApplet
+from docking.applets.desktop.applet import DesktopApplet
 
 
 class TestDesktopApplet:

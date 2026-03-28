@@ -7,17 +7,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import docking.applets.network as network_mod
 import docking.applets.network.applet as network_applet_mod
-from docking.applets.network import (
-    NetworkApplet,
+from docking.applets.network.applet import NetworkApplet
+from docking.applets.network.render import create_icon as create_network_icon
+from docking.applets.network.state import (
     TrafficCounters,
     compute_speeds,
     format_speed,
     parse_proc_net_dev,
     signal_to_icon,
 )
-from docking.applets.network.render import create_icon as create_network_icon
 
 SAMPLE_PROC_NET_DEV = """\
 Inter-|   Receive                                                |  Transmit
@@ -267,9 +266,9 @@ class TestNetworkAppletInternals:
         applet = NetworkApplet(48)
         notify = MagicMock()
         nm_client = MagicMock()
-        monkeypatch.setattr(network_mod.NM.Client, "new", lambda _arg: nm_client)
+        monkeypatch.setattr(network_applet_mod.NM.Client, "new", lambda _arg: nm_client)
         monkeypatch.setattr(
-            network_mod.GLib, "timeout_add_seconds", lambda _sec, _cb: 321
+            network_applet_mod.GLib, "timeout_add_seconds", lambda _sec, _cb: 321
         )
         update = MagicMock()
         monkeypatch.setattr(applet, "_update_nm_state", update)
@@ -285,14 +284,16 @@ class TestNetworkAppletInternals:
         # Given
         applet = NetworkApplet(48)
         notify = MagicMock()
-        monkeypatch.setattr(network_mod.GLib, "Error", RuntimeError, raising=False)
         monkeypatch.setattr(
-            network_mod.NM.Client,
+            network_applet_mod.GLib, "Error", RuntimeError, raising=False
+        )
+        monkeypatch.setattr(
+            network_applet_mod.NM.Client,
             "new",
             MagicMock(side_effect=RuntimeError("nm unavailable")),
         )
         monkeypatch.setattr(
-            network_mod.GLib, "timeout_add_seconds", lambda _sec, _cb: 555
+            network_applet_mod.GLib, "timeout_add_seconds", lambda _sec, _cb: 555
         )
         # When
         applet.start(notify)
@@ -310,7 +311,7 @@ class TestNetworkAppletInternals:
         applet._timer_id = 88
         removed: list[int] = []
         monkeypatch.setattr(
-            network_mod.GLib, "source_remove", lambda i: removed.append(i)
+            network_applet_mod.GLib, "source_remove", lambda i: removed.append(i)
         )
         # When
         applet.stop()
@@ -339,13 +340,13 @@ class TestNetworkAppletInternals:
         # Given
         applet = NetworkApplet(48)
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "DeviceType",
             SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4, LOOPBACK=5),
             raising=False,
         )
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "ActiveConnectionState",
             SimpleNamespace(ACTIVATED=9),
             raising=False,
@@ -383,7 +384,9 @@ class TestNetworkAppletInternals:
             def get_ip4_config(self):
                 return None
 
-        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+        monkeypatch.setattr(
+            network_applet_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False
+        )
         wifi = FakeWifiDevice()
         eth = FakeEthDevice()
         conn_eth = MagicMock()
@@ -408,18 +411,18 @@ class TestNetworkAppletInternals:
         # Given
         applet = NetworkApplet(48)
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "DeviceType",
             SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4, LOOPBACK=5),
             raising=False,
         )
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "ActiveConnectionState",
             SimpleNamespace(ACTIVATED=9),
             raising=False,
         )
-        monkeypatch.setattr(network_mod.NM, "DeviceWifi", object, raising=False)
+        monkeypatch.setattr(network_applet_mod.NM, "DeviceWifi", object, raising=False)
         tun = MagicMock()
         tun.get_device_type.return_value = 3
         bad = MagicMock()
@@ -442,13 +445,13 @@ class TestNetworkAppletInternals:
         # Given
         applet = NetworkApplet(48)
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "DeviceType",
             SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4, LOOPBACK=5),
             raising=False,
         )
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "ActiveConnectionState",
             SimpleNamespace(ACTIVATED=9),
             raising=False,
@@ -483,7 +486,9 @@ class TestNetworkAppletInternals:
                 ap.get_strength.return_value = 73
                 return ap
 
-        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+        monkeypatch.setattr(
+            network_applet_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False
+        )
         conn_wifi = MagicMock()
         conn_wifi.get_state.return_value = 9
         conn_wifi.get_devices.return_value = [FakeLoopbackDevice(), FakeWifiDevice()]
@@ -556,7 +561,7 @@ class TestNetworkAppletInternals:
             "open",
             lambda *_a, **_k: open_cm,
         )
-        monkeypatch.setattr(network_mod.time, "monotonic", lambda: 12.0)
+        monkeypatch.setattr(network_applet_mod.time, "monotonic", lambda: 12.0)
         # When
         applet._update_traffic()
         # Then
@@ -570,7 +575,7 @@ class TestNetworkAppletInternals:
         applet = NetworkApplet(48)
         applet._is_wifi = True
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "ActiveConnectionState",
             SimpleNamespace(ACTIVATED=9),
             raising=False,
@@ -582,7 +587,9 @@ class TestNetworkAppletInternals:
                 ap.get_strength.return_value = 81
                 return ap
 
-        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+        monkeypatch.setattr(
+            network_applet_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False
+        )
         conn = MagicMock()
         conn.get_state.return_value = 9
         conn.get_devices.return_value = [FakeWifiDevice()]
@@ -600,7 +607,7 @@ class TestNetworkAppletInternals:
         applet = NetworkApplet(48)
         applet._is_wifi = True
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "ActiveConnectionState",
             SimpleNamespace(ACTIVATED=9),
             raising=False,
@@ -615,7 +622,9 @@ class TestNetworkAppletInternals:
         class FakeEthDevice:
             pass
 
-        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+        monkeypatch.setattr(
+            network_applet_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False
+        )
 
         conn_eth = MagicMock()
         conn_eth.get_state.return_value = 9
@@ -637,7 +646,7 @@ class TestNetworkAppletInternals:
         applet = NetworkApplet(48)
         applet._is_wifi = True
         monkeypatch.setattr(
-            network_mod.NM,
+            network_applet_mod.NM,
             "ActiveConnectionState",
             SimpleNamespace(ACTIVATED=9),
             raising=False,
@@ -652,7 +661,9 @@ class TestNetworkAppletInternals:
                 ap.get_strength.return_value = 67
                 return ap
 
-        monkeypatch.setattr(network_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False)
+        monkeypatch.setattr(
+            network_applet_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False
+        )
 
         conn = MagicMock()
         conn.get_state.return_value = 9

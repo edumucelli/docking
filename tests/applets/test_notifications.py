@@ -10,18 +10,21 @@ from unittest.mock import MagicMock
 
 import docking.applets.notifications.applet as notifications_applet_mod
 import docking.applets.notifications.state as notifications_state_mod
-from docking.applets.notifications import (
+from docking.applets.notifications.applet import (
+    HISTORY_LIMIT,
+    NotificationEntry,
+    NotificationsApplet,
+)
+from docking.applets.notifications.render import create_notifications_icon
+from docking.applets.notifications.state import (
     DunstBackend,
     GnomeBackend,
-    NotificationsApplet,
     NotificationsState,
     NullBackend,
     detect_backend,
     tooltip_text,
     unavailable_state,
 )
-from docking.applets.notifications.applet import HISTORY_LIMIT, NotificationEntry
-from docking.applets.notifications.render import create_notifications_icon
 
 
 def _state(**overrides: object) -> NotificationsState:
