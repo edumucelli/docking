@@ -252,7 +252,7 @@ class Launcher:
         try:
             gfile = Gio.File.new_for_uri(uri)
             info = gfile.query_info(
-                "standard::display-name,standard::icon,standard::type",
+                "standard::display-name,standard::icon,standard::type,standard::content-type",
                 Gio.FileQueryInfoFlags.NONE,
                 None,
             )
@@ -274,10 +274,64 @@ class Launcher:
             or Path(unquote(urlparse(uri).path)).name
             or uri,
             icon_name=icon_name,
-            icon=self.load_gicon(gicon=icon, size=size)
-            or self.load_icon(icon_name=icon_name, size=size),
+            icon=self.resolve_file_icon(
+                target=uri,
+                gicon=icon,
+                content_type=info.get_content_type() or "",
+                size=size,
+                is_dir=info.get_file_type() == Gio.FileType.DIRECTORY,
+            ),
             is_dir=info.get_file_type() == Gio.FileType.DIRECTORY,
         )
+
+    def resolve_file_icon(
+        self,
+        *,
+        target: str,
+        gicon: Gio.Icon | None,
+        content_type: str,
+        size: int,
+        is_dir: bool,
+    ) -> GdkPixbuf.Pixbuf | None:
+        """Resolve a file target icon, preferring image thumbnails when possible."""
+        if not is_dir and content_type.lower().startswith("image/"):
+            uri = normalize_file_target(target)
+            if uri is not None:
+                path = Path(unquote(urlparse(uri).path))
+                if path.exists():
+                    try:
+                        return GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                            str(path),
+                            size,
+                            size,
+                            True,
+                        )
+                    except GLib.Error as exc:
+                        log.bind(target=target, action="resolve_file_icon").debug(
+                            "Failed to load image thumbnail %s: %s",
+                            path,
+                            exc,
+                        )
+
+        icon_name = "folder" if is_dir else "text-x-generic"
+        return self.load_gicon(gicon=gicon, size=size) or self.load_icon(
+            icon_name=icon_name,
+            size=size,
+        )
+
+    def default_directory_app_name(self) -> str | None:
+        """Return the display name of the default app that opens folders."""
+        try:
+            app_info = Gio.AppInfo.get_default_for_type("inode/directory", False)
+        except GLib.Error as exc:
+            log.bind(action="default_directory_app_name").warning(
+                "Failed to resolve default directory app: %s",
+                exc,
+            )
+            return None
+        if app_info is None:
+            return None
+        return app_info.get_display_name() or None
 
     def _try_load_gicon(self, gicon: Gio.Icon, size: int) -> GdkPixbuf.Pixbuf | None:
         theme = Gtk.IconTheme.get_default()

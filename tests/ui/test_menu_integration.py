@@ -22,6 +22,70 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.platform.model import DockItem
 
 
+class FakeFontDescription:
+    def __init__(self) -> None:
+        self.family = ""
+        self.size = 0
+
+    def set_family(self, family: str) -> None:
+        self.family = family
+
+    def set_size(self, size: int) -> None:
+        self.size = size
+
+
+class FakePangoLayout:
+    def __init__(self) -> None:
+        self.text = ""
+        self.width = -1
+        self.alignment = None
+
+    def set_text(self, text: str, _length: int) -> None:
+        self.text = text
+
+    def set_font_description(self, _desc) -> None:
+        return
+
+    def set_ellipsize(self, _mode) -> None:
+        return
+
+    def set_width(self, width: int) -> None:
+        self.width = width
+
+    def set_alignment(self, alignment) -> None:
+        self.alignment = alignment
+
+    def get_pixel_extents(self):
+        width = max(len(self.text) * 7, 1)
+        if self.width > 0:
+            width = min(width, max(int(self.width / 1024), 1))
+        logical = SimpleNamespace(width=width, height=12)
+        ink = SimpleNamespace(width=width, height=12)
+        return ink, logical
+
+
+class FakePangoCairo:
+    @staticmethod
+    def create_layout(_cr):
+        return FakePangoLayout()
+
+    @staticmethod
+    def show_layout(_cr, _layout) -> None:
+        return
+
+
+class FakePango:
+    SCALE = 1024
+
+    class EllipsizeMode:
+        END = 0
+
+    class Alignment:
+        CENTER = 0
+
+    FontDescription = FakeFontDescription
+
+
 def _catalog_entry(*, applet_id, name: str, category=None):
     return menu_mod.AppletMeta(
         id=str(applet_id),
@@ -216,6 +280,7 @@ class FakeBox:
     def __init__(self, **_kwargs) -> None:
         self.children: list[object] = []
         self.parent = None
+        self.shown = False
 
     def pack_start(self, child, *_args) -> None:
         self.children.append(child)
@@ -238,6 +303,19 @@ class FakeBox:
 
     def set_margin_bottom(self, _value: int) -> None:
         return
+
+    def set_size_request(self, _width: int, _height: int) -> None:
+        return
+
+    def show_all(self) -> None:
+        self.shown = True
+
+    def get_preferred_size(self):
+        height = max(34 * max(len(self.children), 1), 34)
+        return (
+            SimpleNamespace(width=240, height=height),
+            SimpleNamespace(width=240, height=height),
+        )
 
 
 class FakeLabel:
@@ -286,6 +364,7 @@ class FakeButton(FakeMenuItem):
         self.can_focus = True
         self.hexpand = False
         self.halign = None
+        self.size_request = None
 
     def set_relief(self, relief) -> None:
         self.relief = relief
@@ -301,6 +380,9 @@ class FakeButton(FakeMenuItem):
 
     def get_parent(self):
         return self.parent
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
 
 
 class FakeScrolledWindow:
@@ -351,35 +433,88 @@ class FakeComboBoxText:
         self._signals.setdefault(signal, []).append((callback, args))
 
 
-class FakePopover:
+class FakeScreen:
+    def get_rgba_visual(self):
+        return None
+
+    def get_width(self) -> int:
+        return 1920
+
+    def get_height(self) -> int:
+        return 1080
+
+
+class FakeWindow:
     last_created = None
 
-    def __init__(self, relative_to=None) -> None:
-        self.relative_to = relative_to
+    def __init__(self, **_kwargs) -> None:
         self.child = None
-        self.modal = False
-        self.position = None
-        self.pointing_to = None
-        self.popped = False
+        self.visible = False
+        self.moved_to = None
         self.parent = None
-        self._signals: dict[str, list[tuple[object, tuple[object, ...]]]] = {}
-        FakePopover.last_created = self
+        self.screen = FakeScreen()
+        FakeWindow.last_created = self
 
-    @classmethod
-    def new(cls, relative_to):
-        return cls(relative_to=relative_to)
+    def get_child(self):
+        return self.child
 
-    def set_modal(self, value: bool) -> None:
-        self.modal = value
+    def set_decorated(self, _value: bool) -> None:
+        return
 
-    def set_position(self, value) -> None:
-        self.position = value
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
 
-    def connect(self, signal: str, callback, *args) -> None:
-        self._signals.setdefault(signal, []).append((callback, args))
+    def set_resizable(self, _value: bool) -> None:
+        return
 
-    def set_pointing_to(self, rect) -> None:
-        self.pointing_to = rect
+    def set_type_hint(self, _value) -> None:
+        return
+
+    def set_app_paintable(self, _value: bool) -> None:
+        return
+
+    def set_visual(self, _visual) -> None:
+        return
+
+    def remove(self, _child) -> None:
+        self.child = None
+
+    def add(self, child) -> None:
+        self.child = child
+        if hasattr(child, "parent"):
+            child.parent = self
+
+    def show_all(self) -> None:
+        self.visible = True
+
+    def hide(self) -> None:
+        self.visible = False
+
+    def get_visible(self) -> bool:
+        return self.visible
+
+    def move(self, x: int, y: int) -> None:
+        self.moved_to = (x, y)
+
+    def get_screen(self):
+        return self.screen
+
+
+class FakeRevealer:
+    def __init__(self) -> None:
+        self.child = None
+        self.transition_type = None
+        self.transition_duration = 0
+        self.reveal_child = False
+
+    def set_transition_type(self, value) -> None:
+        self.transition_type = value
+
+    def set_transition_duration(self, value: int) -> None:
+        self.transition_duration = value
+
+    def set_reveal_child(self, value: bool) -> None:
+        self.reveal_child = value
 
     def get_child(self):
         return self.child
@@ -392,20 +527,82 @@ class FakePopover:
         if hasattr(child, "parent"):
             child.parent = self
 
+
+class FakeFixed:
+    def __init__(self) -> None:
+        self.children: list[tuple[object, int, int]] = []
+        self.size_request = (1, 1)
+        self.parent = None
+
+    def put(self, child, x: int, y: int) -> None:
+        self.children.append((child, x, y))
+        if hasattr(child, "parent"):
+            child.parent = self
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
     def show_all(self) -> None:
         return
 
-    def popup(self) -> None:
-        self.popped = True
+    def get_preferred_size(self):
+        width, height = self.size_request
+        return (
+            SimpleNamespace(width=width, height=height),
+            SimpleNamespace(width=width, height=height),
+        )
 
-    def popdown(self) -> None:
-        self.popped = False
-        for callback, args in self._signals.get("closed", []):
-            callback(self, *args)
+
+class FakeDrawingArea:
+    def __init__(self) -> None:
+        self.size_request = (1, 1)
+        self.events = 0
+        self._signals: dict[str, list[tuple[object, tuple[object, ...]]]] = {}
+        self.parent = None
+        self.shown = False
+        self.draw_queued = False
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+    def add_events(self, events: int) -> None:
+        self.events = events
+
+    def connect(self, signal: str, callback, *args) -> None:
+        self._signals.setdefault(signal, []).append((callback, args))
+
+    def show_all(self) -> None:
+        self.shown = True
+
+    def queue_draw(self) -> None:
+        self.draw_queued = True
+
+    def get_preferred_size(self):
+        width, height = self.size_request
+        return (
+            SimpleNamespace(width=width, height=height),
+            SimpleNamespace(width=width, height=height),
+        )
+
+
+class FakeWindowType:
+    POPUP = 0
+
+
+class FakeWindowTypeHint:
+    TOOLTIP = 0
+
+
+class FakeRevealerTransitionType:
+    SLIDE_UP = 0
+    SLIDE_DOWN = 1
+    SLIDE_RIGHT = 2
+    SLIDE_LEFT = 3
 
 
 class FakeAlign:
     FILL = 0
+    CENTER = 1
 
 
 class FakePolicyType:
@@ -432,6 +629,7 @@ class FakeOrientation:
 class FakeGtk:
     Menu = FakeMenu
     MenuItem = FakeMenuItem
+    Window = FakeWindow
     Button = FakeButton
     CheckMenuItem = FakeCheckMenuItem
     CheckButton = FakeCheckButton
@@ -440,15 +638,20 @@ class FakeGtk:
     Separator = FakeSeparator
     ScrolledWindow = FakeScrolledWindow
     ComboBoxText = FakeComboBoxText
-    Popover = FakePopover
     Image = FakeImage
     Box = FakeBox
     Label = FakeLabel
+    Fixed = FakeFixed
+    DrawingArea = FakeDrawingArea
+    Revealer = FakeRevealer
     Orientation = FakeOrientation
     Align = FakeAlign
     PolicyType = FakePolicyType
     ReliefStyle = FakeReliefStyle
     PositionType = FakePositionType
+    WindowType = FakeWindowType
+    WindowTypeHint = FakeWindowTypeHint
+    RevealerTransitionType = FakeRevealerTransitionType
     main_quit = MagicMock()
 
 
@@ -473,6 +676,8 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(menu_mod, "Pango", FakePango)
+    monkeypatch.setattr(menu_mod, "PangoCairo", FakePangoCairo)
     monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
     about = MagicMock()
     settings = MagicMock()
@@ -505,6 +710,8 @@ def handler(monkeypatch):
     tracker = MagicMock()
     tracker.get_windows_for.return_value = []
     tracker.get_window_title_for_xid.side_effect = lambda xid: f"Window {xid}"
+    launcher = MagicMock()
+    launcher.default_directory_app_name.return_value = None
     return menu_mod.MenuHandler(
         about=about,
         settings=settings,
@@ -512,7 +719,7 @@ def handler(monkeypatch):
         model=model,
         config=config,
         window_tracker=tracker,
-        launcher=MagicMock(),
+        launcher=launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )
 
@@ -704,6 +911,7 @@ class TestItemMenus:
         info.get_name.return_value = "docs"
         info.get_display_name.return_value = "docs"
         info.get_icon.return_value = gicon
+        info.get_content_type.return_value = "inode/directory"
         info.get_file_type.return_value = menu_mod.Gio.FileType.DIRECTORY
         info.get_is_hidden.return_value = False
         info.get_size.return_value = 0
@@ -719,8 +927,7 @@ class TestItemMenus:
         monkeypatch.setattr(
             handler, "_directory_has_visible_children", lambda **_kwargs: False
         )
-        handler._launcher.load_gicon.return_value = "folder-pixbuf"
-        handler._launcher.load_icon.return_value = "fallback-pixbuf"
+        handler._launcher.resolve_file_icon.return_value = "folder-pixbuf"
         item = DockItem(
             desktop_id="file:///tmp/root",
             kind=FOLDER_KIND,
@@ -731,7 +938,13 @@ class TestItemMenus:
         rows = handler._list_directory(folder_item=item, target="file:///tmp/root")
 
         assert rows[0]["icon"] == "folder-pixbuf"
-        handler._launcher.load_gicon.assert_called_once()
+        handler._launcher.resolve_file_icon.assert_called_once_with(
+            target="file:///tmp/docs",
+            gicon=gicon,
+            content_type="inode/directory",
+            size=16,
+            is_dir=True,
+        )
 
     def test_file_item_menu_opens_target(self, handler, monkeypatch):
         menu = FakeMenu()
@@ -1218,3 +1431,345 @@ class TestMenuCallbacks:
         assert result is False
         assert called == ["file:///tmp/docs"]
         assert menu.shown is True
+
+    def test_show_folder_stack_builds_popup_window(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: [
+                {
+                    "target": "file:///tmp/docs/readme.txt",
+                    "name": "readme.txt",
+                    "is_dir": False,
+                    "icon": None,
+                }
+            ],
+        )
+        tracked: list[str] = []
+        monkeypatch.setattr(
+            handler, "_track_folder_stack", lambda target: tracked.append(target)
+        )
+
+        handler.show_folder_stack(
+            item=item,
+            anchor_x=120,
+            anchor_y=800,
+            icon_w=48,
+            position="bottom",
+        )
+
+        window = FakeWindow.last_created
+        assert window is not None
+        assert window.visible is True
+        assert window.moved_to is not None
+        assert tracked == ["file:///tmp/docs"]
+        handler._runtime.menu_popup_opened.assert_called_once()
+        handler._runtime.hide_hover_ui.assert_called_once()
+
+    def test_show_folder_stack_second_click_toggles_closed(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(handler, "_list_directory", lambda **_kwargs: [])
+        monkeypatch.setattr(handler, "_track_folder_stack", lambda target: None)
+
+        handler.show_folder_stack(
+            item=item,
+            anchor_x=120,
+            anchor_y=800,
+            icon_w=48,
+            position="bottom",
+        )
+        window = FakeWindow.last_created
+
+        handler.show_folder_stack(
+            item=item,
+            anchor_x=120,
+            anchor_y=800,
+            icon_w=48,
+            position="bottom",
+        )
+
+        assert window is not None
+        assert window.visible is False
+        assert handler._runtime.menu_popup_opened.call_count == 1
+        handler._runtime.menu_popup_closed.assert_called_once()
+
+    def test_folder_stack_requests_dock_sized_icons(self, handler, monkeypatch):
+        handler._config.icon_size = 52
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        requested_icon_sizes: list[int] = []
+
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **kwargs: (
+                requested_icon_sizes.append(kwargs["icon_px"])
+                or [
+                    {
+                        "target": "file:///tmp/docs/readme.txt",
+                        "name": "readme.txt",
+                        "is_dir": False,
+                        "icon": object(),
+                    }
+                ]
+            ),
+        )
+
+        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+
+        assert requested_icon_sizes == [52]
+        assert cards[1].icon_size == 52
+        assert cards[1].label_w <= menu_mod.FOLDER_STACK_LABEL_MAX_WIDTH_PX
+
+    def test_folder_stack_action_chip_allows_wider_more_label(
+        self, handler, monkeypatch
+    ):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        handler._launcher.default_directory_app_name.return_value = "Caja"
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: [
+                {
+                    "target": f"file:///tmp/docs/{i}.txt",
+                    "name": f"Item {i}",
+                    "is_dir": False,
+                    "icon": object(),
+                }
+                for i in range(14)
+            ],
+        )
+
+        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+
+        assert cards[0].label == "5 More in Caja"
+        expected_width = (
+            menu_mod._measure_stack_text_px("5 More in Caja")
+            + 2 * menu_mod.FOLDER_STACK_LABEL_TEXT_MARGIN_PX
+            + menu_mod.FOLDER_STACK_ACTION_ARROW_GAP_PX
+            + menu_mod.FOLDER_STACK_ACTION_ARROW_SIZE_PX
+            + 10
+        )
+        assert cards[0].label_w == handler._folder_stack_action_width(
+            label="5 More in Caja"
+        )
+        assert cards[0].label_w == expected_width
+        assert cards[0].label_w <= menu_mod.FOLDER_STACK_ACTION_MAX_WIDTH_PX
+
+    def test_folder_stack_action_chip_falls_back_without_directory_app(
+        self, handler, monkeypatch
+    ):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        handler._launcher.default_directory_app_name.return_value = None
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: [
+                {
+                    "target": f"file:///tmp/docs/{i}.txt",
+                    "name": f"Item {i}",
+                    "is_dir": False,
+                    "icon": object(),
+                }
+                for i in range(14)
+            ],
+        )
+
+        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+
+        assert cards[0].label == "5 More in Folder"
+
+    def test_folder_stack_short_labels_fit_chip_width(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: [
+                {
+                    "target": "file:///tmp/docs/doc",
+                    "name": "doc",
+                    "is_dir": True,
+                    "icon": object(),
+                }
+            ],
+        )
+
+        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+
+        assert cards[1].label == "doc"
+        assert cards[1].label_w < 50
+
+    def test_folder_stack_arc_starts_from_first_visible_item(
+        self, handler, monkeypatch
+    ):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: [
+                {
+                    "target": f"file:///tmp/docs/{i}.txt",
+                    "name": f"Item {i}",
+                    "is_dir": False,
+                    "icon": object(),
+                }
+                for i in range(4)
+            ],
+        )
+
+        cards, popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+
+        icon_cards = [card for card in cards if card.icon_size > 0]
+        assert len(icon_cards) == 4
+        fold_center_x = handler._folder_stack_fold_center_x
+        for card in icon_cards:
+            icon_center_x = card.icon_x + card.icon_size / 2
+            assert icon_center_x > fold_center_x
+        assert icon_cards[0].icon_x > icon_cards[-1].icon_x
+        assert popup_w > icon_cards[0].icon_x + icon_cards[0].icon_size
+
+    def test_folder_stack_keeps_uniform_vertical_spacing(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: [
+                {
+                    "target": f"file:///tmp/docs/{i}.txt",
+                    "name": f"Item {i}",
+                    "is_dir": False,
+                    "icon": object(),
+                }
+                for i in range(5)
+            ],
+        )
+
+        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+
+        icon_cards = [card for card in cards if card.icon_size > 0]
+        centers = [card.icon_y + card.icon_size / 2 for card in icon_cards]
+        gaps = [round(centers[index + 1] - centers[index], 3) for index in range(4)]
+        assert len(set(gaps)) == 1
+
+    def test_folder_stack_change_debounces_refresh(self, handler, monkeypatch):
+        removed: list[int] = []
+        timeout_calls: list[tuple[int, object, tuple[object, ...]]] = []
+        monkeypatch.setattr(
+            menu_mod.GLib, "source_remove", lambda source: removed.append(source)
+        )
+        monkeypatch.setattr(
+            menu_mod.GLib,
+            "timeout_add",
+            lambda delay, cb, *args: timeout_calls.append((delay, cb, args)) or 77,
+        )
+        handler._folder_stack_refresh_source = 12
+
+        handler._on_folder_stack_changed(MagicMock(), MagicMock(), None, MagicMock())
+
+        assert removed == [12]
+        assert timeout_calls[0][0] == 120
+        assert handler._folder_stack_refresh_source == 77
+
+    def test_folder_stack_click_opens_target(self, handler):
+        target = "file:///tmp/docs/readme.txt"
+        handler._folder_stack_cards = [
+            menu_mod.FolderStackCard(
+                label="readme.txt",
+                target=target,
+                icon=None,
+                icon_x=80,
+                icon_y=40,
+                icon_size=48,
+                label_x=10,
+                label_y=52,
+                label_w=90,
+                label_h=24,
+                centered=False,
+            )
+        ]
+        opened: list[str] = []
+        with patch.object(handler, "_open_folder_stack_target", opened.append):
+            press = SimpleNamespace(x=32.0, y=60.0, button=1)
+            release = SimpleNamespace(x=32.0, y=60.0, button=1)
+
+            assert (
+                handler._on_folder_stack_button_press(FakeDrawingArea(), press) is True
+            )
+            assert (
+                handler._on_folder_stack_button_release(FakeDrawingArea(), release)
+                is True
+            )
+
+        assert opened == [target]
+
+    def test_refresh_folder_stack_rebuilds_popup_content(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        window = FakeWindow()
+        revealer = FakeRevealer()
+        old_child = object()
+        revealer.add(old_child)
+        built: list[object] = []
+        monkeypatch.setattr(
+            handler,
+            "_replace_folder_stack_content",
+            lambda item: built.append(object()),
+        )
+        monkeypatch.setattr(
+            handler,
+            "_position_folder_stack_window",
+            lambda: built.append(object()) or built[-1],
+        )
+        handler._folder_stack_window = window
+        handler._folder_stack_revealer = revealer
+        handler._folder_stack_item = item
+
+        result = handler._refresh_folder_stack()
+
+        assert result is False
+        assert window.visible is True

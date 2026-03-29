@@ -36,7 +36,7 @@ Docking is built around a few core capabilities:
 - Fast launcher workflow with running-state indicators and preview interactions.
 - Flexible layout with multi-position, multi-monitor, auto-hide, and drag-and-drop organization.
 - Broad customization through themes, icon sizing, menu options, and tooltip controls.
-- Native support for pinned files/folders, including stack-style folder menus.
+- Native support for pinned files/folders, including left-click folder stacks.
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
