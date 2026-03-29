@@ -183,8 +183,6 @@ SLIDE_DECAY_FACTOR = 0.75
 SLIDE_CLEAR_THRESHOLD = 0.5
 INDICATOR_SPACING_MULT = 3
 
-SLIDE_DURATION_MS = 300
-SLIDE_FRAME_MS = 16
 HOVER_LIGHTEN_FRAME_MS = 16
 SEPARATOR_LINE_WIDTH_PX = 2.0
 SEPARATOR_LINE_START_RATIO = 0.1
@@ -280,7 +278,6 @@ class DockRenderer:
         self.prev_positions: dict[str, float] = {}
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
-        self._hovered_id: str = ""
         self._icon_colors: dict[str, RGB] = {}
 
     @staticmethod

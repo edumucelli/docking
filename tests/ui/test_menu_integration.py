@@ -1167,9 +1167,7 @@ class TestDockMenu:
 
 
 class TestMenuCallbacks:
-    def test_show_builds_item_menu_and_show_item_pops_pointer(
-        self, handler, monkeypatch
-    ):
+    def test_show_builds_item_menu(self, handler, monkeypatch):
         event = SimpleNamespace(x=20.0, y=9.0)
         item = DockItem(desktop_id="firefox.desktop")
         handler._geometry_builder = SimpleNamespace(
@@ -1183,10 +1181,9 @@ class TestMenuCallbacks:
         monkeypatch.setattr(handler, "_build_item_menu", capture_build)
 
         handler.show(event=event, cursor_main=20.0)
-        handler.show_item(event=event, item=item)
 
-        assert built == [("item", item), ("item", item)]
-        assert handler._runtime.menu_popup_opened.call_count == 2
+        assert built == [("item", item)]
+        assert handler._runtime.menu_popup_opened.call_count == 1
 
     def test_append_desktop_actions_triggers_launch_action(self, handler, monkeypatch):
         # Given

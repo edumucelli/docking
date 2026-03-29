@@ -58,10 +58,3 @@ def tooltip_text(state: BatteryState | None) -> str:
     if state is None:
         return _("No battery")
     return _("Battery: {pct}%").format(pct=state.capacity)
-
-
-def icon_name_for(state: BatteryState | None) -> str:
-    """Return icon name for current state."""
-    if state is None:
-        return "battery-missing"
-    return state.icon_name

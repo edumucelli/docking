@@ -178,7 +178,6 @@ if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
 
 
-ICON_SIZE_OPTIONS = (32, 48, 64, 80)
 APPLET_MENU_ICON_PX = 16
 MENU_LABEL_MAX_CHARS = 32
 MENU_ROW_SPACING_PX = 6
@@ -205,9 +204,7 @@ FOLDER_STACK_ACTION_GAP_PX = 18
 FOLDER_STACK_ICON_GAP_PX = 10
 FOLDER_STACK_LABEL_HEIGHT_PX = 24
 FOLDER_STACK_LABEL_MAX_WIDTH_PX = 148
-FOLDER_STACK_LABEL_CHAR_PX = 7
 FOLDER_STACK_ACTION_MAX_WIDTH_PX = 240
-FOLDER_STACK_ACTION_CHAR_PX = 8
 FOLDER_STACK_ROW_STEP_PX = 54
 FOLDER_STACK_CURVE_X_PX = 40
 FOLDER_STACK_ARC_BASE_SHIFT_PX = 8
@@ -346,53 +343,6 @@ def _build_radio_submenu(
     return menu_item
 
 
-def _menu_icon_pixbuf(pixbuf: GdkPixbuf.Pixbuf | None) -> GdkPixbuf.Pixbuf | None:
-    """Scale pixbuf to applet submenu icon size."""
-    if pixbuf is None:
-        return None
-    if (
-        pixbuf.get_width() == APPLET_MENU_ICON_PX
-        and pixbuf.get_height() == APPLET_MENU_ICON_PX
-    ):
-        return pixbuf
-    scaled = pixbuf.scale_simple(
-        APPLET_MENU_ICON_PX,
-        APPLET_MENU_ICON_PX,
-        GdkPixbuf.InterpType.BILINEAR,
-    )
-    return scaled or pixbuf
-
-
-def _set_check_menu_item_icon(
-    *,
-    item: Gtk.CheckMenuItem,
-    label: str,
-    pixbuf: GdkPixbuf.Pixbuf | None,
-) -> None:
-    """Attach icon + text row to a check menu item."""
-    item.set_label(label)
-    row = Gtk.Box(
-        orientation=Gtk.Orientation.HORIZONTAL,
-        spacing=MENU_ROW_SPACING_PX,
-    )
-    if pixbuf is not None:
-        image = Gtk.Image.new_from_pixbuf(_menu_icon_pixbuf(pixbuf))
-        image.set_pixel_size(APPLET_MENU_ICON_PX)
-        row.pack_start(image, False, False, 0)
-
-    text = Gtk.Label(label=label)
-    text.set_xalign(0.0)
-    text.set_max_width_chars(MENU_LABEL_MAX_CHARS)
-    text.set_ellipsize(Pango.EllipsizeMode.END)
-    text.set_single_line_mode(True)
-    row.pack_start(text, False, False, 0)
-
-    child = item.get_child()
-    if child is not None:
-        item.remove(child)
-    item.add(row)
-
-
 def _set_menu_item_icon(
     *,
     item: Gtk.MenuItem,
@@ -491,14 +441,6 @@ class MenuHandler:
             insert_idx = self._insert_index(cursor_main=cursor_main, frame=frame)
             self._build_dock_menu(menu=menu, insert_index=insert_idx)
 
-        menu.show_all()
-        menu.popup_at_pointer(event)
-
-    def show_item(self, event: Gdk.EventButton, item: DockItem) -> None:
-        """Show a context menu for a known item."""
-        self._close_folder_stack()
-        menu = self._new_popup_menu()
-        self._build_item_menu(menu=menu, item=item)
         menu.show_all()
         menu.popup_at_pointer(event)
 

@@ -32,7 +32,6 @@ ADAPTER_IFACE = "org.bluez.Adapter1"
 DEVICE_IFACE = "org.bluez.Device1"
 BATTERY_IFACE = "org.bluez.Battery1"
 BLUEZ_ERR_NOT_READY = "org.bluez.Error.NotReady"
-BLUEZ_ERR_BUSY = "org.bluez.Error.Busy"
 POWER_OFF_RETRY_COUNT = 5
 POWER_OFF_FINAL_RETRY_COUNT = 3
 POWER_RETRY_SLEEP_S = 0.15

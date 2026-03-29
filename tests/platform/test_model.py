@@ -70,38 +70,6 @@ class TestDockModelInit:
         # Then
         assert len(model.visible_items()) == 1
 
-    def test_find_by_wm_class(self):
-        # Given
-        config = _make_config(["firefox.desktop"])
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher)
-        # When
-        found = model.find_by_wm_class("firefox")
-        # Then
-        assert found is not None
-        assert found.desktop_id == "firefox.desktop"
-
-    def test_find_by_wm_class_case_insensitive(self):
-        # Given
-        config = _make_config(["firefox.desktop"])
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher)
-        # When
-        found = model.find_by_wm_class("Firefox")
-        # Then
-        assert found is not None
-        assert found.desktop_id == "firefox.desktop"
-
-    def test_find_by_wm_class_not_found(self):
-        # Given
-        config = _make_config(["firefox.desktop"])
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher)
-        # When
-        found = model.find_by_wm_class("chromium")
-        # Then
-        assert found is None
-
     def test_empty_pinned(self):
         # Given
         config = _make_config([])
@@ -215,32 +183,6 @@ class TestPinUnpin:
             pass
         assert len(model.visible_items()) == 1
         config.save.assert_called_once()
-
-
-class TestReorder:
-    def test_reorder_pinned(self):
-        # Given
-        config = _make_config(["a.desktop", "b.desktop", "c.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop", "c.desktop")
-        model = DockModel(config, launcher)
-        # When
-        model.reorder(0, 2)
-        # Then
-        ids = [it.desktop_id for it in model.visible_items()]
-        assert ids == ["b.desktop", "c.desktop", "a.desktop"]
-        assert config.pinned == ["b.desktop", "c.desktop", "a.desktop"]
-        config.save.assert_called_once()
-
-    def test_reorder_out_of_bounds_noop(self):
-        # Given
-        config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
-        # When
-        model.reorder(0, 5)  # out of bounds
-        # Then
-        assert len(model.visible_items()) == 1
-        config.save.assert_not_called()
 
 
 class TestReorderVisible:

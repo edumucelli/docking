@@ -13,10 +13,6 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 
-def trash_icon_name(*, item_count: int) -> str:
-    return "user-trash-full" if item_count > 0 else "user-trash"
-
-
 def trash_tooltip(*, item_count: int) -> str:
     if item_count == 0:
         return _("No items in Trash")

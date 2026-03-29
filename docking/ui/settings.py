@@ -620,9 +620,6 @@ class SettingsWindowController:
         image.set_pixel_size(APPLET_LIST_ICON_PX)
         return image
 
-    def _save(self) -> None:
-        self._config.save()
-
     def _on_destroy(self, window: Gtk.Window) -> None:
         if self._window is window:
             self._window = None
@@ -637,7 +634,7 @@ class SettingsWindowController:
         if value == current_value:
             return
         setattr(self._config, binding.config_attr, value)
-        self._save()
+        self._config.save()
         if binding.on_change is not None:
             binding.on_change(value)
         self._update_dependent_sensitivity()

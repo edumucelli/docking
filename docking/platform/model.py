@@ -413,13 +413,6 @@ class DockModel:
                 return item
         return None
 
-    def find_by_wm_class(self, wm_class: str) -> DockItem | None:
-        wm_lower = wm_class.lower()
-        for item in self.pinned_items + self._transient:
-            if item.wm_class.lower() == wm_lower:
-                return item
-        return None
-
     def update_running(self, running: dict[str, dict[str, Any]]) -> None:
         """Update running state from WindowTracker data.
 
@@ -509,17 +502,6 @@ class DockModel:
             self._persist_pinned_changes()
             self.notify()
 
-    def add_pinned_item(self, item: DockItem, index: int = -1) -> None:
-        """Insert a already-resolved pinned item at the given pinned index."""
-        item.is_pinned = True
-        item.insert_factor = 0.0
-        if index < 0 or index >= len(self.pinned_items):
-            self.pinned_items.append(item)
-        else:
-            self.pinned_items.insert(index, item)
-        self._persist_pinned_changes()
-        self.notify()
-
     def unpin_item(self, desktop_id: str) -> None:
         """Unpin an item. If running, becomes transient; otherwise animated out.
 
@@ -539,15 +521,6 @@ class DockModel:
             else:
                 item.removal_index = visible_index
                 self._animating_out.append(item)
-            self._persist_pinned_changes()
-            self.notify()
-
-    def reorder(self, from_index: int, to_index: int) -> None:
-        """Move a pinned item from one position to another."""
-        items = self.pinned_items
-        if 0 <= from_index < len(items) and 0 <= to_index < len(items):
-            item = items.pop(from_index)
-            items.insert(to_index, item)
             self._persist_pinned_changes()
             self.notify()
 

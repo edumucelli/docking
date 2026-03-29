@@ -10,8 +10,6 @@ class Bookmark(NamedTuple):
     url: str
 
 
-DEFAULT_BOOKMARKS: tuple[Bookmark, ...] = ()
-
 MAX_LABEL_LEN = 30
 
 
