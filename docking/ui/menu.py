@@ -1398,7 +1398,7 @@ class MenuHandler:
         # Desktop actions (e.g. "New Window", "New Incognito Window")
         self._append_desktop_actions(menu=menu, desktop_id=item.desktop_id)
 
-        # Open windows — click to activate
+        # Open windows - click to activate
         self._append_open_windows(menu=menu, desktop_id=item.desktop_id)
 
         # Pin/Unpin (hidden when icons are locked)
@@ -1649,7 +1649,7 @@ class MenuHandler:
             return False
         self._tracker.close_xid(xid)
         self._remove_window_row(widget=widget, event=event)
-        self._hide_window_hover_ui()
+        self._runtime.hide_hover_ui()
         return True
 
     def _remove_window_row(
@@ -1676,63 +1676,8 @@ class MenuHandler:
         parent.queue_draw()
         parent.popup_at_pointer(event)
 
-    def _hide_window_hover_ui(self) -> None:
-        self._runtime.hide_hover_ui()
-
     def _on_add_applet_activate(self, _widget: Gtk.MenuItem, applet_id: str) -> None:
         self._model.add_applet(applet_id)
-
-    def _on_applet_toggled(self, widget: Gtk.CheckMenuItem, applet_id: str) -> None:
-        if widget.get_active():
-            self._model.add_applet(applet_id)
-        else:
-            self._model.remove_applet(applet_desktop_id(applet_id=applet_id))
-
-    def _monitor_items(self) -> list[tuple[str, int]]:
-        try:
-            raw = self._runtime.get_monitor_menu_choices()
-        except Exception as exc:
-            log.debug("Failed to read monitor menu choices: %s", exc)
-            return []
-        if not isinstance(raw, list):
-            return []
-
-        items: list[tuple[str, int]] = []
-        for entry in raw:
-            if (
-                isinstance(entry, tuple)
-                and len(entry) == 2
-                and isinstance(entry[0], str)
-                and isinstance(entry[1], int)
-            ):
-                items.append((entry[0], entry[1]))
-        return items
-
-    def _current_monitor_choice(self) -> int:
-        try:
-            value = self._runtime.current_monitor_choice()
-            if isinstance(value, int):
-                return value
-        except Exception as exc:
-            log.debug("Failed to read current monitor choice from runtime: %s", exc)
-        return int(self._config.monitor_index)
-
-    def _on_monitor_changed(self, widget: Gtk.MenuItem, monitor_index: int) -> None:
-        if not widget.get_active():
-            return
-        primary_idx = monitor_index
-        try:
-            value = self._runtime.primary_monitor_index()
-            if isinstance(value, int):
-                primary_idx = value
-        except Exception as exc:
-            log.debug("Failed to read primary monitor index from runtime: %s", exc)
-        new_value = -1 if monitor_index == primary_idx else monitor_index
-        if int(self._config.monitor_index) == new_value:
-            return
-        self._config.monitor_index = new_value
-        self._config.save()
-        self._runtime.reposition()
 
     def _folder_prefs(self, item: DockItem) -> dict[str, Any]:
         item_prefs = self._config.item_prefs

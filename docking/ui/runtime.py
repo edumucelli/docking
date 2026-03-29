@@ -92,6 +92,3 @@ class DockRuntime:
 
     def set_theme(self, theme: Theme) -> None:
         self._window.theme = theme
-
-    def cursor_position(self) -> tuple[float, float]:
-        return self._window.cursor_x, self._window.cursor_y

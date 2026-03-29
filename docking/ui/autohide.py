@@ -402,7 +402,7 @@ class AutoHideController:
         """Begin show animation."""
         self._unhide_timer_id = 0
         if self.hide_offset <= 0.0:
-            # Already fully visible — skip animation entirely.
+            # Already fully visible - skip animation entirely.
             self.state = HideState.VISIBLE
             self.hide_offset = 0.0
             self.zoom_progress = 1.0

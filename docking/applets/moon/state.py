@@ -1,4 +1,4 @@
-"""Moon phase data from briancasey.org — pure helpers, no GTK dependency.
+"""Moon phase data from briancasey.org - pure helpers, no GTK dependency.
 
 This parser is a direct descendant of the original Moon applet written by
 Eduardo Mucelli for Cairo-Dock (circa 2012). That applet parsed the same
@@ -6,7 +6,7 @@ website using SGMLParser to extract moon phase images and illumination data.
 
 Over a decade later, the same website still serves the same HTML structure.
 The parsing logic below is adapted from MoonCalendarParser.py in the original
-cairo-dock-plug-ins-extras/Moon directory — coming full circle from a Cairo-Dock
+cairo-dock-plug-ins-extras/Moon directory - coming full circle from a Cairo-Dock
 applet created years ago back into a dock built from scratch.
 """
 
@@ -72,7 +72,7 @@ def fetch_moon(day: date | None = None) -> MoonData | None:
 # -- HTML parsing (adapted from the original MoonCalendarParser.py) -----------
 #
 # The original used SGMLParser (removed in Python 3). We use simple regexes
-# on the same HTML structure — the website hasn't changed its format.
+# on the same HTML structure - the website hasn't changed its format.
 
 _IMG_RE = re.compile(r'<img\s+src="images/(moon\d+[ab])\.gif"', re.IGNORECASE)
 _ILLUM_RE = re.compile(r"Illuminated Fraction:\s*([\d.]+)")

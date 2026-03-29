@@ -682,9 +682,6 @@ def handler(monkeypatch):
     about = MagicMock()
     settings = MagicMock()
     runtime = MagicMock()
-    runtime.get_monitor_menu_choices.return_value = []
-    runtime.current_monitor_choice.return_value = -1
-    runtime.primary_monitor_index.return_value = 0
     runtime.cursor_position.return_value = (20.0, 8.0)
     frame = _frame()
 
@@ -1209,72 +1206,6 @@ class TestMenuCallbacks:
         next(mi for mi in menu.children if mi.get_label() == "New Window").activate()
         # Then
         assert launch_calls == [("firefox.desktop", "new-window")]
-
-    def test_monitor_changed_repositions_and_saves(self, handler):
-        # Given
-        widget = FakeCheckMenuItem("Display")
-        widget.set_active(True)
-        handler._config.monitor_index = -1
-
-        # When
-        handler._on_monitor_changed(widget, 1)
-
-        # Then
-        assert handler._config.monitor_index == 1
-        handler._config.save.assert_called_once()
-        handler._runtime.reposition.assert_called_once()
-
-    def test_monitor_changed_primary_persists_as_follow_primary(self, handler):
-        # Given
-        widget = FakeCheckMenuItem("Display")
-        widget.set_active(True)
-        handler._config.monitor_index = 1
-        handler._runtime.primary_monitor_index.return_value = 0
-
-        # When
-        handler._on_monitor_changed(widget, 0)
-
-        # Then
-        assert handler._config.monitor_index == -1
-        handler._config.save.assert_called_once()
-        handler._runtime.reposition.assert_called_once()
-
-    def test_monitor_items_filters_invalid_payloads_and_handles_errors(self, handler):
-        handler._runtime.get_monitor_menu_choices.return_value = [
-            ("Display 1", 0),
-            ("bad", "1"),
-            "bad",
-            ("Display 2", 1, "extra"),
-        ]
-        assert handler._monitor_items() == [("Display 1", 0)]
-
-        handler._runtime.get_monitor_menu_choices.side_effect = RuntimeError("boom")
-        assert handler._monitor_items() == []
-
-    def test_current_monitor_choice_falls_back_when_runtime_is_invalid(self, handler):
-        handler._config.monitor_index = 3
-        handler._runtime.current_monitor_choice.return_value = "bad"
-        assert handler._current_monitor_choice() == 3
-
-        handler._runtime.current_monitor_choice.side_effect = RuntimeError("boom")
-        assert handler._current_monitor_choice() == 3
-
-    def test_monitor_changed_noops_for_inactive_or_unchanged_selection(self, handler):
-        widget = FakeCheckMenuItem("Display")
-        widget.set_active(False)
-
-        handler._on_monitor_changed(widget, 1)
-
-        handler._config.save.assert_not_called()
-        handler._runtime.reposition.assert_not_called()
-
-        widget.set_active(True)
-        handler._config.monitor_index = -1
-        handler._runtime.primary_monitor_index.side_effect = RuntimeError("boom")
-        handler._on_monitor_changed(widget, 1)
-
-        handler._config.save.assert_not_called()
-        handler._runtime.reposition.assert_not_called()
 
     def test_insert_index(self, handler):
         frame = _frame(item_index=0, insert_index=1)

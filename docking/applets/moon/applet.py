@@ -4,7 +4,7 @@ This applet is a spiritual successor to the Moon applet originally written
 for Cairo-Dock by Eduardo Mucelli (circa 2012). The original fetched moon
 data from briancasey.org using SGMLParser and displayed phase images as
 sub-icons. This version renders the moon in Cairo and fetches from the
-same website — coming full circle after over a decade.
+same website - coming full circle after over a decade.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ REFRESH_INTERVAL = 6 * 60 * 60
 
 
 class MoonApplet(Applet):
-    """Moon phase display — fetches data from briancasey.org.
+    """Moon phase display - fetches data from briancasey.org.
 
     Shows current moon phase as a Cairo-rendered disc with illumination.
     Click to refresh. Tooltip shows phase name and illumination percentage.

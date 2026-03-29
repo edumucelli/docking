@@ -104,9 +104,3 @@ class TestDockRuntime:
         assert window.tooltip.hide.call_count == 2
         window.preview.hide.assert_called_once()
         assert window.theme == "new-theme"
-
-    def test_cursor_position_returns_window_cursor(self):
-        window = _make_window()
-        runtime = DockRuntime(window)
-
-        assert runtime.cursor_position() == (12.0, 34.0)

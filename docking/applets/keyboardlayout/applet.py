@@ -114,7 +114,7 @@ class KeyboardLayoutApplet(Applet):
         items: list[Gtk.MenuItem] = []
         for code in self._available:
             prefix = "\u2022 " if code == self._active else "  "
-            label = f"{prefix}{layout_label(code=code)} — {code}"
+            label = f"{prefix}{layout_label(code=code)} - {code}"
             mi = Gtk.MenuItem(label=label)
             mi.connect(
                 "activate",

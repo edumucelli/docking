@@ -1,9 +1,9 @@
-"""Pure state logic for keyboard layout applet — no GTK/Cairo.
+"""Pure state logic for keyboard layout applet - no GTK/Cairo.
 
 Supports three backends (tried in order):
-  1. IBus — reads engines via ``ibus engine`` / dconf
-  2. Fcitx5 — reads via ``fcitx5-remote -n`` / profile file
-  3. setxkbmap (fallback) — parses ``setxkbmap -query``
+  1. IBus - reads engines via ``ibus engine`` / dconf
+  2. Fcitx5 - reads via ``fcitx5-remote -n`` / profile file
+  3. setxkbmap (fallback) - parses ``setxkbmap -query``
 
 IBus engines use ``xkb:LAYOUT:VARIANT:LANG`` (e.g. ``xkb:br::por``).
 Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
