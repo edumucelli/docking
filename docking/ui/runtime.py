@@ -57,8 +57,7 @@ class DockRuntime:
         self._window.interaction.menu_popup_closed()
 
     def reset_autohide(self) -> None:
-        if self._window.autohide:
-            self._window.autohide.reset()
+        self._window.autohide.reset()
 
     def update_struts(self) -> None:
         self._window.placement.update_struts()
@@ -111,9 +110,6 @@ class DockDragRuntime:
     def __init__(self, window: DockWindow) -> None:
         self._window = window
 
-    def is_pointer_inside_dock(self) -> bool:
-        return self._window.is_pointer_inside_dock()
-
     def cursor_position(self) -> tuple[float, float]:
         return self._window.cursor_x, self._window.cursor_y
 
@@ -128,16 +124,16 @@ class DockDragRuntime:
         return self._window.get_size()
 
     def begin_drag(self) -> None:
-        if self._window.autohide and self._window.autohide.enabled:
+        if self._window.autohide.enabled:
             self._window.autohide.set_disabled(True, reason="drag-begin")
 
     def drag_motion_enter(self) -> None:
-        if self._window.autohide:
+        if self._window.autohide.enabled:
             self._window.autohide.set_disabled(True, reason="drag-motion")
             self._window.autohide.on_mouse_enter()
 
     def reconcile_after_drag(self, *, reason: str) -> None:
-        if not self._window.autohide:
+        if not self._window.autohide.enabled:
             return
         if self._window.is_pointer_inside_dock():
             self._window.autohide.set_hovered(True)

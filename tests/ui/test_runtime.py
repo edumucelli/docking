@@ -10,6 +10,17 @@ from docking.core.theme import Theme
 from docking.ui.runtime import DockDragRuntime, DockRuntime
 
 
+def _autohide(*, enabled: bool = True):
+    return SimpleNamespace(
+        enabled=enabled,
+        reset=MagicMock(),
+        set_disabled=MagicMock(),
+        set_hovered=MagicMock(),
+        on_mouse_enter=MagicMock(),
+        on_mouse_leave=MagicMock(),
+    )
+
+
 def _make_window():
     pointer = MagicMock()
     pointer.get_position.return_value = (None, 101, 202)
@@ -31,14 +42,7 @@ def _make_window():
             start_active_display=MagicMock(),
             stop_active_display=MagicMock(),
         ),
-        autohide=SimpleNamespace(
-            enabled=True,
-            reset=MagicMock(),
-            set_disabled=MagicMock(),
-            set_hovered=MagicMock(),
-            on_mouse_enter=MagicMock(),
-            on_mouse_leave=MagicMock(),
-        ),
+        autohide=_autohide(),
         dnd=SimpleNamespace(set_locked=MagicMock()),
         tooltip=SimpleNamespace(hide=MagicMock()),
         preview=SimpleNamespace(hide=MagicMock()),
@@ -114,13 +118,11 @@ class TestDockDragRuntime:
         window = _make_window()
         runtime = DockDragRuntime(window)
 
-        assert runtime.is_pointer_inside_dock() is True
         assert runtime.cursor_position() == (12.0, 34.0)
         assert runtime.pointer_screen_position() == (101, 202)
         assert runtime.window_position() == (9, 7)
         assert runtime.window_size() == (320, 88)
 
-        window.is_pointer_inside_dock.assert_called_once()
         window.get_display.assert_called_once()
         window.get_position.assert_called_once()
         window.get_size.assert_called_once()
@@ -170,9 +172,13 @@ class TestDockDragRuntime:
         )
         window.autohide.on_mouse_leave.assert_called_once()
 
-    def test_reconcile_after_drag_is_noop_without_autohide(self):
+    def test_reconcile_after_drag_is_noop_when_autohide_disabled(self):
         window = _make_window()
-        window.autohide = None
+        window.autohide = _autohide(enabled=False)
         runtime = DockDragRuntime(window)
 
         runtime.reconcile_after_drag(reason="drop")
+
+        window.autohide.set_hovered.assert_not_called()
+        window.autohide.set_disabled.assert_not_called()
+        window.autohide.on_mouse_leave.assert_not_called()

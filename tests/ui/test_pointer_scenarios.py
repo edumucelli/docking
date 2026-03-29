@@ -98,11 +98,11 @@ class _ScenarioHarness:
         self.cursor_y = -1.0
         self.screen_pointer = (0, 0)
         self.dock_hovered = False
-        self._current_geometry_frame = None
-        self._applied_input_frame = None
-        self.menu = MagicMock()
-        self.menu.open_folder_stack_item_id.return_value = None
-        self.menu.close_folder_stack = MagicMock()
+        self.current_geometry_frame = None
+        self.applied_input_frame = None
+        self._menu = MagicMock()
+        self._menu.open_folder_stack_item_id.return_value = None
+        self._menu.close_folder_stack = MagicMock()
         self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
@@ -126,7 +126,7 @@ class _ScenarioHarness:
             progress=1.0, on_enter=lambda: None, on_leave=lambda: None
         )
         self.geometry = DockGeometryBuilder(cast(Any, self))
-        self._hover = HoverManager(
+        self.hover = HoverManager(
             window=cast(Any, self),
             config=cast(Any, self.config),
             model=self.model,
@@ -180,8 +180,8 @@ class _ScenarioHarness:
         self.cursor_y = y
         self.screen_pointer = (int(win_x + x), int(win_y + y))
         frame = self.geometry.build_frame(cursor_x=x, cursor_y=y)
-        self._current_geometry_frame = frame
-        self._applied_input_frame = frame
+        self.current_geometry_frame = frame
+        self.applied_input_frame = frame
 
     def rest_frame(self):
         return self.geometry.build_frame(main_cursor=-1e6)
@@ -255,7 +255,7 @@ class TestPointerScenarios:
         harness.enter_at(x, y)
         harness.move_to(x, y)
         assert harness.dock_hovered is True
-        assert harness._hover.hovered_item is harness.items[index]
+        assert harness.hover.hovered_item is harness.items[index]
 
         harness.move_to(out_x, out_y)
 
@@ -270,11 +270,11 @@ class TestPointerScenarios:
 
         harness.enter_at(x0, y0)
         harness.move_to(x0, y0)
-        assert harness._hover.hovered_item is harness.items[0]
+        assert harness.hover.hovered_item is harness.items[0]
         assert harness.dock_hovered is True
 
         harness.move_to(x3, y3)
-        assert harness._hover.hovered_item is harness.items[3]
+        assert harness.hover.hovered_item is harness.items[3]
         harness.autohide.on_mouse_leave.assert_not_called()
 
         harness.move_to(out_x, out_y)
@@ -292,7 +292,7 @@ class TestPointerScenarios:
         harness.move_to(x, y)
 
         assert harness.dock_hovered is True
-        assert harness._hover.hovered_item is harness.items[2]
+        assert harness.hover.hovered_item is harness.items[2]
         assert harness.autohide.on_mouse_leave.call_count == 1
         assert harness.autohide.on_mouse_enter.call_count == 2
 
@@ -310,7 +310,7 @@ class TestPointerScenarios:
 
         harness.preview.schedule_hide.assert_called_once()
         harness.autohide.on_mouse_leave.assert_not_called()
-        assert harness._hover.hovered_item is harness.items[1]
+        assert harness.hover.hovered_item is harness.items[1]
 
     def test_tooltip_updates_across_adjacent_icons_and_hides_on_leave(self):
         harness = _ScenarioHarness()

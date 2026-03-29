@@ -267,7 +267,7 @@ class DockWindow(Gtk.Window):
 
     DockWindow acts as the composition root for runtime UI behavior: it keeps
     references to model, renderer, hover manager, tooltip manager, preview,
-    dnd, menu, and optional autohide controller, then coordinates them from
+    dnd, menu, and autohide controller, then coordinates them from
     GTK event callbacks.
 
     In short: renderer draws pixels, model owns item state, and DockWindow
@@ -292,14 +292,14 @@ class DockWindow(Gtk.Window):
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController
-        self._dnd: DnDHandler
+        self.dnd: DnDHandler
         self._menu: MenuHandler
-        self._preview: PreviewPopup
+        self.preview: PreviewPopup
         self._menu_popup_visible: bool = False
         self.tooltip = TooltipManager(self, config, model, theme)
         self.geometry = DockGeometryBuilder(self)
 
-        self._hover = HoverManager(
+        self.hover = HoverManager(
             self,
             config,
             model,
@@ -310,8 +310,8 @@ class DockWindow(Gtk.Window):
 
         self.placement = DockPlacementController(self)
         self.interaction = DockInteractionCoordinator(self)
-        self._current_geometry_frame: DockGeometryFrame | None = None
-        self._applied_input_frame: DockGeometryFrame | None = None
+        self.current_geometry_frame: DockGeometryFrame | None = None
+        self.applied_input_frame: DockGeometryFrame | None = None
         self.dock_hovered: bool = False
         self._last_autohide_state: HideState | None = None
 
@@ -409,7 +409,7 @@ class DockWindow(Gtk.Window):
             config=self.config,
         )
         self.autohide = AutoHideController(self, self.config)
-        self._dnd = DnDHandler(
+        self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
             runtime=drag_runtime,
             model=self.model,
@@ -429,22 +429,10 @@ class DockWindow(Gtk.Window):
             geometry_builder=self.geometry,
             launcher=launcher,
         )
-        self._preview = PreviewPopup(window_tracker=self.window_tracker)
-        self._preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
-        self._preview.set_autohide(controller=self.autohide)
-        self._hover.set_preview(preview=self._preview)
-
-    @property
-    def dnd(self) -> DnDHandler:
-        return self._dnd
-
-    @property
-    def menu(self) -> MenuHandler:
-        return self._menu
-
-    @property
-    def preview(self) -> PreviewPopup:
-        return self._preview
+        self.preview = PreviewPopup(window_tracker=self.window_tracker)
+        self.preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
+        self.preview.set_autohide(controller=self.autohide)
+        self.hover.set_preview(preview=self.preview)
 
     def is_pointer_inside_dock(self) -> bool:
         """Return True when the current pointer is inside the dock input area."""
@@ -477,25 +465,21 @@ class DockWindow(Gtk.Window):
         region (which may change during hide animation), resets cursor
         after hide completes, and re-schedules redraws for urgent glow.
         """
-        hide_offset = self.autohide.hide_offset if self.autohide else 0.0
+        hide_offset = self.autohide.hide_offset
         # zoom_progress for debug logging only -- the geometry layer
         # composes hover zoom * autohide zoom in capture_geometry_inputs().
-        autohide_zoom = (
-            self.autohide.zoom_progress
-            if self.autohide and self.autohide.enabled
-            else 1.0
-        )
+        autohide_zoom = self.autohide.zoom_progress if self.autohide.enabled else 1.0
         zoom_progress = self.zoom_animator.progress * autohide_zoom
-        drag_index = self._dnd.drag_index if self._dnd else -1
-        drop_insert = self._dnd.drop_insert_index if self._dnd else -1
-        drop_target = self._dnd.drop_target_id if self._dnd else ""
+        drag_index = self.dnd.drag_index
+        drop_insert = self.dnd.drop_insert_index
+        drop_target = self.dnd.drop_target_id
         hovered_id = (
-            self._hover.hovered_item.desktop_id
-            if self._hover and self._hover.hovered_item
+            self.hover.hovered_item.desktop_id
+            if self.hover and self.hover.hovered_item
             else ""
         )
         current_autohide_state = None
-        if self.autohide and self.autohide.enabled:
+        if self.autohide.enabled:
             current_autohide_state = self.autohide.state
             log.debug(
                 (
@@ -514,7 +498,7 @@ class DockWindow(Gtk.Window):
             widget.queue_draw()
 
         frame = self.geometry.build_frame(drop_insert_index=drop_insert)
-        self._current_geometry_frame = frame
+        self.current_geometry_frame = frame
         self.renderer.draw(
             cr,
             widget,
@@ -531,22 +515,22 @@ class DockWindow(Gtk.Window):
         self.update_input_region(frame=frame)
 
         # Reset cursor/hover after hide completes
-        if self.autohide and self.autohide.state == HideState.HIDDEN:
+        if self.autohide.state == HideState.HIDDEN:
             self.cursor_x = -1.0
             self.cursor_y = -1.0
-            self._hover.hovered_item = None
+            self.hover.hovered_item = None
             self.dock_hovered = False
             self.tooltip.hide()
         elif (
             self._last_autohide_state == HideState.SHOWING
             and current_autohide_state == HideState.VISIBLE
             and self.dock_hovered
-            and self._hover.hovered_item is not None
+            and self.hover.hovered_item is not None
         ):
             cursor_main = (
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
-            self._hover.update(cursor_main, frame=frame)
+            self.hover.update(cursor_main, frame=frame)
 
         # Keep redraw pump alive while urgent glow is visible (dock hidden)
         if self.renderer.has_active_urgent_glow(
@@ -574,21 +558,21 @@ class DockWindow(Gtk.Window):
         self.cursor_x = event.x
         self.cursor_y = event.y
         frame = self.geometry.build_frame()
-        self._current_geometry_frame = frame
+        self.current_geometry_frame = frame
         self.update_input_region(frame=frame)
         widget.queue_draw()
-        stack_item_id = self.menu.open_folder_stack_item_id()
+        stack_item_id = self._menu.open_folder_stack_item_id()
         hovered_item = frame.item_at_point(event.x, event.y)
         if stack_item_id is not None and (
             hovered_item is None or hovered_item.desktop_id != stack_item_id
         ):
-            self.menu.close_folder_stack()
+            self._menu.close_folder_stack()
         if frame.cursor_rect.contains(event.x, event.y):
             self.interaction.on_effective_enter()
             cursor_main = (
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
-            self._hover.update(cursor_main, frame=frame)
+            self.hover.update(cursor_main, frame=frame)
         elif self.dock_hovered:
             self.interaction.on_effective_leave(widget)
         return False  # Propagate so GTK drag source can detect drag threshold
@@ -621,12 +605,12 @@ class DockWindow(Gtk.Window):
 
         if event.button == MOUSE_RIGHT:
             cursor_main = event.x if is_horizontal(pos=self.config.pos) else event.y
-            self.menu.show(event, cursor_main)
+            self._menu.show(event, cursor_main)
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
             frame = self.geometry.build_frame(cursor_x=event.x, cursor_y=event.y)
-            self._current_geometry_frame = frame
+            self.current_geometry_frame = frame
             item = frame.item_at_point(event.x, event.y)
             if item is None:
                 return True
@@ -661,7 +645,7 @@ class DockWindow(Gtk.Window):
                     # Refresh tooltip immediately so applet name/tooltip
                     # changes are visible without waiting for pointer motion.
                     self.tooltip.update(item, frame)
-                    self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                    self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                     return True
 
             if item.kind == FOLDER_KIND:
@@ -680,20 +664,20 @@ class DockWindow(Gtk.Window):
                     anchor_x = win_x + int(event.x)
                     anchor_y = win_y + int(event.y)
                     icon_w = int(self.config.icon_size)
-                self.menu.show_folder_stack(
+                self._menu.show_folder_stack(
                     item=item,
                     anchor_x=anchor_x,
                     anchor_y=anchor_y,
                     icon_w=icon_w,
                     position=self.config.pos,
                 )
-                self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
             if item.kind == FILE_KIND:
                 item.last_launched = now
                 open_target(item.target)
-                self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
             force_launch = event.button == MOUSE_MIDDLE or (
@@ -702,10 +686,10 @@ class DockWindow(Gtk.Window):
             if force_launch or not item.is_running:
                 item.last_launched = now
                 launch(desktop_id=item.desktop_id)
-                self._hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
+                self.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
-                self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
 
         return True
 
@@ -717,7 +701,7 @@ class DockWindow(Gtk.Window):
         the tooltip (applet name/state may change on scroll, e.g. clippy).
         """
         frame = self.geometry.build_frame(cursor_x=event.x, cursor_y=event.y)
-        self._current_geometry_frame = frame
+        self.current_geometry_frame = frame
         item = frame.item_at_point(event.x, event.y)
         if item and is_applet(desktop_id=item.desktop_id):
             applet = self.model.get_applet(item.desktop_id)
@@ -751,7 +735,7 @@ class DockWindow(Gtk.Window):
         # inside the dock's current cursor region. Ignore those leaves
         # using the same half-open region semantics as the rest of the
         # shared geometry layer.
-        frame = self._current_geometry_frame or self._applied_input_frame
+        frame = self.current_geometry_frame or self.applied_input_frame
         input_rect = current_input_rect(frame)
         if input_rect is not None and self.interaction.point_inside_event_frame(
             x=event.x, y=event.y
@@ -789,7 +773,7 @@ class DockWindow(Gtk.Window):
         self.cursor_x = event.x
         self.cursor_y = event.y
         frame = self.geometry.build_frame(cursor_x=event.x, cursor_y=event.y)
-        self._current_geometry_frame = frame
+        self.current_geometry_frame = frame
         if frame.cursor_rect.contains(event.x, event.y):
             self.interaction.on_effective_enter()
         return True
@@ -797,15 +781,15 @@ class DockWindow(Gtk.Window):
     def _on_model_changed(self) -> None:
         """Reposition and redraw when the model changes."""
         self.update_input_region()
-        self._hover.on_model_changed()
+        self.hover.on_model_changed()
         # Refresh hover/tooltip state even without mouse motion so applets
         # that update item.name asynchronously (e.g. workspace switcher)
         # show the new tooltip text immediately.
-        if self._hover.hovered_item is not None:
+        if self.hover.hovered_item is not None:
             cursor_main = (
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
-            self._hover.update(cursor_main)
+            self.hover.update(cursor_main)
         self.drawing_area.queue_draw()
 
     def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:
@@ -841,15 +825,15 @@ class DockWindow(Gtk.Window):
         if not gdk_window:
             return
         frame = frame or self.geometry.build_frame()
-        self._current_geometry_frame = frame
-        old_rect = current_input_rect(self._applied_input_frame)
+        self.current_geometry_frame = frame
+        old_rect = current_input_rect(self.applied_input_frame)
         new_rect = frame.cursor_rect
         if new_rect != old_rect:
             region = cairo.Region(
                 cairo.RectangleInt(new_rect.x, new_rect.y, new_rect.w, new_rect.h)
             )
             gdk_window.input_shape_combine_region(region, 0, 0)
-            self._applied_input_frame = frame
+            self.applied_input_frame = frame
 
     # --- Coordinate Conversion Utilities ---
     #

@@ -15,6 +15,20 @@ from docking.ui.geometry import Rect, build_geometry_frame
 from docking.ui.interaction import DockInteractionCoordinator
 
 
+def _autohide(*, enabled: bool = False, state: HideState = HideState.VISIBLE):
+    return SimpleNamespace(
+        enabled=enabled,
+        state=state,
+        hide_offset=0.0,
+        zoom_progress=1.0 if enabled else 0.0,
+        on_mouse_leave=MagicMock(),
+        on_mouse_enter=MagicMock(),
+        set_hovered=MagicMock(),
+        set_disabled=MagicMock(),
+        reset=MagicMock(),
+    )
+
+
 def _make_stub(item: DockItem | None = None):
     item = item or DockItem(desktop_id="firefox.desktop")
     frame = SimpleNamespace(
@@ -29,16 +43,16 @@ def _make_stub(item: DockItem | None = None):
     stub.model.get_applet = MagicMock()
     stub.theme = SimpleNamespace(item_padding=8, h_padding=10, urgent_glow_time_ms=500)
     stub.window_tracker = MagicMock()
-    stub.menu = MagicMock()
-    stub.menu.open_folder_stack_item_id.return_value = None
-    stub.menu.close_folder_stack = MagicMock()
+    stub._menu = MagicMock()
+    stub._menu.open_folder_stack_item_id.return_value = None
+    stub._menu.close_folder_stack = MagicMock()
     stub.tooltip = MagicMock()
-    stub._hover = MagicMock()
-    stub._hover.hovered_item = item
-    stub._hover.cancel = MagicMock()
+    stub.hover = MagicMock()
+    stub.hover.hovered_item = item
+    stub.hover.cancel = MagicMock()
     stub.preview = None
     stub._menu_popup_visible = False
-    stub.autohide = None
+    stub.autohide = _autohide(enabled=False)
     stub.cursor_x = 12.0
     stub.cursor_y = 6.0
     stub._click_x = 12.0
@@ -49,8 +63,8 @@ def _make_stub(item: DockItem | None = None):
     stub.drawing_area = MagicMock()
     stub.get_position = MagicMock(return_value=(100, 200))
     stub._test_geometry_frame = frame
-    stub._current_geometry_frame = frame
-    stub._applied_input_frame = frame
+    stub.current_geometry_frame = frame
+    stub.applied_input_frame = frame
     stub.geometry = SimpleNamespace(build_frame=lambda **_kwargs: frame)
     stub.dock_hovered = True
     stub.zoom_animator = SimpleNamespace(progress=1.0)
@@ -74,7 +88,7 @@ class TestButtonReleaseFlow:
         )
         # Then
         assert handled is True
-        stub.menu.show.assert_called_once_with(event, 12.0)
+        stub._menu.show.assert_called_once_with(event, 12.0)
 
     def test_left_click_on_applet_updates_tooltip_immediately(self, monkeypatch):
         # Given
@@ -100,7 +114,7 @@ class TestButtonReleaseFlow:
         assert handled is True
         applet.on_clicked.assert_called_once()
         stub.tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
-        stub._hover.start_anim_pump.assert_called_once_with(350)
+        stub.hover.start_anim_pump.assert_called_once_with(350)
 
     def test_left_click_running_app_toggles_focus(self, monkeypatch):
         # Given
@@ -119,7 +133,7 @@ class TestButtonReleaseFlow:
         # Then
         assert handled is True
         stub.window_tracker.toggle_focus.assert_called_once_with("firefox.desktop")
-        stub._hover.start_anim_pump.assert_called_once_with(350)
+        stub.hover.start_anim_pump.assert_called_once_with(350)
         assert item.last_clicked == 1010
         assert item.last_launched == 0
 
@@ -147,7 +161,7 @@ class TestButtonReleaseFlow:
         assert handled is True
         assert launch_calls == ["firefox.desktop"]
         assert item.last_launched == 2020
-        stub._hover.start_anim_pump.assert_called_once_with(700)
+        stub.hover.start_anim_pump.assert_called_once_with(700)
 
     def test_left_click_file_item_opens_target(self, monkeypatch):
         item = DockItem(
@@ -193,8 +207,8 @@ class TestButtonReleaseFlow:
         )
 
         assert handled is True
-        stub.menu.show_folder_stack.assert_called_once()
-        kwargs = stub.menu.show_folder_stack.call_args.kwargs
+        stub._menu.show_folder_stack.assert_called_once()
+        kwargs = stub._menu.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is item
         assert kwargs["anchor_x"] == 104
         assert kwargs["anchor_y"] == 205
@@ -214,7 +228,7 @@ class TestButtonReleaseFlow:
         )
         # Then
         assert handled is False
-        stub.menu.show.assert_not_called()
+        stub._menu.show.assert_not_called()
 
 
 class TestScrollAndHoverFlow:
@@ -276,7 +290,7 @@ class TestLeaveEnterFlow:
     def test_leave_inside_input_rect_is_ignored(self):
         # Given
         stub, _item = _make_stub()
-        stub._current_geometry_frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
+        stub.current_geometry_frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
         event = SimpleNamespace(
             detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
             mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
@@ -291,14 +305,14 @@ class TestLeaveEnterFlow:
         stub.interaction.point_inside_event_frame.assert_called_once_with(
             x=20.0, y=20.0
         )
-        stub._hover.cancel.assert_not_called()
+        stub.hover.cancel.assert_not_called()
 
     def test_leave_clears_hover_and_resets_cursor_without_preview_or_autohide(self):
         # Given
         stub, _item = _make_stub()
         widget = MagicMock()
-        stub._current_geometry_frame = None
-        stub._applied_input_frame = None
+        stub.current_geometry_frame = None
+        stub.applied_input_frame = None
         stub.preview = MagicMock()
         stub.preview.get_visible.return_value = False
         event = SimpleNamespace(
@@ -317,16 +331,11 @@ class TestLeaveEnterFlow:
     def test_leave_with_visible_preview_defers_autohide_until_preview_hides(self):
         stub, _item = _make_stub()
         widget = MagicMock()
-        stub._current_geometry_frame = None
-        stub._applied_input_frame = None
+        stub.current_geometry_frame = None
+        stub.applied_input_frame = None
         stub.preview = MagicMock()
         stub.preview.get_visible.return_value = True
-        stub.autohide = SimpleNamespace(
-            enabled=True,
-            on_mouse_leave=MagicMock(),
-            set_hovered=MagicMock(),
-            set_disabled=MagicMock(),
-        )
+        stub.autohide = _autohide(enabled=True)
         event = SimpleNamespace(
             detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
             mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
@@ -342,14 +351,9 @@ class TestLeaveEnterFlow:
     def test_leave_with_autohide_keeps_hover_identity_until_hidden(self):
         stub, item = _make_stub()
         widget = MagicMock()
-        stub._current_geometry_frame = None
-        stub._applied_input_frame = None
-        stub.autohide = SimpleNamespace(
-            enabled=True,
-            on_mouse_leave=MagicMock(),
-            set_hovered=MagicMock(),
-            set_disabled=MagicMock(),
-        )
+        stub.current_geometry_frame = None
+        stub.applied_input_frame = None
+        stub.autohide = _autohide(enabled=True)
         event = SimpleNamespace(
             detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
             mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
@@ -365,7 +369,7 @@ class TestLeaveEnterFlow:
     def test_enter_sets_cursor_and_notifies_autohide(self):
         # Given
         stub, _item = _make_stub()
-        stub.autohide = MagicMock()
+        stub.autohide = _autohide(enabled=True)
         stub.dock_hovered = False
         event = SimpleNamespace(x=44.0, y=11.0)
         # When
@@ -378,7 +382,7 @@ class TestLeaveEnterFlow:
 
     def test_enter_does_not_trigger_effective_enter_when_outside_cursor_rect(self):
         stub, _item = _make_stub()
-        stub.autohide = MagicMock()
+        stub.autohide = _autohide(enabled=True)
         stub.dock_hovered = False
         outside_frame = SimpleNamespace(cursor_rect=Rect(292, 70, 1335, 148))
         stub._test_geometry_frame = outside_frame
@@ -468,7 +472,7 @@ class TestUrgentGlow:
 
 
 class TestModelChangedFlow:
-    def test_model_changed_refreshes_hover_and_redraw(self):
+    def test_model_changed_refresheshover_and_redraw(self):
         # Given
         stub, _item = _make_stub()
         stub.drawing_area = MagicMock()
@@ -478,23 +482,23 @@ class TestModelChangedFlow:
 
         # Then
         stub.update_input_region.assert_called_once()
-        stub._hover.on_model_changed.assert_called_once()
-        stub._hover.update.assert_called_once_with(12.0)
+        stub.hover.on_model_changed.assert_called_once()
+        stub.hover.update.assert_called_once_with(12.0)
         stub.drawing_area.queue_draw.assert_called_once()
 
-    def test_model_changed_skips_hover_refresh_when_not_hovering(self):
+    def test_model_changed_skipshover_refresh_when_nothovering(self):
         # Given
         stub, _item = _make_stub()
         stub.drawing_area = MagicMock()
-        stub._hover.hovered_item = None
+        stub.hover.hovered_item = None
 
         # When
         dock_window_mod.DockWindow._on_model_changed(stub)
 
         # Then
         stub.update_input_region.assert_called_once()
-        stub._hover.on_model_changed.assert_called_once()
-        stub._hover.update.assert_not_called()
+        stub.hover.on_model_changed.assert_called_once()
+        stub.hover.update.assert_not_called()
         stub.drawing_area.queue_draw.assert_called_once()
 
 
@@ -571,8 +575,8 @@ class TestDockWindowSetupAndGeometry:
             _on_leave=MagicMock(),
             _on_enter=MagicMock(),
             _on_scroll=MagicMock(),
-            _current_geometry_frame="sentinel-current",
-            _applied_input_frame="sentinel-applied",
+            current_geometry_frame="sentinel-current",
+            applied_input_frame="sentinel-applied",
         )
 
         # When
@@ -583,8 +587,8 @@ class TestDockWindowSetupAndGeometry:
         assert stub.drawing_area.double_buffered is False
         assert "draw" in stub.drawing_area.connected
         assert "scroll-event" in stub.drawing_area.connected
-        assert stub._current_geometry_frame == "sentinel-current"
-        assert stub._applied_input_frame == "sentinel-applied"
+        assert stub.current_geometry_frame == "sentinel-current"
+        assert stub.applied_input_frame == "sentinel-applied"
 
     def test_connect_model_registers_change_listener(self):
         # Given
@@ -629,19 +633,19 @@ class TestDockWindowStrutsAndRegion:
         stub = SimpleNamespace(
             get_window=lambda: gdk_window,
             _test_geometry_frame=frame,
-            _current_geometry_frame=None,
-            _applied_input_frame=None,
+            current_geometry_frame=None,
+            applied_input_frame=None,
             geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
         )
 
         # When
         dock_window_mod.DockWindow.update_input_region(stub)
-        first_rect = stub._current_geometry_frame.cursor_rect
+        first_rect = stub.current_geometry_frame.cursor_rect
         dock_window_mod.DockWindow.update_input_region(stub)
 
         # Then
         assert first_rect is not None
-        assert stub._applied_input_frame.cursor_rect == first_rect
+        assert stub.applied_input_frame.cursor_rect == first_rect
         gdk_window.input_shape_combine_region.assert_called_once()
 
     def test_update_input_region_uses_hidden_gap_trigger_from_real_geometry(self):
@@ -674,8 +678,8 @@ class TestDockWindowStrutsAndRegion:
         stub = SimpleNamespace(
             get_window=lambda: gdk_window,
             _test_geometry_frame=frame,
-            _current_geometry_frame=None,
-            _applied_input_frame=None,
+            current_geometry_frame=None,
+            applied_input_frame=None,
             geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
         )
 
@@ -685,7 +689,7 @@ class TestDockWindowStrutsAndRegion:
         extents = region.get_extents()
         assert extents.height == frame.cursor_rect.h
         assert extents.y == frame.cursor_rect.y
-        assert stub._applied_input_frame.cursor_rect == frame.cursor_rect
+        assert stub.applied_input_frame.cursor_rect == frame.cursor_rect
 
 
 class TestDockWindowDrawAndHelpers:
@@ -694,11 +698,11 @@ class TestDockWindowDrawAndHelpers:
         renderer = renderer_mod.DockRenderer()
         renderer.draw = MagicMock()
         stub = SimpleNamespace(
-            autohide=None,
+            autohide=_autohide(enabled=False),
             _last_autohide_state=None,
             dock_hovered=False,
-            _dnd=None,
-            _hover=SimpleNamespace(hovered_item=None),
+            dnd=SimpleNamespace(drag_index=-1, drop_insert_index=-1, drop_target_id=""),
+            hover=SimpleNamespace(hovered_item=None),
             model=MagicMock(),
             config=SimpleNamespace(pos=Position.BOTTOM),
             theme=MagicMock(),
@@ -726,16 +730,11 @@ class TestDockWindowDrawAndHelpers:
         renderer = renderer_mod.DockRenderer()
         renderer.draw = MagicMock()
         stub = SimpleNamespace(
-            autohide=SimpleNamespace(
-                enabled=True,
-                state=HideState.HIDDEN,
-                hide_offset=0.0,
-                zoom_progress=0.0,
-            ),
+            autohide=_autohide(enabled=True, state=HideState.HIDDEN),
             _last_autohide_state=HideState.HIDDEN,
             dock_hovered=False,
-            _dnd=None,
-            _hover=SimpleNamespace(hovered_item=None),
+            dnd=SimpleNamespace(drag_index=-1, drop_insert_index=-1, drop_target_id=""),
+            hover=SimpleNamespace(hovered_item=None),
             model=MagicMock(),
             config=SimpleNamespace(pos=Position.BOTTOM),
             theme=SimpleNamespace(urgent_glow_time_ms=500),
@@ -762,11 +761,9 @@ class TestDockWindowDrawAndHelpers:
         # Given
         hovered = DockItem(desktop_id="hovered.desktop")
         stub = SimpleNamespace(
-            autohide=SimpleNamespace(
-                enabled=True, state=HideState.HIDDEN, hide_offset=0.0, zoom_progress=0.0
-            ),
-            _dnd=None,
-            _hover=SimpleNamespace(hovered_item=hovered),
+            autohide=_autohide(enabled=True, state=HideState.HIDDEN),
+            dnd=SimpleNamespace(drag_index=-1, drop_insert_index=-1, drop_target_id=""),
+            hover=SimpleNamespace(hovered_item=hovered),
             renderer=SimpleNamespace(
                 draw=MagicMock(),
                 has_active_urgent_glow=lambda **_kwargs: False,
@@ -791,23 +788,18 @@ class TestDockWindowDrawAndHelpers:
         # Then
         assert stub.cursor_x == -1.0
         assert stub.cursor_y == -1.0
-        assert stub._hover.hovered_item is None
+        assert stub.hover.hovered_item is None
         stub.tooltip.hide.assert_called_once()
 
     def test_on_draw_refreshes_tooltip_once_when_showing_finishes(self):
         hovered = DockItem(desktop_id="hovered.desktop")
         frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
         stub = SimpleNamespace(
-            autohide=SimpleNamespace(
-                enabled=True,
-                state=HideState.VISIBLE,
-                hide_offset=0.0,
-                zoom_progress=1.0,
-            ),
+            autohide=_autohide(enabled=True, state=HideState.VISIBLE),
             _last_autohide_state=HideState.SHOWING,
             dock_hovered=True,
-            _dnd=None,
-            _hover=SimpleNamespace(hovered_item=hovered, update=MagicMock()),
+            dnd=SimpleNamespace(drag_index=-1, drop_insert_index=-1, drop_target_id=""),
+            hover=SimpleNamespace(hovered_item=hovered, update=MagicMock()),
             renderer=SimpleNamespace(
                 draw=MagicMock(),
                 has_active_urgent_glow=lambda **_kwargs: False,
@@ -826,7 +818,7 @@ class TestDockWindowDrawAndHelpers:
 
         dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
 
-        stub._hover.update.assert_called_once_with(25.0, frame=frame)
+        stub.hover.update.assert_called_once_with(25.0, frame=frame)
         assert stub._last_autohide_state == HideState.VISIBLE
 
     def test_on_motion_updates_cursor_and_hover(self):
@@ -844,9 +836,9 @@ class TestDockWindowDrawAndHelpers:
                 item_at_point=MagicMock(return_value=None),
             ),
             update_input_region=MagicMock(),
-            _hover=SimpleNamespace(update=MagicMock()),
-            menu=menu,
-            autohide=None,
+            hover=SimpleNamespace(update=MagicMock()),
+            _menu=menu,
+            autohide=_autohide(enabled=False),
             zoom_animator=MagicMock(),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
@@ -864,7 +856,7 @@ class TestDockWindowDrawAndHelpers:
         assert stub.cursor_y == 9.0
         assert stub.dock_hovered is True
         stub.update_input_region.assert_called_once()
-        stub._hover.update.assert_called_once_with(7.0, frame=stub._test_geometry_frame)
+        stub.hover.update.assert_called_once_with(7.0, frame=stub._test_geometry_frame)
         widget.queue_draw.assert_called_once()
 
     def test_on_motion_closes_folder_stack_after_leaving_source_folder(self):
@@ -888,9 +880,9 @@ class TestDockWindowDrawAndHelpers:
             config=SimpleNamespace(pos=Position.BOTTOM),
             _test_geometry_frame=frame,
             update_input_region=MagicMock(),
-            _hover=SimpleNamespace(update=MagicMock()),
-            menu=menu,
-            autohide=None,
+            hover=SimpleNamespace(update=MagicMock()),
+            _menu=menu,
+            autohide=_autohide(enabled=False),
             zoom_animator=MagicMock(),
             geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
         )

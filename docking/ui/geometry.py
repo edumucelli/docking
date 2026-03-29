@@ -608,20 +608,10 @@ def capture_geometry_inputs(
             window.cursor_x if is_horizontal(pos=pos) else window.cursor_y
         )
 
-    autohide_state = (
-        window.autohide.state if window.autohide and window.autohide.enabled else None
-    )
-    autohide_zoom = (
-        window.autohide.zoom_progress
-        if window.autohide and window.autohide.enabled
-        else 1.0
-    )
+    autohide_state = window.autohide.state if window.autohide.enabled else None
+    autohide_zoom = window.autohide.zoom_progress if window.autohide.enabled else 1.0
     zoom_progress = window.zoom_animator.progress * autohide_zoom
-    hide_offset = (
-        window.autohide.hide_offset
-        if window.autohide and window.autohide.enabled
-        else 0.0
-    )
+    hide_offset = window.autohide.hide_offset if window.autohide.enabled else 0.0
     return DockGeometryInputs(
         items=tuple(window.model.visible_items()),
         config=window.config,
