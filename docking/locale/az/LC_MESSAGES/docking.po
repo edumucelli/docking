@@ -1087,6 +1087,15 @@ msgid "Folder is empty"
 msgstr "Folder is empty"
 
 #: docking/ui/menu.py:1207
+#: docking/ui/menu.py:1213
+#, python-format
+msgid "Open in %s"
+msgstr "Open in %s"
+
+#: docking/ui/menu.py:1215
+#, python-format
+msgid "%d More in %s"
+msgstr "%d More in %s"
 msgid "Open Folder"
 msgstr "Open Folder"
 

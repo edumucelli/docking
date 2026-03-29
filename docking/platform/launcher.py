@@ -319,6 +319,20 @@ class Launcher:
             size=size,
         )
 
+    def default_directory_app_name(self) -> str | None:
+        """Return the display name of the default app that opens folders."""
+        try:
+            app_info = Gio.AppInfo.get_default_for_type("inode/directory", False)
+        except GLib.Error as exc:
+            log.bind(action="default_directory_app_name").warning(
+                "Failed to resolve default directory app: %s",
+                exc,
+            )
+            return None
+        if app_info is None:
+            return None
+        return app_info.get_display_name() or None
+
     def _try_load_gicon(self, gicon: Gio.Icon, size: int) -> GdkPixbuf.Pixbuf | None:
         theme = Gtk.IconTheme.get_default()
         if theme is None:

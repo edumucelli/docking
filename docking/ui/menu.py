@@ -217,6 +217,8 @@ FOLDER_STACK_ARC_LINEAR_BLEND = 0.34
 FOLDER_STACK_RIGHT_BLEED_PX = 24
 FOLDER_STACK_LABEL_RADIUS_PX = 6
 FOLDER_STACK_LABEL_TEXT_MARGIN_PX = 8
+FOLDER_STACK_ACTION_ARROW_GAP_PX = 7
+FOLDER_STACK_ACTION_ARROW_SIZE_PX = 7
 FOLDER_STACK_ROTATION_MAX_DEG = 5.5
 FOLDER_STACK_REVEAL_DURATION_MS = 160
 FOLDER_STACK_REVEAL_STAGGER_MS = 28
@@ -255,6 +257,10 @@ class FolderStackCardGeometry:
     icon_center_y: float
     label_x: float
     label_y: float
+
+
+def _is_folder_stack_action_card(card: FolderStackCard) -> bool:
+    return card.centered and card.target is not None and card.icon is None
 
 
 def _ease_out_cubic(value: float) -> float:
@@ -1027,6 +1033,7 @@ class MenuHandler:
         )
         if geometry is None:
             return
+        is_action_card = _is_folder_stack_action_card(card)
 
         if card.icon is not None and card.icon_size > 0:
             pixbuf = card.icon
@@ -1111,8 +1118,13 @@ class MenuHandler:
         desc.set_size(10 * Pango.SCALE)
         layout.set_font_description(desc)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
+        arrow_reserve = (
+            FOLDER_STACK_ACTION_ARROW_GAP_PX + FOLDER_STACK_ACTION_ARROW_SIZE_PX
+            if is_action_card
+            else 0
+        )
         available_text_w = max(
-            int(card.label_w - 2 * FOLDER_STACK_LABEL_TEXT_MARGIN_PX),
+            int(card.label_w - 2 * FOLDER_STACK_LABEL_TEXT_MARGIN_PX - arrow_reserve),
             1,
         )
         layout.set_width(available_text_w * Pango.SCALE)
@@ -1125,6 +1137,21 @@ class MenuHandler:
         cr.rotate(geometry.rotation_radians * 0.85)
         cr.move_to(text_x, text_y)
         PangoCairo.show_layout(cr, layout)
+        if is_action_card:
+            arrow_center_x = (
+                card.label_w / 2
+                - FOLDER_STACK_LABEL_TEXT_MARGIN_PX
+                - FOLDER_STACK_ACTION_ARROW_SIZE_PX / 2
+            )
+            arrow_center_y = 0.0
+            half = FOLDER_STACK_ACTION_ARROW_SIZE_PX / 2
+            cr.set_line_width(1.4)
+            cr.set_line_cap(cairo.LineCap.ROUND)
+            cr.set_line_join(cairo.LineJoin.ROUND)
+            cr.move_to(arrow_center_x - half, arrow_center_y - half)
+            cr.line_to(arrow_center_x, arrow_center_y)
+            cr.line_to(arrow_center_x - half, arrow_center_y + half)
+            cr.stroke()
         cr.restore()
 
     def _folder_stack_card_at(self, x: float, y: float) -> FolderStackCard | None:
@@ -1203,6 +1230,17 @@ class MenuHandler:
         return False
 
     def _folder_stack_action_label(self, *, hidden_count: int) -> str:
+        app_name = (
+            self._launcher.default_directory_app_name()
+            if self._launcher is not None
+            else None
+        )
+        if app_name:
+            return (
+                _("Open in %s") % app_name
+                if hidden_count == 0
+                else _("%d More in %s") % (hidden_count, app_name)
+            )
         return (
             _("Open Folder")
             if hidden_count == 0
@@ -1212,7 +1250,11 @@ class MenuHandler:
     def _folder_stack_action_width(self, *, label: str) -> int:
         return min(
             FOLDER_STACK_ACTION_MAX_WIDTH_PX,
-            _measure_stack_text_px(label) + 2 * FOLDER_STACK_LABEL_TEXT_MARGIN_PX + 10,
+            _measure_stack_text_px(label)
+            + 2 * FOLDER_STACK_LABEL_TEXT_MARGIN_PX
+            + FOLDER_STACK_ACTION_ARROW_GAP_PX
+            + FOLDER_STACK_ACTION_ARROW_SIZE_PX
+            + 10,
         )
 
     def _folder_stack_label_width(self, *, label: str) -> int:

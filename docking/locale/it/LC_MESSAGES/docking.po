@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-29 01:11+0100\n"
+"POT-Creation-Date: 2026-03-29 01:21+0100\n"
 "PO-Revision-Date: 2026-03-06 12:00+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -1087,73 +1087,83 @@ msgstr "Folder not found"
 msgid "Folder is empty"
 msgstr "Folder is empty"
 
-#: docking/ui/menu.py:1207
+#: docking/ui/menu.py:1213
+#, python-format
+msgid "Open in %s"
+msgstr "Open in %s"
+
+#: docking/ui/menu.py:1215
+#, python-format
+msgid "%d More in %s"
+msgstr "%d More in %s"
+
+#: docking/ui/menu.py:1218
 msgid "Open Folder"
 msgstr "Open Folder"
 
-#: docking/ui/menu.py:1209
+#: docking/ui/menu.py:1220
 #, python-format
 msgid "%d More in Folder"
 msgstr "%d More in Folder"
 
-#: docking/ui/menu.py:1330 docking/ui/menu.py:1350 docking/ui/menu.py:1366
-#: docking/ui/menu.py:1419
+#: docking/ui/menu.py:1341 docking/ui/menu.py:1361 docking/ui/menu.py:1377
+#: docking/ui/menu.py:1430
 msgid "Remove from Dock"
 msgstr "Rimuovi dal Dock"
 
-#: docking/ui/menu.py:1343
+#: docking/ui/menu.py:1354
 msgid "Open"
 msgstr "Open"
 
-#: docking/ui/menu.py:1373
+#: docking/ui/menu.py:1384
 msgid "Keep in Dock"
 msgstr "Mantieni nel Dock"
 
-#: docking/ui/menu.py:1382
+#: docking/ui/menu.py:1393
 msgid "Close All"
 msgstr "Chiudi tutto"
 
-#: docking/ui/menu.py:1382
+#: docking/ui/menu.py:1393
 msgid "Close"
 msgstr "Chiudi"
 
-#: docking/ui/menu.py:1399
+#: docking/ui/menu.py:1410
 msgid "Sort By"
 msgstr "Sort By"
 
-#: docking/ui/menu.py:1407
+#: docking/ui/menu.py:1418
 msgid "Show Hidden Files"
 msgstr "Show Hidden Files"
 
-#: docking/ui/menu.py:1412
+#: docking/ui/menu.py:1423
 msgid "Large Icons"
 msgstr "Large Icons"
 
-#: docking/ui/menu.py:1449
+#: docking/ui/menu.py:1460
 msgid "Add Applet"
 msgstr "Applet"
 
-#: docking/ui/menu.py:1487
+#: docking/ui/menu.py:1498
 msgid "No Applets Available"
 msgstr "Profili energetici non disponibili"
 
-#: docking/ui/menu.py:1494
+#: docking/ui/menu.py:1505
 msgid "Add Separator"
 msgstr "Aggiungi separatore"
 
-#: docking/ui/menu.py:1504 docking/ui/settings.py:151
+#: docking/ui/menu.py:1515 docking/ui/settings.py:151
 msgid "Preferences"
 msgstr "Preferences"
 
-#: docking/ui/menu.py:1509
+#: docking/ui/menu.py:1520
 msgid "About"
 msgstr "Informazioni"
 
-#: docking/ui/menu.py:1514
+#: docking/ui/menu.py:1525
 msgid "Quit"
 msgstr "Esci"
 
-#: docking/ui/menu.py:1551
+#: docking/ui/menu.py:1562
 msgid "Window"
 msgstr "Finestra"
 

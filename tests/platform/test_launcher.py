@@ -73,6 +73,30 @@ class TestIconCache:
         assert ("application-x-executable", 48) in launcher._icon_cache
         assert ("application-x-executable", 96) in launcher._icon_cache
 
+    def test_default_directory_app_name_returns_display_name(self):
+        launcher = Launcher()
+        app_info = MagicMock()
+        app_info.get_display_name.return_value = "Caja"
+
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.get_default_for_type",
+            return_value=app_info,
+        ):
+            name = launcher.default_directory_app_name()
+
+        assert name == "Caja"
+
+    def test_default_directory_app_name_returns_none_without_default(self):
+        launcher = Launcher()
+
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.get_default_for_type",
+            return_value=None,
+        ):
+            name = launcher.default_directory_app_name()
+
+        assert name is None
+
 
 class TestDesktopActions:
     def test_get_actions_returns_pairs(self):

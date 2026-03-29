@@ -1479,6 +1479,47 @@ class TestMenuCallbacks:
             target="file:///tmp/docs",
         )
         monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        handler._launcher.default_directory_app_name.return_value = "Caja"
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: [
+                {
+                    "target": f"file:///tmp/docs/{i}.txt",
+                    "name": f"Item {i}",
+                    "is_dir": False,
+                    "icon": object(),
+                }
+                for i in range(14)
+            ],
+        )
+
+        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+
+        assert cards[0].label == "5 More in Caja"
+        expected_width = (
+            menu_mod._measure_stack_text_px("5 More in Caja")
+            + 2 * menu_mod.FOLDER_STACK_LABEL_TEXT_MARGIN_PX
+            + menu_mod.FOLDER_STACK_ACTION_ARROW_GAP_PX
+            + menu_mod.FOLDER_STACK_ACTION_ARROW_SIZE_PX
+            + 10
+        )
+        assert cards[0].label_w == handler._folder_stack_action_width(
+            label="5 More in Caja"
+        )
+        assert cards[0].label_w == expected_width
+        assert cards[0].label_w <= menu_mod.FOLDER_STACK_ACTION_MAX_WIDTH_PX
+
+    def test_folder_stack_action_chip_falls_back_without_directory_app(
+        self, handler, monkeypatch
+    ):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        handler._launcher.default_directory_app_name.return_value = None
         monkeypatch.setattr(
             handler,
             "_list_directory",
@@ -1496,10 +1537,6 @@ class TestMenuCallbacks:
         cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
 
         assert cards[0].label == "5 More in Folder"
-        assert cards[0].label_w == handler._folder_stack_action_width(
-            label="5 More in Folder"
-        )
-        assert cards[0].label_w <= menu_mod.FOLDER_STACK_ACTION_MAX_WIDTH_PX
 
     def test_folder_stack_short_labels_fit_chip_width(self, handler, monkeypatch):
         item = DockItem(
