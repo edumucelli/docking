@@ -37,12 +37,6 @@ def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
 
 def _make_handler(monkeypatch, lock_icons: bool = False):
     drawing_area = MagicMock()
-    runtime = MagicMock()
-    runtime.cursor_position.return_value = (20.0, 8.0)
-    runtime.is_pointer_inside_dock.return_value = False
-    runtime.pointer_screen_position.return_value = (0, 0)
-    runtime.window_position.return_value = (0, 0)
-    runtime.window_size.return_value = (400, 60)
     default_frame = _frame()
 
     model = MagicMock()
@@ -57,10 +51,32 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
     renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
     theme = SimpleNamespace(item_padding=8, h_padding=10)
     launcher = MagicMock()
+    autohide = SimpleNamespace(
+        enabled=True,
+        set_disabled=MagicMock(),
+        set_hovered=MagicMock(),
+        on_mouse_enter=MagicMock(),
+        on_mouse_leave=MagicMock(),
+    )
+    pointer = MagicMock()
+    pointer.get_position.return_value = (None, 0, 0)
+    seat = MagicMock()
+    seat.get_pointer.return_value = pointer
+    display = MagicMock()
+    display.get_default_seat.return_value = seat
+    window = SimpleNamespace(
+        cursor_x=20.0,
+        cursor_y=8.0,
+        autohide=autohide,
+        is_pointer_inside_dock=MagicMock(return_value=False),
+        get_display=MagicMock(return_value=display),
+        get_position=MagicMock(return_value=(0, 0)),
+        get_size=MagicMock(return_value=(400, 60)),
+    )
     monkeypatch.setattr(dnd_mod, "show_poof", MagicMock())
     return dnd_mod.DnDHandler(
         drawing_area,
-        runtime,
+        window,
         model,
         config,
         renderer,
@@ -143,7 +159,10 @@ class TestDragBeginMotion:
         # Then
         assert handled is True
         assert handler.drop_insert_index == 0
-        handler._runtime.drag_motion_enter.assert_called_once()
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            True, reason="drag-motion"
+        )
+        handler._window.autohide.on_mouse_enter.assert_called_once()
         assert status_calls
 
     def test_drag_motion_internal_reorders(self, monkeypatch):
@@ -214,9 +233,11 @@ class TestDropAndReceive:
             123,
         )
         # Then
-        handler._runtime.reconcile_after_drag.assert_called_once_with(
-            reason="drag-data-received"
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-data-received-outside"
         )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 123)
 
     def test_drag_data_received_external_adds_pinned_item(self, monkeypatch):
@@ -254,16 +275,18 @@ class TestDropAndReceive:
             77,
         )
         # Then
-        assert handler._config.pinned == ["firefox.desktop"]
+        assert [entry.target for entry in handler._config.pinned] == ["firefox.desktop"]
         assert len(handler._model.pinned_items) == 1
         handler._config.save.assert_called_once()
         handler._model.sync_pinned_to_config.assert_called_once()
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._model.notify.assert_called_once()
-        handler._runtime.reconcile_after_drag.assert_called_once_with(
-            reason="drag-data-received"
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-data-received-outside"
         )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 77)
 
     def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
@@ -321,7 +344,7 @@ class TestDragLeaveEnd:
         handler._on_drag_leave(widget, MagicMock(), 0)
         # Then
         assert timeout_calls and timeout_calls[0][0] == 100
-        handler._runtime.reconcile_after_drag.assert_not_called()
+        handler._window.autohide.set_hovered.assert_not_called()
         widget.queue_draw.assert_called()
 
     def test_deferred_clear_drop_gap_releases_autohide_when_still_outside(
@@ -336,9 +359,11 @@ class TestDragLeaveEnd:
         # When
         assert handler._deferred_clear_drop_gap(widget) is False
         assert handler.drop_insert_index == -1
-        handler._runtime.reconcile_after_drag.assert_called_once_with(
-            reason="drag-leave"
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-leave-outside"
         )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called_once()
 
     def test_drag_end_unpins_when_dropped_outside(self, monkeypatch):
@@ -348,9 +373,10 @@ class TestDragLeaveEnd:
         handler.drag_index = 0
         pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
         handler._model.visible_items.return_value = [pinned]
-        handler._runtime.pointer_screen_position.return_value = (200, 50)
-        handler._runtime.window_position.return_value = (100, 200)
-        handler._runtime.window_size.return_value = (400, 60)
+        pointer = handler._window.get_display.return_value.get_default_seat.return_value
+        pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
+        handler._window.get_position.return_value = (100, 200)
+        handler._window.get_size.return_value = (400, 60)
         widget = handler._drawing_area
 
         # When
@@ -360,5 +386,9 @@ class TestDragLeaveEnd:
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._config.save.assert_called()
-        handler._runtime.reconcile_after_drag.assert_called_once_with(reason="drag-end")
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-end-outside"
+        )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called()

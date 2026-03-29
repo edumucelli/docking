@@ -206,7 +206,7 @@ from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.menu import MenuHandler
 from docking.ui.placement import DockPlacementController
 from docking.ui.preview import PreviewPopup
-from docking.ui.runtime import DockDragRuntime, DockRuntime
+from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsWindowController
 from docking.ui.tooltip import TooltipManager
 
@@ -402,7 +402,6 @@ class DockWindow(Gtk.Window):
     def _build_components(self, *, launcher: Launcher) -> None:
         """Build long-lived UI collaborators that depend on the live window."""
         runtime = DockRuntime(self)
-        drag_runtime = DockDragRuntime(self)
         about = AboutDialogController(parent=self)
         settings = SettingsWindowController(
             parent=self,
@@ -413,7 +412,7 @@ class DockWindow(Gtk.Window):
         self.autohide = AutoHideController(self, self.config)
         self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
-            runtime=drag_runtime,
+            window=self,
             model=self.model,
             config=self.config,
             renderer=self.renderer,
@@ -851,16 +850,6 @@ class DockWindow(Gtk.Window):
             )
             gdk_window.input_shape_combine_region(region, 0, 0)
             self.applied_input_frame = frame
-
-    # --- Coordinate Conversion Utilities ---
-    #
-    # All layout is computed in 1D along the dock's "main axis" (the
-    # axis along which icons are arranged). For horizontal docks (top/
-    # bottom), this is the X axis. For vertical docks (left/right),
-    # this is the Y axis. The "cross axis" is perpendicular.
-    #
-    # These methods convert between window-space and content-space
-    # along the main axis.
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""

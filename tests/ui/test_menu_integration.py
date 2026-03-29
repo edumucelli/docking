@@ -1210,31 +1210,6 @@ class TestMenuCallbacks:
         # Then
         assert launch_calls == [("firefox.desktop", "new-window")]
 
-    def test_theme_position_and_size_callbacks(self, handler, monkeypatch):
-        # Given
-        widget = FakeCheckMenuItem("Theme")
-        widget.set_active(True)
-        new_theme = object()
-        monkeypatch.setattr(menu_mod.Theme, "load", lambda name, _size: new_theme)
-        # When
-        handler._on_theme_changed(widget, "solar")
-        # Then
-        assert handler._config.theme == "solar"
-        handler._runtime.set_theme.assert_called_once_with(new_theme)
-        handler._runtime.reposition.assert_called_once()
-        handler._runtime.queue_draw.assert_called()
-
-        pos_widget = FakeCheckMenuItem("Position")
-        pos_widget.set_active(True)
-        handler._on_position_changed(pos_widget, "left")
-        assert handler._config.position == "left"
-        assert handler._runtime.reposition.call_count == 2
-
-        size_widget = FakeCheckMenuItem("Icon Size")
-        size_widget.set_active(True)
-        handler._on_icon_size_changed(size_widget, 64)
-        assert handler._config.icon_size == 64
-
     def test_monitor_changed_repositions_and_saves(self, handler):
         # Given
         widget = FakeCheckMenuItem("Display")
@@ -1301,67 +1276,9 @@ class TestMenuCallbacks:
         handler._config.save.assert_not_called()
         handler._runtime.reposition.assert_not_called()
 
-    def test_simple_toggle_callbacks_update_runtime_and_config(self, handler):
-        toggle = FakeCheckMenuItem("Toggle")
-        toggle.set_active(True)
+    def test_insert_index(self, handler):
+        frame = _frame(item_index=0, insert_index=1)
 
-        handler._on_active_display_toggled(toggle)
-        handler._on_lock_toggled(toggle)
-        handler._on_anchor_toggled(toggle)
-        handler._on_anchor_files_toggled(toggle)
-        handler._on_workspace_only_toggled(toggle)
-        handler._on_tooltips_toggled(toggle)
-
-        assert handler._config.active_display is True
-        assert handler._config.lock_icons is True
-        assert handler._config.anchor_applets is True
-        assert handler._config.anchor_files is True
-        assert handler._config.current_workspace_only is True
-        assert handler._config.tooltips_enabled is True
-        handler._runtime.set_active_display.assert_called_once_with(True)
-        handler._runtime.set_icons_locked.assert_called_once_with(True)
-        assert handler._runtime.reposition.call_count == 1
-        assert handler._runtime.queue_draw.call_count == 3
-        handler._runtime.hide_tooltip.assert_not_called()
-
-        toggle.set_active(False)
-        handler._on_tooltips_toggled(toggle)
-        handler._runtime.hide_tooltip.assert_called_once()
-
-    def test_theme_and_position_changes_ignore_inactive_or_same_values(
-        self, handler, monkeypatch
-    ):
-        widget = FakeCheckMenuItem("Theme")
-        widget.set_active(False)
-
-        handler._on_theme_changed(widget, "default")
-        handler._on_position_changed(widget, "bottom")
-
-        handler._config.save.assert_not_called()
-        handler._runtime.set_theme.assert_not_called()
-
-        widget.set_active(True)
-        handler._config.theme = "default"
-        handler._config.position = "bottom"
-        monkeypatch.setattr(menu_mod.Theme, "load", MagicMock())
-
-        handler._on_theme_changed(widget, "default")
-        handler._on_position_changed(widget, "bottom")
-
-        handler._config.save.assert_not_called()
-        menu_mod.Theme.load.assert_not_called()
-
-    def test_hit_test_and_insert_index(self, handler):
-        # Given
-        items = [DockItem(desktop_id="a.desktop"), DockItem(desktop_id="b.desktop")]
-        handler._runtime.cursor_position.return_value = (20.0, 8.0)
-        frame = _frame(item=items[0], item_index=0, insert_index=1)
-
-        found = handler._hit_test(main_coord=20, items=items, frame=frame)
-        # Then
-        assert found is items[0]
-
-        # When
         idx = handler._insert_index(cursor_main=40, frame=frame)
         assert idx == 1
 

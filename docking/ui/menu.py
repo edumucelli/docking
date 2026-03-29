@@ -161,7 +161,6 @@ from docking.applets.identity import (
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.core.theme import Theme
 from docking.i18n import _
 from docking.log import get_logger
 from docking.ui.about import AboutDialogController
@@ -1182,7 +1181,7 @@ class MenuHandler:
     def _on_folder_stack_button_press(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
     ) -> bool:
-        if int(getattr(event, "button", 1)) != 1:
+        if int(event.button) != 1:
             self._folder_stack_pressed_target = None
             return False
         card = self._folder_stack_card_at(event.x, event.y)
@@ -1194,7 +1193,7 @@ class MenuHandler:
     def _on_folder_stack_button_release(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
     ) -> bool:
-        if int(getattr(event, "button", 1)) != 1:
+        if int(event.button) != 1:
             self._folder_stack_pressed_target = None
             return False
         card = self._folder_stack_card_at(event.x, event.y)
@@ -1628,24 +1627,23 @@ class MenuHandler:
         row.connect("activate", lambda *_a: self._tracker.activate_xid(xid))
         return row
 
-    def _window_close_zone_hit(self, widget: Gtk.Widget, event: Any) -> bool:
-        x = float(getattr(event, "x", -1.0))
+    def _window_close_zone_hit(
+        self, widget: Gtk.Widget, event: Gdk.EventButton
+    ) -> bool:
+        x = float(event.x)
         if x < 0:
             return False
-        get_allocation = getattr(widget, "get_allocation", None)
-        if not callable(get_allocation):
-            return False
-        alloc = get_allocation()
-        width = float(getattr(alloc, "width", 0.0))
+        alloc = widget.get_allocation()
+        width = float(alloc.width)
         return width > 0 and x >= max(0.0, width - WINDOW_MENU_CLOSE_HIT_W)
 
     def _on_window_row_button_press(
-        self, widget: Gtk.Widget, event: Any, xid: int
+        self, widget: Gtk.Widget, event: Gdk.EventButton, xid: int
     ) -> bool:
         return self._window_close_zone_hit(widget=widget, event=event)
 
     def _on_window_row_button_release(
-        self, widget: Gtk.Widget, event: Any, xid: int
+        self, widget: Gtk.Widget, event: Gdk.EventButton, xid: int
     ) -> bool:
         if not self._window_close_zone_hit(widget=widget, event=event):
             return False
@@ -1654,50 +1652,29 @@ class MenuHandler:
         self._hide_window_hover_ui()
         return True
 
-    def _remove_window_row(self, widget: Gtk.Widget, event: Any | None = None) -> None:
-        parent = getattr(widget, "get_parent", lambda: None)()
-        if parent is None or not hasattr(parent, "remove"):
+    def _remove_window_row(
+        self, widget: Gtk.Widget, event: Gdk.EventButton | None = None
+    ) -> None:
+        parent = widget.get_parent()
+        if parent is None or not isinstance(parent, Gtk.Menu):
             return
-        hide = getattr(widget, "hide", None)
-        if callable(hide):
-            hide()
+        widget.hide()
         parent.remove(widget)
-        destroy = getattr(widget, "destroy", None)
-        if callable(destroy):
-            destroy()
-        children = list(getattr(parent, "get_children", list)())
+        widget.destroy()
+        children = list(parent.get_children())
         if not any(getattr(child, "_window_row", False) for child in children):
             for child in children:
                 if getattr(child, "_window_rows_separator", False):
-                    child_hide = getattr(child, "hide", None)
-                    if callable(child_hide):
-                        child_hide()
+                    child.hide()
                     parent.remove(child)
-                    destroy = getattr(child, "destroy", None)
-                    if callable(destroy):
-                        destroy()
+                    child.destroy()
                     break
-        self._refresh_live_menu(parent=parent, event=event)
-
-    def _refresh_live_menu(self, parent: Gtk.Widget, event: Any | None = None) -> None:
-        popdown = getattr(parent, "popdown", None)
-        if callable(popdown):
-            popdown()
-        show_all = getattr(parent, "show_all", None)
-        if callable(show_all):
-            show_all()
-        queue_resize = getattr(parent, "queue_resize", None)
-        if callable(queue_resize):
-            queue_resize()
-        check_resize = getattr(parent, "check_resize", None)
-        if callable(check_resize):
-            check_resize()
-        queue_draw = getattr(parent, "queue_draw", None)
-        if callable(queue_draw):
-            queue_draw()
-        popup_at_pointer = getattr(parent, "popup_at_pointer", None)
-        if callable(popup_at_pointer):
-            popup_at_pointer(event)
+        parent.popdown()
+        parent.show_all()
+        parent.queue_resize()
+        parent.check_resize()
+        parent.queue_draw()
+        parent.popup_at_pointer(event)
 
     def _hide_window_hover_ui(self) -> None:
         self._runtime.hide_hover_ui()
@@ -1710,10 +1687,6 @@ class MenuHandler:
             self._model.add_applet(applet_id)
         else:
             self._model.remove_applet(applet_desktop_id(applet_id=applet_id))
-
-    def _on_previews_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.previews_enabled = widget.get_active()
-        self._config.save()
 
     def _monitor_items(self) -> list[tuple[str, int]]:
         try:
@@ -1761,61 +1734,6 @@ class MenuHandler:
         self._config.save()
         self._runtime.reposition()
 
-    def _on_active_display_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.active_display = widget.get_active()
-        self._config.save()
-        self._runtime.set_active_display(self._config.active_display)
-        self._runtime.reposition()
-
-    def _on_lock_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.lock_icons = widget.get_active()
-        self._config.save()
-        self._runtime.set_icons_locked(self._config.lock_icons)
-
-    def _on_anchor_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.anchor_applets = widget.get_active()
-        self._config.save()
-        self._runtime.queue_draw()
-
-    def _on_anchor_files_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.anchor_files = widget.get_active()
-        self._config.save()
-        self._runtime.queue_draw()
-
-    def _on_workspace_only_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.current_workspace_only = widget.get_active()
-        self._config.save()
-        self._runtime.queue_draw()
-
-    def _on_tooltips_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        self._config.tooltips_enabled = widget.get_active()
-        self._config.save()
-        if not self._config.tooltips_enabled:
-            self._runtime.hide_tooltip()
-
-    def _on_theme_changed(self, widget: Gtk.MenuItem, name: str) -> None:
-        if not widget.get_active() or name == self._config.theme:
-            return
-        self._config.theme = name
-        self._config.save()
-        new_theme = Theme.load(name, self._config.icon_size)
-        self._runtime.set_theme(new_theme)
-        self._runtime.reposition()
-        self._runtime.queue_draw()
-
-    def _on_position_changed(self, widget: Gtk.MenuItem, position: str) -> None:
-        if not widget.get_active() or position == self._config.position:
-            return
-        self._config.position = position
-        self._config.save()
-        self._runtime.reposition()
-
-    def _on_icon_size_changed(self, widget: Gtk.MenuItem, size: int) -> None:
-        if widget.get_active():
-            self._config.icon_size = size
-            self._config.save()
-            # Would need a full reload to update icons at new size
-
     def _folder_prefs(self, item: DockItem) -> dict[str, Any]:
         item_prefs = self._config.item_prefs
         stored = dict(item_prefs.get(item.prefs_key or item.target, {}))
@@ -1834,14 +1752,6 @@ class MenuHandler:
         self, menu: Gtk.Menu, folder_item: DockItem, target: str
     ) -> None:
         rows = self._list_directory(folder_item=folder_item, target=target)
-        self._append_directory_rows(menu=menu, folder_item=folder_item, rows=rows)
-
-    def _append_directory_rows(
-        self,
-        menu: Gtk.Menu,
-        folder_item: DockItem,
-        rows: list[dict[str, Any]],
-    ) -> None:
         for child in rows:
             self._append_directory_row(menu=menu, folder_item=folder_item, child=child)
 
@@ -1956,14 +1866,14 @@ class MenuHandler:
 
     def _clear_menu_children(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
-            submenu = getattr(child, "get_submenu", lambda: None)()
+            submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
             if submenu is not None:
                 self._cleanup_folder_menu_tree(submenu)
             menu.remove(child)
 
     def _cleanup_folder_menu_tree(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
-            submenu = getattr(child, "get_submenu", lambda: None)()
+            submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
             if submenu is not None:
                 self._cleanup_folder_menu_tree(submenu)
         self._cleanup_folder_menu(menu)
@@ -2124,18 +2034,3 @@ class MenuHandler:
         self, widget: Gtk.CheckMenuItem, item: DockItem
     ) -> None:
         self._update_folder_pref(item, "large_icons", widget.get_active())
-
-    def _hit_test(
-        self,
-        main_coord: float,
-        items: list[DockItem],
-        frame: DockGeometryFrame,
-    ) -> DockItem | None:
-        """Find which DockItem is under cursor along the main axis."""
-        cursor_x, cursor_y = self._runtime.cursor_position()
-        if cursor_x < 0 or cursor_y < 0:
-            return None
-        index = frame.item_index_at_point(cursor_x, cursor_y)
-        if index < 0 or index >= len(items):
-            return None
-        return items[index]
