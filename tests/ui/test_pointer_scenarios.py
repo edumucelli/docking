@@ -100,7 +100,9 @@ class _ScenarioHarness:
         self.dock_hovered = False
         self._current_geometry_frame = None
         self._applied_input_frame = None
-        self._menu = None
+        self.menu = MagicMock()
+        self.menu.open_folder_stack_item_id.return_value = None
+        self.menu.close_folder_stack = MagicMock()
         self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0

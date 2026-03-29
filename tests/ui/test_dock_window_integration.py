@@ -29,9 +29,9 @@ def _make_stub(item: DockItem | None = None):
     stub.model.get_applet = MagicMock()
     stub.theme = SimpleNamespace(item_padding=8, h_padding=10, urgent_glow_time_ms=500)
     stub.window_tracker = MagicMock()
-    stub._menu = MagicMock()
-    stub._menu.open_folder_stack_item_id.return_value = None
-    stub._menu.close_folder_stack = MagicMock()
+    stub.menu = MagicMock()
+    stub.menu.open_folder_stack_item_id.return_value = None
+    stub.menu.close_folder_stack = MagicMock()
     stub.tooltip = MagicMock()
     stub._hover = MagicMock()
     stub._hover.hovered_item = item
@@ -74,7 +74,7 @@ class TestButtonReleaseFlow:
         )
         # Then
         assert handled is True
-        stub._menu.show.assert_called_once_with(event, 12.0)
+        stub.menu.show.assert_called_once_with(event, 12.0)
 
     def test_left_click_on_applet_updates_tooltip_immediately(self, monkeypatch):
         # Given
@@ -193,8 +193,8 @@ class TestButtonReleaseFlow:
         )
 
         assert handled is True
-        stub._menu.show_folder_stack.assert_called_once()
-        kwargs = stub._menu.show_folder_stack.call_args.kwargs
+        stub.menu.show_folder_stack.assert_called_once()
+        kwargs = stub.menu.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is item
         assert kwargs["anchor_x"] == 104
         assert kwargs["anchor_y"] == 205
@@ -214,7 +214,7 @@ class TestButtonReleaseFlow:
         )
         # Then
         assert handled is False
-        stub._menu.show.assert_not_called()
+        stub.menu.show.assert_not_called()
 
 
 class TestScrollAndHoverFlow:
@@ -845,7 +845,7 @@ class TestDockWindowDrawAndHelpers:
             ),
             update_input_region=MagicMock(),
             _hover=SimpleNamespace(update=MagicMock()),
-            _menu=menu,
+            menu=menu,
             autohide=None,
             zoom_animator=MagicMock(),
             geometry=SimpleNamespace(
@@ -889,7 +889,7 @@ class TestDockWindowDrawAndHelpers:
             _test_geometry_frame=frame,
             update_input_region=MagicMock(),
             _hover=SimpleNamespace(update=MagicMock()),
-            _menu=menu,
+            menu=menu,
             autohide=None,
             zoom_animator=MagicMock(),
             geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),

@@ -175,7 +175,6 @@ current codebase.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import cairo
@@ -192,7 +191,9 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.launcher import launch, open_target
 from docking.ui import geometry
-from docking.ui.autohide import HideState
+from docking.ui.about import AboutDialogController
+from docking.ui.autohide import AutoHideController, HideState
+from docking.ui.dnd import DnDHandler
 from docking.ui.effects import ZoomAnimator
 from docking.ui.geometry import (
     DockGeometryBuilder,
@@ -202,7 +203,11 @@ from docking.ui.geometry import (
 )
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
+from docking.ui.menu import MenuHandler
 from docking.ui.placement import DockPlacementController
+from docking.ui.preview import PreviewPopup
+from docking.ui.runtime import DockDragRuntime, DockRuntime
+from docking.ui.settings import SettingsWindowController
 from docking.ui.tooltip import TooltipManager
 
 log = get_logger(name="dock_window")
@@ -215,12 +220,9 @@ compute_input_rect = geometry.compute_input_rect
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.theme import Theme
+    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
-    from docking.ui.autohide import AutoHideController
-    from docking.ui.dnd import DnDHandler
-    from docking.ui.menu import MenuHandler
-    from docking.ui.preview import PreviewPopup
     from docking.ui.renderer import DockRenderer
 
 
@@ -260,16 +262,6 @@ def hover_anchor_from_draw_rect(
     return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
 
 
-@dataclass(frozen=True)
-class DockComponents:
-    """Late-attached collaborators that depend on the live dock window shell."""
-
-    autohide: AutoHideController
-    dnd: DnDHandler
-    menu: MenuHandler
-    preview: PreviewPopup
-
-
 class DockWindow(Gtk.Window):
     """Top-level dock window that owns event routing and edge integration.
 
@@ -289,6 +281,7 @@ class DockWindow(Gtk.Window):
         renderer: DockRenderer,
         theme: Theme,
         window_tracker: WindowTracker,
+        launcher: Launcher,
     ) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.config = config
@@ -298,7 +291,6 @@ class DockWindow(Gtk.Window):
         self.window_tracker = window_tracker
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
-        self._components_attached: bool = False
         self.autohide: AutoHideController
         self._dnd: DnDHandler
         self._menu: MenuHandler
@@ -326,6 +318,7 @@ class DockWindow(Gtk.Window):
         self._setup_window()
         self._setup_drawing_area()
         self.zoom_animator = ZoomAnimator(self.drawing_area)
+        self._build_components(launcher=launcher)
         self._connect_model()
 
     def _setup_window(self) -> None:
@@ -404,35 +397,53 @@ class DockWindow(Gtk.Window):
         """Release model subscriptions owned by the dock shell."""
         self._disconnect_model()
 
-    def attach_components(self, components: DockComponents) -> None:
-        """Attach late-built UI components in one atomic assembly step."""
-        if self._components_attached:
-            raise RuntimeError("DockWindow components already attached")
-        self.autohide = components.autohide
-        self._dnd = components.dnd
-        self._menu = components.menu
-        self._preview = components.preview
+    def _build_components(self, *, launcher: Launcher) -> None:
+        """Build long-lived UI collaborators that depend on the live window."""
+        runtime = DockRuntime(self)
+        drag_runtime = DockDragRuntime(self)
+        about = AboutDialogController(parent=self)
+        settings = SettingsWindowController(
+            parent=self,
+            runtime=runtime,
+            model=self.model,
+            config=self.config,
+        )
+        self.autohide = AutoHideController(self, self.config)
+        self._dnd = DnDHandler(
+            drawing_area=self.drawing_area,
+            runtime=drag_runtime,
+            model=self.model,
+            config=self.config,
+            renderer=self.renderer,
+            theme=self.theme,
+            launcher=launcher,
+            geometry_builder=self.geometry,
+        )
+        self._menu = MenuHandler(
+            about=about,
+            settings=settings,
+            runtime=runtime,
+            model=self.model,
+            config=self.config,
+            window_tracker=self.window_tracker,
+            geometry_builder=self.geometry,
+            launcher=launcher,
+        )
+        self._preview = PreviewPopup(window_tracker=self.window_tracker)
         self._preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
-        self._preview.set_autohide(controller=components.autohide)
-        self._hover.set_preview(preview=components.preview)
-        self._components_attached = True
+        self._preview.set_autohide(controller=self.autohide)
+        self._hover.set_preview(preview=self._preview)
 
     @property
     def dnd(self) -> DnDHandler:
-        if not self._components_attached:
-            raise RuntimeError("DockWindow DnD handler accessed before assembly")
         return self._dnd
 
     @property
     def menu(self) -> MenuHandler:
-        if not self._components_attached:
-            raise RuntimeError("DockWindow menu handler accessed before assembly")
         return self._menu
 
     @property
     def preview(self) -> PreviewPopup:
-        if not self._components_attached:
-            raise RuntimeError("DockWindow preview popup accessed before assembly")
         return self._preview
 
     def is_pointer_inside_dock(self) -> bool:
@@ -566,13 +577,12 @@ class DockWindow(Gtk.Window):
         self._current_geometry_frame = frame
         self.update_input_region(frame=frame)
         widget.queue_draw()
-        if self._menu is not None:
-            stack_item_id = self._menu.open_folder_stack_item_id()
-            hovered_item = frame.item_at_point(event.x, event.y)
-            if stack_item_id is not None and (
-                hovered_item is None or hovered_item.desktop_id != stack_item_id
-            ):
-                self._menu.close_folder_stack()
+        stack_item_id = self.menu.open_folder_stack_item_id()
+        hovered_item = frame.item_at_point(event.x, event.y)
+        if stack_item_id is not None and (
+            hovered_item is None or hovered_item.desktop_id != stack_item_id
+        ):
+            self.menu.close_folder_stack()
         if frame.cursor_rect.contains(event.x, event.y):
             self.interaction.on_effective_enter()
             cursor_main = (
@@ -610,9 +620,8 @@ class DockWindow(Gtk.Window):
             return False
 
         if event.button == MOUSE_RIGHT:
-            if self._menu:
-                cursor_main = event.x if is_horizontal(pos=self.config.pos) else event.y
-                self._menu.show(event, cursor_main)
+            cursor_main = event.x if is_horizontal(pos=self.config.pos) else event.y
+            self.menu.show(event, cursor_main)
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
@@ -656,29 +665,28 @@ class DockWindow(Gtk.Window):
                     return True
 
             if item.kind == FOLDER_KIND:
-                if self._menu:
-                    item_geometry = frame.geometry_for_item(item)
-                    if item_geometry is not None:
-                        win_x, win_y = self.get_position()
-                        anchor_x, anchor_y = hover_anchor_from_draw_rect(
-                            win_x=win_x,
-                            win_y=win_y,
-                            draw_rect=item_geometry.draw_rect,
-                            position=self.config.pos,
-                        )
-                        icon_w = int(item_geometry.draw_rect.w)
-                    else:
-                        win_x, win_y = self.get_position()
-                        anchor_x = win_x + int(event.x)
-                        anchor_y = win_y + int(event.y)
-                        icon_w = int(self.config.icon_size)
-                    self._menu.show_folder_stack(
-                        item=item,
-                        anchor_x=anchor_x,
-                        anchor_y=anchor_y,
-                        icon_w=icon_w,
+                item_geometry = frame.geometry_for_item(item)
+                if item_geometry is not None:
+                    win_x, win_y = self.get_position()
+                    anchor_x, anchor_y = hover_anchor_from_draw_rect(
+                        win_x=win_x,
+                        win_y=win_y,
+                        draw_rect=item_geometry.draw_rect,
                         position=self.config.pos,
                     )
+                    icon_w = int(item_geometry.draw_rect.w)
+                else:
+                    win_x, win_y = self.get_position()
+                    anchor_x = win_x + int(event.x)
+                    anchor_y = win_y + int(event.y)
+                    icon_w = int(self.config.icon_size)
+                self.menu.show_folder_stack(
+                    item=item,
+                    anchor_x=anchor_x,
+                    anchor_y=anchor_y,
+                    icon_w=icon_w,
+                    position=self.config.pos,
+                )
                 self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
