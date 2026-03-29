@@ -22,6 +22,70 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.platform.model import DockItem
 
 
+class FakeFontDescription:
+    def __init__(self) -> None:
+        self.family = ""
+        self.size = 0
+
+    def set_family(self, family: str) -> None:
+        self.family = family
+
+    def set_size(self, size: int) -> None:
+        self.size = size
+
+
+class FakePangoLayout:
+    def __init__(self) -> None:
+        self.text = ""
+        self.width = -1
+        self.alignment = None
+
+    def set_text(self, text: str, _length: int) -> None:
+        self.text = text
+
+    def set_font_description(self, _desc) -> None:
+        return
+
+    def set_ellipsize(self, _mode) -> None:
+        return
+
+    def set_width(self, width: int) -> None:
+        self.width = width
+
+    def set_alignment(self, alignment) -> None:
+        self.alignment = alignment
+
+    def get_pixel_extents(self):
+        width = max(len(self.text) * 7, 1)
+        if self.width > 0:
+            width = min(width, max(int(self.width / 1024), 1))
+        logical = SimpleNamespace(width=width, height=12)
+        ink = SimpleNamespace(width=width, height=12)
+        return ink, logical
+
+
+class FakePangoCairo:
+    @staticmethod
+    def create_layout(_cr):
+        return FakePangoLayout()
+
+    @staticmethod
+    def show_layout(_cr, _layout) -> None:
+        return
+
+
+class FakePango:
+    SCALE = 1024
+
+    class EllipsizeMode:
+        END = 0
+
+    class Alignment:
+        CENTER = 0
+
+    FontDescription = FakeFontDescription
+
+
 def _catalog_entry(*, applet_id, name: str, category=None):
     return menu_mod.AppletMeta(
         id=str(applet_id),
@@ -612,6 +676,8 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(menu_mod, "Pango", FakePango)
+    monkeypatch.setattr(menu_mod, "PangoCairo", FakePangoCairo)
     monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
     about = MagicMock()
     settings = MagicMock()
@@ -644,6 +710,8 @@ def handler(monkeypatch):
     tracker = MagicMock()
     tracker.get_windows_for.return_value = []
     tracker.get_window_title_for_xid.side_effect = lambda xid: f"Window {xid}"
+    launcher = MagicMock()
+    launcher.default_directory_app_name.return_value = None
     return menu_mod.MenuHandler(
         about=about,
         settings=settings,
@@ -651,7 +719,7 @@ def handler(monkeypatch):
         model=model,
         config=config,
         window_tracker=tracker,
-        launcher=MagicMock(),
+        launcher=launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )
 

@@ -379,6 +379,7 @@ jobs:
           PYTHON_PKG="$(choose_pkg python313 python312 python311 python3)"
           PYTHON_DEV_PKG="$(choose_pkg python313-devel python312-devel python311-devel python3-devel)"
           PYTHON_PIP_PKG="$(choose_pkg python313-pip python312-pip python311-pip python3-pip)"
+          PANGOCAIRO_TYPELIB_PKG="$(choose_pkg typelib-1_0-PangoCairo-1_0 || true)"
           zypper --non-interactive install --no-recommends \
             git \
             gcc \
@@ -394,7 +395,8 @@ jobs:
             typelib-1_0-Wnck-3_0 \
             gdk-pixbuf-loader-rsvg librsvg \
             xauth xorg-x11-server-Xvfb \
-            adwaita-icon-theme hicolor-icon-theme
+            adwaita-icon-theme hicolor-icon-theme \
+            ${PANGOCAIRO_TYPELIB_PKG:+$PANGOCAIRO_TYPELIB_PKG}
 
       - name: Install project
         run: |
