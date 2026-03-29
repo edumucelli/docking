@@ -48,5 +48,6 @@ def build_dock_window(
         get_dock_rect=_get_dock_rect,
         on_change=window.autohide.set_window_should_hide,
     )
+    window.dodge_monitor = dodge_monitor
     dodge_monitor.start()
     return window

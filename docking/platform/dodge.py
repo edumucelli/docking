@@ -133,6 +133,13 @@ class WindowDodgeMonitor:
             GLib.source_remove(self._debounce_id)
         self._debounce_id = GLib.timeout_add(DEBOUNCE_MS, self._do_evaluate)
 
+    def evaluate_now(self) -> None:
+        """Cancel any pending debounce and evaluate overlap immediately."""
+        if self._debounce_id:
+            GLib.source_remove(self._debounce_id)
+            self._debounce_id = 0
+        self._do_evaluate()
+
     def _do_evaluate(self) -> bool:
         self._debounce_id = 0
         should_hide = self._evaluate()

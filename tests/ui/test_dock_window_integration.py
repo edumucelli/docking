@@ -23,6 +23,7 @@ def _autohide(*, enabled: bool = False, state: HideState = HideState.VISIBLE):
         zoom_progress=1.0 if enabled else 0.0,
         on_mouse_leave=MagicMock(),
         on_mouse_enter=MagicMock(),
+        reconcile=MagicMock(),
         set_hovered=MagicMock(),
         set_disabled=MagicMock(),
         reset=MagicMock(),
@@ -693,6 +694,58 @@ class TestDockWindowStrutsAndRegion:
 
 
 class TestDockWindowDrawAndHelpers:
+    def test_on_hide_mode_changed_resets_autohide_when_disabled(self):
+        stub = SimpleNamespace(
+            autohide=_autohide(enabled=False),
+            placement=SimpleNamespace(update_struts=MagicMock()),
+            update_input_region=MagicMock(),
+            queue_redraw=MagicMock(),
+            dodge_monitor=MagicMock(),
+            is_pointer_inside_dock=MagicMock(return_value=False),
+        )
+
+        dock_window_mod.DockWindow.on_hide_mode_changed(stub)
+
+        stub.autohide.reset.assert_called_once_with()
+        stub.autohide.set_hovered.assert_not_called()
+        stub.placement.update_struts.assert_called_once_with()
+        stub.update_input_region.assert_called_once_with()
+        stub.queue_redraw.assert_called_once_with()
+        stub.dodge_monitor.evaluate_now.assert_called_once_with()
+
+    def test_on_hide_mode_changed_reconciles_pointer_inside_when_enabled(self):
+        stub = SimpleNamespace(
+            autohide=_autohide(enabled=True),
+            placement=SimpleNamespace(update_struts=MagicMock()),
+            update_input_region=MagicMock(),
+            queue_redraw=MagicMock(),
+            dodge_monitor=MagicMock(),
+            is_pointer_inside_dock=MagicMock(return_value=True),
+        )
+
+        dock_window_mod.DockWindow.on_hide_mode_changed(stub)
+
+        stub.autohide.reset.assert_not_called()
+        stub.autohide.set_hovered.assert_called_once_with(True)
+        stub.autohide.reconcile.assert_called_once_with()
+        stub.dodge_monitor.evaluate_now.assert_called_once_with()
+
+    def test_on_hide_mode_changed_is_safe_without_dodge_monitor(self):
+        stub = SimpleNamespace(
+            autohide=_autohide(enabled=True),
+            placement=SimpleNamespace(update_struts=MagicMock()),
+            update_input_region=MagicMock(),
+            queue_redraw=MagicMock(),
+            dodge_monitor=None,
+            is_pointer_inside_dock=MagicMock(return_value=False),
+        )
+
+        dock_window_mod.DockWindow.on_hide_mode_changed(stub)
+
+        stub.autohide.set_hovered.assert_called_once_with(False)
+        stub.autohide.reconcile.assert_called_once_with()
+        stub.placement.update_struts.assert_called_once_with()
+
     def test_on_draw_invokes_renderer_and_updates_region(self):
         # Given
         renderer = renderer_mod.DockRenderer()

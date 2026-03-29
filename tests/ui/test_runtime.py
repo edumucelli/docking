@@ -53,6 +53,7 @@ def _make_window():
         get_display=MagicMock(return_value=display),
         get_position=MagicMock(return_value=(9, 7)),
         get_size=MagicMock(return_value=(320, 88)),
+        on_hide_mode_changed=MagicMock(),
         queue_redraw=MagicMock(),
     )
 
@@ -92,6 +93,7 @@ class TestDockRuntime:
         window = _make_window()
         runtime = DockRuntime(window)
 
+        runtime.on_hide_mode_changed()
         runtime.reset_autohide()
         runtime.set_icons_locked(True)
         runtime.queue_draw()
@@ -99,6 +101,7 @@ class TestDockRuntime:
         runtime.hide_hover_ui()
         runtime.set_theme(cast(Theme, "new-theme"))
 
+        window.on_hide_mode_changed.assert_called_once()
         window.autohide.reset.assert_called_once()
         window.dnd.set_locked.assert_called_once_with(True)
         window.queue_redraw.assert_called_once()

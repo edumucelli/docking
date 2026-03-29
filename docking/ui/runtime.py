@@ -56,6 +56,9 @@ class DockRuntime:
     def menu_popup_closed(self) -> None:
         self._window.interaction.menu_popup_closed()
 
+    def on_hide_mode_changed(self) -> None:
+        self._window.on_hide_mode_changed()
+
     def reset_autohide(self) -> None:
         self._window.autohide.reset()
 

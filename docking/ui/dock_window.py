@@ -220,6 +220,7 @@ compute_input_rect = geometry.compute_input_rect
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.theme import Theme
+    from docking.platform.dodge import WindowDodgeMonitor
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
@@ -314,6 +315,7 @@ class DockWindow(Gtk.Window):
         self.applied_input_frame: DockGeometryFrame | None = None
         self.dock_hovered: bool = False
         self._last_autohide_state: HideState | None = None
+        self.dodge_monitor: WindowDodgeMonitor | None = None
 
         self._setup_window()
         self._setup_drawing_area()
@@ -457,6 +459,21 @@ class DockWindow(Gtk.Window):
             position=self.config.pos,
         )
         return x, y, self.config.pos.value
+
+    def on_hide_mode_changed(self) -> None:
+        """Reconcile live autohide/dodge state after hide-mode changes."""
+        if not self.autohide.enabled:
+            self.autohide.reset()
+        else:
+            self.autohide.set_hovered(self.is_pointer_inside_dock())
+            self.autohide.reconcile()
+
+        self.placement.update_struts()
+        self.update_input_region()
+        self.queue_redraw()
+
+        if self.dodge_monitor is not None:
+            self.dodge_monitor.evaluate_now()
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         """GTK draw signal handler -- orchestrates each frame.

@@ -347,6 +347,12 @@ class AutoHideController:
         self._window_should_hide = should_hide
         self._update_hidden()
 
+    def reconcile(self) -> None:
+        """Re-run hide/show policy without changing current inputs."""
+        if not self.enabled:
+            return
+        self._update_hidden()
+
     def _update_hidden(self) -> None:
         """Reconcile hover/disabled state into show-or-hide behavior."""
         if self._disabled or self._hovered:

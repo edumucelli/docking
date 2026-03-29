@@ -525,8 +525,7 @@ class TestSettingsWindowController:
         widget.emit_changed()
 
         assert config.hide_mode == "none"
-        runtime.reset_autohide.assert_called_once()
-        runtime.update_struts.assert_called_once()
+        runtime.on_hide_mode_changed.assert_called_once()
 
     def test_binding_sync_updates_dependent_sensitivity(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

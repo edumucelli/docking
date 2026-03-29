@@ -653,9 +653,7 @@ class SettingsWindowController:
         self._runtime.queue_draw()
 
     def _after_hide_mode_changed(self, mode: str) -> None:
-        if mode == "none":
-            self._runtime.reset_autohide()
-        self._runtime.update_struts()
+        self._runtime.on_hide_mode_changed()
         self._update_hide_mode_description()
 
     _HIDE_MODE_DESCRIPTIONS: ClassVar[dict[str, str]] = {

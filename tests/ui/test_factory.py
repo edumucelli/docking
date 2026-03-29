@@ -50,6 +50,7 @@ class TestBuildDockWindow:
             launcher=launcher,
         )
         dodge_monitor.start.assert_called_once_with()
+        assert window.dodge_monitor is dodge_monitor
 
     def test_build_dock_window_exposes_realized_dock_rect_to_dodge_monitor(
         self, monkeypatch
