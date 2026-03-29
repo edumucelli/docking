@@ -30,6 +30,8 @@ def _make_stub(item: DockItem | None = None):
     stub.theme = SimpleNamespace(item_padding=8, h_padding=10, urgent_glow_time_ms=500)
     stub.window_tracker = MagicMock()
     stub._menu = MagicMock()
+    stub._menu.open_folder_stack_item_id.return_value = None
+    stub._menu.close_folder_stack = MagicMock()
     stub.tooltip = MagicMock()
     stub._hover = MagicMock()
     stub._hover.hovered_item = item
@@ -45,6 +47,7 @@ def _make_stub(item: DockItem | None = None):
     stub.hit_test = MagicMock(return_value=item)
     stub.update_input_region = MagicMock()
     stub.drawing_area = MagicMock()
+    stub.get_position = MagicMock(return_value=(100, 200))
     stub._test_geometry_frame = frame
     stub._current_geometry_frame = frame
     stub._applied_input_frame = frame
@@ -170,13 +173,16 @@ class TestButtonReleaseFlow:
         assert opened == ["file:///tmp/notes.txt"]
         assert item.last_launched == 3030
 
-    def test_left_click_folder_item_opens_item_menu(self, monkeypatch):
+    def test_left_click_folder_item_opens_folder_stack(self, monkeypatch):
         item = DockItem(
             desktop_id="file:///tmp/docs",
             kind=FOLDER_KIND,
             target="file:///tmp/docs",
         )
         stub, _ = _make_stub(item=item)
+        stub._test_geometry_frame.geometry_for_item.return_value = SimpleNamespace(
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48)
+        )
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
@@ -187,7 +193,13 @@ class TestButtonReleaseFlow:
         )
 
         assert handled is True
-        stub._menu.show_item.assert_called_once_with(event, item)
+        stub._menu.show_folder_stack.assert_called_once()
+        kwargs = stub._menu.show_folder_stack.call_args.kwargs
+        assert kwargs["item"] is item
+        assert kwargs["anchor_x"] == 104
+        assert kwargs["anchor_y"] == 205
+        assert kwargs["icon_w"] == 48
+        assert kwargs["position"] == Position.BOTTOM
 
     def test_drag_delta_above_threshold_is_ignored(self):
         # Given
@@ -820,14 +832,20 @@ class TestDockWindowDrawAndHelpers:
     def test_on_motion_updates_cursor_and_hover(self):
         # Given
         widget = MagicMock()
+        menu = MagicMock()
+        menu.open_folder_stack_item_id.return_value = None
         stub = SimpleNamespace(
             cursor_x=-1.0,
             cursor_y=-1.0,
             dock_hovered=False,
             config=SimpleNamespace(pos=Position.BOTTOM),
-            _test_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
+            _test_geometry_frame=SimpleNamespace(
+                cursor_rect=Rect(0, 0, 100, 100),
+                item_at_point=MagicMock(return_value=None),
+            ),
             update_input_region=MagicMock(),
             _hover=SimpleNamespace(update=MagicMock()),
+            _menu=menu,
             autohide=None,
             zoom_animator=MagicMock(),
             geometry=SimpleNamespace(
@@ -848,6 +866,41 @@ class TestDockWindowDrawAndHelpers:
         stub.update_input_region.assert_called_once()
         stub._hover.update.assert_called_once_with(7.0, frame=stub._test_geometry_frame)
         widget.queue_draw.assert_called_once()
+
+    def test_on_motion_closes_folder_stack_after_leaving_source_folder(self):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        other_item = DockItem(desktop_id="firefox.desktop")
+        widget = MagicMock()
+        menu = MagicMock()
+        menu.open_folder_stack_item_id.return_value = item.desktop_id
+        frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100),
+            item_at_point=MagicMock(return_value=other_item),
+        )
+        stub = SimpleNamespace(
+            cursor_x=-1.0,
+            cursor_y=-1.0,
+            dock_hovered=True,
+            config=SimpleNamespace(pos=Position.BOTTOM),
+            _test_geometry_frame=frame,
+            update_input_region=MagicMock(),
+            _hover=SimpleNamespace(update=MagicMock()),
+            _menu=menu,
+            autohide=None,
+            zoom_animator=MagicMock(),
+            geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
+        )
+        stub.interaction = DockInteractionCoordinator(stub)
+        event = SimpleNamespace(x=12.0, y=9.0)
+
+        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+
+        assert handled is False
+        menu.close_folder_stack.assert_called_once_with()
 
     def test_on_button_press_records_click_state(self):
         # Given

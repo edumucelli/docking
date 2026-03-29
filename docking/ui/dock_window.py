@@ -566,6 +566,13 @@ class DockWindow(Gtk.Window):
         self._current_geometry_frame = frame
         self.update_input_region(frame=frame)
         widget.queue_draw()
+        if self._menu is not None:
+            stack_item_id = self._menu.open_folder_stack_item_id()
+            hovered_item = frame.item_at_point(event.x, event.y)
+            if stack_item_id is not None and (
+                hovered_item is None or hovered_item.desktop_id != stack_item_id
+            ):
+                self._menu.close_folder_stack()
         if frame.cursor_rect.contains(event.x, event.y):
             self.interaction.on_effective_enter()
             cursor_main = (
@@ -650,7 +657,28 @@ class DockWindow(Gtk.Window):
 
             if item.kind == FOLDER_KIND:
                 if self._menu:
-                    self._menu.show_item(event, item)
+                    item_geometry = frame.geometry_for_item(item)
+                    if item_geometry is not None:
+                        win_x, win_y = self.get_position()
+                        anchor_x, anchor_y = hover_anchor_from_draw_rect(
+                            win_x=win_x,
+                            win_y=win_y,
+                            draw_rect=item_geometry.draw_rect,
+                            position=self.config.pos,
+                        )
+                        icon_w = int(item_geometry.draw_rect.w)
+                    else:
+                        win_x, win_y = self.get_position()
+                        anchor_x = win_x + int(event.x)
+                        anchor_y = win_y + int(event.y)
+                        icon_w = int(self.config.icon_size)
+                    self._menu.show_folder_stack(
+                        item=item,
+                        anchor_x=anchor_x,
+                        anchor_y=anchor_y,
+                        icon_w=icon_w,
+                        position=self.config.pos,
+                    )
                 self._hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 

@@ -236,6 +236,35 @@ class TestResolve:
         # Then
         assert info is None
 
+    def test_resolve_file_uses_image_thumbnail_for_images(self, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        gicon = MagicMock()
+        info = MagicMock()
+        info.get_icon.return_value = gicon
+        info.get_file_type.return_value = launcher_mod.Gio.FileType.REGULAR
+        info.get_display_name.return_value = "Photo"
+        info.get_content_type.return_value = "image/png"
+        gfile = MagicMock()
+        gfile.query_info.return_value = info
+        monkeypatch.setattr(launcher_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+
+        thumb = object()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.return_value = thumb
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        launcher.load_gicon = MagicMock(return_value="gicon-pixbuf")
+        launcher.load_icon = MagicMock(return_value="fallback-pixbuf")
+
+        resolved = launcher.resolve_file("/tmp/photo.png", 48)
+
+        assert resolved is not None
+        assert resolved.icon is thumb
+        launcher.load_gicon.assert_not_called()
+        launcher.load_icon.assert_not_called()
+
 
 class TestTryLoadIcon:
     def test_loads_icon_from_absolute_path(self, monkeypatch):

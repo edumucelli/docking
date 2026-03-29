@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-27 21:16+0100\n"
+"POT-Creation-Date: 2026-03-29 01:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,38 +22,38 @@ msgstr ""
 msgid "AI Usage"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:145
+#: docking/applets/aiusage/applet.py:146
 msgid "Auto"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:146
+#: docking/applets/aiusage/applet.py:147
 msgid "Claude"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:147
+#: docking/applets/aiusage/applet.py:148
 msgid "Codex"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:148
+#: docking/applets/aiusage/applet.py:149
 msgid "OpenCode"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:160
+#: docking/applets/aiusage/applet.py:161
 msgid "Reset Today"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:206 docking/applets/aiusage/applet.py:221
+#: docking/applets/aiusage/applet.py:213 docking/applets/aiusage/applet.py:228
 #: docking/applets/aiusage/state.py:413
 #, python-brace-format
 msgid "{name}: no usage today"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:230
+#: docking/applets/aiusage/applet.py:237
 #, python-brace-format
 msgid "<b>{name}: {cost}</b>"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:259
+#: docking/applets/aiusage/applet.py:266
 #, python-brace-format
 msgid "This week: {cost}"
 msgstr ""
@@ -112,7 +112,7 @@ msgstr ""
 msgid "Applications"
 msgstr ""
 
-#: docking/applets/applications/applet.py:53
+#: docking/applets/applications/applet.py:74
 msgid "Search applications..."
 msgstr ""
 
@@ -293,12 +293,12 @@ msgstr ""
 msgid "Show Level"
 msgstr ""
 
-#: docking/applets/calculator/applet.py:68
-#: docking/applets/calculator/applet.py:85
+#: docking/applets/calculator/applet.py:67
+#: docking/applets/calculator/applet.py:84
 msgid "Calculator"
 msgstr ""
 
-#: docking/applets/calendar/applet.py:37 docking/applets/calendar/applet.py:43
+#: docking/applets/calendar/applet.py:35 docking/applets/calendar/applet.py:41
 msgid "Calendar"
 msgstr ""
 
@@ -549,30 +549,30 @@ msgstr ""
 msgid "Network: Not connected"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:56
+#: docking/applets/notifications/applet.py:59
 #: docking/applets/notifications/state.py:49
 msgid "Notifications"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:123
+#: docking/applets/notifications/applet.py:126
 msgid "No notification backend available"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:129
+#: docking/applets/notifications/applet.py:132
 msgid "Do Not Disturb"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:136
+#: docking/applets/notifications/applet.py:139
 #: docking/applets/notifications/state.py:47
 #, python-brace-format
 msgid "Pending: {n}"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:141
+#: docking/applets/notifications/applet.py:144
 msgid "Clear History"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:146
+#: docking/applets/notifications/applet.py:149
 msgid "Clear Notifications"
 msgstr ""
 
@@ -937,16 +937,16 @@ msgstr ""
 msgid "Correct: {answer}"
 msgstr ""
 
-#: docking/applets/unitconverter/applet.py:78
-#: docking/applets/unitconverter/applet.py:105
+#: docking/applets/unitconverter/applet.py:77
+#: docking/applets/unitconverter/applet.py:104
 msgid "Unit Converter"
 msgstr ""
 
-#: docking/applets/unitconverter/applet.py:220
+#: docking/applets/unitconverter/applet.py:197
 msgid "Swap units"
 msgstr ""
 
-#: docking/applets/unitconverter/applet.py:237
+#: docking/applets/unitconverter/applet.py:214
 msgid "Value"
 msgstr ""
 
@@ -986,28 +986,28 @@ msgstr ""
 msgid "Volume: {pct}%"
 msgstr ""
 
-#: docking/applets/weather/applet.py:56
+#: docking/applets/weather/applet.py:58
 msgid "Weather"
 msgstr ""
 
-#: docking/applets/weather/applet.py:126
+#: docking/applets/weather/applet.py:128
 msgid "Show Temperature"
 msgstr ""
 
-#: docking/applets/weather/applet.py:131
+#: docking/applets/weather/applet.py:133
 msgid "Add City..."
 msgstr ""
 
-#: docking/applets/weather/applet.py:137
+#: docking/applets/weather/applet.py:139
 #, python-brace-format
 msgid "Remove {city}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:169
+#: docking/applets/weather/applet.py:171
 msgid "Search for the city"
 msgstr ""
 
-#: docking/applets/weather/applet.py:183
+#: docking/applets/weather/applet.py:185
 msgid "Type city name..."
 msgstr ""
 
@@ -1060,84 +1060,101 @@ msgstr ""
 msgid "Docking"
 msgstr ""
 
-#: docking/ui/menu.py:182
+#: docking/ui/menu.py:187
 msgid "Name"
 msgstr ""
 
-#: docking/ui/menu.py:183
+#: docking/ui/menu.py:188
 msgid "Kind"
 msgstr ""
 
-#: docking/ui/menu.py:184
+#: docking/ui/menu.py:189
 msgid "Size"
 msgstr ""
 
-#: docking/ui/menu.py:185
+#: docking/ui/menu.py:190
 msgid "Created"
 msgstr ""
 
-#: docking/ui/menu.py:186
+#: docking/ui/menu.py:191
 msgid "Modified"
 msgstr ""
 
-#: docking/ui/menu.py:401 docking/ui/menu.py:421 docking/ui/menu.py:437
-#: docking/ui/menu.py:490
+#: docking/ui/menu.py:772
+msgid "Folder not found"
+msgstr ""
+
+#: docking/ui/menu.py:806
+msgid "Folder is empty"
+msgstr ""
+
+#: docking/ui/menu.py:1207
+msgid "Open Folder"
+msgstr ""
+
+#: docking/ui/menu.py:1209
+#, python-format
+msgid "%d More in Folder"
+msgstr ""
+
+#: docking/ui/menu.py:1330 docking/ui/menu.py:1350 docking/ui/menu.py:1366
+#: docking/ui/menu.py:1419
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:414
+#: docking/ui/menu.py:1343
 msgid "Open"
 msgstr ""
 
-#: docking/ui/menu.py:444
+#: docking/ui/menu.py:1373
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:453
+#: docking/ui/menu.py:1382
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:453
+#: docking/ui/menu.py:1382
 msgid "Close"
 msgstr ""
 
-#: docking/ui/menu.py:470
+#: docking/ui/menu.py:1399
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:478
+#: docking/ui/menu.py:1407
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:483
+#: docking/ui/menu.py:1412
 msgid "Large Icons"
 msgstr ""
 
-#: docking/ui/menu.py:520
+#: docking/ui/menu.py:1449
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:558
+#: docking/ui/menu.py:1487
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:565
+#: docking/ui/menu.py:1494
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:575 docking/ui/settings.py:152
+#: docking/ui/menu.py:1504 docking/ui/settings.py:151
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:580
+#: docking/ui/menu.py:1509
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:585
+#: docking/ui/menu.py:1514
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:622
+#: docking/ui/menu.py:1551
 msgid "Window"
 msgstr ""
 
@@ -1146,136 +1163,136 @@ msgstr ""
 msgid "Display {display}: {width}x{height}"
 msgstr ""
 
-#: docking/ui/settings.py:176
+#: docking/ui/settings.py:175
 msgid "Appearance"
 msgstr ""
 
-#: docking/ui/settings.py:177
+#: docking/ui/settings.py:176
 msgid "Applets"
 msgstr ""
 
-#: docking/ui/settings.py:195
+#: docking/ui/settings.py:194
 msgid "Don't Hide"
 msgstr ""
 
-#: docking/ui/settings.py:196
+#: docking/ui/settings.py:195
 msgid "Auto-hide"
 msgstr ""
 
-#: docking/ui/settings.py:197
+#: docking/ui/settings.py:196
 msgid "Intelligent"
 msgstr ""
 
-#: docking/ui/settings.py:198
+#: docking/ui/settings.py:197
 msgid "Dodge Active Window"
 msgstr ""
 
-#: docking/ui/settings.py:199
+#: docking/ui/settings.py:198
 msgid "Dodge All Windows"
 msgstr ""
 
-#: docking/ui/settings.py:200
+#: docking/ui/settings.py:199
 msgid "Dodge Maximized"
 msgstr ""
 
-#: docking/ui/settings.py:256
+#: docking/ui/settings.py:255
 msgid "Look"
 msgstr ""
 
-#: docking/ui/settings.py:258
+#: docking/ui/settings.py:257
 msgid "Theme"
 msgstr ""
 
-#: docking/ui/settings.py:259
+#: docking/ui/settings.py:258
 msgid "Icon Size"
 msgstr ""
 
-#: docking/ui/settings.py:260
+#: docking/ui/settings.py:259
 msgid "Zoom"
 msgstr ""
 
-#: docking/ui/settings.py:261
+#: docking/ui/settings.py:260
 msgid "Zoom Percent"
 msgstr ""
 
-#: docking/ui/settings.py:262
+#: docking/ui/settings.py:261
 msgid "Show Tooltips"
 msgstr ""
 
-#: docking/ui/settings.py:263
+#: docking/ui/settings.py:262
 msgid "Window Previews"
 msgstr ""
 
-#: docking/ui/settings.py:275
+#: docking/ui/settings.py:274
 msgid "Behavior"
 msgstr ""
 
-#: docking/ui/settings.py:277
+#: docking/ui/settings.py:276
 msgid "Hide Mode"
 msgstr ""
 
-#: docking/ui/settings.py:278
+#: docking/ui/settings.py:277
 msgid "Hide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:279
+#: docking/ui/settings.py:278
 msgid "Unhide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:284
+#: docking/ui/settings.py:283
 msgid "Placement"
 msgstr ""
 
-#: docking/ui/settings.py:286
+#: docking/ui/settings.py:285
 msgid "Position"
 msgstr ""
 
-#: docking/ui/settings.py:287
+#: docking/ui/settings.py:286
 msgid "Follow Cursor"
 msgstr ""
 
-#: docking/ui/settings.py:288
+#: docking/ui/settings.py:287
 msgid "Current Workspace Only"
 msgstr ""
 
-#: docking/ui/settings.py:293
+#: docking/ui/settings.py:292
 msgid "Layout"
 msgstr ""
 
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:294
 msgid "Lock Positions"
 msgstr ""
 
-#: docking/ui/settings.py:296
+#: docking/ui/settings.py:295
 msgid "Anchor Applets to End"
 msgstr ""
 
-#: docking/ui/settings.py:297
+#: docking/ui/settings.py:296
 msgid "Anchor Files to End"
 msgstr ""
 
-#: docking/ui/settings.py:663
+#: docking/ui/settings.py:662
 msgid "The dock is always visible and reserves screen space."
 msgstr ""
 
-#: docking/ui/settings.py:664
+#: docking/ui/settings.py:663
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr ""
 
-#: docking/ui/settings.py:666
+#: docking/ui/settings.py:665
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:668
+#: docking/ui/settings.py:667
 msgid "Hides when the focused window overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:670
+#: docking/ui/settings.py:669
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:673
+#: docking/ui/settings.py:672
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
