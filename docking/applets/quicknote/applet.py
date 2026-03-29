@@ -94,7 +94,7 @@ class QuickNoteApplet(Applet):
         scroll.add(text_view)
         box.pack_start(scroll, True, True, 0)
 
-        def on_response(_dlg: Gtk.Dialog, response_id: int) -> None:
+        def on_response(_dlg: Gtk.Dialog, _response_id: int) -> None:
             buf = text_view.get_buffer()
             start, end = buf.get_bounds()
             self._note = buf.get_text(start, end, include_hidden_chars=True)

@@ -280,12 +280,12 @@ class TestHoverTimers:
 
 class TestShowPreview:
     @pytest.mark.parametrize(
-        ("position", "expected_method"),
+        "position",
         [
-            (Position.BOTTOM, "bottom"),
-            (Position.TOP, "top"),
-            (Position.LEFT, "left"),
-            (Position.RIGHT, "right"),
+            Position.BOTTOM,
+            Position.TOP,
+            Position.LEFT,
+            Position.RIGHT,
         ],
     )
     def test_show_preview_computes_anchor_for_positions(
@@ -295,7 +295,6 @@ class TestShowPreview:
         self,
         monkeypatch,
         position,
-        expected_method,
     ):
         hover, window, model, config, _tooltip, frame = _make_hover()
         item = DockItem(

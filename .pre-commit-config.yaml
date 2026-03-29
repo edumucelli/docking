@@ -26,6 +26,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: vulture
+        name: vulture
+        entry: .venv/bin/python -m vulture --config pyproject.toml
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: i18n-complete
         name: i18n-complete
         entry: bash tools/i18n.sh --check-catalogs --require-complete

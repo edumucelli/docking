@@ -270,7 +270,7 @@ class TestCurrencyState:
                 pass
 
         monkeypatch.setattr(
-            uc_state.urllib.request, "urlopen", lambda *a, **kw: FakeResp()
+            uc_state.urllib.request, "urlopen", lambda *a, **_kw: FakeResp()
         )
         result = uc_state.fetch_currency_rates()
         assert result is not None
@@ -295,7 +295,7 @@ class TestCurrencyState:
                 pass
 
         monkeypatch.setattr(
-            uc_state.urllib.request, "urlopen", lambda *a, **kw: FakeResp()
+            uc_state.urllib.request, "urlopen", lambda *a, **_kw: FakeResp()
         )
         result = uc_state.fetch_currency_rates()
         assert result is not None
