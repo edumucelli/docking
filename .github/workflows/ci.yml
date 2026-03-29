@@ -14,7 +14,7 @@ jobs:
     outputs:
       run_ci: ${{ steps.filter.outputs.run_ci }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -82,7 +82,7 @@ jobs:
     if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install i18n tooling
         run: |
@@ -143,7 +143,7 @@ jobs:
           - ubuntu: "24.04"
             python: "3.14"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         if: matrix.python == '3.14'
@@ -262,7 +262,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache pip downloads
         uses: actions/cache@v4
@@ -322,7 +322,7 @@ jobs:
     container:
       image: fedora:41
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -362,7 +362,7 @@ jobs:
     container:
       image: opensuse/tumbleweed:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -428,7 +428,7 @@ jobs:
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     if: needs.changes.outputs.run_ci == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install build dependencies
         run: |
@@ -494,7 +494,7 @@ jobs:
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     if: needs.changes.outputs.run_ci == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install RPM tooling
         run: |
@@ -521,7 +521,7 @@ jobs:
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     if: needs.changes.outputs.run_ci == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Flatpak tooling
         run: |
@@ -552,7 +552,7 @@ jobs:
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     if: needs.changes.outputs.run_ci == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Snapcraft
         run: |
@@ -584,7 +584,7 @@ jobs:
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     if: needs.changes.outputs.run_ci == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install AppImage tooling
         run: |
@@ -615,7 +615,7 @@ jobs:
     container:
       image: archlinux:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Arch build tooling
         run: |
@@ -645,7 +645,7 @@ jobs:
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     if: needs.changes.outputs.run_ci == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
@@ -681,7 +681,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version from pyproject.toml
         id: version
