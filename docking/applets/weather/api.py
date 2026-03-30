@@ -21,6 +21,8 @@ log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 # How often weather data is refreshed (seconds). Used for both the
 # polling timer in the applet and the requests-cache expiry.
 REFRESH_INTERVAL = 300  # 5 minutes
+API_RETRY_COUNT = 5
+API_RETRY_BACKOFF_FACTOR = 0.2
 
 _CACHE_DIR = (
     Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
@@ -122,7 +124,11 @@ def _get_client() -> Any:
     cache_session = requests_cache.CachedSession(
         cache_path, expire_after=REFRESH_INTERVAL
     )
-    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    retry_session = retry(
+        cache_session,
+        retries=API_RETRY_COUNT,
+        backoff_factor=API_RETRY_BACKOFF_FACTOR,
+    )
     return openmeteo_requests.Client(session=cast(Any, retry_session))
 
 

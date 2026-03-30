@@ -26,6 +26,8 @@ log = with_context(
     applet_id=meta.id,
 )
 
+SEARCH_ENTRY_WIDTH_CHARS = 24
+
 
 class ApplicationsApplet(Applet):
     """Categorized application launcher via left-click menu."""
@@ -72,7 +74,7 @@ class ApplicationsApplet(Applet):
 
         search_entry = Gtk.Entry()
         search_entry.set_placeholder_text(_("Search applications..."))
-        search_entry.set_width_chars(24)
+        search_entry.set_width_chars(SEARCH_ENTRY_WIDTH_CHARS)
         search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         search_box.pack_start(search_entry, True, True, 0)
         search_item = Gtk.MenuItem()

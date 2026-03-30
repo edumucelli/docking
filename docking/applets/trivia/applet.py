@@ -20,6 +20,7 @@ from docking.log import get_logger, with_context
 
 from .render import draw_trivia_icon
 from .state import (
+    DEFAULT_FETCH_LIMIT,
     TriviaEntry,
     answer_entry,
     fallback_trivia,
@@ -138,7 +139,7 @@ class TriviaApplet(Applet):
             self.present()
 
         def worker() -> None:
-            entries = fetch_trivia(limit=20)
+            entries = fetch_trivia(limit=DEFAULT_FETCH_LIMIT)
             GLib.idle_add(self._on_fetch_result, entries, show_first)
 
         threading.Thread(target=worker, daemon=True).start()

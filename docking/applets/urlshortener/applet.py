@@ -48,6 +48,8 @@ DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
 DIALOG_HORIZONTAL_MARGIN_PX = 12
 DIALOG_VERTICAL_MARGIN_PX = 8
+RESULT_LABEL_MAX_CHARS = 45
+COPY_FEEDBACK_RESET_MS = 1500
 
 
 class UrlShortenerApplet(Applet):
@@ -172,7 +174,7 @@ class UrlShortenerApplet(Applet):
         self._result_label = Gtk.Label(label="")
         self._result_label.set_selectable(True)
         self._result_label.set_line_wrap(True)
-        self._result_label.set_max_width_chars(45)
+        self._result_label.set_max_width_chars(RESULT_LABEL_MAX_CHARS)
         box.pack_start(self._result_label, False, False, 0)
 
         self._copy_btn = Gtk.Button(label=_("Copy"))
@@ -190,7 +192,7 @@ class UrlShortenerApplet(Applet):
         clipboard.store()
         if self._copy_btn:
             self._copy_btn.set_label(_("Copied!"))
-            GLib.timeout_add(1500, self._reset_copy_label)
+            GLib.timeout_add(COPY_FEEDBACK_RESET_MS, self._reset_copy_label)
 
     def _reset_copy_label(self) -> bool:
         if self._copy_btn:
