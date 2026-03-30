@@ -159,7 +159,7 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.barriers import PointerBarrier
 from docking.platform.struts import clear_struts, set_dock_struts
-from docking.ui.runtime import get_pointer_position
+from docking.ui.display import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
@@ -260,19 +260,17 @@ class DockPlacementController:
         self.disconnect_screen_signals()
         if screen is None:
             return
-        connect = getattr(screen, "connect", None)
-        if not callable(connect):
-            return
         self._screen_signal_handlers = [
-            (screen, connect("monitors-changed", self.on_screen_metrics_changed)),
-            (screen, connect("size-changed", self.on_screen_metrics_changed)),
+            (
+                screen,
+                screen.connect("monitors-changed", self.on_screen_metrics_changed),
+            ),
+            (screen, screen.connect("size-changed", self.on_screen_metrics_changed)),
         ]
 
     def disconnect_screen_signals(self) -> None:
         for obj, handler_id in self._screen_signal_handlers:
-            disconnect = getattr(obj, "disconnect", None)
-            if callable(disconnect):
-                disconnect(handler_id)
+            obj.disconnect(handler_id)
         self._screen_signal_handlers = []
 
     def on_screen_changed(
@@ -463,11 +461,7 @@ class DockPlacementController:
         if self._window.config.active_display and self._active_monitor is not None:
             return self._active_monitor
 
-        get_n = getattr(display, "get_n_monitors", None)
-        if not callable(get_n):
-            return display.get_primary_monitor() or display.get_monitor(0)
-
-        n_monitors = get_n()
+        n_monitors = display.get_n_monitors()
         if n_monitors <= 0:
             return None
 

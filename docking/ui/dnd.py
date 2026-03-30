@@ -158,9 +158,9 @@ import docking.platform.launcher as launcher_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
+from docking.ui.display import get_pointer_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
-from docking.ui.runtime import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config

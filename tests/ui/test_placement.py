@@ -140,6 +140,7 @@ class TestPlacementControllerLifecycle:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -272,6 +273,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -291,6 +293,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -324,6 +327,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1000)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -495,6 +499,7 @@ class TestPlacementControllerStruts:
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -707,6 +712,7 @@ class TestPlacementControllerStruts:
 
         primary = object()
         no_get_n = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: None,
             get_monitor=lambda idx: primary if idx == 0 else None,
         )

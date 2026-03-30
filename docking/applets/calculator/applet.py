@@ -42,7 +42,7 @@ from docking.applets.calculator.render import create_icon
 from docking.applets.calculator.state import evaluate, prefs_payload
 from docking.applets.popup import wrap_popup
 from docking.i18n import _
-from docking.ui.runtime import get_pointer_position
+from docking.ui.display import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config

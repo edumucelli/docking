@@ -164,9 +164,10 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
 from docking.ui.about import AboutDialogController
+from docking.ui.display import clamp_to_screen
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.preview import capture_window
-from docking.ui.runtime import DockRuntime, clamp_to_screen
+from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsWindowController
 from docking.ui.shelf import rounded_rect
 

@@ -57,7 +57,7 @@ from docking.applets.unitconverter.state import (
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.ui.runtime import get_pointer_position
+from docking.ui.display import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config

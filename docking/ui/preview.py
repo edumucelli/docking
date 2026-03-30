@@ -125,7 +125,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Wnck
 
 from docking.core.position import Position, is_horizontal
-from docking.ui.runtime import clamp_to_screen
+from docking.ui.display import clamp_to_screen
 
 if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker

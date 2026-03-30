@@ -159,8 +159,8 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
+from docking.ui.display import clamp_to_screen
 from docking.ui.geometry import DockGeometryFrame
-from docking.ui.runtime import clamp_to_screen
 
 log = get_logger(name="tooltip")
 

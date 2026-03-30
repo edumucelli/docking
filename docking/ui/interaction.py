@@ -170,8 +170,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
+from docking.ui.display import get_pointer_position
 from docking.ui.geometry import current_input_rect, point_inside_input_rect
-from docking.ui.runtime import get_pointer_position
 
 if TYPE_CHECKING:
     from gi.repository import Gtk
