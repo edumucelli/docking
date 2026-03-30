@@ -8,6 +8,7 @@ import docking.applets.calculator.applet as calculator_applet_mod
 from docking.applets.calculator.applet import CalculatorApplet
 from docking.applets.calculator.state import evaluate, prefs_payload
 from docking.core.config import Config
+from docking.ui.display import ScreenPosition
 
 
 def _make_applet(config: Config | None = None) -> CalculatorApplet:
@@ -149,7 +150,9 @@ class TestAppletPopup:
     def test_show_popup_builds_content_and_reuses_window(self, monkeypatch):
         applet = _make_applet()
         monkeypatch.setattr(
-            calculator_applet_mod, "get_pointer_position", lambda _display: (120, 140)
+            calculator_applet_mod,
+            "get_pointer_position",
+            lambda _display: ScreenPosition(x=120, y=140),
         )
 
         applet._show_popup()
@@ -171,7 +174,9 @@ class TestAppletPopup:
     def test_show_popup_uses_themed_surface_wrapper(self, monkeypatch):
         applet = _make_applet()
         monkeypatch.setattr(
-            calculator_applet_mod, "get_pointer_position", lambda _display: (120, 140)
+            calculator_applet_mod,
+            "get_pointer_position",
+            lambda _display: ScreenPosition(x=120, y=140),
         )
 
         applet._show_popup()
@@ -184,7 +189,9 @@ class TestAppletPopup:
     def test_activate_signal_evaluates_entry(self, monkeypatch):
         applet = _make_applet()
         monkeypatch.setattr(
-            calculator_applet_mod, "get_pointer_position", lambda _display: (100, 120)
+            calculator_applet_mod,
+            "get_pointer_position",
+            lambda _display: ScreenPosition(x=100, y=120),
         )
         applet._show_popup()
         assert applet._entry is not None

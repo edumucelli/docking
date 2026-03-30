@@ -143,24 +143,20 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import unquote, urlparse
 
-from docking.log import get_logger
-
-log = get_logger(name="dnd")
-DROP_GAP_CLEAR_DELAY_MS = 100
-
 import gi
-
-gi.require_version("Gtk", "3.0")
-gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 import docking.platform.launcher as launcher_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
+from docking.log import get_logger
 from docking.ui.display import get_pointer_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -169,6 +165,9 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
     from docking.ui.dock_window import DockWindow
     from docking.ui.renderer import DockRenderer
+
+log = get_logger(name="dnd")
+DROP_GAP_CLEAR_DELAY_MS = 100
 
 DRAG_ICON_SCALE = 1.2  # dragged icon shown at this multiplier of icon_size
 
@@ -475,8 +474,6 @@ class DnDHandler:
 
     def _try_open_with_launcher(self, *, x: int, y: int, uris: list[str]) -> bool:
         """If drop lands on an app icon, try opening the files with it."""
-        from gi.repository import Gio
-
         frame = self._geometry_builder.build_frame(main_cursor=-1.0)
         item = frame.item_at_point(float(x), float(y))
         if not item or item.kind != APP_KIND:
@@ -538,7 +535,9 @@ class DnDHandler:
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position
             display = self._window.get_display()
-            screen_x, screen_y = get_pointer_position(display) or (0, 0)
+            pos = get_pointer_position(display)
+            screen_x = pos.x if pos is not None else 0
+            screen_y = pos.y if pos is not None else 0
             win_x, win_y = self._window.get_position()
             win_w, win_h = self._window.get_size()
 

@@ -190,20 +190,19 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from docking.log import get_logger
-
-log = get_logger(name="autohide")
-
 import gi
+
+from docking.core.config import HideMode
+from docking.log import get_logger
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-from docking.core.config import HideMode
-
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.ui.dock_window import DockWindow
+
+log = get_logger(name="autohide")
 
 FRAME_INTERVAL_MS = 16  # ~60fps
 MIN_HIDE_GRACE_MS = 60

@@ -254,7 +254,6 @@ class DockInteractionCoordinator:
         if pos is None:
             return False
         try:
-            screen_x, screen_y = pos
             win_x, win_y = self._window.get_position()
         except Exception as exc:
             log.debug(
@@ -263,8 +262,8 @@ class DockInteractionCoordinator:
             )
             return False
 
-        local_x = screen_x - win_x
-        local_y = screen_y - win_y
+        local_x = pos.x - win_x
+        local_y = pos.y - win_y
         return point_inside_input_rect(frame, x=local_x, y=local_y)
 
     def on_effective_enter(self) -> None:

@@ -416,7 +416,8 @@ class TooltipManager:
         screen = self._tooltip_window.get_screen()
         screen_w = screen.get_width()
         screen_h = screen.get_height()
-        tx, ty = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
+        tooltip_pos = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
+        tx, ty = tooltip_pos.x, tooltip_pos.y
 
         log.debug(
             "pos=(%d,%d) anchor=(%.0f,%.0f) size=%dx%d rebuild=%s",

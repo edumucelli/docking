@@ -114,7 +114,8 @@ class CalculatorApplet(Applet):
         # Position near mouse
         display = Gdk.Display.get_default()
         pos = get_pointer_position(display)
-        mouse_x, mouse_y = pos if pos else (0, 0)
+        mouse_x = pos.x if pos is not None else 0
+        mouse_y = pos.y if pos is not None else 0
 
         pref = self._popup.get_preferred_size()[1]
         popup_w = max(pref.width, 1)

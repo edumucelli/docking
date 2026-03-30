@@ -624,7 +624,7 @@ class MenuHandler:
         screen = window.get_screen()
         screen_w = screen.get_width()
         screen_h = screen.get_height()
-        popup_x, popup_y = clamp_to_screen(
+        popup_pos = clamp_to_screen(
             popup_x,
             popup_y,
             popup_w,
@@ -632,7 +632,7 @@ class MenuHandler:
             screen_w,
             screen_h,
         )
-        window.move(popup_x, popup_y)
+        window.move(popup_pos.x, popup_pos.y)
 
     def _track_folder_stack(self, target: str) -> None:
         uri = launcher_mod.normalize_file_target(target)

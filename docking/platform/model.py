@@ -131,6 +131,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+import gi
+
 import docking.applets as applets
 from docking.applets.identity import (
     APPLET_PREFIX,
@@ -149,15 +151,13 @@ from docking.core.items import (
 )
 from docking.log import get_logger, with_context
 
+gi.require_version("Gtk", "3.0")
+from gi.repository import GLib
+
 if TYPE_CHECKING:
     from docking.applets.base import Applet
     from docking.core.config import Config
     from docking.platform.launcher import Launcher
-
-import gi
-
-gi.require_version("Gtk", "3.0")
-from gi.repository import GLib
 
 log = with_context(get_logger(name="model"))
 

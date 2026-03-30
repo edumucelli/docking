@@ -449,8 +449,7 @@ class DockPlacementController:
         pos = get_pointer_position(display)
         if pos is None:
             return True
-        x, y = pos
-        monitor = display.get_monitor_at_point(x, y)
+        monitor = display.get_monitor_at_point(pos.x, pos.y)
         if monitor is not None and monitor != self._active_monitor:
             self._active_monitor = monitor
             self.reposition()

@@ -202,7 +202,15 @@ class TestAppletDialog:
 
         applet._do_shorten()
 
-        idle_add.assert_called_once()
+        assert any(
+            call.args
+            == (
+                applet._on_result,
+                "https://example.com",
+                "https://is.gd/abc",
+            )
+            for call in idle_add.call_args_list
+        )
         assert applet._last_result == "https://is.gd/abc"
         assert applet._shorten_btn.get_sensitive() is True
         applet.stop()

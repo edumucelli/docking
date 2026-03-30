@@ -19,6 +19,7 @@ from docking.applets.unitconverter.state import (
     set_currency_units,
 )
 from docking.core.config import Config
+from docking.ui.display import ScreenPosition
 
 
 class _ImmediateWorker:
@@ -419,7 +420,7 @@ class TestAppletPopup:
         monkeypatch.setattr(
             unitconverter_applet_mod,
             "get_pointer_position",
-            lambda _display: (150, 220),
+            lambda _display: ScreenPosition(x=150, y=220),
         )
 
         applet._show_popup()
@@ -440,7 +441,7 @@ class TestAppletPopup:
         monkeypatch.setattr(
             unitconverter_applet_mod,
             "get_pointer_position",
-            lambda _display: (150, 220),
+            lambda _display: ScreenPosition(x=150, y=220),
         )
 
         applet._show_popup()
