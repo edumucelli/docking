@@ -71,6 +71,28 @@ Prebuilt latest release packages are also available on [GitHub Releases](https:/
 - [Arch package](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst)
 - Nix [store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt) and [output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz)
 
+Typical local install/run commands after downloading a release asset:
+
+```bash
+# AppImage
+chmod +x docking-latest-linux-x86_64.AppImage
+./docking-latest-linux-x86_64.AppImage
+
+# Debian / RPM / Arch
+sudo apt install ./docking-latest-linux-all.deb
+sudo dnf install ./docking-latest-linux-x86_64.rpm
+sudo pacman -U ./docking-latest-linux-x86_64.pkg.tar.zst
+
+# Flatpak / Snap
+flatpak install --user ./docking-latest-linux-x86_64.flatpak
+sudo snap install --dangerous ./docking-latest-linux-x86_64.snap
+
+# Nix output tarball
+mkdir docking-nix-output
+tar -C docking-nix-output -xf docking-latest-linux-x86_64-nix-output.tar.gz
+./docking-nix-output/bin/docking
+```
+
 ```bash
 # Clone
 git clone https://github.com/edumucelli/docking.git
@@ -199,7 +221,7 @@ Docking applets follow a small, testable architecture:
   - `state.py`: pure logic, parsing, command/state helpers (easy to unit test)
   - `render.py`: Cairo/icon rendering helpers (no applet lifecycle logic)
   - `applet.py`: GTK/Wnck/Gio wiring, timers, click/scroll/menu behavior
-- Package `__init__.py` re-exports public symbols used by the registry/tests.
+- Package `__init__.py` stays metadata-only: declare `meta = AppletMeta(...)` there and keep imports cheap for startup discovery.
 - Applet metadata is auto-discovered through `docking/applets/__init__.py:get_applet_catalog()`.
 - Concrete applet classes are loaded on demand through `docking/applets/__init__.py:load_applet_class()`.
 - Each applet package declares a stable identity via `AppletMeta` in `__init__.py`.
@@ -809,13 +831,13 @@ Recommended file layout:
 
 ```text
 docking/applets/myapplet/
-  __init__.py   # AppletMeta declaration + public re-exports
+  __init__.py   # metadata only: AppletMeta declaration
   applet.py     # GTK wiring and lifecycle
   state.py      # pure state/logic helpers
   render.py     # icon rendering helpers
 ```
 
-Declare applet metadata in `docking/applets/myapplet/__init__.py` so catalog discovery can find it:
+Declare applet metadata in `docking/applets/myapplet/__init__.py` so catalog discovery can find it. Keep this file metadata-only so applet discovery stays cheap:
 
 ```python
 from docking.applets.identity import AppletCategory, AppletMeta
@@ -826,8 +848,10 @@ meta = AppletMeta(
     category=AppletCategory.PRODUCTIVITY,
 )
 
-from .applet import MyApplet
+__all__ = ["meta"]
 ```
+
+The concrete `Applet` subclass should live in `docking/applets/myapplet/applet.py`. `load_applet_class()` imports that module lazily when the applet is actually enabled.
 
 **Design principle:** Complex logic is extracted as pure functions (no GTK dependency) so tests run fast without a display server. GTK-dependent tests use lightweight mocks.
 
