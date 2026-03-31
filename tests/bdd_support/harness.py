@@ -86,11 +86,13 @@ class _TimerScheduler:
 def _dnd_frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
     item_geometries = [
         SimpleNamespace(
+            item=SimpleNamespace(kind=FOLDER_KIND),
             draw_rect=SimpleNamespace(x=index * 70, y=0, w=48, h=48),
         )
         for index in range(count)
     ]
     return SimpleNamespace(
+        cursor_rect=Rect(0, 0, 400, 60),
         item_geometries=item_geometries,
         item_index_at_point=MagicMock(return_value=item_index),
         item_at_point=MagicMock(return_value=None),
@@ -426,6 +428,7 @@ class DockHarness:
             cursor_y=8.0,
             autohide=autohide,
             is_pointer_inside_dock=MagicMock(return_value=False),
+            close_open_folder_stack_for_item=MagicMock(),
             get_display=MagicMock(return_value=display),
             get_position=MagicMock(return_value=(0, 0)),
             get_size=MagicMock(return_value=(400, 60)),

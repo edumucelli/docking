@@ -70,3 +70,32 @@ class TestDockHarnessTiming:
             assert harness.preview_visible is True
         finally:
             harness.stop()
+
+
+class TestDockHarnessDnDContracts:
+    def test_external_launcher_drop_uses_frame_with_cursor_rect(self):
+        harness = DockHarness()
+        harness.start()
+        try:
+            harness.drop_external_uri(
+                "file:///usr/share/applications/firefox.desktop",
+                target_index=0,
+            )
+
+            assert harness.external_pinned_targets == ["firefox.desktop"]
+            assert harness._dnd_frame.cursor_rect.contains(x=0, y=0)
+        finally:
+            harness.stop()
+
+    def test_drag_outside_release_uses_window_stack_close_hook(self):
+        harness = DockHarness()
+        harness.start()
+        try:
+            harness.drag_outside_and_release("a.desktop")
+
+            assert harness.drag_removed_desktop_id == "a.desktop"
+            harness._drag_window.close_open_folder_stack_for_item.assert_called_once_with(
+                "a.desktop"
+            )
+        finally:
+            harness.stop()
