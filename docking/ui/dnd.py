@@ -351,8 +351,8 @@ class DnDHandler:
             gap_frame = self._geometry_builder.build_frame(
                 main_cursor=-1.0, drop_insert_index=self.drop_insert_index
             )
-            item = gap_frame.item_at_point(float(x), float(y))
-            new_target = item.desktop_id if item and item.kind == APP_KIND else ""
+            item = self._drop_target_item_at_point(gap_frame, x=float(x), y=float(y))
+            new_target = item.desktop_id if item is not None else ""
             if new_target != self.drop_target_id:
                 self.drop_target_id = new_target
                 changed = True
@@ -474,9 +474,11 @@ class DnDHandler:
 
     def _try_open_with_launcher(self, *, x: int, y: int, uris: list[str]) -> bool:
         """If drop lands on an app icon, try opening the files with it."""
-        frame = self._geometry_builder.build_frame(main_cursor=-1.0)
-        item = frame.item_at_point(float(x), float(y))
-        if not item or item.kind != APP_KIND:
+        frame = self._geometry_builder.build_frame(
+            main_cursor=-1.0, drop_insert_index=self.drop_insert_index
+        )
+        item = self._drop_target_item_at_point(frame, x=float(x), y=float(y))
+        if item is None:
             return False
 
         launchable = [u for u in uris if not u.endswith(".desktop")]
@@ -502,6 +504,43 @@ class DnDHandler:
         except GLib.Error as exc:
             log.warning("Failed to open with %s: %s", item.desktop_id, exc)
             return False
+
+    def _drop_target_item_at_point(
+        self, frame, *, x: float, y: float
+    ) -> DockItem | None:
+        """Return the app icon directly under the pointer during an external drop.
+
+        External launcher drops should only target the visible app icon itself.
+        Using the broader item hit rect would make the shelf/background segment
+        under an app steal drops that should land in the insertion gap.
+        """
+        if not frame.cursor_rect.contains(x=x, y=y):
+            return None
+        gap = (
+            self._config.icon_size + self._theme.item_padding
+            if self.drop_insert_index >= 0
+            else 0
+        )
+        horizontal = is_horizontal(pos=self._config.pos)
+        for index, item_geometry in enumerate(frame.item_geometries):
+            if item_geometry.item.kind != APP_KIND:
+                continue
+            draw_rect = item_geometry.draw_rect
+            if gap > 0 and index >= self.drop_insert_index:
+                if horizontal:
+                    left = draw_rect.x + gap
+                    top = draw_rect.y
+                else:
+                    left = draw_rect.x
+                    top = draw_rect.y + gap
+                contains = (
+                    left <= x < left + draw_rect.w and top <= y < top + draw_rect.h
+                )
+            else:
+                contains = draw_rect.contains(x=x, y=y)
+            if contains:
+                return item_geometry.item
+        return None
 
     def _on_drag_leave(
         self, widget: Gtk.DrawingArea, _context: Gdk.DragContext, _time: int
@@ -578,6 +617,7 @@ class DnDHandler:
                         item.name,
                         item.is_running,
                     )
+                    self._window.close_open_folder_stack_for_item(item.desktop_id)
                     show_poof(x=int(screen_x), y=int(screen_y))
                     # Clear slide state to avoid stale offsets
                     self._renderer.slide_offsets.clear()

@@ -593,6 +593,11 @@ class DockWindow(Gtk.Window):
             self.interaction.on_effective_leave(widget)
         return False  # Propagate so GTK drag source can detect drag threshold
 
+    def close_open_folder_stack_for_item(self, desktop_id: str) -> None:
+        """Close the folder stack if it currently belongs to the given item."""
+        if self._menu.open_folder_stack_item_id() == desktop_id:
+            self._menu.close_folder_stack()
+
     def _on_button_press(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
     ) -> bool:
