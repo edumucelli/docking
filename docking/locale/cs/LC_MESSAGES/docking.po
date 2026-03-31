@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-29 01:21+0100\n"
+"POT-Creation-Date: 2026-03-31 19:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,50 +17,58 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n>=2 && n<=4 ? 1 : 2);\n"
 
-#: docking/applets/aiusage/applet.py:83
+#: docking/applets/aiusage/applet.py:89
 msgid "AI Usage"
-msgstr "AI Usage"
+msgstr "Pouziti AI"
 
-#: docking/applets/aiusage/applet.py:146
+#: docking/applets/aiusage/applet.py:154
 msgid "Auto"
 msgstr "Auto"
 
-#: docking/applets/aiusage/applet.py:147
+#: docking/applets/aiusage/applet.py:155
 msgid "Claude"
 msgstr "Claude"
 
-#: docking/applets/aiusage/applet.py:148
+#: docking/applets/aiusage/applet.py:156
 msgid "Codex"
 msgstr "Codex"
 
-#: docking/applets/aiusage/applet.py:149
+#: docking/applets/aiusage/applet.py:157
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: docking/applets/aiusage/applet.py:161
-msgid "Reset Today"
-msgstr "Reset Today"
+#: docking/applets/aiusage/applet.py:170
+msgid "Show Cost"
+msgstr "Zobrazit naklady"
 
-#: docking/applets/aiusage/applet.py:213 docking/applets/aiusage/applet.py:228
-#: docking/applets/aiusage/state.py:413
+#: docking/applets/aiusage/applet.py:171
+msgid "Show Tokens"
+msgstr "Zobrazit tokeny"
+
+#: docking/applets/aiusage/applet.py:183
+msgid "Reset Today"
+msgstr "Resetovat dnes"
+
+#: docking/applets/aiusage/applet.py:239 docking/applets/aiusage/applet.py:254
+#: docking/applets/aiusage/state.py:460
 #, python-brace-format
 msgid "{name}: no usage today"
-msgstr "{name}: no usage today"
+msgstr "{name}: zadne pouziti dnes"
 
-#: docking/applets/aiusage/applet.py:237
+#: docking/applets/aiusage/applet.py:271
 #, python-brace-format
-msgid "<b>{name}: {cost}</b>"
-msgstr "<b>{name}: {cost}</b>"
+msgid "<b>{name}: {value}</b>"
+msgstr "<b>{name}: {value}</b>"
 
-#: docking/applets/aiusage/applet.py:266
+#: docking/applets/aiusage/applet.py:315
 #, python-brace-format
-msgid "This week: {cost}"
-msgstr "This week: {cost}"
+msgid "This week: {value}"
+msgstr "Tento tyden: {value}"
 
-#: docking/applets/aiusage/state.py:414
+#: docking/applets/aiusage/state.py:461
 #, python-brace-format
 msgid "{name} today: {cost}"
-msgstr "{name} today: {cost}"
+msgstr "{name} dnes: {cost}"
 
 #: docking/applets/ambient/applet.py:65 docking/applets/ambient/state.py:87
 msgid "Ambient"
@@ -107,23 +115,23 @@ msgstr "Růžový šum"
 msgid "Playing: {sound} ({pct}%)"
 msgstr "Přehrávání: {sound} ({pct}%)"
 
-#: docking/applets/applications/applet.py:34
+#: docking/applets/applications/applet.py:36
 msgid "Applications"
 msgstr "Aplikace"
 
-#: docking/applets/applications/applet.py:74
+#: docking/applets/applications/applet.py:76
 msgid "Search applications..."
-msgstr "Search applications..."
+msgstr "Hledat aplikace..."
 
 #: docking/applets/battery/applet.py:27
 msgid "Battery"
 msgstr "Baterie"
 
-#: docking/applets/battery/state.py:59
+#: docking/applets/battery/state.py:62
 msgid "No battery"
 msgstr "Žádná baterie"
 
-#: docking/applets/battery/state.py:60
+#: docking/applets/battery/state.py:63
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr "Baterie: {pct}%"
@@ -145,12 +153,12 @@ msgid "General"
 msgstr "Obecné"
 
 #: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:121
+#: docking/applets/bluetooth/state.py:120
 msgid "On"
 msgstr "Zapnuto"
 
 #: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:121
+#: docking/applets/bluetooth/state.py:120
 msgid "Off"
 msgstr "Vypnuto"
 
@@ -212,68 +220,68 @@ msgstr "Důvěryhodné"
 msgid "Battery: {percent}%"
 msgstr "Baterie: {percent}%"
 
-#: docking/applets/bluetooth/state.py:114
+#: docking/applets/bluetooth/state.py:113
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "Bluetooth: {error}"
 
-#: docking/applets/bluetooth/state.py:115
-#: docking/applets/bluetooth/state.py:119
+#: docking/applets/bluetooth/state.py:114
+#: docking/applets/bluetooth/state.py:118
 msgid "Bluetooth: No adapter/service"
 msgstr "Bluetooth: Žádný adaptér/služba"
 
-#: docking/applets/bluetooth/state.py:126
+#: docking/applets/bluetooth/state.py:125
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "Bluetooth: {state}"
 
-#: docking/applets/bluetooth/state.py:127
+#: docking/applets/bluetooth/state.py:126
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "Adaptér: {name}"
 
-#: docking/applets/bluetooth/state.py:128
+#: docking/applets/bluetooth/state.py:127
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "Připojeno: {n}"
 
-#: docking/applets/bluetooth/state.py:129
+#: docking/applets/bluetooth/state.py:128
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "Spárováno: {n}"
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:129
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "Vyhledávání: {state}"
 
-#: docking/applets/bluetooth/state.py:131
+#: docking/applets/bluetooth/state.py:130
 msgid "Yes"
 msgstr "Ano"
 
-#: docking/applets/bluetooth/state.py:131
+#: docking/applets/bluetooth/state.py:130
 msgid "No"
 msgstr "Ne"
 
 #: docking/applets/bookmarks/applet.py:41
 msgid "Bookmarks"
-msgstr "Bookmarks"
+msgstr "Zalozky"
 
 #: docking/applets/bookmarks/applet.py:76
 msgid "Add Bookmark..."
-msgstr "Add Bookmark..."
+msgstr "Pridat zalozku..."
 
 #: docking/applets/bookmarks/applet.py:80
 msgid "Remove All"
-msgstr "Remove All"
+msgstr "Odebrat vse"
 
 #: docking/applets/bookmarks/applet.py:97
 msgid "Add Bookmark"
-msgstr "Add Bookmark"
+msgstr "Pridat zalozku"
 
 #: docking/applets/bookmarks/applet.py:117
 msgid "Bookmark name"
-msgstr "Bookmark name"
+msgstr "Nazev zalozky"
 
 #: docking/applets/bookmarks/applet.py:121
 msgid "https://..."
@@ -288,14 +296,14 @@ msgstr "Jas"
 msgid "Brightness: {pct}%"
 msgstr "Jas: {pct}%"
 
-#: docking/applets/brightness/applet.py:98
+#: docking/applets/brightness/applet.py:96
 msgid "Show Level"
 msgstr "Zobrazit úroveň"
 
 #: docking/applets/calculator/applet.py:67
 #: docking/applets/calculator/applet.py:84
 msgid "Calculator"
-msgstr "Calculator"
+msgstr "Kalkulacka"
 
 #: docking/applets/calendar/applet.py:35 docking/applets/calendar/applet.py:41
 msgid "Calendar"
@@ -376,11 +384,11 @@ msgstr "Další za {time}"
 
 #: docking/applets/keyboardlayout/applet.py:42
 msgid "Keyboard Layout"
-msgstr "Keyboard Layout"
+msgstr "Rozlozeni klavesnice"
 
 #: docking/applets/keyboardlayout/applet.py:71
 msgid "No keyboard layout detected"
-msgstr "No keyboard layout detected"
+msgstr "Nebylo rozpoznano rozlozeni klavesnice"
 
 #: docking/applets/moon/applet.py:48
 msgid "Moon"
@@ -581,39 +589,39 @@ msgstr "Oznámení: Žádný backend k dispozici"
 
 #: docking/applets/pet/applet.py:41
 msgid "Pet"
-msgstr "Pet"
+msgstr "Mazlicek"
 
 #: docking/applets/pet/state.py:60
 msgid "Sleeping"
-msgstr "Sleeping"
+msgstr "Spici"
 
 #: docking/applets/pet/state.py:61
 msgid "Sleepy"
-msgstr "Sleepy"
+msgstr "Ospaly"
 
 #: docking/applets/pet/state.py:62
 msgid "Drowsy"
-msgstr "Drowsy"
+msgstr "Ospaly"
 
 #: docking/applets/pet/state.py:63
 msgid "Relaxed"
-msgstr "Relaxed"
+msgstr "Uvolneny"
 
 #: docking/applets/pet/state.py:64
 msgid "Happy"
-msgstr "Happy"
+msgstr "Stastny"
 
 #: docking/applets/pet/state.py:65
 msgid "Focused"
-msgstr "Focused"
+msgstr "Soustredeny"
 
 #: docking/applets/pet/state.py:66
 msgid "Busy"
-msgstr "Busy"
+msgstr "Zaneprazdneny"
 
 #: docking/applets/pet/state.py:67
 msgid "Stressed"
-msgstr "Stressed"
+msgstr "Stresovany"
 
 #: docking/applets/pet/state.py:68
 msgid "Excited!"
@@ -654,21 +662,21 @@ msgstr "Pozastaveno - {time}"
 msgid "{label}: {time} remaining"
 msgstr "{label}: zbývá {time}"
 
-#: docking/applets/powerprofiles/applet.py:55
+#: docking/applets/powerprofiles/applet.py:57
 msgid "Power Profiles"
 msgstr "Profily napájení"
 
-#: docking/applets/powerprofiles/applet.py:115
+#: docking/applets/powerprofiles/applet.py:122
 #: docking/applets/powerprofiles/state.py:170
 #: docking/applets/powerprofiles/state.py:171
 msgid "Power Profiles unavailable"
 msgstr "Profily napájení nedostupné"
 
-#: docking/applets/powerprofiles/applet.py:120
+#: docking/applets/powerprofiles/applet.py:127
 msgid "Select Profile"
 msgstr "Vybrat profil"
 
-#: docking/applets/powerprofiles/applet.py:139
+#: docking/applets/powerprofiles/applet.py:146
 #, python-brace-format
 msgid "Limited: {reason}"
 msgstr "Omezeno: {reason}"
@@ -688,55 +696,55 @@ msgstr "Výkon"
 #: docking/applets/quicknote/applet.py:40
 #: docking/applets/quicknote/applet.py:73
 msgid "Quick Note"
-msgstr "Quick Note"
+msgstr "Rychla poznamka"
 
 #: docking/applets/quicknote/applet.py:61
 msgid "Edit Note"
-msgstr "Edit Note"
+msgstr "Upravit poznamku"
 
 #: docking/applets/quicknote/applet.py:65
 msgid "Clear Note"
-msgstr "Clear Note"
+msgstr "Smazat poznamku"
 
 #: docking/applets/quicknote/applet.py:78
 msgid "OK"
 msgstr "OK"
 
-#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
-#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
+#: docking/applets/quote/applet.py:42 docking/applets/quote/applet.py:83
+#: docking/applets/quote/applet.py:207 docking/applets/quote/applet.py:213
 msgid "Quote"
 msgstr "Citát"
 
-#: docking/applets/quote/applet.py:86
+#: docking/applets/quote/applet.py:87
 msgid "Next Quote"
 msgstr "Další citát"
 
-#: docking/applets/quote/applet.py:90
+#: docking/applets/quote/applet.py:91
 msgid "Copy Quote"
 msgstr "Kopírovat citát"
 
-#: docking/applets/quote/applet.py:94
-#: docking/applets/todayinhistory/applet.py:96
-#: docking/applets/trivia/applet.py:118
+#: docking/applets/quote/applet.py:95
+#: docking/applets/todayinhistory/applet.py:102
+#: docking/applets/trivia/applet.py:119
 msgid "Refresh from Web"
 msgstr "Obnovit z webu"
 
-#: docking/applets/quote/applet.py:100
+#: docking/applets/quote/applet.py:101
 msgid "Source"
 msgstr "Zdroj"
 
-#: docking/applets/quote/applet.py:205
+#: docking/applets/quote/applet.py:206
 #, python-brace-format
 msgid "{source}: loading..."
 msgstr "{source}: načítání..."
 
 #: docking/applets/recentfiles/applet.py:34
 msgid "Recent Files"
-msgstr "Recent Files"
+msgstr "Nedavne soubory"
 
 #: docking/applets/recentfiles/applet.py:84
 msgid "Clear Recent Files"
-msgstr "Clear Recent Files"
+msgstr "Vymazat nedavne soubory"
 
 #: docking/applets/screenshot/applet.py:39
 msgid "Screenshot"
@@ -761,19 +769,19 @@ msgstr "Zmenšit mezeru"
 
 #: docking/applets/separator/applet.py:122
 msgid "Style"
-msgstr "Style"
+msgstr "Styl"
 
 #: docking/applets/separator/applet.py:126
 msgid "Line"
-msgstr "Line"
+msgstr "Cara"
 
 #: docking/applets/separator/applet.py:135
 msgid "Space"
-msgstr "Space"
+msgstr "Mezera"
 
 #: docking/applets/separator/applet.py:144
 msgid "Invert Color"
-msgstr "Invert Color"
+msgstr "Invertovat barvu"
 
 #: docking/applets/session/applet.py:27
 msgid "Session"
@@ -805,66 +813,75 @@ msgstr "Stretch Coach"
 
 #: docking/applets/stretchcoach/applet.py:80
 msgid "Acknowledge Break"
-msgstr "Acknowledge Break"
+msgstr "Potvrdit prestavku"
 
 #: docking/applets/stretchcoach/applet.py:80
 msgid "Take Break Now"
-msgstr "Take Break Now"
+msgstr "Udelat prestavku"
 
 #: docking/applets/stretchcoach/applet.py:85
 msgid "Show Random Stretch"
-msgstr "Show Random Stretch"
+msgstr "Zobrazit nahodne protazeni"
 
 #: docking/applets/stretchcoach/applet.py:89
 msgid "Random Stretch Cards"
-msgstr "Random Stretch Cards"
+msgstr "Nahodne karty protazeni"
 
-#: docking/applets/stretchcoach/state.py:151
+#: docking/applets/stretchcoach/state.py:152
 msgid "Time to stretch!"
-msgstr "Time to stretch!"
+msgstr "Cas na protazeni!"
 
-#: docking/applets/stretchcoach/state.py:155
+#: docking/applets/stretchcoach/state.py:156
 #, python-brace-format
 msgid "Next stretch in {time}"
-msgstr "Next stretch in {time}"
+msgstr "Dalsi protazeni za {time}"
 
-#: docking/applets/systemmonitor/applet.py:45
+#: docking/applets/systemmonitor/applet.py:47
 msgid "System Monitor"
 msgstr "Monitor CPU"
 
-#: docking/applets/systemmonitor/state.py:64
+#: docking/applets/systemmonitor/applet.py:77
+msgid "Show Disk Usage"
+msgstr "Show Disk Usage"
+
+#: docking/applets/systemmonitor/state.py:112
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr "CPU: {cpu}% | Paměť: {mem}%"
 
-#: docking/applets/systemmonitor/state.py:69
+#: docking/applets/systemmonitor/state.py:116
 #, python-brace-format
 msgid "{text} | Temp: {temp}°C"
 msgstr "{text} | Temp: {temp}°C"
 
-#: docking/applets/todayinhistory/applet.py:43
-#: docking/applets/todayinhistory/applet.py:109
-#: docking/applets/todayinhistory/applet.py:121
+#: docking/applets/systemmonitor/state.py:122
+#, python-brace-format
+msgid "Disk: {usage}"
+msgstr "Disk: {usage}"
+
+#: docking/applets/todayinhistory/applet.py:46
+#: docking/applets/todayinhistory/applet.py:115
+#: docking/applets/todayinhistory/applet.py:127
 msgid "Today in History"
-msgstr "Today in History"
+msgstr "Dnes v historii"
 
-#: docking/applets/todayinhistory/applet.py:88
+#: docking/applets/todayinhistory/applet.py:94
 msgid "Open Article"
-msgstr "Open Article"
+msgstr "Otevrit clanek"
 
-#: docking/applets/todayinhistory/applet.py:92
+#: docking/applets/todayinhistory/applet.py:98
 msgid "Next Event"
-msgstr "Next Event"
+msgstr "Dalsi udalost"
 
-#: docking/applets/todayinhistory/applet.py:104
+#: docking/applets/todayinhistory/applet.py:110
 msgid "Today in History: loading..."
-msgstr "Today in History: loading..."
+msgstr "Dnes v historii: nacitani..."
 
 #: docking/applets/todayinhistory/state.py:26
 msgid "Offline fallback"
-msgstr "Offline fallback"
+msgstr "Offline nahrada"
 
-#: docking/applets/todayinhistory/state.py:45
+#: docking/applets/todayinhistory/state.py:46
 #, python-brace-format
 msgid "{year} - {title}"
 msgstr "{year} - {title}"
@@ -881,11 +898,11 @@ msgstr "Otevřít koš"
 msgid "Empty Trash"
 msgstr "Vysypat koš"
 
-#: docking/applets/trash/render.py:22
+#: docking/applets/trash/render.py:18
 msgid "No items in Trash"
 msgstr "Žádné položky v Koši"
 
-#: docking/applets/trash/render.py:24 docking/applets/trash/render.py:25
+#: docking/applets/trash/render.py:20 docking/applets/trash/render.py:21
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
@@ -893,85 +910,85 @@ msgstr[0] "{n} položka v Koši"
 msgstr[1] "{n} položky v Koši"
 msgstr[2] "{n} položek v Koši"
 
-#: docking/applets/trivia/applet.py:40 docking/applets/trivia/applet.py:184
+#: docking/applets/trivia/applet.py:41 docking/applets/trivia/applet.py:185
 msgid "Random Trivia"
-msgstr "Random Trivia"
+msgstr "Nahodna zajimavost"
 
-#: docking/applets/trivia/applet.py:77 docking/applets/trivia/state.py:101
+#: docking/applets/trivia/applet.py:78 docking/applets/trivia/state.py:102
 #, python-brace-format
 msgid "{category} / {difficulty}"
 msgstr "{category} / {difficulty}"
 
-#: docking/applets/trivia/applet.py:97 docking/applets/trivia/state.py:112
+#: docking/applets/trivia/applet.py:98 docking/applets/trivia/state.py:113
 #, python-brace-format
 msgid "Correct answer: {answer}"
-msgstr "Correct answer: {answer}"
+msgstr "Spravna odpoved: {answer}"
 
-#: docking/applets/trivia/applet.py:105 docking/applets/trivia/state.py:111
+#: docking/applets/trivia/applet.py:106 docking/applets/trivia/state.py:112
 #, python-brace-format
 msgid "Your answer: {answer}"
-msgstr "Your answer: {answer}"
+msgstr "Vase odpoved: {answer}"
 
-#: docking/applets/trivia/applet.py:114
+#: docking/applets/trivia/applet.py:115
 msgid "Next Trivia"
-msgstr "Next Trivia"
+msgstr "Dalsi zajimavost"
 
-#: docking/applets/trivia/applet.py:179
+#: docking/applets/trivia/applet.py:180
 msgid "Trivia: loading..."
-msgstr "Trivia: loading..."
-
-#: docking/applets/trivia/state.py:87
-msgid "Easy"
-msgstr "Easy"
+msgstr "Zajimavost: nacitani..."
 
 #: docking/applets/trivia/state.py:88
-msgid "Medium"
-msgstr "Medium"
+msgid "Easy"
+msgstr "Snadny"
 
 #: docking/applets/trivia/state.py:89
-msgid "Hard"
-msgstr "Hard"
+msgid "Medium"
+msgstr "Stredni"
 
-#: docking/applets/trivia/state.py:109
+#: docking/applets/trivia/state.py:90
+msgid "Hard"
+msgstr "Tezky"
+
+#: docking/applets/trivia/state.py:110
 #, python-brace-format
 msgid "Correct: {answer}"
-msgstr "Correct: {answer}"
+msgstr "Spravne: {answer}"
 
 #: docking/applets/unitconverter/applet.py:77
 #: docking/applets/unitconverter/applet.py:104
 msgid "Unit Converter"
-msgstr "Unit Converter"
+msgstr "Prevodnik jednotek"
 
-#: docking/applets/unitconverter/applet.py:197
+#: docking/applets/unitconverter/applet.py:198
 msgid "Swap units"
-msgstr "Swap units"
+msgstr "Prohodit jednotky"
 
-#: docking/applets/unitconverter/applet.py:214
+#: docking/applets/unitconverter/applet.py:215
 msgid "Value"
-msgstr "Value"
+msgstr "Hodnota"
 
-#: docking/applets/urlshortener/applet.py:57
-#: docking/applets/urlshortener/applet.py:78
-#: docking/applets/urlshortener/applet.py:96
+#: docking/applets/urlshortener/applet.py:59
+#: docking/applets/urlshortener/applet.py:80
+#: docking/applets/urlshortener/applet.py:98
 msgid "URL Shortener"
-msgstr "URL Shortener"
+msgstr "Zkracovac URL"
 
-#: docking/applets/urlshortener/applet.py:118
+#: docking/applets/urlshortener/applet.py:120
 msgid "Shorten"
-msgstr "Shorten"
+msgstr "Zkratit"
 
-#: docking/applets/urlshortener/applet.py:144
+#: docking/applets/urlshortener/applet.py:146
 msgid "Shortening..."
-msgstr "Shortening..."
+msgstr "Zkracovani..."
 
-#: docking/applets/urlshortener/applet.py:178
-#: docking/applets/urlshortener/applet.py:197
+#: docking/applets/urlshortener/applet.py:180
+#: docking/applets/urlshortener/applet.py:199
 msgid "Copy"
-msgstr "Copy"
+msgstr "Kopirovat"
 
-#: docking/applets/urlshortener/applet.py:192
+#: docking/applets/urlshortener/applet.py:194
 msgid "Copied!"
-msgstr "Copied!"
+msgstr "Zkopirovano!"
 
 #: docking/applets/volume/applet.py:33
 msgid "Volume"
@@ -996,12 +1013,12 @@ msgstr "Zobrazit teplotu"
 
 #: docking/applets/weather/applet.py:133
 msgid "Add City..."
-msgstr "Add City..."
+msgstr "Pridat mesto..."
 
 #: docking/applets/weather/applet.py:139
 #, python-brace-format
 msgid "Remove {city}"
-msgstr "Remove {city}"
+msgstr "Odebrat {city}"
 
 #: docking/applets/weather/applet.py:171
 msgid "Search for the city"
@@ -1042,129 +1059,129 @@ msgstr "{city}: načítání..."
 
 #: docking/applets/windowkiller/applet.py:59
 msgid "Window Killer"
-msgstr "Window Killer"
+msgstr "Ukoncit okno"
 
 #: docking/applets/windowkiller/applet.py:71
 msgid "Click, then select a window to kill"
-msgstr "Click, then select a window to kill"
+msgstr "Kliknete a vyberte okno k ukonceni"
 
 #: docking/applets/workspaces/applet.py:40
 msgid "Workspaces"
 msgstr "Pracovní plochy"
 
-#: docking/ui/about.py:50
+#: docking/ui/about.py:53
 msgid "Website"
 msgstr "Webové stránky"
 
-#: docking/ui/dock_window.py:337
+#: docking/ui/dock_window.py:332
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/menu.py:187
+#: docking/ui/menu.py:186
 msgid "Name"
-msgstr "Name"
+msgstr "Nazev"
+
+#: docking/ui/menu.py:187
+msgid "Kind"
+msgstr "Typ"
 
 #: docking/ui/menu.py:188
-msgid "Kind"
-msgstr "Kind"
+msgid "Size"
+msgstr "Velikost"
 
 #: docking/ui/menu.py:189
-msgid "Size"
-msgstr "Size"
+msgid "Created"
+msgstr "Vytvoreno"
 
 #: docking/ui/menu.py:190
-msgid "Created"
-msgstr "Created"
-
-#: docking/ui/menu.py:191
 msgid "Modified"
-msgstr "Modified"
+msgstr "Zmeneno"
 
-#: docking/ui/menu.py:772
+#: docking/ui/menu.py:720
 msgid "Folder not found"
-msgstr "Folder not found"
+msgstr "Slozka nenalezena"
 
-#: docking/ui/menu.py:806
+#: docking/ui/menu.py:754
 msgid "Folder is empty"
-msgstr "Folder is empty"
+msgstr "Slozka je prazdna"
 
-#: docking/ui/menu.py:1213
+#: docking/ui/menu.py:1182
 #, python-format
 msgid "Open in %s"
-msgstr "Open in %s"
+msgstr "Otevrit v %s"
 
-#: docking/ui/menu.py:1215
+#: docking/ui/menu.py:1184
 #, python-format
 msgid "%d More in %s"
-msgstr "%d More in %s"
+msgstr "%d Dalsi v %s"
 
-#: docking/ui/menu.py:1218
+#: docking/ui/menu.py:1187
 msgid "Open Folder"
-msgstr "Open Folder"
+msgstr "Otevrit slozku"
 
-#: docking/ui/menu.py:1220
+#: docking/ui/menu.py:1189
 #, python-format
 msgid "%d More in Folder"
-msgstr "%d More in Folder"
+msgstr "%d Dalsi ve slozce"
 
-#: docking/ui/menu.py:1341 docking/ui/menu.py:1361 docking/ui/menu.py:1377
-#: docking/ui/menu.py:1430
+#: docking/ui/menu.py:1315 docking/ui/menu.py:1335 docking/ui/menu.py:1351
+#: docking/ui/menu.py:1404
 msgid "Remove from Dock"
 msgstr "Odebrat z doku"
 
-#: docking/ui/menu.py:1354
+#: docking/ui/menu.py:1328
 msgid "Open"
-msgstr "Open"
+msgstr "Otevrit"
 
-#: docking/ui/menu.py:1384
+#: docking/ui/menu.py:1358
 msgid "Keep in Dock"
 msgstr "Ponechat v doku"
 
-#: docking/ui/menu.py:1393
+#: docking/ui/menu.py:1367
 msgid "Close All"
 msgstr "Zavřít vše"
 
-#: docking/ui/menu.py:1393
+#: docking/ui/menu.py:1367
 msgid "Close"
 msgstr "Zavřít"
 
-#: docking/ui/menu.py:1410
+#: docking/ui/menu.py:1384
 msgid "Sort By"
-msgstr "Sort By"
+msgstr "Radit podle"
 
-#: docking/ui/menu.py:1418
+#: docking/ui/menu.py:1392
 msgid "Show Hidden Files"
-msgstr "Show Hidden Files"
+msgstr "Zobrazit skryte soubory"
 
-#: docking/ui/menu.py:1423
+#: docking/ui/menu.py:1397
 msgid "Large Icons"
-msgstr "Large Icons"
+msgstr "Velke ikony"
 
-#: docking/ui/menu.py:1460
+#: docking/ui/menu.py:1434
 msgid "Add Applet"
 msgstr "Aplety"
 
-#: docking/ui/menu.py:1498
+#: docking/ui/menu.py:1472
 msgid "No Applets Available"
 msgstr "Profily napájení nedostupné"
 
-#: docking/ui/menu.py:1505
+#: docking/ui/menu.py:1479
 msgid "Add Separator"
 msgstr "Přidat oddělovač"
 
-#: docking/ui/menu.py:1515 docking/ui/settings.py:151
+#: docking/ui/menu.py:1489 docking/ui/settings.py:151
 msgid "Preferences"
-msgstr "Preferences"
+msgstr "Predvolby"
 
-#: docking/ui/menu.py:1520
+#: docking/ui/menu.py:1494
 msgid "About"
 msgstr "O aplikaci"
 
-#: docking/ui/menu.py:1525
+#: docking/ui/menu.py:1499
 msgid "Quit"
 msgstr "Ukončit"
 
-#: docking/ui/menu.py:1562
+#: docking/ui/menu.py:1536
 msgid "Window"
 msgstr "Okno"
 
@@ -1175,7 +1192,7 @@ msgstr "Displej {display}: {width}x{height}"
 
 #: docking/ui/settings.py:175
 msgid "Appearance"
-msgstr "Appearance"
+msgstr "Vzhled"
 
 #: docking/ui/settings.py:176
 msgid "Applets"
@@ -1183,7 +1200,7 @@ msgstr "Aplety"
 
 #: docking/ui/settings.py:194
 msgid "Don't Hide"
-msgstr "Don't Hide"
+msgstr "Neskryvat"
 
 #: docking/ui/settings.py:195
 msgid "Auto-hide"
@@ -1195,23 +1212,23 @@ msgstr "Intelligent"
 
 #: docking/ui/settings.py:197
 msgid "Dodge Active Window"
-msgstr "Dodge Active Window"
+msgstr "Uhybat aktivnimu oknu"
 
 #: docking/ui/settings.py:198
 msgid "Dodge All Windows"
-msgstr "Dodge All Windows"
+msgstr "Uhybat vsem oknum"
 
 #: docking/ui/settings.py:199
 msgid "Dodge Maximized"
-msgstr "Dodge Maximized"
+msgstr "Uhybat maximalizovanym"
 
 #: docking/ui/settings.py:255
 msgid "Look"
-msgstr "Look"
+msgstr "Vzhled"
 
 #: docking/ui/settings.py:257
 msgid "Theme"
-msgstr "Theme"
+msgstr "Motiv"
 
 #: docking/ui/settings.py:258
 msgid "Icon Size"
@@ -1223,11 +1240,11 @@ msgstr "Zoom"
 
 #: docking/ui/settings.py:260
 msgid "Zoom Percent"
-msgstr "Zoom Percent"
+msgstr "Procento priblizeni"
 
 #: docking/ui/settings.py:261
 msgid "Show Tooltips"
-msgstr "Show Tooltips"
+msgstr "Zobrazit napovedy"
 
 #: docking/ui/settings.py:262
 msgid "Window Previews"
@@ -1235,23 +1252,23 @@ msgstr "Náhledy oken"
 
 #: docking/ui/settings.py:274
 msgid "Behavior"
-msgstr "Behavior"
+msgstr "Chovani"
 
 #: docking/ui/settings.py:276
 msgid "Hide Mode"
-msgstr "Hide Mode"
+msgstr "Rezim skryvani"
 
 #: docking/ui/settings.py:277
 msgid "Hide Delay"
-msgstr "Hide Delay"
+msgstr "Prodleva skryti"
 
 #: docking/ui/settings.py:278
 msgid "Unhide Delay"
-msgstr "Unhide Delay"
+msgstr "Prodleva zobrazeni"
 
 #: docking/ui/settings.py:283
 msgid "Placement"
-msgstr "Placement"
+msgstr "Umisteni"
 
 #: docking/ui/settings.py:285
 msgid "Position"
@@ -1267,11 +1284,11 @@ msgstr "Pouze aktuální plocha"
 
 #: docking/ui/settings.py:292
 msgid "Layout"
-msgstr "Layout"
+msgstr "Rozlozeni"
 
 #: docking/ui/settings.py:294
 msgid "Lock Positions"
-msgstr "Lock Positions"
+msgstr "Zamknout pozice"
 
 #: docking/ui/settings.py:295
 msgid "Anchor Applets to End"
@@ -1279,45 +1296,33 @@ msgstr "Ukotvit aplety na konec"
 
 #: docking/ui/settings.py:296
 msgid "Anchor Files to End"
-msgstr "Anchor Files to End"
+msgstr "Pripnout soubory na konec"
+
+#: docking/ui/settings.py:657
+msgid "The dock is always visible and reserves screen space."
+msgstr "Dok je vzdy viditelny a rezervuje misto na obrazovce."
+
+#: docking/ui/settings.py:658
+msgid "Hides when the mouse cursor leaves the dock."
+msgstr "Skryje se, kdyz kurzor mysi opusti dok."
+
+#: docking/ui/settings.py:660
+msgid ""
+"Hides when a window from the focused application overlaps the dock area."
+msgstr ""
+"Hides when a window from the focused application overlaps the dock area."
 
 #: docking/ui/settings.py:662
-msgid "The dock is always visible and reserves screen space."
-msgstr "The dock is always visible and reserves screen space."
+msgid "Hides when the focused window overlaps the dock area."
+msgstr "Skryje se, kdyz aktivni okno prekryva dok."
 
-#: docking/ui/settings.py:663
-msgid "Hides when the mouse cursor leaves the dock."
-msgstr "Hides when the mouse cursor leaves the dock."
-
-#: docking/ui/settings.py:665
-msgid ""
-"Hides when a window from the focused application overlaps the dock area."
+#: docking/ui/settings.py:664
+msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
-"Hides when a window from the focused application overlaps the dock area."
+"Skryje se, kdyz jakekoli okno na aktualnim pracovnim prostoru prekryva dok."
 
 #: docking/ui/settings.py:667
-msgid "Hides when the focused window overlaps the dock area."
-msgstr "Hides when the focused window overlaps the dock area."
-
-#: docking/ui/settings.py:669
-msgid "Hides when any window on the current workspace overlaps the dock area."
-msgstr "Hides when any window on the current workspace overlaps the dock area."
-
-#: docking/ui/settings.py:672
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
-
-#~ msgid "Display"
-#~ msgstr "Displej"
-
-#~ msgid "Lock Icons"
-#~ msgstr "Zamknout ikony"
-
-#~ msgid "Themes"
-#~ msgstr "Témata"
-
-#~ msgid "Tooltips"
-#~ msgstr "Popisky"
-

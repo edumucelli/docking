@@ -67,7 +67,7 @@ def _layout():
 class TestHoverUpdates:
     def test_update_changes_hover_and_starts_preview_timer(self, monkeypatch):
         # Given
-        hover, window, model, _config, tooltip, frame = _make_hover()
+        hover, _window, model, _config, tooltip, frame = _make_hover()
         item = DockItem(
             desktop_id="firefox.desktop",
             name="Firefox",
@@ -88,7 +88,7 @@ class TestHoverUpdates:
 
     def test_update_same_item_only_refreshes_tooltip(self):
         # Given
-        hover, window, model, _config, tooltip, frame = _make_hover()
+        hover, _window, model, _config, tooltip, frame = _make_hover()
         item = DockItem(desktop_id="x.desktop", name="X")
         hover.hovered_item = item
         model.visible_items.return_value = [item]
@@ -103,7 +103,7 @@ class TestHoverUpdates:
 
     def test_update_non_running_item_schedules_hide(self):
         # Given
-        hover, window, model, config, _tooltip, frame = _make_hover()
+        hover, _window, model, config, _tooltip, frame = _make_hover()
         item = DockItem(
             desktop_id="x.desktop", name="X", is_running=False, instance_count=0
         )
@@ -296,7 +296,7 @@ class TestShowPreview:
         monkeypatch,
         position,
     ):
-        hover, window, model, config, _tooltip, frame = _make_hover()
+        hover, _window, model, config, _tooltip, _frame = _make_hover()
         item = DockItem(
             desktop_id="firefox.desktop",
             name="Firefox",

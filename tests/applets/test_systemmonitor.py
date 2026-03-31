@@ -168,14 +168,28 @@ class TestTooltipText:
         text = tooltip_text(cpu=0.423, mem=0.671, temperature_c=58.4)
         assert text == "CPU: 42.3% | Mem: 67.1% | Temp: 58.4°C"
 
+    def test_with_disks(self):
+        disks = [("/", 0.45), ("/home", 0.72)]
+        text = tooltip_text(cpu=0.1, mem=0.5, disks=disks)
+        assert "Disk:" in text
+        assert "/: 45%" in text
+        assert "/home: 72%" in text
+
+    def test_with_temperature_and_disks(self):
+        disks = [("/", 0.8)]
+        text = tooltip_text(cpu=0.1, mem=0.5, temperature_c=55.0, disks=disks)
+        assert "Temp: 55.0" in text
+        assert "Disk:" in text
+        assert "/: 80%" in text
+
 
 class TestCpuHueRgb:
     def test_zero_cpu_is_green(self):
-        r, g, b = cpu_hue_rgb(cpu=0.0)
+        r, g, _b = cpu_hue_rgb(cpu=0.0)
         assert g > r
 
     def test_full_cpu_is_red(self):
-        r, g, b = cpu_hue_rgb(cpu=1.0)
+        r, g, _b = cpu_hue_rgb(cpu=1.0)
         assert r > g
 
     def test_returns_valid_rgb(self):
@@ -193,9 +207,11 @@ class TestSystemMonitorRendering:
         assert pixbuf.get_width() == size
         assert pixbuf.get_height() == size
 
-    def test_no_menu_items(self):
+    def test_menu_has_show_disk(self):
         applet = SystemMonitorApplet(48)
-        assert applet.get_menu_items() == []
+        items = applet.get_menu_items()
+        assert len(items) == 1
+        assert items[0].get_label() == "Show Disk Usage"
 
     def test_tooltip_format(self):
         applet = SystemMonitorApplet(48)

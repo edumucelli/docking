@@ -28,6 +28,10 @@ import operator
 from collections.abc import Callable
 from typing import Any
 
+from docking.log import get_logger
+
+log = get_logger("calculator.state")
+
 BinaryOp = Callable[[float, float], float]
 UnaryOp = Callable[[float], float]
 
@@ -78,9 +82,11 @@ def evaluate(expression: str) -> str:
         if result == int(result):
             return str(int(result))
         return f"{result:.10g}"
-    except ZeroDivisionError:
+    except ZeroDivisionError as exc:
+        log.debug("Division by zero in calculator expression %r: %s", expr, exc)
         return "Error: division by zero"
-    except (ValueError, SyntaxError, TypeError):
+    except (ValueError, SyntaxError, TypeError) as exc:
+        log.debug("Failed to evaluate calculator expression %r: %s", expr, exc)
         return "Error"
 
 

@@ -379,7 +379,8 @@ class BluezBackend:
             )
             unpacked = result.unpack() if result is not None else ()
             return bool(unpacked[0]) if unpacked else False
-        except GLib.Error:
+        except GLib.Error as exc:
+            log.debug("BlueZ NameHasOwner failed: %s", exc)
             return False
 
     def _get_managed_objects(self) -> dict[str, Any] | None:
@@ -493,7 +494,8 @@ class BluezBackend:
                 timeout=timeout_s,
                 check=False,
             )
-        except (subprocess.TimeoutExpired, OSError):
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            log.debug("bluetoothctl pair failed for %s: %s", address, exc)
             return False
         text = f"{result.stdout}\n{result.stderr}".lower()
         if "failed" in text or "not available" in text:
@@ -558,7 +560,8 @@ class BluezBackend:
                 timeout=BLUETOOTHCTL_POWER_TIMEOUT_S,
                 check=False,
             )
-        except (subprocess.TimeoutExpired, OSError):
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            log.debug("bluetoothctl power %s failed: %s", value, exc)
             return False
         text = f"{result.stdout}\n{result.stderr}".lower()
         if "failed" in text or "not available" in text:
@@ -646,7 +649,8 @@ def _unpack(value: Any) -> Any:
     if hasattr(value, "unpack"):
         try:
             return _unpack(value.unpack())
-        except Exception:
+        except Exception as exc:
+            log.debug("Failed to unpack Bluetooth variant-like value: %s", exc)
             return value
     if isinstance(value, dict):
         return {k: _unpack(v) for k, v in value.items()}
@@ -675,5 +679,6 @@ def _as_int(value: Any, default: int | None = 0) -> int | None:
     unpacked = _unpack(value)
     try:
         return int(unpacked)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        log.debug("Failed to coerce Bluetooth value %r to int: %s", unpacked, exc)
         return default

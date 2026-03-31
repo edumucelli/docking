@@ -293,7 +293,8 @@ class UnitConverterApplet(Applet):
 
         try:
             value = float(text)
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid unit-converter input %r: %s", text, exc)
             self._result_label.set_markup('<span color="#ff6b6b">Enter a number</span>')
             return
 

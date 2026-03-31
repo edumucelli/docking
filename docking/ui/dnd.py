@@ -485,7 +485,12 @@ class DnDHandler:
 
         try:
             app_info = Gio.DesktopAppInfo.new(item.desktop_id)
-        except (TypeError, GLib.Error):
+        except (TypeError, GLib.Error) as exc:
+            log.debug(
+                "Failed to resolve desktop app info for drop target %s: %s",
+                item.desktop_id,
+                exc,
+            )
             return False
         if not app_info:
             return False

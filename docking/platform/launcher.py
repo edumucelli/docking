@@ -343,7 +343,12 @@ class Launcher:
         if callable(lookup_by_gicon):
             try:
                 info = lookup_by_gicon(gicon, size, Gtk.IconLookupFlags.FORCE_SIZE)
-            except TypeError:
+            except TypeError as exc:
+                log.bind(action="load_gicon").debug(
+                    "Theme lookup_by_gicon rejected %s: %s",
+                    gicon.to_string(),
+                    exc,
+                )
                 info = None
             if info is not None:
                 try:
@@ -512,7 +517,12 @@ def normalize_file_target(target: str) -> str | None:
         return None
     try:
         return path.resolve().as_uri()
-    except ValueError:
+    except ValueError as exc:
+        log.bind(target=target, action="normalize_file_target").debug(
+            "Failed to normalize file target %s: %s",
+            target,
+            exc,
+        )
         return None
 
 

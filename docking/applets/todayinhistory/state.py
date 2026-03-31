@@ -78,7 +78,8 @@ def _coerce_year(value: object) -> int | None:
     if isinstance(value, str):
         try:
             return int(value.strip())
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid history year value %r: %s", value, exc)
             return None
     return None
 

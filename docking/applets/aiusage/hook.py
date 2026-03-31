@@ -19,9 +19,11 @@ import sys
 from pathlib import Path
 
 from docking.applets.aiusage import state as aiusage_state
+from docking.log import get_logger
 
 PREFS_KEY = "aiusage"
 PREFS_KEY_LEGACY = "claude"
+log = get_logger("aiusage.hook")
 
 
 def _config_path() -> Path:
@@ -41,7 +43,12 @@ def _update_config(session_id: str, model_usage: dict) -> None:
         with os.fdopen(os.dup(fd), "r") as f:
             try:
                 config = json.load(f)
-            except (json.JSONDecodeError, ValueError):
+            except (json.JSONDecodeError, ValueError) as exc:
+                log.debug(
+                    "Failed to parse %s while updating AI usage config: %s",
+                    path,
+                    exc,
+                )
                 config = {}
 
         applet_prefs = config.setdefault("applet_prefs", {})
@@ -87,7 +94,8 @@ def _handle_claude_stop(data: dict) -> None:
 def _handle_codex_turn(json_arg: str) -> None:
     try:
         data = json.loads(json_arg)
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as exc:
+        log.debug("Failed to parse Codex hook payload %r: %s", json_arg, exc)
         data = {}
 
     thread_id = data.get("thread-id")
@@ -117,7 +125,8 @@ def main() -> None:
         event = sys.argv[2] if len(sys.argv) > 2 else ""
         try:
             data = json.load(sys.stdin)
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError) as exc:
+            log.debug("Failed to parse Claude hook stdin payload: %s", exc)
             return
         if event == "Stop":
             _handle_claude_stop(data=data)

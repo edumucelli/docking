@@ -158,7 +158,8 @@ def _normalized_gap(*, value: object) -> int:
             parsed = int(value.strip())
         else:
             parsed = DEFAULT_SIZE
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        log.debug("Invalid separator gap value %r: %s", value, exc)
         parsed = DEFAULT_SIZE
     return max(MIN_SIZE, min(MAX_SIZE, parsed))
 

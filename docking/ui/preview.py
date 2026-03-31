@@ -258,7 +258,8 @@ def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
         rowstride = int(pixbuf.get_rowstride())
         has_alpha = bool(pixbuf.get_has_alpha())
         data = pixbuf.get_pixels()
-    except (AttributeError, TypeError, ValueError):
+    except (AttributeError, TypeError, ValueError) as exc:
+        log.debug("Failed to inspect captured pixbuf: %s", exc)
         return False
 
     if width <= 0 or height <= 0 or channels < 3 or rowstride <= 0:

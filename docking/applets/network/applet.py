@@ -260,7 +260,8 @@ class NetworkApplet(Applet):
         try:
             with _PROC_NET_DEV.open() as f:
                 counters = parse_proc_net_dev(text=f.read())
-        except OSError:
+        except OSError as exc:
+            log.debug("Failed to read %s: %s", _PROC_NET_DEV, exc)
             return
 
         now = time.monotonic()

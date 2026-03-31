@@ -32,6 +32,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: i18n-strip-obsolete
+        name: i18n-strip-obsolete
+        entry: bash tools/i18n.sh --strip-obsolete
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: i18n-complete
         name: i18n-complete
         entry: bash tools/i18n.sh --check-catalogs --require-complete

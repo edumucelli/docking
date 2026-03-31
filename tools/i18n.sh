@@ -86,6 +86,7 @@ Operations (you can combine multiple):
   --check-pot-sync          Fail if docking.pot is out of date.
   --check-catalogs          Validate all locale PO catalogs.
   --compile                 Compile all PO catalogs into MO binaries.
+  --strip-obsolete          Remove obsolete (#~) entries from all PO catalogs.
 
 Options:
   --output PATH             Output file for --extract (default: docking/locale/docking.pot)
@@ -245,6 +246,21 @@ check_catalogs() {
   echo "[i18n] Translation catalog check passed for ${#PO_FILES[@]} catalogs."
 }
 
+strip_obsolete() {
+  require_cmd msgattrib
+  collect_po_files
+
+  local count=0
+  for po_file in "${PO_FILES[@]}"; do
+    if grep -q '^#~' "${po_file}"; then
+      msgattrib --no-obsolete -o "${po_file}" "${po_file}"
+      count=$((count + 1))
+    fi
+  done
+
+  echo "[i18n] Stripped obsolete entries from ${count} catalogs."
+}
+
 compile_catalogs() {
   require_cmd msgfmt
   collect_po_files
@@ -263,6 +279,7 @@ compile_catalogs() {
 do_extract=0
 do_check_pot_sync=0
 do_check_catalogs=0
+do_strip_obsolete=0
 do_compile=0
 extract_output="${POT_FILE}"
 require_complete="${I18N_REQUIRE_COMPLETE:-1}"
@@ -283,6 +300,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --compile)
       do_compile=1
+      shift
+      ;;
+    --strip-obsolete)
+      do_strip_obsolete=1
       shift
       ;;
     --output)
@@ -313,7 +334,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "${do_extract}" -eq 0 ] && [ "${do_check_pot_sync}" -eq 0 ] && [ "${do_check_catalogs}" -eq 0 ] && [ "${do_compile}" -eq 0 ]; then
+if [ "${do_extract}" -eq 0 ] && [ "${do_check_pot_sync}" -eq 0 ] && [ "${do_check_catalogs}" -eq 0 ] && [ "${do_strip_obsolete}" -eq 0 ] && [ "${do_compile}" -eq 0 ]; then
   echo "[i18n] No operation selected." >&2
   usage >&2
   exit 1
@@ -330,6 +351,10 @@ fi
 
 if [ "${do_check_pot_sync}" -eq 1 ]; then
   check_pot_sync
+fi
+
+if [ "${do_strip_obsolete}" -eq 1 ]; then
+  strip_obsolete
 fi
 
 if [ "${do_check_catalogs}" -eq 1 ]; then

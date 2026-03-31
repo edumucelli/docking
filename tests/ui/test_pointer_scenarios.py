@@ -361,7 +361,16 @@ class TestMenuLifecycleScenarios:
         self, monkeypatch
     ):
         harness = _ScenarioHarness()
-        harness.autohide = MagicMock(enabled=True)
+        harness.autohide = SimpleNamespace(
+            enabled=True,
+            state=HideState.VISIBLE,
+            zoom_progress=1.0,
+            hide_offset=0.0,
+            on_mouse_leave=MagicMock(),
+            on_mouse_enter=MagicMock(),
+            set_disabled=MagicMock(),
+            set_hovered=MagicMock(),
+        )
 
         class _GeometryBuilder:
             def build_frame(self, **_kwargs: object) -> SimpleNamespace:

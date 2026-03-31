@@ -30,6 +30,7 @@ from docking.applets.base import Applet
 from docking.applets.powerprofiles import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
+from docking.log import get_logger, with_context
 
 from .render import create_power_profiles_icon
 from .state import (
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 POLL_INTERVAL_S = 5
+log = with_context(get_logger(name="powerprofiles"), applet_id=meta.id)
 
 
 class PowerProfilesApplet(Applet):
@@ -104,7 +106,12 @@ class PowerProfilesApplet(Applet):
             return
         try:
             current_index = profiles.index(self._state.active_profile)
-        except ValueError:
+        except ValueError as exc:
+            log.debug(
+                "Active profile %r not found in ordered profile list: %s",
+                self._state.active_profile,
+                exc,
+            )
             current_index = -1
         target = profiles[(current_index + 1) % len(profiles)]
         self._set_profile_async(profile=target)

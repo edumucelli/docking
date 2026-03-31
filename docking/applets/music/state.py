@@ -648,7 +648,8 @@ class PlayerctlBackend:
         if volume_raw:
             try:
                 volume_percent = _normalize_volume_percent(float(volume_raw.strip()))
-            except ValueError:
+            except ValueError as exc:
+                log.debug("Invalid playerctl volume output %r: %s", volume_raw, exc)
                 volume_percent = 0
 
         return MusicState(
@@ -888,7 +889,8 @@ class RhythmboxClientBackend:
             return 0
         try:
             return _normalize_volume_percent(float(match.group(1)))
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid Rhythmbox volume output %r: %s", out, exc)
             return 0
 
     def _run_action(self, action: str, gtk_action: str) -> bool:

@@ -211,8 +211,13 @@ def _normalize_hide_mode(value: object) -> str:
     if isinstance(value, str):
         try:
             return HideMode(value=value).value
-        except ValueError:
-            pass
+        except ValueError as exc:
+            logger.warning(
+                "Invalid hide mode %r; using default %r (%s)",
+                value,
+                HideMode.NONE.value,
+                exc,
+            )
     return HideMode.NONE.value
 
 
@@ -356,7 +361,13 @@ def _normalize_position(value: object) -> str:
     if isinstance(value, str):
         try:
             return Position(value=value).value
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                "Invalid dock position %r; using default %r (%s)",
+                value,
+                Position.BOTTOM.value,
+                exc,
+            )
             return Position.BOTTOM.value
     return Position.BOTTOM.value
 

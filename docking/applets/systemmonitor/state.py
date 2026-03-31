@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import colorsys
+from pathlib import Path
 from typing import NamedTuple
 
 from docking.i18n import _
+from docking.log import get_logger
 
 # Redraw thresholds (avoid excessive redraws)
 CPU_THRESHOLD = 0.03
 MEM_THRESHOLD = 0.01
+log = get_logger("systemmonitor.state")
 
 
 class CpuSample(NamedTuple):
@@ -59,14 +62,62 @@ def cpu_hue_rgb(cpu: float) -> tuple[float, float, float]:
     return colorsys.hsv_to_rgb(hue, 1.0, 1.0)
 
 
-def tooltip_text(cpu: float, mem: float, temperature_c: float | None = None) -> str:
+_SKIP_FS_TYPES = {"squashfs", "tmpfs", "devtmpfs", "overlay", "fuse.snapfuse"}
+_PROC_MOUNTS = Path("/proc/mounts")
+
+
+def disk_usage() -> list[tuple[str, float]]:
+    """Return (mountpoint, usage_fraction) for real disk partitions."""
+    import os
+
+    result: list[tuple[str, float]] = []
+    try:
+        with _PROC_MOUNTS.open() as f:
+            text = f.read()
+    except OSError as exc:
+        log.debug("Failed to read %s: %s", _PROC_MOUNTS, exc)
+        return result
+    seen: set[str] = set()
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        dev, mount, fstype = parts[0], parts[1], parts[2]
+        if not dev.startswith("/dev/"):
+            continue
+        if fstype in _SKIP_FS_TYPES:
+            continue
+        if dev in seen:
+            continue
+        seen.add(dev)
+        try:
+            st = os.statvfs(mount)
+        except OSError as exc:
+            log.debug("Failed to stat filesystem %s: %s", mount, exc)
+            continue
+        if st.f_blocks == 0:
+            continue
+        used = 1.0 - st.f_bavail / st.f_blocks
+        result.append((mount, used))
+    return result
+
+
+def tooltip_text(
+    cpu: float,
+    mem: float,
+    temperature_c: float | None = None,
+    disks: list[tuple[str, float]] | None = None,
+) -> str:
     """Build tooltip text for current cpu/memory values."""
     text = _("CPU: {cpu}% | Mem: {mem}%").format(
         cpu=f"{cpu * 100:.1f}", mem=f"{mem * 100:.1f}"
     )
-    if temperature_c is None:
-        return text
-    return _("{text} | Temp: {temp}°C").format(
-        text=text,
-        temp=f"{temperature_c:.1f}",
-    )
+    if temperature_c is not None:
+        text = _("{text} | Temp: {temp}°C").format(
+            text=text,
+            temp=f"{temperature_c:.1f}",
+        )
+    if disks:
+        parts = [f"{mount}: {pct * 100:.0f}%" for mount, pct in disks]
+        text += "\n" + _("Disk: {usage}").format(usage="  ".join(parts))
+    return text

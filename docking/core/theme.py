@@ -125,8 +125,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from docking.log import get_logger
+
 # Bundled themes directory (relative to package)
 _BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
+log = get_logger("theme")
 
 # Color types as Cairo-compatible floats (0.0-1.0)
 RGB = tuple[float, float, float]
@@ -345,7 +348,13 @@ class Theme:
         raw_indicator_style = data.get("indicator_style", "dots")
         try:
             indicator_style = IndicatorStyle(raw_indicator_style)
-        except ValueError:
+        except ValueError as exc:
+            log.warning(
+                "Invalid indicator style %r; using %r (%s)",
+                raw_indicator_style,
+                IndicatorStyle.DOTS.value,
+                exc,
+            )
             indicator_style = IndicatorStyle.DOTS
         round_bottom = bool(data.get("round_bottom", False))
         distance_from_edge = int(data.get("distance_from_edge", 0))

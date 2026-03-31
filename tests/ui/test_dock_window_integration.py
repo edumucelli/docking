@@ -350,7 +350,7 @@ class TestLeaveEnterFlow:
         stub.interaction.on_effective_leave.assert_called_once_with(widget)
 
     def test_leave_with_autohide_keeps_hover_identity_until_hidden(self):
-        stub, item = _make_stub()
+        stub, _item = _make_stub()
         widget = MagicMock()
         stub.current_geometry_frame = None
         stub.applied_input_frame = None

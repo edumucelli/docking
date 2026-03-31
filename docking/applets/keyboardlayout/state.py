@@ -243,7 +243,8 @@ class Fcitx5Backend(LayoutBackend):
             return []
         try:
             text = profile.read_text()
-        except OSError:
+        except OSError as exc:
+            log.debug("Failed to read fcitx5 profile %s: %s", profile, exc)
             return []
         ims: list[str] = []
         in_items = False
@@ -305,7 +306,13 @@ def cycle_layout(current: str, available: list[str]) -> str:
     try:
         idx = available.index(current)
         return available[(idx + 1) % len(available)]
-    except ValueError:
+    except ValueError as exc:
+        log.debug(
+            "Current layout %r missing from available list %r: %s",
+            current,
+            available,
+            exc,
+        )
         return available[0]
 
 

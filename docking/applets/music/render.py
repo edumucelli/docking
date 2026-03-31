@@ -22,8 +22,8 @@ def _crop_center_square(pixbuf: GdkPixbuf.Pixbuf, size: int) -> GdkPixbuf.Pixbuf
     if w <= 0 or h <= 0:
         return None
     scale = max(size / w, size / h)
-    scaled_w = max(size, int(round(w * scale)))
-    scaled_h = max(size, int(round(h * scale)))
+    scaled_w = max(size, round(w * scale))
+    scaled_h = max(size, round(h * scale))
     scaled = pixbuf.scale_simple(scaled_w, scaled_h, GdkPixbuf.InterpType.BILINEAR)
     if scaled is None:
         return None
@@ -39,7 +39,7 @@ def _crop_center_square(pixbuf: GdkPixbuf.Pixbuf, size: int) -> GdkPixbuf.Pixbuf
 
 def _draw_album_art(cr: cairo.Context, size: int, art: GdkPixbuf.Pixbuf) -> None:
     margin = size * 0.08
-    tile_size = int(round(size - 2 * margin))
+    tile_size = round(size - 2 * margin)
     cropped = _crop_center_square(pixbuf=art, size=tile_size)
     if cropped is None:
         return
@@ -178,7 +178,7 @@ def _idle_music_tile_pixbuf(size: int) -> GdkPixbuf.Pixbuf | None:
 
 def _draw_idle_music_tile(cr: cairo.Context, size: int) -> None:
     tile_margin = size * 0.06
-    tile_size = int(round(size - (2 * tile_margin)))
+    tile_size = round(size - (2 * tile_margin))
     tile_x = (size - tile_size) / 2.0
     tile_y = (size - tile_size) / 2.0
     tile_radius = tile_size * 0.10

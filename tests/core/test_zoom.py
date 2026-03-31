@@ -251,7 +251,7 @@ class TestContentBounds:
         assert right == pytest.approx(2 * (12 + 5))  # 34.0
 
     def test_no_layout_without_item_padding(self):
-        left, right = content_bounds([], 48, 12)
+        _left, right = content_bounds([], 48, 12)
         assert right == pytest.approx(24.0)
 
     def test_rest_layout_includes_half_item_padding_per_side(self):

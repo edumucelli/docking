@@ -20,20 +20,25 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from docking.applets.aiusage import meta
 from docking.applets.aiusage.render import render_icon
 from docking.applets.aiusage.state import (
+    DisplayMode,
     Provider,
     _format_cost,
+    _format_tokens,
     _short_model,
     _today_entry,
     cost_for_usage,
     prefs_from_state,
     provider_cost,
     provider_for_model,
+    provider_tokens,
     query_opencode_today,
     reset_today,
     set_session,
     state_from_prefs,
     tooltip_text,
+    total_tokens,
     week_cost,
+    week_tokens,
 )
 from docking.applets.base import Applet
 from docking.i18n import _
@@ -70,7 +75,8 @@ def _read_prefs_from_disk() -> dict[str, Any] | None:
     config_path = base / "docking" / "dock.json"
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError) as exc:
+        log.debug("Failed to read AI usage prefs from %s: %s", config_path, exc)
         return None
     prefs = config.get("applet_prefs", {})
     return prefs.get(PREFS_KEY) or prefs.get(PREFS_KEY_LEGACY)
@@ -92,6 +98,7 @@ class AiUsageApplet(Applet):
         self._state = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
         self._selected_provider: Provider | None = None
+        self._display_mode: DisplayMode = DisplayMode.COST
         self._opencode_poll_error: str | None = None
 
         super().__init__(icon_size, config)
@@ -102,6 +109,7 @@ class AiUsageApplet(Applet):
             size=size,
             state=self._state,
             selected_provider=self._selected_provider,
+            display_mode=self._display_mode,
         )
 
     def refresh_tooltip(self) -> None:
@@ -158,6 +166,20 @@ class AiUsageApplet(Applet):
 
         items.append(Gtk.SeparatorMenuItem())
 
+        for label, mode in (
+            (_("Show Cost"), DisplayMode.COST),
+            (_("Show Tokens"), DisplayMode.TOKENS),
+        ):
+            mi = Gtk.CheckMenuItem(label=label)
+            mi.set_active(self._display_mode == mode)
+            mi.connect(
+                "toggled",
+                lambda _w, m=mode: self._set_display_mode(mode=m),
+            )
+            items.append(mi)
+
+        items.append(Gtk.SeparatorMenuItem())
+
         mi = Gtk.MenuItem(label=_("Reset Today"))
         mi.connect("activate", lambda _w: self._reset_today())
         items.append(mi)
@@ -169,6 +191,10 @@ class AiUsageApplet(Applet):
 
     def _set_provider(self, provider: Provider | None) -> None:
         self._selected_provider = provider
+        self.present()
+
+    def _set_display_mode(self, mode: DisplayMode) -> None:
+        self._display_mode = mode
         self.present()
 
     def _tick(self) -> bool:
@@ -230,13 +256,21 @@ class AiUsageApplet(Applet):
             box.pack_start(label, False, False, 0)
             return box
 
-        cost = sum(cost_for_usage(model=m, usage=u) for m, u in models)
+        show_tokens = self._display_mode == DisplayMode.TOKENS
         name = sel.value.capitalize() if sel else "Today"
+
+        if show_tokens:
+            tokens = sum(total_tokens(u) for _, u in models)
+            header_value = _format_tokens(tokens=tokens)
+        else:
+            header_value = _format_cost(
+                cost=sum(cost_for_usage(model=m, usage=u) for m, u in models)
+            )
         header = Gtk.Label()
         header.set_markup(
-            _("<b>{name}: {cost}</b>").format(
+            _("<b>{name}: {value}</b>").format(
                 name=name,
-                cost=GLib.markup_escape_text(_format_cost(cost=cost)),
+                value=GLib.markup_escape_text(header_value),
             )
         )
         header.set_xalign(0.5)
@@ -244,27 +278,41 @@ class AiUsageApplet(Applet):
         box.pack_start(header, False, False, 0)
 
         # Per-model breakdown (aggregate by display name).
-        display_costs: dict[str, float] = {}
+        display_raw: dict[str, float | int] = {}
         for model, usage in models:
             key = _short_model(model=model)
-            display_costs[key] = display_costs.get(key, 0.0) + cost_for_usage(
-                model=model, usage=usage
-            )
-        for display_name, model_cost in display_costs.items():
-            row = Gtk.Label(label=f"  {display_name}: {_format_cost(cost=model_cost)}")
+            if show_tokens:
+                display_raw[key] = int(display_raw.get(key, 0)) + total_tokens(usage)
+            else:
+                display_raw[key] = float(display_raw.get(key, 0.0)) + cost_for_usage(
+                    model=model, usage=usage
+                )
+        for display_name, raw in display_raw.items():
+            if show_tokens:
+                formatted = _format_tokens(tokens=int(raw))
+            else:
+                formatted = _format_cost(cost=float(raw))
+            row = Gtk.Label(label=f"  {display_name}: {formatted}")
             row.set_xalign(0.5)
             row.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
             box.pack_start(row, False, False, 0)
 
         # Week total (filtered).
         if len(self._state.days) > 1:
-            if sel:
-                wk = sum(provider_cost(entry=d, provider=sel) for d in self._state.days)
+            days = self._state.days
+            if show_tokens:
+                if sel:
+                    wk = sum(provider_tokens(entry=d, provider=sel) for d in days)
+                else:
+                    wk = week_tokens(state=self._state)
+                wk_val = _format_tokens(tokens=wk)
             else:
-                wk = week_cost(state=self._state)
-            week_lbl = Gtk.Label(
-                label=_("This week: {cost}").format(cost=_format_cost(cost=wk))
-            )
+                if sel:
+                    wk = sum(provider_cost(entry=d, provider=sel) for d in days)
+                else:
+                    wk = week_cost(state=self._state)
+                wk_val = _format_cost(cost=wk)
+            week_lbl = Gtk.Label(label=_("This week: {value}").format(value=wk_val))
             week_lbl.set_xalign(0.5)
             week_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.9))
             box.pack_start(week_lbl, False, False, 0)
@@ -364,7 +412,8 @@ def _register_codex_hook() -> None:
             content = _CODEX_CONFIG.read_text(encoding="utf-8")
         else:
             return  # Codex not installed.
-    except OSError:
+    except OSError as exc:
+        log.debug("Failed to read Codex config %s: %s", _CODEX_CONFIG, exc)
         return
 
     root = _project_root()

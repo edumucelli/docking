@@ -23,9 +23,12 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from docking.log import get_logger
+
 _API_URL = "https://is.gd/create.php"
 _USER_AGENT = "Docking/1.0 (Linux; URL Shortener Applet)"
 _TIMEOUT_S = 8
+log = get_logger("urlshortener.state")
 
 
 def shorten_url(url: str) -> str:
@@ -48,11 +51,14 @@ def shorten_url(url: str) -> str:
         with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
             return resp.read().decode().strip()
     except urllib.error.HTTPError as exc:
+        log.debug("URL shortener HTTP error for %r: %s", url, exc)
         body = exc.read().decode(errors="replace").strip()
         return f"Error: {body}" if body else f"Error: HTTP {exc.code}"
-    except urllib.error.URLError:
+    except urllib.error.URLError as exc:
+        log.debug("URL shortener network error for %r: %s", url, exc)
         return "Error: network unavailable"
-    except TimeoutError:
+    except TimeoutError as exc:
+        log.debug("URL shortener timeout for %r: %s", url, exc)
         return "Error: request timed out"
 
 

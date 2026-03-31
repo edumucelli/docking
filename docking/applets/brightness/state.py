@@ -40,8 +40,8 @@ def _find_sysfs_backlight() -> Path | None:
                 entry / "max_brightness"
             ).is_file():
                 return entry
-    except OSError:
-        pass
+    except OSError as exc:
+        log.debug("Failed to inspect %s: %s", _BACKLIGHT_DIR, exc)
     return None
 
 

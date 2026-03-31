@@ -698,11 +698,11 @@ class MenuHandler:
         cards: list[FolderStackCard] = []
         icon_px = max(int(self._config.icon_size), 1)
         label_h = FOLDER_STACK_LABEL_HEIGHT_PX
-        row_step = max(FOLDER_STACK_ROW_STEP_PX, int(round(icon_px * 1.08)))
-        curve_extent = max(FOLDER_STACK_CURVE_X_PX, int(round(icon_px * 0.65)))
+        row_step = max(FOLDER_STACK_ROW_STEP_PX, round(icon_px * 1.08))
+        curve_extent = max(FOLDER_STACK_CURVE_X_PX, round(icon_px * 0.65))
         right_bleed = max(
             FOLDER_STACK_RIGHT_BLEED_PX,
-            int(round(curve_extent + icon_px * FOLDER_STACK_HOVER_SCALE * 0.35)),
+            round(curve_extent + icon_px * FOLDER_STACK_HOVER_SCALE * 0.35),
         )
         fold_center_x = int(
             FOLDER_STACK_POPUP_SIDE_PADDING_PX
@@ -784,8 +784,8 @@ class MenuHandler:
         total_rows = len(visible_rows)
         top_progress = 1.0 if total_rows > 0 else 0.0
         total_span = (total_rows - 1) * row_step
-        top_center_x = int(
-            round(fold_center_x + _folder_stack_arc_offset(top_progress, total_span))
+        top_center_x = round(
+            fold_center_x + _folder_stack_arc_offset(top_progress, total_span)
         )
         chip_x = max(
             FOLDER_STACK_POPUP_SIDE_PADDING_PX,
@@ -827,10 +827,10 @@ class MenuHandler:
                 total_span,
             )
             icon_center_y = bottom_center_y - total_span * raw_progress
-            icon_x = int(round(icon_center_x - icon_px / 2))
-            icon_y = int(round(icon_center_y - icon_px / 2))
+            icon_x = round(icon_center_x - icon_px / 2)
+            icon_y = round(icon_center_y - icon_px / 2)
             label_w = self._folder_stack_label_width(label=str(child["name"]))
-            label_pull = int(round(arc_progress * 10))
+            label_pull = round(arc_progress * 10)
             label_x = max(
                 FOLDER_STACK_POPUP_SIDE_PADDING_PX,
                 icon_x - FOLDER_STACK_ICON_GAP_PX - label_w - label_pull,
@@ -979,7 +979,7 @@ class MenuHandler:
 
         if card.icon is not None and card.icon_size > 0:
             pixbuf = card.icon
-            draw_icon_size = max(int(round(geometry.icon_size)), 1)
+            draw_icon_size = max(round(geometry.icon_size), 1)
             if (
                 pixbuf.get_width() != draw_icon_size
                 or pixbuf.get_height() != draw_icon_size
@@ -1291,7 +1291,8 @@ class MenuHandler:
         try:
             folder = Gio.File.new_for_uri(uri)
             return "ok" if folder.query_exists(None) else "missing"
-        except Exception:
+        except Exception as exc:
+            log.debug("Failed to query folder target %s: %s", target, exc)
             return "missing"
 
     def _build_item_menu(self, menu: Gtk.Menu, item: DockItem) -> None:

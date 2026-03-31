@@ -191,7 +191,8 @@ class DockModel:
         """Remove a previously registered change callback."""
         try:
             self._change_listeners.remove(callback)
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Tried to remove unknown change listener: %s", exc)
             return
 
     def _load_pinned(self) -> None:

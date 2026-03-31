@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import NamedTuple
 
 from docking.i18n import _
+from docking.log import get_logger
 
 BAT_BASE = Path("/sys/class/power_supply")
+log = get_logger("battery.state")
 
 
 class BatteryState(NamedTuple):
@@ -45,7 +47,8 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
         capacity = int((bat_dir / "capacity").read_text().strip())
         capacity_level = (bat_dir / "capacity_level").read_text().strip()
         status = (bat_dir / "status").read_text().strip()
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        log.debug("Failed to read battery state from %s: %s", bat_dir, exc)
         return None
     return BatteryState(
         icon_name=resolve_battery_icon(capacity_level=capacity_level, status=status),

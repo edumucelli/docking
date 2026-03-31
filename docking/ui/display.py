@@ -9,6 +9,10 @@ import gi
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk
 
+from docking.log import get_logger
+
+log = get_logger("display")
+
 
 class ScreenPosition(NamedTuple):
     """Screen-space coordinates."""
@@ -27,7 +31,8 @@ def get_pointer_position(display: Gdk.Display) -> ScreenPosition | None:
         return None
     try:
         _, screen_x, screen_y = pointer.get_position()
-    except Exception:
+    except Exception as exc:
+        log.debug("Failed to query pointer position: %s", exc)
         return None
     return ScreenPosition(x=int(screen_x), y=int(screen_y))
 
