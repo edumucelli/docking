@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import docking.ui.autohide as autohide_mod
 import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
+import docking.ui.hover as hover_mod
 import docking.ui.preview as preview_mod
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
@@ -21,6 +22,8 @@ from docking.ui.interaction import DockInteractionCoordinator
 @dataclass
 class _ScheduledCallback:
     source_id: int
+    delay_ms: int
+    due_ms: int
     callback: object
     args: tuple[object, ...]
 
@@ -30,13 +33,16 @@ class _TimerScheduler:
 
     def __init__(self) -> None:
         self._next_source_id = 1
+        self._now_ms = 0
         self._callbacks: dict[int, _ScheduledCallback] = {}
 
-    def timeout_add(self, _delay: int, callback, *args) -> int:
+    def timeout_add(self, delay: int, callback, *args) -> int:
         source_id = self._next_source_id
         self._next_source_id += 1
         self._callbacks[source_id] = _ScheduledCallback(
             source_id=source_id,
+            delay_ms=max(int(delay), 0),
+            due_ms=self._now_ms + max(int(delay), 0),
             callback=callback,
             args=args,
         )
@@ -49,14 +55,32 @@ class _TimerScheduler:
     def source_exists(self, source_id: int) -> bool:
         return source_id in self._callbacks
 
-    def advance(self) -> None:
-        while self._callbacks:
-            source_id = min(self._callbacks)
-            scheduled = self._callbacks[source_id]
+    def advance(self, milliseconds: int) -> None:
+        target_ms = self._now_ms + max(int(milliseconds), 0)
+        while True:
+            due = [
+                scheduled
+                for scheduled in self._callbacks.values()
+                if scheduled.due_ms <= target_ms
+            ]
+            if not due:
+                break
+            scheduled = min(due, key=lambda item: (item.due_ms, item.source_id))
+            self._now_ms = scheduled.due_ms
             keep = bool(scheduled.callback(*scheduled.args))
-            if keep:
+            if not keep:
+                self._callbacks.pop(scheduled.source_id, None)
                 continue
-            self._callbacks.pop(source_id, None)
+            if scheduled.source_id not in self._callbacks:
+                continue
+            self._callbacks[scheduled.source_id] = _ScheduledCallback(
+                source_id=scheduled.source_id,
+                delay_ms=scheduled.delay_ms,
+                due_ms=self._now_ms + scheduled.delay_ms,
+                callback=scheduled.callback,
+                args=scheduled.args,
+            )
+        self._now_ms = target_ms
 
 
 def _dnd_frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
@@ -198,8 +222,8 @@ class DockHarness:
     def move_pointer_off_dock(self) -> None:
         self.autohide.on_mouse_leave()
 
-    def advance_time(self, _milliseconds: int) -> None:
-        self._scheduler.advance()
+    def advance_time(self, milliseconds: int) -> None:
+        self._scheduler.advance(milliseconds)
 
     @property
     def dock_hidden(self) -> bool:
@@ -246,13 +270,13 @@ class DockHarness:
         self._hover_window.cursor_y = 10.0
         self._hover_window.dock_hovered = True
         self._hover_manager.update(cursor_main=20.0)
-        self._scheduler.advance()
+        self._scheduler.advance(hover_mod.PREVIEW_SHOW_DELAY_MS)
 
     def leave_dock_with_preview_visible(self) -> None:
         self._hover_interaction.on_effective_leave(MagicMock())
 
     def finish_preview_hide(self) -> None:
-        self._scheduler.advance()
+        self._scheduler.advance(preview_mod.PREVIEW_HIDE_DELAY_MS)
 
     def set_dock_showing(self) -> None:
         self._hover_window.autohide.state = HideState.SHOWING
