@@ -8,8 +8,10 @@ from unittest.mock import MagicMock, patch
 import cairo
 import gi
 
+gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
@@ -17,20 +19,29 @@ from docking.core.theme import Theme
 from docking.ui.autohide import HideState
 from docking.ui.geometry import build_geometry_frame
 from docking.ui.menu import MenuHandler
+from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer
+from docking.ui.tooltip import TooltipManager
 
 DOCK_CASES = (
     "dock-bottom-idle",
     "dock-bottom-hovered",
     "dock-bottom-hidden",
     "dock-bottom-drag-insert-gap",
+    "dock-bottom-click-frame",
+    "dock-bottom-launch-frame",
+    "dock-bottom-urgent-bounce-frame",
     "dock-bottom-urgent-hidden",
 )
 FOLDER_STACK_CASES = (
     "folder-stack-open-bottom",
     "folder-stack-hover-item-bottom",
 )
-VISUAL_CASES = DOCK_CASES + FOLDER_STACK_CASES
+POPUP_CASES = (
+    "tooltip-open-bottom",
+    "preview-popup-open-bottom",
+)
+VISUAL_CASES = DOCK_CASES + FOLDER_STACK_CASES + POPUP_CASES
 
 DOCK_WIDTH = 420
 DOCK_HEIGHT = 90
@@ -55,10 +66,7 @@ class _FakeWidget:
 
 def _rgba_fill(red: int, green: int, blue: int, alpha: int = 255) -> int:
     return (
-        (red & 0xFF) << 24
-        | (green & 0xFF) << 16
-        | (blue & 0xFF) << 8
-        | (alpha & 0xFF)
+        (red & 0xFF) << 24 | (green & 0xFF) << 16 | (blue & 0xFF) << 8 | (alpha & 0xFF)
     )
 
 
@@ -107,13 +115,17 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
     theme = Theme.load("default", ICON_SIZE)
     config = _renderer_config()
     items = _renderer_items()
+    dock_height = DOCK_HEIGHT
     hovered_id = ""
     hide_state: HideState | None = None
     hide_offset = 0.0
     zoom_progress = 1.0
     drop_insert_index = -1
     frame_count = 2
-    now_us = 100_000
+    now_us = 1_000_000
+    click_duration_us = theme.click_time_ms * 1000
+    launch_duration_us = theme.launch_bounce_time_ms * 1000
+    urgent_duration_us = theme.urgent_bounce_time_ms * 1000
 
     if case_name == "dock-bottom-hovered":
         hovered_id = "code.desktop"
@@ -124,6 +136,19 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         zoom_progress = 0.0
     elif case_name == "dock-bottom-drag-insert-gap":
         drop_insert_index = 1
+    elif case_name == "dock-bottom-click-frame":
+        items[1].last_clicked = now_us - click_duration_us // 2
+    elif case_name == "dock-bottom-launch-frame":
+        items[1].last_launched = now_us - launch_duration_us // 4
+    elif case_name == "dock-bottom-urgent-bounce-frame":
+        items[0].is_urgent = True
+        items[0].last_urgent = now_us - urgent_duration_us // 2
+        dock_height = int(
+            ICON_SIZE * config.zoom_percent
+            + theme.top_padding
+            + theme.bottom_padding
+            + ICON_SIZE * theme.urgent_bounce_height
+        )
     elif case_name == "dock-bottom-urgent-hidden":
         hide_state = HideState.HIDDEN
         hide_offset = 1.0
@@ -138,7 +163,7 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         config=config,
         theme=theme,
         window_w=DOCK_WIDTH,
-        window_h=DOCK_HEIGHT,
+        window_h=dock_height,
         cursor_main=cursor_main,
         autohide_state=hide_state,
         zoom_progress=zoom_progress,
@@ -146,10 +171,10 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         drop_insert_index=drop_insert_index,
     )
     renderer = DockRenderer()
-    widget = _FakeWidget(width=DOCK_WIDTH, height=DOCK_HEIGHT)
+    widget = _FakeWidget(width=DOCK_WIDTH, height=dock_height)
 
     def _paint_frame() -> cairo.ImageSurface:
-        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, DOCK_WIDTH, DOCK_HEIGHT)
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, DOCK_WIDTH, dock_height)
         cr = cairo.Context(surface)
         renderer.draw(
             cr=cr,
@@ -244,9 +269,7 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
     handler._folder_stack_cards = cards
     if case_name == "folder-stack-hover-item-bottom":
         hover_target = next(
-            card.target
-            for card in cards
-            if card.target and card.label == "Notes"
+            card.target for card in cards if card.target and card.label == "Notes"
         )
         handler._folder_stack_hover_values[hover_target] = 1.0
     elif case_name != "folder-stack-open-bottom":
@@ -273,10 +296,99 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
     return surface
 
 
+def _flush_gtk() -> None:
+    while Gtk.events_pending():
+        Gtk.main_iteration_do(False)
+
+
+def _pixbuf_surface(pixbuf: GdkPixbuf.Pixbuf) -> cairo.ImageSurface:
+    surface = cairo.ImageSurface(
+        cairo.FORMAT_ARGB32,
+        pixbuf.get_width(),
+        pixbuf.get_height(),
+    )
+    cr = cairo.Context(surface)
+    Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, 0)
+    cr.paint()
+    return surface
+
+
+def _capture_window_surface(window: Gtk.Window) -> cairo.ImageSurface:
+    _flush_gtk()
+    allocation = window.get_allocation()
+    width = max(allocation.width, 1)
+    height = max(allocation.height, 1)
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+    cr = cairo.Context(surface)
+    window.draw(cr)
+    return surface
+
+
+def _draw_tooltip_case() -> cairo.ImageSurface:
+    manager = TooltipManager(
+        window=SimpleNamespace(get_position=lambda: (100, 200)),
+        config=SimpleNamespace(
+            tooltips_enabled=True,
+            pos=Position.BOTTOM,
+            icon_size=ICON_SIZE,
+        ),
+        model=MagicMock(),
+        theme=SimpleNamespace(launch_bounce_height=0.5),
+    )
+    try:
+        manager._show_tooltip(
+            text="Firefox Developer Edition",
+            pos=Position.BOTTOM,
+            anchor_x=180.0,
+            anchor_y=220.0,
+            content_changed=True,
+        )
+        assert manager._tooltip_window is not None
+        return _capture_window_surface(manager._tooltip_window)
+    finally:
+        if manager._tooltip_window is not None:
+            manager._tooltip_window.destroy()
+            _flush_gtk()
+
+
+def _draw_preview_case() -> cairo.ImageSurface:
+    tracker = MagicMock()
+    tracker.get_xids_for.return_value = [101, 102]
+    tracker.icon_name_for_desktop.return_value = "firefox"
+    tracker.get_window_title_for_xid.side_effect = [
+        "Firefox - Docking Visual Regression",
+        "Docs - Feature Review",
+    ]
+    popup = PreviewPopup(window_tracker=tracker)
+    try:
+        with patch(
+            "docking.ui.preview.capture_xid",
+            side_effect=[
+                _pixbuf(max(THUMB_W, THUMB_H), red=235, green=94, blue=55),
+                _pixbuf(max(THUMB_W, THUMB_H), red=60, green=132, blue=241),
+            ],
+        ):
+            popup.show_for_item(
+                desktop_id="firefox.desktop",
+                anchor_x=140.0,
+                icon_w=48.0,
+                anchor_y=320.0,
+                position=Position.BOTTOM,
+            )
+        return _capture_window_surface(popup)
+    finally:
+        popup.destroy()
+        _flush_gtk()
+
+
 def render_case(case_name: str) -> cairo.ImageSurface:
     """Render one deterministic visual regression case."""
     if case_name in DOCK_CASES:
         return _draw_renderer_case(case_name=case_name)
     if case_name in FOLDER_STACK_CASES:
         return _draw_folder_stack_case(case_name=case_name)
+    if case_name == "tooltip-open-bottom":
+        return _draw_tooltip_case()
+    if case_name == "preview-popup-open-bottom":
+        return _draw_preview_case()
     raise AssertionError(f"Unknown visual case {case_name}")

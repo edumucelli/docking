@@ -18,4 +18,5 @@ def before_scenario(context, _scenario) -> None:
 
 
 def after_scenario(context, _scenario) -> None:
-    context.harness.stop()
+    if hasattr(context, "harness"):
+        context.harness.stop()

@@ -9,10 +9,12 @@ from unittest.mock import MagicMock, patch
 import docking.ui.autohide as autohide_mod
 import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
+import docking.ui.preview as preview_mod
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.geometry import Rect
+from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
 
 
@@ -151,7 +153,9 @@ class DockHarness:
 
         self._dnd_frame = _dnd_frame()
         self._drag_reorder_called = False
+        self._drag_removed_desktop_id: str | None = None
         self._external_pinned_targets: list[str] = []
+        self._build_hover_harness()
 
     def start(self) -> None:
         self._patchers = [
@@ -222,7 +226,11 @@ class DockHarness:
         )
 
     def move_pointer_to_item(self, desktop_id: str) -> None:
-        target = self._folder_item if desktop_id == self._folder_item.desktop_id else self._other_item
+        target = (
+            self._folder_item
+            if desktop_id == self._folder_item.desktop_id
+            else self._other_item
+        )
         self._folder_frame.item_at_point.return_value = target
         event = SimpleNamespace(x=12.0, y=9.0)
         dock_window_mod.DockWindow._on_motion(self._folder_stub, MagicMock(), event)
@@ -231,11 +239,44 @@ class DockHarness:
     def folder_stack_open_for(self) -> str | None:
         return self._folder_stack_open_for
 
+    def hover_running_item_long_enough(self, desktop_id: str) -> None:
+        item = self._hover_item_by_desktop_id(desktop_id)
+        self._hover_frame.hover_item_at_point.return_value = item
+        self._hover_window.cursor_x = 20.0
+        self._hover_window.cursor_y = 10.0
+        self._hover_window.dock_hovered = True
+        self._hover_manager.update(cursor_main=20.0)
+        self._scheduler.advance()
+
+    def leave_dock_with_preview_visible(self) -> None:
+        self._hover_interaction.on_effective_leave(MagicMock())
+
+    def finish_preview_hide(self) -> None:
+        self._scheduler.advance()
+
+    def set_dock_showing(self) -> None:
+        self._hover_window.autohide.state = HideState.SHOWING
+        self._hover_window.autohide.enabled = True
+        self._hover_window.dock_hovered = True
+
+    def hover_item(self, desktop_id: str) -> None:
+        item = self._hover_item_by_desktop_id(desktop_id)
+        self._hover_frame.hover_item_at_point.return_value = item
+        self._hover_window.cursor_x = 20.0
+        self._hover_window.cursor_y = 10.0
+        self._hover_window.dock_hovered = True
+        self._hover_manager.update(cursor_main=20.0)
+
     def begin_drag(self, desktop_id: str) -> None:
         if desktop_id != "a.desktop":
             raise AssertionError(f"Unsupported drag source {desktop_id}")
         self._drag_handler._model.visible_items.return_value = [
-            DockItem(desktop_id="a.desktop", name="A", icon=MagicMock()),
+            DockItem(
+                desktop_id="a.desktop",
+                name="A",
+                icon=MagicMock(),
+                is_pinned=True,
+            ),
             DockItem(desktop_id="b.desktop", name="B", icon=MagicMock()),
         ]
         self._dnd_frame = _dnd_frame(item_index=0, count=2)
@@ -260,9 +301,23 @@ class DockHarness:
             1,
         )
 
+    def drag_outside_and_release(self, desktop_id: str) -> None:
+        self.begin_drag(desktop_id)
+        self._drag_handler._model.unpin_item = MagicMock(
+            side_effect=self._mark_drag_removed
+        )
+        self._drag_pointer.get_position.return_value = (None, 200, 50)
+        self._drag_window.get_position.return_value = (100, 200)
+        self._drag_window.get_size.return_value = (400, 60)
+        self._drag_handler._on_drag_end(self._drag_handler._drawing_area, MagicMock())
+
     @property
     def drag_reordered(self) -> bool:
         return self._drag_reorder_called
+
+    @property
+    def drag_removed_desktop_id(self) -> str | None:
+        return self._drag_removed_desktop_id
 
     def drop_external_uri(self, uri: str, target_index: int) -> None:
         self._drag_handler._drag_from = -1
@@ -298,6 +353,22 @@ class DockHarness:
     @property
     def external_pinned_targets(self) -> list[str]:
         return list(self._external_pinned_targets)
+
+    @property
+    def preview_visible(self) -> bool:
+        return self._preview_visible
+
+    @property
+    def preview_hide_scheduled(self) -> bool:
+        return self._preview_popup._hide_timer_id != 0
+
+    @property
+    def autohide_leave_released(self) -> bool:
+        return self._hover_window.autohide.on_mouse_leave.called
+
+    @property
+    def tooltip_suppressed(self) -> bool:
+        return bool(self._tooltip_hidden) and not self._tooltip_updated
 
     def _build_drag_handler(self) -> None:
         drawing_area = MagicMock()
@@ -335,6 +406,8 @@ class DockHarness:
             get_position=MagicMock(return_value=(0, 0)),
             get_size=MagicMock(return_value=(400, 60)),
         )
+        self._drag_pointer = pointer
+        self._drag_window = window
         self._drag_handler = dnd_mod.DnDHandler(
             drawing_area,
             window,
@@ -343,11 +416,16 @@ class DockHarness:
             renderer,
             theme,
             launcher,
-            geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: self._dnd_frame),
+            geometry_builder=SimpleNamespace(
+                build_frame=lambda **_kwargs: self._dnd_frame
+            ),
         )
 
     def _mark_drag_reorder(self, *_args, **_kwargs) -> None:
         self._drag_reorder_called = True
+
+    def _mark_drag_removed(self, desktop_id: str) -> None:
+        self._drag_removed_desktop_id = desktop_id
 
     def _open_folder_stack(self, *, item: DockItem, **_kwargs) -> None:
         self._folder_stack_open_for = item.desktop_id
@@ -356,3 +434,125 @@ class DockHarness:
     def _close_folder_stack(self) -> None:
         self._folder_stack_open_for = None
         self._folder_menu.open_folder_stack_item_id.return_value = None
+
+    def _build_hover_harness(self) -> None:
+        self._tooltip_updated = False
+        self._tooltip_hidden = False
+        self._preview_visible = False
+        self._hover_items = {
+            "firefox.desktop": DockItem(
+                desktop_id="firefox.desktop",
+                name="Firefox",
+                is_running=True,
+                instance_count=1,
+            ),
+            "code.desktop": DockItem(
+                desktop_id="code.desktop",
+                name="Code",
+                is_running=False,
+                instance_count=0,
+            ),
+        }
+        self._hover_frame = SimpleNamespace(
+            hover_item_at_point=MagicMock(return_value=None),
+            geometry_for_item=MagicMock(
+                return_value=SimpleNamespace(
+                    draw_rect=SimpleNamespace(x=15, y=4, w=48, h=48)
+                )
+            ),
+            cursor_rect=SimpleNamespace(contains=lambda *_args, **_kwargs: True),
+        )
+        self._hover_tooltip = SimpleNamespace(
+            update=MagicMock(side_effect=self._mark_tooltip_updated),
+            hide=MagicMock(side_effect=self._mark_tooltip_hidden),
+        )
+        self._hover_window = SimpleNamespace(
+            get_realized=MagicMock(return_value=True),
+            get_position=MagicMock(return_value=(100, 200)),
+            dock_hovered=True,
+            drawing_area=MagicMock(),
+            cursor_x=20.0,
+            cursor_y=10.0,
+            autohide=SimpleNamespace(
+                enabled=True,
+                state=HideState.VISIBLE,
+                on_mouse_enter=MagicMock(),
+                on_mouse_leave=MagicMock(),
+                set_disabled=MagicMock(),
+                set_hovered=MagicMock(),
+            ),
+            preview=None,
+            tooltip=self._hover_tooltip,
+            update_input_region=MagicMock(),
+            zoom_animator=SimpleNamespace(on_leave=MagicMock(), on_enter=MagicMock()),
+            hover=None,
+        )
+        self._hover_config = SimpleNamespace(
+            previews_enabled=True,
+            icon_size=48,
+            pos=Position.BOTTOM,
+            tooltips_enabled=True,
+        )
+        self._hover_theme = SimpleNamespace(
+            item_padding=8,
+            h_padding=10,
+            bottom_padding=12,
+            launch_bounce_height=0.5,
+        )
+        self._hover_model = MagicMock()
+        self._hover_model.visible_items.return_value = list(self._hover_items.values())
+        self._hover_manager = HoverManager(
+            self._hover_window,
+            self._hover_config,
+            self._hover_model,
+            self._hover_theme,
+            self._hover_tooltip,
+            geometry_builder=SimpleNamespace(
+                build_frame=lambda **_kwargs: self._hover_frame
+            ),
+        )
+        self._preview_popup = preview_mod.PreviewPopup.__new__(preview_mod.PreviewPopup)
+        self._preview_popup._tracker = MagicMock()
+        self._preview_popup._autohide = self._hover_window.autohide
+        self._preview_popup._pointer_inside_dock = lambda: (
+            self._hover_window.dock_hovered
+        )
+        self._preview_popup._hide_timer_id = 0
+        self._preview_popup._current_desktop_id = ""
+        self._preview_popup.hide = MagicMock(side_effect=self._hide_preview_popup)
+        self._preview_popup.show_for_item = MagicMock(
+            side_effect=self._show_preview_popup
+        )
+        self._preview_popup.get_visible = MagicMock(
+            side_effect=lambda: self._preview_visible
+        )
+        self._hover_manager.set_preview(self._preview_popup)
+        self._hover_window.preview = self._preview_popup
+        self._hover_window.hover = self._hover_manager
+        self._hover_interaction = DockInteractionCoordinator(self._hover_window)
+
+    def _hover_item_by_desktop_id(self, desktop_id: str) -> DockItem:
+        try:
+            return self._hover_items[desktop_id]
+        except KeyError as exc:
+            raise AssertionError(f"Unsupported hover item {desktop_id}") from exc
+
+    def _show_preview_popup(
+        self,
+        desktop_id: str,
+        _anchor_x: float,
+        _icon_w: float,
+        _anchor_y: float,
+        _position: Position,
+    ) -> None:
+        self._preview_visible = True
+        self._preview_popup._current_desktop_id = desktop_id
+
+    def _hide_preview_popup(self) -> None:
+        self._preview_visible = False
+
+    def _mark_tooltip_updated(self, _item, _frame) -> None:
+        self._tooltip_updated = True
+
+    def _mark_tooltip_hidden(self) -> None:
+        self._tooltip_hidden = True

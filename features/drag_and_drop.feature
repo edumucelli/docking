@@ -10,3 +10,8 @@ Feature: Drag and drop
   Scenario: Dropping an external launcher pins it at the requested slot
     When I drop the launcher URI "file:///usr/share/applications/firefox.desktop" at insertion index 0
     Then the pinned targets include "firefox.desktop"
+
+  Scenario: Dragging a pinned item away from the dock removes it
+    Given a drag can start from the "a.desktop" dock item
+    When I drag the "a.desktop" dock item outside the dock and release it
+    Then the "a.desktop" dock item is unpinned
