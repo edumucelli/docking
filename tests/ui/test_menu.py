@@ -169,6 +169,8 @@ class TestThemeDiscovery:
         assert (_BUILTIN_THEMES_DIR / "nord.json").exists()
         assert (_BUILTIN_THEMES_DIR / "gruvbox.json").exists()
         assert (_BUILTIN_THEMES_DIR / "solarized.json").exists()
+        assert (_BUILTIN_THEMES_DIR / "paper.json").exists()
+        assert (_BUILTIN_THEMES_DIR / "candy.json").exists()
 
 
 class TestBuildRadioSubmenu:

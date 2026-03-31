@@ -378,6 +378,8 @@ _ALL_THEMES = [
     "onyx",
     "slate",
     "glass",
+    "paper",
+    "candy",
     "transparent",
     "olive",
     "ember",

@@ -41,7 +41,7 @@ Docking is built around a few core capabilities:
 
 Highlights:
 - 38 built-in applets enabled from the dock menu, plus a separate dock separator item.
-- 10 built-in themes with scalable layout values.
+- 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - 74 locale catalogs plus English fallback.
 
@@ -765,7 +765,7 @@ Click the applet, then click any window to force-close it. Uses `xdotool selectw
 
 ## Theming
 
-Themes are JSON files in `docking/assets/themes/`. Ten built-in themes are included:
+Themes are JSON files in `docking/assets/themes/`. Twelve built-in themes are included:
 
 - `default` -- light theme
 - `onyx` -- dark variant
@@ -775,6 +775,8 @@ Themes are JSON files in `docking/assets/themes/`. Ten built-in themes are inclu
 - `ember` -- warm dark theme
 - `nord` -- cool, desaturated dark
 - `glass` -- translucent macOS-style floating pill
+- `paper` -- matte warm floating pill
+- `candy` -- playful pastel floating pill
 - `gruvbox` -- warm earthy dark
 - `solarized` -- soft light Solarized variant
 
