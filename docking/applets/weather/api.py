@@ -121,6 +121,8 @@ def _get_client() -> Any:
 
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = str(_CACHE_DIR / "responses")
+    # Three-layer stack: openmeteo_requests wraps retry_requests wraps
+    # requests_cache. Cache avoids redundant HTTP; retry handles failures.
     cache_session = requests_cache.CachedSession(
         cache_path, expire_after=REFRESH_INTERVAL
     )

@@ -74,10 +74,19 @@ def fetch_moon(day: date | None = None) -> MoonData | None:
 # The original used SGMLParser (removed in Python 3). We use simple regexes
 # on the same HTML structure - the website hasn't changed its format.
 
-_IMG_RE = re.compile(r'<img\s+src="images/(moon\d+[ab])\.gif"', re.IGNORECASE)
-_ILLUM_RE = re.compile(r"Illuminated Fraction:\s*([\d.]+)")
-_DESC_RE = re.compile(r"([\d.]+\s+days?\s+(?:after|before)\s+\w[\w\s]*)")
-_DATE_RE = re.compile(r"The Moon for\s+(.+?)\s*</font>", re.IGNORECASE)
+# Order matters: _IMG_RE and _ILLUM_RE are required; others optional.
+_IMG_RE = re.compile(  # phase image filename
+    r'<img\s+src="images/(moon\d+[ab])\.gif"', re.IGNORECASE
+)
+_ILLUM_RE = re.compile(  # 0.0-1.0 illumination
+    r"Illuminated Fraction:\s*([\d.]+)"
+)
+_DESC_RE = re.compile(  # "N days after/before <phase>"
+    r"([\d.]+\s+days?\s+(?:after|before)\s+\w[\w\s]*)"
+)
+_DATE_RE = re.compile(  # display date
+    r"The Moon for\s+(.+?)\s*</font>", re.IGNORECASE
+)
 
 
 def _parse_moon_html(html: str) -> MoonData | None:
@@ -105,8 +114,8 @@ def _parse_moon_html(html: str) -> MoonData | None:
 def phase_name(illumination: float, description: str) -> str:
     """Human-readable phase name from illumination and description text."""
     desc_lower = description.lower()
-    # Check directional phrases first (before matching exact phase names,
-    # since "after full moon" would otherwise match "full moon").
+    # Directional phrases checked first - "after full moon" contains "full moon"
+    # as a substring, so exact phase checks must come after these.
     if "after new" in desc_lower or "before first" in desc_lower:
         return _("Waxing Crescent")
     if "after first" in desc_lower or "before full" in desc_lower:

@@ -174,6 +174,8 @@ def _as_float(value: Any, default: float = 0.0) -> float:
 
 def _normalize_volume_percent(value: float) -> int:
     """Normalize volume reported as ratio (0..1) or percent (0..100)."""
+    # PulseAudio/MPRIS reports 0.0-1.0, ALSA reports 0-100; 1.5 threshold
+    # distinguishes the two (no sane volume is between 1.5% and 150%).
     if value <= 1.5:
         return clamp_percent(round(value * 100))
     return clamp_percent(round(value))
@@ -315,6 +317,8 @@ class MprisBackend:
             return False
 
     def _select_player(self, states: list[MusicState]) -> MusicState:
+        # Currently-playing players take priority; among those, prefer
+        # the last-active one for session continuity.
         playing = [state for state in states if state.playback_status == "Playing"]
         if playing:
             return next(
@@ -325,6 +329,7 @@ class MprisBackend:
                 ),
                 playing[0],
             )
+        # No player is playing - fall back to last-active, then first available.
         return next(
             (
                 state
@@ -447,6 +452,8 @@ class MprisBackend:
         if props is None:
             return None
         try:
+            # "(ss)" = GLib.Variant type string for two strings (interface, property).
+            # 1200ms timeout keeps UI responsive if a player is hung.
             result = props.call_sync(
                 "Get",
                 GLib.Variant("(ss)", (interface_name, property_name)),
@@ -484,12 +491,14 @@ class MprisBackend:
             return False
 
     def _get_player_proxy(self, bus_name: str) -> Gio.DBusProxy | None:
+        # Player interface proxy for transport methods (PlayPause, Next, etc).
         if self._bus is None:
             return None
         proxy = self._player_proxies.get(bus_name)
         if proxy is not None:
             return proxy
         try:
+            # DO_NOT_AUTO_START prevents launching the player process if it exited.
             proxy = Gio.DBusProxy.new_sync(
                 self._bus,
                 Gio.DBusProxyFlags.DO_NOT_AUTO_START,
@@ -506,6 +515,8 @@ class MprisBackend:
             return None
 
     def _get_props_proxy(self, bus_name: str) -> Gio.DBusProxy | None:
+        """Separate Properties interface proxy - needed because Get/Set live on
+        org.freedesktop.DBus.Properties, not on the Player interface."""
         if self._bus is None:
             return None
         proxy = self._props_proxies.get(bus_name)

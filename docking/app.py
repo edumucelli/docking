@@ -51,6 +51,7 @@ _VENDOR_DIR = "/usr/lib/docking/vendor"
 if Path(_VENDOR_DIR).is_dir():
     sys.path.insert(0, _VENDOR_DIR)
 
+# i18n must init before any module with translatable strings is imported.
 from docking.i18n import init as _init_i18n
 
 _init_i18n()

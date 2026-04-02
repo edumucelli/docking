@@ -17,16 +17,20 @@ DEFAULT_PREFS: dict[str, Any] = {
 
 def minute_rotation(minute: int) -> float:
     """Rotation angle (radians) for the minute hand."""
+    # /30.0 converts 60 min to 2*pi; +1.0 offsets so 0 min points to 12 o'clock
+    # (Cairo 0 radians = 3 o'clock, adding pi rotates to 12 o'clock).
     return math.pi * (minute / 30.0 + 1.0)
 
 
 def hour_rotation_12h(hour: int, minute: int) -> float:
     """Rotation angle (radians) for the hour hand in 12-hour mode."""
+    # /6.0 converts 12h to 2*pi; /360.0 adds minute sub-step; +1.0 = 12 o'clock offset
     return math.pi * (hour % 12 / 6.0 + minute / 360.0 + 1.0)
 
 
 def hour_rotation_24h(hour: int, minute: int) -> float:
     """Rotation angle (radians) for the hour hand in 24-hour mode."""
+    # /12.0 converts 24h to 2*pi; /720.0 adds minute sub-step; +1.0 = 12 o'clock offset
     return math.pi * (hour % 24 / 12.0 + minute / 720.0 + 1.0)
 
 

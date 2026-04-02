@@ -70,7 +70,7 @@ def _delay_args(*, tool: Tool, delay_seconds: int) -> list[str]:
     if tool.command == "spectacle":
         return ["--delay", delay]
     if tool.command == "flameshot":
-        # Flameshot delay is in milliseconds.
+        # Flameshot uses milliseconds; all other tools use seconds.
         return ["--delay", str(delay_seconds * 1000)]
     if tool.command == "scrot":
         return ["-d", delay]

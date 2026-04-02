@@ -32,6 +32,7 @@ def _draw_wifi_icon(
 
     widths = [size * 0.19, size * 0.30, size * 0.41]
     line_w = max(1.4, size * 0.075)
+    # 215-325 degrees = 110-degree fan centered at top (270 degrees)
     start = math.radians(215)
     end = math.radians(325)
 
@@ -128,6 +129,7 @@ def create_icon(
     if is_wifi:
         if not is_connected:
             active_arcs = 0
+        # Each threshold enables one more arc: 3=strong, 2=medium, 1=weak
         elif signal_strength >= 80:
             active_arcs = 3
         elif signal_strength >= 60:

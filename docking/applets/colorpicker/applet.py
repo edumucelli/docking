@@ -97,6 +97,7 @@ class ColorPickerApplet(Applet):
         if self._overlay:
             return
 
+        # POPUP bypasses WM decoration and focus stealing prevention
         overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
         overlay.set_decorated(False)
         overlay.set_app_paintable(True)

@@ -101,6 +101,7 @@ def _draw_outlined_text(
     cr.set_source_rgba(0, 0, 0, 1)
     cr.set_line_width(stroke_width)
     cr.set_line_join(cairo.LINE_JOIN_ROUND)
+    # stroke_preserve draws the outline but keeps the path for fill
     cr.stroke_preserve()
     cr.set_source_rgba(*fill_rgba)
     cr.fill()
@@ -125,6 +126,7 @@ def _draw_am_pm(
         layout.set_font_description(font)
         layout.set_text(label, -1)
         _, logical = layout.get_pixel_extents()
+        # -logical.x corrects for non-zero x origin in Pango logical extents
         tx = x_center - logical.width / 2 - logical.x
         alpha = 1.0 if active else 0.35
         _draw_outlined_text(
@@ -190,6 +192,7 @@ def render_digital(
         am_pm_height = am_logical.height
         total_h += am_pm_height
 
+    # Extra gap for AM/PM row when in 12h mode
     num_gaps = len(rows) - 1 + (1 if not is_24h else 0)
     total_h += num_gaps * spacing
 

@@ -32,11 +32,13 @@ ADAPTER_IFACE = "org.bluez.Adapter1"
 DEVICE_IFACE = "org.bluez.Device1"
 BATTERY_IFACE = "org.bluez.Battery1"
 BLUEZ_ERR_NOT_READY = "org.bluez.Error.NotReady"
-POWER_OFF_RETRY_COUNT = 5
-POWER_OFF_FINAL_RETRY_COUNT = 3
-POWER_RETRY_SLEEP_S = 0.15
-DISCOVERY_STOP_SETTLE_TIMEOUT_S = 1.2
-DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S = 2.5
+# Power-off retries: BlueZ returns Busy while discovery/connections are active.
+POWER_OFF_RETRY_COUNT = 5  # attempts before disconnecting devices
+POWER_OFF_FINAL_RETRY_COUNT = 3  # attempts after disconnect cleanup
+POWER_RETRY_SLEEP_S = 0.15  # pause between retry attempts
+# Settlement timeouts: wait for BlueZ to propagate state after stop/disconnect.
+DISCOVERY_STOP_SETTLE_TIMEOUT_S = 1.2  # after StopDiscovery call
+DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S = 2.5  # after disconnecting all devices
 DISCOVERY_POLL_INTERVAL_S = 0.1
 DBUS_NAME_HAS_OWNER_TIMEOUT_MS = 1200
 DBUS_GET_MANAGED_OBJECTS_TIMEOUT_MS = 1800

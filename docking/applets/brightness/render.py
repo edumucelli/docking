@@ -52,6 +52,7 @@ def create_icon(
     cr.set_line_cap(cairo.LINE_CAP_BUTT)
 
     for i in range(_NUM_RAYS):
+        # -pi/2 rotates 0 degrees from 3 o'clock (Cairo default) to 12 o'clock
         angle = math.tau * i / _NUM_RAYS - math.pi / 2
         x0 = cx + math.cos(angle) * ray_inner
         y0 = cy + math.sin(angle) * ray_inner

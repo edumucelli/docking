@@ -68,6 +68,7 @@ def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
         0.30,
     ]
 
+    # 0.76 width ratio centers waveform with padding; 0.024 spacing between bars
     waveform_w = w * 0.76
     spacing = w * 0.024
     total_spacing = spacing * (bar_count - 1)
@@ -79,7 +80,7 @@ def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
     for i, height in enumerate(heights):
         bar_h = height * max_bar_h
         if i >= bar_count // 2:
-            # Keep horizontal spacing symmetric; compact right half vertically.
+            # Asymmetric: shorter right half suggests waveform envelope shape
             bar_h *= 0.84
         bar_x = start_x + i * (bar_w + spacing)
         bar_y = center_y - (bar_h / 2)

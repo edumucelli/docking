@@ -251,6 +251,8 @@ class PinnedEntry:
         if isinstance(raw, str):
             if not raw:
                 return None
+            # Infer ItemKind from string shape: file:// URIs -> FILE/FOLDER,
+            # applet prefix -> APPLET, everything else -> APP.
             if raw.startswith("file://"):
                 return cls(
                     kind=FOLDER_KIND if _uri_is_dir(raw) else FILE_KIND,
