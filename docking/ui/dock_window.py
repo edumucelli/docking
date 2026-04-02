@@ -515,6 +515,16 @@ class DockWindow(Gtk.Window):
 
         frame = self.geometry.build_frame(drop_insert_index=drop_insert)
         self.current_geometry_frame = frame
+        if current_autohide_state is not None:
+            item_positions = [
+                (
+                    f"{geometry.item.desktop_id}@"
+                    f"({geometry.draw_rect.x},{geometry.draw_rect.y},"
+                    f"{geometry.draw_rect.w}x{geometry.draw_rect.h})"
+                )
+                for geometry in frame.item_geometries
+            ]
+            log.debug("draw items: %s", " | ".join(item_positions) or "<none>")
         self.renderer.draw(
             cr,
             widget,

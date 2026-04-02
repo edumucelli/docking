@@ -792,7 +792,10 @@ class TestDockWindowDrawAndHelpers:
             config=SimpleNamespace(pos=Position.BOTTOM),
             theme=SimpleNamespace(urgent_glow_time_ms=500),
             tooltip=MagicMock(),
-            _test_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
+            _test_geometry_frame=SimpleNamespace(
+                cursor_rect=Rect(0, 0, 100, 100),
+                item_geometries=(),
+            ),
             update_input_region=MagicMock(),
             renderer=renderer,
             cursor_x=-1.0,
@@ -825,7 +828,10 @@ class TestDockWindowDrawAndHelpers:
             config=SimpleNamespace(pos=Position.BOTTOM),
             theme=MagicMock(),
             tooltip=MagicMock(),
-            _test_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
+            _test_geometry_frame=SimpleNamespace(
+                cursor_rect=Rect(0, 0, 100, 100),
+                item_geometries=(),
+            ),
             update_input_region=MagicMock(),
             cursor_x=25.0,
             cursor_y=33.0,
@@ -846,7 +852,7 @@ class TestDockWindowDrawAndHelpers:
 
     def test_on_draw_refreshes_tooltip_once_when_showing_finishes(self):
         hovered = DockItem(desktop_id="hovered.desktop")
-        frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
+        frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100), item_geometries=())
         stub = SimpleNamespace(
             autohide=_autohide(enabled=True, state=HideState.VISIBLE),
             _last_autohide_state=HideState.SHOWING,

@@ -163,6 +163,7 @@ from gi.repository import Gdk, GLib, Gtk
 from docking.applets.separator.state import STYLE_LINE
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import RGB, IndicatorStyle
+from docking.log import get_logger
 from docking.ui.autohide import HideState
 from docking.ui.effects import average_icon_color, easing_bounce
 from docking.ui.geometry import DockGeometryFrame, map_icon_position
@@ -184,6 +185,8 @@ SLIDE_CLEAR_THRESHOLD = 0.5
 INDICATOR_SPACING_MULT = 3
 
 HOVER_LIGHTEN_FRAME_MS = 16
+
+log = get_logger("renderer")
 SEPARATOR_LINE_WIDTH_PX = 2.0
 SEPARATOR_LINE_START_RATIO = 0.1
 SEPARATOR_LINE_END_RATIO = 0.9
@@ -403,10 +406,25 @@ class DockRenderer:
         # Include the drop gap so shelf expands to cover displaced items
         drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         icon_offset = frame.zoomed_main_offset
+        previous_ids = set(self.prev_positions)
+        current_ids = {item.desktop_id for item in items}
+        membership_changed = bool(previous_ids) and previous_ids != current_ids
 
         # Shelf coordinates from pre-computed geometry frame (no recomputation)
         target_shelf_w = frame.shelf_main_extent
-        if self.smooth_shelf_w == 0.0 or drop_gap > 0 or hide_offset > 0:
+        if (
+            self.smooth_shelf_w == 0.0
+            or drop_gap > 0
+            or hide_offset > 0
+            or membership_changed
+        ):
+            if membership_changed:
+                log.debug(
+                    "snap shelf width on membership change: old=%s new=%s width=%.2f",
+                    sorted(previous_ids),
+                    sorted(current_ids),
+                    target_shelf_w,
+                )
             self.smooth_shelf_w = target_shelf_w
         else:
             self.smooth_shelf_w += (
@@ -544,6 +562,36 @@ class DockRenderer:
                 hide_cross=hide_cross,
                 bounce=bounce,
             )
+            expected = frame.item_geometries[i].draw_rect
+            render_x = math.floor(ix)
+            render_y = math.floor(iy)
+            if (
+                abs(slide) > SLIDE_CLEAR_THRESHOLD
+                or drop_shift != 0
+                or bounce != 0.0
+                or render_x != expected.x
+                or render_y != expected.y
+            ):
+                log.debug(
+                    (
+                        "render item: id=%s frame=(%d,%d %dx%d) "
+                        "rendered=(%d,%d %.1fx%.1f) "
+                        "slide=%.2f drop_shift=%.2f bounce=%.2f layout_x=%.2f"
+                    ),
+                    item.desktop_id,
+                    expected.x,
+                    expected.y,
+                    expected.w,
+                    expected.h,
+                    render_x,
+                    render_y,
+                    scaled_size,
+                    scaled_size,
+                    slide,
+                    drop_shift,
+                    bounce,
+                    li.x,
+                )
             self._draw_icon(
                 cr=cr,
                 item=item,
@@ -665,11 +713,30 @@ class DockRenderer:
         for item, li in zip(items, layout, strict=True):
             new_positions[item.desktop_id] = li.x + icon_offset
 
+        previous_ids = set(self.prev_positions)
+        new_ids = set(new_positions)
+        if previous_ids and previous_ids != new_ids:
+            log.debug(
+                "reset slide offsets on membership change: old=%s new=%s",
+                sorted(previous_ids),
+                sorted(new_ids),
+            )
+            self.slide_offsets.clear()
+            self.prev_positions = new_positions
+            return
+
         for desktop_id, new_x in new_positions.items():
             old_x = self.prev_positions.get(desktop_id)
             if old_x is not None and abs(old_x - new_x) > SLIDE_MOVE_THRESHOLD:
                 current_slide = self.slide_offsets.get(desktop_id, 0.0)
                 self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
+                log.debug(
+                    "slide offset updated: id=%s old=%.2f new=%.2f offset=%.2f",
+                    desktop_id,
+                    old_x,
+                    new_x,
+                    self.slide_offsets[desktop_id],
+                )
 
         decay = SLIDE_DECAY_FACTOR
         dead = []
@@ -679,6 +746,13 @@ class DockRenderer:
                 dead.append(desktop_id)
         for d in dead:
             del self.slide_offsets[d]
+
+        if self.slide_offsets:
+            summary = ", ".join(
+                f"{desktop_id}={offset:.2f}"
+                for desktop_id, offset in sorted(self.slide_offsets.items())
+            )
+            log.debug("active slide offsets: %s", summary)
 
         self.prev_positions = new_positions
 

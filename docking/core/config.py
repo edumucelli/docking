@@ -132,6 +132,8 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -147,6 +149,7 @@ DEFAULT_CONFIG_DIR = (
     Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
 )
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
+DEFAULT_CONFIG_BACKUP_FILE = DEFAULT_CONFIG_DIR / "dock.json.bak"
 
 DEFAULT_PINNED: list[PinnedEntry] = []
 DEFAULT_ICON_SIZE = 48
@@ -173,6 +176,7 @@ MIN_ZOOM_PERCENT = 1.0
 MAX_ZOOM_PERCENT = 4.0
 
 logger = get_logger("config")
+_SAVE_LOCK = threading.RLock()
 
 
 class HideMode(str, Enum):
@@ -538,9 +542,78 @@ class Config:
             config.save(path=path)
             return config
 
-        with path.open() as f:
-            data: dict[str, Any] = json.load(fp=f)
+        try:
+            config = cls._load_existing_file(path=path)
+        except Exception as exc:
+            backup_path = _backup_path_for(path)
+            logger.warning("Failed to load config %s: %s", path, exc)
+            if backup_path.exists():
+                try:
+                    config = cls._load_existing_file(path=backup_path)
+                except Exception as backup_exc:
+                    logger.warning(
+                        "Failed to load config backup %s: %s",
+                        backup_path,
+                        backup_exc,
+                    )
+                else:
+                    logger.warning("Loaded config fallback from backup %s", backup_path)
+                    config._path = path
+                    return config
+            logger.warning("Falling back to default config for %s", path)
+            config = cls()
+            config._path = path
+            return config
+        backup_path = _backup_path_for(path)
+        if path.exists() and not backup_path.exists():
+            try:
+                _write_backup_copy(source=path, backup_path=backup_path)
+            except Exception as backup_exc:
+                logger.warning(
+                    "Failed to create initial config backup %s: %s",
+                    backup_path,
+                    backup_exc,
+                )
+        config._path = path
+        return config
 
+    def save(self, path: Path | str | None = None) -> None:
+        """Save config to JSON file."""
+        path = Path(path) if path else self._path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Write to a sibling temp file and replace in one step so Ctrl+C or
+        # process death never leaves the real config half-written.
+        backup_path = _backup_path_for(path)
+        with _SAVE_LOCK:
+            tmp_path = _new_tmp_path(path=path)
+            try:
+                _write_json_atomic_candidate(path=tmp_path, payload=self.to_dict())
+                self._load_existing_file(path=tmp_path)
+                if path.exists():
+                    if _is_valid_config_file(path=path):
+                        _write_backup_copy(source=path, backup_path=backup_path)
+                    else:
+                        logger.warning(
+                            "Skipping config backup refresh because current file %s "
+                            "is invalid",
+                            path,
+                        )
+                tmp_path.replace(path)
+                _fsync_directory(path.parent)
+            except Exception:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except OSError as cleanup_exc:
+                    logger.warning(
+                        "Failed to clean up temporary config file %s: %s",
+                        tmp_path,
+                        cleanup_exc,
+                    )
+                raise
+
+    @classmethod
+    def _load_existing_file(cls, path: Path) -> Config:
+        data = _read_config_data(path=path)
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         if "pinned" in filtered and isinstance(filtered["pinned"], list):
@@ -550,14 +623,6 @@ class Config:
         config = cls(**filtered)
         config._path = path
         return config
-
-    def save(self, path: Path | str | None = None) -> None:
-        """Save config to JSON file."""
-        path = Path(path) if path else self._path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open(mode="w") as f:
-            json.dump(obj=self.to_dict(), fp=f, indent=2)
-            f.write("\n")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -592,3 +657,78 @@ def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:
         if entry is not None:
             entries.append(entry)
     return entries
+
+
+def _backup_path_for(path: Path) -> Path:
+    if path == DEFAULT_CONFIG_FILE:
+        return DEFAULT_CONFIG_BACKUP_FILE
+    return path.with_name(f"{path.name}.bak")
+
+
+def _new_tmp_path(*, path: Path) -> Path:
+    fd, tmp_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        text=True,
+    )
+    os.close(fd)
+    return Path(tmp_name)
+
+
+def _write_json_atomic_candidate(*, path: Path, payload: dict[str, Any]) -> None:
+    with path.open(mode="w", encoding="utf-8") as f:
+        json.dump(obj=payload, fp=f, indent=2)
+        f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def _write_backup_copy(*, source: Path, backup_path: Path) -> None:
+    backup_tmp = _new_tmp_path(path=backup_path)
+    try:
+        data = source.read_bytes()
+        with backup_tmp.open(mode="wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        backup_tmp.replace(backup_path)
+        _fsync_directory(backup_path.parent)
+    except Exception:
+        try:
+            backup_tmp.unlink(missing_ok=True)
+        except OSError as cleanup_exc:
+            logger.warning(
+                "Failed to clean up temporary backup file %s: %s",
+                backup_tmp,
+                cleanup_exc,
+            )
+        raise
+
+
+def _read_config_data(*, path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as f:
+        data = json.load(fp=f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Config file {path} does not contain a JSON object")
+    return data
+
+
+def _is_valid_config_file(*, path: Path) -> bool:
+    try:
+        Config._load_existing_file(path=path)
+    except Exception as exc:
+        logger.warning("Config file validation failed for %s: %s", path, exc)
+        return False
+    return True
+
+
+def _fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)

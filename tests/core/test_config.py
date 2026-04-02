@@ -1,6 +1,7 @@
 """Tests for config loading, saving, and defaults."""
 
 import json
+from pathlib import Path
 
 from docking.core.config import APP_KIND, FILE_KIND, FOLDER_KIND, Config, PinnedEntry
 from docking.core.position import Position
@@ -229,6 +230,30 @@ class TestConfigLoad:
         assert config.applet_prefs == {"clock": {"show_seconds": True}}
         assert config.item_prefs == {}
 
+    def test_load_falls_back_to_backup_when_primary_is_invalid(self, tmp_path):
+        path = tmp_path / "dock.json"
+        backup = tmp_path / "dock.json.bak"
+        path.write_text("{", encoding="utf-8")
+        backup.write_text(json.dumps({"icon_size": 72}), encoding="utf-8")
+
+        config = Config.load(path)
+
+        assert config.icon_size == 72
+        assert config._path == path
+
+    def test_load_creates_backup_when_primary_is_valid_and_backup_missing(
+        self, tmp_path
+    ):
+        path = tmp_path / "dock.json"
+        backup = tmp_path / "dock.json.bak"
+        path.write_text(json.dumps({"icon_size": 72}), encoding="utf-8")
+
+        config = Config.load(path)
+
+        assert config.icon_size == 72
+        assert backup.exists()
+        assert json.loads(backup.read_text())["icon_size"] == 72
+
 
 class TestConfigSave:
     def test_save_creates_parent_dirs(self, tmp_path):
@@ -302,3 +327,57 @@ class TestConfigSave:
         saved = json.loads(path.read_text())
         assert saved["applet_prefs"] == {"clock": {"show_seconds": True}}
         assert saved["item_prefs"] == {"item://a": {"show_hidden": False}}
+
+    def test_save_replaces_target_atomically(self, monkeypatch, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(icon_size=96)
+        replace_calls: list[tuple[Path, Path]] = []
+
+        original_replace = Path.replace
+
+        def recording_replace(src: Path, dst: Path):
+            replace_calls.append((src, Path(dst)))
+            return original_replace(src, dst)
+
+        monkeypatch.setattr(Path, "replace", recording_replace)
+
+        config.save(path)
+
+        assert len(replace_calls) == 1
+        src, dst = replace_calls[0]
+        assert src.parent == path.parent
+        assert src.name.startswith(f".{path.name}.")
+        assert src.suffix == ".tmp"
+        assert dst == path
+        assert json.loads(path.read_text())["icon_size"] == 96
+
+    def test_save_keeps_last_known_good_backup(self, tmp_path):
+        path = tmp_path / "dock.json"
+        backup = tmp_path / "dock.json.bak"
+        original = Config(icon_size=48)
+        original.save(path)
+
+        updated = Config(icon_size=96)
+        updated.save(path)
+
+        assert json.loads(path.read_text())["icon_size"] == 96
+        assert json.loads(backup.read_text())["icon_size"] == 48
+
+    def test_save_fsyncs_directory_after_replace(self, monkeypatch, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(icon_size=96)
+        fsynced: list[int] = []
+
+        import docking.core.config as config_mod
+
+        original_fsync = config_mod.os.fsync
+
+        def recording_fsync(fd: int):
+            fsynced.append(fd)
+            return original_fsync(fd)
+
+        monkeypatch.setattr(config_mod.os, "fsync", recording_fsync)
+
+        config.save(path)
+
+        assert len(fsynced) >= 2
