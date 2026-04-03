@@ -18,6 +18,7 @@ pyPkgs.buildPythonApplication rec {
 
   buildInputs = with pkgs; [
     gtk3
+    libsecret
     libwnck
     networkmanager
     gdk-pixbuf
@@ -29,8 +30,11 @@ pyPkgs.buildPythonApplication rec {
   ];
 
   propagatedBuildInputs = with pyPkgs; [
+    google-auth
+    google-auth-oauthlib
     pycairo
     pygobject3
+    requests
   ];
 
   # Weather client deps are not consistently available in nixpkgs channels.

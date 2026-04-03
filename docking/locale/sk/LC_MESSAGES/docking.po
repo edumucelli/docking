@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-31 19:28+0200\n"
+"POT-Creation-Date: 2026-04-03 20:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -153,12 +153,12 @@ msgid "General"
 msgstr "Všeobecné"
 
 #: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:120
+#: docking/applets/bluetooth/state.py:122
 msgid "On"
 msgstr "Zapnuté"
 
 #: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:120
+#: docking/applets/bluetooth/state.py:122
 msgid "Off"
 msgstr "Vypnuté"
 
@@ -175,7 +175,7 @@ msgstr "Bluetooth zapnutý"
 msgid "Continuous Discovery"
 msgstr "Priebežné vyhľadávanie"
 
-#: docking/applets/bluetooth/applet.py:189
+#: docking/applets/bluetooth/applet.py:189 docking/applets/gmail/applet.py:179
 msgid "Refresh Now"
 msgstr "Obnoviť teraz"
 
@@ -195,7 +195,8 @@ msgstr "Spárované zariadenia"
 msgid "Discovered Devices"
 msgstr "Objavené zariadenia"
 
-#: docking/applets/bluetooth/applet.py:248
+#: docking/applets/bluetooth/applet.py:248 docking/applets/gmail/applet.py:187
+#: docking/applets/gmail/applet.py:699
 msgid "Disconnect"
 msgstr "Odpojiť"
 
@@ -220,46 +221,46 @@ msgstr "Dôveryhodné"
 msgid "Battery: {percent}%"
 msgstr "Batéria: {percent}%"
 
-#: docking/applets/bluetooth/state.py:113
+#: docking/applets/bluetooth/state.py:115
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "Bluetooth: {error}"
 
-#: docking/applets/bluetooth/state.py:114
-#: docking/applets/bluetooth/state.py:118
+#: docking/applets/bluetooth/state.py:116
+#: docking/applets/bluetooth/state.py:120
 msgid "Bluetooth: No adapter/service"
 msgstr "Bluetooth: Žiadny adaptér/služba"
 
-#: docking/applets/bluetooth/state.py:125
+#: docking/applets/bluetooth/state.py:127
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "Bluetooth: {state}"
 
-#: docking/applets/bluetooth/state.py:126
+#: docking/applets/bluetooth/state.py:128
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "Adaptér: {name}"
 
-#: docking/applets/bluetooth/state.py:127
+#: docking/applets/bluetooth/state.py:129
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "Pripojených: {n}"
 
-#: docking/applets/bluetooth/state.py:128
+#: docking/applets/bluetooth/state.py:130
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "Spárovaných: {n}"
 
-#: docking/applets/bluetooth/state.py:129
+#: docking/applets/bluetooth/state.py:131
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "Vyhľadávanie: {state}"
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:132
 msgid "Yes"
 msgstr "Áno"
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:132
 msgid "No"
 msgstr "Nie"
 
@@ -355,6 +356,175 @@ msgstr "Zobraziť hex"
 msgid "Desktop"
 msgstr "Plocha"
 
+#: docking/applets/gmail/applet.py:65 docking/applets/gmail/state.py:164
+msgid "Gmail"
+msgstr "Gmail"
+
+#: docking/applets/gmail/applet.py:89 docking/applets/gmail/applet.py:115
+#: docking/applets/gmail/applet.py:138
+msgid "Secret Service is unavailable"
+msgstr "Secret Service is unavailable"
+
+#: docking/applets/gmail/applet.py:148
+msgid "Connect Gmail..."
+msgstr "Connect Gmail..."
+
+#: docking/applets/gmail/applet.py:152
+msgid "Import OAuth Client JSON..."
+msgstr "Import OAuth Client JSON..."
+
+#: docking/applets/gmail/applet.py:160
+msgid "Requires your own Google Desktop OAuth client JSON"
+msgstr "Requires your own Google Desktop OAuth client JSON"
+
+#: docking/applets/gmail/applet.py:171 docking/applets/gmail/applet.py:696
+msgid "Open Gmail"
+msgstr "Open Gmail"
+
+#: docking/applets/gmail/applet.py:175 docking/applets/gmail/applet.py:697
+msgid "Compose"
+msgstr "Compose"
+
+#: docking/applets/gmail/applet.py:183
+msgid "Reconnect"
+msgstr "Reconnect"
+
+#: docking/applets/gmail/applet.py:301
+msgid "Google rejected the saved refresh token"
+msgstr "Google rejected the saved refresh token"
+
+#: docking/applets/gmail/applet.py:385
+msgid "No OAuth client JSON has been imported"
+msgstr "No OAuth client JSON has been imported"
+
+#: docking/applets/gmail/applet.py:510
+msgid "Import OAuth Client JSON"
+msgstr "Import OAuth Client JSON"
+
+#: docking/applets/gmail/applet.py:520
+msgid "JSON files"
+msgstr "JSON files"
+
+#: docking/applets/gmail/applet.py:559
+msgid "Poll Interval"
+msgstr "Poll Interval"
+
+#: docking/applets/gmail/applet.py:664 docking/applets/gmail/state.py:174
+#, python-brace-format
+msgid "{n} unread inbox message"
+msgid_plural "{n} unread inbox messages"
+msgstr[0] "{n} unread inbox message"
+msgstr[1] "{n} unread inbox messages"
+
+#: docking/applets/gmail/applet.py:682
+#, python-brace-format
+msgid "{subject} - {date}"
+msgstr "{subject} - {date}"
+
+#: docking/applets/gmail/applet.py:698 docking/applets/moon/applet.py:126
+msgid "Refresh"
+msgstr "Obnoviť"
+
+#: docking/applets/gmail/applet.py:710
+msgid "Connect Gmail"
+msgstr "Connect Gmail"
+
+#: docking/applets/gmail/applet.py:723
+msgid "Docking is opening Gmail sign-in in your browser."
+msgstr "Docking is opening Gmail sign-in in your browser."
+
+#: docking/applets/gmail/applet.py:727
+msgid "Complete sign-in there, then return here."
+msgstr "Complete sign-in there, then return here."
+
+#: docking/applets/gmail/applet.py:732
+msgid ""
+"If no browser opens or sign-in is blocked, this dialog will close with an "
+"error after a short timeout."
+msgstr ""
+"If no browser opens or sign-in is blocked, this dialog will close with an "
+"error after a short timeout."
+
+#: docking/applets/gmail/applet.py:778
+#, python-brace-format
+msgid "Failed to open the browser for Gmail sign-in: {reason}"
+msgstr "Failed to open the browser for Gmail sign-in: {reason}"
+
+#: docking/applets/gmail/applet.py:816
+#, python-brace-format
+msgid "{n} seconds"
+msgid_plural "{n} seconds"
+msgstr[0] "{n} seconds"
+msgstr[1] "{n} seconds"
+
+#: docking/applets/gmail/applet.py:818
+#, python-brace-format
+msgid "{n} minute"
+msgid_plural "{n} minutes"
+msgstr[0] "{n} minute"
+msgstr[1] "{n} minutes"
+
+#: docking/applets/gmail/auth.py:43
+#, python-brace-format
+msgid "Missing Gmail dependencies: install {packages}"
+msgstr "Missing Gmail dependencies: install {packages}"
+
+#: docking/applets/gmail/auth.py:137
+msgid "Timed out waiting for Gmail sign-in to complete"
+msgstr "Timed out waiting for Gmail sign-in to complete"
+
+#: docking/applets/gmail/state.py:148
+msgid "Gmail is not connected"
+msgstr "Gmail is not connected"
+
+#: docking/applets/gmail/state.py:150
+msgid "Gmail is connecting..."
+msgstr "Gmail is connecting..."
+
+#: docking/applets/gmail/state.py:152
+msgid "Gmail is ready to connect"
+msgstr "Gmail is ready to connect"
+
+#: docking/applets/gmail/state.py:155
+#, python-brace-format
+msgid "Gmail needs to reconnect: {reason}"
+msgstr "Gmail needs to reconnect: {reason}"
+
+#: docking/applets/gmail/state.py:158
+msgid "Gmail needs to reconnect"
+msgstr "Gmail needs to reconnect"
+
+#: docking/applets/gmail/state.py:161
+#, python-brace-format
+msgid "Gmail error: {reason}"
+msgstr "Gmail error: {reason}"
+
+#: docking/applets/gmail/state.py:162
+msgid "Gmail could not refresh"
+msgstr "Gmail could not refresh"
+
+#: docking/applets/gmail/state.py:166
+msgid "Last refresh failed; showing previous inbox state"
+msgstr "Last refresh failed; showing previous inbox state"
+
+#: docking/applets/gmail/state.py:169
+msgid "No unread inbox messages"
+msgstr "No unread inbox messages"
+
+#: docking/applets/gmail/state.py:181
+#, python-brace-format
+msgid "{from_text}: {subject} ({date})"
+msgstr "{from_text}: {subject} ({date})"
+
+#: docking/applets/gmail/state.py:217 docking/applets/gmail/state.py:256
+#: docking/applets/gmail/state.py:259
+msgid "Unknown sender"
+msgstr "Unknown sender"
+
+#: docking/applets/gmail/state.py:218 docking/applets/gmail/state.py:230
+msgid "(no subject)"
+msgstr "(no subject)"
+
 #: docking/applets/hydration/applet.py:39
 msgid "Hydration"
 msgstr "Hydratácia"
@@ -407,15 +577,11 @@ msgstr "Osvetlenie: {pct}%"
 msgid "Show Phase Name"
 msgstr "Zobraziť názov fázy"
 
-#: docking/applets/moon/applet.py:126
-msgid "Refresh"
-msgstr "Obnoviť"
-
-#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:129
 msgid "New"
 msgstr "Nov"
 
-#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:131
 msgid "Full"
 msgstr "Spln"
 
@@ -453,27 +619,27 @@ msgstr "{days} dní po nove"
 msgid "{days} days after full moon"
 msgstr "{days} dní po splne"
 
-#: docking/applets/moon/state.py:111
+#: docking/applets/moon/state.py:120
 msgid "Waxing Crescent"
 msgstr "Dorastajúci srpok"
 
-#: docking/applets/moon/state.py:113
+#: docking/applets/moon/state.py:122
 msgid "Waxing Gibbous"
 msgstr "Dorastajúci mesiac"
 
-#: docking/applets/moon/state.py:115
+#: docking/applets/moon/state.py:124
 msgid "Waning Gibbous"
 msgstr "Cúvajúci mesiac"
 
-#: docking/applets/moon/state.py:117
+#: docking/applets/moon/state.py:126
 msgid "Waning Crescent"
 msgstr "Cúvajúci srpok"
 
-#: docking/applets/moon/state.py:124
+#: docking/applets/moon/state.py:133
 msgid "1st Quarter"
 msgstr "Prvá štvrť"
 
-#: docking/applets/moon/state.py:126
+#: docking/applets/moon/state.py:135
 msgid "3rd Quarter"
 msgstr "Tretia štvrť"
 

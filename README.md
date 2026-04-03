@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 38 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 40 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - 74 locale catalogs plus English fallback.
@@ -378,6 +378,30 @@ Bookmarks launcher for pinned URLs.
 - **Remove All** -- clear the saved bookmark list
 
 **Tooltip:** summary of the saved bookmark set
+
+### Gmail
+
+<img src="docking/assets/icons/applets/gmail.png" alt="Gmail" width="48">
+
+Unread Gmail inbox monitor for one Google account. Uses the Gmail API with a
+user-provided Desktop OAuth client JSON, stores tokens in the desktop secret
+store, and shows an unread badge plus a compact preview popup.
+
+**Click:** starts connect flow when disconnected, opens inbox when empty, opens unread popup when mail is waiting
+**Right-click options:**
+- **Connect Gmail...** -- import OAuth client JSON and start browser auth
+- **Open Gmail** -- open inbox in the default browser
+- **Compose** -- open the Gmail compose view
+- **Refresh Now** -- force an inbox poll
+- **Reconnect** -- replace expired or revoked credentials
+- **Disconnect** -- remove stored Gmail credentials and client config
+- **Poll Interval** -- 30 seconds, 1 minute, 5 minutes, or 15 minutes
+
+**Tooltip:** account email, unread count, and the top unread sender/subject/date summaries
+
+**Preferences stored:** `account_email`, `connected`, `poll_interval_s`, `max_preview_rows`, `open_on_click_when_empty`, `show_popup_on_click`
+
+**Secret storage:** OAuth client JSON and authorized-user credentials are stored via Secret Service / libsecret, not in `dock.json`
 
 ### Quick Note
 

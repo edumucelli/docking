@@ -17,6 +17,7 @@
     "--device=dri",
     "--filesystem=host",
     "--talk-name=org.freedesktop.Notifications",
+    "--talk-name=org.freedesktop.secrets",
     "--system-talk-name=org.freedesktop.NetworkManager"
   ],
   "modules": [
@@ -26,7 +27,7 @@
       "build-commands": [
         "python3 -m ensurepip --upgrade || true",
         "bash tools/i18n.sh --compile",
-        "python3 -m pip install --prefix=/app --no-build-isolation --no-deps \"openmeteo-requests>=1.2\" \"requests-cache>=1.0\" \"retry-requests>=2.0\"",
+        "python3 -m pip install --prefix=/app --no-build-isolation --no-deps \"google-auth>=2.0\" \"google-auth-oauthlib>=1.0\" \"requests>=2.0\" \"openmeteo-requests>=1.2\" \"requests-cache>=1.0\" \"retry-requests>=2.0\"",
         "python3 -m pip install --prefix=/app --no-build-isolation --no-deps .",
         "install -Dm644 packaging/shared/org.docking.Docking.desktop /app/share/applications/org.docking.Docking.desktop",
         "install -Dm644 packaging/flatpak/org.docking.Docking.metainfo.xml /app/share/metainfo/org.docking.Docking.metainfo.xml",

@@ -9,6 +9,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildArch:      x86_64
 
 Requires:       python3
+Requires:       libsecret
 BuildRequires:  gettext
 
 %description
@@ -36,6 +37,7 @@ rm -rf %{buildroot}/usr/lib/docking/python/bin
 
 mkdir -p %{buildroot}/usr/lib/docking/vendor
 python3 -m pip install --no-compile --target %{buildroot}/usr/lib/docking/vendor \
+  google-auth google-auth-oauthlib requests \
   openmeteo-requests requests-cache retry-requests
 rm -rf %{buildroot}/usr/lib/docking/vendor/*.dist-info
 rm -rf %{buildroot}/usr/lib/docking/vendor/bin

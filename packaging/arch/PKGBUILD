@@ -10,6 +10,7 @@ depends=(
   'python-gobject'
   'python-cairo'
   'gtk3'
+  'libsecret'
   'libwnck3'
   'networkmanager'
   'gstreamer'
@@ -44,6 +45,7 @@ package() {
   install -d "${pkgdir}/usr/lib/docking/vendor"
   python -m pip install --no-compile \
     --target "${pkgdir}/usr/lib/docking/vendor" \
+    google-auth google-auth-oauthlib requests \
     openmeteo-requests requests-cache retry-requests
   rm -rf "${pkgdir}/usr/lib/docking/vendor"/*.dist-info
   rm -rf "${pkgdir}/usr/lib/docking/vendor"/bin

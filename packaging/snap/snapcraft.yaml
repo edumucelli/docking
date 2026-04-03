@@ -25,6 +25,7 @@ apps:
       - wayland
       - desktop
       - desktop-legacy
+      - password-manager-service
       - network
       - network-manager
       - audio-playback
@@ -49,6 +50,8 @@ parts:
       - gir1.2-pango-1.0
       - gir1.2-nm-1.0
       - gir1.2-gstreamer-1.0
+      - gir1.2-secret-1
+      - libsecret-1-0
       - librsvg2-common
       - ca-certificates
     override-build: |

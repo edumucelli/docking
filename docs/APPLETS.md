@@ -1,6 +1,6 @@
 # Applets
 
-Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**. 38 built-in applets are available.
+Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**. 40 built-in applets are available.
 
 ## Architecture
 
@@ -156,6 +156,28 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 **Click:** Copy the currently selected clip back to the clipboard
 **Scroll:** Cycle through clipboard history (tooltip updates instantly)
 **Right-click:** List of all clips (newest first), click to copy. "Clear" to empty history.
+
+## Gmail
+
+<img src="../docking/assets/icons/applets/gmail.png" alt="Gmail" width="48">
+
+Unread Gmail inbox monitor for one Google account. Uses the Gmail API with a
+user-provided Desktop OAuth client JSON, stores tokens in the desktop secret
+store, and shows an unread badge plus a compact preview popup.
+
+**Click:** starts connect flow when disconnected, opens inbox when empty, opens unread popup when mail is waiting
+**Right-click options:**
+- **Connect Gmail...** -- import OAuth client JSON and start browser auth
+- **Open Gmail** -- open inbox in the default browser
+- **Compose** -- open the Gmail compose view
+- **Refresh Now** -- force an inbox poll
+- **Reconnect** -- replace expired or revoked credentials
+- **Disconnect** -- remove stored Gmail credentials and client config
+- **Poll Interval** -- 30 seconds, 1 minute, 5 minutes, or 15 minutes
+
+**Tooltip:** account email, unread count, and the top unread sender/subject/date summaries
+
+**Preferences stored:** `account_email`, `connected`, `poll_interval_s`, `max_preview_rows`, `open_on_click_when_empty`, `show_popup_on_click`
 
 **Preferences stored:** `max_entries`
 

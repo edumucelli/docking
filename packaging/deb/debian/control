@@ -27,12 +27,13 @@ Depends:
     gir1.2-gdkpixbuf-2.0,
     gir1.2-wnck-3.0,
     gir1.2-nm-1.0,
-    gir1.2-pango-1.0
+    gir1.2-pango-1.0,
+    gir1.2-secret-1
 Description: A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
  Inspired by Plank and Cairo-Dock.
  Features parabolic zoom, window previews, autohide, drag-and-drop,
- and an extensible applet system with 12 built-in applets (clock,
- trash, weather, CPU monitor, battery, clipboard, applications,
- network, show desktop, session, calendar, workspaces).
+ and an extensible applet system with many built-in applets including Gmail,
+ clock, trash, weather, CPU monitor, battery, clipboard, applications,
+ network, show desktop, session, calendar, and workspaces.
  .
  Requires X11.

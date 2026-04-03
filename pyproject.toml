@@ -9,7 +9,10 @@ description = "A lightweight, feature-rich dock for Linux written in Python with
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
 dependencies = [
+    "google-auth>=2.0",
+    "google-auth-oauthlib>=1.0",
     "openmeteo-requests>=1.2",
+    "requests>=2.0",
     "requests-cache>=1.0",
     "retry-requests>=2.0",
 ]
