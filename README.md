@@ -157,6 +157,8 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "anchor_applets": false,
   "anchor_files": false,
   "active_display": false,
+  "left_click_action": "toggle",
+  "middle_click_action": "new-window",
   "theme": "default",
   "pinned": [
     { "kind": "app", "target": "firefox.desktop" },
@@ -186,6 +188,8 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `anchor_files` | false | Keep file and folder entries anchored at the end independently |
 | `tooltips_enabled` | true | Show hover tooltips for dock items |
 | `active_display` | false | Follow the active monitor instead of staying on one display |
+| `left_click_action` | toggle | Running-app left click: `toggle` or `cycle` |
+| `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders |
 | `applet_prefs` | `{}` | Per-applet preference storage |
@@ -200,7 +204,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor.
+All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can either toggle or cycle running windows, and middle click can open a new window, minimize the app windows, or close the app's focused window.
 
 ## Managing Dock Items
 

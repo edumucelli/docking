@@ -185,11 +185,12 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkX11, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
+from docking.core.config import LeftClickAction, MiddleClickAction
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.launcher import launch, open_target
+from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.platform.struts import (
     BlurRect,
     clear_blur_region,
@@ -719,13 +720,30 @@ class DockWindow(Gtk.Window):
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
-            force_launch = event.button == MOUSE_MIDDLE or (
-                event.state & Gdk.ModifierType.CONTROL_MASK
+            action = (
+                self.config.middle_click_action
+                if event.button == MOUSE_MIDDLE
+                else self.config.left_click_action
             )
-            if force_launch or not item.is_running:
+            if event.state & Gdk.ModifierType.CONTROL_MASK:
+                action = MiddleClickAction.NEW_WINDOW.value
+
+            if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
                 item.last_launched = now
-                launch(desktop_id=item.desktop_id)
+                if action == MiddleClickAction.NEW_WINDOW.value:
+                    launch_new_window(desktop_id=item.desktop_id)
+                else:
+                    launch(desktop_id=item.desktop_id)
                 self.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
+            elif action == LeftClickAction.CYCLE.value:
+                self.window_tracker.cycle_windows(item.desktop_id)
+                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+            elif action == MiddleClickAction.MINIMIZE.value:
+                self.window_tracker.minimize_windows(item.desktop_id)
+                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+            elif action == MiddleClickAction.CLOSE_FOCUSED.value:
+                self.window_tracker.close_focused(item.desktop_id)
+                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
             else:
                 self.window_tracker.toggle_focus(item.desktop_id)
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)

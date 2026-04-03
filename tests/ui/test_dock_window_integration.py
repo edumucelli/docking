@@ -38,7 +38,12 @@ def _make_stub(item: DockItem | None = None):
         geometry_for_item=MagicMock(return_value=None),
     )
     stub = SimpleNamespace()
-    stub.config = SimpleNamespace(pos=Position.BOTTOM)
+    stub.config = SimpleNamespace(
+        pos=Position.BOTTOM,
+        left_click_action="toggle",
+        middle_click_action="new-window",
+        icon_size=48,
+    )
     stub.model = MagicMock()
     stub.model.visible_items.return_value = [item]
     stub.model.get_applet = MagicMock()
@@ -138,8 +143,7 @@ class TestButtonReleaseFlow:
         assert item.last_clicked == 1010
         assert item.last_launched == 0
 
-    def test_middle_click_force_launches_running_app(self, monkeypatch):
-        # Given
+    def test_middle_click_new_window_launches_running_app(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         stub, _ = _make_stub(item=item)
         event = SimpleNamespace(
@@ -150,19 +154,104 @@ class TestButtonReleaseFlow:
         monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2020)
         monkeypatch.setattr(
             dock_window_mod,
-            "launch",
+            "launch_new_window",
             lambda desktop_id: launch_calls.append(desktop_id),
         )
 
-        # When
         handled = dock_window_mod.DockWindow._on_button_release(
             stub, MagicMock(), event
         )
-        # Then
+
         assert handled is True
         assert launch_calls == ["firefox.desktop"]
         assert item.last_launched == 2020
         stub.hover.start_anim_pump.assert_called_once_with(700)
+
+    def test_left_click_cycle_dispatches_cycle_action(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        stub, _ = _make_stub(item=item)
+        stub.config.left_click_action = "cycle"
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 1111)
+
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+
+        assert handled is True
+        stub.window_tracker.cycle_windows.assert_called_once_with("firefox.desktop")
+        stub.window_tracker.toggle_focus.assert_not_called()
+        assert item.last_clicked == 1111
+        assert item.last_launched == 0
+
+    def test_middle_click_minimizes_when_configured(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        stub, _ = _make_stub(item=item)
+        stub.config.middle_click_action = "minimize"
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
+        )
+        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2121)
+
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+
+        assert handled is True
+        stub.window_tracker.minimize_windows.assert_called_once_with("firefox.desktop")
+        stub.window_tracker.toggle_focus.assert_not_called()
+        assert item.last_launched == 0
+
+    def test_middle_click_close_focused_when_configured(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        stub, _ = _make_stub(item=item)
+        stub.config.middle_click_action = "close-focused"
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
+        )
+        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2222)
+
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+
+        assert handled is True
+        stub.window_tracker.close_focused.assert_called_once_with("firefox.desktop")
+        stub.window_tracker.toggle_focus.assert_not_called()
+        assert item.last_launched == 0
+
+    def test_ctrl_click_still_force_launches(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        stub, _ = _make_stub(item=item)
+        stub.config.left_click_action = "cycle"
+        event = SimpleNamespace(
+            x=12.0,
+            y=6.0,
+            button=dock_window_mod.MOUSE_LEFT,
+            state=dock_window_mod.Gdk.ModifierType.CONTROL_MASK,
+        )
+        launch_calls: list[str] = []
+        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2323)
+        monkeypatch.setattr(
+            dock_window_mod,
+            "launch_new_window",
+            lambda desktop_id: launch_calls.append(desktop_id),
+        )
+
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+
+        assert handled is True
+        assert launch_calls == ["firefox.desktop"]
+        stub.window_tracker.cycle_windows.assert_not_called()
+        assert item.last_launched == 2323
 
     def test_left_click_file_item_opens_target(self, monkeypatch):
         item = DockItem(

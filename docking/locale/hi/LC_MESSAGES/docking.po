@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-31 19:28+0200\n"
+"POT-Creation-Date: 2026-04-04 01:12+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -153,12 +153,12 @@ msgid "General"
 msgstr "सामान्य"
 
 #: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:120
+#: docking/applets/bluetooth/state.py:122
 msgid "On"
 msgstr "चालू"
 
 #: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:120
+#: docking/applets/bluetooth/state.py:122
 msgid "Off"
 msgstr "बंद"
 
@@ -220,46 +220,46 @@ msgstr "विश्वसनीय"
 msgid "Battery: {percent}%"
 msgstr "बैटरी: {percent}%"
 
-#: docking/applets/bluetooth/state.py:113
+#: docking/applets/bluetooth/state.py:115
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "Bluetooth: {error}"
 
-#: docking/applets/bluetooth/state.py:114
-#: docking/applets/bluetooth/state.py:118
+#: docking/applets/bluetooth/state.py:116
+#: docking/applets/bluetooth/state.py:120
 msgid "Bluetooth: No adapter/service"
 msgstr "ब्लूटूथ: कोई एडेप्टर नहीं"
 
-#: docking/applets/bluetooth/state.py:125
+#: docking/applets/bluetooth/state.py:127
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "ब्लूटूथ: {state}"
 
-#: docking/applets/bluetooth/state.py:126
+#: docking/applets/bluetooth/state.py:128
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "एडेप्टर: {name}"
 
-#: docking/applets/bluetooth/state.py:127
+#: docking/applets/bluetooth/state.py:129
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "कनेक्टेड: {n}"
 
-#: docking/applets/bluetooth/state.py:128
+#: docking/applets/bluetooth/state.py:130
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "जोड़े गए: {n}"
 
-#: docking/applets/bluetooth/state.py:129
+#: docking/applets/bluetooth/state.py:131
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "खोज रहे हैं: {state}"
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:132
 msgid "Yes"
 msgstr "हाँ"
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:132
 msgid "No"
 msgstr "नहीं"
 
@@ -411,11 +411,11 @@ msgstr "चरण दिखाएँ"
 msgid "Refresh"
 msgstr "रिफ्रेश"
 
-#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:129
 msgid "New"
 msgstr "अमावस्या"
 
-#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:131
 msgid "Full"
 msgstr "पूर्ण"
 
@@ -453,27 +453,27 @@ msgstr "अमावस्या के {days} दिन बाद"
 msgid "{days} days after full moon"
 msgstr "पूर्णिमा के {days} दिन बाद"
 
-#: docking/applets/moon/state.py:111
+#: docking/applets/moon/state.py:120
 msgid "Waxing Crescent"
 msgstr "बढ़ता अर्धचंद्र"
 
-#: docking/applets/moon/state.py:113
+#: docking/applets/moon/state.py:122
 msgid "Waxing Gibbous"
 msgstr "बढ़ता उन्नतोदर"
 
-#: docking/applets/moon/state.py:115
+#: docking/applets/moon/state.py:124
 msgid "Waning Gibbous"
 msgstr "क्षीण उन्नतोदर"
 
-#: docking/applets/moon/state.py:117
+#: docking/applets/moon/state.py:126
 msgid "Waning Crescent"
 msgstr "क्षीण अर्धचंद्र"
 
-#: docking/applets/moon/state.py:124
+#: docking/applets/moon/state.py:133
 msgid "1st Quarter"
 msgstr "प्रथम चतुर्थांश"
 
-#: docking/applets/moon/state.py:126
+#: docking/applets/moon/state.py:135
 msgid "3rd Quarter"
 msgstr "तृतीय चतुर्थांश"
 
@@ -1072,7 +1072,7 @@ msgstr "कार्यक्षेत्र"
 msgid "Website"
 msgstr "वेबसाइट"
 
-#: docking/ui/dock_window.py:332
+#: docking/ui/dock_window.py:340
 msgid "Docking"
 msgstr "Docking"
 
@@ -1168,7 +1168,7 @@ msgstr "पावर प्रोफाइल अनुपलब्ध"
 msgid "Add Separator"
 msgstr "विभाजक जोड़ें"
 
-#: docking/ui/menu.py:1489 docking/ui/settings.py:151
+#: docking/ui/menu.py:1489 docking/ui/settings.py:155
 msgid "Preferences"
 msgstr "प्राथमिकताएं"
 
@@ -1189,137 +1189,169 @@ msgstr "विंडो"
 msgid "Display {display}: {width}x{height}"
 msgstr "डिस्प्ले {display}: {width}x{height}"
 
-#: docking/ui/settings.py:175
+#: docking/ui/settings.py:179
 msgid "Appearance"
 msgstr "दिखावट"
 
-#: docking/ui/settings.py:176
+#: docking/ui/settings.py:180
 msgid "Applets"
 msgstr "एप्लेट"
 
-#: docking/ui/settings.py:194
+#: docking/ui/settings.py:198
 msgid "Don't Hide"
 msgstr "छिपाएं नहीं"
 
-#: docking/ui/settings.py:195
+#: docking/ui/settings.py:199
 msgid "Auto-hide"
 msgstr "स्वतः छिपाएँ"
 
-#: docking/ui/settings.py:196
+#: docking/ui/settings.py:200
 msgid "Intelligent"
 msgstr "बुद्धिमान"
 
-#: docking/ui/settings.py:197
+#: docking/ui/settings.py:201
 msgid "Dodge Active Window"
 msgstr "सक्रिय विंडो से बचें"
 
-#: docking/ui/settings.py:198
+#: docking/ui/settings.py:202
 msgid "Dodge All Windows"
 msgstr "सभी विंडो से बचें"
 
-#: docking/ui/settings.py:199
+#: docking/ui/settings.py:203
 msgid "Dodge Maximized"
 msgstr "अधिकतम से बचें"
 
-#: docking/ui/settings.py:255
+#: docking/ui/settings.py:220
+msgid "Toggle Focus"
+msgstr "Toggle Focus"
+
+#: docking/ui/settings.py:221
+msgid "Cycle Windows"
+msgstr "Cycle Windows"
+
+#: docking/ui/settings.py:228
+msgid "New Window"
+msgstr "New Window"
+
+#: docking/ui/settings.py:229
+msgid "Minimize Windows"
+msgstr "Minimize Windows"
+
+#: docking/ui/settings.py:230
+msgid "Close Focused Window"
+msgstr "Close Focused Window"
+
+#: docking/ui/settings.py:276
 msgid "Look"
 msgstr "दिखावट"
 
-#: docking/ui/settings.py:257
+#: docking/ui/settings.py:278
 msgid "Theme"
 msgstr "थीम"
 
-#: docking/ui/settings.py:258
+#: docking/ui/settings.py:279
 msgid "Icon Size"
 msgstr "आइकन आकार"
 
-#: docking/ui/settings.py:259
+#: docking/ui/settings.py:280
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:260
+#: docking/ui/settings.py:281
 msgid "Zoom Percent"
 msgstr "ज़ूम प्रतिशत"
 
-#: docking/ui/settings.py:261
+#: docking/ui/settings.py:282
 msgid "Show Tooltips"
 msgstr "टूलटिप दिखाएं"
 
-#: docking/ui/settings.py:262
+#: docking/ui/settings.py:283
 msgid "Window Previews"
 msgstr "विंडो पूर्वावलोकन"
 
-#: docking/ui/settings.py:274
+#: docking/ui/settings.py:295
+msgid "Mouse"
+msgstr "Mouse"
+
+#: docking/ui/settings.py:297
+msgid "Left Click"
+msgstr "Left Click"
+
+#: docking/ui/settings.py:298
+msgid "Middle Click"
+msgstr "Middle Click"
+
+#: docking/ui/settings.py:303
 msgid "Behavior"
 msgstr "व्यवहार"
 
-#: docking/ui/settings.py:276
+#: docking/ui/settings.py:305
 msgid "Hide Mode"
 msgstr "छिपाने का तरीका"
 
-#: docking/ui/settings.py:277
+#: docking/ui/settings.py:306
 msgid "Hide Delay"
 msgstr "छिपाने की देरी"
 
-#: docking/ui/settings.py:278
+#: docking/ui/settings.py:307
 msgid "Unhide Delay"
 msgstr "दिखाने की देरी"
 
-#: docking/ui/settings.py:283
+#: docking/ui/settings.py:312
 msgid "Placement"
 msgstr "स्थान"
 
-#: docking/ui/settings.py:285
+#: docking/ui/settings.py:314
 msgid "Position"
 msgstr "स्थिति"
 
-#: docking/ui/settings.py:286
+#: docking/ui/settings.py:315
 msgid "Follow Cursor"
 msgstr "कर्सर का अनुसरण करें"
 
-#: docking/ui/settings.py:287
+#: docking/ui/settings.py:316
 msgid "Current Workspace Only"
 msgstr "केवल वर्तमान कार्यक्षेत्र"
 
-#: docking/ui/settings.py:292
+#: docking/ui/settings.py:321
 msgid "Layout"
 msgstr "लेआउट"
 
-#: docking/ui/settings.py:294
+#: docking/ui/settings.py:323
 msgid "Lock Positions"
 msgstr "स्थिति लॉक करें"
 
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:324
 msgid "Anchor Applets to End"
 msgstr "ऐपलेट्स को अंत में एंकर करें"
 
-#: docking/ui/settings.py:296
+#: docking/ui/settings.py:325
 msgid "Anchor Files to End"
 msgstr "फाइलें अंत में पिन करें"
 
-#: docking/ui/settings.py:657
+#: docking/ui/settings.py:694
 msgid "The dock is always visible and reserves screen space."
 msgstr "डॉक हमेशा दिखाई देता है और स्क्रीन स्थान आरक्षित करता है।"
 
-#: docking/ui/settings.py:658
+#: docking/ui/settings.py:695
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "माउस कर्सर डॉक छोड़े तो छिप जाता है।"
 
-#: docking/ui/settings.py:660
+#: docking/ui/settings.py:697
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:662
+#: docking/ui/settings.py:699
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "सक्रिय विंडो डॉक क्षेत्र को ओवरलैप करे तो छिप जाता है।"
 
-#: docking/ui/settings.py:664
+#: docking/ui/settings.py:701
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "वर्तमान कार्यस्थान पर कोई भी विंडो डॉक क्षेत्र को ओवरलैप करे तो छिप जाता है।"
 
-#: docking/ui/settings.py:667
+#: docking/ui/settings.py:704
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

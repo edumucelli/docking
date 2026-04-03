@@ -158,7 +158,6 @@ DEFAULT_ZOOM_PERCENT = 1.5
 DEFAULT_ZOOM_RANGE = 3
 DEFAULT_POSITION = Position.BOTTOM.value
 DEFAULT_MONITOR_INDEX = -1
-DEFAULT_HIDE_MODE = "none"
 DEFAULT_HIDE_DELAY_MS = 0
 DEFAULT_UNHIDE_DELAY_MS = 0
 DEFAULT_HIDE_TIME_MS = 250
@@ -211,6 +210,9 @@ class HideMode(str, Enum):
     DODGE_MAXIMIZED = "dodge-maximized"
 
 
+DEFAULT_HIDE_MODE = HideMode.NONE.value
+
+
 def _normalize_hide_mode(value: object) -> str:
     if isinstance(value, str):
         try:
@@ -223,6 +225,66 @@ def _normalize_hide_mode(value: object) -> str:
                 exc,
             )
     return HideMode.NONE.value
+
+
+class LeftClickAction(str, Enum):
+    """Primary-click behavior for running applications.
+
+    Action  Behavior
+    ──────  ─────────────────────────────────────────────────────────────
+    TOGGLE  Focuses the app, or minimizes its windows if already focused.
+    CYCLE   Advances focus through the app's open windows.
+    """
+
+    TOGGLE = "toggle"
+    CYCLE = "cycle"
+
+
+class MiddleClickAction(str, Enum):
+    """Middle-click behavior for application items.
+
+    Action         Behavior
+    ─────────────  ──────────────────────────────────────────────────────
+    NEW_WINDOW     Opens a new window for the application when possible.
+    MINIMIZE       Minimizes the application's open windows.
+    CLOSE_FOCUSED  Closes the app's currently focused window.
+    """
+
+    NEW_WINDOW = "new-window"
+    MINIMIZE = "minimize"
+    CLOSE_FOCUSED = "close-focused"
+
+
+DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
+DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
+
+
+def _normalize_left_click_action(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return LeftClickAction(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid left click action %r; using default %r (%s)",
+                value,
+                LeftClickAction.TOGGLE.value,
+                exc,
+            )
+    return LeftClickAction.TOGGLE.value
+
+
+def _normalize_middle_click_action(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return MiddleClickAction(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid middle click action %r; using default %r (%s)",
+                value,
+                MiddleClickAction.NEW_WINDOW.value,
+                exc,
+            )
+    return MiddleClickAction.NEW_WINDOW.value
 
 
 @dataclass
@@ -432,6 +494,10 @@ class Config:
     tooltips_enabled: bool = DEFAULT_TOOLTIPS_ENABLED
     # Whether the dock follows the cursor across monitors
     active_display: bool = DEFAULT_ACTIVE_DISPLAY
+    # Left-click behavior for running apps
+    left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
+    # Middle-click behavior for app items
+    middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
     # Typed pinned entries in display order.
@@ -526,6 +592,12 @@ class Config:
         self.active_display = _normalize_bool(
             self.active_display,
             default=DEFAULT_ACTIVE_DISPLAY,
+        )
+        self.left_click_action = _normalize_left_click_action(
+            self.left_click_action,
+        )
+        self.middle_click_action = _normalize_middle_click_action(
+            self.middle_click_action,
         )
         self.theme = _normalize_theme(self.theme)
         self.pinned = normalize_pinned_entries(list(self.pinned))
@@ -643,6 +715,8 @@ class Config:
             "anchor_files": self.anchor_files,
             "tooltips_enabled": self.tooltips_enabled,
             "active_display": self.active_display,
+            "left_click_action": self.left_click_action,
+            "middle_click_action": self.middle_click_action,
             "theme": self.theme,
             "pinned": [entry.to_dict() for entry in self.pinned],
             "applet_prefs": self.applet_prefs,

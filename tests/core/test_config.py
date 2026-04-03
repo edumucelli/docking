@@ -22,6 +22,8 @@ class TestConfigDefaults:
         assert c.hide_delay_ms == 0
         assert c.previews_enabled is True
         assert c.tooltips_enabled is True
+        assert c.left_click_action == "toggle"
+        assert c.middle_click_action == "new-window"
         assert c.theme == "default"
         assert isinstance(c.pinned, list)
 
@@ -155,6 +157,8 @@ class TestConfigLoad:
                     "previews_enabled": "false",
                     "tooltips_enabled": "yes",
                     "zoom_enabled": 0,
+                    "left_click_action": "cycle",
+                    "middle_click_action": "minimize",
                 }
             )
         )
@@ -165,6 +169,24 @@ class TestConfigLoad:
         assert config.previews_enabled is False
         assert config.tooltips_enabled is True
         assert config.zoom_enabled is False
+        assert config.left_click_action == "cycle"
+        assert config.middle_click_action == "minimize"
+
+    def test_load_invalid_click_actions_fall_back_to_defaults(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "left_click_action": "explode",
+                    "middle_click_action": "quit-all",
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.left_click_action == "toggle"
+        assert config.middle_click_action == "new-window"
 
     def test_load_ignores_legacy_autohide_key(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -297,6 +319,16 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["icon_size"] == 72
+
+    def test_save_persists_click_actions(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(left_click_action="cycle", middle_click_action="close-focused")
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["left_click_action"] == "cycle"
+        assert saved["middle_click_action"] == "close-focused"
 
     def test_save_persists_typed_pinned_entries(self, tmp_path):
         path = tmp_path / "dock.json"

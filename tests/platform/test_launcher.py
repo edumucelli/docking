@@ -14,11 +14,13 @@ except Exception:
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+from docking.core.config import MiddleClickAction
 from docking.platform.launcher import (
     Launcher,
     get_actions,
     launch,
     launch_action,
+    launch_new_window,
 )
 
 
@@ -102,7 +104,10 @@ class TestDesktopActions:
     def test_get_actions_returns_pairs(self):
         # Given a mock DesktopAppInfo with actions
         mock_app = MagicMock()
-        mock_app.list_actions.return_value = ["new-window", "new-private"]
+        mock_app.list_actions.return_value = [
+            MiddleClickAction.NEW_WINDOW.value,
+            "new-private",
+        ]
         mock_app.get_action_name.side_effect = lambda a: {
             "new-window": "New Window",
             "new-private": "New Incognito Window",
@@ -150,7 +155,9 @@ class TestDesktopActions:
         ):
             launch_action(desktop_id="chrome.desktop", action_id="new-window")
         # Then
-        mock_app.launch_action.assert_called_once_with("new-window", None)
+        mock_app.launch_action.assert_called_once_with(
+            MiddleClickAction.NEW_WINDOW.value, None
+        )
 
     def test_get_actions_returns_empty_when_gio_raises(self, monkeypatch):
         # Given / When
@@ -396,6 +403,49 @@ class TestTryLoadIcon:
         assert resolved is not None
         assert resolved.icon == "gicon-pixbuf"
         launcher.load_gicon.assert_called_once_with(gicon=gicon, size=48)
+
+
+class TestLaunchNewWindow:
+    def test_launch_new_window_prefers_desktop_action(self):
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-window", "new-private"]
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=mock_app,
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="sublime_text.desktop")
+
+        mock_app.launch_action.assert_called_once_with("new-window", None)
+        launch_mock.assert_not_called()
+
+    def test_launch_new_window_falls_back_without_action(self):
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-private"]
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=mock_app,
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="app.desktop")
+
+        mock_app.launch_action.assert_not_called()
+        launch_mock.assert_called_once_with(desktop_id="app.desktop")
+
+    def test_launch_new_window_falls_back_when_desktop_missing(self):
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=None
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="missing.desktop")
+
+        launch_mock.assert_called_once_with(desktop_id="missing.desktop")
 
 
 class TestLaunch:

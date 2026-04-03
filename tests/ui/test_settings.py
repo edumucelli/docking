@@ -416,6 +416,8 @@ def _config():
         hide_mode="autohide",
         previews_enabled=True,
         tooltips_enabled=True,
+        left_click_action="toggle",
+        middle_click_action="new-window",
         lock_icons=False,
         current_workspace_only=False,
         active_display=False,
@@ -471,6 +473,7 @@ class TestSettingsWindowController:
         ]
         assert section_labels == [
             "<b>Look</b>",
+            "<b>Mouse</b>",
             "<b>Behavior</b>",
             "<b>Placement</b>",
             "<b>Layout</b>",
@@ -503,6 +506,32 @@ class TestSettingsWindowController:
         runtime.set_theme.assert_called_once_with(theme_obj)
         runtime.reposition.assert_called_once()
         runtime.queue_draw.assert_called_once()
+
+    def test_mouse_click_action_bindings_update_config(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._left_click_combo.set_active_id("cycle")
+        controller._left_click_combo.emit_changed()
+        controller._middle_click_combo.set_active_id("close-focused")
+        controller._middle_click_combo.emit_changed()
+
+        assert config.left_click_action == "cycle"
+        assert config.middle_click_action == "close-focused"
+        assert config.save.call_count == 2
+        runtime.assert_not_called()
 
     def test_hide_mode_change_updates_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

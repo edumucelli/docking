@@ -139,6 +139,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
+from docking.core.config import MiddleClickAction
 from docking.log import get_logger, with_context
 
 DESKTOP_SUFFIX = ".desktop"
@@ -466,6 +467,30 @@ def launch_action(desktop_id: str, action_id: str) -> None:
                 desktop_id,
                 exc,
             )
+
+
+def launch_new_window(desktop_id: str) -> None:
+    """Open a new application window when the desktop entry exposes that action."""
+    try:
+        app_info = Gio.DesktopAppInfo.new(desktop_id)
+    except (TypeError, GLib.Error) as exc:
+        log.bind(desktop_id=desktop_id, action="launch_new_window").warning(
+            f"Failed to resolve desktop app info for new window action: {exc}"
+        )
+        launch(desktop_id=desktop_id)
+        return
+    if app_info is not None:
+        try:
+            if MiddleClickAction.NEW_WINDOW.value in app_info.list_actions():
+                app_info.launch_action(MiddleClickAction.NEW_WINDOW.value, None)
+                return
+        except GLib.Error as exc:
+            log.bind(desktop_id=desktop_id, action="launch_new_window").warning(
+                "Failed to launch new-window action for %s: %s",
+                desktop_id,
+                exc,
+            )
+    launch(desktop_id=desktop_id)
 
 
 def launch(desktop_id: str) -> None:

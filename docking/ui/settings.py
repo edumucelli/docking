@@ -47,6 +47,8 @@ from docking.core.config import (
     MAX_ZOOM_PERCENT,
     MIN_ICON_SIZE,
     MIN_ZOOM_PERCENT,
+    LeftClickAction,
+    MiddleClickAction,
 )
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
@@ -119,6 +121,8 @@ class SettingsWindowController:
         self._syncing_widgets = False
 
         self._hide_mode_combo: Any = None
+        self._left_click_combo: Any = None
+        self._middle_click_combo: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -210,6 +214,23 @@ class SettingsWindowController:
         self._hide_mode_combo.connect("changed", self._on_hide_mode_combo_changed)
         self._update_hide_mode_description()
 
+        self._left_click_combo = Gtk.ComboBoxText()
+        self._left_click_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for action_value, action_label in [
+            (LeftClickAction.TOGGLE.value, _("Toggle Focus")),
+            (LeftClickAction.CYCLE.value, _("Cycle Windows")),
+        ]:
+            self._left_click_combo.append(action_value, action_label)
+
+        self._middle_click_combo = Gtk.ComboBoxText()
+        self._middle_click_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for action_value, action_label in [
+            (MiddleClickAction.NEW_WINDOW.value, _("New Window")),
+            (MiddleClickAction.MINIMIZE.value, _("Minimize Windows")),
+            (MiddleClickAction.CLOSE_FOCUSED.value, _("Close Focused Window")),
+        ]:
+            self._middle_click_combo.append(action_value, action_label)
+
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
@@ -269,6 +290,14 @@ class SettingsWindowController:
         hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
         hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
 
+        self._append_section(
+            outer=outer,
+            title=_("Mouse"),
+            rows=[
+                (_("Left Click"), self._left_click_combo),
+                (_("Middle Click"), self._middle_click_combo),
+            ],
+        )
         self._append_section(
             outer=outer,
             title=_("Behavior"),
@@ -362,6 +391,14 @@ class SettingsWindowController:
                 config_attr="hide_mode",
                 widget=self._hide_mode_combo,
                 on_change=self._after_hide_mode_changed,
+            ),
+            self._register_choice_binding(
+                config_attr="left_click_action",
+                widget=self._left_click_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="middle_click_action",
+                widget=self._middle_click_combo,
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",
