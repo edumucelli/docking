@@ -63,7 +63,7 @@ jobs:
 
           for path in "${changed_files[@]}"; do
             case "${path}" in
-              docs/*|website/*|images/*)
+              docs/**|website/**|images/**)
                 ;;
               *)
                 echo "CI-relevant change detected: ${path}"
