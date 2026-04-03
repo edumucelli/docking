@@ -65,6 +65,8 @@ docking
   Do not ship `status/org.docking.Docking.png`; status icons should use
   `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
+- **CI validation**: the generated `Architecture: all` package is installed and checked on both x86_64 and ARM64 runners.
+- **Release note**: because the package is `Architecture: all`, the GitHub release publishes a single `linux-all.deb` even though CI validates it on both architectures.
 
 ## PPA (Launchpad)
 
@@ -200,4 +202,6 @@ Notes:
 
 - RPM spec: `packaging/rpm/docking.spec`
 - Build script: `packaging/rpm/build.sh`
+- The RPM is marked `noarch`; Docking is pure Python and uses system GTK/GI packages at runtime.
+- CI also builds the RPM on both x86_64 and ARM64 runners to catch architecture-specific packaging/toolchain issues.
 - Python API dependencies used by weather are vendored under `/usr/lib/docking/vendor`.

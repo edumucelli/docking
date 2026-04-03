@@ -1,12 +1,12 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:1.5.0}
+Version:        %{?pkg_version}%{!?pkg_version:1.6.0}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
-BuildArch:      x86_64
+BuildArch:      noarch
 
 Requires:       python3
 BuildRequires:  gettext
@@ -78,6 +78,9 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Fri Apr 03 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.6.0-1
+- Release 1.6.0.
+
 * Fri Apr 03 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.5.0-1
 - Release 1.5.0.
 

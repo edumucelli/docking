@@ -1091,17 +1091,18 @@ GitHub Actions is split across two workflows:
   - **Test matrix**:
     - Ubuntu 22.04 / Python 3.10
     - Ubuntu 24.04 / Python 3.12
+    - Ubuntu 24.04 ARM64 / Python 3.12
     - Debian 11 / Python 3.10
     - Debian 12 / Python 3.12
   - **Coverage**: pytest-cov on Ubuntu with `--cov-fail-under=55`, artifacts uploaded (XML/HTML), optional Codecov upload when token is configured.
   - **Packaging artifacts**:
-    - `.deb` (with install validation)
-    - `.rpm`
-    - `.flatpak`
-    - `.snap`
-    - `.AppImage`
-    - Arch package (`.pkg.tar.*`)
-    - Nix output tarball + store path
+    - `.deb` (install-validated on x86_64 and ARM64; released as `all`)
+    - `.rpm` (`noarch`, built on x86_64 and ARM64)
+    - `.flatpak` (x86_64 and ARM64)
+    - `.snap` (x86_64 and ARM64)
+    - `.AppImage` (x86_64 and ARM64)
+    - Arch package (`.pkg.tar.*`, x86_64 and ARM64)
+    - Nix output tarball + store path (x86_64 and ARM64)
   - **Release step (CD)**:
     - Runs on `master` only after all package builds.
     - Reads version from `pyproject.toml`, checks latest GitHub Release, and only releases if version is newer.
