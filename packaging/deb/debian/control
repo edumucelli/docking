@@ -6,6 +6,7 @@ Homepage: https://github.com/edumucelli/docking
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Build-Depends:
+    build-essential,
     debhelper-compat (= 13),
     dh-python,
     pybuild-plugin-pyproject,

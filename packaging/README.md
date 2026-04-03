@@ -164,7 +164,7 @@ python3 -m pip install appimage-builder
 
 Output artifact:
 
-- `artifacts/Docking-x86_64.AppImage`
+- `artifacts/Docking-<arch>.AppImage` (`x86_64` or `aarch64`)
 
 Run locally:
 
@@ -176,7 +176,9 @@ chmod +x artifacts/Docking-x86_64.AppImage
 Notes:
 
 - AppImage recipe: `packaging/appimage/AppImageBuilder.yml`
+- Build script: `packaging/appimage/build.sh`
 - Runtime dependencies are bundled from Ubuntu 22.04 packages listed in the recipe.
+- The AppImage build script selects the correct Ubuntu mirror, package architecture, typelib path, and output name for `x86_64` vs `aarch64`.
 
 ## RPM
 
@@ -202,6 +204,6 @@ Notes:
 
 - RPM spec: `packaging/rpm/docking.spec`
 - Build script: `packaging/rpm/build.sh`
-- The RPM is marked `noarch`; Docking is pure Python and uses system GTK/GI packages at runtime.
-- CI also builds the RPM on both x86_64 and ARM64 runners to catch architecture-specific packaging/toolchain issues.
+- The RPM is architecture-specific because the packaged vendored Python wheels can include native binaries.
+- CI builds the RPM on both x86_64 and ARM64 runners and publishes both variants.
 - Python API dependencies used by weather are vendored under `/usr/lib/docking/vendor`.

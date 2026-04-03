@@ -1096,8 +1096,8 @@ GitHub Actions is split across two workflows:
     - Debian 12 / Python 3.12
   - **Coverage**: pytest-cov on Ubuntu with `--cov-fail-under=55`, artifacts uploaded (XML/HTML), optional Codecov upload when token is configured.
   - **Packaging artifacts**:
-    - `.deb` (install-validated on x86_64 and ARM64; released as `all`)
-    - `.rpm` (`noarch`, built on x86_64 and ARM64)
+    - `.deb` (`all`, install-validated on x86_64 and ARM64)
+    - `.rpm` (x86_64 and ARM64)
     - `.flatpak` (x86_64 and ARM64)
     - `.snap` (x86_64 and ARM64)
     - `.AppImage` (x86_64 and ARM64)

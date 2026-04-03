@@ -21,13 +21,13 @@ AppDir:
     exec_args: -m docking.app
 
   apt:
-    arch: amd64
+    arch: __APT_ARCH__
     sources:
-      - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main universe
+      - sourceline: deb [arch=__APT_ARCH__] __APT_MIRROR__ jammy main universe
         key_url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920D1991BC93C
-      - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main universe
+      - sourceline: deb [arch=__APT_ARCH__] __APT_MIRROR__ jammy-updates main universe
         key_url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920D1991BC93C
-      - sourceline: deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-security main universe
+      - sourceline: deb [arch=__APT_ARCH__] __APT_MIRROR__ jammy-security main universe
         key_url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920D1991BC93C
     include:
       - python3
@@ -53,10 +53,10 @@ AppDir:
   runtime:
     env:
       PYTHONPATH: $APPDIR/usr/lib/python3/dist-packages
-      GI_TYPELIB_PATH: $APPDIR/usr/lib/x86_64-linux-gnu/girepository-1.0:$APPDIR/usr/lib/girepository-1.0
+      GI_TYPELIB_PATH: __GI_TYPELIB_PATH__
       XDG_DATA_DIRS: $APPDIR/usr/share:$XDG_DATA_DIRS
       GSETTINGS_BACKEND: memory
 
 AppImage:
-  arch: x86_64
-  file_name: Docking-x86_64.AppImage
+  arch: __APPIMAGE_ARCH__
+  file_name: Docking-__APPIMAGE_ARCH__.AppImage

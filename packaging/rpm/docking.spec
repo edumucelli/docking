@@ -6,7 +6,6 @@ Summary:        A lightweight, feature-rich dock for Linux written in Python wit
 License:        GPL-3.0-or-later
 URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
-BuildArch:      noarch
 
 Requires:       python3
 BuildRequires:  gettext
