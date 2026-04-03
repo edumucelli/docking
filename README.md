@@ -64,13 +64,13 @@ sudo apt install \
 ## Installation
 
 Prebuilt latest release packages are also available on [GitHub Releases](https://github.com/edumucelli/docking/releases), you can download them directly below.
-- [AppImage](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage)
-- [Debian .deb](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb)
-- [RPM](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm)
-- [Flatpak](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak)
-- [Snap](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap)
-- [Arch package](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst)
-- Nix [store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt) and [output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz)
+- `AppImage`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage)
+- `Debian .deb`: [linux-all](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb) for both x64 and arm64
+- `RPM`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm)
+- `Flatpak`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak)
+- `Snap`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap)
+- `Arch package`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.zst)
+- `Nix`: [x64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt), [x64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz), [arm64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt), [arm64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz)
 
 Typical local install/run commands after downloading a release asset:
 
@@ -78,15 +78,21 @@ Typical local install/run commands after downloading a release asset:
 # AppImage
 chmod +x docking-latest-linux-x86_64.AppImage
 ./docking-latest-linux-x86_64.AppImage
+chmod +x docking-latest-linux-aarch64.AppImage
+./docking-latest-linux-aarch64.AppImage
 
 # Debian / RPM / Arch
 sudo apt install ./docking-latest-linux-all.deb
 sudo dnf install ./docking-latest-linux-x86_64.rpm
+sudo dnf install ./docking-latest-linux-aarch64.rpm
 sudo pacman -U ./docking-latest-linux-x86_64.pkg.tar.zst
+sudo pacman -U ./docking-latest-linux-aarch64.pkg.tar.zst
 
 # Flatpak / Snap
 flatpak install --user ./docking-latest-linux-x86_64.flatpak
+flatpak install --user ./docking-latest-linux-aarch64.flatpak
 sudo snap install --dangerous ./docking-latest-linux-x86_64.snap
+sudo snap install --dangerous ./docking-latest-linux-aarch64.snap
 
 # Nix output tarball
 mkdir docking-nix-output
@@ -1097,12 +1103,15 @@ GitHub Actions is split across two workflows:
   - **Coverage**: pytest-cov on Ubuntu with `--cov-fail-under=55`, artifacts uploaded (XML/HTML), optional Codecov upload when token is configured.
   - **Packaging artifacts**:
     - `.deb` (`all`, install-validated on x86_64 and ARM64)
-    - `.rpm` (x86_64 and ARM64)
-    - `.flatpak` (x86_64 and ARM64)
-    - `.snap` (x86_64 and ARM64)
-    - `.AppImage` (x86_64 and ARM64)
-    - Arch package (`.pkg.tar.*`, x86_64 and ARM64)
-    - Nix output tarball + store path (x86_64 and ARM64)
+    - `.rpm` (x64 and arm64)
+    - `.flatpak` (x64 and arm64)
+    - `.snap` (x64 and arm64)
+    - `.AppImage` (x64 and arm64)
+    - Arch package (`.pkg.tar.*`, x64 and arm64)
+    - Nix output tarball + store path (x64 and arm64)
+  - **Release naming**:
+    - arch-specific assets use `linux-x86_64` for x64 and `linux-aarch64` for arm64
+    - the Debian package stays `linux-all.deb` because it is architecture-independent
   - **Release step (CD)**:
     - Runs on `master` only after all package builds.
     - Reads version from `pyproject.toml`, checks latest GitHub Release, and only releases if version is newer.

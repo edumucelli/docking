@@ -814,16 +814,22 @@
               <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Download the latest release package that fits your Linux setup and get straight to work.</p>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">AppImage</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">.deb</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">RPM</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Flatpak</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Snap</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Arch</a>
-              <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Nix</a>
+            <div>
+              <div class="mb-4 mx-auto flex w-fit rounded-full border border-white/12 bg-white/8 p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle>
+                <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white" data-install-arch-option="x64" aria-pressed="true">x64</button>
+                <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold transition text-slate-300 hover:text-white" data-install-arch-option="arm64" aria-pressed="false">arm64</button>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">AppImage</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">.deb</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">RPM</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Flatpak</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Snap</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.zst" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Arch</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Nix</a>
+              </div>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include an output tarball and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-install-store-path data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a> for the selected architecture.</p>
             </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include both an <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">output tarball</a> and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a>.</p>
           </div>
         </div>
       </section>
@@ -939,6 +945,90 @@ pip install -e ".[dev]"</code></pre>
         mobileDockMenu.classList.toggle("hidden");
       });
     }
+
+    (function () {
+      const toggle = document.querySelector("[data-install-arch-toggle]");
+      if (!toggle) return;
+
+      const buttons = toggle.querySelectorAll("[data-install-arch-option]");
+      const links = document.querySelectorAll("[data-install-link]");
+      const storePath = document.querySelector("[data-install-store-path]");
+      const inactiveClasses = ["text-slate-300", "hover:text-white"];
+      const paletteByArch = {
+        x64: {
+          buttonBg: "rgba(253, 186, 116, 0.12)",
+          buttonBorder: "rgba(254, 215, 170, 0.18)",
+          linkBorder: "rgba(253, 186, 116, 0.20)",
+          linkBg: "rgba(253, 186, 116, 0.04)",
+          linkHoverBorder: "rgba(253, 186, 116, 0.30)",
+          linkHoverBg: "rgba(253, 186, 116, 0.08)",
+        },
+        arm64: {
+          buttonBg: "rgba(254, 240, 138, 0.12)",
+          buttonBorder: "rgba(254, 249, 195, 0.18)",
+          linkBorder: "rgba(254, 240, 138, 0.22)",
+          linkBg: "rgba(254, 240, 138, 0.05)",
+          linkHoverBorder: "rgba(254, 240, 138, 0.32)",
+          linkHoverBg: "rgba(254, 240, 138, 0.09)",
+        },
+      };
+
+      links.forEach((link) => {
+        if (link.dataset.installHoverBound === "true") return;
+        link.dataset.installHoverBound = "true";
+        link.addEventListener("mouseenter", () => {
+          const palette = paletteByArch[toggle.dataset.selectedArch || "x64"];
+          link.style.borderColor = palette.linkHoverBorder;
+          link.style.backgroundColor = palette.linkHoverBg;
+        });
+        link.addEventListener("mouseleave", () => {
+          const palette = paletteByArch[toggle.dataset.selectedArch || "x64"];
+          link.style.borderColor = palette.linkBorder;
+          link.style.backgroundColor = palette.linkBg;
+        });
+      });
+
+      function setArch(arch) {
+        const palette = paletteByArch[arch];
+        toggle.dataset.selectedArch = arch;
+
+        buttons.forEach((button) => {
+          const isActive = button.dataset.installArchOption === arch;
+          button.setAttribute("aria-pressed", isActive ? "true" : "false");
+          inactiveClasses.forEach((className) => button.classList.toggle(className, !isActive));
+          if (isActive) {
+            button.classList.add("text-white");
+            button.style.backgroundColor = palette.buttonBg;
+            button.style.border = `1px solid ${palette.buttonBorder}`;
+            button.style.boxShadow = "0 8px 24px rgba(15, 23, 42, 0.22)";
+          } else {
+            button.classList.remove("text-white");
+            button.style.backgroundColor = "transparent";
+            button.style.border = "1px solid transparent";
+            button.style.boxShadow = "none";
+          }
+        });
+
+        links.forEach((link) => {
+          link.href = arch === "arm64" ? link.dataset.hrefArm64 : link.dataset.hrefX64;
+          link.style.borderColor = palette.linkBorder;
+          link.style.backgroundImage = "none";
+          link.style.backgroundColor = palette.linkBg;
+        });
+
+        if (storePath) {
+          storePath.href = arch === "arm64" ? storePath.dataset.hrefArm64 : storePath.dataset.hrefX64;
+        }
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          setArch(button.dataset.installArchOption || "x64");
+        });
+      });
+
+      setArch("x64");
+    })();
 
     /* Carousel: auto-drift + arrow navigation */
     (function () {
