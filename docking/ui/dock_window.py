@@ -182,7 +182,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import Gdk, GdkX11, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.core.items import FILE_KIND, FOLDER_KIND
@@ -190,6 +190,12 @@ from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.launcher import launch, open_target
+from docking.platform.struts import (
+    BlurRect,
+    clear_blur_region,
+    compute_blur_region,
+    set_blur_region,
+)
 from docking.ui import geometry
 from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
@@ -313,6 +319,7 @@ class DockWindow(Gtk.Window):
         self.interaction = DockInteractionCoordinator(self)
         self.current_geometry_frame: DockGeometryFrame | None = None
         self.applied_input_frame: DockGeometryFrame | None = None
+        self._last_blur_region: tuple[int, ...] | None = None
         self.dock_hovered: bool = False
         self._last_autohide_state: HideState | None = None
         self.dodge_monitor: WindowDodgeMonitor | None = None
@@ -525,6 +532,7 @@ class DockWindow(Gtk.Window):
                 for geometry in frame.item_geometries
             ]
             log.debug("draw items: %s", " | ".join(item_positions) or "<none>")
+        self._sync_background_blur_hint(frame=frame)
         self.renderer.draw(
             cr,
             widget,
@@ -865,6 +873,37 @@ class DockWindow(Gtk.Window):
             )
             gdk_window.input_shape_combine_region(region, 0, 0)
             self.applied_input_frame = frame
+
+    def _sync_background_blur_hint(self, *, frame: DockGeometryFrame) -> None:
+        gdk_window = self.get_window()
+        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
+            return
+
+        if self.autohide.enabled and self.autohide.state == HideState.HIDDEN:
+            if self._last_blur_region is not None:
+                clear_blur_region(gdk_window=gdk_window)
+                self._last_blur_region = None
+            return
+
+        background = frame.background_rect
+        blur_region = tuple(
+            compute_blur_region(
+                rect=BlurRect(
+                    x=background.x,
+                    y=background.y,
+                    width=background.w,
+                    height=background.h,
+                ),
+                roundness=self.theme.roundness,
+                round_bottom=self.theme.round_bottom,
+                position=self.config.pos,
+                scale=gdk_window.get_scale_factor(),
+            )
+        )
+        if blur_region == self._last_blur_region:
+            return
+        set_blur_region(gdk_window=gdk_window, blur_region=list(blur_region))
+        self._last_blur_region = blur_region
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""

@@ -765,6 +765,7 @@ class TestDockWindowDrawAndHelpers:
             renderer=renderer,
             cursor_x=1.0,
             cursor_y=2.0,
+            _sync_background_blur_hint=MagicMock(),
             zoom_animator=SimpleNamespace(progress=1.0),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
@@ -778,6 +779,9 @@ class TestDockWindowDrawAndHelpers:
         assert result is True
         stub.renderer.draw.assert_called_once()
         stub.update_input_region.assert_called_once()
+        stub._sync_background_blur_hint.assert_called_once_with(
+            frame=stub._test_geometry_frame
+        )
 
     def test_on_draw_works_with_real_dock_renderer_instance(self):
         renderer = renderer_mod.DockRenderer()
@@ -800,6 +804,7 @@ class TestDockWindowDrawAndHelpers:
             renderer=renderer,
             cursor_x=-1.0,
             cursor_y=-1.0,
+            _sync_background_blur_hint=MagicMock(),
             zoom_animator=SimpleNamespace(progress=0.0),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
@@ -835,6 +840,7 @@ class TestDockWindowDrawAndHelpers:
             update_input_region=MagicMock(),
             cursor_x=25.0,
             cursor_y=33.0,
+            _sync_background_blur_hint=MagicMock(),
             zoom_animator=SimpleNamespace(progress=0.0),
             geometry=SimpleNamespace(
                 build_frame=lambda **_kwargs: stub._test_geometry_frame
@@ -871,6 +877,7 @@ class TestDockWindowDrawAndHelpers:
             update_input_region=MagicMock(),
             cursor_x=25.0,
             cursor_y=33.0,
+            _sync_background_blur_hint=MagicMock(),
             zoom_animator=SimpleNamespace(progress=1.0),
             geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
         )
@@ -976,3 +983,59 @@ class TestDockWindowDrawAndHelpers:
         dock_window_mod.DockWindow.queue_redraw(stub)
 
         assert drawing_area.queue_draw.call_count == 1
+
+
+class TestBlurHintSync:
+    def test_sync_background_blur_hint_updates_once_and_caches(self, monkeypatch):
+        class FakeX11Window:
+            def get_scale_factor(self):
+                return 2
+
+        monkeypatch.setattr(dock_window_mod.GdkX11, "X11Window", FakeX11Window)
+        set_mock = MagicMock()
+        monkeypatch.setattr(dock_window_mod, "set_blur_region", set_mock)
+        window = FakeX11Window()
+
+        frame = SimpleNamespace(background_rect=Rect(10, 20, 100, 30))
+        stub = SimpleNamespace(
+            get_window=lambda: window,
+            autohide=_autohide(enabled=False),
+            theme=SimpleNamespace(roundness=4.0, round_bottom=True),
+            config=SimpleNamespace(pos=Position.BOTTOM),
+            _last_blur_region=None,
+        )
+
+        dock_window_mod.DockWindow._sync_background_blur_hint(stub, frame=frame)
+        dock_window_mod.DockWindow._sync_background_blur_hint(stub, frame=frame)
+
+        set_mock.assert_called_once_with(
+            gdk_window=window,
+            blur_region=[20, 40, 200, 60, 8, 8, 8, 8],
+        )
+        assert stub._last_blur_region == (20, 40, 200, 60, 8, 8, 8, 8)
+
+    def test_sync_background_blur_hint_clears_when_hidden(self, monkeypatch):
+        class FakeX11Window:
+            def get_scale_factor(self):
+                return 1
+
+        monkeypatch.setattr(dock_window_mod.GdkX11, "X11Window", FakeX11Window)
+        clear_mock = MagicMock()
+        monkeypatch.setattr(dock_window_mod, "clear_blur_region", clear_mock)
+        window = FakeX11Window()
+
+        stub = SimpleNamespace(
+            get_window=lambda: window,
+            autohide=_autohide(enabled=True, state=HideState.HIDDEN),
+            theme=SimpleNamespace(roundness=4.0, round_bottom=True),
+            config=SimpleNamespace(pos=Position.BOTTOM),
+            _last_blur_region=(1, 2, 3, 4, 5, 6, 7, 8),
+        )
+
+        dock_window_mod.DockWindow._sync_background_blur_hint(
+            stub,
+            frame=SimpleNamespace(background_rect=Rect(10, 20, 100, 30)),
+        )
+
+        clear_mock.assert_called_once_with(gdk_window=window)
+        assert stub._last_blur_region is None

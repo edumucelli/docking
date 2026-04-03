@@ -43,6 +43,7 @@ Highlights:
 - 38 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
+- Exports `_DOCKING_BACKGROUND_BLUR_REGION` on X11 so compositors and scripts can read the exact visible shelf rectangle.
 - 74 locale catalogs plus English fallback.
 
 ## Requirements
