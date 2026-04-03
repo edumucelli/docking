@@ -142,6 +142,7 @@ pretending the X11 world is stable during every scan.
 
 from __future__ import annotations
 
+from itertools import chain, pairwise
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -153,6 +154,8 @@ from gi.repository import GLib, Gtk, Wnck
 from docking.log import get_logger, with_context
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 
+# GLib.Error is not a real exception subclass in some PyGObject builds,
+# so only add it to the catch tuple when it actually is one.
 _RECOVERABLE_ERRORS: tuple[type[BaseException], ...] = (TypeError,)
 if isinstance(GLib.Error, type) and issubclass(GLib.Error, BaseException):
     _RECOVERABLE_ERRORS = (TypeError, GLib.Error)
@@ -160,17 +163,21 @@ if isinstance(GLib.Error, type) and issubclass(GLib.Error, BaseException):
 log = with_context(get_logger(name="window_tracker"))
 
 
-def _wm_class_desktop_candidates(class_lower: str) -> list[str]:
-    """Generate desktop ID candidates from a lowercased WM_CLASS.
+def _wm_class_desktop_candidates(class_lower: str, class_group: str) -> list[str]:
+    """Generate desktop ID candidates from a WM_CLASS.
 
     Handles apps whose WM_CLASS contains spaces (e.g. "mongodb compass",
-    "aws vpn client") by trying hyphenated and no-space variants.
-    Returns a deduplicated list of candidates to try.
+    "aws vpn client") by trying hyphenated, no-space, and GNOME-prefixed
+    variants. Returns a deduplicated list of candidates to try.
+
+    class_group preserves original casing for GNOME-style IDs like
+    org.gnome.Nautilus.desktop.
     """
     candidates = [class_lower]
     if " " in class_lower:
         candidates.append(class_lower.replace(" ", "-"))
         candidates.append(class_lower.replace(" ", ""))
+    candidates.append(f"{GNOME_APP_PREFIX}{class_group}")
     # Deduplicate while preserving order
     return list(dict.fromkeys(candidates))
 
@@ -192,6 +199,7 @@ class WindowTracker:
         self._launcher = launcher
         self._screen: Wnck.Screen | None = None
         self._wm_class_to_desktop: dict[str, str] = {}
+        self._missed_desktop_candidates: set[str] = set()
         # Latest known window XIDs per desktop_id from _update_running().
         # Preview/toggle paths use this cache to avoid rematching WM_CLASS
         # during hover-time UI events.
@@ -339,22 +347,41 @@ class WindowTracker:
         if class_instance:
             inst_lower = class_instance.lower()
             if inst_lower in self._wm_class_to_desktop:
-                return self._wm_class_to_desktop[inst_lower]
+                desktop_id = self._wm_class_to_desktop[inst_lower]
+                # Cache under class_lower too so future lookups hit directly.
+                self._wm_class_to_desktop[class_lower] = desktop_id
+                return desktop_id
 
-        # Try to resolve via Gio: exact, hyphenated, no-spaces variants
-        for candidate in _wm_class_desktop_candidates(class_lower=class_lower):
-            desktop_id = f"{candidate}{DESKTOP_SUFFIX}"
-            info = self._launcher.resolve(desktop_id=desktop_id)
+        # Try to resolve via Gio: exact, hyphenated, no-spaces, GNOME-prefixed
+        candidate_ids = [
+            f"{candidate}{DESKTOP_SUFFIX}"
+            for candidate in _wm_class_desktop_candidates(
+                class_lower=class_lower, class_group=class_group
+            )
+        ]
+        for desktop_id, next_candidate in pairwise(chain(candidate_ids, [None])):
+            if desktop_id in self._missed_desktop_candidates:
+                continue
+            info = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
             if info:
                 self._wm_class_to_desktop[class_lower] = info.desktop_id
                 return info.desktop_id
-
-        # Try with org.gnome prefix
-        gnome_id = f"{GNOME_APP_PREFIX}{class_group}{DESKTOP_SUFFIX}"
-        info = self._launcher.resolve(desktop_id=gnome_id)
-        if info:
-            self._wm_class_to_desktop[class_lower] = info.desktop_id
-            return info.desktop_id
+            self._missed_desktop_candidates.add(desktop_id)
+            if next_candidate:
+                log.bind(action="match_window", desktop_id=desktop_id).debug(
+                    "Desktop candidate miss for class_group=%s (class_lower=%s); "
+                    "next candidate: %s",
+                    class_group,
+                    class_lower,
+                    next_candidate,
+                )
+            else:
+                log.bind(action="match_window", desktop_id=desktop_id).debug(
+                    "Desktop candidate miss for class_group=%s (class_lower=%s); "
+                    "no more candidates",
+                    class_group,
+                    class_lower,
+                )
 
         return None
 

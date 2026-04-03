@@ -175,14 +175,17 @@ class Launcher:
         self._desktop_dirs = self._get_desktop_dirs()
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
 
-    def resolve(self, desktop_id: str) -> DesktopInfo | None:
+    def resolve(
+        self, desktop_id: str, *, log_failures: bool = True
+    ) -> DesktopInfo | None:
         """Resolve a desktop ID (e.g. 'firefox.desktop') to full info."""
         try:
             app_info = Gio.DesktopAppInfo.new(desktop_id)
         except (TypeError, GLib.Error) as exc:
-            log.bind(desktop_id=desktop_id, action="resolve").warning(
-                f"Failed to resolve desktop app info: {exc}"
-            )
+            if log_failures:
+                log.bind(desktop_id=desktop_id, action="resolve").warning(
+                    f"Failed to resolve desktop app info: {exc}"
+                )
             app_info = None
         if app_info is None:
             # Try searching by filename in XDG dirs
@@ -192,11 +195,12 @@ class Launcher:
                     try:
                         app_info = Gio.DesktopAppInfo.new_from_filename(str(path))
                     except (TypeError, GLib.Error) as exc:
-                        log.bind(
-                            desktop_id=desktop_id,
-                            action="resolve_from_filename",
-                            path=str(path),
-                        ).warning(f"Failed to resolve desktop file by path: {exc}")
+                        if log_failures:
+                            log.bind(
+                                desktop_id=desktop_id,
+                                action="resolve_from_filename",
+                                path=str(path),
+                            ).warning(f"Failed to resolve desktop file by path: {exc}")
                         continue
                     break
         if app_info is None:

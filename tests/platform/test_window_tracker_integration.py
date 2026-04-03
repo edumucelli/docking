@@ -286,7 +286,7 @@ class TestWindowMatching:
         # Given
         tracker, _model, launcher = tracker_env
         info = SimpleNamespace(desktop_id="mongodb-compass.desktop")
-        launcher.resolve.side_effect = lambda desktop_id: (
+        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
             info if desktop_id == "mongodb-compass.desktop" else None
         )
         win = FakeWindow(12, class_group="MongoDB Compass")
@@ -302,7 +302,7 @@ class TestWindowMatching:
         # Given
         tracker, _model, launcher = tracker_env
         info = SimpleNamespace(desktop_id="org.gnome.Terminal.desktop")
-        launcher.resolve.side_effect = lambda desktop_id: (
+        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
             info if desktop_id == "org.gnome.Terminal.desktop" else None
         )
         win = FakeWindow(13, class_group="Terminal")
