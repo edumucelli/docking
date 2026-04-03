@@ -19,9 +19,12 @@ import docking.applets.keyboardlayout.state as kbl_state
 from docking.applets.keyboardlayout.state import (
     Fcitx5Backend,
     IBusBackend,
+    MateBackend,
     XkbBackend,
     _fcitx5_layout_code,
     _ibus_layout_code,
+    _parse_gsettings_string,
+    _parse_gsettings_string_list,
     cycle_layout,
     detect_backend,
     layout_display_name,
@@ -202,6 +205,92 @@ class TestFcitx5Backend:
 
 
 # ---------------------------------------------------------------------------
+# MATE backend
+# ---------------------------------------------------------------------------
+
+
+class TestMateBackend:
+    def test_parse_gsettings_string_list(self):
+        assert _parse_gsettings_string_list("['gb', 'br', 'us']") == ["gb", "br", "us"]
+        assert _parse_gsettings_string_list("@as []") == []
+
+    def test_parse_gsettings_string(self):
+        assert _parse_gsettings_string("'pc101'") == "pc101"
+        assert _parse_gsettings_string("") == ""
+
+    def test_query_returns_mate_layouts(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "MATE")
+
+        def mock_run(cmd):
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     br"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+
+        state = MateBackend().query()
+        assert state.active == "br"
+        assert state.available == ["gb", "br", "us"]
+
+    def test_switch_preserves_mate_model_and_options(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "MATE")
+        commands = []
+
+        def mock_run(cmd):
+            commands.append(cmd)
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "model",
+            ]:
+                return "'pc101'"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "options",
+            ]:
+                return "['grp:alt_shift_toggle']"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+
+        MateBackend().switch(layout_code="us")
+
+        assert [
+            "setxkbmap",
+            "-model",
+            "pc101",
+            "-layout",
+            "us,gb,br",
+            "-option",
+            "grp:alt_shift_toggle",
+        ] in commands
+
+    def test_is_available_requires_mate_session(self, monkeypatch):
+        monkeypatch.delenv("XDG_CURRENT_DESKTOP", raising=False)
+        monkeypatch.delenv("XDG_SESSION_DESKTOP", raising=False)
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: "['gb', 'br', 'us']")
+
+        assert not MateBackend().is_available()
+
+
+# ---------------------------------------------------------------------------
 # XkbBackend
 # ---------------------------------------------------------------------------
 
@@ -272,6 +361,29 @@ class TestDetectBackend:
         monkeypatch.setattr(kbl_state, "_run", mock_run)
         backend = detect_backend()
         assert isinstance(backend, XkbBackend)
+
+    def test_prefers_mate_before_xkb(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "MATE")
+
+        def mock_run(cmd):
+            if cmd == ["ibus", "engine"]:
+                return None
+            if cmd == ["fcitx5-remote", "-n"]:
+                return None
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     br"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        backend = detect_backend()
+        assert isinstance(backend, MateBackend)
 
 
 # ---------------------------------------------------------------------------

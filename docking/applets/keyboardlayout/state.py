@@ -1,9 +1,10 @@
 """Pure state logic for keyboard layout applet - no GTK/Cairo.
 
-Supports three backends (tried in order):
+Supports four backends (tried in order):
   1. IBus - reads engines via ``ibus engine`` / dconf
   2. Fcitx5 - reads via ``fcitx5-remote -n`` / profile file
-  3. setxkbmap (fallback) - parses ``setxkbmap -query``
+  3. MATE - reads configured layouts from MATE gsettings
+  4. setxkbmap (fallback) - parses ``setxkbmap -query``
 
 IBus engines use ``xkb:LAYOUT:VARIANT:LANG`` (e.g. ``xkb:br::por``).
 Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
@@ -11,6 +12,8 @@ Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
 
 from __future__ import annotations
 
+import ast
+import os
 import re
 import subprocess
 from abc import ABC, abstractmethod
@@ -24,6 +27,12 @@ log = with_context(get_logger(name="keyboardlayout"))
 _LAYOUT_RE = re.compile(r"^layout:\s+(.+)$", re.MULTILINE)
 _IBUS_XKB_RE = re.compile(r"^xkb:([^:]+):")
 _FCITX5_KB_RE = re.compile(r"^keyboard-(.+)$")
+
+_MATE_LAYOUTS_SCHEMA = "org.mate.peripherals-keyboard-xkb.kbd"
+_MATE_GENERAL_SCHEMA = "org.mate.peripherals-keyboard-xkb.general"
+_MATE_LAYOUTS_KEY = "layouts"
+_MATE_MODEL_KEY = "model"
+_MATE_OPTIONS_KEY = "options"
 
 LAYOUT_NAMES: dict[str, str] = {
     "us": "English (US)",
@@ -138,6 +147,51 @@ def _run(cmd: list[str]) -> str | None:
     except (OSError, subprocess.TimeoutExpired) as exc:
         log.bind(action="run_cmd").debug("Failed: %s: %s", cmd, exc)
     return None
+
+
+def _parse_gsettings_string_list(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    cleaned = raw.strip()
+    if cleaned.startswith("@as "):
+        cleaned = cleaned[4:].strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError) as exc:
+        log.debug("Failed to parse gsettings string list %r: %s", raw, exc)
+        return []
+    if not isinstance(value, list):
+        return []
+    return [entry for entry in value if isinstance(entry, str) and entry]
+
+
+def _parse_gsettings_string(raw: str | None) -> str:
+    if not raw:
+        return ""
+    cleaned = raw.strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError):
+        return cleaned.strip("'\"")
+    return value if isinstance(value, str) else ""
+
+
+def _desktop_tokens() -> set[str]:
+    values = [
+        os.environ.get("XDG_CURRENT_DESKTOP", ""),
+        os.environ.get("XDG_SESSION_DESKTOP", ""),
+    ]
+    tokens: set[str] = set()
+    for value in values:
+        for token in re.split(r"[:;]", value):
+            normalized = token.strip().lower()
+            if normalized:
+                tokens.add(normalized)
+    return tokens
+
+
+def _is_mate_session() -> bool:
+    return "mate" in _desktop_tokens()
 
 
 class LayoutBackend(ABC):
@@ -262,6 +316,53 @@ class Fcitx5Backend(LayoutBackend):
         return ims
 
 
+class MateBackend(LayoutBackend):
+    """Reads configured layouts from MATE and switches with setxkbmap."""
+
+    name = "mate"
+
+    def is_available(self) -> bool:
+        if not _is_mate_session():
+            return False
+        return bool(self._layouts())
+
+    def query(self) -> LayoutState:
+        available = self._layouts()
+        active = XkbBackend().query().active
+        if not active and available:
+            active = available[0]
+        return LayoutState(active=active, available=available)
+
+    def switch(self, layout_code: str) -> None:
+        cmd = ["setxkbmap"]
+        model = self._model()
+        if model:
+            cmd.extend(["-model", model])
+        layouts = self._layouts()
+        if layout_code in layouts:
+            target_index = layouts.index(layout_code)
+            active_layouts = layouts[target_index:] + layouts[:target_index]
+            cmd.extend(["-layout", ",".join(active_layouts)])
+        else:
+            cmd.extend(["-layout", layout_code])
+        options = self._options()
+        if options:
+            cmd.extend(["-option", ",".join(options)])
+        _run(cmd=cmd)
+
+    def _layouts(self) -> list[str]:
+        raw = _run(cmd=["gsettings", "get", _MATE_LAYOUTS_SCHEMA, _MATE_LAYOUTS_KEY])
+        return _parse_gsettings_string_list(raw=raw)
+
+    def _model(self) -> str:
+        raw = _run(cmd=["gsettings", "get", _MATE_LAYOUTS_SCHEMA, _MATE_MODEL_KEY])
+        return _parse_gsettings_string(raw=raw)
+
+    def _options(self) -> list[str]:
+        raw = _run(cmd=["gsettings", "get", _MATE_LAYOUTS_SCHEMA, _MATE_OPTIONS_KEY])
+        return _parse_gsettings_string_list(raw=raw)
+
+
 class XkbBackend(LayoutBackend):
     """Reads/switches layouts via ``setxkbmap``."""
 
@@ -286,6 +387,7 @@ class XkbBackend(LayoutBackend):
 _BACKENDS: list[type[LayoutBackend]] = [
     IBusBackend,
     Fcitx5Backend,
+    MateBackend,
     XkbBackend,
 ]
 
