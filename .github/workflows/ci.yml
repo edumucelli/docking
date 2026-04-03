@@ -951,7 +951,7 @@ jobs:
     needs: [changes, test-arm64]
     if: needs.changes.outputs.run_ci == 'true'
     container:
-      image: arm64v8/archlinux:latest
+      image: archlinux/archlinux:latest
     steps:
       - uses: actions/checkout@v4
 

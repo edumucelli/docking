@@ -37,7 +37,28 @@ sed \
   -e "s|__GI_TYPELIB_PATH__|\\\$APPDIR/usr/lib/${typelib_arch_dir}/girepository-1.0:\\\$APPDIR/usr/lib/girepository-1.0|g" \
   "${RECIPE_TEMPLATE}" > "${tmp_recipe}"
 
-appimage-builder --recipe "${tmp_recipe}" --skip-test
+python3 - "${tmp_recipe}" <<'PY'
+import runpy
+import sys
+
+import apt_pkg
+from appimagebuilder.modules.deploy.apt import package as apt_package
+
+apt_pkg.init_system()
+
+
+def _compare_versions(self, other):
+    return apt_pkg.version_compare(self.version, other.version)
+
+
+apt_package.Package.__gt__ = lambda self, other: _compare_versions(self, other) > 0
+apt_package.Package.__lt__ = lambda self, other: _compare_versions(self, other) < 0
+apt_package.Package.__ge__ = lambda self, other: _compare_versions(self, other) >= 0
+apt_package.Package.__le__ = lambda self, other: _compare_versions(self, other) <= 0
+
+sys.argv = ["appimage-builder", "--recipe", sys.argv[1], "--skip-test"]
+runpy.run_module("appimagebuilder", run_name="__main__")
+PY
 
 mv -f ./*.AppImage artifacts/
 ls -lh artifacts/*.AppImage
