@@ -96,8 +96,10 @@ class TestAppMain:
         # Given
         app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
 
-        config = SimpleNamespace(theme="default", icon_size=48)
+        config = SimpleNamespace(theme="default", icon_size=48, transparency=1.0)
         theme = MagicMock()
+        applied_theme = object()
+        theme.with_opacity.return_value = applied_theme
         launcher = MagicMock()
         model = MagicMock()
         renderer = MagicMock()
@@ -139,11 +141,12 @@ class TestAppMain:
 
         # Then
         theme_cls.load.assert_called_once_with(name="default", icon_size=48)
+        theme.with_opacity.assert_called_once_with(1.0)
         factory.assert_called_once_with(
             config=config,
             model=model,
             renderer=renderer,
-            theme=theme,
+            theme=applied_theme,
             window_tracker=tracker,
             launcher=launcher,
         )

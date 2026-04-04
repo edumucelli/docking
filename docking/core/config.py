@@ -169,10 +169,13 @@ DEFAULT_ANCHOR_FILES = False
 DEFAULT_TOOLTIPS_ENABLED = True
 DEFAULT_ACTIVE_DISPLAY = False
 DEFAULT_THEME = "default"
+DEFAULT_TRANSPARENCY = 1.0
 MIN_ICON_SIZE = 32
 MAX_ICON_SIZE = 128
 MIN_ZOOM_PERCENT = 1.0
 MAX_ZOOM_PERCENT = 4.0
+MIN_TRANSPARENCY = 0.15
+MAX_TRANSPARENCY = 1.0
 
 logger = get_logger("config")
 _SAVE_LOCK = threading.RLock()
@@ -444,6 +447,15 @@ def _normalize_theme(value: object) -> str:
     return value if isinstance(value, str) and value else "default"
 
 
+def _normalize_transparency(value: object) -> float:
+    return _normalize_float(
+        value,
+        default=DEFAULT_TRANSPARENCY,
+        minimum=MIN_TRANSPARENCY,
+        maximum=MAX_TRANSPARENCY,
+    )
+
+
 def _normalize_pref_map(raw: object) -> dict[str, dict[str, Any]]:
     if not isinstance(raw, dict):
         return {}
@@ -500,6 +512,8 @@ class Config:
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
+    # Multiplier applied to theme alpha values for the dock shelf
+    transparency: float = DEFAULT_TRANSPARENCY
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
@@ -600,6 +614,7 @@ class Config:
             self.middle_click_action,
         )
         self.theme = _normalize_theme(self.theme)
+        self.transparency = _normalize_transparency(self.transparency)
         self.pinned = normalize_pinned_entries(list(self.pinned))
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
@@ -718,6 +733,7 @@ class Config:
             "left_click_action": self.left_click_action,
             "middle_click_action": self.middle_click_action,
             "theme": self.theme,
+            "transparency": self.transparency,
             "pinned": [entry.to_dict() for entry in self.pinned],
             "applet_prefs": self.applet_prefs,
             "item_prefs": self.item_prefs,

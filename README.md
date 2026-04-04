@@ -35,7 +35,7 @@ Docking is built around a few core capabilities:
 
 - Fast launcher workflow with running-state indicators and preview interactions.
 - Flexible layout with multi-position, multi-monitor, auto-hide, and drag-and-drop organization.
-- Broad customization through themes, icon sizing, menu options, and tooltip controls.
+- Broad customization through themes, transparency, icon sizing, menu options, and tooltip controls.
 - Native support for pinned files/folders, including left-click folder stacks.
 - Extensible applet surface for system status, productivity, media, and utilities.
 
@@ -160,6 +160,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "left_click_action": "toggle",
   "middle_click_action": "new-window",
   "theme": "default",
+  "transparency": 1.0,
   "pinned": [
     { "kind": "app", "target": "firefox.desktop" },
     { "kind": "app", "target": "org.gnome.Nautilus.desktop" }
@@ -191,6 +192,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `left_click_action` | toggle | Running-app left click: `toggle` or `cycle` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
+| `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders |
 | `applet_prefs` | `{}` | Per-applet preference storage |
 | `item_prefs` | `{}` | Per-item preference storage for files and folders |

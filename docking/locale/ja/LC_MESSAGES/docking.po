@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-04 13:30+0200\n"
+"POT-Creation-Date: 2026-04-04 13:50+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -1199,7 +1199,7 @@ msgstr "電力プロファイル利用不可"
 msgid "Add Separator"
 msgstr "セパレーターを追加"
 
-#: docking/ui/menu.py:1491 docking/ui/settings.py:155
+#: docking/ui/menu.py:1491 docking/ui/settings.py:160
 msgid "Preferences"
 msgstr "設定"
 
@@ -1224,170 +1224,174 @@ msgstr "ウィンドウ"
 msgid "Display {display}: {width}x{height}"
 msgstr "ディスプレイ {display}: {width}x{height}"
 
-#: docking/ui/settings.py:179
+#: docking/ui/settings.py:184
 msgid "Appearance"
 msgstr "外観"
 
-#: docking/ui/settings.py:180
+#: docking/ui/settings.py:185
 msgid "Applets"
 msgstr "アプレット"
 
-#: docking/ui/settings.py:198
+#: docking/ui/settings.py:203
 msgid "Don't Hide"
 msgstr "隠さない"
 
-#: docking/ui/settings.py:199
+#: docking/ui/settings.py:204
 msgid "Auto-hide"
 msgstr "自動非表示"
 
-#: docking/ui/settings.py:200
+#: docking/ui/settings.py:205
 msgid "Intelligent"
 msgstr "インテリジェント"
 
-#: docking/ui/settings.py:201
+#: docking/ui/settings.py:206
 msgid "Dodge Active Window"
 msgstr "アクティブウィンドウを回避"
 
-#: docking/ui/settings.py:202
+#: docking/ui/settings.py:207
 msgid "Dodge All Windows"
 msgstr "全ウィンドウを回避"
 
-#: docking/ui/settings.py:203
+#: docking/ui/settings.py:208
 msgid "Dodge Maximized"
 msgstr "最大化ウィンドウを回避"
 
-#: docking/ui/settings.py:220
+#: docking/ui/settings.py:225
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:221
+#: docking/ui/settings.py:226
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:228
+#: docking/ui/settings.py:233
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:229
+#: docking/ui/settings.py:234
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:230
+#: docking/ui/settings.py:235
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:276
+#: docking/ui/settings.py:290
 msgid "Look"
 msgstr "外観"
 
-#: docking/ui/settings.py:278
+#: docking/ui/settings.py:292
 msgid "Theme"
 msgstr "テーマ"
 
-#: docking/ui/settings.py:279
+#: docking/ui/settings.py:293
 msgid "Icon Size"
 msgstr "アイコンサイズ"
 
-#: docking/ui/settings.py:280
+#: docking/ui/settings.py:294
+msgid "Transparency"
+msgstr "Transparency"
+
+#: docking/ui/settings.py:295
 msgid "Zoom"
 msgstr "ズーム"
 
-#: docking/ui/settings.py:281
+#: docking/ui/settings.py:296
 msgid "Zoom Percent"
 msgstr "ズーム率"
 
-#: docking/ui/settings.py:282
+#: docking/ui/settings.py:297
 msgid "Show Tooltips"
 msgstr "ツールチップを表示"
 
-#: docking/ui/settings.py:283
+#: docking/ui/settings.py:298
 msgid "Window Previews"
 msgstr "ウィンドウプレビュー"
 
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:310
 msgid "Mouse"
 msgstr "Mouse"
 
-#: docking/ui/settings.py:297
+#: docking/ui/settings.py:312
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:298
+#: docking/ui/settings.py:313
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:303
+#: docking/ui/settings.py:318
 msgid "Behavior"
 msgstr "動作"
 
-#: docking/ui/settings.py:305
+#: docking/ui/settings.py:320
 msgid "Hide Mode"
 msgstr "非表示モード"
 
-#: docking/ui/settings.py:306
+#: docking/ui/settings.py:321
 msgid "Hide Delay"
 msgstr "非表示の遅延"
 
-#: docking/ui/settings.py:307
+#: docking/ui/settings.py:322
 msgid "Unhide Delay"
 msgstr "表示の遅延"
 
-#: docking/ui/settings.py:312
+#: docking/ui/settings.py:327
 msgid "Placement"
 msgstr "配置"
 
-#: docking/ui/settings.py:314
+#: docking/ui/settings.py:329
 msgid "Position"
 msgstr "位置"
 
-#: docking/ui/settings.py:315
+#: docking/ui/settings.py:330
 msgid "Follow Cursor"
 msgstr "カーソルに追従"
 
-#: docking/ui/settings.py:316
+#: docking/ui/settings.py:331
 msgid "Current Workspace Only"
 msgstr "現在のワークスペースのみ"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:336
 msgid "Layout"
 msgstr "レイアウト"
 
-#: docking/ui/settings.py:323
+#: docking/ui/settings.py:338
 msgid "Lock Positions"
 msgstr "位置をロック"
 
-#: docking/ui/settings.py:324
+#: docking/ui/settings.py:339
 msgid "Anchor Applets to End"
 msgstr "アプレットを末尾に固定"
 
-#: docking/ui/settings.py:325
+#: docking/ui/settings.py:340
 msgid "Anchor Files to End"
 msgstr "ファイルを末尾に固定"
 
-#: docking/ui/settings.py:694
+#: docking/ui/settings.py:732
 msgid "The dock is always visible and reserves screen space."
 msgstr "ドックは常に表示され、画面スペースを確保します。"
 
-#: docking/ui/settings.py:695
+#: docking/ui/settings.py:733
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "マウスカーソルがドックから離れると非表示になります。"
 
-#: docking/ui/settings.py:697
+#: docking/ui/settings.py:735
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:699
+#: docking/ui/settings.py:737
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "フォーカスされたウィンドウがドック領域に重なると非表示になります。"
 
-#: docking/ui/settings.py:701
+#: docking/ui/settings.py:739
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 "現在のワークスペースのウィンドウがドック領域に重なると非表示になります。"
 
-#: docking/ui/settings.py:704
+#: docking/ui/settings.py:742
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

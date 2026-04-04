@@ -121,7 +121,7 @@ from __future__ import annotations
 
 import enum
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -144,6 +144,10 @@ class IndicatorStyle(str, enum.Enum):
 def _rgba(values: list[int]) -> RGBA:
     """Convert [R, G, B, A] (0-255) to Cairo-compatible (0.0-1.0) tuple."""
     return values[0] / 255, values[1] / 255, values[2] / 255, values[3] / 255
+
+
+def _multiply_alpha(color: RGBA, multiplier: float) -> RGBA:
+    return color[0], color[1], color[2], color[3] * multiplier
 
 
 @dataclass(frozen=True)
@@ -188,6 +192,20 @@ class Theme:
     indicator_style: IndicatorStyle = IndicatorStyle.DOTS
     round_bottom: bool = False  # round bottom corners (vs square flush with edge)
     distance_from_edge: int = 0  # gap between dock and screen edge in pixels
+
+    def with_opacity(self, multiplier: float) -> Theme:
+        """Return a copy whose RGBA colors keep their hue but scale alpha."""
+        return replace(
+            self,
+            fill_start=_multiply_alpha(self.fill_start, multiplier),
+            fill_end=_multiply_alpha(self.fill_end, multiplier),
+            stroke=_multiply_alpha(self.stroke, multiplier),
+            inner_stroke=_multiply_alpha(self.inner_stroke, multiplier),
+            indicator_color=_multiply_alpha(self.indicator_color, multiplier),
+            active_indicator_color=_multiply_alpha(
+                self.active_indicator_color, multiplier
+            ),
+        )
 
     @classmethod
     def load(cls, name: str = "default", icon_size: int = 48) -> Theme:

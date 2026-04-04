@@ -25,6 +25,7 @@ class TestConfigDefaults:
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
         assert c.theme == "default"
+        assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
 
     def test_previews_enabled_default_true(self):
@@ -135,6 +136,7 @@ class TestConfigLoad:
                     "hide_delay_ms": -50,
                     "unhide_delay_ms": "-10",
                     "hide_time_ms": -1,
+                    "transparency": 9,
                 }
             )
         )
@@ -147,6 +149,7 @@ class TestConfigLoad:
         assert config.hide_delay_ms == 0
         assert config.unhide_delay_ms == 0
         assert config.hide_time_ms == 0
+        assert config.transparency == 1.0
 
     def test_load_normalizes_bool_like_values(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -171,6 +174,15 @@ class TestConfigLoad:
         assert config.zoom_enabled is False
         assert config.left_click_action == "cycle"
         assert config.middle_click_action == "minimize"
+
+
+    def test_load_clamps_transparency_to_minimum(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"transparency": 0.01}))
+
+        config = Config.load(path)
+
+        assert config.transparency == 0.15
 
     def test_load_invalid_click_actions_fall_back_to_defaults(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -329,6 +341,15 @@ class TestConfigSave:
         saved = json.loads(path.read_text())
         assert saved["left_click_action"] == "cycle"
         assert saved["middle_click_action"] == "close-focused"
+
+    def test_save_persists_transparency(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(transparency=0.65)
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["transparency"] == 0.65
 
     def test_save_persists_typed_pinned_entries(self, tmp_path):
         path = tmp_path / "dock.json"

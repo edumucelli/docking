@@ -269,6 +269,24 @@ class FakeSpinButton:
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
 
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+
+class FakeScale(FakeSpinButton):
+    @classmethod
+    def new_with_range(cls, *_args):
+        return cls()
+
+    def set_digits(self, value: int) -> None:
+        self.digits = value
+
+    def set_draw_value(self, value: bool) -> None:
+        self.draw_value = value
+
+    def set_hexpand(self, value: bool) -> None:
+        self.hexpand = value
+
 
 class FakeSwitch:
     def __init__(self) -> None:
@@ -401,6 +419,7 @@ class FakeGtk:
     Grid = FakeGrid
     ComboBoxText = FakeComboBoxText
     SpinButton = FakeSpinButton
+    Scale = FakeScale
     Switch = FakeSwitch
     CheckButton = FakeCheckButton
     Image = FakeImage
@@ -425,6 +444,7 @@ def _config():
         anchor_files=False,
         zoom_enabled=True,
         theme="default",
+        transparency=1.0,
         position="bottom",
         icon_size=48,
         zoom_percent=1.5,
@@ -485,8 +505,10 @@ class TestSettingsWindowController:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        theme_obj = object()
-        monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: theme_obj)
+        base_theme = MagicMock()
+        applied_theme = object()
+        base_theme.with_opacity.return_value = applied_theme
+        monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: base_theme)
         runtime = MagicMock()
         config = _config()
         controller = settings_mod.SettingsWindowController(
@@ -503,9 +525,40 @@ class TestSettingsWindowController:
 
         assert config.theme == "slate"
         config.save.assert_called_once()
-        runtime.set_theme.assert_called_once_with(theme_obj)
+        base_theme.with_opacity.assert_called_once_with(config.transparency)
+        runtime.set_theme.assert_called_once_with(applied_theme)
         runtime.reposition.assert_called_once()
         runtime.queue_draw.assert_called_once()
+
+    def test_transparency_change_updates_config_and_runtime(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        base_theme = MagicMock()
+        applied_theme = object()
+        base_theme.with_opacity.return_value = applied_theme
+        monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: base_theme)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._transparency_scale.set_value(65)
+        controller._transparency_scale.emit_value_changed()
+
+        assert config.transparency == 0.65
+        config.save.assert_called_once()
+        base_theme.with_opacity.assert_called_once_with(0.65)
+        runtime.set_theme.assert_called_once_with(applied_theme)
+        runtime.queue_draw.assert_called_once()
+        runtime.reposition.assert_not_called()
 
     def test_mouse_click_action_bindings_update_config(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

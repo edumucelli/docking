@@ -77,7 +77,9 @@ def main() -> None:
     apply_tweaks(desktop=detect_desktop())
 
     config = Config.load()
-    theme = Theme.load(name=config.theme, icon_size=config.icon_size)
+    theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
+        config.transparency
+    )
     launcher = Launcher()
     model = DockModel(config=config, launcher=launcher)
     renderer = DockRenderer()

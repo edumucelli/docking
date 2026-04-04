@@ -44,8 +44,10 @@ from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
     MAX_ICON_SIZE,
+    MAX_TRANSPARENCY,
     MAX_ZOOM_PERCENT,
     MIN_ICON_SIZE,
+    MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
     LeftClickAction,
     MiddleClickAction,
@@ -79,6 +81,7 @@ SECTION_HEADER_TOP_MARGIN_PX = 6
 SECTION_HEADER_BOTTOM_MARGIN_PX = 2
 ROW_SPACING_PX = 12
 HIDE_MODE_COMBO_WIDTH_PX = 180
+TRANSPARENCY_SCALE_WIDTH_PX = 132
 HIDE_MODE_DESC_MAX_CHARS = 28
 HIDE_MODE_BOX_SPACING_PX = 4
 APPLET_GRID_COLUMN_SPACING_PX = 16
@@ -86,6 +89,8 @@ APPLET_GRID_ROW_SPACING_PX = 8
 APPLET_ROW_CONTENT_SPACING_PX = 6
 ZOOM_PERCENT_SCALE = 100
 ZOOM_PERCENT_STEP = 5
+TRANSPARENCY_PERCENT_SCALE = 100
+TRANSPARENCY_PERCENT_STEP = 5
 HIDE_DELAY_MAX_MS = 5000
 HIDE_DELAY_STEP_MS = 50
 log = get_logger("settings")
@@ -134,6 +139,7 @@ class SettingsWindowController:
         self._theme_combo: Any = None
         self._position_combo: Any = None
         self._icon_size_spin: Any = None
+        self._transparency_scale: Any = None
         self._zoom_percent_spin: Any = None
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
@@ -253,6 +259,18 @@ class SettingsWindowController:
             MAX_ICON_SIZE,
             1,
         )
+        self._transparency_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            int(MIN_TRANSPARENCY * TRANSPARENCY_PERCENT_SCALE),
+            int(MAX_TRANSPARENCY * TRANSPARENCY_PERCENT_SCALE),
+            TRANSPARENCY_PERCENT_STEP,
+        )
+        self._transparency_scale.set_digits(0)
+        self._transparency_scale.set_draw_value(True)
+        self._transparency_scale.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        transparency_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        transparency_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        transparency_box.pack_end(self._transparency_scale, False, False, 0)
         self._zoom_percent_spin = Gtk.SpinButton.new_with_range(
             int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
             int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
@@ -277,6 +295,7 @@ class SettingsWindowController:
             rows=[
                 (_("Theme"), self._theme_combo),
                 (_("Icon Size"), self._icon_size_spin),
+                (_("Transparency"), transparency_box),
                 (_("Zoom"), self._zoom_enabled_switch),
                 (_("Zoom Percent"), self._zoom_percent_spin),
                 (_("Show Tooltips"), self._tooltips_switch),
@@ -453,6 +472,19 @@ class SettingsWindowController:
                 config_attr="icon_size",
                 widget=self._icon_size_spin,
                 on_change=self._after_icon_size_changed,
+            ),
+            self._register_numeric_binding(
+                config_attr="transparency",
+                widget=self._transparency_scale,
+                read_widget=lambda: (
+                    float(self._transparency_scale.get_value())
+                    / TRANSPARENCY_PERCENT_SCALE
+                ),
+                write_widget=lambda value: self._transparency_scale.set_value(
+                    float(value) * TRANSPARENCY_PERCENT_SCALE
+                ),
+                signal="value-changed",
+                on_change=self._after_transparency_changed,
             ),
             self._register_numeric_binding(
                 config_attr="zoom_percent",
@@ -676,14 +708,24 @@ class SettingsWindowController:
             binding.on_change(value)
         self._update_dependent_sensitivity()
 
-    def _after_theme_changed(self, name: str) -> None:
-        theme = Theme.load(str(name), self._config.icon_size)
+    def _apply_runtime_theme(self) -> None:
+        theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
+            self._config.transparency
+        )
         self._runtime.set_theme(theme)
+
+    def _after_theme_changed(self, _name: str) -> None:
+        self._apply_runtime_theme()
         self._runtime.reposition()
         self._runtime.queue_draw()
 
     def _after_icon_size_changed(self, _value: int) -> None:
+        self._apply_runtime_theme()
         self._runtime.reposition()
+        self._runtime.queue_draw()
+
+    def _after_transparency_changed(self, _value: float) -> None:
+        self._apply_runtime_theme()
         self._runtime.queue_draw()
 
     def _after_hide_mode_changed(self, mode: str) -> None:
