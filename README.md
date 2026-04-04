@@ -260,14 +260,19 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Code
 
 <img src="docking/assets/icons/applets/clock.png" alt="Clock" width="48">
 
-Analog or digital clock face. The analog mode uses SVG layers for a realistic clock face with hour/minute hands.
+Analog or digital clock face. Optional seconds display adds a red seconds hand in analog mode and `HH:MM:SS` in digital mode, and the applet can keep a simple one-shot alarm reminder.
 
+**Click:** Acknowledge a ringing alarm
 **Right-click options:**
 - **Digital Clock** -- switch between analog and digital display
 - **24-Hour Clock** -- toggle 12/24-hour format
 - **Show Date** -- show date below time (digital mode only)
+- **Show Seconds** -- refresh every second and show seconds on the icon
+- **Set Alarm...** -- choose an hour/minute for the next one-shot reminder
+- **Clear Alarm** -- remove a pending alarm
+- **Acknowledge Alarm** -- clear the urgent reminder after it fires
 
-**Preferences stored:** `show_digital`, `show_military`, `show_date`
+**Preferences stored:** `show_digital`, `show_military`, `show_date`, `show_seconds`, `alarm_target`
 
 ### Trash
 

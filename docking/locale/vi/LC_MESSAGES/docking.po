@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-04 01:12+0200\n"
+"POT-Creation-Date: 2026-04-04 10:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -321,21 +321,57 @@ msgstr "Clear"
 msgid "Clippy (empty)"
 msgstr "Bộ nhớ tạm (trống)"
 
-#: docking/applets/clock/applet.py:33
+#: docking/applets/clock/applet.py:38
 msgid "Clock"
 msgstr "Clock"
 
-#: docking/applets/clock/applet.py:69
+#: docking/applets/clock/applet.py:87
 msgid "Digital Clock"
 msgstr "Digital Clock"
 
-#: docking/applets/clock/applet.py:74
+#: docking/applets/clock/applet.py:92
 msgid "24-Hour Clock"
 msgstr "24-Hour Clock"
 
-#: docking/applets/clock/applet.py:79
+#: docking/applets/clock/applet.py:97
 msgid "Show Date"
 msgstr "Show Date"
+
+#: docking/applets/clock/applet.py:103
+msgid "Show Seconds"
+msgstr "Show Seconds"
+
+#: docking/applets/clock/applet.py:110
+msgid "Set Alarm..."
+msgstr "Set Alarm..."
+
+#: docking/applets/clock/applet.py:115
+msgid "Clear Alarm"
+msgstr "Clear Alarm"
+
+#: docking/applets/clock/applet.py:120
+msgid "Acknowledge Alarm"
+msgstr "Acknowledge Alarm"
+
+#: docking/applets/clock/applet.py:202
+msgid "Set Alarm"
+msgstr "Set Alarm"
+
+#: docking/applets/clock/applet.py:206
+msgid "Cancel"
+msgstr "Cancel"
+
+#: docking/applets/clock/applet.py:207 docking/applets/quicknote/applet.py:78
+msgid "OK"
+msgstr "OK"
+
+#: docking/applets/clock/applet.py:245
+msgid "Hour"
+msgstr "Hour"
+
+#: docking/applets/clock/applet.py:247
+msgid "Minute"
+msgstr "Minute"
 
 #: docking/applets/colorpicker/applet.py:38
 #: docking/applets/colorpicker/applet.py:69
@@ -705,10 +741,6 @@ msgstr "Sua ghi chu"
 #: docking/applets/quicknote/applet.py:65
 msgid "Clear Note"
 msgstr "Xoa ghi chu"
-
-#: docking/applets/quicknote/applet.py:78
-msgid "OK"
-msgstr "OK"
 
 #: docking/applets/quote/applet.py:42 docking/applets/quote/applet.py:83
 #: docking/applets/quote/applet.py:207 docking/applets/quote/applet.py:213
