@@ -1047,6 +1047,7 @@ class TestDockMenu:
         assert "Add Separator" in labels
         assert "Preferences" in labels
         assert "About" in labels
+        assert "Get Support" in labels
         assert "Quit" in labels
         assert "Auto-hide" not in labels
         assert "Window Previews" not in labels
@@ -1054,7 +1055,8 @@ class TestDockMenu:
         assert "Themes" not in labels
         assert "Position" not in labels
         assert labels.index("Preferences") == labels.index("About") - 1
-        assert labels.index("About") == labels.index("Quit") - 1
+        assert labels.index("About") == labels.index("Get Support") - 1
+        assert labels.index("Get Support") == labels.index("Quit") - 1
 
         next(mi for mi in menu.children if mi.get_label() == "Add Separator").activate()
         handler._model.add_separator.assert_called_once_with(index=3)
@@ -1063,11 +1065,16 @@ class TestDockMenu:
         handler._about.show = show_about
         show_settings = MagicMock()
         handler._settings.show = show_settings
+        open_target = MagicMock()
+        menu_mod.launcher_mod.open_target = open_target
         next(mi for mi in menu.children if mi.get_label() == "Preferences").activate()
         show_settings.assert_called_once()
 
         next(mi for mi in menu.children if mi.get_label() == "About").activate()
         show_about.assert_called_once()
+
+        next(mi for mi in menu.children if mi.get_label() == "Get Support").activate()
+        open_target.assert_called_once_with(menu_mod.SUPPORT_URL)
 
         next(mi for mi in menu.children if mi.get_label() == "Quit").activate()
         FakeGtk.main_quit.assert_called_once()

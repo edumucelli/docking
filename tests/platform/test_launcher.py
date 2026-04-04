@@ -21,6 +21,7 @@ from docking.platform.launcher import (
     launch,
     launch_action,
     launch_new_window,
+    open_target,
 )
 
 
@@ -446,6 +447,37 @@ class TestLaunchNewWindow:
             launch_new_window(desktop_id="missing.desktop")
 
         launch_mock.assert_called_once_with(desktop_id="missing.desktop")
+
+
+class TestOpenTarget:
+    def test_open_target_accepts_https_url(self):
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target("https://github.com/edumucelli/docking/issues") is True
+
+        launch_mock.assert_called_once_with(
+            "https://github.com/edumucelli/docking/issues", None
+        )
+
+    def test_open_target_normalizes_local_path(self, tmp_path):
+        target = tmp_path / "example.txt"
+        target.write_text("hello")
+
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target(str(target)) is True
+
+        launch_mock.assert_called_once_with(target.resolve().as_uri(), None)
+
+    def test_open_target_returns_false_for_unsupported_scheme(self):
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target("mailto:test@example.com") is False
+
+        launch_mock.assert_not_called()
 
 
 class TestLaunch:

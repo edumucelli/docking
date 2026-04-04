@@ -556,8 +556,12 @@ def normalize_file_target(target: str) -> str | None:
 
 
 def open_target(target: str) -> bool:
-    """Open a local file or directory with the default application."""
-    uri = normalize_file_target(target)
+    """Open a local file, directory, or web URL with the default handler."""
+    parsed = urlparse(target)
+    if parsed.scheme in {"http", "https"}:
+        uri = target
+    else:
+        uri = normalize_file_target(target)
     if uri is None:
         return False
     try:

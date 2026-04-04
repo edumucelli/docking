@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-04 10:06+0200\n"
+"POT-Creation-Date: 2026-04-04 13:30+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1128,91 +1128,95 @@ msgstr "נוצר"
 msgid "Modified"
 msgstr "שונה"
 
-#: docking/ui/menu.py:720
+#: docking/ui/menu.py:722
 msgid "Folder not found"
 msgstr "תיקייה לא נמצאה"
 
-#: docking/ui/menu.py:754
+#: docking/ui/menu.py:756
 msgid "Folder is empty"
 msgstr "התיקייה ריקה"
 
-#: docking/ui/menu.py:1182
+#: docking/ui/menu.py:1184
 #, python-format
 msgid "Open in %s"
 msgstr "פתח ב-%s"
 
-#: docking/ui/menu.py:1184
+#: docking/ui/menu.py:1186
 #, python-format
 msgid "%d More in %s"
 msgstr "עוד %d ב-%s"
 
-#: docking/ui/menu.py:1187
+#: docking/ui/menu.py:1189
 msgid "Open Folder"
 msgstr "פתח תיקייה"
 
-#: docking/ui/menu.py:1189
+#: docking/ui/menu.py:1191
 #, python-format
 msgid "%d More in Folder"
 msgstr "עוד %d בתיקייה"
 
-#: docking/ui/menu.py:1315 docking/ui/menu.py:1335 docking/ui/menu.py:1351
-#: docking/ui/menu.py:1404
+#: docking/ui/menu.py:1317 docking/ui/menu.py:1337 docking/ui/menu.py:1353
+#: docking/ui/menu.py:1406
 msgid "Remove from Dock"
 msgstr "Remove from Dock"
 
-#: docking/ui/menu.py:1328
+#: docking/ui/menu.py:1330
 msgid "Open"
 msgstr "פתח"
 
-#: docking/ui/menu.py:1358
+#: docking/ui/menu.py:1360
 msgid "Keep in Dock"
 msgstr "Keep in Dock"
 
-#: docking/ui/menu.py:1367
+#: docking/ui/menu.py:1369
 msgid "Close All"
 msgstr "Close All"
 
-#: docking/ui/menu.py:1367
+#: docking/ui/menu.py:1369
 msgid "Close"
 msgstr "Close"
 
-#: docking/ui/menu.py:1384
+#: docking/ui/menu.py:1386
 msgid "Sort By"
 msgstr "מיין לפי"
 
-#: docking/ui/menu.py:1392
+#: docking/ui/menu.py:1394
 msgid "Show Hidden Files"
 msgstr "הצג קבצים מוסתרים"
 
-#: docking/ui/menu.py:1397
+#: docking/ui/menu.py:1399
 msgid "Large Icons"
 msgstr "סמלים גדולים"
 
-#: docking/ui/menu.py:1434
+#: docking/ui/menu.py:1436
 msgid "Add Applet"
 msgstr "Applets"
 
-#: docking/ui/menu.py:1472
+#: docking/ui/menu.py:1474
 msgid "No Applets Available"
 msgstr "Power Profiles unavailable"
 
-#: docking/ui/menu.py:1479
+#: docking/ui/menu.py:1481
 msgid "Add Separator"
 msgstr "Add Separator"
 
-#: docking/ui/menu.py:1489 docking/ui/settings.py:155
+#: docking/ui/menu.py:1491 docking/ui/settings.py:155
 msgid "Preferences"
 msgstr "העדפות"
 
-#: docking/ui/menu.py:1494
+#: docking/ui/menu.py:1496
 msgid "About"
 msgstr "About"
 
-#: docking/ui/menu.py:1499
+#: docking/ui/menu.py:1501
+msgid "Get Support"
+msgstr "Get Support"
+
+#: docking/ui/menu.py:1508
 msgid "Quit"
 msgstr "Quit"
 
-#: docking/ui/menu.py:1536
+#: docking/ui/menu.py:1545
 msgid "Window"
 msgstr "Window"
 

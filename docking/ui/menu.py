@@ -224,6 +224,8 @@ FOLDER_STACK_HOVER_SCALE = 1.14
 FOLDER_STACK_HOVER_EASE = 0.35
 log = get_logger("menu")
 
+SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
+
 
 @dataclass(frozen=True)
 class FolderStackCard:
@@ -1494,6 +1496,13 @@ class MenuHandler:
         about_item = Gtk.MenuItem(label=_("About"))
         about_item.connect("activate", lambda _: self._about.show())
         menu.append(about_item)
+
+        # Support
+        support_item = Gtk.MenuItem(label=_("Get Support"))
+        support_item.connect(
+            "activate", lambda _: launcher_mod.open_target(SUPPORT_URL)
+        )
+        menu.append(support_item)
 
         # Quit
         quit_item = Gtk.MenuItem(label=_("Quit"))
