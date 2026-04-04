@@ -175,7 +175,6 @@ class TestConfigLoad:
         assert config.left_click_action == "cycle"
         assert config.middle_click_action == "minimize"
 
-
     def test_load_clamps_transparency_to_minimum(self, tmp_path):
         path = tmp_path / "dock.json"
         path.write_text(json.dumps({"transparency": 0.01}))

@@ -455,7 +455,7 @@ def _config():
 
 
 class TestSettingsWindowController:
-    def test_show_reuses_single_window_and_builds_two_tabs(self, monkeypatch):
+    def test_show_reuses_single_window_and_builds_three_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
@@ -483,6 +483,7 @@ class TestSettingsWindowController:
         assert switcher.stack is stack
         assert [title for _, _, title in stack.pages] == [
             "Appearance",
+            "Behavior",
             "Applets",
         ]
         appearance_box = stack.pages[0][0]
@@ -493,11 +494,63 @@ class TestSettingsWindowController:
         ]
         assert section_labels == [
             "<b>Look</b>",
-            "<b>Mouse</b>",
-            "<b>Behavior</b>",
             "<b>Placement</b>",
             "<b>Layout</b>",
         ]
+        behavior_box = stack.pages[1][0]
+        behavior_labels = [
+            child.get_children()[0].markup
+            for child in behavior_box.get_children()
+            if isinstance(child, FakeBox) and child.get_children()
+        ]
+        assert behavior_labels == [
+            "<b>Mouse</b>",
+            "<b>Behavior</b>",
+        ]
+
+    def test_hide_controls_exist_only_in_behavior_tab(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+        stack = controller._window.child.children[1]
+        appearance_box = stack.pages[0][0]
+        behavior_box = stack.pages[1][0]
+
+        def row_labels(tab_box):
+            labels = []
+            for section in tab_box.get_children():
+                if not isinstance(section, FakeBox):
+                    continue
+                children = section.get_children()
+                if len(children) < 2 or not isinstance(children[1], FakeBox):
+                    continue
+                content = children[1]
+                for row in content.get_children():
+                    if isinstance(row, FakeBox) and row.get_children():
+                        title = row.get_children()[0]
+                        if isinstance(title, FakeLabel):
+                            labels.append(title.get_label())
+            return labels
+
+        appearance_rows = row_labels(appearance_box)
+        behavior_rows = row_labels(behavior_box)
+
+        assert "Hide Mode" not in appearance_rows
+        assert "Hide Delay" not in appearance_rows
+        assert "Unhide Delay" not in appearance_rows
+        assert "Hide Mode" in behavior_rows
+        assert "Hide Delay" in behavior_rows
+        assert "Unhide Delay" in behavior_rows
 
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -723,7 +776,7 @@ class TestSettingsWindowController:
 
         controller.show()
 
-        applets_scroller = controller._window.child.children[1].pages[1][0]
+        applets_scroller = controller._window.child.children[1].pages[2][0]
         applets_box = applets_scroller.child
         section_headers = [
             child for child in applets_box.children if isinstance(child, FakeLabel)
@@ -790,7 +843,7 @@ class TestSettingsWindowController:
 
         controller.show()
 
-        applets_scroller = controller._window.child.children[1].pages[1][0]
+        applets_scroller = controller._window.child.children[1].pages[2][0]
         first_check = applets_scroller.child.children[1].children[0]
         assert first_check.child.children[0].source == (
             "pixbuf",
@@ -827,7 +880,7 @@ class TestSettingsWindowController:
 
         controller.show()
 
-        applets_scroller = controller._window.child.children[1].pages[1][0]
+        applets_scroller = controller._window.child.children[1].pages[2][0]
         first_grid = next(
             child
             for child in applets_scroller.child.children

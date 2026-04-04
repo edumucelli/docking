@@ -183,6 +183,7 @@ class SettingsWindowController:
         switcher.set_halign(Gtk.Align.CENTER)
 
         stack.add_titled(self._build_appearance_tab(), "appearance", _("Appearance"))
+        stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
 
         outer.pack_start(switcher, False, False, 0)
@@ -302,6 +303,34 @@ class SettingsWindowController:
                 (_("Window Previews"), self._previews_switch),
             ],
         )
+        self._append_section(
+            outer=outer,
+            title=_("Placement"),
+            rows=[
+                (_("Position"), self._position_combo),
+                (_("Follow Cursor"), self._active_display_switch),
+                (_("Current Workspace Only"), self._workspace_only_switch),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Layout"),
+            rows=[
+                (_("Lock Positions"), self._lock_icons_switch),
+                (_("Anchor Applets to End"), self._anchor_applets_switch),
+                (_("Anchor Files to End"), self._anchor_files_switch),
+            ],
+        )
+
+        return outer
+
+    def _build_behavior_tab(self) -> Gtk.Widget:
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPEARANCE_TAB_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
+
         hide_mode_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
             spacing=HIDE_MODE_BOX_SPACING_PX,
@@ -324,24 +353,6 @@ class SettingsWindowController:
                 (_("Hide Mode"), hide_mode_box),
                 (_("Hide Delay"), self._hide_delay_spin),
                 (_("Unhide Delay"), self._unhide_delay_spin),
-            ],
-        )
-        self._append_section(
-            outer=outer,
-            title=_("Placement"),
-            rows=[
-                (_("Position"), self._position_combo),
-                (_("Follow Cursor"), self._active_display_switch),
-                (_("Current Workspace Only"), self._workspace_only_switch),
-            ],
-        )
-        self._append_section(
-            outer=outer,
-            title=_("Layout"),
-            rows=[
-                (_("Lock Positions"), self._lock_icons_switch),
-                (_("Anchor Applets to End"), self._anchor_applets_switch),
-                (_("Anchor Files to End"), self._anchor_files_switch),
             ],
         )
 
