@@ -108,7 +108,7 @@ behavior of the dock:
 - hide mode none (no hiding)
 - previews on
 - tooltips on
-- no pinned items by default
+- no schema-level pinned items by default (first-run bootstrap may seed a starter dock)
 
 Changing a default here is a user-visible product decision, not just a code
 cleanup.
@@ -140,7 +140,7 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import unquote, urlparse
 
-from docking.applets.identity import is_applet_desktop_id
+from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
 from docking.core.position import Position
 from docking.log import get_logger
@@ -150,6 +150,89 @@ DEFAULT_CONFIG_DIR = (
 )
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 DEFAULT_CONFIG_BACKUP_FILE = DEFAULT_CONFIG_DIR / "dock.json.bak"
+
+DEFAULT_BROWSER_DESKTOP_IDS: tuple[str, ...] = (
+    "firefox.desktop",
+    "org.mozilla.firefox.desktop",
+    "chromium.desktop",
+    "chromium-browser.desktop",
+    "google-chrome.desktop",
+    "brave-browser.desktop",
+    "org.gnome.Epiphany.desktop",
+    "epiphany.desktop",
+)
+DEFAULT_FILE_MANAGER_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Nautilus.desktop",
+    "nautilus.desktop",
+    "nemo.desktop",
+    "caja.desktop",
+    "thunar.desktop",
+    "org.kde.dolphin.desktop",
+    "dolphin.desktop",
+    "pcmanfm.desktop",
+)
+DEFAULT_TERMINAL_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Terminal.desktop",
+    "gnome-terminal.desktop",
+    "mate-terminal.desktop",
+    "xfce4-terminal.desktop",
+    "org.kde.konsole.desktop",
+    "konsole.desktop",
+    "terminator.desktop",
+    "kitty.desktop",
+    "Alacritty.desktop",
+    "com.mitchellh.ghostty.desktop",
+    "org.codeberg.dnkl.foot.desktop",
+)
+DEFAULT_EDITOR_DESKTOP_IDS: tuple[str, ...] = (
+    "code.desktop",
+    "codium.desktop",
+    "sublime_text.desktop",
+    "gedit.desktop",
+    "org.gnome.gedit.desktop",
+    "xed.desktop",
+    "mousepad.desktop",
+    "kate.desktop",
+    "org.gnome.TextEditor.desktop",
+)
+DEFAULT_MAIL_DESKTOP_IDS: tuple[str, ...] = (
+    "org.mozilla.Thunderbird.desktop",
+    "thunderbird.desktop",
+    "geary.desktop",
+    "org.gnome.Evolution.desktop",
+    "evolution.desktop",
+    "kmail.desktop",
+    "org.kde.kmail2.desktop",
+    "claws-mail.desktop",
+)
+DEFAULT_CALCULATOR_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Calculator.desktop",
+    "gnome-calculator.desktop",
+    "mate-calc.desktop",
+    "galculator.desktop",
+    "kcalc.desktop",
+)
+DEFAULT_SOFTWARE_STORE_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Software.desktop",
+    "gnome-software.desktop",
+    "snap-store.desktop",
+    "plasma-discover.desktop",
+    "org.kde.discover.desktop",
+    "pamac-manager.desktop",
+    "ubuntu-software-center.desktop",
+    "appcenter.desktop",
+    "synaptic.desktop",
+)
+STARTER_APPLET_IDS: tuple[str, ...] = (
+    "applications",
+    "clock",
+    "calendar",
+    "weather",
+    "systemmonitor",
+    "hydration",
+    "notifications",
+    "session",
+)
 
 DEFAULT_PINNED: list[PinnedEntry] = []
 DEFAULT_ICON_SIZE = 48
@@ -214,6 +297,85 @@ class HideMode(str, Enum):
 
 
 DEFAULT_HIDE_MODE = HideMode.NONE.value
+
+
+def _build_initial_pinned() -> list[PinnedEntry]:
+    applications_entry = PinnedEntry(
+        kind=APPLET_KIND,
+        target=applet_desktop_id(applet_id=STARTER_APPLET_IDS[0]),
+    )
+    launcher_entries = _build_initial_launcher_entries()
+    applet_entries = [
+        PinnedEntry(kind=APPLET_KIND, target=applet_desktop_id(applet_id=applet_id))
+        for applet_id in STARTER_APPLET_IDS[1:]
+    ]
+    return [applications_entry, *launcher_entries, *applet_entries]
+
+
+def _build_initial_launcher_entries() -> list[PinnedEntry]:
+    entries: list[PinnedEntry] = []
+    seen_targets: set[str] = set()
+    slots: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+        (DEFAULT_BROWSER_DESKTOP_IDS, ("x-scheme-handler/http",)),
+        (DEFAULT_FILE_MANAGER_DESKTOP_IDS, ("inode/directory",)),
+        (DEFAULT_TERMINAL_DESKTOP_IDS, ()),
+        (DEFAULT_EDITOR_DESKTOP_IDS, ("text/plain",)),
+        (DEFAULT_MAIL_DESKTOP_IDS, ("x-scheme-handler/mailto",)),
+        (DEFAULT_CALCULATOR_DESKTOP_IDS, ()),
+        (DEFAULT_SOFTWARE_STORE_DESKTOP_IDS, ()),
+    )
+    for candidates, fallback_content_types in slots:
+        desktop_id = _resolve_initial_desktop_id(
+            candidates=candidates,
+            fallback_content_types=fallback_content_types,
+        )
+        if desktop_id is None or desktop_id in seen_targets:
+            continue
+        seen_targets.add(desktop_id)
+        entries.append(PinnedEntry(kind=APP_KIND, target=desktop_id))
+    return entries
+
+
+def _resolve_initial_desktop_id(
+    *,
+    candidates: tuple[str, ...],
+    fallback_content_types: tuple[str, ...],
+) -> str | None:
+    for desktop_id in candidates:
+        if _desktop_id_exists(desktop_id):
+            return desktop_id
+    for content_type in fallback_content_types:
+        desktop_id = _default_desktop_id_for(content_type)
+        if desktop_id and _desktop_id_exists(desktop_id):
+            return desktop_id
+    return None
+
+
+def _desktop_id_exists(desktop_id: str) -> bool:
+    from docking.platform.launcher import Launcher
+
+    return Launcher().resolve(desktop_id=desktop_id, log_failures=False) is not None
+
+
+def _default_desktop_id_for(content_type: str) -> str | None:
+    import gi
+
+    gi.require_version("Gio", "2.0")
+    from gi.repository import Gio, GLib
+
+    try:
+        app_info = Gio.AppInfo.get_default_for_type(content_type, False)
+    except GLib.Error as exc:
+        logger.warning(
+            "Failed to resolve default app for %s while seeding first-run pins: %s",
+            content_type,
+            exc,
+        )
+        return None
+    if app_info is None:
+        return None
+    desktop_id = app_info.get_id()
+    return desktop_id if isinstance(desktop_id, str) and desktop_id else None
 
 
 def _normalize_hide_mode(value: object) -> str:
@@ -624,7 +786,7 @@ class Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
         if not path.exists():
-            config = cls()
+            config = cls(pinned=_build_initial_pinned())
             config._path = path
             config.save(path=path)
             return config

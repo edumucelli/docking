@@ -136,7 +136,7 @@ DOCKING_LOG_LEVEL=DEBUG python run.py
 
 ## Configuration
 
-Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
+Config is stored at `~/.config/docking/dock.json` (auto-created on first run). New installs are seeded with a starter dock: Applications, a set of common launchers detected from what is installed, then Clock, Calendar, Weather, System Monitor, Hydration, Notifications, and Session.
 
 ```json
 {
@@ -162,8 +162,10 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "theme": "default",
   "transparency": 1.0,
   "pinned": [
+    { "kind": "applet", "target": "applet://applications" },
     { "kind": "app", "target": "firefox.desktop" },
-    { "kind": "app", "target": "org.gnome.Nautilus.desktop" }
+    { "kind": "app", "target": "org.gnome.Nautilus.desktop" },
+    { "kind": "applet", "target": "applet://clock" }
   ],
   "applet_prefs": {},
   "item_prefs": {}
@@ -193,7 +195,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
-| `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders |
+| `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders. First run seeds a starter set. |
 | `applet_prefs` | `{}` | Per-applet preference storage |
 | `item_prefs` | `{}` | Per-item preference storage for files and folders |
 

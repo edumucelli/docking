@@ -3,7 +3,14 @@
 import json
 from pathlib import Path
 
-from docking.core.config import APP_KIND, FILE_KIND, FOLDER_KIND, Config, PinnedEntry
+from docking.core.config import (
+    APP_KIND,
+    APPLET_KIND,
+    FILE_KIND,
+    FOLDER_KIND,
+    Config,
+    PinnedEntry,
+)
 from docking.core.position import Position
 
 
@@ -46,14 +53,54 @@ class TestConfigDefaults:
 
 
 class TestConfigLoad:
-    def test_load_missing_file_creates_default(self, tmp_path):
+    def test_load_missing_file_creates_default(self, tmp_path, monkeypatch):
         # Given
         path = tmp_path / "dock.json"
+        seeded = [
+            PinnedEntry(kind=APP_KIND, target="browser.desktop"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
+        ]
+        monkeypatch.setattr("docking.core.config._build_initial_pinned", lambda: seeded)
         # When
         config = Config.load(path)
         # Then
         assert config.icon_size == 48
+        assert config.pinned == seeded
         assert path.exists()
+
+    def test_load_missing_file_seeds_starter_applets_after_launchers(
+        self, tmp_path, monkeypatch
+    ):
+        path = tmp_path / "dock.json"
+
+        monkeypatch.setattr(
+            "docking.core.config._build_initial_launcher_entries",
+            lambda: [
+                PinnedEntry(kind=APP_KIND, target="browser.desktop"),
+                PinnedEntry(kind=APP_KIND, target="terminal.desktop"),
+                PinnedEntry(kind=APP_KIND, target="mail.desktop"),
+                PinnedEntry(kind=APP_KIND, target="calc.desktop"),
+                PinnedEntry(kind=APP_KIND, target="store.desktop"),
+            ],
+        )
+
+        config = Config.load(path)
+
+        assert config.pinned == [
+            PinnedEntry(kind=APPLET_KIND, target="applet://applications"),
+            PinnedEntry(kind=APP_KIND, target="browser.desktop"),
+            PinnedEntry(kind=APP_KIND, target="terminal.desktop"),
+            PinnedEntry(kind=APP_KIND, target="mail.desktop"),
+            PinnedEntry(kind=APP_KIND, target="calc.desktop"),
+            PinnedEntry(kind=APP_KIND, target="store.desktop"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://calendar"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://weather"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://systemmonitor"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://hydration"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://notifications"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://session"),
+        ]
 
     def test_load_previews_enabled(self, tmp_path):
         # Given
@@ -286,6 +333,21 @@ class TestConfigLoad:
         assert config.icon_size == 72
         assert backup.exists()
         assert json.loads(backup.read_text())["icon_size"] == 72
+
+    def test_load_existing_file_does_not_reseed_first_run_pins(
+        self, tmp_path, monkeypatch
+    ):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"pinned": ["existing.desktop"]}), encoding="utf-8")
+
+        def fail_if_called():
+            raise AssertionError("first-run seeding should not run for existing config")
+
+        monkeypatch.setattr("docking.core.config._build_initial_pinned", fail_if_called)
+
+        config = Config.load(path)
+
+        assert config.pinned == [PinnedEntry(kind=APP_KIND, target="existing.desktop")]
 
 
 class TestConfigSave:
