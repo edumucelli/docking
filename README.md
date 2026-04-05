@@ -247,7 +247,7 @@ This split keeps runtime behavior in one place while making parsers/rendering hi
 
 <img src="docking/assets/icons/applets/aiusage.png" alt="AI Usage" width="48">
 
-Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Codex usage are recorded through local hook integration, while OpenCode usage is merged from its local SQLite database.
+Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
 **Scroll:** Cycle provider focus between Auto, Claude, Codex, and OpenCode
 **Right-click options:**
@@ -256,7 +256,7 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Code
 
 **Tooltip:** Today/week cost summary plus per-model usage for the selected provider
 
-**Update interval:** Hook-driven updates for Claude/Codex, plus a 60-second OpenCode poll
+**Update interval:** Updates when usage changes, plus a periodic refresh for providers that need polling
 
 **Preferences stored:** rolling `days` usage history in `applet_prefs.aiusage`
 
@@ -282,12 +282,12 @@ Analog or digital clock face. Optional seconds display adds a red seconds hand i
 
 <img src="docking/assets/icons/applets/trash.png" alt="Trash" width="48">
 
-Shows the current state of the system trash. Icon switches between empty and full automatically via file monitoring.
+Shows the current state of the system trash. Icon switches between empty and full automatically.
 
 **Click:** Open trash folder in file manager
 **Right-click options:**
 - **Open Trash** -- open in file manager
-- **Empty Trash** -- permanently delete all trashed items (uses Caja/Nautilus DBus when available)
+- **Empty Trash** -- permanently delete all trashed items
 
 ### Desktop
 
@@ -305,15 +305,13 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 **Tooltip:** `CPU: 23.5% | Mem: 67.2% | Temp: 54.0°C` when CPU temperature is available
 
-**Update interval:** 1 second (with 3% CPU / 1% memory threshold to avoid excessive redraws)
-
-**Temperature sources:** Linux sysfs first, then common sensor tools such as `sensors`, `vcgencmd`, and `acpi` when installed
+**Update interval:** 1 second
 
 ### Battery
 
 <img src="docking/assets/icons/applets/battery.png" alt="Battery" width="48">
 
-Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/class/power_supply/BAT0/`. Icon changes based on charge level (full, good, low, caution, empty) and charging state.
+Shows battery charge level using standard icons. The icon changes based on charge level and charging state.
 
 **Tooltip:** Shows percentage (e.g. "85%") or "No battery"
 
@@ -323,7 +321,7 @@ Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/cl
 
 <img src="docking/assets/icons/applets/brightness.png" alt="Brightness" width="48">
 
-Screen brightness control via `xrandr`. Auto-detects the primary display output and tracks live brightness value.
+Screen brightness control with a live level indicator.
 
 **Click:** Reset brightness to 100%
 **Scroll:** Adjust brightness by small steps
@@ -338,12 +336,14 @@ Screen brightness control via `xrandr`. Auto-detects the primary display output 
 
 <img src="docking/assets/icons/applets/weather.png" alt="Weather" width="48">
 
-Shows current weather and air quality for a selected city with a 5-day forecast. Uses the [Open-Meteo](https://open-meteo.com/) weather and air quality APIs with automatic caching and retry.
+Shows current weather and air quality for a selected city with a 5-day forecast.
 
-**Click:** Open forecast in browser
+**Click:** Open city search and add/switch the active city
 **Right-click options:**
 - **Show Temperature** -- toggle temperature overlay on icon
-- **Change City...** -- opens search dialog with autocomplete (48,000 cities)
+- **Remove {city}** -- remove active city when multiple cities are configured
+
+**Scroll:** Cycle through configured cities
 
 **Tooltip:** Bold city header + current conditions + air quality + daily forecast with icons:
 ```
@@ -356,13 +356,13 @@ Tue: 28/32°C, Rain
 
 **Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`
 
-**Update interval:** 5 minutes (shared between API cache and polling timer)
+**Update interval:** 5 minutes
 
 ### Moon
 
 <img src="docking/assets/icons/applets/moon.png" alt="Moon" width="48">
 
-Moon phase applet with Cairo-rendered moon disc and illumination shading. Fetches phase data asynchronously and falls back gracefully while loading.
+Moon phase applet with a rendered moon disc and illumination shading.
 
 **Click:** Refresh moon data now
 **Right-click options:**
@@ -416,7 +416,7 @@ Sticky note applet for a single quick text note.
 
 <img src="docking/assets/icons/applets/recentfiles.png" alt="Recent Files" width="48">
 
-Launcher for the most recently opened files from `Gtk.RecentManager`.
+Launcher for the most recently opened files.
 
 **Click:** Open the newest recent file
 **Right-click options:**
@@ -475,17 +475,13 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 
 **Right-click:** Connection info (read-only)
 
-**Data sources:**
-- NetworkManager (via NM 1.0) for connection state, SSID, signal strength
-- `/proc/net/dev` for traffic counters
-
-**Update interval:** 2 seconds for traffic, instant for connection state changes (NM signals)
+**Update interval:** 2 seconds
 
 ### Bluetooth
 
 <img src="docking/assets/icons/applets/bluetooth.png" alt="Bluetooth" width="48">
 
-BlueZ-based Bluetooth manager applet for quick adapter/device control from the dock.
+Bluetooth manager applet for quick adapter and device control from the dock.
 
 **Click:** Toggle Bluetooth power for the active adapter
 **Right-click options:**
@@ -498,14 +494,7 @@ BlueZ-based Bluetooth manager applet for quick adapter/device control from the d
 **Tooltip:** adapter state, connected/paired counts, discovery status, optional battery line
 **Badge:** connected device count
 
-**Backends:**
-- BlueZ DBus (`org.bluez`) for adapter/device operations
-- `bluetoothctl` fallback for pairing when DBus pair fails
-
-**Note:** if another Bluetooth app owns an active discovery session, BlueZ may
-block power-off (`org.bluez.Error.Busy`) until that external scan stops.
-
-**Update interval:** 2 seconds poll + discovery keepalive
+**Update interval:** 2 seconds
 
 ### Power Profiles
 
@@ -518,28 +507,19 @@ Power profile applet for quick laptop/handheld mode switching.
 - **Select Profile** -- radio selector for available profiles
 - **Power Saver / Balanced / Performance** -- set active profile
 
-**Tooltip:** current profile, available profiles, and backend limitation reason (if any)
-
-**Backend chain (auto-detected):**
-- `power-profiles-daemon` via DBus `net.hadess.PowerProfiles` (preferred)
-- `tuned-adm` fallback (profile-mapped)
-- `tlp` fallback (`ac`/`bat`/`start` mapping)
+**Tooltip:** current profile and available profiles
 
 ### Notifications
 
 <img src="docking/assets/icons/applets/notifications.png" alt="Notifications" width="48">
 
-Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when supported.
+Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when available.
 
 **Click:** Toggle Do Not Disturb on/off
 **Right-click options:**
 - **Do Not Disturb** -- toggle notification pause state
-- **Pending: N** -- pending notifications (when backend exposes queue size)
-- **Clear Notifications** -- clear notification history (when backend supports it)
-
-**Backends:**
-- `dunstctl` (Dunst): pause state, pending count, and clear-history action
-- `gsettings` (GNOME): pause state via `org.gnome.desktop.notifications show-banners`
+- **Pending: N** -- pending notifications (when available)
+- **Clear Notifications** -- clear notification history (when available)
 
 **Update interval:** 2 seconds
 
@@ -547,15 +527,15 @@ Notification center applet with a compact status icon, Do Not Disturb toggle, an
 
 <img src="docking/assets/icons/applets/session.png" alt="Session" width="48">
 
-Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
+Lock, log out, suspend, restart, or shut down from the dock.
 
 **Click:** Lock screen
 **Right-click options:**
-- **Lock Screen** -- `loginctl lock-session`
-- **Log Out** -- `loginctl terminate-session`
-- **Suspend** -- `systemctl suspend`
-- **Restart** -- `systemctl reboot`
-- **Shut Down** -- `systemctl poweroff`
+- **Lock Screen**
+- **Log Out**
+- **Suspend**
+- **Restart**
+- **Shut Down**
 
 ### Calendar
 
@@ -563,7 +543,7 @@ Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
-**Click:** Toggle a GtkCalendar popup
+**Click:** Toggle a calendar popup
 **Tooltip:** Full date (e.g. "Tuesday, February 25")
 
 **Update interval:** 30 seconds (refreshes icon at midnight)
@@ -584,7 +564,7 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 <img src="docking/assets/icons/applets/screenshot.png" alt="Screenshot" width="48">
 
-Capture screenshots via the best available tool. Auto-detects mate-screenshot, gnome-screenshot, xfce4-screenshooter, spectacle, flameshot, or scrot.
+Capture screenshots with the available screenshot tool on your system.
 
 **Click:** Full-screen capture
 **Right-click options:**
@@ -597,7 +577,7 @@ Capture screenshots via the best available tool. Auto-detects mate-screenshot, g
 
 <img src="docking/assets/icons/applets/volume.png" alt="Volume" width="48">
 
-System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA). Icon switches between muted/low/medium/high based on level.
+System volume control. The icon switches between muted, low, medium, and high based on level.
 
 **Click:** Toggle mute
 **Scroll:** Adjust volume ±5%
@@ -609,9 +589,7 @@ System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA)
 
 <img src="docking/assets/icons/applets/music.png" alt="Music" width="48">
 
-Media controller applet with album-art icon rendering. Uses MPRIS over DBus first, then playerctl fallback for controls when needed.
-
-Current support note: tested with **VLC**, **Clementine**, **Amberol**, and **Recordbox**. In general, the applet should work with MPRIS-compatible players (with `playerctl`/backend fallbacks where available).
+Media controller applet with album-art icon rendering.
 
 **Click:** Play/pause
 **Scroll:** Player volume ±5%
@@ -647,7 +625,6 @@ Animated companion applet that reacts to system activity with different moods.
 **Click:** reset the pet back to a happy state
 **Tooltip:** current mood and CPU percentage
 
-**Data source:** `/proc/stat` via the shared CPU sampling helpers
 
 ### Separator
 
@@ -709,7 +686,7 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 
 <img src="docking/assets/icons/applets/trivia.png" alt="Random Trivia" width="48">
 
-Quick trivia applet backed by **Open Trivia DB** with a local fallback question set. Tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
+Quick trivia applet with local and online questions. The tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
 
 **Click:** Show the next trivia question
 **Scroll:** No-op
@@ -722,7 +699,7 @@ Quick trivia applet backed by **Open Trivia DB** with a local fallback question 
 
 <img src="docking/assets/icons/applets/todayinhistory.png" alt="Today in History" width="48">
 
-One-event-at-a-time history applet backed by Wikipedia's "On this day" feed with a local fallback set for offline use. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
+One-event-at-a-time history applet with online refresh and offline fallback data. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
 
 **Click:** Show the next historical event for today
 **Scroll:** No-op
@@ -735,7 +712,7 @@ One-event-at-a-time history applet backed by Wikipedia's "On this day" feed with
 
 <img src="docking/assets/icons/applets/ambient.png" alt="Ambient" width="48">
 
-Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sounds plus procedural white/pink noise via GStreamer.
+Looping ambient soundscape player with 7 bundled nature sounds plus white and pink noise.
 
 **Click:** Toggle play/stop
 **Scroll:** Adjust volume ±10%
@@ -768,7 +745,7 @@ Convert between units directly from the dock popup. Supports length, weight, tem
 
 <img src="docking/assets/icons/applets/urlshortener.png" alt="URL Shortener" width="48">
 
-Shorten URLs via is.gd with one click. Paste a URL, hit Shorten, and copy the result to clipboard.
+Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to the clipboard.
 
 **Click:** Toggle URL shortener dialog
 **Keyboard:** Paste URL, press Enter to shorten
@@ -779,7 +756,7 @@ Shorten URLs via is.gd with one click. Paste a URL, hit Shorten, and copy the re
 
 <img src="docking/assets/icons/applets/windowkiller.png" alt="Window Killer" width="48">
 
-Click the applet, then click any window to force-close it. Uses `xdotool selectwindow` + `wmctrl -ic` under the hood.
+Click the applet, then click any window to force-close it.
 
 **Click:** Enter kill mode (cursor changes to crosshair)
 

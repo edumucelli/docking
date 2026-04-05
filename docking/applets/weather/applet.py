@@ -94,7 +94,7 @@ class WeatherApplet(Applet):
         self.item.tooltip_builder = self._build_tooltip_widget
 
     def on_clicked(self) -> None:
-        return
+        self._show_city_dialog()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Cycle through cities on scroll."""
@@ -129,10 +129,6 @@ class WeatherApplet(Applet):
         show_temp.set_active(self._show_temperature)
         show_temp.connect("toggled", self._on_toggle_temperature)
         items.append(show_temp)
-
-        add_city = Gtk.MenuItem(label=_("Add City..."))
-        add_city.connect("activate", lambda _: self._show_city_dialog())
-        items.append(add_city)
 
         if active and len(self._cities) > 1:
             remove = Gtk.MenuItem(
@@ -212,7 +208,12 @@ class WeatherApplet(Applet):
             lat = model.get_value(tree_iter, 1)
             lng = model.get_value(tree_iter, 2)
             self._add_city(display=display, lat=lat, lng=lng)
-            dialog.destroy()
+
+            def destroy_dialog() -> bool:
+                dialog.destroy()
+                return False
+
+            GLib.idle_add(destroy_dialog)
             return True
 
         entry.connect("changed", on_changed)

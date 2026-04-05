@@ -210,12 +210,12 @@ class TestWeatherTemperatureOverlay:
 
 
 class TestWeatherMenu:
-    def test_menu_has_show_temp_and_add_city(self):
+    def test_menu_has_show_temp_only(self):
         applet = _make_applet()
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items]
         assert "Show Temperature" in labels
-        assert "Add City..." in labels
+        assert "Add City..." not in labels
 
     def test_menu_includes_city_header_when_set(self):
         applet = _make_applet()
@@ -477,12 +477,14 @@ class TestWeatherLifecycleAndInteractions:
         applet._save_prefs.assert_called_once()
         applet.present.assert_called_once()
 
-    def test_on_clicked_is_noop(self):
+    def test_on_clicked_opens_city_dialog(self):
         applet = _make_applet()
-        applet._cities = [_BERLIN]
-        applet._active_index = 0
-        # Should not raise or do anything
+        show = MagicMock()
+        applet._show_city_dialog = show
+
         applet.on_clicked()
+
+        show.assert_called_once()
 
     def test_start_without_city_does_not_fetch(self, monkeypatch):
         applet = _make_applet()
@@ -764,6 +766,7 @@ class TestWeatherDialogAndWidget:
         )
         add_city = MagicMock()
         monkeypatch.setattr(applet, "_add_city", add_city)
+        monkeypatch.setattr(weather_applet_mod.GLib, "idle_add", lambda fn: fn())
 
         # When
         applet._show_city_dialog()
