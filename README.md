@@ -497,7 +497,13 @@ Bluetooth manager applet for quick adapter and device control from the dock.
 
 **Click:** Toggle Bluetooth power for the active adapter
 **Right-click options:**
-- **Bluetooth On** -- power toggle
+- **Turn Bluetooth On / Turn Bluetooth Off** -- power toggle for the active adapter
+- **Disconnect {device}** -- quick disconnect action for connected devices
+- **Send Files to Device...** -- open the desktop Bluetooth file sender when available
+- **Recent Connections** -- reopen recently connected paired devices
+- **Devices...** -- open the desktop Bluetooth devices/settings screen when available
+- **Adapters...** -- open the desktop Bluetooth adapter/settings screen when available
+- **Local Services...** -- open the desktop Bluetooth local-services screen when available
 - **Continuous Discovery** -- keeps discovery active while enabled
 - **Adapter** -- switch active adapter on multi-adapter systems
 - **Connected / Paired / Discovered Devices** -- per-device actions:

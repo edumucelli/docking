@@ -196,6 +196,73 @@ class TestBluetoothStateHelpers:
         )
         assert label == "11:22:33:44:55:66"
 
+    def test_command_helpers_prefer_first_available(self, monkeypatch):
+        commands = {
+            "blueman-sendto": None,
+            "bluetooth-sendto": "/usr/bin/bluetooth-sendto",
+            "blueman-manager": None,
+            "gnome-control-center": "/usr/bin/gnome-control-center",
+            "blueman-adapters": None,
+            "blueman-services": "/usr/bin/blueman-services",
+        }
+
+        monkeypatch.setattr(
+            bluetooth_state_mod.shutil,
+            "which",
+            lambda cmd: commands.get(cmd),
+        )
+
+        assert bluetooth_state_mod.send_files_command() == ["bluetooth-sendto"]
+        assert bluetooth_state_mod.devices_command() == [
+            "gnome-control-center",
+            "bluetooth",
+        ]
+        assert bluetooth_state_mod.adapters_command() == [
+            "gnome-control-center",
+            "bluetooth",
+        ]
+        assert bluetooth_state_mod.local_services_command() == ["blueman-services"]
+
+    def test_open_command_helpers(self, monkeypatch):
+        launched: list[list[str]] = []
+
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "send_files_command",
+            lambda: ["bluetooth-sendto"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "devices_command",
+            lambda: ["gnome-control-center", "bluetooth"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "adapters_command",
+            lambda: ["blueman-adapters"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "local_services_command",
+            lambda: ["blueman-services"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+        )
+
+        assert bluetooth_state_mod.open_send_files() is True
+        assert bluetooth_state_mod.open_devices() is True
+        assert bluetooth_state_mod.open_adapters() is True
+        assert bluetooth_state_mod.open_local_services() is True
+        assert launched == [
+            ["bluetooth-sendto"],
+            ["gnome-control-center", "bluetooth"],
+            ["blueman-adapters"],
+            ["blueman-services"],
+        ]
+
 
 class TestBluezBackend:
     def test_pair_device_uses_bluetoothctl_fallback_on_failure(self):
@@ -745,6 +812,9 @@ class _FakeMenuItem:
     def set_submenu(self, submenu) -> None:
         self._submenu = submenu
 
+    def get_submenu(self):
+        return self._submenu
+
 
 class _FakeCheckMenuItem(_FakeMenuItem):
     def __init__(self, label: str = "") -> None:
@@ -817,6 +887,22 @@ class TestBluetoothApplet:
 
     def test_menu_contains_expected_sections(self, monkeypatch):
         self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(
+            bluetooth_applet_mod, "send_files_command", lambda: ["bluetooth-sendto"]
+        )
+        monkeypatch.setattr(
+            bluetooth_applet_mod,
+            "devices_command",
+            lambda: ["gnome-control-center", "bluetooth"],
+        )
+        monkeypatch.setattr(
+            bluetooth_applet_mod,
+            "adapters_command",
+            lambda: ["gnome-control-center", "bluetooth"],
+        )
+        monkeypatch.setattr(
+            bluetooth_applet_mod, "local_services_command", lambda: ["blueman-services"]
+        )
         state = _state(
             adapters=(
                 _adapter(path="/org/bluez/hci0", alias="A0"),
@@ -832,8 +918,13 @@ class TestBluetoothApplet:
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
-        assert "General" in labels
-        assert "Bluetooth On" in labels
+        assert "Turn Bluetooth Off" in labels
+        assert "Disconnect Device" in labels
+        assert "Send Files to Device..." in labels
+        assert "Recent Connections" in labels
+        assert "Devices..." in labels
+        assert "Adapters..." in labels
+        assert "Local Services..." in labels
         assert "Continuous Discovery" in labels
         assert "Adapter" in labels
         assert "Connected Devices" in labels
@@ -851,6 +942,59 @@ class TestBluetoothApplet:
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
         assert "None" not in labels
+        assert "Connected Devices" not in labels
+        assert "Paired Devices" not in labels
+        assert "Discovered Devices" not in labels
+
+    def test_recent_connections_submenu_prefers_recent_paired_devices(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        applet, _backend = _make_applet(
+            monkeypatch,
+            _state(
+                devices=(
+                    _device(
+                        path="/d/1",
+                        alias="Headphones",
+                        connected=False,
+                        paired=True,
+                    ),
+                    _device(
+                        path="/d/2",
+                        alias="Keyboard",
+                        connected=True,
+                        paired=True,
+                    ),
+                ),
+            ),
+        )
+        applet._recent_connections = {
+            "11:22:33:44:55:66": 100.0,
+        }
+        submenu_item = applet._build_recent_connections_submenu(
+            adapter_path="/org/bluez/hci0"
+        )
+        submenu = submenu_item.get_submenu()
+        assert submenu is not None
+        labels = [item.get_label() for item in submenu.children]
+        assert labels == ["Keyboard (Connected, Paired)", "Headphones (Paired)"]
+        assert submenu.children[0].get_sensitive() is False
+
+    def test_record_recent_connections_persists_only_on_new_connection(
+        self, monkeypatch
+    ):
+        applet, _backend = _make_applet(monkeypatch, _state(devices=()))
+        saved: list[dict[str, object]] = []
+        applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[assignment]
+        monkeypatch.setattr(bluetooth_applet_mod.time, "time", lambda: 123.0)
+
+        state = _state(devices=(_device(path="/d/1", connected=True, paired=True),))
+        applet._record_recent_connections(state)
+        assert saved
+        assert applet._recent_connections["11:22:33:44:55:66"] == 123.0
+
+        saved.clear()
+        applet._record_recent_connections(state)
+        assert saved == []
 
     def test_scroll_is_noop(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())

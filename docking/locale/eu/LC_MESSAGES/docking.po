@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-08 00:41+0200\n"
+"POT-Creation-Date: 2026-04-08 01:01+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -160,130 +160,159 @@ msgstr "{hours}h {minutes:02d}m"
 msgid "{minutes}m"
 msgstr "{minutes}m"
 
-#: docking/applets/bluetooth/applet.py:58
+#: docking/applets/bluetooth/applet.py:67
 msgid "Bluetooth"
 msgstr "Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:148
+#: docking/applets/bluetooth/applet.py:172
 msgid "Bluetooth unavailable"
 msgstr "Bluetooth unavailable"
 
-#: docking/applets/bluetooth/applet.py:155
+#: docking/applets/bluetooth/applet.py:179
 msgid "No Bluetooth adapter"
 msgstr "No Bluetooth adapter"
 
-#: docking/applets/bluetooth/applet.py:159
-msgid "General"
-msgstr "Orokorra"
-
-#: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:122
+#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/state.py:142
 msgid "On"
 msgstr "On"
 
-#: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:122
+#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/state.py:142
 msgid "Off"
 msgstr "Off"
 
-#: docking/applets/bluetooth/applet.py:164
+#: docking/applets/bluetooth/applet.py:195
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - Konektatuak {connected}"
 
-#: docking/applets/bluetooth/applet.py:173
-msgid "Bluetooth On"
-msgstr "Bluetooth On"
-
-#: docking/applets/bluetooth/applet.py:178
+#: docking/applets/bluetooth/applet.py:204
 msgid "Continuous Discovery"
 msgstr "Continuous Discovery"
 
-#: docking/applets/bluetooth/applet.py:189
+#: docking/applets/bluetooth/applet.py:215
 msgid "Refresh Now"
 msgstr "Refresh Now"
 
-#: docking/applets/bluetooth/applet.py:196
+#: docking/applets/bluetooth/applet.py:229
+msgid "Turn Bluetooth Off"
+msgstr "Turn Bluetooth Off"
+
+#: docking/applets/bluetooth/applet.py:229
+msgid "Turn Bluetooth On"
+msgstr "Turn Bluetooth On"
+
+#: docking/applets/bluetooth/applet.py:245
+#, python-brace-format
+msgid "Disconnect {device}"
+msgstr "Disconnect {device}"
+
+#: docking/applets/bluetooth/applet.py:259
+msgid "Send Files to Device..."
+msgstr "Send Files to Device..."
+
+#: docking/applets/bluetooth/applet.py:267
+msgid "Devices..."
+msgstr "Devices..."
+
+#: docking/applets/bluetooth/applet.py:273
+msgid "Adapters..."
+msgstr "Adapters..."
+
+#: docking/applets/bluetooth/applet.py:279
+msgid "Local Services..."
+msgstr "Local Services..."
+
+#: docking/applets/bluetooth/applet.py:286
+msgid "Recent Connections"
+msgstr "Recent Connections"
+
+#: docking/applets/bluetooth/applet.py:291
+msgid "No recent connections"
+msgstr "No recent connections"
+
+#: docking/applets/bluetooth/applet.py:314
 msgid "Adapter"
 msgstr "Adapter"
 
-#: docking/applets/bluetooth/applet.py:222
+#: docking/applets/bluetooth/applet.py:340
 msgid "Connected Devices"
 msgstr "Konektatutako gailuak"
 
-#: docking/applets/bluetooth/applet.py:223
+#: docking/applets/bluetooth/applet.py:341
 msgid "Paired Devices"
 msgstr "Parekatutako gailuak"
 
-#: docking/applets/bluetooth/applet.py:224
+#: docking/applets/bluetooth/applet.py:342
 msgid "Discovered Devices"
 msgstr "Aurkitutako gailuak"
 
-#: docking/applets/bluetooth/applet.py:248
+#: docking/applets/bluetooth/applet.py:367
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: docking/applets/bluetooth/applet.py:257
+#: docking/applets/bluetooth/applet.py:376
 msgid "Connect"
 msgstr "Connect"
 
-#: docking/applets/bluetooth/applet.py:267
+#: docking/applets/bluetooth/applet.py:386
 msgid "Pair"
 msgstr "Pair"
 
-#: docking/applets/bluetooth/applet.py:281
+#: docking/applets/bluetooth/applet.py:400
 msgid "Remove Pairing"
 msgstr "Remove Pairing"
 
-#: docking/applets/bluetooth/applet.py:293
+#: docking/applets/bluetooth/applet.py:412
 msgid "Trusted"
 msgstr "Trusted"
 
-#: docking/applets/bluetooth/applet.py:308
+#: docking/applets/bluetooth/applet.py:427
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "Bateria: {percent}%"
 
-#: docking/applets/bluetooth/state.py:115
+#: docking/applets/bluetooth/state.py:135
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "Bluetooth: {error}"
 
-#: docking/applets/bluetooth/state.py:116
-#: docking/applets/bluetooth/state.py:120
+#: docking/applets/bluetooth/state.py:136
+#: docking/applets/bluetooth/state.py:140
 msgid "Bluetooth: No adapter/service"
 msgstr "Bluetooth: No adapter/service"
 
-#: docking/applets/bluetooth/state.py:127
+#: docking/applets/bluetooth/state.py:147
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "Bluetooth: {state}"
 
-#: docking/applets/bluetooth/state.py:128
+#: docking/applets/bluetooth/state.py:148
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "Adapter: {name}"
 
-#: docking/applets/bluetooth/state.py:129
+#: docking/applets/bluetooth/state.py:149
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "Connected: {n}"
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:150
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "Paired: {n}"
 
-#: docking/applets/bluetooth/state.py:131
+#: docking/applets/bluetooth/state.py:151
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "Discovering: {state}"
 
-#: docking/applets/bluetooth/state.py:132
+#: docking/applets/bluetooth/state.py:152
 msgid "Yes"
 msgstr "Yes"
 
-#: docking/applets/bluetooth/state.py:132
+#: docking/applets/bluetooth/state.py:152
 msgid "No"
 msgstr "No"
 
@@ -589,76 +618,76 @@ msgstr "Unknown"
 msgid "Music: No active player"
 msgstr "Musika: Erreproduzitzaile aktiborik ez"
 
-#: docking/applets/network/applet.py:62
+#: docking/applets/network/applet.py:63
 msgid "Network"
 msgstr "Network"
 
-#: docking/applets/network/applet.py:114
+#: docking/applets/network/applet.py:116
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:122
+#: docking/applets/network/applet.py:124
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "Ethernet: {iface}"
 
-#: docking/applets/network/applet.py:127
+#: docking/applets/network/applet.py:129
 msgid "Not connected"
 msgstr "Not connected"
 
-#: docking/applets/network/applet.py:132
+#: docking/applets/network/applet.py:134
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/applet.py:148
+#: docking/applets/network/applet.py:150
 msgid "Connection Information"
 msgstr "Connection Information"
 
-#: docking/applets/network/applet.py:154
+#: docking/applets/network/applet.py:156
 msgid "Edit Connections..."
 msgstr "Edit Connections..."
 
-#: docking/applets/network/applet.py:166
+#: docking/applets/network/applet.py:168
 msgid "Connect to Hidden Wi-Fi Network..."
 msgstr "Connect to Hidden Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:173
+#: docking/applets/network/applet.py:175
 msgid "Create New Wi-Fi Network..."
 msgstr "Create New Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:177
+#: docking/applets/network/applet.py:179
 msgid "Enable Networking"
 msgstr "Enable Networking"
 
-#: docking/applets/network/applet.py:188
+#: docking/applets/network/applet.py:190
 msgid "Enable Wi-Fi"
 msgstr "Enable Wi-Fi"
 
-#: docking/applets/network/applet.py:256
+#: docking/applets/network/applet.py:258
 msgid "Available Networks"
 msgstr "Available Networks"
 
-#: docking/applets/network/applet.py:260
+#: docking/applets/network/applet.py:262
 #, python-brace-format
 msgid "{ssid} ({pct}%)"
 msgstr "{ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:262
+#: docking/applets/network/applet.py:264
 #, python-brace-format
 msgid "Connected: {label}"
 msgstr "Connected: {label}"
 
-#: docking/applets/network/applet.py:271
+#: docking/applets/network/applet.py:273
 msgid "No networks found"
 msgstr "No networks found"
 
-#: docking/applets/network/applet.py:283
+#: docking/applets/network/applet.py:285
 msgid "VPN Connections"
 msgstr "VPN Connections"
 
-#: docking/applets/network/applet.py:286
+#: docking/applets/network/applet.py:288
 msgid "Unnamed VPN"
 msgstr "Unnamed VPN"
 
@@ -1470,6 +1499,12 @@ msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
+
+#~ msgid "General"
+#~ msgstr "Orokorra"
+
+#~ msgid "Bluetooth On"
+#~ msgstr "Bluetooth On"
 
 #~ msgid "Add City..."
 #~ msgstr "Gehitu hiria..."
