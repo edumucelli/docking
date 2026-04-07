@@ -313,7 +313,10 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 Shows battery charge level using standard icons. The icon changes based on charge level and charging state.
 
-**Tooltip:** Shows percentage (e.g. "85%") or "No battery"
+**Right-click options:**
+- **Power Settings** -- open the desktop power settings or power management screen when available
+
+**Tooltip:** Shows percentage and, when the system exposes a battery rate, the estimated time left or time until full. If no estimate is available, it keeps the tooltip simple.
 
 **Update interval:** 60 seconds
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-04 13:50+0200\n"
+"POT-Creation-Date: 2026-04-07 21:35+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -123,18 +123,42 @@ msgstr "تطبيقات"
 msgid "Search applications..."
 msgstr "البحث عن تطبيقات..."
 
-#: docking/applets/battery/applet.py:27
+#: docking/applets/battery/applet.py:34
 msgid "Battery"
 msgstr "بطارية"
 
-#: docking/applets/battery/state.py:62
+#: docking/applets/battery/applet.py:66
+msgid "Power Settings"
+msgstr "Power Settings"
+
+#: docking/applets/battery/state.py:104
 msgid "No battery"
 msgstr "لا توجد بطارية"
 
-#: docking/applets/battery/state.py:63
+#: docking/applets/battery/state.py:105
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr "البطارية: {pct}%"
+
+#: docking/applets/battery/state.py:118
+#, python-brace-format
+msgid "{time} left"
+msgstr "{time} left"
+
+#: docking/applets/battery/state.py:120
+#, python-brace-format
+msgid "{time} until full"
+msgstr "{time} until full"
+
+#: docking/applets/battery/state.py:130
+#, python-brace-format
+msgid "{hours}h {minutes:02d}m"
+msgstr "{hours}h {minutes:02d}m"
+
+#: docking/applets/battery/state.py:131
+#, python-brace-format
+msgid "{minutes}m"
+msgstr "{minutes}m"
 
 #: docking/applets/bluetooth/applet.py:58
 msgid "Bluetooth"
@@ -1042,34 +1066,30 @@ msgstr "الطقس"
 msgid "Show Temperature"
 msgstr "عرض الحرارة"
 
-#: docking/applets/weather/applet.py:133
-msgid "Add City..."
-msgstr "إضافة مدينة..."
-
-#: docking/applets/weather/applet.py:139
+#: docking/applets/weather/applet.py:135
 #, python-brace-format
 msgid "Remove {city}"
 msgstr "إزالة {city}"
 
-#: docking/applets/weather/applet.py:171
+#: docking/applets/weather/applet.py:167
 msgid "Search for the city"
 msgstr "البحث عن المدينة"
 
-#: docking/applets/weather/applet.py:185
+#: docking/applets/weather/applet.py:181
 msgid "Type city name..."
 msgstr "اكتب اسم المدينة..."
 
-#: docking/applets/weather/applet.py:343
+#: docking/applets/weather/applet.py:344
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr "{temp} درجة، {desc}"
 
-#: docking/applets/weather/applet.py:352 docking/applets/weather/state.py:132
+#: docking/applets/weather/applet.py:353 docking/applets/weather/state.py:132
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "الهواء: {label}"
 
-#: docking/applets/weather/applet.py:364
+#: docking/applets/weather/applet.py:365
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
 msgstr "{date}: {min_temp}/{max_temp}°C"
@@ -1200,7 +1220,7 @@ msgstr "ملفات الطاقة غير متاحة"
 msgid "Add Separator"
 msgstr "إضافة فاصل"
 
-#: docking/ui/menu.py:1491 docking/ui/settings.py:160
+#: docking/ui/menu.py:1491 docking/ui/settings.py:161
 msgid "Preferences"
 msgstr "التفضيلات"
 
@@ -1225,174 +1245,177 @@ msgstr "نافذة"
 msgid "Display {display}: {width}x{height}"
 msgstr "شاشة {display}: {width}x{height}"
 
-#: docking/ui/settings.py:184
+#: docking/ui/settings.py:185
 msgid "Appearance"
 msgstr "المظهر"
 
-#: docking/ui/settings.py:185
-msgid "Applets"
-msgstr "تطبيقات مصغرة"
-
-#: docking/ui/settings.py:203
-msgid "Don't Hide"
-msgstr "عدم الإخفاء"
-
-#: docking/ui/settings.py:204
-msgid "Auto-hide"
-msgstr "إخفاء تلقائي"
-
-#: docking/ui/settings.py:205
-msgid "Intelligent"
-msgstr "ذكي"
-
-#: docking/ui/settings.py:206
-msgid "Dodge Active Window"
-msgstr "تجنب النافذة النشطة"
-
-#: docking/ui/settings.py:207
-msgid "Dodge All Windows"
-msgstr "تجنب جميع النوافذ"
-
-#: docking/ui/settings.py:208
-msgid "Dodge Maximized"
-msgstr "تجنب المكبرة"
-
-#: docking/ui/settings.py:225
-msgid "Toggle Focus"
-msgstr "Toggle Focus"
-
-#: docking/ui/settings.py:226
-msgid "Cycle Windows"
-msgstr "Cycle Windows"
-
-#: docking/ui/settings.py:233
-msgid "New Window"
-msgstr "New Window"
-
-#: docking/ui/settings.py:234
-msgid "Minimize Windows"
-msgstr "Minimize Windows"
-
-#: docking/ui/settings.py:235
-msgid "Close Focused Window"
-msgstr "Close Focused Window"
-
-#: docking/ui/settings.py:290
-msgid "Look"
-msgstr "المظهر"
-
-#: docking/ui/settings.py:292
-msgid "Theme"
-msgstr "السمة"
-
-#: docking/ui/settings.py:293
-msgid "Icon Size"
-msgstr "حجم الأيقونة"
-
-#: docking/ui/settings.py:294
-msgid "Transparency"
-msgstr "Transparency"
-
-#: docking/ui/settings.py:295
-msgid "Zoom"
-msgstr "Zoom"
-
-#: docking/ui/settings.py:296
-msgid "Zoom Percent"
-msgstr "نسبة التكبير"
-
-#: docking/ui/settings.py:297
-msgid "Show Tooltips"
-msgstr "إظهار التلميحات"
-
-#: docking/ui/settings.py:298
-msgid "Window Previews"
-msgstr "معاينة النوافذ"
-
-#: docking/ui/settings.py:310
-msgid "Mouse"
-msgstr "Mouse"
-
-#: docking/ui/settings.py:312
-msgid "Left Click"
-msgstr "Left Click"
-
-#: docking/ui/settings.py:313
-msgid "Middle Click"
-msgstr "Middle Click"
-
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:186 docking/ui/settings.py:351
 msgid "Behavior"
 msgstr "السلوك"
 
-#: docking/ui/settings.py:320
-msgid "Hide Mode"
-msgstr "وضع الإخفاء"
+#: docking/ui/settings.py:187
+msgid "Applets"
+msgstr "تطبيقات مصغرة"
 
-#: docking/ui/settings.py:321
-msgid "Hide Delay"
-msgstr "تأخير الإخفاء"
+#: docking/ui/settings.py:205
+msgid "Don't Hide"
+msgstr "عدم الإخفاء"
 
-#: docking/ui/settings.py:322
-msgid "Unhide Delay"
-msgstr "تأخير الظهور"
+#: docking/ui/settings.py:206
+msgid "Auto-hide"
+msgstr "إخفاء تلقائي"
 
-#: docking/ui/settings.py:327
+#: docking/ui/settings.py:207
+msgid "Intelligent"
+msgstr "ذكي"
+
+#: docking/ui/settings.py:208
+msgid "Dodge Active Window"
+msgstr "تجنب النافذة النشطة"
+
+#: docking/ui/settings.py:209
+msgid "Dodge All Windows"
+msgstr "تجنب جميع النوافذ"
+
+#: docking/ui/settings.py:210
+msgid "Dodge Maximized"
+msgstr "تجنب المكبرة"
+
+#: docking/ui/settings.py:227
+msgid "Toggle Focus"
+msgstr "Toggle Focus"
+
+#: docking/ui/settings.py:228
+msgid "Cycle Windows"
+msgstr "Cycle Windows"
+
+#: docking/ui/settings.py:235
+msgid "New Window"
+msgstr "New Window"
+
+#: docking/ui/settings.py:236
+msgid "Minimize Windows"
+msgstr "Minimize Windows"
+
+#: docking/ui/settings.py:237
+msgid "Close Focused Window"
+msgstr "Close Focused Window"
+
+#: docking/ui/settings.py:295
+msgid "Look"
+msgstr "المظهر"
+
+#: docking/ui/settings.py:297
+msgid "Theme"
+msgstr "السمة"
+
+#: docking/ui/settings.py:298
+msgid "Icon Size"
+msgstr "حجم الأيقونة"
+
+#: docking/ui/settings.py:299
+msgid "Transparency"
+msgstr "Transparency"
+
+#: docking/ui/settings.py:300
+msgid "Zoom"
+msgstr "Zoom"
+
+#: docking/ui/settings.py:301
+msgid "Zoom Percent"
+msgstr "نسبة التكبير"
+
+#: docking/ui/settings.py:302
+msgid "Show Tooltips"
+msgstr "إظهار التلميحات"
+
+#: docking/ui/settings.py:303
+msgid "Window Previews"
+msgstr "معاينة النوافذ"
+
+#: docking/ui/settings.py:308
 msgid "Placement"
 msgstr "الموضع"
 
-#: docking/ui/settings.py:329
+#: docking/ui/settings.py:310
 msgid "Position"
 msgstr "موضع"
 
-#: docking/ui/settings.py:330
+#: docking/ui/settings.py:311
 msgid "Follow Cursor"
 msgstr "تتبع المؤشر"
 
-#: docking/ui/settings.py:331
+#: docking/ui/settings.py:312
 msgid "Current Workspace Only"
 msgstr "مساحة العمل الحالية فقط"
 
-#: docking/ui/settings.py:336
+#: docking/ui/settings.py:317
 msgid "Layout"
 msgstr "التخطيط"
 
-#: docking/ui/settings.py:338
+#: docking/ui/settings.py:319
 msgid "Lock Positions"
 msgstr "قفل المواضع"
 
-#: docking/ui/settings.py:339
+#: docking/ui/settings.py:320
 msgid "Anchor Applets to End"
 msgstr "تثبيت التطبيقات المصغرة في النهاية"
 
-#: docking/ui/settings.py:340
+#: docking/ui/settings.py:321
 msgid "Anchor Files to End"
 msgstr "تثبيت الملفات في النهاية"
 
-#: docking/ui/settings.py:732
+#: docking/ui/settings.py:343
+msgid "Mouse"
+msgstr "Mouse"
+
+#: docking/ui/settings.py:345
+msgid "Left Click"
+msgstr "Left Click"
+
+#: docking/ui/settings.py:346
+msgid "Middle Click"
+msgstr "Middle Click"
+
+#: docking/ui/settings.py:353
+msgid "Hide Mode"
+msgstr "وضع الإخفاء"
+
+#: docking/ui/settings.py:354
+msgid "Hide Delay"
+msgstr "تأخير الإخفاء"
+
+#: docking/ui/settings.py:355
+msgid "Unhide Delay"
+msgstr "تأخير الظهور"
+
+#: docking/ui/settings.py:747
 msgid "The dock is always visible and reserves screen space."
 msgstr "الرصيف مرئي دائما ويحجز مساحة من الشاشة."
 
-#: docking/ui/settings.py:733
+#: docking/ui/settings.py:748
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "يختفي عندما يغادر مؤشر الماوس الرصيف."
 
-#: docking/ui/settings.py:735
+#: docking/ui/settings.py:750
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:737
+#: docking/ui/settings.py:752
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "يختفي عندما تتداخل النافذة النشطة مع منطقة الرصيف."
 
-#: docking/ui/settings.py:739
+#: docking/ui/settings.py:754
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "يختفي عندما تتداخل أي نافذة على مساحة العمل الحالية مع منطقة الرصيف."
 
-#: docking/ui/settings.py:742
+#: docking/ui/settings.py:757
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
+
+#~ msgid "Add City..."
+#~ msgstr "إضافة مدينة..."

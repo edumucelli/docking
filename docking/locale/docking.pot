@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-05 11:20+0200\n"
+"POT-Creation-Date: 2026-04-07 21:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -124,17 +124,41 @@ msgstr ""
 msgid "Search applications..."
 msgstr ""
 
-#: docking/applets/battery/applet.py:27
+#: docking/applets/battery/applet.py:34
 msgid "Battery"
 msgstr ""
 
-#: docking/applets/battery/state.py:62
+#: docking/applets/battery/applet.py:66
+msgid "Power Settings"
+msgstr ""
+
+#: docking/applets/battery/state.py:104
 msgid "No battery"
 msgstr ""
 
-#: docking/applets/battery/state.py:63
+#: docking/applets/battery/state.py:105
 #, python-brace-format
 msgid "Battery: {pct}%"
+msgstr ""
+
+#: docking/applets/battery/state.py:118
+#, python-brace-format
+msgid "{time} left"
+msgstr ""
+
+#: docking/applets/battery/state.py:120
+#, python-brace-format
+msgid "{time} until full"
+msgstr ""
+
+#: docking/applets/battery/state.py:130
+#, python-brace-format
+msgid "{hours}h {minutes:02d}m"
+msgstr ""
+
+#: docking/applets/battery/state.py:131
+#, python-brace-format
+msgid "{minutes}m"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:58

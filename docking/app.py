@@ -118,3 +118,7 @@ def _start_runtime(items_service: DockItemsService, model: DockModel) -> bool:
 def _quit() -> bool:
     Gtk.main_quit()
     return False
+
+
+if __name__ == "__main__":
+    main()

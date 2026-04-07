@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-04 13:50+0200\n"
+"POT-Creation-Date: 2026-04-07 21:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -123,18 +123,42 @@ msgstr "Applications"
 msgid "Search applications..."
 msgstr "অ্যাপ্লিকেশন খুঁজুন..."
 
-#: docking/applets/battery/applet.py:27
+#: docking/applets/battery/applet.py:34
 msgid "Battery"
 msgstr "Battery"
 
-#: docking/applets/battery/state.py:62
+#: docking/applets/battery/applet.py:66
+msgid "Power Settings"
+msgstr "Power Settings"
+
+#: docking/applets/battery/state.py:104
 msgid "No battery"
 msgstr "No battery"
 
-#: docking/applets/battery/state.py:63
+#: docking/applets/battery/state.py:105
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr "Battery: {pct}%"
+
+#: docking/applets/battery/state.py:118
+#, python-brace-format
+msgid "{time} left"
+msgstr "{time} left"
+
+#: docking/applets/battery/state.py:120
+#, python-brace-format
+msgid "{time} until full"
+msgstr "{time} until full"
+
+#: docking/applets/battery/state.py:130
+#, python-brace-format
+msgid "{hours}h {minutes:02d}m"
+msgstr "{hours}h {minutes:02d}m"
+
+#: docking/applets/battery/state.py:131
+#, python-brace-format
+msgid "{minutes}m"
+msgstr "{minutes}m"
 
 #: docking/applets/bluetooth/applet.py:58
 msgid "Bluetooth"
@@ -1042,34 +1066,30 @@ msgstr "Weather"
 msgid "Show Temperature"
 msgstr "Show Temperature"
 
-#: docking/applets/weather/applet.py:133
-msgid "Add City..."
-msgstr "শহর যোগ করুন..."
-
-#: docking/applets/weather/applet.py:139
+#: docking/applets/weather/applet.py:135
 #, python-brace-format
 msgid "Remove {city}"
 msgstr "{city} সরান"
 
-#: docking/applets/weather/applet.py:171
+#: docking/applets/weather/applet.py:167
 msgid "Search for the city"
 msgstr "শহর খুঁজুন"
 
-#: docking/applets/weather/applet.py:185
+#: docking/applets/weather/applet.py:181
 msgid "Type city name..."
 msgstr "শহরের নাম লিখুন..."
 
-#: docking/applets/weather/applet.py:343
+#: docking/applets/weather/applet.py:344
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr "{temp}°C, {desc}"
 
-#: docking/applets/weather/applet.py:352 docking/applets/weather/state.py:132
+#: docking/applets/weather/applet.py:353 docking/applets/weather/state.py:132
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "Air: {label}"
 
-#: docking/applets/weather/applet.py:364
+#: docking/applets/weather/applet.py:365
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
 msgstr "{date}: {min_temp}/{max_temp}°C"
@@ -1200,7 +1220,7 @@ msgstr "Power Profiles unavailable"
 msgid "Add Separator"
 msgstr "Add Separator"
 
-#: docking/ui/menu.py:1491 docking/ui/settings.py:160
+#: docking/ui/menu.py:1491 docking/ui/settings.py:161
 msgid "Preferences"
 msgstr "পছন্দসমূহ"
 
@@ -1225,174 +1245,177 @@ msgstr "Window"
 msgid "Display {display}: {width}x{height}"
 msgstr "ডিসপ্লে {display}: {width}x{height}"
 
-#: docking/ui/settings.py:184
+#: docking/ui/settings.py:185
 msgid "Appearance"
 msgstr "চেহারা"
 
-#: docking/ui/settings.py:185
-msgid "Applets"
-msgstr "অ্যাপলেট"
-
-#: docking/ui/settings.py:203
-msgid "Don't Hide"
-msgstr "লুকাবেন না"
-
-#: docking/ui/settings.py:204
-msgid "Auto-hide"
-msgstr "Auto-hide"
-
-#: docking/ui/settings.py:205
-msgid "Intelligent"
-msgstr "বুদ্ধিমান"
-
-#: docking/ui/settings.py:206
-msgid "Dodge Active Window"
-msgstr "সক্রিয় উইন্ডো এড়িয়ে যান"
-
-#: docking/ui/settings.py:207
-msgid "Dodge All Windows"
-msgstr "সব উইন্ডো এড়িয়ে যান"
-
-#: docking/ui/settings.py:208
-msgid "Dodge Maximized"
-msgstr "সর্বাধিক এড়িয়ে যান"
-
-#: docking/ui/settings.py:225
-msgid "Toggle Focus"
-msgstr "Toggle Focus"
-
-#: docking/ui/settings.py:226
-msgid "Cycle Windows"
-msgstr "Cycle Windows"
-
-#: docking/ui/settings.py:233
-msgid "New Window"
-msgstr "New Window"
-
-#: docking/ui/settings.py:234
-msgid "Minimize Windows"
-msgstr "Minimize Windows"
-
-#: docking/ui/settings.py:235
-msgid "Close Focused Window"
-msgstr "Close Focused Window"
-
-#: docking/ui/settings.py:290
-msgid "Look"
-msgstr "চেহারা"
-
-#: docking/ui/settings.py:292
-msgid "Theme"
-msgstr "থিম"
-
-#: docking/ui/settings.py:293
-msgid "Icon Size"
-msgstr "Icon Size"
-
-#: docking/ui/settings.py:294
-msgid "Transparency"
-msgstr "Transparency"
-
-#: docking/ui/settings.py:295
-msgid "Zoom"
-msgstr "Zoom"
-
-#: docking/ui/settings.py:296
-msgid "Zoom Percent"
-msgstr "জুম শতাংশ"
-
-#: docking/ui/settings.py:297
-msgid "Show Tooltips"
-msgstr "টুলটিপ দেখান"
-
-#: docking/ui/settings.py:298
-msgid "Window Previews"
-msgstr "Window Previews"
-
-#: docking/ui/settings.py:310
-msgid "Mouse"
-msgstr "Mouse"
-
-#: docking/ui/settings.py:312
-msgid "Left Click"
-msgstr "Left Click"
-
-#: docking/ui/settings.py:313
-msgid "Middle Click"
-msgstr "Middle Click"
-
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:186 docking/ui/settings.py:351
 msgid "Behavior"
 msgstr "আচরণ"
 
-#: docking/ui/settings.py:320
-msgid "Hide Mode"
-msgstr "লুকানোর মোড"
+#: docking/ui/settings.py:187
+msgid "Applets"
+msgstr "অ্যাপলেট"
 
-#: docking/ui/settings.py:321
-msgid "Hide Delay"
-msgstr "লুকানোর বিলম্ব"
+#: docking/ui/settings.py:205
+msgid "Don't Hide"
+msgstr "লুকাবেন না"
 
-#: docking/ui/settings.py:322
-msgid "Unhide Delay"
-msgstr "প্রদর্শনের বিলম্ব"
+#: docking/ui/settings.py:206
+msgid "Auto-hide"
+msgstr "Auto-hide"
 
-#: docking/ui/settings.py:327
+#: docking/ui/settings.py:207
+msgid "Intelligent"
+msgstr "বুদ্ধিমান"
+
+#: docking/ui/settings.py:208
+msgid "Dodge Active Window"
+msgstr "সক্রিয় উইন্ডো এড়িয়ে যান"
+
+#: docking/ui/settings.py:209
+msgid "Dodge All Windows"
+msgstr "সব উইন্ডো এড়িয়ে যান"
+
+#: docking/ui/settings.py:210
+msgid "Dodge Maximized"
+msgstr "সর্বাধিক এড়িয়ে যান"
+
+#: docking/ui/settings.py:227
+msgid "Toggle Focus"
+msgstr "Toggle Focus"
+
+#: docking/ui/settings.py:228
+msgid "Cycle Windows"
+msgstr "Cycle Windows"
+
+#: docking/ui/settings.py:235
+msgid "New Window"
+msgstr "New Window"
+
+#: docking/ui/settings.py:236
+msgid "Minimize Windows"
+msgstr "Minimize Windows"
+
+#: docking/ui/settings.py:237
+msgid "Close Focused Window"
+msgstr "Close Focused Window"
+
+#: docking/ui/settings.py:295
+msgid "Look"
+msgstr "চেহারা"
+
+#: docking/ui/settings.py:297
+msgid "Theme"
+msgstr "থিম"
+
+#: docking/ui/settings.py:298
+msgid "Icon Size"
+msgstr "Icon Size"
+
+#: docking/ui/settings.py:299
+msgid "Transparency"
+msgstr "Transparency"
+
+#: docking/ui/settings.py:300
+msgid "Zoom"
+msgstr "Zoom"
+
+#: docking/ui/settings.py:301
+msgid "Zoom Percent"
+msgstr "জুম শতাংশ"
+
+#: docking/ui/settings.py:302
+msgid "Show Tooltips"
+msgstr "টুলটিপ দেখান"
+
+#: docking/ui/settings.py:303
+msgid "Window Previews"
+msgstr "Window Previews"
+
+#: docking/ui/settings.py:308
 msgid "Placement"
 msgstr "স্থাপন"
 
-#: docking/ui/settings.py:329
+#: docking/ui/settings.py:310
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/settings.py:330
+#: docking/ui/settings.py:311
 msgid "Follow Cursor"
 msgstr "Follow Cursor"
 
-#: docking/ui/settings.py:331
+#: docking/ui/settings.py:312
 msgid "Current Workspace Only"
 msgstr "Current Workspace Only"
 
-#: docking/ui/settings.py:336
+#: docking/ui/settings.py:317
 msgid "Layout"
 msgstr "লেআউট"
 
-#: docking/ui/settings.py:338
+#: docking/ui/settings.py:319
 msgid "Lock Positions"
 msgstr "অবস্থান লক করুন"
 
-#: docking/ui/settings.py:339
+#: docking/ui/settings.py:320
 msgid "Anchor Applets to End"
 msgstr "Anchor Applets to End"
 
-#: docking/ui/settings.py:340
+#: docking/ui/settings.py:321
 msgid "Anchor Files to End"
 msgstr "ফাইল শেষে নোঙর করুন"
 
-#: docking/ui/settings.py:732
+#: docking/ui/settings.py:343
+msgid "Mouse"
+msgstr "Mouse"
+
+#: docking/ui/settings.py:345
+msgid "Left Click"
+msgstr "Left Click"
+
+#: docking/ui/settings.py:346
+msgid "Middle Click"
+msgstr "Middle Click"
+
+#: docking/ui/settings.py:353
+msgid "Hide Mode"
+msgstr "লুকানোর মোড"
+
+#: docking/ui/settings.py:354
+msgid "Hide Delay"
+msgstr "লুকানোর বিলম্ব"
+
+#: docking/ui/settings.py:355
+msgid "Unhide Delay"
+msgstr "প্রদর্শনের বিলম্ব"
+
+#: docking/ui/settings.py:747
 msgid "The dock is always visible and reserves screen space."
 msgstr "The dock is always visible and reserves screen space."
 
-#: docking/ui/settings.py:733
+#: docking/ui/settings.py:748
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:735
+#: docking/ui/settings.py:750
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:737
+#: docking/ui/settings.py:752
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:739
+#: docking/ui/settings.py:754
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:742
+#: docking/ui/settings.py:757
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
+
+#~ msgid "Add City..."
+#~ msgstr "শহর যোগ করুন..."
