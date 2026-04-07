@@ -584,6 +584,8 @@ System volume control. The icon switches between muted, low, medium, and high ba
 
 **Click:** Toggle mute
 **Scroll:** Adjust volume ±5%
+**Right-click options:**
+- **Volume Settings** -- open the desktop volume or sound settings screen when available
 **Tooltip:** `Volume: 75%` or `Muted`
 
 **Update interval:** 1 second (refreshes only on change)

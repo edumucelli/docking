@@ -9,7 +9,7 @@ import gi
 
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, GLib
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.volume import meta
@@ -18,7 +18,15 @@ from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import create_volume_icon
-from .state import _BACKENDS, STEP, VolumeState, _detect_backend, _volume_icon_name
+from .state import (
+    _BACKENDS,
+    STEP,
+    VolumeState,
+    _detect_backend,
+    _volume_icon_name,
+    open_volume_settings,
+    volume_settings_command,
+)
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -90,6 +98,14 @@ class VolumeApplet(Applet):
         self._poll()
         self._update_tooltip()
         self.present()
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        cmd = volume_settings_command()
+        if cmd is None:
+            return []
+        volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
+        volume_settings.connect("activate", lambda _widget: open_volume_settings())
+        return [volume_settings]
 
     def _poll(self) -> None:
         """Read current volume state from backend."""

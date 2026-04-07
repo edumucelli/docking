@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-07 21:35+0200\n"
+"POT-Creation-Date: 2026-04-08 00:17+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -1045,18 +1045,22 @@ msgstr "कॉपी"
 msgid "Copied!"
 msgstr "कॉपी हो गया!"
 
-#: docking/applets/volume/applet.py:33
+#: docking/applets/volume/applet.py:41
 msgid "Volume"
 msgstr "ध्वनि"
 
-#: docking/applets/volume/applet.py:53
+#: docking/applets/volume/applet.py:61
 msgid "Muted"
 msgstr "म्यूट"
 
-#: docking/applets/volume/applet.py:53
+#: docking/applets/volume/applet.py:61
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "ध्वनि: {pct}%"
+
+#: docking/applets/volume/applet.py:106
+msgid "Volume Settings"
+msgstr "Volume Settings"
 
 #: docking/applets/weather/applet.py:58
 msgid "Weather"
