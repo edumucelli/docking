@@ -6,7 +6,7 @@
 # Prerequisites:
 #   sudo apt install debhelper dh-python python3-setuptools python3-wheel
 #
-# Output: ../docking_<version>-<debian_revision>_all.deb
+# Output: ../docking_<version>-<debian_revision>_<arch>.deb
 
 set -euo pipefail
 

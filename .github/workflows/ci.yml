@@ -586,6 +586,15 @@ jobs:
             exit 1
           fi
 
+          echo "[check] private application directory exists"
+          if [ -d /usr/lib/docking/python ]; then
+            ls -ld /usr/lib/docking/python
+          else
+            echo "missing: /usr/lib/docking/python"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
           echo "[check] vendored dependencies directory exists"
           if [ -d /usr/lib/docking/vendor ]; then
             ls -ld /usr/lib/docking/vendor
@@ -651,6 +660,15 @@ jobs:
             ls -l /usr/share/applications/org.docking.Docking.desktop
           else
             echo "missing: /usr/share/applications/org.docking.Docking.desktop"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] private application directory exists"
+          if [ -d /usr/lib/docking/python ]; then
+            ls -ld /usr/lib/docking/python
+          else
+            echo "missing: /usr/lib/docking/python"
             dpkg -L docking | sed -n '1,200p'
             exit 1
           fi

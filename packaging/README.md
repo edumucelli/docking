@@ -41,7 +41,7 @@ sudo apt install debhelper dh-python python3-setuptools python3-wheel python3-pi
 ./packaging/deb/build.sh
 
 # Install
-sudo dpkg -i ../docking_*_all.deb
+sudo dpkg -i ../docking_*_*.deb
 sudo apt-get -f install  # fix any missing deps
 
 # Verify
@@ -50,14 +50,17 @@ docking
 
 ### How it works
 
-- **Runtime deps**: system GTK/GI packages (`python3-gi`, `gir1.2-gtk-3.0`, etc.)
+- **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`
+- **Application code**: installed to `/usr/lib/docking/python/` and loaded via the
+  `/usr/bin/docking` wrapper so the package stays compatible across supported
+  Python 3 minors on the same architecture.
 - **Vendored deps**: all pip dependencies go to `/usr/lib/docking/vendor/` to avoid
   file conflicts with Ubuntu's python3-* packages. The entrypoint adds this path to
   `sys.path` at startup.
 - **Assets**: theme JSON files, clock SVG layers, and weather city database are bundled
   via `package_data` in `setup.cfg` (shim for Ubuntu 22.04's older setuptools that
   can't read PEP 621 from `pyproject.toml`). Installed to
-  `/usr/lib/python3/dist-packages/docking/assets/`.
+  `/usr/lib/docking/python/docking/assets/`.
 - **Application icon**: add `org.docking.Docking` icon files under
   `packaging/deb/icons/hicolor/<size>x<size>/apps/org.docking.Docking.png` (and
   optional `packaging/deb/icons/hicolor/scalable/apps/org.docking.Docking.svg`).
@@ -65,8 +68,8 @@ docking
   Do not ship `status/org.docking.Docking.png`; status icons should use
   `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
-- **CI validation**: the generated `Architecture: all` package is installed and checked on both x86_64 and ARM64 runners.
-- **Release note**: because the package is `Architecture: all`, the GitHub release publishes a single `linux-all.deb` even though CI validates it on both architectures.
+- **CI validation**: the generated architecture-specific package is installed and checked on both x86_64 and ARM64 runners.
+- **Release note**: GitHub Releases publish `linux-x86_64.deb` and `linux-aarch64.deb`.
 
 ## PPA (Launchpad)
 

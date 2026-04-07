@@ -65,7 +65,7 @@ sudo apt install \
 
 Prebuilt latest release packages are also available on [GitHub Releases](https://github.com/edumucelli/docking/releases), you can download them directly below.
 - `AppImage`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage)
-- `Debian .deb`: [linux-all](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb) for both x64 and arm64
+- `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb)
 - `RPM`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm)
 - `Flatpak`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak)
 - `Snap`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap)
@@ -82,7 +82,8 @@ chmod +x docking-latest-linux-aarch64.AppImage
 ./docking-latest-linux-aarch64.AppImage
 
 # Debian / RPM / Arch
-sudo apt install ./docking-latest-linux-all.deb
+sudo apt install ./docking-latest-linux-x86_64.deb
+sudo apt install ./docking-latest-linux-aarch64.deb
 sudo dnf install ./docking-latest-linux-x86_64.rpm
 sudo dnf install ./docking-latest-linux-aarch64.rpm
 sudo pacman -U ./docking-latest-linux-x86_64.pkg.tar.zst
@@ -1027,7 +1028,7 @@ sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
 ./packaging/deb/build.sh
 
 # Install generated package
-sudo dpkg -i ../docking_*_all.deb
+sudo dpkg -i ../docking_*_*.deb
 sudo apt-get -f install
 ```
 
@@ -1115,7 +1116,7 @@ GitHub Actions is split across two workflows:
     - Debian 12 / Python 3.12
   - **Coverage**: pytest-cov on Ubuntu with `--cov-fail-under=55`, artifacts uploaded (XML/HTML), optional Codecov upload when token is configured.
   - **Packaging artifacts**:
-    - `.deb` (`all`, install-validated on x86_64 and ARM64)
+    - `.deb` (x64 and arm64)
     - `.rpm` (x64 and arm64)
     - `.flatpak` (x64 and arm64)
     - `.snap` (x64 and arm64)
@@ -1124,7 +1125,7 @@ GitHub Actions is split across two workflows:
     - Nix output tarball + store path (x64 and arm64)
   - **Release naming**:
     - arch-specific assets use `linux-x86_64` for x64 and `linux-aarch64` for arm64
-    - the Debian package stays `linux-all.deb` because it is architecture-independent
+    - Debian now follows the same naming and publishes `linux-x86_64.deb` and `linux-aarch64.deb`
   - **Release step (CD)**:
     - Runs on `master` only after all package builds.
     - Reads version from `pyproject.toml`, checks latest GitHub Release, and only releases if version is newer.

@@ -468,9 +468,8 @@ Recent maintenance notes:
 
 - `tools/bump_version.py` is expected to be idempotent when asked to bump to
   the version already present in packaging metadata
-- the release pipeline now publishes both x64 and arm64 artifacts where the
-  package format is architecture-specific, while Debian remains a shared
-  `linux-all.deb`
+- the release pipeline now publishes x64 and arm64 artifacts for every package
+  format, including Debian (`linux-x86_64.deb` and `linux-aarch64.deb`)
 - CI uses explicit ARM64 test/build jobs in addition to the x64 matrix
 
 ## Current Status vs Planned Direction

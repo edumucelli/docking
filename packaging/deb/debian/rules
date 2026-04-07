@@ -21,13 +21,16 @@ override_dh_auto_test:
 override_dh_auto_install:
 	# Compile gettext catalogs so packaged installs include .mo files.
 	bash tools/i18n.sh --compile
-	dh_auto_install
-	# Ensure /usr/bin/docking exists even on older setuptools/pybuild stacks
-	# where project.scripts may not be emitted.
+	# Install Docking into a private path so the package depends on generic
+	# python3 (>= 3.10) instead of the builder's default Python minor version.
+	mkdir -p debian/docking/usr/lib/docking/python
+	python3 -m pip install --no-compile --no-deps \
+		--target=debian/docking/usr/lib/docking/python \
+		.
+	rm -rf debian/docking/usr/lib/docking/python/*.dist-info
+	rm -rf debian/docking/usr/lib/docking/python/bin
 	mkdir -p debian/docking/usr/bin
-	if [ ! -x debian/docking/usr/bin/docking ]; then \
-		install -m 0755 packaging/deb/docking debian/docking/usr/bin/docking; \
-	fi
+	install -m 0755 packaging/deb/docking debian/docking/usr/bin/docking
 	# Bundle ALL pip dependencies into an isolated vendor directory.
 	# This avoids file conflicts with Ubuntu's python3-* system packages
 	# and makes the .deb fully self-contained.
@@ -39,9 +42,11 @@ override_dh_auto_install:
 	# packages as system dependencies.
 	rm -rf debian/docking/usr/lib/docking/vendor/*.dist-info
 	rm -rf debian/docking/usr/lib/docking/vendor/bin
+	# Drop minor-version-specific accelerators so the package remains compatible
+	# across Python 3.10+ on the same CPU architecture.
+	find debian/docking/usr/lib/docking/vendor -name '*.cpython-*.so' -delete
 
 override_dh_python3:
-	# Keep runtime Python deps self-contained via vendored wheels under
-	# /usr/lib/docking/vendor; avoid auto-deriving system python3-* deps
-	# from upstream metadata (e.g. requests-cache for weather).
-	dh_python3 --shebang=/usr/bin/python3 --no-guessing-deps
+	# Docking installs into private paths under /usr/lib/docking and uses an
+	# explicit python3 (>= 3.10) dependency in debian/control.
+	:
