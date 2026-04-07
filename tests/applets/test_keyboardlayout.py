@@ -442,9 +442,11 @@ class TestCommandHelpers:
         monkeypatch.setattr(
             kbl_state.shutil,
             "which",
-            lambda cmd: "/usr/bin/gkbd-keyboard-display"
-            if cmd == "gkbd-keyboard-display"
-            else None,
+            lambda cmd: (
+                "/usr/bin/gkbd-keyboard-display"
+                if cmd == "gkbd-keyboard-display"
+                else None
+            ),
         )
         assert current_layout_command("br") == ["gkbd-keyboard-display", "-l", "br"]
         assert current_layout_command("") is None
