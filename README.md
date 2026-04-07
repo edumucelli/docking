@@ -476,7 +476,16 @@ IP: 192.168.1.42
 down-arrow 1.2 MB/s  up-arrow 350 KB/s
 ```
 
-**Right-click:** Connection info (read-only)
+**Right-click options:**
+- **Available Networks** -- open a submenu of visible Wi-Fi networks; clicking one asks NetworkManager to connect to it
+- **Connect to Hidden Wi-Fi Network...** -- open the desktop network editor/settings flow for hidden Wi-Fi setup
+- **Create New Wi-Fi Network...** -- open the desktop network editor/settings flow for creating a new Wi-Fi network
+- **VPN Connections** -- open a submenu of saved VPN profiles and toggle them on or off
+- **Connection Information** -- open the desktop network settings or information screen when available
+- **Edit Connections...** -- open the connection editor when available
+- **Enable Networking** -- toggle NetworkManager networking on/off
+- **Enable Wi-Fi** -- toggle Wi-Fi radio on/off when a wireless device is present
+- **Show Download / Show Upload / Hide Speeds** -- control the speed overlay on the icon
 
 **Update interval:** 2 seconds
 

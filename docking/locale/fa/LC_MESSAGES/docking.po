@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-08 00:17+0200\n"
+"POT-Creation-Date: 2026-04-08 00:41+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -589,30 +589,80 @@ msgstr "Unknown"
 msgid "Music: No active player"
 msgstr "موسیقی: پخش‌کننده فعالی نیست"
 
-#: docking/applets/network/applet.py:53
+#: docking/applets/network/applet.py:62
 msgid "Network"
 msgstr "Network"
 
-#: docking/applets/network/applet.py:105
+#: docking/applets/network/applet.py:114
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:113
+#: docking/applets/network/applet.py:122
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "Ethernet: {iface}"
 
-#: docking/applets/network/applet.py:118
+#: docking/applets/network/applet.py:127
 msgid "Not connected"
 msgstr "Not connected"
 
-#: docking/applets/network/applet.py:123
+#: docking/applets/network/applet.py:132
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/state.py:89
+#: docking/applets/network/applet.py:148
+msgid "Connection Information"
+msgstr "Connection Information"
+
+#: docking/applets/network/applet.py:154
+msgid "Edit Connections..."
+msgstr "Edit Connections..."
+
+#: docking/applets/network/applet.py:166
+msgid "Connect to Hidden Wi-Fi Network..."
+msgstr "Connect to Hidden Wi-Fi Network..."
+
+#: docking/applets/network/applet.py:173
+msgid "Create New Wi-Fi Network..."
+msgstr "Create New Wi-Fi Network..."
+
+#: docking/applets/network/applet.py:177
+msgid "Enable Networking"
+msgstr "Enable Networking"
+
+#: docking/applets/network/applet.py:188
+msgid "Enable Wi-Fi"
+msgstr "Enable Wi-Fi"
+
+#: docking/applets/network/applet.py:256
+msgid "Available Networks"
+msgstr "Available Networks"
+
+#: docking/applets/network/applet.py:260
+#, python-brace-format
+msgid "{ssid} ({pct}%)"
+msgstr "{ssid} ({pct}%)"
+
+#: docking/applets/network/applet.py:262
+#, python-brace-format
+msgid "Connected: {label}"
+msgstr "Connected: {label}"
+
+#: docking/applets/network/applet.py:271
+msgid "No networks found"
+msgstr "No networks found"
+
+#: docking/applets/network/applet.py:283
+msgid "VPN Connections"
+msgstr "VPN Connections"
+
+#: docking/applets/network/applet.py:286
+msgid "Unnamed VPN"
+msgstr "Unnamed VPN"
+
+#: docking/applets/network/state.py:205
 msgid "Network: Not connected"
 msgstr "Network: Not connected"
 
