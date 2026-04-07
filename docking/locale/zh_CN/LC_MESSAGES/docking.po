@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-08 01:01+0200\n"
+"POT-Creation-Date: 2026-04-08 01:07+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -471,13 +471,21 @@ msgstr "喝水！"
 msgid "Next in {time}"
 msgstr "{time}后提醒"
 
-#: docking/applets/keyboardlayout/applet.py:42
+#: docking/applets/keyboardlayout/applet.py:46
 msgid "Keyboard Layout"
 msgstr "键盘布局"
 
-#: docking/applets/keyboardlayout/applet.py:71
+#: docking/applets/keyboardlayout/applet.py:75
 msgid "No keyboard layout detected"
 msgstr "未检测到键盘布局"
+
+#: docking/applets/keyboardlayout/applet.py:121
+msgid "Keyboard Settings"
+msgstr "Keyboard Settings"
+
+#: docking/applets/keyboardlayout/applet.py:126
+msgid "Show Current Layout"
+msgstr "Show Current Layout"
 
 #: docking/applets/moon/applet.py:48
 msgid "Moon"

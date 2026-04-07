@@ -25,10 +25,14 @@ from docking.applets.keyboardlayout.state import (
     _ibus_layout_code,
     _parse_gsettings_string,
     _parse_gsettings_string_list,
+    current_layout_command,
     cycle_layout,
     detect_backend,
+    keyboard_settings_command,
     layout_display_name,
     layout_label,
+    open_keyboard_settings,
+    show_current_layout,
     tooltip_text,
 )
 
@@ -420,6 +424,56 @@ class TestLabels:
         assert tooltip_text(active="br") == "Portuguese (BR)"
 
 
+class TestCommandHelpers:
+    def test_keyboard_settings_command(self, monkeypatch):
+        commands = {
+            "mate-keyboard-properties": None,
+            "gnome-control-center": "/usr/bin/gnome-control-center",
+            "ibus-setup": "/usr/bin/ibus-setup",
+        }
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: commands.get(cmd),
+        )
+        assert keyboard_settings_command() == ["gnome-control-center", "keyboard"]
+
+    def test_current_layout_command(self, monkeypatch):
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gkbd-keyboard-display"
+            if cmd == "gkbd-keyboard-display"
+            else None,
+        )
+        assert current_layout_command("br") == ["gkbd-keyboard-display", "-l", "br"]
+        assert current_layout_command("") is None
+
+    def test_open_commands(self, monkeypatch):
+        launched: list[list[str]] = []
+        monkeypatch.setattr(
+            kbl_state,
+            "keyboard_settings_command",
+            lambda: ["mate-keyboard-properties"],
+        )
+        monkeypatch.setattr(
+            kbl_state,
+            "current_layout_command",
+            lambda layout_code: ["gkbd-keyboard-display", "-l", layout_code],
+        )
+        monkeypatch.setattr(
+            kbl_state.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+        )
+        assert open_keyboard_settings() is True
+        assert show_current_layout("us") is True
+        assert launched == [
+            ["mate-keyboard-properties"],
+            ["gkbd-keyboard-display", "-l", "us"],
+        ]
+
+
 # ---------------------------------------------------------------------------
 # render
 # ---------------------------------------------------------------------------
@@ -506,8 +560,20 @@ class TestKeyboardLayoutApplet:
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
+        monkeypatch.setattr(
+            "docking.applets.keyboardlayout.applet.keyboard_settings_command",
+            lambda: ["mate-keyboard-properties"],
+        )
+        monkeypatch.setattr(
+            "docking.applets.keyboardlayout.applet.current_layout_command",
+            lambda layout_code: ["gkbd-keyboard-display", "-l", layout_code],
+        )
         applet = KeyboardLayoutApplet(icon_size=48)
-        assert len(applet.get_menu_items()) == 2
+        labels = [item.get_label() for item in applet.get_menu_items()]
+        assert labels[0] == "Keyboard Settings"
+        assert labels[1] == "Show Current Layout"
+        assert any("EN - us" in label for label in labels)
+        assert any("BR - br" in label for label in labels)
 
     def test_no_layout_detected(self, monkeypatch):
         monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)

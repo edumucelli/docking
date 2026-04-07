@@ -946,7 +946,9 @@ class TestBluetoothApplet:
         assert "Paired Devices" not in labels
         assert "Discovered Devices" not in labels
 
-    def test_recent_connections_submenu_prefers_recent_paired_devices(self, monkeypatch):
+    def test_recent_connections_submenu_prefers_recent_paired_devices(
+        self, monkeypatch
+    ):
         self._fake_gtk(monkeypatch)
         applet, _backend = _make_applet(
             monkeypatch,

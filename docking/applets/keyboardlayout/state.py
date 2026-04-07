@@ -15,6 +15,7 @@ from __future__ import annotations
 import ast
 import os
 import re
+import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -33,6 +34,18 @@ _MATE_GENERAL_SCHEMA = "org.mate.peripherals-keyboard-xkb.general"
 _MATE_LAYOUTS_KEY = "layouts"
 _MATE_MODEL_KEY = "model"
 _MATE_OPTIONS_KEY = "options"
+_KEYBOARD_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("mate-keyboard-properties",),
+    ("gnome-control-center", "keyboard"),
+    ("ibus-setup",),
+    ("fcitx5-configtool",),
+    ("kcmshell6", "kcm_keyboard"),
+    ("kcmshell5", "kcm_keyboard"),
+)
+_LAYOUT_VIEWER_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gkbd-keyboard-display",),
+    ("tecla",),
+)
 
 LAYOUT_NAMES: dict[str, str] = {
     "us": "English (US)",
@@ -132,6 +145,40 @@ _CODE_TO_LABEL: dict[str, str] = {
 class LayoutState(NamedTuple):
     active: str
     available: list[str]
+
+
+def keyboard_settings_command() -> list[str] | None:
+    """Return the first available keyboard-settings command."""
+    return _first_available_command(_KEYBOARD_SETTINGS_COMMANDS)
+
+
+def current_layout_command(layout_code: str) -> list[str] | None:
+    """Return the command to show the active keyboard layout, if available."""
+    for cmd in _LAYOUT_VIEWER_COMMANDS:
+        if shutil.which(cmd[0]) is None:
+            continue
+        if cmd[0] == "gkbd-keyboard-display":
+            if not layout_code:
+                return None
+            return [cmd[0], "-l", layout_code]
+        return list(cmd)
+    return None
+
+
+def open_keyboard_settings() -> bool:
+    """Launch the desktop keyboard settings screen when available."""
+    return _open_command(
+        cmd=keyboard_settings_command(),
+        action="open_keyboard_settings",
+    )
+
+
+def show_current_layout(layout_code: str) -> bool:
+    """Launch the current keyboard layout viewer when available."""
+    return _open_command(
+        cmd=current_layout_command(layout_code),
+        action="show_current_layout",
+    )
 
 
 def _run(cmd: list[str]) -> str | None:
@@ -431,3 +478,23 @@ def layout_display_name(code: str) -> str:
 def tooltip_text(active: str) -> str:
     """Build tooltip string showing current layout name."""
     return layout_display_name(code=active)
+
+
+def _first_available_command(
+    candidates: tuple[tuple[str, ...], ...],
+) -> list[str] | None:
+    for cmd in candidates:
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None
+
+
+def _open_command(*, cmd: list[str] | None, action: str) -> bool:
+    if cmd is None:
+        return False
+    try:
+        subprocess.Popen(cmd, start_new_session=True)
+    except OSError as exc:
+        log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
+        return False
+    return True

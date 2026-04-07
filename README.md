@@ -459,7 +459,10 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 
 **Click:** Cycle to the next available layout
 **Scroll:** Move forward/backward through available layouts
-**Right-click options:** direct selection of each detected layout
+**Right-click options:**
+- **Keyboard Settings** -- open the desktop keyboard settings screen when available
+- **Show Current Layout** -- open the current keyboard layout dialog when available
+- direct selection of each detected layout
 
 **Tooltip:** active layout code or no-layout fallback
 
