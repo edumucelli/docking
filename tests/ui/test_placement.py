@@ -671,14 +671,18 @@ class TestPlacementControllerStruts:
         )
         assert controller._poll_active_display() is True
 
-        display = SimpleNamespace(get_default_seat=lambda: None, get_n_monitors=lambda: 0)
+        display = SimpleNamespace(
+            get_default_seat=lambda: None, get_n_monitors=lambda: 0
+        )
         controller = placement_mod.DockPlacementController(
             _make_window(get_display=lambda: display)
         )
         assert controller._poll_active_display() is True
 
         seat = SimpleNamespace(get_pointer=lambda: None)
-        display = SimpleNamespace(get_default_seat=lambda: seat, get_n_monitors=lambda: 0)
+        display = SimpleNamespace(
+            get_default_seat=lambda: seat, get_n_monitors=lambda: 0
+        )
         controller = placement_mod.DockPlacementController(
             _make_window(get_display=lambda: display)
         )
