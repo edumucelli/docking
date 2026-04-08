@@ -346,6 +346,52 @@ class TestScrollAndHoverFlow:
         applet.on_scroll.assert_called_once_with(True)
         stub.tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
 
+    def test_smooth_scroll_on_applet_uses_delta_direction(self, monkeypatch):
+        item = DockItem(desktop_id="applet://separator")
+        stub, _ = _make_stub(item=item)
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        event = SimpleNamespace(
+            x=10.0,
+            y=5.0,
+            direction=dock_window_mod.Gdk.ScrollDirection.SMOOTH,
+            get_scroll_deltas=lambda: (True, 0.0, -1.0),
+        )
+        monkeypatch.setattr(
+            dock_window_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+
+        handled = dock_window_mod.DockWindow._on_scroll(stub, MagicMock(), event)
+
+        assert handled is True
+        applet.on_scroll.assert_called_once_with(True)
+        stub.tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
+
+    def test_smooth_scroll_without_vertical_delta_is_ignored(self, monkeypatch):
+        item = DockItem(desktop_id="applet://separator")
+        stub, _ = _make_stub(item=item)
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        event = SimpleNamespace(
+            x=10.0,
+            y=5.0,
+            direction=dock_window_mod.Gdk.ScrollDirection.SMOOTH,
+            get_scroll_deltas=lambda: (True, 1.0, 0.0),
+        )
+        monkeypatch.setattr(
+            dock_window_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+
+        handled = dock_window_mod.DockWindow._on_scroll(stub, MagicMock(), event)
+
+        assert handled is False
+        applet.on_scroll.assert_not_called()
+        stub.tooltip.update.assert_not_called()
+
     def test_scroll_on_non_applet_returns_false(self, monkeypatch):
         # Given
         stub, _item = _make_stub()

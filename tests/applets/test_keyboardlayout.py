@@ -18,6 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover
 import docking.applets.keyboardlayout.state as kbl_state
 from docking.applets.keyboardlayout.state import (
     Fcitx5Backend,
+    GnomeBackend,
     IBusBackend,
     MateBackend,
     XkbBackend,
@@ -25,6 +26,7 @@ from docking.applets.keyboardlayout.state import (
     _ibus_layout_code,
     _parse_gsettings_string,
     _parse_gsettings_string_list,
+    _parse_input_sources,
     current_layout_command,
     cycle_layout,
     detect_backend,
@@ -61,6 +63,8 @@ Layout=
 [Groups/1]
 Name=Other
 """
+GNOME_SOURCES = "[('xkb', 'us'), ('xkb', 'br')]"
+GNOME_MRU_SOURCES = "[('xkb', 'br')]"
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +298,93 @@ class TestMateBackend:
         assert not MateBackend().is_available()
 
 
+class TestGnomeBackend:
+    def test_parse_input_sources(self):
+        assert _parse_input_sources(GNOME_SOURCES) == [("xkb", "us"), ("xkb", "br")]
+        assert _parse_input_sources("@a(ss) []") == []
+
+    def test_query_returns_gnome_sources(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
+
+        def mock_run(cmd):
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "current",
+            ]:
+                return "uint32 1"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "mru-sources",
+            ]:
+                return GNOME_MRU_SOURCES
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        state = GnomeBackend().query()
+        assert state.active == "br"
+        assert state.available == ["us", "br"]
+
+    def test_switch_calls_gdbus_eval(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
+        commands = []
+
+        def mock_run(cmd):
+            commands.append(cmd)
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        GnomeBackend().switch(layout_code="br")
+        assert [
+            "gsettings",
+            "set",
+            "org.gnome.desktop.input-sources",
+            "current",
+            "1",
+        ] in commands
+        assert [
+            "/usr/bin/gdbus",
+            "call",
+            "--session",
+            "--dest",
+            "org.gnome.Shell",
+            "--object-path",
+            "/org/gnome/Shell",
+            "--method",
+            "org.gnome.Shell.Eval",
+            "imports.ui.status.keyboard.getInputSourceManager().inputSources[1].activate()",
+        ] in commands
+
+    def test_is_available_requires_gnome_and_gdbus(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
+        monkeypatch.setattr(
+            kbl_state,
+            "_run",
+            lambda cmd: GNOME_SOURCES if cmd[0] == "gsettings" else None,
+        )
+        assert GnomeBackend().is_available()
+
+
 # ---------------------------------------------------------------------------
 # XkbBackend
 # ---------------------------------------------------------------------------
@@ -335,6 +426,37 @@ class TestDetectBackend:
         )
         backend = detect_backend()
         assert isinstance(backend, IBusBackend)
+
+    def test_prefers_gnome_over_ibus_in_gnome_session(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+
+        def mock_run(cmd):
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "current",
+            ]:
+                return "uint32 0"
+            if cmd == ["ibus", "engine"]:
+                return "xkb:us::eng"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
+        )
+        backend = detect_backend()
+        assert isinstance(backend, GnomeBackend)
 
     def test_falls_back_to_fcitx5(self, monkeypatch):
         def mock_run(cmd):
@@ -388,6 +510,48 @@ class TestDetectBackend:
         monkeypatch.setattr(kbl_state, "_run", mock_run)
         backend = detect_backend()
         assert isinstance(backend, MateBackend)
+
+    def test_prefers_gnome_before_xkb(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+
+        def mock_run(cmd):
+            if cmd == ["ibus", "engine"]:
+                return None
+            if cmd == ["fcitx5-remote", "-n"]:
+                return None
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return None
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "mru-sources",
+            ]:
+                return GNOME_MRU_SOURCES
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     us"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
+        )
+        backend = detect_backend()
+        assert isinstance(backend, GnomeBackend)
 
 
 # ---------------------------------------------------------------------------

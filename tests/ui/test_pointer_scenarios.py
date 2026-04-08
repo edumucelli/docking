@@ -458,11 +458,19 @@ class TestPlacementScenarios:
     def test_active_display_repositions_when_pointer_moves_between_monitors(
         self, monkeypatch
     ):
-        primary = SimpleNamespace(name="primary")
-        secondary = SimpleNamespace(name="secondary")
+        primary = SimpleNamespace(
+            name="primary",
+            get_geometry=lambda: SimpleNamespace(x=0, y=0, width=1000, height=1080),
+        )
+        secondary = SimpleNamespace(
+            name="secondary",
+            get_geometry=lambda: SimpleNamespace(x=1000, y=0, width=1000, height=1080),
+        )
         pointer = SimpleNamespace(get_position=lambda: (None, 200, 50))
         seat = SimpleNamespace(get_pointer=lambda: pointer)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_monitor=lambda idx: primary if idx == 0 else secondary,
             get_default_seat=lambda: seat,
             get_monitor_at_point=lambda x, y: primary if x < 1000 else secondary,
         )

@@ -763,7 +763,9 @@ class DockWindow(Gtk.Window):
         if item and is_applet(desktop_id=item.desktop_id):
             applet = self.model.get_applet(item.desktop_id)
             if applet:
-                direction_up = event.direction == Gdk.ScrollDirection.UP
+                direction_up = _scroll_direction_up(event=event)
+                if direction_up is None:
+                    return False
                 applet.on_scroll(direction_up)
                 # Refresh tooltip immediately (item.name may have changed)
                 self.tooltip.update(item, frame)
@@ -926,3 +928,17 @@ class DockWindow(Gtk.Window):
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
         self.drawing_area.queue_draw()
+
+
+def _scroll_direction_up(*, event: Gdk.EventScroll) -> bool | None:
+    """Normalize GTK discrete and smooth scroll events to one applet direction."""
+    if event.direction == Gdk.ScrollDirection.UP:
+        return True
+    if event.direction == Gdk.ScrollDirection.DOWN:
+        return False
+    if event.direction == Gdk.ScrollDirection.SMOOTH:
+        has_deltas, _dx, dy = event.get_scroll_deltas()
+        if not has_deltas or dy == 0:
+            return None
+        return dy < 0
+    return None

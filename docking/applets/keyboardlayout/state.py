@@ -34,6 +34,10 @@ _MATE_GENERAL_SCHEMA = "org.mate.peripherals-keyboard-xkb.general"
 _MATE_LAYOUTS_KEY = "layouts"
 _MATE_MODEL_KEY = "model"
 _MATE_OPTIONS_KEY = "options"
+_GNOME_INPUT_SOURCES_SCHEMA = "org.gnome.desktop.input-sources"
+_GNOME_SOURCES_KEY = "sources"
+_GNOME_MRU_SOURCES_KEY = "mru-sources"
+_GNOME_CURRENT_KEY = "current"
 _KEYBOARD_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
     ("mate-keyboard-properties",),
     ("gnome-control-center", "keyboard"),
@@ -241,6 +245,11 @@ def _is_mate_session() -> bool:
     return "mate" in _desktop_tokens()
 
 
+def _is_gnome_session() -> bool:
+    tokens = _desktop_tokens()
+    return "gnome" in tokens or "ubuntu" in tokens
+
+
 class LayoutBackend(ABC):
     """Common interface for keyboard layout backends."""
 
@@ -257,6 +266,140 @@ class LayoutBackend(ABC):
     @abstractmethod
     def switch(self, layout_code: str) -> None:
         """Switch to the given layout code."""
+
+
+def _parse_input_sources(raw: str | None) -> list[tuple[str, str]]:
+    if not raw:
+        return []
+    cleaned = raw.strip()
+    if cleaned.startswith("@a("):
+        prefix_end = cleaned.find(" ")
+        if prefix_end != -1:
+            cleaned = cleaned[prefix_end + 1 :].strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError) as exc:
+        log.debug("Failed to parse input sources %r: %s", raw, exc)
+        return []
+    sources: list[tuple[str, str]] = []
+    if not isinstance(value, list):
+        return sources
+    for entry in value:
+        if (
+            isinstance(entry, tuple)
+            and len(entry) == 2
+            and all(isinstance(part, str) for part in entry)
+        ):
+            sources.append((entry[0], entry[1]))
+    return sources
+
+
+def _source_layout_code(source_id: str) -> str:
+    if "+" in source_id:
+        return source_id.split("+", 1)[0]
+    return source_id
+
+
+class GnomeBackend(LayoutBackend):
+    """Reads GNOME input sources and switches via GNOME Shell D-Bus."""
+
+    name = "gnome"
+
+    def is_available(self) -> bool:
+        if not _is_gnome_session():
+            return False
+        return bool(self._sources())
+
+    def query(self) -> LayoutState:
+        sources = self._sources()
+        available = [
+            _source_layout_code(source_id)
+            for source_type, source_id in sources
+            if source_type == "xkb"
+        ]
+        active = self._active_source_code(sources=sources)
+        if not active and available:
+            active = available[0]
+        return LayoutState(active=active, available=available)
+
+    def switch(self, layout_code: str) -> None:
+        for idx, (source_type, source_id) in enumerate(self._sources()):
+            if source_type != "xkb":
+                continue
+            if _source_layout_code(source_id) != layout_code:
+                continue
+            _run(
+                cmd=[
+                    "gsettings",
+                    "set",
+                    _GNOME_INPUT_SOURCES_SCHEMA,
+                    _GNOME_CURRENT_KEY,
+                    str(idx),
+                ]
+            )
+            gdbus = shutil.which("gdbus")
+            if not gdbus:
+                return
+            script = (
+                "imports.ui.status.keyboard"
+                f".getInputSourceManager().inputSources[{idx}].activate()"
+            )
+            _run(
+                cmd=[
+                    gdbus,
+                    "call",
+                    "--session",
+                    "--dest",
+                    "org.gnome.Shell",
+                    "--object-path",
+                    "/org/gnome/Shell",
+                    "--method",
+                    "org.gnome.Shell.Eval",
+                    script,
+                ]
+            )
+            return
+
+    def _sources(self) -> list[tuple[str, str]]:
+        raw = _run(
+            cmd=["gsettings", "get", _GNOME_INPUT_SOURCES_SCHEMA, _GNOME_SOURCES_KEY]
+        )
+        return _parse_input_sources(raw=raw)
+
+    def _active_source_code(self, *, sources: list[tuple[str, str]]) -> str:
+        current_index = self._current_index()
+        if 0 <= current_index < len(sources):
+            source_type, source_id = sources[current_index]
+            if source_type == "xkb":
+                return _source_layout_code(source_id)
+        raw = _run(
+            cmd=[
+                "gsettings",
+                "get",
+                _GNOME_INPUT_SOURCES_SCHEMA,
+                _GNOME_MRU_SOURCES_KEY,
+            ]
+        )
+        mru = _parse_input_sources(raw=raw)
+        if mru:
+            source_type, source_id = mru[0]
+            if source_type == "xkb":
+                return _source_layout_code(source_id)
+        for source_type, source_id in sources:
+            if source_type == "xkb":
+                return _source_layout_code(source_id)
+        return ""
+
+    def _current_index(self) -> int:
+        raw = _run(
+            cmd=["gsettings", "get", _GNOME_INPUT_SOURCES_SCHEMA, _GNOME_CURRENT_KEY]
+        )
+        if not raw:
+            return -1
+        match = re.search(r"(\d+)", raw)
+        if not match:
+            return -1
+        return int(match.group(1))
 
 
 def _ibus_layout_code(engine: str) -> str:
@@ -431,17 +574,26 @@ class XkbBackend(LayoutBackend):
         _run(cmd=["setxkbmap", "-layout", layout_code])
 
 
-_BACKENDS: list[type[LayoutBackend]] = [
-    IBusBackend,
-    Fcitx5Backend,
-    MateBackend,
-    XkbBackend,
-]
-
-
 def detect_backend() -> LayoutBackend:
     """Return the first available backend, falling back to XKB."""
-    for cls in _BACKENDS:
+    backends: list[type[LayoutBackend]]
+    if _is_gnome_session():
+        backends = [
+            GnomeBackend,
+            IBusBackend,
+            Fcitx5Backend,
+            MateBackend,
+            XkbBackend,
+        ]
+    else:
+        backends = [
+            IBusBackend,
+            Fcitx5Backend,
+            MateBackend,
+            GnomeBackend,
+            XkbBackend,
+        ]
+    for cls in backends:
         backend = cls()
         if backend.is_available():
             return backend

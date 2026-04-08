@@ -189,7 +189,7 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
             icon_name=wmo_icon_name(code=code),
             daily=daily,
         )
-    except (OSError, ValueError, KeyError, IndexError, AttributeError):
+    except Exception:
         log.bind(action="fetch_weather").warning(
             "Failed to fetch weather", exc_info=True
         )
@@ -243,7 +243,7 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
         pm10 = round(current.Variables(1).Value(), 1)
         pm2_5 = round(current.Variables(2).Value(), 1)
         return AirQualityData(aqi=aqi, pm2_5=pm2_5, pm10=pm10, label=aqi_label(aqi=aqi))
-    except (OSError, ValueError, KeyError, IndexError, AttributeError):
+    except Exception:
         log.bind(action="fetch_air_quality").warning(
             "Failed to fetch air quality",
             exc_info=True,

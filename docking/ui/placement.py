@@ -310,6 +310,7 @@ class DockPlacementController:
         monitor = self._resolve_target_monitor(display=display)
         if monitor is None:
             return
+        monitor_idx = self._monitor_index(display=display, monitor=monitor)
         geom = monitor.get_geometry()
         workarea = monitor.get_workarea()
 
@@ -344,7 +345,17 @@ class DockPlacementController:
                 win_y = workarea.y
 
         log.debug(
-            "dock position: win=(%d,%d) size=%dx%d cross=%d bounce_headroom=%d",
+            "dock position: monitor=%s geom=(%d,%d %dx%d) workarea=(%d,%d %dx%d) "
+            "win=(%d,%d) size=%dx%d cross=%d bounce_headroom=%d",
+            monitor_idx,
+            geom.x,
+            geom.y,
+            geom.width,
+            geom.height,
+            workarea.x,
+            workarea.y,
+            workarea.width,
+            workarea.height,
             win_x,
             win_y,
             win_w,
@@ -446,13 +457,39 @@ class DockPlacementController:
         display = self._window.get_display()
         if not display:
             return True
+        n_monitors = display.get_n_monitors()
         pos = get_pointer_position(display)
         if pos is None:
+            log.debug("active-display poll: no pointer position available")
             return True
+        monitor_summaries: list[str] = []
+        for idx in range(n_monitors):
+            candidate = display.get_monitor(idx)
+            if candidate is None:
+                monitor_summaries.append(f"{idx}=<none>")
+                continue
+            geom = candidate.get_geometry()
+            monitor_summaries.append(
+                f"{idx}=({geom.x},{geom.y} {geom.width}x{geom.height})"
+            )
         monitor = display.get_monitor_at_point(pos.x, pos.y)
+        resolved_idx = self._monitor_index(display=display, monitor=monitor)
+        active_idx = self._monitor_index(display=display, monitor=self._active_monitor)
+        log.debug(
+            "active-display poll: pointer=(%d,%d) monitors=%d [%s] "
+            "resolved=%s previous=%s",
+            pos.x,
+            pos.y,
+            n_monitors,
+            ", ".join(monitor_summaries),
+            resolved_idx,
+            active_idx,
+        )
         if monitor is not None and monitor != self._active_monitor:
             self._active_monitor = monitor
+            log.debug("active-display poll: switching to monitor=%s", resolved_idx)
             self.reposition()
+            return True
         return True
 
     def _resolve_target_monitor(self, display: Gdk.Display) -> Gdk.Monitor | None:
@@ -471,3 +508,15 @@ class DockPlacementController:
                 return monitor
 
         return display.get_primary_monitor() or display.get_monitor(0)
+
+    @staticmethod
+    def _monitor_index(
+        *, display: Gdk.Display | None, monitor: Gdk.Monitor | None
+    ) -> int:
+        if display is None or monitor is None:
+            return -1
+        n_monitors = display.get_n_monitors()
+        for idx in range(n_monitors):
+            if display.get_monitor(idx) is monitor:
+                return idx
+        return -1

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-08 01:07+0200\n"
+"POT-Creation-Date: 2026-04-08 23:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -930,23 +930,23 @@ msgstr "Invertovat barvu"
 msgid "Session"
 msgstr "Relace"
 
-#: docking/applets/session/state.py:23
+#: docking/applets/session/state.py:24
 msgid "Lock Screen"
 msgstr "Zamknout obrazovku"
 
-#: docking/applets/session/state.py:24
+#: docking/applets/session/state.py:27
 msgid "Log Out"
 msgstr "Odhlásit se"
 
-#: docking/applets/session/state.py:25
+#: docking/applets/session/state.py:28
 msgid "Suspend"
 msgstr "Uspat"
 
-#: docking/applets/session/state.py:26
+#: docking/applets/session/state.py:29
 msgid "Restart"
 msgstr "Restartovat"
 
-#: docking/applets/session/state.py:27
+#: docking/applets/session/state.py:30
 msgid "Shut Down"
 msgstr "Vypnout"
 
@@ -1154,34 +1154,34 @@ msgstr "Volume Settings"
 msgid "Weather"
 msgstr "Počasí"
 
-#: docking/applets/weather/applet.py:128
+#: docking/applets/weather/applet.py:130
 msgid "Show Temperature"
 msgstr "Zobrazit teplotu"
 
-#: docking/applets/weather/applet.py:135
+#: docking/applets/weather/applet.py:137
 #, python-brace-format
 msgid "Remove {city}"
 msgstr "Odebrat {city}"
 
-#: docking/applets/weather/applet.py:167
+#: docking/applets/weather/applet.py:169
 msgid "Search for the city"
 msgstr "Hledat město"
 
-#: docking/applets/weather/applet.py:181
+#: docking/applets/weather/applet.py:183
 msgid "Type city name..."
 msgstr "Zadejte název města..."
 
-#: docking/applets/weather/applet.py:344
+#: docking/applets/weather/applet.py:363
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr "{temp}°C, {desc}"
 
-#: docking/applets/weather/applet.py:353 docking/applets/weather/state.py:132
+#: docking/applets/weather/applet.py:372 docking/applets/weather/state.py:135
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "Vzduch: {label}"
 
-#: docking/applets/weather/applet.py:365
+#: docking/applets/weather/applet.py:384
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
 msgstr "{date}: {min_temp}/{max_temp}°C"
@@ -1191,11 +1191,16 @@ msgstr "{date}: {min_temp}/{max_temp}°C"
 msgid "{city}: {temp}°C"
 msgstr "{city}: {temp}°C"
 
-#: docking/applets/weather/state.py:126
+#: docking/applets/weather/state.py:127
 msgid "Weather (no city selected)"
 msgstr "Počasí (město nevybráno)"
 
-#: docking/applets/weather/state.py:128
+#: docking/applets/weather/state.py:130
+#, python-brace-format
+msgid "{city}: unavailable"
+msgstr "{city}: unavailable"
+
+#: docking/applets/weather/state.py:131
 #, python-brace-format
 msgid "{city}: loading..."
 msgstr "{city}: načítání..."

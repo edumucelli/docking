@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-08 01:07+0200\n"
+"POT-Creation-Date: 2026-04-08 23:50+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -930,23 +930,23 @@ msgstr "रंग उलटें"
 msgid "Session"
 msgstr "सत्र"
 
-#: docking/applets/session/state.py:23
+#: docking/applets/session/state.py:24
 msgid "Lock Screen"
 msgstr "स्क्रीन लॉक"
 
-#: docking/applets/session/state.py:24
+#: docking/applets/session/state.py:27
 msgid "Log Out"
 msgstr "लॉग आउट"
 
-#: docking/applets/session/state.py:25
+#: docking/applets/session/state.py:28
 msgid "Suspend"
 msgstr "निलंबित"
 
-#: docking/applets/session/state.py:26
+#: docking/applets/session/state.py:29
 msgid "Restart"
 msgstr "पुनः आरंभ"
 
-#: docking/applets/session/state.py:27
+#: docking/applets/session/state.py:30
 msgid "Shut Down"
 msgstr "बंद करें"
 
@@ -1153,34 +1153,34 @@ msgstr "Volume Settings"
 msgid "Weather"
 msgstr "मौसम"
 
-#: docking/applets/weather/applet.py:128
+#: docking/applets/weather/applet.py:130
 msgid "Show Temperature"
 msgstr "तापमान दिखाएँ"
 
-#: docking/applets/weather/applet.py:135
+#: docking/applets/weather/applet.py:137
 #, python-brace-format
 msgid "Remove {city}"
 msgstr "{city} हटाएं"
 
-#: docking/applets/weather/applet.py:167
+#: docking/applets/weather/applet.py:169
 msgid "Search for the city"
 msgstr "शहर खोजें"
 
-#: docking/applets/weather/applet.py:181
+#: docking/applets/weather/applet.py:183
 msgid "Type city name..."
 msgstr "शहर का नाम लिखें..."
 
-#: docking/applets/weather/applet.py:344
+#: docking/applets/weather/applet.py:363
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr "{temp}°C, {desc}"
 
-#: docking/applets/weather/applet.py:353 docking/applets/weather/state.py:132
+#: docking/applets/weather/applet.py:372 docking/applets/weather/state.py:135
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "वायु: {label}"
 
-#: docking/applets/weather/applet.py:365
+#: docking/applets/weather/applet.py:384
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
 msgstr "{date}: {min_temp}/{max_temp}°C"
@@ -1190,11 +1190,16 @@ msgstr "{date}: {min_temp}/{max_temp}°C"
 msgid "{city}: {temp}°C"
 msgstr "{city}: {temp}°C"
 
-#: docking/applets/weather/state.py:126
+#: docking/applets/weather/state.py:127
 msgid "Weather (no city selected)"
 msgstr "मौसम (कोई शहर नहीं चुना)"
 
-#: docking/applets/weather/state.py:128
+#: docking/applets/weather/state.py:130
+#, python-brace-format
+msgid "{city}: unavailable"
+msgstr "{city}: unavailable"
+
+#: docking/applets/weather/state.py:131
 #, python-brace-format
 msgid "{city}: loading..."
 msgstr "{city}: लोड हो रहा है..."
