@@ -111,9 +111,11 @@ class TestSessionState:
         monkeypatch.setattr(
             session_state_mod.shutil,
             "which",
-            lambda cmd: f"/usr/bin/{cmd}"
-            if cmd in {"loginctl", "mate-screensaver-command"}
-            else None,
+            lambda cmd: (
+                f"/usr/bin/{cmd}"
+                if cmd in {"loginctl", "mate-screensaver-command"}
+                else None
+            ),
         )
 
         seen: list[list[str]] = []
