@@ -43,6 +43,9 @@ install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'
 #!/bin/sh
 set -eu
 export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
+if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  export GDK_BACKEND=x11
+fi
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 

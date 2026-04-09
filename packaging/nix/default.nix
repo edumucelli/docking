@@ -48,6 +48,17 @@ pyPkgs.buildPythonApplication rec {
   '';
 
   postInstall = ''
+    mv "$out/bin/docking" "$out/bin/docking-real"
+    cat > "$out/bin/docking" <<EOF
+#!/bin/sh
+set -eu
+if [ "\${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "\${WAYLAND_DISPLAY:-}" ]; then
+  export GDK_BACKEND=x11
+fi
+exec "$out/bin/docking-real" "\$@"
+EOF
+    chmod 0755 "$out/bin/docking"
+
     install -Dm644 ${../shared/org.docking.Docking.desktop} \
       "$out/share/applications/org.docking.Docking.desktop"
     substituteInPlace "$out/share/applications/org.docking.Docking.desktop" \
