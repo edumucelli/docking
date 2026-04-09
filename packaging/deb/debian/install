@@ -1,2 +1,2 @@
-packaging/deb/org.docking.Docking.desktop usr/share/applications
+packaging/shared/org.docking.Docking.desktop usr/share/applications
 packaging/shared/refresh-desktop-caches.sh usr/lib/docking/refresh-desktop-caches

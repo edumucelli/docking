@@ -55,14 +55,14 @@ parts:
       bash "$CRAFT_PART_SRC/tools/i18n.sh" --compile
       craftctl default
       mv "${CRAFT_PART_INSTALL}/bin/docking" "${CRAFT_PART_INSTALL}/bin/docking-real"
-      printf '%s\n' \
-        '#!/bin/sh' \
-        'set -eu' \
-        'if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then' \
-        '  export GDK_BACKEND=x11' \
-        'fi' \
-        'exec "$SNAP/bin/docking-real" "$@"' \
-        > "${CRAFT_PART_INSTALL}/bin/docking"
+      cat > "${CRAFT_PART_INSTALL}/bin/docking" <<'EOF'
+      #!/bin/sh
+      set -eu
+      if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        export GDK_BACKEND=x11
+      fi
+      exec "$SNAP/bin/docking-real" "$@"
+      EOF
       chmod 0755 "${CRAFT_PART_INSTALL}/bin/docking"
       install -Dm644 "$CRAFT_PROJECT_DIR/../shared/org.docking.Docking.desktop" \
         "${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
