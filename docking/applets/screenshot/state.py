@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, NamedTuple
+
+from docking.platform.environment import is_wayland_session
 
 
 class Tool(NamedTuple):
@@ -79,7 +80,7 @@ def _portal_available() -> bool:
 
 def _detect_tool() -> Tool | None:
     """Return the first available screenshot tool, or None."""
-    if os.environ.get("XDG_SESSION_TYPE") == "wayland" and _portal_available():
+    if is_wayland_session() and _portal_available():
         return _PORTAL_TOOL
     for tool in _TOOLS:
         if shutil.which(tool.command):

@@ -3,13 +3,14 @@
 import logging
 from unittest.mock import patch
 
-from gi.repository import GdkX11
-
 from docking.platform.environment import (
     Desktop,
     _check_compositor,
     _parse_desktop,
     detect_desktop,
+    is_x11_backend,
+    is_xwayland_session,
+    is_wayland_session,
 )
 
 
@@ -86,6 +87,47 @@ class TestDetectDesktop:
             assert detect_desktop() == Desktop.UNKNOWN
 
 
+class TestSessionBackendDetection:
+    def test_is_wayland_session_true(self):
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "wayland"}, clear=True):
+            assert is_wayland_session() is True
+
+    def test_is_wayland_session_false(self):
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "x11"}, clear=True):
+            assert is_wayland_session() is False
+
+    def test_is_x11_backend_true_for_x11_display(self):
+        _Display = type(
+            "X11Display",
+            (),
+            {"__module__": "gi.repository.GdkX11"},
+        )
+
+        assert is_x11_backend(display=_Display()) is True
+
+    def test_is_x11_backend_false_without_x11_display(self):
+        assert is_x11_backend(display=object()) is False
+
+    def test_is_xwayland_session_true(self):
+        _Display = type(
+            "X11Display",
+            (),
+            {"__module__": "gi.repository.GdkX11"},
+        )
+
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "wayland"}, clear=True):
+            assert is_xwayland_session(display=_Display()) is True
+
+    def test_is_xwayland_session_false_in_native_x11_session(self):
+        _Display = type(
+            "X11Display",
+            (),
+            {"__module__": "gi.repository.GdkX11"},
+        )
+
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "x11"}, clear=True):
+            assert is_xwayland_session(display=_Display()) is False
+
 class TestUsesMonitorGeometry:
     """Known DEs use full monitor geometry; unknown uses workarea."""
 
@@ -113,6 +155,8 @@ class TestUsesMonitorGeometry:
 
 class TestCompositorCheck:
     def test_logs_warning_when_probe_fails(self, caplog):
+        from gi.repository import GdkX11
+
         class _Display:
             def get_default_screen(self):
                 return 0

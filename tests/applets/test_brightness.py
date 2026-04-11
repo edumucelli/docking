@@ -88,14 +88,14 @@ class TestDetectOutput:
 
 class TestGetBrightness:
     def test_prefers_sysfs_when_available_on_wayland(self, monkeypatch, tmp_path):
-        monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
         (tmp_path / "brightness").write_text("150\n")
         (tmp_path / "max_brightness").write_text("200\n")
         backend = Backend(output="eDP-1", sysfs=tmp_path)
         assert get_brightness(backend=backend) == 0.75
 
     def test_prefers_xrandr_when_available_on_x11(self, monkeypatch, tmp_path):
-        monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
         (tmp_path / "brightness").write_text("150\n")
         (tmp_path / "max_brightness").write_text("200\n")
         output = (
@@ -128,7 +128,7 @@ class TestGetBrightness:
     def test_falls_back_to_sysfs_on_x11_when_xrandr_missing(
         self, monkeypatch, tmp_path
     ):
-        monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
         (tmp_path / "brightness").write_text("150\n")
         (tmp_path / "max_brightness").write_text("200\n")
@@ -205,7 +205,7 @@ class TestBrightnessStateHelpers:
         assert calls[1][-1] == "1.00"
 
     def test_set_brightness_prefers_brightnessctl(self, monkeypatch):
-        monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
         calls: list[list[str]] = []
         monkeypatch.setattr(
             brightness_state, "_run", lambda cmd: calls.append(cmd) or ""
@@ -219,7 +219,7 @@ class TestBrightnessStateHelpers:
     def test_set_brightness_prefers_xrandr_on_x11_even_with_sysfs(
         self, monkeypatch, tmp_path
     ):
-        monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
         calls: list[list[str]] = []
         monkeypatch.setattr(
             brightness_state, "_run", lambda cmd: calls.append(cmd) or ""
@@ -233,20 +233,35 @@ class TestBrightnessStateHelpers:
         assert (tmp_path / "brightness").read_text() == "100\n"
 
     def test_set_brightness_uses_sysfs_when_available(self, tmp_path):
-        (tmp_path / "max_brightness").write_text("200\n")
-        (tmp_path / "brightness").write_text("100\n")
+        with patch.object(brightness_state, "is_wayland_session", return_value=True):
+            (tmp_path / "max_brightness").write_text("200\n")
+            (tmp_path / "brightness").write_text("100\n")
 
-        brightness_state.set_brightness(Backend(output="eDP-1", sysfs=tmp_path), 0.75)
+            brightness_state.set_brightness(
+                Backend(output="eDP-1", sysfs=tmp_path), 0.75
+            )
 
         assert (tmp_path / "brightness").read_text() == "150\n"
 
     def test_set_brightness_sysfs_clamps(self, tmp_path):
-        (tmp_path / "max_brightness").write_text("200\n")
-        (tmp_path / "brightness").write_text("100\n")
+        with patch.object(brightness_state, "is_wayland_session", return_value=True):
+            (tmp_path / "max_brightness").write_text("200\n")
+            (tmp_path / "brightness").write_text("100\n")
 
-        brightness_state.set_brightness(Backend(output="eDP-1", sysfs=tmp_path), -1.0)
+            brightness_state.set_brightness(
+                Backend(output="eDP-1", sysfs=tmp_path), -1.0
+            )
 
         assert (tmp_path / "brightness").read_text() == "20\n"
+
+    def test_get_brightness_calls_platform_wayland_helper(self, monkeypatch, tmp_path):
+        (tmp_path / "max_brightness").write_text("200\n")
+        (tmp_path / "brightness").write_text("120\n")
+        probe = MagicMock(return_value=True)
+        monkeypatch.setattr(brightness_state, "is_wayland_session", probe)
+
+        assert get_brightness(backend=Backend(output="eDP-1", sysfs=tmp_path)) == 0.6
+        probe.assert_called_once_with()
 
 
 def _make_applet(brightness: float = 0.8) -> BrightnessApplet:

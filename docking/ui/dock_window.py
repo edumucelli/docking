@@ -197,6 +197,7 @@ from docking.platform.struts import (
     compute_blur_region,
     set_blur_region,
 )
+from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.ui import geometry
 from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
@@ -351,6 +352,7 @@ class DockWindow(Gtk.Window):
         screen = self.get_screen()
         visual = screen.get_rgba_visual() or screen.get_system_visual()
         self.set_visual(visual)
+        log_runtime_snapshot(display=self.get_display(), desktop=detect_desktop())
 
         self.placement.attach_screen_signals(screen)
         self.connect("realize", self.placement.on_realize)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
@@ -10,6 +9,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from docking.log import get_logger
+from docking.platform.environment import is_wayland_session
 
 log = get_logger(name="brightness.state")
 
@@ -65,17 +65,12 @@ def detect_output() -> Backend | None:
     return None
 
 
-def _is_wayland_session() -> bool:
-    """True when running in a Wayland session."""
-    return os.environ.get("XDG_SESSION_TYPE") == "wayland"
-
-
 def get_brightness(backend: Backend) -> float | None:
     """Read current brightness (0.0-1.0).
 
     Prefer X11 brightness on X11 sessions and backlight state on Wayland.
     """
-    if _is_wayland_session():
+    if is_wayland_session():
         if backend.sysfs:
             return _get_brightness_sysfs(path=backend.sysfs)
         return _get_brightness_xrandr(backend=backend)
@@ -127,7 +122,7 @@ def set_brightness(backend: Backend, value: float) -> None:
         "--brightness",
         f"{clamped:.2f}",
     ]
-    if _is_wayland_session():
+    if is_wayland_session():
         if backend.brightnessctl:
             _run(cmd=[backend.brightnessctl, "set", f"{round(clamped * 100)}%"])
             return
