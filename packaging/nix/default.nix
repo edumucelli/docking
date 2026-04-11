@@ -52,7 +52,7 @@ pyPkgs.buildPythonApplication rec {
     cat > "$out/bin/docking" <<EOF
 #!/bin/sh
 set -eu
-if [ "\${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "\${WAYLAND_DISPLAY:-}" ]; then
+if [ "''${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "''${WAYLAND_DISPLAY:-}" ]; then
   export GDK_BACKEND=x11
 fi
 exec "$out/bin/docking-real" "\$@"

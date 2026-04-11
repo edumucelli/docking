@@ -5,19 +5,8 @@ script:
   - mkdir -p AppDir/usr/lib/python3/dist-packages
   - mkdir -p AppDir/usr/share/applications
   - mkdir -p AppDir/usr/share/icons
-  - mkdir -p AppDir/usr/bin
   - python3 -m pip install --upgrade pip
   - python3 -m pip install --no-cache-dir --target AppDir/usr/lib/python3/dist-packages .
-  - >
-    printf '%s\n'
-    '#!/bin/sh'
-    'set -eu'
-    'if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then'
-    '  export GDK_BACKEND=x11'
-    'fi'
-    'exec "$APPDIR/usr/bin/python3" -m docking.app "$@"'
-    > AppDir/usr/bin/docking &&
-    chmod 0755 AppDir/usr/bin/docking
   - install -Dm644 packaging/shared/org.docking.Docking.desktop AppDir/usr/share/applications/org.docking.Docking.desktop
   - cp -r packaging/deb/icons/hicolor AppDir/usr/share/icons/
 
@@ -28,7 +17,8 @@ AppDir:
     name: Docking
     icon: org.docking.Docking
     version: latest
-    exec: usr/bin/docking
+    exec: usr/bin/python3
+    exec_args: -m docking.app
 
   apt:
     arch: __APT_ARCH__
@@ -66,6 +56,7 @@ AppDir:
       GI_TYPELIB_PATH: __GI_TYPELIB_PATH__
       XDG_DATA_DIRS: $APPDIR/usr/share:$XDG_DATA_DIRS
       GSETTINGS_BACKEND: memory
+      GDK_BACKEND: x11
 
 AppImage:
   arch: __APPIMAGE_ARCH__
