@@ -658,6 +658,7 @@ class TestDockWindowSetupAndGeometry:
             set_app_paintable=MagicMock(),
             set_resizable=MagicMock(),
             get_screen=MagicMock(return_value=screen),
+            get_display=MagicMock(return_value=SimpleNamespace()),
             set_visual=MagicMock(),
             connect=MagicMock(),
             _on_destroy=MagicMock(),
