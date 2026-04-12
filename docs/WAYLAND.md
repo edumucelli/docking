@@ -240,7 +240,33 @@ Copy this block for each test run:
 | Overlap-based hide modes | partly works | User reports overlap-based hide modes work partially. Hide-on-maximized does not appear to work in the Ubuntu 25 XWayland setup. |
 | Multi-monitor behavior | fails | User reports Docking stays on the first monitor and does not automatically follow the cursor in the Ubuntu 25 XWayland setup. Debug logging shows both monitors are detected correctly, but GDK pointer polling stays stuck on monitor 0 coordinates, so active-display monitor follow never switches. An experimental Xlib root-pointer fallback detected monitor changes better, but was not reliable enough to keep because the dock could disappear instead of landing visibly on the target monitor. |
 | Suspend / resume recovery | not tested | |
-| Notes / anomalies | partly works | Ubuntu 25 may not ship any of Docking's older screenshot CLI backends by default, so the XDG desktop portal backend is important for screenshot support in Wayland sessions. Running indicator dots depend on X11 window tracking, so they are not reliable for native Wayland apps even when Docking itself is launched through XWayland. The configured left-click action for running apps also depends on that same running-state detection, so native Wayland apps may open a new instance on left click instead of toggling or cycling windows. Window previews also depend on X11 window IDs and foreign-window pixel capture, so native Wayland window previews are unavailable in this mode; future support would require compositor protocols or compositor-specific integration rather than an XWayland-only workaround, and feasibility depends on the compositor. Multi-monitor cursor-follow also fails in the tested XWayland setup: Docking remains on the first monitor instead of following the cursor. Debug logging shows monitor enumeration is correct, but both GDK pointer query paths return stale monitor-0 coordinates, so the current active-display polling logic never resolves the cursor to monitor 1. An experimental Xlib root-pointer fallback improved pointer detection but was not stable enough for placement and was removed after causing the dock to disappear instead of showing reliably on the target monitor. Brightness control is not blocked by Wayland protocol limitations in the same way previews and task tracking are; after switching Docking to a `brightnessctl`-style backend, the remaining failure was plain user permission denial on the backlight device, while `sudo brightnessctl` succeeded. Window Killer is another X11/Wnck-dependent feature: it relies on a global overlay, root-relative click coordinates, and Wnck window geometry to identify the clicked target, so it does not work reliably for Wayland-native windows in this mode. Color Picker also depends on X11-era screen capture assumptions: it samples pixels from the X11 root window, which does not represent the real Wayland desktop scene here, so picks return black instead of the visible screen color. Future support would require portal/compositor-based capture instead of X11 root-window reads. |
+| Notes / anomalies | partly works | Ubuntu 25 may not ship any of Docking's older screenshot CLI backends by default, so the XDG desktop portal backend is important for screenshot support in Wayland sessions. Running indicator dots depend on X11 window tracking, so they are not reliable for native Wayland apps even when Docking itself is launched through XWayland. The configured left-click action for running apps also depends on that same running-state detection, so native Wayland apps may open a new instance on left click instead of toggling or cycling windows. Window previews also depend on X11 window IDs and foreign-window pixel capture, so native Wayland window previews are unavailable in this mode; future support would require compositor protocols or compositor-specific integration rather than an XWayland-only workaround, and feasibility depends on the compositor. Multi-monitor cursor-follow also fails in the tested XWayland setup: Docking remains on the first monitor instead of following the cursor. Debug logging shows monitor enumeration is correct, but both GDK pointer query paths return stale monitor-0 coordinates, so the current active-display polling logic never resolves the cursor to monitor 1. An experimental Xlib root-pointer fallback improved pointer detection but was not stable enough for placement and was removed after causing the dock to disappear instead of showing reliably on the target monitor. Brightness control is not blocked by Wayland protocol limitations in the same way previews and task tracking are; after switching Docking to a `brightnessctl`-style backend, the remaining failure was plain user permission denial on the backlight device, while `sudo brightnessctl` succeeded. Window Killer is another X11/Wnck-dependent feature: it relies on a global overlay, root-relative click coordinates, and Wnck window geometry to identify the clicked target, so it does not work reliably for Wayland-native windows in this mode. Color Picker also depends on X11-era screen capture assumptions: it samples pixels from the X11 root window, which does not represent the real Wayland desktop scene here, so picks return black instead of the visible screen color. Future support would require portal/compositor-based capture instead of X11 root-window reads. Separate from those feature gaps, XWayland rendering itself is currently unstable in long runs: the dock can stop receiving draw callbacks while hover, tooltip, and other logic continue, leaving either a frozen last frame on screen or an effectively invisible dock while tooltip popups still appear. A traced run also reported `compositor_active=False`, which is relevant because the dock is an RGBA/compositor-managed window and presentation failures in this environment are plausibly below Docking's state machine. |
+
+#### XWayland freeze findings
+
+Later investigation refined the XWayland behavior beyond the initial smoke
+test.
+
+Observed facts:
+
+- Docking can keep processing hover, tooltip, autohide, and click logic after
+  the visible dock stops updating.
+- In failing runs, the last successful draw callback may be far earlier than
+  the visible symptom. A later screenshot of a half-zoomed icon was confirmed
+  to be a stale last frame, not evidence that animation was still progressing.
+- Tooltip popups are separate windows, so they can continue to appear even when
+  the main dock surface has stopped repainting.
+- Some failing runs suggested compositor trouble as well: the runtime snapshot
+  recorded `xwayland=True` with `compositor_active=False`.
+
+What this means:
+
+- This is not just an autohide or hover state-machine bug.
+- The strongest current hypothesis is a GTK/XWayland/Mutter presentation or
+  draw-delivery failure affecting Docking's transparent RGBA dock window.
+- The main app now has enough evidence. Further reduction work is better done
+  in `tools/xwayland_repro.py` than by adding more invasive tracing to Docking
+  itself.
 
 ### Per-Applet Notes
 
@@ -2388,6 +2414,157 @@ The most realistic interpretation of "make Docking available on Wayland" is:
 
 If the project instead targets GNOME Wayland parity first, it should be planned
 as a shell integration project from day one.
+
+## Current XWayland Instability Investigation
+
+This section documents a separate problem from general "Wayland feature
+support". Even when Docking launches successfully through `XWayland`, the dock
+surface is currently unstable in long or interaction-heavy runs.
+
+This section should be treated as a living investigation log. As new traces,
+repro improvements, and reduction results are discovered, they should be added
+here so the document becomes the running record of how the issue is being
+narrowed down.
+
+### Observed Symptoms
+
+The failures seen so far are presentation failures, not full application
+crashes.
+
+Observed variants:
+
+- the dock freezes visually after some interactions while hover, clicks, and
+  logs keep working
+- the last dock frame stays stuck on screen, for example with an icon frozen in
+  a half-zoomed state
+- the dock can appear effectively transparent or absent while tooltip popups
+  still appear at the expected dock position
+
+Important interpretation:
+
+- tooltip popups are separate windows, so "tooltips still work" does not mean
+  the main dock surface is still repainting
+- in traced failing runs, Docking logic remained alive while draw delivery to
+  the main dock surface stopped
+- one healthy baseline run under `XWayland` also recorded
+  `compositor_active=False`, which matters because Docking is an RGBA,
+  compositor-managed dock window
+
+### What We Confirmed
+
+From traced runs of the real app:
+
+- the dock can stop receiving draw callbacks while hover, tooltip, autohide,
+  and click logic continue
+- a later screenshot of a half-zoomed dock did not represent a live animation;
+  it was a stale last frame that remained on screen after draw delivery stopped
+- in another class of report, the dock appeared visually absent while tooltips
+  still appeared, which is consistent with the same "logic alive, presentation
+  broken" family of failures
+
+Current working hypothesis:
+
+- the main problem is below Docking's state machine
+- the likely failure layer is GTK/XWayland/Mutter presentation or draw
+  delivery for this specific kind of transparent RGBA dock window
+
+### Reproduction Script
+
+To avoid repeatedly instrumenting the main app, the investigation now uses:
+
+- `tools/xwayland_repro.py`
+
+That script is a reduction matrix, not a full Docking clone. It exists to
+toggle one window or rendering trait at a time and answer:
+
+- does the failure require a dock-type window hint?
+- does it require RGBA transparency?
+- does it require keep-above / sticky behavior?
+- does it require hide/show transitions?
+- does it require motion-driven redraw churn?
+- does it depend on an offscreen `OPERATOR_SOURCE` blit path like the real app?
+
+Current repro features:
+
+- X11/XWayland launch path via `GDK_BACKEND=x11`
+- dock-style window flags
+- RGBA visual
+- autohide `off` / `snap` / `animate`
+- optional tick pump and redraw watchdog
+- optional motion spam
+- optional offscreen blit path to match Docking more closely
+- trace logging for draw delivery, redraw requests, and stall detection
+
+The repro is intentionally smaller than Docking. It still does not model every
+part of the real application. Notable Docking behaviors that remain candidates
+for triggering the real bug include:
+
+- tooltip popup windows
+- X11 input-shape updates
+- blur hint updates
+- richer item rendering and hover-zoom behavior
+- the full applet/model/runtime stack
+
+### Web Research Summary
+
+Web research did not find an exact public report for "GTK3 dock under
+XWayland freezes while tooltips still work", but it did find related evidence
+that this class of bug is credible upstream.
+
+Most relevant findings:
+
+- GNOME / Mutter has had XWayland freeze bugs where windows become visually
+  stuck during interaction while the application itself is still alive
+- there are separate reports involving popups, drag interactions, or redraw
+  failures under XWayland on GNOME / Mutter
+- there are transparency-related compositor bugs in nearby stacks, which is
+  relevant because Docking uses an RGBA, transparent, compositor-managed window
+
+Most relevant references:
+
+- GNOME Discourse report of buggy / frozen XWayland windows during popup/drag
+  interaction:
+  https://discourse.gnome.org/t/buggy-xwayland-windows-when-used-with-graphics-tablet/29611
+- Mozilla bugs for XWayland / GNOME window freeze behavior during interaction:
+  https://bugzilla.mozilla.org/show_bug.cgi?id=1919397
+  https://bugzilla.mozilla.org/show_bug.cgi?id=1827210
+- Ubuntu / Mutter redraw and presentation bug references in nearby areas:
+  https://bugs.launchpad.net/bugs/2054510
+  https://bugs.launchpad.net/bugs/2107245
+- Transparency-related compositor bug reference:
+  https://bugs.launchpad.net/bugs/2099879
+- GTK / GDK window documentation:
+  https://gnome.pages.gitlab.gnome.org/gtk/gdk3/class.Window.html
+- Mutter `WindowActor.freeze` API documentation:
+  https://gnome.pages.gitlab.gnome.org/mutter/meta/method.WindowActor.freeze.html
+
+These are not proof of Docking's exact failure, but together they support the
+conclusion that this is plausibly an upstream presentation problem rather than
+only an application-state bug.
+
+### Next Steps
+
+The next useful work is reduction, not more invasive tracing in the main app.
+
+Immediate plan:
+
+1. continue narrowing the repro toward the smallest failing combination
+2. prioritize missing main-surface behaviors over tooltip work:
+   - add X11 input-shape updates to the repro
+   - then add blur-region hints
+   - then add richer Docking-like hover/zoom churn
+3. treat tooltip popup support as secondary evidence, not the primary trigger,
+   because the real app already showed that tooltips can remain alive after the
+   main dock surface freezes
+4. compare healthy versus failing combinations, not just failing runs in
+   isolation
+5. if the repro becomes small and reliable enough, prepare an upstream-quality
+   bug report with:
+   - exact command
+   - expected result
+   - actual result
+   - environment snapshot
+   - minimal failing matrix combination
 
 ## References
 

@@ -12,6 +12,8 @@ Use it when you need to answer questions like:
 - does it require keep-above / sticky hints?
 - is autohide transition enough, or is motion churn also required?
 - do timed redraw nudges or tick pumping change the outcome?
+- is the visible failure a fully transparent frame, or just the last frame
+  staying stuck on screen while draw callbacks stop?
 
 Recommended workflow
 --------------------
@@ -64,6 +66,27 @@ The best upstream bug report is the smallest combination of:
 
 that still reproduces the issue.
 
+Current investigation notes
+---------------------------
+
+The main Docking traces established two important points:
+
+- tooltip popups can remain alive after the dock stops repainting, so "tooltip
+  still appears" does not mean the dock window is still drawing
+- some failures are not "transparent new frames"; they are frozen last frames,
+  for example a dock stuck visually mid-hover while the app keeps processing
+  hover and tooltip updates
+
+This repro therefore aims to answer two separate questions:
+
+- does `draw` stop entirely?
+- or does `draw` continue while the visible result becomes wrong?
+
+It still does not model every Docking feature. In particular, the full app also
+has tooltip popups, input-shape updates, blur hints, and richer hover/zoom
+work. If this repro stays healthy while Docking fails, those missing features
+remain candidates for the trigger.
+
 Useful toggles
 --------------
 
@@ -81,6 +104,9 @@ Useful toggles
     XWAYLAND_REPRO_RGBA=1
     XWAYLAND_REPRO_CENTERED=0
     XWAYLAND_REPRO_MOTION_SPAM=1
+    XWAYLAND_REPRO_OFFSCREEN_BLIT=1
+    XWAYLAND_REPRO_INPUT_SHAPE=1
+    XWAYLAND_REPRO_BLUR_HINT=1
 """
 
 from __future__ import annotations
@@ -94,7 +120,17 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+gi.require_version("GdkX11", "3.0")
+from gi.repository import Gdk, GdkX11, GLib, Gtk
+
+from docking.core.position import Position
+from docking.platform.struts import (
+    BlurRect,
+    clear_blur_region,
+    compute_blur_region,
+    set_blur_region,
+)
+from docking.ui.display import get_pointer_position
 
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -112,14 +148,21 @@ STICKY = os.environ.get("XWAYLAND_REPRO_STICK", "1").strip().lower() in TRUE_VAL
 USE_RGBA = os.environ.get("XWAYLAND_REPRO_RGBA", "1").strip().lower() in TRUE_VALUES
 CENTERED = os.environ.get("XWAYLAND_REPRO_CENTERED", "0").strip().lower() in TRUE_VALUES
 MOTION_SPAM = os.environ.get("XWAYLAND_REPRO_MOTION_SPAM", "0").strip().lower() in TRUE_VALUES
+OFFSCREEN_BLIT = os.environ.get("XWAYLAND_REPRO_OFFSCREEN_BLIT", "1").strip().lower() in TRUE_VALUES
+INPUT_SHAPE = os.environ.get("XWAYLAND_REPRO_INPUT_SHAPE", "1").strip().lower() in TRUE_VALUES
+BLUR_HINT = os.environ.get("XWAYLAND_REPRO_BLUR_HINT", "1").strip().lower() in TRUE_VALUES
 FRAME_INTERVAL_MS = 16
 TRIGGER_HEIGHT = 3
+HIDDEN_TRIGGER_HEIGHT = 10
 WINDOW_BG_ALPHA = 0.0
 DOCK_HEIGHT = 84
 DOCK_MARGIN = 18
 WINDOW_HEIGHT = DOCK_HEIGHT + DOCK_MARGIN
 POINTER_REVEAL_MARGIN = 2
 RECOVERY_THRESHOLD = 3
+ROUNDNESS = 22.0
+ROUND_BOTTOM = True
+MOTION_IDLE_HIDE_MS = 120
 
 
 def log(message: str) -> None:
@@ -170,7 +213,10 @@ class ReproWindow(Gtk.Window):
         self.set_visual(visual)
 
         self.area = Gtk.DrawingArea()
-        self.area.set_double_buffered(True)
+        # Match Docking more closely: render ourselves and avoid GTK's extra
+        # intermediate buffering path for the transparent dock window.
+        self.area.set_double_buffered(False)
+        self.area.set_size_request(-1, WINDOW_HEIGHT)
         self.area.set_events(
             Gdk.EventMask.POINTER_MOTION_MASK
             | Gdk.EventMask.ENTER_NOTIFY_MASK
@@ -190,6 +236,7 @@ class ReproWindow(Gtk.Window):
         self.hovered = False
         self.pointer_x = -1.0
         self.pointer_y = -1.0
+        self.last_motion_us = GLib.get_monotonic_time()
         self.cycle_target_visible = False
         self.hide_offset = 0.0
         self.autohide_state = "visible"
@@ -199,6 +246,8 @@ class ReproWindow(Gtk.Window):
         self.runtime_id = 0
         self.motion_id = 0
         self.motion_phase = 0.0
+        self.applied_input_rect: tuple[int, int, int, int] | None = None
+        self.applied_blur_region: tuple[int, ...] | None = None
 
         self.connect("realize", self.on_realize)
         self.connect("configure-event", self.on_configure)
@@ -242,7 +291,7 @@ class ReproWindow(Gtk.Window):
         if CENTERED:
             self.set_position(Gtk.WindowPosition.CENTER)
         else:
-            self.move(geometry.x, geometry.y + geometry.height - height - DOCK_MARGIN)
+            self.move(geometry.x, geometry.y + geometry.height - height)
         self.log_event(
             "realize",
             extra=(
@@ -330,6 +379,15 @@ class ReproWindow(Gtk.Window):
             except Exception:
                 pass
             self.tick_id = 0
+        gdk_window = self.get_window()
+        if (
+            BLUR_HINT
+            and gdk_window is not None
+            and isinstance(gdk_window, GdkX11.X11Window)
+            and self.applied_blur_region is not None
+        ):
+            clear_blur_region(gdk_window=gdk_window)
+            self.applied_blur_region = None
 
     def start_tick_pump(self) -> None:
         if self.tick_id == 0:
@@ -350,6 +408,7 @@ class ReproWindow(Gtk.Window):
         return True
 
     def on_tick_keepalive(self) -> bool:
+        self.reconcile_pointer_hover()
         self.log_event(
             "tick-pump-keepalive",
             extra=f"draw_seq={self.draw_seq} request_seq={self.request_seq}",
@@ -357,6 +416,55 @@ class ReproWindow(Gtk.Window):
         self.area.queue_draw()
         self.nudge_paint(reason="keepalive")
         return True
+
+    def reconcile_pointer_hover(self) -> None:
+        if AUTOHIDE_MODE == "off":
+            return
+        now_us = GLib.get_monotonic_time()
+        if (
+            self.autohide_state in {"visible", "showing"}
+            and (now_us - self.last_motion_us) >= (MOTION_IDLE_HIDE_MS * 1000)
+        ):
+            if self.hovered or self.autohide_state != "hiding":
+                self.hovered = False
+                self.log_event(
+                    "motion-idle-hide",
+                    extra=f"idle_ms={(now_us - self.last_motion_us) / 1000.0:.1f}",
+                )
+                self.trigger_hide()
+        display = self.get_display()
+        if display is None:
+            return
+        pos = get_pointer_position(display)
+        if pos is None:
+            return
+        try:
+            win_x, win_y = self.get_position()
+        except Exception:
+            return
+        local_x = pos.x - win_x
+        local_y = pos.y - win_y
+        inside = self.point_inside_active_input(x=local_x, y=local_y)
+        if inside:
+            self.pointer_x = float(local_x)
+            self.pointer_y = float(local_y)
+            if not self.hovered:
+                self.hovered = True
+                self.log_event(
+                    "pointer-reconcile-enter",
+                    extra=f"x={local_x:.1f} y={local_y:.1f}",
+                )
+            if self.hide_offset > 0.0 or self.autohide_state == "hidden":
+                self.trigger_show()
+            return
+        should_hide = self.hovered or self.autohide_state in {"visible", "showing"}
+        if should_hide:
+            self.hovered = False
+            self.log_event(
+                "pointer-reconcile-leave",
+                extra=f"x={local_x:.1f} y={local_y:.1f}",
+            )
+            self.trigger_hide()
 
     def queue_redraw(self, reason: str) -> None:
         self.request_seq += 1
@@ -453,6 +561,131 @@ class ReproWindow(Gtk.Window):
         width = alloc.width
         height = alloc.height
 
+        if OFFSCREEN_BLIT:
+            target = cr.get_target()
+            offscreen = target.create_similar(cairo.Content.COLOR_ALPHA, width, height)
+            ocr = cairo.Context(offscreen)
+            self._draw_content(cr=ocr, width=width, height=height)
+            cr.set_operator(cairo.OPERATOR_SOURCE)
+            cr.set_source_surface(offscreen, 0, 0)
+            cr.paint()
+        else:
+            self._draw_content(cr=cr, width=width, height=height)
+
+        self.update_input_shape(width=width, height=height)
+        self.update_blur_hint(width=width, height=height)
+        self.log_event("draw-end", extra=f"draw_seq={self.draw_seq}")
+        return True
+
+    def current_dock_y(self, *, height: int) -> float:
+        visible_y = height - DOCK_HEIGHT - DOCK_MARGIN
+        hidden_y = height - TRIGGER_HEIGHT
+        return visible_y + ((hidden_y - visible_y) * self.hide_offset)
+
+    def compute_input_rect(self, *, width: int, height: int) -> tuple[int, int, int, int]:
+        dock_w = min(width - 40, 920)
+        dock_x = int((width - dock_w) / 2.0)
+        if self.autohide_state == "hidden":
+            return (
+                0,
+                max(0, height - HIDDEN_TRIGGER_HEIGHT),
+                max(1, width),
+                HIDDEN_TRIGGER_HEIGHT,
+            )
+        dock_y = int(self.current_dock_y(height=height))
+        return (
+            dock_x,
+            max(0, dock_y),
+            int(dock_w),
+            min(height, DOCK_HEIGHT),
+        )
+
+    def point_inside_active_input(self, *, x: float, y: float) -> bool:
+        alloc = self.area.get_allocation()
+        width = max(alloc.width, 1)
+        height = max(alloc.height, 1)
+        dock_w = min(width - 40, 920)
+        dock_x = int((width - dock_w) / 2.0)
+        if self.autohide_state == "hidden":
+            rect = (
+                0,
+                max(0, height - HIDDEN_TRIGGER_HEIGHT),
+                width,
+                HIDDEN_TRIGGER_HEIGHT,
+            )
+        else:
+            dock_y = int(self.current_dock_y(height=height))
+            rect = (
+                dock_x,
+                max(0, dock_y),
+                int(dock_w),
+                min(height, DOCK_HEIGHT),
+            )
+        rx, ry, rw, rh = rect
+        return rx <= x < (rx + rw) and ry <= y < (ry + rh)
+
+    def update_input_shape(self, *, width: int, height: int) -> None:
+        if not INPUT_SHAPE:
+            return
+        window = self.get_window()
+        if window is None:
+            return
+        rect = self.compute_input_rect(width=width, height=height)
+        if rect == self.applied_input_rect:
+            return
+        x, y, w, h = rect
+        region = cairo.Region(cairo.RectangleInt(x, y, w, h))
+        window.input_shape_combine_region(region, 0, 0)
+        self.applied_input_rect = rect
+        self.log_event(
+            "input-shape",
+            extra=f"rect=({x},{y} {w}x{h})",
+        )
+
+    def update_blur_hint(self, *, width: int, height: int) -> None:
+        if not BLUR_HINT:
+            return
+        gdk_window = self.get_window()
+        if gdk_window is None or not isinstance(gdk_window, GdkX11.X11Window):
+            return
+        if self.hide_offset >= 1.0:
+            if self.applied_blur_region is not None:
+                clear_blur_region(gdk_window=gdk_window)
+                self.applied_blur_region = None
+                self.log_event("blur-clear")
+            return
+        dock_w = min(width - 40, 920)
+        dock_x = int((width - dock_w) / 2.0)
+        dock_y = int(self.current_dock_y(height=height))
+        blur_region = tuple(
+            compute_blur_region(
+                rect=BlurRect(
+                    x=dock_x,
+                    y=dock_y,
+                    width=int(dock_w),
+                    height=DOCK_HEIGHT,
+                ),
+                roundness=ROUNDNESS,
+                round_bottom=ROUND_BOTTOM,
+                position=Position.BOTTOM,
+                scale=gdk_window.get_scale_factor(),
+            )
+        )
+        if blur_region == self.applied_blur_region:
+            return
+        set_blur_region(gdk_window=gdk_window, blur_region=list(blur_region))
+        self.applied_blur_region = blur_region
+        self.log_event(
+            "blur-set",
+            extra=(
+                f"rect=({dock_x},{dock_y} {int(dock_w)}x{DOCK_HEIGHT}) "
+                f"scale={gdk_window.get_scale_factor()}"
+            ),
+        )
+
+    def _draw_content(self, *, cr: cairo.Context, width: int, height: int) -> None:
+        """Paint the visible dock content onto the provided Cairo context."""
+
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_rgba(0.0, 0.0, 0.0, WINDOW_BG_ALPHA)
         cr.paint()
@@ -461,9 +694,7 @@ class ReproWindow(Gtk.Window):
         dock_w = min(width - 40, 920)
         dock_h = DOCK_HEIGHT
         dock_x = (width - dock_w) / 2.0
-        visible_y = height - dock_h - DOCK_MARGIN
-        hidden_y = height - TRIGGER_HEIGHT
-        dock_y = visible_y + ((hidden_y - visible_y) * self.hide_offset)
+        dock_y = self.current_dock_y(height=height)
 
         self.rounded_rect(cr, dock_x, dock_y, dock_w, dock_h, 22.0)
         cr.set_source_rgba(0.08, 0.1, 0.14, 0.92)
@@ -494,35 +725,57 @@ class ReproWindow(Gtk.Window):
                 cr.set_source_rgba(0.85, 0.9, 0.95, alpha)
             cr.fill()
 
-        phase = GLib.get_monotonic_time() / 1_000_000.0
-        glow_x = dock_x + 36.0 + ((math.sin(phase * 2.2) + 1.0) * 0.5 * (dock_w - 72.0))
-        cr.arc(glow_x, dock_y + dock_h - 16.0, 7.0, 0.0, math.tau)
-        cr.set_source_rgba(0.52, 0.86, 0.98, 0.9)
-        cr.fill()
-
-        self.log_event("draw-end", extra=f"draw_seq={self.draw_seq}")
-        return True
-
     def on_motion(self, _widget: Gtk.DrawingArea, event: Gdk.EventMotion) -> bool:
+        self.last_motion_us = GLib.get_monotonic_time()
         self.pointer_x = event.x
         self.pointer_y = event.y
+        self.log_event(
+            "motion",
+            extra=f"x={event.x:.1f} y={event.y:.1f}",
+        )
+        if self.point_inside_active_input(x=event.x, y=event.y):
+            self.hovered = True
+            if self.hide_offset > 0.0:
+                self.trigger_show()
         self.queue_redraw(reason="motion")
         return False
 
-    def on_enter(self, _widget: Gtk.DrawingArea, _event: Gdk.EventCrossing) -> bool:
+    def on_enter(self, _widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
+        if not self.point_inside_active_input(x=event.x, y=event.y):
+            self.log_event(
+                "enter-ignored",
+                extra=f"x={event.x:.1f} y={event.y:.1f}",
+            )
+            return False
         self.hovered = True
+        self.last_motion_us = GLib.get_monotonic_time()
+        self.pointer_x = event.x
+        self.pointer_y = event.y
+        self.log_event("enter", extra=f"x={event.x:.1f} y={event.y:.1f}")
         self.trigger_show()
         return False
 
     def on_leave(self, _widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
+        if self.point_inside_active_input(x=event.x, y=event.y):
+            self.log_event(
+                "leave-ignored",
+                extra=(
+                    f"detail={event.detail.value_nick} "
+                    f"x={event.x:.1f} y={event.y:.1f}"
+                ),
+            )
+            return False
         self.hovered = False
+        self.log_event("leave", extra=f"detail={event.detail.value_nick}")
         self.trigger_hide()
         return False
 
     def trigger_show(self) -> None:
         if AUTOHIDE_MODE == "off":
+            return
+        if self.autohide_state in {"showing", "visible"}:
             return
         if AUTOHIDE_MODE == "snap":
             self.hide_offset = 0.0
@@ -533,6 +786,8 @@ class ReproWindow(Gtk.Window):
 
     def trigger_hide(self) -> None:
         if AUTOHIDE_MODE == "off":
+            return
+        if self.autohide_state in {"hiding", "hidden"}:
             return
         if AUTOHIDE_MODE == "snap":
             self.hide_offset = 1.0
@@ -601,6 +856,7 @@ def main() -> int:
         f" rgba={USE_RGBA}",
         f" centered={CENTERED}",
         f" motion_spam={MOTION_SPAM}",
+        f" blur_hint={BLUR_HINT}",
         flush=True,
     )
     window = ReproWindow()

@@ -185,7 +185,11 @@ def compositor_active(*, display: object | None = None) -> bool | None:
         return None
 
 
-def log_runtime_snapshot(*, display: object | None = None, desktop: Desktop | None = None) -> None:
+def log_runtime_snapshot(
+    *,
+    display: object | None = None,
+    desktop: Desktop | None = None,
+) -> None:
     """Log a small startup snapshot for comparing good and bad runs."""
     compositor = compositor_active(display=display)
     log.info(

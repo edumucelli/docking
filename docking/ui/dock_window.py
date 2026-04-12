@@ -190,6 +190,7 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.platform.struts import (
     BlurRect,
@@ -197,7 +198,6 @@ from docking.platform.struts import (
     compute_blur_region,
     set_blur_region,
 )
-from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.ui import geometry
 from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
