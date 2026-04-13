@@ -521,8 +521,7 @@ class DockWindow(Gtk.Window):
             return
         self._redraw_source_id = GLib.timeout_add(
             REDRAW_FRAME_INTERVAL_MS,
-            DockWindow._flush_scheduled_redraw,
-            self,
+            self._flush_scheduled_redraw,
         )
 
     def _geometry_signature(
@@ -532,22 +531,14 @@ class DockWindow(Gtk.Window):
         cursor_x: float | None = None,
         cursor_y: float | None = None,
     ) -> tuple[object, ...]:
-        size_getter = getattr(self, "get_size", None)
-        if callable(size_getter):
-            window_w, window_h = size_getter()
-        else:
-            window_w, window_h = None, None
-        resolved_x = getattr(self, "cursor_x", None) if cursor_x is None else cursor_x
-        resolved_y = getattr(self, "cursor_y", None) if cursor_y is None else cursor_y
-        autohide = getattr(self, "autohide", None)
-        autohide_enabled = bool(getattr(autohide, "enabled", False))
-        autohide_state = getattr(autohide, "state", None) if autohide_enabled else None
-        autohide_zoom = (
-            getattr(autohide, "zoom_progress", 1.0) if autohide_enabled else 1.0
-        )
-        zoom_animator = getattr(self, "zoom_animator", None)
-        zoom_progress = getattr(zoom_animator, "progress", 1.0) * autohide_zoom
-        hide_offset = getattr(autohide, "hide_offset", 0.0) if autohide_enabled else 0.0
+        window_w, window_h = self.get_size()
+        resolved_x = self.cursor_x if cursor_x is None else cursor_x
+        resolved_y = self.cursor_y if cursor_y is None else cursor_y
+        autohide_enabled = self.autohide.enabled
+        autohide_state = self.autohide.state if autohide_enabled else None
+        autohide_zoom = self.autohide.zoom_progress if autohide_enabled else 1.0
+        zoom_progress = self.zoom_animator.progress * autohide_zoom
+        hide_offset = self.autohide.hide_offset if autohide_enabled else 0.0
         return (
             window_w,
             window_h,
@@ -573,8 +564,7 @@ class DockWindow(Gtk.Window):
         )
         return self._cache.store_geometry_frame(
             frame=frame,
-            signature=DockWindow._geometry_signature(
-                self,
+            signature=self._geometry_signature(
                 drop_insert_index=drop_insert_index,
                 cursor_x=cursor_x,
                 cursor_y=cursor_y,
@@ -586,8 +576,7 @@ class DockWindow(Gtk.Window):
         *,
         drop_insert_index: int = -1,
     ) -> DockGeometryFrame:
-        expected_signature = DockWindow._geometry_signature(
-            self,
+        expected_signature = self._geometry_signature(
             drop_insert_index=drop_insert_index,
         )
         current_frame = self._cache.matching_geometry_frame(
@@ -595,8 +584,7 @@ class DockWindow(Gtk.Window):
         )
         if current_frame is not None:
             return current_frame
-        return DockWindow._build_and_store_geometry_frame(
-            self,
+        return self._build_and_store_geometry_frame(
             drop_insert_index=drop_insert_index,
         )
 
@@ -642,7 +630,7 @@ class DockWindow(Gtk.Window):
         region (which may change during hide animation), resets cursor
         after hide completes, and re-schedules redraws for urgent glow.
         """
-        DockWindow._clear_scheduled_redraw(self)
+        self._clear_scheduled_redraw()
         hide_offset = self.autohide.hide_offset
         # zoom_progress for debug logging only -- the geometry layer
         # composes hover zoom * autohide zoom in capture_geometry_inputs().
@@ -673,10 +661,9 @@ class DockWindow(Gtk.Window):
             )
         # Advance insert/remove animations; request another draw if active
         if self.model.tick_animations():
-            DockWindow._schedule_redraw(self)
+            self._schedule_redraw()
 
-        frame = DockWindow._current_or_build_geometry_frame(
-            self,
+        frame = self._current_or_build_geometry_frame(
             drop_insert_index=drop_insert,
         )
         if current_autohide_state is not None:
@@ -730,7 +717,7 @@ class DockWindow(Gtk.Window):
             autohide_state=current_autohide_state,
             now_us=GLib.get_monotonic_time(),
         ):
-            DockWindow._schedule_redraw(self)
+            self._schedule_redraw()
 
         self._last_autohide_state = current_autohide_state
 
@@ -744,9 +731,9 @@ class DockWindow(Gtk.Window):
         """
         self.cursor_x = event.x
         self.cursor_y = event.y
-        frame = DockWindow._build_and_store_geometry_frame(self)
+        frame = self._build_and_store_geometry_frame()
         self.update_input_region(frame=frame)
-        DockWindow._schedule_redraw(self)
+        self._schedule_redraw()
         stack_item_id = self._menu.open_folder_stack_item_id()
         hovered_item = frame.item_at_point(event.x, event.y)
         if stack_item_id is not None and (
@@ -800,8 +787,7 @@ class DockWindow(Gtk.Window):
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
-            frame = DockWindow._build_and_store_geometry_frame(
-                self,
+            frame = self._build_and_store_geometry_frame(
                 cursor_x=event.x,
                 cursor_y=event.y,
             )
@@ -911,8 +897,7 @@ class DockWindow(Gtk.Window):
         item. If it's an applet, delegates to its on_scroll() and refreshes
         the tooltip (applet name/state may change on scroll, e.g. clippy).
         """
-        frame = DockWindow._build_and_store_geometry_frame(
-            self,
+        frame = self._build_and_store_geometry_frame(
             cursor_x=event.x,
             cursor_y=event.y,
         )
@@ -991,8 +976,7 @@ class DockWindow(Gtk.Window):
         """
         self.cursor_x = event.x
         self.cursor_y = event.y
-        frame = DockWindow._build_and_store_geometry_frame(
-            self,
+        frame = self._build_and_store_geometry_frame(
             cursor_x=event.x,
             cursor_y=event.y,
         )
@@ -1002,7 +986,7 @@ class DockWindow(Gtk.Window):
 
     def _on_model_changed(self) -> None:
         """Reposition and redraw when the model changes."""
-        DockWindow._invalidate_current_geometry_frame(self)
+        self._invalidate_current_geometry_frame()
         self.update_input_region()
         self.hover.on_model_changed()
         # Refresh hover/tooltip state even without mouse motion so applets
@@ -1013,7 +997,7 @@ class DockWindow(Gtk.Window):
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
             self.hover.update(cursor_main)
-        DockWindow._schedule_redraw(self)
+        self._schedule_redraw()
 
     def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:
         """Define which part of the window responds to mouse events.
@@ -1047,13 +1031,13 @@ class DockWindow(Gtk.Window):
         gdk_window = self.get_window()
         if not gdk_window:
             return
-        frame = frame or DockWindow._current_or_build_geometry_frame(self)
+        frame = frame or self._current_or_build_geometry_frame()
         current_entry = self._cache.geometry_frame
         current_frame = current_entry.frame if current_entry is not None else None
         if frame is not current_frame:
             self._cache.store_geometry_frame(
                 frame=frame,
-                signature=DockWindow._geometry_signature(self),
+                signature=self._geometry_signature(),
             )
         old_rect = current_input_rect(self._cache.applied_input_frame)
         new_rect = frame.cursor_rect
@@ -1097,8 +1081,8 @@ class DockWindow(Gtk.Window):
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
-        DockWindow._invalidate_current_geometry_frame(self)
-        DockWindow._schedule_redraw(self)
+        self._invalidate_current_geometry_frame()
+        self._schedule_redraw()
 
 
 def _scroll_direction_up(*, event: Gdk.EventScroll) -> bool | None:

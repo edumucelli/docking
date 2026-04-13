@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import docking.ui.autohide as autohide_mod
@@ -100,6 +100,31 @@ def _dnd_frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
     )
 
 
+def _bind_dock_window_helpers(stub) -> SimpleNamespace:
+    stub._geometry_signature = MethodType(
+        dock_window_mod.DockWindow._geometry_signature, stub
+    )
+    stub._build_and_store_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._build_and_store_geometry_frame, stub
+    )
+    stub._current_or_build_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._current_or_build_geometry_frame, stub
+    )
+    stub._clear_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._clear_scheduled_redraw, stub
+    )
+    stub._flush_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._flush_scheduled_redraw, stub
+    )
+    stub._schedule_redraw = MethodType(
+        dock_window_mod.DockWindow._schedule_redraw, stub
+    )
+    stub._invalidate_current_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._invalidate_current_geometry_frame, stub
+    )
+    return stub
+
+
 class DockHarness:
     """High-level user-facing harness for behave interaction scenarios."""
 
@@ -141,40 +166,48 @@ class DockHarness:
                 )
             ),
         )
-        self._folder_stub = SimpleNamespace(
-            cursor_x=12.0,
-            cursor_y=6.0,
-            dock_hovered=True,
-            config=SimpleNamespace(pos=Position.BOTTOM),
-            _test_geometry_frame=self._folder_frame,
-            update_input_region=MagicMock(),
-            hover=SimpleNamespace(update=MagicMock(), start_anim_pump=MagicMock()),
-            _menu=self._folder_menu,
-            autohide=SimpleNamespace(
-                enabled=False,
-                set_disabled=MagicMock(),
-                set_hovered=MagicMock(),
-                on_mouse_enter=MagicMock(),
-                on_mouse_leave=MagicMock(),
-            ),
-            zoom_animator=MagicMock(),
-            geometry=SimpleNamespace(
-                build_frame=lambda **_kwargs: self._folder_frame,
-            ),
-            interaction=None,
-            _click_x=12.0,
-            _click_y=6.0,
-            hit_test=MagicMock(return_value=self._folder_item),
-            model=MagicMock(),
-            theme=SimpleNamespace(item_padding=8, h_padding=10),
-            window_tracker=MagicMock(),
-            tooltip=MagicMock(),
-            preview=None,
-            current_geometry_frame=self._folder_frame,
-            applied_input_frame=self._folder_frame,
-            local_cursor_main=MagicMock(return_value=-1e6),
-            get_position=MagicMock(return_value=(100, 200)),
+        self._folder_stub = _bind_dock_window_helpers(
+            SimpleNamespace(
+                cursor_x=12.0,
+                cursor_y=6.0,
+                dock_hovered=True,
+                config=SimpleNamespace(pos=Position.BOTTOM),
+                _test_geometry_frame=self._folder_frame,
+                update_input_region=MagicMock(),
+                drawing_area=MagicMock(),
+                hover=SimpleNamespace(update=MagicMock(), start_anim_pump=MagicMock()),
+                _menu=self._folder_menu,
+                autohide=SimpleNamespace(
+                    enabled=False,
+                    state=HideState.VISIBLE,
+                    zoom_progress=1.0,
+                    hide_offset=0.0,
+                    set_disabled=MagicMock(),
+                    set_hovered=MagicMock(),
+                    on_mouse_enter=MagicMock(),
+                    on_mouse_leave=MagicMock(),
+                ),
+                zoom_animator=SimpleNamespace(progress=1.0),
+                geometry=SimpleNamespace(
+                    build_frame=lambda **_kwargs: self._folder_frame,
+                ),
+                interaction=None,
+                _click_x=12.0,
+                _click_y=6.0,
+                _redraw_source_id=None,
+                hit_test=MagicMock(return_value=self._folder_item),
+                model=MagicMock(),
+                theme=SimpleNamespace(item_padding=8, h_padding=10),
+                window_tracker=MagicMock(),
+                tooltip=MagicMock(),
+                preview=None,
+                _cache=dock_window_mod._DockWindowCache.create(),
+                local_cursor_main=MagicMock(return_value=-1e6),
+                get_position=MagicMock(return_value=(100, 200)),
+                get_size=MagicMock(return_value=(1920, 122)),
+            )
         )
+        self._folder_stub._cache.applied_input_frame = self._folder_frame
         self._folder_stub.interaction = DockInteractionCoordinator(self._folder_stub)
 
         self._dnd_frame = _dnd_frame()

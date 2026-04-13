@@ -156,6 +156,27 @@ class _ScenarioHarness:
         self.is_pointer_inside_dock = MethodType(
             dock_window_mod.DockWindow.is_pointer_inside_dock, self
         )
+        self._geometry_signature = MethodType(
+            dock_window_mod.DockWindow._geometry_signature, self
+        )
+        self._build_and_store_geometry_frame = MethodType(
+            dock_window_mod.DockWindow._build_and_store_geometry_frame, self
+        )
+        self._current_or_build_geometry_frame = MethodType(
+            dock_window_mod.DockWindow._current_or_build_geometry_frame, self
+        )
+        self._clear_scheduled_redraw = MethodType(
+            dock_window_mod.DockWindow._clear_scheduled_redraw, self
+        )
+        self._flush_scheduled_redraw = MethodType(
+            dock_window_mod.DockWindow._flush_scheduled_redraw, self
+        )
+        self._schedule_redraw = MethodType(
+            dock_window_mod.DockWindow._schedule_redraw, self
+        )
+        self._invalidate_current_geometry_frame = MethodType(
+            dock_window_mod.DockWindow._invalidate_current_geometry_frame, self
+        )
 
     def get_size(self) -> tuple[int, int]:
         if self.config.pos in (Position.LEFT, Position.RIGHT):
@@ -185,7 +206,7 @@ class _ScenarioHarness:
         frame = self.geometry.build_frame(cursor_x=x, cursor_y=y)
         self._cache.store_geometry_frame(
             frame=frame,
-            signature=dock_window_mod.DockWindow._geometry_signature(self),
+            signature=self._geometry_signature(),
         )
         self._cache.applied_input_frame = frame
 

@@ -174,6 +174,27 @@ def _attach_runtime_methods(harness: _Harness) -> None:
     harness.update_input_region = MethodType(
         dock_window_mod.DockWindow.update_input_region, harness
     )
+    harness._geometry_signature = MethodType(
+        dock_window_mod.DockWindow._geometry_signature, harness
+    )
+    harness._build_and_store_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._build_and_store_geometry_frame, harness
+    )
+    harness._current_or_build_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._current_or_build_geometry_frame, harness
+    )
+    harness._clear_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._clear_scheduled_redraw, harness
+    )
+    harness._flush_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._flush_scheduled_redraw, harness
+    )
+    harness._schedule_redraw = MethodType(
+        dock_window_mod.DockWindow._schedule_redraw, harness
+    )
+    harness._invalidate_current_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._invalidate_current_geometry_frame, harness
+    )
 
 
 def _motion_event(x: float, y: float) -> SimpleNamespace:
