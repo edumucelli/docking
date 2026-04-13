@@ -47,27 +47,10 @@ Current benchmark coverage:
   - icons hover+click
 - CPU-only approximation of the current motion path
 - CPU-only approximation of the current draw path
-
-For live-session counters inside Docking itself, use:
-
-```bash
-DOCKING_PERF_STATS=1 python3 run.py
-```
-
-At shutdown, Docking logs a one-line summary with:
-
-- motion events received
-- draw callbacks completed
-- redraw requests issued by Docking-side paths
-- `update_input_region()` call count
-- actual input-shape native writes
-- blur-sync call count
-- actual blur-region native writes and clears
-
 That split is important:
 
 - the benchmark tells us how expensive Docking's own work is,
-- the live XWayland traces tell us whether GTK/Mutter later stop delivering
+- live XWayland traces and manual sessions tell us whether GTK/Mutter later stop delivering
   draw callbacks or presenting frames.
 
 ## Runbook
@@ -104,34 +87,16 @@ It does not measure:
 
 Those concerns still belong in `docs/WAYLAND.md`.
 
-### 3. Run live-session counters
+### 3. Validate in a live session
 
-To inspect real interaction rates in a manual session:
-
-```bash
-DOCKING_PERF_STATS=1 python3 run.py
-```
-
-Then interact with Docking normally, especially:
+Run Docking normally, then interact with it, especially:
 
 - repeated hover movement across several icons
 - autohide hide/show
 - tooltip and preview interactions if relevant to the change
 
-Quit Docking normally so the shutdown summary is emitted.
-
-The important shutdown lines are:
-
-- `perf summary: ...`
-- `cache summary: ...`
-
-These tell you whether a change reduced:
-
-- motion-event pressure
-- redraw pressure
-- draw pressure
-- input-region writes
-- cache miss rate
+Use that live run to confirm behavior and responsiveness rather than relying on
+the microbenchmark alone.
 
 ### 4. Compare before and after correctly
 
@@ -142,8 +107,8 @@ For any performance change:
 3. rerun:
    - `tools/benchmark.py`
    - a focused pytest/ruff pass for the touched area
-4. if the change touches interaction frequency or cache reuse, also run:
-   - `DOCKING_PERF_STATS=1 python3 run.py`
+4. if the change affects interaction pacing or visible responsiveness, also do
+   a manual live-session check
 5. update this document with the new measured numbers if the change is kept
 
 Do not rely on subjective feel alone unless the benchmark cannot cover the
@@ -187,16 +152,22 @@ Use `docs/WAYLAND.md` and `tools/xwayland_repro.py`, not this document, as the
 main source of truth. This file is for speed and hot-path cost, not for
 compositor/draw-stop debugging.
 
-## Baseline Environment
+## Measured Environments
 
-These baseline numbers were collected locally on 2026-04-12 with:
+This document currently includes benchmark tables from two local hosts:
 
-- kernel: `Linux 6.17.0-20-generic x86_64 GNU/Linux`
-- CPU: `Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz`
-- logical CPUs: `4`
-- Python: `.venv/bin/python` `3.13.7`
+- original baseline host on `2026-04-12`:
+  kernel `Linux 6.17.0-20-generic x86_64 GNU/Linux`, CPU
+  `Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz`, logical CPUs `4`, Python
+  `.venv/bin/python` `3.13.7`
+- current host on `2026-04-13`:
+  kernel `Linux 5.18.0-1-amd64 x86_64 GNU/Linux`, CPU
+  `Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz`, logical CPUs `4`, Python
+  `.venv/bin/python` `3.11.2`
 
-These are comparison numbers for this machine, not universal latency budgets.
+These are local comparison numbers, not universal latency budgets. Because the
+current host differs from the original baseline host, do not treat percentage
+comparisons between the two tables as same-machine before/after measurements.
 
 ## Original Baseline Results
 
@@ -218,9 +189,10 @@ motion pass cpu-only                    619.1     1008.5      684.8      279.7  
 draw pass cpu-only                     7020.0     8777.1     7492.4     3836.9    84842.9
 ```
 
-## Current Results After Implemented Work
+## Current Results On This Machine
 
-The benchmark was rerun locally on 2026-04-13 after these implemented changes:
+The benchmark was rerun on this machine on 2026-04-13 after these implemented
+changes:
 
 - icon source-surface caching
 - idle icon fast path without temporary effect surfaces
@@ -228,50 +200,38 @@ The benchmark was rerun locally on 2026-04-13 after these implemented changes:
 - geometry frame reuse between motion and draw
 - redraw scheduling / hover redraw coalescing
 
-Current output:
+Current output from the latest local run:
 
 ```text
 benchmark                           median_us     p95_us    mean_us     min_us     max_us
 -----------------------------------------------------------------------------------------
-geometry.build_frame                    303.6      671.7      389.0      256.7     1203.9
-hover.update(frame=...)                 299.3      662.7      356.8      262.9      920.7
-hover.update(no frame)                  311.7      681.3      397.5      270.2      831.4
-struts.compute_blur_region                0.8        1.1        0.8        0.7        2.4
-renderer.draw(no icons)                 541.6     1343.3      661.4      394.8     2327.4
-renderer.draw(icons idle)              2771.2     4745.2     3048.2     2243.5     6099.5
-renderer.draw(icons hover)             4343.1     5487.6     4028.1     2265.5     7325.5
-renderer.draw(icons click)             4495.4     5437.9     4532.4     2369.2     8456.4
-renderer.draw(icons hover+click)       2863.7     4688.0     3191.9     2292.6     5513.5
-motion pass cpu-only                    291.2      571.6      328.0      265.0      708.8
-draw pass cpu-only                     3519.7     5949.8     3998.8     2649.8     7870.9
+geometry.build_frame                    310.3      481.1      343.4      302.8      827.7
+hover.update(frame=...)                 316.1      464.1      343.2      308.5      697.3
+hover.update(no frame)                  321.4      563.1      353.1      315.1      865.3
+struts.compute_blur_region                0.8        0.8        0.8        0.8        1.1
+renderer.draw(no icons)                 769.4     1036.6      808.0      742.6     1449.7
+renderer.draw(icons idle)              3029.0     3829.1     3153.8     2813.3     6634.0
+renderer.draw(icons hover)             2984.0     3611.6     3094.7     2829.7     5218.5
+renderer.draw(icons click)             3149.3     5337.8     3530.5     2824.7     5857.7
+renderer.draw(icons hover+click)       3350.3     5974.1     3748.2     2840.9     6943.8
+motion pass cpu-only                    314.5      407.8      330.1      308.1      583.0
+draw pass cpu-only                     3934.1     7157.4     4411.0     3204.5     7888.4
 ```
 
-## Baseline vs Current
+## Interpretation For This Machine
 
-Median-time comparison from the original baseline to the current tree:
+Because the current run was captured on a different host than the original
+baseline, the main value of the table above is as a new local reference point
+for future same-machine comparisons.
 
-- `geometry.build_frame`: `284.7us -> 303.6us` (`+6.6%`)
-- `hover.update(frame=...)`: `293.6us -> 299.3us` (`+1.9%`)
-- `hover.update(no frame)`: `301.0us -> 311.7us` (`+3.6%`)
-- `struts.compute_blur_region`: `0.7us -> 0.8us` (`+14.3%`, not meaningful in practice)
-- `renderer.draw(no icons)`: `1089.3us -> 541.6us` (`-50.3%`)
-- `renderer.draw(icons idle)`: `3776.6us -> 2771.2us` (`-26.6%`)
-- `renderer.draw(icons hover)`: `5891.4us -> 4343.1us` (`-26.3%`)
-- `renderer.draw(icons click)`: `5751.0us -> 4495.4us` (`-21.8%`)
-- `renderer.draw(icons hover+click)`: `7149.4us -> 2863.7us` (`-59.9%`)
-- `motion pass cpu-only`: `619.1us -> 291.2us` (`-53.0%`)
-- `draw pass cpu-only`: `7020.0us -> 3519.7us` (`-49.9%`)
+What this machine's run says:
 
-What this says:
-
-- The renderer work is materially cheaper now, especially the no-icons path and
-  the icon-heavy states.
-- The motion-side path is materially cheaper now as well.
-- The small regressions in geometry/hover micro-benchmarks are not where the
-  user-visible cost was concentrated, and they are outweighed by the much
-  larger gains in the renderer and full draw path.
-- The `hover+click` improvement is unusually large, so it should be treated as
-  a strong measured result but still rechecked in future runs for stability.
+- renderer work still dominates the Docking-side cost envelope
+- the icon-bearing draw states are clustered around `3.0ms` to `3.4ms` median
+- the full CPU-only draw-path approximation is about `3.9ms` median
+- geometry and hover bookkeeping remain much smaller costs at roughly
+  `0.31ms` to `0.32ms` median
+- `struts.compute_blur_region` is still negligible relative to renderer cost
 
 ## Implemented Work
 
@@ -284,7 +244,6 @@ The following optimization work is already implemented in the current tree:
 - geometry frame reuse between motion and draw
 - redraw scheduling so repeated motion/model-change requests are coalesced
   instead of issuing an immediate `queue_draw()` every time
-- runtime perf counters behind `DOCKING_PERF_STATS=1`
 - benchmark coverage in `tools/benchmark.py`
 
 These changes are the reason the renderer and draw-path benchmark rows are now
@@ -340,8 +299,8 @@ not silently erode module boundaries.
 Even with the implemented work and the current benchmark table, some useful
 measurement and cleanup work is still missing:
 
-- rerun `DOCKING_PERF_STATS=1` on a representative real hover/autohide session
-  and record the current shutdown summary in this document
+- rerun a representative real hover/autohide session and record qualitative
+  observations alongside the benchmark results
 - add a benchmark row that models the shared "motion then draw" path more
   directly instead of treating motion and draw as separate CPU-only passes
 - measure tooltip/preview cost before optimizing them
@@ -797,7 +756,7 @@ System metric:
 - `draw pass cpu-only`
 
 Live validation:
-- run with `DOCKING_PERF_STATS=1` and compare draw-rate stability during hover
+- compare hover responsiveness and visual stability in a real session
 
 #### Correctness / Regression Risks
 
@@ -944,9 +903,8 @@ Primary metrics:
 - `geometry.build_frame`
 - `hover.update(frame=...)` vs `hover.update(no frame)`
 
-Live metrics:
-- `update_input_region_calls`
-- redraw/draw ratios from `DOCKING_PERF_STATS=1`
+Live validation:
+- confirm hover, hit-testing, and autohide still track the same frame
 
 #### Correctness / Regression Risks
 
@@ -1011,15 +969,11 @@ Phase 4:
 
 #### Measurement Plan
 
-Live metrics from `DOCKING_PERF_STATS=1`:
-- motion events
-- redraw requests
-- draw callbacks
-
 Benchmark metric:
 - `motion pass cpu-only`
 
-The important outcome is improved event-to-draw ratio, not just lower CPU time.
+The important outcome is smoother visible pacing in real interaction, not just
+lower CPU time.
 
 #### Correctness / Regression Risks
 
@@ -1169,22 +1123,14 @@ New benchmark rows:
 The current benchmark gives us a stronger baseline now, but it is still not the
 full system. The next additions should be:
 
-1. runtime counters in Docking itself
-   - motion events
-   - queued redraws
-   - completed draw callbacks
-   - input-shape native writes
-   - blur-region native writes
-   - now implemented behind `DOCKING_PERF_STATS=1`
-
-2. a benchmark mode for icon effects
+1. a benchmark mode for icon effects
    - no hover/click effects
    - hover lighten active
    - click darken active
    - hover + click active
    - now implemented in `tools/benchmark.py`
 
-3. a benchmark mode for popup-related hover work
+2. a benchmark mode for popup-related hover work
    - tooltips enabled/disabled
    - previews enabled/disabled
 
@@ -1194,9 +1140,8 @@ Every optimization in this document should be validated in the same way:
 
 1. run `tools/benchmark.py`
 2. record before/after results in this document
-3. run Docking with `DOCKING_PERF_STATS=1`
-4. collect the shutdown summary after a representative hover/autohide session
-5. validate visually on Wayland/XWayland for:
+3. validate visually on Wayland/XWayland during a representative
+   hover/autohide session for:
    - hover responsiveness
    - tooltip freshness
    - preview timing

@@ -12,7 +12,9 @@ from docking.ui.interaction import DockInteractionCoordinator
 
 
 def _window_cache(*, frame=None, applied_input_frame=None):
-    cache = SimpleNamespace(geometry_frame=None, applied_input_frame=applied_input_frame)
+    cache = SimpleNamespace(
+        geometry_frame=None, applied_input_frame=applied_input_frame
+    )
     if frame is not None:
         cache.geometry_frame = SimpleNamespace(frame=frame)
     return cache

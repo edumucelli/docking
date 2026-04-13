@@ -230,18 +230,6 @@ class _IconSurfaceCacheEntry:
     key: _IconSurfaceCacheKey
     surface: cairo.ImageSurface
 
-    @classmethod
-    def build(
-        cls,
-        *,
-        item: DockItem,
-        surface: cairo.ImageSurface,
-    ) -> _IconSurfaceCacheEntry | None:
-        key = _IconSurfaceCacheKey.from_item(item)
-        if key is None:
-            return None
-        return cls(key=key, surface=surface)
-
     def matches(self, *, item: DockItem) -> bool:
         return self.key == _IconSurfaceCacheKey.from_item(item)
 
@@ -270,14 +258,6 @@ class _RendererCache:
     icon_surfaces: dict[str, _IconSurfaceCacheEntry]
     icon_colors: dict[str, RGB]
     offscreen_surface: _OffscreenSurfaceCache | None = None
-    icon_surface_hits: int = 0
-    icon_surface_misses: int = 0
-    offscreen_hits: int = 0
-    offscreen_misses: int = 0
-
-    @classmethod
-    def create(cls) -> _RendererCache:
-        return cls(icon_surfaces={}, icon_colors={})
 
     def cached_icon_surface_for(self, *, item: DockItem) -> cairo.ImageSurface | None:
         """Return a reusable icon surface when the item's cache key still matches."""
@@ -286,9 +266,7 @@ class _RendererCache:
             return None
         cached = self.icon_surfaces.get(item.desktop_id)
         if cached is not None and cached.matches(item=item):
-            self.icon_surface_hits += 1
             return cached.surface
-        self.icon_surface_misses += 1
         return None
 
     def store_icon_surface(
@@ -298,11 +276,14 @@ class _RendererCache:
         surface: cairo.ImageSurface,
     ) -> cairo.ImageSurface | None:
         """Store a newly built icon surface under the item's current key."""
-        entry = _IconSurfaceCacheEntry.build(item=item, surface=surface)
-        if entry is None:
+        key = _IconSurfaceCacheKey.from_item(item)
+        if key is None:
             self.icon_surfaces.pop(item.desktop_id, None)
             return None
-        self.icon_surfaces[item.desktop_id] = entry
+        self.icon_surfaces[item.desktop_id] = _IconSurfaceCacheEntry(
+            key=key,
+            surface=surface,
+        )
         return surface
 
     def prune_icon_surfaces(self, *, items: list[DockItem]) -> None:
@@ -333,9 +314,7 @@ class _RendererCache:
         """Return a size-matched offscreen surface, reusing it across draws."""
         cached = self.offscreen_surface
         if cached is not None and cached.matches(width=width, height=height):
-            self.offscreen_hits += 1
             return cached.surface
-        self.offscreen_misses += 1
         surface = cr.get_target().create_similar(
             cairo.Content.COLOR_ALPHA,
             width,
@@ -347,14 +326,6 @@ class _RendererCache:
             surface=surface,
         )
         return surface
-
-    def stats(self) -> dict[str, int]:
-        return {
-            "icon_surface_hits": self.icon_surface_hits,
-            "icon_surface_misses": self.icon_surface_misses,
-            "offscreen_hits": self.offscreen_hits,
-            "offscreen_misses": self.offscreen_misses,
-        }
 
 
 def _draw_indicator_dashes(
@@ -441,7 +412,7 @@ class DockRenderer:
         self.prev_positions: dict[str, float] = {}
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
-        self._cache = _RendererCache.create()
+        self._cache = _RendererCache(icon_surfaces={}, icon_colors={})
 
     @staticmethod
     def has_active_urgent_glow(
@@ -1037,9 +1008,6 @@ class DockRenderer:
             self._cache.icon_surfaces.pop(item.desktop_id, None)
             return None
         return self._cache.store_icon_surface(item=item, surface=surface)
-
-    def cache_stats(self) -> dict[str, int]:
-        return self._cache.stats()
 
     @staticmethod
     def _pixbuf_surface(pixbuf: object) -> cairo.ImageSurface | None:

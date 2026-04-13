@@ -447,7 +447,9 @@ class TestLeaveEnterFlow:
     def test_leave_inside_input_rect_is_ignored(self):
         # Given
         stub, _item = _make_stub()
-        stub._cache.geometry_frame.frame = SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100))
+        stub._cache.geometry_frame.frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100)
+        )
         event = SimpleNamespace(
             detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
             mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
@@ -934,7 +936,9 @@ class TestDockWindowDrawAndHelpers:
             zoom_animator=SimpleNamespace(progress=1.0),
             geometry=geometry,
             _cache=_window_cache(
-                current_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
+                current_geometry_frame=SimpleNamespace(
+                    cursor_rect=Rect(0, 0, 100, 100)
+                ),
                 current_geometry_frame_signature=(
                     None,
                     None,
@@ -1007,9 +1011,8 @@ class TestDockWindowDrawAndHelpers:
         )
         assert stub._cache.geometry_frame.frame is frame
 
-    def test_current_or_build_geometry_frame_counts_cache_hit(self):
+    def test_current_or_build_geometry_frame_returns_cached_frame(self):
         frame = SimpleNamespace()
-        perf = SimpleNamespace(bump=MagicMock())
         stub = SimpleNamespace(
             _cache=_window_cache(
                 current_geometry_frame=frame,
@@ -1028,17 +1031,14 @@ class TestDockWindowDrawAndHelpers:
             cursor_y=2.0,
             autohide=_autohide(enabled=False),
             zoom_animator=SimpleNamespace(progress=1.0),
-            _perf=perf,
         )
 
         result = dock_window_mod.DockWindow._current_or_build_geometry_frame(stub)
 
         assert result is frame
-        perf.bump.assert_called_once_with("geometry_frame_cache_hits", 1)
 
-    def test_current_or_build_geometry_frame_counts_cache_miss(self):
+    def test_current_or_build_geometry_frame_builds_on_cache_miss(self):
         frame = SimpleNamespace()
-        perf = SimpleNamespace(bump=MagicMock())
         geometry = SimpleNamespace(build_frame=MagicMock(return_value=frame))
         stub = SimpleNamespace(
             _cache=_window_cache(),
@@ -1047,13 +1047,12 @@ class TestDockWindowDrawAndHelpers:
             autohide=_autohide(enabled=False),
             zoom_animator=SimpleNamespace(progress=1.0),
             geometry=geometry,
-            _perf=perf,
         )
 
         result = dock_window_mod.DockWindow._current_or_build_geometry_frame(stub)
 
         assert result is frame
-        perf.bump.assert_any_call("geometry_frame_cache_misses", 1)
+        geometry.build_frame.assert_called_once()
 
     def test_on_draw_works_with_real_dock_renderer_instance(self):
         renderer = renderer_mod.DockRenderer()

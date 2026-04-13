@@ -175,8 +175,6 @@ current codebase.
 
 from __future__ import annotations
 
-import os
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -236,76 +234,6 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.renderer import DockRenderer
-
-
-@dataclass
-class _PerfCounters:
-    enabled: bool = False
-    start_monotonic: float = 0.0
-    motion_events: int = 0
-    draw_callbacks: int = 0
-    redraw_requests: int = 0
-    redraw_request_tick_animation: int = 0
-    redraw_request_motion: int = 0
-    redraw_request_model_change: int = 0
-    redraw_request_queue_redraw: int = 0
-    redraw_request_urgent_glow: int = 0
-    update_input_region_calls: int = 0
-    input_region_native_writes: int = 0
-    blur_sync_calls: int = 0
-    blur_region_native_writes: int = 0
-    blur_region_clears: int = 0
-    geometry_frame_cache_hits: int = 0
-    geometry_frame_cache_misses: int = 0
-
-    @classmethod
-    def create(cls) -> _PerfCounters:
-        enabled = os.environ.get("DOCKING_PERF_STATS", "").strip() == "1"
-        return cls(
-            enabled=enabled,
-            start_monotonic=time.monotonic() if enabled else 0.0,
-        )
-
-    def bump(self, field: str, count: int = 1) -> None:
-        if not self.enabled:
-            return
-        setattr(self, field, getattr(self, field) + count)
-
-    def log_summary(self) -> None:
-        if not self.enabled:
-            return
-        elapsed = max(time.monotonic() - self.start_monotonic, 0.001)
-        log.info(
-            (
-                "perf summary: elapsed_s=%.3f motion_events=%d draw_callbacks=%d "
-                "redraw_requests=%d redraw_tick_animation=%d redraw_motion=%d "
-                "redraw_model_change=%d redraw_queue_redraw=%d "
-                "redraw_urgent_glow=%d update_input_region_calls=%d "
-                "input_region_native_writes=%d blur_sync_calls=%d "
-                "blur_region_native_writes=%d blur_region_clears=%d "
-                "geometry_frame_cache_hits=%d geometry_frame_cache_misses=%d "
-                "motion_hz=%.1f draw_hz=%.1f redraw_hz=%.1f"
-            ),
-            elapsed,
-            self.motion_events,
-            self.draw_callbacks,
-            self.redraw_requests,
-            self.redraw_request_tick_animation,
-            self.redraw_request_motion,
-            self.redraw_request_model_change,
-            self.redraw_request_queue_redraw,
-            self.redraw_request_urgent_glow,
-            self.update_input_region_calls,
-            self.input_region_native_writes,
-            self.blur_sync_calls,
-            self.blur_region_native_writes,
-            self.blur_region_clears,
-            self.geometry_frame_cache_hits,
-            self.geometry_frame_cache_misses,
-            self.motion_events / elapsed,
-            self.draw_callbacks / elapsed,
-            self.redraw_requests / elapsed,
-        )
 
 
 @dataclass
@@ -378,6 +306,8 @@ BOUNCE_ANIMATION_PUMP_MS = 700
 MOUSE_LEFT = 1
 MOUSE_MIDDLE = 2
 MOUSE_RIGHT = 3
+
+
 def hover_anchor_from_draw_rect(
     *, win_x: int, win_y: int, draw_rect: Rect, position: Position
 ) -> tuple[int, int]:
@@ -441,7 +371,6 @@ class DockWindow(Gtk.Window):
         self.interaction = DockInteractionCoordinator(self)
         self._cache = _DockWindowCache.create()
         self._redraw_source_id: int | None = None
-        self._perf = _PerfCounters.create()
         self.dock_hovered: bool = False
         self._last_autohide_state: HideState | None = None
         self.dodge_monitor: WindowDodgeMonitor | None = None
@@ -527,36 +456,6 @@ class DockWindow(Gtk.Window):
 
     def _on_destroy(self, _window: Gtk.Window) -> None:
         """Release model subscriptions owned by the dock shell."""
-        perf = getattr(self, "_perf", None)
-        if perf is not None:
-            perf.log_summary()
-        renderer = getattr(self, "renderer", None)
-        if perf is not None and perf.enabled and renderer is not None:
-            renderer_stats = renderer.cache_stats()
-            geometry_hits = perf.geometry_frame_cache_hits
-            geometry_misses = perf.geometry_frame_cache_misses
-            geometry_total = geometry_hits + geometry_misses
-            icon_hits = renderer_stats["icon_surface_hits"]
-            icon_misses = renderer_stats["icon_surface_misses"]
-            icon_total = icon_hits + icon_misses
-            offscreen_hits = renderer_stats["offscreen_hits"]
-            offscreen_misses = renderer_stats["offscreen_misses"]
-            offscreen_total = offscreen_hits + offscreen_misses
-            log.info(
-                (
-                    "cache summary: geometry_frame=%d/%d (%.1f%%) "
-                    "icon_surface=%d/%d (%.1f%%) offscreen=%d/%d (%.1f%%)"
-                ),
-                geometry_hits,
-                geometry_total,
-                (100.0 * geometry_hits / geometry_total) if geometry_total else 0.0,
-                icon_hits,
-                icon_total,
-                (100.0 * icon_hits / icon_total) if icon_total else 0.0,
-                offscreen_hits,
-                offscreen_total,
-                (100.0 * offscreen_hits / offscreen_total) if offscreen_total else 0.0,
-            )
         self._disconnect_model()
 
     def _build_components(self, *, launcher: Launcher) -> None:
@@ -605,12 +504,6 @@ class DockWindow(Gtk.Window):
         return (
             entry.frame if entry is not None else None
         ) or self._cache.applied_input_frame
-
-    def _bump_perf(self, field: str, count: int = 1) -> None:
-        perf = getattr(self, "_perf", None)
-        if perf is None:
-            return
-        perf.bump(field, count)
 
     def _invalidate_current_geometry_frame(self) -> None:
         self._cache.invalidate_geometry_frame()
@@ -701,9 +594,7 @@ class DockWindow(Gtk.Window):
             signature=expected_signature
         )
         if current_frame is not None:
-            DockWindow._bump_perf(self, "geometry_frame_cache_hits")
             return current_frame
-        DockWindow._bump_perf(self, "geometry_frame_cache_misses")
         return DockWindow._build_and_store_geometry_frame(
             self,
             drop_insert_index=drop_insert_index,
@@ -752,7 +643,6 @@ class DockWindow(Gtk.Window):
         after hide completes, and re-schedules redraws for urgent glow.
         """
         DockWindow._clear_scheduled_redraw(self)
-        DockWindow._bump_perf(self, "draw_callbacks")
         hide_offset = self.autohide.hide_offset
         # zoom_progress for debug logging only -- the geometry layer
         # composes hover zoom * autohide zoom in capture_geometry_inputs().
@@ -783,8 +673,6 @@ class DockWindow(Gtk.Window):
             )
         # Advance insert/remove animations; request another draw if active
         if self.model.tick_animations():
-            DockWindow._bump_perf(self, "redraw_requests")
-            DockWindow._bump_perf(self, "redraw_request_tick_animation")
             DockWindow._schedule_redraw(self)
 
         frame = DockWindow._current_or_build_geometry_frame(
@@ -842,8 +730,6 @@ class DockWindow(Gtk.Window):
             autohide_state=current_autohide_state,
             now_us=GLib.get_monotonic_time(),
         ):
-            DockWindow._bump_perf(self, "redraw_requests")
-            DockWindow._bump_perf(self, "redraw_request_urgent_glow")
             DockWindow._schedule_redraw(self)
 
         self._last_autohide_state = current_autohide_state
@@ -856,13 +742,10 @@ class DockWindow(Gtk.Window):
         Returns False to propagate the event so GTK's drag source can
         detect the drag threshold and initiate DnD when appropriate.
         """
-        DockWindow._bump_perf(self, "motion_events")
         self.cursor_x = event.x
         self.cursor_y = event.y
         frame = DockWindow._build_and_store_geometry_frame(self)
         self.update_input_region(frame=frame)
-        DockWindow._bump_perf(self, "redraw_requests")
-        DockWindow._bump_perf(self, "redraw_request_motion")
         DockWindow._schedule_redraw(self)
         stack_item_id = self._menu.open_folder_stack_item_id()
         hovered_item = frame.item_at_point(event.x, event.y)
@@ -1130,8 +1013,6 @@ class DockWindow(Gtk.Window):
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
             self.hover.update(cursor_main)
-        DockWindow._bump_perf(self, "redraw_requests")
-        DockWindow._bump_perf(self, "redraw_request_model_change")
         DockWindow._schedule_redraw(self)
 
     def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:
@@ -1163,7 +1044,6 @@ class DockWindow(Gtk.Window):
         containment on the same geometry source instead of rebuilding window
         interaction bounds separately inside DockWindow.
         """
-        DockWindow._bump_perf(self, "update_input_region_calls")
         gdk_window = self.get_window()
         if not gdk_window:
             return
@@ -1182,11 +1062,9 @@ class DockWindow(Gtk.Window):
                 cairo.RectangleInt(new_rect.x, new_rect.y, new_rect.w, new_rect.h)
             )
             gdk_window.input_shape_combine_region(region, 0, 0)
-            DockWindow._bump_perf(self, "input_region_native_writes")
             self._cache.applied_input_frame = frame
 
     def _sync_background_blur_hint(self, *, frame: DockGeometryFrame) -> None:
-        DockWindow._bump_perf(self, "blur_sync_calls")
         gdk_window = self.get_window()
         if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
             return
@@ -1194,7 +1072,6 @@ class DockWindow(Gtk.Window):
         if self.autohide.enabled and self.autohide.state == HideState.HIDDEN:
             if self._cache.last_blur_region is not None:
                 clear_blur_region(gdk_window=gdk_window)
-                DockWindow._bump_perf(self, "blur_region_clears")
                 self._cache.last_blur_region = None
             return
 
@@ -1216,13 +1093,10 @@ class DockWindow(Gtk.Window):
         if blur_region == self._cache.last_blur_region:
             return
         set_blur_region(gdk_window=gdk_window, blur_region=list(blur_region))
-        DockWindow._bump_perf(self, "blur_region_native_writes")
         self._cache.last_blur_region = blur_region
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
-        DockWindow._bump_perf(self, "redraw_requests")
-        DockWindow._bump_perf(self, "redraw_request_queue_redraw")
         DockWindow._invalidate_current_geometry_frame(self)
         DockWindow._schedule_redraw(self)
 

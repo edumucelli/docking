@@ -98,8 +98,8 @@ class _ScenarioHarness:
         self.cursor_y = -1.0
         self.screen_pointer = (0, 0)
         self.dock_hovered = False
-        self.current_geometry_frame = None
-        self.applied_input_frame = None
+        self._cache = dock_window_mod._DockWindowCache.create()
+        self._redraw_source_id = None
         self._menu = MagicMock()
         self._menu.open_folder_stack_item_id.return_value = None
         self._menu.close_folder_stack = MagicMock()
@@ -150,6 +150,9 @@ class _ScenarioHarness:
         self.update_input_region = MethodType(
             dock_window_mod.DockWindow.update_input_region, self
         )
+        self.current_interaction_frame = MethodType(
+            dock_window_mod.DockWindow.current_interaction_frame, self
+        )
         self.is_pointer_inside_dock = MethodType(
             dock_window_mod.DockWindow.is_pointer_inside_dock, self
         )
@@ -180,8 +183,11 @@ class _ScenarioHarness:
         self.cursor_y = y
         self.screen_pointer = (int(win_x + x), int(win_y + y))
         frame = self.geometry.build_frame(cursor_x=x, cursor_y=y)
-        self.current_geometry_frame = frame
-        self.applied_input_frame = frame
+        self._cache.store_geometry_frame(
+            frame=frame,
+            signature=dock_window_mod.DockWindow._geometry_signature(self),
+        )
+        self._cache.applied_input_frame = frame
 
     def rest_frame(self):
         return self.geometry.build_frame(main_cursor=-1e6)

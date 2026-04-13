@@ -122,9 +122,6 @@ class TestRendererDrawEntry:
         assert first_surface is not None
         assert renderer._cache.offscreen_surface is first_surface
         assert renderer._cache.offscreen_surface.surface is first_surface.surface
-        stats = renderer.cache_stats()
-        assert stats["offscreen_hits"] == 1
-        assert stats["offscreen_misses"] == 1
 
     def test_draw_recreates_offscreen_surface_when_allocation_changes(self):
         renderer = renderer_mod.DockRenderer()
@@ -155,9 +152,6 @@ class TestRendererDrawEntry:
         assert first_surface is not None
         assert renderer._cache.offscreen_surface is not first_surface
         assert renderer._cache.offscreen_surface.surface is not first_surface.surface
-        stats = renderer.cache_stats()
-        assert stats["offscreen_hits"] == 0
-        assert stats["offscreen_misses"] == 2
 
 
 class TestRendererContentFlow:
@@ -406,9 +400,6 @@ class TestRendererHelpers:
         assert second is first
         assert third is created_surfaces[1]
         assert pixbuf_surface.call_count == 2
-        stats = renderer.cache_stats()
-        assert stats["icon_surface_hits"] == 1
-        assert stats["icon_surface_misses"] == 2
 
     def test_draw_icon_idle_path_uses_source_surface_without_temp_allocation(
         self, monkeypatch
