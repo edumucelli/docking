@@ -243,7 +243,7 @@ class DockInteractionCoordinator:
 
     def pointer_inside_input_rect(self) -> bool:
         """Return True when pointer is inside current dock input region."""
-        frame = self._window.current_geometry_frame or self._window.applied_input_frame
+        frame = self._window.current_interaction_frame()
         input_rect = current_input_rect(frame)
         if input_rect is None or not self._window.get_realized():
             return False
@@ -328,7 +328,7 @@ class DockInteractionCoordinator:
         return self.pointer_inside_input_rect()
 
     def point_inside_event_frame(self, *, x: float, y: float) -> bool:
-        frame = self._window.current_geometry_frame or self._window.applied_input_frame
+        frame = self._window.current_interaction_frame()
         input_rect = current_input_rect(frame)
         if input_rect is None:
             return False

@@ -11,6 +11,13 @@ from docking.ui.geometry import Rect
 from docking.ui.interaction import DockInteractionCoordinator
 
 
+def _window_cache(*, frame=None, applied_input_frame=None):
+    cache = SimpleNamespace(geometry_frame=None, applied_input_frame=applied_input_frame)
+    if frame is not None:
+        cache.geometry_frame = SimpleNamespace(frame=frame)
+    return cache
+
+
 def _autohide(*, enabled: bool = True):
     return SimpleNamespace(
         enabled=enabled,
@@ -38,13 +45,17 @@ def _make_window(item: DockItem | None = None):
         cursor_y=6.0,
         update_input_region=MagicMock(),
         drawing_area=MagicMock(),
-        current_geometry_frame=frame,
-        applied_input_frame=frame,
+        _cache=_window_cache(frame=frame, applied_input_frame=frame),
         dock_hovered=True,
         get_realized=MagicMock(return_value=True),
         get_display=MagicMock(return_value=None),
         get_position=MagicMock(return_value=(0, 0)),
         zoom_animator=MagicMock(),
+    )
+    window.current_interaction_frame = lambda: (
+        window._cache.geometry_frame.frame
+        if window._cache.geometry_frame is not None
+        else window._cache.applied_input_frame
     )
     window.hover.hovered_item = item
     window.hover.cancel = MagicMock()
@@ -55,8 +66,8 @@ class TestEffectiveLeavePolicy:
     def test_leave_clears_hover_and_resets_cursor_without_preview_or_autohide(self):
         window, _item = _make_window()
         widget = MagicMock()
-        window.current_geometry_frame = None
-        window.applied_input_frame = None
+        window._cache.geometry_frame = None
+        window._cache.applied_input_frame = None
         window.preview = MagicMock()
         window.preview.get_visible.return_value = False
         coordinator = DockInteractionCoordinator(window)
@@ -75,8 +86,8 @@ class TestEffectiveLeavePolicy:
     def test_leave_with_visible_preview_defers_autohide_until_preview_hides(self):
         window, _item = _make_window()
         widget = MagicMock()
-        window.current_geometry_frame = None
-        window.applied_input_frame = None
+        window._cache.geometry_frame = None
+        window._cache.applied_input_frame = None
         window.preview = MagicMock()
         window.preview.get_visible.return_value = True
         window.autohide = _autohide()
@@ -93,8 +104,8 @@ class TestEffectiveLeavePolicy:
     def test_leave_with_autohide_keeps_hover_identity_until_hidden(self):
         window, item = _make_window()
         widget = MagicMock()
-        window.current_geometry_frame = None
-        window.applied_input_frame = None
+        window._cache.geometry_frame = None
+        window._cache.applied_input_frame = None
         window.autohide = _autohide()
         coordinator = DockInteractionCoordinator(window)
 
@@ -258,8 +269,8 @@ class TestPointerContainment:
 
     def test_point_inside_event_frame_returns_false_without_input_rect(self):
         window, _item = _make_window()
-        window.current_geometry_frame = None
-        window.applied_input_frame = None
+        window._cache.geometry_frame = None
+        window._cache.applied_input_frame = None
         coordinator = DockInteractionCoordinator(window)
 
         assert coordinator.point_inside_event_frame(x=2.0, y=3.0) is False
