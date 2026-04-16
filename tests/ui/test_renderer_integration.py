@@ -466,8 +466,6 @@ class TestRendererHelpers:
             pos=pos,
             width=300,
             height=80,
-            main_size=300,
-            cross_size=80,
             # Then
             # When
         )

@@ -515,11 +515,8 @@ class DockRenderer:
     ) -> None:
         """Render all dock content to a Cairo context."""
         pos = config.pos
-        horizontal = is_horizontal(pos=pos)
         width = frame.window_rect.w
         height = frame.window_rect.h
-        main_size = width if horizontal else height
-
         # Offset content away from the screen edge so the gap area
         # (at the edge) stays transparent for the autohide trigger.
         gap = max(0, int(theme.distance_from_edge))
@@ -579,8 +576,6 @@ class DockRenderer:
             pos=pos,
             width=width,
             height=height,
-            main_size=main_size,
-            cross_size=int(cross_size),
         )
         draw_shelf_background(
             cr=cr,
@@ -787,8 +782,6 @@ class DockRenderer:
         pos: Position,
         width: int,
         height: int,
-        main_size: int,
-        cross_size: int,
     ) -> None:
         """Apply Cairo transform so shelf drawing code always works as-if-bottom.
 
