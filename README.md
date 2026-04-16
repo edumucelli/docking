@@ -803,9 +803,10 @@ Themes are JSON files in `docking/assets/themes/`. Twelve built-in themes are in
 
 Theme examples:
 
-| Glass | Transparent |
+| Theme | Preview |
 | --- | --- |
-| ![Glass theme](images/glass.png) | ![Transparent theme](images/transparent.png) |
+| Glass | ![Glass theme](images/glass.png) |
+| Transparent | ![Transparent theme](images/transparent.png) |
 
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
 
