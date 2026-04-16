@@ -37,7 +37,8 @@ sed \
   -e "s|__GI_TYPELIB_PATH__|\\\$APPDIR/usr/lib/${typelib_arch_dir}/girepository-1.0:\\\$APPDIR/usr/lib/girepository-1.0|g" \
   "${RECIPE_TEMPLATE}" > "${tmp_recipe}"
 
-python3 - "${tmp_recipe}" <<'PY'
+run_appimage_builder() {
+  python3 - "${tmp_recipe}" <<'PY'
 import runpy
 import sys
 
@@ -59,6 +60,20 @@ apt_package.Package.__le__ = lambda self, other: _compare_versions(self, other) 
 sys.argv = ["appimage-builder", "--recipe", sys.argv[1], "--skip-test"]
 runpy.run_module("appimagebuilder", run_name="__main__")
 PY
+}
+
+attempt=1
+max_attempts=3
+until run_appimage_builder; do
+  if (( attempt >= max_attempts )); then
+    echo "AppImage build failed after ${attempt} attempts." >&2
+    exit 1
+  fi
+  sleep_seconds=$(( attempt * 15 ))
+  echo "AppImage build attempt ${attempt} failed; retrying in ${sleep_seconds}s..." >&2
+  sleep "${sleep_seconds}"
+  attempt=$(( attempt + 1 ))
+done
 
 mv -f ./*.AppImage artifacts/
 ls -lh artifacts/*.AppImage
