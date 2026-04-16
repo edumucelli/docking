@@ -152,6 +152,7 @@ These caches belong here because they are:
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import cairo
@@ -195,6 +196,136 @@ URGENT_GLOW_INNER_STOP = 0.33
 URGENT_GLOW_INNER_ALPHA = 0.66
 URGENT_GLOW_OUTER_STOP = 0.66
 URGENT_GLOW_OUTER_ALPHA = 0.33
+
+
+@dataclass(frozen=True)
+class _IconSurfaceCacheKey:
+    """Identity for a rendered icon source surface.
+
+    The cache key follows the icon object that the item currently exposes plus
+    its raster size. Docking replaces `item.icon` when the underlying pixbuf
+    changes, so this is enough to invalidate stale source surfaces without
+    coupling the cache to GTK-specific pixbuf internals.
+    """
+
+    icon_id: int
+    width: int
+    height: int
+
+    @classmethod
+    def from_item(cls, item: DockItem) -> _IconSurfaceCacheKey | None:
+        if item.icon is None:
+            return None
+        return cls(
+            icon_id=id(item.icon),
+            width=item.icon.get_width(),
+            height=item.icon.get_height(),
+        )
+
+
+@dataclass
+class _IconSurfaceCacheEntry:
+    """Cached Cairo surface produced from an item's pixbuf-like icon."""
+
+    key: _IconSurfaceCacheKey
+    surface: cairo.ImageSurface
+
+    def matches(self, *, item: DockItem) -> bool:
+        return self.key == _IconSurfaceCacheKey.from_item(item)
+
+
+@dataclass
+class _OffscreenSurfaceCache:
+    """Reusable full-frame backing surface for atomic window blits."""
+
+    width: int
+    height: int
+    surface: cairo.Surface
+
+    def matches(self, *, width: int, height: int) -> bool:
+        return self.width == width and self.height == height
+
+
+@dataclass
+class _RendererCache:
+    """Renderer-owned reusable artifacts and their lookup metrics.
+
+    This object is the cache boundary for resources derived from render inputs
+    and reused across frames: per-item icon surfaces, per-item average icon
+    colors, and the size-matched offscreen frame surface.
+    """
+
+    icon_surfaces: dict[str, _IconSurfaceCacheEntry]
+    icon_colors: dict[str, RGB]
+    offscreen_surface: _OffscreenSurfaceCache | None = None
+
+    def cached_icon_surface_for(self, *, item: DockItem) -> cairo.ImageSurface | None:
+        """Return a reusable icon surface when the item's cache key still matches."""
+        if item.icon is None:
+            self.icon_surfaces.pop(item.desktop_id, None)
+            return None
+        cached = self.icon_surfaces.get(item.desktop_id)
+        if cached is not None and cached.matches(item=item):
+            return cached.surface
+        return None
+
+    def store_icon_surface(
+        self,
+        *,
+        item: DockItem,
+        surface: cairo.ImageSurface,
+    ) -> cairo.ImageSurface | None:
+        """Store a newly built icon surface under the item's current key."""
+        key = _IconSurfaceCacheKey.from_item(item)
+        if key is None:
+            self.icon_surfaces.pop(item.desktop_id, None)
+            return None
+        self.icon_surfaces[item.desktop_id] = _IconSurfaceCacheEntry(
+            key=key,
+            surface=surface,
+        )
+        return surface
+
+    def prune_icon_surfaces(self, *, items: list[DockItem]) -> None:
+        """Drop cached per-item artifacts for items no longer in the frame."""
+        active_ids = {item.desktop_id for item in items if item.icon is not None}
+        for desktop_id in list(self.icon_surfaces):
+            if desktop_id not in active_ids:
+                self.icon_surfaces.pop(desktop_id, None)
+        for desktop_id in list(self.icon_colors):
+            if desktop_id not in active_ids:
+                self.icon_colors.pop(desktop_id, None)
+
+    def icon_color_for(self, *, item: DockItem) -> RGB:
+        """Compute average icon color once and reuse it for glow rendering."""
+        color = self.icon_colors.get(item.desktop_id)
+        if color is None:
+            color = average_icon_color(pixbuf=item.icon)
+            self.icon_colors[item.desktop_id] = color
+        return color
+
+    def offscreen_surface_for(
+        self,
+        *,
+        cr: cairo.Context,
+        width: int,
+        height: int,
+    ) -> cairo.Surface:
+        """Return a size-matched offscreen surface, reusing it across draws."""
+        cached = self.offscreen_surface
+        if cached is not None and cached.matches(width=width, height=height):
+            return cached.surface
+        surface = cr.get_target().create_similar(
+            cairo.Content.COLOR_ALPHA,
+            width,
+            height,
+        )
+        self.offscreen_surface = _OffscreenSurfaceCache(
+            width=width,
+            height=height,
+            surface=surface,
+        )
+        return surface
 
 
 def _draw_indicator_dashes(
@@ -281,7 +412,7 @@ class DockRenderer:
         self.prev_positions: dict[str, float] = {}
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
-        self._icon_colors: dict[str, RGB] = {}
+        self._cache = _RendererCache(icon_surfaces={}, icon_colors={})
 
     @staticmethod
     def has_active_urgent_glow(
@@ -345,10 +476,16 @@ class DockRenderer:
         # backing surface. CLEAR+draw leaves a transparent gap between
         # frames that the compositor can catch. Offscreen avoids this:
         # the window surface is only touched once (the SOURCE blit).
-        offscreen = cr.get_target().create_similar(
-            cairo.Content.COLOR_ALPHA, width, height
+        offscreen = self._cache.offscreen_surface_for(
+            cr=cr,
+            width=width,
+            height=height,
         )
         ocr = cairo.Context(offscreen)
+        ocr.save()
+        ocr.set_operator(cairo.OPERATOR_CLEAR)
+        ocr.paint()
+        ocr.restore()
         self._draw_content(
             cr=ocr,
             frame=frame,
@@ -397,6 +534,7 @@ class DockRenderer:
         items = [item_geometry.item for item_geometry in frame.item_geometries]
         if not items:
             return
+        self._cache.prune_icon_surfaces(items=items)
 
         icon_size = config.icon_size
         layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
@@ -456,11 +594,7 @@ class DockRenderer:
         # Active glow (drawn in shelf transform space)
         for item, li in zip(items, layout, strict=True):
             if item.is_active:
-                if item.desktop_id not in self._icon_colors:
-                    self._icon_colors[item.desktop_id] = average_icon_color(
-                        pixbuf=item.icon
-                    )
-                color = self._icon_colors[item.desktop_id]
+                color = self._cache.icon_color_for(item=item)
                 self._draw_active_glow(
                     cr=cr,
                     li=li,
@@ -634,11 +768,7 @@ class DockRenderer:
                         pulse_ms=theme.urgent_glow_pulse_ms,
                     )
                     if opacity > 0:
-                        if item.desktop_id not in self._icon_colors:
-                            self._icon_colors[item.desktop_id] = average_icon_color(
-                                pixbuf=item.icon
-                            )
-                        color = self._icon_colors[item.desktop_id]
+                        color = self._cache.icon_color_for(item=item)
                         self._draw_urgent_glow(
                             cr=cr,
                             li=li,
@@ -769,15 +899,28 @@ class DockRenderer:
         darken: float = 0.0,
     ) -> None:
         """Draw a single dock icon at (x, y) with hover/click effects."""
-        source_surface = self._icon_surface_for_item(
-            item=item, config=config, base_size=base_size
-        )
+        # The common path is "same icon object as last frame". Reuse the cached
+        # source surface and rebuild only when the item presents a new icon key.
+        source_surface = self._icon_surface_for_item(item=item)
         if source_surface is None:
             return
 
         scaled_size = base_size * li.scale
         icon_width = source_surface.get_width()
         icon_height = source_surface.get_height()
+
+        if lighten <= 0 and darken <= 0:
+            # Idle icons do not need a temporary effect surface. Paint the
+            # cached source surface directly and reserve the extra allocation
+            # and copy work for frames that actually apply hover/click effects.
+            cr.save()
+            cr.translate(x, y)
+            cr.scale(scaled_size / icon_width, scaled_size / icon_height)
+            cr.set_source_surface(source_surface, 0, 0)
+            cr.paint()
+            cr.restore()
+            return
+
         icon_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, icon_width, icon_height)
         icon_cr = cairo.Context(icon_surface)
         icon_cr.set_source_surface(source_surface, 0, 0)
@@ -856,12 +999,15 @@ class DockRenderer:
         cr.stroke()
         cr.restore()
 
-    def _icon_surface_for_item(
-        self, item: DockItem, config: Config, base_size: int
-    ) -> cairo.ImageSurface | None:
-        if item.icon is None:
+    def _icon_surface_for_item(self, item: DockItem) -> cairo.ImageSurface | None:
+        cached = self._cache.cached_icon_surface_for(item=item)
+        if cached is not None:
+            return cached
+        surface = self._pixbuf_surface(pixbuf=item.icon)
+        if surface is None:
+            self._cache.icon_surfaces.pop(item.desktop_id, None)
             return None
-        return self._pixbuf_surface(pixbuf=item.icon)
+        return self._cache.store_icon_surface(item=item, surface=surface)
 
     @staticmethod
     def _pixbuf_surface(pixbuf: object) -> cairo.ImageSurface | None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 ItemKind = Literal["app", "applet", "file", "folder"]
 
@@ -12,6 +12,20 @@ APP_KIND: ItemKind = "app"
 APPLET_KIND: ItemKind = "applet"
 FILE_KIND: ItemKind = "file"
 FOLDER_KIND: ItemKind = "folder"
+
+
+class IconPixmapLike(Protocol):
+    """Pixmap-like icon contract used by the renderer and color helpers."""
+
+    def get_width(self) -> int: ...
+
+    def get_height(self) -> int: ...
+
+    def get_pixels(self) -> object: ...
+
+    def get_n_channels(self) -> int: ...
+
+    def get_rowstride(self) -> int: ...
 
 
 @dataclass
@@ -31,8 +45,9 @@ class DockItem:
     is_active: bool = False
     is_urgent: bool = False
     instance_count: int = 0
-    # Icon object (typically GdkPixbuf.Pixbuf), kept generic to avoid GTK coupling.
-    icon: Any | None = None
+    # Icon object (typically GdkPixbuf.Pixbuf), typed structurally to avoid runtime
+    # GTK coupling while keeping test doubles valid.
+    icon: IconPixmapLike | None = None
     # Custom slot width along main axis (0 = use icon_size)
     main_size: int = 0
     # Timestamps for animations (monotonic microseconds, 0 = inactive)

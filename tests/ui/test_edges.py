@@ -119,8 +119,8 @@ class _Harness:
         self.cursor_x = -1.0
         self.cursor_y = -1.0
         self.dock_hovered = False
-        self.current_geometry_frame = None
-        self.applied_input_frame = None
+        self._cache = dock_window_mod._DockWindowCache.create()
+        self._redraw_source_id = None
         self.preview = None
         self._menu = MagicMock()
         self._menu.open_folder_stack_item_id.return_value = None
@@ -168,8 +168,32 @@ class _Harness:
 
 
 def _attach_runtime_methods(harness: _Harness) -> None:
+    harness.current_interaction_frame = MethodType(
+        dock_window_mod.DockWindow.current_interaction_frame, harness
+    )
     harness.update_input_region = MethodType(
         dock_window_mod.DockWindow.update_input_region, harness
+    )
+    harness._geometry_signature = MethodType(
+        dock_window_mod.DockWindow._geometry_signature, harness
+    )
+    harness._build_and_store_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._build_and_store_geometry_frame, harness
+    )
+    harness._current_or_build_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._current_or_build_geometry_frame, harness
+    )
+    harness._clear_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._clear_scheduled_redraw, harness
+    )
+    harness._flush_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._flush_scheduled_redraw, harness
+    )
+    harness._schedule_redraw = MethodType(
+        dock_window_mod.DockWindow._schedule_redraw, harness
+    )
+    harness._invalidate_current_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._invalidate_current_geometry_frame, harness
     )
 
 
@@ -258,7 +282,7 @@ class TestDockOuterEdgeBehavior:
         widget = MagicMock()
         hover_first_item(harness, widget)
 
-        frame = harness.current_geometry_frame
+        frame = harness.current_interaction_frame()
         assert frame is not None
         exit_x = frame.background_rect.x - 1
         y = (
@@ -282,7 +306,7 @@ class TestDockOuterEdgeBehavior:
         widget = MagicMock()
         hover_first_item(harness, widget)
 
-        frame = harness.current_geometry_frame
+        frame = harness.current_interaction_frame()
         assert frame is not None
         exit_x = frame.background_rect.x - 1
         y = (
@@ -314,7 +338,7 @@ class TestDockOuterEdgeBehavior:
         widget = MagicMock()
         hover_last_item(harness, widget)
 
-        frame = harness.current_geometry_frame
+        frame = harness.current_interaction_frame()
         assert frame is not None
         exit_x = frame.background_rect.x + frame.background_rect.w
         y = (

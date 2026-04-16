@@ -1506,7 +1506,7 @@ class MenuHandler:
 
         # Quit
         quit_item = Gtk.MenuItem(label=_("Quit"))
-        quit_item.connect("activate", lambda _: Gtk.main_quit())
+        quit_item.connect("activate", lambda _: self._runtime._window.destroy())
         menu.append(quit_item)
 
     def _append_desktop_actions(self, menu: Gtk.Menu, desktop_id: str) -> None:
