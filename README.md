@@ -801,6 +801,12 @@ Themes are JSON files in `docking/assets/themes/`. Twelve built-in themes are in
 - `gruvbox` -- warm earthy dark
 - `solarized` -- soft light Solarized variant
 
+Theme examples:
+
+| Glass | Transparent |
+| --- | --- |
+| ![Glass theme](images/glass.png) | ![Transparent theme](images/transparent.png) |
+
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
 
 Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
