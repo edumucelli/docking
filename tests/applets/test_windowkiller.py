@@ -53,11 +53,17 @@ class TestAppletOverlay:
         applet.on_clicked()
         pick.assert_called_once()
 
-    def test_stop_dismisses_overlay(self):
+    def test_stop_dismisses_overlay(self, monkeypatch):
         applet = WindowKillerApplet(48)
         overlay = MagicMock()
         applet._overlay = overlay
+        seat = MagicMock()
+        display = SimpleNamespace(get_default_seat=lambda: seat)
+        monkeypatch.setattr(
+            windowkiller_applet_mod.Gdk.Display, "get_default", lambda: display
+        )
         applet.stop()
+        seat.ungrab.assert_called_once_with()
         overlay.destroy.assert_called_once()
         assert applet._overlay is None
 
