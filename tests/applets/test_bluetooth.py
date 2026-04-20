@@ -779,6 +779,10 @@ def _make_applet(
     monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
     monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
     applet = BluetoothApplet(48)
+    applet._on_poll_result(
+        backend.get_state(active_adapter_path=applet._active_adapter_path)
+    )
+    backend.discovery_calls.clear()
     return applet, backend
 
 
@@ -839,6 +843,27 @@ class _FakeSeparatorMenuItem(_FakeMenuItem):
 
 
 class TestBluetoothApplet:
+    def test_constructor_does_not_query_bluez_synchronously(self, monkeypatch):
+        class _Backend:
+            def __init__(self) -> None:
+                self.get_state_calls = 0
+
+            def get_state(
+                self, active_adapter_path: str | None = None
+            ) -> BluetoothState:
+                _ = active_adapter_path
+                self.get_state_calls += 1
+                return _state()
+
+        backend = _Backend()
+        monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
+        monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
+
+        applet = BluetoothApplet(48)
+
+        assert backend.get_state_calls == 0
+        assert applet._state.available is False
+
     def _fake_gtk(self, monkeypatch):
         fake_gtk = SimpleNamespace(
             Menu=_FakeMenu,
