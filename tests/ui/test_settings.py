@@ -246,6 +246,7 @@ class FakeSpinButton:
     def __init__(self) -> None:
         self._value = 0.0
         self.callbacks: dict[str, object] = {}
+        self.properties: dict[str, object] = {}
         self.sensitive = True
 
     @classmethod
@@ -254,6 +255,9 @@ class FakeSpinButton:
 
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
+
+    def set_property(self, name: str, value: object) -> None:
+        self.properties[name] = value
 
     def set_value(self, value: float) -> None:
         self._value = value
@@ -409,6 +413,25 @@ class FakeWindowPosition:
     CENTER = 0
 
 
+class FakeGtkSettings:
+    current = None
+
+    def __init__(self) -> None:
+        self.properties = {"gtk-im-module": None}
+
+    @classmethod
+    def get_default(cls):
+        if cls.current is None:
+            cls.current = cls()
+        return cls.current
+
+    def get_property(self, name: str):
+        return self.properties.get(name)
+
+    def set_property(self, name: str, value: object) -> None:
+        self.properties[name] = value
+
+
 class FakeGtk:
     Window = FakeWindow
     Notebook = FakeNotebook
@@ -428,6 +451,7 @@ class FakeGtk:
     PolicyType = FakePolicyType
     Align = FakeAlign
     WindowPosition = FakeWindowPosition
+    Settings = FakeGtkSettings
 
 
 def _config():
@@ -507,6 +531,36 @@ class TestSettingsWindowController:
             "<b>Mouse</b>",
             "<b>Behavior</b>",
         ]
+
+    def test_numeric_spin_buttons_use_simple_im_context(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        FakeGtkSettings.current = None
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+
+        assert controller._icon_size_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert controller._zoom_percent_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert controller._hide_delay_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert controller._unhide_delay_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert FakeGtkSettings.get_default().properties["gtk-im-module"] is None
 
     def test_hide_controls_exist_only_in_behavior_tab(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

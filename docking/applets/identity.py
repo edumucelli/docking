@@ -110,4 +110,4 @@ def category_for(applet_id: str) -> AppletCategory:
     if meta is None:
         log.warning("No metadata for applet %s, falling back to OTHER", applet_id)
         return AppletCategory.OTHER
-    return meta.category
+    return AppletCategory(meta.category)

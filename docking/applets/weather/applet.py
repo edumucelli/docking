@@ -334,11 +334,12 @@ class WeatherApplet(Applet):
 
     def _build_tooltip(self) -> str:
         active = self._active_city
+        if active and self._fetch_failed and self._weather is None:
+            return _("{city}: unavailable").format(city=active.city_display)
         return build_tooltip(
             city_display=active.city_display if active else "",
             weather=self._weather,
             air_quality=self._air_quality,
-            fetch_failed=self._fetch_failed,
         )
 
     def _build_tooltip_widget(self) -> Gtk.Box:

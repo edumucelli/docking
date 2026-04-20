@@ -255,10 +255,10 @@ class SettingsWindowController:
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
 
-        self._icon_size_spin = Gtk.SpinButton.new_with_range(
-            MIN_ICON_SIZE,
-            MAX_ICON_SIZE,
-            1,
+        self._icon_size_spin = self._new_numeric_spin_button(
+            minimum=MIN_ICON_SIZE,
+            maximum=MAX_ICON_SIZE,
+            step=1,
         )
         self._transparency_scale = Gtk.Scale.new_with_range(
             Gtk.Orientation.HORIZONTAL,
@@ -272,20 +272,20 @@ class SettingsWindowController:
         transparency_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         transparency_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
         transparency_box.pack_end(self._transparency_scale, False, False, 0)
-        self._zoom_percent_spin = Gtk.SpinButton.new_with_range(
-            int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
-            int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
-            ZOOM_PERCENT_STEP,
+        self._zoom_percent_spin = self._new_numeric_spin_button(
+            minimum=int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            maximum=int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            step=ZOOM_PERCENT_STEP,
         )
-        self._hide_delay_spin = Gtk.SpinButton.new_with_range(
-            0,
-            HIDE_DELAY_MAX_MS,
-            HIDE_DELAY_STEP_MS,
+        self._hide_delay_spin = self._new_numeric_spin_button(
+            minimum=0,
+            maximum=HIDE_DELAY_MAX_MS,
+            step=HIDE_DELAY_STEP_MS,
         )
-        self._unhide_delay_spin = Gtk.SpinButton.new_with_range(
-            0,
-            HIDE_DELAY_MAX_MS,
-            HIDE_DELAY_STEP_MS,
+        self._unhide_delay_spin = self._new_numeric_spin_button(
+            minimum=0,
+            maximum=HIDE_DELAY_MAX_MS,
+            step=HIDE_DELAY_STEP_MS,
         )
 
         self._register_bindings()
@@ -414,6 +414,29 @@ class SettingsWindowController:
 
     def _new_switch(self) -> Gtk.Switch:
         return Gtk.Switch()
+
+    def _new_numeric_spin_button(
+        self,
+        *,
+        minimum: float,
+        maximum: float,
+        step: float,
+    ) -> Gtk.SpinButton:
+        settings = Gtk.Settings.get_default()
+        previous_im_module = None
+        if settings is not None:
+            previous_im_module = settings.get_property("gtk-im-module")
+            settings.set_property("gtk-im-module", "gtk-im-context-simple")
+        try:
+            spin = Gtk.SpinButton.new_with_range(minimum, maximum, step)
+        finally:
+            if settings is not None:
+                settings.set_property("gtk-im-module", previous_im_module)
+
+        # Keep the widget on the simple context after construction too, so GTK
+        # does not switch it back to the desktop-wide IM module later on.
+        spin.set_property("im-module", "gtk-im-context-simple")
+        return spin
 
     def _register_bindings(self) -> None:
         self._bindings = [
