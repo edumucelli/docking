@@ -192,7 +192,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `anchor_files` | false | Keep file and folder entries anchored at the end independently |
 | `tooltips_enabled` | true | Show hover tooltips for dock items |
 | `active_display` | false | Follow the active monitor instead of staying on one display |
-| `left_click_action` | toggle | Running-app left click: `toggle` or `cycle` |
+| `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
@@ -209,7 +209,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can either toggle or cycle running windows, and middle click can open a new window, minimize the app windows, or close the app's focused window.
+All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can toggle, cycle, or focus the most recently used window of the running app, and middle click can open a new window, minimize the app windows, or close the app's focused window. Pick the left-click mode under right-click -> **Preferences** -> **Behavior** -> **Mouse**.
 
 ## Managing Dock Items
 

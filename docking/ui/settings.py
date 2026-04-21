@@ -226,6 +226,7 @@ class SettingsWindowController:
         for action_value, action_label in [
             (LeftClickAction.TOGGLE.value, _("Toggle Focus")),
             (LeftClickAction.CYCLE.value, _("Cycle Windows")),
+            (LeftClickAction.MOST_RECENT.value, _("Most Recent Window")),
         ]:
             self._left_click_combo.append(action_value, action_label)
 

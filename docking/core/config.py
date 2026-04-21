@@ -395,14 +395,17 @@ def _normalize_hide_mode(value: object) -> str:
 class LeftClickAction(str, Enum):
     """Primary-click behavior for running applications.
 
-    Action  Behavior
-    ──────  ─────────────────────────────────────────────────────────────
-    TOGGLE  Focuses the app, or minimizes its windows if already focused.
-    CYCLE   Advances focus through the app's open windows.
+    Action       Behavior
+    ───────────  ─────────────────────────────────────────────────────────
+    TOGGLE       Focuses the app, or minimizes its windows if already focused.
+    CYCLE        Advances focus through the app's open windows.
+    MOST_RECENT  Focuses the app's most recently used window (stacking order).
+                 Minimizes if the app is already active.
     """
 
     TOGGLE = "toggle"
     CYCLE = "cycle"
+    MOST_RECENT = "most-recent"
 
 
 class MiddleClickAction(str, Enum):

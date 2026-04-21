@@ -683,12 +683,12 @@ class TestSettingsWindowController:
         )
 
         controller.show()
-        controller._left_click_combo.set_active_id("cycle")
+        controller._left_click_combo.set_active_id("most-recent")
         controller._left_click_combo.emit_changed()
         controller._middle_click_combo.set_active_id("close-focused")
         controller._middle_click_combo.emit_changed()
 
-        assert config.left_click_action == "cycle"
+        assert config.left_click_action == "most-recent"
         assert config.middle_click_action == "close-focused"
         assert config.save.call_count == 2
         runtime.assert_not_called()
