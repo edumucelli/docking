@@ -169,12 +169,38 @@ class FileTargetInfo(NamedTuple):
     is_dir: bool
 
 
+def _normalized_exec_basename(exec_line: str) -> str:
+    """Return the lowercase executable basename from a desktop Exec line."""
+    if not exec_line:
+        return ""
+    try:
+        argv = shlex.split(exec_line)
+    except ValueError:
+        return ""
+    if not argv:
+        return ""
+    return Path(argv[0]).name.lower()
+
+
+def _desktop_match_aliases(info: DesktopInfo) -> list[str]:
+    """Return stable lookup aliases for matching runtime windows to desktop IDs."""
+    aliases = [
+        info.wm_class.lower(),
+        info.desktop_id.removesuffix(DESKTOP_SUFFIX).lower(),
+    ]
+    exec_basename = _normalized_exec_basename(info.exec_line)
+    if exec_basename:
+        aliases.append(exec_basename)
+    return list(dict.fromkeys(alias for alias in aliases if alias))
+
+
 class Launcher:
     """Resolves .desktop files via XDG_DATA_DIRS and loads icons."""
 
     def __init__(self) -> None:
         self._desktop_dirs = self._get_desktop_dirs()
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
+        self._wm_class_index: dict[str, DesktopInfo] | None = None
 
     def resolve(
         self, desktop_id: str, *, log_failures: bool = True
@@ -219,13 +245,28 @@ class Launcher:
         icon = app_info.get_icon()
         icon_name = icon.to_string() if icon else FALLBACK_ICON
 
-        return DesktopInfo(
+        info = DesktopInfo(
             desktop_id=desktop_id,
             name=app_info.get_display_name() or desktop_id,
             icon_name=icon_name,
             wm_class=wm_class,
             exec_line=app_info.get_commandline() or "",
         )
+        if self._wm_class_index is not None:
+            for alias in _desktop_match_aliases(info):
+                self._wm_class_index.setdefault(alias, info)
+        return info
+
+    def resolve_by_wm_class(self, wm_class: str) -> DesktopInfo | None:
+        """Resolve an installed desktop file by runtime WM_CLASS or executable alias."""
+        lookup = wm_class.lower().strip()
+        if not lookup:
+            return None
+        if self._wm_class_index is None:
+            self._build_wm_class_index()
+        if self._wm_class_index is None:
+            return None
+        return self._wm_class_index.get(lookup)
 
     def load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load an icon by name at the given size, with caching."""
@@ -337,6 +378,25 @@ class Launcher:
         if app_info is None:
             return None
         return app_info.get_display_name() or None
+
+    def _build_wm_class_index(self) -> None:
+        """Index installed desktop entries by WM_CLASS-like runtime aliases."""
+        index: dict[str, DesktopInfo] = {}
+        seen_desktop_ids: set[str] = set()
+        for desktop_dir in self._desktop_dirs:
+            for path in desktop_dir.rglob(f"*{DESKTOP_SUFFIX}"):
+                if not path.is_file():
+                    continue
+                desktop_id = path.relative_to(desktop_dir).as_posix()
+                if desktop_id in seen_desktop_ids:
+                    continue
+                seen_desktop_ids.add(desktop_id)
+                info = self.resolve(desktop_id=desktop_id, log_failures=False)
+                if info is None:
+                    continue
+                for alias in _desktop_match_aliases(info):
+                    index.setdefault(alias, info)
+        self._wm_class_index = index
 
     def _try_load_gicon(self, gicon: Gio.Icon, size: int) -> GdkPixbuf.Pixbuf | None:
         theme = Gtk.IconTheme.get_default()
