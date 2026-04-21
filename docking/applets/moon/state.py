@@ -66,7 +66,8 @@ def fetch_moon(day: date | None = None) -> MoonData | None:
         log.warning("Failed to fetch moon data, using offline: %s", exc)
         from docking.applets.moon.offline import fetch_moon_offline
 
-        return fetch_moon_offline(d=day)
+        offline = fetch_moon_offline(d=day)
+        return MoonData(*offline)
 
 
 # -- HTML parsing (adapted from the original MoonCalendarParser.py) -----------

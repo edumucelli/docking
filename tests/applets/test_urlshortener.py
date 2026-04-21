@@ -15,6 +15,157 @@ def _make_applet(config: Config | None = None) -> UrlShortenerApplet:
     return UrlShortenerApplet(48, config=config)
 
 
+class _FakeContentArea:
+    def __init__(self) -> None:
+        self.children: list[object] = []
+
+    def set_spacing(self, _value: int) -> None:
+        return
+
+    def set_margin_start(self, _value: int) -> None:
+        return
+
+    def set_margin_end(self, _value: int) -> None:
+        return
+
+    def set_margin_top(self, _value: int) -> None:
+        return
+
+    def set_margin_bottom(self, _value: int) -> None:
+        return
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+    def show_all(self) -> None:
+        return
+
+
+class _FakeDialog:
+    def __init__(self, **_kwargs) -> None:
+        self.visible = False
+        self.destroyed = False
+        self._content_area = _FakeContentArea()
+        self._callbacks: dict[str, object] = {}
+
+    def set_default_size(self, *_args) -> None:
+        return
+
+    def set_position(self, *_args) -> None:
+        return
+
+    def set_resizable(self, _value: bool) -> None:
+        return
+
+    def get_content_area(self) -> _FakeContentArea:
+        return self._content_area
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def show_all(self) -> None:
+        self.visible = True
+
+    def hide(self) -> None:
+        self.visible = False
+
+    def get_visible(self) -> bool:
+        return self.visible
+
+    def destroy(self) -> None:
+        self.destroyed = True
+        self.visible = False
+
+    def emit(self, signal: str, *args) -> None:
+        callback = self._callbacks[signal]
+        callback(self, *args)
+
+
+class _FakeEntry:
+    def __init__(self) -> None:
+        self._text = ""
+        self._callbacks: dict[str, object] = {}
+
+    def set_placeholder_text(self, _text: str) -> None:
+        return
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+
+    def get_text(self) -> str:
+        return self._text
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def emit(self, signal: str) -> None:
+        callback = self._callbacks[signal]
+        callback(self)
+
+    def grab_focus(self) -> None:
+        return
+
+
+class _FakeButton:
+    def __init__(self, label: str = "") -> None:
+        self._label = label
+        self._sensitive = True
+        self._visible = True
+        self._callbacks: dict[str, object] = {}
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def emit(self, signal: str) -> None:
+        callback = self._callbacks[signal]
+        callback(self)
+
+    def set_sensitive(self, value: bool) -> None:
+        self._sensitive = value
+
+    def get_sensitive(self) -> bool:
+        return self._sensitive
+
+    def set_visible(self, value: bool) -> None:
+        self._visible = value
+
+    def get_visible(self) -> bool:
+        return self._visible
+
+    def set_label(self, label: str) -> None:
+        self._label = label
+
+    def get_label(self) -> str:
+        return self._label
+
+
+class _FakeLabel:
+    def __init__(self, label: str = "") -> None:
+        self._text = label
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+
+    def get_text(self) -> str:
+        return self._text
+
+    def set_selectable(self, _value: bool) -> None:
+        return
+
+    def set_line_wrap(self, _value: bool) -> None:
+        return
+
+    def set_max_width_chars(self, _value: int) -> None:
+        return
+
+
+def _patch_dialog_widgets(monkeypatch) -> None:
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Dialog", _FakeDialog)
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Entry", _FakeEntry)
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Button", _FakeButton)
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Label", _FakeLabel)
+
+
 # -- State tests ---------------------------------------------------------------
 
 
@@ -143,12 +294,13 @@ class TestAppletDialog:
         applet = _make_applet()
         applet.stop()  # should not raise
 
-    def test_show_dialog_builds_controls_and_cleans_up_on_response(self):
+    def test_show_dialog_builds_controls_and_cleans_up_on_response(self, monkeypatch):
         applet = _make_applet(
             config=Config(
                 applet_prefs={"urlshortener": {"last_url": "https://example.com"}}
             )
         )
+        _patch_dialog_widgets(monkeypatch)
 
         applet._show_dialog()
 
@@ -165,8 +317,9 @@ class TestAppletDialog:
 
         applet._do_shorten()
 
-    def test_do_shorten_is_noop_for_blank_url(self):
+    def test_do_shorten_is_noop_for_blank_url(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         assert applet._url_entry is not None
         assert applet._shorten_btn is not None
@@ -179,6 +332,7 @@ class TestAppletDialog:
 
     def test_do_shorten_starts_worker_and_dispatches_result(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         applet._ensure_result_row()
         assert applet._url_entry is not None
@@ -215,8 +369,9 @@ class TestAppletDialog:
         assert applet._shorten_btn.get_sensitive() is True
         applet.stop()
 
-    def test_on_result_error_hides_copy_and_skips_save(self):
+    def test_on_result_error_hides_copy_and_skips_save(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         save = MagicMock()
         applet.save_prefs = save
@@ -231,12 +386,13 @@ class TestAppletDialog:
         save.assert_not_called()
         applet.stop()
 
-    def test_on_result_success_persists_and_shows_copy(self, tmp_path):
+    def test_on_result_success_persists_and_shows_copy(self, tmp_path, monkeypatch):
         path = tmp_path / "dock.json"
         config = Config()
         config.save(path)
         config = Config.load(path)
         applet = _make_applet(config=config)
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
 
         assert applet._on_result("https://example.com", "https://is.gd/ok") is False
@@ -274,6 +430,7 @@ class TestAppletDialog:
 
     def test_do_copy_updates_clipboard_and_button_label(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         applet._ensure_result_row()
         applet._last_result = "https://is.gd/copied"

@@ -103,12 +103,7 @@ class BluetoothApplet(Applet):
                     if address:
                         self._recent_connections[str(address)] = timestamp
 
-        self._state = self._backend.get_state(
-            active_adapter_path=self._active_adapter_path
-        )
-        self._sync_selected_adapter(persist=False)
-        self._known_connected_addresses = self._connected_addresses(self._state)
-        self._seed_recent_connections()
+        self._known_connected_addresses: set[str] = set()
         super().__init__(icon_size=icon_size, config=config)
         if self._prefs_dirty:
             self._save_prefs()
@@ -137,12 +132,12 @@ class BluetoothApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
+        self._refresh_now()
         self._poll_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
         self._discovery_id = GLib.timeout_add_seconds(
             DISCOVERY_KEEPALIVE_S,
             self._discovery_tick,
         )
-        self._ensure_discovery()
 
     def stop(self) -> None:
         # Only try to stop discovery if we own a local discovery session.
