@@ -379,7 +379,7 @@ class PowerProfilesBackend:
         """
         extracted: list[str] = []
         raw_profiles = _unpack(props.get("Profiles"))
-        if isinstance(raw_profiles, (list, tuple)):
+        if isinstance(raw_profiles, list | tuple):
             for entry in raw_profiles:
                 if not isinstance(entry, dict):
                     continue

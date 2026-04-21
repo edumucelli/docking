@@ -72,7 +72,7 @@ FALLBACK_CARDS: tuple[StretchCard, ...] = (
 
 def _parse_interval(value: object) -> int:
     try:
-        if isinstance(value, (bool, int, float)):
+        if isinstance(value, bool | int | float):
             minutes = int(value)
         elif isinstance(value, str):
             minutes = int(value.strip())

@@ -187,7 +187,7 @@ def _metadata_str(metadata: dict[str, Any], key: str) -> str:
 
 def _metadata_artist(metadata: dict[str, Any]) -> str:
     value = _unpack(metadata.get("xesam:artist", []))
-    if isinstance(value, (list, tuple)) and value:
+    if isinstance(value, list | tuple) and value:
         return str(value[0])
     return _as_str(value)
 
@@ -827,7 +827,7 @@ class RhythmboxClientBackend:
         if has_track_payload:
             playback_status = "Playing"
             parts = [*text.split("\t"), "", "", "", ""][:4]
-            title, artist, album, track_url = [part.strip() for part in parts]
+            title, artist, album, track_url = (part.strip() for part in parts)
 
         volume_percent = self._read_volume_percent()
         return MusicState(

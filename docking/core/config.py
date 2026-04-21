@@ -134,7 +134,7 @@ import json
 import os
 import tempfile
 import threading
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, cast
@@ -543,7 +543,7 @@ def _normalize_int(
     maximum: int | None = None,
 ) -> int:
     try:
-        if isinstance(value, (bool, int, float)):
+        if isinstance(value, bool | int | float):
             parsed = int(value)
         elif isinstance(value, str):
             parsed = int(value.strip())
@@ -573,7 +573,7 @@ def _normalize_float(
     try:
         if isinstance(value, bool):
             parsed = float(int(value))
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int | float):
             parsed = float(value)
         elif isinstance(value, str):
             parsed = float(value.strip())
@@ -690,6 +690,11 @@ class Config:
     def pos(self) -> Position:
         """Position as enum."""
         return Position(value=self.position)
+
+    @property
+    def scaled_icon_size(self) -> int:
+        """Max icon size after applying the zoom multiplier."""
+        return int(self.icon_size * self.zoom_percent)
 
     @property
     def hide_mode_enum(self) -> HideMode:
@@ -877,32 +882,7 @@ class Config:
         return config
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "icon_size": self.icon_size,
-            "zoom_enabled": self.zoom_enabled,
-            "zoom_percent": self.zoom_percent,
-            "zoom_range": self.zoom_range,
-            "position": self.position,
-            "monitor_index": self.monitor_index,
-            "hide_mode": self.hide_mode,
-            "hide_delay_ms": self.hide_delay_ms,
-            "unhide_delay_ms": self.unhide_delay_ms,
-            "hide_time_ms": self.hide_time_ms,
-            "previews_enabled": self.previews_enabled,
-            "lock_icons": self.lock_icons,
-            "current_workspace_only": self.current_workspace_only,
-            "anchor_applets": self.anchor_applets,
-            "anchor_files": self.anchor_files,
-            "tooltips_enabled": self.tooltips_enabled,
-            "active_display": self.active_display,
-            "left_click_action": self.left_click_action,
-            "middle_click_action": self.middle_click_action,
-            "theme": self.theme,
-            "transparency": self.transparency,
-            "pinned": [entry.to_dict() for entry in self.pinned],
-            "applet_prefs": self.applet_prefs,
-            "item_prefs": self.item_prefs,
-        }
+        return asdict(self)
 
 
 def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:

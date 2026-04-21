@@ -436,6 +436,7 @@ class DockHarness:
             pos=Position.BOTTOM,
             icon_size=48,
             zoom_percent=2.0,
+            scaled_icon_size=96,
             pinned=[],
             save=MagicMock(),
         )
