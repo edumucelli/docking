@@ -932,6 +932,44 @@ After adding or modifying translatable strings in the source code:
 
 This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be updated with `msgmerge`.
 
+### When CI fails after adding `_()` strings
+
+If you add a new user-visible translatable string such as `_("...")`, CI can fail in two common ways:
+
+- `--check-pot-sync` fails because `docking/locale/docking.pot` is stale
+- `--check-catalogs --require-complete` fails because the locale catalogs were not merged or translated yet
+
+If the failure is only the stale POT check, regenerate the template:
+
+```bash
+./tools/i18n.sh --extract
+```
+
+If the branch added a new translatable string, update every `docking.po` catalog against the new template:
+
+```bash
+while IFS= read -r -d '' po; do
+  msgmerge --update --backup=none "$po" docking/locale/docking.pot >/dev/null
+done < <(find docking/locale -type f -name 'docking.po' -print0)
+```
+
+Then fill in the new `msgstr` values in the `.po` files, because CI runs the strict catalog check and untranslated or fuzzy entries will still fail.
+
+To verify locally with the same gates CI uses:
+
+```bash
+./tools/i18n.sh --check-pot-sync
+./tools/i18n.sh --check-catalogs --require-complete
+./tools/i18n.sh --compile
+```
+
+Practical sequence:
+
+1. `./tools/i18n.sh --extract`
+2. Run `msgmerge` for all `docking.po` files
+3. Fill in the new `msgstr` values
+4. Rerun the three checks above
+
 ### Unified i18n command
 
 `./tools/i18n.sh` is the single translation utility. Common commands:
