@@ -352,20 +352,13 @@ def _resolve_initial_desktop_id(
 
 
 def _desktop_id_exists(desktop_id: str) -> bool:
-    try:
-        from docking.platform.launcher import Launcher
-    except ModuleNotFoundError:
-        return False
+    from docking.platform.launcher import Launcher
 
     return Launcher().resolve(desktop_id=desktop_id, log_failures=False) is not None
 
 
 def _default_desktop_id_for(content_type: str) -> str | None:
-    try:
-        import gi
-    except ModuleNotFoundError:
-        return None
-
+    import gi
     gi.require_version("Gio", "2.0")
     from gi.repository import Gio, GLib
 

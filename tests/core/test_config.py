@@ -1,6 +1,5 @@
 """Tests for config loading, saving, and defaults."""
 
-import builtins
 import json
 from pathlib import Path
 
@@ -393,24 +392,6 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["icon_size"] == 72
-
-    def test_load_missing_file_without_gi_skips_launcher_seeding(
-        self, tmp_path, monkeypatch
-    ):
-        path = tmp_path / "dock.json"
-        real_import = builtins.__import__
-
-        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-            if name == "gi":
-                raise ModuleNotFoundError("No module named 'gi'")
-            return real_import(name, globals, locals, fromlist, level)
-
-        monkeypatch.setattr(builtins, "__import__", fake_import)
-
-        config = Config.load(path)
-
-        assert path.exists()
-        assert config._path == path
 
     def test_save_persists_click_actions(self, tmp_path):
         path = tmp_path / "dock.json"
