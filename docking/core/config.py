@@ -359,6 +359,7 @@ def _desktop_id_exists(desktop_id: str) -> bool:
 
 def _default_desktop_id_for(content_type: str) -> str | None:
     import gi
+
     gi.require_version("Gio", "2.0")
     from gi.repository import Gio, GLib
 
