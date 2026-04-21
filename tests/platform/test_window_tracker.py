@@ -203,3 +203,97 @@ class TestWindowActions:
 
         assert activated == [1]
         assert tracker._cycle_index["firefox.desktop"] == 0
+
+    def _make_mru_tracker(
+        self,
+        windows: list[_FakeWindow],
+        stacked: list[_FakeWindow],
+        *,
+        active: _FakeWindow | None = None,
+    ):
+        tracker = tracker_mod.WindowTracker.__new__(tracker_mod.WindowTracker)
+        tracker._screen = SimpleNamespace(
+            get_active_window=lambda: active,
+            get_windows_stacked=lambda: list(stacked),
+        )
+        tracker._running_xids_by_desktop = {"firefox.desktop": [w.xid for w in windows]}
+        tracker._cycle_index = {}
+        tracker._cycle_order_by_desktop = {}
+        tracker._get_windows_for = lambda desktop_id: list(windows)
+        tracker._model = MagicMock()
+        tracker._config = None
+        tracker._launcher = MagicMock()
+        return tracker
+
+    def test_activate_most_recent_picks_top_of_stack(self, monkeypatch):
+        first = _FakeWindow(1)
+        second = _FakeWindow(2)
+        third = _FakeWindow(3)
+        unrelated = _FakeWindow(99)
+        tracker = self._make_mru_tracker(
+            windows=[first, second, third],
+            stacked=[first, unrelated, second, third],
+            active=unrelated,
+        )
+        activated: list[int] = []
+        monkeypatch.setattr(
+            tracker_mod.WindowTracker,
+            "activate_window",
+            staticmethod(lambda window: activated.append(window.xid)),
+        )
+
+        tracker_mod.WindowTracker.activate_most_recent(tracker, "firefox.desktop")
+
+        assert activated == [3]
+
+    def test_activate_most_recent_minimizes_when_app_active(self, monkeypatch):
+        first = _FakeWindow(1)
+        second = _FakeWindow(2)
+        tracker = self._make_mru_tracker(
+            windows=[first, second],
+            stacked=[first, second],
+            active=second,
+        )
+        minimize_calls: list[str] = []
+        monkeypatch.setattr(
+            tracker_mod.WindowTracker,
+            "activate_window",
+            staticmethod(lambda window: (_ for _ in ()).throw(AssertionError())),
+        )
+        tracker.minimize_windows = lambda desktop_id: minimize_calls.append(desktop_id)
+
+        tracker_mod.WindowTracker.activate_most_recent(tracker, "firefox.desktop")
+
+        assert minimize_calls == ["firefox.desktop"]
+
+    def test_activate_most_recent_noop_when_no_windows(self, monkeypatch):
+        tracker = self._make_mru_tracker(windows=[], stacked=[], active=None)
+        activated: list[int] = []
+        monkeypatch.setattr(
+            tracker_mod.WindowTracker,
+            "activate_window",
+            staticmethod(lambda window: activated.append(window.xid)),
+        )
+
+        tracker_mod.WindowTracker.activate_most_recent(tracker, "firefox.desktop")
+
+        assert activated == []
+
+    def test_activate_most_recent_falls_back_when_stacking_unavailable(
+        self, monkeypatch
+    ):
+        first = _FakeWindow(1)
+        second = _FakeWindow(2)
+        tracker = self._make_mru_tracker(
+            windows=[first, second], stacked=[], active=None
+        )
+        activated: list[int] = []
+        monkeypatch.setattr(
+            tracker_mod.WindowTracker,
+            "activate_window",
+            staticmethod(lambda window: activated.append(window.xid)),
+        )
+
+        tracker_mod.WindowTracker.activate_most_recent(tracker, "firefox.desktop")
+
+        assert activated == [1]

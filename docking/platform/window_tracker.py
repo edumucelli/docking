@@ -343,13 +343,13 @@ class WindowTracker:
             return self._wm_class_to_desktop[class_lower]
 
         # Try matching class instance name
+        class_instance = None
         try:
             class_instance = window.get_class_instance_name()
         except _RECOVERABLE_ERRORS as exc:
             log.bind(action="class_instance").warning(
                 f"Failed to read class instance name: {exc}"
             )
-            class_instance = None
         if class_instance:
             inst_lower = class_instance.lower()
             if inst_lower in self._wm_class_to_desktop:
@@ -388,6 +388,18 @@ class WindowTracker:
                     class_group,
                     class_lower,
                 )
+
+        runtime_names = [
+            class_lower,
+            class_instance.lower() if class_instance else "",
+        ]
+        for runtime_name in dict.fromkeys(name for name in runtime_names if name):
+            info = self._launcher.resolve_by_wm_class(runtime_name)
+            if info:
+                self._wm_class_to_desktop[class_lower] = info.desktop_id
+                if class_instance:
+                    self._wm_class_to_desktop[class_instance.lower()] = info.desktop_id
+                return info.desktop_id
 
         return None
 
@@ -458,6 +470,45 @@ class WindowTracker:
         else:
             # Activate the most recent window
             self.activate_window(window=windows[0])
+
+    def activate_most_recent(self, desktop_id: str) -> None:
+        """Focus the MRU window for desktop_id, or minimize if already active."""
+        if self._screen is None:
+            return
+
+        windows = self._get_windows_for(desktop_id=desktop_id)
+        if not windows:
+            return
+
+        active_window = self._screen.get_active_window()
+        if active_window and active_window in windows:
+            self.minimize_windows(desktop_id=desktop_id)
+            return
+
+        target = self._most_recent_window(windows=windows)
+        self.activate_window(window=target)
+
+    def _most_recent_window(self, windows: list[Wnck.Window]) -> Wnck.Window:
+        """Return the topmost window in stacking order from the candidates."""
+        if self._screen is None or len(windows) == 1:
+            return windows[0]
+        candidate_xids = {self._xid_for(window=w) for w in windows}
+        candidate_xids.discard(0)
+        if not candidate_xids:
+            return windows[0]
+        try:
+            stacked = self._screen.get_windows_stacked()
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="windows_stacked").warning(
+                f"Failed to read stacked windows: {exc}"
+            )
+            return windows[0]
+        by_xid = {self._xid_for(window=w): w for w in windows}
+        for window in reversed(stacked):
+            xid = self._xid_for(window=window)
+            if xid in candidate_xids:
+                return by_xid.get(xid, windows[0])
+        return windows[0]
 
     def cycle_windows(self, desktop_id: str) -> None:
         """Cycle through windows for a desktop_id, minimizing on wrap."""
