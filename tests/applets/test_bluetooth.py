@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from dataclasses import replace
 from types import SimpleNamespace
@@ -716,6 +717,13 @@ class TestBluezBackend:
         assert bluetooth_state_mod._as_bool("true") is False
         assert bluetooth_state_mod._as_int(_Variant("7")) == 7
         assert bluetooth_state_mod._as_int("bad", default=None) is None
+
+    def test_as_int_skips_debug_log_for_absent_optional_values(self, caplog):
+        with caplog.at_level(logging.DEBUG, logger="docking.bluetooth"):
+            assert bluetooth_state_mod._as_int(None, default=None) is None
+            assert bluetooth_state_mod._as_int("  ", default=None) is None
+
+        assert "Failed to coerce Bluetooth value" not in caplog.text
 
 
 class _StubBackend:
