@@ -878,6 +878,9 @@ class DockWindow(Gtk.Window):
             elif action == LeftClickAction.CYCLE.value:
                 self.window_tracker.cycle_windows(item.desktop_id)
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+            elif action == LeftClickAction.MOST_RECENT.value:
+                self.window_tracker.activate_most_recent(item.desktop_id)
+                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
             elif action == MiddleClickAction.MINIMIZE.value:
                 self.window_tracker.minimize_windows(item.desktop_id)
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
