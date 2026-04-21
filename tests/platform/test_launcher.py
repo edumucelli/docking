@@ -16,6 +16,7 @@ except Exception:
 
 from docking.core.config import MiddleClickAction
 from docking.platform.launcher import (
+    DesktopInfo,
     Launcher,
     get_actions,
     launch,
@@ -267,6 +268,32 @@ class TestResolve:
 
         # Then
         assert info is None
+
+    def test_resolve_by_wm_class_indexes_fallback_exec_alias(self, tmp_path):
+        apps_dir = tmp_path / "applications"
+        apps_dir.mkdir()
+        (apps_dir / "org.gnome.Calculator.desktop").write_text("[Desktop Entry]\n")
+
+        launcher = Launcher()
+        launcher._desktop_dirs = [apps_dir]
+        launcher.resolve = MagicMock(
+            side_effect=lambda desktop_id, **_kwargs: (
+                DesktopInfo(
+                    desktop_id="org.gnome.Calculator.desktop",
+                    name="Calculator",
+                    icon_name="org.gnome.Calculator",
+                    wm_class="gnome-calculator",
+                    exec_line="gnome-calculator",
+                )
+                if desktop_id == "org.gnome.Calculator.desktop"
+                else None
+            )
+        )
+
+        info = launcher.resolve_by_wm_class("gnome-calculator")
+
+        assert info is not None
+        assert info.desktop_id == "org.gnome.Calculator.desktop"
 
     def test_resolve_file_uses_image_thumbnail_for_images(self, monkeypatch):
         from docking.platform import launcher as launcher_mod
