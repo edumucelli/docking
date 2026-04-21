@@ -343,13 +343,13 @@ class WindowTracker:
             return self._wm_class_to_desktop[class_lower]
 
         # Try matching class instance name
+        class_instance = None
         try:
             class_instance = window.get_class_instance_name()
         except _RECOVERABLE_ERRORS as exc:
             log.bind(action="class_instance").warning(
                 f"Failed to read class instance name: {exc}"
             )
-            class_instance = None
         if class_instance:
             inst_lower = class_instance.lower()
             if inst_lower in self._wm_class_to_desktop:
@@ -388,6 +388,18 @@ class WindowTracker:
                     class_group,
                     class_lower,
                 )
+
+        runtime_names = [
+            class_lower,
+            class_instance.lower() if class_instance else "",
+        ]
+        for runtime_name in dict.fromkeys(name for name in runtime_names if name):
+            info = self._launcher.resolve_by_wm_class(runtime_name)
+            if info:
+                self._wm_class_to_desktop[class_lower] = info.desktop_id
+                if class_instance:
+                    self._wm_class_to_desktop[class_instance.lower()] = info.desktop_id
+                return info.desktop_id
 
         return None
 
