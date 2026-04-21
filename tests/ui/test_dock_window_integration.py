@@ -235,6 +235,27 @@ class TestButtonReleaseFlow:
         assert item.last_clicked == 1111
         assert item.last_launched == 0
 
+    def test_left_click_most_recent_dispatches_mru_action(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        stub, _ = _make_stub(item=item)
+        stub.config.left_click_action = "most-recent"
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 1313)
+
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+
+        assert handled is True
+        stub.window_tracker.activate_most_recent.assert_called_once_with(
+            "firefox.desktop"
+        )
+        stub.window_tracker.toggle_focus.assert_not_called()
+        assert item.last_launched == 0
+
     def test_middle_click_minimizes_when_configured(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         stub, _ = _make_stub(item=item)

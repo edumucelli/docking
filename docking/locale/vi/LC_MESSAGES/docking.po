@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-08 23:50+0200\n"
+"POT-Creation-Date: 2026-04-21 08:46+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -164,111 +164,111 @@ msgstr "{minutes}m"
 msgid "Bluetooth"
 msgstr "Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:172
+#: docking/applets/bluetooth/applet.py:167
 msgid "Bluetooth unavailable"
 msgstr "Bluetooth unavailable"
 
-#: docking/applets/bluetooth/applet.py:179
+#: docking/applets/bluetooth/applet.py:174
 msgid "No Bluetooth adapter"
 msgstr "No Bluetooth adapter"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:182
 #: docking/applets/bluetooth/state.py:142
 msgid "On"
 msgstr "On"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:182
 #: docking/applets/bluetooth/state.py:142
 msgid "Off"
 msgstr "Off"
 
-#: docking/applets/bluetooth/applet.py:195
+#: docking/applets/bluetooth/applet.py:190
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - Đã kết nối {connected}"
 
-#: docking/applets/bluetooth/applet.py:204
+#: docking/applets/bluetooth/applet.py:199
 msgid "Continuous Discovery"
 msgstr "Continuous Discovery"
 
-#: docking/applets/bluetooth/applet.py:215
+#: docking/applets/bluetooth/applet.py:210
 msgid "Refresh Now"
 msgstr "Refresh Now"
 
-#: docking/applets/bluetooth/applet.py:229
+#: docking/applets/bluetooth/applet.py:224
 msgid "Turn Bluetooth Off"
 msgstr "Turn Bluetooth Off"
 
-#: docking/applets/bluetooth/applet.py:229
+#: docking/applets/bluetooth/applet.py:224
 msgid "Turn Bluetooth On"
 msgstr "Turn Bluetooth On"
 
-#: docking/applets/bluetooth/applet.py:245
+#: docking/applets/bluetooth/applet.py:240
 #, python-brace-format
 msgid "Disconnect {device}"
 msgstr "Disconnect {device}"
 
-#: docking/applets/bluetooth/applet.py:259
+#: docking/applets/bluetooth/applet.py:254
 msgid "Send Files to Device..."
 msgstr "Send Files to Device..."
 
-#: docking/applets/bluetooth/applet.py:267
+#: docking/applets/bluetooth/applet.py:262
 msgid "Devices..."
 msgstr "Devices..."
 
-#: docking/applets/bluetooth/applet.py:273
+#: docking/applets/bluetooth/applet.py:268
 msgid "Adapters..."
 msgstr "Adapters..."
 
-#: docking/applets/bluetooth/applet.py:279
+#: docking/applets/bluetooth/applet.py:274
 msgid "Local Services..."
 msgstr "Local Services..."
 
-#: docking/applets/bluetooth/applet.py:286
+#: docking/applets/bluetooth/applet.py:281
 msgid "Recent Connections"
 msgstr "Recent Connections"
 
-#: docking/applets/bluetooth/applet.py:291
+#: docking/applets/bluetooth/applet.py:286
 msgid "No recent connections"
 msgstr "No recent connections"
 
-#: docking/applets/bluetooth/applet.py:314
+#: docking/applets/bluetooth/applet.py:309
 msgid "Adapter"
 msgstr "Adapter"
 
-#: docking/applets/bluetooth/applet.py:340
+#: docking/applets/bluetooth/applet.py:335
 msgid "Connected Devices"
 msgstr "Thiết bị đã kết nối"
 
-#: docking/applets/bluetooth/applet.py:341
+#: docking/applets/bluetooth/applet.py:336
 msgid "Paired Devices"
 msgstr "Thiết bị đã ghép nối"
 
-#: docking/applets/bluetooth/applet.py:342
+#: docking/applets/bluetooth/applet.py:337
 msgid "Discovered Devices"
 msgstr "Thiết bị đã phát hiện"
 
-#: docking/applets/bluetooth/applet.py:367
+#: docking/applets/bluetooth/applet.py:362
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: docking/applets/bluetooth/applet.py:376
+#: docking/applets/bluetooth/applet.py:371
 msgid "Connect"
 msgstr "Connect"
 
-#: docking/applets/bluetooth/applet.py:386
+#: docking/applets/bluetooth/applet.py:381
 msgid "Pair"
 msgstr "Pair"
 
-#: docking/applets/bluetooth/applet.py:400
+#: docking/applets/bluetooth/applet.py:395
 msgid "Remove Pairing"
 msgstr "Remove Pairing"
 
-#: docking/applets/bluetooth/applet.py:412
+#: docking/applets/bluetooth/applet.py:407
 msgid "Trusted"
 msgstr "Trusted"
 
-#: docking/applets/bluetooth/applet.py:427
+#: docking/applets/bluetooth/applet.py:422
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "Pin: {percent}%"
@@ -508,11 +508,11 @@ msgstr "Show Phase Name"
 msgid "Refresh"
 msgstr "Refresh"
 
-#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:129
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:130
 msgid "New"
 msgstr "New"
 
-#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:131
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:132
 msgid "Full"
 msgstr "Full"
 
@@ -550,27 +550,27 @@ msgstr "{days} days after new moon"
 msgid "{days} days after full moon"
 msgstr "{days} days after full moon"
 
-#: docking/applets/moon/state.py:120
+#: docking/applets/moon/state.py:121
 msgid "Waxing Crescent"
 msgstr "Waxing Crescent"
 
-#: docking/applets/moon/state.py:122
+#: docking/applets/moon/state.py:123
 msgid "Waxing Gibbous"
 msgstr "Waxing Gibbous"
 
-#: docking/applets/moon/state.py:124
+#: docking/applets/moon/state.py:125
 msgid "Waning Gibbous"
 msgstr "Waning Gibbous"
 
-#: docking/applets/moon/state.py:126
+#: docking/applets/moon/state.py:127
 msgid "Waning Crescent"
 msgstr "Waning Crescent"
 
-#: docking/applets/moon/state.py:133
+#: docking/applets/moon/state.py:134
 msgid "1st Quarter"
 msgstr "1st Quarter"
 
-#: docking/applets/moon/state.py:135
+#: docking/applets/moon/state.py:136
 msgid "3rd Quarter"
 msgstr "3rd Quarter"
 
@@ -1169,17 +1169,22 @@ msgstr "Tìm thành phố"
 msgid "Type city name..."
 msgstr "Nhập tên thành phố..."
 
-#: docking/applets/weather/applet.py:363
+#: docking/applets/weather/applet.py:338 docking/applets/weather/state.py:130
+#, python-brace-format
+msgid "{city}: unavailable"
+msgstr "{city}: unavailable"
+
+#: docking/applets/weather/applet.py:364
 #, python-brace-format
 msgid "{temp}°C, {desc}"
 msgstr "{temp}°C, {desc}"
 
-#: docking/applets/weather/applet.py:372 docking/applets/weather/state.py:135
+#: docking/applets/weather/applet.py:373 docking/applets/weather/state.py:135
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "Air: {label}"
 
-#: docking/applets/weather/applet.py:384
+#: docking/applets/weather/applet.py:385
 #, python-brace-format
 msgid "{date}: {min_temp}/{max_temp}°C"
 msgstr "{date}: {min_temp}/{max_temp}°C"
@@ -1192,11 +1197,6 @@ msgstr "{city}: {temp}°C"
 #: docking/applets/weather/state.py:127
 msgid "Weather (no city selected)"
 msgstr "Weather (no city selected)"
-
-#: docking/applets/weather/state.py:130
-#, python-brace-format
-msgid "{city}: unavailable"
-msgstr "{city}: unavailable"
 
 #: docking/applets/weather/state.py:131
 #, python-brace-format
@@ -1219,7 +1219,7 @@ msgstr "Workspaces"
 msgid "Website"
 msgstr "Trang web"
 
-#: docking/ui/dock_window.py:340
+#: docking/ui/dock_window.py:390
 msgid "Docking"
 msgstr "Docking"
 
@@ -1344,7 +1344,7 @@ msgstr "Màn hình {display}: {width}x{height}"
 msgid "Appearance"
 msgstr "Giao dien"
 
-#: docking/ui/settings.py:186 docking/ui/settings.py:351
+#: docking/ui/settings.py:186 docking/ui/settings.py:352
 msgid "Behavior"
 msgstr "Hanh vi"
 
@@ -1384,129 +1384,133 @@ msgstr "Toggle Focus"
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:235
+#: docking/ui/settings.py:229
+msgid "Most Recent Window"
+msgstr "Most Recent Window"
+
+#: docking/ui/settings.py:236
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:236
+#: docking/ui/settings.py:237
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:237
+#: docking/ui/settings.py:238
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:296
 msgid "Look"
 msgstr "Giao dien"
 
-#: docking/ui/settings.py:297
+#: docking/ui/settings.py:298
 msgid "Theme"
 msgstr "Chu de"
 
-#: docking/ui/settings.py:298
+#: docking/ui/settings.py:299
 msgid "Icon Size"
 msgstr "Icon Size"
 
-#: docking/ui/settings.py:299
+#: docking/ui/settings.py:300
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:300
+#: docking/ui/settings.py:301
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:301
+#: docking/ui/settings.py:302
 msgid "Zoom Percent"
 msgstr "Phan tram thu phong"
 
-#: docking/ui/settings.py:302
+#: docking/ui/settings.py:303
 msgid "Show Tooltips"
 msgstr "Hien tooltip"
 
-#: docking/ui/settings.py:303
+#: docking/ui/settings.py:304
 msgid "Window Previews"
 msgstr "Window Previews"
 
-#: docking/ui/settings.py:308
+#: docking/ui/settings.py:309
 msgid "Placement"
 msgstr "Vi tri"
 
-#: docking/ui/settings.py:310
+#: docking/ui/settings.py:311
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/settings.py:311
+#: docking/ui/settings.py:312
 msgid "Follow Cursor"
 msgstr "Follow Cursor"
 
-#: docking/ui/settings.py:312
+#: docking/ui/settings.py:313
 msgid "Current Workspace Only"
 msgstr "Current Workspace Only"
 
-#: docking/ui/settings.py:317
+#: docking/ui/settings.py:318
 msgid "Layout"
 msgstr "Bo cuc"
 
-#: docking/ui/settings.py:319
+#: docking/ui/settings.py:320
 msgid "Lock Positions"
 msgstr "Khoa vi tri"
 
-#: docking/ui/settings.py:320
+#: docking/ui/settings.py:321
 msgid "Anchor Applets to End"
 msgstr "Anchor Applets to End"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:322
 msgid "Anchor Files to End"
 msgstr "Ghim tep xuong cuoi"
 
-#: docking/ui/settings.py:343
+#: docking/ui/settings.py:344
 msgid "Mouse"
 msgstr "Mouse"
 
-#: docking/ui/settings.py:345
+#: docking/ui/settings.py:346
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:347
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:353
+#: docking/ui/settings.py:354
 msgid "Hide Mode"
 msgstr "Che do an"
 
-#: docking/ui/settings.py:354
+#: docking/ui/settings.py:355
 msgid "Hide Delay"
 msgstr "Do tre an"
 
-#: docking/ui/settings.py:355
+#: docking/ui/settings.py:356
 msgid "Unhide Delay"
 msgstr "Do tre hien"
 
-#: docking/ui/settings.py:747
+#: docking/ui/settings.py:771
 msgid "The dock is always visible and reserves screen space."
 msgstr "Dock luon hien thi va chiem khong gian man hinh."
 
-#: docking/ui/settings.py:748
+#: docking/ui/settings.py:772
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:750
+#: docking/ui/settings.py:774
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:752
+#: docking/ui/settings.py:776
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:754
+#: docking/ui/settings.py:778
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:757
+#: docking/ui/settings.py:781
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
