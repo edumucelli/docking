@@ -742,6 +742,12 @@ def _as_bool(value: Any) -> bool:
 
 def _as_int(value: Any, default: int | None = 0) -> int | None:
     unpacked = _unpack(value)
+    if unpacked is None:
+        return default
+    if isinstance(unpacked, str):
+        unpacked = unpacked.strip()
+        if not unpacked:
+            return default
     try:
         return int(unpacked)
     except (TypeError, ValueError) as exc:

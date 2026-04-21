@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import json
 import logging
+from io import StringIO
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import docking.applets.aiusage.applet as aiusage_mod
+import docking.applets.aiusage.render as aiusage_render_mod
 from docking.applets.aiusage.applet import AiUsageApplet
 from docking.applets.aiusage.state import (
     AiUsageState,
     DayEntry,
+    DisplayMode,
     ModelUsage,
     Provider,
     cost_for_usage,
@@ -25,6 +31,39 @@ from docking.applets.aiusage.state import (
     state_from_prefs,
     tooltip_text,
 )
+from docking.core.config import Config
+
+
+class _FakeBox:
+    def __init__(self) -> None:
+        self.children: list[object] = []
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+
+class _FakeLabel:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.markup = ""
+
+    def override_color(self, *_args) -> None:
+        return
+
+    def set_markup(self, markup: str) -> None:
+        self.markup = markup
+        self.label = markup
+
+    def set_xalign(self, _value: float) -> None:
+        return
+
+
+def _patch_tooltip_widgets(monkeypatch) -> None:
+    monkeypatch.setattr(aiusage_mod.Gtk, "Box", lambda **_kwargs: _FakeBox())
+    monkeypatch.setattr(aiusage_mod.Gtk, "Label", _FakeLabel)
+    monkeypatch.setattr(aiusage_mod.Gdk, "RGBA", lambda *_args: None)
+    monkeypatch.setattr(aiusage_mod.GLib, "markup_escape_text", lambda text: text)
+
 
 # ---------------------------------------------------------------
 # State basics
@@ -458,6 +497,18 @@ class TestHook:
 
 
 class TestAiUsageApplet:
+    def test_loads_legacy_config_prefs(self):
+        state = set_session(
+            session_id="legacy",
+            state=AiUsageState(),
+            model_usage={"claude-opus-4-6": ModelUsage(input_tokens=123)},
+        )
+        config = Config(applet_prefs={"claude": prefs_from_state(state=state)})
+
+        applet = AiUsageApplet(48, config=config)
+
+        assert applet._state.days[0].sessions == 1
+
     def test_creates_with_icon(self):
         applet = AiUsageApplet(48)
         assert applet.item.icon is not None
@@ -472,6 +523,21 @@ class TestAiUsageApplet:
     def test_tooltip_no_usage(self):
         applet = AiUsageApplet(48)
         assert "no usage" in applet.item.name
+
+    def test_create_icon_forwards_selected_provider_and_display_mode(self, monkeypatch):
+        applet = AiUsageApplet(48)
+        applet._selected_provider = Provider.CODEX
+        applet._display_mode = DisplayMode.TOKENS
+        render_icon = MagicMock(return_value="pixbuf")
+        monkeypatch.setattr(aiusage_mod, "render_icon", render_icon)
+
+        assert applet.create_icon(size=64) == "pixbuf"
+        render_icon.assert_called_once_with(
+            size=64,
+            state=applet._state,
+            selected_provider=Provider.CODEX,
+            display_mode=DisplayMode.TOKENS,
+        )
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
         applet = AiUsageApplet(48)
@@ -499,11 +565,120 @@ class TestAiUsageApplet:
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Reset Today" in labels
 
-    def test_tooltip_widget_returns_box(self):
+    def test_tooltip_widget_builds_headless_box(self, monkeypatch):
         applet = AiUsageApplet(48)
-        from gi.repository import Gtk
+        _patch_tooltip_widgets(monkeypatch)
 
-        assert isinstance(applet._build_tooltip_widget(), Gtk.Box)
+        box = applet._build_tooltip_widget()
+
+        assert isinstance(box, _FakeBox)
+        assert len(box.children) == 1
+        assert box.children[0].label == "AI Usage: no usage today"
+
+    def test_tooltip_widget_renders_token_breakdown_and_week_total(self, monkeypatch):
+        applet = AiUsageApplet(48)
+        _patch_tooltip_widgets(monkeypatch)
+        today = set_session(
+            session_id="today",
+            state=AiUsageState(),
+            model_usage={
+                "claude-opus-4-6": ModelUsage(input_tokens=1_200, output_tokens=300)
+            },
+        ).days[0]
+        week_entry = DayEntry(
+            date="2026-03-20",
+            sessions=1,
+            by_model=(("claude-opus-4-6", ModelUsage(input_tokens=2_400)),),
+        )
+        applet._state = AiUsageState(days=(today, week_entry))
+        applet._display_mode = DisplayMode.TOKENS
+
+        box = applet._build_tooltip_widget()
+
+        labels = [child.label for child in box.children]
+        assert "<b>Today: 1.5K</b>" in labels[0]
+        assert "Opus-4-6: 1.5K" in labels[1]
+        assert "This week: 3.9K" in labels[2]
+
+    def test_tooltip_widget_filters_selected_provider_costs(self, monkeypatch):
+        applet = AiUsageApplet(48)
+        _patch_tooltip_widgets(monkeypatch)
+        applet._selected_provider = Provider.CODEX
+        applet._state = set_session(
+            session_id="mix",
+            state=AiUsageState(),
+            model_usage={
+                "claude-opus-4-6": ModelUsage(input_tokens=1_000_000),
+                "gpt-5.4": ModelUsage(input_tokens=1_000_000),
+            },
+        )
+
+        box = applet._build_tooltip_widget()
+
+        labels = [child.label for child in box.children]
+        assert "<b>Codex: $2.50</b>" in labels[0]
+        assert "Gpt-5: $2.50" in labels[1]
+
+    def test_on_scroll_cycles_providers_and_presents(self, monkeypatch):
+        applet = AiUsageApplet(48)
+        applet.present = MagicMock()
+
+        applet.on_scroll(direction_up=True)
+        applet.on_scroll(direction_up=True)
+        applet.on_scroll(direction_up=False)
+
+        assert applet._selected_provider == Provider.CLAUDE
+        assert applet.present.call_count == 3
+
+    def test_set_provider_and_display_mode_present(self):
+        applet = AiUsageApplet(48)
+        applet.present = MagicMock()
+
+        applet._set_provider(provider=Provider.OPENCODE)
+        applet._set_display_mode(mode=DisplayMode.TOKENS)
+
+        assert applet._selected_provider == Provider.OPENCODE
+        assert applet._display_mode == DisplayMode.TOKENS
+        assert applet.present.call_count == 2
+
+    def test_tick_merges_opencode_sessions_and_updates_state(self, monkeypatch):
+        applet = AiUsageApplet(48)
+        applet.present = MagicMock()
+        monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(
+            aiusage_mod,
+            "query_opencode_today",
+            lambda: {
+                "abc": {
+                    "opencode:gpt-oss": ModelUsage(
+                        input_tokens=10,
+                        output_tokens=5,
+                        precalculated_cost=1.25,
+                    )
+                }
+            },
+        )
+
+        assert applet._tick() is True
+        assert applet._opencode_poll_error is None
+        assert applet._state.days[0].sessions == 1
+        assert applet.present.call_count == 1
+
+    def test_reset_today_saves_prefs_and_presents(self):
+        applet = AiUsageApplet(48)
+        applet._state = set_session(
+            session_id="test",
+            state=AiUsageState(),
+            model_usage={"claude-opus-4-6": ModelUsage(input_tokens=1)},
+        )
+        applet.save_prefs = MagicMock()
+        applet.present = MagicMock()
+
+        applet._reset_today()
+
+        assert applet._state.days == ()
+        applet.save_prefs.assert_called_once()
+        applet.present.assert_called_once()
 
     def test_tick_warns_once_when_opencode_poll_fails(self, monkeypatch, caplog):
         applet = AiUsageApplet(48)
@@ -527,6 +702,17 @@ class TestAiUsageApplet:
 
 
 class TestClaudeHookRegistration:
+    def test_read_prefs_from_disk_returns_none_for_invalid_json(
+        self, tmp_path, monkeypatch
+    ):
+        config_dir = tmp_path / "cfg"
+        dock_json = config_dir / "docking" / "dock.json"
+        dock_json.parent.mkdir(parents=True)
+        dock_json.write_text("{")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(config_dir))
+
+        assert aiusage_mod._read_prefs_from_disk() is None
+
     def test_registers_hooks(self, tmp_path, monkeypatch):
         settings_path = tmp_path / ".claude" / "settings.json"
         settings_path.parent.mkdir(parents=True)
@@ -572,6 +758,44 @@ class TestClaudeHookRegistration:
         settings = json.loads(settings_path.read_text())
         assert len(settings["hooks"]["Stop"]) == 1
 
+    def test_register_hooks_warns_on_invalid_json(self, tmp_path, monkeypatch):
+        settings_path = tmp_path / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text("{")
+        logger = SimpleNamespace(warning=MagicMock())
+        monkeypatch.setattr(aiusage_mod, "_CLAUDE_SETTINGS", settings_path)
+        monkeypatch.setattr(aiusage_mod.log, "bind", lambda **_kwargs: logger)
+
+        aiusage_mod._register_claude_hooks()
+
+        logger.warning.assert_called_once()
+
+    def test_register_hooks_warns_on_write_error(self, tmp_path, monkeypatch):
+        settings_path = tmp_path / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text("{}")
+        logger = SimpleNamespace(warning=MagicMock())
+        monkeypatch.setattr(aiusage_mod, "_CLAUDE_SETTINGS", settings_path)
+        monkeypatch.setattr(aiusage_mod.log, "bind", lambda **_kwargs: logger)
+        original_write_text = Path.write_text
+
+        def fail_write_text(self, *args, **kwargs):
+            if self == settings_path:
+                raise OSError("nope")
+            return original_write_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", fail_write_text)
+
+        aiusage_mod._register_claude_hooks()
+
+        logger.warning.assert_called_once()
+
+    def test_has_hook_detects_existing_command(self):
+        assert aiusage_mod._has_hook(
+            entries=[{"hooks": [{"command": "prefix value"}]}],
+            needle="prefix",
+        )
+
 
 class TestCodexHookRegistration:
     def test_registers_notify(self, tmp_path, monkeypatch):
@@ -608,3 +832,129 @@ class TestCodexHookRegistration:
 
         content = config_path.read_text()
         assert content.count("notify") == 1
+
+    def test_inserts_notify_before_first_section(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "config.toml"
+        config_path.write_text('[profiles]\ndefault = "x"\n')
+        monkeypatch.setattr(aiusage_mod, "_CODEX_CONFIG", config_path)
+
+        aiusage_mod._register_codex_hook()
+
+        content = config_path.read_text()
+        assert content.startswith("notify = ")
+        assert "[profiles]" in content
+
+    def test_warns_when_codex_config_cannot_be_written(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "config.toml"
+        config_path.write_text('[profiles]\ndefault = "x"\n')
+        logger = SimpleNamespace(warning=MagicMock(), info=MagicMock())
+        monkeypatch.setattr(aiusage_mod, "_CODEX_CONFIG", config_path)
+        monkeypatch.setattr(aiusage_mod.log, "bind", lambda **_kwargs: logger)
+        original_write_text = Path.write_text
+
+        def fail_write_text(self, *args, **kwargs):
+            if self == config_path:
+                raise OSError("denied")
+            return original_write_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", fail_write_text)
+
+        aiusage_mod._register_codex_hook()
+
+        logger.warning.assert_called_once()
+
+
+class TestHookCli:
+    def test_update_config_recovers_from_invalid_existing_json(
+        self, tmp_path, monkeypatch
+    ):
+        from docking.applets.aiusage import hook
+
+        config_path = tmp_path / "dock.json"
+        config_path.write_text("{")
+        monkeypatch.setattr(hook, "_config_path", lambda: config_path)
+
+        hook._update_config(
+            session_id="s1",
+            model_usage={"gpt-5.4": ModelUsage(input_tokens=12)},
+        )
+
+        data = json.loads(config_path.read_text())
+        assert data["applet_prefs"]["aiusage"]["days"][0]["sessions"] == 1
+
+    def test_main_handles_invalid_claude_stdin(self, monkeypatch):
+        from docking.applets.aiusage import hook
+
+        monkeypatch.setattr(aiusage_mod.sys, "argv", ["hook", "claude", "Stop"])
+        monkeypatch.setattr(aiusage_mod.sys, "stdin", StringIO("{"))
+
+        hook.main()
+
+    def test_handle_codex_turn_ignores_invalid_json(self, monkeypatch):
+        from docking.applets.aiusage import hook
+
+        find_session = MagicMock(return_value=None)
+        monkeypatch.setattr(aiusage_mod.sys, "argv", ["hook"])
+        monkeypatch.setattr(hook.aiusage_state, "find_codex_session", find_session)
+
+        hook._handle_codex_turn(json_arg="{")
+
+        find_session.assert_called_once_with(thread_id=None)
+
+
+class TestRender:
+    def test_render_icon_draws_opencode_logo_with_token_label(self, monkeypatch):
+        draw_opencode = MagicMock()
+        draw_label = MagicMock()
+        monkeypatch.setattr(aiusage_render_mod, "_draw_opencode_logo", draw_opencode)
+        monkeypatch.setattr(aiusage_render_mod, "_draw_codex_logo", MagicMock())
+        monkeypatch.setattr(aiusage_render_mod, "_draw_claude_logo", MagicMock())
+        monkeypatch.setattr(aiusage_render_mod, "draw_icon_label", draw_label)
+        monkeypatch.setattr(
+            aiusage_render_mod.Gdk,
+            "pixbuf_get_from_surface",
+            lambda *_args: "pixbuf",
+        )
+        state = set_session(
+            session_id="oc",
+            state=AiUsageState(),
+            model_usage={
+                "opencode:gpt-oss": ModelUsage(
+                    input_tokens=2_000,
+                    output_tokens=500,
+                    precalculated_cost=0.25,
+                )
+            },
+        )
+
+        result = aiusage_render_mod.render_icon(
+            size=48,
+            state=state,
+            selected_provider=Provider.OPENCODE,
+            display_mode=DisplayMode.TOKENS,
+        )
+
+        assert result == "pixbuf"
+        draw_opencode.assert_called_once()
+        draw_label.assert_called_once()
+        assert draw_label.call_args.kwargs["text"] == "2.5K"
+
+    def test_render_icon_skips_label_when_cost_is_zero(self, monkeypatch):
+        draw_label = MagicMock()
+        monkeypatch.setattr(aiusage_render_mod, "_draw_codex_logo", MagicMock())
+        monkeypatch.setattr(aiusage_render_mod, "draw_icon_label", draw_label)
+        monkeypatch.setattr(
+            aiusage_render_mod.Gdk,
+            "pixbuf_get_from_surface",
+            lambda *_args: "pixbuf",
+        )
+
+        result = aiusage_render_mod.render_icon(
+            size=48,
+            state=AiUsageState(),
+            selected_provider=Provider.CODEX,
+            display_mode=DisplayMode.COST,
+        )
+
+        assert result == "pixbuf"
+        draw_label.assert_not_called()

@@ -277,13 +277,7 @@ jobs:
 
       - name: Python 3.14 smoke tests
         if: matrix.python == '3.14'
-        run: |
-          .venv/bin/python -m pytest -q \
-            tests/core/test_config.py \
-            tests/ui/test_about.py \
-            tests/ui/test_menu_integration.py \
-            tests/ui/test_settings.py \
-            tests/test_app.py
+        run: .venv/bin/python -m pytest -q tests/smoke/test_python314_smoke.py
 
       - name: Upload coverage artifact
         if: matrix.python != '3.14'
@@ -369,13 +363,7 @@ jobs:
 
       - name: Python 3.14 smoke tests
         if: matrix.python == '3.14'
-        run: |
-          python -m pytest -q \
-            tests/core/test_config.py \
-            tests/ui/test_about.py \
-            tests/ui/test_menu_integration.py \
-            tests/ui/test_settings.py \
-            tests/test_app.py
+        run: python -m pytest -q tests/smoke/test_python314_smoke.py
 
   test-arm64:
     name: Test (Python 3.12, Ubuntu 24.04 ARM64)

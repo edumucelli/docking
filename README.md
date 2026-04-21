@@ -192,7 +192,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `anchor_files` | false | Keep file and folder entries anchored at the end independently |
 | `tooltips_enabled` | true | Show hover tooltips for dock items |
 | `active_display` | false | Follow the active monitor instead of staying on one display |
-| `left_click_action` | toggle | Running-app left click: `toggle` or `cycle` |
+| `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
@@ -209,7 +209,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can either toggle or cycle running windows, and middle click can open a new window, minimize the app windows, or close the app's focused window.
+All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can toggle, cycle, or focus the most recently used window of the running app, and middle click can open a new window, minimize the app windows, or close the app's focused window. Pick the left-click mode under right-click -> **Preferences** -> **Behavior** -> **Mouse**.
 
 ## Managing Dock Items
 
@@ -931,6 +931,44 @@ After adding or modifying translatable strings in the source code:
 ```
 
 This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be updated with `msgmerge`.
+
+### When CI fails after adding `_()` strings
+
+If you add a new user-visible translatable string such as `_("...")`, CI can fail in two common ways:
+
+- `--check-pot-sync` fails because `docking/locale/docking.pot` is stale
+- `--check-catalogs --require-complete` fails because the locale catalogs were not merged or translated yet
+
+If the failure is only the stale POT check, regenerate the template:
+
+```bash
+./tools/i18n.sh --extract
+```
+
+If the branch added a new translatable string, update every `docking.po` catalog against the new template:
+
+```bash
+while IFS= read -r -d '' po; do
+  msgmerge --update --backup=none "$po" docking/locale/docking.pot >/dev/null
+done < <(find docking/locale -type f -name 'docking.po' -print0)
+```
+
+Then fill in the new `msgstr` values in the `.po` files, because CI runs the strict catalog check and untranslated or fuzzy entries will still fail.
+
+To verify locally with the same gates CI uses:
+
+```bash
+./tools/i18n.sh --check-pot-sync
+./tools/i18n.sh --check-catalogs --require-complete
+./tools/i18n.sh --compile
+```
+
+Practical sequence:
+
+1. `./tools/i18n.sh --extract`
+2. Run `msgmerge` for all `docking.po` files
+3. Fill in the new `msgstr` values
+4. Rerun the three checks above
 
 ### Unified i18n command
 
