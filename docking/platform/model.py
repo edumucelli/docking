@@ -129,6 +129,7 @@ If these invariants hold, the rest of the dock can remain much simpler.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -162,6 +163,24 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="model"))
 
 
+@dataclass(frozen=True)
+class LauncherEntryState:
+    """Normalized Unity LauncherEntry overlay state for one sender."""
+
+    sender_name: str
+    app_uri: str
+    desktop_id: str | None
+    badge_count: int = 0
+    badge_visible: bool = False
+    progress: float = 0.0
+    progress_visible: bool = False
+    urgent: bool = False
+
+    @property
+    def shows_overlay(self) -> bool:
+        return self.progress_visible or (self.badge_visible and self.badge_count > 0)
+
+
 class DockModel:
     """Ordered collection of dock items, merging pinned and running apps."""
 
@@ -173,6 +192,8 @@ class DockModel:
         self._applets: dict[str, Applet] = {}
         self._animating_out: list[DockItem] = []
         self._change_listeners: list[Callable[[], None]] = []
+        self._launcher_entries: dict[str, LauncherEntryState] = {}
+        self._launcher_item_by_sender: dict[str, str] = {}
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
@@ -259,6 +280,156 @@ class DockModel:
             icon=info.icon,
             prefs_key=entry.target,
         )
+
+    def _make_app_item(
+        self, *, desktop_id: str, is_pinned: bool, running_info: dict[str, Any] | None
+    ) -> DockItem:
+        resolved = self._launcher.resolve(
+            desktop_id=desktop_id,
+            log_failures=False,
+        )
+        icon_size = self._config.scaled_icon_size
+        icon_name = resolved.icon_name if resolved else "application-x-executable"
+        icon = self._launcher.load_icon(icon_name=icon_name, size=icon_size)
+        info = running_info or {}
+        item = DockItem(
+            desktop_id=desktop_id,
+            kind=APP_KIND,
+            target=desktop_id,
+            name=resolved.name if resolved else desktop_id,
+            icon_name=icon_name,
+            wm_class=resolved.wm_class if resolved else "",
+            is_pinned=is_pinned,
+            is_running=bool(info),
+            is_active=bool(info.get("active", False)),
+            instance_count=int(info.get("count", 1)) if info else 0,
+            icon=icon,
+        )
+        item.window_urgent = bool(info.get("urgent", False))
+        self._recompute_urgent(item=item)
+        return item
+
+    @staticmethod
+    def _clear_launcher_state(item: DockItem) -> None:
+        item.badge_count = 0
+        item.badge_visible = False
+        item.progress = 0.0
+        item.progress_visible = False
+        item.launcher_entry_urgent = False
+
+    def _apply_launcher_state(
+        self, *, item: DockItem, state: LauncherEntryState
+    ) -> None:
+        item.badge_count = state.badge_count
+        item.badge_visible = state.badge_visible
+        item.progress = max(0.0, min(1.0, state.progress))
+        item.progress_visible = state.progress_visible
+        item.launcher_entry_urgent = state.urgent
+        self._recompute_urgent(item=item)
+
+    def _recompute_urgent(self, *, item: DockItem) -> None:
+        effective = item.window_urgent or item.launcher_entry_urgent
+        if effective and not item.is_urgent:
+            item.last_urgent = GLib.get_monotonic_time()
+        item.is_urgent = effective
+
+    def _find_launcher_target(
+        self, *, sender_name: str, desktop_id: str | None
+    ) -> DockItem | None:
+        if desktop_id:
+            item = self.find_by_desktop_id(desktop_id=desktop_id)
+            if item is not None:
+                return item
+        previous_desktop_id = self._launcher_item_by_sender.get(sender_name)
+        if previous_desktop_id:
+            return self.find_by_desktop_id(desktop_id=previous_desktop_id)
+        return None
+
+    @staticmethod
+    def _is_launcher_only_transient(item: DockItem) -> bool:
+        return (
+            item.kind == APP_KIND
+            and not item.is_pinned
+            and not item.is_running
+            and (item.progress_visible or (item.badge_visible and item.badge_count > 0))
+        )
+
+    def _drop_transient(self, *, item: DockItem) -> None:
+        if item in self._transient:
+            self._transient.remove(item)
+
+    def apply_launcher_entry(
+        self,
+        *,
+        sender_name: str,
+        app_uri: str,
+        state: LauncherEntryState,
+        create_transient: bool = False,
+    ) -> bool:
+        """Apply LauncherEntry state to a visible item or create a transient one."""
+        self._launcher_entries[sender_name] = state
+        item = self._find_launcher_target(
+            sender_name=sender_name,
+            desktop_id=state.desktop_id,
+        )
+        if (
+            item is None
+            and create_transient
+            and state.desktop_id
+            and state.shows_overlay
+        ):
+            item = self.find_by_desktop_id(desktop_id=state.desktop_id)
+            if item is None:
+                resolved = self._launcher.resolve(
+                    desktop_id=state.desktop_id,
+                    log_failures=False,
+                )
+                if resolved is not None:
+                    item = self._make_app_item(
+                        desktop_id=state.desktop_id,
+                        is_pinned=False,
+                        running_info=None,
+                    )
+                    self._transient.append(item)
+        if item is None:
+            return False
+
+        self._launcher_item_by_sender[sender_name] = item.desktop_id
+        self._apply_launcher_state(item=item, state=state)
+        if item in self._transient and not item.is_running and not state.shows_overlay:
+            self._drop_transient(item=item)
+        self.notify()
+        return True
+
+    def remove_launcher_entry(self, *, sender_name: str) -> None:
+        """Clear LauncherEntry state for a vanished sender."""
+        state = self._launcher_entries.pop(sender_name, None)
+        desktop_id = self._launcher_item_by_sender.pop(sender_name, None)
+        if desktop_id is None and state is not None:
+            desktop_id = state.desktop_id
+        if not desktop_id:
+            return
+
+        item = self.find_by_desktop_id(desktop_id=desktop_id)
+        if item is None:
+            return
+
+        replacement = next(
+            (
+                other_state
+                for other_sender, other_state in self._launcher_entries.items()
+                if self._launcher_item_by_sender.get(other_sender) == desktop_id
+            ),
+            None,
+        )
+        if replacement is not None:
+            self._apply_launcher_state(item=item, state=replacement)
+        else:
+            self._clear_launcher_state(item)
+            self._recompute_urgent(item=item)
+            if item in self._transient and not item.is_running:
+                self._drop_transient(item=item)
+        self.notify()
 
     def get_applet(self, desktop_id: str) -> Applet | None:
         """Look up active applet by desktop_id."""
@@ -420,7 +591,9 @@ class DockModel:
         Args:
             running: {desktop_id: {"count": int, "active": bool}}
         """
-        # Reset running state (preserve is_urgent for transition detection)
+        existing_transient = {item.desktop_id: item for item in self._transient}
+
+        # Reset running state while preserving LauncherEntry overlays.
         for item in self.pinned_items:
             if item.kind != APP_KIND:
                 continue
@@ -434,61 +607,75 @@ class DockModel:
             if item.kind != APP_KIND:
                 continue
             if item.desktop_id not in running:
-                item.is_urgent = False
+                item.window_urgent = False
+                self._recompute_urgent(item=item)
                 continue
             info = running[item.desktop_id]
             item.is_running = True
             item.is_active = info.get("active", False)
             item.instance_count = info.get("count", 1)
-            # Set urgent timestamp only on false->true transition
-            urgent = info.get("urgent", False)
-            if urgent and not item.is_urgent:
-                item.last_urgent = GLib.get_monotonic_time()
-            item.is_urgent = urgent
+            item.window_urgent = bool(info.get("urgent", False))
+            self._recompute_urgent(item=item)
             matched_ids.add(item.desktop_id)
 
         # Add transient items for running apps not in pinned
         new_transient: list[DockItem] = []
         for desktop_id, info in running.items():
             if desktop_id not in matched_ids:
-                existing = next(
-                    (t for t in self._transient if t.desktop_id == desktop_id), None
-                )
+                existing = existing_transient.get(desktop_id)
                 if existing:
                     existing.is_running = True
                     existing.is_active = info.get("active", False)
                     existing.instance_count = info.get("count", 1)
+                    existing.window_urgent = bool(info.get("urgent", False))
+                    self._recompute_urgent(item=existing)
                     new_transient.append(existing)
                 else:
-                    resolved = self._launcher.resolve(desktop_id=desktop_id)
-                    icon_size = self._config.scaled_icon_size
-                    icon = self._launcher.load_icon(
-                        icon_name=(
-                            resolved.icon_name
-                            if resolved
-                            else "application-x-executable"
-                        ),
-                        size=icon_size,
-                    )
                     new_transient.append(
-                        DockItem(
+                        self._make_app_item(
                             desktop_id=desktop_id,
-                            kind=APP_KIND,
-                            target=desktop_id,
-                            name=resolved.name if resolved else desktop_id,
-                            icon_name=(
-                                resolved.icon_name
-                                if resolved
-                                else "application-x-executable"
-                            ),
-                            wm_class=resolved.wm_class if resolved else "",
                             is_pinned=False,
-                            is_running=True,
-                            is_active=info.get("active", False),
-                            instance_count=info.get("count", 1),
-                            icon=icon,
+                            running_info=info,
                         )
                     )
+
+        items_by_desktop_id = {
+            item.desktop_id: item for item in self.pinned_items + new_transient
+        }
+        for sender_name, state in self._launcher_entries.items():
+            item = None
+            if state.desktop_id:
+                item = items_by_desktop_id.get(state.desktop_id)
+            if item is None:
+                previous_desktop_id = self._launcher_item_by_sender.get(sender_name)
+                if previous_desktop_id:
+                    item = items_by_desktop_id.get(previous_desktop_id)
+            if item is None and state.desktop_id and state.shows_overlay:
+                item = existing_transient.get(state.desktop_id)
+                if item is None:
+                    resolved = self._launcher.resolve(
+                        desktop_id=state.desktop_id,
+                        log_failures=False,
+                    )
+                    if resolved is not None:
+                        item = self._make_app_item(
+                            desktop_id=state.desktop_id,
+                            is_pinned=False,
+                            running_info=None,
+                        )
+                if item is not None and item.desktop_id not in items_by_desktop_id:
+                    item.is_pinned = False
+                    item.is_running = False
+                    item.is_active = False
+                    item.instance_count = 0
+                    item.window_urgent = False
+                    new_transient.append(item)
+                    items_by_desktop_id[item.desktop_id] = item
+            if item is None:
+                self._launcher_item_by_sender.pop(sender_name, None)
+                continue
+            self._launcher_item_by_sender[sender_name] = item.desktop_id
+            self._apply_launcher_state(item=item, state=state)
 
         self._transient = new_transient
         self.notify()
@@ -516,7 +703,9 @@ class DockModel:
             visible_index = self.visible_items().index(item)
             self.pinned_items.remove(item)
             item.is_pinned = False
-            if item.kind == APP_KIND and item.is_running:
+            if item.kind == APP_KIND and (
+                item.is_running or self._is_launcher_only_transient(item)
+            ):
                 item.removal_index = -1
                 self._transient.append(item)
             else:

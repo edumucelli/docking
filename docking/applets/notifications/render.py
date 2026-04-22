@@ -12,6 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.draw import rounded_rect
+from docking.ui.overlays import draw_circle_badge, draw_count_badge
 
 
 def create_notifications_icon(
@@ -125,32 +126,28 @@ def _draw_notification_badge(
     cy = size - radius - size * 0.06
 
     if badge_count > 0:
-        cr.arc(cx, cy, radius, 0, math.tau)
-        cr.set_source_rgba(0.89, 0.17, 0.19, 1.0)
-        cr.fill()
-
-        text = "99+" if badge_count > 99 else str(badge_count)
-        cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        if badge_count <= 9:
-            font_size = size * 0.20
-        elif badge_count <= 99:
-            font_size = size * 0.15
-        else:
-            font_size = size * 0.11
-        cr.set_font_size(max(7, font_size))
-        ext = cr.text_extents(text)
-        cr.set_source_rgba(1, 1, 1, 1)
-        cr.move_to(
-            cx - (ext.width / 2 + ext.x_bearing),
-            cy - (ext.height / 2 + ext.y_bearing),
+        draw_count_badge(
+            cr=cr,
+            x=cx - radius,
+            y=cy - radius,
+            width=radius * 2,
+            height=radius * 2,
+            badge_count=badge_count,
         )
-        cr.show_text(text)
         return
 
     # Unknown count backends: a simple activity chip.
-    cr.arc(cx, cy, radius, 0, math.tau)
-    cr.set_source_rgba(0.98, 0.86, 0.18, 0.98)
-    cr.fill()
-    cr.arc(cx, cy, radius * 0.34, 0, math.tau)
-    cr.set_source_rgba(1, 1, 1, 0.98)
-    cr.fill()
+    draw_circle_badge(
+        cr=cr,
+        cx=cx,
+        cy=cy,
+        radius=radius,
+        background_rgba=(0.98, 0.86, 0.18, 0.98),
+    )
+    draw_circle_badge(
+        cr=cr,
+        cx=cx,
+        cy=cy,
+        radius=radius * 0.34,
+        background_rgba=(1.0, 1.0, 1.0, 0.98),
+    )

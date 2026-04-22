@@ -12,6 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.draw import rounded_rect
+from docking.ui.overlays import draw_circle_badge
 
 _NO_PLAYER_ICON_CACHE: dict[int, GdkPixbuf.Pixbuf] = {}
 
@@ -281,9 +282,13 @@ def _draw_volume_badge(cr: cairo.Context, size: int, volume_percent: int) -> Non
     cx = radius + size * 0.06
     cy = size - radius - size * 0.06
 
-    cr.arc(cx, cy, radius, 0, 2 * math.pi)
-    cr.set_source_rgba(0.20, 0.20, 0.20, 0.95)
-    cr.fill()
+    draw_circle_badge(
+        cr=cr,
+        cx=cx,
+        cy=cy,
+        radius=radius,
+        background_rgba=(0.20, 0.20, 0.20, 0.95),
+    )
 
     cr.set_source_rgba(1, 1, 1, 0.95)
     # Keep the speaker tiny so arc levels are the primary visual cue.
@@ -341,9 +346,13 @@ def _draw_status_badge(cr: cairo.Context, size: int, playback_status: str) -> No
     else:
         color = (0.42, 0.42, 0.42)
 
-    cr.arc(cx, cy, radius, 0, 2 * math.pi)
-    cr.set_source_rgba(*color, 0.95)
-    cr.fill()
+    draw_circle_badge(
+        cr=cr,
+        cx=cx,
+        cy=cy,
+        radius=radius,
+        background_rgba=(*color, 0.95),
+    )
 
     cr.set_source_rgba(1, 1, 1, 0.95)
     if playback_status == "Paused":

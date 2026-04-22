@@ -67,6 +67,7 @@ from docking.ipc import DockItemsService
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
+from docking.platform.unity import UnityLauncherListener
 from docking.platform.window_tracker import WindowTracker
 from docking.ui.factory import build_dock_window
 from docking.ui.renderer import DockRenderer
@@ -84,6 +85,7 @@ def main() -> None:
     model = DockModel(config=config, launcher=launcher)
     renderer = DockRenderer()
     tracker = WindowTracker(model=model, launcher=launcher, config=config)
+    unity = UnityLauncherListener(model=model)
 
     window = build_dock_window(
         config=config,
@@ -100,11 +102,13 @@ def main() -> None:
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
     try:
+        unity.start()
         window.show_all()
         GLib.idle_add(_start_runtime, items_service, model)
         Gtk.main()
     finally:
         items_service.stop()
+        unity.stop()
         model.stop_applets()
 
 

@@ -44,6 +44,7 @@ class DockItem:
     is_running: bool = False
     is_active: bool = False
     is_urgent: bool = False
+    window_urgent: bool = False
     instance_count: int = 0
     # Icon object (typically GdkPixbuf.Pixbuf), typed structurally to avoid runtime
     # GTK coupling while keeping test doubles valid.
@@ -54,6 +55,11 @@ class DockItem:
     last_clicked: int = 0
     last_launched: int = 0
     last_urgent: int = 0
+    badge_count: int = 0
+    badge_visible: bool = False
+    progress: float = 0.0
+    progress_visible: bool = False
+    launcher_entry_urgent: bool = False
     # Callable returning tooltip widget/content; used by applets for rich tooltips
     tooltip_builder: Callable[[], Any] | None = None
     # Optional key for per-item preferences (folder sort/view options, etc.).
