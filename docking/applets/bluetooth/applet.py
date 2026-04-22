@@ -722,6 +722,6 @@ def _as_pref_bool(value: object, *, default: bool) -> bool:
         if lowered in {"0", "false", "no", "off"}:
             return False
         return default
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return bool(value)
     return default

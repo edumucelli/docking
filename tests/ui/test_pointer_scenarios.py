@@ -62,6 +62,7 @@ class _ScenarioHarness:
             pos=pos,
             icon_size=48,
             zoom_percent=1.5,
+            scaled_icon_size=72,
             zoom_enabled=True,
             previews_enabled=True,
             lock_icons=False,
