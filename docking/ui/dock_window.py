@@ -188,7 +188,7 @@ from gi.repository import Gdk, GdkX11, GLib, Gtk
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.core.config import LeftClickAction, MiddleClickAction
 from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.core.position import Position, is_horizontal
+from docking.core.position import is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.environment import detect_desktop, log_runtime_snapshot
@@ -207,7 +207,6 @@ from docking.ui.effects import ZoomAnimator
 from docking.ui.geometry import (
     DockGeometryBuilder,
     DockGeometryFrame,
-    Rect,
     current_input_rect,
 )
 from docking.ui.hover import HoverManager
@@ -306,19 +305,6 @@ BOUNCE_ANIMATION_PUMP_MS = 700
 MOUSE_LEFT = 1
 MOUSE_MIDDLE = 2
 MOUSE_RIGHT = 3
-
-
-def hover_anchor_from_draw_rect(
-    *, win_x: int, win_y: int, draw_rect: Rect, position: Position
-) -> tuple[int, int]:
-    """Translate an item draw rect into the preview/hover anchor point."""
-    if position == Position.BOTTOM:
-        return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
-    if position == Position.TOP:
-        return int(win_x + draw_rect.x), int(win_y + draw_rect.y + draw_rect.h)
-    if position == Position.LEFT:
-        return int(win_x + draw_rect.x + draw_rect.w), int(win_y + draw_rect.y)
-    return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
 
 
 class DockWindow(Gtk.Window):
@@ -600,10 +586,9 @@ class DockWindow(Gtk.Window):
         if geometry is None:
             return None
         win_x, win_y = self.get_position()
-        x, y = hover_anchor_from_draw_rect(
+        x, y = geometry.anchor_point(
             win_x=win_x,
             win_y=win_y,
-            draw_rect=geometry.draw_rect,
             position=self.config.pos,
         )
         return x, y, self.config.pos.value
@@ -832,10 +817,9 @@ class DockWindow(Gtk.Window):
                 item_geometry = frame.geometry_for_item(item)
                 if item_geometry is not None:
                     win_x, win_y = self.get_position()
-                    anchor_x, anchor_y = hover_anchor_from_draw_rect(
+                    anchor_x, anchor_y = item_geometry.anchor_point(
                         win_x=win_x,
                         win_y=win_y,
-                        draw_rect=item_geometry.draw_rect,
                         position=self.config.pos,
                     )
                     icon_w = int(item_geometry.draw_rect.w)

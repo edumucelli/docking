@@ -203,7 +203,7 @@ class DockModel:
                 self.pinned_items.append(item)
 
     def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         if entry.kind == APPLET_KIND:
             did = applet_id_from(desktop_id=entry.target)
             cls = applets.load_applet_class(did)
@@ -285,7 +285,7 @@ class DockModel:
                 f"No class registered for applet: {did}"
             )
             return
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         try:
             applet = cls(icon_size=icon_size, config=self._config)
         except Exception:
@@ -316,7 +316,7 @@ class DockModel:
         n = max(nums, default=-1) + 1
         desktop_id = applet_desktop_id(applet_id=_separator_meta.id, instance=n)
 
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         try:
             applet = cls(icon_size=icon_size, config=self._config)
         except Exception:
@@ -461,7 +461,7 @@ class DockModel:
                     new_transient.append(existing)
                 else:
                     resolved = self._launcher.resolve(desktop_id=desktop_id)
-                    icon_size = int(self._config.icon_size * self._config.zoom_percent)
+                    icon_size = self._config.scaled_icon_size
                     icon = self._launcher.load_icon(
                         icon_name=(
                             resolved.icon_name

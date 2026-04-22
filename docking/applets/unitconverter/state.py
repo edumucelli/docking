@@ -161,7 +161,7 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
         for entry in data:
             code = entry.get("quote", "")
             rate = entry.get("rate")
-            if code and isinstance(rate, (int, float)) and rate > 0:
+            if code and isinstance(rate, int | float) and rate > 0:
                 rates[code] = float(rate)
     elif isinstance(data, dict) and "rates" in data:
         rates = data["rates"]
@@ -176,7 +176,7 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
     # factor = 1/1.08 so that converting 100 EUR->USD = 100 * 1.0 / (1/1.08) = 108.
     units = [Unit("Euro", "EUR", 1.0)]
     for code, rate in sorted(rates.items()):
-        if isinstance(rate, (int, float)) and rate > 0:
+        if isinstance(rate, int | float) and rate > 0:
             units.append(Unit(code, code, 1.0 / float(rate)))
     return tuple(units)
 

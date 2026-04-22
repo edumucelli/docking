@@ -276,6 +276,19 @@ class Rect(NamedTuple):
         return Rect(left, top, right - left, bottom - top)
 
 
+def anchor_from_draw_rect(
+    *, win_x: int, win_y: int, draw_rect: Rect, position: Position
+) -> tuple[int, int]:
+    """Translate an item draw rect into the preview/hover anchor point."""
+    if position == Position.BOTTOM:
+        return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
+    if position == Position.TOP:
+        return int(win_x + draw_rect.x), int(win_y + draw_rect.y + draw_rect.h)
+    if position == Position.LEFT:
+        return int(win_x + draw_rect.x + draw_rect.w), int(win_y + draw_rect.y)
+    return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
+
+
 @dataclass(frozen=True)
 class ItemGeometry:
     """Geometry for a single item in the current dock frame."""
@@ -290,6 +303,17 @@ class ItemGeometry:
     anchor_y: float
     scaled_size: float
     main_pos: float
+
+    def anchor_point(
+        self, *, win_x: int, win_y: int, position: Position
+    ) -> tuple[int, int]:
+        """Absolute preview/hover anchor for this item."""
+        return anchor_from_draw_rect(
+            win_x=win_x,
+            win_y=win_y,
+            draw_rect=self.draw_rect,
+            position=position,
+        )
 
 
 @dataclass(frozen=True)
@@ -315,12 +339,8 @@ class DockGeometryFrame:
     shelf_as_bottom_y: float = 0.0
 
     def item_at_point(self, x: float, y: float) -> DockItem | None:
-        if not self.cursor_rect.contains(x=x, y=y):
-            return None
-        for item_geometry in self.item_geometries:
-            if item_geometry.hit_rect.contains(x=x, y=y):
-                return item_geometry.item
-        return None
+        index = self.item_index_at_point(x=x, y=y)
+        return self.item_geometries[index].item if index >= 0 else None
 
     def hover_item_at_point(self, x: float, y: float) -> DockItem | None:
         if not self.cursor_rect.contains(x=x, y=y):
