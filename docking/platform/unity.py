@@ -193,15 +193,25 @@ class UnityLauncherListener:
         app_uri, props = unpacked
         if not isinstance(app_uri, str) or not isinstance(props, dict):
             return None
+        normalized_props = {str(key): value for key, value in props.items()}
         return LauncherEntryState(
             sender_name=sender_name,
             app_uri=app_uri,
             desktop_id=parse_application_uri(app_uri),
-            badge_count=max(0, _as_int(props.get("count"), default=0)),
-            badge_visible=_as_bool(props.get("count-visible"), default=False),
-            progress=max(0.0, min(1.0, _as_float(props.get("progress"), default=0.0))),
-            progress_visible=_as_bool(props.get("progress-visible"), default=False),
-            urgent=_as_bool(props.get("urgent"), default=False),
+            badge_count=max(0, _as_int(normalized_props.get("count"), default=0)),
+            badge_visible=_as_bool(
+                normalized_props.get("count-visible"),
+                default=False,
+            ),
+            progress=max(
+                0.0,
+                min(1.0, _as_float(normalized_props.get("progress"), default=0.0)),
+            ),
+            progress_visible=_as_bool(
+                normalized_props.get("progress-visible"),
+                default=False,
+            ),
+            urgent=_as_bool(normalized_props.get("urgent"), default=False),
         )
 
     def _perform_update(self, *, sender_name: str) -> None:
@@ -310,9 +320,11 @@ class UnityLauncherListener:
             not isinstance(unpacked, tuple)
             or len(unpacked) != 3
             or not isinstance(unpacked[0], str)
+            or not isinstance(unpacked[2], str)
         ):
             return
-        name, _before, after = unpacked
+        name = unpacked[0]
+        after = unpacked[2]
         if after:
             return
         self._cancel_sender(sender_name=name)

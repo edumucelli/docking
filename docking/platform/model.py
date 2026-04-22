@@ -178,7 +178,11 @@ class LauncherEntryState:
 
     @property
     def shows_overlay(self) -> bool:
-        return self.progress_visible or (self.badge_visible and self.badge_count > 0)
+        return (
+            self.urgent
+            or self.progress_visible
+            or (self.badge_visible and self.badge_count > 0)
+        )
 
 
 class DockModel:
@@ -351,7 +355,11 @@ class DockModel:
             item.kind == APP_KIND
             and not item.is_pinned
             and not item.is_running
-            and (item.progress_visible or (item.badge_visible and item.badge_count > 0))
+            and (
+                item.launcher_entry_urgent
+                or item.progress_visible
+                or (item.badge_visible and item.badge_count > 0)
+            )
         )
 
     def _drop_transient(self, *, item: DockItem) -> None:

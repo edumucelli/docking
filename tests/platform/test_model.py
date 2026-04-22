@@ -652,6 +652,32 @@ class TestLauncherEntryState:
         assert items[0].is_running is False
         assert items[0].badge_count == 7
 
+    def test_apply_launcher_entry_creates_urgent_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            urgent=True,
+        )
+
+        applied = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        assert applied is True
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_running is False
+        assert items[0].is_urgent is True
+        assert items[0].launcher_entry_urgent is True
+
     def test_remove_launcher_entry_drops_launcher_only_transient(self):
         config = _make_config([])
         launcher = _make_launcher("mail.desktop")
@@ -699,6 +725,31 @@ class TestLauncherEntryState:
         assert items[0].desktop_id == "mail.desktop"
         assert items[0].badge_count == 3
         assert items[0].is_running is False
+
+    def test_update_running_preserves_urgent_only_launcher_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            urgent=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        model.update_running({})
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_running is False
+        assert items[0].is_urgent is True
 
     def test_unpin_with_launcher_overlay_becomes_transient(self):
         config = _make_config(["a.desktop"])
