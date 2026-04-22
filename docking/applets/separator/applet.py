@@ -152,7 +152,7 @@ class SeparatorApplet(Applet):
 
 def _normalized_gap(*, value: object) -> int:
     try:
-        if isinstance(value, (bool, int, float)):
+        if isinstance(value, bool | int | float):
             parsed = int(value)
         elif isinstance(value, str):
             parsed = int(value.strip())

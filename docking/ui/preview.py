@@ -264,7 +264,7 @@ def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
 
     if width <= 0 or height <= 0 or channels < 3 or rowstride <= 0:
         return False
-    if not isinstance(data, (bytes, bytearray, memoryview)):
+    if not isinstance(data, bytes | bytearray | memoryview):
         return False
 
     sample_x = max(1, min(CAPTURE_SAMPLE_GRID_MAX, width))

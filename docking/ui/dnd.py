@@ -636,7 +636,7 @@ class DnDHandler:
     def _item_from_uri(self, uri: str) -> DockItem | None:
         """Build a pinned DockItem from an external URI drop."""
         desktop_id = self._uri_to_desktop_id(uri)
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         if desktop_id:
             resolved = self._launcher.resolve(desktop_id)
             if resolved is None:

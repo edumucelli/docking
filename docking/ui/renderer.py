@@ -176,7 +176,6 @@ if TYPE_CHECKING:
     from docking.core.layout import LayoutItem
     from docking.core.theme import Theme
     from docking.platform.model import DockModel
-    from docking.ui.autohide import HideState
 
 
 SHELF_SMOOTH_FACTOR = 0.3

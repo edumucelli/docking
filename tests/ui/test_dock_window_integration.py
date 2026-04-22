@@ -354,7 +354,8 @@ class TestButtonReleaseFlow:
         )
         stub, _ = _make_stub(item=item)
         stub._test_geometry_frame.geometry_for_item.return_value = SimpleNamespace(
-            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48)
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48),
+            anchor_point=lambda *, win_x, win_y, position: (win_x + 4, win_y + 5),
         )
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0

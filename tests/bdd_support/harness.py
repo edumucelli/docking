@@ -100,6 +100,14 @@ def _dnd_frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
     )
 
 
+def _item_geometry(*, x: int, y: int, w: int = 48, h: int = 48) -> SimpleNamespace:
+    draw_rect = SimpleNamespace(x=x, y=y, w=w, h=h)
+    return SimpleNamespace(
+        draw_rect=draw_rect,
+        anchor_point=lambda *, win_x, win_y, position: (win_x + x, win_y + y),
+    )
+
+
 def _bind_dock_window_helpers(stub) -> SimpleNamespace:
     stub._geometry_signature = MethodType(
         dock_window_mod.DockWindow._geometry_signature, stub
@@ -160,11 +168,7 @@ class DockHarness:
         self._folder_frame = SimpleNamespace(
             cursor_rect=Rect(0, 0, 100, 100),
             item_at_point=MagicMock(return_value=None),
-            geometry_for_item=MagicMock(
-                return_value=SimpleNamespace(
-                    draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48)
-                )
-            ),
+            geometry_for_item=MagicMock(return_value=_item_geometry(x=4, y=5)),
         )
         self._folder_stub = _bind_dock_window_helpers(
             SimpleNamespace(
@@ -436,6 +440,7 @@ class DockHarness:
             pos=Position.BOTTOM,
             icon_size=48,
             zoom_percent=2.0,
+            scaled_icon_size=96,
             pinned=[],
             save=MagicMock(),
         )
@@ -515,11 +520,7 @@ class DockHarness:
         }
         self._hover_frame = SimpleNamespace(
             hover_item_at_point=MagicMock(return_value=None),
-            geometry_for_item=MagicMock(
-                return_value=SimpleNamespace(
-                    draw_rect=SimpleNamespace(x=15, y=4, w=48, h=48)
-                )
-            ),
+            geometry_for_item=MagicMock(return_value=_item_geometry(x=15, y=4)),
             cursor_rect=SimpleNamespace(contains=lambda *_args, **_kwargs: True),
         )
         self._hover_tooltip = SimpleNamespace(

@@ -320,7 +320,7 @@ class BluezBackend:
                     "(adapter still discovering)."
                 )
                 return False
-            for _ in range(POWER_OFF_RETRY_COUNT):
+            for _attempt in range(POWER_OFF_RETRY_COUNT):
                 if self._set_property(
                     path=adapter_path,
                     interface=ADAPTER_IFACE,
@@ -339,7 +339,7 @@ class BluezBackend:
                 target_discovering=False,
                 timeout_s=DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S,
             )
-            for _ in range(POWER_OFF_FINAL_RETRY_COUNT):
+            for _attempt in range(POWER_OFF_FINAL_RETRY_COUNT):
                 if self._set_property(
                     path=adapter_path,
                     interface=ADAPTER_IFACE,
