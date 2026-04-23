@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-21 08:46+0200\n"
+"POT-Creation-Date: 2026-04-23 23:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1220,7 +1220,7 @@ msgstr "Workspaces"
 msgid "Website"
 msgstr "Iwebhusayithi"
 
-#: docking/ui/dock_window.py:390
+#: docking/ui/dock_window.py:377
 msgid "Docking"
 msgstr "Docking"
 
@@ -1244,95 +1244,95 @@ msgstr "Kwadalwa"
 msgid "Modified"
 msgstr "Kushintshiwe"
 
-#: docking/ui/menu.py:722
+#: docking/ui/menu.py:724
 msgid "Folder not found"
 msgstr "Ifolda ayitholakali"
 
-#: docking/ui/menu.py:756
+#: docking/ui/menu.py:758
 msgid "Folder is empty"
 msgstr "Ifolda ayinalutho"
 
-#: docking/ui/menu.py:1184
+#: docking/ui/menu.py:1186
 #, python-format
 msgid "Open in %s"
 msgstr "Vula ku-%s"
 
-#: docking/ui/menu.py:1186
+#: docking/ui/menu.py:1188
 #, python-format
 msgid "%d More in %s"
 msgstr "Okwengeziwe okungu-%d ku-%s"
 
-#: docking/ui/menu.py:1189
+#: docking/ui/menu.py:1191
 msgid "Open Folder"
 msgstr "Vula Ifolda"
 
-#: docking/ui/menu.py:1191
+#: docking/ui/menu.py:1193
 #, python-format
 msgid "%d More in Folder"
 msgstr "Okwengeziwe okungu-%d kufolda"
 
-#: docking/ui/menu.py:1317 docking/ui/menu.py:1337 docking/ui/menu.py:1353
-#: docking/ui/menu.py:1406
+#: docking/ui/menu.py:1319 docking/ui/menu.py:1339 docking/ui/menu.py:1355
+#: docking/ui/menu.py:1408
 msgid "Remove from Dock"
 msgstr "Remove from Dock"
 
-#: docking/ui/menu.py:1330
+#: docking/ui/menu.py:1332
 msgid "Open"
 msgstr "Vula"
 
-#: docking/ui/menu.py:1360
+#: docking/ui/menu.py:1362
 msgid "Keep in Dock"
 msgstr "Keep in Dock"
 
-#: docking/ui/menu.py:1369
+#: docking/ui/menu.py:1371
 msgid "Close All"
 msgstr "Close All"
 
-#: docking/ui/menu.py:1369
+#: docking/ui/menu.py:1371
 msgid "Close"
 msgstr "Close"
 
-#: docking/ui/menu.py:1386
+#: docking/ui/menu.py:1388
 msgid "Sort By"
 msgstr "Hlelela Nge"
 
-#: docking/ui/menu.py:1394
+#: docking/ui/menu.py:1396
 msgid "Show Hidden Files"
 msgstr "Bonisa Amafayela Afihliwe"
 
-#: docking/ui/menu.py:1399
+#: docking/ui/menu.py:1401
 msgid "Large Icons"
 msgstr "Ama-ayikhoni Amakhulu"
 
-#: docking/ui/menu.py:1436
+#: docking/ui/menu.py:1438
 msgid "Add Applet"
 msgstr "Applets"
 
-#: docking/ui/menu.py:1474
+#: docking/ui/menu.py:1476
 msgid "No Applets Available"
 msgstr "Power Profiles unavailable"
 
-#: docking/ui/menu.py:1481
+#: docking/ui/menu.py:1483
 msgid "Add Separator"
 msgstr "Add Separator"
 
-#: docking/ui/menu.py:1491 docking/ui/settings.py:161
+#: docking/ui/menu.py:1493 docking/ui/settings.py:162
 msgid "Preferences"
 msgstr "Izinketho"
 
-#: docking/ui/menu.py:1496
+#: docking/ui/menu.py:1498
 msgid "About"
 msgstr "About"
 
-#: docking/ui/menu.py:1501
+#: docking/ui/menu.py:1503
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:1508
+#: docking/ui/menu.py:1510
 msgid "Quit"
 msgstr "Quit"
 
-#: docking/ui/menu.py:1545
+#: docking/ui/menu.py:1547
 msgid "Window"
 msgstr "Window"
 
@@ -1341,177 +1341,193 @@ msgstr "Window"
 msgid "Display {display}: {width}x{height}"
 msgstr "Isikrini {display}: {width}x{height}"
 
-#: docking/ui/settings.py:185
+#: docking/ui/settings.py:186
 msgid "Appearance"
 msgstr "Ukubukeka"
 
-#: docking/ui/settings.py:186 docking/ui/settings.py:352
+#: docking/ui/settings.py:187 docking/ui/settings.py:361
 msgid "Behavior"
 msgstr "Ukuziphatha"
 
-#: docking/ui/settings.py:187
+#: docking/ui/settings.py:188
 msgid "Applets"
 msgstr "Ama-Applet"
 
-#: docking/ui/settings.py:205
+#: docking/ui/settings.py:206
 msgid "Don't Hide"
 msgstr "Ungafihli"
 
-#: docking/ui/settings.py:206
+#: docking/ui/settings.py:207
 msgid "Auto-hide"
 msgstr "Auto-hide"
 
-#: docking/ui/settings.py:207
+#: docking/ui/settings.py:208
 msgid "Intelligent"
 msgstr "Ohlakaniphile"
 
-#: docking/ui/settings.py:208
+#: docking/ui/settings.py:209
 msgid "Dodge Active Window"
 msgstr "Gwema Iwindi Elisebenzayo"
 
-#: docking/ui/settings.py:209
+#: docking/ui/settings.py:210
 msgid "Dodge All Windows"
 msgstr "Gwema Wonke Amawindi"
 
-#: docking/ui/settings.py:210
+#: docking/ui/settings.py:211
 msgid "Dodge Maximized"
 msgstr "Gwema Elikhulisiwe"
 
-#: docking/ui/settings.py:227
+#: docking/ui/settings.py:228
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:228
+#: docking/ui/settings.py:229
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:229
+#: docking/ui/settings.py:230
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:236
+#: docking/ui/settings.py:237
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:237
+#: docking/ui/settings.py:238
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:238
+#: docking/ui/settings.py:239
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:296
+#: docking/ui/settings.py:246
+msgid "Click"
+msgstr "Click"
+
+#: docking/ui/settings.py:247
+msgid "Hover"
+msgstr "Hover"
+
+#: docking/ui/settings.py:305
 msgid "Look"
 msgstr "Ukubukeka"
 
-#: docking/ui/settings.py:298
+#: docking/ui/settings.py:307
 msgid "Theme"
 msgstr "Indikimba"
 
-#: docking/ui/settings.py:299
+#: docking/ui/settings.py:308
 msgid "Icon Size"
 msgstr "Icon Size"
 
-#: docking/ui/settings.py:300
+#: docking/ui/settings.py:309
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:301
+#: docking/ui/settings.py:310
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:302
+#: docking/ui/settings.py:311
 msgid "Zoom Percent"
 msgstr "Iphesenti Yokusondeza"
 
-#: docking/ui/settings.py:303
+#: docking/ui/settings.py:312
 msgid "Show Tooltips"
 msgstr "Bonisa Izincomo"
 
-#: docking/ui/settings.py:304
+#: docking/ui/settings.py:313
 msgid "Window Previews"
 msgstr "Window Previews"
 
-#: docking/ui/settings.py:309
+#: docking/ui/settings.py:318
 msgid "Placement"
 msgstr "Indawo"
 
-#: docking/ui/settings.py:311
+#: docking/ui/settings.py:320
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/settings.py:312
+#: docking/ui/settings.py:321
 msgid "Follow Cursor"
 msgstr "Follow Cursor"
 
-#: docking/ui/settings.py:313
+#: docking/ui/settings.py:322
 msgid "Current Workspace Only"
 msgstr "Current Workspace Only"
 
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:327
 msgid "Layout"
 msgstr "Isakhiwo"
 
-#: docking/ui/settings.py:320
+#: docking/ui/settings.py:329
 msgid "Lock Positions"
 msgstr "Khiya Izikhundla"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:330
 msgid "Anchor Applets to End"
 msgstr "Anchor Applets to End"
 
-#: docking/ui/settings.py:322
+#: docking/ui/settings.py:331
 msgid "Anchor Files to End"
 msgstr "Bopha Amafayela Ekugcineni"
 
-#: docking/ui/settings.py:344
+#: docking/ui/settings.py:353
 msgid "Mouse"
 msgstr "Mouse"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:355
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:347
+#: docking/ui/settings.py:356
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:354
+#: docking/ui/settings.py:363
 msgid "Hide Mode"
 msgstr "Imodi Yokufihla"
 
-#: docking/ui/settings.py:355
+#: docking/ui/settings.py:364
 msgid "Hide Delay"
 msgstr "Ukubambezeleka Kokufihla"
 
-#: docking/ui/settings.py:356
+#: docking/ui/settings.py:365
 msgid "Unhide Delay"
 msgstr "Ukubambezeleka Kokubonisa"
 
-#: docking/ui/settings.py:771
+#: docking/ui/settings.py:370
+msgid "Folder Stacks"
+msgstr "Folder Stacks"
+
+#: docking/ui/settings.py:372
+msgid "Open On"
+msgstr "Open On"
+
+#: docking/ui/settings.py:791
 msgid "The dock is always visible and reserves screen space."
 msgstr "The dock is always visible and reserves screen space."
 
-#: docking/ui/settings.py:772
+#: docking/ui/settings.py:792
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:774
+#: docking/ui/settings.py:794
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:776
+#: docking/ui/settings.py:796
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:778
+#: docking/ui/settings.py:798
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:781
+#: docking/ui/settings.py:801
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

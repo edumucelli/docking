@@ -455,15 +455,17 @@ class MenuHandler:
         anchor_y: int,
         icon_w: int,
         position: Any,
+        toggle_if_same_item: bool = True,
     ) -> None:
-        """Show or toggle the left-click folder stack popup for a pinned folder."""
+        """Show a folder stack popup, or optionally toggle it closed."""
         if (
             self._folder_stack_window is not None
             and self._folder_stack_window.get_visible()
             and self._folder_stack_item is not None
             and self._folder_stack_item.desktop_id == item.desktop_id
         ):
-            self._close_folder_stack()
+            if toggle_if_same_item:
+                self._close_folder_stack()
             return
 
         self._close_folder_stack()

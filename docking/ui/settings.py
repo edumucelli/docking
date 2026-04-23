@@ -49,6 +49,7 @@ from docking.core.config import (
     MIN_ICON_SIZE,
     MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
+    FolderStackUnfold,
     LeftClickAction,
     MiddleClickAction,
 )
@@ -128,6 +129,7 @@ class SettingsWindowController:
         self._hide_mode_combo: Any = None
         self._left_click_combo: Any = None
         self._middle_click_combo: Any = None
+        self._folder_stack_unfold_combo: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -238,6 +240,14 @@ class SettingsWindowController:
             (MiddleClickAction.CLOSE_FOCUSED.value, _("Close Focused Window")),
         ]:
             self._middle_click_combo.append(action_value, action_label)
+
+        self._folder_stack_unfold_combo = Gtk.ComboBoxText()
+        self._folder_stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for mode_value, mode_label in [
+            (FolderStackUnfold.CLICK.value, _("Click")),
+            (FolderStackUnfold.HOVER.value, _("Hover")),
+        ]:
+            self._folder_stack_unfold_combo.append(mode_value, mode_label)
 
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
@@ -356,6 +366,13 @@ class SettingsWindowController:
                 (_("Unhide Delay"), self._unhide_delay_spin),
             ],
         )
+        self._append_section(
+            outer=outer,
+            title=_("Folder Stacks"),
+            rows=[
+                (_("Open On"), self._folder_stack_unfold_combo),
+            ],
+        )
 
         return outer
 
@@ -453,6 +470,10 @@ class SettingsWindowController:
             self._register_choice_binding(
                 config_attr="middle_click_action",
                 widget=self._middle_click_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="folder_stack_unfold",
+                widget=self._folder_stack_unfold_combo,
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",

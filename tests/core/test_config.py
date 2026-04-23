@@ -31,6 +31,7 @@ class TestConfigDefaults:
         assert c.tooltips_enabled is True
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
+        assert c.folder_stack_unfold == "click"
         assert c.theme == "default"
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
@@ -209,6 +210,7 @@ class TestConfigLoad:
                     "zoom_enabled": 0,
                     "left_click_action": "cycle",
                     "middle_click_action": "minimize",
+                    "folder_stack_unfold": "hover",
                 }
             )
         )
@@ -221,6 +223,7 @@ class TestConfigLoad:
         assert config.zoom_enabled is False
         assert config.left_click_action == "cycle"
         assert config.middle_click_action == "minimize"
+        assert config.folder_stack_unfold == "hover"
 
     def test_load_clamps_transparency_to_minimum(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -237,6 +240,7 @@ class TestConfigLoad:
                 {
                     "left_click_action": "explode",
                     "middle_click_action": "quit-all",
+                    "folder_stack_unfold": "peek",
                 }
             )
         )
@@ -245,6 +249,7 @@ class TestConfigLoad:
 
         assert config.left_click_action == "toggle"
         assert config.middle_click_action == "new-window"
+        assert config.folder_stack_unfold == "click"
 
     def test_load_ignores_legacy_autohide_key(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -402,6 +407,15 @@ class TestConfigSave:
         saved = json.loads(path.read_text())
         assert saved["left_click_action"] == "cycle"
         assert saved["middle_click_action"] == "close-focused"
+
+    def test_save_persists_folder_stack_unfold(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(folder_stack_unfold="hover")
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["folder_stack_unfold"] == "hover"
 
     def test_save_persists_transparency(self, tmp_path):
         path = tmp_path / "dock.json"

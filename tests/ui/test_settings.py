@@ -461,6 +461,7 @@ def _config():
         tooltips_enabled=True,
         left_click_action="toggle",
         middle_click_action="new-window",
+        folder_stack_unfold="click",
         lock_icons=False,
         current_workspace_only=False,
         active_display=False,
@@ -530,6 +531,7 @@ class TestSettingsWindowController:
         assert behavior_labels == [
             "<b>Mouse</b>",
             "<b>Behavior</b>",
+            "<b>Folder Stacks</b>",
         ]
 
     def test_numeric_spin_buttons_use_simple_im_context(self, monkeypatch):
@@ -602,9 +604,11 @@ class TestSettingsWindowController:
         assert "Hide Mode" not in appearance_rows
         assert "Hide Delay" not in appearance_rows
         assert "Unhide Delay" not in appearance_rows
+        assert "Open On" not in appearance_rows
         assert "Hide Mode" in behavior_rows
         assert "Hide Delay" in behavior_rows
         assert "Unhide Delay" in behavior_rows
+        assert "Open On" in behavior_rows
 
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -691,6 +695,29 @@ class TestSettingsWindowController:
         assert config.left_click_action == "most-recent"
         assert config.middle_click_action == "close-focused"
         assert config.save.call_count == 2
+        runtime.assert_not_called()
+
+    def test_folder_stack_unfold_binding_updates_config(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._folder_stack_unfold_combo.set_active_id("hover")
+        controller._folder_stack_unfold_combo.emit_changed()
+
+        assert config.folder_stack_unfold == "hover"
+        config.save.assert_called_once()
         runtime.assert_not_called()
 
     def test_hide_mode_change_updates_runtime(self, monkeypatch):
