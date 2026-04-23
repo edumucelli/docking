@@ -49,6 +49,7 @@ from docking.core.config import (
     MIN_ICON_SIZE,
     MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
+    FolderStackUnfold,
     LeftClickAction,
     MiddleClickAction,
 )
@@ -243,8 +244,8 @@ class SettingsWindowController:
         self._folder_stack_unfold_combo = Gtk.ComboBoxText()
         self._folder_stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
         for mode_value, mode_label in [
-            ("click", _("Click")),
-            ("hover", _("Hover")),
+            (FolderStackUnfold.CLICK.value, _("Click")),
+            (FolderStackUnfold.HOVER.value, _("Hover")),
         ]:
             self._folder_stack_unfold_combo.append(mode_value, mode_label)
 

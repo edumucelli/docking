@@ -186,7 +186,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkX11, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
-from docking.core.config import LeftClickAction, MiddleClickAction
+from docking.core.config import FolderStackUnfold, LeftClickAction, MiddleClickAction
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
 from docking.i18n import _
@@ -733,7 +733,7 @@ class DockWindow(Gtk.Window):
             )
             self.hover.update(cursor_main, frame=frame)
             if (
-                self.config.folder_stack_unfold == "hover"
+                self.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
                 and hovered_item is not None
                 and hovered_item.kind == FOLDER_KIND
             ):
@@ -864,7 +864,9 @@ class DockWindow(Gtk.Window):
                     frame=frame,
                     fallback_x=event.x,
                     fallback_y=event.y,
-                    toggle_if_same_item=(self.config.folder_stack_unfold != "hover"),
+                    toggle_if_same_item=(
+                        self.config.folder_stack_unfold != FolderStackUnfold.HOVER.value
+                    ),
                 )
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
