@@ -130,6 +130,9 @@ def _bind_dock_window_helpers(stub) -> SimpleNamespace:
     stub._invalidate_current_geometry_frame = MethodType(
         dock_window_mod.DockWindow._invalidate_current_geometry_frame, stub
     )
+    stub._show_folder_stack_for_item = MethodType(
+        dock_window_mod.DockWindow._show_folder_stack_for_item, stub
+    )
     return stub
 
 
@@ -175,7 +178,10 @@ class DockHarness:
                 cursor_x=12.0,
                 cursor_y=6.0,
                 dock_hovered=True,
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(
+                    pos=Position.BOTTOM,
+                    folder_stack_unfold="click",
+                ),
                 _test_geometry_frame=self._folder_frame,
                 update_input_region=MagicMock(),
                 drawing_area=MagicMock(),
