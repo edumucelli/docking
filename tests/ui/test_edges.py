@@ -95,6 +95,7 @@ class _Harness:
             zoom_percent=1.5,
             zoom_enabled=True,
             previews_enabled=False,
+            folder_stack_unfold="click",
         )
         self.theme = SimpleNamespace(
             item_padding=8,

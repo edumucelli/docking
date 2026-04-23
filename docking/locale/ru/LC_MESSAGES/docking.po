@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-21 08:46+0200\n"
+"POT-Creation-Date: 2026-04-23 23:07+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -1222,7 +1222,7 @@ msgstr "Рабочие области"
 msgid "Website"
 msgstr "Сайт"
 
-#: docking/ui/dock_window.py:390
+#: docking/ui/dock_window.py:377
 msgid "Docking"
 msgstr "Docking"
 
@@ -1246,95 +1246,95 @@ msgstr "Создан"
 msgid "Modified"
 msgstr "Изменён"
 
-#: docking/ui/menu.py:722
+#: docking/ui/menu.py:724
 msgid "Folder not found"
 msgstr "Папка не найдена"
 
-#: docking/ui/menu.py:756
+#: docking/ui/menu.py:758
 msgid "Folder is empty"
 msgstr "Папка пуста"
 
-#: docking/ui/menu.py:1184
+#: docking/ui/menu.py:1186
 #, python-format
 msgid "Open in %s"
 msgstr "Открыть в %s"
 
-#: docking/ui/menu.py:1186
+#: docking/ui/menu.py:1188
 #, python-format
 msgid "%d More in %s"
 msgstr "Ещё %d в %s"
 
-#: docking/ui/menu.py:1189
+#: docking/ui/menu.py:1191
 msgid "Open Folder"
 msgstr "Открыть папку"
 
-#: docking/ui/menu.py:1191
+#: docking/ui/menu.py:1193
 #, python-format
 msgid "%d More in Folder"
 msgstr "Ещё %d в папке"
 
-#: docking/ui/menu.py:1317 docking/ui/menu.py:1337 docking/ui/menu.py:1353
-#: docking/ui/menu.py:1406
+#: docking/ui/menu.py:1319 docking/ui/menu.py:1339 docking/ui/menu.py:1355
+#: docking/ui/menu.py:1408
 msgid "Remove from Dock"
 msgstr "Убрать из дока"
 
-#: docking/ui/menu.py:1330
+#: docking/ui/menu.py:1332
 msgid "Open"
 msgstr "Открыть"
 
-#: docking/ui/menu.py:1360
+#: docking/ui/menu.py:1362
 msgid "Keep in Dock"
 msgstr "Оставить в доке"
 
-#: docking/ui/menu.py:1369
+#: docking/ui/menu.py:1371
 msgid "Close All"
 msgstr "Закрыть все"
 
-#: docking/ui/menu.py:1369
+#: docking/ui/menu.py:1371
 msgid "Close"
 msgstr "Закрыть"
 
-#: docking/ui/menu.py:1386
+#: docking/ui/menu.py:1388
 msgid "Sort By"
 msgstr "Сортировка"
 
-#: docking/ui/menu.py:1394
+#: docking/ui/menu.py:1396
 msgid "Show Hidden Files"
 msgstr "Показать скрытые файлы"
 
-#: docking/ui/menu.py:1399
+#: docking/ui/menu.py:1401
 msgid "Large Icons"
 msgstr "Крупные значки"
 
-#: docking/ui/menu.py:1436
+#: docking/ui/menu.py:1438
 msgid "Add Applet"
 msgstr "Апплеты"
 
-#: docking/ui/menu.py:1474
+#: docking/ui/menu.py:1476
 msgid "No Applets Available"
 msgstr "Профили питания недоступны"
 
-#: docking/ui/menu.py:1481
+#: docking/ui/menu.py:1483
 msgid "Add Separator"
 msgstr "Добавить разделитель"
 
-#: docking/ui/menu.py:1491 docking/ui/settings.py:161
+#: docking/ui/menu.py:1493 docking/ui/settings.py:162
 msgid "Preferences"
 msgstr "Настройки"
 
-#: docking/ui/menu.py:1496
+#: docking/ui/menu.py:1498
 msgid "About"
 msgstr "О программе"
 
-#: docking/ui/menu.py:1501
+#: docking/ui/menu.py:1503
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:1508
+#: docking/ui/menu.py:1510
 msgid "Quit"
 msgstr "Выход"
 
-#: docking/ui/menu.py:1545
+#: docking/ui/menu.py:1547
 msgid "Window"
 msgstr "Окно"
 
@@ -1343,178 +1343,194 @@ msgstr "Окно"
 msgid "Display {display}: {width}x{height}"
 msgstr "Дисплей {display}: {width}x{height}"
 
-#: docking/ui/settings.py:185
+#: docking/ui/settings.py:186
 msgid "Appearance"
 msgstr "Внешний вид"
 
-#: docking/ui/settings.py:186 docking/ui/settings.py:352
+#: docking/ui/settings.py:187 docking/ui/settings.py:361
 msgid "Behavior"
 msgstr "Поведение"
 
-#: docking/ui/settings.py:187
+#: docking/ui/settings.py:188
 msgid "Applets"
 msgstr "Апплеты"
 
-#: docking/ui/settings.py:205
+#: docking/ui/settings.py:206
 msgid "Don't Hide"
 msgstr "Не скрывать"
 
-#: docking/ui/settings.py:206
+#: docking/ui/settings.py:207
 msgid "Auto-hide"
 msgstr "Автоскрытие"
 
-#: docking/ui/settings.py:207
+#: docking/ui/settings.py:208
 msgid "Intelligent"
 msgstr "Интеллектуальный"
 
-#: docking/ui/settings.py:208
+#: docking/ui/settings.py:209
 msgid "Dodge Active Window"
 msgstr "Избегать активного окна"
 
-#: docking/ui/settings.py:209
+#: docking/ui/settings.py:210
 msgid "Dodge All Windows"
 msgstr "Избегать всех окон"
 
-#: docking/ui/settings.py:210
+#: docking/ui/settings.py:211
 msgid "Dodge Maximized"
 msgstr "Избегать развёрнутых"
 
-#: docking/ui/settings.py:227
+#: docking/ui/settings.py:228
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:228
+#: docking/ui/settings.py:229
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:229
+#: docking/ui/settings.py:230
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:236
+#: docking/ui/settings.py:237
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:237
+#: docking/ui/settings.py:238
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:238
+#: docking/ui/settings.py:239
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:296
+#: docking/ui/settings.py:246
+msgid "Click"
+msgstr "Click"
+
+#: docking/ui/settings.py:247
+msgid "Hover"
+msgstr "Hover"
+
+#: docking/ui/settings.py:305
 msgid "Look"
 msgstr "Вид"
 
-#: docking/ui/settings.py:298
+#: docking/ui/settings.py:307
 msgid "Theme"
 msgstr "Тема"
 
-#: docking/ui/settings.py:299
+#: docking/ui/settings.py:308
 msgid "Icon Size"
 msgstr "Размер значков"
 
-#: docking/ui/settings.py:300
+#: docking/ui/settings.py:309
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:301
+#: docking/ui/settings.py:310
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:302
+#: docking/ui/settings.py:311
 msgid "Zoom Percent"
 msgstr "Процент масштаба"
 
-#: docking/ui/settings.py:303
+#: docking/ui/settings.py:312
 msgid "Show Tooltips"
 msgstr "Показать подсказки"
 
-#: docking/ui/settings.py:304
+#: docking/ui/settings.py:313
 msgid "Window Previews"
 msgstr "Предпросмотр окон"
 
-#: docking/ui/settings.py:309
+#: docking/ui/settings.py:318
 msgid "Placement"
 msgstr "Размещение"
 
-#: docking/ui/settings.py:311
+#: docking/ui/settings.py:320
 msgid "Position"
 msgstr "Расположение"
 
-#: docking/ui/settings.py:312
+#: docking/ui/settings.py:321
 msgid "Follow Cursor"
 msgstr "Следовать за курсором"
 
-#: docking/ui/settings.py:313
+#: docking/ui/settings.py:322
 msgid "Current Workspace Only"
 msgstr "Только текущее рабочее пространство"
 
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:327
 msgid "Layout"
 msgstr "Раскладка"
 
-#: docking/ui/settings.py:320
+#: docking/ui/settings.py:329
 msgid "Lock Positions"
 msgstr "Заблокировать позиции"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:330
 msgid "Anchor Applets to End"
 msgstr "Закреплять апплеты в конце"
 
-#: docking/ui/settings.py:322
+#: docking/ui/settings.py:331
 msgid "Anchor Files to End"
 msgstr "Закрепить файлы в конце"
 
-#: docking/ui/settings.py:344
+#: docking/ui/settings.py:353
 msgid "Mouse"
 msgstr "Mouse"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:355
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:347
+#: docking/ui/settings.py:356
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:354
+#: docking/ui/settings.py:363
 msgid "Hide Mode"
 msgstr "Режим скрытия"
 
-#: docking/ui/settings.py:355
+#: docking/ui/settings.py:364
 msgid "Hide Delay"
 msgstr "Задержка скрытия"
 
-#: docking/ui/settings.py:356
+#: docking/ui/settings.py:365
 msgid "Unhide Delay"
 msgstr "Задержка появления"
 
-#: docking/ui/settings.py:771
+#: docking/ui/settings.py:370
+msgid "Folder Stacks"
+msgstr "Folder Stacks"
+
+#: docking/ui/settings.py:372
+msgid "Open On"
+msgstr "Open On"
+
+#: docking/ui/settings.py:791
 msgid "The dock is always visible and reserves screen space."
 msgstr "Док всегда виден и резервирует место на экране."
 
-#: docking/ui/settings.py:772
+#: docking/ui/settings.py:792
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Скрывается когда курсор покидает док."
 
-#: docking/ui/settings.py:774
+#: docking/ui/settings.py:794
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:776
+#: docking/ui/settings.py:796
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Скрывается когда активное окно перекрывает док."
 
-#: docking/ui/settings.py:778
+#: docking/ui/settings.py:798
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 "Скрывается когда любое окно текущего рабочего пространства перекрывает док."
 
-#: docking/ui/settings.py:781
+#: docking/ui/settings.py:801
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

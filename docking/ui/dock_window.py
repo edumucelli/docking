@@ -227,6 +227,7 @@ compute_input_rect = geometry.compute_input_rect
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.core.items import DockItem
     from docking.core.theme import Theme
     from docking.platform.dodge import WindowDodgeMonitor
     from docking.platform.launcher import Launcher
@@ -731,6 +732,18 @@ class DockWindow(Gtk.Window):
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
             self.hover.update(cursor_main, frame=frame)
+            if (
+                self.config.folder_stack_unfold == "hover"
+                and hovered_item is not None
+                and hovered_item.kind == FOLDER_KIND
+            ):
+                self._show_folder_stack_for_item(
+                    item=hovered_item,
+                    frame=frame,
+                    fallback_x=event.x,
+                    fallback_y=event.y,
+                    toggle_if_same_item=False,
+                )
         elif self.dock_hovered:
             self.interaction.on_effective_leave(widget)
         return False  # Propagate so GTK drag source can detect drag threshold
@@ -739,6 +752,38 @@ class DockWindow(Gtk.Window):
         """Close the folder stack if it currently belongs to the given item."""
         if self._menu.open_folder_stack_item_id() == desktop_id:
             self._menu.close_folder_stack()
+
+    def _show_folder_stack_for_item(
+        self,
+        *,
+        item: DockItem,
+        frame,
+        fallback_x: float,
+        fallback_y: float,
+        toggle_if_same_item: bool,
+    ) -> None:
+        item_geometry = frame.geometry_for_item(item)
+        if item_geometry is not None:
+            win_x, win_y = self.get_position()
+            anchor_x, anchor_y = item_geometry.anchor_point(
+                win_x=win_x,
+                win_y=win_y,
+                position=self.config.pos,
+            )
+            icon_w = int(item_geometry.draw_rect.w)
+        else:
+            win_x, win_y = self.get_position()
+            anchor_x = win_x + int(fallback_x)
+            anchor_y = win_y + int(fallback_y)
+            icon_w = int(self.config.icon_size)
+        self._menu.show_folder_stack(
+            item=item,
+            anchor_x=anchor_x,
+            anchor_y=anchor_y,
+            icon_w=icon_w,
+            position=self.config.pos,
+            toggle_if_same_item=toggle_if_same_item,
+        )
 
     def _on_button_press(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
@@ -814,26 +859,12 @@ class DockWindow(Gtk.Window):
                     return True
 
             if item.kind == FOLDER_KIND:
-                item_geometry = frame.geometry_for_item(item)
-                if item_geometry is not None:
-                    win_x, win_y = self.get_position()
-                    anchor_x, anchor_y = item_geometry.anchor_point(
-                        win_x=win_x,
-                        win_y=win_y,
-                        position=self.config.pos,
-                    )
-                    icon_w = int(item_geometry.draw_rect.w)
-                else:
-                    win_x, win_y = self.get_position()
-                    anchor_x = win_x + int(event.x)
-                    anchor_y = win_y + int(event.y)
-                    icon_w = int(self.config.icon_size)
-                self._menu.show_folder_stack(
+                self._show_folder_stack_for_item(
                     item=item,
-                    anchor_x=anchor_x,
-                    anchor_y=anchor_y,
-                    icon_w=icon_w,
-                    position=self.config.pos,
+                    frame=frame,
+                    fallback_x=event.x,
+                    fallback_y=event.y,
+                    toggle_if_same_item=(self.config.folder_stack_unfold != "hover"),
                 )
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True

@@ -70,6 +70,9 @@ def _bind_geometry_signature(stub):
     stub._invalidate_current_geometry_frame = MethodType(
         dock_window_mod.DockWindow._invalidate_current_geometry_frame, stub
     )
+    stub._show_folder_stack_for_item = MethodType(
+        dock_window_mod.DockWindow._show_folder_stack_for_item, stub
+    )
     return stub
 
 
@@ -85,6 +88,7 @@ def _make_stub(item: DockItem | None = None):
         pos=Position.BOTTOM,
         left_click_action="toggle",
         middle_click_action="new-window",
+        folder_stack_unfold="click",
         icon_size=48,
     )
     stub.model = MagicMock()
@@ -374,6 +378,26 @@ class TestButtonReleaseFlow:
         assert kwargs["anchor_y"] == 205
         assert kwargs["icon_w"] == 48
         assert kwargs["position"] == Position.BOTTOM
+        assert kwargs["toggle_if_same_item"] is True
+
+    def test_hover_folder_item_opens_folder_stack_when_enabled(self):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        stub, _ = _make_stub(item=item)
+        stub.config.folder_stack_unfold = "hover"
+        widget = MagicMock()
+        event = SimpleNamespace(x=12.0, y=9.0)
+
+        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+
+        assert handled is False
+        stub._menu.show_folder_stack.assert_called_once()
+        kwargs = stub._menu.show_folder_stack.call_args.kwargs
+        assert kwargs["item"] is item
+        assert kwargs["toggle_if_same_item"] is False
 
     def test_drag_delta_above_threshold_is_ignored(self):
         # Given
@@ -990,7 +1014,7 @@ class TestDockWindowDrawAndHelpers:
                 ),
                 hover=SimpleNamespace(hovered_item=None),
                 model=MagicMock(),
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
@@ -1048,7 +1072,7 @@ class TestDockWindowDrawAndHelpers:
                 ),
                 hover=SimpleNamespace(hovered_item=None),
                 model=MagicMock(),
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 update_input_region=MagicMock(),
@@ -1148,7 +1172,7 @@ class TestDockWindowDrawAndHelpers:
                 ),
                 hover=SimpleNamespace(hovered_item=None),
                 model=MagicMock(),
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
                 theme=SimpleNamespace(urgent_glow_time_ms=500),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(
@@ -1191,7 +1215,7 @@ class TestDockWindowDrawAndHelpers:
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
                 model=MagicMock(),
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(
@@ -1237,7 +1261,7 @@ class TestDockWindowDrawAndHelpers:
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
                 model=MagicMock(),
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=frame,
@@ -1270,7 +1294,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_y=-1.0,
                 get_size=MagicMock(return_value=(1920, 122)),
                 dock_hovered=False,
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
                 _test_geometry_frame=SimpleNamespace(
                     cursor_rect=Rect(0, 0, 100, 100),
                     item_at_point=MagicMock(return_value=None),
@@ -1324,7 +1348,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_y=-1.0,
                 get_size=MagicMock(return_value=(1920, 122)),
                 dock_hovered=True,
-                config=SimpleNamespace(pos=Position.BOTTOM),
+                config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
                 _test_geometry_frame=frame,
                 update_input_region=MagicMock(),
                 hover=SimpleNamespace(update=MagicMock()),
@@ -1404,7 +1428,7 @@ class TestBlurHintSync:
             get_window=lambda: window,
             autohide=_autohide(enabled=False),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
-            config=SimpleNamespace(pos=Position.BOTTOM),
+            config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
             _cache=_window_cache(),
         )
 
@@ -1431,7 +1455,7 @@ class TestBlurHintSync:
             get_window=lambda: window,
             autohide=_autohide(enabled=True, state=HideState.HIDDEN),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
-            config=SimpleNamespace(pos=Position.BOTTOM),
+            config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
             _cache=_window_cache(last_blur_region=(1, 2, 3, 4, 5, 6, 7, 8)),
         )
 

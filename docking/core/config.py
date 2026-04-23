@@ -423,8 +423,16 @@ class MiddleClickAction(str, Enum):
     CLOSE_FOCUSED = "close-focused"
 
 
+class FolderStackUnfold(str, Enum):
+    """How pinned folder stacks should be opened from the dock."""
+
+    CLICK = "click"
+    HOVER = "hover"
+
+
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
+DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.CLICK.value
 
 
 def _normalize_left_click_action(value: object) -> str:
@@ -453,6 +461,20 @@ def _normalize_middle_click_action(value: object) -> str:
                 exc,
             )
     return MiddleClickAction.NEW_WINDOW.value
+
+
+def _normalize_folder_stack_unfold(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return FolderStackUnfold(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid folder stack unfold mode %r; using default %r (%s)",
+                value,
+                FolderStackUnfold.CLICK.value,
+                exc,
+            )
+    return FolderStackUnfold.CLICK.value
 
 
 @dataclass
@@ -675,6 +697,8 @@ class Config:
     left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
     # Middle-click behavior for app items
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
+    # How pinned folder stacks open from the dock
+    folder_stack_unfold: str = DEFAULT_FOLDER_STACK_UNFOLD
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
     # Multiplier applied to theme alpha values for the dock shelf
@@ -782,6 +806,9 @@ class Config:
         )
         self.middle_click_action = _normalize_middle_click_action(
             self.middle_click_action,
+        )
+        self.folder_stack_unfold = _normalize_folder_stack_unfold(
+            self.folder_stack_unfold,
         )
         self.theme = _normalize_theme(self.theme)
         self.transparency = _normalize_transparency(self.transparency)

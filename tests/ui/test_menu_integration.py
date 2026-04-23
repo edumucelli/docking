@@ -1386,7 +1386,41 @@ class TestMenuCallbacks:
         assert window is not None
         assert window.visible is False
         assert handler._runtime.menu_popup_opened.call_count == 1
-        handler._runtime.menu_popup_closed.assert_called_once()
+
+    def test_show_folder_stack_same_item_can_stay_open(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(handler, "_list_directory", lambda **_kwargs: [])
+        monkeypatch.setattr(handler, "_track_folder_stack", lambda target: None)
+
+        handler.show_folder_stack(
+            item=item,
+            anchor_x=120,
+            anchor_y=800,
+            icon_w=48,
+            position="bottom",
+            toggle_if_same_item=False,
+        )
+        window = FakeWindow.last_created
+
+        handler.show_folder_stack(
+            item=item,
+            anchor_x=120,
+            anchor_y=800,
+            icon_w=48,
+            position="bottom",
+            toggle_if_same_item=False,
+        )
+
+        assert window is not None
+        assert window.visible is True
+        assert handler._runtime.menu_popup_opened.call_count == 1
+        handler._runtime.menu_popup_closed.assert_not_called()
 
     def test_folder_stack_requests_dock_sized_icons(self, handler, monkeypatch):
         handler._config.icon_size = 52
