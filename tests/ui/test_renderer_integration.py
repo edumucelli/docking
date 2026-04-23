@@ -270,6 +270,43 @@ class TestRendererContentFlow:
         assert shelf_calls[0]["w"] == 120
         assert shelf_calls[0]["h"] == 21
 
+    def test_draw_content_dispatches_badge_and_progress_overlays(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            is_running=True,
+            badge_count=5,
+            badge_visible=True,
+            progress=0.4,
+            progress_visible=True,
+        )
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            frame=_frame([item], layout),
+            config=config,
+            theme=theme,
+            hide_offset=0.0,
+            drag_index=-1,
+            drop_insert_index=-1,
+            hovered_id="",
+        )
+
+        renderer._draw_badge.assert_called_once()
+        renderer._draw_progress.assert_called_once()
+
     def test_draw_content_hides_shelf_when_dock_is_hidden_with_gap(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = replace(Theme.load("default", 48), distance_from_edge=6)

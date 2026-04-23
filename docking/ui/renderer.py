@@ -162,12 +162,14 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
+from docking.core.items import APP_KIND
 from docking.core.position import Position, is_horizontal
-from docking.core.theme import RGB, IndicatorStyle
+from docking.core.theme import RGB, RGBA, IndicatorStyle
 from docking.log import get_logger
 from docking.ui.autohide import HideState
 from docking.ui.effects import average_icon_color, easing_bounce
 from docking.ui.geometry import DockGeometryFrame, map_icon_position
+from docking.ui.overlays import draw_count_badge, draw_progress_bar
 from docking.ui.shelf import draw_shelf_background, rounded_rect
 
 if TYPE_CHECKING:
@@ -751,6 +753,62 @@ class DockRenderer:
                     pos=pos,
                 )
 
+        # --- Draw per-app overlays ---
+        for i, (item, li) in enumerate(zip(items, layout, strict=True)):
+            if item.kind != APP_KIND:
+                continue
+            slide = self.slide_offsets.get(item.desktop_id, 0.0)
+            drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
+
+            bounce = 0.0
+            launch_duration_us = theme.launch_bounce_time_ms * 1000
+            if item.last_launched > 0:
+                lt = now - item.last_launched
+                bounce += (
+                    easing_bounce(t=lt, duration=launch_duration_us, n=2)
+                    * icon_size
+                    * theme.launch_bounce_height
+                )
+            urgent_duration_us = theme.urgent_bounce_time_ms * 1000
+            if item.last_urgent > 0:
+                ut = now - item.last_urgent
+                bounce += (
+                    easing_bounce(t=ut, duration=urgent_duration_us, n=1)
+                    * icon_size
+                    * theme.urgent_bounce_height
+                )
+
+            item_w = li.width or icon_size
+            scaled_size = item_w * li.scale
+            main_pos = li.x + icon_offset + slide + drop_shift
+            ix, iy = map_icon_position(
+                pos=pos,
+                main_pos=main_pos,
+                cross_size=cross_size,
+                edge_padding=theme.bottom_padding,
+                scaled_size=scaled_size,
+                hide_cross=hide_cross,
+                bounce=bounce,
+            )
+
+            if item.badge_visible and item.badge_count > 0:
+                self._draw_badge(
+                    cr=cr,
+                    x=ix,
+                    y=iy,
+                    size=scaled_size,
+                    badge_count=item.badge_count,
+                )
+            if item.progress_visible:
+                self._draw_progress(
+                    cr=cr,
+                    x=ix,
+                    y=iy,
+                    size=scaled_size,
+                    progress=item.progress,
+                    color=theme.active_indicator_color,
+                )
+
         # --- Urgent glow at screen edge (only when fully hidden) ---
         if hide_offset >= 1.0:
             for item, li in zip(items, layout, strict=True):
@@ -1149,3 +1207,65 @@ class DockRenderer:
                 else:
                     cr.arc(cx, cy + offset, radius, 0, 2 * math.pi)
                 cr.fill()
+
+    @staticmethod
+    def _draw_badge(
+        *,
+        cr: cairo.Context,
+        x: float,
+        y: float,
+        size: float,
+        badge_count: int,
+    ) -> None:
+        padding_x = size * 0.10
+        badge_height = max(size * 0.34, 14.0)
+        cr.save()
+        cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        if badge_count <= 9:
+            font_size = size * 0.20
+        elif badge_count <= 99:
+            font_size = size * 0.16
+        else:
+            font_size = size * 0.12
+        cr.set_font_size(max(7.0, font_size))
+        ext = cr.text_extents("99+" if badge_count > 99 else str(badge_count))
+        badge_width = max(
+            badge_height,
+            ext.width + 2 * padding_x,
+        )
+        badge_x = x + size - badge_width - size * 0.02
+        badge_y = y + size * 0.02
+        cr.restore()
+
+        draw_count_badge(
+            cr=cr,
+            x=badge_x,
+            y=badge_y,
+            width=badge_width,
+            height=badge_height,
+            badge_count=badge_count,
+        )
+
+    @staticmethod
+    def _draw_progress(
+        *,
+        cr: cairo.Context,
+        x: float,
+        y: float,
+        size: float,
+        progress: float,
+        color: RGB | RGBA,
+    ) -> None:
+        bar_width = size * 0.72
+        bar_height = max(size * 0.10, 4.0)
+        bar_x = x + (size - bar_width) / 2
+        bar_y = y + size * 0.78
+        draw_progress_bar(
+            cr=cr,
+            x=bar_x,
+            y=bar_y,
+            width=bar_width,
+            height=bar_height,
+            progress=progress,
+            color=color,
+        )

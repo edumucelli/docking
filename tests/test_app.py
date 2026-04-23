@@ -49,6 +49,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.window_tracker": {
             "WindowTracker": type("WindowTracker", (), {}),
         },
+        "docking.platform.unity": {
+            "UnityLauncherListener": type("UnityLauncherListener", (), {}),
+        },
         "docking.ui.factory": {
             "build_dock_window": lambda **_kwargs: None,
         },
@@ -105,11 +108,13 @@ class TestAppMain:
         model = MagicMock()
         renderer = MagicMock()
         tracker = MagicMock()
+        unity = MagicMock()
         window = MagicMock()
         items_service = MagicMock()
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
+        unity.start.side_effect = lambda: call_order.append("unity_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
@@ -131,6 +136,11 @@ class TestAppMain:
         monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
         monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
         monkeypatch.setattr(app_mod, "WindowTracker", MagicMock(return_value=tracker))
+        monkeypatch.setattr(
+            app_mod,
+            "UnityLauncherListener",
+            MagicMock(return_value=unity),
+        )
         factory = MagicMock(return_value=window)
         monkeypatch.setattr(app_mod, "build_dock_window", factory)
         monkeypatch.setattr(
@@ -155,13 +165,21 @@ class TestAppMain:
         model.stop_applets.assert_called_once()
         items_service.start.assert_called_once()
         items_service.stop.assert_called_once()
+        unity.start.assert_called_once()
+        unity.stop.assert_called_once()
         fake_glib.idle_add.assert_called_once_with(
             app_mod._start_runtime,
             items_service,
             model,
         )
         fake_gtk.main.assert_called_once()
-        assert call_order == ["show_all", "idle_add", "items_start", "applets_start"]
+        assert call_order == [
+            "unity_start",
+            "show_all",
+            "idle_add",
+            "items_start",
+            "applets_start",
+        ]
 
         assert fake_glib.unix_signal_add.call_count == 2
         sig_calls = [c.args[1] for c in fake_glib.unix_signal_add.call_args_list]
@@ -182,11 +200,13 @@ class TestAppMain:
         model = MagicMock()
         renderer = MagicMock()
         tracker = MagicMock()
+        unity = MagicMock()
         window = MagicMock()
         items_service = MagicMock()
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
+        unity.start.side_effect = lambda: call_order.append("unity_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
@@ -204,6 +224,7 @@ class TestAppMain:
         model_cls = MagicMock(return_value=model)
         renderer_cls = MagicMock(return_value=renderer)
         tracker_cls = MagicMock(return_value=tracker)
+        unity_cls = MagicMock(return_value=unity)
         factory = MagicMock(return_value=window)
         items_service_cls = MagicMock(return_value=items_service)
 
@@ -220,6 +241,9 @@ class TestAppMain:
         )
         monkeypatch.setattr(
             sys.modules["docking.platform.window_tracker"], "WindowTracker", tracker_cls
+        )
+        monkeypatch.setattr(
+            sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
         )
         monkeypatch.setattr(
             sys.modules["docking.ui.factory"], "build_dock_window", factory
@@ -240,7 +264,15 @@ class TestAppMain:
         factory.assert_called_once()
         items_service_cls.assert_called_once_with(model=model, window=window)
         fake_gtk.main.assert_called_once()
-        assert call_order == ["show_all", "idle_add", "items_start", "applets_start"]
+        unity.start.assert_called_once()
+        unity.stop.assert_called_once()
+        assert call_order == [
+            "unity_start",
+            "show_all",
+            "idle_add",
+            "items_start",
+            "applets_start",
+        ]
 
     def test_quit_requests_gtk_main_quit(self, monkeypatch):
         # Given

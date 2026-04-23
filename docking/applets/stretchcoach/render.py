@@ -12,6 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.stretchcoach.state import StretchCoachState
+from docking.ui.overlays import draw_circle_badge
 
 
 def _draw_head(cr: cairo.Context, size: int) -> None:
@@ -47,12 +48,15 @@ def _draw_due_badge(cr: cairo.Context, size: int) -> None:
     badge_cx = size * 0.79
     badge_cy = size * 0.24
 
-    cr.arc(badge_cx, badge_cy, badge_radius, 0, math.tau)
-    cr.set_source_rgba(0.9, 0.28, 0.22, 1)
-    cr.fill_preserve()
-    cr.set_line_width(max(1.0, size * 0.03))
-    cr.set_source_rgba(1, 1, 1, 0.9)
-    cr.stroke()
+    draw_circle_badge(
+        cr=cr,
+        cx=badge_cx,
+        cy=badge_cy,
+        radius=badge_radius,
+        background_rgba=(0.9, 0.28, 0.22, 1.0),
+        outline_rgba=(1.0, 1.0, 1.0, 0.9),
+        outline_width=max(1.0, size * 0.03),
+    )
 
     cr.set_line_width(max(1.4, size * 0.05))
     cr.set_line_cap(cairo.LINE_CAP_ROUND)

@@ -13,7 +13,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
-from docking.platform.model import DockItem, DockModel
+from docking.platform.model import DockItem, DockModel, LauncherEntryState
 
 
 def _make_launcher(*desktop_ids: str):
@@ -28,7 +28,7 @@ def _make_launcher(*desktop_ids: str):
         info.wm_class = did.removesuffix(".desktop")
         infos[did] = info
 
-    def resolve(desktop_id):
+    def resolve(desktop_id, **_kwargs):
         return infos.get(desktop_id)
 
     launcher.resolve.side_effect = resolve
@@ -40,6 +40,7 @@ def _make_config(pinned: list[str]):
     config = MagicMock()
     config.pinned = list(pinned)
     config.icon_size = 48
+    config.scaled_icon_size = 48
     config.zoom_percent = 2.0
     config.anchor_applets = False
     config.anchor_files = False
@@ -562,6 +563,218 @@ class TestAppletLifecycleIntegration:
         model.unpin_item("applet://session")
         # Then
         remove.assert_called_once_with(desktop_id="applet://session")
+
+
+class TestLauncherEntryState:
+    def test_apply_launcher_entry_updates_existing_item(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+
+        applied = model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://a.desktop",
+                desktop_id="a.desktop",
+                badge_count=4,
+                badge_visible=True,
+                progress=0.6,
+                progress_visible=True,
+                urgent=True,
+            ),
+        )
+
+        item = model.visible_items()[0]
+        assert applied is True
+        assert item.badge_count == 4
+        assert item.badge_visible is True
+        assert item.progress == 0.6
+        assert item.progress_visible is True
+        assert item.launcher_entry_urgent is True
+        assert item.is_urgent is True
+
+    def test_launcher_entry_urgent_survives_running_rescan(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://a.desktop",
+                desktop_id="a.desktop",
+                urgent=True,
+            ),
+        )
+
+        model.update_running(
+            {"a.desktop": {"count": 1, "active": False, "urgent": False}}
+        )
+
+        item = model.visible_items()[0]
+        assert item.window_urgent is False
+        assert item.launcher_entry_urgent is True
+        assert item.is_urgent is True
+
+    def test_apply_launcher_entry_creates_transient_after_retry_phase(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=7,
+            badge_visible=True,
+        )
+
+        first = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+        )
+        second = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        assert first is False
+        assert second is True
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_pinned is False
+        assert items[0].is_running is False
+        assert items[0].badge_count == 7
+
+    def test_apply_launcher_entry_creates_urgent_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            urgent=True,
+        )
+
+        applied = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        assert applied is True
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_running is False
+        assert items[0].is_urgent is True
+        assert items[0].launcher_entry_urgent is True
+
+    def test_remove_launcher_entry_drops_launcher_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=7,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        model.remove_launcher_entry(sender_name=":1.9")
+
+        assert model.visible_items() == []
+
+    def test_update_running_preserves_launcher_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=3,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        model.update_running({})
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].badge_count == 3
+        assert items[0].is_running is False
+
+    def test_update_running_preserves_urgent_only_launcher_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            urgent=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        model.update_running({})
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_running is False
+        assert items[0].is_urgent is True
+
+    def test_unpin_with_launcher_overlay_becomes_transient(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            desktop_id="a.desktop",
+            badge_count=2,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri=state.app_uri,
+            state=state,
+        )
+
+        model.unpin_item("a.desktop")
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "a.desktop"
+        assert items[0].is_pinned is False
+        assert items[0].badge_count == 2
 
 
 class TestDockItemAnimationFields:

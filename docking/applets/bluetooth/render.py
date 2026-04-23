@@ -11,6 +11,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
+from docking.ui.overlays import draw_count_badge
+
 
 def create_bluetooth_icon(
     *,
@@ -98,25 +100,13 @@ def _draw_connected_badge(*, cr: cairo.Context, size: int, count: int) -> None:
     radius = size * 0.16
     cx = size - radius - size * 0.06
     cy = size - radius - size * 0.06
-
-    cr.arc(cx, cy, radius, 0, math.tau)
-    cr.set_source_rgba(0.20, 0.75, 0.43, 0.98)
-    cr.fill()
-
-    text = "99+" if count > 99 else str(count)
-    if count <= 9:
-        font_size = size * 0.20
-    elif count <= 99:
-        font_size = size * 0.15
-    else:
-        font_size = size * 0.11
-
-    cr.set_source_rgba(1, 1, 1, 0.98)
-    cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    cr.set_font_size(max(7, font_size))
-    ext = cr.text_extents(text)
-    cr.move_to(
-        cx - (ext.width / 2 + ext.x_bearing),
-        cy - (ext.height / 2 + ext.y_bearing),
+    draw_count_badge(
+        cr=cr,
+        x=cx - radius,
+        y=cy - radius,
+        width=radius * 2,
+        height=radius * 2,
+        badge_count=count,
+        background_rgba=(0.20, 0.75, 0.43, 0.98),
+        text_rgba=(1.0, 1.0, 1.0, 0.98),
     )
-    cr.show_text(text)
