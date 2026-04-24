@@ -476,6 +476,7 @@ class DockWindow(Gtk.Window):
             geometry_builder=self.geometry,
             launcher=launcher,
         )
+        self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
         self.preview = PreviewPopup(window_tracker=self.window_tracker)
         self.preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
         self.preview.set_autohide(controller=self.autohide)
@@ -732,6 +733,8 @@ class DockWindow(Gtk.Window):
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
             self.hover.update(cursor_main, frame=frame)
+            if hovered_item is not None and hovered_item.kind == FOLDER_KIND:
+                self._menu.schedule_folder_stack_prewarm(hovered_item)
             if (
                 self.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
                 and hovered_item is not None
@@ -1009,6 +1012,7 @@ class DockWindow(Gtk.Window):
         self._invalidate_current_geometry_frame()
         self.update_input_region()
         self.hover.on_model_changed()
+        self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
         # Refresh hover/tooltip state even without mouse motion so applets
         # that update item.name asynchronously (e.g. workspace switcher)
         # show the new tooltip text immediately.
