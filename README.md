@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 38 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 42 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -161,7 +161,6 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
   "active_display": false,
   "left_click_action": "toggle",
   "middle_click_action": "new-window",
-  "folder_stack_unfold": "click",
   "theme": "default",
   "transparency": 1.0,
   "pinned": [
@@ -196,7 +195,6 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `active_display` | false | Follow the active monitor instead of staying on one display |
 | `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
-| `folder_stack_unfold` | click | Folder stack trigger: `click` or `hover` |
 | `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders. First run seeds a starter set. |
@@ -212,7 +210,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can toggle, cycle, or focus the most recently used window of the running app, and middle click can open a new window, minimize the app windows, or close the app's focused window. Folder stacks can unfold on click or hover under right-click -> **Preferences** -> **Behavior** -> **Folder Stacks**. Pick the left-click mode under right-click -> **Preferences** -> **Behavior** -> **Mouse**.
+All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can toggle, cycle, or focus the most recently used window of the running app, and middle click can open a new window, minimize the app windows, or close the app's focused window. Pick the left-click mode under right-click -> **Preferences** -> **Behavior** -> **Mouse**.
 
 ## Managing Dock Items
 
@@ -786,6 +784,66 @@ Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to th
 Click the applet, then click any window to force-close it.
 
 **Click:** Enter kill mode (cursor changes to crosshair)
+
+### Cert Watch
+
+<img src="docking/assets/icons/applets/certwatch.png" alt="Cert Watch" width="48">
+
+Monitor TLS certificate expiry for a list of domains. The shield icon is colored by worst-case severity across all watched domains (green over 30 days, yellow 7-30, red under 7, dark red expired, gray on error) and overlays the minimum days-remaining. Fetch uses stdlib TLS with SNI and never blocks the main loop; erroring domains auto-retry after 5 minutes.
+
+**Click:** Add domain dialog (accepts `example.com`, `example.com:8443`, or a full URL)
+
+**Right-click menu:**
+- Per-domain status with days remaining
+- Add domain
+- Remove submenu
+- Refresh now
+
+**Preferences stored:** `domains` list (host, port)
+
+### Speedtest
+
+<img src="docking/assets/icons/applets/speedtest.png" alt="Speedtest" width="48">
+
+One-click internet speed test. The dial is painted as a classic four-band speedometer (red, orange, yellow, green from left to right); the needle points at the last download speed and takes its color from the current tier. The badge shows Mbps (e.g. `250M`, `1.2G`). Tooltip shows download, upload, ping, jitter, server, and timestamp.
+
+**Click:** Run one test (~20 seconds: ping + 10s download + 10s upload)
+
+**Right-click menu:**
+- Summary header (Down / Up)
+- Run Test (disabled while running)
+- Copy Last Result (to clipboard)
+
+**Preferences stored:** `last_result` (download_mbps, upload_mbps, ping_ms, jitter_ms, server, timestamp)
+
+### Desk Presence
+
+<img src="docking/assets/icons/applets/deskpresence.png" alt="Desk Presence" width="48">
+
+Tracks time at desk vs away by polling the X11 idle counter (XScreenSaver extension) every 10 seconds. Active input below the idle threshold counts toward the at-desk bucket; longer idle time counts toward the away bucket. Status dot on the icon is green when at the desk, orange when away, gray until the first sample. Bottom label shows today's total at-desk hours. At UTC midnight the running counters roll into a 7-day history; the tooltip shows a per-day at-desk breakdown and the week total.
+
+**Right-click menu:**
+- Status header (At desk / Away / Status unknown)
+- Idle Threshold submenu (1 / 2 / 5 / 10 min presets)
+- Reset Today
+
+**Preferences stored:** `today` (ISO date), `at_desk_seconds`, `away_seconds`, `idle_threshold_s`, `history` (last 6 days)
+
+### Astronomy Picture of the Day
+
+<img src="docking/assets/icons/applets/apod.png" alt="APOD" width="48">
+
+Fetches NASA's daily Astronomy Picture of the Day and shows its thumbnail as the icon. The dock tile is a rounded square with the scaled image; video days fall back to the YouTube thumbnail, and network failures show a starry placeholder. Tooltip shows the date, title, copyright, and a trimmed explanation. One API call per day (uses the public `DEMO_KEY`; no registration required). Images cache to `~/.cache/docking/apod/<date>.<ext>`.
+
+**Click:** Open today's page on apod.nasa.gov in the default browser
+
+**Right-click menu:**
+- Title header (date + title)
+- Open on apod.nasa.gov
+- Copy Explanation
+- Refresh Now
+
+**Preferences stored:** `last_result` (date, title, explanation, media_type, image_url, page_url, copyright, cached_path)
 
 ## Theming
 

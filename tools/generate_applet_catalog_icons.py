@@ -40,6 +40,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.ambient.render import render_icon as render_ambient
+from docking.applets.apod.render import render_icon as render_apod
 from docking.applets.applications.render import create_icon as render_applications
 from docking.applets.battery.render import render_icon as render_battery
 from docking.applets.battery.state import BatteryState
@@ -49,10 +50,13 @@ from docking.applets.brightness.render import create_icon as render_brightness
 from docking.applets.calculator.render import create_icon as render_calculator
 from docking.applets.calendar.render import render_icon as render_calendar
 from docking.applets.calendar.state import snapshot_from
+from docking.applets.certwatch.render import render_icon as render_certwatch
+from docking.applets.certwatch.state import CertStatus
 from docking.applets.clippy.render import create_icon as render_clippy
 from docking.applets.clock.render import render_icon as render_clock
 from docking.applets.colorpicker.render import create_icon as render_colorpicker
-from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
+from docking.applets.deskpresence.render import render_icon as render_deskpresence
+from docking.applets.deskpresence.state import Presence as DeskpresencePresence
 from docking.applets.desktop.render import create_icon as render_desktop
 from docking.applets.hydration.render import render_icon as render_hydration
 from docking.applets.hydration.state import HydrationState
@@ -74,16 +78,18 @@ from docking.applets.quote.render import draw_bulb_icon
 from docking.applets.recentfiles.render import render_icon as render_recentfiles
 from docking.applets.screenshot.applet import _draw_screenshot_icon
 from docking.applets.session.render import create_session_icon
+from docking.applets.speedtest.render import render_icon as render_speedtest
 from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
 from docking.applets.stretchcoach.state import StretchCoachState
+from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
 from docking.applets.todayinhistory.render import render_icon as render_todayinhistory
 from docking.applets.trash.render import create_trash_icon
 from docking.applets.trivia.render import draw_trivia_icon
 from docking.applets.unitconverter.render import create_icon as render_unitconverter
 from docking.applets.urlshortener.render import create_icon as render_urlshortener
 from docking.applets.volume.render import create_volume_icon
-from docking.applets.windowkiller.render import create_icon as render_windowkiller
 from docking.applets.weather.render import create_icon as render_weather
+from docking.applets.windowkiller.render import create_icon as render_windowkiller
 from docking.applets.workspaces.render import _render_grid
 
 ICON_SIZE = 64
@@ -159,6 +165,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
     cal_snapshot = snapshot_from()
     return {
         AppletId.AMBIENT: render_ambient(size=size),
+        AppletId.APOD: render_apod(size=size, cached_path=""),
         AppletId.APPLICATIONS: render_applications(size=size),
         AppletId.BATTERY: render_battery(
             size=size,
@@ -179,6 +186,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.CALCULATOR: render_calculator(size=size),
         AppletId.CALENDAR: render_calendar(size=size, snapshot=cal_snapshot),
+        AppletId.CERTWATCH: render_certwatch(
+            size=size,
+            status=CertStatus.OK,
+            label="60",
+        ),
         AppletId.CLIPPY: render_clippy(size=size),
         AppletId.CLOCK: render_clock(
             size=size,
@@ -195,6 +207,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             hex_label=None,
         ),
         AppletId.SYSTEMMONITOR: render_systemmonitor(size=size, cpu=0.42, mem=0.28),
+        AppletId.DESKPRESENCE: render_deskpresence(
+            size=size,
+            presence=DeskpresencePresence.AT_DESK,
+            at_desk_seconds=3 * 3600 + 24 * 60,
+        ),
         AppletId.DESKTOP: render_desktop(size=size),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
         AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
@@ -234,6 +251,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),
         AppletId.SESSION: create_session_icon(size=size),
+        AppletId.SPEEDTEST: render_speedtest(
+            size=size,
+            download_mbps=250.0,
+            label="",
+        ),
         AppletId.STRETCHCOACH: render_stretchcoach(
             size=size,
             state=StretchCoachState(),
