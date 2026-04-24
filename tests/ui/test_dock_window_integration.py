@@ -394,10 +394,27 @@ class TestButtonReleaseFlow:
         handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
 
         assert handled is False
+        stub._menu.schedule_folder_stack_prewarm.assert_called_once_with(item)
         stub._menu.show_folder_stack.assert_called_once()
         kwargs = stub._menu.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is item
         assert kwargs["toggle_if_same_item"] is False
+
+    def test_motion_prewarms_hovered_folder_item_in_click_mode(self):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        stub, _ = _make_stub(item=item)
+        widget = MagicMock()
+        event = SimpleNamespace(x=12.0, y=9.0)
+
+        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+
+        assert handled is False
+        stub._menu.schedule_folder_stack_prewarm.assert_called_once_with(item)
+        stub._menu.show_folder_stack.assert_not_called()
 
     def test_drag_delta_above_threshold_is_ignored(self):
         # Given
@@ -718,6 +735,9 @@ class TestModelChangedFlow:
         # Then
         stub.update_input_region.assert_called_once()
         stub.hover.on_model_changed.assert_called_once()
+        stub._menu.schedule_visible_folder_stack_prewarm.assert_called_once_with(
+            stub.model.visible_items.return_value
+        )
         stub.hover.update.assert_called_once_with(12.0)
         assert stub._redraw_source_id == 55
         timeout_add.assert_called_once()
@@ -735,6 +755,9 @@ class TestModelChangedFlow:
         # Then
         stub.update_input_region.assert_called_once()
         stub.hover.on_model_changed.assert_called_once()
+        stub._menu.schedule_visible_folder_stack_prewarm.assert_called_once_with(
+            stub.model.visible_items.return_value
+        )
         stub.hover.update.assert_not_called()
         assert stub._redraw_source_id == 66
         timeout_add.assert_called_once()

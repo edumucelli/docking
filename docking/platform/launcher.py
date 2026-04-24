@@ -146,6 +146,7 @@ DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
 DEFAULT_XDG_DATA_DIRS = "/usr/local/share:/usr/share"
 GNOME_APP_PREFIX = "org.gnome."
+FILE_ICON_CACHE_MAX_ENTRIES = 256
 log = with_context(get_logger(name="launcher"))
 
 
@@ -200,6 +201,9 @@ class Launcher:
     def __init__(self) -> None:
         self._desktop_dirs = self._get_desktop_dirs()
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
+        self._file_icon_cache: dict[
+            tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
+        ] = {}
         self._wm_class_index: dict[str, DesktopInfo] | None = None
 
     def resolve(
@@ -346,12 +350,7 @@ class Launcher:
                 path = Path(unquote(urlparse(uri).path))
                 if path.exists():
                     try:
-                        return GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                            str(path),
-                            size,
-                            size,
-                            True,
-                        )
+                        return self._load_cached_file_icon(path=path, size=size)
                     except GLib.Error as exc:
                         log.bind(target=target, action="resolve_file_icon").debug(
                             "Failed to load image thumbnail %s: %s",
@@ -364,6 +363,27 @@ class Launcher:
             icon_name=icon_name,
             size=size,
         )
+
+    def _load_cached_file_icon(
+        self, *, path: Path, size: int
+    ) -> GdkPixbuf.Pixbuf | None:
+        stat = path.stat()
+        cache_key = (str(path), size, int(stat.st_mtime_ns), int(stat.st_size))
+        cached = self._file_icon_cache.pop(cache_key, None)
+        if cached is not None:
+            self._file_icon_cache[cache_key] = cached
+            return cached
+
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+            str(path),
+            size,
+            size,
+            True,
+        )
+        self._file_icon_cache[cache_key] = pixbuf
+        while len(self._file_icon_cache) > FILE_ICON_CACHE_MAX_ENTRIES:
+            self._file_icon_cache.pop(next(iter(self._file_icon_cache)))
+        return pixbuf
 
     def default_directory_app_name(self) -> str | None:
         """Return the display name of the default app that opens folders."""

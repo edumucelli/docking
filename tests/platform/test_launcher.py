@@ -3,6 +3,7 @@
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # Mock gi before importing launcher only when PyGObject is unavailable.
@@ -100,6 +101,88 @@ class TestIconCache:
             name = launcher.default_directory_app_name()
 
         assert name is None
+
+    def test_resolve_file_icon_caches_image_thumbnail_by_file_stat(self, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.return_value = "thumb"
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod,
+            "normalize_file_target",
+            lambda _target: "file:///tmp/photo.png",
+        )
+        monkeypatch.setattr(
+            launcher_mod.Path,
+            "stat",
+            lambda self: SimpleNamespace(st_mtime_ns=10, st_size=20),
+        )
+
+        first = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+        second = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+
+        assert first == "thumb"
+        assert second == "thumb"
+        pixbuf_cls.new_from_file_at_scale.assert_called_once()
+
+    def test_resolve_file_icon_reloads_thumbnail_when_file_stat_changes(
+        self, monkeypatch
+    ):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.side_effect = ["thumb-1", "thumb-2"]
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod,
+            "normalize_file_target",
+            lambda _target: "file:///tmp/photo.png",
+        )
+        stats = iter(
+            (
+                SimpleNamespace(st_mtime_ns=10, st_size=20),
+                SimpleNamespace(st_mtime_ns=11, st_size=20),
+                SimpleNamespace(st_mtime_ns=12, st_size=20),
+                SimpleNamespace(st_mtime_ns=13, st_size=20),
+            )
+        )
+        monkeypatch.setattr(launcher_mod.Path, "stat", lambda self: next(stats))
+
+        first = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+        second = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+
+        assert first == "thumb-1"
+        assert second == "thumb-2"
+        assert pixbuf_cls.new_from_file_at_scale.call_count == 2
 
 
 class TestDesktopActions:
@@ -314,6 +397,11 @@ class TestResolve:
         pixbuf_cls.new_from_file_at_scale.return_value = thumb
         monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
         monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod.Path,
+            "stat",
+            lambda self: SimpleNamespace(st_mtime_ns=10, st_size=20),
+        )
         launcher.load_gicon = MagicMock(return_value="gicon-pixbuf")
         launcher.load_icon = MagicMock(return_value="fallback-pixbuf")
 
