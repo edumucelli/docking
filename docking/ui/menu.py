@@ -222,6 +222,8 @@ FOLDER_STACK_REVEAL_STAGGER_MS = 28
 FOLDER_STACK_ANIM_FRAME_MS = 16
 FOLDER_STACK_HOVER_SCALE = 1.14
 FOLDER_STACK_HOVER_EASE = 0.35
+FOLDER_DIRECTORY_CACHE_MAX_ENTRIES = 48
+FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES = 32
 log = get_logger("menu")
 
 SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
@@ -256,6 +258,102 @@ class FolderStackCardGeometry:
     icon_center_y: float
     label_x: float
     label_y: float
+
+
+@dataclass(frozen=True)
+class FolderStackLayout:
+    cards: tuple[FolderStackCard, ...]
+    popup_w: int
+    popup_h: int
+    fold_center_x: int
+
+
+class FolderStackCache:
+    """Bounded cache state for folder menu listings and stack layouts."""
+
+    def __init__(self) -> None:
+        self.directory_rows: dict[tuple[str, int, bool, int], list[dict[str, Any]]] = {}
+        self.layouts: dict[
+            tuple[str, int, str, bool, int, str | None], FolderStackLayout
+        ] = {}
+        self.prewarm_queue: list[DockItem] = []
+        self.prewarm_targets: set[str] = set()
+        self.prewarm_source: int = 0
+
+    @staticmethod
+    def _get_lru(cache: dict[Any, Any], key: Any) -> Any | None:
+        cached = cache.pop(key, None)
+        if cached is not None:
+            cache[key] = cached
+        return cached
+
+    @staticmethod
+    def _put_lru(
+        cache: dict[Any, Any], key: Any, value: Any, *, max_entries: int
+    ) -> None:
+        cache[key] = value
+        while len(cache) > max_entries:
+            cache.pop(next(iter(cache)))
+
+    def get_directory_rows(
+        self, key: tuple[str, int, bool, int]
+    ) -> list[dict[str, Any]] | None:
+        return self._get_lru(self.directory_rows, key)
+
+    def put_directory_rows(
+        self, key: tuple[str, int, bool, int], rows: list[dict[str, Any]]
+    ) -> None:
+        self._put_lru(
+            self.directory_rows,
+            key,
+            rows,
+            max_entries=FOLDER_DIRECTORY_CACHE_MAX_ENTRIES,
+        )
+
+    def get_layout(
+        self, key: tuple[str, int, str, bool, int, str | None]
+    ) -> FolderStackLayout | None:
+        return self._get_lru(self.layouts, key)
+
+    def put_layout(
+        self,
+        key: tuple[str, int, str, bool, int, str | None],
+        layout: FolderStackLayout,
+    ) -> None:
+        self._put_lru(
+            self.layouts,
+            key,
+            layout,
+            max_entries=FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES,
+        )
+
+    def queue_prewarm(self, item: DockItem, *, uri: str) -> bool:
+        if uri in self.prewarm_targets:
+            return False
+        self.prewarm_targets.add(uri)
+        self.prewarm_queue.append(item)
+        return True
+
+    def pop_next_prewarm(self) -> DockItem | None:
+        if not self.prewarm_queue:
+            return None
+        item = self.prewarm_queue.pop(0)
+        uri = launcher_mod.normalize_file_target(item.target)
+        if uri is not None:
+            self.prewarm_targets.discard(uri)
+        return item
+
+    def invalidate_target(self, *, uri: str) -> None:
+        for key in [key for key in self.directory_rows if key[0] == uri]:
+            self.directory_rows.pop(key, None)
+        for key in [key for key in self.layouts if key[0] == uri]:
+            self.layouts.pop(key, None)
+        self.prewarm_targets.discard(uri)
+        self.prewarm_queue = [
+            item
+            for item in self.prewarm_queue
+            if launcher_mod.normalize_file_target(item.target) != uri
+        ]
 
 
 def _is_folder_stack_action_card(card: FolderStackCard) -> bool:
@@ -403,6 +501,7 @@ class MenuHandler:
         self._tracker = window_tracker
         self._launcher = launcher
         self._geometry_builder = geometry_builder
+        self._folder_stack_cache = FolderStackCache()
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
         self._folder_menu_refresh_sources: dict[int, int] = {}
@@ -424,6 +523,25 @@ class MenuHandler:
         self._folder_stack_hover_target: str | None = None
         self._folder_stack_hover_values: dict[str, float] = {}
         self._folder_stack_pressed_target: str | None = None
+
+    def schedule_folder_stack_prewarm(self, item: DockItem) -> None:
+        """Queue a folder stack warm-up during idle time."""
+        if item.kind != FOLDER_KIND:
+            return
+        uri = launcher_mod.normalize_file_target(item.target)
+        if uri is None:
+            return
+        if not self._folder_stack_cache.queue_prewarm(item, uri=uri):
+            return
+        if self._folder_stack_cache.prewarm_source == 0:
+            self._folder_stack_cache.prewarm_source = GLib.idle_add(
+                self._drain_folder_stack_prewarm
+            )
+
+    def schedule_visible_folder_stack_prewarm(self, items: Sequence[DockItem]) -> None:
+        """Warm visible folder stacks so hover-open can render from cache."""
+        for item in items:
+            self.schedule_folder_stack_prewarm(item)
 
     def show(self, event: Gdk.EventButton, cursor_main: float) -> None:
         """Build and show the right-click context menu.
@@ -503,6 +621,23 @@ class MenuHandler:
         ):
             return None
         return self._folder_stack_item.desktop_id
+
+    def _drain_folder_stack_prewarm(self) -> bool:
+        item = self._folder_stack_cache.pop_next_prewarm()
+        if item is None:
+            self._folder_stack_cache.prewarm_source = 0
+            return False
+        self._folder_stack_layout_for_item(item)
+        if not self._folder_stack_cache.prewarm_queue:
+            self._folder_stack_cache.prewarm_source = 0
+            return False
+        return True
+
+    def _invalidate_folder_target_cache(self, target: str) -> None:
+        uri = launcher_mod.normalize_file_target(target)
+        if uri is None:
+            return
+        self._folder_stack_cache.invalidate_target(uri=uri)
 
     def _new_popup_menu(self) -> Gtk.Menu:
         menu = Gtk.Menu()
@@ -657,6 +792,8 @@ class MenuHandler:
         _other_file: Gio.File | None,
         _event_type: Gio.FileMonitorEvent,
     ) -> None:
+        if self._folder_stack_item is not None:
+            self._invalidate_folder_target_cache(self._folder_stack_item.target)
         if self._folder_stack_refresh_source:
             GLib.source_remove(self._folder_stack_refresh_source)
         self._folder_stack_refresh_source = GLib.timeout_add(
@@ -699,8 +836,58 @@ class MenuHandler:
     def _folder_stack_cards_for_item(
         self, item: DockItem
     ) -> tuple[list[FolderStackCard], int, int]:
-        cards: list[FolderStackCard] = []
+        layout = self._folder_stack_layout_for_item(item)
+        self._folder_stack_fold_center_x = layout.fold_center_x
+        return list(layout.cards), layout.popup_w, layout.popup_h
+
+    def _folder_stack_layout_for_item(self, item: DockItem) -> FolderStackLayout:
+        prefs = self._folder_prefs(item)
         icon_px = max(int(self._config.icon_size), 1)
+        app_name = (
+            self._launcher.default_directory_app_name()
+            if self._launcher is not None
+            else None
+        )
+        uri = launcher_mod.normalize_file_target(item.target) or item.target
+        state = self._folder_target_state(item.target)
+        if state == "missing":
+            return self._compute_folder_stack_layout(
+                item=item,
+                icon_px=icon_px,
+                app_name=app_name,
+                state=state,
+            )
+        folder_stamp = self._folder_cache_stamp(item.target)
+        cache_key = (
+            uri,
+            folder_stamp,
+            str(prefs["sort"]),
+            bool(prefs["show_hidden"]),
+            icon_px,
+            app_name,
+        )
+        cached = self._folder_stack_cache.get_layout(cache_key)
+        if cached is not None:
+            return cached
+
+        layout = self._compute_folder_stack_layout(
+            item=item,
+            icon_px=icon_px,
+            app_name=app_name,
+            state=state,
+        )
+        self._folder_stack_cache.put_layout(cache_key, layout)
+        return layout
+
+    def _compute_folder_stack_layout(
+        self,
+        *,
+        item: DockItem,
+        icon_px: int,
+        app_name: str | None,
+        state: str,
+    ) -> FolderStackLayout:
+        cards: list[FolderStackCard] = []
         label_h = FOLDER_STACK_LABEL_HEIGHT_PX
         row_step = max(FOLDER_STACK_ROW_STEP_PX, round(icon_px * 1.08))
         curve_extent = max(FOLDER_STACK_CURVE_X_PX, round(icon_px * 0.65))
@@ -714,9 +901,7 @@ class MenuHandler:
             + FOLDER_STACK_ICON_GAP_PX
             + icon_px / 2
         )
-        self._folder_stack_fold_center_x = fold_center_x
 
-        state = self._folder_target_state(item.target)
         if state == "missing":
             label_w = 190
             cards.append(
@@ -744,7 +929,12 @@ class MenuHandler:
                 )
             )
             popup_h = label_h + 2 * FOLDER_STACK_TOP_PADDING_PX
-            return cards, popup_w, popup_h
+            return FolderStackLayout(
+                cards=tuple(cards),
+                popup_w=popup_w,
+                popup_h=popup_h,
+                fold_center_x=fold_center_x,
+            )
 
         rows = self._list_directory(
             folder_item=item,
@@ -778,11 +968,19 @@ class MenuHandler:
                 )
             )
             popup_h = label_h + 2 * FOLDER_STACK_TOP_PADDING_PX
-            return cards, popup_w, popup_h
+            return FolderStackLayout(
+                cards=tuple(cards),
+                popup_w=popup_w,
+                popup_h=popup_h,
+                fold_center_x=fold_center_x,
+            )
 
         visible_rows = rows[:FOLDER_STACK_MAX_VISIBLE_ROWS]
         hidden_count = max(len(rows) - len(visible_rows), 0)
-        action_label = self._folder_stack_action_label(hidden_count=hidden_count)
+        action_label = self._folder_stack_action_label(
+            hidden_count=hidden_count,
+            app_name=app_name,
+        )
         chip_w = self._folder_stack_action_width(label=action_label)
         chip_h = label_h
         total_rows = len(visible_rows)
@@ -873,7 +1071,27 @@ class MenuHandler:
             + icon_px
             + FOLDER_STACK_TOP_PADDING_PX
         )
-        return cards, popup_w, popup_h
+        return FolderStackLayout(
+            cards=tuple(cards),
+            popup_w=popup_w,
+            popup_h=popup_h,
+            fold_center_x=fold_center_x,
+        )
+
+    def _folder_cache_stamp(self, target: str) -> int:
+        uri = launcher_mod.normalize_file_target(target)
+        if uri is None:
+            return 0
+        try:
+            folder = Gio.File.new_for_uri(uri)
+            info = folder.query_info(
+                "time::modified",
+                Gio.FileQueryInfoFlags.NONE,
+                None,
+            )
+        except Exception:
+            return 0
+        return int(info.get_attribute_uint64("time::modified"))
 
     def _on_folder_stack_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         cr.set_operator(cairo.OPERATOR_CLEAR)
@@ -1175,12 +1393,11 @@ class MenuHandler:
         self._folder_stack_pressed_target = None
         return False
 
-    def _folder_stack_action_label(self, *, hidden_count: int) -> str:
-        app_name = (
-            self._launcher.default_directory_app_name()
-            if self._launcher is not None
-            else None
-        )
+    def _folder_stack_action_label(
+        self, *, hidden_count: int, app_name: str | None = None
+    ) -> str:
+        if app_name is None and self._launcher is not None:
+            app_name = self._launcher.default_directory_app_name()
         if app_name:
             return (
                 _("Open in %s") % app_name
@@ -1738,6 +1955,10 @@ class MenuHandler:
         _event_type: Gio.FileMonitorEvent,
         menu_id: int,
     ) -> None:
+        context = self._folder_menu_context.get(menu_id)
+        if context is not None:
+            _menu, _folder_item, target, _is_root = context
+            self._invalidate_folder_target_cache(target)
         existing = self._folder_menu_refresh_sources.pop(menu_id, 0)
         if existing:
             GLib.source_remove(existing)
@@ -1798,6 +2019,28 @@ class MenuHandler:
         uri = launcher_mod.normalize_file_target(target)
         if uri is None:
             return []
+        prefs = self._folder_prefs(folder_item)
+        resolved_icon_px = (
+            self._folder_icon_px(folder_item=folder_item)
+            if icon_px is None
+            else max(int(icon_px), 1)
+        )
+        cache_key = (
+            uri,
+            self._folder_cache_stamp(target),
+            bool(prefs["show_hidden"]),
+            resolved_icon_px,
+        )
+        cached = self._folder_stack_cache.get_directory_rows(cache_key)
+        if cached is not None:
+            rows = [dict(row) for row in cached]
+            rows.sort(
+                key=lambda row: self._folder_sort_key(
+                    row=row,
+                    mode=prefs["sort"],
+                )
+            )
+            return rows
         try:
             folder = Gio.File.new_for_uri(uri)
             enumerator = folder.enumerate_children(
@@ -1820,13 +2063,6 @@ class MenuHandler:
         except Exception as exc:
             log.warning("Failed to enumerate folder menu target %s: %s", target, exc)
             return []
-
-        prefs = self._folder_prefs(folder_item)
-        resolved_icon_px = (
-            self._folder_icon_px(folder_item=folder_item)
-            if icon_px is None
-            else max(int(icon_px), 1)
-        )
         rows: list[dict[str, Any]] = []
         while True:
             info = enumerator.next_file(None)
@@ -1868,6 +2104,10 @@ class MenuHandler:
                     else None,
                 }
             )
+        self._folder_stack_cache.put_directory_rows(
+            cache_key,
+            [dict(row) for row in rows],
+        )
         rows.sort(key=lambda row: self._folder_sort_key(row=row, mode=prefs["sort"]))
         return rows
 
@@ -1918,6 +2158,8 @@ class MenuHandler:
         prefs = self._folder_prefs(item)
         prefs[key] = value
         self._save_folder_prefs(item, prefs)
+        self._invalidate_folder_target_cache(item.target)
+        self.schedule_folder_stack_prewarm(item)
 
     def _on_folder_sort_changed(
         self, widget: Gtk.MenuItem, item: DockItem, value: str

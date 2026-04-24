@@ -973,6 +973,45 @@ class TestItemMenus:
             is_dir=True,
         )
 
+    def test_list_directory_reuses_cached_rows_for_same_folder(
+        self, handler, monkeypatch
+    ):
+        gicon = MagicMock()
+        info = MagicMock()
+        info.get_name.return_value = "docs"
+        info.get_display_name.return_value = "docs"
+        info.get_icon.return_value = gicon
+        info.get_content_type.return_value = "inode/directory"
+        info.get_file_type.return_value = menu_mod.Gio.FileType.DIRECTORY
+        info.get_is_hidden.return_value = False
+        info.get_size.return_value = 0
+        info.get_attribute_uint64.return_value = 0
+        enumerator = MagicMock()
+        enumerator.next_file.side_effect = [info, None]
+        folder = MagicMock()
+        folder.enumerate_children.return_value = enumerator
+        child = MagicMock()
+        child.get_uri.return_value = "file:///tmp/docs"
+        folder.get_child.return_value = child
+        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: folder)
+        monkeypatch.setattr(
+            handler, "_directory_has_visible_children", lambda **_kwargs: False
+        )
+        handler._launcher.resolve_file_icon.return_value = "folder-pixbuf"
+        item = DockItem(
+            desktop_id="file:///tmp/root",
+            kind=FOLDER_KIND,
+            target="file:///tmp/root",
+            prefs_key="file:///tmp/root",
+        )
+
+        first = handler._list_directory(folder_item=item, target="file:///tmp/root")
+        second = handler._list_directory(folder_item=item, target="file:///tmp/root")
+
+        assert first == second
+        folder.enumerate_children.assert_called_once()
+        handler._launcher.resolve_file_icon.assert_called_once()
+
     def test_file_item_menu_opens_target(self, handler, monkeypatch):
         menu = FakeMenu()
         item = DockItem(
@@ -1422,6 +1461,36 @@ class TestMenuCallbacks:
         assert handler._runtime.menu_popup_opened.call_count == 1
         handler._runtime.menu_popup_closed.assert_not_called()
 
+    def test_folder_stack_cards_reuse_cached_layout(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        calls: list[str] = []
+        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler,
+            "_list_directory",
+            lambda **_kwargs: (
+                calls.append("listed")
+                or [
+                    {
+                        "target": "file:///tmp/docs/readme.txt",
+                        "name": "readme.txt",
+                        "is_dir": False,
+                        "icon": object(),
+                    }
+                ]
+            ),
+        )
+
+        first = handler._folder_stack_cards_for_item(item)
+        second = handler._folder_stack_cards_for_item(item)
+
+        assert first == second
+        assert calls == ["listed"]
+
     def test_folder_stack_requests_dock_sized_icons(self, handler, monkeypatch):
         handler._config.icon_size = 52
         item = DockItem(
@@ -1628,6 +1697,27 @@ class TestMenuCallbacks:
         assert timeout_calls[0][0] == 120
         assert handler._folder_stack_refresh_source == 77
 
+    def test_folder_stack_change_invalidates_cached_layout(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        handler._folder_stack_item = item
+        handler._folder_stack_cache.layouts[
+            ("file:///tmp/docs", 0, "name", False, 48, None)
+        ] = menu_mod.FolderStackLayout(
+            cards=(),
+            popup_w=1,
+            popup_h=1,
+            fold_center_x=1,
+        )
+        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 77)
+
+        handler._on_folder_stack_changed(MagicMock(), MagicMock(), None, MagicMock())
+
+        assert handler._folder_stack_cache.layouts == {}
+
     def test_folder_stack_click_opens_target(self, handler):
         target = "file:///tmp/docs/readme.txt"
         handler._folder_stack_cards = [
@@ -1689,6 +1779,25 @@ class TestMenuCallbacks:
 
         assert result is False
         assert window.visible is True
+
+    def test_schedule_folder_stack_prewarm_deduplicates_target(
+        self, handler, monkeypatch
+    ):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        idle_calls: list[object] = []
+        monkeypatch.setattr(
+            menu_mod.GLib, "idle_add", lambda callback: idle_calls.append(callback) or 9
+        )
+
+        handler.schedule_folder_stack_prewarm(item)
+        handler.schedule_folder_stack_prewarm(item)
+
+        assert len(idle_calls) == 1
+        assert len(handler._folder_stack_cache.prewarm_queue) == 1
 
     def test_folder_stack_transition_type_matches_position(self, handler):
         handler._config.pos = "bottom"
