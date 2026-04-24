@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-23 23:07+0200\n"
+"POT-Creation-Date: 2026-04-24 20:55+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,6 +46,7 @@ msgid "Show Tokens"
 msgstr "Покажи токени"
 
 #: docking/applets/aiusage/applet.py:183
+#: docking/applets/deskpresence/applet.py:105
 msgid "Reset Today"
 msgstr "Нулирай днес"
 
@@ -114,6 +115,47 @@ msgstr "Pink Noise"
 #, python-brace-format
 msgid "Playing: {sound} ({pct}%)"
 msgstr "Възпроизвежда се: {sound} ({pct}%)"
+
+#: docking/applets/apod/applet.py:48 docking/applets/apod/state.py:78
+msgid "Astronomy Picture of the Day"
+msgstr "Astronomy Picture of the Day"
+
+#: docking/applets/apod/applet.py:81
+#, python-brace-format
+msgid "{date}: {title}"
+msgstr "{date}: {title}"
+
+#: docking/applets/apod/applet.py:83
+msgid "Untitled"
+msgstr "Untitled"
+
+#: docking/applets/apod/applet.py:90
+msgid "Open on apod.nasa.gov"
+msgstr "Open on apod.nasa.gov"
+
+#: docking/applets/apod/applet.py:95
+msgid "Copy Explanation"
+msgstr "Copy Explanation"
+
+#: docking/applets/apod/applet.py:99 docking/applets/bluetooth/applet.py:210
+#: docking/applets/certwatch/applet.py:122
+msgid "Refresh Now"
+msgstr "Refresh Now"
+
+#: docking/applets/apod/state.py:80 docking/applets/speedtest/applet.py:102
+#: docking/applets/speedtest/state.py:75
+#, python-brace-format
+msgid "Error: {msg}"
+msgstr "Error: {msg}"
+
+#: docking/applets/apod/state.py:83
+msgid "Loading..."
+msgstr "Loading..."
+
+#: docking/applets/apod/state.py:89
+#, python-brace-format
+msgid "(c) {who}"
+msgstr "(c) {who}"
 
 #: docking/applets/applications/applet.py:36
 msgid "Applications"
@@ -190,10 +232,6 @@ msgstr "{alias} ({powered}) - Свързани {connected}"
 #: docking/applets/bluetooth/applet.py:199
 msgid "Continuous Discovery"
 msgstr "Continuous Discovery"
-
-#: docking/applets/bluetooth/applet.py:210
-msgid "Refresh Now"
-msgstr "Refresh Now"
 
 #: docking/applets/bluetooth/applet.py:224
 msgid "Turn Bluetooth Off"
@@ -362,6 +400,84 @@ msgstr "Калкулатор"
 msgid "Calendar"
 msgstr "Calendar"
 
+#: docking/applets/certwatch/applet.py:55
+#: docking/applets/certwatch/state.py:268
+msgid "Cert Watch"
+msgstr "Cert Watch"
+
+#: docking/applets/certwatch/applet.py:98
+#: docking/applets/certwatch/state.py:243
+#: docking/applets/certwatch/state.py:272
+#, python-brace-format
+msgid "{host}: loading..."
+msgstr "{host}: loading..."
+
+#: docking/applets/certwatch/applet.py:105
+msgid "Add Domain..."
+msgstr "Add Domain..."
+
+#: docking/applets/certwatch/applet.py:118
+msgid "Remove"
+msgstr "Remove"
+
+#: docking/applets/certwatch/applet.py:238
+msgid "Add Domain"
+msgstr "Add Domain"
+
+#: docking/applets/certwatch/applet.py:258
+msgid "example.com or example.com:8443"
+msgstr "example.com or example.com:8443"
+
+#: docking/applets/certwatch/state.py:225 docking/applets/clock/applet.py:207
+#: docking/applets/quicknote/applet.py:78
+msgid "OK"
+msgstr "OK"
+
+#: docking/applets/certwatch/state.py:226
+msgid "Warn"
+msgstr "Warn"
+
+#: docking/applets/certwatch/state.py:227
+msgid "Critical"
+msgstr "Critical"
+
+#: docking/applets/certwatch/state.py:228
+msgid "Expired"
+msgstr "Expired"
+
+#: docking/applets/certwatch/state.py:229
+msgid "Error"
+msgstr "Error"
+
+#: docking/applets/certwatch/state.py:230
+#: docking/applets/speedtest/applet.py:59
+msgid "..."
+msgstr "..."
+
+#: docking/applets/certwatch/state.py:239
+#, python-brace-format
+msgid "{host}: error ({reason})"
+msgstr "{host}: error ({reason})"
+
+#: docking/applets/certwatch/state.py:246
+#, python-brace-format
+msgid "{host}: unknown"
+msgstr "{host}: unknown"
+
+#: docking/applets/certwatch/state.py:248
+#, python-brace-format
+msgid "{host}: expired {days}d ago"
+msgstr "{host}: expired {days}d ago"
+
+#: docking/applets/certwatch/state.py:249
+#, python-brace-format
+msgid "{host}: {label}, {days}d left"
+msgstr "{host}: {label}, {days}d left"
+
+#: docking/applets/certwatch/state.py:265
+msgid "Cert Watch (no domains configured)"
+msgstr "Cert Watch (no domains configured)"
+
 #: docking/applets/clippy/applet.py:34
 msgid "Clippy"
 msgstr "Clippy"
@@ -414,10 +530,6 @@ msgstr "Set Alarm"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: docking/applets/clock/applet.py:207 docking/applets/quicknote/applet.py:78
-msgid "OK"
-msgstr "OK"
-
 #: docking/applets/clock/applet.py:245
 msgid "Hour"
 msgstr "Hour"
@@ -439,6 +551,100 @@ msgstr "Копиране {hex}"
 #: docking/applets/colorpicker/applet.py:83
 msgid "Show Hex"
 msgstr "Show Hex"
+
+#: docking/applets/deskpresence/applet.py:51
+#: docking/applets/deskpresence/state.py:192
+msgid "Desk Presence"
+msgstr "Desk Presence"
+
+#: docking/applets/deskpresence/applet.py:84
+#, python-brace-format
+msgid "{status}"
+msgstr "{status}"
+
+#: docking/applets/deskpresence/applet.py:92
+msgid "Idle Threshold"
+msgstr "Idle Threshold"
+
+#: docking/applets/deskpresence/applet.py:188
+#: docking/applets/deskpresence/state.py:169
+msgid "At desk"
+msgstr "At desk"
+
+#: docking/applets/deskpresence/applet.py:189
+#: docking/applets/deskpresence/state.py:170
+msgid "Away"
+msgstr "Away"
+
+#: docking/applets/deskpresence/applet.py:190
+msgid "Status unknown"
+msgstr "Status unknown"
+
+#: docking/applets/deskpresence/applet.py:197
+#, python-brace-format
+msgid "{m} min"
+msgstr "{m} min"
+
+#: docking/applets/deskpresence/applet.py:198
+#, python-brace-format
+msgid "{s} sec"
+msgstr "{s} sec"
+
+#: docking/applets/deskpresence/state.py:151
+#, python-brace-format
+msgid "{h}h {m}m"
+msgstr "{h}h {m}m"
+
+#: docking/applets/deskpresence/state.py:152
+#: docking/applets/deskpresence/state.py:164
+#, python-brace-format
+msgid "{m}m"
+msgstr "{m}m"
+
+#: docking/applets/deskpresence/state.py:163
+#, python-brace-format
+msgid "{h}h"
+msgstr "{h}h"
+
+#: docking/applets/deskpresence/state.py:171 docking/applets/music/state.py:81
+#: docking/applets/powerprofiles/state.py:137
+msgid "Unknown"
+msgstr "Unknown"
+
+#: docking/applets/deskpresence/state.py:193
+#, python-brace-format
+msgid "Status: {s}"
+msgstr "Status: {s}"
+
+#: docking/applets/deskpresence/state.py:195
+#, python-brace-format
+msgid "Session: {d}"
+msgstr "Session: {d}"
+
+#: docking/applets/deskpresence/state.py:197
+#, python-brace-format
+msgid "Today at desk: {d}"
+msgstr "Today at desk: {d}"
+
+#: docking/applets/deskpresence/state.py:199
+#, python-brace-format
+msgid "Today away: {d}"
+msgstr "Today away: {d}"
+
+#: docking/applets/deskpresence/state.py:203
+msgid "Last 7 days"
+msgstr "Last 7 days"
+
+#: docking/applets/deskpresence/state.py:206
+#: docking/applets/deskpresence/state.py:213
+#, python-brace-format
+msgid "  {day}: {d}"
+msgstr "  {day}: {d}"
+
+#: docking/applets/deskpresence/state.py:220
+#, python-brace-format
+msgid "Week total at desk: {d}"
+msgstr "Week total at desk: {d}"
 
 #: docking/applets/desktop/applet.py:27 docking/applets/workspaces/applet.py:81
 msgid "Desktop"
@@ -617,10 +823,6 @@ msgstr "Paused"
 #: docking/applets/music/state.py:79
 msgid "Stopped"
 msgstr "Stopped"
-
-#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:137
-msgid "Unknown"
-msgstr "Unknown"
 
 #: docking/applets/music/state.py:127
 msgid "Music: No active player"
@@ -949,6 +1151,62 @@ msgstr "Restart"
 #: docking/applets/session/state.py:30
 msgid "Shut Down"
 msgstr "Shut Down"
+
+#: docking/applets/speedtest/applet.py:40 docking/applets/speedtest/state.py:70
+msgid "Speedtest"
+msgstr "Speedtest"
+
+#: docking/applets/speedtest/applet.py:82
+#: docking/applets/speedtest/applet.py:100
+#: docking/applets/speedtest/state.py:72
+msgid "Running..."
+msgstr "Running..."
+
+#: docking/applets/speedtest/applet.py:82
+msgid "Run Test"
+msgstr "Run Test"
+
+#: docking/applets/speedtest/applet.py:89
+msgid "Copy Last Result"
+msgstr "Copy Last Result"
+
+#: docking/applets/speedtest/applet.py:105
+#, python-brace-format
+msgid "Down {d:.1f} / Up {u:.1f} Mbps"
+msgstr "Down {d:.1f} / Up {u:.1f} Mbps"
+
+#: docking/applets/speedtest/applet.py:162
+#, python-brace-format
+msgid ""
+"Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
+"({when})"
+msgstr ""
+"Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
+"({when})"
+
+#: docking/applets/speedtest/state.py:78
+msgid "Click to run a test"
+msgstr "Click to run a test"
+
+#: docking/applets/speedtest/state.py:81
+#, python-brace-format
+msgid "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
+msgstr "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
+
+#: docking/applets/speedtest/state.py:86
+#, python-brace-format
+msgid "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
+msgstr "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
+
+#: docking/applets/speedtest/state.py:91
+#, python-brace-format
+msgid "Server: {s}"
+msgstr "Server: {s}"
+
+#: docking/applets/speedtest/state.py:94
+#, python-brace-format
+msgid "At: {t}"
+msgstr "At: {t}"
 
 #: docking/applets/stretchcoach/applet.py:40
 msgid "Stretch Coach"
@@ -1316,7 +1574,7 @@ msgstr "Power Profiles unavailable"
 msgid "Add Separator"
 msgstr "Add Separator"
 
-#: docking/ui/menu.py:1493 docking/ui/settings.py:162
+#: docking/ui/menu.py:1493 docking/ui/settings.py:163
 msgid "Preferences"
 msgstr "Настройки"
 
@@ -1341,193 +1599,193 @@ msgstr "Window"
 msgid "Display {display}: {width}x{height}"
 msgstr "Дисплей {display}: {width}x{height}"
 
-#: docking/ui/settings.py:186
+#: docking/ui/settings.py:187
 msgid "Appearance"
 msgstr "Външен вид"
 
-#: docking/ui/settings.py:187 docking/ui/settings.py:361
+#: docking/ui/settings.py:188 docking/ui/settings.py:362
 msgid "Behavior"
 msgstr "Поведение"
 
-#: docking/ui/settings.py:188
+#: docking/ui/settings.py:189
 msgid "Applets"
 msgstr "Аплети"
 
-#: docking/ui/settings.py:206
+#: docking/ui/settings.py:207
 msgid "Don't Hide"
 msgstr "Не скривай"
 
-#: docking/ui/settings.py:207
+#: docking/ui/settings.py:208
 msgid "Auto-hide"
 msgstr "Auto-hide"
 
-#: docking/ui/settings.py:208
+#: docking/ui/settings.py:209
 msgid "Intelligent"
 msgstr "Интелигентен"
 
-#: docking/ui/settings.py:209
+#: docking/ui/settings.py:210
 msgid "Dodge Active Window"
 msgstr "Избягвай активен прозорец"
 
-#: docking/ui/settings.py:210
+#: docking/ui/settings.py:211
 msgid "Dodge All Windows"
 msgstr "Избягвай всички прозорци"
 
-#: docking/ui/settings.py:211
+#: docking/ui/settings.py:212
 msgid "Dodge Maximized"
 msgstr "Избягвай максимизиран"
 
-#: docking/ui/settings.py:228
+#: docking/ui/settings.py:229
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:229
+#: docking/ui/settings.py:230
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:230
+#: docking/ui/settings.py:231
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:237
+#: docking/ui/settings.py:238
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:238
+#: docking/ui/settings.py:239
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:239
+#: docking/ui/settings.py:240
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:246
+#: docking/ui/settings.py:247
 msgid "Click"
 msgstr "Click"
 
-#: docking/ui/settings.py:247
+#: docking/ui/settings.py:248
 msgid "Hover"
 msgstr "Hover"
 
-#: docking/ui/settings.py:305
+#: docking/ui/settings.py:306
 msgid "Look"
 msgstr "Изглед"
 
-#: docking/ui/settings.py:307
+#: docking/ui/settings.py:308
 msgid "Theme"
 msgstr "Тема"
 
-#: docking/ui/settings.py:308
+#: docking/ui/settings.py:309
 msgid "Icon Size"
 msgstr "Icon Size"
 
-#: docking/ui/settings.py:309
+#: docking/ui/settings.py:310
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:310
+#: docking/ui/settings.py:311
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:311
+#: docking/ui/settings.py:312
 msgid "Zoom Percent"
 msgstr "Процент на увеличение"
 
-#: docking/ui/settings.py:312
+#: docking/ui/settings.py:313
 msgid "Show Tooltips"
 msgstr "Покажи подсказки"
 
-#: docking/ui/settings.py:313
+#: docking/ui/settings.py:314
 msgid "Window Previews"
 msgstr "Window Previews"
 
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:319
 msgid "Placement"
 msgstr "Позиция"
 
-#: docking/ui/settings.py:320
+#: docking/ui/settings.py:321
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:322
 msgid "Follow Cursor"
 msgstr "Follow Cursor"
 
-#: docking/ui/settings.py:322
+#: docking/ui/settings.py:323
 msgid "Current Workspace Only"
 msgstr "Current Workspace Only"
 
-#: docking/ui/settings.py:327
+#: docking/ui/settings.py:328
 msgid "Layout"
 msgstr "Подредба"
 
-#: docking/ui/settings.py:329
+#: docking/ui/settings.py:330
 msgid "Lock Positions"
 msgstr "Заключи позиции"
 
-#: docking/ui/settings.py:330
+#: docking/ui/settings.py:331
 msgid "Anchor Applets to End"
 msgstr "Anchor Applets to End"
 
-#: docking/ui/settings.py:331
+#: docking/ui/settings.py:332
 msgid "Anchor Files to End"
 msgstr "Закотви файлове в края"
 
-#: docking/ui/settings.py:353
+#: docking/ui/settings.py:354
 msgid "Mouse"
 msgstr "Mouse"
 
-#: docking/ui/settings.py:355
+#: docking/ui/settings.py:356
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:356
+#: docking/ui/settings.py:357
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:363
+#: docking/ui/settings.py:364
 msgid "Hide Mode"
 msgstr "Режим на скриване"
 
-#: docking/ui/settings.py:364
+#: docking/ui/settings.py:365
 msgid "Hide Delay"
 msgstr "Забавяне при скриване"
 
-#: docking/ui/settings.py:365
+#: docking/ui/settings.py:366
 msgid "Unhide Delay"
 msgstr "Забавяне при показване"
 
-#: docking/ui/settings.py:370
+#: docking/ui/settings.py:371
 msgid "Folder Stacks"
 msgstr "Folder Stacks"
 
-#: docking/ui/settings.py:372
+#: docking/ui/settings.py:373
 msgid "Open On"
 msgstr "Open On"
 
-#: docking/ui/settings.py:791
+#: docking/ui/settings.py:792
 msgid "The dock is always visible and reserves screen space."
 msgstr "The dock is always visible and reserves screen space."
 
-#: docking/ui/settings.py:792
+#: docking/ui/settings.py:793
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:794
+#: docking/ui/settings.py:795
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:796
+#: docking/ui/settings.py:797
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:798
+#: docking/ui/settings.py:799
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:801
+#: docking/ui/settings.py:802
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
