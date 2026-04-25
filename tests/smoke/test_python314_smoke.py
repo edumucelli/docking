@@ -70,6 +70,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.ui.factory": {
             "build_dock_window": lambda **_kwargs: None,
         },
+        "docking.ui.new_year": {
+            "NewYearGreetingController": type("NewYearGreetingController", (), {}),
+        },
         "docking.ui.renderer": {
             "DockRenderer": type("DockRenderer", (), {}),
         },
@@ -231,6 +234,7 @@ def test_app_main_smoke(monkeypatch):
     renderer = MagicMock()
     tracker = MagicMock()
     unity = MagicMock()
+    new_year = MagicMock()
     window = MagicMock()
     items_service = MagicMock()
 
@@ -247,6 +251,11 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
     monkeypatch.setattr(app_mod, "WindowTracker", MagicMock(return_value=tracker))
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
+    monkeypatch.setattr(
+        app_mod,
+        "NewYearGreetingController",
+        MagicMock(return_value=new_year),
+    )
     monkeypatch.setattr(app_mod, "build_dock_window", MagicMock(return_value=window))
     monkeypatch.setattr(
         app_mod, "DockItemsService", MagicMock(return_value=items_service)
@@ -258,6 +267,9 @@ def test_app_main_smoke(monkeypatch):
     fake_glib.idle_add.side_effect = idle_add
 
     app_mod.main()
+
+    new_year.start.assert_called_once()
+    new_year.stop.assert_called_once()
 
     fake_gtk.main.assert_called_once()
     assert fake_glib.unix_signal_add.call_count == 2

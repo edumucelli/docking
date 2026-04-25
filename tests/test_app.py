@@ -55,6 +55,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.ui.factory": {
             "build_dock_window": lambda **_kwargs: None,
         },
+        "docking.ui.new_year": {
+            "NewYearGreetingController": type("NewYearGreetingController", (), {}),
+        },
         "docking.ui.renderer": {
             "DockRenderer": type("DockRenderer", (), {}),
         },
@@ -109,12 +112,14 @@ class TestAppMain:
         renderer = MagicMock()
         tracker = MagicMock()
         unity = MagicMock()
+        new_year = MagicMock()
         window = MagicMock()
         items_service = MagicMock()
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
         unity.start.side_effect = lambda: call_order.append("unity_start")
+        new_year.start.side_effect = lambda: call_order.append("new_year_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
@@ -140,6 +145,11 @@ class TestAppMain:
             app_mod,
             "UnityLauncherListener",
             MagicMock(return_value=unity),
+        )
+        monkeypatch.setattr(
+            app_mod,
+            "NewYearGreetingController",
+            MagicMock(return_value=new_year),
         )
         factory = MagicMock(return_value=window)
         monkeypatch.setattr(app_mod, "build_dock_window", factory)
@@ -167,6 +177,8 @@ class TestAppMain:
         items_service.stop.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
+        new_year.start.assert_called_once()
+        new_year.stop.assert_called_once()
         fake_glib.idle_add.assert_called_once_with(
             app_mod._start_runtime,
             items_service,
@@ -176,6 +188,7 @@ class TestAppMain:
         assert call_order == [
             "unity_start",
             "show_all",
+            "new_year_start",
             "idle_add",
             "items_start",
             "applets_start",
@@ -201,12 +214,14 @@ class TestAppMain:
         renderer = MagicMock()
         tracker = MagicMock()
         unity = MagicMock()
+        new_year = MagicMock()
         window = MagicMock()
         items_service = MagicMock()
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
         unity.start.side_effect = lambda: call_order.append("unity_start")
+        new_year.start.side_effect = lambda: call_order.append("new_year_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
@@ -225,6 +240,7 @@ class TestAppMain:
         renderer_cls = MagicMock(return_value=renderer)
         tracker_cls = MagicMock(return_value=tracker)
         unity_cls = MagicMock(return_value=unity)
+        new_year_cls = MagicMock(return_value=new_year)
         factory = MagicMock(return_value=window)
         items_service_cls = MagicMock(return_value=items_service)
 
@@ -244,6 +260,11 @@ class TestAppMain:
         )
         monkeypatch.setattr(
             sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
+        )
+        monkeypatch.setattr(
+            sys.modules["docking.ui.new_year"],
+            "NewYearGreetingController",
+            new_year_cls,
         )
         monkeypatch.setattr(
             sys.modules["docking.ui.factory"], "build_dock_window", factory
@@ -266,9 +287,12 @@ class TestAppMain:
         fake_gtk.main.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
+        new_year.start.assert_called_once()
+        new_year.stop.assert_called_once()
         assert call_order == [
             "unity_start",
             "show_all",
+            "new_year_start",
             "idle_add",
             "items_start",
             "applets_start",
