@@ -152,6 +152,10 @@ class TestLabels:
 class TestRender:
     def test_render_icon(self):
         assert render_icon(size=48, available=True, active=True) is not None
+        assert (
+            render_icon(size=48, available=True, active=True, pulse_phase=0.5)
+            is not None
+        )
         assert render_icon(size=48, available=False, active=False) is not None
 
 
@@ -180,3 +184,26 @@ class TestApplet:
 
         assert "Camera idle" in labels
         assert "Refresh Now" in labels
+
+    def test_pulse_tick_repaints_icon(self, monkeypatch):
+        state = CamshieldState(
+            available=True,
+            active=True,
+            devices=("video0",),
+            holders=(CameraHolder(pid=7, command="camera-app", devices=("video0",)),),
+        )
+        monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
+        applet = CamshieldApplet(icon_size=48)
+        notifications = 0
+
+        def notify():
+            nonlocal notifications
+            notifications += 1
+
+        applet.start(notify=notify)
+
+        assert applet._pulse_tick() is True
+        assert applet._pulse_phase > 0.0
+        assert applet.item.icon is not None
+        assert notifications == 1
+        applet.stop()

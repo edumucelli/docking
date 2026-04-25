@@ -29,6 +29,9 @@ if TYPE_CHECKING:
 
 log = with_context(get_logger(name="camshield"), applet_id=meta.id)
 
+_PULSE_INTERVAL_MS = 60  # Match Desk Presence: smooth enough without taxing CPU.
+_PULSE_PERIOD_MS = 1800
+
 
 class CamshieldApplet(Applet):
     """Show when any process is holding a camera device."""
@@ -40,14 +43,18 @@ class CamshieldApplet(Applet):
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._state: CamshieldState = probe_camera_state()
         self._timer_id: int = 0
+        self._pulse_timer_id: int = 0
+        self._pulse_phase: float = 0.0
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+        phase = self._pulse_phase if self._state.active else None
         return render_icon(
             size=size,
             available=self._state.available,
             active=self._state.active,
+            pulse_phase=phase,
         )
 
     def refresh_tooltip(self) -> None:
@@ -60,11 +67,15 @@ class CamshieldApplet(Applet):
             DEFAULT_POLL_INTERVAL_S,
             self._tick,
         )
+        self._ensure_pulse_timer()
 
     def stop(self) -> None:
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
+        if self._pulse_timer_id:
+            GLib.source_remove(self._pulse_timer_id)
+            self._pulse_timer_id = 0
         super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
@@ -98,8 +109,31 @@ class CamshieldApplet(Applet):
 
     def _refresh_now(self) -> None:
         self._state = probe_camera_state()
+        self._ensure_pulse_timer()
         self.present()
 
     def _tick(self) -> bool:
         self._refresh_now()
+        return True
+
+    def _ensure_pulse_timer(self) -> None:
+        """Run the red-dot pulse only while a camera device is active."""
+        if self._state.active and not self._pulse_timer_id:
+            self._pulse_timer_id = GLib.timeout_add(
+                _PULSE_INTERVAL_MS,
+                self._pulse_tick,
+            )
+        elif not self._state.active and self._pulse_timer_id:
+            GLib.source_remove(self._pulse_timer_id)
+            self._pulse_timer_id = 0
+            self._pulse_phase = 0.0
+
+    def _pulse_tick(self) -> bool:
+        self._pulse_phase = (
+            self._pulse_phase + _PULSE_INTERVAL_MS / _PULSE_PERIOD_MS
+        ) % 1.0
+        # Repaint the icon only; skip tooltip/menu state churn between probes.
+        self.item.icon = self.create_icon(size=self._icon_size)
+        if self._notify:
+            self._notify()
         return True

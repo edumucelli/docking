@@ -20,6 +20,7 @@ def render_icon(
     size: int,
     available: bool,
     active: bool,
+    pulse_phase: float | None = None,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render a webcam shield with a red privacy indicator when active."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -31,10 +32,24 @@ def render_icon(
 
     if active:
         radius = size * 0.16
+        cx = size - radius - size * 0.06
+        cy = radius + size * 0.06
+        if pulse_phase is not None:
+            phase = max(0.0, min(1.0, pulse_phase))
+            pulse_radius = radius * (1.15 + 0.65 * phase)
+            pulse_alpha = 0.46 * (1.0 - phase)
+            if pulse_alpha > 0.02:
+                draw_circle_badge(
+                    cr=cr,
+                    cx=cx,
+                    cy=cy,
+                    radius=pulse_radius,
+                    background_rgba=(0.92, 0.08, 0.10, pulse_alpha),
+                )
         draw_circle_badge(
             cr=cr,
-            cx=size - radius - size * 0.06,
-            cy=radius + size * 0.06,
+            cx=cx,
+            cy=cy,
             radius=radius,
             background_rgba=(0.92, 0.08, 0.10, 0.98),
             outline_rgba=(1.0, 1.0, 1.0, 0.92),
