@@ -1,2 +1,3 @@
 packaging/shared/org.docking.Docking.desktop usr/share/applications
+packaging/shared/org.docking.camshield.policy usr/share/polkit-1/actions
 packaging/shared/refresh-desktop-caches.sh usr/lib/docking/refresh-desktop-caches

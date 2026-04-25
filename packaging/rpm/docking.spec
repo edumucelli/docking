@@ -49,8 +49,14 @@ fi
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
+install -Dm755 packaging/shared/docking-camshield-helper \
+  %{buildroot}/usr/bin/docking-camshield-helper
+
 install -Dm644 packaging/shared/org.docking.Docking.desktop \
   %{buildroot}/usr/share/applications/org.docking.Docking.desktop
+
+install -Dm644 packaging/shared/org.docking.camshield.policy \
+  %{buildroot}/usr/share/polkit-1/actions/org.docking.camshield.policy
 
 install -Dm755 packaging/shared/refresh-desktop-caches.sh \
   %{buildroot}/usr/lib/docking/refresh-desktop-caches
@@ -73,10 +79,12 @@ fi
 %files
 %license LICENSE
 /usr/bin/docking
+/usr/bin/docking-camshield-helper
 /usr/lib/docking/python
 /usr/lib/docking/vendor
 /usr/lib/docking/refresh-desktop-caches
 /usr/share/applications/org.docking.Docking.desktop
+/usr/share/polkit-1/actions/org.docking.camshield.policy
 /usr/share/icons/hicolor
 
 %changelog

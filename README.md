@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 42 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 43 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -516,6 +516,23 @@ Bluetooth manager applet for quick adapter and device control from the dock.
 
 **Tooltip:** adapter state, connected/paired counts, discovery status, optional battery line
 **Badge:** connected device count
+
+**Update interval:** 2 seconds
+
+### Cam Shield
+
+<img src="docking/assets/icons/applets/camshield.png" alt="Cam Shield" width="48">
+
+Camera privacy indicator. The applet scans open process file descriptors for `/dev/video*` devices and shows a red dot while any process is holding a camera device.
+
+**Right-click options:**
+- Active process list with PID and camera device
+- Lock Camera / Unlock Camera via a privileged Polkit helper
+- Refresh Now
+
+**Tooltip:** Shows whether the camera is idle, active, or unavailable, plus active holders when detected
+
+Locking removes access from the current `/dev/video*` device nodes so new camera sessions cannot open them. Existing camera sessions may need to be closed first because already-open device handles are not revoked.
 
 **Update interval:** 2 seconds
 

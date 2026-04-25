@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-25 11:17+0200\n"
+"POT-Creation-Date: 2026-04-25 12:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -139,6 +139,7 @@ msgid "Copy Explanation"
 msgstr ""
 
 #: docking/applets/apod/applet.py:99 docking/applets/bluetooth/applet.py:210
+#: docking/applets/camshield/applet.py:125
 #: docking/applets/certwatch/applet.py:122
 msgid "Refresh Now"
 msgstr ""
@@ -401,6 +402,56 @@ msgstr ""
 msgid "Calendar"
 msgstr ""
 
+#: docking/applets/camshield/applet.py:48 docking/applets/camshield/state.py:58
+msgid "Cam Shield"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:92 docking/applets/camshield/state.py:60
+msgid "No camera devices found"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:96 docking/applets/camshield/state.py:64
+msgid "Camera idle"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:100
+#: docking/applets/camshield/state.py:67
+msgid "Camera active"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:109
+msgid "Lock Camera"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:114
+msgid "Unlock Camera"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:120
+msgid "Camera lock helper unavailable"
+msgstr ""
+
+#: docking/applets/camshield/state.py:70
+#, python-brace-format
+msgid "{command} (PID {pid}) using {devices}"
+msgstr ""
+
+#: docking/applets/camshield/state.py:78
+#, python-brace-format
+msgid "{count} more"
+msgstr ""
+
+#: docking/applets/camshield/state.py:84
+#, python-brace-format
+msgid "{command} (PID {pid}) - {devices}"
+msgstr ""
+
+#: docking/applets/camshield/state.py:179
+#: docking/applets/deskpresence/state.py:171 docking/applets/music/state.py:81
+#: docking/applets/powerprofiles/state.py:137
+msgid "Unknown"
+msgstr ""
+
 #: docking/applets/certwatch/applet.py:55
 #: docking/applets/certwatch/state.py:268
 msgid "Cert Watch"
@@ -605,11 +656,6 @@ msgstr ""
 #: docking/applets/deskpresence/state.py:163
 #, python-brace-format
 msgid "{h}h"
-msgstr ""
-
-#: docking/applets/deskpresence/state.py:171 docking/applets/music/state.py:81
-#: docking/applets/powerprofiles/state.py:137
-msgid "Unknown"
 msgstr ""
 
 #: docking/applets/deskpresence/state.py:193
@@ -1593,7 +1639,7 @@ msgstr ""
 msgid "Window"
 msgstr ""
 
-#: docking/ui/new_year.py:165
+#: docking/ui/new_year.py:163
 #, python-brace-format
 msgid "Happy new year {year} !!!"
 msgstr ""
