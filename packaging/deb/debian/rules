@@ -50,3 +50,8 @@ override_dh_python3:
 	# Docking installs into private paths under /usr/lib/docking and uses an
 	# explicit python3 (>= 3.10) dependency in debian/control.
 	:
+
+override_dh_builddeb:
+	# Use xz instead of newer zstd-compressed .deb members so release artifacts
+	# remain installable with older dpkg versions still found on supported hosts.
+	dh_builddeb -- -Zxz

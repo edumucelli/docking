@@ -70,6 +70,8 @@ docking
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
 - **CI validation**: the generated architecture-specific package is installed and checked on both x86_64 and ARM64 runners.
 - **Release note**: GitHub Releases publish `linux-x86_64.deb` and `linux-aarch64.deb`.
+- **Compression**: binary `.deb` artifacts are built with `xz` compression for
+  compatibility with older `dpkg` versions that cannot unpack `control.tar.zst`.
 
 ## PPA (Launchpad)
 
