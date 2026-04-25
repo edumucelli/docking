@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-25 23:08+0200\n"
+"POT-Creation-Date: 2026-04-28 08:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,6 +140,7 @@ msgstr ""
 
 #: docking/applets/apod/applet.py:99 docking/applets/bluetooth/applet.py:210
 #: docking/applets/camshield/applet.py:125
+#: docking/applets/capslock/applet.py:80
 #: docking/applets/certwatch/applet.py:122
 msgid "Refresh Now"
 msgstr ""
@@ -217,12 +218,12 @@ msgid "No Bluetooth adapter"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:182
-#: docking/applets/bluetooth/state.py:142
+#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:100
 msgid "On"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:182
-#: docking/applets/bluetooth/state.py:142
+#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:100
 msgid "Off"
 msgstr ""
 
@@ -450,6 +451,34 @@ msgstr ""
 #: docking/applets/deskpresence/state.py:171 docking/applets/music/state.py:81
 #: docking/applets/powerprofiles/state.py:137
 msgid "Unknown"
+msgstr ""
+
+#: docking/applets/capslock/applet.py:37 docking/applets/capslock/applet.py:72
+#: docking/applets/capslock/state.py:87
+msgid "Caps Lock"
+msgstr ""
+
+#: docking/applets/capslock/applet.py:68 docking/applets/capslock/state.py:83
+msgid "Keyboard lock state unavailable"
+msgstr ""
+
+#: docking/applets/capslock/applet.py:75
+msgid "Num Lock"
+msgstr ""
+
+#: docking/applets/capslock/state.py:88
+#, python-brace-format
+msgid "Caps Lock: {state}"
+msgstr ""
+
+#: docking/applets/capslock/state.py:89
+#, python-brace-format
+msgid "Num Lock: {state}"
+msgstr ""
+
+#: docking/applets/capslock/state.py:96
+#, python-brace-format
+msgid "{name}: {state}"
 msgstr ""
 
 #: docking/applets/certwatch/applet.py:55

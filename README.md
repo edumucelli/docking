@@ -468,6 +468,21 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 
 **Tooltip:** active layout code or no-layout fallback
 
+### Caps Lock
+
+<img src="docking/assets/icons/applets/capslock.png" alt="Caps Lock" width="48">
+
+Caps Lock and Num Lock state LEDs for keyboards without physical indicators. The applet reads X11 keyboard indicators and lights the CAP/NUM dots when each lock is active.
+
+**Click:** Refresh lock state immediately
+**Right-click options:**
+- Current Caps Lock and Num Lock states
+- Refresh Now
+
+**Tooltip:** Caps Lock and Num Lock on/off state, or an unavailable-state fallback
+
+**Update interval:** 1 second
+
 ### Network
 
 <img src="docking/assets/icons/applets/network.png" alt="Network" width="48">
