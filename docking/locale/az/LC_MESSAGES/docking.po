@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-25 12:53+0200\n"
+"POT-Creation-Date: 2026-04-25 23:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -694,6 +694,49 @@ msgstr "Week total at desk: {d}"
 #: docking/applets/desktop/applet.py:27 docking/applets/workspaces/applet.py:81
 msgid "Desktop"
 msgstr "Masaüstü"
+
+#: docking/applets/dragshare/applet.py:39
+msgid "Drag Share"
+msgstr "Drag Share"
+
+#: docking/applets/dragshare/applet.py:58
+#, python-brace-format
+msgid "Uploading {file}..."
+msgstr "Uploading {file}..."
+
+#: docking/applets/dragshare/applet.py:61
+#, python-brace-format
+msgid "Uploaded {file}; URL copied"
+msgstr "Uploaded {file}; URL copied"
+
+#: docking/applets/dragshare/applet.py:66
+#, python-brace-format
+msgid "Upload failed: {error}"
+msgstr "Upload failed: {error}"
+
+#: docking/applets/dragshare/applet.py:69
+msgid "Drag Share - click to copy last URL"
+msgstr "Drag Share - click to copy last URL"
+
+#: docking/applets/dragshare/applet.py:71
+msgid "Drag Share - drop a file to upload"
+msgstr "Drag Share - drop a file to upload"
+
+#: docking/applets/dragshare/applet.py:78
+msgid "Upload already in progress"
+msgstr "Upload already in progress"
+
+#: docking/applets/dragshare/applet.py:83
+msgid "Drop a local file to upload"
+msgstr "Drop a local file to upload"
+
+#: docking/applets/dragshare/applet.py:94
+msgid "Copy Last URL"
+msgstr "Copy Last URL"
+
+#: docking/applets/dragshare/applet.py:125
+msgid "Upload failed"
+msgstr "Upload failed"
 
 #: docking/applets/hydration/applet.py:39
 msgid "Hydration"
