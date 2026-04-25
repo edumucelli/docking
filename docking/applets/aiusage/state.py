@@ -11,14 +11,21 @@ from pathlib import Path
 from typing import Any
 
 from docking.i18n import _
+from docking.log import get_logger
 
 MAX_DAYS = 7
+log = get_logger("aiusage.state")
 
 
 class Provider(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
     OPENCODE = "opencode"
+
+
+class DisplayMode(str, Enum):
+    COST = "cost"
+    TOKENS = "tokens"
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +206,38 @@ def week_cost(state: AiUsageState) -> float:
 def today_sessions(state: AiUsageState) -> int:
     entry = _today_entry(state=state)
     return entry.sessions if entry else 0
+
+
+# ---------------------------------------------------------------------------
+# Token aggregation
+# ---------------------------------------------------------------------------
+
+
+def total_tokens(usage: ModelUsage) -> int:
+    """Total fresh tokens (non-cached input + output)."""
+    fresh_input = max(0, usage.input_tokens - usage.cache_read_tokens)
+    return fresh_input + usage.output_tokens
+
+
+def day_tokens(entry: DayEntry) -> int:
+    return sum(total_tokens(u) for _, u in entry.by_model)
+
+
+def provider_tokens(entry: DayEntry, provider: Provider) -> int:
+    return sum(
+        total_tokens(u)
+        for m, u in entry.by_model
+        if provider_for_model(model=m) == provider
+    )
+
+
+def today_tokens(state: AiUsageState) -> int:
+    entry = _today_entry(state=state)
+    return day_tokens(entry=entry) if entry else 0
+
+
+def week_tokens(state: AiUsageState) -> int:
+    return sum(day_tokens(entry=d) for d in state.days)
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +431,14 @@ def _format_cost(cost: float) -> str:
     return "$0"
 
 
+def _format_tokens(tokens: int) -> str:
+    if tokens >= 1_000_000:
+        return f"{tokens / 1_000_000:.1f}M"
+    if tokens >= 1_000:
+        return f"{tokens / 1_000:.1f}K"
+    return str(tokens)
+
+
 def _short_model(model: str) -> str:
     """Extract a short display name from a full model ID."""
     raw = model.removeprefix(OPENCODE_PREFIX)
@@ -434,13 +481,15 @@ def parse_claude_transcript(path: Path) -> dict[str, ModelUsage]:
     result: dict[str, ModelUsage] = {}
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
+    except OSError as exc:
+        log.debug("Failed to read Claude transcript %s: %s", path, exc)
         return result
 
     for line in text.splitlines():
         try:
             entry = json.loads(line)
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError) as exc:
+            log.debug("Failed to parse Claude transcript line in %s: %s", path, exc)
             continue
         if entry.get("type") != "assistant":
             continue
@@ -495,7 +544,8 @@ def parse_codex_transcript(path: Path) -> dict[str, ModelUsage]:
     """Read a Codex CLI JSONL session and extract cumulative usage."""
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
+    except OSError as exc:
+        log.debug("Failed to read Codex transcript %s: %s", path, exc)
         return {}
 
     model: str = ""
@@ -505,7 +555,8 @@ def parse_codex_transcript(path: Path) -> dict[str, ModelUsage]:
     for line in text.splitlines():
         try:
             entry = json.loads(line)
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError) as exc:
+            log.debug("Failed to parse Codex transcript line in %s: %s", path, exc)
             continue
 
         entry_type = entry.get("type", "")
@@ -564,7 +615,8 @@ def query_opencode_today() -> dict[str, dict[str, ModelUsage]]:
 
     try:
         conn = sqlite3.connect(f"file:{_OPENCODE_DB}?mode=ro", uri=True)
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as exc:
+        log.debug("Failed to open OpenCode database %s: %s", _OPENCODE_DB, exc)
         return {}
 
     try:
@@ -584,7 +636,12 @@ def query_opencode_today() -> dict[str, dict[str, ModelUsage]]:
             for (data_str,) in cur.fetchall():
                 try:
                     data = json.loads(data_str)
-                except (json.JSONDecodeError, ValueError):
+                except (json.JSONDecodeError, ValueError) as exc:
+                    log.debug(
+                        "Failed to parse OpenCode message row for session %s: %s",
+                        sid,
+                        exc,
+                    )
                     continue
                 model_id = data.get("modelID", "")
                 if not model_id:

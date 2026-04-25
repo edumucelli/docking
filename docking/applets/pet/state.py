@@ -1,4 +1,4 @@
-"""Pure state logic for the pet applet — no GTK/Cairo."""
+"""Pure state logic for the pet applet - no GTK/Cairo."""
 
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ def resolve_mood(cpu: float, prev_cpu: float, idle_ticks: int) -> Mood:
         return Mood.FOCUSED
     if cpu >= RELAXED_CPU:
         return Mood.HAPPY
-    # Below idle threshold — drowsy/sleepy/sleeping by duration
+    # Below idle threshold - drowsy/sleepy/sleeping by duration
     if cpu < IDLE_CPU:
         if idle_ticks >= SLEEPING_TICKS:
             return Mood.SLEEPING

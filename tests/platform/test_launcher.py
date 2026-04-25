@@ -3,6 +3,7 @@
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # Mock gi before importing launcher only when PyGObject is unavailable.
@@ -14,11 +15,15 @@ except Exception:
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+from docking.core.config import MiddleClickAction
 from docking.platform.launcher import (
+    DesktopInfo,
     Launcher,
     get_actions,
     launch,
     launch_action,
+    launch_new_window,
+    open_target,
 )
 
 
@@ -97,12 +102,97 @@ class TestIconCache:
 
         assert name is None
 
+    def test_resolve_file_icon_caches_image_thumbnail_by_file_stat(self, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.return_value = "thumb"
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod,
+            "normalize_file_target",
+            lambda _target: "file:///tmp/photo.png",
+        )
+        monkeypatch.setattr(
+            launcher_mod.Path,
+            "stat",
+            lambda self: SimpleNamespace(st_mtime_ns=10, st_size=20),
+        )
+
+        first = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+        second = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+
+        assert first == "thumb"
+        assert second == "thumb"
+        pixbuf_cls.new_from_file_at_scale.assert_called_once()
+
+    def test_resolve_file_icon_reloads_thumbnail_when_file_stat_changes(
+        self, monkeypatch
+    ):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.side_effect = ["thumb-1", "thumb-2"]
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod,
+            "normalize_file_target",
+            lambda _target: "file:///tmp/photo.png",
+        )
+        stats = iter(
+            (
+                SimpleNamespace(st_mtime_ns=10, st_size=20),
+                SimpleNamespace(st_mtime_ns=11, st_size=20),
+                SimpleNamespace(st_mtime_ns=12, st_size=20),
+                SimpleNamespace(st_mtime_ns=13, st_size=20),
+            )
+        )
+        monkeypatch.setattr(launcher_mod.Path, "stat", lambda self: next(stats))
+
+        first = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+        second = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+
+        assert first == "thumb-1"
+        assert second == "thumb-2"
+        assert pixbuf_cls.new_from_file_at_scale.call_count == 2
+
 
 class TestDesktopActions:
     def test_get_actions_returns_pairs(self):
         # Given a mock DesktopAppInfo with actions
         mock_app = MagicMock()
-        mock_app.list_actions.return_value = ["new-window", "new-private"]
+        mock_app.list_actions.return_value = [
+            MiddleClickAction.NEW_WINDOW.value,
+            "new-private",
+        ]
         mock_app.get_action_name.side_effect = lambda a: {
             "new-window": "New Window",
             "new-private": "New Incognito Window",
@@ -150,7 +240,9 @@ class TestDesktopActions:
         ):
             launch_action(desktop_id="chrome.desktop", action_id="new-window")
         # Then
-        mock_app.launch_action.assert_called_once_with("new-window", None)
+        mock_app.launch_action.assert_called_once_with(
+            MiddleClickAction.NEW_WINDOW.value, None
+        )
 
     def test_get_actions_returns_empty_when_gio_raises(self, monkeypatch):
         # Given / When
@@ -260,6 +352,32 @@ class TestResolve:
         # Then
         assert info is None
 
+    def test_resolve_by_wm_class_indexes_fallback_exec_alias(self, tmp_path):
+        apps_dir = tmp_path / "applications"
+        apps_dir.mkdir()
+        (apps_dir / "org.gnome.Calculator.desktop").write_text("[Desktop Entry]\n")
+
+        launcher = Launcher()
+        launcher._desktop_dirs = [apps_dir]
+        launcher.resolve = MagicMock(
+            side_effect=lambda desktop_id, **_kwargs: (
+                DesktopInfo(
+                    desktop_id="org.gnome.Calculator.desktop",
+                    name="Calculator",
+                    icon_name="org.gnome.Calculator",
+                    wm_class="gnome-calculator",
+                    exec_line="gnome-calculator",
+                )
+                if desktop_id == "org.gnome.Calculator.desktop"
+                else None
+            )
+        )
+
+        info = launcher.resolve_by_wm_class("gnome-calculator")
+
+        assert info is not None
+        assert info.desktop_id == "org.gnome.Calculator.desktop"
+
     def test_resolve_file_uses_image_thumbnail_for_images(self, monkeypatch):
         from docking.platform import launcher as launcher_mod
 
@@ -279,6 +397,11 @@ class TestResolve:
         pixbuf_cls.new_from_file_at_scale.return_value = thumb
         monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
         monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod.Path,
+            "stat",
+            lambda self: SimpleNamespace(st_mtime_ns=10, st_size=20),
+        )
         launcher.load_gicon = MagicMock(return_value="gicon-pixbuf")
         launcher.load_icon = MagicMock(return_value="fallback-pixbuf")
 
@@ -396,6 +519,80 @@ class TestTryLoadIcon:
         assert resolved is not None
         assert resolved.icon == "gicon-pixbuf"
         launcher.load_gicon.assert_called_once_with(gicon=gicon, size=48)
+
+
+class TestLaunchNewWindow:
+    def test_launch_new_window_prefers_desktop_action(self):
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-window", "new-private"]
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=mock_app,
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="sublime_text.desktop")
+
+        mock_app.launch_action.assert_called_once_with("new-window", None)
+        launch_mock.assert_not_called()
+
+    def test_launch_new_window_falls_back_without_action(self):
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-private"]
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=mock_app,
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="app.desktop")
+
+        mock_app.launch_action.assert_not_called()
+        launch_mock.assert_called_once_with(desktop_id="app.desktop")
+
+    def test_launch_new_window_falls_back_when_desktop_missing(self):
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=None
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="missing.desktop")
+
+        launch_mock.assert_called_once_with(desktop_id="missing.desktop")
+
+
+class TestOpenTarget:
+    def test_open_target_accepts_https_url(self):
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target("https://github.com/edumucelli/docking/issues") is True
+
+        launch_mock.assert_called_once_with(
+            "https://github.com/edumucelli/docking/issues", None
+        )
+
+    def test_open_target_normalizes_local_path(self, tmp_path):
+        target = tmp_path / "example.txt"
+        target.write_text("hello")
+
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target(str(target)) is True
+
+        launch_mock.assert_called_once_with(target.resolve().as_uri(), None)
+
+    def test_open_target_returns_false_for_unsupported_scheme(self):
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target("mailto:test@example.com") is False
+
+        launch_mock.assert_not_called()
 
 
 class TestLaunch:

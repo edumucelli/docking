@@ -120,11 +120,14 @@ def build_tooltip(
     city_display: str,
     weather: WeatherData | None,
     air_quality: AirQualityData | None,
+    fetch_failed: bool = False,
 ) -> str:
     """Build multi-line tooltip with current + daily forecast."""
     if not city_display:
         return _("Weather (no city selected)")
     if not weather:
+        if fetch_failed:
+            return _("{city}: unavailable").format(city=city_display)
         return _("{city}: loading...").format(city=city_display)
 
     lines = [city_display, f"{weather.temperature:.0f}°C, {weather.description}"]

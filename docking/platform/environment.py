@@ -106,6 +106,107 @@ def detect_desktop() -> Desktop:
     return Desktop.UNKNOWN
 
 
+def is_wayland_session() -> bool:
+    """Return True when the desktop session itself is Wayland."""
+    return os.environ.get("XDG_SESSION_TYPE", "").strip().lower() == "wayland"
+
+
+def is_x11_backend(*, display: object | None = None) -> bool:
+    """Return True when the current GTK backend is X11."""
+    if display is None:
+        try:
+            import gi
+
+            gi.require_version("Gdk", "3.0")
+            from gi.repository import Gdk
+
+            display = Gdk.Display.get_default()
+        except Exception:
+            return False
+    if display is None:
+        return False
+    cls = display.__class__
+    if cls.__name__ == "X11Display":
+        return True
+    if cls.__module__.endswith("GdkX11"):
+        return True
+    return callable(getattr(display, "get_xdisplay", None))
+
+
+def is_xwayland_session(*, display: object | None = None) -> bool:
+    """Return True when Docking runs as an X11 client inside a Wayland session."""
+    return is_wayland_session() and is_x11_backend(display=display)
+
+
+def backend_name(*, display: object | None = None) -> str:
+    """Return a compact backend class name for logging."""
+    if display is None:
+        try:
+            import gi
+
+            gi.require_version("Gdk", "3.0")
+            from gi.repository import Gdk
+
+            display = Gdk.Display.get_default()
+        except Exception:
+            return "unknown"
+    if display is None:
+        return "none"
+    cls = display.__class__
+    return f"{cls.__module__}.{cls.__name__}"
+
+
+def compositor_active(*, display: object | None = None) -> bool | None:
+    """Return compositor status for X11 backends, or None when unavailable."""
+    try:
+        import ctypes
+
+        from gi.repository import GdkX11
+
+        if display is None:
+            display = GdkX11.X11Display.get_default()
+        if display is None or not is_x11_backend(display=display):
+            return None
+        screen_num = display.get_default_screen()
+
+        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+        xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
+
+        xlib.XInternAtom.restype = ctypes.c_ulong
+        xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        xlib.XGetSelectionOwner.restype = ctypes.c_ulong
+        xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+
+        atom = xlib.XInternAtom(xdisplay, f"_NET_WM_CM_S{screen_num}".encode(), 0)
+        owner = xlib.XGetSelectionOwner(xdisplay, atom)
+        return owner != 0
+    except Exception as exc:
+        log.warning("failed to check compositor status: %s", exc)
+        return None
+
+
+def log_runtime_snapshot(
+    *,
+    display: object | None = None,
+    desktop: Desktop | None = None,
+) -> None:
+    """Log a small startup snapshot for comparing good and bad runs."""
+    compositor = compositor_active(display=display)
+    log.info(
+        "runtime snapshot: desktop=%s session=%s backend=%s x11=%s xwayland=%s "
+        "compositor_active=%s DISPLAY=%r WAYLAND_DISPLAY=%r GDK_BACKEND=%r",
+        desktop if desktop is not None else detect_desktop(),
+        os.environ.get("XDG_SESSION_TYPE", "").strip().lower() or "unknown",
+        backend_name(display=display),
+        is_x11_backend(display=display),
+        is_xwayland_session(display=display),
+        compositor,
+        os.environ.get("DISPLAY"),
+        os.environ.get("WAYLAND_DISPLAY"),
+        os.environ.get("GDK_BACKEND"),
+    )
+
+
 def _disable_xfce_dock_shadow() -> None:
     """Disable xfwm4's dock window shadow via xfconf-query."""
     if not shutil.which("xfconf-query"):
@@ -137,31 +238,10 @@ def _check_compositor() -> None:
     Gdk.Screen.is_composited() can return stale True if the compositor
     crashed without releasing the selection, so we bypass GDK's cache.
     """
-    try:
-        import ctypes
-
-        from gi.repository import GdkX11
-
-        display = GdkX11.X11Display.get_default()
-        if display is None:
-            log.debug("skipping compositor check: no X11 display")
-            return
-        screen_num = display.get_default_screen()
-
-        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
-        xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
-
-        xlib.XInternAtom.restype = ctypes.c_ulong
-        xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-        xlib.XGetSelectionOwner.restype = ctypes.c_ulong
-        xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
-
-        atom = xlib.XInternAtom(xdisplay, f"_NET_WM_CM_S{screen_num}".encode(), 0)
-        owner = xlib.XGetSelectionOwner(xdisplay, atom)
-        if owner != 0:
-            return
-    except Exception as exc:
-        log.warning("failed to check compositor status: %s", exc)
+    active = compositor_active()
+    if active is None:
+        return
+    if active:
         return
 
     log.warning(

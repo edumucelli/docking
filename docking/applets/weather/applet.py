@@ -64,6 +64,7 @@ class WeatherApplet(Applet):
         self._fetch_request_id: int = 0
         self._weather: WeatherData | None = None
         self._air_quality: AirQualityData | None = None
+        self._fetch_failed = False
         self._worker = BackgroundWorker(logger=log)
 
         prefs = prefs_from_mapping(
@@ -94,7 +95,7 @@ class WeatherApplet(Applet):
         self.item.tooltip_builder = self._build_tooltip_widget
 
     def on_clicked(self) -> None:
-        return
+        self._show_city_dialog()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Cycle through cities on scroll."""
@@ -107,6 +108,7 @@ class WeatherApplet(Applet):
         )
         self._weather = None
         self._air_quality = None
+        self._fetch_failed = False
         self._save_prefs()
         self._fetch_async()
         self.present()
@@ -129,10 +131,6 @@ class WeatherApplet(Applet):
         show_temp.set_active(self._show_temperature)
         show_temp.connect("toggled", self._on_toggle_temperature)
         items.append(show_temp)
-
-        add_city = Gtk.MenuItem(label=_("Add City..."))
-        add_city.connect("activate", lambda _: self._show_city_dialog())
-        items.append(add_city)
 
         if active and len(self._cities) > 1:
             remove = Gtk.MenuItem(
@@ -212,7 +210,12 @@ class WeatherApplet(Applet):
             lat = model.get_value(tree_iter, 1)
             lng = model.get_value(tree_iter, 2)
             self._add_city(display=display, lat=lat, lng=lng)
-            dialog.destroy()
+
+            def destroy_dialog() -> bool:
+                dialog.destroy()
+                return False
+
+            GLib.idle_add(destroy_dialog)
             return True
 
         entry.connect("changed", on_changed)
@@ -239,6 +242,7 @@ class WeatherApplet(Applet):
                 self._active_index = i
                 self._weather = None
                 self._air_quality = None
+                self._fetch_failed = False
                 self._save_prefs()
                 self._fetch_async()
                 self.present()
@@ -247,6 +251,7 @@ class WeatherApplet(Applet):
         self._active_index = len(self._cities) - 1
         self._weather = None
         self._air_quality = None
+        self._fetch_failed = False
         self._save_prefs()
         self._fetch_async()
         self.present()
@@ -258,6 +263,7 @@ class WeatherApplet(Applet):
         self._active_index = min(self._active_index, len(self._cities) - 1)
         self._weather = None
         self._air_quality = None
+        self._fetch_failed = False
         self._save_prefs()
         self._fetch_async()
         self.present()
@@ -284,6 +290,7 @@ class WeatherApplet(Applet):
         request_id = self._fetch_request_id
         lat = active.lat
         lng = active.lng
+        self._fetch_failed = False
 
         def fetch() -> tuple[WeatherData | None, AirQualityData | None]:
             weather = fetch_weather(lat=lat, lng=lng)
@@ -298,6 +305,7 @@ class WeatherApplet(Applet):
                 weather=result[0],
                 aqi=result[1],
             ),
+            on_error=lambda exc: self._on_fetch_error(request_id=request_id, exc=exc),
         )
 
     def _on_fetch_result(
@@ -310,11 +318,24 @@ class WeatherApplet(Applet):
             return False
         self._weather = weather
         self._air_quality = aqi
+        self._fetch_failed = weather is None
+        self.present()
+        return False
+
+    def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
+        if request_id != self._fetch_request_id:
+            return False
+        log.bind(action="fetch_error").debug("Weather fetch failed: %s", exc)
+        self._weather = None
+        self._air_quality = None
+        self._fetch_failed = True
         self.present()
         return False
 
     def _build_tooltip(self) -> str:
         active = self._active_city
+        if active and self._fetch_failed and self._weather is None:
+            return _("{city}: unavailable").format(city=active.city_display)
         return build_tooltip(
             city_display=active.city_display if active else "",
             weather=self._weather,

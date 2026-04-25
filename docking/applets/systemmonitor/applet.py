@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib
+gi.require_version("Gtk", "3.0")
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.systemmonitor import meta
@@ -19,6 +20,7 @@ from docking.applets.systemmonitor.state import (
     MEM_THRESHOLD,
     CpuSample,
     cpu_percent,
+    disk_usage,
     parse_proc_meminfo,
     parse_proc_stat,
     tooltip_text,
@@ -54,6 +56,8 @@ class SystemMonitorApplet(Applet):
         self._temperature_reader = TemperatureReader()
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
+        prefs = config.applet_prefs.get(meta.id, {}) if config else {}
+        self._show_disk: bool = bool(prefs.get("show_disk", True))
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
@@ -66,7 +70,19 @@ class SystemMonitorApplet(Applet):
             cpu=self._cpu,
             mem=self._mem,
             temperature_c=self._temperature_c,
+            disks=disk_usage() if self._show_disk else None,
         )
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        mi = Gtk.CheckMenuItem(label=_("Show Disk Usage"))
+        mi.set_active(self._show_disk)
+        mi.connect("toggled", self._on_toggle_disk)
+        return [mi]
+
+    def _on_toggle_disk(self, widget: Gtk.CheckMenuItem) -> None:
+        self._show_disk = widget.get_active()
+        self.save_prefs(prefs={"show_disk": self._show_disk})
+        self._refresh_tooltip_only()
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start 1-second polling timer for /proc/stat and /proc/meminfo."""

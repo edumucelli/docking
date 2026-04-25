@@ -27,7 +27,7 @@ _DEFAULT_RGB = (0.5, 0.5, 0.5)
 
 
 class ColorPickerApplet(Applet):
-    """Eyedropper color picker — click to sample, copies hex to clipboard.
+    """Eyedropper color picker - click to sample, copies hex to clipboard.
 
     Left-click enters pick mode (fullscreen transparent overlay).
     Clicking anywhere samples the pixel color, copies hex to clipboard,
@@ -69,7 +69,7 @@ class ColorPickerApplet(Applet):
         self.item.name = self._hex if self._hex else _("Color Picker")
 
     def on_clicked(self) -> None:
-        """Enter pick mode — fullscreen transparent overlay captures click."""
+        """Enter pick mode - fullscreen transparent overlay captures click."""
         self._start_pick()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
@@ -97,6 +97,7 @@ class ColorPickerApplet(Applet):
         if self._overlay:
             return
 
+        # POPUP bypasses WM decoration and focus stealing prevention
         overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
         overlay.set_decorated(False)
         overlay.set_app_paintable(True)

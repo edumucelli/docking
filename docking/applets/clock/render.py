@@ -14,7 +14,11 @@ gi.require_version("PangoCairo", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Pango, PangoCairo
 
-from docking.applets.clock.state import hour_rotation_12h, minute_rotation
+from docking.applets.clock.state import (
+    hour_rotation_12h,
+    minute_rotation,
+    seconds_rotation,
+)
 
 _CLOCK_THEMES_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "clock"
 
@@ -42,6 +46,8 @@ def render_analog(
     cr: cairo.Context,
     size: int,
     now: time.struct_time,
+    *,
+    show_seconds: bool,
 ) -> None:
     """Draw analog clock: SVG face layers, Cairo hands, SVG glass+frame."""
     center = size / 2
@@ -79,6 +85,16 @@ def render_analog(
     cr.stroke()
     cr.restore()
 
+    if show_seconds:
+        cr.save()
+        cr.set_source_rgba(0.8, 0.1, 0.1, 1)
+        cr.set_line_width(max(1.0, lw * 0.7))
+        cr.rotate(seconds_rotation(second=now.tm_sec))
+        cr.move_to(0, radius - radius * 0.24)
+        cr.line_to(0, -radius * 0.12)
+        cr.stroke()
+        cr.restore()
+
     cr.translate(-center, -center)
 
     # Top SVG layers: glass highlight, frame bezel
@@ -101,6 +117,7 @@ def _draw_outlined_text(
     cr.set_source_rgba(0, 0, 0, 1)
     cr.set_line_width(stroke_width)
     cr.set_line_join(cairo.LINE_JOIN_ROUND)
+    # stroke_preserve draws the outline but keeps the path for fill
     cr.stroke_preserve()
     cr.set_source_rgba(*fill_rgba)
     cr.fill()
@@ -125,6 +142,7 @@ def _draw_am_pm(
         layout.set_font_description(font)
         layout.set_text(label, -1)
         _, logical = layout.get_pixel_extents()
+        # -logical.x corrects for non-zero x origin in Pango logical extents
         tx = x_center - logical.width / 2 - logical.x
         alpha = 1.0 if active else 0.35
         _draw_outlined_text(
@@ -143,6 +161,7 @@ def render_digital(
     now: time.struct_time,
     is_24h: bool,
     show_date: bool,
+    show_seconds: bool,
 ) -> None:
     """Draw outlined digital time (and optionally date + AM/PM)."""
     center = size / 2
@@ -152,10 +171,18 @@ def render_digital(
 
     # Time text
     if is_24h:
-        time_str = time.strftime("%H:%M", now)
+        time_str = (
+            time.strftime("%H:%M:%S", now)
+            if show_seconds
+            else time.strftime("%H:%M", now)
+        )
     else:
-        time_str = time.strftime("%l:%M", now).strip()
-    time_font_size = max(1, int(size / 4))
+        time_str = (
+            time.strftime("%l:%M:%S", now).strip()
+            if show_seconds
+            else time.strftime("%l:%M", now).strip()
+        )
+    time_font_size = max(1, int(size / (4.8 if show_seconds else 4)))
     time_font = Pango.FontDescription(f"Sans Bold {time_font_size}px")
     rows.append((time_str, time_font, 3.0, (1, 1, 1, 1)))
 
@@ -190,6 +217,7 @@ def render_digital(
         am_pm_height = am_logical.height
         total_h += am_pm_height
 
+    # Extra gap for AM/PM row when in 12h mode
     num_gaps = len(rows) - 1 + (1 if not is_24h else 0)
     total_h += num_gaps * spacing
 
@@ -221,6 +249,7 @@ def render_icon(
     show_digital: bool,
     show_military: bool,
     show_date: bool,
+    show_seconds: bool,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render clock icon in current mode."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -233,8 +262,9 @@ def render_icon(
             now=now,
             is_24h=show_military,
             show_date=show_date,
+            show_seconds=show_seconds,
         )
     else:
-        render_analog(cr=cr, size=size, now=now)
+        render_analog(cr=cr, size=size, now=now, show_seconds=show_seconds)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

@@ -300,7 +300,8 @@ class PowerProfilesBackend:
             )
             unpacked = result.unpack() if result is not None else ()
             return bool(unpacked[0]) if unpacked else False
-        except GLib.Error:
+        except GLib.Error as exc:
+            log.debug("PowerProfiles NameHasOwner failed: %s", exc)
             return False
 
     def _get_all_properties(self) -> dict[str, Any] | None:
@@ -378,7 +379,7 @@ class PowerProfilesBackend:
         """
         extracted: list[str] = []
         raw_profiles = _unpack(props.get("Profiles"))
-        if isinstance(raw_profiles, (list, tuple)):
+        if isinstance(raw_profiles, list | tuple):
             for entry in raw_profiles:
                 if not isinstance(entry, dict):
                     continue
@@ -610,7 +611,8 @@ def _unpack(value: Any) -> Any:
     if hasattr(value, "unpack"):
         try:
             return _unpack(value.unpack())
-        except Exception:
+        except Exception as exc:
+            log.debug("Failed to unpack GLib variant-like value: %s", exc)
             return value
     if isinstance(value, dict):
         return {k: _unpack(v) for k, v in value.items()}

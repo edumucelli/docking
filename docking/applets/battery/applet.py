@@ -8,12 +8,19 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib
+gi.require_version("Gtk", "3.0")
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.battery import meta
 from docking.applets.battery.render import render_icon
-from docking.applets.battery.state import BatteryState, read_battery, tooltip_text
+from docking.applets.battery.state import (
+    BatteryState,
+    open_power_settings,
+    power_settings_command,
+    read_battery,
+    tooltip_text,
+)
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -51,6 +58,14 @@ class BatteryApplet(Applet):
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
         super().stop()
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        cmd = power_settings_command()
+        if cmd is None:
+            return []
+        power_settings = Gtk.MenuItem(label=_("Power Settings"))
+        power_settings.connect("activate", lambda _widget: open_power_settings())
+        return [power_settings]
 
     def _tick(self) -> bool:
         """Re-read sysfs and refresh icon."""

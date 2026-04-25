@@ -73,12 +73,21 @@ class TestThemeLoad:
 
     @pytest.mark.parametrize(
         ("theme_name", "expected_roundness"),
-        [("nord", 6.0), ("gruvbox", 6.0), ("solarized", 5.0)],
+        [
+            ("nord", 6.0),
+            ("gruvbox", 6.0),
+            ("solarized", 5.0),
+            ("paper", 16.0),
+            ("candy", 18.0),
+        ],
     )
     def test_load_new_builtin_themes(self, theme_name, expected_roundness):
         t = Theme.load(theme_name, 48)
         assert t.roundness == expected_roundness
-        assert t.stroke_width == pytest.approx(1.0)
+        if theme_name in {"paper", "candy"}:
+            assert t.stroke_width == pytest.approx(0.8)
+        else:
+            assert t.stroke_width == pytest.approx(1.0)
         assert all(0 <= c <= 1 for c in t.fill_start)
         assert all(0 <= c <= 1 for c in t.fill_end)
         assert all(0 <= c <= 1 for c in t.stroke)
@@ -242,3 +251,27 @@ class TestAnimationParams:
         assert t.hover_lighten == pytest.approx(0.2)
         assert t.max_indicator_dots == 3
         assert t.glow_opacity == pytest.approx(0.6)
+
+
+class TestThemeOpacity:
+    def test_with_opacity_scales_rgba_alpha_only(self):
+        theme = Theme(
+            fill_start=(0.1, 0.2, 0.3, 0.8),
+            fill_end=(0.4, 0.5, 0.6, 0.7),
+            stroke=(0.2, 0.3, 0.4, 0.6),
+            inner_stroke=(0.7, 0.8, 0.9, 0.5),
+            indicator_color=(0.3, 0.4, 0.5, 0.9),
+            active_indicator_color=(0.6, 0.5, 0.4, 1.0),
+            glow_opacity=0.6,
+        )
+
+        scaled = theme.with_opacity(0.5)
+
+        assert scaled.fill_start == pytest.approx((0.1, 0.2, 0.3, 0.4))
+        assert scaled.fill_end == pytest.approx((0.4, 0.5, 0.6, 0.35))
+        assert scaled.stroke == pytest.approx((0.2, 0.3, 0.4, 0.3))
+        assert scaled.inner_stroke == pytest.approx((0.7, 0.8, 0.9, 0.25))
+        assert scaled.indicator_color == pytest.approx((0.3, 0.4, 0.5, 0.45))
+        assert scaled.active_indicator_color == pytest.approx((0.6, 0.5, 0.4, 0.5))
+        assert scaled.glow_opacity == pytest.approx(theme.glow_opacity)
+        assert scaled.indicator_radius == pytest.approx(theme.indicator_radius)

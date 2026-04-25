@@ -15,19 +15,22 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.ui.dnd as dnd_mod
-from docking.core.items import FILE_KIND, FOLDER_KIND
+from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.platform.model import DockItem
+from docking.ui.geometry import Rect
 
 
 def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
     item_geometries = [
         SimpleNamespace(
-            draw_rect=SimpleNamespace(x=i * 70, y=0, w=48, h=48),
+            item=DockItem(desktop_id=f"item{i}.desktop", kind=APP_KIND),
+            draw_rect=Rect(i * 70, 0, 48, 48),
         )
         for i in range(count)
     ]
     return SimpleNamespace(
+        cursor_rect=Rect(0, 0, 400, 60),
         item_geometries=item_geometries,
         item_index_at_point=MagicMock(return_value=item_index),
         item_at_point=MagicMock(return_value=None),
@@ -37,12 +40,6 @@ def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
 
 def _make_handler(monkeypatch, lock_icons: bool = False):
     drawing_area = MagicMock()
-    runtime = MagicMock()
-    runtime.cursor_position.return_value = (20.0, 8.0)
-    runtime.is_pointer_inside_dock.return_value = False
-    runtime.pointer_screen_position.return_value = (0, 0)
-    runtime.window_position.return_value = (0, 0)
-    runtime.window_size.return_value = (400, 60)
     default_frame = _frame()
 
     model = MagicMock()
@@ -51,16 +48,40 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         pos=Position.BOTTOM,
         icon_size=48,
         zoom_percent=2.0,
+        scaled_icon_size=96,
         pinned=[],
         save=MagicMock(),
     )
     renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
     theme = SimpleNamespace(item_padding=8, h_padding=10)
     launcher = MagicMock()
+    autohide = SimpleNamespace(
+        enabled=True,
+        set_disabled=MagicMock(),
+        set_hovered=MagicMock(),
+        on_mouse_enter=MagicMock(),
+        on_mouse_leave=MagicMock(),
+    )
+    pointer = MagicMock()
+    pointer.get_position.return_value = (None, 0, 0)
+    seat = MagicMock()
+    seat.get_pointer.return_value = pointer
+    display = MagicMock()
+    display.get_default_seat.return_value = seat
+    window = SimpleNamespace(
+        cursor_x=20.0,
+        cursor_y=8.0,
+        autohide=autohide,
+        close_open_folder_stack_for_item=MagicMock(),
+        is_pointer_inside_dock=MagicMock(return_value=False),
+        get_display=MagicMock(return_value=display),
+        get_position=MagicMock(return_value=(0, 0)),
+        get_size=MagicMock(return_value=(400, 60)),
+    )
     monkeypatch.setattr(dnd_mod, "show_poof", MagicMock())
     return dnd_mod.DnDHandler(
         drawing_area,
-        runtime,
+        window,
         model,
         config,
         renderer,
@@ -143,8 +164,50 @@ class TestDragBeginMotion:
         # Then
         assert handled is True
         assert handler.drop_insert_index == 0
-        handler._runtime.drag_motion_enter.assert_called_once()
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            True, reason="drag-motion"
+        )
+        handler._window.autohide.on_mouse_enter.assert_called_once()
         assert status_calls
+
+    def test_drag_motion_external_clears_launcher_target_in_gap(self, monkeypatch):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        handler.drop_target_id = "left.desktop"
+        left = DockItem("left.desktop", kind=APP_KIND)
+        right = DockItem("right.desktop", kind=APP_KIND)
+        rest_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 400, 60),
+            item_geometries=(),
+            insertion_index_for_main=MagicMock(return_value=1),
+        )
+        gap_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 400, 60),
+            item_geometries=(
+                SimpleNamespace(item=left, draw_rect=Rect(0, 0, 48, 48)),
+                SimpleNamespace(item=right, draw_rect=Rect(70, 0, 48, 48)),
+            ),
+        )
+
+        def build_frame(**kwargs):
+            if kwargs.get("drop_insert_index", -1) >= 0:
+                return gap_frame
+            return rest_frame
+
+        handler._geometry_builder = SimpleNamespace(build_frame=build_frame)
+        monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_a, **_k: None)
+
+        handled = handler._on_drag_motion(
+            handler._drawing_area,
+            MagicMock(),
+            x=80,
+            y=10,
+            time=1,
+        )
+
+        assert handled is True
+        assert handler.drop_insert_index == 1
+        assert handler.drop_target_id == ""
 
     def test_drag_motion_internal_reorders(self, monkeypatch):
         # Given
@@ -214,9 +277,11 @@ class TestDropAndReceive:
             123,
         )
         # Then
-        handler._runtime.reconcile_after_drag.assert_called_once_with(
-            reason="drag-data-received"
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-data-received-outside"
         )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 123)
 
     def test_drag_data_received_external_adds_pinned_item(self, monkeypatch):
@@ -254,16 +319,75 @@ class TestDropAndReceive:
             77,
         )
         # Then
-        assert handler._config.pinned == ["firefox.desktop"]
+        assert [entry.target for entry in handler._config.pinned] == ["firefox.desktop"]
         assert len(handler._model.pinned_items) == 1
         handler._config.save.assert_called_once()
         handler._model.sync_pinned_to_config.assert_called_once()
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._model.notify.assert_called_once()
-        handler._runtime.reconcile_after_drag.assert_called_once_with(
-            reason="drag-data-received"
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-data-received-outside"
         )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
+        finish.assert_called_once_with(ANY, True, False, 77)
+
+    def test_drag_data_received_between_apps_inserts_instead_of_launching(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        handler._drop_committed = True
+        handler.drop_insert_index = 1
+        handler._model.pinned_items = []
+        handler._model.find_by_desktop_id.return_value = None
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        handler._launcher.resolve_file.return_value = SimpleNamespace(
+            target=file_uri,
+            name="notes.txt",
+            icon_name="text-x-generic",
+            icon=object(),
+            is_dir=False,
+        )
+        left = DockItem("left.desktop", kind=APP_KIND)
+        right = DockItem("right.desktop", kind=APP_KIND)
+        gap_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 400, 60),
+            item_geometries=(
+                SimpleNamespace(item=left, draw_rect=Rect(0, 0, 48, 48)),
+                SimpleNamespace(item=right, draw_rect=Rect(70, 0, 48, 48)),
+            ),
+            insertion_index_for_main=MagicMock(return_value=1),
+        )
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: gap_frame
+        )
+        desktop_app_info = MagicMock()
+        desktop_app_info.launch_uris = MagicMock()
+        monkeypatch.setattr(
+            dnd_mod.Gio.DesktopAppInfo,
+            "new",
+            MagicMock(return_value=desktop_app_info),
+        )
+        selection = MagicMock()
+        selection.get_uris.return_value = [file_uri]
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+        handler._on_drag_data_received(
+            handler._drawing_area,
+            MagicMock(),
+            80,
+            10,
+            selection,
+            1,
+            77,
+        )
+
+        desktop_app_info.launch_uris.assert_not_called()
+        assert [entry.target for entry in handler._config.pinned] == [file_uri]
+        assert len(handler._model.pinned_items) == 1
         finish.assert_called_once_with(ANY, True, False, 77)
 
     def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
@@ -321,7 +445,7 @@ class TestDragLeaveEnd:
         handler._on_drag_leave(widget, MagicMock(), 0)
         # Then
         assert timeout_calls and timeout_calls[0][0] == 100
-        handler._runtime.reconcile_after_drag.assert_not_called()
+        handler._window.autohide.set_hovered.assert_not_called()
         widget.queue_draw.assert_called()
 
     def test_deferred_clear_drop_gap_releases_autohide_when_still_outside(
@@ -336,9 +460,11 @@ class TestDragLeaveEnd:
         # When
         assert handler._deferred_clear_drop_gap(widget) is False
         assert handler.drop_insert_index == -1
-        handler._runtime.reconcile_after_drag.assert_called_once_with(
-            reason="drag-leave"
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-leave-outside"
         )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called_once()
 
     def test_drag_end_unpins_when_dropped_outside(self, monkeypatch):
@@ -348,9 +474,10 @@ class TestDragLeaveEnd:
         handler.drag_index = 0
         pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
         handler._model.visible_items.return_value = [pinned]
-        handler._runtime.pointer_screen_position.return_value = (200, 50)
-        handler._runtime.window_position.return_value = (100, 200)
-        handler._runtime.window_size.return_value = (400, 60)
+        pointer = handler._window.get_display.return_value.get_default_seat.return_value
+        pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
+        handler._window.get_position.return_value = (100, 200)
+        handler._window.get_size.return_value = (400, 60)
         widget = handler._drawing_area
 
         # When
@@ -360,5 +487,32 @@ class TestDragLeaveEnd:
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._config.save.assert_called()
-        handler._runtime.reconcile_after_drag.assert_called_once_with(reason="drag-end")
+        handler._window.autohide.set_hovered.assert_called_once_with(False)
+        handler._window.autohide.set_disabled.assert_called_once_with(
+            False, reason="drag-end-outside"
+        )
+        handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called()
+
+    def test_drag_end_closes_open_folder_stack_when_folder_unpinned(self, monkeypatch):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = 0
+        handler.drag_index = 0
+        folder = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            is_pinned=True,
+            name="Docs",
+        )
+        handler._model.visible_items.return_value = [folder]
+        pointer = handler._window.get_display.return_value.get_default_seat.return_value
+        pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
+        handler._window.get_position.return_value = (100, 200)
+        handler._window.get_size.return_value = (400, 60)
+
+        handler._on_drag_end(handler._drawing_area, MagicMock())
+
+        handler._window.close_open_folder_stack_for_item.assert_called_once_with(
+            folder.desktop_id
+        )
+        handler._model.unpin_item.assert_called_once_with(folder.desktop_id)

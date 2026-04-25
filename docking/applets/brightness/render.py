@@ -26,7 +26,7 @@ def create_icon(
     brightness: float,
     show_level: bool = False,
 ) -> GdkPixbuf.Pixbuf | None:
-    """Render a sun icon — left half yellow, right half blue.
+    """Render a sun icon - left half yellow, right half blue.
 
     The split moves with brightness: 100% = all yellow, 0% = all blue.
     Rays on the bright side are yellow, dim side orange.
@@ -52,6 +52,7 @@ def create_icon(
     cr.set_line_cap(cairo.LINE_CAP_BUTT)
 
     for i in range(_NUM_RAYS):
+        # -pi/2 rotates 0 degrees from 3 o'clock (Cairo default) to 12 o'clock
         angle = math.tau * i / _NUM_RAYS - math.pi / 2
         x0 = cx + math.cos(angle) * ray_inner
         y0 = cy + math.sin(angle) * ray_inner
@@ -69,7 +70,7 @@ def create_icon(
         cr.line_to(x1, y1)
         cr.stroke()
 
-    # Disc — left half yellow, right half blue, split by brightness
+    # Disc - left half yellow, right half blue, split by brightness
     # Yellow half (clip left of split)
     cr.save()
     cr.rectangle(0, 0, split_x, size)

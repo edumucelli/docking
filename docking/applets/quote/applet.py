@@ -20,6 +20,7 @@ from docking.log import get_logger, with_context
 
 from .render import draw_bulb_icon
 from .state import (
+    DEFAULT_FETCH_LIMIT,
     DEFAULT_SOURCE,
     SOURCE_LABELS,
     QuoteEntry,
@@ -159,7 +160,7 @@ class QuoteApplet(Applet):
         source = self._source
 
         def worker() -> None:
-            quotes = fetch_quotes(source=source, limit=20)
+            quotes = fetch_quotes(source=source, limit=DEFAULT_FETCH_LIMIT)
             GLib.idle_add(self._on_fetch_result, source, quotes, show_first)
 
         threading.Thread(target=worker, daemon=True).start()

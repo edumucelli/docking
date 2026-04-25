@@ -1,9 +1,10 @@
-"""Pure state logic for keyboard layout applet — no GTK/Cairo.
+"""Pure state logic for keyboard layout applet - no GTK/Cairo.
 
-Supports three backends (tried in order):
-  1. IBus — reads engines via ``ibus engine`` / dconf
-  2. Fcitx5 — reads via ``fcitx5-remote -n`` / profile file
-  3. setxkbmap (fallback) — parses ``setxkbmap -query``
+Supports four backends (tried in order):
+  1. IBus - reads engines via ``ibus engine`` / dconf
+  2. Fcitx5 - reads via ``fcitx5-remote -n`` / profile file
+  3. MATE - reads configured layouts from MATE gsettings
+  4. setxkbmap (fallback) - parses ``setxkbmap -query``
 
 IBus engines use ``xkb:LAYOUT:VARIANT:LANG`` (e.g. ``xkb:br::por``).
 Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
@@ -11,7 +12,10 @@ Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
 
 from __future__ import annotations
 
+import ast
+import os
 import re
+import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -24,6 +28,28 @@ log = with_context(get_logger(name="keyboardlayout"))
 _LAYOUT_RE = re.compile(r"^layout:\s+(.+)$", re.MULTILINE)
 _IBUS_XKB_RE = re.compile(r"^xkb:([^:]+):")
 _FCITX5_KB_RE = re.compile(r"^keyboard-(.+)$")
+
+_MATE_LAYOUTS_SCHEMA = "org.mate.peripherals-keyboard-xkb.kbd"
+_MATE_GENERAL_SCHEMA = "org.mate.peripherals-keyboard-xkb.general"
+_MATE_LAYOUTS_KEY = "layouts"
+_MATE_MODEL_KEY = "model"
+_MATE_OPTIONS_KEY = "options"
+_GNOME_INPUT_SOURCES_SCHEMA = "org.gnome.desktop.input-sources"
+_GNOME_SOURCES_KEY = "sources"
+_GNOME_MRU_SOURCES_KEY = "mru-sources"
+_GNOME_CURRENT_KEY = "current"
+_KEYBOARD_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("mate-keyboard-properties",),
+    ("gnome-control-center", "keyboard"),
+    ("ibus-setup",),
+    ("fcitx5-configtool",),
+    ("kcmshell6", "kcm_keyboard"),
+    ("kcmshell5", "kcm_keyboard"),
+)
+_LAYOUT_VIEWER_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gkbd-keyboard-display",),
+    ("tecla",),
+)
 
 LAYOUT_NAMES: dict[str, str] = {
     "us": "English (US)",
@@ -125,6 +151,40 @@ class LayoutState(NamedTuple):
     available: list[str]
 
 
+def keyboard_settings_command() -> list[str] | None:
+    """Return the first available keyboard-settings command."""
+    return _first_available_command(_KEYBOARD_SETTINGS_COMMANDS)
+
+
+def current_layout_command(layout_code: str) -> list[str] | None:
+    """Return the command to show the active keyboard layout, if available."""
+    for cmd in _LAYOUT_VIEWER_COMMANDS:
+        if shutil.which(cmd[0]) is None:
+            continue
+        if cmd[0] == "gkbd-keyboard-display":
+            if not layout_code:
+                return None
+            return [cmd[0], "-l", layout_code]
+        return list(cmd)
+    return None
+
+
+def open_keyboard_settings() -> bool:
+    """Launch the desktop keyboard settings screen when available."""
+    return _open_command(
+        cmd=keyboard_settings_command(),
+        action="open_keyboard_settings",
+    )
+
+
+def show_current_layout(layout_code: str) -> bool:
+    """Launch the current keyboard layout viewer when available."""
+    return _open_command(
+        cmd=current_layout_command(layout_code),
+        action="show_current_layout",
+    )
+
+
 def _run(cmd: list[str]) -> str | None:
     try:
         result = subprocess.run(
@@ -138,6 +198,56 @@ def _run(cmd: list[str]) -> str | None:
     except (OSError, subprocess.TimeoutExpired) as exc:
         log.bind(action="run_cmd").debug("Failed: %s: %s", cmd, exc)
     return None
+
+
+def _parse_gsettings_string_list(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    cleaned = raw.strip()
+    if cleaned.startswith("@as "):
+        cleaned = cleaned[4:].strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError) as exc:
+        log.debug("Failed to parse gsettings string list %r: %s", raw, exc)
+        return []
+    if not isinstance(value, list):
+        return []
+    return [entry for entry in value if isinstance(entry, str) and entry]
+
+
+def _parse_gsettings_string(raw: str | None) -> str:
+    if not raw:
+        return ""
+    cleaned = raw.strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError):
+        return cleaned.strip("'\"")
+    return value if isinstance(value, str) else ""
+
+
+def _desktop_tokens() -> set[str]:
+    values = [
+        os.environ.get("XDG_CURRENT_DESKTOP", ""),
+        os.environ.get("XDG_SESSION_DESKTOP", ""),
+    ]
+    tokens: set[str] = set()
+    for value in values:
+        for token in re.split(r"[:;]", value):
+            normalized = token.strip().lower()
+            if normalized:
+                tokens.add(normalized)
+    return tokens
+
+
+def _is_mate_session() -> bool:
+    return "mate" in _desktop_tokens()
+
+
+def _is_gnome_session() -> bool:
+    tokens = _desktop_tokens()
+    return "gnome" in tokens or "ubuntu" in tokens
 
 
 class LayoutBackend(ABC):
@@ -156,6 +266,140 @@ class LayoutBackend(ABC):
     @abstractmethod
     def switch(self, layout_code: str) -> None:
         """Switch to the given layout code."""
+
+
+def _parse_input_sources(raw: str | None) -> list[tuple[str, str]]:
+    if not raw:
+        return []
+    cleaned = raw.strip()
+    if cleaned.startswith("@a("):
+        prefix_end = cleaned.find(" ")
+        if prefix_end != -1:
+            cleaned = cleaned[prefix_end + 1 :].strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError) as exc:
+        log.debug("Failed to parse input sources %r: %s", raw, exc)
+        return []
+    sources: list[tuple[str, str]] = []
+    if not isinstance(value, list):
+        return sources
+    for entry in value:
+        if (
+            isinstance(entry, tuple)
+            and len(entry) == 2
+            and all(isinstance(part, str) for part in entry)
+        ):
+            sources.append((entry[0], entry[1]))
+    return sources
+
+
+def _source_layout_code(source_id: str) -> str:
+    if "+" in source_id:
+        return source_id.split("+", 1)[0]
+    return source_id
+
+
+class GnomeBackend(LayoutBackend):
+    """Reads GNOME input sources and switches via GNOME Shell D-Bus."""
+
+    name = "gnome"
+
+    def is_available(self) -> bool:
+        if not _is_gnome_session():
+            return False
+        return bool(self._sources())
+
+    def query(self) -> LayoutState:
+        sources = self._sources()
+        available = [
+            _source_layout_code(source_id)
+            for source_type, source_id in sources
+            if source_type == "xkb"
+        ]
+        active = self._active_source_code(sources=sources)
+        if not active and available:
+            active = available[0]
+        return LayoutState(active=active, available=available)
+
+    def switch(self, layout_code: str) -> None:
+        for idx, (source_type, source_id) in enumerate(self._sources()):
+            if source_type != "xkb":
+                continue
+            if _source_layout_code(source_id) != layout_code:
+                continue
+            _run(
+                cmd=[
+                    "gsettings",
+                    "set",
+                    _GNOME_INPUT_SOURCES_SCHEMA,
+                    _GNOME_CURRENT_KEY,
+                    str(idx),
+                ]
+            )
+            gdbus = shutil.which("gdbus")
+            if not gdbus:
+                return
+            script = (
+                "imports.ui.status.keyboard"
+                f".getInputSourceManager().inputSources[{idx}].activate()"
+            )
+            _run(
+                cmd=[
+                    gdbus,
+                    "call",
+                    "--session",
+                    "--dest",
+                    "org.gnome.Shell",
+                    "--object-path",
+                    "/org/gnome/Shell",
+                    "--method",
+                    "org.gnome.Shell.Eval",
+                    script,
+                ]
+            )
+            return
+
+    def _sources(self) -> list[tuple[str, str]]:
+        raw = _run(
+            cmd=["gsettings", "get", _GNOME_INPUT_SOURCES_SCHEMA, _GNOME_SOURCES_KEY]
+        )
+        return _parse_input_sources(raw=raw)
+
+    def _active_source_code(self, *, sources: list[tuple[str, str]]) -> str:
+        current_index = self._current_index()
+        if 0 <= current_index < len(sources):
+            source_type, source_id = sources[current_index]
+            if source_type == "xkb":
+                return _source_layout_code(source_id)
+        raw = _run(
+            cmd=[
+                "gsettings",
+                "get",
+                _GNOME_INPUT_SOURCES_SCHEMA,
+                _GNOME_MRU_SOURCES_KEY,
+            ]
+        )
+        mru = _parse_input_sources(raw=raw)
+        if mru:
+            source_type, source_id = mru[0]
+            if source_type == "xkb":
+                return _source_layout_code(source_id)
+        for source_type, source_id in sources:
+            if source_type == "xkb":
+                return _source_layout_code(source_id)
+        return ""
+
+    def _current_index(self) -> int:
+        raw = _run(
+            cmd=["gsettings", "get", _GNOME_INPUT_SOURCES_SCHEMA, _GNOME_CURRENT_KEY]
+        )
+        if not raw:
+            return -1
+        match = re.search(r"(\d+)", raw)
+        if not match:
+            return -1
+        return int(match.group(1))
 
 
 def _ibus_layout_code(engine: str) -> str:
@@ -243,7 +487,8 @@ class Fcitx5Backend(LayoutBackend):
             return []
         try:
             text = profile.read_text()
-        except OSError:
+        except OSError as exc:
+            log.debug("Failed to read fcitx5 profile %s: %s", profile, exc)
             return []
         ims: list[str] = []
         in_items = False
@@ -259,6 +504,53 @@ class Fcitx5Backend(LayoutBackend):
             if in_items and stripped.startswith("Name="):
                 ims.append(stripped.split("=", 1)[1])
         return ims
+
+
+class MateBackend(LayoutBackend):
+    """Reads configured layouts from MATE and switches with setxkbmap."""
+
+    name = "mate"
+
+    def is_available(self) -> bool:
+        if not _is_mate_session():
+            return False
+        return bool(self._layouts())
+
+    def query(self) -> LayoutState:
+        available = self._layouts()
+        active = XkbBackend().query().active
+        if not active and available:
+            active = available[0]
+        return LayoutState(active=active, available=available)
+
+    def switch(self, layout_code: str) -> None:
+        cmd = ["setxkbmap"]
+        model = self._model()
+        if model:
+            cmd.extend(["-model", model])
+        layouts = self._layouts()
+        if layout_code in layouts:
+            target_index = layouts.index(layout_code)
+            active_layouts = layouts[target_index:] + layouts[:target_index]
+            cmd.extend(["-layout", ",".join(active_layouts)])
+        else:
+            cmd.extend(["-layout", layout_code])
+        options = self._options()
+        if options:
+            cmd.extend(["-option", ",".join(options)])
+        _run(cmd=cmd)
+
+    def _layouts(self) -> list[str]:
+        raw = _run(cmd=["gsettings", "get", _MATE_LAYOUTS_SCHEMA, _MATE_LAYOUTS_KEY])
+        return _parse_gsettings_string_list(raw=raw)
+
+    def _model(self) -> str:
+        raw = _run(cmd=["gsettings", "get", _MATE_LAYOUTS_SCHEMA, _MATE_MODEL_KEY])
+        return _parse_gsettings_string(raw=raw)
+
+    def _options(self) -> list[str]:
+        raw = _run(cmd=["gsettings", "get", _MATE_LAYOUTS_SCHEMA, _MATE_OPTIONS_KEY])
+        return _parse_gsettings_string_list(raw=raw)
 
 
 class XkbBackend(LayoutBackend):
@@ -282,16 +574,26 @@ class XkbBackend(LayoutBackend):
         _run(cmd=["setxkbmap", "-layout", layout_code])
 
 
-_BACKENDS: list[type[LayoutBackend]] = [
-    IBusBackend,
-    Fcitx5Backend,
-    XkbBackend,
-]
-
-
 def detect_backend() -> LayoutBackend:
     """Return the first available backend, falling back to XKB."""
-    for cls in _BACKENDS:
+    backends: list[type[LayoutBackend]]
+    if _is_gnome_session():
+        backends = [
+            GnomeBackend,
+            IBusBackend,
+            Fcitx5Backend,
+            MateBackend,
+            XkbBackend,
+        ]
+    else:
+        backends = [
+            IBusBackend,
+            Fcitx5Backend,
+            MateBackend,
+            GnomeBackend,
+            XkbBackend,
+        ]
+    for cls in backends:
         backend = cls()
         if backend.is_available():
             return backend
@@ -305,7 +607,13 @@ def cycle_layout(current: str, available: list[str]) -> str:
     try:
         idx = available.index(current)
         return available[(idx + 1) % len(available)]
-    except ValueError:
+    except ValueError as exc:
+        log.debug(
+            "Current layout %r missing from available list %r: %s",
+            current,
+            available,
+            exc,
+        )
         return available[0]
 
 
@@ -322,3 +630,23 @@ def layout_display_name(code: str) -> str:
 def tooltip_text(active: str) -> str:
     """Build tooltip string showing current layout name."""
     return layout_display_name(code=active)
+
+
+def _first_available_command(
+    candidates: tuple[tuple[str, ...], ...],
+) -> list[str] | None:
+    for cmd in candidates:
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None
+
+
+def _open_command(*, cmd: list[str] | None, action: str) -> bool:
+    if cmd is None:
+        return False
+    try:
+        subprocess.Popen(cmd, start_new_session=True)
+    except OSError as exc:
+        log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
+        return False
+    return True

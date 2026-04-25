@@ -185,6 +185,15 @@ class TestWeatherTooltip:
         applet.refresh_tooltip()
         assert "loading" in applet.item.name.lower()
 
+    def test_tooltip_unavailable_state_after_failed_fetch(self):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._weather = None
+        applet._fetch_failed = True
+        applet.refresh_tooltip()
+        assert "unavailable" in applet.item.name.lower()
+
 
 class TestWeatherTemperatureOverlay:
     def test_overlay_renders_with_weather_data(self):
@@ -210,12 +219,12 @@ class TestWeatherTemperatureOverlay:
 
 
 class TestWeatherMenu:
-    def test_menu_has_show_temp_and_add_city(self):
+    def test_menu_has_show_temp_only(self):
         applet = _make_applet()
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items]
         assert "Show Temperature" in labels
-        assert "Add City..." in labels
+        assert "Add City..." not in labels
 
     def test_menu_includes_city_header_when_set(self):
         applet = _make_applet()
@@ -390,6 +399,32 @@ class TestWeatherAsyncFetch:
         assert applet._air_quality == _SAMPLE_AQI
         refresh.assert_called_once()
 
+    def test_on_fetch_result_marks_failed_when_weather_missing(self, monkeypatch):
+        applet = _make_applet()
+        applet._fetch_request_id = 4
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "present", refresh)
+
+        result = applet._on_fetch_result(4, None, None)
+
+        assert result is False
+        assert applet._fetch_failed is True
+        refresh.assert_called_once()
+
+    def test_on_fetch_error_marks_failed(self, monkeypatch):
+        applet = _make_applet()
+        applet._fetch_request_id = 5
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "present", refresh)
+
+        result = applet._on_fetch_error(request_id=5, exc=RuntimeError("boom"))
+
+        assert result is False
+        assert applet._weather is None
+        assert applet._air_quality is None
+        assert applet._fetch_failed is True
+        refresh.assert_called_once()
+
     def test_fetch_async_uses_active_city_coords(self, monkeypatch):
         applet = _make_applet()
         applet._cities = [_BERLIN, _TOKYO]
@@ -477,12 +512,14 @@ class TestWeatherLifecycleAndInteractions:
         applet._save_prefs.assert_called_once()
         applet.present.assert_called_once()
 
-    def test_on_clicked_is_noop(self):
+    def test_on_clicked_opens_city_dialog(self):
         applet = _make_applet()
-        applet._cities = [_BERLIN]
-        applet._active_index = 0
-        # Should not raise or do anything
+        show = MagicMock()
+        applet._show_city_dialog = show
+
         applet.on_clicked()
+
+        show.assert_called_once()
 
     def test_start_without_city_does_not_fetch(self, monkeypatch):
         applet = _make_applet()
@@ -764,6 +801,7 @@ class TestWeatherDialogAndWidget:
         )
         add_city = MagicMock()
         monkeypatch.setattr(applet, "_add_city", add_city)
+        monkeypatch.setattr(weather_applet_mod.GLib, "idle_add", lambda fn: fn())
 
         # When
         applet._show_city_dialog()

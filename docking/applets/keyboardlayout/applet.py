@@ -16,9 +16,13 @@ from docking.applets.keyboardlayout import meta
 from docking.applets.keyboardlayout.render import render_icon
 from docking.applets.keyboardlayout.state import (
     LayoutState,
+    current_layout_command,
     cycle_layout,
     detect_backend,
+    keyboard_settings_command,
     layout_label,
+    open_keyboard_settings,
+    show_current_layout,
     tooltip_text,
 )
 from docking.i18n import _
@@ -112,9 +116,26 @@ class KeyboardLayoutApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
+        settings_cmd = keyboard_settings_command()
+        if settings_cmd is not None:
+            settings_item = Gtk.MenuItem(label=_("Keyboard Settings"))
+            settings_item.connect("activate", lambda _w: open_keyboard_settings())
+            items.append(settings_item)
+
+        if self._active and current_layout_command(self._active) is not None:
+            layout_item = Gtk.MenuItem(label=_("Show Current Layout"))
+            layout_item.connect(
+                "activate",
+                lambda _w: show_current_layout(self._active),
+            )
+            items.append(layout_item)
+
+        if items and self._available:
+            items.append(Gtk.SeparatorMenuItem())
+
         for code in self._available:
             prefix = "\u2022 " if code == self._active else "  "
-            label = f"{prefix}{layout_label(code=code)} — {code}"
+            label = f"{prefix}{layout_label(code=code)} - {code}"
             mi = Gtk.MenuItem(label=label)
             mi.connect(
                 "activate",

@@ -111,10 +111,6 @@ from collections.abc import Callable
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from docking.log import get_logger
-
-log = get_logger(name="preview")
-
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -125,11 +121,14 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk, Wnck
 
 from docking.core.position import Position, is_horizontal
-from docking.ui.runtime import clamp_to_screen
+from docking.log import get_logger
+from docking.ui.display import clamp_to_screen
 
 if TYPE_CHECKING:
     from docking.platform.window_tracker import WindowTracker
     from docking.ui.autohide import AutoHideController
+
+log = get_logger(name="preview")
 
 THUMB_W = 200
 THUMB_H = 150
@@ -259,12 +258,13 @@ def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
         rowstride = int(pixbuf.get_rowstride())
         has_alpha = bool(pixbuf.get_has_alpha())
         data = pixbuf.get_pixels()
-    except (AttributeError, TypeError, ValueError):
+    except (AttributeError, TypeError, ValueError) as exc:
+        log.debug("Failed to inspect captured pixbuf: %s", exc)
         return False
 
     if width <= 0 or height <= 0 or channels < 3 or rowstride <= 0:
         return False
-    if not isinstance(data, (bytes, bytearray, memoryview)):
+    if not isinstance(data, bytes | bytearray | memoryview):
         return False
 
     sample_x = max(1, min(CAPTURE_SAMPLE_GRID_MAX, width))
@@ -458,11 +458,11 @@ class PreviewPopup(Gtk.Window):
         screen = self.get_screen()
         screen_w = screen.get_width()
         screen_h = screen.get_height()
-        popup_x, popup_y = clamp_to_screen(
+        popup_pos = clamp_to_screen(
             popup_x, popup_y, popup_width, popup_height, screen_w, screen_h
         )
 
-        self.move(popup_x, popup_y)
+        self.move(popup_pos.x, popup_pos.y)
         self.show_all()
 
     def _make_thumbnail_for_xid(self, xid: int, fallback_icon_name: str) -> Gtk.Widget:

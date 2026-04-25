@@ -215,7 +215,7 @@ class TestColorPickerApplet:
         calls: list[tuple[str, object]] = []
 
         class _Clipboard:
-            def set_text(self, value, length):
+            def set_text(self, value, _length):
                 calls.append(("set_text", value))
 
             def store(self):
@@ -318,7 +318,7 @@ class TestColorPickerApplet:
             def connect(self, signal, handler):
                 calls.append(f"connect:{signal}")
 
-            def set_events(self, mask):
+            def set_events(self, _mask):
                 calls.append("events")
 
             def show_all(self):
@@ -342,7 +342,7 @@ class TestColorPickerApplet:
         monkeypatch.setattr(
             colorpicker_applet_mod.Gdk.Cursor,
             "new_for_display",
-            lambda display, ctype: object(),
+            lambda display, _ctype: object(),
         )
 
         applet._start_pick()

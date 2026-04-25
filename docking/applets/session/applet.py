@@ -14,7 +14,7 @@ from docking.applets.session import meta
 from docking.i18n import _
 
 from .render import create_session_icon
-from .state import _ACTIONS, _run
+from .state import _ACTIONS, LOCK_SCREEN_LABEL, _run, lock_screen
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -36,13 +36,19 @@ class SessionApplet(Applet):
 
     def on_clicked(self) -> None:
         """Lock screen on left-click."""
-        _run(cmd=["loginctl", "lock-session"], action="lock_screen")
+        lock_screen()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []
         for label, cmd in _ACTIONS:
             mi = Gtk.MenuItem(label=label)
             action = label.lower().replace(" ", "_")
-            mi.connect("activate", lambda _w, c=cmd, a=action: _run(cmd=c, action=a))
+            if label == LOCK_SCREEN_LABEL:
+                mi.connect("activate", lambda _w: lock_screen())
+            else:
+                mi.connect(
+                    "activate",
+                    lambda _w, c=cmd, a=action: _run(cmd=c, action=a),
+                )
             items.append(mi)
         return items

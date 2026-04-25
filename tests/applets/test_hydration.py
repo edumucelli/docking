@@ -15,7 +15,7 @@ from docking.applets.hydration.state import (
 
 class TestWaterColor:
     def test_is_blue(self):
-        r, g, b = water_color()
+        r, _g, b = water_color()
         assert b > r  # blue dominant
 
 

@@ -235,7 +235,7 @@ class HoverManager:
         # state updating, but suppress tooltip display until the dock reaches
         # VISIBLE.
         autohide = self._window.autohide
-        if autohide and autohide.enabled and autohide.state == HideState.SHOWING:
+        if autohide.enabled and autohide.state == HideState.SHOWING:
             self._tooltip.hide()
         else:
             # Always refresh tooltip when allowed (item.name may change while

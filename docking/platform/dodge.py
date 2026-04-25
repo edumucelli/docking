@@ -106,8 +106,8 @@ class WindowDodgeMonitor:
         try:
             sids.append(window.connect("geometry-changed", self._on_window_event))
             sids.append(window.connect("state-changed", self._on_window_event))
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("Failed to connect dodge monitor window signals: %s", exc)
         self._window_signal_ids[xid] = (window, sids)
 
     def _disconnect_window(self, window: Wnck.Window) -> None:
@@ -132,6 +132,13 @@ class WindowDodgeMonitor:
         if self._debounce_id:
             GLib.source_remove(self._debounce_id)
         self._debounce_id = GLib.timeout_add(DEBOUNCE_MS, self._do_evaluate)
+
+    def evaluate_now(self) -> None:
+        """Cancel any pending debounce and evaluate overlap immediately."""
+        if self._debounce_id:
+            GLib.source_remove(self._debounce_id)
+            self._debounce_id = 0
+        self._do_evaluate()
 
     def _do_evaluate(self) -> bool:
         self._debounce_id = 0
@@ -189,7 +196,11 @@ class WindowDodgeMonitor:
             return False
         try:
             active_class = active_window.get_class_group_name()
-        except Exception:
+        except Exception as exc:
+            log.debug(
+                "Failed to read active window class for intelligent dodge: %s",
+                exc,
+            )
             return False
         if not active_class:
             return False
@@ -199,7 +210,11 @@ class WindowDodgeMonitor:
                     continue
                 if self._window_overlaps(win, dock_rect):
                     return True
-            except Exception:
+            except Exception as exc:
+                log.debug(
+                    "Failed to inspect candidate window for intelligent dodge: %s",
+                    exc,
+                )
                 continue
         return False
 
@@ -240,8 +255,8 @@ class WindowDodgeMonitor:
                     dock_rect,
                 ):
                     return True
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("Failed to inspect active window maximized state: %s", exc)
         for win in self._visible_windows(screen, active_workspace):
             try:
                 if (
@@ -249,7 +264,11 @@ class WindowDodgeMonitor:
                     and self._window_overlaps(win, dock_rect)
                 ):
                     return True
-            except Exception:
+            except Exception as exc:
+                log.debug(
+                    "Failed to inspect dialog window for dodge-maximized: %s",
+                    exc,
+                )
                 continue
         return False
 
@@ -270,7 +289,11 @@ class WindowDodgeMonitor:
                 ):
                     continue
                 yield win
-            except Exception:
+            except Exception as exc:
+                log.debug(
+                    "Failed to inspect window while listing visible windows: %s",
+                    exc,
+                )
                 continue
 
     def _window_overlaps(
@@ -282,5 +305,6 @@ class WindowDodgeMonitor:
             x, y, w, h = window.get_geometry()
             win_rect = ScreenRect(x=x, y=y, width=w, height=h)
             return rects_overlap(a=win_rect, b=dock_rect)
-        except Exception:
+        except Exception as exc:
+            log.debug("Failed to read window geometry for dodge overlap: %s", exc)
             return False

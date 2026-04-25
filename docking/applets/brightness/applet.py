@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, GLib
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.brightness import meta
@@ -92,8 +92,6 @@ class BrightnessApplet(Applet):
             )
 
     def get_menu_items(self) -> list:
-        from gi.repository import Gtk
-
         items = []
         show = Gtk.CheckMenuItem(label=_("Show Level"))
         show.set_active(self._show_level)

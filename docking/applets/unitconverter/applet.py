@@ -57,7 +57,7 @@ from docking.applets.unitconverter.state import (
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.ui.runtime import get_pointer_position
+from docking.ui.display import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -147,7 +147,8 @@ class UnitConverterApplet(Applet):
         # Position near mouse
         display = Gdk.Display.get_default()
         pos = get_pointer_position(display)
-        mouse_x, mouse_y = pos if pos else (0, 0)
+        mouse_x = pos.x if pos is not None else 0
+        mouse_y = pos.y if pos is not None else 0
 
         pref = self._popup.get_preferred_size()[1]
         popup_w = max(pref.width, 1)
@@ -292,7 +293,8 @@ class UnitConverterApplet(Applet):
 
         try:
             value = float(text)
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid unit-converter input %r: %s", text, exc)
             self._result_label.set_markup('<span color="#ff6b6b">Enter a number</span>')
             return
 

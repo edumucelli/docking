@@ -44,9 +44,14 @@ from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
     MAX_ICON_SIZE,
+    MAX_TRANSPARENCY,
     MAX_ZOOM_PERCENT,
     MIN_ICON_SIZE,
+    MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
+    FolderStackUnfold,
+    LeftClickAction,
+    MiddleClickAction,
 )
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
@@ -77,6 +82,7 @@ SECTION_HEADER_TOP_MARGIN_PX = 6
 SECTION_HEADER_BOTTOM_MARGIN_PX = 2
 ROW_SPACING_PX = 12
 HIDE_MODE_COMBO_WIDTH_PX = 180
+TRANSPARENCY_SCALE_WIDTH_PX = 132
 HIDE_MODE_DESC_MAX_CHARS = 28
 HIDE_MODE_BOX_SPACING_PX = 4
 APPLET_GRID_COLUMN_SPACING_PX = 16
@@ -84,6 +90,8 @@ APPLET_GRID_ROW_SPACING_PX = 8
 APPLET_ROW_CONTENT_SPACING_PX = 6
 ZOOM_PERCENT_SCALE = 100
 ZOOM_PERCENT_STEP = 5
+TRANSPARENCY_PERCENT_SCALE = 100
+TRANSPARENCY_PERCENT_STEP = 5
 HIDE_DELAY_MAX_MS = 5000
 HIDE_DELAY_STEP_MS = 50
 log = get_logger("settings")
@@ -119,6 +127,9 @@ class SettingsWindowController:
         self._syncing_widgets = False
 
         self._hide_mode_combo: Any = None
+        self._left_click_combo: Any = None
+        self._middle_click_combo: Any = None
+        self._folder_stack_unfold_combo: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -130,6 +141,7 @@ class SettingsWindowController:
         self._theme_combo: Any = None
         self._position_combo: Any = None
         self._icon_size_spin: Any = None
+        self._transparency_scale: Any = None
         self._zoom_percent_spin: Any = None
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
@@ -173,6 +185,7 @@ class SettingsWindowController:
         switcher.set_halign(Gtk.Align.CENTER)
 
         stack.add_titled(self._build_appearance_tab(), "appearance", _("Appearance"))
+        stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
 
         outer.pack_start(switcher, False, False, 0)
@@ -210,6 +223,32 @@ class SettingsWindowController:
         self._hide_mode_combo.connect("changed", self._on_hide_mode_combo_changed)
         self._update_hide_mode_description()
 
+        self._left_click_combo = Gtk.ComboBoxText()
+        self._left_click_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for action_value, action_label in [
+            (LeftClickAction.TOGGLE.value, _("Toggle Focus")),
+            (LeftClickAction.CYCLE.value, _("Cycle Windows")),
+            (LeftClickAction.MOST_RECENT.value, _("Most Recent Window")),
+        ]:
+            self._left_click_combo.append(action_value, action_label)
+
+        self._middle_click_combo = Gtk.ComboBoxText()
+        self._middle_click_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for action_value, action_label in [
+            (MiddleClickAction.NEW_WINDOW.value, _("New Window")),
+            (MiddleClickAction.MINIMIZE.value, _("Minimize Windows")),
+            (MiddleClickAction.CLOSE_FOCUSED.value, _("Close Focused Window")),
+        ]:
+            self._middle_click_combo.append(action_value, action_label)
+
+        self._folder_stack_unfold_combo = Gtk.ComboBoxText()
+        self._folder_stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for mode_value, mode_label in [
+            (FolderStackUnfold.CLICK.value, _("Click")),
+            (FolderStackUnfold.HOVER.value, _("Hover")),
+        ]:
+            self._folder_stack_unfold_combo.append(mode_value, mode_label)
+
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
@@ -227,25 +266,37 @@ class SettingsWindowController:
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
 
-        self._icon_size_spin = Gtk.SpinButton.new_with_range(
-            MIN_ICON_SIZE,
-            MAX_ICON_SIZE,
-            1,
+        self._icon_size_spin = self._new_numeric_spin_button(
+            minimum=MIN_ICON_SIZE,
+            maximum=MAX_ICON_SIZE,
+            step=1,
         )
-        self._zoom_percent_spin = Gtk.SpinButton.new_with_range(
-            int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
-            int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
-            ZOOM_PERCENT_STEP,
+        self._transparency_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            int(MIN_TRANSPARENCY * TRANSPARENCY_PERCENT_SCALE),
+            int(MAX_TRANSPARENCY * TRANSPARENCY_PERCENT_SCALE),
+            TRANSPARENCY_PERCENT_STEP,
         )
-        self._hide_delay_spin = Gtk.SpinButton.new_with_range(
-            0,
-            HIDE_DELAY_MAX_MS,
-            HIDE_DELAY_STEP_MS,
+        self._transparency_scale.set_digits(0)
+        self._transparency_scale.set_draw_value(True)
+        self._transparency_scale.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        transparency_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        transparency_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        transparency_box.pack_end(self._transparency_scale, False, False, 0)
+        self._zoom_percent_spin = self._new_numeric_spin_button(
+            minimum=int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            maximum=int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            step=ZOOM_PERCENT_STEP,
         )
-        self._unhide_delay_spin = Gtk.SpinButton.new_with_range(
-            0,
-            HIDE_DELAY_MAX_MS,
-            HIDE_DELAY_STEP_MS,
+        self._hide_delay_spin = self._new_numeric_spin_button(
+            minimum=0,
+            maximum=HIDE_DELAY_MAX_MS,
+            step=HIDE_DELAY_STEP_MS,
+        )
+        self._unhide_delay_spin = self._new_numeric_spin_button(
+            minimum=0,
+            maximum=HIDE_DELAY_MAX_MS,
+            step=HIDE_DELAY_STEP_MS,
         )
 
         self._register_bindings()
@@ -256,26 +307,11 @@ class SettingsWindowController:
             rows=[
                 (_("Theme"), self._theme_combo),
                 (_("Icon Size"), self._icon_size_spin),
+                (_("Transparency"), transparency_box),
                 (_("Zoom"), self._zoom_enabled_switch),
                 (_("Zoom Percent"), self._zoom_percent_spin),
                 (_("Show Tooltips"), self._tooltips_switch),
                 (_("Window Previews"), self._previews_switch),
-            ],
-        )
-        hide_mode_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
-            spacing=HIDE_MODE_BOX_SPACING_PX,
-        )
-        hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
-        hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
-
-        self._append_section(
-            outer=outer,
-            title=_("Behavior"),
-            rows=[
-                (_("Hide Mode"), hide_mode_box),
-                (_("Hide Delay"), self._hide_delay_spin),
-                (_("Unhide Delay"), self._unhide_delay_spin),
             ],
         )
         self._append_section(
@@ -294,6 +330,47 @@ class SettingsWindowController:
                 (_("Lock Positions"), self._lock_icons_switch),
                 (_("Anchor Applets to End"), self._anchor_applets_switch),
                 (_("Anchor Files to End"), self._anchor_files_switch),
+            ],
+        )
+
+        return outer
+
+    def _build_behavior_tab(self) -> Gtk.Widget:
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPEARANCE_TAB_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
+
+        hide_mode_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
+        hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
+
+        self._append_section(
+            outer=outer,
+            title=_("Mouse"),
+            rows=[
+                (_("Left Click"), self._left_click_combo),
+                (_("Middle Click"), self._middle_click_combo),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Behavior"),
+            rows=[
+                (_("Hide Mode"), hide_mode_box),
+                (_("Hide Delay"), self._hide_delay_spin),
+                (_("Unhide Delay"), self._unhide_delay_spin),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Folder Stacks"),
+            rows=[
+                (_("Open On"), self._folder_stack_unfold_combo),
             ],
         )
 
@@ -356,12 +433,47 @@ class SettingsWindowController:
     def _new_switch(self) -> Gtk.Switch:
         return Gtk.Switch()
 
+    def _new_numeric_spin_button(
+        self,
+        *,
+        minimum: float,
+        maximum: float,
+        step: float,
+    ) -> Gtk.SpinButton:
+        settings = Gtk.Settings.get_default()
+        previous_im_module = None
+        if settings is not None:
+            previous_im_module = settings.get_property("gtk-im-module")
+            settings.set_property("gtk-im-module", "gtk-im-context-simple")
+        try:
+            spin = Gtk.SpinButton.new_with_range(minimum, maximum, step)
+        finally:
+            if settings is not None:
+                settings.set_property("gtk-im-module", previous_im_module)
+
+        # Keep the widget on the simple context after construction too, so GTK
+        # does not switch it back to the desktop-wide IM module later on.
+        spin.set_property("im-module", "gtk-im-context-simple")
+        return spin
+
     def _register_bindings(self) -> None:
         self._bindings = [
             self._register_choice_binding(
                 config_attr="hide_mode",
                 widget=self._hide_mode_combo,
                 on_change=self._after_hide_mode_changed,
+            ),
+            self._register_choice_binding(
+                config_attr="left_click_action",
+                widget=self._left_click_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="middle_click_action",
+                widget=self._middle_click_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="folder_stack_unfold",
+                widget=self._folder_stack_unfold_combo,
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",
@@ -416,6 +528,19 @@ class SettingsWindowController:
                 config_attr="icon_size",
                 widget=self._icon_size_spin,
                 on_change=self._after_icon_size_changed,
+            ),
+            self._register_numeric_binding(
+                config_attr="transparency",
+                widget=self._transparency_scale,
+                read_widget=lambda: (
+                    float(self._transparency_scale.get_value())
+                    / TRANSPARENCY_PERCENT_SCALE
+                ),
+                write_widget=lambda value: self._transparency_scale.set_value(
+                    float(value) * TRANSPARENCY_PERCENT_SCALE
+                ),
+                signal="value-changed",
+                on_change=self._after_transparency_changed,
             ),
             self._register_numeric_binding(
                 config_attr="zoom_percent",
@@ -620,9 +745,6 @@ class SettingsWindowController:
         image.set_pixel_size(APPLET_LIST_ICON_PX)
         return image
 
-    def _save(self) -> None:
-        self._config.save()
-
     def _on_destroy(self, window: Gtk.Window) -> None:
         if self._window is window:
             self._window = None
@@ -637,25 +759,33 @@ class SettingsWindowController:
         if value == current_value:
             return
         setattr(self._config, binding.config_attr, value)
-        self._save()
+        self._config.save()
         if binding.on_change is not None:
             binding.on_change(value)
         self._update_dependent_sensitivity()
 
-    def _after_theme_changed(self, name: str) -> None:
-        theme = Theme.load(str(name), self._config.icon_size)
+    def _apply_runtime_theme(self) -> None:
+        theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
+            self._config.transparency
+        )
         self._runtime.set_theme(theme)
+
+    def _after_theme_changed(self, _name: str) -> None:
+        self._apply_runtime_theme()
         self._runtime.reposition()
         self._runtime.queue_draw()
 
     def _after_icon_size_changed(self, _value: int) -> None:
+        self._apply_runtime_theme()
         self._runtime.reposition()
         self._runtime.queue_draw()
 
+    def _after_transparency_changed(self, _value: float) -> None:
+        self._apply_runtime_theme()
+        self._runtime.queue_draw()
+
     def _after_hide_mode_changed(self, mode: str) -> None:
-        if mode == "none":
-            self._runtime.reset_autohide()
-        self._runtime.update_struts()
+        self._runtime.on_hide_mode_changed()
         self._update_hide_mode_description()
 
     _HIDE_MODE_DESCRIPTIONS: ClassVar[dict[str, str]] = {

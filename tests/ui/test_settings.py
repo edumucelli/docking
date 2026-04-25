@@ -246,6 +246,7 @@ class FakeSpinButton:
     def __init__(self) -> None:
         self._value = 0.0
         self.callbacks: dict[str, object] = {}
+        self.properties: dict[str, object] = {}
         self.sensitive = True
 
     @classmethod
@@ -254,6 +255,9 @@ class FakeSpinButton:
 
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
+
+    def set_property(self, name: str, value: object) -> None:
+        self.properties[name] = value
 
     def set_value(self, value: float) -> None:
         self._value = value
@@ -268,6 +272,24 @@ class FakeSpinButton:
 
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+
+class FakeScale(FakeSpinButton):
+    @classmethod
+    def new_with_range(cls, *_args):
+        return cls()
+
+    def set_digits(self, value: int) -> None:
+        self.digits = value
+
+    def set_draw_value(self, value: bool) -> None:
+        self.draw_value = value
+
+    def set_hexpand(self, value: bool) -> None:
+        self.hexpand = value
 
 
 class FakeSwitch:
@@ -391,6 +413,25 @@ class FakeWindowPosition:
     CENTER = 0
 
 
+class FakeGtkSettings:
+    current = None
+
+    def __init__(self) -> None:
+        self.properties = {"gtk-im-module": None}
+
+    @classmethod
+    def get_default(cls):
+        if cls.current is None:
+            cls.current = cls()
+        return cls.current
+
+    def get_property(self, name: str):
+        return self.properties.get(name)
+
+    def set_property(self, name: str, value: object) -> None:
+        self.properties[name] = value
+
+
 class FakeGtk:
     Window = FakeWindow
     Notebook = FakeNotebook
@@ -401,6 +442,7 @@ class FakeGtk:
     Grid = FakeGrid
     ComboBoxText = FakeComboBoxText
     SpinButton = FakeSpinButton
+    Scale = FakeScale
     Switch = FakeSwitch
     CheckButton = FakeCheckButton
     Image = FakeImage
@@ -409,6 +451,7 @@ class FakeGtk:
     PolicyType = FakePolicyType
     Align = FakeAlign
     WindowPosition = FakeWindowPosition
+    Settings = FakeGtkSettings
 
 
 def _config():
@@ -416,6 +459,9 @@ def _config():
         hide_mode="autohide",
         previews_enabled=True,
         tooltips_enabled=True,
+        left_click_action="toggle",
+        middle_click_action="new-window",
+        folder_stack_unfold="click",
         lock_icons=False,
         current_workspace_only=False,
         active_display=False,
@@ -423,6 +469,7 @@ def _config():
         anchor_files=False,
         zoom_enabled=True,
         theme="default",
+        transparency=1.0,
         position="bottom",
         icon_size=48,
         zoom_percent=1.5,
@@ -433,7 +480,7 @@ def _config():
 
 
 class TestSettingsWindowController:
-    def test_show_reuses_single_window_and_builds_two_tabs(self, monkeypatch):
+    def test_show_reuses_single_window_and_builds_three_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
@@ -461,6 +508,7 @@ class TestSettingsWindowController:
         assert switcher.stack is stack
         assert [title for _, _, title in stack.pages] == [
             "Appearance",
+            "Behavior",
             "Applets",
         ]
         appearance_box = stack.pages[0][0]
@@ -471,10 +519,96 @@ class TestSettingsWindowController:
         ]
         assert section_labels == [
             "<b>Look</b>",
-            "<b>Behavior</b>",
             "<b>Placement</b>",
             "<b>Layout</b>",
         ]
+        behavior_box = stack.pages[1][0]
+        behavior_labels = [
+            child.get_children()[0].markup
+            for child in behavior_box.get_children()
+            if isinstance(child, FakeBox) and child.get_children()
+        ]
+        assert behavior_labels == [
+            "<b>Mouse</b>",
+            "<b>Behavior</b>",
+            "<b>Folder Stacks</b>",
+        ]
+
+    def test_numeric_spin_buttons_use_simple_im_context(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        FakeGtkSettings.current = None
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+
+        assert controller._icon_size_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert controller._zoom_percent_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert controller._hide_delay_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert controller._unhide_delay_spin.properties["im-module"] == (
+            "gtk-im-context-simple"
+        )
+        assert FakeGtkSettings.get_default().properties["gtk-im-module"] is None
+
+    def test_hide_controls_exist_only_in_behavior_tab(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+        stack = controller._window.child.children[1]
+        appearance_box = stack.pages[0][0]
+        behavior_box = stack.pages[1][0]
+
+        def row_labels(tab_box):
+            labels = []
+            for section in tab_box.get_children():
+                if not isinstance(section, FakeBox):
+                    continue
+                children = section.get_children()
+                if len(children) < 2 or not isinstance(children[1], FakeBox):
+                    continue
+                content = children[1]
+                for row in content.get_children():
+                    if isinstance(row, FakeBox) and row.get_children():
+                        title = row.get_children()[0]
+                        if isinstance(title, FakeLabel):
+                            labels.append(title.get_label())
+            return labels
+
+        appearance_rows = row_labels(appearance_box)
+        behavior_rows = row_labels(behavior_box)
+
+        assert "Hide Mode" not in appearance_rows
+        assert "Hide Delay" not in appearance_rows
+        assert "Unhide Delay" not in appearance_rows
+        assert "Open On" not in appearance_rows
+        assert "Hide Mode" in behavior_rows
+        assert "Hide Delay" in behavior_rows
+        assert "Unhide Delay" in behavior_rows
+        assert "Open On" in behavior_rows
 
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -482,8 +616,10 @@ class TestSettingsWindowController:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        theme_obj = object()
-        monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: theme_obj)
+        base_theme = MagicMock()
+        applied_theme = object()
+        base_theme.with_opacity.return_value = applied_theme
+        monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: base_theme)
         runtime = MagicMock()
         config = _config()
         controller = settings_mod.SettingsWindowController(
@@ -500,9 +636,89 @@ class TestSettingsWindowController:
 
         assert config.theme == "slate"
         config.save.assert_called_once()
-        runtime.set_theme.assert_called_once_with(theme_obj)
+        base_theme.with_opacity.assert_called_once_with(config.transparency)
+        runtime.set_theme.assert_called_once_with(applied_theme)
         runtime.reposition.assert_called_once()
         runtime.queue_draw.assert_called_once()
+
+    def test_transparency_change_updates_config_and_runtime(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        base_theme = MagicMock()
+        applied_theme = object()
+        base_theme.with_opacity.return_value = applied_theme
+        monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: base_theme)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._transparency_scale.set_value(65)
+        controller._transparency_scale.emit_value_changed()
+
+        assert config.transparency == 0.65
+        config.save.assert_called_once()
+        base_theme.with_opacity.assert_called_once_with(0.65)
+        runtime.set_theme.assert_called_once_with(applied_theme)
+        runtime.queue_draw.assert_called_once()
+        runtime.reposition.assert_not_called()
+
+    def test_mouse_click_action_bindings_update_config(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._left_click_combo.set_active_id("most-recent")
+        controller._left_click_combo.emit_changed()
+        controller._middle_click_combo.set_active_id("close-focused")
+        controller._middle_click_combo.emit_changed()
+
+        assert config.left_click_action == "most-recent"
+        assert config.middle_click_action == "close-focused"
+        assert config.save.call_count == 2
+        runtime.assert_not_called()
+
+    def test_folder_stack_unfold_binding_updates_config(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._folder_stack_unfold_combo.set_active_id("hover")
+        controller._folder_stack_unfold_combo.emit_changed()
+
+        assert config.folder_stack_unfold == "hover"
+        config.save.assert_called_once()
+        runtime.assert_not_called()
 
     def test_hide_mode_change_updates_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -525,8 +741,7 @@ class TestSettingsWindowController:
         widget.emit_changed()
 
         assert config.hide_mode == "none"
-        runtime.reset_autohide.assert_called_once()
-        runtime.update_struts.assert_called_once()
+        runtime.on_hide_mode_changed.assert_called_once()
 
     def test_binding_sync_updates_dependent_sensitivity(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -642,7 +857,7 @@ class TestSettingsWindowController:
 
         controller.show()
 
-        applets_scroller = controller._window.child.children[1].pages[1][0]
+        applets_scroller = controller._window.child.children[1].pages[2][0]
         applets_box = applets_scroller.child
         section_headers = [
             child for child in applets_box.children if isinstance(child, FakeLabel)
@@ -709,7 +924,7 @@ class TestSettingsWindowController:
 
         controller.show()
 
-        applets_scroller = controller._window.child.children[1].pages[1][0]
+        applets_scroller = controller._window.child.children[1].pages[2][0]
         first_check = applets_scroller.child.children[1].children[0]
         assert first_check.child.children[0].source == (
             "pixbuf",
@@ -746,7 +961,7 @@ class TestSettingsWindowController:
 
         controller.show()
 
-        applets_scroller = controller._window.child.children[1].pages[1][0]
+        applets_scroller = controller._window.child.children[1].pages[2][0]
         first_grid = next(
             child
             for child in applets_scroller.child.children

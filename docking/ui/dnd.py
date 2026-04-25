@@ -143,31 +143,31 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import unquote, urlparse
 
-from docking.log import get_logger
-
-log = get_logger(name="dnd")
-DROP_GAP_CLEAR_DELAY_MS = 100
-
 import gi
-
-gi.require_version("Gtk", "3.0")
-gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 import docking.platform.launcher as launcher_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
+from docking.log import get_logger
+from docking.ui.display import get_pointer_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.theme import Theme
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
+    from docking.ui.dock_window import DockWindow
     from docking.ui.renderer import DockRenderer
-    from docking.ui.runtime import DockDragRuntime
+
+log = get_logger(name="dnd")
+DROP_GAP_CLEAR_DELAY_MS = 100
 
 DRAG_ICON_SCALE = 1.2  # dragged icon shown at this multiplier of icon_size
 
@@ -186,7 +186,7 @@ class DnDHandler:
     def __init__(
         self,
         drawing_area: Gtk.DrawingArea,
-        runtime: DockDragRuntime,
+        window: DockWindow,
         model: DockModel,
         config: Config,
         renderer: DockRenderer,
@@ -195,7 +195,7 @@ class DnDHandler:
         geometry_builder: DockGeometryBuilder,
     ) -> None:
         self._drawing_area = drawing_area
-        self._runtime = runtime
+        self._window = window
         self._model = model
         self._config = config
         self._renderer = renderer
@@ -268,10 +268,10 @@ class DnDHandler:
         a scaled pixbuf as the drag icon.
         """
         frame = self._geometry_builder.build_frame()
-        self._runtime.begin_drag()
+        self._begin_drag_autohide()
         items = self._model.visible_items()
         horizontal = is_horizontal(pos=self._config.pos)
-        cursor_x, cursor_y = self._runtime.cursor_position()
+        cursor_x, cursor_y = self._window.cursor_x, self._window.cursor_y
         win_cx = cursor_x if horizontal else cursor_y
         dragged_index = frame.item_index_at_point(cursor_x, cursor_y)
         log.debug(
@@ -336,7 +336,7 @@ class DnDHandler:
         #
         # To fix this, we explicitly call autohide.on_mouse_enter() from
         # the drag-motion handler, which IS delivered during DnD.
-        self._runtime.drag_motion_enter()
+        self._on_drag_motion_enter()
         main_coord = x if is_horizontal(pos=self._config.pos) else y
 
         if self._drag_from < 0:
@@ -351,8 +351,8 @@ class DnDHandler:
             gap_frame = self._geometry_builder.build_frame(
                 main_cursor=-1.0, drop_insert_index=self.drop_insert_index
             )
-            item = gap_frame.item_at_point(float(x), float(y))
-            new_target = item.desktop_id if item and item.kind == APP_KIND else ""
+            item = self._drop_target_item_at_point(gap_frame, x=float(x), y=float(y))
+            new_target = item.desktop_id if item is not None else ""
             if new_target != self.drop_target_id:
                 self.drop_target_id = new_target
                 changed = True
@@ -423,7 +423,7 @@ class DnDHandler:
         # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
             log.debug("drag-data-received: internal reorder complete")
-            self._runtime.reconcile_after_drag(reason="drag-data-received")
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
             Gtk.drag_finish(context, True, False, time)
             return
 
@@ -439,7 +439,7 @@ class DnDHandler:
         # Check if dropped onto a launcher icon -- open files with that app
         if uris and self._try_open_with_launcher(x=x, y=y, uris=uris):
             self.drop_insert_index = -1
-            self._runtime.reconcile_after_drag(reason="drag-data-received")
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
             Gtk.drag_finish(context, True, False, time)
             return
 
@@ -469,16 +469,16 @@ class DnDHandler:
         self.drop_insert_index = -1
         self.drop_target_id = ""
         self._drop_committed = False
-        self._runtime.reconcile_after_drag(reason="drag-data-received")
+        self._reconcile_autohide_after_drag(reason="drag-data-received")
         Gtk.drag_finish(context, added, False, time)
 
     def _try_open_with_launcher(self, *, x: int, y: int, uris: list[str]) -> bool:
         """If drop lands on an app icon, try opening the files with it."""
-        from gi.repository import Gio
-
-        frame = self._geometry_builder.build_frame(main_cursor=-1.0)
-        item = frame.item_at_point(float(x), float(y))
-        if not item or item.kind != APP_KIND:
+        frame = self._geometry_builder.build_frame(
+            main_cursor=-1.0, drop_insert_index=self.drop_insert_index
+        )
+        item = self._drop_target_item_at_point(frame, x=float(x), y=float(y))
+        if item is None:
             return False
 
         launchable = [u for u in uris if not u.endswith(".desktop")]
@@ -487,7 +487,12 @@ class DnDHandler:
 
         try:
             app_info = Gio.DesktopAppInfo.new(item.desktop_id)
-        except (TypeError, GLib.Error):
+        except (TypeError, GLib.Error) as exc:
+            log.debug(
+                "Failed to resolve desktop app info for drop target %s: %s",
+                item.desktop_id,
+                exc,
+            )
             return False
         if not app_info:
             return False
@@ -499,6 +504,43 @@ class DnDHandler:
         except GLib.Error as exc:
             log.warning("Failed to open with %s: %s", item.desktop_id, exc)
             return False
+
+    def _drop_target_item_at_point(
+        self, frame, *, x: float, y: float
+    ) -> DockItem | None:
+        """Return the app icon directly under the pointer during an external drop.
+
+        External launcher drops should only target the visible app icon itself.
+        Using the broader item hit rect would make the shelf/background segment
+        under an app steal drops that should land in the insertion gap.
+        """
+        if not frame.cursor_rect.contains(x=x, y=y):
+            return None
+        gap = (
+            self._config.icon_size + self._theme.item_padding
+            if self.drop_insert_index >= 0
+            else 0
+        )
+        horizontal = is_horizontal(pos=self._config.pos)
+        for index, item_geometry in enumerate(frame.item_geometries):
+            if item_geometry.item.kind != APP_KIND:
+                continue
+            draw_rect = item_geometry.draw_rect
+            if gap > 0 and index >= self.drop_insert_index:
+                if horizontal:
+                    left = draw_rect.x + gap
+                    top = draw_rect.y
+                else:
+                    left = draw_rect.x
+                    top = draw_rect.y + gap
+                contains = (
+                    left <= x < left + draw_rect.w and top <= y < top + draw_rect.h
+                )
+            else:
+                contains = draw_rect.contains(x=x, y=y)
+            if contains:
+                return item_geometry.item
+        return None
 
     def _on_drag_leave(
         self, widget: Gtk.DrawingArea, _context: Gdk.DragContext, _time: int
@@ -524,7 +566,7 @@ class DnDHandler:
         """Clear stale drop gap if it wasn't consumed by a drop."""
         if self.drop_insert_index >= 0 and self._drag_from < 0:
             self.drop_insert_index = -1
-            self._runtime.reconcile_after_drag(reason="drag-leave")
+            self._reconcile_autohide_after_drag(reason="drag-leave")
             widget.queue_draw()
         return False
 
@@ -536,9 +578,12 @@ class DnDHandler:
         """
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position
-            screen_x, screen_y = self._runtime.pointer_screen_position()
-            win_x, win_y = self._runtime.window_position()
-            win_w, win_h = self._runtime.window_size()
+            display = self._window.get_display()
+            pos = get_pointer_position(display)
+            screen_x = pos.x if pos is not None else 0
+            screen_y = pos.y if pos is not None else 0
+            win_x, win_y = self._window.get_position()
+            win_w, win_h = self._window.get_size()
 
             # Outside if cursor moved away from the dock edge
             items = self._model.visible_items()
@@ -572,6 +617,7 @@ class DnDHandler:
                         item.name,
                         item.is_running,
                     )
+                    self._window.close_open_folder_stack_for_item(item.desktop_id)
                     show_poof(x=int(screen_x), y=int(screen_y))
                     # Clear slide state to avoid stale offsets
                     self._renderer.slide_offsets.clear()
@@ -584,13 +630,13 @@ class DnDHandler:
         self._drop_committed = False
         self._drag_from = -1
         self._config.save()
-        self._runtime.reconcile_after_drag(reason="drag-end")
+        self._reconcile_autohide_after_drag(reason="drag-end")
         widget.queue_draw()
 
     def _item_from_uri(self, uri: str) -> DockItem | None:
         """Build a pinned DockItem from an external URI drop."""
         desktop_id = self._uri_to_desktop_id(uri)
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         if desktop_id:
             resolved = self._launcher.resolve(desktop_id)
             if resolved is None:
@@ -631,3 +677,23 @@ class DnDHandler:
         if not path.name.endswith(".desktop"):
             return None
         return path.name
+
+    def _begin_drag_autohide(self) -> None:
+        if self._window.autohide.enabled:
+            self._window.autohide.set_disabled(True, reason="drag-begin")
+
+    def _on_drag_motion_enter(self) -> None:
+        if self._window.autohide.enabled:
+            self._window.autohide.set_disabled(True, reason="drag-motion")
+            self._window.autohide.on_mouse_enter()
+
+    def _reconcile_autohide_after_drag(self, *, reason: str) -> None:
+        if not self._window.autohide.enabled:
+            return
+        if self._window.is_pointer_inside_dock():
+            self._window.autohide.set_hovered(True)
+            self._window.autohide.set_disabled(False, reason=f"{reason}-inside")
+            return
+        self._window.autohide.set_hovered(False)
+        self._window.autohide.set_disabled(False, reason=f"{reason}-outside")
+        self._window.autohide.on_mouse_leave()

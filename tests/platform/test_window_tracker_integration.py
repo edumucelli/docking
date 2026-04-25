@@ -17,6 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.platform.window_tracker as window_tracker_mod
+from docking.platform.launcher import DesktopInfo
 from docking.platform.model import DockItem
 
 
@@ -120,6 +121,7 @@ def tracker_env(monkeypatch):
         DockItem(desktop_id="no-class.desktop", wm_class=""),
     ]
     launcher = MagicMock()
+    launcher.resolve_by_wm_class.return_value = None
     tracker = window_tracker_mod.WindowTracker(model=model, launcher=launcher)
     return tracker, model, launcher
 
@@ -286,7 +288,7 @@ class TestWindowMatching:
         # Given
         tracker, _model, launcher = tracker_env
         info = SimpleNamespace(desktop_id="mongodb-compass.desktop")
-        launcher.resolve.side_effect = lambda desktop_id: (
+        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
             info if desktop_id == "mongodb-compass.desktop" else None
         )
         win = FakeWindow(12, class_group="MongoDB Compass")
@@ -302,7 +304,7 @@ class TestWindowMatching:
         # Given
         tracker, _model, launcher = tracker_env
         info = SimpleNamespace(desktop_id="org.gnome.Terminal.desktop")
-        launcher.resolve.side_effect = lambda desktop_id: (
+        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
             info if desktop_id == "org.gnome.Terminal.desktop" else None
         )
         win = FakeWindow(13, class_group="Terminal")
@@ -331,6 +333,24 @@ class TestWindowMatching:
         # When
         # Then
         assert tracker._match_window(win) is None
+
+    def test_match_uses_reverse_wm_class_lookup_for_unpinned_apps(self, tracker_env):
+        tracker, _model, launcher = tracker_env
+        launcher.resolve.return_value = None
+        launcher.resolve_by_wm_class.return_value = DesktopInfo(
+            desktop_id="org.gnome.Calculator.desktop",
+            name="Calculator",
+            icon_name="org.gnome.Calculator",
+            wm_class="gnome-calculator",
+            exec_line="gnome-calculator",
+        )
+        win = FakeWindow(16, class_group="gnome-calculator")
+
+        assert tracker._match_window(win) == "org.gnome.Calculator.desktop"
+        assert (
+            tracker._wm_class_to_desktop["gnome-calculator"]
+            == "org.gnome.Calculator.desktop"
+        )
 
 
 class TestWindowActions:

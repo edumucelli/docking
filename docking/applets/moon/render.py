@@ -1,7 +1,7 @@
 """Cairo icon rendering for Moon applet.
 
 Draws a moon disc with illumination. The lit portion is rendered as a
-clipped fill — no external image assets needed. The original Cairo-Dock
+clipped fill - no external image assets needed. The original Cairo-Dock
 Moon applet used pre-rendered GIF images (moon00a.gif through moon10b.gif)
 from the briancasey.org website. This version renders the moon purely in
 Cairo, giving smooth scaling at any icon size.
@@ -51,7 +51,7 @@ def create_icon(
     cr.set_source_rgb(*_DARK)
     cr.fill()
 
-    # Lit portion — use a terminator curve (ellipse clip)
+    # Lit portion - use a terminator curve (ellipse clip)
     # The terminator is the boundary between lit and dark.
     # At illumination 0.5 the terminator is a straight vertical line.
     # At 1.0 or 0.0 the terminator matches the disc edge.

@@ -5,7 +5,7 @@ let
 in
 pyPkgs.buildPythonApplication rec {
   pname = "docking";
-  version = "1.2.4";
+  version = "1.12.1";
   format = "pyproject";
 
   src = ../..;
@@ -48,10 +48,24 @@ pyPkgs.buildPythonApplication rec {
   '';
 
   postInstall = ''
+    mv "$out/bin/docking" "$out/bin/docking-real"
+    cat > "$out/bin/docking" <<EOF
+#!/bin/sh
+set -eu
+if [ "''${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "''${WAYLAND_DISPLAY:-}" ]; then
+  export GDK_BACKEND=x11
+fi
+exec "$out/bin/docking-real" "\$@"
+EOF
+    chmod 0755 "$out/bin/docking"
+
     install -Dm644 ${../shared/org.docking.Docking.desktop} \
       "$out/share/applications/org.docking.Docking.desktop"
     substituteInPlace "$out/share/applications/org.docking.Docking.desktop" \
       --replace-fail "Exec=docking" "Exec=$out/bin/docking"
+
+    install -Dm644 ${../shared/org.docking.camshield.policy} \
+      "$out/share/polkit-1/actions/org.docking.camshield.policy"
 
     mkdir -p "$out/share/icons/hicolor"
     cp -a ${../deb/icons/hicolor}/. "$out/share/icons/hicolor/"

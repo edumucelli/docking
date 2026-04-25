@@ -65,7 +65,7 @@ class PetApplet(Applet):
         super().stop()
 
     def on_clicked(self) -> None:
-        """Pet the creature — reset to happy."""
+        """Pet the creature - reset to happy."""
         self._state = reset_to_happy(state=self._state)
         self.item.is_urgent = False
         self.refresh_tooltip()

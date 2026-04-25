@@ -72,13 +72,14 @@ FALLBACK_CARDS: tuple[StretchCard, ...] = (
 
 def _parse_interval(value: object) -> int:
     try:
-        if isinstance(value, (bool, int, float)):
+        if isinstance(value, bool | int | float):
             minutes = int(value)
         elif isinstance(value, str):
             minutes = int(value.strip())
         else:
             return DEFAULT_INTERVAL
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        log.debug("Invalid stretch interval %r: %s", value, exc)
         return DEFAULT_INTERVAL
     return max(1, minutes)
 

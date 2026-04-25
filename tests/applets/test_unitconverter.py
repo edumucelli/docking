@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import docking.applets.unitconverter.applet as unitconverter_applet_mod
@@ -19,6 +21,7 @@ from docking.applets.unitconverter.state import (
     set_currency_units,
 )
 from docking.core.config import Config
+from docking.ui.display import ScreenPosition
 
 
 class _ImmediateWorker:
@@ -48,6 +51,163 @@ def _unit(cat: Category, symbol: str) -> Unit:
         if u.symbol == symbol:
             return u
     raise ValueError(f"No unit {symbol} in {cat}")
+
+
+class _FakePopupWindow:
+    def __init__(self) -> None:
+        self.child = None
+        self.moved_to = None
+        self.destroyed = False
+
+    def set_decorated(self, _value: bool) -> None:
+        return
+
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
+
+    def set_type_hint(self, _hint) -> None:
+        return
+
+    def get_child(self):
+        return self.child
+
+    def remove(self, _child) -> None:
+        self.child = None
+
+    def add(self, child) -> None:
+        self.child = child
+
+    def show_all(self) -> None:
+        return
+
+    def get_preferred_size(self):
+        return None, SimpleNamespace(width=100, height=60)
+
+    def get_screen(self):
+        return SimpleNamespace(get_width=lambda: 320, get_height=lambda: 240)
+
+    def move(self, x: int, y: int) -> None:
+        self.moved_to = (x, y)
+
+    def destroy(self) -> None:
+        self.destroyed = True
+
+
+class _FakeComboBoxText:
+    def __init__(self) -> None:
+        self.items: list[str] = []
+        self.active = -1
+
+    def append_text(self, text: str) -> None:
+        self.items.append(text)
+
+    def remove_all(self) -> None:
+        self.items.clear()
+        self.active = -1
+
+    def set_active(self, idx: int) -> None:
+        self.active = idx
+
+    def get_active(self) -> int:
+        return self.active
+
+    def set_hexpand(self, _value: bool) -> None:
+        return
+
+    def connect(self, *_args) -> None:
+        return
+
+
+class _FakeEntry:
+    def __init__(self, text: str = "") -> None:
+        self.text = text
+        self.placeholder = ""
+        self._callbacks: dict[str, object] = {}
+
+    def set_text(self, text: str) -> None:
+        self.text = text
+
+    def get_text(self) -> str:
+        return self.text
+
+    def set_placeholder_text(self, _text: str) -> None:
+        self.placeholder = _text
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+
+class _FakeLabel:
+    def __init__(self) -> None:
+        self.text = ""
+        self.markup = ""
+        self.selectable = False
+        self.xalign = 0.0
+
+    def set_selectable(self, _value: bool) -> None:
+        self.selectable = _value
+
+    def set_xalign(self, value: float) -> None:
+        self.xalign = value
+
+    def set_markup(self, markup: str) -> None:
+        self.markup = markup
+        self.text = re.sub(r"<[^>]+>", "", markup)
+
+    def get_text(self) -> str:
+        return self.text
+
+
+class _FakeBuildButton:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.tooltip = ""
+        self.connected = None
+
+    def set_tooltip_text(self, text: str) -> None:
+        self.tooltip = text
+
+    def connect(self, signal: str, callback, *args) -> None:
+        self.connected = (signal, callback, args)
+
+
+class _FakeBuildBox:
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.children: list[object] = []
+        self.size_request = None
+
+    def set_margin_start(self, _value: int) -> None:
+        return
+
+    def set_margin_end(self, _value: int) -> None:
+        return
+
+    def set_margin_top(self, _value: int) -> None:
+        return
+
+    def set_margin_bottom(self, _value: int) -> None:
+        return
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+
+def _seed_popup_widgets(applet: UnitConverterApplet):
+    applet._cat_combo = _FakeComboBoxText()
+    for cat in get_categories():
+        applet._cat_combo.append_text(cat.value)
+    applet._cat_combo.set_active(applet._cat_idx)
+    applet._from_combo = _FakeComboBoxText()
+    applet._to_combo = _FakeComboBoxText()
+    applet._entry = _FakeEntry("1")
+    applet._result_label = _FakeLabel()
+    applet._populate_unit_combos()
+    applet._update_result()
+    return {"category": applet._cat_idx}
 
 
 # -- Conversion tests ---------------------------------------------------------
@@ -270,7 +430,7 @@ class TestCurrencyState:
                 pass
 
         monkeypatch.setattr(
-            uc_state.urllib.request, "urlopen", lambda *a, **kw: FakeResp()
+            uc_state.urllib.request, "urlopen", lambda *a, **_kw: FakeResp()
         )
         result = uc_state.fetch_currency_rates()
         assert result is not None
@@ -295,7 +455,7 @@ class TestCurrencyState:
                 pass
 
         monkeypatch.setattr(
-            uc_state.urllib.request, "urlopen", lambda *a, **kw: FakeResp()
+            uc_state.urllib.request, "urlopen", lambda *a, **_kw: FakeResp()
         )
         result = uc_state.fetch_currency_rates()
         assert result is not None
@@ -367,6 +527,18 @@ class TestAppletPrefs:
 
 
 class TestAppletPopup:
+    @staticmethod
+    def _patch_popup(monkeypatch, applet: UnitConverterApplet, popup: _FakePopupWindow):
+        monkeypatch.setattr(
+            unitconverter_applet_mod.Gtk,
+            "Window",
+            lambda **_kwargs: popup,
+        )
+        monkeypatch.setattr(unitconverter_applet_mod, "wrap_popup", lambda child: child)
+        monkeypatch.setattr(
+            applet, "_build_popup_content", lambda: _seed_popup_widgets(applet)
+        )
+
     def test_on_clicked_toggles_popup(self, monkeypatch):
         applet = _make_applet()
         show = MagicMock()
@@ -416,10 +588,12 @@ class TestAppletPopup:
 
     def test_show_popup_builds_controls_and_reuses_window(self, monkeypatch):
         applet = _make_applet()
+        fake_popup = _FakePopupWindow()
+        self._patch_popup(monkeypatch, applet, fake_popup)
         monkeypatch.setattr(
             unitconverter_applet_mod,
             "get_pointer_position",
-            lambda _display: (150, 220),
+            lambda _display: ScreenPosition(x=150, y=220),
         )
 
         applet._show_popup()
@@ -433,26 +607,67 @@ class TestAppletPopup:
 
         assert applet._popup is first_popup
         assert applet._popup.get_child() is not first_child
+        assert fake_popup.moved_to == (100, 140)
         applet.stop()
 
     def test_show_popup_uses_themed_surface_wrapper(self, monkeypatch):
         applet = _make_applet()
+        fake_popup = _FakePopupWindow()
+        wrapped = MagicMock(name="wrapped-popup")
+        monkeypatch.setattr(
+            unitconverter_applet_mod.Gtk,
+            "Window",
+            lambda **_kwargs: fake_popup,
+        )
+        monkeypatch.setattr(
+            unitconverter_applet_mod, "wrap_popup", MagicMock(return_value=wrapped)
+        )
+        monkeypatch.setattr(applet, "_build_popup_content", lambda: "content")
         monkeypatch.setattr(
             unitconverter_applet_mod,
             "get_pointer_position",
-            lambda _display: (150, 220),
+            lambda _display: ScreenPosition(x=150, y=220),
         )
 
         applet._show_popup()
 
         popup_child = applet._popup.get_child()
-        assert isinstance(popup_child, unitconverter_applet_mod.Gtk.Frame)
-        assert "applet-popup-surface" in popup_child.get_style_context().list_classes()
+        assert popup_child is wrapped
         applet.stop()
+
+    def test_build_popup_content_creates_real_controls_with_fakes(self, monkeypatch):
+        applet = _make_applet()
+        monkeypatch.setattr(
+            unitconverter_applet_mod,
+            "Gtk",
+            SimpleNamespace(
+                Box=_FakeBuildBox,
+                ComboBoxText=_FakeComboBoxText,
+                Button=_FakeBuildButton,
+                Entry=_FakeEntry,
+                Label=_FakeLabel,
+                Orientation=SimpleNamespace(VERTICAL=1, HORIZONTAL=2),
+            ),
+        )
+
+        box = unitconverter_applet_mod.UnitConverterApplet._build_popup_content(applet)
+
+        assert isinstance(box, _FakeBuildBox)
+        assert box.size_request == (unitconverter_applet_mod.POPUP_WIDTH_PX, -1)
+        assert applet._cat_combo is not None
+        assert len(applet._cat_combo.items) == len(get_categories())
+        assert applet._from_combo is not None
+        assert applet._to_combo is not None
+        assert applet._entry is not None
+        assert applet._entry.get_text() == "1"
+        assert applet._entry.placeholder == "Value"
+        assert applet._result_label is not None
+        assert applet._result_label.selectable is True
+        assert applet._result_label.xalign == 0.5
 
     def test_category_change_repopulates_and_saves(self):
         applet = _make_applet()
-        applet._build_popup_content()
+        _seed_popup_widgets(applet)
         applet.save_prefs = MagicMock()
         combo = MagicMock()
         combo.get_active.return_value = 2
@@ -494,7 +709,7 @@ class TestAppletPopup:
 
     def test_unit_change_clamps_indexes_and_saves(self):
         applet = _make_applet()
-        applet._build_popup_content()
+        _seed_popup_widgets(applet)
         applet.save_prefs = MagicMock()
         assert applet._from_combo is not None
         assert applet._to_combo is not None
@@ -524,7 +739,7 @@ class TestAppletPopup:
 
     def test_update_result_handles_invalid_number(self):
         applet = _make_applet()
-        applet._build_popup_content()
+        _seed_popup_widgets(applet)
         assert applet._entry is not None
         assert applet._result_label is not None
         applet._entry.set_text("not-a-number")
@@ -535,7 +750,7 @@ class TestAppletPopup:
 
     def test_update_result_handles_empty_unit_list(self, monkeypatch):
         applet = _make_applet()
-        applet._build_popup_content()
+        _seed_popup_widgets(applet)
         assert applet._entry is not None
         assert applet._result_label is not None
         applet._entry.set_text("1")
@@ -547,7 +762,7 @@ class TestAppletPopup:
 
     def test_update_result_formats_conversion_output(self):
         applet = _make_applet()
-        applet._build_popup_content()
+        _seed_popup_widgets(applet)
         assert applet._entry is not None
         assert applet._result_label is not None
         assert applet._cat_combo is not None

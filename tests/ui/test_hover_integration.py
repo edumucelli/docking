@@ -67,7 +67,7 @@ def _layout():
 class TestHoverUpdates:
     def test_update_changes_hover_and_starts_preview_timer(self, monkeypatch):
         # Given
-        hover, window, model, _config, tooltip, frame = _make_hover()
+        hover, _window, model, _config, tooltip, frame = _make_hover()
         item = DockItem(
             desktop_id="firefox.desktop",
             name="Firefox",
@@ -88,7 +88,7 @@ class TestHoverUpdates:
 
     def test_update_same_item_only_refreshes_tooltip(self):
         # Given
-        hover, window, model, _config, tooltip, frame = _make_hover()
+        hover, _window, model, _config, tooltip, frame = _make_hover()
         item = DockItem(desktop_id="x.desktop", name="X")
         hover.hovered_item = item
         model.visible_items.return_value = [item]
@@ -103,7 +103,7 @@ class TestHoverUpdates:
 
     def test_update_non_running_item_schedules_hide(self):
         # Given
-        hover, window, model, config, _tooltip, frame = _make_hover()
+        hover, _window, model, config, _tooltip, frame = _make_hover()
         item = DockItem(
             desktop_id="x.desktop", name="X", is_running=False, instance_count=0
         )
@@ -197,10 +197,10 @@ class TestHoverTimers:
             lambda _ms, _cb: next(timer_ids),
         )
 
-        # When — first pump sets timer id 10
+        # When - first pump sets timer id 10
         hover.start_anim_pump(duration_ms=48)
         assert hover._anim_timer_id == 10
-        # When — second pump cancels timer 10
+        # When - second pump cancels timer 10
         hover.start_anim_pump(duration_ms=48)
 
         # Then
@@ -220,7 +220,7 @@ class TestHoverTimers:
         # When
         hover.start_anim_pump(duration_ms=0)
 
-        # Then — timer fires once and immediately stops
+        # Then - timer fires once and immediately stops
         assert callbacks
         tick = callbacks[0]
         assert tick() is False
@@ -242,11 +242,11 @@ class TestHoverTimers:
         window.drawing_area.queue_draw.reset_mock()
         tick()
 
-        # Then — each live tick triggers a redraw
+        # Then - each live tick triggers a redraw
         window.drawing_area.queue_draw.assert_called_once()
 
     def test_start_anim_pump_from_idle_no_source_remove(self, monkeypatch):
-        # Given — no prior timer running
+        # Given - no prior timer running
         hover, _window, _model, _config, _tooltip, _frame = _make_hover()
         assert hover._anim_timer_id == 0
         removed = []
@@ -262,7 +262,7 @@ class TestHoverTimers:
         # When
         hover.start_anim_pump(duration_ms=48)
 
-        # Then — no source_remove called when there was no active timer
+        # Then - no source_remove called when there was no active timer
         assert removed == []
 
     def test_on_model_changed_starts_pump_for_urgent_item(self):
@@ -280,12 +280,12 @@ class TestHoverTimers:
 
 class TestShowPreview:
     @pytest.mark.parametrize(
-        ("position", "expected_method"),
+        "position",
         [
-            (Position.BOTTOM, "bottom"),
-            (Position.TOP, "top"),
-            (Position.LEFT, "left"),
-            (Position.RIGHT, "right"),
+            Position.BOTTOM,
+            Position.TOP,
+            Position.LEFT,
+            Position.RIGHT,
         ],
     )
     def test_show_preview_computes_anchor_for_positions(
@@ -295,9 +295,8 @@ class TestShowPreview:
         self,
         monkeypatch,
         position,
-        expected_method,
     ):
-        hover, window, model, config, _tooltip, frame = _make_hover()
+        hover, _window, model, config, _tooltip, _frame = _make_hover()
         item = DockItem(
             desktop_id="firefox.desktop",
             name="Firefox",

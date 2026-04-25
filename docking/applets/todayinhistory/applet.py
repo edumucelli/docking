@@ -21,6 +21,7 @@ from docking.log import get_logger, with_context
 
 from .render import render_icon
 from .state import (
+    DEFAULT_FETCH_LIMIT,
     HistoryEvent,
     fallback_today_in_history,
     fetch_today_in_history,
@@ -34,6 +35,8 @@ log = with_context(
     get_logger(name="todayinhistory"),
     applet_id=meta.id,
 )
+
+DAY_CHANGE_POLL_INTERVAL_S = 60
 
 
 class TodayInHistoryApplet(Applet):
@@ -61,7 +64,10 @@ class TodayInHistoryApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
         self._fetch_async(show_first=False)
-        self._timer_id = GLib.timeout_add_seconds(60, self._poll_day_change)
+        self._timer_id = GLib.timeout_add_seconds(
+            DAY_CHANGE_POLL_INTERVAL_S,
+            self._poll_day_change,
+        )
 
     def stop(self) -> None:
         if self._timer_id:
@@ -165,7 +171,11 @@ class TodayInHistoryApplet(Applet):
             self.present()
 
         def worker() -> None:
-            entries = fetch_today_in_history(month=month, day=day)
+            entries = fetch_today_in_history(
+                month=month,
+                day=day,
+                limit=DEFAULT_FETCH_LIMIT,
+            )
             GLib.idle_add(self._on_fetch_result, month, day, entries, show_first)
 
         threading.Thread(target=worker, daemon=True).start()

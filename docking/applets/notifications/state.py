@@ -98,7 +98,8 @@ def _parse_pending_count(value: str | None) -> int | None:
 
     try:
         payload = json.loads(stripped)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        log.debug("Failed to parse pending notification count %r: %s", stripped, exc)
         return None
 
     if isinstance(payload, dict):

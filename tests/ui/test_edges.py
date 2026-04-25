@@ -95,6 +95,7 @@ class _Harness:
             zoom_percent=1.5,
             zoom_enabled=True,
             previews_enabled=False,
+            folder_stack_unfold="click",
         )
         self.theme = SimpleNamespace(
             item_padding=8,
@@ -119,10 +120,12 @@ class _Harness:
         self.cursor_x = -1.0
         self.cursor_y = -1.0
         self.dock_hovered = False
-        self._current_geometry_frame = None
-        self._applied_input_frame = None
+        self._cache = dock_window_mod._DockWindowCache.create()
+        self._redraw_source_id = None
         self.preview = None
-        self._menu = None
+        self._menu = MagicMock()
+        self._menu.open_folder_stack_item_id.return_value = None
+        self._menu.close_folder_stack = MagicMock()
         self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
@@ -142,7 +145,7 @@ class _Harness:
             progress=1.0, on_enter=lambda: None, on_leave=lambda: None
         )
         self.geometry = DockGeometryBuilder(self)
-        self._hover = HoverManager(
+        self.hover = HoverManager(
             window=self,
             config=self.config,
             model=self.model,
@@ -166,8 +169,32 @@ class _Harness:
 
 
 def _attach_runtime_methods(harness: _Harness) -> None:
+    harness.current_interaction_frame = MethodType(
+        dock_window_mod.DockWindow.current_interaction_frame, harness
+    )
     harness.update_input_region = MethodType(
         dock_window_mod.DockWindow.update_input_region, harness
+    )
+    harness._geometry_signature = MethodType(
+        dock_window_mod.DockWindow._geometry_signature, harness
+    )
+    harness._build_and_store_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._build_and_store_geometry_frame, harness
+    )
+    harness._current_or_build_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._current_or_build_geometry_frame, harness
+    )
+    harness._clear_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._clear_scheduled_redraw, harness
+    )
+    harness._flush_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow._flush_scheduled_redraw, harness
+    )
+    harness._schedule_redraw = MethodType(
+        dock_window_mod.DockWindow._schedule_redraw, harness
+    )
+    harness._invalidate_current_geometry_frame = MethodType(
+        dock_window_mod.DockWindow._invalidate_current_geometry_frame, harness
     )
 
 
@@ -184,28 +211,28 @@ def _leave_event(x: float, y: float) -> SimpleNamespace:
     )
 
 
-def _hover_first_item(harness: _Harness, widget: MagicMock) -> tuple[float, float]:
+def hover_first_item(harness: _Harness, widget: MagicMock) -> tuple[float, float]:
     frame = harness.geometry.build_frame(main_cursor=330.0)
     first = frame.item_geometries[0]
     x = float(first.draw_rect.x + first.draw_rect.w // 2)
     y = float(first.draw_rect.y + first.draw_rect.h - 1)
     dock_window_mod.DockWindow._on_motion(harness, widget, _motion_event(x=x, y=y))
-    assert harness._hover.hovered_item is first.item
+    assert harness.hover.hovered_item is first.item
     return x, y
 
 
-def _hover_last_item(harness: _Harness, widget: MagicMock) -> tuple[float, float]:
+def hover_last_item(harness: _Harness, widget: MagicMock) -> tuple[float, float]:
     frame = harness.geometry.build_frame(main_cursor=1590.0)
     last = frame.item_geometries[-1]
     x = float(last.draw_rect.x + last.draw_rect.w // 2)
     y = float(last.draw_rect.y + last.draw_rect.h - 1)
     dock_window_mod.DockWindow._on_motion(harness, widget, _motion_event(x=x, y=y))
-    assert harness._hover.hovered_item is last.item
+    assert harness.hover.hovered_item is last.item
     return x, y
 
 
 class TestDockOuterEdgeBehavior:
-    def test_first_item_loses_hover_exactly_after_left_background_edge(self):
+    def test_first_item_loseshover_exactly_after_left_background_edge(self):
         frame = _frame(cursor_main=330.0)
         first = frame.item_geometries[0]
         y = first.draw_rect.y + first.draw_rect.h - 1
@@ -220,7 +247,7 @@ class TestDockOuterEdgeBehavior:
 
         assert exit_x == frame.background_rect.x - 1
 
-    def test_last_item_loses_hover_exactly_at_right_background_edge(self):
+    def test_last_item_loseshover_exactly_at_right_background_edge(self):
         frame = _frame(cursor_main=1590.0)
         last = frame.item_geometries[-1]
         y = last.draw_rect.y + last.draw_rect.h - 1
@@ -254,9 +281,9 @@ class TestDockOuterEdgeBehavior:
         harness = _Harness()
         _attach_runtime_methods(harness)
         widget = MagicMock()
-        _hover_first_item(harness, widget)
+        hover_first_item(harness, widget)
 
-        frame = harness._current_geometry_frame
+        frame = harness.current_interaction_frame()
         assert frame is not None
         exit_x = frame.background_rect.x - 1
         y = (
@@ -278,9 +305,9 @@ class TestDockOuterEdgeBehavior:
         harness = _Harness()
         _attach_runtime_methods(harness)
         widget = MagicMock()
-        _hover_first_item(harness, widget)
+        hover_first_item(harness, widget)
 
-        frame = harness._current_geometry_frame
+        frame = harness.current_interaction_frame()
         assert frame is not None
         exit_x = frame.background_rect.x - 1
         y = (
@@ -310,9 +337,9 @@ class TestDockOuterEdgeBehavior:
         harness = _Harness()
         _attach_runtime_methods(harness)
         widget = MagicMock()
-        _hover_last_item(harness, widget)
+        hover_last_item(harness, widget)
 
-        frame = harness._current_geometry_frame
+        frame = harness.current_interaction_frame()
         assert frame is not None
         exit_x = frame.background_rect.x + frame.background_rect.w
         y = (

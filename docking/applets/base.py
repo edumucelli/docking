@@ -67,9 +67,12 @@ from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from docking.applets.identity import applet_desktop_id
 from docking.core.items import APPLET_KIND, DockItem
+from docking.log import get_logger
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+
+log = get_logger("applets.base")
 
 _ICON_NAME_ALIASES: dict[str, tuple[str, ...]] = {
     # Not widely available outside GNOME/MATE icon packs.
@@ -146,7 +149,8 @@ def _load_bundled_fallback_icon(size: int) -> GdkPixbuf.Pixbuf | None:
             return GdkPixbuf.Pixbuf.new_from_file_at_scale(
                 str(icon_path), size, size, True
             )
-    except (FileNotFoundError, GLib.Error, ModuleNotFoundError):
+    except (FileNotFoundError, GLib.Error, ModuleNotFoundError) as exc:
+        log.debug("Failed to load bundled applet fallback icon: %s", exc)
         return None
 
 
@@ -157,7 +161,13 @@ def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         for theme in _icon_theme_candidates():
             try:
                 return theme.load_icon(icon_name, size, flags)
-            except GLib.Error:
+            except GLib.Error as exc:
+                log.debug(
+                    "Theme icon lookup failed for %s at size %s: %s",
+                    icon_name,
+                    size,
+                    exc,
+                )
                 continue
     if _should_use_bundled_fallback(name=name):
         return _load_bundled_fallback_icon(size=size)
@@ -181,7 +191,8 @@ def load_catalog_icon(*, applet_id: str, size: int) -> GdkPixbuf.Pixbuf | None:
             return GdkPixbuf.Pixbuf.new_from_file_at_scale(
                 str(icon_path), size, size, True
             )
-    except (FileNotFoundError, GLib.Error, ModuleNotFoundError):
+    except (FileNotFoundError, GLib.Error, ModuleNotFoundError) as exc:
+        log.debug("Failed to load catalog icon for %s: %s", applet_id, exc)
         return None
 
 

@@ -51,6 +51,7 @@ _VENDOR_DIR = "/usr/lib/docking/vendor"
 if Path(_VENDOR_DIR).is_dir():
     sys.path.insert(0, _VENDOR_DIR)
 
+# i18n must init before any module with translatable strings is imported.
 from docking.i18n import init as _init_i18n
 
 _init_i18n()
@@ -66,8 +67,10 @@ from docking.ipc import DockItemsService
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
+from docking.platform.unity import UnityLauncherListener
 from docking.platform.window_tracker import WindowTracker
 from docking.ui.factory import build_dock_window
+from docking.ui.new_year import NewYearGreetingController
 from docking.ui.renderer import DockRenderer
 
 
@@ -76,11 +79,14 @@ def main() -> None:
     apply_tweaks(desktop=detect_desktop())
 
     config = Config.load()
-    theme = Theme.load(name=config.theme, icon_size=config.icon_size)
+    theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
+        config.transparency
+    )
     launcher = Launcher()
     model = DockModel(config=config, launcher=launcher)
     renderer = DockRenderer()
     tracker = WindowTracker(model=model, launcher=launcher, config=config)
+    unity = UnityLauncherListener(model=model)
 
     window = build_dock_window(
         config=config,
@@ -91,17 +97,22 @@ def main() -> None:
         launcher=launcher,
     )
     items_service = DockItemsService(model=model, window=window)
+    new_year = NewYearGreetingController(window=window)
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
     try:
+        unity.start()
         window.show_all()
+        new_year.start()
         GLib.idle_add(_start_runtime, items_service, model)
         Gtk.main()
     finally:
         items_service.stop()
+        new_year.stop()
+        unity.stop()
         model.stop_applets()
 
 
@@ -115,3 +126,7 @@ def _start_runtime(items_service: DockItemsService, model: DockModel) -> bool:
 def _quit() -> bool:
     Gtk.main_quit()
     return False
+
+
+if __name__ == "__main__":
+    main()

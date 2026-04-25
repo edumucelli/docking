@@ -2,16 +2,144 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.calculator.applet as calculator_applet_mod
 from docking.applets.calculator.applet import CalculatorApplet
 from docking.applets.calculator.state import evaluate, prefs_payload
 from docking.core.config import Config
+from docking.ui.display import ScreenPosition
 
 
 def _make_applet(config: Config | None = None) -> CalculatorApplet:
     return CalculatorApplet(48, config=config)
+
+
+class _FakePopupWindow:
+    def __init__(self) -> None:
+        self.child = None
+        self.moved_to = None
+        self.destroyed = False
+
+    def set_decorated(self, _value: bool) -> None:
+        return
+
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
+
+    def set_type_hint(self, _hint) -> None:
+        return
+
+    def get_child(self):
+        return self.child
+
+    def remove(self, _child) -> None:
+        self.child = None
+
+    def add(self, child) -> None:
+        self.child = child
+
+    def show_all(self) -> None:
+        return
+
+    def get_preferred_size(self):
+        return None, SimpleNamespace(width=80, height=40)
+
+    def get_screen(self):
+        return SimpleNamespace(get_width=lambda: 320, get_height=lambda: 240)
+
+    def move(self, x: int, y: int) -> None:
+        self.moved_to = (x, y)
+
+    def destroy(self) -> None:
+        self.destroyed = True
+
+
+class _FakeEntry:
+    def __init__(self, text: str = "") -> None:
+        self._text = text
+        self._callbacks: dict[str, object] = {}
+        self.cursor = None
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+
+    def get_text(self) -> str:
+        return self._text
+
+    def set_position(self, pos: int) -> None:
+        self.cursor = pos
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def emit(self, signal: str) -> None:
+        callback = self._callbacks[signal]
+        callback(self)
+
+
+class _FakeBuildFontDescription:
+    def __init__(self) -> None:
+        self.family = ""
+
+    def set_family(self, family: str) -> None:
+        self.family = family
+
+
+class _FakeBuildPangoContext:
+    def __init__(self) -> None:
+        self.font_description = _FakeBuildFontDescription()
+
+    def get_font_description(self) -> _FakeBuildFontDescription:
+        return self.font_description
+
+
+class _FakeBuildEntry(_FakeEntry):
+    def __init__(self) -> None:
+        super().__init__()
+        self.alignment = 0.0
+        self.font = None
+        self.context = _FakeBuildPangoContext()
+
+    def set_alignment(self, value: float) -> None:
+        self.alignment = value
+
+    def get_pango_context(self) -> _FakeBuildPangoContext:
+        return self.context
+
+    def override_font(self, font_desc) -> None:
+        self.font = font_desc
+
+
+class _FakeBuildButton:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.connected = None
+
+    def connect(self, signal: str, callback, *args) -> None:
+        self.connected = (signal, callback, args)
+
+
+class _FakeBuildBox:
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.children: list[object] = []
+
+    def set_margin_start(self, _value: int) -> None:
+        return
+
+    def set_margin_end(self, _value: int) -> None:
+        return
+
+    def set_margin_top(self, _value: int) -> None:
+        return
+
+    def set_margin_bottom(self, _value: int) -> None:
+        return
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
 
 
 # -- Evaluation tests ----------------------------------------------------------
@@ -119,6 +247,24 @@ class TestAppletPrefs:
 
 
 class TestAppletPopup:
+    @staticmethod
+    def _patch_popup(monkeypatch, applet: CalculatorApplet, popup: _FakePopupWindow):
+        wrapped_children: list[object] = []
+
+        def build_popup_content():
+            applet._entry = _FakeEntry(applet._last_expr)
+            applet._entry.connect("activate", lambda _entry: applet._do_evaluate())
+            return {"expr": applet._last_expr}
+
+        monkeypatch.setattr(
+            calculator_applet_mod.Gtk,
+            "Window",
+            lambda **_kwargs: popup,
+        )
+        monkeypatch.setattr(calculator_applet_mod, "wrap_popup", lambda child: child)
+        monkeypatch.setattr(applet, "_build_popup_content", build_popup_content)
+        return wrapped_children
+
     def test_on_clicked_shows_popup(self, monkeypatch):
         applet = _make_applet()
         show = MagicMock()
@@ -148,8 +294,12 @@ class TestAppletPopup:
 
     def test_show_popup_builds_content_and_reuses_window(self, monkeypatch):
         applet = _make_applet()
+        fake_popup = _FakePopupWindow()
+        self._patch_popup(monkeypatch, applet, fake_popup)
         monkeypatch.setattr(
-            calculator_applet_mod, "get_pointer_position", lambda _display: (120, 140)
+            calculator_applet_mod,
+            "get_pointer_position",
+            lambda _display: ScreenPosition(x=120, y=140),
         )
 
         applet._show_popup()
@@ -165,26 +315,42 @@ class TestAppletPopup:
         assert applet._popup.get_child() is not first_child
         assert applet._entry is not None
         assert applet._entry.get_text() == "5+5"
+        assert fake_popup.moved_to == (80, 80)
 
         applet.stop()
 
     def test_show_popup_uses_themed_surface_wrapper(self, monkeypatch):
         applet = _make_applet()
+        fake_popup = _FakePopupWindow()
+        wrapped = MagicMock(name="wrapped-popup")
         monkeypatch.setattr(
-            calculator_applet_mod, "get_pointer_position", lambda _display: (120, 140)
+            calculator_applet_mod.Gtk,
+            "Window",
+            lambda **_kwargs: fake_popup,
+        )
+        monkeypatch.setattr(
+            calculator_applet_mod, "wrap_popup", MagicMock(return_value=wrapped)
+        )
+        monkeypatch.setattr(applet, "_build_popup_content", lambda: "content")
+        monkeypatch.setattr(
+            calculator_applet_mod,
+            "get_pointer_position",
+            lambda _display: ScreenPosition(x=120, y=140),
         )
 
         applet._show_popup()
 
         popup_child = applet._popup.get_child()
-        assert isinstance(popup_child, calculator_applet_mod.Gtk.Frame)
-        assert "applet-popup-surface" in popup_child.get_style_context().list_classes()
+        assert popup_child is wrapped
         applet.stop()
 
     def test_activate_signal_evaluates_entry(self, monkeypatch):
         applet = _make_applet()
+        self._patch_popup(monkeypatch, applet, _FakePopupWindow())
         monkeypatch.setattr(
-            calculator_applet_mod, "get_pointer_position", lambda _display: (100, 120)
+            calculator_applet_mod,
+            "get_pointer_position",
+            lambda _display: ScreenPosition(x=100, y=120),
         )
         applet._show_popup()
         assert applet._entry is not None
@@ -195,6 +361,34 @@ class TestAppletPopup:
         assert applet._entry.get_text() == "5"
         assert applet._last_expr == "5"
         applet.stop()
+
+    def test_build_popup_content_creates_entry_and_button_grid(self, monkeypatch):
+        applet = _make_applet()
+        applet._last_expr = "7*6"
+        monkeypatch.setattr(
+            calculator_applet_mod,
+            "Gtk",
+            SimpleNamespace(
+                Box=_FakeBuildBox,
+                Entry=_FakeBuildEntry,
+                Button=_FakeBuildButton,
+                Orientation=SimpleNamespace(VERTICAL=1, HORIZONTAL=2),
+            ),
+        )
+
+        box = calculator_applet_mod.CalculatorApplet._build_popup_content(applet)
+
+        assert isinstance(box, _FakeBuildBox)
+        assert isinstance(applet._entry, _FakeBuildEntry)
+        assert applet._entry.get_text() == "7*6"
+        assert applet._entry.alignment == 1.0
+        assert applet._entry.font.family == "monospace"
+        assert len(box.children) == 1 + len(calculator_applet_mod.BUTTON_ROWS)
+        first_row = box.children[1]
+        assert isinstance(first_row, _FakeBuildBox)
+        assert [button.label for button in first_row.children] == list(
+            calculator_applet_mod.BUTTON_ROWS[0]
+        )
 
     def test_button_clear_backspace_insert_and_equals(self):
         applet = _make_applet()

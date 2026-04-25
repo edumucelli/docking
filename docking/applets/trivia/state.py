@@ -16,6 +16,7 @@ from docking.log import get_logger, with_context
 
 log = with_context(get_logger(name="trivia"), applet_id=meta.id)
 _TRIVIA_ENDPOINT = "https://opentdb.com/api.php?amount={limit}"
+DEFAULT_FETCH_LIMIT = 20
 
 
 @dataclass(frozen=True)
@@ -192,7 +193,7 @@ def _parse_results(
 
 
 def fetch_trivia(
-    limit: int = 20,
+    limit: int = DEFAULT_FETCH_LIMIT,
     http_get_json: Callable[[str], Any] | None = None,
     shuffle_answers: Callable[[list[str]], None] | None = None,
 ) -> list[TriviaEntry]:

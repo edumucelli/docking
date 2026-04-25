@@ -28,6 +28,10 @@ import operator
 from collections.abc import Callable
 from typing import Any
 
+from docking.log import get_logger
+
+log = get_logger("calculator.state")
+
 BinaryOp = Callable[[float, float], float]
 UnaryOp = Callable[[float], float]
 
@@ -48,7 +52,7 @@ def _eval_node(node: ast.AST) -> float:
     """Recursively evaluate an AST node, allowing only basic arithmetic."""
     if isinstance(node, ast.Expression):
         return _eval_node(node.body)
-    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+    if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
         return float(node.value)
     if isinstance(node, ast.BinOp):
         op = _BINARY_OPS.get(type(node.op))
@@ -78,9 +82,11 @@ def evaluate(expression: str) -> str:
         if result == int(result):
             return str(int(result))
         return f"{result:.10g}"
-    except ZeroDivisionError:
+    except ZeroDivisionError as exc:
+        log.debug("Division by zero in calculator expression %r: %s", expr, exc)
         return "Error: division by zero"
-    except (ValueError, SyntaxError, TypeError):
+    except (ValueError, SyntaxError, TypeError) as exc:
+        log.debug("Failed to evaluate calculator expression %r: %s", expr, exc)
         return "Error"
 
 

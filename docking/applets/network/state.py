@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from typing import NamedTuple
 
 from docking.i18n import _
+from docking.log import get_logger
+
+log = get_logger("network.state")
 
 
 class TrafficCounters(NamedTuple):
@@ -19,6 +24,34 @@ class TrafficSpeeds(NamedTuple):
 
     down: float
     up: float
+
+
+class AvailableNetwork(NamedTuple):
+    """A visible Wi-Fi network candidate for the applet menu."""
+
+    ssid: str
+    strength: int
+    access_point_path: str
+    is_active: bool
+
+
+_CONNECTION_INFO_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gnome-control-center", "wifi"),
+    ("gnome-control-center", "network"),
+    ("mate-network-properties",),
+    ("kcmshell6", "kcm_networkmanagement"),
+    ("kcmshell5", "kcm_networkmanagement"),
+    ("systemsettings", "kcm_networkmanagement"),
+)
+
+_EDIT_CONNECTIONS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("nm-connection-editor",),
+    ("gnome-control-center", "network"),
+    ("mate-network-properties",),
+    ("kcmshell6", "kcm_networkmanagement"),
+    ("kcmshell5", "kcm_networkmanagement"),
+    ("systemsettings", "kcm_networkmanagement"),
+)
 
 
 def parse_proc_net_dev(text: str) -> dict[str, TrafficCounters]:
@@ -60,6 +93,89 @@ def format_speed(bps: float) -> str:
     return f"{bps / (1024 * 1024 * 1024):.1f} GB/s"
 
 
+def connection_info_command() -> list[str] | None:
+    """Return the first available desktop network-info/settings command."""
+    for cmd in _CONNECTION_INFO_COMMANDS:
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None
+
+
+def edit_connections_command() -> list[str] | None:
+    """Return the first available network-connections editor command."""
+    for cmd in _EDIT_CONNECTIONS_COMMANDS:
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None
+
+
+def open_connection_info() -> bool:
+    """Launch the desktop network information/settings tool when available."""
+    return _open_command(cmd=connection_info_command(), action="open_connection_info")
+
+
+def open_edit_connections() -> bool:
+    """Launch the desktop network-connections editor when available."""
+    return _open_command(
+        cmd=edit_connections_command(),
+        action="open_edit_connections",
+    )
+
+
+def open_hidden_wifi_settings() -> bool:
+    """Launch the desktop network editor for hidden Wi-Fi setup."""
+    return _open_command(
+        cmd=edit_connections_command() or connection_info_command(),
+        action="open_hidden_wifi_settings",
+    )
+
+
+def open_new_wifi_settings() -> bool:
+    """Launch the desktop network editor for creating a new Wi-Fi network."""
+    return _open_command(
+        cmd=edit_connections_command() or connection_info_command(),
+        action="open_new_wifi_settings",
+    )
+
+
+def decode_ssid(ssid_bytes: object | None) -> str:
+    """Decode an NM SSID byte container into a displayable string."""
+    if ssid_bytes is None:
+        return ""
+    raw = ssid_bytes if isinstance(ssid_bytes, bytes) else ssid_bytes.get_data()
+    if isinstance(raw, bytes):
+        return raw.decode("utf-8", errors="replace").strip()
+    return str(raw).strip()
+
+
+def dedupe_networks(networks: list[AvailableNetwork]) -> list[AvailableNetwork]:
+    """Keep one entry per SSID, preferring active and stronger access points."""
+    best_by_ssid: dict[str, AvailableNetwork] = {}
+    for network in networks:
+        if not network.ssid:
+            continue
+        current = best_by_ssid.get(network.ssid)
+        if current is None:
+            best_by_ssid[network.ssid] = network
+            continue
+        if network.is_active and not current.is_active:
+            best_by_ssid[network.ssid] = network
+            continue
+        if (
+            network.is_active == current.is_active
+            and network.strength > current.strength
+        ):
+            best_by_ssid[network.ssid] = network
+    return sorted(
+        best_by_ssid.values(),
+        key=lambda item: (
+            not item.is_active,
+            -item.strength,
+            item.ssid.casefold(),
+        ),
+    )
+
+
 def signal_to_icon(strength: int, is_connected: bool, is_wifi: bool) -> str:
     """Map network state to GTK icon name."""
     if not is_connected:
@@ -98,3 +214,14 @@ def build_tooltip(
     up = format_speed(bps=tx_speed)
     lines.append(f"\u2193 {down}  \u2191 {up}")
     return "\n".join(lines)
+
+
+def _open_command(*, cmd: list[str] | None, action: str) -> bool:
+    if cmd is None:
+        return False
+    try:
+        subprocess.Popen(cmd, start_new_session=True)
+    except OSError as exc:
+        log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
+        return False
+    return True

@@ -64,6 +64,7 @@ def mouth_curvature(fill: float) -> float:
 
     1.0 = full smile, 0.0 = neutral, -1.0 = full frown.
     """
+    # Linear map: fill 0 -> -1 (frown), fill 0.5 -> 0 (neutral), fill 1 -> +1 (smile)
     clamped = _clamp_fill(fill)
     return clamped * 2.0 - 1.0
 
@@ -113,6 +114,8 @@ def tick(state: HydrationState) -> TickResult:
     next_state = replace(state, fill=next_fill, tick_count=next_tick)
 
     became_empty = state.fill > 0 and next_fill <= 0
+    # Lazy redraw: only refresh every REDRAW_EVERY ticks unless timer overlay
+    # is visible (which needs per-second updates) or fill just hit zero.
     should_refresh = (
         became_empty or next_state.show_timer or next_tick % REDRAW_EVERY == 0
     )

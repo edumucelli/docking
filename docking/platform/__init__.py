@@ -22,5 +22,6 @@ state, but it should not become responsible for GTK widget trees or drawing.
 """
 
 from docking.platform.launcher import Launcher  # noqa: F401
-from docking.platform.model import DockItem, DockModel  # noqa: F401
+from docking.platform.model import DockItem, DockModel, LauncherEntryState  # noqa: F401
+from docking.platform.unity import UnityLauncherListener  # noqa: F401
 from docking.platform.window_tracker import WindowTracker  # noqa: F401

@@ -269,6 +269,29 @@ class TestNullDockRect:
 
 
 class TestLifecycle:
+    def test_evaluate_now_cancels_pending_debounce_and_runs_immediately(
+        self, monkeypatch
+    ):
+        config = Config(hide_mode="dodge-active")
+        monitor = WindowDodgeMonitor(
+            config=config,
+            get_dock_rect=lambda: DOCK_RECT,
+            on_change=MagicMock(),
+        )
+        monitor._debounce_id = 42
+        removed: list[int] = []
+        monkeypatch.setattr(
+            "docking.platform.dodge.GLib.source_remove",
+            lambda source_id: removed.append(source_id),
+        )
+        monitor._do_evaluate = MagicMock()
+
+        monitor.evaluate_now()
+
+        assert removed == [42]
+        assert monitor._debounce_id == 0
+        monitor._do_evaluate.assert_called_once_with()
+
     def test_stop_disconnects_window_signal_handlers(self):
         config = Config(hide_mode="window-dodge")
         monitor = WindowDodgeMonitor(

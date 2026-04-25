@@ -1,12 +1,11 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:1.2.4}
+Version:        %{?pkg_version}%{!?pkg_version:1.12.1}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
-BuildArch:      x86_64
 
 Requires:       python3
 BuildRequires:  gettext
@@ -44,11 +43,20 @@ install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'
 #!/bin/sh
 set -eu
 export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
+if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  export GDK_BACKEND=x11
+fi
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
+install -Dm755 packaging/shared/docking-camshield-helper \
+  %{buildroot}/usr/bin/docking-camshield-helper
+
 install -Dm644 packaging/shared/org.docking.Docking.desktop \
   %{buildroot}/usr/share/applications/org.docking.Docking.desktop
+
+install -Dm644 packaging/shared/org.docking.camshield.policy \
+  %{buildroot}/usr/share/polkit-1/actions/org.docking.camshield.policy
 
 install -Dm755 packaging/shared/refresh-desktop-caches.sh \
   %{buildroot}/usr/lib/docking/refresh-desktop-caches
@@ -71,13 +79,96 @@ fi
 %files
 %license LICENSE
 /usr/bin/docking
+/usr/bin/docking-camshield-helper
 /usr/lib/docking/python
 /usr/lib/docking/vendor
 /usr/lib/docking/refresh-desktop-caches
 /usr/share/applications/org.docking.Docking.desktop
+/usr/share/polkit-1/actions/org.docking.camshield.policy
 /usr/share/icons/hicolor
 
 %changelog
+* Sat Apr 25 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.12.1-1
+- Release 1.12.1.
+
+* Fri Apr 24 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.12.0-1
+- Release 1.12.0.
+
+* Thu Apr 23 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.11.0-1
+- Release 1.11.0.
+
+* Tue Apr 21 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.10.0-1
+- Release 1.10.0.
+
+* Mon Apr 20 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.13-1
+- Release 1.9.13.
+
+* Mon Apr 20 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.12-1
+- Release 1.9.12.
+
+* Sat Apr 11 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.11-1
+- Release 1.9.11.
+
+* Fri Apr 10 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.10-1
+- Release 1.9.10.
+
+* Wed Apr 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.9-1
+- Release 1.9.9.
+
+* Wed Apr 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.8-1
+- Release 1.9.8.
+
+* Wed Apr 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.7-1
+- Release 1.9.7.
+
+* Wed Apr 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.6-1
+- Release 1.9.6.
+
+* Wed Apr 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.5-1
+- Release 1.9.5.
+
+* Wed Apr 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.4-1
+- Release 1.9.4.
+
+* Wed Apr 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.3-1
+- Release 1.9.3.
+
+* Tue Apr 07 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.9.2-1
+- Release 1.9.2.
+
+* Fri Apr 03 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.6.0-1
+- Release 1.6.0.
+
+* Fri Apr 03 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.5.0-1
+- Release 1.5.0.
+
+* Fri Apr 03 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.4.1-1
+- Release 1.4.1.
+
+* Thu Apr 02 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.4.0-1
+- Release 1.4.0.
+
+* Tue Mar 31 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.3.1-1
+- Release 1.3.1.
+
+* Tue Mar 31 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.3.0-1
+- Release 1.3.0.
+
+* Tue Mar 31 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.2.9-1
+- Release 1.2.9.
+
+* Sun Mar 29 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.2.8-1
+- Release 1.2.8.
+
+* Sun Mar 29 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.2.7-1
+- Release 1.2.7.
+
+* Sun Mar 29 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.2.6-1
+- Release 1.2.6.
+
+* Sun Mar 29 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.2.5-1
+- Release 1.2.5.
+
 * Sat Mar 28 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.2.4-1
 - Release 1.2.4.
 

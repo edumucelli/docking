@@ -139,12 +139,14 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
+from docking.core.config import MiddleClickAction
 from docking.log import get_logger, with_context
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
 DEFAULT_XDG_DATA_DIRS = "/usr/local/share:/usr/share"
 GNOME_APP_PREFIX = "org.gnome."
+FILE_ICON_CACHE_MAX_ENTRIES = 256
 log = with_context(get_logger(name="launcher"))
 
 
@@ -168,21 +170,53 @@ class FileTargetInfo(NamedTuple):
     is_dir: bool
 
 
+def _normalized_exec_basename(exec_line: str) -> str:
+    """Return the lowercase executable basename from a desktop Exec line."""
+    if not exec_line:
+        return ""
+    try:
+        argv = shlex.split(exec_line)
+    except ValueError:
+        return ""
+    if not argv:
+        return ""
+    return Path(argv[0]).name.lower()
+
+
+def _desktop_match_aliases(info: DesktopInfo) -> list[str]:
+    """Return stable lookup aliases for matching runtime windows to desktop IDs."""
+    aliases = [
+        info.wm_class.lower(),
+        info.desktop_id.removesuffix(DESKTOP_SUFFIX).lower(),
+    ]
+    exec_basename = _normalized_exec_basename(info.exec_line)
+    if exec_basename:
+        aliases.append(exec_basename)
+    return list(dict.fromkeys(alias for alias in aliases if alias))
+
+
 class Launcher:
     """Resolves .desktop files via XDG_DATA_DIRS and loads icons."""
 
     def __init__(self) -> None:
         self._desktop_dirs = self._get_desktop_dirs()
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
+        self._file_icon_cache: dict[
+            tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
+        ] = {}
+        self._wm_class_index: dict[str, DesktopInfo] | None = None
 
-    def resolve(self, desktop_id: str) -> DesktopInfo | None:
+    def resolve(
+        self, desktop_id: str, *, log_failures: bool = True
+    ) -> DesktopInfo | None:
         """Resolve a desktop ID (e.g. 'firefox.desktop') to full info."""
         try:
             app_info = Gio.DesktopAppInfo.new(desktop_id)
         except (TypeError, GLib.Error) as exc:
-            log.bind(desktop_id=desktop_id, action="resolve").warning(
-                f"Failed to resolve desktop app info: {exc}"
-            )
+            if log_failures:
+                log.bind(desktop_id=desktop_id, action="resolve").warning(
+                    f"Failed to resolve desktop app info: {exc}"
+                )
             app_info = None
         if app_info is None:
             # Try searching by filename in XDG dirs
@@ -192,11 +226,12 @@ class Launcher:
                     try:
                         app_info = Gio.DesktopAppInfo.new_from_filename(str(path))
                     except (TypeError, GLib.Error) as exc:
-                        log.bind(
-                            desktop_id=desktop_id,
-                            action="resolve_from_filename",
-                            path=str(path),
-                        ).warning(f"Failed to resolve desktop file by path: {exc}")
+                        if log_failures:
+                            log.bind(
+                                desktop_id=desktop_id,
+                                action="resolve_from_filename",
+                                path=str(path),
+                            ).warning(f"Failed to resolve desktop file by path: {exc}")
                         continue
                     break
         if app_info is None:
@@ -214,13 +249,28 @@ class Launcher:
         icon = app_info.get_icon()
         icon_name = icon.to_string() if icon else FALLBACK_ICON
 
-        return DesktopInfo(
+        info = DesktopInfo(
             desktop_id=desktop_id,
             name=app_info.get_display_name() or desktop_id,
             icon_name=icon_name,
             wm_class=wm_class,
             exec_line=app_info.get_commandline() or "",
         )
+        if self._wm_class_index is not None:
+            for alias in _desktop_match_aliases(info):
+                self._wm_class_index.setdefault(alias, info)
+        return info
+
+    def resolve_by_wm_class(self, wm_class: str) -> DesktopInfo | None:
+        """Resolve an installed desktop file by runtime WM_CLASS or executable alias."""
+        lookup = wm_class.lower().strip()
+        if not lookup:
+            return None
+        if self._wm_class_index is None:
+            self._build_wm_class_index()
+        if self._wm_class_index is None:
+            return None
+        return self._wm_class_index.get(lookup)
 
     def load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load an icon by name at the given size, with caching."""
@@ -300,12 +350,7 @@ class Launcher:
                 path = Path(unquote(urlparse(uri).path))
                 if path.exists():
                     try:
-                        return GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                            str(path),
-                            size,
-                            size,
-                            True,
-                        )
+                        return self._load_cached_file_icon(path=path, size=size)
                     except GLib.Error as exc:
                         log.bind(target=target, action="resolve_file_icon").debug(
                             "Failed to load image thumbnail %s: %s",
@@ -318,6 +363,27 @@ class Launcher:
             icon_name=icon_name,
             size=size,
         )
+
+    def _load_cached_file_icon(
+        self, *, path: Path, size: int
+    ) -> GdkPixbuf.Pixbuf | None:
+        stat = path.stat()
+        cache_key = (str(path), size, int(stat.st_mtime_ns), int(stat.st_size))
+        cached = self._file_icon_cache.pop(cache_key, None)
+        if cached is not None:
+            self._file_icon_cache[cache_key] = cached
+            return cached
+
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+            str(path),
+            size,
+            size,
+            True,
+        )
+        self._file_icon_cache[cache_key] = pixbuf
+        while len(self._file_icon_cache) > FILE_ICON_CACHE_MAX_ENTRIES:
+            self._file_icon_cache.pop(next(iter(self._file_icon_cache)))
+        return pixbuf
 
     def default_directory_app_name(self) -> str | None:
         """Return the display name of the default app that opens folders."""
@@ -333,6 +399,25 @@ class Launcher:
             return None
         return app_info.get_display_name() or None
 
+    def _build_wm_class_index(self) -> None:
+        """Index installed desktop entries by WM_CLASS-like runtime aliases."""
+        index: dict[str, DesktopInfo] = {}
+        seen_desktop_ids: set[str] = set()
+        for desktop_dir in self._desktop_dirs:
+            for path in desktop_dir.rglob(f"*{DESKTOP_SUFFIX}"):
+                if not path.is_file():
+                    continue
+                desktop_id = path.relative_to(desktop_dir).as_posix()
+                if desktop_id in seen_desktop_ids:
+                    continue
+                seen_desktop_ids.add(desktop_id)
+                info = self.resolve(desktop_id=desktop_id, log_failures=False)
+                if info is None:
+                    continue
+                for alias in _desktop_match_aliases(info):
+                    index.setdefault(alias, info)
+        self._wm_class_index = index
+
     def _try_load_gicon(self, gicon: Gio.Icon, size: int) -> GdkPixbuf.Pixbuf | None:
         theme = Gtk.IconTheme.get_default()
         if theme is None:
@@ -343,7 +428,12 @@ class Launcher:
         if callable(lookup_by_gicon):
             try:
                 info = lookup_by_gicon(gicon, size, Gtk.IconLookupFlags.FORCE_SIZE)
-            except TypeError:
+            except TypeError as exc:
+                log.bind(action="load_gicon").debug(
+                    "Theme lookup_by_gicon rejected %s: %s",
+                    gicon.to_string(),
+                    exc,
+                )
                 info = None
             if info is not None:
                 try:
@@ -459,6 +549,30 @@ def launch_action(desktop_id: str, action_id: str) -> None:
             )
 
 
+def launch_new_window(desktop_id: str) -> None:
+    """Open a new application window when the desktop entry exposes that action."""
+    try:
+        app_info = Gio.DesktopAppInfo.new(desktop_id)
+    except (TypeError, GLib.Error) as exc:
+        log.bind(desktop_id=desktop_id, action="launch_new_window").warning(
+            f"Failed to resolve desktop app info for new window action: {exc}"
+        )
+        launch(desktop_id=desktop_id)
+        return
+    if app_info is not None:
+        try:
+            if MiddleClickAction.NEW_WINDOW.value in app_info.list_actions():
+                app_info.launch_action(MiddleClickAction.NEW_WINDOW.value, None)
+                return
+        except GLib.Error as exc:
+            log.bind(desktop_id=desktop_id, action="launch_new_window").warning(
+                "Failed to launch new-window action for %s: %s",
+                desktop_id,
+                exc,
+            )
+    launch(desktop_id=desktop_id)
+
+
 def launch(desktop_id: str) -> None:
     """Launch an application by its desktop ID.
 
@@ -512,13 +626,22 @@ def normalize_file_target(target: str) -> str | None:
         return None
     try:
         return path.resolve().as_uri()
-    except ValueError:
+    except ValueError as exc:
+        log.bind(target=target, action="normalize_file_target").debug(
+            "Failed to normalize file target %s: %s",
+            target,
+            exc,
+        )
         return None
 
 
 def open_target(target: str) -> bool:
-    """Open a local file or directory with the default application."""
-    uri = normalize_file_target(target)
+    """Open a local file, directory, or web URL with the default handler."""
+    parsed = urlparse(target)
+    if parsed.scheme in {"http", "https"}:
+        uri = target
+    else:
+        uri = normalize_file_target(target)
     if uri is None:
         return False
     try:

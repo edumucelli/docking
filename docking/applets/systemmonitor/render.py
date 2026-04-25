@@ -23,6 +23,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
 
     r, g, b = cpu_hue_rgb(cpu=cpu)
     base_alpha = 0.5
+    # *1.3 exaggerates display so ~77% CPU fills the gauge (makes low usage visible)
     cpu_clamped = max(0.001, min(cpu * 1.3, 1.0))
 
     # 1. Black underlay
@@ -42,6 +43,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     ind = cairo.RadialGradient(center, center, 0, center, center, radius * cpu_clamped)
     ind.add_color_stop_rgba(0, r, g, b, 1.0)
     ind.add_color_stop_rgba(0.2, r, g, b, 1.0)
+    # Warning glow: only activates above ~77% CPU (1.0/1.3)
     edge_alpha = max(0.0, cpu * 1.3 - 1.0)
     ind.add_color_stop_rgba(1.0, r, g, b, edge_alpha)
     cr.set_source(ind)
@@ -66,7 +68,9 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     cr.set_source_rgba(0.8, 0.8, 0.8, 0.75)
     cr.stroke()
 
-    # 6. Memory arc (white, from 9 o'clock counter-clockwise)
+    # 6. Memory arc (white, from 9 o'clock counter-clockwise).
+    # arc_negative draws CCW from pi (9 o'clock); subtracting 2*pi*mem sweeps
+    # proportionally - full memory wraps the entire circle.
     if mem > 0.001:
         cr.set_line_width(size / 32.0)
         cr.arc_negative(

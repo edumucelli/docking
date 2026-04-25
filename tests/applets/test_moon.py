@@ -75,7 +75,7 @@ class TestParseMoonHtml:
             def __enter__(self):
                 return self
 
-            def __exit__(self, exc_type, exc, tb):
+            def __exit__(self, _exc_type, exc, _tb):
                 return False
 
         monkeypatch.setattr(moon_state_mod, "urlopen", lambda req, timeout=10: _Resp())

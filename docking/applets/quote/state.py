@@ -15,6 +15,7 @@ from docking.log import get_logger, with_context
 log = with_context(get_logger(name="quote"), applet_id=meta.id)
 
 DEFAULT_SOURCE = "quotationspage"
+DEFAULT_FETCH_LIMIT = 20
 
 SOURCE_LABELS: dict[str, str] = {
     "quotationspage": "Quotationspage.com",
@@ -152,7 +153,7 @@ def _parse_chuck(data: Any) -> list[QuoteEntry]:
 
 def fetch_quotes(
     source: str,
-    limit: int = 20,
+    limit: int = DEFAULT_FETCH_LIMIT,
     http_get_json: Callable[[str], Any] | None = None,
 ) -> list[QuoteEntry]:
     """Fetch quotes for a source. Returns empty list on any failure."""

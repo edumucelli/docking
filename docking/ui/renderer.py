@@ -152,6 +152,7 @@ These caches belong here because they are:
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import cairo
@@ -161,11 +162,14 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
+from docking.core.items import APP_KIND
 from docking.core.position import Position, is_horizontal
-from docking.core.theme import RGB, IndicatorStyle
+from docking.core.theme import RGB, RGBA, IndicatorStyle
+from docking.log import get_logger
 from docking.ui.autohide import HideState
 from docking.ui.effects import average_icon_color, easing_bounce
 from docking.ui.geometry import DockGeometryFrame, map_icon_position
+from docking.ui.overlays import draw_count_badge, draw_progress_bar
 from docking.ui.shelf import draw_shelf_background, rounded_rect
 
 if TYPE_CHECKING:
@@ -174,7 +178,6 @@ if TYPE_CHECKING:
     from docking.core.layout import LayoutItem
     from docking.core.theme import Theme
     from docking.platform.model import DockModel
-    from docking.ui.autohide import HideState
 
 
 SHELF_SMOOTH_FACTOR = 0.3
@@ -183,9 +186,9 @@ SLIDE_DECAY_FACTOR = 0.75
 SLIDE_CLEAR_THRESHOLD = 0.5
 INDICATOR_SPACING_MULT = 3
 
-SLIDE_DURATION_MS = 300
-SLIDE_FRAME_MS = 16
 HOVER_LIGHTEN_FRAME_MS = 16
+
+log = get_logger("renderer")
 SEPARATOR_LINE_WIDTH_PX = 2.0
 SEPARATOR_LINE_START_RATIO = 0.1
 SEPARATOR_LINE_END_RATIO = 0.9
@@ -194,6 +197,136 @@ URGENT_GLOW_INNER_STOP = 0.33
 URGENT_GLOW_INNER_ALPHA = 0.66
 URGENT_GLOW_OUTER_STOP = 0.66
 URGENT_GLOW_OUTER_ALPHA = 0.33
+
+
+@dataclass(frozen=True)
+class _IconSurfaceCacheKey:
+    """Identity for a rendered icon source surface.
+
+    The cache key follows the icon object that the item currently exposes plus
+    its raster size. Docking replaces `item.icon` when the underlying pixbuf
+    changes, so this is enough to invalidate stale source surfaces without
+    coupling the cache to GTK-specific pixbuf internals.
+    """
+
+    icon_id: int
+    width: int
+    height: int
+
+    @classmethod
+    def from_item(cls, item: DockItem) -> _IconSurfaceCacheKey | None:
+        if item.icon is None:
+            return None
+        return cls(
+            icon_id=id(item.icon),
+            width=item.icon.get_width(),
+            height=item.icon.get_height(),
+        )
+
+
+@dataclass
+class _IconSurfaceCacheEntry:
+    """Cached Cairo surface produced from an item's pixbuf-like icon."""
+
+    key: _IconSurfaceCacheKey
+    surface: cairo.ImageSurface
+
+    def matches(self, *, item: DockItem) -> bool:
+        return self.key == _IconSurfaceCacheKey.from_item(item)
+
+
+@dataclass
+class _OffscreenSurfaceCache:
+    """Reusable full-frame backing surface for atomic window blits."""
+
+    width: int
+    height: int
+    surface: cairo.Surface
+
+    def matches(self, *, width: int, height: int) -> bool:
+        return self.width == width and self.height == height
+
+
+@dataclass
+class _RendererCache:
+    """Renderer-owned reusable artifacts and their lookup metrics.
+
+    This object is the cache boundary for resources derived from render inputs
+    and reused across frames: per-item icon surfaces, per-item average icon
+    colors, and the size-matched offscreen frame surface.
+    """
+
+    icon_surfaces: dict[str, _IconSurfaceCacheEntry]
+    icon_colors: dict[str, RGB]
+    offscreen_surface: _OffscreenSurfaceCache | None = None
+
+    def cached_icon_surface_for(self, *, item: DockItem) -> cairo.ImageSurface | None:
+        """Return a reusable icon surface when the item's cache key still matches."""
+        if item.icon is None:
+            self.icon_surfaces.pop(item.desktop_id, None)
+            return None
+        cached = self.icon_surfaces.get(item.desktop_id)
+        if cached is not None and cached.matches(item=item):
+            return cached.surface
+        return None
+
+    def store_icon_surface(
+        self,
+        *,
+        item: DockItem,
+        surface: cairo.ImageSurface,
+    ) -> cairo.ImageSurface | None:
+        """Store a newly built icon surface under the item's current key."""
+        key = _IconSurfaceCacheKey.from_item(item)
+        if key is None:
+            self.icon_surfaces.pop(item.desktop_id, None)
+            return None
+        self.icon_surfaces[item.desktop_id] = _IconSurfaceCacheEntry(
+            key=key,
+            surface=surface,
+        )
+        return surface
+
+    def prune_icon_surfaces(self, *, items: list[DockItem]) -> None:
+        """Drop cached per-item artifacts for items no longer in the frame."""
+        active_ids = {item.desktop_id for item in items if item.icon is not None}
+        for desktop_id in list(self.icon_surfaces):
+            if desktop_id not in active_ids:
+                self.icon_surfaces.pop(desktop_id, None)
+        for desktop_id in list(self.icon_colors):
+            if desktop_id not in active_ids:
+                self.icon_colors.pop(desktop_id, None)
+
+    def icon_color_for(self, *, item: DockItem) -> RGB:
+        """Compute average icon color once and reuse it for glow rendering."""
+        color = self.icon_colors.get(item.desktop_id)
+        if color is None:
+            color = average_icon_color(pixbuf=item.icon)
+            self.icon_colors[item.desktop_id] = color
+        return color
+
+    def offscreen_surface_for(
+        self,
+        *,
+        cr: cairo.Context,
+        width: int,
+        height: int,
+    ) -> cairo.Surface:
+        """Return a size-matched offscreen surface, reusing it across draws."""
+        cached = self.offscreen_surface
+        if cached is not None and cached.matches(width=width, height=height):
+            return cached.surface
+        surface = cr.get_target().create_similar(
+            cairo.Content.COLOR_ALPHA,
+            width,
+            height,
+        )
+        self.offscreen_surface = _OffscreenSurfaceCache(
+            width=width,
+            height=height,
+            surface=surface,
+        )
+        return surface
 
 
 def _draw_indicator_dashes(
@@ -280,8 +413,7 @@ class DockRenderer:
         self.prev_positions: dict[str, float] = {}
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
-        self._hovered_id: str = ""
-        self._icon_colors: dict[str, RGB] = {}
+        self._cache = _RendererCache(icon_surfaces={}, icon_colors={})
 
     @staticmethod
     def has_active_urgent_glow(
@@ -345,10 +477,16 @@ class DockRenderer:
         # backing surface. CLEAR+draw leaves a transparent gap between
         # frames that the compositor can catch. Offscreen avoids this:
         # the window surface is only touched once (the SOURCE blit).
-        offscreen = cr.get_target().create_similar(
-            cairo.Content.COLOR_ALPHA, width, height
+        offscreen = self._cache.offscreen_surface_for(
+            cr=cr,
+            width=width,
+            height=height,
         )
         ocr = cairo.Context(offscreen)
+        ocr.save()
+        ocr.set_operator(cairo.OPERATOR_CLEAR)
+        ocr.paint()
+        ocr.restore()
         self._draw_content(
             cr=ocr,
             frame=frame,
@@ -378,11 +516,8 @@ class DockRenderer:
     ) -> None:
         """Render all dock content to a Cairo context."""
         pos = config.pos
-        horizontal = is_horizontal(pos=pos)
         width = frame.window_rect.w
         height = frame.window_rect.h
-        main_size = width if horizontal else height
-
         # Offset content away from the screen edge so the gap area
         # (at the edge) stays transparent for the autohide trigger.
         gap = max(0, int(theme.distance_from_edge))
@@ -397,6 +532,7 @@ class DockRenderer:
         items = [item_geometry.item for item_geometry in frame.item_geometries]
         if not items:
             return
+        self._cache.prune_icon_surfaces(items=items)
 
         icon_size = config.icon_size
         layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
@@ -406,10 +542,25 @@ class DockRenderer:
         # Include the drop gap so shelf expands to cover displaced items
         drop_gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         icon_offset = frame.zoomed_main_offset
+        previous_ids = set(self.prev_positions)
+        current_ids = {item.desktop_id for item in items}
+        membership_changed = bool(previous_ids) and previous_ids != current_ids
 
         # Shelf coordinates from pre-computed geometry frame (no recomputation)
         target_shelf_w = frame.shelf_main_extent
-        if self.smooth_shelf_w == 0.0 or drop_gap > 0 or hide_offset > 0:
+        if (
+            self.smooth_shelf_w == 0.0
+            or drop_gap > 0
+            or hide_offset > 0
+            or membership_changed
+        ):
+            if membership_changed:
+                log.debug(
+                    "snap shelf width on membership change: old=%s new=%s width=%.2f",
+                    sorted(previous_ids),
+                    sorted(current_ids),
+                    target_shelf_w,
+                )
             self.smooth_shelf_w = target_shelf_w
         else:
             self.smooth_shelf_w += (
@@ -426,8 +577,6 @@ class DockRenderer:
             pos=pos,
             width=width,
             height=height,
-            main_size=main_size,
-            cross_size=int(cross_size),
         )
         draw_shelf_background(
             cr=cr,
@@ -441,11 +590,7 @@ class DockRenderer:
         # Active glow (drawn in shelf transform space)
         for item, li in zip(items, layout, strict=True):
             if item.is_active:
-                if item.desktop_id not in self._icon_colors:
-                    self._icon_colors[item.desktop_id] = average_icon_color(
-                        pixbuf=item.icon
-                    )
-                color = self._icon_colors[item.desktop_id]
+                color = self._cache.icon_color_for(item=item)
                 self._draw_active_glow(
                     cr=cr,
                     li=li,
@@ -547,6 +692,36 @@ class DockRenderer:
                 hide_cross=hide_cross,
                 bounce=bounce,
             )
+            expected = frame.item_geometries[i].draw_rect
+            render_x = math.floor(ix)
+            render_y = math.floor(iy)
+            if (
+                abs(slide) > SLIDE_CLEAR_THRESHOLD
+                or drop_shift != 0
+                or bounce != 0.0
+                or render_x != expected.x
+                or render_y != expected.y
+            ):
+                log.debug(
+                    (
+                        "render item: id=%s frame=(%d,%d %dx%d) "
+                        "rendered=(%d,%d %.1fx%.1f) "
+                        "slide=%.2f drop_shift=%.2f bounce=%.2f layout_x=%.2f"
+                    ),
+                    item.desktop_id,
+                    expected.x,
+                    expected.y,
+                    expected.w,
+                    expected.h,
+                    render_x,
+                    render_y,
+                    scaled_size,
+                    scaled_size,
+                    slide,
+                    drop_shift,
+                    bounce,
+                    li.x,
+                )
             self._draw_icon(
                 cr=cr,
                 item=item,
@@ -578,6 +753,62 @@ class DockRenderer:
                     pos=pos,
                 )
 
+        # --- Draw per-app overlays ---
+        for i, (item, li) in enumerate(zip(items, layout, strict=True)):
+            if item.kind != APP_KIND:
+                continue
+            slide = self.slide_offsets.get(item.desktop_id, 0.0)
+            drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
+
+            bounce = 0.0
+            launch_duration_us = theme.launch_bounce_time_ms * 1000
+            if item.last_launched > 0:
+                lt = now - item.last_launched
+                bounce += (
+                    easing_bounce(t=lt, duration=launch_duration_us, n=2)
+                    * icon_size
+                    * theme.launch_bounce_height
+                )
+            urgent_duration_us = theme.urgent_bounce_time_ms * 1000
+            if item.last_urgent > 0:
+                ut = now - item.last_urgent
+                bounce += (
+                    easing_bounce(t=ut, duration=urgent_duration_us, n=1)
+                    * icon_size
+                    * theme.urgent_bounce_height
+                )
+
+            item_w = li.width or icon_size
+            scaled_size = item_w * li.scale
+            main_pos = li.x + icon_offset + slide + drop_shift
+            ix, iy = map_icon_position(
+                pos=pos,
+                main_pos=main_pos,
+                cross_size=cross_size,
+                edge_padding=theme.bottom_padding,
+                scaled_size=scaled_size,
+                hide_cross=hide_cross,
+                bounce=bounce,
+            )
+
+            if item.badge_visible and item.badge_count > 0:
+                self._draw_badge(
+                    cr=cr,
+                    x=ix,
+                    y=iy,
+                    size=scaled_size,
+                    badge_count=item.badge_count,
+                )
+            if item.progress_visible:
+                self._draw_progress(
+                    cr=cr,
+                    x=ix,
+                    y=iy,
+                    size=scaled_size,
+                    progress=item.progress,
+                    color=theme.active_indicator_color,
+                )
+
         # --- Urgent glow at screen edge (only when fully hidden) ---
         if hide_offset >= 1.0:
             for item, li in zip(items, layout, strict=True):
@@ -589,11 +820,7 @@ class DockRenderer:
                         pulse_ms=theme.urgent_glow_pulse_ms,
                     )
                     if opacity > 0:
-                        if item.desktop_id not in self._icon_colors:
-                            self._icon_colors[item.desktop_id] = average_icon_color(
-                                pixbuf=item.icon
-                            )
-                        color = self._icon_colors[item.desktop_id]
+                        color = self._cache.icon_color_for(item=item)
                         self._draw_urgent_glow(
                             cr=cr,
                             li=li,
@@ -612,8 +839,6 @@ class DockRenderer:
         pos: Position,
         width: int,
         height: int,
-        main_size: int,
-        cross_size: int,
     ) -> None:
         """Apply Cairo transform so shelf drawing code always works as-if-bottom.
 
@@ -668,11 +893,30 @@ class DockRenderer:
         for item, li in zip(items, layout, strict=True):
             new_positions[item.desktop_id] = li.x + icon_offset
 
+        previous_ids = set(self.prev_positions)
+        new_ids = set(new_positions)
+        if previous_ids and previous_ids != new_ids:
+            log.debug(
+                "reset slide offsets on membership change: old=%s new=%s",
+                sorted(previous_ids),
+                sorted(new_ids),
+            )
+            self.slide_offsets.clear()
+            self.prev_positions = new_positions
+            return
+
         for desktop_id, new_x in new_positions.items():
             old_x = self.prev_positions.get(desktop_id)
             if old_x is not None and abs(old_x - new_x) > SLIDE_MOVE_THRESHOLD:
                 current_slide = self.slide_offsets.get(desktop_id, 0.0)
                 self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
+                log.debug(
+                    "slide offset updated: id=%s old=%.2f new=%.2f offset=%.2f",
+                    desktop_id,
+                    old_x,
+                    new_x,
+                    self.slide_offsets[desktop_id],
+                )
 
         decay = SLIDE_DECAY_FACTOR
         dead = []
@@ -682,6 +926,13 @@ class DockRenderer:
                 dead.append(desktop_id)
         for d in dead:
             del self.slide_offsets[d]
+
+        if self.slide_offsets:
+            summary = ", ".join(
+                f"{desktop_id}={offset:.2f}"
+                for desktop_id, offset in sorted(self.slide_offsets.items())
+            )
+            log.debug("active slide offsets: %s", summary)
 
         self.prev_positions = new_positions
 
@@ -698,15 +949,28 @@ class DockRenderer:
         darken: float = 0.0,
     ) -> None:
         """Draw a single dock icon at (x, y) with hover/click effects."""
-        source_surface = self._icon_surface_for_item(
-            item=item, config=config, base_size=base_size
-        )
+        # The common path is "same icon object as last frame". Reuse the cached
+        # source surface and rebuild only when the item presents a new icon key.
+        source_surface = self._icon_surface_for_item(item=item)
         if source_surface is None:
             return
 
         scaled_size = base_size * li.scale
         icon_width = source_surface.get_width()
         icon_height = source_surface.get_height()
+
+        if lighten <= 0 and darken <= 0:
+            # Idle icons do not need a temporary effect surface. Paint the
+            # cached source surface directly and reserve the extra allocation
+            # and copy work for frames that actually apply hover/click effects.
+            cr.save()
+            cr.translate(x, y)
+            cr.scale(scaled_size / icon_width, scaled_size / icon_height)
+            cr.set_source_surface(source_surface, 0, 0)
+            cr.paint()
+            cr.restore()
+            return
+
         icon_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, icon_width, icon_height)
         icon_cr = cairo.Context(icon_surface)
         icon_cr.set_source_surface(source_surface, 0, 0)
@@ -785,12 +1049,15 @@ class DockRenderer:
         cr.stroke()
         cr.restore()
 
-    def _icon_surface_for_item(
-        self, item: DockItem, config: Config, base_size: int
-    ) -> cairo.ImageSurface | None:
-        if item.icon is None:
+    def _icon_surface_for_item(self, item: DockItem) -> cairo.ImageSurface | None:
+        cached = self._cache.cached_icon_surface_for(item=item)
+        if cached is not None:
+            return cached
+        surface = self._pixbuf_surface(pixbuf=item.icon)
+        if surface is None:
+            self._cache.icon_surfaces.pop(item.desktop_id, None)
             return None
-        return self._pixbuf_surface(pixbuf=item.icon)
+        return self._cache.store_icon_surface(item=item, surface=surface)
 
     @staticmethod
     def _pixbuf_surface(pixbuf: object) -> cairo.ImageSurface | None:
@@ -940,3 +1207,65 @@ class DockRenderer:
                 else:
                     cr.arc(cx, cy + offset, radius, 0, 2 * math.pi)
                 cr.fill()
+
+    @staticmethod
+    def _draw_badge(
+        *,
+        cr: cairo.Context,
+        x: float,
+        y: float,
+        size: float,
+        badge_count: int,
+    ) -> None:
+        padding_x = size * 0.10
+        badge_height = max(size * 0.34, 14.0)
+        cr.save()
+        cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        if badge_count <= 9:
+            font_size = size * 0.20
+        elif badge_count <= 99:
+            font_size = size * 0.16
+        else:
+            font_size = size * 0.12
+        cr.set_font_size(max(7.0, font_size))
+        ext = cr.text_extents("99+" if badge_count > 99 else str(badge_count))
+        badge_width = max(
+            badge_height,
+            ext.width + 2 * padding_x,
+        )
+        badge_x = x + size - badge_width - size * 0.02
+        badge_y = y + size * 0.02
+        cr.restore()
+
+        draw_count_badge(
+            cr=cr,
+            x=badge_x,
+            y=badge_y,
+            width=badge_width,
+            height=badge_height,
+            badge_count=badge_count,
+        )
+
+    @staticmethod
+    def _draw_progress(
+        *,
+        cr: cairo.Context,
+        x: float,
+        y: float,
+        size: float,
+        progress: float,
+        color: RGB | RGBA,
+    ) -> None:
+        bar_width = size * 0.72
+        bar_height = max(size * 0.10, 4.0)
+        bar_x = x + (size - bar_width) / 2
+        bar_y = y + size * 0.78
+        draw_progress_bar(
+            cr=cr,
+            x=bar_x,
+            y=bar_y,
+            width=bar_width,
+            height=bar_height,
+            progress=progress,
+            color=color,
+        )

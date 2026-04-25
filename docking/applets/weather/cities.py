@@ -11,9 +11,12 @@ import gzip
 from pathlib import Path
 from typing import NamedTuple
 
+from docking.log import get_logger
+
 _CITIES_GZ = (
     Path(__file__).parent.parent.parent / "assets" / "weather" / "cities.csv.gz"
 )
+log = get_logger("weather.cities")
 
 
 class CityEntry(NamedTuple):
@@ -39,7 +42,8 @@ def load_cities(path: Path = _CITIES_GZ) -> list[CityEntry]:
             try:
                 lat = float(row["lat"])
                 lng = float(row["lng"])
-            except (ValueError, KeyError):
+            except (ValueError, KeyError) as exc:
+                log.debug("Skipping malformed city row %r: %s", row, exc)
                 continue
             name = row.get("city_ascii", "").strip()
             country = row.get("country", "").strip()

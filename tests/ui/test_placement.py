@@ -140,6 +140,7 @@ class TestPlacementControllerLifecycle:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -272,6 +273,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -291,6 +293,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -324,6 +327,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1000)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -495,6 +499,7 @@ class TestPlacementControllerStruts:
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -666,14 +671,18 @@ class TestPlacementControllerStruts:
         )
         assert controller._poll_active_display() is True
 
-        display = SimpleNamespace(get_default_seat=lambda: None)
+        display = SimpleNamespace(
+            get_default_seat=lambda: None, get_n_monitors=lambda: 0
+        )
         controller = placement_mod.DockPlacementController(
             _make_window(get_display=lambda: display)
         )
         assert controller._poll_active_display() is True
 
         seat = SimpleNamespace(get_pointer=lambda: None)
-        display = SimpleNamespace(get_default_seat=lambda: seat)
+        display = SimpleNamespace(
+            get_default_seat=lambda: seat, get_n_monitors=lambda: 0
+        )
         controller = placement_mod.DockPlacementController(
             _make_window(get_display=lambda: display)
         )
@@ -682,8 +691,12 @@ class TestPlacementControllerStruts:
     def test_poll_active_display_repositions_when_monitor_changes(self):
         pointer = SimpleNamespace(get_position=lambda: (None, 400, 100))
         seat = SimpleNamespace(get_pointer=lambda: pointer)
-        monitor = object()
+        monitor = SimpleNamespace(
+            get_geometry=lambda: SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        )
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_monitor=lambda idx: monitor if idx == 0 else None,
             get_default_seat=lambda: seat,
             get_monitor_at_point=lambda x, y: monitor,
         )
@@ -707,6 +720,7 @@ class TestPlacementControllerStruts:
 
         primary = object()
         no_get_n = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: None,
             get_monitor=lambda idx: primary if idx == 0 else None,
         )

@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+import docking.applets.screenshot.state as screenshot_state
 from docking.applets.screenshot.applet import ScreenshotApplet
 from docking.applets.screenshot.state import _TOOLS, Tool, _detect_tool, _run
 
@@ -31,16 +32,35 @@ class TestTool:
 
 
 class TestDetectTool:
+    def test_prefers_portal_first_in_wayland_session(self):
+        with (
+            patch.object(screenshot_state, "is_wayland_session", return_value=True),
+            patch.object(screenshot_state, "_portal_available", return_value=True),
+            patch("docking.applets.screenshot.state.shutil.which") as which,
+        ):
+            result = _detect_tool()
+
+        assert result == screenshot_state._PORTAL_TOOL
+        which.assert_not_called()
+
     def test_returns_first_available(self):
-        with patch(
-            "docking.applets.screenshot.state.shutil.which",
-            side_effect=[None, "/usr/bin/gnome-screenshot"],
+        with (
+            patch.object(screenshot_state, "is_wayland_session", return_value=False),
+            patch.object(screenshot_state, "_portal_available", return_value=False),
+            patch(
+                "docking.applets.screenshot.state.shutil.which",
+                side_effect=[None, "/usr/bin/gnome-screenshot"],
+            ),
         ):
             result = _detect_tool()
         assert result == _GNOME
 
     def test_returns_none_when_nothing_found(self):
-        with patch("docking.applets.screenshot.state.shutil.which", return_value=None):
+        with (
+            patch.object(screenshot_state, "is_wayland_session", return_value=False),
+            patch.object(screenshot_state, "_portal_available", return_value=False),
+            patch("docking.applets.screenshot.state.shutil.which", return_value=None),
+        ):
             assert _detect_tool() is None
 
 

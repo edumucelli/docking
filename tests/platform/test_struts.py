@@ -3,16 +3,23 @@
 import sys
 from unittest.mock import MagicMock
 
-gi_mock = MagicMock()
-gi_mock.require_version = MagicMock()
-sys.modules.setdefault("gi", gi_mock)
-sys.modules.setdefault("gi.repository", gi_mock.repository)
+try:
+    import gi  # noqa: F401
+except ModuleNotFoundError:  # pragma: no cover
+    gi_mock = MagicMock()
+    gi_mock.require_version = MagicMock()
+    sys.modules.setdefault("gi", gi_mock)
+    sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.position import Position
 from docking.platform import struts as struts_mod
 from docking.platform.struts import (
+    BlurRect,
+    clear_blur_region,
     clear_struts,
+    compute_blur_region,
     compute_struts,
+    set_blur_region,
     set_dock_struts,
 )
 
@@ -384,6 +391,60 @@ class TestAlwaysTwelveValues:
             assert sum(1 for v in edge_values if v > 0) == 1
 
 
+class TestBlurRegion:
+    def test_compute_blur_region_bottom_respects_round_bottom(self):
+        region = compute_blur_region(
+            rect=BlurRect(x=10, y=20, width=100, height=30),
+            roundness=8.0,
+            round_bottom=False,
+            position=Position.BOTTOM,
+            scale=1,
+        )
+
+        assert region == [10, 20, 100, 30, 8, 8, 0, 0]
+
+    def test_compute_blur_region_top_swaps_vertical_corners(self):
+        region = compute_blur_region(
+            rect=BlurRect(x=10, y=20, width=100, height=30),
+            roundness=8.0,
+            round_bottom=True,
+            position=Position.TOP,
+            scale=1,
+        )
+
+        assert region == [10, 20, 100, 30, 8, 8, 8, 8]
+
+    def test_compute_blur_region_vertical_positions_map_side_corners(self):
+        left = compute_blur_region(
+            rect=BlurRect(x=1, y=2, width=3, height=4),
+            roundness=6.0,
+            round_bottom=False,
+            position=Position.LEFT,
+            scale=1,
+        )
+        right = compute_blur_region(
+            rect=BlurRect(x=1, y=2, width=3, height=4),
+            roundness=6.0,
+            round_bottom=False,
+            position=Position.RIGHT,
+            scale=1,
+        )
+
+        assert left == [1, 2, 3, 4, 6, 0, 6, 0]
+        assert right == [1, 2, 3, 4, 0, 6, 0, 6]
+
+    def test_compute_blur_region_scales_rect_and_radii(self):
+        region = compute_blur_region(
+            rect=BlurRect(x=10, y=20, width=100, height=30),
+            roundness=4.0,
+            round_bottom=True,
+            position=Position.BOTTOM,
+            scale=2,
+        )
+
+        assert region == [20, 40, 200, 60, 8, 8, 8, 8]
+
+
 class TestStrutWriters:
     def test_set_struts_writes_partial_and_legacy_atoms(self, monkeypatch):
         # Given
@@ -499,3 +560,42 @@ class TestStrutWriters:
 
         # Then
         set_mock.assert_called_once_with(gdk_window=gdk_window, struts=[0] * 12)
+
+    def test_set_blur_region_writes_docking_atom(self, monkeypatch):
+        xlib = MagicMock()
+        xlib.XInternAtom.side_effect = [21, 22]
+        monkeypatch.setattr(
+            struts_mod.ctypes.cdll,
+            "LoadLibrary",
+            lambda _name: xlib,
+        )
+
+        display = MagicMock()
+        display.get_xdisplay.return_value = object()
+        monkeypatch.setattr(
+            struts_mod.GdkX11.X11Display,
+            "get_default",
+            lambda: display,
+            raising=False,
+        )
+
+        gdk_window = MagicMock()
+        gdk_window.get_xid.return_value = 4321
+
+        set_blur_region(gdk_window=gdk_window, blur_region=[1, 2, 3, 4, 5, 6, 7, 8])
+
+        assert xlib.XInternAtom.call_args_list[0].args[1] == (
+            struts_mod.ATOM_BACKGROUND_BLUR_REGION
+        )
+        assert xlib.XChangeProperty.call_count == 1
+        assert xlib.XChangeProperty.call_args.args[-1] == 8
+        xlib.XFlush.assert_called_once()
+
+    def test_clear_blur_region_sets_all_zeros(self, monkeypatch):
+        set_mock = MagicMock()
+        monkeypatch.setattr(struts_mod, "set_blur_region", set_mock)
+        gdk_window = MagicMock()
+
+        clear_blur_region(gdk_window=gdk_window)
+
+        set_mock.assert_called_once_with(gdk_window=gdk_window, blur_region=[0] * 8)

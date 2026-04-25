@@ -53,15 +53,29 @@ class TestDetectOutput:
         output = "Monitors: 1\n 0: +*HDMI-1 1920/480x1080/270+0+0  HDMI-1\n"
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
         monkeypatch.setattr(brightness_state, "_find_sysfs_backlight", lambda: None)
+        monkeypatch.setattr(brightness_state.shutil, "which", lambda _cmd: None)
         result = detect_output()
-        assert result == Backend(output="HDMI-1", sysfs=None)
+        assert result == Backend(output="HDMI-1", sysfs=None, brightnessctl=None)
 
     def test_includes_sysfs_when_available(self, monkeypatch, tmp_path):
         output = "Monitors: 1\n 0: +*eDP-1 1920/300x1080/170+0+0  eDP-1\n"
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
         monkeypatch.setattr(brightness_state, "_find_sysfs_backlight", lambda: tmp_path)
+        monkeypatch.setattr(brightness_state.shutil, "which", lambda _cmd: None)
         result = detect_output()
-        assert result == Backend(output="eDP-1", sysfs=tmp_path)
+        assert result == Backend(output="eDP-1", sysfs=tmp_path, brightnessctl=None)
+
+    def test_includes_brightnessctl_when_available(self, monkeypatch):
+        output = "Monitors: 1\n 0: +*eDP-1 1920/300x1080/170+0+0  eDP-1\n"
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
+        monkeypatch.setattr(brightness_state, "_find_sysfs_backlight", lambda: None)
+        monkeypatch.setattr(
+            brightness_state.shutil, "which", lambda cmd: "/usr/bin/brightnessctl"
+        )
+        result = detect_output()
+        assert result == Backend(
+            output="eDP-1", sysfs=None, brightnessctl="/usr/bin/brightnessctl"
+        )
 
     def test_returns_none_on_failure(self, monkeypatch):
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
@@ -73,13 +87,25 @@ class TestDetectOutput:
 
 
 class TestGetBrightness:
-    def test_prefers_sysfs_when_available(self, tmp_path):
-        # Given
+    def test_prefers_sysfs_when_available_on_wayland(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
         (tmp_path / "brightness").write_text("150\n")
         (tmp_path / "max_brightness").write_text("200\n")
         backend = Backend(output="eDP-1", sysfs=tmp_path)
-        # When / Then
         assert get_brightness(backend=backend) == 0.75
+
+    def test_prefers_xrandr_when_available_on_x11(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
+        (tmp_path / "brightness").write_text("150\n")
+        (tmp_path / "max_brightness").write_text("200\n")
+        output = (
+            "HDMI-1 connected primary 1920x1080\n"
+            "\tBrightness: 0.40\n"
+            "\tGamma: 1.0:1.0:1.0\n"
+        )
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
+        backend = Backend(output="HDMI-1", sysfs=tmp_path)
+        assert get_brightness(backend=backend) == 0.40
 
     def test_sysfs_handles_read_error(self, tmp_path):
         # Given - missing files
@@ -97,6 +123,16 @@ class TestGetBrightness:
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
         backend = Backend(output="HDMI-1", sysfs=None)
         # When / Then
+        assert get_brightness(backend=backend) == 0.75
+
+    def test_falls_back_to_sysfs_on_x11_when_xrandr_missing(
+        self, monkeypatch, tmp_path
+    ):
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
+        (tmp_path / "brightness").write_text("150\n")
+        (tmp_path / "max_brightness").write_text("200\n")
+        backend = Backend(output="eDP-1", sysfs=tmp_path)
         assert get_brightness(backend=backend) == 0.75
 
     def test_xrandr_returns_none_on_failure(self, monkeypatch):
@@ -167,6 +203,65 @@ class TestBrightnessStateHelpers:
         brightness_state.set_brightness(Backend(output="HDMI-1"), 10.0)
         assert calls[0][-1] == "0.10"
         assert calls[1][-1] == "1.00"
+
+    def test_set_brightness_prefers_brightnessctl(self, monkeypatch):
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+        calls: list[list[str]] = []
+        monkeypatch.setattr(
+            brightness_state, "_run", lambda cmd: calls.append(cmd) or ""
+        )
+        brightness_state.set_brightness(
+            Backend(output="eDP-1", brightnessctl="/usr/bin/brightnessctl"),
+            0.75,
+        )
+        assert calls == [["/usr/bin/brightnessctl", "set", "75%"]]
+
+    def test_set_brightness_prefers_xrandr_on_x11_even_with_sysfs(
+        self, monkeypatch, tmp_path
+    ):
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
+        calls: list[list[str]] = []
+        monkeypatch.setattr(
+            brightness_state, "_run", lambda cmd: calls.append(cmd) or ""
+        )
+        (tmp_path / "max_brightness").write_text("200\n")
+        (tmp_path / "brightness").write_text("100\n")
+
+        brightness_state.set_brightness(Backend(output="eDP-1", sysfs=tmp_path), 0.75)
+
+        assert calls == [["xrandr", "--output", "eDP-1", "--brightness", "0.75"]]
+        assert (tmp_path / "brightness").read_text() == "100\n"
+
+    def test_set_brightness_uses_sysfs_when_available(self, tmp_path):
+        with patch.object(brightness_state, "is_wayland_session", return_value=True):
+            (tmp_path / "max_brightness").write_text("200\n")
+            (tmp_path / "brightness").write_text("100\n")
+
+            brightness_state.set_brightness(
+                Backend(output="eDP-1", sysfs=tmp_path), 0.75
+            )
+
+        assert (tmp_path / "brightness").read_text() == "150\n"
+
+    def test_set_brightness_sysfs_clamps(self, tmp_path):
+        with patch.object(brightness_state, "is_wayland_session", return_value=True):
+            (tmp_path / "max_brightness").write_text("200\n")
+            (tmp_path / "brightness").write_text("100\n")
+
+            brightness_state.set_brightness(
+                Backend(output="eDP-1", sysfs=tmp_path), -1.0
+            )
+
+        assert (tmp_path / "brightness").read_text() == "20\n"
+
+    def test_get_brightness_calls_platform_wayland_helper(self, monkeypatch, tmp_path):
+        (tmp_path / "max_brightness").write_text("200\n")
+        (tmp_path / "brightness").write_text("120\n")
+        probe = MagicMock(return_value=True)
+        monkeypatch.setattr(brightness_state, "is_wayland_session", probe)
+
+        assert get_brightness(backend=Backend(output="eDP-1", sysfs=tmp_path)) == 0.6
+        probe.assert_called_once_with()
 
 
 def _make_applet(brightness: float = 0.8) -> BrightnessApplet:

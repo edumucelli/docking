@@ -269,9 +269,11 @@ class NotificationsApplet(Applet):
         try:
             proc.terminate()
             proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
+            log.debug("dbus-monitor did not exit cleanly, forcing kill: %s", exc)
             proc.kill()
-        except OSError:
+        except OSError as exc:
+            log.debug("Failed to stop dbus-monitor cleanly: %s", exc)
             return
 
     def _activity_monitor_worker(self) -> None:

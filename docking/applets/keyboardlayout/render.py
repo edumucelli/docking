@@ -40,10 +40,11 @@ def _draw_keyboard_base(cr: cairo.Context, size: int) -> None:
     row_h = (body_h - 4 * key_pad) / 3
     for row in range(3):
         row_y = body_y + key_pad + row * (row_h + key_pad)
-        cols = 6 if row < 2 else 4
-        key_w = (body_w - (cols + 1) * key_pad) / cols
+        base_cols = 6 if row < 2 else 4
+        draw_cols = base_cols if row < 2 else 3
+        key_w = (body_w - (base_cols + 1) * key_pad) / base_cols
         start_x = pad + key_pad + (0 if row < 2 else key_pad + key_w / 2)
-        for col in range(cols):
+        for col in range(draw_cols):
             kx = start_x + col * (key_w + key_pad)
             rounded_rect(
                 cr=cr,

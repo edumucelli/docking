@@ -190,20 +190,19 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from docking.log import get_logger
-
-log = get_logger(name="autohide")
-
 import gi
+
+from docking.core.config import HideMode
+from docking.log import get_logger
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-from docking.core.config import HideMode
-
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.ui.dock_window import DockWindow
+
+log = get_logger(name="autohide")
 
 FRAME_INTERVAL_MS = 16  # ~60fps
 MIN_HIDE_GRACE_MS = 60
@@ -347,6 +346,12 @@ class AutoHideController:
         self._window_should_hide = should_hide
         self._update_hidden()
 
+    def reconcile(self) -> None:
+        """Re-run hide/show policy without changing current inputs."""
+        if not self.enabled:
+            return
+        self._update_hidden()
+
     def _update_hidden(self) -> None:
         """Reconcile hover/disabled state into show-or-hide behavior."""
         if self._disabled or self._hovered:
@@ -396,7 +401,7 @@ class AutoHideController:
         """Begin show animation."""
         self._unhide_timer_id = 0
         if self.hide_offset <= 0.0:
-            # Already fully visible — skip animation entirely.
+            # Already fully visible - skip animation entirely.
             self.state = HideState.VISIBLE
             self.hide_offset = 0.0
             self.zoom_progress = 1.0
