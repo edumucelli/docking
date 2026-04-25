@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import mimetypes
 import urllib.error
 import urllib.parse
@@ -14,7 +15,7 @@ from typing import Any, Protocol
 
 from docking.log import get_logger
 
-UPLOAD_ENDPOINT = "https://0x0.st"
+UPLOAD_ENDPOINT = "https://tmpfiles.org/api/v1/upload"
 USER_AGENT = "Docking/1.0 (Linux; Drag Share Applet)"
 UPLOAD_TIMEOUT_S = 60
 
@@ -33,7 +34,7 @@ class DragshareStatus(str, Enum):
 
 
 class UploadError(RuntimeError):
-    """Raised when 0x0.st upload cannot produce a usable share URL."""
+    """Raised when the upload service cannot produce a usable share URL."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +69,7 @@ def upload_file(
     timeout: float = UPLOAD_TIMEOUT_S,
     opener: UrlOpen | None = None,
 ) -> UploadResult:
-    """Upload one file to 0x0.st and return the resulting public URL."""
+    """Upload one file to tmpfiles.org and return the resulting public URL."""
     path = path.expanduser()
     if not path.is_file():
         raise UploadError("Only regular files can be shared")
@@ -93,20 +94,18 @@ def upload_file(
             payload = response.read().decode("utf-8", errors="replace").strip()
     except urllib.error.HTTPError as exc:
         body_text = exc.read().decode("utf-8", errors="replace").strip()
-        log.debug("0x0.st HTTP error for %s: %s %s", path, exc.code, body_text)
+        log.debug("tmpfiles.org HTTP error for %s: %s %s", path, exc.code, body_text)
         detail = body_text if body_text else f"HTTP {exc.code}"
         raise UploadError(detail) from exc
     except (OSError, TimeoutError, urllib.error.URLError) as exc:
-        log.debug("0x0.st upload failed for %s: %s", path, exc)
+        log.debug("tmpfiles.org upload failed for %s: %s", path, exc)
         raise UploadError("Upload failed") from exc
 
     if status < 200 or status >= 300:
         raise UploadError(f"HTTP {status}")
-    if not payload.startswith(("http://", "https://")):
-        log.debug("Unexpected 0x0.st response for %s: %r", path, payload)
-        raise UploadError("Upload service returned an invalid URL")
 
-    return UploadResult(url=payload, file_name=path.name)
+    url = _url_from_response(payload)
+    return UploadResult(url=url, file_name=path.name)
 
 
 def _multipart_body(*, path: Path, boundary: str) -> bytes:
@@ -124,3 +123,21 @@ def _multipart_body(*, path: Path, boundary: str) -> bytes:
 
 def _quote_header_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _url_from_response(payload: str) -> str:
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        log.debug("Unexpected tmpfiles.org response: %r", payload)
+        raise UploadError("Upload service returned an invalid response") from exc
+
+    if not isinstance(decoded, dict):
+        raise UploadError("Upload service returned an invalid response")
+    data = decoded.get("data")
+    if not isinstance(data, dict):
+        raise UploadError("Upload service returned an invalid response")
+    url = data.get("url")
+    if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+        raise UploadError("Upload service returned an invalid URL")
+    return url

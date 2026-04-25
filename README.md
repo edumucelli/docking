@@ -798,7 +798,7 @@ Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to th
 
 <img src="docking/assets/icons/applets/dragshare.png" alt="Drag Share" width="48">
 
-Drop a local file onto the applet to upload it to 0x0.st and copy the returned URL to the clipboard.
+Drop a local file onto the applet to upload it to tmpfiles.org and copy the returned URL to the clipboard. Files are temporary and expire automatically.
 
 **Drop:** Upload file and copy URL
 **Click:** Copy last uploaded URL again

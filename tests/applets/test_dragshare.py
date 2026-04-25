@@ -85,12 +85,14 @@ class TestState:
             seen["method"] = request.get_method()
             seen["content_type"] = request.headers["Content-type"]
             seen["body"] = request.data
-            return _Response(b"https://0x0.st/abc.txt\n")
+            return _Response(
+                b'{"status":"success","data":{"url":"https://tmpfiles.org/abc.txt"}}'
+            )
 
         result = upload_file(file_path, endpoint="https://upload.test", opener=opener)
 
         assert result == UploadResult(
-            url="https://0x0.st/abc.txt",
+            url="https://tmpfiles.org/abc.txt",
             file_name='my "file".txt',
         )
         assert seen["method"] == "POST"
@@ -105,6 +107,18 @@ class TestState:
         with pytest.raises(UploadError):
             upload_file(file_path, opener=lambda _request, timeout: _Response(b"nope"))
 
+    def test_upload_file_rejects_response_without_url(self, tmp_path):
+        file_path = tmp_path / "share.txt"
+        file_path.write_text("payload", encoding="utf-8")
+
+        with pytest.raises(UploadError, match="invalid URL"):
+            upload_file(
+                file_path,
+                opener=lambda _request, timeout: _Response(
+                    b'{"status":"success","data":{}}'
+                ),
+            )
+
     def test_upload_file_reports_http_error(self, tmp_path):
         file_path = tmp_path / "share.txt"
         file_path.write_text("payload", encoding="utf-8")
@@ -112,7 +126,7 @@ class TestState:
         def opener(_request, timeout):
             _ = timeout
             raise urllib.error.HTTPError(
-                url="https://0x0.st",
+                url="https://tmpfiles.org",
                 code=413,
                 msg="too large",
                 hdrs=None,
@@ -140,7 +154,7 @@ class TestApplet:
             dragshare_applet_mod,
             "upload_file",
             lambda path: UploadResult(
-                url="https://0x0.st/share.txt", file_name=path.name
+                url="https://tmpfiles.org/share.txt", file_name=path.name
             ),
         )
         monkeypatch.setattr(
@@ -169,8 +183,8 @@ class TestApplet:
         consumed = applet.on_drop_uris([file_path.as_uri()])
 
         assert consumed is True
-        assert copied == ["https://0x0.st/share.txt"]
-        assert applet._last_url == "https://0x0.st/share.txt"
+        assert copied == ["https://tmpfiles.org/share.txt"]
+        assert applet._last_url == "https://tmpfiles.org/share.txt"
         assert saved == [True]
 
     def test_drop_without_local_file_sets_error(self, tmp_path):

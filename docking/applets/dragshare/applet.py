@@ -33,7 +33,7 @@ log = with_context(get_logger(name="dragshare"), applet_id=meta.id)
 
 
 class DragshareApplet(Applet):
-    """Drop a file onto the dock icon, upload it to 0x0.st, and copy the URL."""
+    """Drop a file onto the dock icon, upload it, and copy the URL."""
 
     id = meta.id
     name = _("Drag Share")
