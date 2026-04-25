@@ -142,16 +142,14 @@ class NewYearGreetingController:
             spacing=GREETING_CONTENT_SPACING_PX,
         )
         box.set_margin_start(
-            GREETING_MARGIN_PX
-            + (GREETING_TIP_HEIGHT_PX if pos == Position.LEFT else 0)
+            GREETING_MARGIN_PX + (GREETING_TIP_HEIGHT_PX if pos == Position.LEFT else 0)
         )
         box.set_margin_end(
             GREETING_MARGIN_PX
             + (GREETING_TIP_HEIGHT_PX if pos == Position.RIGHT else 0)
         )
         box.set_margin_top(
-            GREETING_MARGIN_PX
-            + (GREETING_TIP_HEIGHT_PX if pos == Position.TOP else 0)
+            GREETING_MARGIN_PX + (GREETING_TIP_HEIGHT_PX if pos == Position.TOP else 0)
         )
         box.set_margin_bottom(
             GREETING_MARGIN_PX
