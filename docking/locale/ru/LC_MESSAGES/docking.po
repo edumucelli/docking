@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-24 20:55+0200\n"
+"POT-Creation-Date: 2026-04-25 11:17+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -1504,97 +1504,102 @@ msgstr "Создан"
 msgid "Modified"
 msgstr "Изменён"
 
-#: docking/ui/menu.py:724
+#: docking/ui/menu.py:909
 msgid "Folder not found"
 msgstr "Папка не найдена"
 
-#: docking/ui/menu.py:758
+#: docking/ui/menu.py:948
 msgid "Folder is empty"
 msgstr "Папка пуста"
 
-#: docking/ui/menu.py:1186
+#: docking/ui/menu.py:1403
 #, python-format
 msgid "Open in %s"
 msgstr "Открыть в %s"
 
-#: docking/ui/menu.py:1188
+#: docking/ui/menu.py:1405
 #, python-format
 msgid "%d More in %s"
 msgstr "Ещё %d в %s"
 
-#: docking/ui/menu.py:1191
+#: docking/ui/menu.py:1408
 msgid "Open Folder"
 msgstr "Открыть папку"
 
-#: docking/ui/menu.py:1193
+#: docking/ui/menu.py:1410
 #, python-format
 msgid "%d More in Folder"
 msgstr "Ещё %d в папке"
 
-#: docking/ui/menu.py:1319 docking/ui/menu.py:1339 docking/ui/menu.py:1355
-#: docking/ui/menu.py:1408
+#: docking/ui/menu.py:1536 docking/ui/menu.py:1556 docking/ui/menu.py:1572
+#: docking/ui/menu.py:1625
 msgid "Remove from Dock"
 msgstr "Убрать из дока"
 
-#: docking/ui/menu.py:1332
+#: docking/ui/menu.py:1549
 msgid "Open"
 msgstr "Открыть"
 
-#: docking/ui/menu.py:1362
+#: docking/ui/menu.py:1579
 msgid "Keep in Dock"
 msgstr "Оставить в доке"
 
-#: docking/ui/menu.py:1371
+#: docking/ui/menu.py:1588
 msgid "Close All"
 msgstr "Закрыть все"
 
-#: docking/ui/menu.py:1371
+#: docking/ui/menu.py:1588
 msgid "Close"
 msgstr "Закрыть"
 
-#: docking/ui/menu.py:1388
+#: docking/ui/menu.py:1605
 msgid "Sort By"
 msgstr "Сортировка"
 
-#: docking/ui/menu.py:1396
+#: docking/ui/menu.py:1613
 msgid "Show Hidden Files"
 msgstr "Показать скрытые файлы"
 
-#: docking/ui/menu.py:1401
+#: docking/ui/menu.py:1618
 msgid "Large Icons"
 msgstr "Крупные значки"
 
-#: docking/ui/menu.py:1438
+#: docking/ui/menu.py:1655
 msgid "Add Applet"
 msgstr "Апплеты"
 
-#: docking/ui/menu.py:1476
+#: docking/ui/menu.py:1693
 msgid "No Applets Available"
 msgstr "Профили питания недоступны"
 
-#: docking/ui/menu.py:1483
+#: docking/ui/menu.py:1700
 msgid "Add Separator"
 msgstr "Добавить разделитель"
 
-#: docking/ui/menu.py:1493 docking/ui/settings.py:163
+#: docking/ui/menu.py:1710 docking/ui/settings.py:163
 msgid "Preferences"
 msgstr "Настройки"
 
-#: docking/ui/menu.py:1498
+#: docking/ui/menu.py:1715
 msgid "About"
 msgstr "О программе"
 
-#: docking/ui/menu.py:1503
+#: docking/ui/menu.py:1720
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:1510
+#: docking/ui/menu.py:1727
 msgid "Quit"
 msgstr "Выход"
 
-#: docking/ui/menu.py:1547
+#: docking/ui/menu.py:1764
 msgid "Window"
 msgstr "Окно"
+
+#: docking/ui/new_year.py:165
+#, python-brace-format
+msgid "Happy new year {year} !!!"
+msgstr "Happy new year {year} !!!"
 
 #: docking/ui/placement.py:223
 #, python-brace-format

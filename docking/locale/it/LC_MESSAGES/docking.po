@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-24 20:55+0200\n"
+"POT-Creation-Date: 2026-04-25 11:17+0200\n"
 "PO-Revision-Date: 2026-03-06 12:00+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -1502,97 +1502,102 @@ msgstr "Creato"
 msgid "Modified"
 msgstr "Modificato"
 
-#: docking/ui/menu.py:724
+#: docking/ui/menu.py:909
 msgid "Folder not found"
 msgstr "Cartella non trovata"
 
-#: docking/ui/menu.py:758
+#: docking/ui/menu.py:948
 msgid "Folder is empty"
 msgstr "Cartella vuota"
 
-#: docking/ui/menu.py:1186
+#: docking/ui/menu.py:1403
 #, python-format
 msgid "Open in %s"
 msgstr "Apri in %s"
 
-#: docking/ui/menu.py:1188
+#: docking/ui/menu.py:1405
 #, python-format
 msgid "%d More in %s"
 msgstr "%d Altri in %s"
 
-#: docking/ui/menu.py:1191
+#: docking/ui/menu.py:1408
 msgid "Open Folder"
 msgstr "Apri Cartella"
 
-#: docking/ui/menu.py:1193
+#: docking/ui/menu.py:1410
 #, python-format
 msgid "%d More in Folder"
 msgstr "%d Altri nella Cartella"
 
-#: docking/ui/menu.py:1319 docking/ui/menu.py:1339 docking/ui/menu.py:1355
-#: docking/ui/menu.py:1408
+#: docking/ui/menu.py:1536 docking/ui/menu.py:1556 docking/ui/menu.py:1572
+#: docking/ui/menu.py:1625
 msgid "Remove from Dock"
 msgstr "Rimuovi dal Dock"
 
-#: docking/ui/menu.py:1332
+#: docking/ui/menu.py:1549
 msgid "Open"
 msgstr "Apri"
 
-#: docking/ui/menu.py:1362
+#: docking/ui/menu.py:1579
 msgid "Keep in Dock"
 msgstr "Mantieni nel Dock"
 
-#: docking/ui/menu.py:1371
+#: docking/ui/menu.py:1588
 msgid "Close All"
 msgstr "Chiudi tutto"
 
-#: docking/ui/menu.py:1371
+#: docking/ui/menu.py:1588
 msgid "Close"
 msgstr "Chiudi"
 
-#: docking/ui/menu.py:1388
+#: docking/ui/menu.py:1605
 msgid "Sort By"
 msgstr "Ordina Per"
 
-#: docking/ui/menu.py:1396
+#: docking/ui/menu.py:1613
 msgid "Show Hidden Files"
 msgstr "Mostra File Nascosti"
 
-#: docking/ui/menu.py:1401
+#: docking/ui/menu.py:1618
 msgid "Large Icons"
 msgstr "Icone Grandi"
 
-#: docking/ui/menu.py:1438
+#: docking/ui/menu.py:1655
 msgid "Add Applet"
 msgstr "Applet"
 
-#: docking/ui/menu.py:1476
+#: docking/ui/menu.py:1693
 msgid "No Applets Available"
 msgstr "Profili energetici non disponibili"
 
-#: docking/ui/menu.py:1483
+#: docking/ui/menu.py:1700
 msgid "Add Separator"
 msgstr "Aggiungi separatore"
 
-#: docking/ui/menu.py:1493 docking/ui/settings.py:163
+#: docking/ui/menu.py:1710 docking/ui/settings.py:163
 msgid "Preferences"
 msgstr "Preferenze"
 
-#: docking/ui/menu.py:1498
+#: docking/ui/menu.py:1715
 msgid "About"
 msgstr "Informazioni"
 
-#: docking/ui/menu.py:1503
+#: docking/ui/menu.py:1720
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:1510
+#: docking/ui/menu.py:1727
 msgid "Quit"
 msgstr "Esci"
 
-#: docking/ui/menu.py:1547
+#: docking/ui/menu.py:1764
 msgid "Window"
 msgstr "Finestra"
+
+#: docking/ui/new_year.py:165
+#, python-brace-format
+msgid "Happy new year {year} !!!"
+msgstr "Happy new year {year} !!!"
 
 #: docking/ui/placement.py:223
 #, python-brace-format
