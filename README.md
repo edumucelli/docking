@@ -527,9 +527,12 @@ Camera privacy indicator. The applet scans open process file descriptors for `/d
 
 **Right-click options:**
 - Active process list with PID and camera device
+- Lock Camera / Unlock Camera via a privileged Polkit helper
 - Refresh Now
 
 **Tooltip:** Shows whether the camera is idle, active, or unavailable, plus active holders when detected
+
+Locking removes access from the current `/dev/video*` device nodes so new camera sessions cannot open them. Existing camera sessions may need to be closed first because already-open device handles are not revoked.
 
 **Update interval:** 2 seconds
 

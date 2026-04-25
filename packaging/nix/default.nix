@@ -64,6 +64,9 @@ EOF
     substituteInPlace "$out/share/applications/org.docking.Docking.desktop" \
       --replace-fail "Exec=docking" "Exec=$out/bin/docking"
 
+    install -Dm644 ${../shared/org.docking.camshield.policy} \
+      "$out/share/polkit-1/actions/org.docking.camshield.policy"
+
     mkdir -p "$out/share/icons/hicolor"
     cp -a ${../deb/icons/hicolor}/. "$out/share/icons/hicolor/"
   '';

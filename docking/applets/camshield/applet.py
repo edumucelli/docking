@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+import sys
+import threading
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -31,6 +36,9 @@ log = with_context(get_logger(name="camshield"), applet_id=meta.id)
 
 _PULSE_INTERVAL_MS = 60  # Match Desk Presence: smooth enough without taxing CPU.
 _PULSE_PERIOD_MS = 1800
+_HELPER_BIN = "docking-camshield-helper"
+_PKEXEC_BIN = "pkexec"
+_SOURCE_HELPER = Path(__file__).with_name("helper.py")
 
 
 class CamshieldApplet(Applet):
@@ -98,6 +106,22 @@ class CamshieldApplet(Applet):
                 items.append(item)
 
         items.append(Gtk.SeparatorMenuItem())
+        lock = Gtk.MenuItem(label=_("Lock Camera"))
+        lock.set_sensitive(self._helper_available())
+        lock.connect("activate", lambda _w: self._run_helper_action("lock"))
+        items.append(lock)
+
+        unlock = Gtk.MenuItem(label=_("Unlock Camera"))
+        unlock.set_sensitive(self._helper_available())
+        unlock.connect("activate", lambda _w: self._run_helper_action("unlock"))
+        items.append(unlock)
+
+        if not self._helper_available():
+            unavailable = Gtk.MenuItem(label=_("Camera lock helper unavailable"))
+            unavailable.set_sensitive(False)
+            items.append(unavailable)
+
+        items.append(Gtk.SeparatorMenuItem())
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
         items.append(refresh)
@@ -137,3 +161,55 @@ class CamshieldApplet(Applet):
         if self._notify:
             self._notify()
         return True
+
+    def _helper_available(self) -> bool:
+        return shutil.which(_PKEXEC_BIN) is not None and (
+            shutil.which(_HELPER_BIN) is not None or _SOURCE_HELPER.exists()
+        )
+
+    def _run_helper_action(self, action: str) -> None:
+        command = _helper_command(action=action)
+        if command is None:
+            log.warning("Camera lock helper unavailable")
+            return
+
+        thread = threading.Thread(
+            target=self._run_helper_command,
+            args=(command,),
+            daemon=True,
+        )
+        thread.start()
+
+    def _run_helper_command(self, command: list[str]) -> None:
+        try:
+            completed = subprocess.run(
+                command,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+        except OSError:
+            log.exception("Failed to run camera lock helper")
+            return
+
+        if completed.returncode != 0:
+            log.warning(
+                "Camera lock helper exited with status %s",
+                completed.returncode,
+            )
+        GLib.idle_add(self._refresh_once)
+
+
+def _helper_command(*, action: str) -> list[str] | None:
+    pkexec = shutil.which(_PKEXEC_BIN)
+    if pkexec is None:
+        return None
+
+    helper = shutil.which(_HELPER_BIN)
+    if helper is not None:
+        return [pkexec, helper, action]
+
+    if _SOURCE_HELPER.exists():
+        return [pkexec, sys.executable, str(_SOURCE_HELPER), action]
+    return None

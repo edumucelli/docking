@@ -31,6 +31,7 @@ override_dh_auto_install:
 	rm -rf debian/docking/usr/lib/docking/python/bin
 	mkdir -p debian/docking/usr/bin
 	install -m 0755 packaging/deb/docking debian/docking/usr/bin/docking
+	install -m 0755 packaging/shared/docking-camshield-helper debian/docking/usr/bin/docking-camshield-helper
 	# Bundle ALL pip dependencies into an isolated vendor directory.
 	# This avoids file conflicts with Ubuntu's python3-* system packages
 	# and makes the .deb fully self-contained.

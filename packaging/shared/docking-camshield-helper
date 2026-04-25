@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
+
+exec /usr/bin/python3 -m docking.applets.camshield.helper "$@"

@@ -207,3 +207,33 @@ class TestApplet:
         assert applet.item.icon is not None
         assert notifications == 1
         applet.stop()
+
+    def test_helper_command_prefers_installed_helper(self, monkeypatch):
+        paths = {
+            "pkexec": "/usr/bin/pkexec",
+            "docking-camshield-helper": "/usr/bin/docking-camshield-helper",
+        }
+        monkeypatch.setattr(camshield_applet_mod.shutil, "which", paths.get)
+
+        assert camshield_applet_mod._helper_command(action="lock") == [
+            "/usr/bin/pkexec",
+            "/usr/bin/docking-camshield-helper",
+            "lock",
+        ]
+
+    def test_helper_command_falls_back_to_source_helper(self, monkeypatch, tmp_path):
+        helper_path = tmp_path / "helper.py"
+        helper_path.touch()
+        monkeypatch.setattr(
+            camshield_applet_mod.shutil,
+            "which",
+            lambda command: "/usr/bin/pkexec" if command == "pkexec" else None,
+        )
+        monkeypatch.setattr(camshield_applet_mod, "_SOURCE_HELPER", helper_path)
+
+        assert camshield_applet_mod._helper_command(action="unlock") == [
+            "/usr/bin/pkexec",
+            camshield_applet_mod.sys.executable,
+            str(helper_path),
+            "unlock",
+        ]

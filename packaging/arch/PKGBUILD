@@ -58,8 +58,14 @@ fi
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
+  install -Dm755 packaging/shared/docking-camshield-helper \
+    "${pkgdir}/usr/bin/docking-camshield-helper"
+
   install -Dm644 packaging/shared/org.docking.Docking.desktop \
     "${pkgdir}/usr/share/applications/org.docking.Docking.desktop"
+
+  install -Dm644 packaging/shared/org.docking.camshield.policy \
+    "${pkgdir}/usr/share/polkit-1/actions/org.docking.camshield.policy"
 
   if [ -d packaging/deb/icons/hicolor ]; then
     mkdir -p "${pkgdir}/usr/share/icons/hicolor"
