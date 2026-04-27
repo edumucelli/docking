@@ -289,6 +289,18 @@ class Applet(ABC):
         _ = direction_up
         return
 
+    def accepts_drop_uris(self) -> bool:
+        """Whether this applet can receive external URI drops."""
+        return False
+
+    def on_drop_uris(self, uris: list[str]) -> bool:
+        """Handle external URI drops on the applet icon.
+
+        Returns True when the applet consumed the drop.
+        """
+        _ = uris
+        return False
+
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Extra right-click menu items (default: empty)."""
         return []

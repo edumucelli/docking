@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 43 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 44 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -791,6 +791,17 @@ Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to th
 
 **Click:** Toggle URL shortener dialog
 **Keyboard:** Paste URL, press Enter to shorten
+
+**Preferences stored:** `last_url`
+
+### Drag Share
+
+<img src="docking/assets/icons/applets/dragshare.png" alt="Drag Share" width="48">
+
+Drop a local file onto the applet to upload it to tmpfiles.org and copy the returned URL to the clipboard. Files are temporary and expire automatically.
+
+**Drop:** Upload file and copy URL
+**Click:** Copy last uploaded URL again
 
 **Preferences stored:** `last_url`
 
