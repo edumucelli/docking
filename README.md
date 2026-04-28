@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 44 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 47 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -472,7 +472,7 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 
 <img src="docking/assets/icons/applets/capslock.png" alt="Caps Lock" width="48">
 
-Caps Lock and Num Lock state LEDs for keyboards without physical indicators. The applet reads X11 keyboard indicators and lights the CAP/NUM dots when each lock is active.
+Caps Lock and Num Lock indicators for keyboards without physical lights. The icon shows which locks are currently active.
 
 **Click:** Refresh lock state immediately
 **Right-click options:**
@@ -538,16 +538,32 @@ Bluetooth manager applet for quick adapter and device control from the dock.
 
 <img src="docking/assets/icons/applets/camshield.png" alt="Cam Shield" width="48">
 
-Camera privacy indicator. The applet scans open process file descriptors for `/dev/video*` devices and shows a red dot while any process is holding a camera device.
+Camera privacy indicator. The icon shows a red dot while an app is using a camera.
 
 **Right-click options:**
-- Active process list with PID and camera device
-- Lock Camera / Unlock Camera via a privileged Polkit helper
+- Active app list when available
+- Lock Camera / Unlock Camera
 - Refresh Now
 
 **Tooltip:** Shows whether the camera is idle, active, or unavailable, plus active holders when detected
 
-Locking removes access from the current `/dev/video*` device nodes so new camera sessions cannot open them. Existing camera sessions may need to be closed first because already-open device handles are not revoked.
+Locking blocks new camera sessions. Apps that are already using the camera may need to be closed first.
+
+**Update interval:** 2 seconds
+
+### Mic Shield
+
+<img src="docking/assets/icons/applets/micshield.png" alt="Mic Shield" width="48">
+
+Microphone privacy indicator and mute toggle. The icon shows a red dot while an app is using microphone input, and clicking the applet quickly mutes or unmutes the microphone.
+
+**Click:** Toggle microphone mute
+**Right-click options:**
+- Active app list when available
+- Mute Microphone / Unmute Microphone
+- Refresh Now
+
+**Tooltip:** Shows mute state, idle/active state, and active capture streams when detected
 
 **Update interval:** 2 seconds
 
@@ -798,6 +814,18 @@ Convert between units directly from the dock popup. Supports length, weight, tem
 
 **Preferences stored:** `last_category`
 
+### Currency FX
+
+<img src="docking/assets/icons/applets/currencyfx.png" alt="Currency FX" width="48">
+
+Live currency pair monitor with a sparkline icon. Add the pairs you care about, cycle between them from the dock, and choose the chart range that fits your glance.
+
+**Click:** Add FX pair
+**Scroll:** Cycle added pairs
+**Right-click:** Refresh, swap pair, add pair, chart interval, switch/remove added pair
+
+**Preferences stored:** `pairs`, `active_index`, `chart_interval`, `sample_source`, `samples`
+
 ### URL Shortener
 
 <img src="docking/assets/icons/applets/urlshortener.png" alt="URL Shortener" width="48">
@@ -832,7 +860,7 @@ Click the applet, then click any window to force-close it.
 
 <img src="docking/assets/icons/applets/certwatch.png" alt="Cert Watch" width="48">
 
-Monitor TLS certificate expiry for a list of domains. The shield icon is colored by worst-case severity across all watched domains (green over 30 days, yellow 7-30, red under 7, dark red expired, gray on error) and overlays the minimum days-remaining. Fetch uses stdlib TLS with SNI and never blocks the main loop; erroring domains auto-retry after 5 minutes.
+Monitor certificate expiry for a list of domains. The shield color highlights the most urgent domain, and the icon shows the lowest days remaining so expiring certificates are easy to spot.
 
 **Click:** Add domain dialog (accepts `example.com`, `example.com:8443`, or a full URL)
 
@@ -863,7 +891,7 @@ One-click internet speed test. The dial is painted as a classic four-band speedo
 
 <img src="docking/assets/icons/applets/deskpresence.png" alt="Desk Presence" width="48">
 
-Tracks time at desk vs away by polling the X11 idle counter (XScreenSaver extension) every 10 seconds. Active input below the idle threshold counts toward the at-desk bucket; longer idle time counts toward the away bucket. Status dot on the icon is green when at the desk, orange when away, gray until the first sample. Bottom label shows today's total at-desk hours. At UTC midnight the running counters roll into a 7-day history; the tooltip shows a per-day at-desk breakdown and the week total.
+Tracks time at your desk versus away. The icon shows whether you are currently active or away, the bottom label shows today's at-desk hours, and the tooltip summarizes the recent daily breakdown.
 
 **Right-click menu:**
 - Status header (At desk / Away / Status unknown)
@@ -876,7 +904,7 @@ Tracks time at desk vs away by polling the X11 idle counter (XScreenSaver extens
 
 <img src="docking/assets/icons/applets/apod.png" alt="APOD" width="48">
 
-Fetches NASA's daily Astronomy Picture of the Day and shows its thumbnail as the icon. The dock tile is a rounded square with the scaled image; video days fall back to the YouTube thumbnail, and network failures show a starry placeholder. Tooltip shows the date, title, copyright, and a trimmed explanation. One API call per day (uses the public `DEMO_KEY`; no registration required). Images cache to `~/.cache/docking/apod/<date>.<ext>`.
+Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip includes the date, title, credit, and a short explanation, and the applet keeps showing a graceful placeholder if the image is unavailable.
 
 **Click:** Open today's page on apod.nasa.gov in the default browser
 

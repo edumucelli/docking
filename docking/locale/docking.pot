@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-04-28 08:52+0200\n"
+"POT-Creation-Date: 2026-04-28 20:03+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -142,6 +142,8 @@ msgstr ""
 #: docking/applets/camshield/applet.py:125
 #: docking/applets/capslock/applet.py:80
 #: docking/applets/certwatch/applet.py:122
+#: docking/applets/currencyfx/applet.py:160
+#: docking/applets/micshield/applet.py:126
 msgid "Refresh Now"
 msgstr ""
 
@@ -437,7 +439,7 @@ msgstr ""
 msgid "{command} (PID {pid}) using {devices}"
 msgstr ""
 
-#: docking/applets/camshield/state.py:78
+#: docking/applets/camshield/state.py:78 docking/applets/micshield/state.py:210
 #, python-brace-format
 msgid "{count} more"
 msgstr ""
@@ -448,7 +450,8 @@ msgid "{command} (PID {pid}) - {devices}"
 msgstr ""
 
 #: docking/applets/camshield/state.py:179
-#: docking/applets/deskpresence/state.py:171 docking/applets/music/state.py:81
+#: docking/applets/deskpresence/state.py:171
+#: docking/applets/micshield/state.py:180 docking/applets/music/state.py:81
 #: docking/applets/powerprofiles/state.py:137
 msgid "Unknown"
 msgstr ""
@@ -633,6 +636,81 @@ msgstr ""
 msgid "Show Hex"
 msgstr ""
 
+#: docking/applets/currencyfx/applet.py:76
+msgid "Currency FX"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:164
+msgid "Swap Pair"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:168
+msgid "Add Pair..."
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:175
+msgid "Day"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:176
+msgid "Week"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:177
+msgid "Month"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:190
+msgid "Chart Interval"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:203
+msgid "Added Pairs"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:207
+msgid "Remove Current Pair"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:388
+#, python-brace-format
+msgid "{pair}: {rate} ({change})"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:420
+msgid "Add FX Pair"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:442
+msgid "Base"
+msgstr ""
+
+#: docking/applets/currencyfx/applet.py:444 docking/applets/quote/applet.py:42
+#: docking/applets/quote/applet.py:83 docking/applets/quote/applet.py:207
+#: docking/applets/quote/applet.py:213
+msgid "Quote"
+msgstr ""
+
+#: docking/applets/currencyfx/state.py:711
+#, python-brace-format
+msgid "{pair}: unavailable"
+msgstr ""
+
+#: docking/applets/currencyfx/state.py:712
+#, python-brace-format
+msgid "{pair}: loading..."
+msgstr ""
+
+#: docking/applets/currencyfx/state.py:716
+#, python-brace-format
+msgid "1 {base} = {rate} {quote}"
+msgstr ""
+
+#: docking/applets/currencyfx/state.py:721
+#, python-brace-format
+msgid "Change: {change}"
+msgstr ""
+
 #: docking/applets/deskpresence/applet.py:51
 #: docking/applets/deskpresence/state.py:192
 msgid "Desk Presence"
@@ -810,6 +888,49 @@ msgstr ""
 
 #: docking/applets/keyboardlayout/applet.py:126
 msgid "Show Current Layout"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:43
+#: docking/applets/micshield/state.py:195
+msgid "Mic Shield"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:92
+#: docking/applets/micshield/state.py:197
+msgid "No microphone source found"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:97
+#: docking/applets/micshield/state.py:200
+msgid "Microphone muted"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:99
+#: docking/applets/micshield/state.py:200
+msgid "Microphone unmuted"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:105
+#: docking/applets/micshield/state.py:205
+msgid "Microphone active"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:113
+#: docking/applets/micshield/state.py:202
+msgid "Microphone idle"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:119
+msgid "Unmute Microphone"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:119
+msgid "Mute Microphone"
+msgstr ""
+
+#: docking/applets/micshield/state.py:218
+#, python-brace-format
+msgid "{command} (PID {pid})"
 msgstr ""
 
 #: docking/applets/moon/applet.py:48
@@ -1172,11 +1293,6 @@ msgstr ""
 
 #: docking/applets/quicknote/applet.py:65
 msgid "Clear Note"
-msgstr ""
-
-#: docking/applets/quote/applet.py:42 docking/applets/quote/applet.py:83
-#: docking/applets/quote/applet.py:207 docking/applets/quote/applet.py:213
-msgid "Quote"
 msgstr ""
 
 #: docking/applets/quote/applet.py:87

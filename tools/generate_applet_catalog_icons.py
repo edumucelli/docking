@@ -24,8 +24,10 @@ The generated PNGs are then treated as the sole icon source for catalog UI.
 
 from __future__ import annotations
 
+import datetime as dt
 import sys
 import time
+from enum import Enum
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +41,9 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
+from docking.applets import get_applet_catalog
+from docking.applets.aiusage.render import render_icon as render_aiusage
+from docking.applets.aiusage.state import AiUsageState
 from docking.applets.ambient.render import render_icon as render_ambient
 from docking.applets.apod.render import render_icon as render_apod
 from docking.applets.applications.render import create_icon as render_applications
@@ -50,18 +55,21 @@ from docking.applets.brightness.render import create_icon as render_brightness
 from docking.applets.calculator.render import create_icon as render_calculator
 from docking.applets.calendar.render import render_icon as render_calendar
 from docking.applets.calendar.state import snapshot_from
+from docking.applets.camshield.render import render_icon as render_camshield
 from docking.applets.certwatch.render import render_icon as render_certwatch
 from docking.applets.certwatch.state import CertStatus
 from docking.applets.clippy.render import create_icon as render_clippy
 from docking.applets.clock.render import render_icon as render_clock
 from docking.applets.colorpicker.render import create_icon as render_colorpicker
+from docking.applets.currencyfx.render import render_icon as render_currencyfx
+from docking.applets.currencyfx.state import FxPoint, FxSnapshot
 from docking.applets.deskpresence.render import render_icon as render_deskpresence
 from docking.applets.deskpresence.state import Presence as DeskpresencePresence
 from docking.applets.desktop.render import create_icon as render_desktop
 from docking.applets.hydration.render import render_icon as render_hydration
 from docking.applets.hydration.state import HydrationState
-from docking.applets.identity import AppletId
 from docking.applets.keyboardlayout.render import render_icon as render_keyboardlayout
+from docking.applets.micshield.render import render_icon as render_micshield
 from docking.applets.moon.offline import fetch_moon_offline
 from docking.applets.moon.render import create_icon as render_moon
 from docking.applets.moon.state import phase_name
@@ -95,6 +103,11 @@ from docking.applets.workspaces.render import _render_grid
 ICON_SIZE = 64
 OUT_DIR = (
     Path(__file__).resolve().parent.parent / "docking" / "assets" / "icons" / "applets"
+)
+AppletId = Enum(
+    "AppletId",
+    {applet_id.upper(): applet_id for applet_id in get_applet_catalog()},
+    type=str,
 )
 
 
@@ -163,13 +176,31 @@ def _workspaces_pixbuf(*, size: int) -> GdkPixbuf.Pixbuf | None:
 def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
     now = time.localtime()
     cal_snapshot = snapshot_from()
+    fx_snapshot = FxSnapshot(
+        base="EUR",
+        quote="USD",
+        rate=1.10,
+        points=(
+            FxPoint(date="2026-04-24", rate=1.07),
+            FxPoint(date="2026-04-25", rate=1.08),
+            FxPoint(date="2026-04-26", rate=1.09),
+            FxPoint(date="2026-04-27", rate=1.10),
+        ),
+        fetched_at=dt.datetime.now(dt.timezone.utc),
+    )
     return {
+        AppletId.AIUSAGE: render_aiusage(size=size, state=AiUsageState()),
         AppletId.AMBIENT: render_ambient(size=size),
         AppletId.APOD: render_apod(size=size, cached_path=""),
         AppletId.APPLICATIONS: render_applications(size=size),
         AppletId.BATTERY: render_battery(
             size=size,
-            state=BatteryState(icon_name="battery-good", capacity=75),
+            state=BatteryState(
+                icon_name="battery-good",
+                capacity=75,
+                status="Discharging",
+                seconds_remaining=None,
+            ),
         ),
         AppletId.BOOKMARKS: render_bookmarks(size=size, count=3),
         AppletId.BLUETOOTH: create_bluetooth_icon(
@@ -186,6 +217,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.CALCULATOR: render_calculator(size=size),
         AppletId.CALENDAR: render_calendar(size=size, snapshot=cal_snapshot),
+        AppletId.CAMSHIELD: render_camshield(
+            size=size,
+            available=True,
+            active=True,
+        ),
         AppletId.CERTWATCH: render_certwatch(
             size=size,
             status=CertStatus.OK,
@@ -198,6 +234,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             show_digital=False,
             show_military=False,
             show_date=False,
+            show_seconds=False,
         ),
         AppletId.COLORPICKER: render_colorpicker(
             size=size,
@@ -205,6 +242,13 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             g=0.5,
             b=0.5,
             hex_label=None,
+        ),
+        AppletId.CURRENCYFX: render_currencyfx(
+            size=size,
+            snapshot=fx_snapshot,
+            base="EUR",
+            quote="USD",
+            pulse_phase=0.35,
         ),
         AppletId.SYSTEMMONITOR: render_systemmonitor(size=size, cpu=0.42, mem=0.28),
         AppletId.DESKPRESENCE: render_deskpresence(
@@ -215,6 +259,12 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.DESKTOP: render_desktop(size=size),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
         AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
+        AppletId.MICSHIELD: render_micshield(
+            size=size,
+            available=True,
+            muted=False,
+            active=True,
+        ),
         AppletId.MOON: _moon_pixbuf(size=size),
         AppletId.MUSIC: create_music_icon(
             size=size,
