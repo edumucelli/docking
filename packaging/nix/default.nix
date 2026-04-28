@@ -14,6 +14,8 @@ pyPkgs.buildPythonApplication rec {
     setuptools
     wheel
     pkgs.gettext
+    pkgs.gobject-introspection
+    pkgs.wrapGAppsHook3
   ];
 
   buildInputs = with pkgs; [
@@ -23,7 +25,6 @@ pyPkgs.buildPythonApplication rec {
     gdk-pixbuf
     pango
     cairo
-    gobject-introspection
     gst_all_1.gstreamer
     librsvg
   ];
