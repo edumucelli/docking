@@ -92,6 +92,12 @@ class TestAppletCatalog:
 
         assert "todayinhistory" in get_applet_catalog()
 
+    def test_contains_currencyfx(self):
+        assert "currencyfx" in get_applet_catalog()
+
+    def test_contains_micshield(self):
+        assert "micshield" in get_applet_catalog()
+
     def test_logs_warning_for_package_missing_init_py(
         self, tmp_path, monkeypatch, caplog
     ):
