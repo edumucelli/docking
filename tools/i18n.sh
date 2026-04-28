@@ -27,11 +27,14 @@
 # A) Developer changes or adds translatable UI strings in Python source.
 # B) Regenerate POT from source:
 #      ./tools/i18n.sh --extract
-# C) Update each PO with msgmerge (translator workflow), then translate new msgids.
+# C) Periodically refresh translation catalogs in a translation-only branch:
+#      ./tools/i18n.sh --update-translations
+#    This regenerates the POT, merges every PO, and strips obsolete entries.
+#    Then translate new msgids.
 # D) Validate catalogs:
 #      strict gate:
 #        ./tools/i18n.sh --check-catalogs --require-complete
-#      backlog-friendly validation:
+#      default/backlog-friendly validation:
 #        ./tools/i18n.sh --check-catalogs --allow-incomplete
 # E) Compile catalogs for runtime/distribution:
 #      ./tools/i18n.sh --compile
@@ -44,16 +47,16 @@
 # Local hooks:
 #   - .pre-commit-config.yaml uses:
 #       --check-pot-sync
-#       --check-catalogs --require-complete
-#   - tools/install_precommit_hook.sh installs a strict .git/hooks/pre-commit
+#       --check-catalogs --allow-incomplete
+#   - tools/install_precommit_hook.sh installs a .git/hooks/pre-commit
 #     that calls this script.
 #
 # CI:
 #   - .github/workflows/ci.yml (quality job) uses:
 #       --check-pot-sync
-#       --check-catalogs --require-complete
+#       --check-catalogs --allow-incomplete
 #       --compile
-#   - This prevents stale templates and incomplete catalogs from landing.
+#   - This prevents stale templates and malformed catalogs from landing.
 #
 # Packaging:
 #   - deb/rpm/flatpak/snap/appimage/arch/nix build scripts invoke:
@@ -68,8 +71,9 @@
 #
 # Quick examples:
 #   ./tools/i18n.sh --extract
+#   ./tools/i18n.sh --update-translations
 #   ./tools/i18n.sh --check-pot-sync
-#   ./tools/i18n.sh --check-catalogs --require-complete
+#   ./tools/i18n.sh --check-catalogs --allow-incomplete
 #   ./tools/i18n.sh --compile
 set -euo pipefail
 
@@ -83,6 +87,7 @@ Docking i18n utility
 
 Operations (you can combine multiple):
   --extract                 Regenerate POT template from Python source.
+  --update-translations     Regenerate POT, merge every PO catalog, and strip obsolete entries.
   --check-pot-sync          Fail if docking.pot is out of date.
   --check-catalogs          Validate all locale PO catalogs.
   --compile                 Compile all PO catalogs into MO binaries.
@@ -97,7 +102,7 @@ Options:
 Environment:
   I18N_REQUIRE_COMPLETE     Default mode for --check-catalogs when no explicit
                             completeness flag is provided.
-                            1 = require complete (default), 0 = allow incomplete.
+                            1 = require complete, 0 = allow incomplete (default).
 EOF
 }
 
@@ -181,10 +186,30 @@ check_pot_sync() {
   echo "[i18n] POT template is in sync with source strings."
 }
 
+update_translations() {
+  require_cmd msgmerge
+  require_cmd msgattrib
+
+  extract_pot "${POT_FILE}"
+  collect_po_files
+
+  local count=0
+  local po_file
+  for po_file in "${PO_FILES[@]}"; do
+    msgmerge --update --backup=none "${po_file}" "${POT_FILE}" >/dev/null
+    count=$((count + 1))
+  done
+
+  echo "[i18n] Updated ${count} translation catalogs from docking.pot."
+  strip_obsolete
+}
+
 check_catalogs() {
   local require_complete="$1"
   require_cmd msgfmt
-  require_cmd msgcmp
+  if [ "${require_complete}" = "1" ]; then
+    require_cmd msgcmp
+  fi
   collect_po_files
 
   if [ ! -f "${POT_FILE}" ]; then
@@ -194,13 +219,16 @@ check_catalogs() {
 
   local status=0
   local msgcmp_log
-  msgcmp_log="$(mktemp)"
+  msgcmp_log=""
+  if [ "${require_complete}" = "1" ]; then
+    msgcmp_log="$(mktemp)"
+  fi
 
   for po_file in "${PO_FILES[@]}"; do
     local rel
     rel="${po_file#${ROOT_DIR}/}"
 
-    if ! msgcmp --use-untranslated --use-fuzzy "${po_file}" "${POT_FILE}" >"${msgcmp_log}" 2>&1; then
+    if [ "${require_complete}" = "1" ] && ! msgcmp --use-untranslated --use-fuzzy "${po_file}" "${POT_FILE}" >"${msgcmp_log}" 2>&1; then
       echo "[i18n] ${rel} is out of sync with docking.pot" >&2
       sed -n '1,6p' "${msgcmp_log}" >&2
       status=1
@@ -237,12 +265,16 @@ check_catalogs() {
   done
 
   if [ "${status}" -ne 0 ]; then
-    rm -f "${msgcmp_log}"
+    if [ -n "${msgcmp_log}" ]; then
+      rm -f "${msgcmp_log}"
+    fi
     echo "[i18n] Translation catalog check failed." >&2
     exit 1
   fi
 
-  rm -f "${msgcmp_log}"
+  if [ -n "${msgcmp_log}" ]; then
+    rm -f "${msgcmp_log}"
+  fi
   echo "[i18n] Translation catalog check passed for ${#PO_FILES[@]} catalogs."
 }
 
@@ -277,17 +309,22 @@ compile_catalogs() {
 }
 
 do_extract=0
+do_update_translations=0
 do_check_pot_sync=0
 do_check_catalogs=0
 do_strip_obsolete=0
 do_compile=0
 extract_output="${POT_FILE}"
-require_complete="${I18N_REQUIRE_COMPLETE:-1}"
+require_complete="${I18N_REQUIRE_COMPLETE:-0}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --extract)
       do_extract=1
+      shift
+      ;;
+    --update-translations)
+      do_update_translations=1
       shift
       ;;
     --check-pot-sync)
@@ -334,7 +371,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "${do_extract}" -eq 0 ] && [ "${do_check_pot_sync}" -eq 0 ] && [ "${do_check_catalogs}" -eq 0 ] && [ "${do_strip_obsolete}" -eq 0 ] && [ "${do_compile}" -eq 0 ]; then
+if [ "${do_extract}" -eq 0 ] && [ "${do_update_translations}" -eq 0 ] && [ "${do_check_pot_sync}" -eq 0 ] && [ "${do_check_catalogs}" -eq 0 ] && [ "${do_strip_obsolete}" -eq 0 ] && [ "${do_compile}" -eq 0 ]; then
   echo "[i18n] No operation selected." >&2
   usage >&2
   exit 1
@@ -345,8 +382,17 @@ if [ "${do_extract}" -eq 0 ] && [ "${extract_output}" != "${POT_FILE}" ]; then
   exit 1
 fi
 
+if [ "${do_update_translations}" -eq 1 ] && [ "${extract_output}" != "${POT_FILE}" ]; then
+  echo "[i18n] --output cannot be used together with --update-translations." >&2
+  exit 1
+fi
+
 if [ "${do_extract}" -eq 1 ]; then
   extract_pot "${extract_output}"
+fi
+
+if [ "${do_update_translations}" -eq 1 ]; then
+  update_translations
 fi
 
 if [ "${do_check_pot_sync}" -eq 1 ]; then

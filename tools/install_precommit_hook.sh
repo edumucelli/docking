@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install a strict local Git pre-commit hook for this repository.
+# Install a local Git pre-commit hook for this repository.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,8 +21,8 @@ echo "Running ty..."
 .venv/bin/ty check docking/
 echo "Checking i18n template sync..."
 bash tools/i18n.sh --check-pot-sync
-echo "Checking i18n completeness..."
-bash tools/i18n.sh --check-catalogs --require-complete
+echo "Checking i18n catalogs..."
+bash tools/i18n.sh --check-catalogs --allow-incomplete
 echo "Checking package-data sync..."
 python3 tools/check_package_data_sync.py
 echo "Checking translation packaging..."

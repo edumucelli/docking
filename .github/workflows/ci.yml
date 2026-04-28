@@ -108,7 +108,7 @@ jobs:
         run: bash tools/i18n.sh --check-pot-sync
 
       - name: Validate translation catalogs
-        run: bash tools/i18n.sh --check-catalogs --require-complete
+        run: bash tools/i18n.sh --check-catalogs --allow-incomplete
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile

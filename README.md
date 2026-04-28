@@ -1019,45 +1019,40 @@ After adding or modifying translatable strings in the source code:
 ./tools/i18n.sh --extract
 ```
 
-This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be updated with `msgmerge`.
+This regenerates `docking/locale/docking.pot`. Existing `.po` files are updated separately in translation-refresh pull requests.
 
 ### When CI fails after adding `_()` strings
 
 If you add a new user-visible translatable string such as `_("...")`, CI can fail in two common ways:
 
 - `--check-pot-sync` fails because `docking/locale/docking.pot` is stale
-- `--check-catalogs --require-complete` fails because the locale catalogs were not merged or translated yet
+- `--check-catalogs --allow-incomplete` fails because an existing locale catalog has format errors
 
-If the failure is only the stale POT check, regenerate the template:
+Regenerate the template:
 
 ```bash
 ./tools/i18n.sh --extract
 ```
 
-If the branch added a new translatable string, update every `docking.po` catalog against the new template:
+You do not need to update every `docking.po` catalog or fill in every new `msgstr` on regular feature commits. That creates large translation diffs that obscure the code review. Translation catalogs are refreshed periodically in translation-only pull requests:
 
 ```bash
-while IFS= read -r -d '' po; do
-  msgmerge --update --backup=none "$po" docking/locale/docking.pot >/dev/null
-done < <(find docking/locale -type f -name 'docking.po' -print0)
+./tools/i18n.sh --update-translations
 ```
 
-Then fill in the new `msgstr` values in the `.po` files, because CI runs the strict catalog check and untranslated or fuzzy entries will still fail.
-
-To verify locally with the same gates CI uses:
+To verify locally with the same i18n gates CI uses:
 
 ```bash
 ./tools/i18n.sh --check-pot-sync
-./tools/i18n.sh --check-catalogs --require-complete
+./tools/i18n.sh --check-catalogs --allow-incomplete
 ./tools/i18n.sh --compile
 ```
 
 Practical sequence:
 
 1. `./tools/i18n.sh --extract`
-2. Run `msgmerge` for all `docking.po` files
-3. Fill in the new `msgstr` values
-4. Rerun the three checks above
+2. Rerun the three checks above
+3. Leave `.po` refreshes for a translation-only PR unless this branch is specifically about translations
 
 ### Unified i18n command
 
@@ -1070,11 +1065,14 @@ Practical sequence:
 # Verify docking.pot is in sync with source strings
 ./tools/i18n.sh --check-pot-sync
 
-# Validate locale catalogs (strict, fails on untranslated/fuzzy)
-./tools/i18n.sh --check-catalogs --require-complete
+# Update docking.pot, merge every locale catalog, and strip obsolete entries
+./tools/i18n.sh --update-translations
 
-# Validate locale catalogs but allow incomplete translation backlog
+# Validate locale catalogs while allowing incomplete translation backlog
 ./tools/i18n.sh --check-catalogs --allow-incomplete
+
+# Strict translation-maintenance validation, fails on untranslated/fuzzy
+./tools/i18n.sh --check-catalogs --require-complete
 
 # Compile all .po catalogs to .mo
 ./tools/i18n.sh --compile
@@ -1226,10 +1224,10 @@ Runs automatically on `git commit`:
 - **ruff check** -- linting (E, W, F, I rules)
 - **ty check** -- type checking
 - **i18n-pot-sync** -- ensure `docking/locale/docking.pot` matches source strings (`./tools/i18n.sh --check-pot-sync`)
-- **i18n-complete** -- fail if PO catalogs are out-of-sync, fuzzy, or untranslated (`./tools/i18n.sh --check-catalogs --require-complete`)
+- **i18n-catalogs** -- fail if existing PO catalogs have format errors, while allowing untranslated/fuzzy backlog (`./tools/i18n.sh --check-catalogs --allow-incomplete`)
 - **pytest** -- full test suite
 
-Install/update the strict local hook with:
+Install/update the local hook with:
 
 ```bash
 ./tools/install_precommit_hook.sh
