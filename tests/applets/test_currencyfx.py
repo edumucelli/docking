@@ -8,6 +8,7 @@ import urllib.parse
 from unittest.mock import MagicMock, patch
 
 import docking.applets.currencyfx.applet as currencyfx_applet_mod
+import docking.applets.currencyfx.render as currencyfx_render_mod
 import docking.applets.currencyfx.state as fx_state
 from docking.applets.currencyfx.applet import CurrencyFxApplet
 from docking.applets.currencyfx.render import render_icon
@@ -467,6 +468,24 @@ class TestCurrencyFxRender:
             fetch_failed=True,
         )
         assert pixbuf is not None
+
+    def test_quote_label_uses_shared_icon_label_for_long_codes(self, monkeypatch):
+        labels: list[tuple[str, float | None]] = []
+
+        def draw_label(*, cr, text: str, size: int, max_width=None) -> None:
+            labels.append((text, max_width))
+
+        monkeypatch.setattr(currencyfx_render_mod, "draw_icon_label", draw_label)
+
+        pixbuf = render_icon(
+            size=48,
+            snapshot=None,
+            base="EUR",
+            quote="LONGCODE",
+        )
+
+        assert pixbuf is not None
+        assert labels == [("LONGCODE", 48 * 0.78)]
 
 
 class TestCurrencyFxApplet:

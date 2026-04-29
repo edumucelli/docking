@@ -196,31 +196,106 @@ def load_catalog_icon(*, applet_id: str, size: int) -> GdkPixbuf.Pixbuf | None:
         return None
 
 
-def draw_icon_label(cr: cairo.Context, text: str, size: int) -> None:
+RGBA = tuple[float, float, float, float]
+
+_ICON_LABEL_FONT_SCALE = 0.22
+_ICON_LABEL_MIN_FONT_SCALE = 0.12
+_ICON_LABEL_MAX_WIDTH_SCALE = 0.92
+_ICON_LABEL_OUTLINE_SCALE = 0.22
+
+
+def draw_icon_label(
+    cr: cairo.Context,
+    text: str,
+    size: int,
+    *,
+    max_width: float | None = None,
+    fill_rgba: RGBA = (1, 1, 1, 1),
+    outline_rgba: RGBA = (0, 0, 0, 0.8),
+) -> None:
     """Draw outlined text at the bottom center of a size x size icon.
 
     Shared by weather (temperature), pomodoro (countdown), and hydration
     (countdown) for a uniform appearance.
     """
-    font_size = max(1, int(size * 0.22))
-    layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
-    layout.set_text(text, -1)
-    _, logical = layout.get_pixel_extents()
+    if not text:
+        return
 
-    tx = (size - logical.width) / 2 - logical.x
-    ty = size - logical.height - max(1, size * 0.02) - logical.y
+    target_width = max(1.0, float(max_width or size * _ICON_LABEL_MAX_WIDTH_SCALE))
+    initial_font_size = max(1, int(size * _ICON_LABEL_FONT_SCALE))
+    min_font_size = max(
+        1, min(initial_font_size, int(size * _ICON_LABEL_MIN_FONT_SCALE))
+    )
+    layout, logical, final_font_size = _fit_icon_label_layout(
+        cr=cr,
+        text=text,
+        max_width=target_width,
+        initial_font_size=initial_font_size,
+        min_font_size=min_font_size,
+    )
+
+    tx, ty = _icon_label_origin(
+        size=size,
+        logical=logical,
+        bottom_padding=max(1, size * 0.02),
+    )
 
     cr.save()
     cr.move_to(tx, ty)
     PangoCairo.layout_path(cr, layout)
-    cr.set_source_rgba(0, 0, 0, 0.8)
-    cr.set_line_width(max(2.0, size * 0.05))
+    cr.set_source_rgba(*outline_rgba)
+    cr.set_line_width(_icon_label_outline_width(font_size=final_font_size))
     cr.set_line_join(cairo.LINE_JOIN_ROUND)
     cr.stroke_preserve()
-    cr.set_source_rgba(1, 1, 1, 1)
+    cr.set_source_rgba(*fill_rgba)
     cr.fill()
     cr.restore()
+
+
+def _fit_icon_label_layout(
+    *,
+    cr: cairo.Context,
+    text: str,
+    max_width: float,
+    initial_font_size: int,
+    min_font_size: int,
+) -> tuple[Pango.Layout, Pango.Rectangle, int]:
+    """Build a Pango layout, shrinking the font until it fits max_width."""
+    for font_size in range(initial_font_size, min_font_size - 1, -1):
+        layout = _icon_label_layout(cr=cr, text=text, font_size=font_size)
+        _, logical = layout.get_pixel_extents()
+        if logical.width <= max_width or font_size == min_font_size:
+            return layout, logical, font_size
+    layout = _icon_label_layout(cr=cr, text=text, font_size=min_font_size)
+    _, logical = layout.get_pixel_extents()
+    return layout, logical, min_font_size
+
+
+def _icon_label_layout(
+    *,
+    cr: cairo.Context,
+    text: str,
+    font_size: int,
+) -> Pango.Layout:
+    layout = PangoCairo.create_layout(cr)
+    layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
+    layout.set_text(text, -1)
+    return layout
+
+
+def _icon_label_origin(
+    *,
+    size: int,
+    logical: Pango.Rectangle,
+    bottom_padding: float,
+) -> tuple[float, float]:
+    tx = (size - logical.width) / 2 - logical.x
+    ty = size - logical.height - bottom_padding - logical.y
+    return tx, ty
+
+
+def _icon_label_outline_width(*, font_size: int) -> float:
+    return max(1.0, font_size * _ICON_LABEL_OUTLINE_SCALE)
 
 
 class Applet(ABC):

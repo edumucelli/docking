@@ -1,8 +1,17 @@
 """Tests for the base applet lifecycle contract."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from docking.applets.base import Applet
+import cairo
+
+from docking.applets.base import (
+    Applet,
+    _fit_icon_label_layout,
+    _icon_label_origin,
+    _icon_label_outline_width,
+    draw_icon_label,
+)
 
 
 class _DeferredInitApplet(Applet):
@@ -91,3 +100,70 @@ class TestAppletBaseHelpers:
         assert applet.item.name == "Rendered 1"
         assert applet.item.icon is not None
         notify.assert_called_once_with()
+
+
+class TestDrawIconLabel:
+    def test_long_label_shrinks_to_fit_max_width(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+
+        _layout, logical, font_size = _fit_icon_label_layout(
+            cr=cr,
+            text="1234567890MB",
+            max_width=34.0,
+            initial_font_size=12,
+            min_font_size=4,
+        )
+
+        assert font_size < 12
+        assert logical.width <= 34.0 or font_size == 4
+
+    def test_short_label_keeps_initial_font_size(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+
+        _layout, logical, font_size = _fit_icon_label_layout(
+            cr=cr,
+            text="42",
+            max_width=44.0,
+            initial_font_size=12,
+            min_font_size=4,
+        )
+
+        assert font_size == 12
+        assert logical.width <= 44.0
+
+    def test_origin_keeps_bottom_edge_stable_for_different_heights(self):
+        first = SimpleNamespace(x=0, y=1, width=24, height=9)
+        second = SimpleNamespace(x=0, y=3, width=32, height=6)
+
+        _first_x, first_y = _icon_label_origin(
+            size=48,
+            logical=first,
+            bottom_padding=2.0,
+        )
+        _second_x, second_y = _icon_label_origin(
+            size=48,
+            logical=second,
+            bottom_padding=2.0,
+        )
+
+        assert first_y + first.y + first.height == 46.0
+        assert second_y + second.y + second.height == 46.0
+
+    def test_outline_width_tracks_final_font_size(self):
+        assert _icon_label_outline_width(font_size=12) == 2.64
+        assert _icon_label_outline_width(font_size=4) == 1.0
+
+    def test_draw_icon_label_accepts_optional_width_and_tones(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+
+        draw_icon_label(
+            cr=cr,
+            text="1234567890MB",
+            size=48,
+            max_width=34.0,
+            fill_rgba=(0.9, 1.0, 0.9, 1.0),
+            outline_rgba=(0.0, 0.0, 0.0, 0.75),
+        )
