@@ -36,13 +36,21 @@ class BatteryApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer_id: int = 0
+        self._show_percent = False
+        if config:
+            prefs = config.applet_prefs.get(meta.id, {})
+            self._show_percent = bool(prefs.get("show_percent", False))
         self._state: BatteryState | None = read_battery()
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load battery theme icon matching current state."""
-        return render_icon(size=size, state=self._state)
+        return render_icon(
+            size=size,
+            state=self._state,
+            show_percent=self._show_percent,
+        )
 
     def refresh_tooltip(self) -> None:
         self.item.name = tooltip_text(state=self._state)
@@ -60,12 +68,23 @@ class BatteryApplet(Applet):
         super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
+        items: list[Gtk.MenuItem] = []
+        show = Gtk.CheckMenuItem(label=_("Show Percent"))
+        show.set_active(self._show_percent)
+        show.connect("toggled", self._on_toggle_percent)
+        items.append(show)
+
         cmd = power_settings_command()
-        if cmd is None:
-            return []
-        power_settings = Gtk.MenuItem(label=_("Power Settings"))
-        power_settings.connect("activate", lambda _widget: open_power_settings())
-        return [power_settings]
+        if cmd is not None:
+            power_settings = Gtk.MenuItem(label=_("Power Settings"))
+            power_settings.connect("activate", lambda _widget: open_power_settings())
+            items.append(power_settings)
+        return items
+
+    def _on_toggle_percent(self, widget: Gtk.CheckMenuItem) -> None:
+        self._show_percent = widget.get_active()
+        self.save_prefs(prefs={"show_percent": self._show_percent})
+        self.present()
 
     def _tick(self) -> bool:
         """Re-read sysfs and refresh icon."""

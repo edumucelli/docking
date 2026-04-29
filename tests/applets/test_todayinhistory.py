@@ -124,7 +124,7 @@ class TestTodayInHistoryApplet:
 
         assert "Wikipedia" in labels
         assert "Next Event" in labels
-        assert "Refresh from Web" in labels
+        assert "Refresh Now" in labels
         assert "Open Article" in labels
 
     def test_menu_omits_open_article_without_url(self):

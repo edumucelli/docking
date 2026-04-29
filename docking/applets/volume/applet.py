@@ -50,8 +50,12 @@ class VolumeApplet(Applet):
             )
         self._volume = 0
         self._muted = False
+        self._show_level = False
         self._timer_id: int = 0
         self._worker = BackgroundWorker(logger=log)
+        if config:
+            prefs = config.applet_prefs.get(meta.id, {})
+            self._show_level = bool(prefs.get("show_level", False))
         self._poll()
         super().__init__(icon_size, config)
         self.present()
@@ -66,7 +70,12 @@ class VolumeApplet(Applet):
         self._update_tooltip()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        return create_volume_icon(size=size, volume=self._volume, muted=self._muted)
+        return create_volume_icon(
+            size=size,
+            volume=self._volume,
+            muted=self._muted,
+            show_level=self._show_level,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)
@@ -100,12 +109,23 @@ class VolumeApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
+        items: list[Gtk.MenuItem] = []
+        show = Gtk.CheckMenuItem(label=_("Show Level"))
+        show.set_active(self._show_level)
+        show.connect("toggled", self._on_toggle_level)
+        items.append(show)
+
         cmd = volume_settings_command()
-        if cmd is None:
-            return []
-        volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
-        volume_settings.connect("activate", lambda _widget: open_volume_settings())
-        return [volume_settings]
+        if cmd is not None:
+            volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
+            volume_settings.connect("activate", lambda _widget: open_volume_settings())
+            items.append(volume_settings)
+        return items
+
+    def _on_toggle_level(self, widget: Gtk.CheckMenuItem) -> None:
+        self._show_level = widget.get_active()
+        self.save_prefs(prefs={"show_level": self._show_level})
+        self.present()
 
     def _poll(self) -> None:
         """Read current volume state from backend."""

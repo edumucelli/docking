@@ -123,7 +123,7 @@ class MoonApplet(Applet):
         show.connect("toggled", self._on_toggle_phase)
         items.append(show)
 
-        refresh = Gtk.MenuItem(label=_("Refresh"))
+        refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _: self._fetch_async())
         items.append(refresh)
 

@@ -6,10 +6,14 @@ import docking.applets.systemmonitor.applet as systemmonitor_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
 from docking.applets.systemmonitor.state import (
     CpuSample,
+    SystemMonitorPrefs,
+    TemperatureUnit,
     cpu_hue_rgb,
     cpu_percent,
     parse_proc_meminfo,
     parse_proc_stat,
+    prefs_from_mapping,
+    prefs_payload,
     tooltip_text,
 )
 from docking.applets.systemmonitor.temperature import (
@@ -168,6 +172,16 @@ class TestTooltipText:
         text = tooltip_text(cpu=0.423, mem=0.671, temperature_c=58.4)
         assert text == "CPU: 42.3% | Mem: 67.1% | Temp: 58.4°C"
 
+    def test_with_temperature_in_fahrenheit(self):
+        text = tooltip_text(
+            cpu=0.423,
+            mem=0.671,
+            temperature_c=58.4,
+            temperature_unit=TemperatureUnit.FAHRENHEIT,
+        )
+
+        assert text == "CPU: 42.3% | Mem: 67.1% | Temp: 137.1°F"
+
     def test_with_disks(self):
         disks = [("/", 0.45), ("/home", 0.72)]
         text = tooltip_text(cpu=0.1, mem=0.5, disks=disks)
@@ -181,6 +195,25 @@ class TestTooltipText:
         assert "Temp: 55.0" in text
         assert "Disk:" in text
         assert "/: 80%" in text
+
+
+class TestSystemMonitorPrefs:
+    def test_defaults(self):
+        assert prefs_from_mapping(None) == SystemMonitorPrefs()
+
+    def test_loads_temperature_unit(self):
+        prefs = prefs_from_mapping(
+            {"show_disk": False, "temperature_unit": "fahrenheit"}
+        )
+
+        assert prefs.show_disk is False
+        assert prefs.temperature_unit == TemperatureUnit.FAHRENHEIT
+
+    def test_payload(self):
+        assert prefs_payload(
+            show_disk=False,
+            temperature_unit=TemperatureUnit.FAHRENHEIT,
+        ) == {"show_disk": False, "temperature_unit": "fahrenheit"}
 
 
 class TestCpuHueRgb:
@@ -210,8 +243,8 @@ class TestSystemMonitorRendering:
     def test_menu_has_show_disk(self):
         applet = SystemMonitorApplet(48)
         items = applet.get_menu_items()
-        assert len(items) == 1
         assert items[0].get_label() == "Show Disk Usage"
+        assert items[1].get_label() == "Temperature Unit"
 
     def test_tooltip_format(self):
         applet = SystemMonitorApplet(48)
@@ -222,6 +255,34 @@ class TestSystemMonitorRendering:
         assert "CPU: 42.3%" in applet.item.name
         assert "Mem: 67.1%" in applet.item.name
         assert "Temp: 58.4°C" in applet.item.name
+
+    def test_tooltip_uses_selected_temperature_unit(self):
+        applet = SystemMonitorApplet(48)
+        applet._cpu = 0.423
+        applet._mem = 0.671
+        applet._temperature_c = 58.4
+        applet._temperature_unit = TemperatureUnit.FAHRENHEIT
+        applet.refresh_tooltip()
+
+        assert "Temp: 137.1°F" in applet.item.name
+
+    def test_saves_temperature_unit_pref(self):
+        from docking.core.config import Config
+
+        config = Config(applet_prefs={})
+        applet = SystemMonitorApplet(48, config=config)
+        item = systemmonitor_mod.Gtk.RadioMenuItem(label="Fahrenheit")
+        item.set_active(True)
+
+        applet._on_temperature_unit_selected(
+            widget=item,
+            temperature_unit=TemperatureUnit.FAHRENHEIT,
+        )
+
+        assert config.applet_prefs["systemmonitor"] == {
+            "show_disk": True,
+            "temperature_unit": "fahrenheit",
+        }
 
     def test_icon_has_visible_content(self):
         applet = SystemMonitorApplet(48)

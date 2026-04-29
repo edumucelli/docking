@@ -12,6 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import radio_menu_items
 from docking.applets.stretchcoach import meta
 from docking.applets.stretchcoach.render import render_icon
 from docking.applets.stretchcoach.state import (
@@ -93,11 +94,17 @@ class StretchCoachApplet(Applet):
 
         items.append(Gtk.SeparatorMenuItem())
 
-        for mins in INTERVAL_PRESETS:
-            menu_item = Gtk.CheckMenuItem(label=_("{mins} min").format(mins=mins))
-            menu_item.set_active(self._state.interval_min == mins)
-            menu_item.connect("toggled", lambda _w, m=mins: self._set_interval(m))
-            items.append(menu_item)
+        items.extend(
+            radio_menu_items(
+                choices=tuple(
+                    (_("{mins} min").format(mins=mins), mins)
+                    for mins in INTERVAL_PRESETS
+                ),
+                active_value=self._state.interval_min,
+                on_selected=lambda _widget, value: self._set_interval(value),
+                gtk=Gtk,
+            )
+        )
 
         return items
 
