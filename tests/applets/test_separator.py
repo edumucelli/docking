@@ -60,6 +60,11 @@ class FakeCheckMenuItem(FakeMenuItem):
         return self._active
 
 
+class FakeRadioMenuItem(FakeCheckMenuItem):
+    def join_group(self, _first) -> None:
+        return
+
+
 class FakeSeparatorMenuItem(FakeMenuItem):
     pass
 
@@ -84,6 +89,7 @@ class TestSeparatorApplet:
             Menu=FakeMenu,
             MenuItem=FakeMenuItem,
             CheckMenuItem=FakeCheckMenuItem,
+            RadioMenuItem=FakeRadioMenuItem,
             SeparatorMenuItem=FakeSeparatorMenuItem,
         )
         monkeypatch.setattr(separator_applet_mod, "Gtk", fake_gtk)

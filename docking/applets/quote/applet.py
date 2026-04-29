@@ -14,6 +14,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import radio_menu_items
 from docking.applets.quote import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -92,7 +93,7 @@ class QuoteApplet(Applet):
         copy_item.connect("activate", lambda _: self._copy_current_quote())
         items.append(copy_item)
 
-        refresh_item = Gtk.MenuItem(label=_("Refresh from Web"))
+        refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _: self._refresh_from_web())
         items.append(refresh_item)
 
@@ -102,16 +103,19 @@ class QuoteApplet(Applet):
         source_title.set_sensitive(False)
         items.append(source_title)
 
-        group: Gtk.RadioMenuItem | None = None
-        for source_id, label in SOURCE_LABELS.items():
-            radio = Gtk.RadioMenuItem(label=label)
-            if group:
-                radio.join_group(group)
-            else:
-                group = radio
-            radio.set_active(source_id == self._source)
-            radio.connect("toggled", self._on_source_toggled, source_id)
-            items.append(radio)
+        items.extend(
+            radio_menu_items(
+                choices=tuple(
+                    (label, source_id) for source_id, label in SOURCE_LABELS.items()
+                ),
+                active_value=self._source,
+                on_selected=lambda widget, value: self._on_source_toggled(
+                    widget,
+                    value,
+                ),
+                gtk=Gtk,
+            )
+        )
 
         return items
 

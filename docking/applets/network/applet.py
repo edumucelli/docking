@@ -15,6 +15,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import NM, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import radio_menu_items
 from docking.applets.network import meta
 from docking.applets.network.render import create_icon
 from docking.applets.network.state import (
@@ -204,18 +205,18 @@ class NetworkApplet(Applet):
 
             items.append(Gtk.SeparatorMenuItem())
 
-        for label, mode in [
-            ("Show Download", "download"),
-            ("Show Upload", "upload"),
-            ("Hide Speeds", "none"),
-        ]:
-            mi = Gtk.CheckMenuItem(label=label)
-            mi.set_active(self._speed_overlay == mode)
-            mi.connect(
-                "toggled",
-                lambda _w, m=mode: self._set_speed_overlay(mode=m),
+        items.extend(
+            radio_menu_items(
+                choices=(
+                    (_("Show Download"), "download"),
+                    (_("Show Upload"), "upload"),
+                    (_("Hide Speeds"), "none"),
+                ),
+                active_value=self._speed_overlay,
+                on_selected=lambda _widget, value: self._set_speed_overlay(mode=value),
+                gtk=Gtk,
             )
-            items.append(mi)
+        )
 
         return items
 

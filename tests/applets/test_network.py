@@ -72,6 +72,11 @@ class _FakeCheckMenuItem(_FakeMenuItem):
         return self._active
 
 
+class _FakeRadioMenuItem(_FakeCheckMenuItem):
+    def join_group(self, _first) -> None:
+        return
+
+
 class _FakeSeparatorMenuItem(_FakeMenuItem):
     pass
 
@@ -214,6 +219,7 @@ class TestNetworkApplet:
             Menu=_FakeMenu,
             MenuItem=_FakeMenuItem,
             CheckMenuItem=_FakeCheckMenuItem,
+            RadioMenuItem=_FakeRadioMenuItem,
             SeparatorMenuItem=_FakeSeparatorMenuItem,
         )
         monkeypatch.setattr(network_applet_mod, "Gtk", fake_gtk)

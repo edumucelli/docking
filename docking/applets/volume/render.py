@@ -11,6 +11,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
+from docking.applets.base import draw_icon_label
+
 from .state import _volume_icon_name
 
 
@@ -95,7 +97,11 @@ def _draw_mute_x(
 
 
 def create_volume_icon(
-    *, size: int, volume: int, muted: bool
+    *,
+    size: int,
+    volume: int,
+    muted: bool,
+    show_level: bool = False,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render speaker icon with waves/mute marker for volume state."""
     icon = _volume_icon_name(volume=volume, muted=muted)
@@ -113,5 +119,8 @@ def create_volume_icon(
         _draw_waves(cr=cr, size=size, arcs=2)
     else:
         _draw_waves(cr=cr, size=size, arcs=3)
+
+    if show_level:
+        draw_icon_label(cr=cr, text=f"{volume}%", size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

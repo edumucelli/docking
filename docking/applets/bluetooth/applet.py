@@ -23,6 +23,7 @@ from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.bluetooth import meta
+from docking.applets.menu import radio_submenu
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -306,23 +307,16 @@ class BluetoothApplet(Applet):
         return item
 
     def _build_adapter_submenu(self) -> Gtk.MenuItem:
-        item = Gtk.MenuItem(label=_("Adapter"))
-        submenu = Gtk.Menu()
-        first: Gtk.RadioMenuItem | None = None
-
-        for adapter in self._state.adapters:
-            label = adapter.alias or adapter.name
-            radio = Gtk.RadioMenuItem(label=label)
-            if first is None:
-                first = radio
-            else:
-                radio.join_group(first)
-            radio.set_active(adapter.path == self._active_adapter_path)
-            radio.connect("toggled", self._on_select_adapter, adapter.path)
-            submenu.append(radio)
-
-        item.set_submenu(submenu)
-        return item
+        return radio_submenu(
+            label=_("Adapter"),
+            choices=tuple(
+                (adapter.alias or adapter.name, adapter.path)
+                for adapter in self._state.adapters
+            ),
+            active_value=self._active_adapter_path,
+            on_selected=lambda widget, value: self._on_select_adapter(widget, value),
+            gtk=Gtk,
+        )
 
     def _build_devices_sections(self, *, adapter_path: str) -> list[Gtk.MenuItem]:
         devices = [d for d in self._state.devices if d.adapter_path == adapter_path]

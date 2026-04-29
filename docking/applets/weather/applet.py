@@ -13,6 +13,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import radio_submenu
 from docking.applets.weather import meta
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
@@ -26,12 +27,16 @@ from docking.applets.weather.cities import search_cities
 from docking.applets.weather.render import create_icon
 from docking.applets.weather.state import (
     CityPref,
+    TemperatureUnit,
     build_tooltip,
     cached_cities,
     cycle_active_index,
+    format_temperature,
+    format_temperature_range,
     menu_header_label,
     prefs_from_mapping,
     prefs_payload,
+    temperature_unit_label,
 )
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -73,6 +78,7 @@ class WeatherApplet(Applet):
         self._cities: list[CityPref] = list(prefs.cities)
         self._active_index: int = prefs.active_index
         self._show_temperature = prefs.show_temperature
+        self._temperature_unit = prefs.temperature_unit
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -88,6 +94,7 @@ class WeatherApplet(Applet):
             size=size,
             weather=self._weather,
             show_temperature=self._show_temperature,
+            temperature_unit=self._temperature_unit,
         )
 
     def refresh_tooltip(self) -> None:
@@ -122,6 +129,7 @@ class WeatherApplet(Applet):
                 label=menu_header_label(
                     city_display=active.city_display,
                     weather=self._weather,
+                    temperature_unit=self._temperature_unit,
                 )
             )
             header.set_sensitive(False)
@@ -131,6 +139,22 @@ class WeatherApplet(Applet):
         show_temp.set_active(self._show_temperature)
         show_temp.connect("toggled", self._on_toggle_temperature)
         items.append(show_temp)
+
+        items.append(
+            radio_submenu(
+                label=_("Temperature Unit"),
+                choices=tuple(
+                    (temperature_unit_label(unit), unit)
+                    for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
+                ),
+                active_value=self._temperature_unit,
+                on_selected=lambda widget, value: self._on_temperature_unit_selected(
+                    widget=widget,
+                    temperature_unit=value,
+                ),
+                gtk=Gtk,
+            )
+        )
 
         if active and len(self._cities) > 1:
             remove = Gtk.MenuItem(
@@ -161,6 +185,20 @@ class WeatherApplet(Applet):
 
     def _on_toggle_temperature(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_temperature = widget.get_active()
+        self._save_prefs()
+        self.present()
+
+    def _on_temperature_unit_selected(
+        self,
+        *,
+        widget: Gtk.RadioMenuItem,
+        temperature_unit: TemperatureUnit,
+    ) -> None:
+        if not widget.get_active():
+            return
+        if temperature_unit == self._temperature_unit:
+            return
+        self._temperature_unit = temperature_unit
         self._save_prefs()
         self.present()
 
@@ -274,6 +312,7 @@ class WeatherApplet(Applet):
                 cities=tuple(self._cities),
                 active_index=self._active_index,
                 show_temperature=self._show_temperature,
+                temperature_unit=self._temperature_unit,
             )
         )
 
@@ -340,6 +379,7 @@ class WeatherApplet(Applet):
             city_display=active.city_display if active else "",
             weather=self._weather,
             air_quality=self._air_quality,
+            temperature_unit=self._temperature_unit,
         )
 
     def _build_tooltip_widget(self) -> Gtk.Box:
@@ -361,8 +401,12 @@ class WeatherApplet(Applet):
         box.pack_start(city, False, False, 0)
 
         current = Gtk.Label(
-            label=_("{temp}°C, {desc}").format(
-                temp=f"{weather.temperature:.0f}", desc=weather.description
+            label=_("{temp}, {desc}").format(
+                temp=format_temperature(
+                    weather.temperature,
+                    temperature_unit=self._temperature_unit,
+                ),
+                desc=weather.description,
             )
         )
         current.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.9))
@@ -382,10 +426,13 @@ class WeatherApplet(Applet):
                 Gtk.IconSize.LARGE_TOOLBAR,
             )
             label = Gtk.Label(
-                label=_("{date}: {min_temp}/{max_temp}°C").format(
+                label=_("{date}: {temp_range}").format(
                     date=day.date,
-                    min_temp=f"{day.temp_min:.0f}",
-                    max_temp=f"{day.temp_max:.0f}",
+                    temp_range=format_temperature_range(
+                        low_celsius=day.temp_min,
+                        high_celsius=day.temp_max,
+                        temperature_unit=self._temperature_unit,
+                    ),
                 )
             )
             label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))

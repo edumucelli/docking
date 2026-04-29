@@ -1,6 +1,6 @@
 """Tests for the battery applet -- sysfs parsing, launchers, and icon mapping."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -15,6 +15,7 @@ from docking.applets.battery.state import (
     resolve_battery_icon,
     tooltip_text,
 )
+from docking.core.config import Config
 
 
 class TestResolveBatteryIcon:
@@ -241,6 +242,21 @@ class TestBatteryAppletRendering:
         pixbuf = applet.create_icon(48)
         assert pixbuf is not None
 
+    def test_renders_with_percent_label_enabled(self):
+        state = BatteryState(
+            icon_name="battery-good",
+            capacity=72,
+            status="Discharging",
+            seconds_remaining=None,
+        )
+        applet = BatteryApplet(48, config=Config(applet_prefs={"battery": {}}))
+        applet._state = state
+        applet._show_percent = True
+
+        pixbuf = applet.create_icon(48)
+
+        assert pixbuf is not None
+
     def test_menu_shows_power_settings_when_available(self, monkeypatch):
         opened: list[str] = []
         monkeypatch.setattr(
@@ -257,16 +273,38 @@ class TestBatteryAppletRendering:
         applet = BatteryApplet(48)
         items = applet.get_menu_items()
 
-        assert [item.get_label() for item in items] == ["Power Settings"]
-        callback, args = items[0]._signals["activate"][0]
+        assert [item.get_label() for item in items] == [
+            "Show Percent",
+            "Power Settings",
+        ]
+        callback, args = items[1]._signals["activate"][0]
         callback(None, *args)
         assert opened == ["opened"]
 
-    def test_menu_is_empty_when_no_power_settings_tool_is_available(self, monkeypatch):
+    def test_menu_keeps_show_percent_without_power_settings_tool(self, monkeypatch):
         monkeypatch.setattr(battery_applet_mod, "power_settings_command", lambda: None)
 
         applet = BatteryApplet(48)
-        assert applet.get_menu_items() == []
+        assert [item.get_label() for item in applet.get_menu_items()] == [
+            "Show Percent"
+        ]
+
+    def test_loads_and_saves_show_percent_pref(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(applet_prefs={"battery": {"show_percent": True}})
+        config.save(path)
+        config = Config.load(path)
+        applet = BatteryApplet(48, config=config)
+
+        assert applet._show_percent is True
+
+        applet.present = MagicMock()
+        widget = MagicMock()
+        widget.get_active.return_value = False
+        applet._on_toggle_percent(widget)
+
+        assert config.applet_prefs["battery"] == {"show_percent": False}
+        applet.present.assert_called_once()
 
     def test_tooltip_shows_percentage(self, tmp_path, monkeypatch):
         bat = tmp_path / "BAT0"

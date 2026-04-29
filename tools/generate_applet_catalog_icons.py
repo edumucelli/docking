@@ -56,6 +56,8 @@ from docking.applets.calculator.render import create_icon as render_calculator
 from docking.applets.calendar.render import render_icon as render_calendar
 from docking.applets.calendar.state import snapshot_from
 from docking.applets.camshield.render import render_icon as render_camshield
+from docking.applets.capslock.render import render_icon as render_capslock
+from docking.applets.capslock.state import LockKeyState
 from docking.applets.certwatch.render import render_icon as render_certwatch
 from docking.applets.certwatch.state import CertStatus
 from docking.applets.clippy.render import create_icon as render_clippy
@@ -66,6 +68,10 @@ from docking.applets.currencyfx.state import FxPoint, FxSnapshot
 from docking.applets.deskpresence.render import render_icon as render_deskpresence
 from docking.applets.deskpresence.state import Presence as DeskpresencePresence
 from docking.applets.desktop.render import create_icon as render_desktop
+from docking.applets.dragshare.render import render_icon as render_dragshare
+from docking.applets.dragshare.state import DragshareStatus
+from docking.applets.hackernews.render import render_icon as render_hackernews
+from docking.applets.hackernews.state import HackerNewsStory
 from docking.applets.hydration.render import render_icon as render_hydration
 from docking.applets.hydration.state import HydrationState
 from docking.applets.keyboardlayout.render import render_icon as render_keyboardlayout
@@ -90,6 +96,8 @@ from docking.applets.speedtest.render import render_icon as render_speedtest
 from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
 from docking.applets.stretchcoach.state import StretchCoachState
 from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
+from docking.applets.thermals.render import render_icon as render_thermals
+from docking.applets.thermals.state import FanReading, ThermalReading, ThermalSnapshot
 from docking.applets.todayinhistory.render import render_icon as render_todayinhistory
 from docking.applets.trash.render import create_trash_icon
 from docking.applets.trivia.render import draw_trivia_icon
@@ -222,6 +230,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             available=True,
             active=True,
         ),
+        AppletId.CAPSLOCK: render_capslock(
+            size=size,
+            state=LockKeyState(available=True, caps_lock=True, num_lock=False),
+        ),
         AppletId.CERTWATCH: render_certwatch(
             size=size,
             status=CertStatus.OK,
@@ -257,6 +269,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             at_desk_seconds=3 * 3600 + 24 * 60,
         ),
         AppletId.DESKTOP: render_desktop(size=size),
+        AppletId.DRAGSHARE: render_dragshare(
+            size=size,
+            status=DragshareStatus.IDLE,
+        ),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
         AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
         AppletId.MICSHIELD: render_micshield(
@@ -281,6 +297,21 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             rx_speed=0.0,
             tx_speed=0.0,
             speed_overlay="none",
+        ),
+        AppletId.HACKERNEWS: render_hackernews(
+            size=size,
+            story=HackerNewsStory(
+                id=123456,
+                title="SQLite on the edge",
+                url="https://example.test/sqlite",
+                hn_url="https://news.ycombinator.com/item?id=123456",
+                score=428,
+                comments=63,
+                by="docking",
+                time=1_775_000_000,
+            ),
+            index=0,
+            count=20,
         ),
         AppletId.NOTIFICATIONS: create_notifications_icon(
             size=size,
@@ -309,6 +340,18 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.STRETCHCOACH: render_stretchcoach(
             size=size,
             state=StretchCoachState(),
+        ),
+        AppletId.THERMALS: render_thermals(
+            size=size,
+            snapshot=ThermalSnapshot(
+                available=True,
+                hottest=ThermalReading(
+                    chip="coretemp",
+                    label="Package",
+                    celsius=72.4,
+                ),
+                fan=FanReading(chip="thinkpad", label="fan1", rpm=2987),
+            ),
         ),
         AppletId.TODAYINHISTORY: render_todayinhistory(size=size),
         AppletId.TRIVIA: _trivia_pixbuf(size=size),

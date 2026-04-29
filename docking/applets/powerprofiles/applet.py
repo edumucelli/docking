@@ -27,6 +27,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import radio_menu_items
 from docking.applets.powerprofiles import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -128,17 +129,20 @@ class PowerProfilesApplet(Applet):
         title.set_sensitive(False)
         items.append(title)
 
-        group_head: Gtk.RadioMenuItem | None = None
-        for profile in self._ordered_profiles():
-            label = profile_label(profile)
-            item = Gtk.RadioMenuItem(label=label)
-            if group_head is None:
-                group_head = item
-            else:
-                item.join_group(group_head)
-            item.set_active(profile == self._state.active_profile)
-            item.connect("toggled", self._on_profile_toggled, profile)
-            items.append(item)
+        items.extend(
+            radio_menu_items(
+                choices=tuple(
+                    (profile_label(profile), profile)
+                    for profile in self._ordered_profiles()
+                ),
+                active_value=self._state.active_profile,
+                on_selected=lambda widget, value: self._on_profile_toggled(
+                    widget,
+                    value,
+                ),
+                gtk=Gtk,
+            )
+        )
 
         if self._state.degraded_reason:
             items.append(Gtk.SeparatorMenuItem())

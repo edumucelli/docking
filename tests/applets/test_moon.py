@@ -242,7 +242,7 @@ class TestMoonApplet:
         applet = MoonApplet(48)
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Show Phase Name" in labels
-        assert "Refresh" in labels
+        assert "Refresh Now" in labels
 
     def test_icon_renders_with_data(self):
         applet = MoonApplet(48)
