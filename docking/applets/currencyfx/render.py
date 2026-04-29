@@ -234,10 +234,7 @@ def _draw_currency_label(
 
 def _draw_target_label(*, cr: cairo.Context, size: int, text: str) -> None:
     """Draw the quote code with the same prominence as other applet labels."""
-    if len(text) <= 4:
-        draw_icon_label(cr=cr, text=text, size=size)
-        return
-    _draw_currency_label(cr=cr, size=size, text=text, y=size * 0.87)
+    draw_icon_label(cr=cr, text=text, size=size, max_width=size * 0.78)
 
 
 def _draw_empty_state(*, cr: cairo.Context, size: int, failed: bool) -> None:
