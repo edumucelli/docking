@@ -141,7 +141,7 @@ class TestTriviaApplet:
         assert "Open Trivia DB" in labels
         assert "Mars" in labels
         assert "Next Trivia" in labels
-        assert "Refresh from Web" in labels
+        assert "Refresh Now" in labels
 
     def test_select_answer_updates_current_entry(self):
         applet = TriviaApplet(48)

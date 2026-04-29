@@ -28,6 +28,7 @@ from docking.applets.deskpresence.state import (
     prefs_payload,
     state_from_prefs,
 )
+from docking.applets.menu import radio_submenu
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -89,18 +90,19 @@ class DeskpresenceApplet(Applet):
         items.append(header)
         items.append(Gtk.SeparatorMenuItem())
 
-        threshold_root = Gtk.MenuItem(label=_("Idle Threshold"))
-        threshold_menu = Gtk.Menu()
-        for preset_s in _IDLE_THRESHOLD_PRESETS_S:
-            item = Gtk.CheckMenuItem(label=_threshold_label(preset_s))
-            item.set_active(abs(self._state.idle_threshold_s - preset_s) < 0.5)
-            item.connect(
-                "activate",
-                lambda _w, v=preset_s: self._set_threshold(seconds=v),
+        items.append(
+            radio_submenu(
+                label=_("Idle Threshold"),
+                choices=tuple(
+                    (_threshold_label(preset_s), preset_s)
+                    for preset_s in _IDLE_THRESHOLD_PRESETS_S
+                ),
+                active_value=self._state.idle_threshold_s,
+                is_active=lambda value: abs(self._state.idle_threshold_s - value) < 0.5,
+                on_selected=lambda _widget, value: self._set_threshold(seconds=value),
+                gtk=Gtk,
             )
-            threshold_menu.append(item)
-        threshold_root.set_submenu(threshold_menu)
-        items.append(threshold_root)
+        )
 
         reset = Gtk.MenuItem(label=_("Reset Today"))
         reset.connect("activate", lambda _w: self._reset_today())

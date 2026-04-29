@@ -99,7 +99,7 @@ class TodayInHistoryApplet(Applet):
         next_item.connect("activate", lambda _w: self.on_clicked())
         items.append(next_item)
 
-        refresh_item = Gtk.MenuItem(label=_("Refresh from Web"))
+        refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _w: self._refresh_from_web())
         items.append(refresh_item)
 

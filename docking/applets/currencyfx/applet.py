@@ -48,6 +48,7 @@ from docking.applets.currencyfx.state import (
     prefs_from_mapping,
     prefs_payload,
 )
+from docking.applets.menu import radio_submenu
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -169,40 +170,36 @@ class CurrencyFxApplet(Applet):
         choose.connect("activate", lambda _w: self._show_pair_dialog())
         items.append(choose)
 
-        interval_menu = Gtk.Menu()
-        radio_group: Gtk.RadioMenuItem | None = None
-        for interval, label in (
-            (ChartInterval.DAY, _("Day")),
-            (ChartInterval.WEEK, _("Week")),
-            (ChartInterval.MONTH, _("Month")),
-        ):
-            item = Gtk.RadioMenuItem.new_with_label_from_widget(radio_group, label)
-            radio_group = item
-            item.set_active(self._chart_interval == interval)
-            item.connect(
-                "activate",
-                lambda widget, value=interval: self._on_interval_selected(
+        items.append(
+            radio_submenu(
+                label=_("Chart Interval"),
+                choices=(
+                    (_("Day"), ChartInterval.DAY),
+                    (_("Week"), ChartInterval.WEEK),
+                    (_("Month"), ChartInterval.MONTH),
+                ),
+                active_value=self._chart_interval,
+                on_selected=lambda widget, value: self._on_interval_selected(
                     widget=widget,
                     interval=value,
                 ),
+                gtk=Gtk,
             )
-            interval_menu.append(item)
-        interval_root = Gtk.MenuItem(label=_("Chart Interval"))
-        interval_root.set_submenu(interval_menu)
-        items.append(interval_root)
+        )
 
         if len(self._pairs) > 1:
-            pairs_menu = Gtk.Menu()
-            for index, pair in enumerate(self._pairs):
-                pair_item = Gtk.MenuItem(label=f"{pair.base}/{pair.quote}")
-                pair_item.connect(
-                    "activate",
-                    lambda _w, idx=index: self._activate_pair_index(idx),
+            items.append(
+                radio_submenu(
+                    label=_("Added Pairs"),
+                    choices=tuple(
+                        (f"{pair.base}/{pair.quote}", index)
+                        for index, pair in enumerate(self._pairs)
+                    ),
+                    active_value=self._active_index,
+                    on_selected=lambda _widget, value: self._activate_pair_index(value),
+                    gtk=Gtk,
                 )
-                pairs_menu.append(pair_item)
-            pairs_root = Gtk.MenuItem(label=_("Added Pairs"))
-            pairs_root.set_submenu(pairs_menu)
-            items.append(pairs_root)
+            )
 
             remove = Gtk.MenuItem(label=_("Remove Current Pair"))
             remove.connect(

@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 47 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 49 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 12 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -309,6 +309,21 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 **Update interval:** 1 second
 
+### Thermals
+
+<img src="docking/assets/icons/applets/thermals.png" alt="Thermals" width="48">
+
+Hottest lm-sensors temperature plus fastest fan RPM. The icon is a thermometer with a degree-only bottom label for the current temperature, and the tooltip includes the lm-sensors chip and label for both readings.
+
+**Click:** No-op
+**Right-click options:**
+- **Temperature Unit** -- Celsius or Fahrenheit
+- **Refresh Now**
+
+**Tooltip:** `Hot: coretemp Package 72.4C` and `Fan: thinkpad fan1 2987 RPM`
+
+**Update interval:** 5 seconds
+
 ### Battery
 
 <img src="docking/assets/icons/applets/battery.png" alt="Battery" width="48">
@@ -346,6 +361,7 @@ Shows current weather and air quality for a selected city with a 5-day forecast.
 **Click:** Open city search and add/switch the active city
 **Right-click options:**
 - **Show Temperature** -- toggle temperature overlay on icon
+- **Temperature Unit** -- Celsius or Fahrenheit
 - **Remove {city}** -- remove active city when multiple cities are configured
 
 **Scroll:** Cycle through configured cities
@@ -359,7 +375,7 @@ Mon: 25/29°C, Partly cloudy
 Tue: 28/32°C, Rain
 ```
 
-**Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`
+**Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`, `temperature_unit`
 
 **Update interval:** 5 minutes
 
@@ -780,6 +796,22 @@ One-event-at-a-time history applet with online refresh and offline fallback data
 - **Next Event**
 - **Refresh from Web**
 - **Open Article** -- open the current event's Wikipedia page when available
+
+### Hacker News
+
+<img src="docking/assets/icons/applets/hackernews.png" alt="Hacker News" width="48">
+
+Hacker News headline viewer. It fetches HN top stories, keeps a cached list for startup, lazy-loads more when you land on the last loaded item, and shows the selected title plus points/comments in the tooltip. Paging continues up to 100 loaded headlines.
+
+**Click:** Open the current story
+**Scroll:** Cycle headlines
+**Right-click options:**
+- **Open Story**
+- **Open Comments**
+- **Next Headline**
+- **Refresh Hacker News**
+
+**Preferences stored:** cached `stories`, `active_index`, `fetched_at`
 
 ### Ambient
 

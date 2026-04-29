@@ -98,6 +98,12 @@ class TestAppletCatalog:
     def test_contains_micshield(self):
         assert "micshield" in get_applet_catalog()
 
+    def test_contains_hackernews(self):
+        assert "hackernews" in get_applet_catalog()
+
+    def test_contains_thermals(self):
+        assert "thermals" in get_applet_catalog()
+
     def test_logs_warning_for_package_missing_init_py(
         self, tmp_path, monkeypatch, caplog
     ):

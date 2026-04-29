@@ -96,7 +96,7 @@ class TestQuoteApplet:
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Next Quote" in labels
         assert "Copy Quote" in labels
-        assert "Refresh from Web" in labels
+        assert "Refresh Now" in labels
         assert "Source" in labels
 
     def test_menu_contains_legacy_source_labels(self):
