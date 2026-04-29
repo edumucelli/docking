@@ -592,6 +592,50 @@ def parse_codex_transcript(path: Path) -> dict[str, ModelUsage]:
     }
 
 
+def _codex_session_id(path: Path) -> str:
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                entry = json.loads(line)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if entry.get("type") != "session_meta":
+                continue
+            session_id = entry.get("payload", {}).get("id", "")
+            if session_id:
+                return str(session_id)
+    except OSError as exc:
+        log.debug("Failed to read Codex session metadata %s: %s", path, exc)
+    return path.stem
+
+
+def query_codex_today() -> dict[str, dict[str, ModelUsage]]:
+    """Read today's Codex sessions from local JSONL transcripts.
+
+    Codex ``notify`` hooks only apply to processes that started after the hook
+    was registered. Polling recent session files lets the applet recover usage
+    for already-running Codex sessions as well.
+    """
+    sessions_dir = Path.home() / ".codex" / "sessions"
+    if not sessions_dir.is_dir():
+        return {}
+
+    today_start = datetime.datetime.fromisoformat(_today_iso()).timestamp()
+    result: dict[str, dict[str, ModelUsage]] = {}
+    for jsonl in sessions_dir.rglob("*.jsonl"):
+        try:
+            if jsonl.stat().st_mtime < today_start:
+                continue
+        except OSError as exc:
+            log.debug("Failed to stat Codex transcript %s: %s", jsonl, exc)
+            continue
+
+        model_usage = parse_codex_transcript(path=jsonl)
+        if model_usage:
+            result[_codex_session_id(path=jsonl)] = model_usage
+    return result
+
+
 # ---------------------------------------------------------------------------
 # OpenCode usage (SQLite database)
 # ---------------------------------------------------------------------------

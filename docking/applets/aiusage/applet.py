@@ -31,6 +31,7 @@ from docking.applets.aiusage.state import (
     provider_cost,
     provider_for_model,
     provider_tokens,
+    query_codex_today,
     query_opencode_today,
     reset_today,
     set_session,
@@ -99,6 +100,7 @@ class AiUsageApplet(Applet):
         self._timer_id: int = 0
         self._selected_provider: Provider | None = None
         self._display_mode: DisplayMode = DisplayMode.COST
+        self._codex_poll_error: str | None = None
         self._opencode_poll_error: str | None = None
 
         super().__init__(icon_size, config)
@@ -200,6 +202,23 @@ class AiUsageApplet(Applet):
     def _tick(self) -> bool:
         prefs = _read_prefs_from_disk()
         new_state = state_from_prefs(prefs=prefs)
+
+        try:
+            codex_sessions = query_codex_today()
+            self._codex_poll_error = None
+            for sid, model_usage in codex_sessions.items():
+                new_state = set_session(
+                    state=new_state,
+                    session_id=sid,
+                    model_usage=model_usage,
+                )
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            if error != self._codex_poll_error:
+                self._codex_poll_error = error
+                log.bind(action="poll_codex").warning(
+                    "Failed to poll Codex usage: %s", error
+                )
 
         # Merge OpenCode sessions from SQLite (no hook, poll-based).
         try:

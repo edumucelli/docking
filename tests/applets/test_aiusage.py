@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
+import os
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,6 +28,7 @@ from docking.applets.aiusage.state import (
     parse_codex_transcript,
     prefs_from_state,
     provider_for_model,
+    query_codex_today,
     reset_today,
     set_session,
     state_from_prefs,
@@ -408,6 +411,56 @@ class TestCodexTranscript:
         )
         assert parse_codex_transcript(path=jsonl) == {}
 
+    def test_query_codex_today_reads_recent_sessions(self, tmp_path, monkeypatch):
+        sessions_dir = tmp_path / ".codex" / "sessions" / "2026" / "04" / "29"
+        sessions_dir.mkdir(parents=True)
+        jsonl = sessions_dir / "rollout-2026-04-29T08-00-00-thread-1.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "type": "session_meta",
+                            "payload": {"id": "thread-1"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "turn_context",
+                            "payload": {"model": "gpt-5.5"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "event_msg",
+                            "payload": {
+                                "type": "token_count",
+                                "info": {
+                                    "total_token_usage": {
+                                        "input_tokens": 1200,
+                                        "cached_input_tokens": 200,
+                                        "output_tokens": 50,
+                                        "total_tokens": 1250,
+                                    }
+                                },
+                            },
+                        }
+                    ),
+                ]
+            )
+        )
+        today_ts = datetime.datetime.fromisoformat("2026-04-29T12:00:00").timestamp()
+        os.utime(jsonl, (today_ts, today_ts))
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            "docking.applets.aiusage.state._today_iso",
+            lambda: "2026-04-29",
+        )
+
+        result = query_codex_today()
+
+        assert result["thread-1"]["gpt-5.5"].input_tokens == 1200
+
 
 # ---------------------------------------------------------------
 # Hook
@@ -645,6 +698,7 @@ class TestAiUsageApplet:
         applet = AiUsageApplet(48)
         applet.present = MagicMock()
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(aiusage_mod, "query_codex_today", dict)
         monkeypatch.setattr(
             aiusage_mod,
             "query_opencode_today",
@@ -662,6 +716,31 @@ class TestAiUsageApplet:
         assert applet._tick() is True
         assert applet._opencode_poll_error is None
         assert applet._state.days[0].sessions == 1
+        assert applet.present.call_count == 1
+
+    def test_tick_merges_codex_sessions_and_updates_state(self, monkeypatch):
+        applet = AiUsageApplet(48)
+        applet.present = MagicMock()
+        monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(aiusage_mod, "query_opencode_today", dict)
+        monkeypatch.setattr(
+            aiusage_mod,
+            "query_codex_today",
+            lambda: {
+                "thread-1": {
+                    "gpt-5.5": ModelUsage(
+                        input_tokens=1200,
+                        output_tokens=50,
+                        cache_read_tokens=200,
+                    )
+                }
+            },
+        )
+
+        assert applet._tick() is True
+        assert applet._codex_poll_error is None
+        assert applet._state.days[0].sessions == 1
+        assert applet._state.days[0].by_model[0][0] == "gpt-5.5"
         assert applet.present.call_count == 1
 
     def test_reset_today_saves_prefs_and_presents(self):
@@ -683,6 +762,7 @@ class TestAiUsageApplet:
     def test_tick_warns_once_when_opencode_poll_fails(self, monkeypatch, caplog):
         applet = AiUsageApplet(48)
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(aiusage_mod, "query_codex_today", dict)
 
         def fail_query():
             raise RuntimeError("database locked")
