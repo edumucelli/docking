@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, NamedTuple
 
+from docking.applets.units import format_compact_number
 from docking.i18n import _
 
 
@@ -29,14 +30,14 @@ class SpeedtestPrefs:
 
 
 def format_speed(mbps: float) -> str:
-    """Compact Mbps badge with a unit suffix (e.g. '250M', '1.2G')."""
+    """Compact Mbps badge with an explicit bit unit suffix."""
     if mbps >= 1000:
-        return f"{mbps / 1000:.1f}G"
+        return f"{format_compact_number(mbps / 1000)}Gb"
     if mbps >= 100:
-        return f"{round(mbps)}M"
+        return f"{round(mbps)}Mb"
     if mbps >= 10:
-        return f"{mbps:.0f}M"
-    return f"{mbps:.1f}M"
+        return f"{mbps:.0f}Mb"
+    return f"{format_compact_number(mbps)}Mb"
 
 
 def speed_tier(mbps: float) -> str:
