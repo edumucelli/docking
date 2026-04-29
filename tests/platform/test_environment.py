@@ -8,6 +8,8 @@ from docking.platform.environment import (
     _check_compositor,
     _parse_desktop,
     detect_desktop,
+    is_gnome_session,
+    is_mate_session,
     is_wayland_session,
     is_x11_backend,
     is_xwayland_session,
@@ -23,10 +25,10 @@ class TestParseDesktop:
     def test_case_insensitive(self):
         assert _parse_desktop("XFCE") == Desktop.XFCE
 
-    def test_semicolon_separated(self):
+    def test_desktop_list_separators(self):
         result = _parse_desktop("ubuntu:GNOME;ubuntu")
-        # "ubuntu:GNOME" is unknown, "ubuntu" maps to UBUNTU
         assert result & Desktop.UBUNTU
+        assert result & Desktop.GNOME
 
     def test_xdg_current_desktop_multi(self):
         # Real-world: XDG_CURRENT_DESKTOP=MATE;MATE
@@ -85,6 +87,15 @@ class TestDetectDesktop:
     def test_no_env_returns_unknown(self):
         with patch.dict("os.environ", {}, clear=True):
             assert detect_desktop() == Desktop.UNKNOWN
+
+    def test_gnome_session_helper_includes_ubuntu(self):
+        assert is_gnome_session(desktop=Desktop.GNOME) is True
+        assert is_gnome_session(desktop=Desktop.UBUNTU) is True
+        assert is_gnome_session(desktop=Desktop.MATE) is False
+
+    def test_mate_session_helper(self):
+        assert is_mate_session(desktop=Desktop.MATE) is True
+        assert is_mate_session(desktop=Desktop.GNOME) is False
 
 
 class TestSessionBackendDetection:

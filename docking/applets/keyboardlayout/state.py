@@ -13,7 +13,6 @@ Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
 from __future__ import annotations
 
 import ast
-import os
 import re
 import shutil
 import subprocess
@@ -22,6 +21,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from docking.log import get_logger, with_context
+from docking.platform import environment
 
 log = with_context(get_logger(name="keyboardlayout"))
 
@@ -227,29 +227,6 @@ def _parse_gsettings_string(raw: str | None) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _desktop_tokens() -> set[str]:
-    values = [
-        os.environ.get("XDG_CURRENT_DESKTOP", ""),
-        os.environ.get("XDG_SESSION_DESKTOP", ""),
-    ]
-    tokens: set[str] = set()
-    for value in values:
-        for token in re.split(r"[:;]", value):
-            normalized = token.strip().lower()
-            if normalized:
-                tokens.add(normalized)
-    return tokens
-
-
-def _is_mate_session() -> bool:
-    return "mate" in _desktop_tokens()
-
-
-def _is_gnome_session() -> bool:
-    tokens = _desktop_tokens()
-    return "gnome" in tokens or "ubuntu" in tokens
-
-
 class LayoutBackend(ABC):
     """Common interface for keyboard layout backends."""
 
@@ -306,7 +283,7 @@ class GnomeBackend(LayoutBackend):
     name = "gnome"
 
     def is_available(self) -> bool:
-        if not _is_gnome_session():
+        if not environment.is_gnome_session():
             return False
         return bool(self._sources())
 
@@ -512,7 +489,7 @@ class MateBackend(LayoutBackend):
     name = "mate"
 
     def is_available(self) -> bool:
-        if not _is_mate_session():
+        if not environment.is_mate_session():
             return False
         return bool(self._layouts())
 
@@ -577,7 +554,7 @@ class XkbBackend(LayoutBackend):
 def detect_backend() -> LayoutBackend:
     """Return the first available backend, falling back to XKB."""
     backends: list[type[LayoutBackend]]
-    if _is_gnome_session():
+    if environment.is_gnome_session():
         backends = [
             GnomeBackend,
             IBusBackend,
@@ -586,13 +563,22 @@ def detect_backend() -> LayoutBackend:
             XkbBackend,
         ]
     else:
-        backends = [
-            IBusBackend,
-            Fcitx5Backend,
-            MateBackend,
-            GnomeBackend,
-            XkbBackend,
-        ]
+        if environment.is_mate_session():
+            backends = [
+                MateBackend,
+                IBusBackend,
+                Fcitx5Backend,
+                GnomeBackend,
+                XkbBackend,
+            ]
+        else:
+            backends = [
+                IBusBackend,
+                Fcitx5Backend,
+                MateBackend,
+                GnomeBackend,
+                XkbBackend,
+            ]
     for cls in backends:
         backend = cls()
         if backend.is_available():
