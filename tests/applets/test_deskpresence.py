@@ -259,7 +259,11 @@ class TestHistoryPrefs:
             ],
         )
         payload = prefs_payload(state=state)
-        back = prefs_from_mapping(payload)
+        with patch(
+            "docking.applets.deskpresence.state._today_utc",
+            return_value=state.today,
+        ):
+            back = prefs_from_mapping(payload)
         assert len(back.history) == 2
         assert back.history[0].date == "2026-04-23"
         assert back.history[0].at_desk_seconds == 3600.0

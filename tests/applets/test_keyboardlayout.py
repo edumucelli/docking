@@ -37,6 +37,12 @@ from docking.applets.keyboardlayout.state import (
     show_current_layout,
     tooltip_text,
 )
+from docking.platform.environment import Desktop
+
+
+def _set_desktop(monkeypatch: pytest.MonkeyPatch, desktop: Desktop) -> None:
+    monkeypatch.setattr(kbl_state.environment, "detect_desktop", lambda: desktop)
+
 
 SETXKBMAP_MULTI = """\
 rules:      evdev
@@ -227,7 +233,7 @@ class TestMateBackend:
         assert _parse_gsettings_string("") == ""
 
     def test_query_returns_mate_layouts(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "MATE")
+        _set_desktop(monkeypatch, Desktop.MATE)
 
         def mock_run(cmd):
             if cmd == [
@@ -248,7 +254,7 @@ class TestMateBackend:
         assert state.available == ["gb", "br", "us"]
 
     def test_switch_preserves_mate_model_and_options(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "MATE")
+        _set_desktop(monkeypatch, Desktop.MATE)
         commands = []
 
         def mock_run(cmd):
@@ -291,8 +297,7 @@ class TestMateBackend:
         ] in commands
 
     def test_is_available_requires_mate_session(self, monkeypatch):
-        monkeypatch.delenv("XDG_CURRENT_DESKTOP", raising=False)
-        monkeypatch.delenv("XDG_SESSION_DESKTOP", raising=False)
+        _set_desktop(monkeypatch, Desktop.UNKNOWN)
         monkeypatch.setattr(kbl_state, "_run", lambda cmd: "['gb', 'br', 'us']")
 
         assert not MateBackend().is_available()
@@ -304,7 +309,7 @@ class TestGnomeBackend:
         assert _parse_input_sources("@a(ss) []") == []
 
     def test_query_returns_gnome_sources(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
         monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
 
         def mock_run(cmd):
@@ -337,7 +342,7 @@ class TestGnomeBackend:
         assert state.available == ["us", "br"]
 
     def test_switch_calls_gdbus_eval(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
         monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
         commands = []
 
@@ -375,7 +380,7 @@ class TestGnomeBackend:
         ] in commands
 
     def test_is_available_requires_gnome_and_gdbus(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
         monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
         monkeypatch.setattr(
             kbl_state,
@@ -428,7 +433,7 @@ class TestDetectBackend:
         assert isinstance(backend, IBusBackend)
 
     def test_prefers_gnome_over_ibus_in_gnome_session(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
 
         def mock_run(cmd):
             if cmd == [
@@ -489,7 +494,7 @@ class TestDetectBackend:
         assert isinstance(backend, XkbBackend)
 
     def test_prefers_mate_before_xkb(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "MATE")
+        _set_desktop(monkeypatch, Desktop.MATE)
 
         def mock_run(cmd):
             if cmd == ["ibus", "engine"]:
@@ -511,8 +516,29 @@ class TestDetectBackend:
         backend = detect_backend()
         assert isinstance(backend, MateBackend)
 
+    def test_prefers_mate_before_ibus_in_mate_session(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.MATE)
+
+        def mock_run(cmd):
+            if cmd == ["ibus", "engine"]:
+                return "xkb:us::eng"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     gb,br,us"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        backend = detect_backend()
+        assert isinstance(backend, MateBackend)
+
     def test_prefers_gnome_before_xkb(self, monkeypatch):
-        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
 
         def mock_run(cmd):
             if cmd == ["ibus", "engine"]:

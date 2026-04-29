@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import enum
 import os
+import re
 import shutil
 import subprocess
 
@@ -79,9 +80,9 @@ _DESKTOP_MAP: dict[str, Desktop] = {
 
 
 def _parse_desktop(value: str) -> Desktop:
-    """Parse a desktop string, handling semicolon-separated values."""
+    """Parse a desktop string, handling XDG desktop list separators."""
     result = Desktop.UNKNOWN
-    for part in value.split(";"):
+    for part in re.split(r"[:;]", value):
         part = part.strip().lower()
         if part:
             result |= _DESKTOP_MAP.get(part, Desktop.UNKNOWN)
@@ -109,6 +110,18 @@ def detect_desktop() -> Desktop:
 def is_wayland_session() -> bool:
     """Return True when the desktop session itself is Wayland."""
     return os.environ.get("XDG_SESSION_TYPE", "").strip().lower() == "wayland"
+
+
+def is_gnome_session(*, desktop: Desktop | None = None) -> bool:
+    """Return True for GNOME-shell-like sessions."""
+    resolved = desktop if desktop is not None else detect_desktop()
+    return bool(resolved & (Desktop.GNOME | Desktop.UBUNTU))
+
+
+def is_mate_session(*, desktop: Desktop | None = None) -> bool:
+    """Return True for MATE sessions."""
+    resolved = desktop if desktop is not None else detect_desktop()
+    return bool(resolved & Desktop.MATE)
 
 
 def is_x11_backend(*, display: object | None = None) -> bool:
