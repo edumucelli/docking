@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.network.applet as network_applet_mod
+import docking.applets.network.render as network_render_mod
 import docking.applets.network.state as network_state_mod
 from docking.applets.network.applet import NetworkApplet
 from docking.applets.network.render import create_icon as create_network_icon
@@ -19,6 +20,7 @@ from docking.applets.network.state import (
     decode_ssid,
     dedupe_networks,
     edit_connections_command,
+    format_compact_speed,
     format_speed,
     open_connection_info,
     open_edit_connections,
@@ -167,6 +169,20 @@ class TestFormatSpeed:
 
     def test_zero(self):
         assert format_speed(bps=0) == "0 B/s"
+
+
+class TestFormatCompactSpeed:
+    def test_bytes(self):
+        assert format_compact_speed(bps=500) == "500B"
+
+    def test_kilobytes_uses_explicit_byte_unit(self):
+        assert format_compact_speed(bps=1536) == "1.5KB"
+
+    def test_megabytes_uses_explicit_byte_unit(self):
+        assert format_compact_speed(bps=5 * 1024 * 1024) == "5MB"
+
+    def test_gigabytes_uses_explicit_byte_unit(self):
+        assert format_compact_speed(bps=2 * 1024 * 1024 * 1024) == "2GB"
 
 
 class TestSignalToIcon:
@@ -1077,6 +1093,30 @@ class TestNetworkRender:
             tx_speed=0.0,
         )
         assert pixbuf is not None
+
+    def test_download_overlay_uses_explicit_byte_unit(self, monkeypatch):
+        labels: list[str] = []
+
+        def draw_label(*, cr, text: str, size: int) -> None:
+            labels.append(text)
+
+        monkeypatch.setattr(
+            network_render_mod,
+            "draw_icon_label",
+            draw_label,
+        )
+        pixbuf = create_network_icon(
+            size=48,
+            is_connected=True,
+            is_wifi=True,
+            signal_strength=80,
+            rx_speed=5 * 1024 * 1024,
+            tx_speed=0.0,
+            speed_overlay="download",
+        )
+
+        assert pixbuf is not None
+        assert labels == ["\u21935MB"]
 
 
 class TestNetworkCommands:

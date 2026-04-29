@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from typing import NamedTuple
 
+from docking.applets.units import format_compact_number
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -91,6 +92,17 @@ def format_speed(bps: float) -> str:
     if bps < 1024 * 1024 * 1024:
         return f"{bps / (1024 * 1024):.1f} MB/s"
     return f"{bps / (1024 * 1024 * 1024):.1f} GB/s"
+
+
+def format_compact_speed(bps: float) -> str:
+    """Format bytes/sec for compact icon labels with explicit byte units."""
+    if bps < 1024:
+        return f"{bps:.0f}B"
+    if bps < 1024 * 1024:
+        return f"{format_compact_number(bps / 1024)}KB"
+    if bps < 1024 * 1024 * 1024:
+        return f"{format_compact_number(bps / (1024 * 1024))}MB"
+    return f"{format_compact_number(bps / (1024 * 1024 * 1024))}GB"
 
 
 def connection_info_command() -> list[str] | None:

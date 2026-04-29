@@ -69,16 +69,16 @@ def _make_applet(
 
 class TestFormatSpeed:
     def test_giga(self):
-        assert format_speed(1500.0) == "1.5G"
+        assert format_speed(1500.0) == "1.5Gb"
 
     def test_triple_digit(self):
-        assert format_speed(250.0) == "250M"
+        assert format_speed(250.0) == "250Mb"
 
     def test_double_digit(self):
-        assert format_speed(45.0) == "45M"
+        assert format_speed(45.0) == "45Mb"
 
     def test_single_digit(self):
-        assert format_speed(4.5) == "4.5M"
+        assert format_speed(4.5) == "4.5Mb"
 
 
 class TestSpeedTier:
