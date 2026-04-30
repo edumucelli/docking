@@ -10,6 +10,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from docking.applets import temperature as temperature_display
+from docking.applets.live_state import (
+    live_freshness_lines,
+    live_state_error,
+    live_state_label,
+    refresh_recovery_label,
+    resolve_live_status,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -172,43 +180,93 @@ def build_tooltip(
     *,
     snapshot: ThermalSnapshot | None,
     loading: bool = False,
+    error: str | None = None,
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    updated_at: object | None = None,
+    cadence_seconds: int | None = None,
 ) -> str:
     """Build tooltip text for Thermals."""
-    lines = [_("Thermals")]
+    snapshot_error = snapshot.error if snapshot is not None else ""
+    state_error = error or snapshot_error
+    status = resolve_live_status(
+        has_data=snapshot is not None and snapshot.available and not snapshot.error,
+        loading=loading,
+        error=state_error,
+        updated_at=updated_at,
+    )
     if snapshot is None:
-        lines.append(_("Loading...") if loading else _("No reading yet"))
-        return "\n".join(lines)
+        return structured_tooltip(
+            title=_("Thermals"),
+            primary=live_state_label(status),
+            freshness=live_freshness_lines(
+                status=status,
+                updated_at=updated_at,
+                cadence_seconds=cadence_seconds,
+                cadence_verb=_("Samples"),
+            ),
+            error=live_state_error(status=status, error=state_error),
+            recovery=refresh_recovery_label(status),
+        )
     if not snapshot.available:
-        lines.append(snapshot.error or _("lm-sensors not installed"))
-        return "\n".join(lines)
+        return structured_tooltip(
+            title=_("Thermals"),
+            freshness=live_freshness_lines(
+                status=status,
+                updated_at=updated_at,
+                cadence_seconds=cadence_seconds,
+                cadence_verb=_("Samples"),
+            ),
+            error=snapshot.error or _("lm-sensors not installed"),
+            recovery=refresh_recovery_label(status),
+        )
     if snapshot.error:
-        lines.append(snapshot.error)
-        return "\n".join(lines)
+        return structured_tooltip(
+            title=_("Thermals"),
+            freshness=live_freshness_lines(
+                status=status,
+                updated_at=updated_at,
+                cadence_seconds=cadence_seconds,
+                cadence_verb=_("Samples"),
+            ),
+            error=snapshot.error,
+            recovery=refresh_recovery_label(status),
+        )
 
+    primary = None
+    details = []
     if snapshot.hottest is not None:
-        lines.append(
-            _("Hot: {label} {temp}").format(
-                label=reading_label(snapshot.hottest),
-                temp=format_temperature(
-                    snapshot.hottest.celsius,
-                    temperature_unit=temperature_unit,
-                ),
-            )
+        primary = _("Hot: {label} {temp}").format(
+            label=reading_label(snapshot.hottest),
+            temp=format_temperature(
+                snapshot.hottest.celsius,
+                temperature_unit=temperature_unit,
+            ),
         )
     else:
-        lines.append(_("Hot: unavailable"))
+        primary = _("Hot: unavailable")
 
     if snapshot.fan is not None:
-        lines.append(
+        details.append(
             _("Fan: {label} {rpm}").format(
                 label=reading_label(snapshot.fan),
                 rpm=format_rpm(snapshot.fan.rpm),
             )
         )
     else:
-        lines.append(_("Fan: unavailable"))
-    return "\n".join(lines)
+        details.append(_("Fan: unavailable"))
+    return structured_tooltip(
+        title=_("Thermals"),
+        primary=primary,
+        details=details,
+        freshness=live_freshness_lines(
+            status=status,
+            updated_at=updated_at,
+            cadence_seconds=cadence_seconds,
+            cadence_verb=_("Samples"),
+        ),
+        error=live_state_error(status=status, error=state_error),
+        recovery=refresh_recovery_label(status),
+    )
 
 
 def reading_label(reading: ThermalReading | FanReading) -> str:

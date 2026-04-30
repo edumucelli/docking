@@ -26,6 +26,7 @@ from docking.applets.camshield.state import (
     holder_label,
     probe_camera_state,
 )
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -87,45 +88,37 @@ class CamshieldApplet(Applet):
         super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label=_("No camera devices found"))
-            placeholder.set_sensitive(False)
-            items.append(placeholder)
+            status.append(disabled_menu_item(_("No camera devices found"), gtk=Gtk))
         elif not self._state.active:
-            placeholder = Gtk.MenuItem(label=_("Camera idle"))
-            placeholder.set_sensitive(False)
-            items.append(placeholder)
+            status.append(disabled_menu_item(_("Camera idle"), gtk=Gtk))
         else:
-            header = Gtk.MenuItem(label=_("Camera active"))
-            header.set_sensitive(False)
-            items.append(header)
+            status.append(disabled_menu_item(_("Camera active"), gtk=Gtk))
             for holder in self._state.holders:
-                item = Gtk.MenuItem(label=holder_label(holder))
-                item.set_sensitive(False)
-                items.append(item)
+                status.append(disabled_menu_item(holder_label(holder), gtk=Gtk))
 
-        items.append(Gtk.SeparatorMenuItem())
         lock = Gtk.MenuItem(label=_("Lock Camera"))
         lock.set_sensitive(self._helper_available())
         lock.connect("activate", lambda _w: self._run_helper_action("lock"))
-        items.append(lock)
 
         unlock = Gtk.MenuItem(label=_("Unlock Camera"))
         unlock.set_sensitive(self._helper_available())
         unlock.connect("activate", lambda _w: self._run_helper_action("unlock"))
-        items.append(unlock)
 
         if not self._helper_available():
-            unavailable = Gtk.MenuItem(label=_("Camera lock helper unavailable"))
-            unavailable.set_sensitive(False)
-            items.append(unavailable)
+            status.append(
+                disabled_menu_item(_("Camera lock helper unavailable"), gtk=Gtk)
+            )
 
-        items.append(Gtk.SeparatorMenuItem())
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
-        items.append(refresh)
-        return items
+        return menu_sections(
+            status=status,
+            primary=[lock, unlock],
+            refresh=[refresh],
+            gtk=Gtk,
+        )
 
     def _refresh_once(self) -> bool:
         self._refresh_now()

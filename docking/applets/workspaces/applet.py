@@ -15,7 +15,7 @@ gi.require_version("Wnck", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk, Wnck
 
 from docking.applets.base import Applet
-from docking.applets.menu import radio_menu_items
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.applets.workspaces import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -159,8 +159,8 @@ class WorkspacesApplet(Applet):
             active_number=active.get_number() if active else None
         )
 
-        return [
-            *radio_menu_items(
+        return menu_sections(
+            display=radio_menu_items(
                 choices=tuple(
                     (
                         workspace_label(name=ws.get_name(), number=ws.get_number()),
@@ -175,8 +175,9 @@ class WorkspacesApplet(Applet):
                     value,
                 ),
                 gtk=Gtk,
-            )
-        ]
+            ),
+            gtk=Gtk,
+        )
 
     def _on_workspace_activate(
         self, _widget: Gtk.RadioMenuItem, workspace: Wnck.Workspace

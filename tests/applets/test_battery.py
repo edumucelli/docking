@@ -1,5 +1,7 @@
 """Tests for the battery applet -- sysfs parsing, launchers, and icon mapping."""
 
+import subprocess
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -73,6 +75,53 @@ class TestReadBattery:
         state = read_battery("BAT0", base=tmp_path)
         assert state is not None
         assert state.icon_name == "battery-low-charging"
+
+    def test_estimates_discharge_time_from_energy_and_power(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        bat = tmp_path / "BAT0"
+        bat.mkdir()
+        (bat / "capacity").write_text("40\n")
+        (bat / "capacity_level").write_text("Low\n")
+        (bat / "status").write_text("Discharging\n")
+        (bat / "energy_now").write_text("2000000\n")
+        (bat / "power_now").write_text("1000000\n")
+        monkeypatch.setattr(
+            battery_state_mod,
+            "_upower_seconds_remaining",
+            lambda **_kwargs: None,
+        )
+
+        state = read_battery("BAT0", base=tmp_path)
+
+        assert state is not None
+        assert state.seconds_remaining == 7200
+
+    def test_estimates_charge_time_from_energy_gap_and_power(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        bat = tmp_path / "BAT0"
+        bat.mkdir()
+        (bat / "capacity").write_text("50\n")
+        (bat / "capacity_level").write_text("Normal\n")
+        (bat / "status").write_text("Charging\n")
+        (bat / "energy_now").write_text("1000000\n")
+        (bat / "energy_full").write_text("3000000\n")
+        (bat / "power_now").write_text("1000000\n")
+        monkeypatch.setattr(
+            battery_state_mod,
+            "_upower_seconds_remaining",
+            lambda **_kwargs: None,
+        )
+
+        state = read_battery("BAT0", base=tmp_path)
+
+        assert state is not None
+        assert state.seconds_remaining == 7200
 
     def test_prefers_upower_estimate_when_available(self, tmp_path, monkeypatch):
         bat = tmp_path / "BAT0"
@@ -167,6 +216,88 @@ class TestUpowerParsing:
     def test_ignores_unknown_duration(self):
         assert battery_state_mod._parse_duration_seconds(raw="unknown") is None
 
+    def test_upower_seconds_remaining_edges(self, monkeypatch):
+        monkeypatch.setattr(battery_state_mod.shutil, "which", lambda _cmd: None)
+        assert (
+            battery_state_mod._upower_seconds_remaining(
+                bat_name="BAT0",
+                status="Discharging",
+            )
+            is None
+        )
+
+        monkeypatch.setattr(
+            battery_state_mod.shutil, "which", lambda _cmd: "/bin/upower"
+        )
+        assert (
+            battery_state_mod._upower_seconds_remaining(bat_name="BAT0", status="Full")
+            is None
+        )
+
+        monkeypatch.setattr(
+            battery_state_mod.subprocess,
+            "run",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                returncode=0,
+                stdout="time to full: 30 minutes\n",
+                stderr="",
+            ),
+        )
+        assert (
+            battery_state_mod._upower_seconds_remaining(
+                bat_name="BAT0",
+                status="Charging",
+            )
+            == 1800
+        )
+
+        monkeypatch.setattr(
+            battery_state_mod.subprocess,
+            "run",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                returncode=1, stdout="", stderr=""
+            ),
+        )
+        assert (
+            battery_state_mod._upower_seconds_remaining(
+                bat_name="BAT0",
+                status="Charging",
+            )
+            is None
+        )
+
+        monkeypatch.setattr(
+            battery_state_mod.subprocess,
+            "run",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                subprocess.TimeoutExpired(["upower"], 2)
+            ),
+        )
+        assert (
+            battery_state_mod._upower_seconds_remaining(
+                bat_name="BAT0",
+                status="Charging",
+            )
+            is None
+        )
+
+        assert (
+            battery_state_mod._parse_upower_duration_seconds(
+                text="state: charging",
+                key="time to full",
+            )
+            is None
+        )
+
+    def test_duration_helpers_cover_short_values(self):
+        assert battery_state_mod._format_duration(59) == "1m"
+        assert battery_state_mod._format_duration(0) is None
+        assert battery_state_mod._parse_duration_seconds(raw="10 seconds") == 10
+        assert battery_state_mod._parse_duration_seconds(raw="bad") is None
+        assert battery_state_mod._seconds_from_rate(remaining=0, rate=1) is None
+        assert battery_state_mod._positive_delta(full=None, now=1) is None
+        assert battery_state_mod._positive_delta(full=1, now=1) is None
+
 
 class TestTooltipText:
     def test_shows_time_left_when_estimate_is_known(self):
@@ -195,6 +326,16 @@ class TestTooltipText:
             capacity=100,
             status="Full",
             seconds_remaining=None,
+        )
+
+        assert tooltip_text(state) == "Battery: 100%"
+
+    def test_hides_estimate_for_non_charging_status(self):
+        state = BatteryState(
+            icon_name="battery-full",
+            capacity=100,
+            status="Full",
+            seconds_remaining=60,
         )
 
         assert tooltip_text(state) == "Battery: 100%"
@@ -234,6 +375,22 @@ class TestPowerSettingsLauncher:
 
         assert open_power_settings() is True
         assert launched == [["mate-power-preferences"]]
+
+    def test_open_power_settings_handles_missing_and_launch_failure(self, monkeypatch):
+        monkeypatch.setattr(battery_state_mod, "power_settings_command", lambda: None)
+        assert open_power_settings() is False
+
+        monkeypatch.setattr(
+            battery_state_mod,
+            "power_settings_command",
+            lambda: ["mate-power-preferences"],
+        )
+        monkeypatch.setattr(
+            battery_state_mod.subprocess,
+            "Popen",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+        )
+        assert open_power_settings() is False
 
 
 class TestBatteryAppletRendering:
@@ -275,9 +432,10 @@ class TestBatteryAppletRendering:
 
         assert [item.get_label() for item in items] == [
             "Show Percent",
+            "",
             "Power Settings",
         ]
-        callback, args = items[1]._signals["activate"][0]
+        callback, args = items[2]._signals["activate"][0]
         callback(None, *args)
         assert opened == ["opened"]
 

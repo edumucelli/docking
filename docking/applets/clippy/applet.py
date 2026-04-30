@@ -21,6 +21,7 @@ from docking.applets.clippy.state import (
     cycle_position,
     tooltip_text,
 )
+from docking.applets.menu import menu_sections
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -79,7 +80,7 @@ class ClippyApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """List all clips (newest first) + Clear button."""
-        items: list[Gtk.MenuItem] = []
+        primary: list[Gtk.MenuItem] = []
 
         for clip in reversed(self._clips):
             menu_item = Gtk.MenuItem(label=_truncate(clip))
@@ -87,15 +88,15 @@ class ClippyApplet(Applet):
                 "activate",
                 lambda _, t=clip: self._copy_to_clipboard(text=t),
             )
-            items.append(menu_item)
+            primary.append(menu_item)
 
+        destructive: list[Gtk.MenuItem] = []
         if self._clips:
-            items.append(Gtk.SeparatorMenuItem())
             clear = Gtk.MenuItem(label=_("Clear"))
             clear.connect("activate", lambda _: self._clear())
-            items.append(clear)
+            destructive.append(clear)
 
-        return items
+        return menu_sections(primary=primary, destructive=destructive, gtk=Gtk)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Connect to clipboard owner-change signal."""

@@ -13,6 +13,51 @@ from gi.repository import Gtk
 T = TypeVar("T")
 
 
+def disabled_menu_item(label: str, *, gtk=Gtk) -> Gtk.MenuItem:
+    """Build a non-interactive status/header row."""
+    item = gtk.MenuItem(label=label)
+    item.set_sensitive(False)
+    return item
+
+
+def menu_sections(
+    *,
+    status: Iterable[Gtk.MenuItem] = (),
+    primary: Iterable[Gtk.MenuItem] = (),
+    navigation: Iterable[Gtk.MenuItem] = (),
+    refresh: Iterable[Gtk.MenuItem] = (),
+    display: Iterable[Gtk.MenuItem] = (),
+    manage: Iterable[Gtk.MenuItem] = (),
+    destructive: Iterable[Gtk.MenuItem] = (),
+    settings: Iterable[Gtk.MenuItem] = (),
+    gtk=Gtk,
+) -> list[Gtk.MenuItem]:
+    """Return menu items in the standard applet section order.
+
+    Order is status/header, primary open/run actions, navigation, refresh,
+    display controls, manage/add actions, destructive actions, then settings.
+    Separators are inserted only between non-empty sections.
+    """
+    ordered_sections = (
+        tuple(status),
+        tuple(primary),
+        tuple(navigation),
+        tuple(refresh),
+        tuple(display),
+        tuple(manage),
+        tuple(destructive),
+        tuple(settings),
+    )
+    visible_sections = [section for section in ordered_sections if section]
+    separator_menu_item = getattr(gtk, "SeparatorMenuItem", Gtk.SeparatorMenuItem)
+    items: list[Gtk.MenuItem] = []
+    for index, section in enumerate(visible_sections):
+        if index > 0:
+            items.append(separator_menu_item())
+        items.extend(section)
+    return items
+
+
 def radio_menu_items(
     *,
     choices: Iterable[tuple[str, T]],

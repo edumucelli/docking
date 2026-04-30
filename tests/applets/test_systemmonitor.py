@@ -1,8 +1,11 @@
 """Tests for the System Monitor applet -- parsing, temperature, and rendering."""
 
+import subprocess
+
 import pytest
 
 import docking.applets.systemmonitor.applet as systemmonitor_mod
+import docking.applets.systemmonitor.temperature as temperature_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
 from docking.applets.systemmonitor.state import (
     CpuSample,
@@ -17,11 +20,16 @@ from docking.applets.systemmonitor.state import (
     tooltip_text,
 )
 from docking.applets.systemmonitor.temperature import (
+    CommandBackend,
     TemperatureReader,
+    discover_available_commands,
+    discover_sysfs_temperature_path,
     parse_acpi_output,
     parse_sensors_output,
     parse_sysfs_temperature,
     parse_vcgencmd_output,
+    read_command_temperature,
+    read_temperature_file,
 )
 
 
@@ -110,6 +118,15 @@ class TestTemperatureParsing:
         text = "Thermal 0: ok, 51.0 degrees C\nThermal 1: ok, 57.5 degrees C\n"
         assert parse_acpi_output(text) == pytest.approx(57.5)
 
+    def test_parse_sensors_output_handles_no_matches_and_tiebreak(self):
+        assert parse_sensors_output("Adapter: ISA adapter\n") is None
+        text = "coretemp-isa-0000\nCore 0: +51.0°C\nCore 1: +59.0°C\n"
+        assert parse_sensors_output(text) == pytest.approx(59.0)
+
+    def test_parse_command_outputs_ignore_bad_shapes(self):
+        assert parse_vcgencmd_output("temp=bad") is None
+        assert parse_acpi_output("Thermal 0: ok") is None
+
 
 class TestTemperatureReader:
     def test_prefers_sysfs_over_command_backends(self, tmp_path):
@@ -162,15 +179,183 @@ class TestTemperatureReader:
         assert reader.read() == pytest.approx(49.5)
         assert calls == [("sensors",), ("acpi", "-t")]
 
+    def test_invalid_cached_sysfs_path_is_reprobed(self, tmp_path):
+        thermal_root = tmp_path / "thermal"
+        hwmon_root = tmp_path / "hwmon"
+        zone = thermal_root / "thermal_zone0"
+        zone.mkdir(parents=True)
+        hwmon_root.mkdir()
+        (zone / "type").write_text("cpu\n", encoding="utf-8")
+        temp = zone / "temp"
+        temp.write_text("42000\n", encoding="utf-8")
+
+        reader = TemperatureReader(
+            thermal_root=thermal_root,
+            hwmon_root=hwmon_root,
+            which=lambda _cmd: None,
+        )
+        assert reader.read() == pytest.approx(42.0)
+
+        temp.write_text("bad\n", encoding="utf-8")
+        assert reader.read() is None
+        assert reader._sysfs_path is None
+        assert reader._sysfs_probed is False
+
+    def test_command_probe_is_cached_when_no_commands(self, tmp_path):
+        calls: list[str] = []
+        reader = TemperatureReader(
+            thermal_root=tmp_path / "thermal",
+            hwmon_root=tmp_path / "hwmon",
+            which=lambda command: calls.append(command) or None,
+        )
+
+        assert reader.read() is None
+        assert reader.read() is None
+        assert calls == ["sensors", "vcgencmd", "acpi"]
+
+
+class TestTemperatureDiscovery:
+    def test_discovers_best_hwmon_temperature(self, tmp_path):
+        thermal_root = tmp_path / "thermal"
+        hwmon_root = tmp_path / "hwmon"
+        thermal_root.mkdir()
+        hwmon = hwmon_root / "hwmon0"
+        hwmon.mkdir(parents=True)
+        (hwmon / "name").write_text("coretemp\n", encoding="utf-8")
+        (hwmon / "temp1_input").write_text("48000\n", encoding="utf-8")
+        (hwmon / "temp2_label").write_text("Package id 0\n", encoding="utf-8")
+        (hwmon / "temp2_input").write_text("62000\n", encoding="utf-8")
+
+        path = discover_sysfs_temperature_path(
+            thermal_root=thermal_root,
+            hwmon_root=hwmon_root,
+        )
+
+        assert path == hwmon / "temp2_input"
+
+    def test_discovers_nothing_without_cpu_hints(self, tmp_path):
+        thermal_root = tmp_path / "thermal"
+        hwmon_root = tmp_path / "hwmon"
+        zone = thermal_root / "thermal_zone0"
+        zone.mkdir(parents=True)
+        hwmon = hwmon_root / "hwmon0"
+        hwmon.mkdir(parents=True)
+        (zone / "type").write_text("battery\n", encoding="utf-8")
+        (zone / "temp").write_text("45000\n", encoding="utf-8")
+        (hwmon / "name").write_text("random\n", encoding="utf-8")
+        (hwmon / "temp1_input").write_text("47000\n", encoding="utf-8")
+
+        assert (
+            discover_sysfs_temperature_path(
+                thermal_root=thermal_root,
+                hwmon_root=hwmon_root,
+            )
+            is None
+        )
+
+    def test_available_commands_keep_preference_order(self):
+        commands = discover_available_commands(
+            which=lambda command: f"/bin/{command}" if command != "vcgencmd" else None
+        )
+
+        assert [backend.command for backend in commands] == ["sensors", "acpi"]
+
+    def test_read_command_temperature_dispatches_and_ignores_unknown(self):
+        assert read_command_temperature(
+            backend=CommandBackend("vcgencmd", ("vcgencmd", "measure_temp")),
+            run_command=lambda _cmd, _timeout: "temp=47.0'C",
+        ) == pytest.approx(47.0)
+        assert (
+            read_command_temperature(
+                backend=CommandBackend("unknown", ("unknown",)),
+                run_command=lambda _cmd, _timeout: "47",
+            )
+            is None
+        )
+        assert (
+            read_command_temperature(
+                backend=CommandBackend("sensors", ("sensors",)),
+                run_command=lambda _cmd, _timeout: None,
+            )
+            is None
+        )
+
+    def test_read_temperature_file_handles_decode_errors(self, tmp_path):
+        path = tmp_path / "temp"
+        path.write_bytes(b"\xff")
+        assert read_temperature_file(path) is None
+        assert read_temperature_file(tmp_path / "missing") is None
+
+    def test_run_command_success_error_and_exception(self, monkeypatch):
+        monkeypatch.setattr(
+            temperature_mod.subprocess,
+            "run",
+            lambda *_args, **_kwargs: subprocess.CompletedProcess(
+                args=["sensors"],
+                returncode=0,
+                stdout="ok",
+            ),
+        )
+        assert temperature_mod._run_command(["sensors"], 0.1) == "ok"
+
+        monkeypatch.setattr(
+            temperature_mod.subprocess,
+            "run",
+            lambda *_args, **_kwargs: subprocess.CompletedProcess(
+                args=["sensors"],
+                returncode=1,
+                stdout="bad",
+            ),
+        )
+        assert temperature_mod._run_command(["sensors"], 0.1) is None
+
+        def fail(*_args, **_kwargs):
+            raise OSError("nope")
+
+        monkeypatch.setattr(temperature_mod.subprocess, "run", fail)
+        assert temperature_mod._run_command(["sensors"], 0.1) is None
+
+    def test_score_and_pick_best_helpers(self, tmp_path):
+        assert temperature_mod._score_text("CPU package", (("cpu", 10),)) == 10
+        low = temperature_mod._pick_best(
+            None,
+            score=10,
+            temperature=40.0,
+            path=tmp_path / "low",
+        )
+        high_score = temperature_mod._pick_best(
+            low,
+            score=20,
+            temperature=35.0,
+            path=tmp_path / "score",
+        )
+        high_temp = temperature_mod._pick_best(
+            low,
+            score=10,
+            temperature=45.0,
+            path=tmp_path / "temp",
+        )
+        assert high_score[2] == tmp_path / "score"
+        assert high_temp[2] == tmp_path / "temp"
+        assert (
+            temperature_mod._pick_best(
+                high_score,
+                score=10,
+                temperature=99.0,
+                path=tmp_path / "ignored",
+            )
+            == high_score
+        )
+
 
 class TestTooltipText:
     def test_without_temperature(self):
         text = tooltip_text(cpu=0.423, mem=0.671)
-        assert text == "CPU: 42.3% | Mem: 67.1%"
+        assert text == "System Monitor\nCPU: 42.3% | Mem: 67.1%"
 
     def test_with_temperature(self):
         text = tooltip_text(cpu=0.423, mem=0.671, temperature_c=58.4)
-        assert text == "CPU: 42.3% | Mem: 67.1% | Temp: 58.4°C"
+        assert text == "System Monitor\nCPU: 42.3% | Mem: 67.1% | Temp: 58.4°C"
 
     def test_with_temperature_in_fahrenheit(self):
         text = tooltip_text(
@@ -180,7 +365,7 @@ class TestTooltipText:
             temperature_unit=TemperatureUnit.FAHRENHEIT,
         )
 
-        assert text == "CPU: 42.3% | Mem: 67.1% | Temp: 137.1°F"
+        assert text == "System Monitor\nCPU: 42.3% | Mem: 67.1% | Temp: 137.1°F"
 
     def test_with_disks(self):
         disks = [("/", 0.45), ("/home", 0.72)]

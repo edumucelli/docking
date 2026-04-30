@@ -10,6 +10,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.session import meta
 from docking.i18n import _
 
@@ -39,7 +40,8 @@ class SessionApplet(Applet):
         lock_screen()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        primary: list[Gtk.MenuItem] = []
+        destructive: list[Gtk.MenuItem] = []
         for label, cmd in _ACTIONS:
             mi = Gtk.MenuItem(label=label)
             action = label.lower().replace(" ", "_")
@@ -50,5 +52,8 @@ class SessionApplet(Applet):
                     "activate",
                     lambda _w, c=cmd, a=action: _run(cmd=c, action=a),
                 )
-            items.append(mi)
-        return items
+            if label in (LOCK_SCREEN_LABEL, _("Suspend")):
+                primary.append(mi)
+            else:
+                destructive.append(mi)
+        return menu_sections(primary=primary, destructive=destructive, gtk=Gtk)

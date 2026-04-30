@@ -6,6 +6,7 @@ import datetime
 import json
 import logging
 import os
+import sqlite3
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from unittest.mock import MagicMock
 
 import docking.applets.aiusage.applet as aiusage_mod
 import docking.applets.aiusage.render as aiusage_render_mod
+import docking.applets.aiusage.state as aiusage_state_mod
 from docking.applets.aiusage.applet import AiUsageApplet
 from docking.applets.aiusage.state import (
     AiUsageState,
@@ -22,17 +24,28 @@ from docking.applets.aiusage.state import (
     Provider,
     cost_for_usage,
     day_cost,
+    day_tokens,
     dominant_provider,
+    find_codex_session,
     match_model_tier,
     parse_claude_transcript,
     parse_codex_transcript,
     prefs_from_state,
+    provider_cost,
     provider_for_model,
+    provider_tokens,
     query_codex_today,
+    query_opencode_today,
     reset_today,
     set_session,
     state_from_prefs,
+    today_cost,
+    today_sessions,
+    today_tokens,
     tooltip_text,
+    total_tokens,
+    week_cost,
+    week_tokens,
 )
 from docking.core.config import Config
 
@@ -146,6 +159,70 @@ class TestState:
         )
         assert reset_today(state=state).days == ()
 
+    def test_state_from_prefs_handles_invalid_and_session_format(self):
+        assert state_from_prefs(prefs={"days": "bad"}) == AiUsageState()
+        state = state_from_prefs(
+            prefs={
+                "days": [
+                    "bad",
+                    {"by_model": {}},
+                    {
+                        "date": "2026-04-29",
+                        "by_session": {
+                            "s1": {
+                                "gpt-5": {"in": 100, "out": 20, "cr": 10},
+                            },
+                            "s2": {
+                                "gpt-5": {"in": 50, "pc": 1.25},
+                                "bad": "skip",
+                            },
+                        },
+                    },
+                ]
+            }
+        )
+
+        assert len(state.days) == 1
+        assert state.days[0].sessions == 2
+        usage = dict(state.days[0].by_model)["gpt-5"]
+        assert usage.input_tokens == 150
+        assert usage.precalculated_cost == 1.25
+
+    def test_prefs_from_state_serializes_session_and_precalculated_cost(self):
+        state = AiUsageState(
+            days=(
+                DayEntry(
+                    date="2026-04-29",
+                    sessions=1,
+                    by_model=(
+                        (
+                            "opencode:model",
+                            ModelUsage(input_tokens=10, precalculated_cost=0.25),
+                        ),
+                    ),
+                    by_session=(
+                        (
+                            "s1",
+                            (
+                                (
+                                    "opencode:model",
+                                    ModelUsage(
+                                        input_tokens=10,
+                                        precalculated_cost=0.25,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        )
+
+        payload = prefs_from_state(state=state)
+
+        assert payload["days"][0]["by_model"]["opencode:model"]["pc"] == 0.25
+        assert "by_session" in payload["days"][0]
+
 
 # ---------------------------------------------------------------
 # Provider detection
@@ -158,6 +235,11 @@ class TestProvider:
 
     def test_codex_model(self):
         assert provider_for_model(model="gpt-5.4") == Provider.CODEX
+
+    def test_opencode_model(self):
+        assert (
+            provider_for_model(model="opencode:anthropic/claude") == Provider.OPENCODE
+        )
 
     def test_gpt_prefix(self):
         assert provider_for_model(model="gpt-4o") == Provider.CODEX
@@ -180,6 +262,18 @@ class TestProvider:
 
     def test_dominant_provider_none_when_empty(self):
         assert dominant_provider(state=AiUsageState()) is None
+
+    def test_dominant_provider_uses_highest_cost(self):
+        state = set_session(
+            session_id="test",
+            state=AiUsageState(),
+            model_usage={
+                "claude-opus-4-6": ModelUsage(input_tokens=1000),
+                "opencode:model": ModelUsage(precalculated_cost=5.0),
+            },
+        )
+
+        assert dominant_provider(state=state) == Provider.OPENCODE
 
 
 # ---------------------------------------------------------------
@@ -210,6 +304,10 @@ class TestClaudeCost:
     def test_unknown_model_zero(self):
         usage = ModelUsage(input_tokens=1_000_000)
         assert cost_for_usage(model="unknown-model", usage=usage) == 0.0
+
+    def test_opencode_cost_is_precalculated(self):
+        usage = ModelUsage(input_tokens=1_000_000, precalculated_cost=0.42)
+        assert cost_for_usage(model="opencode:model", usage=usage) == 0.42
 
 
 # ---------------------------------------------------------------
@@ -251,6 +349,40 @@ class TestCodexCost:
         )
         assert day_cost(entry=entry) == 5.0 + 2.50
 
+    def test_cached_tokens_do_not_make_negative_input_cost(self):
+        usage = ModelUsage(input_tokens=100, cache_read_tokens=200, output_tokens=100)
+        expected = (200 * 0.62 + 100 * 10.0) / 1_000_000
+        assert cost_for_usage(model="gpt-5", usage=usage) == expected
+
+
+class TestTokenAggregation:
+    def test_day_week_today_and_provider_totals(self):
+        today = datetime.date.today().isoformat()
+        today_entry = DayEntry(
+            date=today,
+            sessions=2,
+            by_model=(
+                ("gpt-5", ModelUsage(input_tokens=100, cache_read_tokens=25)),
+                ("claude-opus-4-6", ModelUsage(input_tokens=80, output_tokens=20)),
+            ),
+        )
+        old_entry = DayEntry(
+            date="2026-04-01",
+            sessions=1,
+            by_model=(("gpt-5", ModelUsage(input_tokens=10, output_tokens=5)),),
+        )
+        state = AiUsageState(days=(today_entry, old_entry))
+
+        assert total_tokens(ModelUsage(input_tokens=100, cache_read_tokens=25)) == 75
+        assert day_tokens(today_entry) == 175
+        assert provider_tokens(today_entry, Provider.CODEX) == 75
+        assert today_tokens(state) == 175
+        assert week_tokens(state) == 190
+        assert today_sessions(state) == 2
+        assert provider_cost(today_entry, Provider.CLAUDE) > 0
+        assert today_cost(state) > 0
+        assert week_cost(state) > today_cost(state)
+
 
 # ---------------------------------------------------------------
 # Tooltip
@@ -269,6 +401,20 @@ class TestTooltip:
         )
         text = tooltip_text(state=state)
         assert "$" in text
+
+    def test_provider_specific_tooltip(self):
+        state = set_session(
+            session_id="test",
+            state=AiUsageState(),
+            model_usage={
+                "claude-opus-4": ModelUsage(input_tokens=1000),
+                "gpt-5": ModelUsage(input_tokens=1000),
+            },
+        )
+
+        text = tooltip_text(state=state, provider=Provider.CODEX)
+
+        assert "Codex" in text
 
 
 # ---------------------------------------------------------------
@@ -311,6 +457,32 @@ class TestClaudeTranscript:
         jsonl.write_text(json.dumps({"type": "user", "message": {"role": "user"}}))
         assert parse_claude_transcript(path=jsonl) == {}
 
+    def test_ignores_malformed_and_zero_usage_entries(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    "{",
+                    json.dumps({"type": "assistant", "message": "bad"}),
+                    json.dumps({"type": "assistant", "message": {"usage": "bad"}}),
+                    json.dumps(
+                        {
+                            "type": "assistant",
+                            "message": {"usage": {}, "model": ""},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "assistant",
+                            "message": {"usage": {}, "model": "claude-haiku"},
+                        }
+                    ),
+                ]
+            )
+        )
+
+        assert parse_claude_transcript(path=jsonl) == {}
+
 
 # ---------------------------------------------------------------
 # Codex transcript parsing
@@ -318,6 +490,25 @@ class TestClaudeTranscript:
 
 
 class TestCodexTranscript:
+    def test_find_codex_session_missing_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        assert find_codex_session() is None
+
+    def test_find_codex_session_by_thread_or_mtime(self, tmp_path, monkeypatch):
+        sessions_dir = tmp_path / ".codex" / "sessions"
+        sessions_dir.mkdir(parents=True)
+        older = sessions_dir / "session-old.jsonl"
+        newer = sessions_dir / "session-thread-123.jsonl"
+        older.write_text("{}", encoding="utf-8")
+        newer.write_text("{}", encoding="utf-8")
+        os.utime(older, (1000, 1000))
+        os.utime(newer, (2000, 2000))
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        assert find_codex_session(thread_id="thread-123") == newer
+        assert find_codex_session() == newer
+
     def test_parses_valid_session(self, tmp_path):
         jsonl = tmp_path / "session.jsonl"
         lines = [
@@ -411,6 +602,33 @@ class TestCodexTranscript:
         )
         assert parse_codex_transcript(path=jsonl) == {}
 
+    def test_ignores_malformed_and_non_token_entries(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    "{",
+                    json.dumps({"type": "turn_context", "payload": {}}),
+                    json.dumps({"type": "event_msg", "payload": {"type": "other"}}),
+                    json.dumps(
+                        {
+                            "type": "event_msg",
+                            "payload": {"type": "token_count", "info": "bad"},
+                        }
+                    ),
+                ]
+            )
+        )
+
+        assert parse_codex_transcript(path=jsonl) == {}
+
+    def test_codex_session_id_falls_back_to_stem(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text("{\n{}\n", encoding="utf-8")
+
+        assert aiusage_state_mod._codex_session_id(jsonl) == "session"
+        assert aiusage_state_mod._codex_session_id(tmp_path / "missing") == "missing"
+
     def test_query_codex_today_reads_recent_sessions(self, tmp_path, monkeypatch):
         sessions_dir = tmp_path / ".codex" / "sessions" / "2026" / "04" / "29"
         sessions_dir.mkdir(parents=True)
@@ -460,6 +678,100 @@ class TestCodexTranscript:
         result = query_codex_today()
 
         assert result["thread-1"]["gpt-5.5"].input_tokens == 1200
+
+    def test_query_codex_today_skips_old_and_empty_sessions(
+        self, tmp_path, monkeypatch
+    ):
+        sessions_dir = tmp_path / ".codex" / "sessions"
+        sessions_dir.mkdir(parents=True)
+        old = sessions_dir / "old.jsonl"
+        old.write_text("{}", encoding="utf-8")
+        current = sessions_dir / "current.jsonl"
+        current.write_text(json.dumps({"type": "turn_context", "payload": {}}))
+        os.utime(old, (1000, 1000))
+        os.utime(current, (2000, 2000))
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            "docking.applets.aiusage.state._today_iso",
+            lambda: "1970-01-01",
+        )
+
+        assert query_codex_today() == {}
+
+
+class TestOpenCodeUsage:
+    def test_query_opencode_today_missing_db(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(aiusage_state_mod, "_OPENCODE_DB", tmp_path / "missing.db")
+
+        assert query_opencode_today() == {}
+
+    def test_query_opencode_today_connect_error(self, tmp_path, monkeypatch):
+        db = tmp_path / "opencode.db"
+        db.write_text("", encoding="utf-8")
+        monkeypatch.setattr(aiusage_state_mod, "_OPENCODE_DB", db)
+
+        def fail(*_args, **_kwargs):
+            raise sqlite3.OperationalError("locked")
+
+        monkeypatch.setattr(sqlite3, "connect", fail)
+
+        assert query_opencode_today() == {}
+
+    def test_query_opencode_today_no_sessions(self, tmp_path, monkeypatch):
+        db = tmp_path / "opencode.db"
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE session (id TEXT, time_created INTEGER)")
+        conn.execute("CREATE TABLE message (session_id TEXT, data TEXT)")
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(aiusage_state_mod, "_OPENCODE_DB", db)
+        monkeypatch.setattr(aiusage_state_mod, "_today_iso", lambda: "2026-04-29")
+
+        assert query_opencode_today() == {}
+
+    def test_query_opencode_today_accumulates_valid_rows(self, tmp_path, monkeypatch):
+        db = tmp_path / "opencode.db"
+        today_start_ms = int(
+            datetime.datetime.fromisoformat("2026-04-29").timestamp() * 1000
+        )
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE session (id TEXT, time_created INTEGER)")
+        conn.execute("CREATE TABLE message (session_id TEXT, data TEXT)")
+        conn.execute(
+            "INSERT INTO session VALUES (?, ?)",
+            ("s1", today_start_ms + 1000),
+        )
+        rows = [
+            "{",
+            json.dumps({"modelID": "", "tokens": {"input": 10}}),
+            json.dumps({"modelID": "m", "tokens": {}, "cost": 0}),
+            json.dumps(
+                {
+                    "modelID": "m",
+                    "tokens": {"input": 10, "output": 5},
+                    "cost": 0.25,
+                }
+            ),
+            json.dumps(
+                {
+                    "modelID": "m",
+                    "tokens": {"input": 2, "output": 3},
+                    "cost": 0.10,
+                }
+            ),
+        ]
+        conn.executemany("INSERT INTO message VALUES (?, ?)", [("s1", r) for r in rows])
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(aiusage_state_mod, "_OPENCODE_DB", db)
+        monkeypatch.setattr(aiusage_state_mod, "_today_iso", lambda: "2026-04-29")
+
+        result = query_opencode_today()
+
+        usage = result["s1"]["opencode:m"]
+        assert usage.input_tokens == 12
+        assert usage.output_tokens == 8
+        assert usage.precalculated_cost == 0.35
 
 
 # ---------------------------------------------------------------

@@ -22,6 +22,8 @@ from docking.applets.clock.state import (
     load_prefs,
     save_payload,
 )
+from docking.applets.menu import menu_sections
+from docking.applets.popup import add_cancel_ok_buttons, prepare_dialog_content
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -82,46 +84,44 @@ class ClockApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Clock display, seconds, and one-shot alarm controls."""
-        items: list[Gtk.MenuItem] = []
-
         digital = Gtk.CheckMenuItem(label=_("Digital Clock"))
         digital.set_active(self._show_digital)
         digital.connect("toggled", self._on_toggle_digital)
-        items.append(digital)
 
         military = Gtk.CheckMenuItem(label=_("24-Hour Clock"))
         military.set_active(self._show_military)
         military.connect("toggled", self._on_toggle_military)
-        items.append(military)
 
         date = Gtk.CheckMenuItem(label=_("Show Date"))
         date.set_active(self._show_date)
         date.set_sensitive(self._show_digital)
         date.connect("toggled", self._on_toggle_date)
-        items.append(date)
 
         seconds = Gtk.CheckMenuItem(label=_("Show Seconds"))
         seconds.set_active(self._show_seconds)
         seconds.connect("toggled", self._on_toggle_seconds)
-        items.append(seconds)
-
-        items.append(Gtk.SeparatorMenuItem())
 
         set_alarm = Gtk.MenuItem(label=_("Set Alarm..."))
         set_alarm.connect("activate", lambda _w: self._show_alarm_dialog())
-        items.append(set_alarm)
+        manage = [set_alarm]
 
+        destructive: list[Gtk.MenuItem] = []
         if self._alarm_target is not None:
             clear_alarm = Gtk.MenuItem(label=_("Clear Alarm"))
             clear_alarm.connect("activate", lambda _w: self._clear_alarm())
-            items.append(clear_alarm)
+            destructive.append(clear_alarm)
 
         if self.item.is_urgent:
             acknowledge = Gtk.MenuItem(label=_("Acknowledge Alarm"))
             acknowledge.connect("activate", lambda _w: self._acknowledge_alarm())
-            items.append(acknowledge)
+            manage.append(acknowledge)
 
-        return items
+        return menu_sections(
+            display=[digital, military, date, seconds],
+            manage=manage,
+            destructive=destructive,
+            gtk=Gtk,
+        )
 
     def _on_toggle_digital(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_digital = widget.get_active()
@@ -202,16 +202,13 @@ class ClockApplet(Applet):
             title=_("Set Alarm"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        dialog.set_position(Gtk.WindowPosition.MOUSE)
-        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
-        dialog.add_button(_("OK"), Gtk.ResponseType.OK)
-
-        content = dialog.get_content_area()
-        content.set_spacing(ALARM_DIALOG_CONTENT_SPACING_PX)
-        content.set_margin_start(ALARM_DIALOG_MARGIN_PX)
-        content.set_margin_end(ALARM_DIALOG_MARGIN_PX)
-        content.set_margin_top(ALARM_DIALOG_MARGIN_PX)
-        content.set_margin_bottom(ALARM_DIALOG_MARGIN_PX)
+        add_cancel_ok_buttons(dialog=dialog, ok_label=_("OK"), cancel_label=_("Cancel"))
+        content = prepare_dialog_content(
+            dialog=dialog,
+            spacing=ALARM_DIALOG_CONTENT_SPACING_PX,
+            margin=ALARM_DIALOG_MARGIN_PX,
+            default_response=Gtk.ResponseType.OK,
+        )
 
         current = time.localtime(self._alarm_target or (time.time() + 60))
 
@@ -257,6 +254,7 @@ class ClockApplet(Applet):
 
         dialog.connect("response", on_response)
         dialog.show_all()
+        hour_spin.grab_focus()
 
     def _set_alarm(self, *, hour: int, minute: int) -> None:
         self._alarm_target = compute_alarm_target(

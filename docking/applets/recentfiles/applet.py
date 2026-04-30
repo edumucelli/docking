@@ -14,6 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.recentfiles import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -70,23 +71,19 @@ class RecentFilesApplet(Applet):
             log.bind(action="open_recent").warning("Failed to open %s: %s", uri, exc)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        primary: list[Gtk.MenuItem] = []
 
         for entry in self._entries:
             mi = Gtk.MenuItem(label=truncate_name(text=entry.name))
             uri = entry.uri
             mi.connect("activate", lambda _, u=uri: self._open_uri(uri=u))
-            items.append(mi)
-
-        if self._entries:
-            items.append(Gtk.SeparatorMenuItem())
+            primary.append(mi)
 
         clear_item = Gtk.MenuItem(label=_("Clear Recent Files"))
         clear_item.set_sensitive(bool(self._entries))
         clear_item.connect("activate", lambda _: self._clear_recent())
-        items.append(clear_item)
 
-        return items
+        return menu_sections(primary=primary, destructive=[clear_item], gtk=Gtk)
 
     def _refresh_entries(self) -> None:
         """Read from Gtk.RecentManager, sort by modified time descending."""

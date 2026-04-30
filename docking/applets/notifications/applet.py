@@ -16,6 +16,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -123,34 +124,31 @@ class NotificationsApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label=_("No notification backend available"))
-            placeholder.set_sensitive(False)
-            return [placeholder]
-
-        items: list[Gtk.MenuItem] = []
+            return [disabled_menu_item(_("No notification backend available"), gtk=Gtk)]
 
         dnd = Gtk.CheckMenuItem(label=_("Do Not Disturb"))
         dnd.set_active(self._state.paused)
         dnd.connect("toggled", self._on_toggle_dnd)
-        items.append(dnd)
 
+        status: list[Gtk.MenuItem] = []
         if self._state.pending_known:
-            pending = Gtk.MenuItem(
-                label=_("Pending: {n}").format(n=self._state.pending)
+            status.append(
+                disabled_menu_item(
+                    _("Pending: {n}").format(n=self._state.pending),
+                    gtk=Gtk,
+                )
             )
-            pending.set_sensitive(False)
-            items.append(pending)
 
         clear_history = Gtk.MenuItem(label=_("Clear History"))
         clear_history.connect("activate", lambda _w: self._on_clear_history())
-        items.append(clear_history)
+        destructive = [clear_history]
 
         if self._backend.supports_clear:
             clear = Gtk.MenuItem(label=_("Clear Notifications"))
             clear.connect("activate", lambda _w: self._on_clear())
-            items.append(clear)
+            destructive.append(clear)
 
-        return items
+        return menu_sections(status=status, display=[dnd], destructive=destructive)
 
     def _on_toggle_dnd(self, widget: Gtk.CheckMenuItem) -> None:
         target = widget.get_active()

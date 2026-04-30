@@ -14,7 +14,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.menu import radio_menu_items
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.quote import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -79,32 +79,22 @@ class QuoteApplet(Applet):
         self._fetch_async(show_first=True)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
-        source_header = Gtk.MenuItem(label=SOURCE_LABELS.get(self._source, _("Quote")))
-        source_header.set_sensitive(False)
-        items.append(source_header)
+        status = [
+            disabled_menu_item(SOURCE_LABELS.get(self._source, _("Quote")), gtk=Gtk)
+        ]
 
         next_item = Gtk.MenuItem(label=_("Next Quote"))
         next_item.connect("activate", lambda _: self.on_clicked())
-        items.append(next_item)
 
         copy_item = Gtk.MenuItem(label=_("Copy Quote"))
         copy_item.connect("activate", lambda _: self._copy_current_quote())
-        items.append(copy_item)
 
         refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _: self._refresh_from_web())
-        items.append(refresh_item)
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        source_title = Gtk.MenuItem(label=_("Source"))
-        source_title.set_sensitive(False)
-        items.append(source_title)
-
-        items.extend(
-            radio_menu_items(
+        display = [
+            disabled_menu_item(_("Source"), gtk=Gtk),
+            *radio_menu_items(
                 choices=tuple(
                     (label, source_id) for source_id, label in SOURCE_LABELS.items()
                 ),
@@ -114,10 +104,17 @@ class QuoteApplet(Applet):
                     value,
                 ),
                 gtk=Gtk,
-            )
-        )
+            ),
+        ]
 
-        return items
+        return menu_sections(
+            status=status,
+            primary=[copy_item],
+            navigation=[next_item],
+            refresh=[refresh_item],
+            display=display,
+            gtk=Gtk,
+        )
 
     def _on_source_toggled(self, widget: Gtk.RadioMenuItem, source_id: str) -> None:
         if not widget.get_active():

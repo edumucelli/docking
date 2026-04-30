@@ -19,6 +19,7 @@ from docking.applets.brightness.state import (
     get_brightness,
     set_brightness,
 )
+from docking.applets.menu import menu_sections
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -92,12 +93,10 @@ class BrightnessApplet(Applet):
             )
 
     def get_menu_items(self) -> list:
-        items = []
         show = Gtk.CheckMenuItem(label=_("Show Level"))
         show.set_active(self._show_level)
         show.connect("toggled", self._on_toggle_level)
-        items.append(show)
-        return items
+        return menu_sections(display=[show], gtk=Gtk)
 
     def _on_toggle_level(self, widget) -> None:
         self._show_level = widget.get_active()

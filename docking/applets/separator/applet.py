@@ -10,7 +10,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.applets.base import Applet
-from docking.applets.menu import radio_submenu
+from docking.applets.menu import menu_sections, radio_submenu
 from docking.applets.separator import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -137,7 +137,11 @@ class SeparatorApplet(Applet):
             "toggled",
             lambda widget: self._set_invert_color(widget.get_active()),
         )
-        return [increase, decrease, Gtk.SeparatorMenuItem(), style, invert]
+        return menu_sections(
+            primary=[increase, decrease],
+            display=[style, invert],
+            gtk=Gtk,
+        )
 
 
 def _normalized_gap(*, value: object) -> int:

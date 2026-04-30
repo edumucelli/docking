@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from typing import NamedTuple
 
+from docking.applets.tooltip import structured_tooltip
 from docking.applets.units import format_compact_number
 from docking.i18n import _
 from docking.log import get_logger
@@ -214,18 +215,22 @@ def build_tooltip(
 ) -> str:
     """Multi-line tooltip with connection details."""
     if not is_connected:
-        return _("Network: Not connected")
-    lines = []
-    if ssid:
-        lines.append(f"WiFi: {ssid} ({signal_strength}%)")
-    else:
-        lines.append(f"Ethernet: {iface}")
+        return structured_tooltip(
+            title=_("Network"),
+            primary=_("Not connected"),
+        )
+    primary = f"WiFi: {ssid} ({signal_strength}%)" if ssid else f"Ethernet: {iface}"
+    details = []
     if ip_address:
-        lines.append(f"IP: {ip_address}")
+        details.append(f"IP: {ip_address}")
     down = format_speed(bps=rx_speed)
     up = format_speed(bps=tx_speed)
-    lines.append(f"\u2193 {down}  \u2191 {up}")
-    return "\n".join(lines)
+    details.append(f"\u2193 {down}  \u2191 {up}")
+    return structured_tooltip(
+        title=_("Network"),
+        primary=primary,
+        details=details,
+    )
 
 
 def _open_command(*, cmd: list[str] | None, action: str) -> bool:

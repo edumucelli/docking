@@ -176,11 +176,12 @@ class TestThermalsState:
         }
 
     def test_build_tooltip(self):
-        text = build_tooltip(snapshot=_snapshot())
+        text = build_tooltip(snapshot=_snapshot(), cadence_seconds=5)
 
         assert "Thermals" in text
         assert "Hot: coretemp-isa-0000 Package id 0 74.2\N{DEGREE SIGN}C" in text
         assert "Fan: thinkpad-isa-0000 fan1 2987 RPM" in text
+        assert "Samples every 5 seconds" in text
         assert "Loading" in build_tooltip(snapshot=None, loading=True)
         assert "lm-sensors" in build_tooltip(
             snapshot=ThermalSnapshot(available=False, error="lm-sensors not installed")
@@ -227,6 +228,7 @@ class TestThermalsApplet:
 
         assert any(label.startswith("Hot:") for label in labels)
         assert any(label.startswith("Fan:") for label in labels)
+        assert "Samples every 5 seconds" in labels
         assert "Temperature Unit" in labels
         assert "Refresh Now" in labels
 
