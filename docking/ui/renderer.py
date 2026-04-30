@@ -170,7 +170,7 @@ from docking.ui.autohide import HideState
 from docking.ui.effects import average_icon_color, easing_bounce
 from docking.ui.geometry import DockGeometryFrame, map_icon_position
 from docking.ui.overlays import draw_count_badge, draw_progress_bar
-from docking.ui.shelf import draw_shelf_background, rounded_rect
+from docking.ui.shelf import clip_shelf_background, draw_shelf_background, rounded_rect
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -587,27 +587,19 @@ class DockRenderer:
             theme=theme,
         )
 
-        # Active glow (drawn in shelf transform space)
-        for item, li in zip(items, layout, strict=True):
-            if item.is_active:
-                color = self._cache.icon_color_for(item=item)
-                self._draw_active_glow(
-                    cr=cr,
-                    li=li,
-                    icon_size=icon_size,
-                    icon_offset=icon_offset,
-                    bg_y=as_bottom_bg_y,
-                    bg_height=bg_height,
-                    shelf_x=shelf_main_pos,
-                    shelf_w=shelf_main_extent,
-                    color=color,
-                    glow_opacity=theme.glow_opacity,
-                )
-
-        # Drop-target glow: green highlight when dragging a file over a launcher
-        if drop_target_id:
+        cr.save()
+        if clip_shelf_background(
+            cr=cr,
+            x=shelf_main_pos,
+            y=as_bottom_bg_y,
+            w=shelf_main_extent,
+            h=bg_height,
+            theme=theme,
+        ):
+            # Active glow (drawn in shelf transform space)
             for item, li in zip(items, layout, strict=True):
-                if item.desktop_id == drop_target_id:
+                if item.is_active:
+                    color = self._cache.icon_color_for(item=item)
                     self._draw_active_glow(
                         cr=cr,
                         li=li,
@@ -617,10 +609,28 @@ class DockRenderer:
                         bg_height=bg_height,
                         shelf_x=shelf_main_pos,
                         shelf_w=shelf_main_extent,
-                        color=(0.2, 0.8, 0.3),
+                        color=color,
                         glow_opacity=theme.glow_opacity,
                     )
-                    break
+
+            # Drop-target glow: green highlight when dragging a file over a launcher
+            if drop_target_id:
+                for item, li in zip(items, layout, strict=True):
+                    if item.desktop_id == drop_target_id:
+                        self._draw_active_glow(
+                            cr=cr,
+                            li=li,
+                            icon_size=icon_size,
+                            icon_offset=icon_offset,
+                            bg_y=as_bottom_bg_y,
+                            bg_height=bg_height,
+                            shelf_x=shelf_main_pos,
+                            shelf_w=shelf_main_extent,
+                            color=(0.2, 0.8, 0.3),
+                            glow_opacity=theme.glow_opacity,
+                        )
+                        break
+        cr.restore()
         cr.restore()
 
         # --- Draw icons ---
