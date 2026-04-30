@@ -3,12 +3,16 @@
 import json
 from pathlib import Path
 
+import pytest
+
+import docking.core.config as config_mod
 from docking.core.config import (
     APP_KIND,
     APPLET_KIND,
     FILE_KIND,
     FOLDER_KIND,
     Config,
+    HideMode,
     PinnedEntry,
 )
 from docking.core.position import Position
@@ -51,6 +55,43 @@ class TestConfigDefaults:
     def test_pos_property_returns_position_enum(self):
         c = Config(position="left")
         assert c.pos is Position.LEFT
+
+    def test_scaled_icon_and_hide_mode_properties(self):
+        c = Config(icon_size=40, zoom_percent=1.25, hide_mode="intelligent")
+
+        assert c.scaled_icon_size == 50
+        assert c.hide_mode_enum is HideMode.INTELLIGENT
+
+    def test_post_init_normalizes_invalid_runtime_values(self):
+        c = Config(
+            icon_size="bad",
+            zoom_percent="bad",
+            zoom_range="bad",
+            position=object(),
+            monitor_index="bad",
+            hide_delay_ms="bad",
+            transparency="bad",
+            previews_enabled="off",
+            lock_icons="on",
+            current_workspace_only=0,
+            anchor_applets=1,
+            active_display="no",
+            theme="",
+        )
+
+        assert c.icon_size == 48
+        assert c.zoom_percent == 1.5
+        assert c.zoom_range == 3
+        assert c.position == "bottom"
+        assert c.monitor_index == -1
+        assert c.hide_delay_ms == 0
+        assert c.transparency == 1.0
+        assert c.previews_enabled is False
+        assert c.lock_icons is True
+        assert c.current_workspace_only is False
+        assert c.anchor_applets is True
+        assert c.active_display is False
+        assert c.theme == "default"
 
 
 class TestConfigLoad:
@@ -354,6 +395,32 @@ class TestConfigLoad:
 
         assert config.pinned == [PinnedEntry(kind=APP_KIND, target="existing.desktop")]
 
+    def test_load_invalid_primary_and_backup_falls_back_to_default(self, tmp_path):
+        path = tmp_path / "dock.json"
+        backup = tmp_path / "dock.json.bak"
+        path.write_text("{", encoding="utf-8")
+        backup.write_text("{", encoding="utf-8")
+
+        config = Config.load(path)
+
+        assert config.icon_size == 48
+        assert config._path == path
+
+    def test_load_valid_primary_ignores_backup_creation_failure(
+        self, tmp_path, monkeypatch
+    ):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"icon_size": 72}), encoding="utf-8")
+        monkeypatch.setattr(
+            config_mod,
+            "_write_backup_copy",
+            lambda **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+        )
+
+        config = Config.load(path)
+
+        assert config.icon_size == 72
+
 
 class TestConfigSave:
     def test_save_creates_parent_dirs(self, tmp_path):
@@ -491,6 +558,30 @@ class TestConfigSave:
         assert json.loads(path.read_text())["icon_size"] == 96
         assert json.loads(backup.read_text())["icon_size"] == 48
 
+    def test_save_skips_backup_refresh_when_current_file_invalid(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text("{", encoding="utf-8")
+        config = Config(icon_size=96)
+
+        config.save(path)
+
+        assert json.loads(path.read_text())["icon_size"] == 96
+        assert not (tmp_path / "dock.json.bak").exists()
+
+    def test_save_cleans_temp_file_when_write_fails(self, tmp_path, monkeypatch):
+        path = tmp_path / "dock.json"
+        config = Config(icon_size=96)
+        monkeypatch.setattr(
+            config_mod,
+            "_write_json_atomic_candidate",
+            lambda **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+        )
+
+        with pytest.raises(OSError):
+            config.save(path)
+
+        assert list(tmp_path.iterdir()) == []
+
     def test_save_fsyncs_directory_after_replace(self, monkeypatch, tmp_path):
         path = tmp_path / "dock.json"
         config = Config(icon_size=96)
@@ -509,3 +600,81 @@ class TestConfigSave:
         config.save(path)
 
         assert len(fsynced) >= 2
+
+
+class TestConfigHelpers:
+    def test_pinned_entry_equality_and_raw_shapes(self, tmp_path):
+        folder_uri = tmp_path.as_uri()
+        applet_id = "applet://clock"
+        entry = PinnedEntry(kind=APP_KIND, target="firefox.desktop")
+
+        assert entry == "firefox.desktop"
+        assert entry == {"kind": APP_KIND, "target": "firefox.desktop"}
+        assert entry != 1
+        assert PinnedEntry.from_raw(entry) is entry
+        assert PinnedEntry.from_raw("") is None
+        assert PinnedEntry.from_raw(applet_id) == PinnedEntry(
+            kind=APPLET_KIND,
+            target=applet_id,
+        )
+        assert PinnedEntry.from_raw(folder_uri) == PinnedEntry(
+            kind=FOLDER_KIND,
+            target=folder_uri,
+        )
+        assert PinnedEntry.from_raw({"kind": APP_KIND, "target": ""}) is None
+        assert PinnedEntry.from_raw({"kind": "bad", "target": "x"}) is None
+        assert PinnedEntry.from_raw(["bad"]) is None
+
+    def test_resolve_initial_desktop_id_uses_candidates_and_fallbacks(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(
+            config_mod,
+            "_desktop_id_exists",
+            lambda desktop_id: desktop_id == "good.desktop",
+        )
+        assert (
+            config_mod._resolve_initial_desktop_id(
+                candidates=("bad.desktop", "good.desktop"),
+                fallback_content_types=(),
+            )
+            == "good.desktop"
+        )
+
+        monkeypatch.setattr(config_mod, "_desktop_id_exists", lambda _desktop_id: True)
+        monkeypatch.setattr(
+            config_mod,
+            "_default_desktop_id_for",
+            lambda content_type: (
+                "fallback.desktop" if content_type == "text/plain" else None
+            ),
+        )
+        assert (
+            config_mod._resolve_initial_desktop_id(
+                candidates=(),
+                fallback_content_types=("text/plain",),
+            )
+            == "fallback.desktop"
+        )
+
+    def test_read_config_data_rejects_non_object(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text("[]", encoding="utf-8")
+
+        with pytest.raises(ValueError):
+            config_mod._read_config_data(path=path)
+
+        assert config_mod._is_valid_config_file(path=path) is False
+
+    def test_write_backup_copy_cleans_temp_on_failure(self, tmp_path, monkeypatch):
+        source = tmp_path / "source.json"
+        backup = tmp_path / "backup.json"
+        source.write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(
+            Path, "read_bytes", lambda _self: (_ for _ in ()).throw(OSError("boom"))
+        )
+
+        with pytest.raises(OSError):
+            config_mod._write_backup_copy(source=source, backup_path=backup)
+
+        assert not backup.exists()

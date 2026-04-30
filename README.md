@@ -809,7 +809,9 @@ Hacker News headline viewer. It fetches HN top stories, keeps a cached list for 
 - **Open Story**
 - **Open Comments**
 - **Next Headline**
-- **Refresh Hacker News**
+- **Refresh Now**
+
+**Update interval:** 10 minutes. Additional pages load on demand when you reach the last loaded headline, up to 100 stories.
 
 **Preferences stored:** cached `stories`, `active_index`, `fetched_at`
 
@@ -856,6 +858,8 @@ Live currency pair monitor with a sparkline icon. Add the pairs you care about, 
 **Scroll:** Cycle added pairs
 **Right-click:** Refresh, swap pair, add pair, chart interval, switch/remove added pair
 
+**Update interval:** 15 minutes. Day charts use local samples collected on each successful refresh; week and month charts use remote daily history plus the current rate.
+
 **Preferences stored:** `pairs`, `active_index`, `chart_interval`, `sample_source`, `samples`
 
 ### URL Shortener
@@ -900,7 +904,9 @@ Monitor certificate expiry for a list of domains. The shield color highlights th
 - Per-domain status with days remaining
 - Add domain
 - Remove submenu
-- Refresh now
+- Refresh Now
+
+**Update interval:** 1 hour. Failed certificate checks retry after 5 minutes.
 
 **Preferences stored:** `domains` list (host, port)
 
@@ -908,7 +914,7 @@ Monitor certificate expiry for a list of domains. The shield color highlights th
 
 <img src="docking/assets/icons/applets/speedtest.png" alt="Speedtest" width="48">
 
-One-click internet speed test. The dial is painted as a classic four-band speedometer (red, orange, yellow, green from left to right); the needle points at the last download speed and takes its color from the current tier. The badge shows Mbps (e.g. `250M`, `1.2G`). Tooltip shows download, upload, ping, jitter, server, and timestamp.
+One-click internet speed test. The dial is painted as a classic four-band speedometer (red, orange, yellow, green from left to right); the needle points at the last download speed and takes its color from the current tier. The badge shows Mbps (e.g. `250Mb`, `1.2Gb`). Tooltip shows download, upload, ping, jitter, server, and timestamp.
 
 **Click:** Run one test (~20 seconds: ping + 10s download + 10s upload)
 
@@ -916,6 +922,8 @@ One-click internet speed test. The dial is painted as a classic four-band speedo
 - Summary header (Down / Up)
 - Run Test (disabled while running)
 - Copy Last Result (to clipboard)
+
+**Update interval:** Manual. Results update only when you run a test.
 
 **Preferences stored:** `last_result` (download_mbps, upload_mbps, ping_ms, jitter_ms, server, timestamp)
 
@@ -945,6 +953,8 @@ Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip inclu
 - Open on apod.nasa.gov
 - Copy Explanation
 - Refresh Now
+
+**Update interval:** 1 hour. The applet fetches again when the APOD date changes and retries errors after 10 minutes.
 
 **Preferences stored:** `last_result` (date, title, explanation, media_type, image_url, page_url, copyright, cached_path)
 

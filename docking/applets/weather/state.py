@@ -8,6 +8,14 @@ from functools import lru_cache
 from typing import Any, NamedTuple
 
 from docking.applets import temperature as temperature_display
+from docking.applets.live_state import (
+    live_freshness_lines,
+    live_state_error,
+    live_state_label,
+    refresh_recovery_label,
+    resolve_live_status,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.applets.weather.api import AirQualityData, WeatherData
 from docking.applets.weather.cities import CityEntry, load_cities
 from docking.i18n import _
@@ -141,37 +149,67 @@ def build_tooltip(
     city_display: str,
     weather: WeatherData | None,
     air_quality: AirQualityData | None,
+    loading: bool = False,
     fetch_failed: bool = False,
+    error: str | None = None,
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    updated_at: object | None = None,
+    cadence_seconds: int | None = None,
 ) -> str:
     """Build multi-line tooltip with current + daily forecast."""
     if not city_display:
-        return _("Weather (no city selected)")
+        return structured_tooltip(
+            title=_("Weather"),
+            primary=_("No city selected"),
+        )
+    state_error = error or (_("Unavailable") if fetch_failed else None)
+    status = resolve_live_status(
+        has_data=weather is not None,
+        loading=loading,
+        error=state_error,
+        updated_at=updated_at,
+    )
     if not weather:
-        if fetch_failed:
-            return _("{city}: unavailable").format(city=city_display)
-        return _("{city}: loading...").format(city=city_display)
-
-    lines = [
-        city_display,
-        _("{temp}, {desc}").format(
-            temp=format_temperature(
-                weather.temperature,
-                temperature_unit=temperature_unit,
+        return structured_tooltip(
+            title=city_display,
+            primary=live_state_label(status),
+            freshness=live_freshness_lines(
+                status=status,
+                updated_at=updated_at,
+                cadence_seconds=cadence_seconds,
             ),
-            desc=weather.description,
-        ),
-    ]
+            error=live_state_error(status=status, error=state_error),
+            recovery=refresh_recovery_label(status),
+        )
+
+    details = []
     if air_quality:
-        lines.append(_("Air: {label}").format(label=air_quality.label))
+        details.append(_("Air: {label}").format(label=air_quality.label))
     for day in weather.daily:
         temp = format_temperature_range(
             low_celsius=day.temp_min,
             high_celsius=day.temp_max,
             temperature_unit=temperature_unit,
         )
-        lines.append(f"{day.date}: {temp}, {day.description}")
-    return "\n".join(lines)
+        details.append(f"{day.date}: {temp}, {day.description}")
+    return structured_tooltip(
+        title=city_display,
+        primary=_("{temp}, {desc}").format(
+            temp=format_temperature(
+                weather.temperature,
+                temperature_unit=temperature_unit,
+            ),
+            desc=weather.description,
+        ),
+        details=details,
+        freshness=live_freshness_lines(
+            status=status,
+            updated_at=updated_at,
+            cadence_seconds=cadence_seconds,
+        ),
+        error=live_state_error(status=status, error=state_error),
+        recovery=refresh_recovery_label(status),
+    )
 
 
 @lru_cache(maxsize=1)

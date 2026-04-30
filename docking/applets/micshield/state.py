@@ -16,9 +16,9 @@ import subprocess
 from dataclasses import dataclass
 
 from docking.i18n import _
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
-log = get_logger(name="micshield.state")
+log = with_context(get_logger(name="micshield.state"))
 
 DEFAULT_POLL_INTERVAL_S = 2
 MAX_TOOLTIP_STREAMS = 6

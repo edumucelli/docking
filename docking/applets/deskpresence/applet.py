@@ -28,7 +28,7 @@ from docking.applets.deskpresence.state import (
     prefs_payload,
     state_from_prefs,
 )
-from docking.applets.menu import radio_submenu
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -79,36 +79,36 @@ class DeskpresenceApplet(Applet):
         self.item.name = build_tooltip(state=self._state, now_epoch=time.time())
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
-        header = Gtk.MenuItem(
-            label=_("{status}").format(
-                status=_presence_text(self._state.presence),
-            )
-        )
-        header.set_sensitive(False)
-        items.append(header)
-        items.append(Gtk.SeparatorMenuItem())
-
-        items.append(
-            radio_submenu(
-                label=_("Idle Threshold"),
-                choices=tuple(
-                    (_threshold_label(preset_s), preset_s)
-                    for preset_s in _IDLE_THRESHOLD_PRESETS_S
+        status = [
+            disabled_menu_item(
+                _("{status}").format(
+                    status=_presence_text(self._state.presence),
                 ),
-                active_value=self._state.idle_threshold_s,
-                is_active=lambda value: abs(self._state.idle_threshold_s - value) < 0.5,
-                on_selected=lambda _widget, value: self._set_threshold(seconds=value),
                 gtk=Gtk,
             )
+        ]
+
+        threshold = radio_submenu(
+            label=_("Idle Threshold"),
+            choices=tuple(
+                (_threshold_label(preset_s), preset_s)
+                for preset_s in _IDLE_THRESHOLD_PRESETS_S
+            ),
+            active_value=self._state.idle_threshold_s,
+            is_active=lambda value: abs(self._state.idle_threshold_s - value) < 0.5,
+            on_selected=lambda _widget, value: self._set_threshold(seconds=value),
+            gtk=Gtk,
         )
 
         reset = Gtk.MenuItem(label=_("Reset Today"))
         reset.connect("activate", lambda _w: self._reset_today())
-        items.append(reset)
 
-        return items
+        return menu_sections(
+            status=status,
+            display=[threshold],
+            destructive=[reset],
+            gtk=Gtk,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)

@@ -15,7 +15,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import NM, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.menu import radio_menu_items
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.network import meta
 from docking.applets.network.render import create_icon
 from docking.applets.network.state import (
@@ -111,59 +111,53 @@ class NetworkApplet(Applet):
 
     def get_menu_items(self) -> list:
         """Show connection info and common network actions."""
-        items = []
+        status: list[Gtk.MenuItem] = []
         if self._ssid:
-            header = Gtk.MenuItem(
-                label=_("WiFi: {ssid} ({pct}%)").format(
-                    ssid=self._ssid, pct=self._signal_strength
+            status.append(
+                disabled_menu_item(
+                    _("WiFi: {ssid} ({pct}%)").format(
+                        ssid=self._ssid, pct=self._signal_strength
+                    ),
+                    gtk=Gtk,
                 )
             )
-            header.set_sensitive(False)
-            items.append(header)
         elif self._is_connected:
-            header = Gtk.MenuItem(
-                label=_("Ethernet: {iface}").format(iface=self._iface)
+            status.append(
+                disabled_menu_item(
+                    _("Ethernet: {iface}").format(iface=self._iface),
+                    gtk=Gtk,
+                )
             )
-            header.set_sensitive(False)
-            items.append(header)
         else:
-            header = Gtk.MenuItem(label=_("Not connected"))
-            header.set_sensitive(False)
-            items.append(header)
+            status.append(disabled_menu_item(_("Not connected"), gtk=Gtk))
 
         if self._ip_address:
-            ip_item = Gtk.MenuItem(label=_("IP: {ip}").format(ip=self._ip_address))
-            ip_item.set_sensitive(False)
-            items.append(ip_item)
+            status.append(
+                disabled_menu_item(_("IP: {ip}").format(ip=self._ip_address), gtk=Gtk)
+            )
 
         if self._is_connected:
             down = format_speed(bps=self._rx_speed)
             up = format_speed(bps=self._tx_speed)
-            speed_item = Gtk.MenuItem(label=f"\u2193 {down}  \u2191 {up}")
-            speed_item.set_sensitive(False)
-            items.append(speed_item)
+            status.append(disabled_menu_item(f"\u2193 {down}  \u2191 {up}", gtk=Gtk))
 
-        if items:
-            items.append(Gtk.SeparatorMenuItem())
-
+        settings: list[Gtk.MenuItem] = []
         info_cmd = connection_info_command()
         if info_cmd is not None:
             info_item = Gtk.MenuItem(label=_("Connection Information"))
             info_item.connect("activate", lambda _widget: open_connection_info())
-            items.append(info_item)
+            settings.append(info_item)
 
         edit_cmd = edit_connections_command()
         if edit_cmd is not None:
             edit_item = Gtk.MenuItem(label=_("Edit Connections..."))
             edit_item.connect("activate", lambda _widget: open_edit_connections())
-            items.append(edit_item)
+            settings.append(edit_item)
 
+        manage: list[Gtk.MenuItem] = []
         if self._nm_client is not None:
-            if info_cmd is not None or edit_cmd is not None:
-                items.append(Gtk.SeparatorMenuItem())
-
             if self._has_wifi_device():
-                items.append(self._build_available_networks_submenu())
+                manage.append(self._build_available_networks_submenu())
 
                 hidden_item = Gtk.MenuItem(
                     label=_("Connect to Hidden Wi-Fi Network...")
@@ -171,11 +165,11 @@ class NetworkApplet(Applet):
                 hidden_item.connect(
                     "activate", lambda _widget: open_hidden_wifi_settings()
                 )
-                items.append(hidden_item)
+                manage.append(hidden_item)
 
                 new_item = Gtk.MenuItem(label=_("Create New Wi-Fi Network..."))
                 new_item.connect("activate", lambda _widget: open_new_wifi_settings())
-                items.append(new_item)
+                manage.append(new_item)
 
             networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))
             networking_item.set_active(self._nm_client.networking_get_enabled())
@@ -185,7 +179,7 @@ class NetworkApplet(Applet):
                     enabled=widget.get_active()
                 ),
             )
-            items.append(networking_item)
+            manage.append(networking_item)
 
             if self._has_wifi_device():
                 wifi_item = Gtk.CheckMenuItem(label=_("Enable Wi-Fi"))
@@ -197,28 +191,30 @@ class NetworkApplet(Applet):
                         enabled=widget.get_active()
                     ),
                 )
-                items.append(wifi_item)
+                manage.append(wifi_item)
 
             vpn_item = self._build_vpn_connections_submenu()
             if vpn_item is not None:
-                items.append(vpn_item)
+                manage.append(vpn_item)
 
-            items.append(Gtk.SeparatorMenuItem())
-
-        items.extend(
-            radio_menu_items(
-                choices=(
-                    (_("Show Download"), "download"),
-                    (_("Show Upload"), "upload"),
-                    (_("Hide Speeds"), "none"),
-                ),
-                active_value=self._speed_overlay,
-                on_selected=lambda _widget, value: self._set_speed_overlay(mode=value),
-                gtk=Gtk,
-            )
+        display = radio_menu_items(
+            choices=(
+                (_("Show Download"), "download"),
+                (_("Show Upload"), "upload"),
+                (_("Hide Speeds"), "none"),
+            ),
+            active_value=self._speed_overlay,
+            on_selected=lambda _widget, value: self._set_speed_overlay(mode=value),
+            gtk=Gtk,
         )
 
-        return items
+        return menu_sections(
+            status=status,
+            display=display,
+            manage=manage,
+            settings=settings,
+            gtk=Gtk,
+        )
 
     def _set_speed_overlay(self, mode: str) -> None:
         self._speed_overlay = mode

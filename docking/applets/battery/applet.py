@@ -21,6 +21,7 @@ from docking.applets.battery.state import (
     read_battery,
     tooltip_text,
 )
+from docking.applets.menu import menu_sections
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -68,18 +69,17 @@ class BatteryApplet(Applet):
         super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
         show = Gtk.CheckMenuItem(label=_("Show Percent"))
         show.set_active(self._show_percent)
         show.connect("toggled", self._on_toggle_percent)
-        items.append(show)
 
+        settings: list[Gtk.MenuItem] = []
         cmd = power_settings_command()
         if cmd is not None:
             power_settings = Gtk.MenuItem(label=_("Power Settings"))
             power_settings.connect("activate", lambda _widget: open_power_settings())
-            items.append(power_settings)
-        return items
+            settings.append(power_settings)
+        return menu_sections(display=[show], settings=settings, gtk=Gtk)
 
     def _on_toggle_percent(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_percent = widget.get_active()

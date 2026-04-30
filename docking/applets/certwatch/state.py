@@ -8,6 +8,14 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, NamedTuple
 
+from docking.applets.live_state import (
+    live_freshness_lines,
+    live_state_error,
+    live_state_label,
+    refresh_recovery_label,
+    resolve_live_status,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 
 DEFAULT_HTTPS_PORT = 443
@@ -257,19 +265,52 @@ def build_tooltip(
     *,
     domains: Iterable[DomainPref],
     certs: Iterable[CertInfo],
+    loading: bool = False,
+    error: str | None = None,
     now: datetime | None = None,
+    updated_at: object | None = None,
+    cadence_seconds: int | None = None,
 ) -> str:
     """Full tooltip text: header + one line per domain."""
     domain_list = list(domains)
     if not domain_list:
-        return _("Cert Watch (no domains configured)")
+        return structured_tooltip(
+            title=_("Cert Watch"),
+            primary=_("No domains configured"),
+        )
 
     cert_map = {(c.host, c.port): c for c in certs}
-    lines = [_("Cert Watch")]
+    has_data = bool(cert_map)
+    status = resolve_live_status(
+        has_data=has_data,
+        loading=loading,
+        error=error,
+        updated_at=updated_at,
+        stale_after_seconds=cadence_seconds * 2 if cadence_seconds else None,
+        now=now,
+    )
+    details = []
     for pref in domain_list:
         cert = cert_map.get((pref.host, pref.port))
         if cert is None:
-            lines.append(_("{host}: loading...").format(host=format_host(pref)))
+            if error and not loading:
+                details.append(_("{host}: unavailable").format(host=format_host(pref)))
+            else:
+                details.append(_("{host}: loading...").format(host=format_host(pref)))
         else:
-            lines.append(tooltip_line(cert=cert, now=now))
-    return "\n".join(lines)
+            details.append(tooltip_line(cert=cert, now=now))
+    state_label = live_state_label(status)
+    if state_label and has_data:
+        details.append(state_label)
+    return structured_tooltip(
+        title=_("Cert Watch"),
+        details=details,
+        freshness=live_freshness_lines(
+            status=status,
+            updated_at=updated_at,
+            cadence_seconds=cadence_seconds,
+            cadence_verb=_("Checks"),
+        ),
+        error=live_state_error(status=status, error=error),
+        recovery=refresh_recovery_label(status),
+    )

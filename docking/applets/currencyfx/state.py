@@ -32,6 +32,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, cast
 
+from docking.applets.live_state import (
+    live_freshness_lines,
+    live_state_error,
+    live_state_label,
+    refresh_recovery_label,
+    resolve_live_status,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.applets.unitconverter.state import Unit, fetch_currency_rates
 from docking.i18n import _
 from docking.log import get_logger
@@ -706,24 +714,54 @@ def build_tooltip(
     base: str,
     quote: str,
     snapshot: FxSnapshot | None,
+    loading: bool = False,
     fetch_failed: bool,
+    error: str | None = None,
+    chart_interval: ChartInterval | str = DEFAULT_CHART_INTERVAL,
+    cadence_seconds: int | None = None,
 ) -> str:
     """Build tooltip text."""
     pair = f"{base}/{quote}"
+    verb = (
+        _("Day samples")
+        if normalize_chart_interval(chart_interval) == ChartInterval.DAY
+        else None
+    )
+    state_error = error or (_("Unavailable") if fetch_failed else None)
+    status = resolve_live_status(
+        has_data=snapshot is not None,
+        loading=loading,
+        error=state_error,
+        updated_at=snapshot.fetched_at if snapshot else None,
+    )
     if snapshot is None:
-        if fetch_failed:
-            return _("{pair}: unavailable").format(pair=pair)
-        return _("{pair}: loading...").format(pair=pair)
-    return "\n".join(
-        (
-            pair,
-            _("1 {base} = {rate} {quote}").format(
-                base=snapshot.base,
-                rate=format_rate(snapshot.rate),
-                quote=snapshot.quote,
+        return structured_tooltip(
+            title=pair,
+            primary=live_state_label(status),
+            freshness=live_freshness_lines(
+                status=status,
+                cadence_seconds=cadence_seconds,
+                cadence_verb=verb,
             ),
-            _("Change: {change}").format(change=format_change(snapshot.points)),
+            error=live_state_error(status=status, error=state_error),
+            recovery=refresh_recovery_label(status),
         )
+    return structured_tooltip(
+        title=pair,
+        primary=_("1 {base} = {rate} {quote}").format(
+            base=snapshot.base,
+            rate=format_rate(snapshot.rate),
+            quote=snapshot.quote,
+        ),
+        details=(_("Change: {change}").format(change=format_change(snapshot.points)),),
+        freshness=live_freshness_lines(
+            status=status,
+            updated_at=snapshot.fetched_at,
+            cadence_seconds=cadence_seconds,
+            cadence_verb=verb,
+        ),
+        error=live_state_error(status=status, error=state_error),
+        recovery=refresh_recovery_label(status),
     )
 
 

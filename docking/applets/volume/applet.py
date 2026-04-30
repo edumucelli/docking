@@ -12,6 +12,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.volume import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -109,18 +110,17 @@ class VolumeApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
         show = Gtk.CheckMenuItem(label=_("Show Level"))
         show.set_active(self._show_level)
         show.connect("toggled", self._on_toggle_level)
-        items.append(show)
 
+        settings: list[Gtk.MenuItem] = []
         cmd = volume_settings_command()
         if cmd is not None:
             volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
             volume_settings.connect("activate", lambda _widget: open_volume_settings())
-            items.append(volume_settings)
-        return items
+            settings.append(volume_settings)
+        return menu_sections(display=[show], settings=settings, gtk=Gtk)
 
     def _on_toggle_level(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_level = widget.get_active()

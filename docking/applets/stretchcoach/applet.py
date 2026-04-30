@@ -12,7 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.menu import radio_menu_items
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.applets.stretchcoach import meta
 from docking.applets.stretchcoach.render import render_icon
 from docking.applets.stretchcoach.state import (
@@ -76,37 +76,31 @@ class StretchCoachApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
         now_label = _("Acknowledge Break") if self._state.due else _("Take Break Now")
         take_break = Gtk.MenuItem(label=now_label)
         take_break.connect("activate", lambda _w: self.on_clicked())
-        items.append(take_break)
 
         preview = Gtk.MenuItem(label=_("Show Random Stretch"))
         preview.connect("activate", lambda _w: self._show_random_stretch())
-        items.append(preview)
 
         cards = Gtk.CheckMenuItem(label=_("Random Stretch Cards"))
         cards.set_active(self._state.cards_enabled)
         cards.connect("toggled", self._on_toggle_cards)
-        items.append(cards)
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        items.extend(
-            radio_menu_items(
-                choices=tuple(
-                    (_("{mins} min").format(mins=mins), mins)
-                    for mins in INTERVAL_PRESETS
-                ),
-                active_value=self._state.interval_min,
-                on_selected=lambda _widget, value: self._set_interval(value),
-                gtk=Gtk,
-            )
+        intervals = radio_menu_items(
+            choices=tuple(
+                (_("{mins} min").format(mins=mins), mins) for mins in INTERVAL_PRESETS
+            ),
+            active_value=self._state.interval_min,
+            on_selected=lambda _widget, value: self._set_interval(value),
+            gtk=Gtk,
         )
 
-        return items
+        return menu_sections(
+            primary=[take_break, preview],
+            display=[cards, Gtk.SeparatorMenuItem(), *intervals],
+            gtk=Gtk,
+        )
 
     def _tick(self) -> bool:
         result = tick(self._state, cards=self._cards)

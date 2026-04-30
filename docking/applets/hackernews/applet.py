@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.freshness import cadence_label, parse_timestamp
 from docking.applets.hackernews import meta
 from docking.applets.hackernews.render import render_icon
 from docking.applets.hackernews.state import (
@@ -30,6 +32,12 @@ from docking.applets.hackernews.state import (
     prefs_from_mapping,
     prefs_payload,
 )
+from docking.applets.live_state import (
+    live_state_error,
+    live_state_label,
+    resolve_live_status,
+)
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -54,6 +62,7 @@ class HackerNewsApplet(Applet):
         self._stories: list[HackerNewsStory] = list(prefs.stories)
         self._active_index = prefs.active_index
         self._next_story_offset = prefs.next_offset
+        self._fetched_at = parse_timestamp(prefs.fetched_at)
         self._loading = False
         self._page_loading = False
         self._has_more_stories = (
@@ -96,6 +105,8 @@ class HackerNewsApplet(Applet):
             loading=self._loading,
             page_loading=self._page_loading,
             error=self._error,
+            fetched_at=self._fetched_at,
+            cadence_seconds=REFRESH_INTERVAL_S,
         )
 
     def start(self, notify: Callable[[], None]) -> None:
@@ -130,45 +141,73 @@ class HackerNewsApplet(Applet):
         self._move_story(step=step)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
-        header = Gtk.MenuItem(label=HN_SOURCE_LABEL)
-        header.set_sensitive(False)
-        items.append(header)
+        status: list[Gtk.MenuItem] = [
+            disabled_menu_item(HN_SOURCE_LABEL, gtk=Gtk),
+            disabled_menu_item(
+                cadence_label(seconds=REFRESH_INTERVAL_S, verb=_("Refreshes")),
+                gtk=Gtk,
+            ),
+        ]
 
         current = self._current_story
+        primary: list[Gtk.MenuItem] = []
         if current is not None:
-            title = Gtk.MenuItem(label=current.title)
-            title.set_sensitive(False)
-            items.append(title)
-            stats = Gtk.MenuItem(
-                label=_("{score} points, {comments} comments").format(
-                    score=current.score,
-                    comments=current.comments,
-                )
+            status.extend(
+                [
+                    disabled_menu_item(current.title, gtk=Gtk),
+                    disabled_menu_item(
+                        _("{score} points, {comments} comments").format(
+                            score=current.score,
+                            comments=current.comments,
+                        ),
+                        gtk=Gtk,
+                    ),
+                ]
             )
-            stats.set_sensitive(False)
-            items.append(stats)
-            items.append(Gtk.SeparatorMenuItem())
+            state_status = self._live_status()
+            state_label = live_state_label(state_status)
+            if state_label:
+                status.append(disabled_menu_item(state_label, gtk=Gtk))
+            error = live_state_error(status=state_status, error=self._error)
+            if error:
+                status.append(
+                    disabled_menu_item(
+                        _("Error: {msg}").format(msg=error),
+                        gtk=Gtk,
+                    )
+                )
 
             open_story = Gtk.MenuItem(label=_("Open Story"))
             open_story.connect("activate", lambda _w: self._open_current_story())
-            items.append(open_story)
+            primary.append(open_story)
 
             open_comments = Gtk.MenuItem(label=_("Open Comments"))
             open_comments.connect("activate", lambda _w: self._open_current_comments())
-            items.append(open_comments)
+            primary.append(open_comments)
 
         next_item = Gtk.MenuItem(label=_("Next Headline"))
         next_item.set_sensitive(bool(self._stories))
         next_item.connect("activate", lambda _w: self._advance_story())
-        items.append(next_item)
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._fetch_async())
-        items.append(refresh)
 
-        return items
+        return menu_sections(
+            status=status,
+            primary=primary,
+            navigation=[next_item],
+            refresh=[refresh],
+            gtk=Gtk,
+        )
+
+    def _live_status(self):
+        return resolve_live_status(
+            has_data=self._current_story is not None,
+            loading=self._loading,
+            error=self._error,
+            updated_at=self._fetched_at,
+            stale_after_seconds=REFRESH_INTERVAL_S * 2,
+        )
 
     def _refresh_tick(self) -> bool:
         self._fetch_async()
@@ -269,6 +308,7 @@ class HackerNewsApplet(Applet):
             self._next_story_offset = page.next_offset
             self._has_more_stories = page.has_more and len(self._stories) < MAX_STORIES
             self._error = ""
+            self._fetched_at = dt.datetime.now(dt.timezone.utc)
             self._save_prefs()
         elif not self._stories:
             self._error = _("No Hacker News stories")
@@ -352,6 +392,7 @@ class HackerNewsApplet(Applet):
             return False
 
         self._stories = list(merged)
+        self._fetched_at = dt.datetime.now(dt.timezone.utc)
         self._save_prefs()
         self.present()
         return False
@@ -393,5 +434,6 @@ class HackerNewsApplet(Applet):
                 active_index=self._active_index,
                 next_offset=self._next_story_offset,
                 has_more_stories=self._has_more_stories,
+                fetched_at=self._fetched_at,
             )
         )

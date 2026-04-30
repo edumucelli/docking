@@ -23,7 +23,7 @@ from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.bluetooth import meta
-from docking.applets.menu import radio_submenu
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -165,20 +165,11 @@ class BluetoothApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label=_("Bluetooth unavailable"))
-            placeholder.set_sensitive(False)
-            return [placeholder]
+            return [disabled_menu_item(_("Bluetooth unavailable"), gtk=Gtk)]
 
-        items: list[Gtk.MenuItem] = []
         adapter = self._active_adapter()
         if adapter is None:
-            placeholder = Gtk.MenuItem(label=_("No Bluetooth adapter"))
-            placeholder.set_sensitive(False)
-            return [placeholder]
-
-        items.extend(self._build_quick_actions(adapter=adapter))
-        if items:
-            items.append(Gtk.SeparatorMenuItem())
+            return [disabled_menu_item(_("No Bluetooth adapter"), gtk=Gtk)]
 
         powered_label = _("On") if adapter.powered else _("Off")
         connected_devices = [
@@ -187,39 +178,49 @@ class BluetoothApplet(Applet):
             if d.adapter_path == adapter.path and d.connected
         ]
 
-        status = Gtk.MenuItem(
-            label=_("{alias} ({powered}) - Connected {connected}").format(
-                alias=adapter.alias,
-                powered=powered_label,
-                connected=len(connected_devices),
+        status = [
+            disabled_menu_item(
+                _("{alias} ({powered}) - Connected {connected}").format(
+                    alias=adapter.alias,
+                    powered=powered_label,
+                    connected=len(connected_devices),
+                ),
+                gtk=Gtk,
             )
-        )
-        status.set_sensitive(False)
-        items.append(status)
+        ]
+
+        primary, manage, settings = self._build_action_sections(adapter=adapter)
 
         discovery_toggle = Gtk.CheckMenuItem(label=_("Continuous Discovery"))
         discovery_toggle.set_active(self._continuous_discovery)
         discovery_toggle.connect("toggled", self._on_continuous_discovery_toggled)
-        items.append(discovery_toggle)
+        display: list[Gtk.MenuItem] = [discovery_toggle]
 
         if len(self._state.adapters) > 1:
-            items.append(self._build_adapter_submenu())
+            display.append(self._build_adapter_submenu())
 
-        items.append(Gtk.SeparatorMenuItem())
-        items.extend(self._build_devices_sections(adapter_path=adapter.path))
+        manage.extend(self._build_devices_sections(adapter_path=adapter.path))
 
         refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _w: self._refresh_now())
-        items.append(Gtk.SeparatorMenuItem())
-        items.append(refresh_item)
-        return items
+        return menu_sections(
+            status=status,
+            primary=primary,
+            refresh=[refresh_item],
+            display=display,
+            manage=manage,
+            settings=settings,
+            gtk=Gtk,
+        )
 
-    def _build_quick_actions(
+    def _build_action_sections(
         self,
         *,
         adapter: BluetoothAdapterState,
-    ) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+    ) -> tuple[list[Gtk.MenuItem], list[Gtk.MenuItem], list[Gtk.MenuItem]]:
+        primary: list[Gtk.MenuItem] = []
+        manage: list[Gtk.MenuItem] = []
+        settings: list[Gtk.MenuItem] = []
 
         power_label = (
             _("Turn Bluetooth Off") if adapter.powered else _("Turn Bluetooth On")
@@ -229,7 +230,7 @@ class BluetoothApplet(Applet):
             "activate",
             lambda _w: self._set_power_async(target=not adapter.powered),
         )
-        items.append(power_item)
+        primary.append(power_item)
 
         connected_devices = [
             d
@@ -248,35 +249,35 @@ class BluetoothApplet(Applet):
                     lambda: self._backend.disconnect_device(p)
                 ),
             )
-            items.append(disconnect_item)
+            primary.append(disconnect_item)
 
         send_cmd = send_files_command()
         if send_cmd is not None:
             send_item = Gtk.MenuItem(label=_("Send Files to Device..."))
             send_item.connect("activate", lambda _w: open_send_files())
-            items.append(send_item)
+            primary.append(send_item)
 
-        items.append(self._build_recent_connections_submenu(adapter_path=adapter.path))
+        manage.append(self._build_recent_connections_submenu(adapter_path=adapter.path))
 
         devices_cmd = devices_command()
         if devices_cmd is not None:
             devices_item = Gtk.MenuItem(label=_("Devices..."))
             devices_item.connect("activate", lambda _w: open_devices())
-            items.append(devices_item)
+            settings.append(devices_item)
 
         adapters_cmd = adapters_command()
         if adapters_cmd is not None:
             adapters_item = Gtk.MenuItem(label=_("Adapters..."))
             adapters_item.connect("activate", lambda _w: open_adapters())
-            items.append(adapters_item)
+            settings.append(adapters_item)
 
         services_cmd = local_services_command()
         if services_cmd is not None:
             services_item = Gtk.MenuItem(label=_("Local Services..."))
             services_item.connect("activate", lambda _w: open_local_services())
-            items.append(services_item)
+            settings.append(services_item)
 
-        return items
+        return primary, manage, settings
 
     def _build_recent_connections_submenu(self, *, adapter_path: str) -> Gtk.MenuItem:
         item = Gtk.MenuItem(label=_("Recent Connections"))

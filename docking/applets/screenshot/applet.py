@@ -13,6 +13,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.screenshot import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -61,24 +62,24 @@ class ScreenshotApplet(Applet):
         self._run_mode(mode="full")
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
         tool = self._tool
         if not tool:
-            return items
+            return []
+        primary: list[Gtk.MenuItem] = []
         for label, mode in _MODE_OPTIONS:
             mi = Gtk.MenuItem(label=label)
             mi.connect("activate", lambda _w, m=mode: self._run_mode(mode=m))
-            items.append(mi)
+            primary.append(mi)
 
-        items.append(Gtk.SeparatorMenuItem())
+        manage: list[Gtk.MenuItem] = []
         for delay_s in _TIMED_DELAYS_S:
             mi = Gtk.MenuItem(label=_("Full Screen in {delay}s").format(delay=delay_s))
             mi.connect(
                 "activate",
                 lambda _w, d=delay_s: self._run_mode(mode="full", delay_seconds=d),
             )
-            items.append(mi)
-        return items
+            manage.append(mi)
+        return menu_sections(primary=primary, manage=manage, gtk=Gtk)
 
     def _run_mode(self, *, mode: Mode, delay_seconds: int = 0) -> None:
         if not self._tool:

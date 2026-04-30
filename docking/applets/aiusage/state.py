@@ -10,6 +10,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -457,8 +458,14 @@ def tooltip_text(state: AiUsageState, provider: Provider | None = None) -> str:
         name = "AI Usage"
     sessions = today_sessions(state=state)
     if sessions == 0 and cost <= 0:
-        return _("{name}: no usage today").format(name=name)
-    return _("{name} today: {cost}").format(name=name, cost=_format_cost(cost=cost))
+        return structured_tooltip(
+            title=name,
+            primary=_("no usage today"),
+        )
+    return structured_tooltip(
+        title=name,
+        primary=_("Today: {cost}").format(cost=_format_cost(cost=cost)),
+    )
 
 
 # ---------------------------------------------------------------------------

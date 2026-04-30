@@ -30,9 +30,12 @@ from docking.applets.currencyfx.state import (
     format_rate,
     local_sample_points,
     merge_currency_codes,
+    normalize_code,
+    normalize_pair,
     pair_rate_from_units,
     parse_history_payload,
     parse_live_rate_payload,
+    percent_change,
     prefs_from_mapping,
     prefs_payload,
 )
@@ -92,6 +95,11 @@ class TestCurrencyFxState:
         assert prefs.active_index == 0
         assert prefs.chart_interval == ChartInterval.WEEK
 
+    def test_normalize_code_and_pair_edges(self):
+        assert normalize_code(" usd ", fallback="EUR") == "USD"
+        assert normalize_code("bad1", fallback="EUR") == "EUR"
+        assert normalize_pair(base="usd", quote="usd") == FxPair("USD", "EUR")
+
     def test_prefs_loads_added_pairs_and_active_index(self):
         prefs = prefs_from_mapping(
             {
@@ -115,6 +123,30 @@ class TestCurrencyFxState:
             "EUR/BRL": (FxPoint("2026-04-27T10:00:00+00:00", 5.8),)
         }
 
+    def test_prefs_handles_bad_active_index_and_bad_samples(self):
+        prefs = prefs_from_mapping(
+            {
+                "pairs": [{"base": "EUR", "quote": "USD"}],
+                "active_index": "bad",
+                "sample_source": LOCAL_SAMPLE_SOURCE,
+                "samples": {
+                    1: [{"timestamp": "2026-04-27T10:00:00+00:00", "rate": 5.8}],
+                    "bad": [{"timestamp": "2026-04-27T10:00:00+00:00", "rate": 5.8}],
+                    "EUR/USD": [
+                        "bad",
+                        {"timestamp": "", "rate": 1.1},
+                        {"timestamp": "2026-04-27T10:00:00+00:00", "rate": -1},
+                        {"date": "2026-04-27T10:00:00+00:00", "rate": "1.1"},
+                    ],
+                },
+            }
+        )
+
+        assert prefs.active_index == 0
+        assert prefs.samples == {
+            "EUR/USD": (FxPoint("2026-04-27T10:00:00+00:00", 1.1),)
+        }
+
     def test_prefs_payload_saves_interval_and_samples(self):
         payload = prefs_payload(
             pairs=(FxPair("EUR", "USD"), FxPair("EUR", "BRL")),
@@ -134,6 +166,15 @@ class TestCurrencyFxState:
                 "EUR/BRL": [{"timestamp": "2026-04-27T10:00:00+00:00", "rate": 5.8}]
             },
         }
+
+    def test_samples_payload_skips_empty_and_caps(self):
+        points = tuple(FxPoint(f"t{i}", float(i + 1)) for i in range(200))
+
+        payload = fx_state.samples_payload({"EUR/USD": points, "EUR/BRL": ()})
+
+        assert list(payload) == ["EUR/USD"]
+        assert len(payload["EUR/USD"]) == fx_state.LOCAL_SAMPLE_MAX_PER_PAIR
+        assert payload["EUR/USD"][0]["timestamp"] == "t8"
 
     def test_prefs_ignore_samples_from_old_source(self):
         prefs = prefs_from_mapping(
@@ -180,6 +221,41 @@ class TestCurrencyFxState:
             FxPoint("2026-04-27T12:00:00+00:00", 5.9),
         )
 
+    def test_local_samples_drop_bad_old_and_duplicate_points(self):
+        now = dt.datetime(2026, 4, 27, 12, tzinfo=dt.timezone.utc)
+        samples = {
+            "EUR/USD": (
+                FxPoint("bad", 1.0),
+                FxPoint("2026-04-25T10:00:00+00:00", 1.1),
+                FxPoint("2026-04-27T12:00:00+00:00", 1.2),
+            )
+        }
+
+        assert local_sample_points(
+            samples=samples,
+            base="EUR",
+            quote="USD",
+            now=now,
+        ) == (FxPoint("2026-04-27T12:00:00+00:00", 1.2),)
+
+        unchanged = append_local_sample(
+            samples=samples,
+            base="EUR",
+            quote="USD",
+            rate=0,
+            now=now,
+        )
+        assert unchanged == samples
+
+        updated = append_local_sample(
+            samples={"EUR/USD": (FxPoint("2026-04-27T12:00:00+00:00", 1.2),)},
+            base="EUR",
+            quote="USD",
+            rate=1.3,
+            now=now,
+        )
+        assert updated["EUR/USD"] == (FxPoint("2026-04-27T12:00:00+00:00", 1.3),)
+
     def test_currency_codes_from_units(self):
         assert currency_codes_from_units(_units()) == ("EUR", "GBP", "USD")
 
@@ -212,6 +288,16 @@ class TestCurrencyFxState:
             FxPoint(date="2026-04-26", rate=1.09),
         )
 
+    def test_parse_history_payload_ignores_invalid_shapes(self):
+        assert parse_history_payload(data=[]) == ()
+        assert parse_history_payload(data={"rates": "bad"}) == ()
+        assert (
+            parse_history_payload(
+                data={"rates": ["bad", {"date": "2026-04-27", "rate": "bad"}]}
+            )
+            == ()
+        )
+
     def test_parse_live_rate_payload(self):
         point = parse_live_rate_payload(
             data={
@@ -226,6 +312,17 @@ class TestCurrencyFxState:
         assert point == FxPoint(
             date="2026-04-27T12:55:29.819Z",
             rate=5.84,
+        )
+
+    def test_parse_live_rate_payload_rejects_bad_shapes(self):
+        assert parse_live_rate_payload(data=[], base="EUR", quote="USD") is None
+        assert (
+            parse_live_rate_payload(
+                data={"base": "EUR", "target": "BRL", "rate": 5.8},
+                base="EUR",
+                quote="USD",
+            )
+            is None
         )
 
     def test_fetch_live_rate_parses_response(self, monkeypatch):
@@ -259,6 +356,17 @@ class TestCurrencyFxState:
 
         assert point == FxPoint("2026-04-27T12:55:29.819Z", 5.84)
         assert seen_urls == ["https://fxapi.app/api/EUR/BRL.json"]
+
+    def test_fetch_live_rate_same_pair_and_failure(self, monkeypatch):
+        urlopen = MagicMock(side_effect=OSError("down"))
+        monkeypatch.setattr(fx_state.urllib.request, "urlopen", urlopen)
+
+        same = fetch_live_rate(base="USD", quote="USD")
+        failed = fetch_live_rate(base="EUR", quote="USD")
+
+        assert same == FxPoint(same.date, 1.0)
+        assert failed is None
+        urlopen.assert_called_once()
 
     def test_fetch_history_parses_response(self, monkeypatch):
         fake_data = json.dumps(
@@ -302,6 +410,14 @@ class TestCurrencyFxState:
 
         assert fetch_history(base="EUR", quote="USD", chart_interval="day") == ()
         urlopen.assert_not_called()
+
+    def test_fetch_history_same_currency_returns_flat_point(self):
+        assert fetch_history(
+            base="USD",
+            quote="USD",
+            chart_interval=ChartInterval.WEEK,
+            today=dt.date(2026, 4, 27),
+        ) == (FxPoint("2026-04-27", 1.0),)
 
     def test_fetch_history_month_requests_30_days(self, monkeypatch):
         fake_data = json.dumps({"rates": []}).encode()
@@ -423,6 +539,40 @@ class TestCurrencyFxState:
         assert snapshot.rate == 1.07
         assert codes == ()
 
+    def test_fetch_snapshot_returns_none_when_no_rate_available(self, monkeypatch):
+        monkeypatch.setattr(fx_state, "fetch_currency_rates", lambda: ())
+        monkeypatch.setattr(fx_state, "fetch_live_rate", lambda **_kwargs: None)
+        monkeypatch.setattr(fx_state, "fetch_history", lambda **_kwargs: ())
+
+        snapshot, codes = fetch_fx_snapshot(base="EUR", quote="XXX")
+
+        assert snapshot is None
+        assert codes == ()
+
+    def test_fetch_snapshot_appends_current_point_when_history_is_old(
+        self,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(fx_state, "fetch_currency_rates", lambda: _units())
+        monkeypatch.setattr(
+            fx_state,
+            "fetch_live_rate",
+            lambda **_kwargs: FxPoint("2026-04-27T12:00:00+00:00", 1.09),
+        )
+        monkeypatch.setattr(
+            fx_state,
+            "fetch_history",
+            lambda **_kwargs: (FxPoint(date="2026-04-26", rate=1.07),),
+        )
+
+        snapshot, _codes = fetch_fx_snapshot(base="EUR", quote="USD")
+
+        assert snapshot is not None
+        assert snapshot.points[-2:] == (
+            FxPoint("2026-04-26", 1.07),
+            FxPoint(dt.date.today().isoformat(), 1.09),
+        )
+
     def test_format_rate(self):
         assert format_rate(123.456) == "123.46"
         assert format_rate(1.23456) == "1.2346"
@@ -433,6 +583,7 @@ class TestCurrencyFxState:
         points = (FxPoint("a", 1.0), FxPoint("b", 1.1))
         assert format_change(points) == "+10.00%"
         assert format_change((FxPoint("a", 1.0),)) == "n/a"
+        assert percent_change((FxPoint("a", 0), FxPoint("b", 1.1))) is None
 
     def test_build_tooltip(self):
         tooltip = build_tooltip(
@@ -440,9 +591,38 @@ class TestCurrencyFxState:
             quote="USD",
             snapshot=_snapshot(),
             fetch_failed=False,
+            cadence_seconds=15 * 60,
         )
         assert "EUR/USD" in tooltip
         assert "1 EUR = 1.1 USD" in tooltip
+        assert "Updated:" in tooltip
+        assert "Updates every 15 minutes" in tooltip
+
+    def test_build_tooltip_discloses_day_sample_cadence(self):
+        tooltip = build_tooltip(
+            base="EUR",
+            quote="USD",
+            snapshot=_snapshot(),
+            fetch_failed=False,
+            chart_interval=ChartInterval.DAY,
+            cadence_seconds=15 * 60,
+        )
+
+        assert "Day samples every 15 minutes" in tooltip
+
+    def test_build_tooltip_empty_and_error_states(self):
+        text = build_tooltip(
+            base="EUR",
+            quote="USD",
+            snapshot=None,
+            loading=False,
+            fetch_failed=True,
+            error="down",
+            cadence_seconds=15 * 60,
+        )
+
+        assert "EUR/USD" in text
+        assert "down" in text
 
 
 class TestCurrencyFxRender:
@@ -494,6 +674,17 @@ class TestCurrencyFxApplet:
         assert applet.item.icon is not None
         assert "EUR/USD" in applet.item.name
 
+    def test_click_opens_pair_dialog_and_single_scroll_is_noop(self, monkeypatch):
+        applet = _make_applet()
+        called = []
+        monkeypatch.setattr(applet, "_show_pair_dialog", lambda: called.append(True))
+
+        applet.on_clicked()
+        applet.on_scroll(direction_up=False)
+
+        assert called == [True]
+        assert applet._active_index == 0
+
     def test_loads_prefs_from_config(self):
         timestamp = (
             dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=5)
@@ -540,6 +731,25 @@ class TestCurrencyFxApplet:
         assert applet._startup_fetch_timer_id == 12
         assert add.call_count == 2
         pulse_add.assert_not_called()
+
+    def test_stop_removes_all_timers(self, monkeypatch):
+        applet = _make_applet()
+        applet._timer_id = 11
+        applet._startup_fetch_timer_id = 12
+        applet._pulse_timer_id = 13
+        removed: list[int] = []
+        monkeypatch.setattr(
+            currencyfx_applet_mod.GLib,
+            "source_remove",
+            lambda timer_id: removed.append(timer_id),
+        )
+
+        applet.stop()
+
+        assert removed == [11, 12, 13]
+        assert applet._timer_id == 0
+        assert applet._startup_fetch_timer_id == 0
+        assert applet._pulse_timer_id == 0
 
     def test_pulse_timer_starts_when_chart_dot_visible(self, monkeypatch):
         add_seconds = MagicMock(side_effect=[11, 12])
@@ -597,6 +807,18 @@ class TestCurrencyFxApplet:
         assert applet._fetch_request_id == 1
         assert applet._worker.run.call_args.kwargs["name"] == "currencyfx-fetch"
 
+    def test_tick_and_startup_fetch(self, monkeypatch):
+        applet = _make_applet()
+        calls: list[str] = []
+        monkeypatch.setattr(applet, "_fetch_async", lambda: calls.append("fetch"))
+
+        assert applet._tick() is True
+        applet._startup_fetch_timer_id = 99
+        assert applet._run_startup_fetch() is False
+
+        assert applet._startup_fetch_timer_id == 0
+        assert calls == ["fetch", "fetch"]
+
     def test_fetch_result_updates_snapshot_and_codes(self):
         applet = _make_applet()
         applet._fetch_request_id = 7
@@ -614,6 +836,22 @@ class TestCurrencyFxApplet:
         assert applet._fetch_failed is False
         assert "ZAR" in applet._available_codes
         assert "EUR/USD" in applet._samples
+
+    def test_fetch_result_ignores_stale_and_handles_empty_snapshot(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 7
+        applet.present = MagicMock()
+
+        assert (
+            applet._on_fetch_result(request_id=6, snapshot=_snapshot(), codes=())
+            is False
+        )
+        assert applet._snapshot is None
+        applet.present.assert_not_called()
+
+        assert applet._on_fetch_result(request_id=7, snapshot=None, codes=()) is False
+        assert applet._fetch_failed is True
+        assert applet._fetch_error == "No rate data"
 
     def test_day_fetch_result_renders_local_samples(self):
         applet = _make_applet()
@@ -641,6 +879,17 @@ class TestCurrencyFxApplet:
 
         assert applet._snapshot is None
         assert applet._fetch_failed is True
+
+    def test_fetch_error_ignores_stale_and_uses_exception_name(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 7
+        applet.present = MagicMock()
+
+        assert applet._on_fetch_error(request_id=6, exc=RuntimeError("old")) is False
+        applet.present.assert_not_called()
+
+        assert applet._on_fetch_error(request_id=7, exc=RuntimeError()) is False
+        assert applet._fetch_error == "RuntimeError"
 
     def test_add_pair_appends_saves_and_fetches(self):
         applet = _make_applet()
@@ -695,6 +944,18 @@ class TestCurrencyFxApplet:
         applet.on_scroll(direction_up=True)
         assert applet._active_index == 0
 
+    def test_activate_pair_index_guards_empty_and_same_index(self):
+        applet = _make_applet()
+        applet._pairs = []
+        applet._activate_pair_index(0)
+
+        applet._pairs = [FxPair("EUR", "USD")]
+        applet._active_index = 0
+        applet._pair_changed = MagicMock()
+        applet._activate_pair_index(9)
+
+        applet._pair_changed.assert_not_called()
+
     def test_remove_active_pair_keeps_cycle_valid(self):
         applet = _make_applet()
         applet._pairs = [FxPair("EUR", "USD"), FxPair("EUR", "BRL")]
@@ -709,6 +970,14 @@ class TestCurrencyFxApplet:
         applet.save_prefs.assert_called_once()
         applet._fetch_async.assert_called_once()
 
+    def test_remove_active_pair_ignores_single_pair(self):
+        applet = _make_applet()
+        applet.save_prefs = MagicMock()
+
+        applet._remove_active_pair()
+
+        applet.save_prefs.assert_not_called()
+
     def test_interval_selection_saves_and_fetches(self):
         applet = _make_applet()
         applet.save_prefs = MagicMock()
@@ -721,6 +990,16 @@ class TestCurrencyFxApplet:
         assert applet._chart_interval == ChartInterval.MONTH
         applet.save_prefs.assert_called_once()
         applet._fetch_async.assert_called_once()
+
+    def test_interval_selection_ignores_current_interval(self):
+        applet = _make_applet()
+        applet.save_prefs = MagicMock()
+        widget = MagicMock()
+        widget.get_active.return_value = True
+
+        applet._on_interval_selected(widget=widget, interval=ChartInterval.WEEK)
+
+        applet.save_prefs.assert_not_called()
 
     def test_interval_selection_ignores_inactive_widget(self):
         applet = _make_applet()
@@ -740,3 +1019,151 @@ class TestCurrencyFxApplet:
         applet._snapshot = _snapshot()
         assert "EUR/USD" in applet._menu_header()
         assert "1.1" in applet._menu_header()
+
+    def test_menu_discloses_update_cadence(self):
+        applet = _make_applet()
+        labels = [item.get_label() for item in applet.get_menu_items()]
+
+        assert "Updates every 15 minutes" in labels
+
+    def test_menu_with_multiple_pairs_has_pair_controls(self):
+        applet = _make_applet()
+        applet._pairs = [FxPair("EUR", "USD"), FxPair("EUR", "BRL")]
+
+        labels = [item.get_label() for item in applet.get_menu_items()]
+
+        assert "Added Pairs" in labels
+        assert "Remove Current Pair" in labels
+
+    def test_pair_changed_uses_day_cache_snapshot(self):
+        applet = _make_applet()
+        applet._chart_interval = ChartInterval.DAY
+        now = dt.datetime.now(dt.timezone.utc).isoformat()
+        applet._samples = {"EUR/USD": (FxPoint(now, 1.2),)}
+        applet._fetch_async = MagicMock()
+
+        applet._pair_changed()
+
+        assert applet._snapshot is not None
+        assert applet._snapshot.rate == 1.2
+        applet._fetch_async.assert_called_once()
+
+    def test_local_snapshot_helpers(self):
+        applet = _make_applet()
+        assert applet._snapshot_from_local_samples() is None
+
+        fetched = _snapshot()
+        applet._samples = {"EUR/USD": (FxPoint(fetched.fetched_at.isoformat(), 1.10),)}
+        with_local = applet._snapshot_with_local_samples(snapshot=fetched)
+
+        assert with_local.points == (FxPoint(fetched.fetched_at.isoformat(), 1.10),)
+        assert with_local.fetched_at == fetched.fetched_at
+
+    def test_currency_combo_and_pair_codes(self, monkeypatch):
+        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "ComboBoxText", _FakeCombo)
+        applet = _make_applet()
+        applet._available_codes = ("EUR", "USD")
+        combo = applet._currency_combo(active="BRL")
+
+        assert combo.get_active_text() == "EUR"
+        assert applet._pair_codes() == ("EUR", "USD")
+
+
+class _FakeBox:
+    def __init__(self) -> None:
+        self.children: list[object] = []
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+
+class _FakeDialog:
+    def __init__(self, *, response: int) -> None:
+        self.response = response
+        self.box = _FakeBox()
+        self.destroyed = False
+
+    def show_all(self) -> None:
+        return
+
+    def run(self) -> int:
+        return self.response
+
+    def destroy(self) -> None:
+        self.destroyed = True
+
+
+class _FakeCombo:
+    active_text = ""
+
+    def __init__(self) -> None:
+        self.values: list[str] = []
+        self.active = 0
+
+    def append_text(self, text: str) -> None:
+        self.values.append(text)
+
+    def set_active(self, index: int) -> None:
+        self.active = index
+
+    def get_active_text(self) -> str:
+        return self.active_text or self.values[self.active]
+
+    def grab_focus(self) -> None:
+        return
+
+
+class _FakeLabel:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+
+
+class TestCurrencyFxDialog:
+    def test_show_pair_dialog_adds_selected_pair(self, monkeypatch):
+        dialog = _FakeDialog(response=currencyfx_applet_mod.Gtk.ResponseType.OK)
+        combos: list[_FakeCombo] = []
+
+        def combo_factory():
+            combo = _FakeCombo()
+            combos.append(combo)
+            return combo
+
+        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Dialog", lambda **_: dialog)
+        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "ComboBoxText", combo_factory)
+        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Label", _FakeLabel)
+        monkeypatch.setattr(
+            currencyfx_applet_mod,
+            "prepare_dialog_content",
+            lambda **_: dialog.box,
+        )
+        monkeypatch.setattr(
+            currencyfx_applet_mod, "add_cancel_ok_buttons", lambda **_: None
+        )
+        applet = _make_applet()
+        applet._available_codes = ("EUR", "USD", "BRL")
+        applet._add_pair = MagicMock()
+
+        applet._show_pair_dialog()
+
+        applet._add_pair.assert_called_once_with("EUR", "USD")
+        assert dialog.destroyed is True
+
+    def test_show_pair_dialog_ignores_cancel(self, monkeypatch):
+        dialog = _FakeDialog(response=currencyfx_applet_mod.Gtk.ResponseType.CANCEL)
+        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Dialog", lambda **_: dialog)
+        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "ComboBoxText", _FakeCombo)
+        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Label", _FakeLabel)
+        monkeypatch.setattr(
+            currencyfx_applet_mod,
+            "prepare_dialog_content",
+            lambda **_: dialog.box,
+        )
+        monkeypatch.setattr(
+            currencyfx_applet_mod, "add_cancel_ok_buttons", lambda **_: None
+        )
+        applet = _make_applet()
+        applet._add_pair = MagicMock()
+
+        applet._show_pair_dialog()
+
+        applet._add_pair.assert_not_called()

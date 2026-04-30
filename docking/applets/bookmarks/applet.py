@@ -20,6 +20,8 @@ from docking.applets.bookmarks.state import (
     tooltip_text,
     truncate_label,
 )
+from docking.applets.menu import menu_sections
+from docking.applets.popup import add_cancel_ok_buttons, prepare_dialog_content
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -31,7 +33,6 @@ log = with_context(get_logger(name="bookmarks"), applet_id=meta.id)
 ADD_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
 DIALOG_HORIZONTAL_MARGIN_PX = 12
-DIALOG_VERTICAL_MARGIN_PX = 8
 
 
 class BookmarksApplet(Applet):
@@ -60,7 +61,7 @@ class BookmarksApplet(Applet):
         self._open_url(url=self._bookmarks[0].url)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        primary: list[Gtk.MenuItem] = []
 
         for bookmark in self._bookmarks:
             item = Gtk.MenuItem(label=truncate_label(text=bookmark.name))
@@ -68,21 +69,21 @@ class BookmarksApplet(Applet):
                 "activate",
                 lambda _w, url=bookmark.url: self._open_url(url=url),
             )
-            items.append(item)
-
-        if self._bookmarks:
-            items.append(Gtk.SeparatorMenuItem())
+            primary.append(item)
 
         add_item = Gtk.MenuItem(label=_("Add Bookmark..."))
         add_item.connect("activate", lambda _: self._show_add_dialog())
-        items.append(add_item)
 
         remove_all = Gtk.MenuItem(label=_("Remove All"))
         remove_all.connect("activate", lambda _: self._remove_all())
         remove_all.set_sensitive(bool(self._bookmarks))
-        items.append(remove_all)
 
-        return items
+        return menu_sections(
+            primary=primary,
+            manage=[add_item],
+            destructive=[remove_all],
+            gtk=Gtk,
+        )
 
     def _open_url(self, url: str) -> None:
         try:
@@ -97,31 +98,27 @@ class BookmarksApplet(Applet):
             title=_("Add Bookmark"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL,
-            Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OK,
-            Gtk.ResponseType.OK,
+        add_cancel_ok_buttons(dialog=dialog)
+        box = prepare_dialog_content(
+            dialog=dialog,
+            width=ADD_DIALOG_WIDTH_PX,
+            spacing=DIALOG_CONTENT_SPACING_PX,
+            margin=DIALOG_HORIZONTAL_MARGIN_PX,
+            default_response=Gtk.ResponseType.OK,
         )
-        dialog.set_default_size(ADD_DIALOG_WIDTH_PX, -1)
-        dialog.set_position(Gtk.WindowPosition.MOUSE)
-
-        box = dialog.get_content_area()
-        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
-        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
-        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
 
         name_entry = Gtk.Entry()
         name_entry.set_placeholder_text(_("Bookmark name"))
+        name_entry.set_activates_default(True)
         box.pack_start(name_entry, False, False, 0)
 
         url_entry = Gtk.Entry()
         url_entry.set_placeholder_text(_("https://..."))
+        url_entry.set_activates_default(True)
         box.pack_start(url_entry, False, False, 0)
 
         dialog.show_all()
+        name_entry.grab_focus()
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:

@@ -12,8 +12,7 @@ from docking.i18n import _
 POLL_INTERVAL_S = 1
 
 _INDICATOR_RE = re.compile(
-    r"\b(?P<index>\d+):\s*(?P<name>Caps Lock|Num Lock):\s*"
-    r"(?P<state>on|off)\b",
+    r"\b(?P<index>\d+):\s*(?P<name>Caps Lock|Num Lock):\s*(?P<state>on|off)\b",
     re.IGNORECASE,
 )
 

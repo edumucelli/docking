@@ -23,6 +23,7 @@ from docking.applets.dragshare.state import (
     first_uploadable_file,
     upload_file,
 )
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -55,20 +56,34 @@ class DragshareApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         if self._status is DragshareStatus.UPLOADING:
-            self.item.name = _("Uploading {file}...").format(file=self._file_name)
+            self.item.name = structured_tooltip(
+                title=_("Drag Share"),
+                primary=_("Uploading {file}...").format(file=self._file_name),
+            )
             return
         if self._status is DragshareStatus.DONE and self._last_url:
-            self.item.name = _("Uploaded {file}; URL copied").format(
-                file=self._file_name
+            self.item.name = structured_tooltip(
+                title=_("Drag Share"),
+                primary=_("Uploaded {file}; URL copied").format(file=self._file_name),
             )
             return
         if self._status is DragshareStatus.ERROR:
-            self.item.name = _("Upload failed: {error}").format(error=self._error)
+            self.item.name = structured_tooltip(
+                title=_("Drag Share"),
+                primary=_("Upload failed"),
+                error=self._error,
+            )
             return
         if self._last_url:
-            self.item.name = _("Drag Share - click to copy last URL")
+            self.item.name = structured_tooltip(
+                title=_("Drag Share"),
+                primary=_("Click to copy last URL"),
+            )
             return
-        self.item.name = _("Drag Share - drop a file to upload")
+        self.item.name = structured_tooltip(
+            title=_("Drag Share"),
+            primary=_("Drop a file to upload"),
+        )
 
     def accepts_drop_uris(self) -> bool:
         return True

@@ -18,6 +18,14 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from docking.applets.live_state import (
+    live_freshness_lines,
+    live_state_error,
+    live_state_label,
+    refresh_recovery_label,
+    resolve_live_status,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -127,14 +135,29 @@ def build_tooltip(
     loading: bool = False,
     page_loading: bool = False,
     error: str = "",
+    fetched_at: object | None = None,
+    cadence_seconds: int | None = None,
 ) -> str:
     """Build tooltip text for the current applet state."""
+    status = resolve_live_status(
+        has_data=story is not None,
+        loading=loading,
+        error=error,
+        updated_at=fetched_at,
+    )
     if story is None:
-        if loading:
-            return _("Hacker News: loading...")
-        if error:
-            return _("Hacker News: {error}").format(error=error)
-        return _("Hacker News")
+        return structured_tooltip(
+            title=_("Hacker News"),
+            primary=live_state_label(status),
+            freshness=live_freshness_lines(
+                status=status,
+                updated_at=fetched_at,
+                cadence_seconds=cadence_seconds,
+                cadence_verb=_("Refreshes"),
+            ),
+            error=live_state_error(status=status, error=error),
+            recovery=refresh_recovery_label(status),
+        )
 
     rank = story_rank(index=index, count=count)
     header = (
@@ -152,10 +175,22 @@ def build_tooltip(
     age = story_age(story=story)
     if age:
         stats = f"{stats}, {age}"
-    lines = [header, story.title, stats]
+    details = [stats]
     if page_loading:
-        lines.append(_("Loading next stories..."))
-    return "\n".join(lines)
+        details.append(_("Loading next stories..."))
+    return structured_tooltip(
+        title=header,
+        primary=story.title,
+        details=details,
+        freshness=live_freshness_lines(
+            status=status,
+            updated_at=fetched_at,
+            cadence_seconds=cadence_seconds,
+            cadence_verb=_("Refreshes"),
+        ),
+        error=live_state_error(status=status, error=error),
+        recovery=refresh_recovery_label(status),
+    )
 
 
 def parse_story_payload(data: object) -> HackerNewsStory | None:
