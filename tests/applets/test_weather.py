@@ -208,6 +208,15 @@ class TestWeatherTooltip:
         assert "Berlin" in applet.item.name
         assert "22" in applet.item.name
 
+    def test_tooltip_discloses_update_cadence(self):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._weather = _SAMPLE_WEATHER
+        applet.refresh_tooltip()
+
+        assert "Updates every 5 minutes" in applet.item.name
+
     def test_tooltip_uses_selected_temperature_unit(self):
         config = Config(applet_prefs={"weather": {"temperature_unit": "fahrenheit"}})
         applet = _make_applet(config=config)
@@ -231,8 +240,17 @@ class TestWeatherTooltip:
         applet._cities = [_BERLIN]
         applet._active_index = 0
         applet._weather = None
+        applet._loading = True
         applet.refresh_tooltip()
         assert "loading" in applet.item.name.lower()
+
+    def test_tooltip_no_data_state(self):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._weather = None
+        applet.refresh_tooltip()
+        assert "no data yet" in applet.item.name.lower()
 
     def test_tooltip_unavailable_state_after_failed_fetch(self):
         applet = _make_applet()
@@ -284,6 +302,7 @@ class TestWeatherMenu:
         items = applet.get_menu_items()
         assert "Tokyo" in items[0].get_label()
         assert not items[0].get_sensitive()
+        assert any(item.get_label() == "Updates every 5 minutes" for item in items)
 
     def test_menu_no_city_header_when_unset(self):
         applet = _make_applet()
@@ -500,7 +519,20 @@ class TestWeatherAsyncFetch:
         assert applet._weather is None
         assert applet._air_quality is None
         assert applet._fetch_failed is True
+        assert applet._fetch_error == "boom"
         refresh.assert_called_once()
+
+    def test_fetch_error_keeps_previous_weather(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 5
+        applet._weather = _SAMPLE_WEATHER
+        applet._air_quality = _SAMPLE_AQI
+
+        assert applet._on_fetch_error(request_id=5, exc=RuntimeError("boom")) is False
+
+        assert applet._weather == _SAMPLE_WEATHER
+        assert applet._air_quality == _SAMPLE_AQI
+        assert applet._fetch_failed is True
 
     def test_fetch_async_uses_active_city_coords(self, monkeypatch):
         applet = _make_applet()
@@ -831,12 +863,20 @@ class _FakeWeatherDialog:
     def __init__(self, **_kwargs):
         self.destroy = MagicMock()
         self._content = _FakeWeatherBox()
+        self.buttons: list[tuple[object, object]] = []
+        self.callbacks: dict[str, object] = {}
 
     def set_default_size(self, *_args) -> None:
         return
 
     def set_position(self, *_args) -> None:
         return
+
+    def add_button(self, label, response) -> None:
+        self.buttons.append((label, response))
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
 
     def get_content_area(self):
         return self._content
@@ -863,6 +903,7 @@ class TestWeatherDialogAndWidget:
             SimpleNamespace(
                 Dialog=lambda **_kwargs: created_dialog,
                 DialogFlags=SimpleNamespace(MODAL=1, DESTROY_WITH_PARENT=2),
+                ResponseType=SimpleNamespace(CANCEL=0),
                 WindowPosition=SimpleNamespace(MOUSE=1),
                 Entry=lambda: created_entry,
                 EntryCompletion=lambda: created_completion,

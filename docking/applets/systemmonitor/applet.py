@@ -13,7 +13,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.menu import radio_submenu
+from docking.applets.menu import menu_sections, radio_submenu
 from docking.applets.systemmonitor import meta
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
@@ -82,28 +82,24 @@ class SystemMonitorApplet(Applet):
         )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
         show_disk = Gtk.CheckMenuItem(label=_("Show Disk Usage"))
         show_disk.set_active(self._show_disk)
         show_disk.connect("toggled", self._on_toggle_disk)
-        items.append(show_disk)
 
-        items.append(
-            radio_submenu(
-                label=_("Temperature Unit"),
-                choices=tuple(
-                    (temperature_unit_label(unit), unit)
-                    for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
-                ),
-                active_value=self._temperature_unit,
-                on_selected=lambda widget, value: self._on_temperature_unit_selected(
-                    widget=widget,
-                    temperature_unit=value,
-                ),
-                gtk=Gtk,
-            )
+        temperature_unit = radio_submenu(
+            label=_("Temperature Unit"),
+            choices=tuple(
+                (temperature_unit_label(unit), unit)
+                for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
+            ),
+            active_value=self._temperature_unit,
+            on_selected=lambda widget, value: self._on_temperature_unit_selected(
+                widget=widget,
+                temperature_unit=value,
+            ),
+            gtk=Gtk,
         )
-        return items
+        return menu_sections(display=[show_disk, temperature_unit], gtk=Gtk)
 
     def _on_toggle_disk(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_disk = widget.get_active()

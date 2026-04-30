@@ -42,7 +42,7 @@ from docking.applets.aiusage.state import (
     week_tokens,
 )
 from docking.applets.base import Applet
-from docking.applets.menu import radio_menu_items
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -151,42 +151,35 @@ class AiUsageApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
-        items.extend(
-            radio_menu_items(
-                choices=(
-                    (_("Auto"), None),
-                    (_("Claude"), Provider.CLAUDE),
-                    (_("Codex"), Provider.CODEX),
-                    (_("OpenCode"), Provider.OPENCODE),
-                ),
-                active_value=self._selected_provider,
-                on_selected=lambda _widget, value: self._set_provider(provider=value),
-                gtk=Gtk,
-            )
+        provider_items = radio_menu_items(
+            choices=(
+                (_("Auto"), None),
+                (_("Claude"), Provider.CLAUDE),
+                (_("Codex"), Provider.CODEX),
+                (_("OpenCode"), Provider.OPENCODE),
+            ),
+            active_value=self._selected_provider,
+            on_selected=lambda _widget, value: self._set_provider(provider=value),
+            gtk=Gtk,
         )
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        items.extend(
-            radio_menu_items(
-                choices=(
-                    (_("Show Cost"), DisplayMode.COST),
-                    (_("Show Tokens"), DisplayMode.TOKENS),
-                ),
-                active_value=self._display_mode,
-                on_selected=lambda _widget, value: self._set_display_mode(mode=value),
-                gtk=Gtk,
-            )
+        display_items = radio_menu_items(
+            choices=(
+                (_("Show Cost"), DisplayMode.COST),
+                (_("Show Tokens"), DisplayMode.TOKENS),
+            ),
+            active_value=self._display_mode,
+            on_selected=lambda _widget, value: self._set_display_mode(mode=value),
+            gtk=Gtk,
         )
-
-        items.append(Gtk.SeparatorMenuItem())
 
         mi = Gtk.MenuItem(label=_("Reset Today"))
         mi.connect("activate", lambda _w: self._reset_today())
-        items.append(mi)
-        return items
+        return menu_sections(
+            display=[*provider_items, Gtk.SeparatorMenuItem(), *display_items],
+            destructive=[mi],
+            gtk=Gtk,
+        )
 
     # ------------------------------------------------------------------
     # Internal

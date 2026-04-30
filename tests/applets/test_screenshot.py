@@ -1,6 +1,7 @@
 """Tests for the screenshot applet."""
 
-from unittest.mock import patch
+import subprocess
+from unittest.mock import MagicMock, patch
 
 import docking.applets.screenshot.state as screenshot_state
 from docking.applets.screenshot.applet import ScreenshotApplet
@@ -62,6 +63,60 @@ class TestDetectTool:
             patch("docking.applets.screenshot.state.shutil.which", return_value=None),
         ):
             assert _detect_tool() is None
+
+    def test_falls_back_to_portal_when_cli_tools_missing(self):
+        with (
+            patch.object(screenshot_state, "is_wayland_session", return_value=False),
+            patch.object(screenshot_state, "_portal_available", side_effect=[True]),
+            patch("docking.applets.screenshot.state.shutil.which", return_value=None),
+        ):
+            assert _detect_tool() == screenshot_state._PORTAL_TOOL
+
+
+class TestPortal:
+    def test_portal_available_requires_gdbus_and_ping(self):
+        with patch("docking.applets.screenshot.state.shutil.which", return_value=None):
+            assert screenshot_state._portal_available() is False
+
+        with (
+            patch(
+                "docking.applets.screenshot.state.shutil.which", return_value="gdbus"
+            ),
+            patch(
+                "docking.applets.screenshot.state.subprocess.run",
+                return_value=subprocess.CompletedProcess(args=["gdbus"], returncode=0),
+            ),
+        ):
+            assert screenshot_state._portal_available() is True
+
+        with (
+            patch(
+                "docking.applets.screenshot.state.shutil.which", return_value="gdbus"
+            ),
+            patch(
+                "docking.applets.screenshot.state.subprocess.run",
+                return_value=subprocess.CompletedProcess(args=["gdbus"], returncode=1),
+            ),
+        ):
+            assert screenshot_state._portal_available() is False
+
+        with (
+            patch(
+                "docking.applets.screenshot.state.shutil.which", return_value="gdbus"
+            ),
+            patch(
+                "docking.applets.screenshot.state.subprocess.run",
+                MagicMock(side_effect=subprocess.TimeoutExpired("gdbus", 1)),
+            ),
+        ):
+            assert screenshot_state._portal_available() is False
+
+    def test_portal_args_full_and_interactive(self):
+        full = screenshot_state._portal_args(mode="full")
+        region = screenshot_state._portal_args(mode="region")
+
+        assert "interactive': <false>" in full[-1]
+        assert "interactive': <true>" in region[-1]
 
 
 class TestRun:
@@ -178,6 +233,53 @@ class TestRun:
         cmd = p.call_args[0][0]
         assert cmd[0:4] == ["scrot", "-s", "-d", "7"]
         assert cmd[-1].endswith(".png")
+
+    def test_delay_args_for_other_tools_and_zero(self):
+        assert screenshot_state._delay_args(tool=_MATE, delay_seconds=0) == []
+        assert screenshot_state._delay_args(tool=_XFCE, delay_seconds=3) == ["-d", "3"]
+        assert screenshot_state._delay_args(tool=_SPECTACLE, delay_seconds=3) == [
+            "--delay",
+            "3",
+        ]
+        assert (
+            screenshot_state._delay_args(
+                tool=Tool("custom", [], [], []),
+                delay_seconds=3,
+            )
+            == []
+        )
+
+    def test_portal_run_and_delayed_launch(self, monkeypatch):
+        launched: list[list[str]] = []
+        monkeypatch.setattr(
+            screenshot_state.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+        )
+
+        cmd = _run(tool=screenshot_state._PORTAL_TOOL, mode="window")
+
+        assert cmd[:2] == ["gdbus", "call"]
+        assert launched == [cmd]
+
+        timers = []
+
+        class _Timer:
+            def __init__(self, delay, fn, args, kwargs):
+                self.delay = delay
+                self.fn = fn
+                self.args = args
+                self.kwargs = kwargs
+                self.daemon = False
+
+            def start(self):
+                timers.append(self)
+
+        monkeypatch.setattr(screenshot_state.threading, "Timer", _Timer)
+        screenshot_state._launch(cmd=["tool"], delay_seconds=2)
+
+        assert timers[0].delay == 2
+        assert timers[0].daemon is True
 
 
 class TestScreenshotApplet:

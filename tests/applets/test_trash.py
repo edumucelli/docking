@@ -73,20 +73,24 @@ class TestTrashAppletMenu:
         with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
         items = applet.get_menu_items()
-        assert len(items) == 2
+        assert [item.get_label() for item in items] == [
+            "Open Trash",
+            "",
+            "Empty Trash",
+        ]
 
     def test_empty_trash_insensitive_when_empty(self):
         with patch("docking.applets.trash.applet._count_trash_items", return_value=0):
             applet = TrashApplet(48)
         items = applet.get_menu_items()
-        empty_item = items[1]
+        empty_item = items[2]
         assert not empty_item.get_sensitive()
 
     def test_empty_trash_sensitive_when_full(self):
         with patch("docking.applets.trash.applet._count_trash_items", return_value=3):
             applet = TrashApplet(48)
         items = applet.get_menu_items()
-        empty_item = items[1]
+        empty_item = items[2]
         assert empty_item.get_sensitive()
 
 

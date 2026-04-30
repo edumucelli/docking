@@ -48,7 +48,14 @@ from docking.applets.currencyfx.state import (
     prefs_from_mapping,
     prefs_payload,
 )
-from docking.applets.menu import radio_submenu
+from docking.applets.freshness import cadence_label
+from docking.applets.live_state import (
+    live_state_error,
+    live_state_label,
+    resolve_live_status,
+)
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
+from docking.applets.popup import add_cancel_ok_buttons, prepare_dialog_content
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -90,7 +97,9 @@ class CurrencyFxApplet(Applet):
         self._pulse_phase: float = 0.0
         self._fetch_request_id: int = 0
         self._snapshot: FxSnapshot | None = None
+        self._loading = False
         self._fetch_failed = False
+        self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
         raw_prefs = config.applet_prefs.get(meta.id, {}) if config else None
@@ -136,7 +145,11 @@ class CurrencyFxApplet(Applet):
             base=self._base,
             quote=self._quote,
             snapshot=self._snapshot,
+            loading=self._loading,
             fetch_failed=self._fetch_failed,
+            error=self._fetch_error,
+            chart_interval=self._chart_interval,
+            cadence_seconds=REFRESH_INTERVAL_S,
         )
 
     def on_clicked(self) -> None:
@@ -152,25 +165,34 @@ class CurrencyFxApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Build the right-click menu for all Currency FX controls."""
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = [disabled_menu_item(self._menu_header(), gtk=Gtk)]
+        verb = _("Day samples") if self._chart_interval == ChartInterval.DAY else None
+        status.append(
+            disabled_menu_item(
+                cadence_label(seconds=REFRESH_INTERVAL_S, verb=verb),
+                gtk=Gtk,
+            )
+        )
+        state_status = self._live_status()
+        state_label = live_state_label(state_status)
+        if state_label:
+            status.append(disabled_menu_item(state_label, gtk=Gtk))
+        error = live_state_error(status=state_status, error=self._fetch_error)
+        if error:
+            status.append(
+                disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
+            )
 
-        header = Gtk.MenuItem(label=self._menu_header())
-        header.set_sensitive(False)
-        items.append(header)
+        navigation: list[Gtk.MenuItem] = []
+        swap = Gtk.MenuItem(label=_("Swap Pair"))
+        swap.connect("activate", lambda _w: self._add_pair(self._quote, self._base))
+        navigation.append(swap)
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._fetch_async())
-        items.append(refresh)
+        refresh_items = [refresh]
 
-        swap = Gtk.MenuItem(label=_("Swap Pair"))
-        swap.connect("activate", lambda _w: self._add_pair(self._quote, self._base))
-        items.append(swap)
-
-        choose = Gtk.MenuItem(label=_("Add Pair..."))
-        choose.connect("activate", lambda _w: self._show_pair_dialog())
-        items.append(choose)
-
-        items.append(
+        display: list[Gtk.MenuItem] = [
             radio_submenu(
                 label=_("Chart Interval"),
                 choices=(
@@ -185,10 +207,11 @@ class CurrencyFxApplet(Applet):
                 ),
                 gtk=Gtk,
             )
-        )
+        ]
 
+        destructive: list[Gtk.MenuItem] = []
         if len(self._pairs) > 1:
-            items.append(
+            display.append(
                 radio_submenu(
                     label=_("Added Pairs"),
                     choices=tuple(
@@ -200,15 +223,25 @@ class CurrencyFxApplet(Applet):
                     gtk=Gtk,
                 )
             )
-
             remove = Gtk.MenuItem(label=_("Remove Current Pair"))
             remove.connect(
                 "activate",
                 lambda _w: self._remove_active_pair(),
             )
-            items.append(remove)
+            destructive.append(remove)
 
-        return items
+        choose = Gtk.MenuItem(label=_("Add Pair..."))
+        choose.connect("activate", lambda _w: self._show_pair_dialog())
+
+        return menu_sections(
+            status=status,
+            navigation=navigation,
+            refresh=refresh_items,
+            display=display,
+            manage=[choose],
+            destructive=destructive,
+            gtk=Gtk,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start periodic refresh and one delayed startup fetch."""
@@ -259,7 +292,10 @@ class CurrencyFxApplet(Applet):
         base = self._base
         quote = self._quote
         chart_interval = self._chart_interval
+        self._loading = True
         self._fetch_failed = False
+        self._fetch_error = ""
+        self.present()
 
         self._worker.run(
             name="currencyfx-fetch",
@@ -291,6 +327,7 @@ class CurrencyFxApplet(Applet):
         """
         if request_id != self._fetch_request_id:
             return False
+        self._loading = False
         self._available_codes = merge_currency_codes((*codes, *self._pair_codes()))
         if snapshot is not None:
             self._samples = append_local_sample(
@@ -303,7 +340,10 @@ class CurrencyFxApplet(Applet):
             if self._chart_interval == ChartInterval.DAY:
                 snapshot = self._snapshot_with_local_samples(snapshot=snapshot)
             self._save_prefs()
-        self._snapshot = snapshot
+            self._snapshot = snapshot
+            self._fetch_error = ""
+        else:
+            self._fetch_error = _("No rate data")
         self._fetch_failed = snapshot is None
         self._ensure_pulse_timer()
         self.present()
@@ -314,8 +354,9 @@ class CurrencyFxApplet(Applet):
         if request_id != self._fetch_request_id:
             return False
         log.bind(action="fetch_error").debug("Currency FX fetch failed: %s", exc)
-        self._snapshot = None
+        self._loading = False
         self._fetch_failed = True
+        self._fetch_error = str(exc) or exc.__class__.__name__
         self._ensure_pulse_timer()
         self.present()
         return False
@@ -360,6 +401,8 @@ class CurrencyFxApplet(Applet):
             else None
         )
         self._fetch_failed = False
+        self._fetch_error = ""
+        self._loading = False
         self._available_codes = merge_currency_codes(self._pair_codes())
         self._save_prefs()
         self._fetch_async()
@@ -388,6 +431,15 @@ class CurrencyFxApplet(Applet):
             change=format_change(self._snapshot.points),
         )
 
+    def _live_status(self):
+        return resolve_live_status(
+            has_data=self._snapshot is not None,
+            loading=self._loading,
+            error=self._fetch_error if self._fetch_failed else None,
+            updated_at=self._snapshot.fetched_at if self._snapshot else None,
+            stale_after_seconds=REFRESH_INTERVAL_S * 2,
+        )
+
     def _on_interval_selected(
         self,
         *,
@@ -406,6 +458,8 @@ class CurrencyFxApplet(Applet):
             else None
         )
         self._fetch_failed = False
+        self._fetch_error = ""
+        self._loading = False
         self._save_prefs()
         self._fetch_async()
         self._ensure_pulse_timer()
@@ -417,22 +471,14 @@ class CurrencyFxApplet(Applet):
             title=_("Add FX Pair"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL,
-            Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OK,
-            Gtk.ResponseType.OK,
+        add_cancel_ok_buttons(dialog=dialog)
+        box = prepare_dialog_content(
+            dialog=dialog,
+            width=DIALOG_WIDTH_PX,
+            spacing=DIALOG_SPACING_PX,
+            margin=DIALOG_MARGIN_PX,
+            default_response=Gtk.ResponseType.OK,
         )
-        dialog.set_default_response(Gtk.ResponseType.OK)
-        dialog.set_default_size(DIALOG_WIDTH_PX, -1)
-        dialog.set_position(Gtk.WindowPosition.MOUSE)
-
-        box = dialog.get_content_area()
-        box.set_spacing(DIALOG_SPACING_PX)
-        box.set_margin_start(DIALOG_MARGIN_PX)
-        box.set_margin_end(DIALOG_MARGIN_PX)
-        box.set_margin_top(DIALOG_MARGIN_PX)
-        box.set_margin_bottom(DIALOG_MARGIN_PX)
 
         base_combo = self._currency_combo(active=self._base)
         quote_combo = self._currency_combo(active=self._quote)
@@ -442,6 +488,7 @@ class CurrencyFxApplet(Applet):
         box.pack_start(quote_combo, False, False, 0)
 
         dialog.show_all()
+        base_combo.grab_focus()
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
             base = base_combo.get_active_text() or self._base

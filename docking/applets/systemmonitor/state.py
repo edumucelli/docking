@@ -13,6 +13,7 @@ from docking.applets.temperature import (
     format_temperature,
     normalize_temperature_unit,
 )
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -147,19 +148,24 @@ def tooltip_text(
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) -> str:
     """Build tooltip text for current cpu/memory values."""
-    text = _("CPU: {cpu}% | Mem: {mem}%").format(
+    primary = _("CPU: {cpu}% | Mem: {mem}%").format(
         cpu=f"{cpu * 100:.1f}", mem=f"{mem * 100:.1f}"
     )
     if temperature_c is not None:
-        text = _("{text} | Temp: {temp}").format(
-            text=text,
+        primary = _("{text} | Temp: {temp}").format(
+            text=primary,
             temp=format_temperature(
                 temperature_c,
                 temperature_unit=temperature_unit,
                 precision=1,
             ),
         )
+    details = []
     if disks:
         parts = [f"{mount}: {pct * 100:.0f}%" for mount, pct in disks]
-        text += "\n" + _("Disk: {usage}").format(usage="  ".join(parts))
-    return text
+        details.append(_("Disk: {usage}").format(usage="  ".join(parts)))
+    return structured_tooltip(
+        title=_("System Monitor"),
+        primary=primary,
+        details=details,
+    )

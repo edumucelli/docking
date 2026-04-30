@@ -14,6 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.music import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -101,9 +102,7 @@ class MusicApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label=_("No active player"))
-            placeholder.set_sensitive(False)
-            return [placeholder]
+            return [disabled_menu_item(_("No active player"), gtk=Gtk)]
 
         previous_item = Gtk.MenuItem(label=_("Previous"))
         previous_item.set_sensitive(self._state.can_go_previous)
@@ -128,14 +127,12 @@ class MusicApplet(Applet):
             "activate", lambda _w: self._action_volume(direction_up=False)
         )
 
-        return [
-            previous_item,
-            play_pause_item,
-            next_item,
-            Gtk.SeparatorMenuItem(),
-            volume_up_item,
-            volume_down_item,
-        ]
+        return menu_sections(
+            primary=[play_pause_item],
+            navigation=[previous_item, next_item],
+            display=[volume_up_item, volume_down_item],
+            gtk=Gtk,
+        )
 
     def _action_previous(self) -> None:
         if self._backend.previous_track(state=self._state):

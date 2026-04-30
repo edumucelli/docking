@@ -26,7 +26,7 @@ from docking.applets.hydration.state import (
     tooltip_text,
     with_fill,
 )
-from docking.applets.menu import radio_menu_items
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -111,27 +111,22 @@ class HydrationApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
         show = Gtk.CheckMenuItem(label=_("Show Timer"))
         show.set_active(self._state.show_timer)
         show.connect("toggled", self._on_toggle_timer)
-        items.append(show)
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        items.extend(
-            radio_menu_items(
-                choices=tuple(
-                    (_("{mins} min").format(mins=mins), mins)
-                    for mins in INTERVAL_PRESETS
-                ),
-                active_value=self._state.interval_min,
-                on_selected=lambda _widget, value: self._set_interval(minutes=value),
-                gtk=Gtk,
-            )
+        intervals = radio_menu_items(
+            choices=tuple(
+                (_("{mins} min").format(mins=mins), mins) for mins in INTERVAL_PRESETS
+            ),
+            active_value=self._state.interval_min,
+            on_selected=lambda _widget, value: self._set_interval(minutes=value),
+            gtk=Gtk,
         )
-        return items
+        return menu_sections(
+            display=[show, Gtk.SeparatorMenuItem(), *intervals],
+            gtk=Gtk,
+        )
 
     def _on_toggle_timer(self, widget: Gtk.CheckMenuItem) -> None:
         self._state = set_show_timer(

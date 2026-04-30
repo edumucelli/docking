@@ -14,6 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.trash import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -55,18 +56,14 @@ class TrashApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Return 'Open Trash' and 'Empty Trash' menu items."""
-        items: list[Gtk.MenuItem] = []
-
         open_item = Gtk.MenuItem(label=_("Open Trash"))
         open_item.connect("activate", lambda _: self.on_clicked())
-        items.append(open_item)
 
         empty_item = Gtk.MenuItem(label=_("Empty Trash"))
         empty_item.set_sensitive(self._item_count > 0)
         empty_item.connect("activate", lambda _: self._empty_trash())
-        items.append(empty_item)
 
-        return items
+        return menu_sections(primary=[open_item], destructive=[empty_item], gtk=Gtk)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start Gio.FileMonitor on trash:/// for real-time icon updates."""

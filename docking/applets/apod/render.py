@@ -124,6 +124,7 @@ def render_icon(
     *,
     size: int,
     cached_path: str,
+    warning: bool = False,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render the thumbnail as a rounded-square icon."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -135,6 +136,8 @@ def render_icon(
 
     if pixbuf is None:
         _draw_fallback(cr=cr, size=size)
+        if warning:
+            _draw_warning_badge(cr=cr, size=size)
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 
     # Clip to a rounded square and paint the image edge-to-edge, no backdrop.
@@ -143,5 +146,21 @@ def render_icon(
     cr.clip()
     _paint_cover(cr=cr, pixbuf=pixbuf, size=size)
     cr.restore()
+    if warning:
+        _draw_warning_badge(cr=cr, size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
+
+
+def _draw_warning_badge(*, cr: cairo.Context, size: int) -> None:
+    cr.save()
+    radius = max(2.0, size * 0.08)
+    cx = size * 0.80
+    cy = size * 0.20
+    cr.arc(cx, cy, radius, 0, math.tau)
+    cr.set_source_rgba(0.95, 0.60, 0.22, 0.96)
+    cr.fill_preserve()
+    cr.set_line_width(max(0.8, size * 0.018))
+    cr.set_source_rgba(0, 0, 0, 0.44)
+    cr.stroke()
+    cr.restore()

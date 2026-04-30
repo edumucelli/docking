@@ -18,6 +18,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.moon import meta
 from docking.applets.moon.render import create_icon
 from docking.applets.moon.state import MoonData, fetch_moon, phase_name
@@ -116,18 +117,14 @@ class MoonApplet(Applet):
         self._fetch_async()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
         show = Gtk.CheckMenuItem(label=_("Show Phase Name"))
         show.set_active(self._show_phase)
         show.connect("toggled", self._on_toggle_phase)
-        items.append(show)
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _: self._fetch_async())
-        items.append(refresh)
 
-        return items
+        return menu_sections(refresh=[refresh], display=[show], gtk=Gtk)
 
     def _on_toggle_phase(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_phase = widget.get_active()

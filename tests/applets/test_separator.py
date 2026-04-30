@@ -210,3 +210,66 @@ class TestSeparatorApplet:
         applet.apply_prefs()
 
         assert applet._style == STYLE_SPACE
+
+    def test_prefs_key_load_and_save_use_instance_id(self):
+        class _Config:
+            def __init__(self) -> None:
+                self.applet_prefs = {"separator#2": {"gap": 20}}
+                self.saved = 0
+
+            def save(self) -> None:
+                self.saved += 1
+
+        config = _Config()
+        applet = SeparatorApplet(48, config=config)
+        applet.item.desktop_id = "applet://separator#2"
+
+        assert applet._prefs_key() == "separator#2"
+        assert applet.load_instance_prefs() == {"gap": 20}
+
+        applet.save_instance_prefs({"gap": 30})
+
+        assert config.applet_prefs["separator#2"] == {"gap": 30}
+        assert config.saved == 1
+
+    def test_set_style_and_invert_ignore_same_value(self):
+        applet = SeparatorApplet(48)
+        applet._save_current_prefs = lambda: (_ for _ in ()).throw(
+            AssertionError("no save")
+        )
+
+        applet._set_style(STYLE_SPACE)
+        applet._set_invert_color(False)
+
+    def test_set_style_and_invert_save_changed_values(self):
+        applet = SeparatorApplet(48)
+        saved: list[str] = []
+        applet._save_current_prefs = lambda: saved.append("save")
+        applet.present = lambda: saved.append("present")
+
+        applet._set_style(STYLE_LINE)
+        applet._set_invert_color(True)
+
+        assert applet._style == STYLE_LINE
+        assert applet._invert_color is True
+        assert saved == ["save", "present", "save", "present"]
+
+    def test_menu_callbacks_update_gap_style_and_invert(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        applet = SeparatorApplet(48)
+        applet._save_current_prefs = lambda: None
+        items = applet.get_menu_items()
+
+        items[0]._signals["activate"][0](None)
+        assert applet._gap == DEFAULT_SIZE + STEP
+
+        style_item = next(item for item in items if item.get_label() == "Style")
+        line_item = style_item.get_submenu().get_children()[0]
+        line_item.set_active(True)
+        line_item._signals["toggled"][0](line_item)
+        assert applet._style == STYLE_LINE
+
+        invert = next(item for item in items if item.get_label() == "Invert Color")
+        invert.set_active(True)
+        invert._signals["toggled"][0](invert)
+        assert applet._invert_color is True

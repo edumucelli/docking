@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import socket
+import ssl
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import docking.applets.certwatch.api as certwatch_api
+import docking.applets.certwatch.applet as certwatch_applet_mod
+from docking.applets.certwatch.api import fetch_cert
 from docking.applets.certwatch.applet import CertwatchApplet
 from docking.applets.certwatch.state import (
     CRITICAL_THRESHOLD_DAYS,
@@ -246,10 +251,18 @@ class TestTooltip:
     def test_lists_each_domain(self):
         domains = [DomainPref("a.test", 443), DomainPref("b.test", 443)]
         certs = [_cert("a.test", days=60), _cert("b.test", days=5)]
-        text = build_tooltip(domains=domains, certs=certs, now=_NOW)
+        text = build_tooltip(
+            domains=domains,
+            certs=certs,
+            now=_NOW,
+            updated_at=_NOW,
+            cadence_seconds=3600,
+        )
         assert "a.test" in text
         assert "b.test" in text
         assert "5d" in text
+        assert "Updated:" in text
+        assert "Checks every 1 hour" in text
 
     def test_loading_line_when_cert_missing(self):
         domains = [DomainPref("a.test", 443)]
@@ -276,6 +289,22 @@ class TestAppletCreation:
         for size in [32, 48, 64]:
             applet = _make_applet(size)
             assert applet.create_icon(size) is not None
+
+    def test_error_icon_when_all_fetches_failed(self):
+        applet = _make_applet()
+        applet._domains = [DomainPref("a.test", 443)]
+        applet._fetch_error = "boom"
+
+        assert applet.create_icon(48) is not None
+
+    def test_click_opens_add_dialog(self, monkeypatch):
+        applet = _make_applet()
+        called = []
+        monkeypatch.setattr(applet, "_show_add_dialog", lambda: called.append(True))
+
+        applet.on_clicked()
+
+        assert called == [True]
 
 
 class TestAppletTooltip:
@@ -305,6 +334,7 @@ class TestAppletMenu:
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items]
         assert any("a.test" in label for label in labels)
+        assert "Checks every 1 hour" in labels
         assert any("Remove" in label for label in labels)
         assert any("Refresh Now" in label for label in labels)
 
@@ -357,6 +387,163 @@ class TestAppletRetry:
         assert scheduled == []
         assert applet._retry_timer_id == 99
 
+    def test_run_retry_clears_timer_and_fetches(self, monkeypatch):
+        applet = _make_applet()
+        applet._retry_timer_id = 77
+        fetch = []
+        monkeypatch.setattr(applet, "_fetch_all", lambda: fetch.append(True))
+
+        assert applet._run_retry() is False
+        assert applet._retry_timer_id == 0
+        assert fetch == [True]
+
+
+class TestAppletLifecycleAndFetch:
+    def test_start_and_stop_timers(self, monkeypatch):
+        applet = _make_applet()
+        applet._domains = [DomainPref("a.test", 443)]
+        added = iter([11, 12])
+        removed: list[int] = []
+        monkeypatch.setattr(
+            certwatch_applet_mod.GLib,
+            "timeout_add_seconds",
+            lambda *_args: next(added),
+        )
+        monkeypatch.setattr(
+            certwatch_applet_mod.GLib,
+            "source_remove",
+            lambda timer_id: removed.append(timer_id),
+        )
+
+        applet.start(lambda: None)
+        applet._retry_timer_id = 13
+        applet.stop()
+
+        assert removed == [11, 12, 13]
+        assert applet._timer_id == 0
+        assert applet._startup_fetch_timer_id == 0
+        assert applet._retry_timer_id == 0
+
+    def test_current_certs_preserves_domain_order(self):
+        applet = _make_applet()
+        applet._domains = [DomainPref("b.test", 443), DomainPref("a.test", 443)]
+        cert_a = _cert("a.test")
+        cert_b = _cert("b.test")
+        applet._certs = {
+            ("a.test", 443): cert_a,
+            ("b.test", 443): cert_b,
+        }
+
+        assert applet._current_certs() == [cert_b, cert_a]
+
+    def test_tick_and_startup_fetch(self, monkeypatch):
+        applet = _make_applet()
+        calls: list[str] = []
+        monkeypatch.setattr(applet, "_fetch_all", lambda: calls.append("fetch"))
+
+        assert applet._tick() is True
+        applet._startup_fetch_timer_id = 99
+        assert applet._run_startup_fetch() is False
+
+        assert applet._startup_fetch_timer_id == 0
+        assert calls == ["fetch", "fetch"]
+
+    def test_fetch_all_no_domains_is_noop(self):
+        applet = _make_applet()
+        applet._worker.run = lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("worker should not run")
+        )
+
+        applet._fetch_all()
+
+    def test_fetch_all_queues_worker_and_removes_startup_timer(self, monkeypatch):
+        applet = _make_applet()
+        applet._domains = [DomainPref("a.test", 443)]
+        applet._startup_fetch_timer_id = 77
+        removed: list[int] = []
+        worker_calls: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            certwatch_applet_mod.GLib,
+            "source_remove",
+            lambda timer_id: removed.append(timer_id),
+        )
+        monkeypatch.setattr(
+            certwatch_applet_mod,
+            "fetch_cert",
+            lambda host, port: _cert(host, port),
+        )
+        applet._worker.run = lambda **kwargs: worker_calls.append(kwargs)
+
+        applet._fetch_all()
+
+        assert removed == [77]
+        assert applet._loading is True
+        assert worker_calls[0]["name"] == "certwatch-fetch"
+        assert worker_calls[0]["fn"]() == [_cert("a.test")]
+
+    def test_fetch_result_ignores_stale_request(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 2
+
+        assert applet._on_fetch_result(request_id=1, certs=[_cert("a.test")]) is False
+        assert applet._certs == {}
+
+    def test_fetch_result_updates_state_and_prunes_stale_certs(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 7
+        applet._domains = [DomainPref("a.test", 443)]
+        applet._certs = {("old.test", 443): _cert("old.test")}
+
+        assert applet._on_fetch_result(request_id=7, certs=[_cert("a.test")]) is False
+
+        assert ("a.test", 443) in applet._certs
+        assert ("old.test", 443) not in applet._certs
+        assert applet._last_updated is not None
+
+    def test_fetch_error_ignores_stale_and_schedules_retry(self, monkeypatch):
+        applet = _make_applet()
+        applet._fetch_request_id = 7
+        scheduled: list[int] = []
+        monkeypatch.setattr(
+            certwatch_applet_mod.GLib,
+            "timeout_add_seconds",
+            lambda seconds, _fn: scheduled.append(seconds) or 42,
+        )
+
+        assert applet._on_fetch_error(request_id=6, exc=RuntimeError("old")) is False
+        assert applet._on_fetch_error(request_id=7, exc=RuntimeError("boom")) is False
+
+        assert applet._fetch_error == "boom"
+        assert applet._retry_timer_id == 42
+        assert scheduled == [300]
+
+    def test_fetch_error_does_not_double_schedule_retry(self, monkeypatch):
+        applet = _make_applet()
+        applet._fetch_request_id = 7
+        applet._retry_timer_id = 42
+        monkeypatch.setattr(
+            certwatch_applet_mod.GLib,
+            "timeout_add_seconds",
+            lambda *_args: (_ for _ in ()).throw(AssertionError("no schedule")),
+        )
+
+        applet._on_fetch_error(request_id=7, exc=RuntimeError())
+
+        assert applet._fetch_error == "RuntimeError"
+
+    def test_log_critical_and_prune_helpers(self):
+        applet = _make_applet()
+        applet._domains = [DomainPref("keep.test", 443)]
+        applet._certs = {
+            ("keep.test", 443): _cert("keep.test"),
+            ("drop.test", 443): _cert("drop.test"),
+        }
+
+        applet._log_critical(certs=[_cert("exp.test", days=-1)])
+        applet._prune_stale_certs()
+
+        assert list(applet._certs) == [("keep.test", 443)]
+
 
 class TestAppletPrefs:
     def test_loads_domains_from_config(self):
@@ -407,6 +594,108 @@ class TestAppletPrefs:
         assert applet._domains == [DomainPref("b.test", 443)]
 
 
+class _FakeDialogBox:
+    def __init__(self) -> None:
+        self.children: list[object] = []
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+
+class _FakeDialog:
+    def __init__(self, *, response: int) -> None:
+        self.response = response
+        self.destroyed = False
+        self.box = _FakeDialogBox()
+
+    def show_all(self) -> None:
+        return
+
+    def run(self) -> int:
+        return self.response
+
+    def destroy(self) -> None:
+        self.destroyed = True
+
+
+class _FakeEntry:
+    text = ""
+
+    def set_placeholder_text(self, _text: str) -> None:
+        return
+
+    def set_activates_default(self, _value: bool) -> None:
+        return
+
+    def grab_focus(self) -> None:
+        return
+
+    def get_text(self) -> str:
+        return self.text
+
+
+class TestAppletDialog:
+    def test_show_add_dialog_adds_valid_domain(self, monkeypatch):
+        dialog = _FakeDialog(response=certwatch_applet_mod.Gtk.ResponseType.OK)
+        entry = _FakeEntry()
+        entry.text = "example.com:8443"
+        monkeypatch.setattr(
+            certwatch_applet_mod.Gtk, "Dialog", lambda **_kwargs: dialog
+        )
+        monkeypatch.setattr(certwatch_applet_mod.Gtk, "Entry", lambda: entry)
+        monkeypatch.setattr(
+            certwatch_applet_mod,
+            "prepare_dialog_content",
+            lambda **_kwargs: dialog.box,
+        )
+        monkeypatch.setattr(
+            certwatch_applet_mod, "add_cancel_ok_buttons", lambda **_: None
+        )
+        applet = _make_applet()
+        applet._add_domain = MagicMock()
+
+        applet._show_add_dialog()
+
+        applet._add_domain.assert_called_once_with(pref=DomainPref("example.com", 8443))
+        assert dialog.destroyed is True
+
+    def test_show_add_dialog_ignores_cancel_and_invalid_domain(self, monkeypatch):
+        for response, text in (
+            (certwatch_applet_mod.Gtk.ResponseType.CANCEL, "example.com"),
+            (certwatch_applet_mod.Gtk.ResponseType.OK, "example.com:bad"),
+        ):
+            dialog = _FakeDialog(response=response)
+            entry = _FakeEntry()
+            entry.text = text
+            monkeypatch.setattr(
+                certwatch_applet_mod.Gtk,
+                "Dialog",
+                lambda _dialog=dialog, **_kwargs: _dialog,
+            )
+            monkeypatch.setattr(
+                certwatch_applet_mod.Gtk,
+                "Entry",
+                lambda _entry=entry: _entry,
+            )
+            monkeypatch.setattr(
+                certwatch_applet_mod,
+                "prepare_dialog_content",
+                lambda _dialog=dialog, **_kwargs: _dialog.box,
+            )
+            monkeypatch.setattr(
+                certwatch_applet_mod,
+                "add_cancel_ok_buttons",
+                lambda **_: None,
+            )
+            applet = _make_applet()
+            applet._add_domain = MagicMock()
+
+            applet._show_add_dialog()
+
+            applet._add_domain.assert_not_called()
+            assert dialog.destroyed is True
+
+
 class TestStatusForCert:
     def test_uses_error_when_present(self):
         cert = _cert("a.test", error="timeout")
@@ -415,3 +704,140 @@ class TestStatusForCert:
     def test_uses_days_when_valid(self):
         cert = _cert("a.test", days=3)
         assert status_for_cert(cert=cert, now=_NOW) is CertStatus.CRITICAL
+
+
+class TestCertApiParsing:
+    def test_parse_cert_date_valid_and_invalid(self):
+        parsed = certwatch_api._parse_cert_date("Jun 24 20:14:34 2026 GMT")
+        assert parsed == datetime(2026, 6, 24, 20, 14, 34, tzinfo=timezone.utc)
+        assert certwatch_api._parse_cert_date("") is None
+        assert certwatch_api._parse_cert_date("bad") is None
+        assert certwatch_api._parse_cert_date("Nope 24 20:14:34 2026 GMT") is None
+        assert certwatch_api._parse_cert_date("Jun x 20:14:34 2026 GMT") is None
+        assert certwatch_api._parse_cert_date("Jun 31 20:14:34 2026 GMT") is None
+
+    def test_flatten_name_filters_bad_shapes(self):
+        subject = ((("commonName", "example.com"),), "bad", (("O", "Org"),))
+        assert certwatch_api._flatten_name(subject) == "commonName=example.com, O=Org"
+        assert certwatch_api._flatten_name("bad") == ""
+
+
+class _FakeRawSocket:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+
+class _FakeTlsSocket:
+    def __init__(self, peer):
+        self._peer = peer
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def getpeercert(self):
+        return self._peer
+
+
+class _FakeSslContext:
+    def __init__(self, peer=None, error: Exception | None = None) -> None:
+        self.peer = peer
+        self.error = error
+        self.server_hostname = ""
+
+    def wrap_socket(self, _raw, *, server_hostname: str):
+        self.server_hostname = server_hostname
+        if self.error is not None:
+            raise self.error
+        return _FakeTlsSocket(self.peer)
+
+
+class TestCertApiFetch:
+    def _patch_peer(self, monkeypatch, peer, error: Exception | None = None):
+        context = _FakeSslContext(peer=peer, error=error)
+        monkeypatch.setattr(
+            certwatch_api.ssl, "create_default_context", lambda: context
+        )
+        monkeypatch.setattr(
+            certwatch_api.socket,
+            "create_connection",
+            lambda *_args, **_kwargs: _FakeRawSocket(),
+        )
+        return context
+
+    def test_fetch_cert_success(self, monkeypatch):
+        peer = {
+            "notAfter": "Jun 24 20:14:34 2026 GMT",
+            "subject": ((("commonName", "example.com"),),),
+            "issuer": ((("commonName", "Test CA"),),),
+        }
+        context = self._patch_peer(monkeypatch, peer)
+
+        info = fetch_cert(host="example.com", port=443)
+
+        assert info.not_after == datetime(
+            2026,
+            6,
+            24,
+            20,
+            14,
+            34,
+            tzinfo=timezone.utc,
+        )
+        assert info.subject == "commonName=example.com"
+        assert info.issuer == "commonName=Test CA"
+        assert info.error is None
+        assert context.server_hostname == "example.com"
+
+    def test_fetch_cert_reports_verify_failure(self, monkeypatch):
+        self._patch_peer(
+            monkeypatch,
+            peer=None,
+            error=ssl.SSLCertVerificationError("bad cert"),
+        )
+
+        info = fetch_cert(host="example.com", port=443)
+
+        assert info.error is not None
+        assert info.error.startswith("verify failed")
+
+    def test_fetch_cert_reports_timeout(self, monkeypatch):
+        monkeypatch.setattr(
+            certwatch_api.socket,
+            "create_connection",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(TimeoutError),
+        )
+
+        assert fetch_cert(host="example.com", port=443).error == "timeout"
+
+    def test_fetch_cert_reports_socket_errors(self, monkeypatch):
+        monkeypatch.setattr(
+            certwatch_api.socket,
+            "create_connection",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(socket.gaierror("no host")),
+        )
+
+        assert "no host" in fetch_cert(host="example.com", port=443).error
+
+    def test_fetch_cert_reports_empty_peer(self, monkeypatch):
+        self._patch_peer(monkeypatch, peer={})
+
+        assert fetch_cert(host="example.com", port=443).error == "no peer certificate"
+
+    def test_fetch_cert_reports_missing_or_bad_not_after(self, monkeypatch):
+        self._patch_peer(monkeypatch, peer={"subject": (), "issuer": ()})
+        assert fetch_cert(host="example.com", port=443).error == "missing notAfter"
+
+        self._patch_peer(monkeypatch, peer={"notAfter": "bad"})
+        assert (
+            "unparseable notAfter"
+            in fetch_cert(
+                host="example.com",
+                port=443,
+            ).error
+        )

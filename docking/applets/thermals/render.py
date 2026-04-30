@@ -25,6 +25,7 @@ def render_icon(
     size: int,
     snapshot: ThermalSnapshot | None,
     loading: bool = False,
+    error: bool = False,
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render thermals icon with a shared bottom temperature label."""
@@ -32,7 +33,7 @@ def render_icon(
     cr = cairo.Context(surface)
 
     temp = snapshot.hottest.celsius if snapshot and snapshot.hottest else None
-    error = bool(snapshot and (not snapshot.available or snapshot.error))
+    error = error or bool(snapshot and (not snapshot.available or snapshot.error))
     r, g, b = thermal_color(temp)
 
     _draw_background(cr=cr, size=size, rgb=(r, g, b), error=error, loading=loading)

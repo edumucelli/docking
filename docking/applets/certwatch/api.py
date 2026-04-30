@@ -107,7 +107,7 @@ def fetch_cert(
             not_after=None,
             subject="",
             issuer="",
-            error=f"verify failed: {exc.verify_message or exc}",
+            error=f"verify failed: {getattr(exc, 'verify_message', None) or exc}",
         )
     except TimeoutError:
         return CertInfo(

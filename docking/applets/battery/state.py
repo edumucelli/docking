@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import NamedTuple
 
 from docking.i18n import _
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 BAT_BASE = Path("/sys/class/power_supply")
-log = get_logger("battery.state")
+log = with_context(get_logger("battery.state"))
 
 
 class BatteryState(NamedTuple):

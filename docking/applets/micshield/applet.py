@@ -12,6 +12,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.micshield import meta
 from docking.applets.micshield.render import render_icon
 from docking.applets.micshield.state import (
@@ -87,46 +88,41 @@ class MicShieldApplet(Applet):
         self._toggle_mute()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label=_("No microphone source found"))
-            placeholder.set_sensitive(False)
-            items.append(placeholder)
+            status.append(disabled_menu_item(_("No microphone source found"), gtk=Gtk))
         else:
-            header = Gtk.MenuItem(
-                label=_("Microphone muted")
-                if self._state.muted
-                else _("Microphone unmuted")
+            status.append(
+                disabled_menu_item(
+                    _("Microphone muted")
+                    if self._state.muted
+                    else _("Microphone unmuted"),
+                    gtk=Gtk,
+                )
             )
-            header.set_sensitive(False)
-            items.append(header)
 
             if self._state.active:
-                active = Gtk.MenuItem(label=_("Microphone active"))
-                active.set_sensitive(False)
-                items.append(active)
+                status.append(disabled_menu_item(_("Microphone active"), gtk=Gtk))
                 for stream in self._state.streams:
-                    item = Gtk.MenuItem(label=stream_label(stream))
-                    item.set_sensitive(False)
-                    items.append(item)
+                    status.append(disabled_menu_item(stream_label(stream), gtk=Gtk))
             else:
-                idle = Gtk.MenuItem(label=_("Microphone idle"))
-                idle.set_sensitive(False)
-                items.append(idle)
+                status.append(disabled_menu_item(_("Microphone idle"), gtk=Gtk))
 
-        items.append(Gtk.SeparatorMenuItem())
         mute_label = (
             _("Unmute Microphone") if self._state.muted else _("Mute Microphone")
         )
         mute = Gtk.MenuItem(label=mute_label)
         mute.set_sensitive(self._state.available)
         mute.connect("activate", lambda _w: self._set_muted(not self._state.muted))
-        items.append(mute)
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
-        items.append(refresh)
-        return items
+        return menu_sections(
+            status=status,
+            primary=[mute],
+            refresh=[refresh],
+            gtk=Gtk,
+        )
 
     def _refresh_once(self) -> bool:
         self._refresh_now()

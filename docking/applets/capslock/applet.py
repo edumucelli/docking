@@ -21,6 +21,7 @@ from docking.applets.capslock.state import (
     query_lock_state,
     tooltip_text,
 )
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -63,24 +64,26 @@ class CapslockApplet(Applet):
         self._refresh_now()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
         if not self._state.available:
-            unavailable = Gtk.MenuItem(label=_("Keyboard lock state unavailable"))
-            unavailable.set_sensitive(False)
-            items.append(unavailable)
+            status.append(
+                disabled_menu_item(_("Keyboard lock state unavailable"), gtk=Gtk)
+            )
         else:
-            caps = Gtk.MenuItem(label=menu_label(_("Caps Lock"), self._state.caps_lock))
-            caps.set_sensitive(False)
-            items.append(caps)
-            num = Gtk.MenuItem(label=menu_label(_("Num Lock"), self._state.num_lock))
-            num.set_sensitive(False)
-            items.append(num)
+            status.append(
+                disabled_menu_item(
+                    menu_label(_("Caps Lock"), self._state.caps_lock), gtk=Gtk
+                )
+            )
+            status.append(
+                disabled_menu_item(
+                    menu_label(_("Num Lock"), self._state.num_lock), gtk=Gtk
+                )
+            )
 
-        items.append(Gtk.SeparatorMenuItem())
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
-        items.append(refresh)
-        return items
+        return menu_sections(status=status, refresh=[refresh], gtk=Gtk)
 
     def _refresh_now(self) -> None:
         self._state = query_lock_state()

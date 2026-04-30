@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -12,7 +13,13 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.menu import radio_submenu
+from docking.applets.freshness import cadence_label
+from docking.applets.live_state import (
+    live_state_error,
+    live_state_label,
+    resolve_live_status,
+)
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
 from docking.applets.thermals import meta
 from docking.applets.thermals.render import render_icon
 from docking.applets.thermals.state import (
@@ -48,7 +55,9 @@ class ThermalsApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._snapshot: ThermalSnapshot | None = None
+        self._last_updated: dt.datetime | None = None
         self._loading = False
+        self._last_error = ""
         self._timer_id = 0
         self._startup_fetch_timer_id = 0
         self._request_id = 0
@@ -65,6 +74,7 @@ class ThermalsApplet(Applet):
             size=size,
             snapshot=self._snapshot,
             loading=self._loading,
+            error=bool(self._last_error),
             temperature_unit=self._temperature_unit,
         )
 
@@ -72,48 +82,69 @@ class ThermalsApplet(Applet):
         self.item.name = build_tooltip(
             snapshot=self._snapshot,
             loading=self._loading,
+            error=self._last_error,
             temperature_unit=self._temperature_unit,
+            updated_at=self._last_updated,
+            cadence_seconds=REFRESH_INTERVAL_S,
         )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
         if self._snapshot is not None:
             if not self._snapshot.available:
-                header = Gtk.MenuItem(label=_("lm-sensors not installed"))
-                header.set_sensitive(False)
-                items.append(header)
+                status.append(
+                    disabled_menu_item(_("lm-sensors not installed"), gtk=Gtk)
+                )
             elif self._snapshot.error:
-                header = Gtk.MenuItem(label=self._snapshot.error)
-                header.set_sensitive(False)
-                items.append(header)
+                status.append(disabled_menu_item(self._snapshot.error, gtk=Gtk))
             else:
                 if self._snapshot.hottest is not None:
                     hot = self._snapshot.hottest
-                    item = Gtk.MenuItem(
-                        label=_("Hot: {label} {temp}").format(
-                            label=reading_label(hot),
-                            temp=format_temperature(
-                                hot.celsius,
-                                temperature_unit=self._temperature_unit,
+                    status.append(
+                        disabled_menu_item(
+                            _("Hot: {label} {temp}").format(
+                                label=reading_label(hot),
+                                temp=format_temperature(
+                                    hot.celsius,
+                                    temperature_unit=self._temperature_unit,
+                                ),
                             ),
+                            gtk=Gtk,
                         )
                     )
-                    item.set_sensitive(False)
-                    items.append(item)
                 if self._snapshot.fan is not None:
                     fan = self._snapshot.fan
-                    item = Gtk.MenuItem(
-                        label=_("Fan: {label} {rpm}").format(
-                            label=reading_label(fan),
-                            rpm=format_rpm(fan.rpm),
+                    status.append(
+                        disabled_menu_item(
+                            _("Fan: {label} {rpm}").format(
+                                label=reading_label(fan),
+                                rpm=format_rpm(fan.rpm),
+                            ),
+                            gtk=Gtk,
                         )
                     )
-                    item.set_sensitive(False)
-                    items.append(item)
-            if items:
-                items.append(Gtk.SeparatorMenuItem())
 
-        items.append(
+        state_status = self._live_status()
+        state_label = live_state_label(state_status)
+        if state_label:
+            status.append(disabled_menu_item(state_label, gtk=Gtk))
+        error = live_state_error(status=state_status, error=self._last_error)
+        if error:
+            status.append(
+                disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
+            )
+
+        status.append(
+            disabled_menu_item(
+                cadence_label(seconds=REFRESH_INTERVAL_S, verb=_("Samples")),
+                gtk=Gtk,
+            )
+        )
+
+        refresh = Gtk.MenuItem(label=_("Refresh Now"))
+        refresh.connect("activate", lambda _w: self._fetch_async())
+
+        display = [
             radio_submenu(
                 label=_("Temperature Unit"),
                 choices=tuple(
@@ -127,12 +158,14 @@ class ThermalsApplet(Applet):
                 ),
                 gtk=Gtk,
             )
-        )
+        ]
 
-        refresh = Gtk.MenuItem(label=_("Refresh Now"))
-        refresh.connect("activate", lambda _w: self._fetch_async())
-        items.append(refresh)
-        return items
+        return menu_sections(
+            status=status,
+            refresh=[refresh],
+            display=display,
+            gtk=Gtk,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
@@ -187,6 +220,7 @@ class ThermalsApplet(Applet):
         self._request_id += 1
         request_id = self._request_id
         self._loading = self._snapshot is None
+        self._last_error = ""
         if self._loading:
             self.present()
 
@@ -212,7 +246,16 @@ class ThermalsApplet(Applet):
         if request_id != self._request_id:
             return False
         self._loading = False
-        self._snapshot = snapshot
+        if (
+            (snapshot.available and not snapshot.error)
+            or self._snapshot is None
+            or self._snapshot.error
+        ):
+            self._snapshot = snapshot
+            self._last_error = ""
+        else:
+            self._last_error = snapshot.error or _("Thermal readings unavailable")
+        self._last_updated = dt.datetime.now(dt.timezone.utc)
         self.present()
         return False
 
@@ -220,10 +263,27 @@ class ThermalsApplet(Applet):
         if request_id != self._request_id:
             return False
         self._loading = False
-        self._snapshot = ThermalSnapshot(
-            available=True,
-            error=str(exc) or exc.__class__.__name__,
-        )
+        error = str(exc) or exc.__class__.__name__
+        if self._snapshot is None or self._snapshot.error:
+            self._snapshot = ThermalSnapshot(available=True, error=error)
+            self._last_error = ""
+        else:
+            self._last_error = error
+        self._last_updated = dt.datetime.now(dt.timezone.utc)
         log.bind(action="fetch_error").debug("Thermals fetch failed: %s", exc)
         self.present()
         return False
+
+    def _live_status(self):
+        snapshot_error = self._snapshot.error if self._snapshot is not None else ""
+        return resolve_live_status(
+            has_data=(
+                self._snapshot is not None
+                and self._snapshot.available
+                and not self._snapshot.error
+            ),
+            loading=self._loading,
+            error=self._last_error or snapshot_error,
+            updated_at=self._last_updated,
+            stale_after_seconds=REFRESH_INTERVAL_S * 2,
+        )

@@ -161,7 +161,7 @@ class TestApplet:
 
         items[0].emit("activate")
         items[2].emit("activate")
-        items[3].emit("activate")
+        items[4].emit("activate")
 
         assert open_url == ["https://example.com"]
         assert add_calls == [True]
@@ -225,6 +225,9 @@ class TestApplet:
             def set_position(self, *_args):
                 return
 
+            def set_default_response(self, *_args):
+                return
+
             def get_content_area(self):
                 return self.content
 
@@ -242,6 +245,12 @@ class TestApplet:
                 self._text = text
 
             def set_placeholder_text(self, _text):
+                return
+
+            def set_activates_default(self, _value):
+                return
+
+            def grab_focus(self):
                 return
 
             def get_text(self):
@@ -302,6 +311,9 @@ class TestApplet:
             def set_position(self, *_args):
                 return
 
+            def set_default_response(self, *_args):
+                return
+
             def get_content_area(self):
                 return self.content
 
@@ -319,6 +331,12 @@ class TestApplet:
                 self._text = text
 
             def set_placeholder_text(self, _text):
+                return
+
+            def set_activates_default(self, _value):
+                return
+
+            def grab_focus(self):
                 return
 
             def get_text(self):

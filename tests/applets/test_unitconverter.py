@@ -21,7 +21,6 @@ from docking.applets.unitconverter.state import (
     set_currency_units,
 )
 from docking.core.config import Config
-from docking.ui.display import ScreenPosition
 
 
 class _ImmediateWorker:
@@ -529,12 +528,20 @@ class TestAppletPrefs:
 class TestAppletPopup:
     @staticmethod
     def _patch_popup(monkeypatch, applet: UnitConverterApplet, popup: _FakePopupWindow):
+        def show_wrapped_popup(*, window, content, gap_px):
+            _ = gap_px
+            window.add(content)
+            window.show_all()
+            window.move(100, 140)
+
         monkeypatch.setattr(
-            unitconverter_applet_mod.Gtk,
-            "Window",
-            lambda **_kwargs: popup,
+            unitconverter_applet_mod, "create_popup_window", lambda: popup
         )
-        monkeypatch.setattr(unitconverter_applet_mod, "wrap_popup", lambda child: child)
+        monkeypatch.setattr(
+            unitconverter_applet_mod,
+            "show_wrapped_popup",
+            show_wrapped_popup,
+        )
         monkeypatch.setattr(
             applet, "_build_popup_content", lambda: _seed_popup_widgets(applet)
         )
@@ -590,12 +597,6 @@ class TestAppletPopup:
         applet = _make_applet()
         fake_popup = _FakePopupWindow()
         self._patch_popup(monkeypatch, applet, fake_popup)
-        monkeypatch.setattr(
-            unitconverter_applet_mod,
-            "get_pointer_position",
-            lambda _display: ScreenPosition(x=150, y=220),
-        )
-
         applet._show_popup()
         first_popup = applet._popup
         first_child = first_popup.get_child()
@@ -613,26 +614,24 @@ class TestAppletPopup:
     def test_show_popup_uses_themed_surface_wrapper(self, monkeypatch):
         applet = _make_applet()
         fake_popup = _FakePopupWindow()
-        wrapped = MagicMock(name="wrapped-popup")
+        show_wrapped_popup = MagicMock()
         monkeypatch.setattr(
-            unitconverter_applet_mod.Gtk,
-            "Window",
-            lambda **_kwargs: fake_popup,
+            unitconverter_applet_mod, "create_popup_window", lambda: fake_popup
         )
-        monkeypatch.setattr(
-            unitconverter_applet_mod, "wrap_popup", MagicMock(return_value=wrapped)
-        )
-        monkeypatch.setattr(applet, "_build_popup_content", lambda: "content")
         monkeypatch.setattr(
             unitconverter_applet_mod,
-            "get_pointer_position",
-            lambda _display: ScreenPosition(x=150, y=220),
+            "show_wrapped_popup",
+            show_wrapped_popup,
         )
+        monkeypatch.setattr(applet, "_build_popup_content", lambda: "content")
 
         applet._show_popup()
 
-        popup_child = applet._popup.get_child()
-        assert popup_child is wrapped
+        show_wrapped_popup.assert_called_once_with(
+            window=fake_popup,
+            content="content",
+            gap_px=unitconverter_applet_mod.POPUP_CURSOR_GAP_PX,
+        )
         applet.stop()
 
     def test_build_popup_content_creates_real_controls_with_fakes(self, monkeypatch):

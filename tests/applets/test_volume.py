@@ -263,9 +263,10 @@ class TestVolumeApplet:
 
         assert [item.get_label() for item in items] == [
             "Show Level",
+            "",
             "Volume Settings",
         ]
-        callback, args = items[1]._signals["activate"][0]
+        callback, args = items[2]._signals["activate"][0]
         callback(None, *args)
         assert opened == ["opened"]
 
