@@ -26,6 +26,7 @@ def rounded_rect(
     round_bottom: bool = True,
 ) -> None:
     """Draw a rounded rectangle path, optionally with square bottom corners."""
+    radius = max(0.0, min(radius, max(width, 0.0) / 2, max(height, 0.0) / 2))
     cr.new_sub_path()
     cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)  # top-right corner
     if round_bottom:
@@ -40,6 +41,47 @@ def rounded_rect(
         cr.line_to(x, y + height)  # bottom-left (square)
     cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)  # top-left corner
     cr.close_path()
+
+
+def shelf_background_path(
+    cr: cairo.Context,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    theme: Theme,
+) -> bool:
+    """Append the outer shelf background path to ``cr``."""
+    line_width = theme.stroke_width
+    path_w = w - line_width
+    path_h = h - line_width if theme.round_bottom else h - line_width / 2
+    if path_w <= 0 or path_h <= 0:
+        return False
+    rounded_rect(
+        cr,
+        x + line_width / 2,
+        y + line_width / 2,
+        path_w,
+        path_h,
+        theme.roundness,
+        round_bottom=theme.round_bottom,
+    )
+    return True
+
+
+def clip_shelf_background(
+    cr: cairo.Context,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    theme: Theme,
+) -> bool:
+    """Clip future drawing to the shelf background shape."""
+    if not shelf_background_path(cr=cr, x=x, y=y, w=w, h=h, theme=theme):
+        return False
+    cr.clip()
+    return True
 
 
 def draw_shelf_background(
@@ -59,15 +101,8 @@ def draw_shelf_background(
     round_bottom = theme.round_bottom
 
     # Layer 1: Gradient fill + outer stroke
-    rounded_rect(
-        cr,
-        x + line_width / 2,
-        y + line_width / 2,
-        w - line_width,
-        h - line_width if round_bottom else h - line_width / 2,
-        radius,
-        round_bottom=round_bottom,
-    )
+    if not shelf_background_path(cr=cr, x=x, y=y, w=w, h=h, theme=theme):
+        return
 
     pat = cairo.LinearGradient(0, y, 0, y + h)
     pat.add_color_stop_rgba(0, *theme.fill_start)

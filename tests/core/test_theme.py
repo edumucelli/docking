@@ -79,18 +79,27 @@ class TestThemeLoad:
             ("solarized", 5.0),
             ("paper", 16.0),
             ("candy", 18.0),
+            ("pill", 999.0),
         ],
     )
     def test_load_new_builtin_themes(self, theme_name, expected_roundness):
         t = Theme.load(theme_name, 48)
         assert t.roundness == expected_roundness
-        if theme_name in {"paper", "candy"}:
+        if theme_name in {"paper", "candy", "pill"}:
             assert t.stroke_width == pytest.approx(0.8)
         else:
             assert t.stroke_width == pytest.approx(1.0)
         assert all(0 <= c <= 1 for c in t.fill_start)
         assert all(0 <= c <= 1 for c in t.fill_end)
         assert all(0 <= c <= 1 for c in t.stroke)
+
+    def test_pill_theme_is_floating_and_fully_rounded(self):
+        t = Theme.load("pill", 48)
+
+        assert t.round_bottom is True
+        assert t.distance_from_edge == 6
+        assert t.roundness > t.shelf_height / 2
+        assert t.fill_start[3] > 0.9
 
 
 class TestScalingUnit:

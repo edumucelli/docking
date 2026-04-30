@@ -41,7 +41,7 @@ Docking is built around a few core capabilities:
 
 Highlights:
 - 49 built-in applets enabled from the dock menu, plus a separate dock separator item.
-- 12 built-in themes with scalable layout values.
+- 13 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
 - Exports `_DOCKING_BACKGROUND_BLUR_REGION` on X11 so compositors and scripts can read the exact visible shelf rectangle.
@@ -960,7 +960,7 @@ Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip inclu
 
 ## Theming
 
-Themes are JSON files in `docking/assets/themes/`. Twelve built-in themes are included:
+Themes are JSON files in `docking/assets/themes/`. Thirteen built-in themes are included:
 
 - `default` -- light theme
 - `onyx` -- dark variant
@@ -970,6 +970,7 @@ Themes are JSON files in `docking/assets/themes/`. Twelve built-in themes are in
 - `ember` -- warm dark theme
 - `nord` -- cool, desaturated dark
 - `glass` -- translucent macOS-style floating pill
+- `pill` -- dark floating pill with fully rounded borders
 - `paper` -- matte warm floating pill
 - `candy` -- playful pastel floating pill
 - `gruvbox` -- warm earthy dark
