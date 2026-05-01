@@ -118,6 +118,9 @@ class TestAppMain:
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
+        window.start_update_checks.side_effect = lambda: call_order.append(
+            "updates_start"
+        )
         unity.start.side_effect = lambda: call_order.append("unity_start")
         new_year.start.side_effect = lambda: call_order.append("new_year_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
@@ -179,6 +182,8 @@ class TestAppMain:
         unity.stop.assert_called_once()
         new_year.start.assert_called_once()
         new_year.stop.assert_called_once()
+        window.start_update_checks.assert_called_once()
+        window.stop_update_checks.assert_called_once()
         fake_glib.idle_add.assert_called_once_with(
             app_mod._start_runtime,
             items_service,
@@ -189,6 +194,7 @@ class TestAppMain:
             "unity_start",
             "show_all",
             "new_year_start",
+            "updates_start",
             "idle_add",
             "items_start",
             "applets_start",
@@ -220,6 +226,9 @@ class TestAppMain:
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
+        window.start_update_checks.side_effect = lambda: call_order.append(
+            "updates_start"
+        )
         unity.start.side_effect = lambda: call_order.append("unity_start")
         new_year.start.side_effect = lambda: call_order.append("new_year_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
@@ -289,10 +298,13 @@ class TestAppMain:
         unity.stop.assert_called_once()
         new_year.start.assert_called_once()
         new_year.stop.assert_called_once()
+        window.start_update_checks.assert_called_once()
+        window.stop_update_checks.assert_called_once()
         assert call_order == [
             "unity_start",
             "show_all",
             "new_year_start",
+            "updates_start",
             "idle_add",
             "items_start",
             "applets_start",

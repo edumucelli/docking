@@ -408,7 +408,10 @@ class TestMenuLifecycleScenarios:
                     insertion_index_for_main=lambda *_args, **_kwargs: 0,
                 )
 
-        runtime = DockRuntime(cast(Any, harness))
+        runtime = DockRuntime(
+            cast(Any, harness),
+            update_checker=MagicMock(),
+        )
         handler = MenuHandler(
             about=MagicMock(),
             settings=MagicMock(),

@@ -58,10 +58,17 @@ def _make_window():
     )
 
 
+def _make_update_checker():
+    return SimpleNamespace(
+        check_now=MagicMock(),
+        open_releases_page=MagicMock(),
+    )
+
+
 class TestDockRuntime:
     def test_menu_popup_hooks_delegate_to_interaction(self):
         window = _make_window()
-        runtime = DockRuntime(window)
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
 
         runtime.menu_popup_opened()
         runtime.menu_popup_closed()
@@ -71,7 +78,7 @@ class TestDockRuntime:
 
     def test_placement_commands_delegate_to_placement(self):
         window = _make_window()
-        runtime = DockRuntime(window)
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
 
         assert runtime.get_monitor_menu_choices() == [("Display 1", 0)]
         assert runtime.current_monitor_choice() == 1
@@ -89,7 +96,8 @@ class TestDockRuntime:
 
     def test_ui_commands_delegate_to_window_subsystems(self):
         window = _make_window()
-        runtime = DockRuntime(window)
+        update_checker = _make_update_checker()
+        runtime = DockRuntime(window, update_checker=update_checker)
 
         runtime.on_hide_mode_changed()
         runtime.set_icons_locked(True)
@@ -97,10 +105,14 @@ class TestDockRuntime:
         runtime.hide_tooltip()
         runtime.hide_hover_ui()
         runtime.set_theme(cast(Theme, "new-theme"))
+        runtime.check_for_updates_now()
+        runtime.open_releases_page()
 
         window.on_hide_mode_changed.assert_called_once()
         window.dnd.set_locked.assert_called_once_with(True)
         window.queue_redraw.assert_called_once()
         assert window.tooltip.hide.call_count == 2
         window.preview.hide.assert_called_once()
+        update_checker.check_now.assert_called_once()
+        update_checker.open_releases_page.assert_called_once()
         assert window.theme == "new-theme"

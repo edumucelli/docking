@@ -107,10 +107,12 @@ def main() -> None:
         unity.start()
         window.show_all()
         new_year.start()
+        window.start_update_checks()
         GLib.idle_add(_start_runtime, items_service, model)
         Gtk.main()
     finally:
         items_service.stop()
+        window.stop_update_checks()
         new_year.stop()
         unity.stop()
         model.stop_applets()

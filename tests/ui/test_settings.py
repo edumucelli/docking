@@ -340,6 +340,20 @@ class FakeCheckButton(FakeSwitch):
         self.size_request = (width, height)
 
 
+class FakeButton:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.callbacks: dict[str, object] = {}
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+    def click(self) -> None:
+        callback = self.callbacks.get("clicked")
+        if callback is not None:
+            callback(self)
+
+
 class FakeImage:
     def __init__(self, source: object) -> None:
         self.source = source
@@ -445,6 +459,7 @@ class FakeGtk:
     Scale = FakeScale
     Switch = FakeSwitch
     CheckButton = FakeCheckButton
+    Button = FakeButton
     Image = FakeImage
     ScrolledWindow = FakeScrolledWindow
     Orientation = FakeOrientation
@@ -475,12 +490,14 @@ def _config():
         zoom_percent=1.5,
         hide_delay_ms=0,
         unhide_delay_ms=0,
+        update_check_enabled=True,
+        update_check_interval_hours=24,
         save=MagicMock(),
     )
 
 
 class TestSettingsWindowController:
-    def test_show_reuses_single_window_and_builds_three_tabs(self, monkeypatch):
+    def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
@@ -510,6 +527,7 @@ class TestSettingsWindowController:
             "Appearance",
             "Behavior",
             "Applets",
+            "Updates",
         ]
         appearance_box = stack.pages[0][0]
         section_labels = [
@@ -533,6 +551,13 @@ class TestSettingsWindowController:
             "<b>Behavior</b>",
             "<b>Folder Stacks</b>",
         ]
+        updates_box = stack.pages[3][0]
+        updates_labels = [
+            child.get_children()[0].markup
+            for child in updates_box.get_children()
+            if isinstance(child, FakeBox) and child.get_children()
+        ]
+        assert updates_labels == ["<b>Update Checks</b>"]
 
     def test_numeric_spin_buttons_use_simple_im_context(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -789,6 +814,47 @@ class TestSettingsWindowController:
         assert config.save.call_count == save_before + 1
         runtime.queue_draw.assert_called_once()
         assert controller._zoom_percent_spin.sensitive is False
+
+    def test_updates_tab_controls_preferences_and_runtime_actions(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_state",
+            lambda: SimpleNamespace(last_seen_version="", last_checked_at=""),
+        )
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._update_check_switch.set_active(False)
+        controller._update_check_switch.emit_notify_active()
+        controller._update_interval_combo.set_active_id("168")
+        controller._update_interval_combo.emit_changed()
+
+        assert config.update_check_enabled is False
+        assert config.update_check_interval_hours == 168
+        assert config.save.call_count == 2
+        assert controller._update_status_label.get_label() == "Not checked yet"
+
+        updates_box = controller._window.child.children[1].pages[3][0]
+        actions_row = updates_box.children[0].children[1].children[3]
+        actions_box = actions_row.children[1]
+        check_now, view_releases = actions_box.children
+        check_now.click()
+        view_releases.click()
+
+        runtime.check_for_updates_now.assert_called_once()
+        runtime.open_releases_page.assert_called_once()
 
     def test_applet_toggle_adds_and_removes_items(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

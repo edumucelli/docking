@@ -217,6 +217,7 @@ from docking.ui.preview import PreviewPopup
 from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsWindowController
 from docking.ui.tooltip import TooltipManager
+from docking.ui.update_popup import UpdateCheckController
 
 log = get_logger(name="dock_window")
 
@@ -342,6 +343,7 @@ class DockWindow(Gtk.Window):
         self._menu: MenuHandler
         self.preview: PreviewPopup
         self._menu_popup_visible: bool = False
+        self._update_checker: UpdateCheckController
         self.tooltip = TooltipManager(self, config, model, theme)
         self.geometry = DockGeometryBuilder(self)
 
@@ -445,9 +447,18 @@ class DockWindow(Gtk.Window):
         """Release model subscriptions owned by the dock shell."""
         self._disconnect_model()
 
+    def start_update_checks(self) -> None:
+        """Start update-check scheduling owned by the dock shell."""
+        self._update_checker.start()
+
+    def stop_update_checks(self) -> None:
+        """Stop update-check scheduling owned by the dock shell."""
+        self._update_checker.stop()
+
     def _build_components(self, *, launcher: Launcher) -> None:
         """Build long-lived UI collaborators that depend on the live window."""
-        runtime = DockRuntime(self)
+        self._update_checker = UpdateCheckController(window=self, config=self.config)
+        runtime = DockRuntime(self, update_checker=self._update_checker)
         about = AboutDialogController(parent=self)
         settings = SettingsWindowController(
             parent=self,
