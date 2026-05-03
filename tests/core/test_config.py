@@ -33,6 +33,8 @@ class TestConfigDefaults:
         assert c.hide_delay_ms == 0
         assert c.previews_enabled is True
         assert c.tooltips_enabled is True
+        assert c.update_check_enabled is True
+        assert c.update_check_interval_hours == 24
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
         assert c.folder_stack_unfold == "click"
@@ -76,6 +78,8 @@ class TestConfigDefaults:
             current_workspace_only=0,
             anchor_applets=1,
             active_display="no",
+            update_check_enabled="off",
+            update_check_interval_hours="bad",
             theme="",
         )
 
@@ -91,6 +95,8 @@ class TestConfigDefaults:
         assert c.current_workspace_only is False
         assert c.anchor_applets is True
         assert c.active_display is False
+        assert c.update_check_enabled is False
+        assert c.update_check_interval_hours == 24
         assert c.theme == "default"
 
 
@@ -492,6 +498,16 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["transparency"] == 0.65
+
+    def test_save_persists_update_check_preferences(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(update_check_enabled=False, update_check_interval_hours=168)
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["update_check_enabled"] is False
+        assert saved["update_check_interval_hours"] == 168
 
     def test_save_persists_typed_pinned_entries(self, tmp_path):
         path = tmp_path / "dock.json"

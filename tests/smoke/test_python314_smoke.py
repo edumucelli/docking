@@ -270,6 +270,8 @@ def test_app_main_smoke(monkeypatch):
 
     new_year.start.assert_called_once()
     new_year.stop.assert_called_once()
+    window.start_update_checks.assert_called_once()
+    window.stop_update_checks.assert_called_once()
 
     fake_gtk.main.assert_called_once()
     assert fake_glib.unix_signal_add.call_count == 2

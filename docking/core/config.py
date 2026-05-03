@@ -251,6 +251,8 @@ DEFAULT_ANCHOR_APPLETS = False
 DEFAULT_ANCHOR_FILES = False
 DEFAULT_TOOLTIPS_ENABLED = True
 DEFAULT_ACTIVE_DISPLAY = False
+DEFAULT_UPDATE_CHECK_ENABLED = True
+DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 24
 DEFAULT_THEME = "default"
 DEFAULT_TRANSPARENCY = 1.0
 MIN_ICON_SIZE = 32
@@ -693,6 +695,10 @@ class Config:
     tooltips_enabled: bool = DEFAULT_TOOLTIPS_ENABLED
     # Whether the dock follows the cursor across monitors
     active_display: bool = DEFAULT_ACTIVE_DISPLAY
+    # Whether Docking checks GitHub for newer releases
+    update_check_enabled: bool = DEFAULT_UPDATE_CHECK_ENABLED
+    # Minimum hours between automatic update checks
+    update_check_interval_hours: int = DEFAULT_UPDATE_CHECK_INTERVAL_HOURS
     # Left-click behavior for running apps
     left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
     # Middle-click behavior for app items
@@ -800,6 +806,15 @@ class Config:
         self.active_display = _normalize_bool(
             self.active_display,
             default=DEFAULT_ACTIVE_DISPLAY,
+        )
+        self.update_check_enabled = _normalize_bool(
+            self.update_check_enabled,
+            default=DEFAULT_UPDATE_CHECK_ENABLED,
+        )
+        self.update_check_interval_hours = _normalize_int(
+            self.update_check_interval_hours,
+            default=DEFAULT_UPDATE_CHECK_INTERVAL_HOURS,
+            minimum=1,
         )
         self.left_click_action = _normalize_left_click_action(
             self.left_click_action,

@@ -55,6 +55,7 @@ from docking.core.config import (
 )
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
+from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -145,6 +146,9 @@ class SettingsWindowController:
         self._zoom_percent_spin: Any = None
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
+        self._update_check_switch: Any = None
+        self._update_interval_combo: Any = None
+        self._update_status_label: Any = None
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
         self._bindings: list[_ScalarBinding] = []
@@ -187,6 +191,7 @@ class SettingsWindowController:
         stack.add_titled(self._build_appearance_tab(), "appearance", _("Appearance"))
         stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
+        stack.add_titled(self._build_updates_tab(), "updates", _("Updates"))
 
         outer.pack_start(switcher, False, False, 0)
         outer.pack_start(stack, True, True, 0)
@@ -257,6 +262,18 @@ class SettingsWindowController:
         self._anchor_applets_switch = self._new_switch()
         self._anchor_files_switch = self._new_switch()
         self._zoom_enabled_switch = self._new_switch()
+        self._update_check_switch = self._new_switch()
+
+        self._update_interval_combo = Gtk.ComboBoxText()
+        for value, label in [
+            ("24", _("Daily")),
+            ("168", _("Weekly")),
+        ]:
+            self._update_interval_combo.append(value, label)
+
+        self._update_status_label = Gtk.Label()
+        self._update_status_label.set_xalign(0.0)
+        self._update_status_label.set_line_wrap(True)
 
         self._theme_combo = Gtk.ComboBoxText()
         for theme_name in sorted(p.stem for p in _BUILTIN_THEMES_DIR.glob("*.json")):
@@ -388,6 +405,37 @@ class SettingsWindowController:
         self._rebuild_applet_tab()
         return scroller
 
+    def _build_updates_tab(self) -> Gtk.Widget:
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPEARANCE_TAB_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
+
+        check_now = Gtk.Button(label=_("Check Now"))
+        check_now.connect("clicked", self._on_check_updates_now)
+        view_releases = Gtk.Button(label=_("View Releases"))
+        view_releases.connect("clicked", self._on_view_releases)
+
+        actions = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=ROW_SPACING_PX,
+        )
+        actions.pack_start(check_now, False, False, 0)
+        actions.pack_start(view_releases, False, False, 0)
+
+        self._append_section(
+            outer=outer,
+            title=_("Update Checks"),
+            rows=[
+                (_("Check Automatically"), self._update_check_switch),
+                (_("Frequency"), self._update_interval_combo),
+                (_("Status"), self._update_status_label),
+                (_("Actions"), actions),
+            ],
+        )
+        return outer
+
     def _build_row(self, *, label: str, widget: Gtk.Widget) -> Gtk.Box:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=ROW_SPACING_PX)
         row.set_size_request(APPEARANCE_ROW_WIDTH_PX, -1)
@@ -513,6 +561,19 @@ class SettingsWindowController:
                 config_attr="zoom_enabled",
                 widget=self._zoom_enabled_switch,
                 on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            self._register_switch_binding(
+                config_attr="update_check_enabled",
+                widget=self._update_check_switch,
+            ),
+            self._register_numeric_binding(
+                config_attr="update_check_interval_hours",
+                widget=self._update_interval_combo,
+                read_widget=self._read_update_interval_hours,
+                write_widget=lambda value: self._update_interval_combo.set_active_id(
+                    str(value)
+                ),
+                signal="changed",
             ),
             self._register_choice_binding(
                 config_attr="theme",
@@ -646,6 +707,7 @@ class SettingsWindowController:
             }
             for desktop_id, check in self._applet_checks.items():
                 check.set_active(desktop_id in active_ids)
+            self._update_updates_status()
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
@@ -763,6 +825,32 @@ class SettingsWindowController:
         if binding.on_change is not None:
             binding.on_change(value)
         self._update_dependent_sensitivity()
+
+    def _read_update_interval_hours(self) -> int | None:
+        active_id = self._update_interval_combo.get_active_id()
+        if active_id is None:
+            return None
+        return int(active_id)
+
+    def _update_updates_status(self) -> None:
+        if self._update_status_label is None:
+            return
+        state = load_state()
+        if state.last_seen_version:
+            text = _("Last seen version: {version}").format(
+                version=state.last_seen_version
+            )
+        elif state.last_checked_at:
+            text = _("No update found yet")
+        else:
+            text = _("Not checked yet")
+        self._update_status_label.set_label(text)
+
+    def _on_check_updates_now(self, _button: Gtk.Button) -> None:
+        self._runtime.check_for_updates_now()
+
+    def _on_view_releases(self, _button: Gtk.Button) -> None:
+        self._runtime.open_releases_page()
 
     def _apply_runtime_theme(self) -> None:
         theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
