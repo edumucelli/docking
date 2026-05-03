@@ -29,6 +29,50 @@ DEFAULT_DIALOG_CONTENT_SPACING_PX = 8
 DEFAULT_DIALOG_MARGIN_PX = 12
 
 
+def entry_completion_combo(
+    *,
+    matches: Callable[[str, str], bool] | None = None,
+) -> Gtk.ComboBoxText:
+    """Create an entry-backed text combo with inline/popup completion."""
+    combo = Gtk.ComboBoxText.new_with_entry()
+    combo.set_entry_text_column(0)
+
+    completion = Gtk.EntryCompletion()
+    completion.set_model(combo.get_model())
+    completion.set_text_column(0)
+    completion.set_inline_completion(True)
+    completion.set_popup_completion(True)
+    completion.set_match_func(_completion_matches, matches or _prefix_matches)
+    entry = combo.get_child()
+    entry.set_completion(completion)
+    entry.connect("focus-in-event", _select_combo_entry_text)
+    entry.connect("button-release-event", _select_combo_entry_text)
+    return combo
+
+
+def _prefix_matches(text: str, label: str) -> bool:
+    """Return true when typed text starts the visible label."""
+    needle = text.strip().casefold()
+    return not needle or label.strip().casefold().startswith(needle)
+
+
+def _completion_matches(
+    completion: Gtk.EntryCompletion,
+    key: str,
+    tree_iter,
+    matches: Callable[[str, str], bool],
+) -> bool:
+    model = completion.get_model()
+    if model is None:
+        return False
+    return matches(key, str(model.get_value(tree_iter, 0)))
+
+
+def _select_combo_entry_text(entry: Gtk.Entry, *_args) -> bool:
+    entry.select_region(0, -1)
+    return False
+
+
 def ensure_popup_css() -> None:
     """Install the shared popup CSS once per screen."""
     global _popup_css_provider
@@ -66,7 +110,9 @@ def create_popup_window() -> Gtk.Window:
     window.set_decorated(False)
     window.set_skip_taskbar_hint(True)
     window.set_resizable(False)
-    window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+    window.set_accept_focus(True)
+    window.set_focus_on_map(True)
+    window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
     return window
 
 

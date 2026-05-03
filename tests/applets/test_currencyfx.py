@@ -5,11 +5,13 @@ from __future__ import annotations
 import datetime as dt
 import json
 import urllib.parse
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import docking.applets.currencyfx.applet as currencyfx_applet_mod
 import docking.applets.currencyfx.render as currencyfx_render_mod
 import docking.applets.currencyfx.state as fx_state
+import docking.applets.popup as applet_popup_mod
 from docking.applets.currencyfx.applet import CurrencyFxApplet
 from docking.applets.currencyfx.render import render_icon
 from docking.applets.currencyfx.state import (
@@ -1060,7 +1062,11 @@ class TestCurrencyFxApplet:
         assert with_local.fetched_at == fetched.fetched_at
 
     def test_currency_combo_and_pair_codes(self, monkeypatch):
-        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "ComboBoxText", _FakeCombo)
+        monkeypatch.setattr(
+            currencyfx_applet_mod,
+            "entry_completion_combo",
+            lambda **_: _FakeCombo(),
+        )
         applet = _make_applet()
         applet._available_codes = ("EUR", "USD")
         combo = applet._currency_combo(active="BRL")
@@ -1105,12 +1111,93 @@ class _FakeCombo:
 
     def set_active(self, index: int) -> None:
         self.active = index
+        if hasattr(self, "entry") and 0 <= index < len(self.values):
+            self.entry.text = self.values[index]
 
     def get_active_text(self) -> str:
         return self.active_text or self.values[self.active]
 
     def grab_focus(self) -> None:
         return
+
+
+class _FakeEntry:
+    def __init__(self) -> None:
+        self.text = ""
+        self.completion = None
+        self._callbacks: dict[str, object] = {}
+
+    def get_text(self) -> str:
+        return self.text
+
+    def set_completion(self, completion) -> None:
+        self.completion = completion
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def select_region(self, _start: int, _end: int) -> None:
+        return
+
+
+class _FakeComboModel:
+    def __init__(self, values: list[str]) -> None:
+        self.values = values
+
+    def get_value(self, tree_iter: int, _column: int) -> str:
+        return self.values[tree_iter]
+
+
+class _FakeEntryCombo(_FakeCombo):
+    def __init__(self) -> None:
+        super().__init__()
+        self.entry = _FakeEntry()
+        self.entry_text_column = None
+
+    @classmethod
+    def new_with_entry(cls):
+        return cls()
+
+    def set_entry_text_column(self, column: int) -> None:
+        self.entry_text_column = column
+
+    def get_child(self) -> _FakeEntry:
+        return self.entry
+
+    def get_model(self) -> _FakeComboModel:
+        return _FakeComboModel(self.values)
+
+
+class _FakeEntryCompletion:
+    def __init__(self) -> None:
+        self.model = None
+        self.text_column = None
+        self.inline_completion = False
+        self.popup_completion = False
+        self.match_func = None
+
+    def set_model(self, model) -> None:
+        self.model = model
+
+    def get_model(self):
+        return self.model
+
+    def set_text_column(self, column: int) -> None:
+        self.text_column = column
+
+    def set_inline_completion(self, value: bool) -> None:
+        self.inline_completion = value
+
+    def set_popup_completion(self, value: bool) -> None:
+        self.popup_completion = value
+
+    def set_match_func(self, func, user_data) -> None:
+        self.match_func = lambda completion, key, tree_iter, _data: func(
+            completion,
+            key,
+            tree_iter,
+            user_data,
+        )
 
 
 class _FakeLabel:
@@ -1124,12 +1211,16 @@ class TestCurrencyFxDialog:
         combos: list[_FakeCombo] = []
 
         def combo_factory():
-            combo = _FakeCombo()
+            combo = _FakeEntryCombo()
             combos.append(combo)
             return combo
 
         monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Dialog", lambda **_: dialog)
-        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "ComboBoxText", combo_factory)
+        monkeypatch.setattr(
+            currencyfx_applet_mod,
+            "entry_completion_combo",
+            lambda **_: combo_factory(),
+        )
         monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Label", _FakeLabel)
         monkeypatch.setattr(
             currencyfx_applet_mod,
@@ -1151,7 +1242,11 @@ class TestCurrencyFxDialog:
     def test_show_pair_dialog_ignores_cancel(self, monkeypatch):
         dialog = _FakeDialog(response=currencyfx_applet_mod.Gtk.ResponseType.CANCEL)
         monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Dialog", lambda **_: dialog)
-        monkeypatch.setattr(currencyfx_applet_mod.Gtk, "ComboBoxText", _FakeCombo)
+        monkeypatch.setattr(
+            currencyfx_applet_mod,
+            "entry_completion_combo",
+            lambda **_: _FakeEntryCombo(),
+        )
         monkeypatch.setattr(currencyfx_applet_mod.Gtk, "Label", _FakeLabel)
         monkeypatch.setattr(
             currencyfx_applet_mod,
@@ -1167,3 +1262,28 @@ class TestCurrencyFxDialog:
         applet._show_pair_dialog()
 
         applet._add_pair.assert_not_called()
+
+    def test_currency_combo_autocompletes_typed_code_prefix(self, monkeypatch):
+        monkeypatch.setattr(
+            applet_popup_mod,
+            "Gtk",
+            SimpleNamespace(
+                ComboBoxText=_FakeEntryCombo,
+                EntryCompletion=_FakeEntryCompletion,
+            ),
+        )
+        applet = _make_applet()
+        applet._available_codes = ("EUR", "USD", "BRL")
+
+        combo = applet._currency_combo(active="USD")
+        completion = combo.entry.completion
+
+        assert combo.entry_text_column == 0
+        assert completion.text_column == 0
+        assert completion.inline_completion is True
+        assert completion.popup_completion is True
+        assert completion.match_func(completion, "br", 2, None) is True
+        assert completion.match_func(completion, "gb", 2, None) is False
+
+        combo.entry.text = "brl"
+        assert applet._currency_combo_text(combo=combo, fallback="EUR") == "brl"

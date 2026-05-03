@@ -55,7 +55,11 @@ from docking.applets.live_state import (
     resolve_live_status,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
-from docking.applets.popup import add_cancel_ok_buttons, prepare_dialog_content
+from docking.applets.popup import (
+    add_cancel_ok_buttons,
+    entry_completion_combo,
+    prepare_dialog_content,
+)
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -491,14 +495,14 @@ class CurrencyFxApplet(Applet):
         base_combo.grab_focus()
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-            base = base_combo.get_active_text() or self._base
-            quote = quote_combo.get_active_text() or self._quote
+            base = self._currency_combo_text(combo=base_combo, fallback=self._base)
+            quote = self._currency_combo_text(combo=quote_combo, fallback=self._quote)
             self._add_pair(base, quote)
         dialog.destroy()
 
     def _currency_combo(self, *, active: str) -> Gtk.ComboBoxText:
         """Build a currency-code combo box with a selected active code."""
-        combo = Gtk.ComboBoxText()
+        combo = entry_completion_combo()
         active_index = 0
         for index, code in enumerate(self._available_codes):
             combo.append_text(code)
@@ -506,6 +510,13 @@ class CurrencyFxApplet(Applet):
                 active_index = index
         combo.set_active(active_index)
         return combo
+
+    def _currency_combo_text(self, *, combo: Gtk.ComboBoxText, fallback: str) -> str:
+        """Return typed or selected currency code from an editable combo."""
+        text = combo.get_child().get_text().strip()
+        if text:
+            return text
+        return combo.get_active_text() or fallback
 
     def _pair_codes(self) -> tuple[str, ...]:
         """Return all codes currently referenced by added pairs."""
