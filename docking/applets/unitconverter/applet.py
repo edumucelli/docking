@@ -40,7 +40,10 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.popup import create_popup_window, show_wrapped_popup
+from docking.applets.popup import (
+    entry_completion_combo,
+    prepare_dialog_content,
+)
 from docking.applets.unitconverter import meta
 from docking.applets.unitconverter.render import create_icon
 from docking.applets.unitconverter.state import (
@@ -67,6 +70,31 @@ POPUP_CURSOR_GAP_PX = 20
 POPUP_WIDTH_PX = 280
 
 
+def _unit_label(unit: Unit) -> str:
+    return f"{unit.name} ({unit.symbol})"
+
+
+def _unit_label_matches(text: str, label: str) -> bool:
+    """Match "Unit Name (sym)" by visible label, unit name, or symbol prefix."""
+    needle = text.strip().casefold()
+    if not needle:
+        return True
+    normalized_label = label.strip().casefold()
+    if normalized_label.startswith(needle):
+        return True
+    name, symbol = _split_unit_label(label=label)
+    return name.casefold().startswith(needle) or symbol.casefold().startswith(needle)
+
+
+def _split_unit_label(*, label: str) -> tuple[str, str]:
+    """Split "Unit Name (sym)" into name and symbol."""
+    text = label.strip()
+    if text.endswith(")") and "(" in text:
+        name, symbol = text.rsplit("(", 1)
+        return name.strip(), symbol[:-1].strip()
+    return text, ""
+
+
 class UnitConverterApplet(Applet):
     """Instant unit conversion via a click-to-open popup."""
 
@@ -75,7 +103,7 @@ class UnitConverterApplet(Applet):
     icon_name = "emblem-synchronizing-symbolic"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        self._popup: Gtk.Window | None = None
+        self._popup: Gtk.Dialog | None = None
         self._result_label: Gtk.Label | None = None
         self._from_combo: Gtk.ComboBoxText | None = None
         self._to_combo: Gtk.ComboBoxText | None = None
@@ -125,17 +153,33 @@ class UnitConverterApplet(Applet):
             set_currency_units(units)
         return False
 
-    # -- Popup ----------------------------------------------------------------
+    # -- Dialog ---------------------------------------------------------------
 
     def _show_popup(self) -> None:
         if self._popup is None:
-            self._popup = create_popup_window()
+            self._popup = Gtk.Dialog(
+                title=_("Unit Converter"),
+                flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            )
+            self._popup.connect("delete-event", self._on_popup_delete)
 
-        show_wrapped_popup(
-            window=self._popup,
-            content=self._build_popup_content(),
-            gap_px=POPUP_CURSOR_GAP_PX,
+        content = prepare_dialog_content(
+            dialog=self._popup,
+            width=POPUP_WIDTH_PX,
+            spacing=0,
+            margin=0,
+            resizable=False,
         )
+        for child in content.get_children():
+            content.remove(child)
+        content.add(self._build_popup_content())
+        self._popup.show_all()
+        self._popup.present()
+
+    def _on_popup_delete(self, _dialog: Gtk.Dialog, _event) -> bool:
+        if self._popup:
+            self._popup.hide()
+        return True
 
     def _build_popup_content(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -158,7 +202,7 @@ class UnitConverterApplet(Applet):
         # From / Swap / To row
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
 
-        self._from_combo = Gtk.ComboBoxText()
+        self._from_combo = entry_completion_combo(matches=_unit_label_matches)
         self._from_combo.set_hexpand(True)
         row.pack_start(self._from_combo, True, True, 0)
 
@@ -167,7 +211,7 @@ class UnitConverterApplet(Applet):
         swap_btn.connect("clicked", self._on_swap)
         row.pack_start(swap_btn, False, False, 0)
 
-        self._to_combo = Gtk.ComboBoxText()
+        self._to_combo = entry_completion_combo(matches=_unit_label_matches)
         self._to_combo.set_hexpand(True)
         row.pack_start(self._to_combo, True, True, 0)
 
@@ -201,14 +245,14 @@ class UnitConverterApplet(Applet):
         if self._from_combo:
             self._from_combo.remove_all()
             for u in units:
-                self._from_combo.append_text(f"{u.name} ({u.symbol})")
+                self._from_combo.append_text(_unit_label(u))
             idx = max(0, min(self._from_idx, len(units) - 1))
             self._from_combo.set_active(idx)
 
         if self._to_combo:
             self._to_combo.remove_all()
             for u in units:
-                self._to_combo.append_text(f"{u.name} ({u.symbol})")
+                self._to_combo.append_text(_unit_label(u))
             idx = max(0, min(self._to_idx, len(units) - 1))
             self._to_combo.set_active(idx)
 
@@ -234,11 +278,26 @@ class UnitConverterApplet(Applet):
 
     def _on_unit_changed(self, _combo: Gtk.ComboBoxText) -> None:
         if self._from_combo:
-            self._from_idx = max(0, self._from_combo.get_active())
+            self._from_idx = self._unit_index_from_combo(
+                combo=self._from_combo,
+                fallback=self._from_idx,
+            )
         if self._to_combo:
-            self._to_idx = max(0, self._to_combo.get_active())
+            self._to_idx = self._unit_index_from_combo(
+                combo=self._to_combo,
+                fallback=self._to_idx,
+            )
         self._update_result()
         self._save_prefs()
+
+    def _unit_index_from_combo(self, *, combo: Gtk.ComboBoxText, fallback: int) -> int:
+        """Resolve either selected or typed unit text into the current unit index."""
+        typed = combo.get_child().get_text().strip()
+        units = get_units(get_categories()[self._cat_idx])
+        for index, unit in enumerate(units):
+            if _unit_label_matches(typed, _unit_label(unit)):
+                return index
+        return max(0, combo.get_active(), fallback)
 
     def _on_input_changed(self, _entry: Gtk.Entry) -> None:
         self._update_result()

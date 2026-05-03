@@ -49,6 +49,8 @@ class _FakePopupWindow:
         self.skip_taskbar = None
         self.resizable = None
         self.type_hint = None
+        self.accept_focus = None
+        self.focus_on_map = None
 
     def set_decorated(self, value: bool) -> None:
         self.decorated = value
@@ -58,6 +60,12 @@ class _FakePopupWindow:
 
     def set_resizable(self, value: bool) -> None:
         self.resizable = value
+
+    def set_accept_focus(self, value: bool) -> None:
+        self.accept_focus = value
+
+    def set_focus_on_map(self, value: bool) -> None:
+        self.focus_on_map = value
 
     def set_type_hint(self, hint) -> None:
         self.type_hint = hint
@@ -266,7 +274,9 @@ def test_create_popup_window_configures_transient_surface(monkeypatch):
     assert window.decorated is False
     assert window.skip_taskbar is True
     assert window.resizable is False
-    assert window.type_hint == popup.Gdk.WindowTypeHint.TOOLTIP
+    assert window.accept_focus is True
+    assert window.focus_on_map is True
+    assert window.type_hint == popup.Gdk.WindowTypeHint.UTILITY
 
 
 def test_show_wrapped_popup_replaces_content_and_positions(monkeypatch):
