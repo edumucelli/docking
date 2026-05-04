@@ -21,9 +21,13 @@ docking-camshield-helper = "docking.applets.camshield.helper:main"
 [project.optional-dependencies]
 dev = [
     "behave>=1.2.6",
+    "cohesion>=1.2.0",
+    "import-linter>=2.9",
+    "lizard>=1.17",
     "Pillow>=11.0",
     "pytest>=7.0",
     "pytest-cov",
+    "radon>=6.0",
     "ruff==0.15.12",
     "scikit-image>=0.25",
     "ty==0.0.34",
@@ -98,3 +102,41 @@ no-matching-overload = "warn"
 paths = ["docking", "tests"]
 min_confidence = 100
 sort_by_size = true
+
+[tool.importlinter]
+root_package = "docking"
+
+[[tool.importlinter.contracts]]
+name = "Core stays independent from applets, platform, and UI"
+type = "forbidden"
+source_modules = ["docking.core"]
+forbidden_modules = [
+    "docking.applets",
+    "docking.platform",
+    "docking.ui",
+]
+ignore_imports = [
+    "docking.core.config -> docking.applets.identity",
+    "docking.core.config -> docking.platform.launcher",
+]
+
+[[tool.importlinter.contracts]]
+name = "Platform does not import UI"
+type = "forbidden"
+source_modules = ["docking.platform"]
+forbidden_modules = ["docking.ui"]
+
+[[tool.importlinter.contracts]]
+name = "Applets do not depend on UI internals"
+type = "forbidden"
+source_modules = ["docking.applets"]
+forbidden_modules = ["docking.ui"]
+ignore_imports = [
+    "docking.applets.bluetooth.render -> docking.ui.overlays",
+    "docking.applets.camshield.render -> docking.ui.overlays",
+    "docking.applets.micshield.render -> docking.ui.overlays",
+    "docking.applets.music.render -> docking.ui.overlays",
+    "docking.applets.notifications.render -> docking.ui.overlays",
+    "docking.applets.popup -> docking.ui.display",
+    "docking.applets.stretchcoach.render -> docking.ui.overlays",
+]
