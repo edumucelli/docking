@@ -107,8 +107,9 @@ class TestGetBrightness:
         backend = Backend(output="HDMI-1", sysfs=tmp_path)
         assert get_brightness(backend=backend) == 0.40
 
-    def test_sysfs_handles_read_error(self, tmp_path):
+    def test_sysfs_handles_read_error(self, monkeypatch, tmp_path):
         # Given - missing files
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
         backend = Backend(output="eDP-1", sysfs=tmp_path)
         # When / Then
         assert get_brightness(backend=backend) is None
