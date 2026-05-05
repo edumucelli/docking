@@ -15,7 +15,10 @@ import docking.applets.thermals.applet as thermals_applet_mod
 from docking.applets.thermals.applet import ThermalsApplet
 from docking.applets.thermals.render import render_icon
 from docking.applets.thermals.state import (
+    FallbackThermalsBackend,
     FanReading,
+    SensorsThermalsBackend,
+    SysfsThermalsBackend,
     TemperatureUnit,
     ThermalReading,
     ThermalSnapshot,
@@ -47,6 +50,14 @@ class _ImmediateWorker:
             return
         if on_result is not None:
             on_result(result)
+
+
+class _StaticThermalsBackend:
+    def __init__(self, snapshot: ThermalSnapshot) -> None:
+        self.snapshot = snapshot
+
+    def get_snapshot(self) -> ThermalSnapshot:
+        return self.snapshot
 
 
 def _snapshot() -> ThermalSnapshot:
@@ -103,13 +114,79 @@ class TestThermalsState:
         assert snapshot.hottest is None
         assert snapshot.fan is None
 
-    def test_read_thermal_snapshot_without_sensors(self):
-        snapshot = read_thermal_snapshot(which=lambda _cmd: None)
+    def test_read_thermal_snapshot_without_sensors_or_sysfs(self, tmp_path):
+        snapshot = read_thermal_snapshot(
+            which=lambda _cmd: None,
+            hwmon_dir=tmp_path / "hwmon",
+            thermal_dir=tmp_path / "thermal",
+        )
 
         assert snapshot.available is False
         assert "lm-sensors" in snapshot.error
 
-    def test_read_thermal_snapshot_runs_sensors(self):
+    def test_fallback_backend_uses_sysfs_without_sensors(self, tmp_path):
+        hwmon = tmp_path / "hwmon"
+        chip = hwmon / "hwmon0"
+        chip.mkdir(parents=True)
+        (chip / "name").write_text("coretemp\n")
+        (chip / "temp1_label").write_text("Package id 0\n")
+        (chip / "temp1_input").write_text("65000\n")
+        (chip / "fan1_label").write_text("CPU fan\n")
+        (chip / "fan1_input").write_text("2400\n")
+
+        thermal = tmp_path / "thermal"
+        zone = thermal / "thermal_zone0"
+        zone.mkdir(parents=True)
+        (zone / "type").write_text("x86_pkg_temp\n")
+        (zone / "temp").write_text("94000\n")
+
+        snapshot = FallbackThermalsBackend(
+            primary=SensorsThermalsBackend(which=lambda _cmd: None),
+            fallback=SysfsThermalsBackend(hwmon_dir=hwmon, thermal_dir=thermal),
+        ).get_snapshot()
+
+        assert snapshot.available is True
+        assert snapshot.error == ""
+        assert snapshot.hottest is not None
+        assert snapshot.hottest.chip == "thermal_zone0"
+        assert snapshot.hottest.label == "x86_pkg_temp"
+        assert snapshot.hottest.celsius == pytest.approx(94.0)
+        assert snapshot.fan is not None
+        assert snapshot.fan.chip == "coretemp"
+        assert snapshot.fan.label == "CPU fan"
+        assert snapshot.fan.rpm == 2400
+
+    def test_read_thermal_snapshot_uses_backend_chain(self, tmp_path):
+        hwmon = tmp_path / "hwmon"
+        chip = hwmon / "hwmon0"
+        chip.mkdir(parents=True)
+        (chip / "name").write_text("coretemp\n")
+        (chip / "temp1_label").write_text("Package id 0\n")
+        (chip / "temp1_input").write_text("65000\n")
+
+        snapshot = read_thermal_snapshot(
+            which=lambda _cmd: None,
+            hwmon_dir=hwmon,
+            thermal_dir=tmp_path / "thermal",
+        )
+
+        assert snapshot.available is True
+        assert snapshot.error == ""
+        assert snapshot.hottest is not None
+        assert snapshot.hottest.label == "Package id 0"
+        assert snapshot.hottest.celsius == pytest.approx(65.0)
+
+    def test_sysfs_backend_handles_empty_dirs(self, tmp_path):
+        snapshot = SysfsThermalsBackend(
+            hwmon_dir=tmp_path / "hwmon",
+            thermal_dir=tmp_path / "thermal",
+        ).get_snapshot()
+
+        assert snapshot.available is True
+        assert snapshot.hottest is None
+        assert snapshot.fan is None
+
+    def test_sensors_backend_runs_sensors(self):
         def run(cmd, **kwargs):
             assert cmd == ["sensors"]
             assert kwargs["capture_output"] is True
@@ -120,14 +197,17 @@ class TestThermalsState:
                 stderr="",
             )
 
-        snapshot = read_thermal_snapshot(which=lambda _cmd: "/usr/bin/sensors", run=run)
+        snapshot = SensorsThermalsBackend(
+            which=lambda _cmd: "/usr/bin/sensors",
+            run=run,
+        ).get_snapshot()
 
         assert snapshot.hottest is not None
         assert snapshot.hottest.celsius == pytest.approx(51.0)
         assert snapshot.fan is not None
         assert snapshot.fan.rpm == 1200
 
-    def test_read_thermal_snapshot_reports_command_failure(self):
+    def test_read_thermal_snapshot_reports_command_failure(self, tmp_path):
         snapshot = read_thermal_snapshot(
             which=lambda _cmd: "/usr/bin/sensors",
             run=lambda cmd, **kwargs: subprocess.CompletedProcess(
@@ -136,10 +216,23 @@ class TestThermalsState:
                 stdout="",
                 stderr="no sensors",
             ),
+            hwmon_dir=tmp_path / "hwmon",
+            thermal_dir=tmp_path / "thermal",
         )
 
         assert snapshot.available is True
         assert snapshot.error == "no sensors"
+
+    def test_fallback_backend_keeps_primary_when_fallback_has_no_readings(self):
+        primary = ThermalSnapshot(available=True, error="No thermal readings")
+        fallback = ThermalSnapshot(available=True)
+
+        snapshot = FallbackThermalsBackend(
+            primary=_StaticThermalsBackend(primary),
+            fallback=_StaticThermalsBackend(fallback),
+        ).get_snapshot()
+
+        assert snapshot is primary
 
     def test_formatting_helpers(self):
         reading = ThermalReading(chip="coretemp", label="Package", celsius=61.4)
