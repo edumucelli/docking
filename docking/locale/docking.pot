@@ -634,7 +634,7 @@ msgid "Set Alarm"
 msgstr ""
 
 #: docking/applets/clock/applet.py:205 docking/applets/quicknote/applet.py:73
-#: docking/applets/weather/applet.py:258
+#: docking/applets/trash/applet.py:108 docking/applets/weather/applet.py:258
 msgid "Cancel"
 msgstr ""
 
@@ -1741,7 +1741,7 @@ msgstr ""
 msgid "{year} - {title}"
 msgstr ""
 
-#: docking/applets/trash/applet.py:35
+#: docking/applets/trash/applet.py:36
 msgid "Trash"
 msgstr ""
 
@@ -1749,8 +1749,16 @@ msgstr ""
 msgid "Open Trash"
 msgstr ""
 
-#: docking/applets/trash/applet.py:62
+#: docking/applets/trash/applet.py:62 docking/applets/trash/applet.py:109
 msgid "Empty Trash"
+msgstr ""
+
+#: docking/applets/trash/applet.py:103
+msgid "Empty all items from Trash?"
+msgstr ""
+
+#: docking/applets/trash/applet.py:106
+msgid "All items in the Trash will be permanently deleted."
 msgstr ""
 
 #: docking/applets/trash/render.py:18

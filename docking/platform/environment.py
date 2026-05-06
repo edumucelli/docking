@@ -124,6 +124,12 @@ def is_mate_session(*, desktop: Desktop | None = None) -> bool:
     return bool(resolved & Desktop.MATE)
 
 
+def is_kde_session(*, desktop: Desktop | None = None) -> bool:
+    """Return True for KDE sessions."""
+    resolved = desktop if desktop is not None else detect_desktop()
+    return bool(resolved & Desktop.KDE)
+
+
 def is_x11_backend(*, display: object | None = None) -> bool:
     """Return True when the current GTK backend is X11."""
     if display is None:
