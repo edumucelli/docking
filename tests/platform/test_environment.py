@@ -9,6 +9,7 @@ from docking.platform.environment import (
     _parse_desktop,
     detect_desktop,
     is_gnome_session,
+    is_kde_session,
     is_mate_session,
     is_wayland_session,
     is_x11_backend,
@@ -96,6 +97,10 @@ class TestDetectDesktop:
     def test_mate_session_helper(self):
         assert is_mate_session(desktop=Desktop.MATE) is True
         assert is_mate_session(desktop=Desktop.GNOME) is False
+
+    def test_kde_session_helper(self):
+        assert is_kde_session(desktop=Desktop.KDE) is True
+        assert is_kde_session(desktop=Desktop.GNOME) is False
 
 
 class TestSessionBackendDetection:
