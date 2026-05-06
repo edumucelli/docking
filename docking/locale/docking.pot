@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-06 21:28+0200\n"
+"POT-Creation-Date: 2026-05-07 01:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -725,7 +725,7 @@ msgid "Quote"
 msgstr ""
 
 #: docking/applets/currencyfx/state.py:730 docking/applets/live_state.py:78
-#: docking/applets/weather/state.py:165
+#: docking/applets/weather/state.py:166
 msgid "Unavailable"
 msgstr ""
 
@@ -1667,30 +1667,30 @@ msgstr ""
 msgid "Celsius"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:53 docking/applets/thermals/state.py:406
-#: docking/applets/thermals/state.py:419 docking/applets/thermals/state.py:431
-#: docking/applets/thermals/state.py:465
+#: docking/applets/thermals/applet.py:53 docking/applets/thermals/state.py:407
+#: docking/applets/thermals/state.py:420 docking/applets/thermals/state.py:432
+#: docking/applets/thermals/state.py:466
 msgid "Thermals"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:96 docking/applets/thermals/state.py:113
-#: docking/applets/thermals/state.py:426
+#: docking/applets/thermals/applet.py:96 docking/applets/thermals/state.py:114
+#: docking/applets/thermals/state.py:427
 msgid "lm-sensors not installed"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:105 docking/applets/thermals/state.py:445
+#: docking/applets/thermals/applet.py:105 docking/applets/thermals/state.py:446
 #, python-brace-format
 msgid "Hot: {label} {temp}"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:119 docking/applets/thermals/state.py:457
+#: docking/applets/thermals/applet.py:119 docking/applets/thermals/state.py:458
 #, python-brace-format
 msgid "Fan: {label} {rpm}"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:139 docking/applets/thermals/state.py:412
-#: docking/applets/thermals/state.py:424 docking/applets/thermals/state.py:436
-#: docking/applets/thermals/state.py:472
+#: docking/applets/thermals/applet.py:139 docking/applets/thermals/state.py:413
+#: docking/applets/thermals/state.py:425 docking/applets/thermals/state.py:437
+#: docking/applets/thermals/state.py:473
 msgid "Samples"
 msgstr ""
 
@@ -1698,19 +1698,19 @@ msgstr ""
 msgid "Thermal readings unavailable"
 msgstr ""
 
-#: docking/applets/thermals/state.py:134
+#: docking/applets/thermals/state.py:135
 msgid "sensors failed"
 msgstr ""
 
-#: docking/applets/thermals/state.py:141
+#: docking/applets/thermals/state.py:142
 msgid "No thermal readings"
 msgstr ""
 
-#: docking/applets/thermals/state.py:453
+#: docking/applets/thermals/state.py:454
 msgid "Hot: unavailable"
 msgstr ""
 
-#: docking/applets/thermals/state.py:463
+#: docking/applets/thermals/state.py:464
 msgid "Fan: unavailable"
 msgstr ""
 
@@ -1870,7 +1870,7 @@ msgstr ""
 msgid "Volume Settings"
 msgstr ""
 
-#: docking/applets/weather/applet.py:70 docking/applets/weather/state.py:162
+#: docking/applets/weather/applet.py:70 docking/applets/weather/state.py:163
 msgid "Weather"
 msgstr ""
 
@@ -1895,12 +1895,12 @@ msgstr ""
 msgid "No weather data"
 msgstr ""
 
-#: docking/applets/weather/applet.py:481 docking/applets/weather/state.py:197
+#: docking/applets/weather/applet.py:481 docking/applets/weather/state.py:198
 #, python-brace-format
 msgid "{temp}, {desc}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:494 docking/applets/weather/state.py:187
+#: docking/applets/weather/applet.py:494 docking/applets/weather/state.py:188
 #, python-brace-format
 msgid "Air: {label}"
 msgstr ""
@@ -1910,12 +1910,12 @@ msgstr ""
 msgid "{date}: {temp_range}"
 msgstr ""
 
-#: docking/applets/weather/state.py:138
+#: docking/applets/weather/state.py:139
 #, python-brace-format
 msgid "{city}: {temp}"
 msgstr ""
 
-#: docking/applets/weather/state.py:163
+#: docking/applets/weather/state.py:164
 msgid "No city selected"
 msgstr ""
 
@@ -2061,7 +2061,7 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: docking/ui/settings.py:192 docking/ui/settings.py:379
+#: docking/ui/settings.py:192 docking/ui/settings.py:380
 msgid "Behavior"
 msgstr ""
 
@@ -2074,224 +2074,233 @@ msgid "Don't Hide"
 msgstr ""
 
 #: docking/ui/settings.py:213
-msgid "Auto-hide"
+msgid "Always on Top"
 msgstr ""
 
 #: docking/ui/settings.py:214
-msgid "Intelligent"
+msgid "Auto-hide"
 msgstr ""
 
 #: docking/ui/settings.py:215
-msgid "Dodge Active Window"
+msgid "Intelligent"
 msgstr ""
 
 #: docking/ui/settings.py:216
-msgid "Dodge All Windows"
+msgid "Dodge Active Window"
 msgstr ""
 
 #: docking/ui/settings.py:217
+msgid "Dodge All Windows"
+msgstr ""
+
+#: docking/ui/settings.py:218
 msgid "Dodge Maximized"
 msgstr ""
 
-#: docking/ui/settings.py:234
+#: docking/ui/settings.py:235
 msgid "Toggle Focus"
 msgstr ""
 
-#: docking/ui/settings.py:235
+#: docking/ui/settings.py:236
 msgid "Cycle Windows"
 msgstr ""
 
-#: docking/ui/settings.py:236
+#: docking/ui/settings.py:237
 msgid "Most Recent Window"
 msgstr ""
 
-#: docking/ui/settings.py:243
+#: docking/ui/settings.py:244
 msgid "New Window"
 msgstr ""
 
-#: docking/ui/settings.py:244
+#: docking/ui/settings.py:245
 msgid "Minimize Windows"
 msgstr ""
 
-#: docking/ui/settings.py:245
+#: docking/ui/settings.py:246
 msgid "Close Focused Window"
 msgstr ""
 
-#: docking/ui/settings.py:252
+#: docking/ui/settings.py:253
 msgid "Click"
 msgstr ""
 
-#: docking/ui/settings.py:253
+#: docking/ui/settings.py:254
 msgid "Hover"
 msgstr ""
 
-#: docking/ui/settings.py:269
+#: docking/ui/settings.py:270
 msgid "Daily"
 msgstr ""
 
-#: docking/ui/settings.py:270
+#: docking/ui/settings.py:271
 msgid "Weekly"
 msgstr ""
 
-#: docking/ui/settings.py:323
+#: docking/ui/settings.py:324
 msgid "Look"
 msgstr ""
 
-#: docking/ui/settings.py:325
+#: docking/ui/settings.py:326
 msgid "Theme"
 msgstr ""
 
-#: docking/ui/settings.py:326
+#: docking/ui/settings.py:327
 msgid "Icon Size"
 msgstr ""
 
-#: docking/ui/settings.py:327
+#: docking/ui/settings.py:328
 msgid "Transparency"
 msgstr ""
 
-#: docking/ui/settings.py:328
+#: docking/ui/settings.py:329
 msgid "Zoom"
 msgstr ""
 
-#: docking/ui/settings.py:329
+#: docking/ui/settings.py:330
 msgid "Zoom Percent"
 msgstr ""
 
-#: docking/ui/settings.py:330
+#: docking/ui/settings.py:331
 msgid "Show Tooltips"
 msgstr ""
 
-#: docking/ui/settings.py:331
+#: docking/ui/settings.py:332
 msgid "Window Previews"
 msgstr ""
 
-#: docking/ui/settings.py:336
+#: docking/ui/settings.py:337
 msgid "Placement"
 msgstr ""
 
-#: docking/ui/settings.py:338
+#: docking/ui/settings.py:339
 msgid "Position"
 msgstr ""
 
-#: docking/ui/settings.py:339
+#: docking/ui/settings.py:340
 msgid "Follow Cursor"
 msgstr ""
 
-#: docking/ui/settings.py:340
+#: docking/ui/settings.py:341
 msgid "Current Workspace Only"
 msgstr ""
 
-#: docking/ui/settings.py:345
+#: docking/ui/settings.py:346
 msgid "Layout"
 msgstr ""
 
-#: docking/ui/settings.py:347
+#: docking/ui/settings.py:348
 msgid "Lock Positions"
 msgstr ""
 
-#: docking/ui/settings.py:348
+#: docking/ui/settings.py:349
 msgid "Anchor Applets to End"
 msgstr ""
 
-#: docking/ui/settings.py:349
+#: docking/ui/settings.py:350
 msgid "Anchor Files to End"
 msgstr ""
 
-#: docking/ui/settings.py:371
+#: docking/ui/settings.py:372
 msgid "Mouse"
 msgstr ""
 
-#: docking/ui/settings.py:373
+#: docking/ui/settings.py:374
 msgid "Left Click"
 msgstr ""
 
-#: docking/ui/settings.py:374
+#: docking/ui/settings.py:375
 msgid "Middle Click"
 msgstr ""
 
-#: docking/ui/settings.py:381
+#: docking/ui/settings.py:382
 msgid "Hide Mode"
 msgstr ""
 
-#: docking/ui/settings.py:382
+#: docking/ui/settings.py:383
 msgid "Hide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:383
+#: docking/ui/settings.py:384
 msgid "Unhide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:388
+#: docking/ui/settings.py:389
 msgid "Folder Stacks"
 msgstr ""
 
-#: docking/ui/settings.py:390
+#: docking/ui/settings.py:391
 msgid "Open On"
 msgstr ""
 
-#: docking/ui/settings.py:415
+#: docking/ui/settings.py:416
 msgid "Check Now"
 msgstr ""
 
-#: docking/ui/settings.py:417
+#: docking/ui/settings.py:418
 msgid "View Releases"
 msgstr ""
 
-#: docking/ui/settings.py:429
+#: docking/ui/settings.py:430
 msgid "Update Checks"
 msgstr ""
 
-#: docking/ui/settings.py:431
+#: docking/ui/settings.py:432
 msgid "Check Automatically"
 msgstr ""
 
-#: docking/ui/settings.py:432
+#: docking/ui/settings.py:433
 msgid "Frequency"
 msgstr ""
 
-#: docking/ui/settings.py:433
+#: docking/ui/settings.py:434
 msgid "Status"
 msgstr ""
 
-#: docking/ui/settings.py:434
+#: docking/ui/settings.py:435
 msgid "Actions"
 msgstr ""
 
-#: docking/ui/settings.py:840
+#: docking/ui/settings.py:841
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr ""
 
-#: docking/ui/settings.py:844
+#: docking/ui/settings.py:845
 msgid "No update found yet"
 msgstr ""
 
-#: docking/ui/settings.py:846
+#: docking/ui/settings.py:847
 msgid "Not checked yet"
 msgstr ""
 
-#: docking/ui/settings.py:880
+#: docking/ui/settings.py:882
 msgid "The dock is always visible and reserves screen space."
 msgstr ""
 
-#: docking/ui/settings.py:881
+#: docking/ui/settings.py:884
+msgid ""
+"Always visible and floats above all windows without reserving screen space."
+msgstr ""
+
+#: docking/ui/settings.py:887
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr ""
 
-#: docking/ui/settings.py:883
+#: docking/ui/settings.py:889
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:885
+#: docking/ui/settings.py:891
 msgid "Hides when the focused window overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:887
+#: docking/ui/settings.py:893
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:890
+#: docking/ui/settings.py:896
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

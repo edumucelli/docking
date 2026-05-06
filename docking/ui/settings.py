@@ -210,6 +210,7 @@ class SettingsWindowController:
         self._hide_mode_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
         for mode_value, mode_label in [
             ("none", _("Don't Hide")),
+            ("always-on-top", _("Always on Top")),
             ("autohide", _("Auto-hide")),
             ("intelligent", _("Intelligent")),
             ("dodge-active", _("Dodge Active Window")),
@@ -875,9 +876,14 @@ class SettingsWindowController:
     def _after_hide_mode_changed(self, mode: str) -> None:
         self._runtime.on_hide_mode_changed()
         self._update_hide_mode_description()
+        self._update_dependent_sensitivity()
 
     _HIDE_MODE_DESCRIPTIONS: ClassVar[dict[str, str]] = {
         "none": _("The dock is always visible and reserves screen space."),
+        "always-on-top": _(
+            "Always visible and floats above all windows"
+            " without reserving screen space."
+        ),
         "autohide": _("Hides when the mouse cursor leaves the dock."),
         "intelligent": _(
             "Hides when a window from the focused application overlaps the dock area."
@@ -914,7 +920,10 @@ class SettingsWindowController:
     def _update_dependent_sensitivity(self) -> None:
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
-        hide_controls_sensitive = self._config.hide_mode != "none"
+        hide_controls_sensitive = self._config.hide_mode not in (
+            "none",
+            "always-on-top",
+        )
         if self._hide_delay_spin is not None:
             self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
         if self._unhide_delay_spin is not None:
