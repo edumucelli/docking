@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-01 21:13+0200\n"
+"POT-Creation-Date: 2026-05-06 21:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -141,7 +141,7 @@ msgid "Checks"
 msgstr ""
 
 #: docking/applets/apod/applet.py:118 docking/applets/certwatch/applet.py:128
-#: docking/applets/currencyfx/applet.py:183
+#: docking/applets/currencyfx/applet.py:187
 #: docking/applets/hackernews/applet.py:175
 #: docking/applets/speedtest/applet.py:103
 #: docking/applets/thermals/applet.py:134 docking/applets/tooltip.py:33
@@ -162,7 +162,7 @@ msgstr ""
 #: docking/applets/camshield/applet.py:114
 #: docking/applets/capslock/applet.py:84
 #: docking/applets/certwatch/applet.py:145
-#: docking/applets/currencyfx/applet.py:191
+#: docking/applets/currencyfx/applet.py:195
 #: docking/applets/hackernews/applet.py:192
 #: docking/applets/micshield/applet.py:118 docking/applets/moon/applet.py:124
 #: docking/applets/quote/applet.py:92 docking/applets/thermals/applet.py:144
@@ -660,65 +660,65 @@ msgstr ""
 msgid "Show Hex"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:84
+#: docking/applets/currencyfx/applet.py:88
 msgid "Currency FX"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:169
+#: docking/applets/currencyfx/applet.py:173
 #: docking/applets/currencyfx/state.py:726
 msgid "Day samples"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:187
+#: docking/applets/currencyfx/applet.py:191
 msgid "Swap Pair"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:197
+#: docking/applets/currencyfx/applet.py:201
 msgid "Chart Interval"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:199
+#: docking/applets/currencyfx/applet.py:203
 msgid "Day"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:200
+#: docking/applets/currencyfx/applet.py:204
 msgid "Week"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:201
+#: docking/applets/currencyfx/applet.py:205
 msgid "Month"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:216
+#: docking/applets/currencyfx/applet.py:220
 msgid "Added Pairs"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:226
+#: docking/applets/currencyfx/applet.py:230
 msgid "Remove Current Pair"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:233
+#: docking/applets/currencyfx/applet.py:237
 msgid "Add Pair..."
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:346
+#: docking/applets/currencyfx/applet.py:350
 msgid "No rate data"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:428
+#: docking/applets/currencyfx/applet.py:432
 #, python-brace-format
 msgid "{pair}: {rate} ({change})"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:471
+#: docking/applets/currencyfx/applet.py:475
 msgid "Add FX Pair"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:485
+#: docking/applets/currencyfx/applet.py:489
 msgid "Base"
 msgstr ""
 
-#: docking/applets/currencyfx/applet.py:487 docking/applets/quote/applet.py:43
+#: docking/applets/currencyfx/applet.py:491 docking/applets/quote/applet.py:43
 #: docking/applets/quote/applet.py:83 docking/applets/quote/applet.py:208
 #: docking/applets/quote/applet.py:214
 msgid "Quote"
@@ -1667,30 +1667,30 @@ msgstr ""
 msgid "Celsius"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:53 docking/applets/thermals/state.py:199
-#: docking/applets/thermals/state.py:212 docking/applets/thermals/state.py:224
-#: docking/applets/thermals/state.py:258
+#: docking/applets/thermals/applet.py:53 docking/applets/thermals/state.py:406
+#: docking/applets/thermals/state.py:419 docking/applets/thermals/state.py:431
+#: docking/applets/thermals/state.py:465
 msgid "Thermals"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:96 docking/applets/thermals/state.py:149
-#: docking/applets/thermals/state.py:219
+#: docking/applets/thermals/applet.py:96 docking/applets/thermals/state.py:113
+#: docking/applets/thermals/state.py:426
 msgid "lm-sensors not installed"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:105 docking/applets/thermals/state.py:238
+#: docking/applets/thermals/applet.py:105 docking/applets/thermals/state.py:445
 #, python-brace-format
 msgid "Hot: {label} {temp}"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:119 docking/applets/thermals/state.py:250
+#: docking/applets/thermals/applet.py:119 docking/applets/thermals/state.py:457
 #, python-brace-format
 msgid "Fan: {label} {rpm}"
 msgstr ""
 
-#: docking/applets/thermals/applet.py:139 docking/applets/thermals/state.py:205
-#: docking/applets/thermals/state.py:217 docking/applets/thermals/state.py:229
-#: docking/applets/thermals/state.py:265
+#: docking/applets/thermals/applet.py:139 docking/applets/thermals/state.py:412
+#: docking/applets/thermals/state.py:424 docking/applets/thermals/state.py:436
+#: docking/applets/thermals/state.py:472
 msgid "Samples"
 msgstr ""
 
@@ -1698,19 +1698,19 @@ msgstr ""
 msgid "Thermal readings unavailable"
 msgstr ""
 
-#: docking/applets/thermals/state.py:167
+#: docking/applets/thermals/state.py:134
 msgid "sensors failed"
 msgstr ""
 
-#: docking/applets/thermals/state.py:174
+#: docking/applets/thermals/state.py:141
 msgid "No thermal readings"
 msgstr ""
 
-#: docking/applets/thermals/state.py:246
+#: docking/applets/thermals/state.py:453
 msgid "Hot: unavailable"
 msgstr ""
 
-#: docking/applets/thermals/state.py:256
+#: docking/applets/thermals/state.py:463
 msgid "Fan: unavailable"
 msgstr ""
 
@@ -1808,16 +1808,17 @@ msgstr ""
 msgid "Correct: {answer}"
 msgstr ""
 
-#: docking/applets/unitconverter/applet.py:74
-#: docking/applets/unitconverter/applet.py:101
+#: docking/applets/unitconverter/applet.py:102
+#: docking/applets/unitconverter/applet.py:129
+#: docking/applets/unitconverter/applet.py:161
 msgid "Unit Converter"
 msgstr ""
 
-#: docking/applets/unitconverter/applet.py:166
+#: docking/applets/unitconverter/applet.py:210
 msgid "Swap units"
 msgstr ""
 
-#: docking/applets/unitconverter/applet.py:183
+#: docking/applets/unitconverter/applet.py:227
 msgid "Value"
 msgstr ""
 
@@ -1930,115 +1931,111 @@ msgstr ""
 msgid "Docking"
 msgstr ""
 
-#: docking/ui/menu.py:186
+#: docking/ui/folder/_browser.py:26
 msgid "Name"
 msgstr ""
 
-#: docking/ui/menu.py:187
+#: docking/ui/folder/_browser.py:27
 msgid "Kind"
 msgstr ""
 
-#: docking/ui/menu.py:188
+#: docking/ui/folder/_browser.py:28
 msgid "Size"
 msgstr ""
 
-#: docking/ui/menu.py:189
+#: docking/ui/folder/_browser.py:29
 msgid "Created"
 msgstr ""
 
-#: docking/ui/menu.py:190
+#: docking/ui/folder/_browser.py:30
 msgid "Modified"
 msgstr ""
 
-#: docking/ui/menu.py:909
+#: docking/ui/folder/stack.py:660
 msgid "Folder not found"
 msgstr ""
 
-#: docking/ui/menu.py:948
+#: docking/ui/folder/stack.py:674
 msgid "Folder is empty"
 msgstr ""
 
-#: docking/ui/menu.py:1403
+#: docking/ui/folder/stack.py:1131
 #, python-format
 msgid "Open in %s"
 msgstr ""
 
-#: docking/ui/menu.py:1405
+#: docking/ui/folder/stack.py:1133
 #, python-format
 msgid "%d More in %s"
 msgstr ""
 
-#: docking/ui/menu.py:1408
+#: docking/ui/folder/stack.py:1136
 msgid "Open Folder"
 msgstr ""
 
-#: docking/ui/menu.py:1410
+#: docking/ui/folder/stack.py:1138
 #, python-format
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:1536 docking/ui/menu.py:1556 docking/ui/menu.py:1572
-#: docking/ui/menu.py:1625
+#: docking/ui/menu.py:387 docking/ui/menu.py:407 docking/ui/menu.py:423
+#: docking/ui/menu.py:471
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:1549
+#: docking/ui/menu.py:400
 msgid "Open"
 msgstr ""
 
-#: docking/ui/menu.py:1579
+#: docking/ui/menu.py:430
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:1588
+#: docking/ui/menu.py:439
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:1588
+#: docking/ui/menu.py:439
 msgid "Close"
 msgstr ""
 
-#: docking/ui/menu.py:1605
+#: docking/ui/menu.py:456
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:1613
+#: docking/ui/menu.py:464
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:1618
-msgid "Large Icons"
-msgstr ""
-
-#: docking/ui/menu.py:1655
+#: docking/ui/menu.py:501
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:1693
+#: docking/ui/menu.py:539
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:1700
+#: docking/ui/menu.py:546
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:1710 docking/ui/settings.py:167
+#: docking/ui/menu.py:556 docking/ui/settings.py:167
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:1715
+#: docking/ui/menu.py:561
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:1720
+#: docking/ui/menu.py:566
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:1727
+#: docking/ui/menu.py:573
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:1764
+#: docking/ui/menu.py:610
 msgid "Window"
 msgstr ""
 
@@ -2291,24 +2288,24 @@ msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 
-#: docking/ui/update_popup.py:183
+#: docking/ui/update_popup.py:173
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr ""
 
-#: docking/ui/update_popup.py:189
+#: docking/ui/update_popup.py:179
 #, python-brace-format
 msgid "You are using {version}."
 msgstr ""
 
-#: docking/ui/update_popup.py:198
+#: docking/ui/update_popup.py:188
 msgid "View Release"
 msgstr ""
 
-#: docking/ui/update_popup.py:199
+#: docking/ui/update_popup.py:189
 msgid "Later"
 msgstr ""
 
-#: docking/ui/update_popup.py:200
+#: docking/ui/update_popup.py:190
 msgid "Ignore"
 msgstr ""

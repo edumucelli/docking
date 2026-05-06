@@ -400,6 +400,24 @@ class TestButtonReleaseFlow:
         assert kwargs["item"] is item
         assert kwargs["toggle_if_same_item"] is False
 
+    def test_hover_folder_item_waits_for_autohide_visible_state(self):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        stub, _ = _make_stub(item=item)
+        stub.config.folder_stack_unfold = "hover"
+        stub.autohide = _autohide(enabled=True, state=HideState.SHOWING)
+        widget = MagicMock()
+        event = SimpleNamespace(x=12.0, y=9.0)
+
+        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+
+        assert handled is False
+        stub._menu.schedule_folder_stack_prewarm.assert_called_once_with(item)
+        stub._menu.show_folder_stack.assert_not_called()
+
     def test_motion_prewarms_hovered_folder_item_in_click_mode(self):
         item = DockItem(
             desktop_id="file:///tmp/docs",
@@ -1313,6 +1331,65 @@ class TestDockWindowDrawAndHelpers:
 
         stub.hover.update.assert_called_once_with(25.0, frame=frame)
         assert stub._last_autohide_state == HideState.VISIBLE
+
+    def test_on_draw_opens_deferred_hover_folder_stack_when_showing_finishes(self):
+        hovered = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        item_geometry = SimpleNamespace(
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48),
+            anchor_point=lambda *, win_x, win_y, position: (win_x + 4, win_y + 5),
+        )
+        frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100),
+            item_geometries=(),
+            geometry_for_item=MagicMock(return_value=item_geometry),
+        )
+        stub = _bind_geometry_signature(
+            SimpleNamespace(
+                autohide=_autohide(enabled=True, state=HideState.VISIBLE),
+                _last_autohide_state=HideState.SHOWING,
+                dock_hovered=True,
+                dnd=SimpleNamespace(
+                    drag_index=-1, drop_insert_index=-1, drop_target_id=""
+                ),
+                hover=SimpleNamespace(hovered_item=hovered, update=MagicMock()),
+                renderer=SimpleNamespace(
+                    draw=MagicMock(),
+                    has_active_urgent_glow=lambda **_kwargs: False,
+                ),
+                model=SimpleNamespace(tick_animations=MagicMock(return_value=False)),
+                config=SimpleNamespace(
+                    pos=Position.BOTTOM,
+                    folder_stack_unfold="hover",
+                    icon_size=48,
+                ),
+                theme=MagicMock(),
+                tooltip=MagicMock(),
+                _menu=MagicMock(),
+                _test_geometry_frame=frame,
+                update_input_region=MagicMock(),
+                cursor_x=25.0,
+                cursor_y=33.0,
+                get_position=MagicMock(return_value=(100, 200)),
+                get_size=MagicMock(return_value=(1920, 122)),
+                _sync_background_blur_hint=MagicMock(),
+                zoom_animator=SimpleNamespace(progress=1.0),
+                geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
+                _cache=_window_cache(),
+            )
+        )
+
+        dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+
+        stub._menu.show_folder_stack.assert_called_once()
+        kwargs = stub._menu.show_folder_stack.call_args.kwargs
+        assert kwargs["item"] is hovered
+        assert kwargs["anchor_x"] == 104
+        assert kwargs["anchor_y"] == 205
+        assert kwargs["toggle_if_same_item"] is False
 
     def test_on_motion_updates_cursor_and_hover(self, monkeypatch):
         # Given

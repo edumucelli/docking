@@ -37,7 +37,7 @@ class TestConfigDefaults:
         assert c.update_check_interval_hours == 24
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
-        assert c.folder_stack_unfold == "click"
+        assert c.folder_stack_unfold == "hover"
         assert c.theme == "default"
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
@@ -296,7 +296,7 @@ class TestConfigLoad:
 
         assert config.left_click_action == "toggle"
         assert config.middle_click_action == "new-window"
-        assert config.folder_stack_unfold == "click"
+        assert config.folder_stack_unfold == "hover"
 
     def test_load_ignores_legacy_autohide_key(self, tmp_path):
         path = tmp_path / "dock.json"
