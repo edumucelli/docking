@@ -182,7 +182,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `zoom_range` | 3 | Icon widths over which zoom tapers off |
 | `position` | bottom | Dock edge: bottom, top, left, right |
 | `monitor_index` | -1 | Target monitor index (`-1` = primary monitor, `0..N` = specific monitor) |
-| `hide_mode` | none | Dock hide behavior: `none`, `autohide`, `intelligent`, `dodge-active`, `window-dodge`, `dodge-maximized` |
+| `hide_mode` | none | Dock hide behavior: `none`, `always-on-top`, `autohide`, `intelligent`, `dodge-active`, `window-dodge`, `dodge-maximized` |
 | `hide_delay_ms` | 0 | Delay before hiding starts (0 = instant) |
 | `unhide_delay_ms` | 0 | Delay before showing the dock again |
 | `hide_time_ms` | 250 | Duration of hide/show slide animation |
@@ -206,6 +206,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 `hide_mode` meanings:
 
 - `none`: Dock stays visible and reserves screen space.
+- `always-on-top`: Dock stays visible above all windows without reserving screen space.
 - `autohide`: Dock hides when the cursor leaves.
 - `intelligent`: Dock hides when a window from the focused app overlaps the dock.
 - `dodge-active`: Dock hides when the focused window overlaps the dock.

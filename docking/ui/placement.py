@@ -402,7 +402,7 @@ class DockPlacementController:
         """Create or destroy the pointer barrier based on autohide state."""
         if not self._barrier.supported:
             return
-        if self._window.config.hide_mode == "none":
+        if self._window.config.hide_mode in ("none", "always-on-top"):
             self._barrier.destroy()
             return
         display = self._window.get_display()
