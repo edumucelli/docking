@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from docking.i18n import _
 
@@ -230,7 +230,8 @@ def _parse_history(raw: object, *, today: date) -> list[DayEntry]:
     for rd in raw:
         if not isinstance(rd, dict):
             continue
-        iso = str(rd.get("date", ""))
+        entry = cast(dict[str, Any], rd)
+        iso = str(entry.get("date", ""))
         if not iso:
             continue
         try:
@@ -242,8 +243,8 @@ def _parse_history(raw: object, *, today: date) -> list[DayEntry]:
             # anything older than the rolling window.
             continue
         try:
-            at_desk = float(rd.get("at_desk_seconds", 0.0))
-            away = float(rd.get("away_seconds", 0.0))
+            at_desk = float(entry.get("at_desk_seconds", 0.0))
+            away = float(entry.get("away_seconds", 0.0))
         except (TypeError, ValueError):
             continue
         parsed.append(

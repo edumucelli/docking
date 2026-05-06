@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 import shutil
 import subprocess
@@ -389,7 +390,7 @@ def build_tooltip(
     loading: bool = False,
     error: str | None = None,
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
-    updated_at: object | None = None,
+    updated_at: dt.datetime | str | None = None,
     cadence_seconds: int | None = None,
 ) -> str:
     """Build tooltip text for Thermals."""

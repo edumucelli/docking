@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
@@ -153,7 +154,7 @@ def build_tooltip(
     fetch_failed: bool = False,
     error: str | None = None,
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
-    updated_at: object | None = None,
+    updated_at: dt.datetime | str | None = None,
     cadence_seconds: int | None = None,
 ) -> str:
     """Build multi-line tooltip with current + daily forecast."""

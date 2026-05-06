@@ -16,7 +16,7 @@ import json
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from docking.applets.live_state import (
     live_freshness_lines,
@@ -135,7 +135,7 @@ def build_tooltip(
     loading: bool = False,
     page_loading: bool = False,
     error: str = "",
-    fetched_at: object | None = None,
+    fetched_at: dt.datetime | str | None = None,
     cadence_seconds: int | None = None,
 ) -> str:
     """Build tooltip text for the current applet state."""
@@ -202,31 +202,32 @@ def parse_story_payload(data: object) -> HackerNewsStory | None:
     """
     if not isinstance(data, Mapping):
         return None
-    if data.get("deleted") or data.get("dead"):
+    raw = cast(Mapping[str, Any], data)
+    if raw.get("deleted") or raw.get("dead"):
         return None
-    if data.get("type") != "story":
+    if raw.get("type") != "story":
         return None
     try:
-        story_id = int(data.get("id", 0))
+        story_id = int(raw.get("id", 0))
     except (TypeError, ValueError):
         return None
-    title = normalize_text(data.get("title"))
+    title = normalize_text(raw.get("title"))
     if story_id <= 0 or not title:
         return None
     try:
-        score = int(data.get("score", 0) or 0)
+        score = int(raw.get("score", 0) or 0)
     except (TypeError, ValueError):
         score = 0
     try:
-        comments = int(data.get("descendants", 0) or 0)
+        comments = int(raw.get("descendants", 0) or 0)
     except (TypeError, ValueError):
         comments = 0
     try:
-        timestamp = int(data.get("time", 0) or 0)
+        timestamp = int(raw.get("time", 0) or 0)
     except (TypeError, ValueError):
         timestamp = 0
 
-    item_url = normalize_text(data.get("url"))
+    item_url = normalize_text(raw.get("url"))
     hn_url = comments_url(story_id)
     return HackerNewsStory(
         id=story_id,
@@ -235,7 +236,7 @@ def parse_story_payload(data: object) -> HackerNewsStory | None:
         hn_url=hn_url,
         score=max(0, score),
         comments=max(0, comments),
-        by=normalize_text(data.get("by")),
+        by=normalize_text(raw.get("by")),
         time=max(0, timestamp),
     )
 
@@ -259,6 +260,8 @@ def parse_top_story_ids(
     skipped = 0
     offset = max(0, offset)
     for value in data:
+        if not isinstance(value, (int, float, str)):
+            continue
         try:
             story_id = int(value)
         except (TypeError, ValueError):
@@ -288,6 +291,8 @@ def parse_top_story_id_page(
 
     valid_ids: list[int] = []
     for value in data:
+        if not isinstance(value, (int, float, str)):
+            continue
         try:
             story_id = int(value)
         except (TypeError, ValueError):
@@ -336,27 +341,28 @@ def story_from_pref(data: object) -> HackerNewsStory | None:
     """Parse one persisted story."""
     if not isinstance(data, Mapping):
         return None
+    raw = cast(Mapping[str, Any], data)
     try:
-        story_id = int(data.get("id", 0))
-        score = int(data.get("score", 0) or 0)
-        comments = int(data.get("comments", 0) or 0)
-        timestamp = int(data.get("time", 0) or 0)
+        story_id = int(raw.get("id", 0))
+        score = int(raw.get("score", 0) or 0)
+        comments = int(raw.get("comments", 0) or 0)
+        timestamp = int(raw.get("time", 0) or 0)
     except (TypeError, ValueError):
         return None
-    title = normalize_text(data.get("title"))
+    title = normalize_text(raw.get("title"))
     if story_id <= 0 or not title:
         return None
-    hn_url = normalize_text(data.get("hn_url")) or comments_url(story_id)
+    hn_url = normalize_text(raw.get("hn_url")) or comments_url(story_id)
     return HackerNewsStory(
         id=story_id,
         title=title,
-        url=normalize_text(data.get("url")) or hn_url,
+        url=normalize_text(raw.get("url")) or hn_url,
         hn_url=hn_url,
         score=max(0, score),
         comments=max(0, comments),
-        by=normalize_text(data.get("by")),
+        by=normalize_text(raw.get("by")),
         time=max(0, timestamp),
-        source=normalize_text(data.get("source")) or HN_SOURCE,
+        source=normalize_text(raw.get("source")) or HN_SOURCE,
     )
 
 
@@ -393,7 +399,9 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> HackerNewsPrefs:
 
 def _int_from_pref(value: object, fallback: int) -> int:
     try:
-        return int(value)
+        if isinstance(value, (int, float, str)):
+            return int(value)
+        return fallback
     except (TypeError, ValueError):
         return fallback
 
