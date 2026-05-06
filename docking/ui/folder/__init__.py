@@ -1,0 +1,1 @@
+"""Folder stack UI helpers."""

@@ -225,8 +225,8 @@ def _folder_stack_handler() -> MenuHandler:
         geometry_builder=MagicMock(),
         launcher=launcher,
     )
-    handler._folder_stack_position_value = "bottom"
-    handler._folder_target_state = lambda _target: "ok"
+    handler._folder_stack._folder_stack_position_value = "bottom"
+    handler._folder_stack._browser.target_state = lambda _target: "ok"
     return handler
 
 
@@ -264,14 +264,16 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
         kind=FOLDER_KIND,
         target="file:///tmp/docs",
     )
-    handler._list_directory = lambda **_kwargs: _folder_stack_rows()
-    cards, popup_w, popup_h = handler._folder_stack_cards_for_item(folder_item)
-    handler._folder_stack_cards = cards
+    handler._folder_stack._list_directory_rows = lambda **_kwargs: _folder_stack_rows()
+    cards, popup_w, popup_h = handler._folder_stack._folder_stack_cards_for_item(
+        folder_item
+    )
+    handler._folder_stack._folder_stack_cards = cards
     if case_name == "folder-stack-hover-item-bottom":
         hover_target = next(
             card.target for card in cards if card.target and card.label == "Notes"
         )
-        handler._folder_stack_hover_values[hover_target] = 1.0
+        handler._folder_stack._folder_stack_hover_values[hover_target] = 1.0
     elif case_name != "folder-stack-open-bottom":
         raise AssertionError(f"Unknown folder stack case {case_name}")
 
@@ -287,7 +289,7 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
     now_us = 500_000
     total_cards = len(cards)
     for draw_index, card in enumerate(cards):
-        handler._draw_folder_stack_card(
+        handler._folder_stack._draw_folder_stack_card(
             cr=cr,
             card=card,
             sequence_index=total_cards - 1 - draw_index,

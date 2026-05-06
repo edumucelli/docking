@@ -434,7 +434,7 @@ class FolderStackUnfold(str, Enum):
 
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
-DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.CLICK.value
+DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.HOVER.value
 
 
 def _normalize_left_click_action(value: object) -> str:
@@ -473,10 +473,10 @@ def _normalize_folder_stack_unfold(value: object) -> str:
             logger.warning(
                 "Invalid folder stack unfold mode %r; using default %r (%s)",
                 value,
-                FolderStackUnfold.CLICK.value,
+                DEFAULT_FOLDER_STACK_UNFOLD,
                 exc,
             )
-    return FolderStackUnfold.CLICK.value
+    return DEFAULT_FOLDER_STACK_UNFOLD
 
 
 @dataclass

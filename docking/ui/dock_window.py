@@ -707,6 +707,18 @@ class DockWindow(Gtk.Window):
                 self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
             )
             self.hover.update(cursor_main, frame=frame)
+            if (
+                self.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
+                and self.hover.hovered_item is not None
+                and self.hover.hovered_item.kind == FOLDER_KIND
+            ):
+                self._show_folder_stack_for_item(
+                    item=self.hover.hovered_item,
+                    frame=frame,
+                    fallback_x=self.cursor_x,
+                    fallback_y=self.cursor_y,
+                    toggle_if_same_item=False,
+                )
 
         # Keep redraw pump alive while urgent glow is visible (dock hidden)
         if self.renderer.has_active_urgent_glow(
@@ -750,6 +762,10 @@ class DockWindow(Gtk.Window):
                 self.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
                 and hovered_item is not None
                 and hovered_item.kind == FOLDER_KIND
+                and (
+                    not self.autohide.enabled
+                    or self.autohide.state == HideState.VISIBLE
+                )
             ):
                 self._show_folder_stack_for_item(
                     item=hovered_item,
