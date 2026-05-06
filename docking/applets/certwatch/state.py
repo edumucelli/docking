@@ -268,7 +268,7 @@ def build_tooltip(
     loading: bool = False,
     error: str | None = None,
     now: datetime | None = None,
-    updated_at: object | None = None,
+    updated_at: datetime | str | None = None,
     cadence_seconds: int | None = None,
 ) -> str:
     """Full tooltip text: header + one line per domain."""
