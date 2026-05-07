@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-07 01:19+0200\n"
+"POT-Creation-Date: 2026-05-08 00:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -180,7 +180,7 @@ msgstr ""
 msgid "Applications"
 msgstr ""
 
-#: docking/applets/applications/applet.py:76
+#: docking/applets/applications/applet.py:77
 msgid "Search applications..."
 msgstr ""
 
@@ -415,7 +415,7 @@ msgid "Show Level"
 msgstr ""
 
 #: docking/applets/calculator/applet.py:64
-#: docking/applets/calculator/applet.py:81
+#: docking/applets/calculator/applet.py:82
 msgid "Calculator"
 msgstr ""
 
@@ -634,7 +634,7 @@ msgid "Set Alarm"
 msgstr ""
 
 #: docking/applets/clock/applet.py:205 docking/applets/quicknote/applet.py:73
-#: docking/applets/trash/applet.py:108 docking/applets/weather/applet.py:258
+#: docking/applets/trash/applet.py:114 docking/applets/weather/applet.py:258
 msgid "Cancel"
 msgstr ""
 
@@ -1484,7 +1484,7 @@ msgstr ""
 msgid "Screenshot"
 msgstr ""
 
-#: docking/applets/screenshot/applet.py:76
+#: docking/applets/screenshot/applet.py:77
 #, python-brace-format
 msgid "Full Screen in {delay}s"
 msgstr ""
@@ -1521,7 +1521,7 @@ msgstr ""
 msgid "Session"
 msgstr ""
 
-#: docking/applets/session/applet.py:55 docking/applets/session/state.py:28
+#: docking/applets/session/applet.py:56 docking/applets/session/state.py:28
 msgid "Suspend"
 msgstr ""
 
@@ -1745,19 +1745,19 @@ msgstr ""
 msgid "Trash"
 msgstr ""
 
-#: docking/applets/trash/applet.py:59
+#: docking/applets/trash/applet.py:65
 msgid "Open Trash"
 msgstr ""
 
-#: docking/applets/trash/applet.py:62 docking/applets/trash/applet.py:109
+#: docking/applets/trash/applet.py:68 docking/applets/trash/applet.py:115
 msgid "Empty Trash"
 msgstr ""
 
-#: docking/applets/trash/applet.py:103
+#: docking/applets/trash/applet.py:109
 msgid "Empty all items from Trash?"
 msgstr ""
 
-#: docking/applets/trash/applet.py:106
+#: docking/applets/trash/applet.py:112
 msgid "All items in the Trash will be permanently deleted."
 msgstr ""
 
@@ -1986,64 +1986,76 @@ msgstr ""
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:387 docking/ui/menu.py:407 docking/ui/menu.py:423
-#: docking/ui/menu.py:471
+#: docking/ui/menu.py:377
+msgid "Icon"
+msgstr ""
+
+#: docking/ui/menu.py:379
+msgid "Docking Icon"
+msgstr ""
+
+#: docking/ui/menu.py:380
+msgid "System Icon"
+msgstr ""
+
+#: docking/ui/menu.py:423 docking/ui/menu.py:443 docking/ui/menu.py:459
+#: docking/ui/menu.py:507
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:400
+#: docking/ui/menu.py:436
 msgid "Open"
 msgstr ""
 
-#: docking/ui/menu.py:430
+#: docking/ui/menu.py:466
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:439
+#: docking/ui/menu.py:475
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:439
+#: docking/ui/menu.py:475
 msgid "Close"
 msgstr ""
 
-#: docking/ui/menu.py:456
+#: docking/ui/menu.py:492
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:464
+#: docking/ui/menu.py:500
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:501
+#: docking/ui/menu.py:537
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:539
+#: docking/ui/menu.py:575
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:546
+#: docking/ui/menu.py:582
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:556 docking/ui/settings.py:167
+#: docking/ui/menu.py:592 docking/ui/settings.py:167
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:561
+#: docking/ui/menu.py:597
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:566
+#: docking/ui/menu.py:602
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:573
+#: docking/ui/menu.py:609
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:610
+#: docking/ui/menu.py:646
 msgid "Window"
 msgstr ""
 

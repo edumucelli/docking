@@ -35,13 +35,14 @@ class ApplicationsApplet(Applet):
     id = meta.id
     name = _("Applications")
     icon_name = "view-app-grid"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size=icon_size, config=config)
         self._popup_menu: Gtk.Menu | None = None
         self.present()
 
-    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)
 
     def on_clicked(self) -> None:

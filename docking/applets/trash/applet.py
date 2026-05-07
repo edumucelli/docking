@@ -35,6 +35,7 @@ class TrashApplet(Applet):
     id = meta.id
     name = _("Trash")
     icon_name = "user-trash"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._desktop = detect_desktop()
@@ -44,8 +45,13 @@ class TrashApplet(Applet):
         super().__init__(icon_size, config)
         self.present()
 
-    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_trash_icon(size=size, item_count=self._item_count)
+
+    def system_icon_name(self) -> str:
+        if self._item_count > 0:
+            return "user-trash-full"
+        return "user-trash"
 
     def refresh_tooltip(self) -> None:
         self.item.name = trash_tooltip(item_count=self._item_count)

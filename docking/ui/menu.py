@@ -150,7 +150,12 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 import docking.platform.launcher as launcher_mod
 from docking.applets import get_applet_catalog
-from docking.applets.base import load_catalog_icon
+from docking.applets.base import (
+    ICON_SOURCE_DOCKING,
+    ICON_SOURCE_SYSTEM,
+    Applet,
+    load_catalog_icon,
+)
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
     AppletCategory,
@@ -367,10 +372,33 @@ class MenuHandler:
         self._cleanup_folder_menu_tree(menu)
         self._runtime.menu_popup_closed()
 
+    def _build_applet_icon_source_menu(self, applet: Applet) -> Gtk.MenuItem:
+        return _build_radio_submenu(
+            label=_("Icon"),
+            items=(
+                (_("Docking Icon"), ICON_SOURCE_DOCKING),
+                (_("System Icon"), ICON_SOURCE_SYSTEM),
+            ),
+            current=applet.icon_source(),
+            on_changed=lambda widget, source: self._on_applet_icon_source_changed(
+                widget, applet, source
+            ),
+        )
+
+    def _on_applet_icon_source_changed(
+        self,
+        widget: Gtk.RadioMenuItem,
+        applet: Applet,
+        source: str,
+    ) -> None:
+        if not widget.get_active():
+            return
+        applet.set_icon_source(source)
+
     def _build_item_menu(self, menu: Gtk.Menu, item: DockItem) -> None:
         """Build context menu for a specific dock item.
 
-        Applets: delegates to applet.get_menu_items() + "Remove from Dock".
+        Applets: applet actions, optional icon source, and "Remove from Dock".
         Regular items: desktop actions (quicklists), pin/unpin, close.
         """
         locked = self._config.lock_icons
@@ -378,12 +406,20 @@ class MenuHandler:
         if is_applet(desktop_id=item.desktop_id):
             # Applet-specific menu items
             applet = self._model.get_applet(item.desktop_id)
+            applet_items: list[Gtk.MenuItem] = []
+            has_icon_source = False
             if applet:
-                for mi in applet.get_menu_items():
+                applet_items = applet.get_menu_items()
+                has_icon_source = applet.supports_system_icon is True
+                for mi in applet_items:
                     menu.append(mi)
-                if applet.get_menu_items():
+                if applet_items and has_icon_source:
                     menu.append(Gtk.SeparatorMenuItem())
+                if has_icon_source:
+                    menu.append(self._build_applet_icon_source_menu(applet))
             if not locked:
+                if applet_items or has_icon_source:
+                    menu.append(Gtk.SeparatorMenuItem())
                 remove = Gtk.MenuItem(label=_("Remove from Dock"))
                 remove.connect(
                     "activate",

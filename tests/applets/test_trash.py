@@ -283,6 +283,16 @@ class TestTrashAppletIcon:
         applet.create_icon(48)
         assert applet.item.name == "1 item in Trash"
 
+    def test_system_icon_name_tracks_empty_state(self, monkeypatch):
+        applet = _make_applet(monkeypatch, _StubBackend(item_count=0))
+
+        assert applet.system_icon_name() == "user-trash"
+
+    def test_system_icon_name_tracks_full_state(self, monkeypatch):
+        applet = _make_applet(monkeypatch, _StubBackend(item_count=5))
+
+        assert applet.system_icon_name() == "user-trash-full"
+
 
 class TestTrashAppletMenu:
     def test_returns_two_items(self, monkeypatch):

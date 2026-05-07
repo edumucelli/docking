@@ -51,7 +51,7 @@ consistent visual behavior across applets.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Callable
 from importlib import resources
 from typing import TYPE_CHECKING, Any
@@ -107,6 +107,11 @@ _BUNDLED_FALLBACK_ICON_PREFIXES = (
 )
 
 CATALOG_ICON_DIR = "icons/applets"
+
+ICON_SOURCE_PREF_KEY = "icon_source"
+ICON_SOURCE_DOCKING = "docking"
+ICON_SOURCE_SYSTEM = "system"
+ICON_SOURCE_VALUES = frozenset({ICON_SOURCE_DOCKING, ICON_SOURCE_SYSTEM})
 
 
 def _icon_name_candidates(name: str) -> tuple[str, ...]:
@@ -299,11 +304,11 @@ def _icon_label_outline_width(*, font_size: int) -> float:
 
 
 class Applet(ABC):
-    """Base class for dock plugins that render custom icons.
+    """Base class for dock plugins that render Docking icons.
 
-    Each applet owns a DockItem. The applet renders custom Cairo
-    content to a pixbuf and assigns it to item.icon. The existing
-    renderer draws it like any other icon -- no renderer changes needed.
+    Each applet owns a DockItem. Most applets render their own pixbuf, while
+    simple applets can opt into a user-selected system theme icon. The existing
+    renderer draws both paths like any other item icon.
 
     Lifecycle:
       __init__  -> create item
@@ -315,6 +320,7 @@ class Applet(ABC):
     id: str
     name: str
     icon_name: str
+    supports_system_icon = False
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._config = config
@@ -347,9 +353,54 @@ class Applet(ABC):
             self._config.applet_prefs[self.id] = prefs
             self._config.save()
 
-    @abstractmethod
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        """Render custom content to a pixbuf at the given size."""
+        """Render the active icon source at the given size."""
+        if self.uses_system_icon():
+            icon_name = self.system_icon_name()
+            icon = load_theme_icon(name=icon_name, size=size)
+            if icon is not None:
+                self.item.icon_name = icon_name
+                return icon
+
+        self.item.icon_name = self.icon_name
+        return self.create_docking_icon(size=size)
+
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+        """Render the built-in Docking icon when an applet opts into icon sources."""
+        _ = size
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement create_icon() "
+            "or create_docking_icon()"
+        )
+
+    def system_icon_name(self) -> str:
+        """Theme icon name used when the applet is set to System Icon."""
+        return self.icon_name
+
+    def icon_source(self) -> str:
+        """Return the selected icon source, defaulting to the Docking icon."""
+        if not self.supports_system_icon:
+            return ICON_SOURCE_DOCKING
+        source = self.load_prefs().get(ICON_SOURCE_PREF_KEY)
+        if source == ICON_SOURCE_SYSTEM:
+            return ICON_SOURCE_SYSTEM
+        return ICON_SOURCE_DOCKING
+
+    def uses_system_icon(self) -> bool:
+        """Whether this applet currently requests a theme icon."""
+        return self.icon_source() == ICON_SOURCE_SYSTEM
+
+    def set_icon_source(self, source: str) -> None:
+        """Persist and present the selected icon source."""
+        if not self.supports_system_icon or source not in ICON_SOURCE_VALUES:
+            return
+        if source == self.icon_source():
+            return
+
+        prefs = self.load_prefs()
+        prefs[ICON_SOURCE_PREF_KEY] = source
+        self.save_prefs(prefs)
+        self.present()
 
     def refresh_tooltip(self) -> None:
         """Sync tooltip/text presentation fields on self.item."""

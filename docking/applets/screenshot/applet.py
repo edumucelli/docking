@@ -39,6 +39,7 @@ class ScreenshotApplet(Applet):
     id = meta.id
     name = _("Screenshot")
     icon_name = "applets-screenshooter"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._tool = _detect_tool()
@@ -49,7 +50,7 @@ class ScreenshotApplet(Applet):
         super().__init__(icon_size, config)
         self.present()
 
-    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
         _draw_screenshot_icon(cr=cr, size=size)
