@@ -786,6 +786,44 @@ class TestItemMenus:
         next(mi for mi in menu.children if mi.get_label() == "Close All").activate()
         handler._tracker.close_all.assert_called_once_with("firefox.desktop")
 
+    def test_applet_item_menu_includes_icon_source_when_supported(self, handler):
+        # Given
+        menu = FakeMenu()
+        applet_item = DockItem(desktop_id="applet://session")
+        applet = SimpleNamespace(
+            supports_system_icon=True,
+            get_menu_items=MagicMock(return_value=[FakeMenuItem(label="Lock Screen")]),
+            icon_source=MagicMock(return_value=menu_mod.ICON_SOURCE_DOCKING),
+            set_icon_source=MagicMock(),
+        )
+        handler._model.get_applet.return_value = applet
+
+        # When
+        handler._build_item_menu(menu=menu, item=applet_item)
+        labels = _labels(menu)
+        icon_menu = next(mi for mi in menu.children if mi.get_label() == "Icon")
+        icon_options = icon_menu.get_submenu().get_children()
+        system_option = next(
+            mi for mi in icon_options if mi.get_label() == "System Icon"
+        )
+        system_option.set_active(True)
+        system_option.activate()
+
+        # Then
+        assert labels == [
+            "Lock Screen",
+            "---",
+            "Icon",
+            "---",
+            "Remove from Dock",
+        ]
+        assert [mi.get_label() for mi in icon_options] == [
+            "Docking Icon",
+            "System Icon",
+        ]
+        applet.get_menu_items.assert_called_once_with()
+        applet.set_icon_source.assert_called_once_with(menu_mod.ICON_SOURCE_SYSTEM)
+
     def test_applet_item_menu_includes_applet_items_and_remove(self, handler):
         # Given
         menu = FakeMenu()

@@ -5,7 +5,11 @@ from unittest.mock import MagicMock
 
 import cairo
 
+import docking.applets.base as base_mod
 from docking.applets.base import (
+    ICON_SOURCE_DOCKING,
+    ICON_SOURCE_PREF_KEY,
+    ICON_SOURCE_SYSTEM,
     Applet,
     _fit_icon_label_layout,
     _icon_label_origin,
@@ -62,6 +66,26 @@ class _BasicApplet(Applet):
         self.item.name = f"Rendered {self.render_count}"
 
 
+class _SystemIconApplet(Applet):
+    id = "session"
+    name = "System Icon"
+    icon_name = "system-log-out"
+    supports_system_icon = True
+
+    def __init__(self, config=None) -> None:
+        self.docking_icon = object()
+        self.render_count = 0
+        super().__init__(icon_size=32, config=config)
+
+    def create_docking_icon(self, size: int):
+        assert size == 32
+        self.render_count += 1
+        return self.docking_icon
+
+    def system_icon_name(self) -> str:
+        return "system-preferred"
+
+
 class TestAppletBaseHelpers:
     def test_load_prefs_reads_config_for_applet_id(self):
         config = MagicMock()
@@ -100,6 +124,52 @@ class TestAppletBaseHelpers:
         assert applet.item.name == "Rendered 1"
         assert applet.item.icon is not None
         notify.assert_called_once_with()
+
+    def test_system_icon_applet_defaults_to_docking_icon(self):
+        applet = _SystemIconApplet()
+
+        assert applet.icon_source() == ICON_SOURCE_DOCKING
+        assert applet.create_icon(32) is applet.docking_icon
+        assert applet.render_count == 1
+        assert applet.item.icon_name == "system-log-out"
+
+    def test_system_icon_applet_uses_theme_icon_when_selected(self, monkeypatch):
+        icon = object()
+        config = MagicMock()
+        config.applet_prefs = {"session": {ICON_SOURCE_PREF_KEY: ICON_SOURCE_SYSTEM}}
+        monkeypatch.setattr(base_mod, "load_theme_icon", lambda **_: icon)
+        applet = _SystemIconApplet(config=config)
+
+        assert applet.icon_source() == ICON_SOURCE_SYSTEM
+        assert applet.create_icon(32) is icon
+        assert applet.render_count == 0
+        assert applet.item.icon_name == "system-preferred"
+
+    def test_system_icon_applet_falls_back_to_docking_icon(self, monkeypatch):
+        config = MagicMock()
+        config.applet_prefs = {"session": {ICON_SOURCE_PREF_KEY: ICON_SOURCE_SYSTEM}}
+        monkeypatch.setattr(base_mod, "load_theme_icon", lambda **_: None)
+        applet = _SystemIconApplet(config=config)
+
+        assert applet.create_icon(32) is applet.docking_icon
+        assert applet.render_count == 1
+        assert applet.item.icon_name == "system-log-out"
+
+    def test_set_icon_source_persists_and_presents(self, monkeypatch):
+        icon = object()
+        config = MagicMock()
+        config.applet_prefs = {"session": {"existing": True}}
+        monkeypatch.setattr(base_mod, "load_theme_icon", lambda **_: icon)
+        applet = _SystemIconApplet(config=config)
+
+        applet.set_icon_source(ICON_SOURCE_SYSTEM)
+
+        assert config.applet_prefs["session"] == {
+            "existing": True,
+            ICON_SOURCE_PREF_KEY: ICON_SOURCE_SYSTEM,
+        }
+        assert applet.item.icon is icon
+        config.save.assert_called_once_with()
 
 
 class TestDrawIconLabel:

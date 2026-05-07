@@ -63,6 +63,7 @@ class CalculatorApplet(Applet):
     id = meta.id
     name = _("Calculator")
     icon_name = "accessories-calculator"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._popup: Gtk.Window | None = None
@@ -74,7 +75,7 @@ class CalculatorApplet(Applet):
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
-    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)
 
     def refresh_tooltip(self) -> None:

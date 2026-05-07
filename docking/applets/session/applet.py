@@ -27,12 +27,13 @@ class SessionApplet(Applet):
     id = meta.id
     name = _("Session")
     icon_name = "system-log-out"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size, config)
         self.present()
 
-    def create_icon(self, size: int):
+    def create_docking_icon(self, size: int):
         return create_session_icon(size=size)
 
     def on_clicked(self) -> None:
