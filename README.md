@@ -197,7 +197,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `update_check_interval_hours` | 24 | Minimum hours between automatic update checks |
 | `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
-| `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
+| `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders. First run seeds a starter set. |
 | `applet_prefs` | `{}` | Per-applet preference storage |
@@ -227,6 +227,47 @@ timestamp, is stored separately under XDG state storage in
 - **Drag off**: Drag an icon upward off the dock to remove (poof animation)
 - **Right-click pinned app**: "Remove from Dock" to unpin
 - **Edit config**: Add desktop IDs to `"pinned"` in `dock.json`
+
+## Theming
+
+Themes are JSON files. Docking loads user themes from:
+
+```text
+~/.config/docking/themes/
+```
+
+and then falls back to the built-in themes bundled in `docking/assets/themes/`.
+Thirteen built-in themes are included:
+
+- `default` -- light theme
+- `onyx` -- dark variant
+- `slate` -- flat appearance
+- `transparent` -- minimal, see-through
+- `olive` -- rounded olive-green theme
+- `ember` -- warm dark theme
+- `nord` -- cool, desaturated dark
+- `glass` -- translucent macOS-style floating pill
+- `pill` -- dark floating pill with fully rounded borders
+- `paper` -- matte warm floating pill
+- `candy` -- playful pastel floating pill
+- `gruvbox` -- warm earthy dark
+- `solarized` -- soft light Solarized variant
+
+Theme examples:
+
+| Theme | Preview |
+| --- | --- |
+| Glass | ![Glass theme](images/glass.png) |
+| Transparent | ![Transparent theme](images/transparent.png) |
+
+All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
+
+Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
+
+**Creating a custom theme:**
+- Docking creates `~/.config/docking/themes/template.json` on startup.
+- Copy `template.json` to a new name, such as `my-theme.json`, then edit it.
+- `template.json` is hidden from the selector; renamed `.json` files appear as themes.
 
 ## Applets
 
@@ -965,37 +1006,6 @@ Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip inclu
 **Update interval:** 1 hour. The applet fetches again when the APOD date changes and retries errors after 10 minutes.
 
 **Preferences stored:** `last_result` (date, title, explanation, media_type, image_url, page_url, copyright, cached_path)
-
-## Theming
-
-Themes are JSON files in `docking/assets/themes/`. Thirteen built-in themes are included:
-
-- `default` -- light theme
-- `onyx` -- dark variant
-- `slate` -- flat appearance
-- `transparent` -- minimal, see-through
-- `olive` -- rounded olive-green theme
-- `ember` -- warm dark theme
-- `nord` -- cool, desaturated dark
-- `glass` -- translucent macOS-style floating pill
-- `pill` -- dark floating pill with fully rounded borders
-- `paper` -- matte warm floating pill
-- `candy` -- playful pastel floating pill
-- `gruvbox` -- warm earthy dark
-- `solarized` -- soft light Solarized variant
-
-Theme examples:
-
-| Theme | Preview |
-| --- | --- |
-| Glass | ![Glass theme](images/glass.png) |
-| Transparent | ![Transparent theme](images/transparent.png) |
-
-All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
-
-Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
-
-**Creating a custom theme:** Copy an existing theme JSON and modify the colors and proportions. Place it in the `assets/themes/` directory -- it will appear in the right-click Themes menu.
 
 ## Writing Custom Applets
 
