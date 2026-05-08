@@ -17,6 +17,7 @@
       "name": "libwnck",
       "buildsystem": "meson",
       "config-opts": [
+        "--libdir=lib",
         "-Dgtk_doc=false"
       ],
       "sources": [
