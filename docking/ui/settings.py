@@ -54,7 +54,7 @@ from docking.core.config import (
     MiddleClickAction,
 )
 from docking.core.position import Position
-from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
+from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
@@ -277,7 +277,7 @@ class SettingsWindowController:
         self._update_status_label.set_line_wrap(True)
 
         self._theme_combo = Gtk.ComboBoxText()
-        for theme_name in sorted(p.stem for p in _BUILTIN_THEMES_DIR.glob("*.json")):
+        for theme_name in list_theme_names():
             self._theme_combo.append(theme_name, theme_name.replace("-", " ").title())
 
         self._position_combo = Gtk.ComboBoxText()

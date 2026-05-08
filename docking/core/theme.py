@@ -121,6 +121,7 @@ from __future__ import annotations
 
 import enum
 import json
+import os
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -129,11 +130,78 @@ from docking.log import get_logger
 
 # Bundled themes directory (relative to package)
 _BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
+_USER_THEME_TEMPLATE_NAME = "template"
 log = get_logger("theme")
 
 # Color types as Cairo-compatible floats (0.0-1.0)
 RGB = tuple[float, float, float]
 RGBA = tuple[float, float, float, float]
+
+_USER_THEME_TEMPLATE = {
+    "fill_start": [222, 222, 222, 240],
+    "fill_end": [247, 247, 247, 240],
+    "stroke": [145, 145, 145, 255],
+    "stroke_width": 1.0,
+    "inner_stroke": [248, 248, 248, 255],
+    "roundness": 5,
+    "indicator_color": [80, 80, 80, 200],
+    "active_indicator_color": [50, 50, 50, 255],
+    "indicator_size": 5,
+    "h_padding": 0,
+    "top_padding": -7,
+    "bottom_padding": 1,
+    "item_padding": 2.5,
+    "urgent_bounce_height": 1.66,
+    "launch_bounce_height": 0.625,
+    "urgent_bounce_time_ms": 600,
+    "launch_bounce_time_ms": 600,
+    "click_time_ms": 300,
+    "hover_lighten": 0.2,
+    "active_time_ms": 150,
+    "max_indicator_dots": 3,
+    "glow_opacity": 0.6,
+    "indicator_style": "dots",
+    "round_bottom": False,
+    "distance_from_edge": 0,
+}
+
+
+def user_themes_dir() -> Path:
+    """Return the user-writable theme directory."""
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return config_home / "docking" / "themes"
+
+
+def ensure_user_theme_template() -> None:
+    """Create the user theme directory and editable template if missing."""
+    directory = user_themes_dir()
+    template = directory / f"{_USER_THEME_TEMPLATE_NAME}.json"
+    if template.exists():
+        return
+    directory.mkdir(parents=True, exist_ok=True)
+    template.write_text(
+        json.dumps(_USER_THEME_TEMPLATE, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _theme_paths(name: str) -> list[Path]:
+    return [
+        user_themes_dir() / f"{name}.json",
+        _BUILTIN_THEMES_DIR / f"{name}.json",
+    ]
+
+
+def list_theme_names() -> list[str]:
+    """Return built-in and user theme names, excluding the copy/edit template."""
+    ensure_user_theme_template()
+    names = {p.stem for p in _BUILTIN_THEMES_DIR.glob("*.json")}
+    names.update(
+        p.stem
+        for p in user_themes_dir().glob("*.json")
+        if p.stem != _USER_THEME_TEMPLATE_NAME
+    )
+    return sorted(names)
 
 
 class IndicatorStyle(str, enum.Enum):
@@ -280,11 +348,15 @@ class Theme:
         Returns:
             A Theme instance with all layout values in pixels.
         """
-        path = _BUILTIN_THEMES_DIR / f"{name}.json"
-        if not path.exists():
+        ensure_user_theme_template()
+        path = next(
+            (candidate for candidate in _theme_paths(name) if candidate.exists()),
+            None,
+        )
+        if path is None:
             return cls()
 
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             data: dict[str, Any] = json.load(fp=f)
 
         # --- Scale factor ---

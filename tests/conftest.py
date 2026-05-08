@@ -36,6 +36,7 @@ def _isolate_config_paths(tmp_path, monkeypatch):
     from docking.core import config as config_mod
 
     tmp_file = tmp_path / "docking-test-dock.json"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
     monkeypatch.setattr(config_mod, "DEFAULT_CONFIG_FILE", tmp_file)
     monkeypatch.setattr(
         config_mod,
