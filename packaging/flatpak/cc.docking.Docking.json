@@ -12,6 +12,10 @@
     "--filesystem=host-os:ro",
     "--filesystem=xdg-data/applications:ro",
     "--talk-name=org.freedesktop.Notifications",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--talk-name=org.mate.ScreenSaver",
+    "--talk-name=org.gnome.ScreenSaver",
+    "--talk-name=org.freedesktop.ScreenSaver",
     "--system-talk-name=org.freedesktop.NetworkManager"
   ],
   "modules": [
