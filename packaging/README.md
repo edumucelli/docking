@@ -130,7 +130,33 @@ flatpak run cc.docking.Docking
 - Flatpak build installs hicolor icons and a local `hicolor/index.theme` so
   AppStream icon checks pass in sandboxed builds.
 - The app requires X11 window management behavior, so the Flatpak manifest enables
-  `--socket=x11` and host filesystem access.
+  `--socket=x11`.
+
+### Runtime differences from system packages
+
+- **App ID**: Flatpak uses `cc.docking.Docking` for Flathub/domain ownership.
+  System packages keep the shared desktop entry and icon ID `org.docking.Docking`.
+- **Host launchers**: deb/rpm/nix launch `.desktop` commands directly. Flatpak
+  reads host desktop entries from `/run/host/.../applications` and
+  `~/.local/share/applications`, then launches host apps through
+  `flatpak-spawn --host`.
+- **Snap launchers**: Snap exports desktop entries under
+  `/var/lib/snapd/desktop/applications` and may use absolute icons under
+  `/snap/...`. The Flatpak manifest grants those paths read-only so Snap apps
+  such as Firefox can resolve their real launcher metadata and icons.
+- **Host icons**: Flatpak cannot assume the sandbox GTK icon theme matches the
+  host. Docking uses desktop-entry metadata, absolute icon paths, normal GTK
+  theme lookup, and literal host pixmap filenames before falling back to
+  generic icons.
+- **Session/settings tools**: host-only commands such as `systemctl`,
+  `loginctl`, `gnome-control-center`, and `nm-connection-editor` run through
+  `flatpak-spawn --host`. Screenshot uses portals or host screenshot tools.
+- **Dependencies**: Flatpak pins Python wheels in
+  `python3-dependencies.json` for offline Flathub builds. System packages use
+  their package scripts/vendor paths instead.
+- **Sandbox limits**: Flatpak intentionally does not grant full home access.
+  Docking grants read-only home access for pinned files/folders and folder
+  stacks; opening those targets is delegated to the host desktop.
 
 ## Snap
 

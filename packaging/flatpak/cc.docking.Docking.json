@@ -8,9 +8,11 @@
     "--share=network",
     "--share=ipc",
     "--socket=x11",
-    "--device=dri",
     "--filesystem=host-os:ro",
+    "--filesystem=home:ro",
     "--filesystem=xdg-data/applications:ro",
+    "--filesystem=/snap:ro",
+    "--filesystem=/var/lib/snapd/desktop:ro",
     "--talk-name=org.freedesktop.Notifications",
     "--talk-name=org.freedesktop.Flatpak",
     "--talk-name=org.mate.ScreenSaver",
@@ -116,10 +118,8 @@
         "install -Dm644 packaging/flatpak/cc.docking.Docking.desktop /app/share/applications/cc.docking.Docking.desktop",
         "install -Dm644 packaging/flatpak/cc.docking.Docking.metainfo.xml /app/share/metainfo/cc.docking.Docking.metainfo.xml",
         "install -Dm644 packaging/flatpak/hicolor.index.theme /app/share/icons/hicolor/index.theme",
-        "for size in 16 24 32 48 64 128 256 512; do install -Dm644 \"packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\" \"/app/share/icons/hicolor/${size}x${size}/apps/cc.docking.Docking.png\"; install -Dm644 \"packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\" \"/app/share/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\"; install -Dm644 \"packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\" \"/app/share/icons/hicolor/${size}x${size}/apps/org.docking.docking.png\"; done",
-        "install -Dm644 packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg /app/share/icons/hicolor/symbolic/apps/cc.docking.Docking-symbolic.svg",
-        "install -Dm644 packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg /app/share/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg",
-        "install -Dm644 packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg /app/share/icons/hicolor/symbolic/apps/org.docking.docking-symbolic.svg"
+        "for size in 16 24 32 48 64 128 256 512; do install -Dm644 \"packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\" \"/app/share/icons/hicolor/${size}x${size}/apps/cc.docking.Docking.png\"; done",
+        "install -Dm644 packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg /app/share/icons/hicolor/symbolic/apps/cc.docking.Docking-symbolic.svg"
       ],
       "sources": [
         {

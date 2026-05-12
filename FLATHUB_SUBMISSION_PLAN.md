@@ -147,7 +147,15 @@ git checkout -b add-cc.docking.Docking new-pr
 - [ ] Review every `finish-args` entry and keep only required permissions.
 - [ ] Document why `--share=network` is required, or remove it if Docking can function acceptably without static network access.
 - [ ] Document why `--socket=x11` is required for Wnck/dock behavior.
-- [ ] Document why `--device=dri` is required, or remove it if not needed.
+- [ ] Document why `--filesystem=home:ro` is required: Docking supports pinned
+  files/folders and folder stacks, which need read access to user-selected
+  local directories. Opening files/folders is delegated back to the host.
+- [x] Remove `--device=dri`; Docking renders with GTK/Cairo and does not need
+  direct GPU device access in the Flatpak sandbox.
+- [ ] Document why `/snap:ro` and `/var/lib/snapd/desktop:ro` are required:
+  Snap desktop entries live under `/var/lib/snapd/desktop/applications`, and
+  their icons can be absolute `/snap/...` paths that are not visible through
+  `/run/host`.
 - [ ] Document why `--talk-name=org.freedesktop.Notifications` is required.
 - [ ] Document why `--system-talk-name=org.freedesktop.NetworkManager` is required, or remove it if optional.
 - [ ] Confirm the app behaves gracefully under the Flatpak sandbox.
@@ -172,7 +180,9 @@ git checkout -b add-cc.docking.Docking new-pr
 - [ ] Confirm the Flatpak install path includes the desktop file under `/app/share/applications/`.
 - [ ] Confirm app icons are installed as `cc.docking.Docking`.
 - [ ] Confirm symbolic icons are installed as `cc.docking.Docking-symbolic`.
-- [ ] Confirm legacy `org.docking.Docking` icons are installed only if still needed for runtime compatibility.
+- [x] Do not install legacy `org.docking.Docking` Flatpak icons; runtime code
+  uses `FLATPAK_ID` for the About dialog logo and system packages keep the
+  legacy icon ID separately.
 
 ## 10. Build Locally With Flathub Builder
 
@@ -317,7 +327,7 @@ flatpak run cc.docking.Docking
 - [ ] Submit future updates as PRs to the dedicated Flathub app repository, not to `flathub/flathub:new-pr`.
 - [ ] Consider using External Data Checker later if it fits the release workflow.
 
-## Appendix: Flatpak Host Icon Investigation
+## Appendix: Flatpak Host Launcher Notes
 
 ### Debug Commands
 
@@ -333,188 +343,58 @@ DOCKING_LOG_LEVEL=DEBUG flatpak run cc.docking.Docking 2>&1
 flatpak run --command=python3 cc.docking.Docking -c "
 from docking.platform.launcher import Launcher
 l = Launcher()
-for did in ['firefox-stable.desktop', 'org.gnome.Calculator.desktop',
-            'caja.desktop', 'terminator.desktop']:
+for did in ['firefox_firefox.desktop', 'awsvpnclient.desktop',
+            'mongodb-compass.desktop']:
     info = l.resolve(did)
     pix = l.load_desktop_icon(info, 48) if info else None
-    print(f'{did}: icon_name={info.icon_name if info else None} '
+    print(f'{did}: resolved={info.desktop_id if info else None} '
+          f'icon={info.icon_name if info else None} '
           f'exec={info.exec_line if info else None} pix={bool(pix)}')
 "
 ```
 
-**Check what icon files exist in host themes:**
+**Check sandbox-visible host launcher locations:**
 
 ```bash
 flatpak run --command=sh cc.docking.Docking -c \
-  "find /run/host/share/icons -name 'firefox*' 2>/dev/null"
+  "ls /run/host/usr/share/applications /var/lib/snapd/desktop/applications 2>/dev/null"
 ```
 
-**Check GTK icon theme resolution directly:**
+**Reinstall after rebuild:**
 
 ```bash
-flatpak run --command=python3 cc.docking.Docking -c "
-import gi; gi.require_version('Gtk','3.0'); from gi.repository import Gtk
-t = Gtk.IconTheme.get_default()
-for name in ['firefox','system-file-manager','terminator']:
-    info = t.lookup_icon(name, 48, 0)
-    print(name, info.get_filename() if info else None)
-"
-```
-
-**Check host icon theme setting:**
-
-```bash
-flatpak run --command=sh cc.docking.Docking -c \
-  "flatpak-spawn --host gsettings get org.gnome.desktop.interface icon-theme"
-```
-
-**Check /run/host filesystem layout:**
-
-```bash
-flatpak run --command=sh cc.docking.Docking -c "ls /run/host/"
-```
-
-**Verify installed Flatpak commit matches source:**
-
-```bash
-flatpak info cc.docking.Docking | grep Subject
-git rev-parse --short HEAD  # compare commit hashes
-```
-
-**Reinstall after rebuild (the full cycle):**
-
-```bash
-rm -rf .flatpak-builder/rofiles build-flatpak
 ./packaging/flatpak/build.sh
 flatpak install --user -y --reinstall artifacts/cc.docking.Docking.flatpak
 flatpak kill cc.docking.Docking || true
 flatpak run cc.docking.Docking
 ```
 
-### Icon Resolution Flow
+### Resolution Model
 
-The icon loading pipeline lives in `docking/platform/launcher.py`. When
-an app item (pinned, running, or drag/dropped) needs an icon:
+Docking now keeps Flatpak launcher/icon handling close to native behavior:
 
-1. `Launcher.resolve(desktop_id)` — parses the host .desktop file into
-   `DesktopInfo` with fields: `name`, `icon_name`, `wm_class`, `exec_line`.
+1. Read the best available `.desktop` file from sandbox-visible host locations:
+   `/run/host/.../applications`, `~/.local/share/applications`, and Snap's
+   `/var/lib/snapd/desktop/applications`.
+2. Use the desktop entry's `Icon=` field directly.
+3. Load absolute icon paths as files, mapping normal host paths to `/run/host/...`
+   when needed. Snap icons under `/snap/...` are loaded directly because the
+   manifest exposes `/snap:ro`.
+4. Let GTK resolve named theme icons using its normal `Gtk.IconTheme` lookup.
+5. As a narrow compatibility path, load literal pixmap filenames such as
+   `Icon=acvc-64.png` from host `pixmaps` directories.
+6. Fall back to `application-x-executable` when none of the above works.
 
-2. `Launcher.load_desktop_icon(info, size)` — loads the pixbuf using a
-   cascade of candidates:
-   a. The `Icon=` value from the desktop entry.
-   b. The executable basename from `Exec=` (e.g. `firefox` from
-      `/opt/firefox/firefox %u`).
-   c. Falls back to `application-x-executable` (generic icon).
-
-3. Each candidate goes through `_try_load_icon_without_fallback`:
-   a. **Absolute path icons** (`/opt/firefox/.../icon.png`) — maps
-      to `/run/host/...` and loads with `GdkPixbuf.new_from_file_at_scale`.
-   b. **GTK theme lookup** — uses `Gtk.IconTheme.lookup_icon()` +
-      `icon_info.load_icon()` (NOT `theme.load_icon()` because that
-      emits a GTK warning when the icon is missing).
-   c. **Host named icon file scan** — walks `/run/host/share/icons/**`
-      looking for `<name>.(png|svg|xpm)` at various sizes. This is
-      the last resort inside the Flatpak sandbox.
-
-4. Callers that invoke the launcher:
-   - `docking/ui/dnd.py:698` — `_item_from_uri()` for external drag/drop.
-   - `docking/platform/model.py:297` — `_build_dock_item()` for pinned
-     and running app items.
-
-### Problems Solved
-
-#### 1. Host icon theme not applied (commit `3bc4268d`)
-
-GTK inside the Flatpak defaults to its own icon theme (Adwaita).
-Host `.desktop` files specify icon names that exist in the host's
-actual icon theme (e.g. `menta`) but not in the Flatpak's default.
-
-**Fix:** `_detect_host_icon_theme()` runs `flatpak-spawn --host gsettings
-get org.gnome.desktop.interface icon-theme` to discover the host theme
-(`menta`), then creates a fresh `Gtk.IconTheme()` with
-`set_custom_theme(host_theme)`. This makes GTK resolve icons through
-the host's theme hierarchy (`menta` → `mate` → `hicolor`).
-
-#### 2. GTK "Could not load a pixbuf from icon theme" warnings (commits `624396c0`, `3106c250`)
-
-`Gtk.IconTheme.load_icon()` emits a `g_warning` when the icon is not
-found, before throwing `GLib.Error`. Our `except GLib.Error` handler
-could not suppress this noise.
-
-**Fix:** Replaced all `theme.load_icon(name, ...)` calls with
-`theme.lookup_icon(name, ...)` + `icon_info.load_icon()`. The
-`lookup_icon()` method returns `None` silently when an icon is
-missing — no warning.
-
-Affected files:
-- `docking/platform/launcher.py` — `_try_load_icon_without_fallback`,
-  `_try_load_fallback_icon`
-- `docking/applets/base.py` — `load_theme_icon()`
-
-#### 3. Firefox /opt icons not reachable (commit `44c7e5c3`)
-
-Firefox's desktop entry has `Icon=/opt/firefox/.../default128.png` but
-`/run/host/opt` is NOT mounted in the Flatpak sandbox. The host `find`
-output showed:
-```
-/run/host contains: bin, etc, fonts, lib, lib64, sbin, share, usr
-```
-Conspicuously absent: `opt`, `home`.
-
-The absolute-path candidate fails (file doesn't exist), so the loader
-falls back to the exec basename (`firefox`). The GTK theme lookup also
-fails because `menta`/`mate`/`hicolor` don't ship a `firefox` icon.
-
-Finally `_host_named_icon_file_candidates` scans host icon theme
-directories — but only at the **exact** requested size. At dock icon
-size 72, `firefox.png` was not found because it only existed at sizes
-16, 22, 24, 32, 48, 256 in the ContrastHigh theme.
-
-**Fix:** `_host_named_icon_file_candidates` now tries common fallback
-sizes (256, 128, 96, 64, 48, 32, 24, 22, 16) when the exact size
-isn't found. The loaded pixbuf is then scaled to the requested size
-via `new_from_file_at_scale()`.
-
-#### 4. Accessibility theme icons preferred (commit `07c048fa`)
-
-After the size fix, `firefox` icons were found — but in the
-`ContrastHigh` theme first (alphabetically first among themes that
-have the icon). These are high-contrast accessibility variants that
-look wrong on a normal Menta desktop.
-
-Also, fallback sizes were tried in ascending order (16 → 256), so the
-smallest available icon was loaded and then scaled UP, resulting in
-blurry low-resolution icons.
-
-**Fix:** Two changes:
-- `_FALLBACK_ICON_SIZES` is now in **descending** order (256 → 16) so
-  the highest-resolution available icon is used.
-- Theme directories matching `contrast` (case-insensitive) are
-  deprioritized to the end of the scan order. The host's actual theme
-  (`menta`) is tried first, then all normal themes, then accessibility
-  themes last.
-
-### Key Source Files
-
-| File | Role |
-|------|------|
-| `docking/platform/launcher.py` | Desktop entry resolution, icon loading, launching |
-| `docking/platform/model.py` | Dock item construction, pinned/running item management |
-| `docking/ui/dnd.py` | Drag-and-drop handler, external URI to DockItem conversion |
-| `docking/applets/base.py` | Applet icon loading (`load_theme_icon`) |
-| `packaging/flatpak/cc.docking.Docking.json` | Flatpak manifest with sandbox permissions |
-| `packaging/flatpak/build.sh` | Build script for local Flatpak bundle |
+This intentionally avoids detecting the host icon theme, scanning all host
+themes, or ranking accessibility themes. Missing icons should usually be fixed
+by exposing the correct launcher/icon location in the Flatpak manifest rather
+than by inventing a parallel icon theme resolver.
 
 ### Sandbox Filesystem Notes
 
-Inside the Flatpak, the host filesystem is partially exposed at `/run/host`:
-
-- `/run/host/usr/share/applications/` — host .desktop files
-- `/run/host/usr/share/icons/` — host icon themes
-- `/run/host/share/icons/` — additional host icon themes (e.g. MATE)
-- `/run/host/opt/` — **NOT available** (host `/opt` is not bind-mounted)
-
-This means any desktop entry with an absolute `Icon=` path under
-`/opt`, `/home`, or other non-standard prefixes cannot be loaded
-directly. The exec-basename fallback (`_normalized_exec_basename`) and
-host theme scans are the only recovery paths for those apps.
+- `/run/host/usr/share/applications/` — host system `.desktop` files.
+- `~/.local/share/applications/` — host user `.desktop` files exposed directly
+  by `--filesystem=xdg-data/applications:ro`.
+- `/var/lib/snapd/desktop/applications/` — Snap-exported `.desktop` files.
+- `/snap/` — Snap application files and absolute Snap icon paths.
+*** End of File
