@@ -6,7 +6,10 @@ from unittest.mock import MagicMock, patch
 import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
 from docking.applets.applications.applet import ApplicationsApplet
-from docking.applets.applications.state import _build_app_categories
+from docking.applets.applications.state import (
+    _all_desktop_app_infos,
+    _build_app_categories,
+)
 
 
 class TestBuildAppCategories:
@@ -19,14 +22,76 @@ class TestBuildAppCategories:
         mock_app.get_is_hidden.return_value = True
         mock_app.get_nodisplay.return_value = False
 
-        with patch(
-            "docking.applets.applications.state.Gio.AppInfo.get_all",
-            return_value=[mock_app],
+        with (
+            patch(
+                "docking.applets.applications.state.Gio.AppInfo.get_all",
+                return_value=[mock_app],
+            ),
+            patch(
+                "docking.applets.applications.state.Launcher._get_desktop_dirs",
+                return_value=[],
+            ),
         ):
             cats = _build_app_categories()
         # Hidden app should not appear in any category
         total = sum(len(apps) for apps in cats.values())
         assert total == 0
+
+    def test_includes_host_desktop_files_not_returned_by_gio(
+        self, tmp_path, monkeypatch
+    ):
+        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        desktop_file = host_apps / "org.example.Tool.desktop"
+        desktop_file.write_text(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=Example Tool\n"
+            "Exec=example-tool\n"
+            "Categories=Development;IDE;\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            "docking.applets.applications.state.Gio.AppInfo.get_all",
+            list,
+        )
+        monkeypatch.setattr(
+            "docking.applets.applications.state.Launcher._get_desktop_dirs",
+            lambda: [host_apps],
+        )
+
+        categories = _build_app_categories()
+
+        assert list(categories) == ["Development"]
+        assert categories["Development"][0].get_display_name() == "Example Tool"
+
+    def test_all_desktop_app_infos_deduplicates_desktop_ids(
+        self, tmp_path, monkeypatch
+    ):
+        first_apps = tmp_path / "first" / "applications"
+        second_apps = tmp_path / "second" / "applications"
+        first_apps.mkdir(parents=True)
+        second_apps.mkdir(parents=True)
+        for apps_dir in (first_apps, second_apps):
+            (apps_dir / "org.example.Tool.desktop").write_text(
+                "[Desktop Entry]\n"
+                "Type=Application\n"
+                "Name=Example Tool\n"
+                "Exec=example-tool\n",
+                encoding="utf-8",
+            )
+        monkeypatch.setattr(
+            "docking.applets.applications.state.Gio.AppInfo.get_all",
+            list,
+        )
+        monkeypatch.setattr(
+            "docking.applets.applications.state.Launcher._get_desktop_dirs",
+            lambda: [first_apps, second_apps],
+        )
+
+        apps = _all_desktop_app_infos()
+
+        assert [app.get_id() for app in apps] == ["org.example.Tool.desktop"]
 
 
 class TestApplicationsApplet:

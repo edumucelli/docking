@@ -67,14 +67,47 @@ class TestDetectTool:
     def test_falls_back_to_portal_when_cli_tools_missing(self):
         with (
             patch.object(screenshot_state, "is_wayland_session", return_value=False),
+            patch.object(screenshot_state, "is_flatpak", return_value=False),
             patch.object(screenshot_state, "_portal_available", side_effect=[True]),
             patch("docking.applets.screenshot.state.shutil.which", return_value=None),
         ):
             assert _detect_tool() == screenshot_state._PORTAL_TOOL
 
+    def test_flatpak_falls_back_to_host_screenshot_tool(self):
+        def which(command: str) -> str | None:
+            if command == "flatpak-spawn":
+                return "/usr/bin/flatpak-spawn"
+            return None
+
+        with (
+            patch.object(screenshot_state, "is_wayland_session", return_value=False),
+            patch.object(screenshot_state, "is_flatpak", return_value=True),
+            patch.object(screenshot_state, "_portal_available", return_value=False),
+            patch("docking.applets.screenshot.state.shutil.which", side_effect=which),
+            patch(
+                "docking.applets.screenshot.state.subprocess.run",
+                return_value=subprocess.CompletedProcess(args=[], returncode=0),
+            ) as run,
+        ):
+            result = _detect_tool()
+
+        assert result == Tool("mate-screenshot", [], ["-w"], ["-a"], "flatpak-host")
+        run.assert_called_once_with(
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "sh",
+                "-lc",
+                "command -v mate-screenshot >/dev/null",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1.5,
+        )
+
 
 class TestPortal:
-    def test_portal_available_requires_gdbus_and_ping(self):
+    def test_portal_available_requires_screenshot_interface(self):
         with patch("docking.applets.screenshot.state.shutil.which", return_value=None):
             assert screenshot_state._portal_available() is False
 
@@ -84,7 +117,11 @@ class TestPortal:
             ),
             patch(
                 "docking.applets.screenshot.state.subprocess.run",
-                return_value=subprocess.CompletedProcess(args=["gdbus"], returncode=0),
+                return_value=subprocess.CompletedProcess(
+                    args=["gdbus"],
+                    returncode=0,
+                    stdout="interface org.freedesktop.portal.Screenshot {",
+                ),
             ),
         ):
             assert screenshot_state._portal_available() is True
@@ -95,7 +132,26 @@ class TestPortal:
             ),
             patch(
                 "docking.applets.screenshot.state.subprocess.run",
-                return_value=subprocess.CompletedProcess(args=["gdbus"], returncode=1),
+                return_value=subprocess.CompletedProcess(
+                    args=["gdbus"],
+                    returncode=0,
+                    stdout="interface org.freedesktop.portal.FileChooser {",
+                ),
+            ),
+        ):
+            assert screenshot_state._portal_available() is False
+
+        with (
+            patch(
+                "docking.applets.screenshot.state.shutil.which", return_value="gdbus"
+            ),
+            patch(
+                "docking.applets.screenshot.state.subprocess.run",
+                return_value=subprocess.CompletedProcess(
+                    args=["gdbus"],
+                    returncode=1,
+                    stdout="",
+                ),
             ),
         ):
             assert screenshot_state._portal_available() is False
@@ -280,6 +336,15 @@ class TestRun:
 
         assert timers[0].delay == 2
         assert timers[0].daemon is True
+
+    def test_flatpak_host_run_prefixes_host_spawn(self):
+        tool = Tool("mate-screenshot", [], ["-w"], ["-a"], "flatpak-host")
+        with patch("docking.applets.screenshot.state.subprocess.Popen") as p:
+            _run(tool=tool, mode="region", delay_seconds=3)
+        p.assert_called_once_with(
+            ["flatpak-spawn", "--host", "mate-screenshot", "-a", "-d", "3"],
+            start_new_session=True,
+        )
 
 
 class TestScreenshotApplet:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from typing import Protocol
 from docking.applets.notifications import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.environment import is_flatpak
 
 log = with_context(
     get_logger(name="notifications"),
@@ -57,7 +59,7 @@ def pending_badge_count(state: NotificationsState) -> int:
     return max(0, min(99, state.pending))
 
 
-def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
+def _run_direct(cmd: list[str], timeout_s: float = 2.0) -> str | None:
     """Run command and return stdout when successful."""
     try:
         result = subprocess.run(
@@ -73,6 +75,25 @@ def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
     if result.returncode != 0:
         return None
     return result.stdout.strip()
+
+
+def _host_command(cmd: list[str]) -> list[str] | None:
+    if not is_flatpak():
+        return None
+    flatpak_spawn = shutil.which("flatpak-spawn")
+    if flatpak_spawn is None:
+        return None
+    return [flatpak_spawn, "--host", *cmd]
+
+
+def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
+    """Run host notification command when sandboxed, else run directly."""
+    host_cmd = _host_command(cmd)
+    if host_cmd is not None:
+        output = _run_direct(host_cmd, timeout_s=timeout_s)
+        if output is not None:
+            return output
+    return _run_direct(cmd, timeout_s=timeout_s)
 
 
 def _parse_bool(value: str | None) -> bool | None:
@@ -110,7 +131,23 @@ def _parse_pending_count(value: str | None) -> int | None:
 
 
 def _has_command(command: str) -> bool:
-    return shutil.which(command) is not None
+    if shutil.which(command) is not None:
+        return True
+    flatpak_spawn = shutil.which("flatpak-spawn")
+    if not is_flatpak() or flatpak_spawn is None:
+        return False
+    return (
+        _run_direct(
+            [
+                flatpak_spawn,
+                "--host",
+                "sh",
+                "-c",
+                f"command -v {shlex.quote(command)}",
+            ]
+        )
+        is not None
+    )
 
 
 class NotificationsBackend(Protocol):

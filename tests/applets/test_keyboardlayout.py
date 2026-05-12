@@ -30,6 +30,7 @@ from docking.applets.keyboardlayout.state import (
     _parse_gsettings_string,
     _parse_gsettings_string_list,
     _parse_input_sources,
+    _run,
     _source_layout_code,
     current_layout_command,
     cycle_layout,
@@ -589,6 +590,63 @@ class TestXkbBackend:
 
         monkeypatch.setattr(kbl_state, "_run", lambda cmd: "rules: evdev")
         assert XkbBackend().query() == kbl_state.LayoutState("", [])
+
+    def test_run_falls_back_to_host_command_in_flatpak(self, monkeypatch):
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **_kwargs):
+            calls.append(cmd)
+            if cmd == ["setxkbmap", "-query"]:
+                raise OSError("missing in sandbox")
+            if cmd == ["/usr/bin/flatpak-spawn", "--host", "setxkbmap", "-query"]:
+                return subprocess.CompletedProcess(cmd, 0, stdout=SETXKBMAP_MULTI)
+            raise AssertionError(cmd)
+
+        monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda name: "/usr/bin/flatpak-spawn" if name == "flatpak-spawn" else None,
+        )
+        monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
+
+        assert _run(["setxkbmap", "-query"]) == SETXKBMAP_MULTI.strip()
+        assert calls == [
+            ["setxkbmap", "-query"],
+            ["/usr/bin/flatpak-spawn", "--host", "setxkbmap", "-query"],
+        ]
+
+    def test_run_falls_back_to_host_after_sandbox_command_failure(self, monkeypatch):
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **_kwargs):
+            calls.append(cmd)
+            if cmd == ["gsettings", "get", "schema", "key"]:
+                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="missing")
+            if cmd == [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "gsettings",
+                "get",
+                "schema",
+                "key",
+            ]:
+                return subprocess.CompletedProcess(cmd, 0, stdout="'value'\n")
+            raise AssertionError(cmd)
+
+        monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda name: "/usr/bin/flatpak-spawn" if name == "flatpak-spawn" else None,
+        )
+        monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
+
+        assert _run(["gsettings", "get", "schema", "key"]) == "'value'"
+        assert calls == [
+            ["gsettings", "get", "schema", "key"],
+            ["/usr/bin/flatpak-spawn", "--host", "gsettings", "get", "schema", "key"],
+        ]
 
 
 # ---------------------------------------------------------------------------

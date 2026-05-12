@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import shutil
 import subprocess
 import threading
@@ -21,6 +22,7 @@ from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.environment import is_flatpak
 
 from .render import create_notifications_icon
 from .state import (
@@ -44,6 +46,8 @@ TOOLTIP_BODY_LIMIT = 96
 MAX_HISTORY_BADGE_COUNT = 99
 ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S = 0.4
 ELLIPSIS_RESERVED_CHARS = 3
+NOTIFICATION_MONITOR_RULE = "interface='org.freedesktop.Notifications',member='Notify'"
+HOST_MONITOR_PID_PREFIX = "__DOCKING_HOST_DBUS_MONITOR_PID="
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +72,7 @@ class NotificationsApplet(Applet):
         self._activity_clear_id: int = 0
         self._activity_monitor_proc: subprocess.Popen[str] | None = None
         self._activity_monitor_thread: threading.Thread | None = None
+        self._activity_monitor_host_pid: str | None = None
         self._history: list[NotificationEntry] = []
         self._history_index: int = 0
         self._worker = BackgroundWorker()
@@ -229,18 +234,15 @@ class NotificationsApplet(Applet):
     def _start_activity_monitor(self) -> None:
         if self._activity_monitor_proc is not None:
             return
-        if shutil.which("dbus-monitor") is None:
+        command = self._activity_monitor_command()
+        if command is None:
             log.bind(action="activity_monitor").warning(
                 "dbus-monitor not found; notification activity monitoring is disabled"
             )
             return
         try:
             self._activity_monitor_proc = subprocess.Popen(
-                [
-                    "dbus-monitor",
-                    "--session",
-                    "interface='org.freedesktop.Notifications',member='Notify'",
-                ],
+                command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
@@ -259,11 +261,36 @@ class NotificationsApplet(Applet):
         )
         self._activity_monitor_thread.start()
 
+    def _activity_monitor_command(self) -> list[str] | None:
+        if is_flatpak():
+            flatpak_spawn = shutil.which("flatpak-spawn")
+            if flatpak_spawn is None:
+                return None
+            monitor_rule = shlex.quote(NOTIFICATION_MONITOR_RULE)
+            return [
+                flatpak_spawn,
+                "--host",
+                "sh",
+                "-c",
+                "command -v dbus-monitor >/dev/null || exit 127; "
+                f"echo {HOST_MONITOR_PID_PREFIX}$$; "
+                f"exec dbus-monitor --session {monitor_rule}",
+            ]
+
+        dbus_monitor = shutil.which("dbus-monitor")
+        if dbus_monitor is None:
+            return None
+        return [dbus_monitor, "--session", NOTIFICATION_MONITOR_RULE]
+
     def _stop_activity_monitor(self) -> None:
         proc = self._activity_monitor_proc
         self._activity_monitor_proc = None
+        host_pid = self._activity_monitor_host_pid
+        self._activity_monitor_host_pid = None
         if proc is None:
             return
+        if host_pid is not None:
+            self._stop_host_activity_monitor(host_pid)
         try:
             proc.terminate()
             proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
@@ -274,6 +301,21 @@ class NotificationsApplet(Applet):
             log.debug("Failed to stop dbus-monitor cleanly: %s", exc)
             return
 
+    def _stop_host_activity_monitor(self, pid: str) -> None:
+        flatpak_spawn = shutil.which("flatpak-spawn")
+        if flatpak_spawn is None:
+            return
+        try:
+            subprocess.run(
+                [flatpak_spawn, "--host", "kill", pid],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            log.debug("Failed to stop host dbus-monitor %s: %s", pid, exc)
+
     def _activity_monitor_worker(self) -> None:
         proc = self._activity_monitor_proc
         if proc is None or proc.stdout is None:
@@ -282,6 +324,11 @@ class NotificationsApplet(Applet):
         notify_strings: list[str] = []
         try:
             for line in proc.stdout:
+                if line.startswith(HOST_MONITOR_PID_PREFIX):
+                    self._activity_monitor_host_pid = line[
+                        len(HOST_MONITOR_PID_PREFIX) :
+                    ].strip()
+                    continue
                 if "member=Notify" in line:
                     capture_notify = True
                     notify_strings = []

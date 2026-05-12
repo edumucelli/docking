@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import shutil
 import subprocess
 from typing import NamedTuple
@@ -10,6 +11,7 @@ from docking.applets.tooltip import structured_tooltip
 from docking.applets.units import format_compact_number
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.environment import is_flatpak
 
 log = get_logger("network.state")
 
@@ -108,18 +110,12 @@ def format_compact_speed(bps: float) -> str:
 
 def connection_info_command() -> list[str] | None:
     """Return the first available desktop network-info/settings command."""
-    for cmd in _CONNECTION_INFO_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
+    return _available_desktop_command(_CONNECTION_INFO_COMMANDS)
 
 
 def edit_connections_command() -> list[str] | None:
     """Return the first available network-connections editor command."""
-    for cmd in _EDIT_CONNECTIONS_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
+    return _available_desktop_command(_EDIT_CONNECTIONS_COMMANDS)
 
 
 def open_connection_info() -> bool:
@@ -242,3 +238,42 @@ def _open_command(*, cmd: list[str] | None, action: str) -> bool:
         log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
         return False
     return True
+
+
+def _available_desktop_command(
+    candidates: tuple[tuple[str, ...], ...],
+) -> list[str] | None:
+    flatpak_spawn = _flatpak_spawn_command()
+    for cmd in candidates:
+        if flatpak_spawn is not None:
+            if _host_command_available(flatpak_spawn=flatpak_spawn, command=cmd[0]):
+                return [flatpak_spawn, "--host", *cmd]
+            continue
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None
+
+
+def _flatpak_spawn_command() -> str | None:
+    if not is_flatpak():
+        return None
+    return shutil.which("flatpak-spawn")
+
+
+def _host_command_available(*, flatpak_spawn: str, command: str) -> bool:
+    try:
+        result = subprocess.run(
+            [
+                flatpak_spawn,
+                "--host",
+                "sh",
+                "-lc",
+                f"command -v {shlex.quote(command)} >/dev/null",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1.5,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False

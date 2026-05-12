@@ -60,12 +60,121 @@ class TestGioTrashBackend:
         ):
             assert GioTrashBackend().count_items() == 0
 
+    def test_counts_visible_trash_files_in_flatpak(self, tmp_path):
+        files_dir = tmp_path / "Trash" / "files"
+        files_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        (files_dir / "b.txt").write_text("b")
+
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directory",
+                return_value=files_dir,
+            ),
+            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+        ):
+            assert GioTrashBackend().count_items() == 2
+
+        new_for_uri.assert_not_called()
+
+    def test_monitor_uses_visible_trash_files_in_flatpak(self, tmp_path):
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directory",
+                return_value=tmp_path,
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_path"
+            ) as new_for_path,
+            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+        ):
+            GioTrashBackend().monitor_file()
+
+        new_for_path.assert_called_once_with(str(tmp_path))
+        new_for_uri.assert_not_called()
+
     def test_open_launches_default_trash_uri(self):
-        with patch(
-            "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-        ) as launch:
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
+            ) as launch,
+        ):
             GioTrashBackend().open()
 
+        launch.assert_called_once_with("trash:///", None)
+
+    def test_open_prefers_sanitized_host_gio_in_flatpak(self):
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                return_value="/usr/bin/flatpak-spawn",
+            ),
+            patch("docking.applets.trash.backend.subprocess.Popen") as popen,
+            patch(
+                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
+            ) as launch,
+        ):
+            GioTrashBackend().open()
+
+        popen.assert_called_once_with(
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "gio",
+                "open",
+                "trash:///",
+            ]
+        )
+        launch.assert_not_called()
+
+    def test_open_falls_back_to_gio_when_host_open_unavailable(self):
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                return_value="/usr/bin/flatpak-spawn",
+            ),
+            patch(
+                "docking.applets.trash.backend.subprocess.Popen",
+                side_effect=OSError("spawn failed"),
+            ) as popen,
+            patch(
+                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
+            ) as launch,
+        ):
+            GioTrashBackend().open()
+
+        popen.assert_called_once_with(
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "gio",
+                "open",
+                "trash:///",
+            ]
+        )
         launch.assert_called_once_with("trash:///", None)
 
     def test_empty_trash_uses_dbus_first(self):
@@ -97,6 +206,71 @@ class TestGioTrashBackend:
             patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
+            backend.empty(lambda: False)
+
+        delete_mock.assert_called_once()
+
+    def test_empty_trash_uses_host_gio_in_flatpak_after_dbus_failure(self):
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                return_value="/usr/bin/flatpak-spawn",
+            ),
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch("docking.applets.trash.backend.subprocess.run") as run_mock,
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            run_mock.return_value.returncode = 0
+            backend.empty(lambda: False)
+
+        run_mock.assert_called_once_with(
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "gio",
+                "trash",
+                "--empty",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        delete_mock.assert_not_called()
+
+    def test_empty_trash_falls_back_to_delete_when_host_gio_fails(self):
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                return_value="/usr/bin/flatpak-spawn",
+            ),
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch("docking.applets.trash.backend.subprocess.run") as run_mock,
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            run_mock.return_value.returncode = 1
+            run_mock.return_value.stderr = "nope"
+            run_mock.return_value.stdout = ""
             backend.empty(lambda: False)
 
         delete_mock.assert_called_once()
@@ -170,6 +344,7 @@ class TestKdeTrashBackend:
     def test_open_uses_kde_open_command(self):
         backend = KdeTrashBackend()
         with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch.object(
                 backend, "_available_open_command", return_value=("dolphin", "trash:/")
             ),
