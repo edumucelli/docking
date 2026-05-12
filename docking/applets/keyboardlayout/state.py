@@ -186,6 +186,17 @@ def show_current_layout(layout_code: str) -> bool:
 
 
 def _run(cmd: list[str]) -> str | None:
+    result = _run_direct(cmd=cmd)
+    if result is not None:
+        return result
+    if environment.is_flatpak() and cmd[:2] != ["flatpak-spawn", "--host"]:
+        flatpak_spawn = shutil.which("flatpak-spawn")
+        if flatpak_spawn is not None:
+            return _run_direct(cmd=[flatpak_spawn, "--host", *cmd])
+    return None
+
+
+def _run_direct(cmd: list[str]) -> str | None:
     try:
         result = subprocess.run(
             cmd,

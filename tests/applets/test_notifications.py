@@ -91,6 +91,7 @@ class TestStateParsing:
                 self.returncode = code
                 self.stdout = out
 
+        monkeypatch.setattr(notifications_state_mod, "is_flatpak", lambda: False)
         monkeypatch.setattr(
             notifications_state_mod.subprocess,
             "run",
@@ -117,6 +118,59 @@ class TestStateParsing:
             notifications_state_mod.shutil, "which", lambda cmd: "/usr/bin/x"
         )
         assert notifications_state_mod._has_command("x") is True
+
+    def test_run_prefers_host_command_in_flatpak(self, monkeypatch):
+        class _Proc:
+            returncode = 0
+            stdout = "false\n"
+
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append(cmd)
+            return _Proc()
+
+        monkeypatch.setattr(notifications_state_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            notifications_state_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+        )
+        monkeypatch.setattr(notifications_state_mod.subprocess, "run", fake_run)
+
+        assert (
+            notifications_state_mod._run(["gsettings", "get", "schema", "key"])
+            == "false"
+        )
+        assert calls == [
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "gsettings",
+                "get",
+                "schema",
+                "key",
+            ]
+        ]
+
+    def test_has_command_checks_host_in_flatpak(self, monkeypatch):
+        class _Proc:
+            returncode = 0
+            stdout = "/usr/bin/dunstctl\n"
+
+        monkeypatch.setattr(notifications_state_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            notifications_state_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+        )
+        monkeypatch.setattr(
+            notifications_state_mod.subprocess,
+            "run",
+            lambda *args, **kwargs: _Proc(),
+        )
+
+        assert notifications_state_mod._has_command("dunstctl") is True
 
     def test_dunst_backend_get_state(self, monkeypatch):
         def fake_run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
@@ -594,6 +648,56 @@ class TestNotificationsApplet:
         applet._activity_monitor_proc = _ProcOSError()  # type: ignore[assignment]
         applet._stop_activity_monitor()
 
+    def test_activity_monitor_uses_host_dbus_monitor_in_flatpak(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        monkeypatch.setattr(notifications_applet_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            notifications_applet_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+        )
+
+        command = applet._activity_monitor_command()
+
+        assert command is not None
+        assert command[:3] == ["/usr/bin/flatpak-spawn", "--host", "sh"]
+        assert "dbus-monitor --session" in command[-1]
+        assert notifications_applet_mod.HOST_MONITOR_PID_PREFIX in command[-1]
+
+    def test_stop_activity_monitor_kills_host_monitor_pid(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        applet._activity_monitor_host_pid = "12345"
+        run_calls: list[list[str]] = []
+
+        class _Proc:
+            def __init__(self):
+                self.terminated = False
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self, timeout=0.0):
+                return None
+
+        proc = _Proc()
+        applet._activity_monitor_proc = proc  # type: ignore[assignment]
+        monkeypatch.setattr(
+            notifications_applet_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+        )
+        monkeypatch.setattr(
+            notifications_applet_mod.subprocess,
+            "run",
+            lambda cmd, **kwargs: run_calls.append(cmd),
+        )
+
+        applet._stop_activity_monitor()
+
+        assert run_calls == [["/usr/bin/flatpak-spawn", "--host", "kill", "12345"]]
+        assert proc.terminated is True
+        assert applet._activity_monitor_host_pid is None
+
     def test_activity_monitor_worker_and_tooltip_helpers(self, monkeypatch, caplog):
         applet, _backend = _make_applet(monkeypatch, _state())
         idle_calls: list[tuple[object, ...]] = []
@@ -605,6 +709,7 @@ class TestNotificationsApplet:
 
         class _Proc:
             stdout: ClassVar = [
+                f"{notifications_applet_mod.HOST_MONITOR_PID_PREFIX}321\n",
                 "signal member=Notify\n",
                 '   string "Mail"\n',
                 '   string "Icon"\n',
@@ -618,6 +723,7 @@ class TestNotificationsApplet:
 
         applet._activity_monitor_proc = _Proc()
         applet._activity_monitor_worker()
+        assert applet._activity_monitor_host_pid == "321"
         assert any(call[0] == applet._on_notification_event for call in idle_calls)
         assert any(call[0] == applet._on_notification_activity for call in idle_calls)
 

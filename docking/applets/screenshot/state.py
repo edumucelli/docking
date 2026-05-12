@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, NamedTuple
 
-from docking.platform.environment import is_wayland_session
+from docking.platform.environment import is_flatpak, is_wayland_session
 
 
 class Tool(NamedTuple):
@@ -33,7 +33,8 @@ _PORTAL_TOOL = Tool(
 )
 _PORTAL_DEST = "org.freedesktop.portal.Desktop"
 _PORTAL_PATH = "/org/freedesktop/portal/desktop"
-_PORTAL_METHOD = "org.freedesktop.portal.Screenshot.Screenshot"
+_PORTAL_INTERFACE = "org.freedesktop.portal.Screenshot"
+_PORTAL_METHOD = f"{_PORTAL_INTERFACE}.Screenshot"
 
 
 _TOOLS: tuple[Tool, ...] = (
@@ -52,7 +53,7 @@ _TOOLS: tuple[Tool, ...] = (
 
 
 def _portal_available() -> bool:
-    """True when the XDG screenshot portal is reachable via gdbus."""
+    """True when the XDG screenshot portal interface is available via gdbus."""
     gdbus = shutil.which("gdbus")
     if not gdbus:
         return False
@@ -60,14 +61,33 @@ def _portal_available() -> bool:
         result = subprocess.run(
             [
                 gdbus,
-                "call",
+                "introspect",
                 "--session",
                 "--dest",
                 _PORTAL_DEST,
                 "--object-path",
                 _PORTAL_PATH,
-                "--method",
-                "org.freedesktop.DBus.Peer.Ping",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1.5,
+        )
+        return (
+            result.returncode == 0 and f"interface {_PORTAL_INTERFACE}" in result.stdout
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def _flatpak_host_tool_available(*, flatpak_spawn: str, command: str) -> bool:
+    try:
+        result = subprocess.run(
+            [
+                flatpak_spawn,
+                "--host",
+                "sh",
+                "-lc",
+                f"command -v {command} >/dev/null",
             ],
             capture_output=True,
             text=True,
@@ -78,6 +98,25 @@ def _portal_available() -> bool:
         return False
 
 
+def _detect_flatpak_host_tool() -> Tool | None:
+    flatpak_spawn = shutil.which("flatpak-spawn")
+    if flatpak_spawn is None:
+        return None
+    for tool in _TOOLS:
+        if _flatpak_host_tool_available(
+            flatpak_spawn=flatpak_spawn,
+            command=tool.command,
+        ):
+            return Tool(
+                command=tool.command,
+                full=tool.full,
+                window=tool.window,
+                region=tool.region,
+                backend="flatpak-host",
+            )
+    return None
+
+
 def _detect_tool() -> Tool | None:
     """Return the first available screenshot tool, or None."""
     if is_wayland_session() and _portal_available():
@@ -85,6 +124,10 @@ def _detect_tool() -> Tool | None:
     for tool in _TOOLS:
         if shutil.which(tool.command):
             return tool
+    if is_flatpak():
+        flatpak_host_tool = _detect_flatpak_host_tool()
+        if flatpak_host_tool is not None:
+            return flatpak_host_tool
     if _portal_available():
         return _PORTAL_TOOL
     return None
@@ -162,11 +205,10 @@ def _run(tool: Tool, mode: Mode, delay_seconds: int = 0) -> list[str]:
         _launch(cmd=cmd, delay_seconds=delay_seconds)
     else:
         args = _mode_args(tool=tool, mode=mode)
-        cmd = [
-            tool.command,
-            *args,
-            *_delay_args(tool=tool, delay_seconds=delay_seconds),
-        ]
+        command = [tool.command]
+        if tool.backend == "flatpak-host":
+            command = ["flatpak-spawn", "--host", tool.command]
+        cmd = [*command, *args, *_delay_args(tool=tool, delay_seconds=delay_seconds)]
         if tool.command == "scrot":
             cmd.append(_scrot_path())
         subprocess.Popen(cmd, start_new_session=True)

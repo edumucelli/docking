@@ -21,6 +21,7 @@ from docking.log import get_logger, with_context
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
+    is_flatpak,
     is_gnome_session,
     is_kde_session,
     is_mate_session,
@@ -53,6 +54,10 @@ def _xdg_data_home() -> Path:
     return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 
 
+def _host_user_data_home() -> Path:
+    return Path.home() / ".local" / "share"
+
+
 def _kde_trash_directory() -> Path:
     return _xdg_data_home() / "Trash"
 
@@ -65,8 +70,84 @@ def _kde_trash_info_directory() -> Path:
     return _kde_trash_directory() / "info"
 
 
+def _visible_trash_files_directory() -> Path:
+    if is_flatpak():
+        return _host_user_data_home() / "Trash" / "files"
+    return _xdg_data_home() / "Trash" / "files"
+
+
 def _kde_kiorc_file() -> Path:
     return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kiorc"
+
+
+def _open_trash_uri(uri: str) -> None:
+    if is_flatpak() and _open_host_trash_uri(uri=uri):
+        return
+
+    try:
+        Gio.AppInfo.launch_default_for_uri(uri, None)
+    except GLib.Error as exc:
+        log.bind(action="open_trash").warning("Failed to open trash: %s", exc)
+
+
+def _open_host_trash_uri(*, uri: str) -> bool:
+    flatpak_spawn = shutil.which("flatpak-spawn")
+    if flatpak_spawn is None:
+        return False
+    try:
+        subprocess.Popen([*_host_gio_command(flatpak_spawn=flatpak_spawn), "open", uri])
+        return True
+    except OSError as exc:
+        log.bind(action="open_trash").warning(
+            "Failed to open host trash with flatpak-spawn: %s",
+            exc,
+        )
+        return False
+
+
+def _empty_host_trash() -> bool:
+    if not is_flatpak():
+        return False
+    flatpak_spawn = shutil.which("flatpak-spawn")
+    if flatpak_spawn is None:
+        return False
+    try:
+        result = subprocess.run(
+            [*_host_gio_command(flatpak_spawn=flatpak_spawn), "trash", "--empty"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        log.bind(action="empty_trash_host").warning(
+            "Failed to empty host trash with flatpak-spawn: %s",
+            exc,
+        )
+        return False
+    if result.returncode == 0:
+        return True
+    log.bind(action="empty_trash_host").warning(
+        "Host trash empty command failed: %s",
+        result.stderr.strip() or result.stdout.strip() or result.returncode,
+    )
+    return False
+
+
+def _host_gio_command(*, flatpak_spawn: str) -> list[str]:
+    return [
+        flatpak_spawn,
+        "--host",
+        "env",
+        "-u",
+        "GIO_USE_VFS",
+        "-u",
+        "GI_TYPELIB_PATH",
+        "-u",
+        "GSETTINGS_SCHEMA_DIR",
+        "-u",
+        "XDG_DATA_DIRS",
+        "gio",
+    ]
 
 
 class GioTrashBackend:
@@ -82,6 +163,16 @@ class GioTrashBackend:
     confirmation_schema: tuple[str, str] | None = None
 
     def count_items(self) -> int:
+        if is_flatpak():
+            files_dir = _visible_trash_files_directory()
+            try:
+                return sum(1 for _child in files_dir.iterdir())
+            except OSError as exc:
+                log.bind(action="count_items").debug(
+                    "Could not enumerate visible trash files: %s", exc
+                )
+                return 0
+
         trash = Gio.File.new_for_uri(self.uri)
         try:
             enumerator = trash.enumerate_children(
@@ -100,20 +191,23 @@ class GioTrashBackend:
         return count
 
     def monitor_file(self) -> Gio.File:
+        if is_flatpak():
+            return Gio.File.new_for_path(str(_visible_trash_files_directory()))
         return Gio.File.new_for_uri(self.uri)
 
     def open(self) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(self.uri, None)
-        except GLib.Error as exc:
-            log.bind(action="open_trash").warning("Failed to open trash: %s", exc)
+        _open_trash_uri(self.uri)
 
     def empty(self, confirm: Callable[[], bool]) -> None:
         _ = confirm
         if self._confirmation_preference() is False:
+            if _empty_host_trash():
+                return
             self._delete_contents()
             return
         if self._empty_via_dbus():
+            return
+        if _empty_host_trash():
             return
         self._delete_contents()
 
@@ -272,10 +366,7 @@ class KdeTrashBackend:
                     exc,
                 )
 
-        try:
-            Gio.AppInfo.launch_default_for_uri(self.uri, None)
-        except GLib.Error as exc:
-            log.bind(action="open_trash").warning("Failed to open trash: %s", exc)
+        _open_trash_uri(self.uri)
 
     def empty(self, confirm: Callable[[], bool]) -> None:
         if self._confirmation_preference() is False or confirm():

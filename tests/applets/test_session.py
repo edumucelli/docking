@@ -93,6 +93,38 @@ class TestSessionApplet:
 
 
 class TestSessionState:
+    def test_lock_screen_prefers_screensaver_dbus(self, monkeypatch):
+        monkeypatch.delenv("XDG_SESSION_ID", raising=False)
+        monkeypatch.setattr(
+            session_state_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
+        )
+
+        seen: list[list[str]] = []
+
+        def fake_run(cmd, capture_output, text, timeout, check):
+            _ = (capture_output, text, timeout, check)
+            seen.append(list(cmd))
+            return SimpleNamespace(returncode=0, stderr="")
+
+        monkeypatch.setattr(session_state_mod.subprocess, "run", fake_run)
+
+        assert lock_screen() is True
+        assert seen == [
+            [
+                "/usr/bin/gdbus",
+                "call",
+                "--session",
+                "--dest",
+                "org.mate.ScreenSaver",
+                "--object-path",
+                "/org/mate/ScreenSaver",
+                "--method",
+                "org.mate.ScreenSaver.Lock",
+            ]
+        ]
+
     def test_lock_screen_prefers_explicit_session_id(self, monkeypatch):
         monkeypatch.setenv("XDG_SESSION_ID", "2")
         monkeypatch.setattr(
@@ -177,6 +209,40 @@ class TestSessionState:
         assert lock_screen() is True
         assert seen == [["xdg-screensaver", "lock"], ["loginctl", "lock-session"]]
 
+    def test_lock_screen_uses_host_commands_in_flatpak(self, monkeypatch):
+        monkeypatch.setenv("XDG_SESSION_ID", "2")
+        monkeypatch.setattr(session_state_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            session_state_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+        )
+        seen: list[list[str]] = []
+
+        def fake_run(cmd, capture_output, text, timeout, check):
+            _ = (capture_output, text, timeout, check)
+            seen.append(list(cmd))
+            if "loginctl" in cmd:
+                return SimpleNamespace(returncode=0, stderr="")
+            return SimpleNamespace(returncode=1, stderr="missing")
+
+        monkeypatch.setattr(session_state_mod.subprocess, "run", fake_run)
+
+        assert lock_screen() is True
+        assert seen[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "mate-screensaver-command",
+            "-l",
+        ]
+        assert seen[-1] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "loginctl",
+            "lock-session",
+            "2",
+        ]
+
     def test_run_logs_popen_failure(self, monkeypatch):
         launched: list[list[str]] = []
         monkeypatch.setattr(
@@ -193,3 +259,23 @@ class TestSessionState:
             lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
         )
         session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")
+
+    def test_run_uses_host_command_in_flatpak(self, monkeypatch):
+        launched: list[list[str]] = []
+        monkeypatch.setattr(session_state_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            session_state_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+        )
+        monkeypatch.setattr(
+            session_state_mod.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+        )
+
+        session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")
+
+        assert launched == [
+            ["/usr/bin/flatpak-spawn", "--host", "systemctl", "suspend"]
+        ]

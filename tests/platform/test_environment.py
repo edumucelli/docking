@@ -8,6 +8,7 @@ from docking.platform.environment import (
     _check_compositor,
     _parse_desktop,
     detect_desktop,
+    is_flatpak,
     is_gnome_session,
     is_kde_session,
     is_mate_session,
@@ -111,6 +112,13 @@ class TestSessionBackendDetection:
     def test_is_wayland_session_false(self):
         with patch.dict("os.environ", {"XDG_SESSION_TYPE": "x11"}, clear=True):
             assert is_wayland_session() is False
+
+    def test_is_flatpak_checks_runtime_marker(self):
+        with patch("docking.platform.environment.Path.exists", return_value=True):
+            assert is_flatpak() is True
+
+        with patch("docking.platform.environment.Path.exists", return_value=False):
+            assert is_flatpak() is False
 
     def test_is_x11_backend_true_for_x11_display(self):
         display_cls = type(

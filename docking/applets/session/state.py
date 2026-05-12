@@ -10,6 +10,7 @@ from typing import NamedTuple
 from docking.applets.session import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.environment import is_flatpak
 
 log = with_context(get_logger(name="session"), applet_id=meta.id)
 
@@ -36,6 +37,23 @@ _LOCK_SCREEN_COMMAND_CANDIDATES: tuple[tuple[str, ...], ...] = (
     ("xdg-screensaver", "lock"),
     ("dm-tool", "lock"),
     ("loginctl", "lock-session"),
+)
+_LOCK_SCREEN_DBUS_CANDIDATES: tuple[tuple[str, str, str], ...] = (
+    (
+        "org.mate.ScreenSaver",
+        "/org/mate/ScreenSaver",
+        "org.mate.ScreenSaver.Lock",
+    ),
+    (
+        "org.gnome.ScreenSaver",
+        "/org/gnome/ScreenSaver",
+        "org.gnome.ScreenSaver.Lock",
+    ),
+    (
+        "org.freedesktop.ScreenSaver",
+        "/org/freedesktop/ScreenSaver",
+        "org.freedesktop.ScreenSaver.Lock",
+    ),
 )
 
 
@@ -69,18 +87,49 @@ def lock_screen() -> bool:
 
 def _run(*, cmd: list[str], action: str) -> None:
     """Run a session/power command, logging failures."""
+    resolved_cmd = _host_session_command(cmd)
     try:
-        subprocess.Popen(cmd, start_new_session=True)
+        subprocess.Popen(resolved_cmd, start_new_session=True)
     except OSError as exc:
         log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
 
 
+def _flatpak_spawn_command() -> str | None:
+    if not is_flatpak():
+        return None
+    return shutil.which("flatpak-spawn")
+
+
+def _host_session_command(cmd: list[str]) -> list[str]:
+    flatpak_spawn = _flatpak_spawn_command()
+    if flatpak_spawn is None:
+        return cmd
+    return [flatpak_spawn, "--host", *cmd]
+
+
 def _lock_screen_commands(*, session_id: str) -> list[list[str]]:
     commands: list[list[str]] = []
+    gdbus = shutil.which("gdbus")
+    if gdbus is not None:
+        for destination, object_path, method in _LOCK_SCREEN_DBUS_CANDIDATES:
+            commands.append(
+                [
+                    gdbus,
+                    "call",
+                    "--session",
+                    "--dest",
+                    destination,
+                    "--object-path",
+                    object_path,
+                    "--method",
+                    method,
+                ]
+            )
+    flatpak_spawn = _flatpak_spawn_command()
     for cmd in _LOCK_SCREEN_COMMAND_CANDIDATES:
-        if shutil.which(cmd[0]) is None:
+        if flatpak_spawn is None and shutil.which(cmd[0]) is None:
             continue
         if cmd[0] == "loginctl" and session_id:
-            commands.append([cmd[0], cmd[1], session_id])
-        commands.append(list(cmd))
+            commands.append(_host_session_command([cmd[0], cmd[1], session_id]))
+        commands.append(_host_session_command(list(cmd)))
     return commands

@@ -164,8 +164,11 @@ def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
     flags = Gtk.IconLookupFlags.FORCE_SIZE
     for icon_name in _icon_name_candidates(name=name):
         for theme in _icon_theme_candidates():
+            icon_info = theme.lookup_icon(icon_name, size, flags)
+            if icon_info is None:
+                continue
             try:
-                return theme.load_icon(icon_name, size, flags)
+                return icon_info.load_icon()
             except GLib.Error as exc:
                 log.debug(
                     "Theme icon lookup failed for %s at size %s: %s",

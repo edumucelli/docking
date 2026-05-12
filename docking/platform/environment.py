@@ -22,6 +22,7 @@ import os
 import re
 import shutil
 import subprocess
+from pathlib import Path
 
 from docking.log import get_logger
 
@@ -110,6 +111,11 @@ def detect_desktop() -> Desktop:
 def is_wayland_session() -> bool:
     """Return True when the desktop session itself is Wayland."""
     return os.environ.get("XDG_SESSION_TYPE", "").strip().lower() == "wayland"
+
+
+def is_flatpak() -> bool:
+    """Return True when running inside a Flatpak sandbox."""
+    return Path("/.flatpak-info").exists()
 
 
 def is_gnome_session(*, desktop: Desktop | None = None) -> bool:
