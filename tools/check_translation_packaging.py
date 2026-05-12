@@ -57,7 +57,7 @@ def check_translation_packaging(root: Path) -> list[str]:
     expected_compile_paths = {
         "packaging/deb/debian/rules": "bash tools/i18n.sh --compile",
         "packaging/rpm/docking.spec": "bash tools/i18n.sh --compile",
-        "packaging/flatpak/org.docking.Docking.json": "bash tools/i18n.sh --compile",
+        "packaging/flatpak/cc.docking.Docking.json": "bash tools/i18n.sh --compile",
         "packaging/snap/snapcraft.yaml": (
             'bash "$CRAFT_PART_SRC/tools/i18n.sh" --compile'
         ),

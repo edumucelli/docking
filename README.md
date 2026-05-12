@@ -1278,8 +1278,8 @@ sudo apt install flatpak flatpak-builder
 ./packaging/flatpak/build.sh
 
 # Install and run locally
-flatpak install --user ./artifacts/org.docking.Docking.flatpak
-flatpak run org.docking.Docking
+flatpak install --user ./artifacts/cc.docking.Docking.flatpak
+flatpak run cc.docking.Docking
 ```
 
 #### Building a Snap package

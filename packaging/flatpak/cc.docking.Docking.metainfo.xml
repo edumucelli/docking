@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>org.docking.Docking</id>
+  <id>cc.docking.Docking</id>
   <name>Docking</name>
   <summary>Customizable X11 dock with previews, applets, and rich drag and drop</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <developer_name>Eduardo Mucelli Rezende Oliveira</developer_name>
-  <launchable type="desktop-id">org.docking.Docking.desktop</launchable>
+  <launchable type="desktop-id">cc.docking.Docking.desktop</launchable>
   <description>
     <p>
       Docking is a lightweight but feature-rich dock for Linux desktop environments
@@ -27,7 +27,7 @@
       <li>Enable built-in applets such as clock, weather, battery, clipboard, and network</li>
     </ul>
   </description>
-  <url type="homepage">https://github.com/edumucelli/docking</url>
+  <url type="homepage">https://docking.cc</url>
   <url type="bugtracker">https://github.com/edumucelli/docking/issues</url>
   <url type="vcs-browser">https://github.com/edumucelli/docking</url>
   <provides>

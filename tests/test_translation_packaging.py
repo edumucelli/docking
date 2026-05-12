@@ -46,7 +46,7 @@ docking =
     _write(tmp_path / "packaging/deb/debian/rules", "bash tools/i18n.sh --compile\n")
     _write(tmp_path / "packaging/rpm/docking.spec", "bash tools/i18n.sh --compile\n")
     _write(
-        tmp_path / "packaging/flatpak/org.docking.Docking.json",
+        tmp_path / "packaging/flatpak/cc.docking.Docking.json",
         "bash tools/i18n.sh --compile\n",
     )
     _write(
@@ -84,7 +84,7 @@ docking = []
     _write(tmp_path / "setup.cfg", "[options.package_data]\ndocking =\n")
     _write(tmp_path / "packaging/deb/debian/rules", "")
     _write(tmp_path / "packaging/rpm/docking.spec", "")
-    _write(tmp_path / "packaging/flatpak/org.docking.Docking.json", "")
+    _write(tmp_path / "packaging/flatpak/cc.docking.Docking.json", "")
     _write(tmp_path / "packaging/snap/snapcraft.yaml", "")
     _write(tmp_path / "packaging/appimage/build.sh", "")
     _write(tmp_path / "packaging/arch/build.sh", "")
