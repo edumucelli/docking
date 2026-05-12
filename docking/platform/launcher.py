@@ -210,6 +210,30 @@ class Launcher:
         self, desktop_id: str, *, log_failures: bool = True
     ) -> DesktopInfo | None:
         """Resolve a desktop ID (e.g. 'firefox.desktop') to full info."""
+        app_info = self._desktop_app_info_for_id(
+            desktop_id=desktop_id,
+            log_failures=log_failures,
+        )
+        if app_info is None:
+            return None
+
+        info = self._desktop_info_from_app_info(
+            desktop_id=desktop_id,
+            app_info=app_info,
+        )
+        if self._wm_class_index is not None:
+            # The install-wide index is lazy. Resolving one desktop file before
+            # the index exists should not force a full scan, but once the index
+            # has been built this keeps later direct resolves visible to
+            # resolve_by_wm_class.
+            for alias in _desktop_match_aliases(info):
+                self._wm_class_index.setdefault(alias, info)
+        return info
+
+    def _desktop_app_info_for_id(
+        self, *, desktop_id: str, log_failures: bool
+    ) -> Gio.DesktopAppInfo | None:
+        """Resolve desktop app info using Gio, then XDG desktop dirs."""
         try:
             app_info = Gio.DesktopAppInfo.new(desktop_id)
         except (TypeError, GLib.Error) as exc:
@@ -218,48 +242,68 @@ class Launcher:
                     f"Failed to resolve desktop app info: {exc}"
                 )
             app_info = None
-        if app_info is None:
-            # Try searching by filename in XDG dirs
-            for d in self._desktop_dirs:
-                path = d / desktop_id
-                if path.exists():
-                    try:
-                        app_info = Gio.DesktopAppInfo.new_from_filename(str(path))
-                    except (TypeError, GLib.Error) as exc:
-                        if log_failures:
-                            log.bind(
-                                desktop_id=desktop_id,
-                                action="resolve_from_filename",
-                                path=str(path),
-                            ).warning(f"Failed to resolve desktop file by path: {exc}")
-                        continue
-                    break
-        if app_info is None:
-            return None
+        # Use "is not None" deliberately. Gio objects may define truthiness in
+        # surprising ways, and the old resolver only fell back when Gio returned
+        # None. Falling back on falsey objects can pick different metadata from
+        # XDG files and change names/icons/WM_CLASS.
+        if app_info is not None:
+            return app_info
+        return self._desktop_app_info_from_xdg_dirs(
+            desktop_id=desktop_id,
+            log_failures=log_failures,
+        )
 
+    def _desktop_app_info_from_xdg_dirs(
+        self, *, desktop_id: str, log_failures: bool
+    ) -> Gio.DesktopAppInfo | None:
+        """Fallback desktop lookup by filename under XDG application dirs."""
+        for directory in self._desktop_dirs:
+            path = directory / desktop_id
+            if not path.exists():
+                continue
+            try:
+                return Gio.DesktopAppInfo.new_from_filename(str(path))
+            except (TypeError, GLib.Error) as exc:
+                if log_failures:
+                    log.bind(
+                        desktop_id=desktop_id,
+                        action="resolve_from_filename",
+                        path=str(path),
+                    ).warning(f"Failed to resolve desktop file by path: {exc}")
+        return None
+
+    @staticmethod
+    def _wm_class_for_app_info(*, app_info: Gio.DesktopAppInfo, desktop_id: str) -> str:
+        """Return explicit StartupWMClass or the existing executable fallback."""
         wm_class = app_info.get_startup_wm_class() or ""
-        if not wm_class:
-            # Fallback: derive from executable name
-            commandline = app_info.get_commandline() or ""
-            exe = commandline.split()[0] if commandline else ""
-            wm_class = (
-                Path(exe).name if exe else desktop_id.removesuffix(DESKTOP_SUFFIX)
-            )
+        if wm_class:
+            return wm_class
+        # Preserve the existing fallback policy: use the first token of the
+        # command line as a best-effort executable basename. This is less robust
+        # than full shell parsing, but changing it would be a behavior change for
+        # desktop files with unusual Exec fields.
+        commandline = app_info.get_commandline() or ""
+        exe = commandline.split()[0] if commandline else ""
+        return Path(exe).name if exe else desktop_id.removesuffix(DESKTOP_SUFFIX)
 
+    def _desktop_info_from_app_info(
+        self, *, desktop_id: str, app_info: Gio.DesktopAppInfo
+    ) -> DesktopInfo:
+        """Build dock metadata from resolved Gio desktop app info."""
         icon = app_info.get_icon()
         icon_name = icon.to_string() if icon else FALLBACK_ICON
+        wm_class = self._wm_class_for_app_info(
+            app_info=app_info,
+            desktop_id=desktop_id,
+        )
 
-        info = DesktopInfo(
+        return DesktopInfo(
             desktop_id=desktop_id,
             name=app_info.get_display_name() or desktop_id,
             icon_name=icon_name,
             wm_class=wm_class,
             exec_line=app_info.get_commandline() or "",
         )
-        if self._wm_class_index is not None:
-            for alias in _desktop_match_aliases(info):
-                self._wm_class_index.setdefault(alias, info)
-        return info
 
     def resolve_by_wm_class(self, wm_class: str) -> DesktopInfo | None:
         """Resolve an installed desktop file by runtime WM_CLASS or executable alias."""

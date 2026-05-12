@@ -15,7 +15,10 @@ Some module has to answer:
 
     "Which running window belongs to which dock item?"
 
-That translation layer is WindowTracker.
+That translation layer is split between:
+
+- `WindowTracker`, which scans and orders live Wnck windows.
+- `WindowMatcher`, which maps each window's runtime identity to a desktop ID.
 
 Why this is harder than it sounds
 
@@ -83,15 +86,7 @@ Aggregation model
 The tracker does not push individual windows into the UI layer directly.
 Instead, it builds one aggregate per matched desktop ID:
 
-    {
-      desktop_id: {
-        "count": n,
-        "active": bool,
-        "urgent": bool,
-        "windows": [...],
-        "xids": [...],
-      }
-    }
+    dict[desktop_id, RunningAppInfo]
 
 That aggregate is what the model actually needs. From it, the dock can derive:
 
@@ -142,6 +137,7 @@ pretending the X11 world is stable during every scan.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from itertools import chain, pairwise
 from typing import TYPE_CHECKING, Any
 
@@ -153,6 +149,7 @@ from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
+from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 # GLib.Error is not a real exception subclass in some PyGObject builds,
 # so only add it to the catch tuple when it actually is one.
@@ -163,29 +160,183 @@ if isinstance(GLib.Error, type) and issubclass(GLib.Error, BaseException):
 log = with_context(get_logger(name="window_tracker"))
 
 
-def _wm_class_desktop_candidates(class_lower: str, class_group: str) -> list[str]:
-    """Generate desktop ID candidates from a WM_CLASS.
-
-    Handles apps whose WM_CLASS contains spaces (e.g. "mongodb compass",
-    "aws vpn client") by trying hyphenated, no-space, and GNOME-prefixed
-    variants. Returns a deduplicated list of candidates to try.
-
-    class_group preserves original casing for GNOME-style IDs like
-    org.gnome.Nautilus.desktop.
-    """
-    candidates = [class_lower]
-    if " " in class_lower:
-        candidates.append(class_lower.replace(" ", "-"))
-        candidates.append(class_lower.replace(" ", ""))
-    candidates.append(f"{GNOME_APP_PREFIX}{class_group}")
-    # Deduplicate while preserving order
-    return list(dict.fromkeys(candidates))
-
-
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.core.items import DockItem
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
+
+
+class WindowMatcher:
+    """Matches live Wnck windows to desktop IDs using WM_CLASS-like hints."""
+
+    def __init__(self, launcher: Launcher) -> None:
+        self._launcher = launcher
+        self._wm_class_to_desktop: dict[str, str] = {}
+        self._missed_desktop_candidates: set[str] = set()
+
+    def sync_visible_items(self, items: Iterable[DockItem]) -> None:
+        """Refresh pinned/transient WM_CLASS hints from current dock items."""
+        # This cache is intentionally rebuilt from the current model on every
+        # running-window scan. Pinned items can be reordered, pinned, unpinned,
+        # or replaced by transient items at runtime, and using stale WM_CLASS
+        # hints would make running indicators disappear until restart.
+        self._wm_class_to_desktop.clear()
+        for item in items:
+            if item.wm_class:
+                self._wm_class_to_desktop[item.wm_class.lower()] = item.desktop_id
+
+    def match(self, window: Wnck.Window) -> str | None:
+        """Return the desktop ID for a window, or None when no match is known."""
+        class_group = self._class_group_for(window=window)
+        if not class_group:
+            return None
+
+        class_lower = class_group.lower()
+        # The fastest and most reliable path is the explicit StartupWMClass (or
+        # previously learned alias) from visible dock items. Check it before
+        # doing any desktop-file probing.
+        mapped = self._wm_class_to_desktop.get(class_lower)
+        if mapped:
+            return mapped
+
+        # Some apps expose a useful class instance even when the class-group name
+        # is generic or localized. When it matches, cache the class-group too so
+        # future scans avoid this extra Wnck read.
+        class_instance = self._class_instance_for(window=window)
+        if class_instance:
+            mapped = self._match_class_instance(
+                class_lower=class_lower,
+                class_instance=class_instance,
+            )
+            if mapped:
+                return mapped
+
+        mapped = self._resolve_desktop_candidates(
+            class_lower=class_lower,
+            class_group=class_group,
+        )
+        if mapped:
+            return mapped
+
+        # Last resort: build or consult the install-wide WM_CLASS alias index.
+        # This is more expensive because it can scan installed desktop files, so
+        # keep it after the direct and candidate-specific paths.
+        return self._resolve_runtime_names(
+            class_lower=class_lower,
+            class_instance=class_instance,
+        )
+
+    def _class_group_for(self, *, window: Wnck.Window) -> str | None:
+        try:
+            return window.get_class_group_name() or None
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="class_group").warning(
+                f"Skipping window: failed to read class group: {exc}"
+            )
+            return None
+
+    def _class_instance_for(self, *, window: Wnck.Window) -> str | None:
+        try:
+            return window.get_class_instance_name() or None
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="class_instance").warning(
+                f"Failed to read class instance name: {exc}"
+            )
+            return None
+
+    def _match_class_instance(
+        self, *, class_lower: str, class_instance: str
+    ) -> str | None:
+        desktop_id = self._wm_class_to_desktop.get(class_instance.lower())
+        if desktop_id:
+            self._wm_class_to_desktop[class_lower] = desktop_id
+        return desktop_id
+
+    def _resolve_desktop_candidates(
+        self, *, class_lower: str, class_group: str
+    ) -> str | None:
+        # Try the candidate desktop IDs in a stable order. Failed candidates are
+        # remembered because many Wnck signals arrive in bursts, and repeatedly
+        # asking Gio for the same missing desktop file is avoidable noise.
+        candidate_ids = [
+            f"{candidate}{DESKTOP_SUFFIX}"
+            for candidate in self._desktop_candidates(
+                class_lower=class_lower, class_group=class_group
+            )
+        ]
+        for desktop_id, next_candidate in pairwise(chain(candidate_ids, [None])):
+            if desktop_id in self._missed_desktop_candidates:
+                continue
+            info = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
+            if info:
+                self._wm_class_to_desktop[class_lower] = info.desktop_id
+                return info.desktop_id
+            self._missed_desktop_candidates.add(desktop_id)
+            self._log_candidate_miss(
+                desktop_id=desktop_id,
+                class_group=class_group,
+                class_lower=class_lower,
+                next_candidate=next_candidate,
+            )
+        return None
+
+    @staticmethod
+    def _desktop_candidates(*, class_lower: str, class_group: str) -> list[str]:
+        """Generate desktop ID candidates from a WM_CLASS.
+
+        A running app can report spaces in WM_CLASS while the desktop file uses
+        hyphens or no separators. GNOME apps also commonly use an
+        org.gnome.Name.desktop file while the runtime class group is just Name.
+        Keep the candidates broad but deterministic, then dedupe while
+        preserving order so the first successful match stays stable.
+        """
+        candidates = [class_lower]
+        if " " in class_lower:
+            candidates.append(class_lower.replace(" ", "-"))
+            candidates.append(class_lower.replace(" ", ""))
+        candidates.append(f"{GNOME_APP_PREFIX}{class_group}")
+        return list(dict.fromkeys(candidates))
+
+    def _resolve_runtime_names(
+        self, *, class_lower: str, class_instance: str | None
+    ) -> str | None:
+        runtime_names = [
+            class_lower,
+            class_instance.lower() if class_instance else "",
+        ]
+        for runtime_name in dict.fromkeys(name for name in runtime_names if name):
+            info = self._launcher.resolve_by_wm_class(runtime_name)
+            if info:
+                self._wm_class_to_desktop[class_lower] = info.desktop_id
+                if class_instance:
+                    self._wm_class_to_desktop[class_instance.lower()] = info.desktop_id
+                return info.desktop_id
+        return None
+
+    @staticmethod
+    def _log_candidate_miss(
+        *,
+        desktop_id: str,
+        class_group: str,
+        class_lower: str,
+        next_candidate: str | None,
+    ) -> None:
+        if next_candidate:
+            log.bind(action="match_window", desktop_id=desktop_id).debug(
+                "Desktop candidate miss for class_group=%s (class_lower=%s); "
+                "next candidate: %s",
+                class_group,
+                class_lower,
+                next_candidate,
+            )
+        else:
+            log.bind(action="match_window", desktop_id=desktop_id).debug(
+                "Desktop candidate miss for class_group=%s (class_lower=%s); "
+                "no more candidates",
+                class_group,
+                class_lower,
+            )
 
 
 class WindowTracker:
@@ -198,8 +349,7 @@ class WindowTracker:
         self._config = config
         self._launcher = launcher
         self._screen: Wnck.Screen | None = None
-        self._wm_class_to_desktop: dict[str, str] = {}
-        self._missed_desktop_candidates: set[str] = set()
+        self._matcher = WindowMatcher(launcher=launcher)
         # Latest known window XIDs per desktop_id from _update_running().
         # Preview/toggle paths use this cache to avoid rematching WM_CLASS
         # during hover-time UI events.
@@ -207,16 +357,9 @@ class WindowTracker:
         self._cycle_index: dict[str, int] = {}
         self._cycle_order_by_desktop: dict[str, list[int]] = {}
 
-        self._build_wm_class_map()
+        self._matcher.sync_visible_items(self._model.visible_items())
         # Defer screen init to after GTK is ready
         GLib.idle_add(self._init_screen)
-
-    def _build_wm_class_map(self) -> None:
-        """Build reverse map from WM_CLASS -> desktop_id for pinned items."""
-        self._wm_class_to_desktop.clear()
-        for item in self._model.visible_items():
-            if item.wm_class:
-                self._wm_class_to_desktop[item.wm_class.lower()] = item.desktop_id
 
     def _init_screen(self) -> bool:
         """Initialize Wnck screen and connect signals."""
@@ -242,26 +385,57 @@ class WindowTracker:
         # Keep WM_CLASS mapping in sync with current visible items. The set of
         # pinned/transient items can change at runtime (pin/unpin/reorder),
         # and a stale map causes running indicators to miss windows.
-        self._build_wm_class_map()
+        self._matcher.sync_visible_items(self._model.visible_items())
 
         if self._screen is None:
             return
 
+        active_xid = self._active_xid()
+        snapshots_by_desktop: dict[str, list[RunningWindowInfo]] = {}
+        for window in self._iter_tasklist_windows():
+            desktop_id = self._matcher.match(window=window)
+            if desktop_id is None:
+                continue
+            # Preserve the old scan semantics: once a window matched a desktop
+            # ID, the app existed in the aggregate even if a later XID read
+            # failed. That can produce count=0 for a racey window, but it avoids
+            # changing visible state just because X11 invalidated one property
+            # mid-scan.
+            snapshots_by_desktop.setdefault(desktop_id, [])
+            snapshot = self._window_snapshot(
+                window=window,
+                desktop_id=desktop_id,
+                active_xid=active_xid,
+            )
+            if snapshot is not None:
+                snapshots_by_desktop[desktop_id].append(snapshot)
+
+        running = self._aggregate_running(windows_by_desktop=snapshots_by_desktop)
+        self._running_xids_by_desktop = {
+            desktop_id: list(info.xids) for desktop_id, info in running.items()
+        }
+        self._cleanup_cycle_state(active_desktop_ids=set(running))
+        self._model.update_running(running=running)
+
+    def _active_xid(self) -> int:
+        """Return the active window XID for the current scan."""
+        if self._screen is None:
+            return 0
         active_window = self._screen.get_active_window()
-        active_xid = 0
-        if active_window:
-            try:
-                active_xid = active_window.get_xid()
-            except _RECOVERABLE_ERRORS as exc:
-                log.bind(action="active_xid").warning(
-                    f"Failed to read active window xid: {exc}"
-                )
-                active_xid = 0
+        if active_window is None:
+            return 0
+        try:
+            return int(active_window.get_xid())
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="active_xid").warning(
+                f"Failed to read active window xid: {exc}"
+            )
+            return 0
 
-        # {desktop_id: {"count": n, "active": bool, "urgent": bool,
-        #               "windows": [...], "xids": [...]}}
-        running: dict[str, dict[str, Any]] = {}
-
+    def _iter_tasklist_windows(self) -> Iterable[Wnck.Window]:
+        """Yield windows that should count as application tasklist windows."""
+        if self._screen is None:
+            return
         for window in self._screen.get_windows():
             try:
                 window_type = window.get_window_type()
@@ -270,6 +444,9 @@ class WindowTracker:
                     f"Skipping window: failed to read window type: {exc}"
                 )
                 continue
+            # Desktop and dock windows are not application instances. This also
+            # protects later matching code from desktop-shell windows that can
+            # be unsafe to query for WM_CLASS on some environments.
             if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
                 continue
             try:
@@ -280,128 +457,55 @@ class WindowTracker:
                     f"Skipping window: failed to read skip-tasklist state: {exc}"
                 )
                 continue
+            yield window
 
-            desktop_id = self._match_window(window=window)
-            if desktop_id is None:
-                continue
+    def _window_snapshot(
+        self, *, window: Wnck.Window, desktop_id: str, active_xid: int
+    ) -> RunningWindowInfo | None:
+        """Convert one live Wnck window into typed running state."""
+        # Wnck windows are live wrappers around X11 state. The window can vanish
+        # after filtering and matching but before this XID read, so a failed
+        # property read skips only this window snapshot, not the whole scan.
+        try:
+            xid = int(window.get_xid())
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="window_xid").warning(
+                f"Skipping window: failed to read xid: {exc}"
+            )
+            return None
+        # Urgency is optional UI state. If it races, keep the matched running
+        # window and only drop the urgent flag for this scan.
+        urgent = False
+        try:
+            urgent = bool(window.needs_attention())
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="needs_attention", desktop_id=desktop_id).warning(
+                f"Failed to read urgent state: {exc}"
+            )
+        return RunningWindowInfo(
+            desktop_id=desktop_id,
+            xid=xid,
+            active=xid == active_xid,
+            urgent=urgent,
+            window=window,
+        )
 
-            if desktop_id not in running:
-                running[desktop_id] = {
-                    "count": 0,
-                    "active": False,
-                    "urgent": False,
-                    "windows": [],
-                    "xids": [],
-                }
-
-            try:
-                xid = window.get_xid()
-            except _RECOVERABLE_ERRORS as exc:
-                log.bind(action="window_xid").warning(
-                    f"Skipping window: failed to read xid: {exc}"
-                )
-                continue
-            running[desktop_id]["count"] += 1
-            running[desktop_id]["windows"].append(window)
-            running[desktop_id]["xids"].append(xid)
-            if xid == active_xid:
-                running[desktop_id]["active"] = True
-            try:
-                if window.needs_attention():
-                    running[desktop_id]["urgent"] = True
-            except _RECOVERABLE_ERRORS as exc:
-                log.bind(action="needs_attention", desktop_id=desktop_id).warning(
-                    f"Failed to read urgent state: {exc}"
-                )
-
-        self._running_xids_by_desktop = {
-            desktop_id: list(info.get("xids", []))
-            for desktop_id, info in running.items()
+    @staticmethod
+    def _aggregate_running(
+        *, windows_by_desktop: dict[str, list[RunningWindowInfo]]
+    ) -> dict[str, RunningAppInfo]:
+        """Group matched windows into the model's per-app running state."""
+        return {
+            desktop_id: RunningAppInfo.from_windows(items)
+            for desktop_id, items in windows_by_desktop.items()
         }
+
+    def _cleanup_cycle_state(self, *, active_desktop_ids: set[str]) -> None:
+        """Drop stale per-app cycle state after a full scan."""
         for desktop_id in list(self._cycle_order_by_desktop):
-            if desktop_id not in self._running_xids_by_desktop:
+            if desktop_id not in active_desktop_ids:
                 self._cycle_order_by_desktop.pop(desktop_id, None)
                 self._cycle_index.pop(desktop_id, None)
-        self._model.update_running(running=running)
-
-    def _match_window(self, window: Wnck.Window) -> str | None:
-        """Match a window to a desktop_id via WM_CLASS."""
-        try:
-            class_group = window.get_class_group_name()
-        except _RECOVERABLE_ERRORS as exc:
-            log.bind(action="class_group").warning(
-                f"Skipping window: failed to read class group: {exc}"
-            )
-            return None
-        if not class_group:
-            return None
-
-        class_lower = class_group.lower()
-
-        # Direct match
-        if class_lower in self._wm_class_to_desktop:
-            return self._wm_class_to_desktop[class_lower]
-
-        # Try matching class instance name
-        class_instance = None
-        try:
-            class_instance = window.get_class_instance_name()
-        except _RECOVERABLE_ERRORS as exc:
-            log.bind(action="class_instance").warning(
-                f"Failed to read class instance name: {exc}"
-            )
-        if class_instance:
-            inst_lower = class_instance.lower()
-            if inst_lower in self._wm_class_to_desktop:
-                desktop_id = self._wm_class_to_desktop[inst_lower]
-                # Cache under class_lower too so future lookups hit directly.
-                self._wm_class_to_desktop[class_lower] = desktop_id
-                return desktop_id
-
-        # Try to resolve via Gio: exact, hyphenated, no-spaces, GNOME-prefixed
-        candidate_ids = [
-            f"{candidate}{DESKTOP_SUFFIX}"
-            for candidate in _wm_class_desktop_candidates(
-                class_lower=class_lower, class_group=class_group
-            )
-        ]
-        for desktop_id, next_candidate in pairwise(chain(candidate_ids, [None])):
-            if desktop_id in self._missed_desktop_candidates:
-                continue
-            info = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
-            if info:
-                self._wm_class_to_desktop[class_lower] = info.desktop_id
-                return info.desktop_id
-            self._missed_desktop_candidates.add(desktop_id)
-            if next_candidate:
-                log.bind(action="match_window", desktop_id=desktop_id).debug(
-                    "Desktop candidate miss for class_group=%s (class_lower=%s); "
-                    "next candidate: %s",
-                    class_group,
-                    class_lower,
-                    next_candidate,
-                )
-            else:
-                log.bind(action="match_window", desktop_id=desktop_id).debug(
-                    "Desktop candidate miss for class_group=%s (class_lower=%s); "
-                    "no more candidates",
-                    class_group,
-                    class_lower,
-                )
-
-        runtime_names = [
-            class_lower,
-            class_instance.lower() if class_instance else "",
-        ]
-        for runtime_name in dict.fromkeys(name for name in runtime_names if name):
-            info = self._launcher.resolve_by_wm_class(runtime_name)
-            if info:
-                self._wm_class_to_desktop[class_lower] = info.desktop_id
-                if class_instance:
-                    self._wm_class_to_desktop[class_instance.lower()] = info.desktop_id
-                return info.desktop_id
-
-        return None
 
     def get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
         """Get all windows belonging to a desktop_id."""
@@ -648,30 +752,14 @@ class WindowTracker:
         if self._screen is None:
             return []
 
-        # Build current XID -> window map from live screen windows.
         by_xid: dict[int, Wnck.Window] = {}
-        for window in self._screen.get_windows():
+        for window in self._iter_tasklist_windows():
+            # Keep this path stricter than _xid_for(): the old implementation
+            # mapped whatever XID Wnck returned and only skipped exceptions.
+            # That preserves exact lookup behavior for cached XIDs, including
+            # unusual but technically possible XID values.
             try:
-                window_type = window.get_window_type()
-            except _RECOVERABLE_ERRORS as exc:
-                log.bind(action="get_windows_type").warning(
-                    f"Skipping window while collecting by xid: {exc}"
-                )
-                continue
-            # Skip DESKTOP/DOCK types -- Caja's desktop window can segfault on
-            # WM_CLASS queries, and docks should never appear as app windows.
-            if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
-                continue
-            try:
-                if window.is_skip_tasklist():
-                    continue
-            except _RECOVERABLE_ERRORS as exc:
-                log.bind(action="get_windows_skip_tasklist").warning(
-                    f"Skipping window while collecting by xid: {exc}"
-                )
-                continue
-            try:
-                by_xid[window.get_xid()] = window
+                by_xid[int(window.get_xid())] = window
             except _RECOVERABLE_ERRORS as exc:
                 log.bind(action="get_windows_xid").warning(
                     f"Skipping window while collecting xid map: {exc}"

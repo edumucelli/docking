@@ -334,6 +334,35 @@ class TestResolve:
         assert info.icon_name == "application-x-executable"
         assert info.name == "code.desktop"
 
+    def test_resolve_only_falls_back_when_gio_returns_none(self, tmp_path):
+        apps_dir = tmp_path / "applications"
+        apps_dir.mkdir()
+        (apps_dir / "firefox.desktop").write_text("[Desktop Entry]\nName=Fallback\n")
+        launcher = Launcher()
+        launcher._desktop_dirs = [apps_dir]
+
+        app = MagicMock()
+        app.__bool__.return_value = False
+        app.get_startup_wm_class.return_value = "Firefox"
+        app.get_commandline.return_value = "/usr/bin/firefox %U"
+        app.get_icon.return_value = None
+        app.get_display_name.return_value = "Firefox"
+
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=app,
+            ),
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new_from_filename"
+            ) as from_filename,
+        ):
+            info = launcher.resolve("firefox.desktop")
+
+        assert info is not None
+        assert info.name == "Firefox"
+        from_filename.assert_not_called()
+
     def test_resolve_returns_none_when_lookups_fail(self, monkeypatch):
         # Given
         from docking.platform import launcher as launcher_mod
