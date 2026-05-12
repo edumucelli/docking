@@ -127,12 +127,12 @@ def tracker_env(monkeypatch):
 
 
 class TestWindowTrackerInit:
-    def test_builds_wm_class_map_on_init(self, tracker_env):
+    def test_syncs_window_matcher_on_init(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env
         # When
         # Then
-        assert tracker._wm_class_to_desktop == {
+        assert tracker._matcher._wm_class_to_desktop == {
             "firefox": "firefox.desktop",
             "code": "code.desktop",
         }
@@ -194,7 +194,7 @@ class TestWindowTrackerRunningAggregation:
         )
 
         mapping = {w1: "firefox.desktop", w2: "firefox.desktop", w3: "code.desktop"}
-        tracker._match_window = MagicMock(
+        tracker._matcher.match = MagicMock(
             side_effect=lambda window: mapping.get(window)
         )
         # When
@@ -203,11 +203,11 @@ class TestWindowTrackerRunningAggregation:
         # Then
         model.update_running.assert_called_once()
         running = model.update_running.call_args.kwargs["running"]
-        assert running["firefox.desktop"]["count"] == 2
-        assert running["firefox.desktop"]["active"] is True
-        assert running["firefox.desktop"]["urgent"] is True
-        assert running["firefox.desktop"]["xids"] == [1, 2]
-        assert running["code.desktop"]["count"] == 1
+        assert running["firefox.desktop"].count == 2
+        assert running["firefox.desktop"].active is True
+        assert running["firefox.desktop"].urgent is True
+        assert running["firefox.desktop"].xids == (1, 2)
+        assert running["code.desktop"].count == 1
         assert tracker._running_xids_by_desktop == {
             "firefox.desktop": [1, 2],
             "code.desktop": [3],
@@ -255,7 +255,7 @@ class TestWindowTrackerRunningAggregation:
 
         good = FakeWindow(10, class_group="Firefox")
         tracker._screen = FakeScreen(windows=[BrokenWindow(), good], active_window=good)
-        tracker._match_window = MagicMock(
+        tracker._matcher.match = MagicMock(
             side_effect=lambda window: "firefox.desktop" if window is good else None
         )
         # When
@@ -263,7 +263,26 @@ class TestWindowTrackerRunningAggregation:
         # Then
         model.update_running.assert_called_once()
         running = model.update_running.call_args.kwargs["running"]
-        assert running["firefox.desktop"]["xids"] == [10]
+        assert running["firefox.desktop"].xids == (10,)
+
+    def test_update_running_preserves_matched_app_when_xid_read_fails(
+        self, tracker_env
+    ):
+        tracker, model, _launcher = tracker_env
+
+        class BrokenXidWindow(FakeWindow):
+            def get_xid(self) -> int:  # type: ignore[override]
+                raise TypeError("stale xid")
+
+        broken = BrokenXidWindow(10, class_group="Firefox")
+        tracker._screen = FakeScreen(windows=[broken], active_window=None)
+        tracker._matcher.match = MagicMock(return_value="firefox.desktop")
+
+        tracker._update_running()
+
+        running = model.update_running.call_args.kwargs["running"]
+        assert running["firefox.desktop"].count == 0
+        assert running["firefox.desktop"].xids == ()
 
 
 class TestWindowMatching:
@@ -273,16 +292,16 @@ class TestWindowMatching:
         win = FakeWindow(10, class_group="Firefox")
         # When
         # Then
-        assert tracker._match_window(win) == "firefox.desktop"
+        assert tracker._matcher.match(win) == "firefox.desktop"
 
     def test_match_uses_class_instance_map(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env
-        tracker._wm_class_to_desktop = {"firefox-bin": "firefox.desktop"}
+        tracker._matcher._wm_class_to_desktop = {"firefox-bin": "firefox.desktop"}
         win = FakeWindow(11, class_group="Unknown", class_instance="Firefox-Bin")
         # When
         # Then
-        assert tracker._match_window(win) == "firefox.desktop"
+        assert tracker._matcher.match(win) == "firefox.desktop"
 
     def test_match_uses_launcher_candidates_and_caches_result(self, tracker_env):
         # Given
@@ -295,9 +314,10 @@ class TestWindowMatching:
 
         # When
         # Then
-        assert tracker._match_window(win) == "mongodb-compass.desktop"
+        assert tracker._matcher.match(win) == "mongodb-compass.desktop"
         assert (
-            tracker._wm_class_to_desktop["mongodb compass"] == "mongodb-compass.desktop"
+            tracker._matcher._wm_class_to_desktop["mongodb compass"]
+            == "mongodb-compass.desktop"
         )
 
     def test_match_uses_gnome_prefix_fallback(self, tracker_env):
@@ -311,7 +331,7 @@ class TestWindowMatching:
 
         # When
         # Then
-        assert tracker._match_window(win) == "org.gnome.Terminal.desktop"
+        assert tracker._matcher.match(win) == "org.gnome.Terminal.desktop"
 
     def test_match_returns_none_for_empty_class_group(self, tracker_env):
         # Given
@@ -319,7 +339,7 @@ class TestWindowMatching:
         win = FakeWindow(14, class_group="")
         # When
         # Then
-        assert tracker._match_window(win) is None
+        assert tracker._matcher.match(win) is None
 
     def test_match_returns_none_when_class_group_lookup_raises(self, tracker_env):
         # Given
@@ -332,7 +352,7 @@ class TestWindowMatching:
         win = BrokenClassWindow(15, class_group="Firefox")
         # When
         # Then
-        assert tracker._match_window(win) is None
+        assert tracker._matcher.match(win) is None
 
     def test_match_uses_reverse_wm_class_lookup_for_unpinned_apps(self, tracker_env):
         tracker, _model, launcher = tracker_env
@@ -346,9 +366,9 @@ class TestWindowMatching:
         )
         win = FakeWindow(16, class_group="gnome-calculator")
 
-        assert tracker._match_window(win) == "org.gnome.Calculator.desktop"
+        assert tracker._matcher.match(win) == "org.gnome.Calculator.desktop"
         assert (
-            tracker._wm_class_to_desktop["gnome-calculator"]
+            tracker._matcher._wm_class_to_desktop["gnome-calculator"]
             == "org.gnome.Calculator.desktop"
         )
 

@@ -16,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 
 import docking.platform.window_tracker as tracker_mod
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
-from docking.platform.window_tracker import _wm_class_desktop_candidates
+from docking.platform.window_tracker import WindowMatcher
 
 if _CREATED_GI_FALLBACK:
     sys.modules.pop("gi", None)
@@ -27,13 +27,13 @@ class TestWmClassCandidates:
     """Desktop ID candidates from WM_CLASS with spaces."""
 
     def test_no_spaces(self):
-        assert _wm_class_desktop_candidates(
+        assert WindowMatcher._desktop_candidates(
             class_lower="firefox",
             class_group="Firefox",
         ) == ["firefox", f"{GNOME_APP_PREFIX}Firefox"]
 
     def test_spaces_to_hyphens_and_joined(self):
-        result = _wm_class_desktop_candidates(
+        result = WindowMatcher._desktop_candidates(
             class_lower="mongodb compass",
             class_group="MongoDB Compass",
         )
@@ -43,7 +43,7 @@ class TestWmClassCandidates:
         assert f"{GNOME_APP_PREFIX}MongoDB Compass" in result
 
     def test_multi_word(self):
-        result = _wm_class_desktop_candidates(
+        result = WindowMatcher._desktop_candidates(
             class_lower="aws vpn client",
             class_group="AWS VPN Client",
         )
@@ -51,7 +51,7 @@ class TestWmClassCandidates:
         assert "awsvpnclient" in result
 
     def test_no_duplicates(self):
-        result = _wm_class_desktop_candidates(
+        result = WindowMatcher._desktop_candidates(
             class_lower="simple",
             class_group="simple",
         )

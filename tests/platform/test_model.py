@@ -14,6 +14,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
+from docking.platform.running import RunningAppInfo
 
 
 def _make_launcher(*desktop_ids: str):
@@ -46,6 +47,12 @@ def _make_config(pinned: list[str]):
     config.anchor_files = False
     config.item_prefs = {}
     return config
+
+
+def _running(
+    *, count: int = 1, active: bool = False, urgent: bool = False
+) -> RunningAppInfo:
+    return RunningAppInfo(count=count, active=active, urgent=urgent)
 
 
 class TestDockModelInit:
@@ -88,7 +95,7 @@ class TestUpdateRunning:
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
         # When
-        model.update_running({"a.desktop": {"count": 2, "active": True}})
+        model.update_running({"a.desktop": _running(count=2, active=True)})
         # Then
         item = model.visible_items()[0]
         assert item.is_running
@@ -103,8 +110,8 @@ class TestUpdateRunning:
         # When
         model.update_running(
             {
-                "a.desktop": {"count": 1, "active": False},
-                "b.desktop": {"count": 1, "active": True},
+                "a.desktop": _running(),
+                "b.desktop": _running(active=True),
             }
         )
         # Then
@@ -119,7 +126,7 @@ class TestUpdateRunning:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"b.desktop": {"count": 1, "active": False}})
+        model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         # When
         model.update_running({})
@@ -133,7 +140,7 @@ class TestUpdateRunning:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"a.desktop": {"count": 1, "active": True}})
+        model.update_running({"a.desktop": _running(active=True)})
         assert model.visible_items()[0].is_running
         # When
         model.update_running({})
@@ -147,7 +154,7 @@ class TestPinUnpin:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"b.desktop": {"count": 1, "active": False}})
+        model.update_running({"b.desktop": _running()})
         # When
         model.pin_item("b.desktop")
         # Then
@@ -162,7 +169,7 @@ class TestPinUnpin:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"a.desktop": {"count": 1, "active": False}})
+        model.update_running({"a.desktop": _running()})
         # When
         model.unpin_item("a.desktop")
         # Then
@@ -230,7 +237,7 @@ class TestReorderVisible:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"b.desktop": {"count": 1, "active": False}})
+        model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         assert not model.visible_items()[1].is_pinned
         # When
@@ -249,8 +256,8 @@ class TestReorderVisible:
         model = DockModel(config, launcher)
         model.update_running(
             {
-                "a.desktop": {"count": 1, "active": False},
-                "b.desktop": {"count": 1, "active": False},
+                "a.desktop": _running(),
+                "b.desktop": _running(),
             }
         )
         assert len(model.visible_items()) == 2
@@ -317,7 +324,7 @@ class TestCallbacks:
         callback = MagicMock()
         model.add_change_listener(callback)
         # When
-        model.update_running({"a.desktop": {"count": 1, "active": False}})
+        model.update_running({"a.desktop": _running()})
         # Then
         callback.assert_called_once()
 
@@ -610,9 +617,7 @@ class TestLauncherEntryState:
             ),
         )
 
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": False}}
-        )
+        model.update_running({"a.desktop": _running(urgent=False)})
 
         item = model.visible_items()[0]
         assert item.window_urgent is False
@@ -793,9 +798,7 @@ class TestDockItemAnimationFields:
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         # Then
         item = model.visible_items()[0]
         assert item.is_urgent is True
@@ -807,14 +810,10 @@ class TestDockItemAnimationFields:
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         first_ts = model.visible_items()[0].last_urgent
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         second_ts = model.visible_items()[0].last_urgent
         # Then
         assert second_ts is first_ts
@@ -824,13 +823,9 @@ class TestDockItemAnimationFields:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": False}}
-        )
+        model.update_running({"a.desktop": _running(urgent=False)})
         # Then
         assert model.visible_items()[0].is_urgent is False
 
