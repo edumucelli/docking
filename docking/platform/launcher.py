@@ -142,6 +142,7 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.core.config import MiddleClickAction
 from docking.log import get_logger, with_context
+from docking.platform.environment import is_flatpak
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
@@ -161,10 +162,6 @@ HOST_FILESYSTEM_ROOT = Path("/run/host")
 ICON_FILE_EXTENSIONS = (".png", ".svg", ".xpm")
 
 log = with_context(get_logger(name="launcher"))
-
-
-def _is_flatpak_runtime() -> bool:
-    return Path("/.flatpak-info").exists()
 
 
 class DesktopInfo(NamedTuple):
@@ -339,7 +336,7 @@ def _get_desktop_dirs() -> list[Path]:
     user_apps = local / "applications"
     if user_apps.is_dir():
         dirs.insert(0, user_apps)
-    if _is_flatpak_runtime():
+    if is_flatpak():
         host_user_apps = Path.home() / ".local" / "share" / "applications"
         if host_user_apps.is_dir() and host_user_apps not in dirs:
             dirs.insert(0, host_user_apps)
@@ -355,7 +352,7 @@ def _is_host_desktop_file(path: Path | None) -> bool:
     except ValueError:
         pass
 
-    if not _is_flatpak_runtime():
+    if not is_flatpak():
         return False
     try:
         path.relative_to(Path.home() / ".local" / "share" / "applications")
@@ -1029,7 +1026,7 @@ def open_target(target: str) -> bool:
         uri = normalize_file_target(target)
     if uri is None:
         return False
-    if _is_flatpak_runtime() and urlparse(uri).scheme == "file":
+    if is_flatpak() and urlparse(uri).scheme == "file":
         flatpak_spawn = shutil.which("flatpak-spawn")
         if flatpak_spawn is not None:
             try:

@@ -88,7 +88,7 @@ class TestGetDesktopDirs:
         home = tmp_path / "home"
         host_user_apps = home / ".local" / "share" / "applications"
         host_user_apps.mkdir(parents=True)
-        monkeypatch.setattr(launcher_mod, "_is_flatpak_runtime", lambda: True)
+        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
 
         with patch.dict(
             os.environ,
@@ -937,7 +937,7 @@ class TestOpenTarget:
     ):
         target = tmp_path / "example.txt"
         target.write_text("hello")
-        monkeypatch.setattr(launcher_mod, "_is_flatpak_runtime", lambda: True)
+        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
             launcher_mod.shutil,
             "which",
@@ -1052,7 +1052,7 @@ class TestLaunch:
 
         mock_app = MagicMock()
         mock_app.get_commandline.return_value = "user-app %U"
-        monkeypatch.setattr(launcher_mod, "_is_flatpak_runtime", lambda: True)
+        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
             launcher_mod.Gio.DesktopAppInfo,
             "new",
