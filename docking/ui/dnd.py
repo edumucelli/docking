@@ -691,11 +691,19 @@ class DnDHandler:
         """Build a pinned DockItem from an external URI drop."""
         desktop_id = self._uri_to_desktop_id(uri)
         icon_size = self._config.scaled_icon_size
+        log.debug("_item_from_uri: uri=%s desktop_id=%s", uri, desktop_id)
         if desktop_id:
             resolved = self._launcher.resolve(desktop_id)
             if resolved is None:
+                log.debug("_item_from_uri: resolve returned None for %s", desktop_id)
                 return None
-            icon = self._launcher.load_icon(resolved.icon_name, icon_size)
+            icon = self._launcher.load_desktop_icon(resolved, icon_size)
+            log.debug(
+                "_item_from_uri: desktop_id=%s icon_name=%s icon_loaded=%s",
+                desktop_id,
+                resolved.icon_name,
+                icon is not None,
+            )
             return DockItem(
                 desktop_id=desktop_id,
                 kind=APP_KIND,
