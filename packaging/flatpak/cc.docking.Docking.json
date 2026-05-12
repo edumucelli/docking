@@ -114,7 +114,7 @@
         "bash tools/i18n.sh --compile",
         "python3 -m pip install --prefix=/app --no-build-isolation --no-deps .",
         "mv /app/bin/docking /app/bin/docking-real",
-        "install -Dm755 /dev/stdin /app/bin/docking <<'EOF'\n#!/bin/sh\nset -eu\nif [ \"${XDG_SESSION_TYPE:-}\" = \"wayland\" ] || [ -n \"${WAYLAND_DISPLAY:-}\" ]; then\n  export GDK_BACKEND=x11\nfi\nexec /app/bin/docking-real \"$@\"\nEOF",
+        "install -Dm755 /dev/stdin /app/bin/docking <<'EOF'\n#!/bin/sh\nset -eu\nif [ \"${XDG_SESSION_TYPE:-}\" = \"wayland\" ] || [ -n \"${WAYLAND_DISPLAY:-}\" ]; then\n  export GDK_BACKEND=x11\nfi\nif [ -z \"${XDG_STATE_HOME:-}\" ] && [ -n \"${XDG_DATA_HOME:-}\" ]; then\n  export XDG_STATE_HOME=\"${XDG_DATA_HOME}/state\"\nfi\nexec /app/bin/docking-real \"$@\"\nEOF",
         "install -Dm644 packaging/flatpak/cc.docking.Docking.desktop /app/share/applications/cc.docking.Docking.desktop",
         "install -Dm644 packaging/flatpak/cc.docking.Docking.metainfo.xml /app/share/metainfo/cc.docking.Docking.metainfo.xml",
         "install -Dm644 packaging/flatpak/hicolor.index.theme /app/share/icons/hicolor/index.theme",
