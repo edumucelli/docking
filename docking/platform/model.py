@@ -260,7 +260,7 @@ class DockModel:
             info = self._launcher.resolve(desktop_id=entry.target)
             if info is None:
                 return None
-            icon = self._launcher.load_icon(icon_name=info.icon_name, size=icon_size)
+            icon = self._launcher.load_desktop_icon(info=info, size=icon_size)
             return DockItem(
                 desktop_id=entry.id,
                 kind=APP_KIND,
@@ -295,7 +295,11 @@ class DockModel:
         )
         icon_size = self._config.scaled_icon_size
         icon_name = resolved.icon_name if resolved else "application-x-executable"
-        icon = self._launcher.load_icon(icon_name=icon_name, size=icon_size)
+        icon = (
+            self._launcher.load_desktop_icon(info=resolved, size=icon_size)
+            if resolved
+            else self._launcher.load_icon(icon_name=icon_name, size=icon_size)
+        )
         item = DockItem(
             desktop_id=desktop_id,
             kind=APP_KIND,
