@@ -91,7 +91,11 @@ class TestStateParsing:
                 self.returncode = code
                 self.stdout = out
 
-        monkeypatch.setattr(notifications_state_mod, "is_flatpak", lambda: False)
+        monkeypatch.setattr(
+            notifications_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: None,
+        )
         monkeypatch.setattr(
             notifications_state_mod.subprocess,
             "run",
@@ -112,13 +116,6 @@ class TestStateParsing:
         monkeypatch.setattr(notifications_state_mod.subprocess, "run", fail_run)
         assert notifications_state_mod._run(["echo"]) is None
 
-        monkeypatch.setattr(notifications_state_mod.shutil, "which", lambda cmd: None)
-        assert notifications_state_mod._has_command("x") is False
-        monkeypatch.setattr(
-            notifications_state_mod.shutil, "which", lambda cmd: "/usr/bin/x"
-        )
-        assert notifications_state_mod._has_command("x") is True
-
     def test_run_prefers_host_command_in_flatpak(self, monkeypatch):
         class _Proc:
             returncode = 0
@@ -130,11 +127,10 @@ class TestStateParsing:
             calls.append(cmd)
             return _Proc()
 
-        monkeypatch.setattr(notifications_state_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            notifications_state_mod.shutil,
-            "which",
-            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+            notifications_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(notifications_state_mod.subprocess, "run", fake_run)
 
@@ -146,31 +142,21 @@ class TestStateParsing:
             [
                 "/usr/bin/flatpak-spawn",
                 "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
                 "gsettings",
                 "get",
                 "schema",
                 "key",
             ]
         ]
-
-    def test_has_command_checks_host_in_flatpak(self, monkeypatch):
-        class _Proc:
-            returncode = 0
-            stdout = "/usr/bin/dunstctl\n"
-
-        monkeypatch.setattr(notifications_state_mod, "is_flatpak", lambda: True)
-        monkeypatch.setattr(
-            notifications_state_mod.shutil,
-            "which",
-            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
-        )
-        monkeypatch.setattr(
-            notifications_state_mod.subprocess,
-            "run",
-            lambda *args, **kwargs: _Proc(),
-        )
-
-        assert notifications_state_mod._has_command("dunstctl") is True
 
     def test_dunst_backend_get_state(self, monkeypatch):
         def fake_run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
@@ -248,8 +234,8 @@ class TestStateParsing:
 class TestBackendDetection:
     def test_detect_backend_prefers_dunst(self, monkeypatch):
         monkeypatch.setattr(
-            notifications_state_mod,
-            "_has_command",
+            notifications_state_mod.flatpak,
+            "host_command_available",
             lambda cmd: cmd in {"dunstctl", "gsettings"},
         )
         monkeypatch.setattr(
@@ -261,7 +247,11 @@ class TestBackendDetection:
         assert isinstance(backend, DunstBackend)
 
     def test_detect_backend_falls_back_to_gnome(self, monkeypatch):
-        monkeypatch.setattr(notifications_state_mod, "_has_command", lambda cmd: True)
+        monkeypatch.setattr(
+            notifications_state_mod.flatpak,
+            "host_command_available",
+            lambda cmd: True,
+        )
         monkeypatch.setattr(
             notifications_state_mod.DunstBackend,
             "get_state",
@@ -276,7 +266,11 @@ class TestBackendDetection:
         assert isinstance(backend, GnomeBackend)
 
     def test_detect_backend_returns_null_when_none_available(self, monkeypatch):
-        monkeypatch.setattr(notifications_state_mod, "_has_command", lambda cmd: False)
+        monkeypatch.setattr(
+            notifications_state_mod.flatpak,
+            "host_command_available",
+            lambda cmd: False,
+        )
         backend = detect_backend()
         assert isinstance(backend, NullBackend)
 
@@ -652,15 +646,15 @@ class TestNotificationsApplet:
         applet, _backend = _make_applet(monkeypatch, _state())
         monkeypatch.setattr(notifications_applet_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            notifications_applet_mod.shutil,
-            "which",
-            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+            notifications_applet_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
 
         command = applet._activity_monitor_command()
 
         assert command is not None
-        assert command[:3] == ["/usr/bin/flatpak-spawn", "--host", "sh"]
+        assert command[:3] == ["/usr/bin/flatpak-spawn", "--host", "env"]
         assert "dbus-monitor --session" in command[-1]
         assert notifications_applet_mod.HOST_MONITOR_PID_PREFIX in command[-1]
 
@@ -682,9 +676,9 @@ class TestNotificationsApplet:
         proc = _Proc()
         applet._activity_monitor_proc = proc  # type: ignore[assignment]
         monkeypatch.setattr(
-            notifications_applet_mod.shutil,
-            "which",
-            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+            notifications_applet_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(
             notifications_applet_mod.subprocess,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
@@ -21,6 +22,7 @@ PROJECT_LICENSE_FALLBACK = "GNU GPL v3.0 or later (GPL-3.0-or-later)"
 PROJECT_LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
 PROJECT_WEBSITE_URL = "https://docking.cc"
 PROJECT_GITHUB_URL = "https://github.com/edumucelli/docking"
+DEFAULT_LOGO_ICON_NAME = "org.docking.Docking"
 
 log = get_logger("about")
 
@@ -51,7 +53,7 @@ class AboutDialogController:
         )
         dialog.set_website(PROJECT_WEBSITE_URL)
         dialog.set_website_label(_("Website"))
-        dialog.set_logo_icon_name("org.docking.Docking")
+        dialog.set_logo_icon_name(_logo_icon_name())
         dialog.set_authors(["Eduardo Mucelli Rezende Oliveira"])
         dialog.set_license_type(Gtk.License.GPL_3_0)
         dialog.set_license(self._project_license_text())
@@ -95,3 +97,7 @@ class AboutDialogController:
             Gio.AppInfo.launch_default_for_uri(PROJECT_GITHUB_URL, None)
         except GLib.Error as exc:
             log.warning("Failed to open project GitHub URL: %s", exc)
+
+
+def _logo_icon_name() -> str:
+    return os.environ.get("FLATPAK_ID") or DEFAULT_LOGO_ICON_NAME

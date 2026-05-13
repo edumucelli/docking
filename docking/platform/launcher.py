@@ -128,7 +128,6 @@ from __future__ import annotations
 import os
 import re
 import shlex
-import shutil
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
@@ -142,7 +141,7 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.core.config import MiddleClickAction
 from docking.log import get_logger, with_context
-from docking.platform.environment import is_flatpak
+from docking.platform.environment import flatpak, is_flatpak
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
@@ -905,6 +904,22 @@ def launch_action(desktop_id: str, action_id: str) -> None:
             action="launch_action",
         )
         return
+    if _is_host_desktop_file(resolved.desktop_file):
+        # Gio action launching would execute inside the sandbox. For host
+        # desktop files, read the action Exec ourselves and delegate to host.
+        exec_line = (
+            _desktop_file_action_exec(resolved.desktop_file, action_id)
+            if resolved.desktop_file is not None
+            else ""
+        )
+        _launch_exec_line(
+            desktop_id=desktop_id,
+            exec_line=exec_line,
+            desktop_file=resolved.desktop_file,
+            action="launch_action",
+        )
+        return
+
     try:
         resolved.app_info.launch_action(action_id, None)
     except GLib.Error as exc:
@@ -928,6 +943,24 @@ def launch_new_window(desktop_id: str) -> None:
         return
     try:
         if MiddleClickAction.NEW_WINDOW.value in resolved.app_info.list_actions():
+            if _is_host_desktop_file(resolved.desktop_file):
+                # Same rule as launch_action(): host desktop actions must not
+                # be launched through sandbox Gio.
+                exec_line = (
+                    _desktop_file_action_exec(
+                        resolved.desktop_file,
+                        MiddleClickAction.NEW_WINDOW.value,
+                    )
+                    if resolved.desktop_file is not None
+                    else ""
+                )
+                _launch_exec_line(
+                    desktop_id=desktop_id,
+                    exec_line=exec_line,
+                    desktop_file=resolved.desktop_file,
+                    action="launch_new_window",
+                )
+                return
             resolved.app_info.launch_action(MiddleClickAction.NEW_WINDOW.value, None)
             return
     except GLib.Error as exc:
@@ -979,7 +1012,16 @@ def _launch_exec_line(
     if not argv:
         return
     if _is_host_desktop_file(desktop_file):
-        argv = ["flatpak-spawn", "--host", *argv]
+        # Host launchers may reference binaries and environment only available
+        # outside the sandbox, so never execute their Exec line directly.
+        host_argv = flatpak.host_command(argv)
+        if host_argv is None:
+            log.bind(desktop_id=desktop_id, action=action).warning(
+                "Cannot launch host desktop file without flatpak-spawn: %s",
+                desktop_file,
+            )
+            return
+        argv = host_argv
     try:
         subprocess.Popen(
             argv,
@@ -1027,26 +1069,13 @@ def open_target(target: str) -> bool:
     if uri is None:
         return False
     if is_flatpak() and urlparse(uri).scheme == "file":
-        flatpak_spawn = shutil.which("flatpak-spawn")
-        if flatpak_spawn is not None:
+        # Local files may be host-visible but not sandbox-openable; ask the
+        # host desktop's gio to choose the default application.
+        host_cmd = flatpak.host_command(["gio", "open", uri])
+        if host_cmd is not None:
             try:
                 subprocess.Popen(
-                    [
-                        flatpak_spawn,
-                        "--host",
-                        "env",
-                        "-u",
-                        "GIO_USE_VFS",
-                        "-u",
-                        "GI_TYPELIB_PATH",
-                        "-u",
-                        "GSETTINGS_SCHEMA_DIR",
-                        "-u",
-                        "XDG_DATA_DIRS",
-                        "gio",
-                        "open",
-                        uri,
-                    ],
+                    host_cmd,
                     start_new_session=True,
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,

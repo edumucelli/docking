@@ -110,7 +110,7 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.shutil.which",
+                "docking.applets.trash.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch("docking.applets.trash.backend.subprocess.Popen") as popen,
@@ -144,7 +144,7 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.shutil.which",
+                "docking.applets.trash.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch(
@@ -219,7 +219,7 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.shutil.which",
+                "docking.applets.trash.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
@@ -261,7 +261,7 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.shutil.which",
+                "docking.applets.trash.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
@@ -367,6 +367,37 @@ class TestKdeTrashBackend:
             KdeTrashBackend().monitor_file()
 
         new_for_path.assert_called_once_with(str(tmp_path))
+
+    def test_kde_count_uses_visible_host_trash_files_in_flatpak(
+        self, tmp_path, monkeypatch
+    ):
+        files_dir = tmp_path / "Trash" / "files"
+        files_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend._visible_trash_files_directory",
+            lambda: files_dir,
+        )
+
+        assert KdeTrashBackend().count_items() == 1
+
+    def test_kde_open_uses_host_command_in_flatpak(self, monkeypatch):
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend.flatpak.host_command_available",
+            lambda command: command == "dolphin",
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.backend.flatpak.host_command",
+            lambda cmd: ["/usr/bin/flatpak-spawn", "--host", *cmd],
+        )
+        with patch("docking.applets.trash.backend.subprocess.Popen") as popen:
+            KdeTrashBackend().open()
+
+        popen.assert_called_once_with(
+            ("/usr/bin/flatpak-spawn", "--host", "dolphin", "trash:/")
+        )
 
     def test_confirmation_preference_reads_kiorc(self, tmp_path, monkeypatch):
         config_file = tmp_path / "kiorc"

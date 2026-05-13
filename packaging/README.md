@@ -114,18 +114,19 @@ sudo apt install flatpak flatpak-builder
 
 Output bundle:
 
-- `artifacts/org.docking.Docking.flatpak`
+- `artifacts/cc.docking.Docking.flatpak`
 
 Install locally:
 
 ```bash
-flatpak install --user ./artifacts/org.docking.Docking.flatpak
-flatpak run org.docking.Docking
+flatpak install --user ./artifacts/cc.docking.Docking.flatpak
+flatpak run cc.docking.Docking
 ```
 
 ### Notes
 
-- App ID is `org.docking.Docking` (same reverse-DNS used by desktop file and icons).
+- App ID is `cc.docking.Docking`; system packages keep the shared
+  `org.docking.Docking` desktop file and icons.
 - Flatpak build installs hicolor icons and a local `hicolor/index.theme` so
   AppStream icon checks pass in sandboxed builds.
 - The app requires X11 window management behavior, so the Flatpak manifest enables

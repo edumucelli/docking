@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, NamedTuple
 
-from docking.platform.environment import is_flatpak, is_wayland_session
+from docking.platform.environment import flatpak, is_flatpak, is_wayland_session
 
 
 class Tool(NamedTuple):
@@ -79,34 +79,12 @@ def _portal_available() -> bool:
         return False
 
 
-def _flatpak_host_tool_available(*, flatpak_spawn: str, command: str) -> bool:
-    try:
-        result = subprocess.run(
-            [
-                flatpak_spawn,
-                "--host",
-                "sh",
-                "-lc",
-                f"command -v {command} >/dev/null",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=1.5,
-        )
-        return result.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-
-
 def _detect_flatpak_host_tool() -> Tool | None:
-    flatpak_spawn = shutil.which("flatpak-spawn")
+    flatpak_spawn = flatpak.spawn_path()
     if flatpak_spawn is None:
         return None
     for tool in _TOOLS:
-        if _flatpak_host_tool_available(
-            flatpak_spawn=flatpak_spawn,
-            command=tool.command,
-        ):
+        if flatpak.host_command_available(tool.command):
             return Tool(
                 command=tool.command,
                 full=tool.full,
@@ -207,7 +185,10 @@ def _run(tool: Tool, mode: Mode, delay_seconds: int = 0) -> list[str]:
         args = _mode_args(tool=tool, mode=mode)
         command = [tool.command]
         if tool.backend == "flatpak-host":
-            command = ["flatpak-spawn", "--host", tool.command]
+            command = flatpak.host_command(
+                [tool.command],
+                require_flatpak=False,
+            ) or [tool.command]
         cmd = [*command, *args, *_delay_args(tool=tool, delay_seconds=delay_seconds)]
         if tool.command == "scrot":
             cmd.append(_scrot_path())

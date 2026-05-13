@@ -211,12 +211,12 @@ class TestSessionState:
 
     def test_lock_screen_uses_host_commands_in_flatpak(self, monkeypatch):
         monkeypatch.setenv("XDG_SESSION_ID", "2")
-        monkeypatch.setattr(session_state_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            session_state_mod.shutil,
-            "which",
-            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+            session_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
+        monkeypatch.setattr(session_state_mod.shutil, "which", lambda _cmd: None)
         seen: list[list[str]] = []
 
         def fake_run(cmd, capture_output, text, timeout, check):
@@ -232,12 +232,30 @@ class TestSessionState:
         assert seen[0] == [
             "/usr/bin/flatpak-spawn",
             "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
             "mate-screensaver-command",
             "-l",
         ]
         assert seen[-1] == [
             "/usr/bin/flatpak-spawn",
             "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
             "loginctl",
             "lock-session",
             "2",
@@ -262,11 +280,10 @@ class TestSessionState:
 
     def test_run_uses_host_command_in_flatpak(self, monkeypatch):
         launched: list[list[str]] = []
-        monkeypatch.setattr(session_state_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            session_state_mod.shutil,
-            "which",
-            lambda cmd: "/usr/bin/flatpak-spawn" if cmd == "flatpak-spawn" else None,
+            session_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(
             session_state_mod.subprocess,
@@ -277,5 +294,19 @@ class TestSessionState:
         session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")
 
         assert launched == [
-            ["/usr/bin/flatpak-spawn", "--host", "systemctl", "suspend"]
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "systemctl",
+                "suspend",
+            ]
         ]

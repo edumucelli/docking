@@ -76,10 +76,11 @@ class ApplicationEntry(NamedTuple):
         return Gio.ThemedIcon.new(self.icon_name)
 
     def launch(self, files: list[object], context: object | None) -> None:
+        if self.desktop_id:
+            launch_desktop_id(desktop_id=self.desktop_id)
+            return
         if self.app_info is not None:
             self.app_info.launch(files, context)
-            return
-        launch_desktop_id(desktop_id=self.desktop_id)
 
 
 def _map_category(categories: str) -> str:

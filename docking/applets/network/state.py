@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shlex
 import shutil
 import subprocess
 from typing import NamedTuple
@@ -11,7 +10,7 @@ from docking.applets.tooltip import structured_tooltip
 from docking.applets.units import format_compact_number
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.environment import is_flatpak
+from docking.platform.environment import flatpak
 
 log = get_logger("network.state")
 
@@ -243,37 +242,13 @@ def _open_command(*, cmd: list[str] | None, action: str) -> bool:
 def _available_desktop_command(
     candidates: tuple[tuple[str, ...], ...],
 ) -> list[str] | None:
-    flatpak_spawn = _flatpak_spawn_command()
+    flatpak_spawn = flatpak.spawn_path()
     for cmd in candidates:
         if flatpak_spawn is not None:
-            if _host_command_available(flatpak_spawn=flatpak_spawn, command=cmd[0]):
-                return [flatpak_spawn, "--host", *cmd]
+            host_command = flatpak.host_command(list(cmd))
+            if flatpak.host_command_available(cmd[0]) and host_command is not None:
+                return host_command
             continue
         if shutil.which(cmd[0]):
             return list(cmd)
     return None
-
-
-def _flatpak_spawn_command() -> str | None:
-    if not is_flatpak():
-        return None
-    return shutil.which("flatpak-spawn")
-
-
-def _host_command_available(*, flatpak_spawn: str, command: str) -> bool:
-    try:
-        result = subprocess.run(
-            [
-                flatpak_spawn,
-                "--host",
-                "sh",
-                "-lc",
-                f"command -v {shlex.quote(command)} >/dev/null",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=1.5,
-        )
-        return result.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False

@@ -22,6 +22,7 @@ from typing import NamedTuple
 
 from docking.log import get_logger, with_context
 from docking.platform import environment
+from docking.platform.environment import flatpak
 
 log = with_context(get_logger(name="keyboardlayout"))
 
@@ -159,13 +160,14 @@ def keyboard_settings_command() -> list[str] | None:
 def current_layout_command(layout_code: str) -> list[str] | None:
     """Return the command to show the active keyboard layout, if available."""
     for cmd in _LAYOUT_VIEWER_COMMANDS:
-        if shutil.which(cmd[0]) is None:
+        base_cmd = _available_command(list(cmd))
+        if base_cmd is None:
             continue
         if cmd[0] == "gkbd-keyboard-display":
             if not layout_code:
                 return None
-            return [cmd[0], "-l", layout_code]
-        return list(cmd)
+            return [*base_cmd, "-l", layout_code]
+        return base_cmd
     return None
 
 
@@ -190,9 +192,9 @@ def _run(cmd: list[str]) -> str | None:
     if result is not None:
         return result
     if environment.is_flatpak() and cmd[:2] != ["flatpak-spawn", "--host"]:
-        flatpak_spawn = shutil.which("flatpak-spawn")
-        if flatpak_spawn is not None:
-            return _run_direct(cmd=[flatpak_spawn, "--host", *cmd])
+        host_cmd = flatpak.host_command(cmd)
+        if host_cmd is not None:
+            return _run_direct(cmd=host_cmd)
     return None
 
 
@@ -633,8 +635,17 @@ def _first_available_command(
     candidates: tuple[tuple[str, ...], ...],
 ) -> list[str] | None:
     for cmd in candidates:
-        if shutil.which(cmd[0]):
-            return list(cmd)
+        command = _available_command(list(cmd))
+        if command is not None:
+            return command
+    return None
+
+
+def _available_command(cmd: list[str]) -> list[str] | None:
+    if shutil.which(cmd[0]):
+        return cmd
+    if flatpak.host_command_available(cmd[0]):
+        return flatpak.host_command(cmd)
     return None
 
 

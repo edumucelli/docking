@@ -55,6 +55,7 @@ class FakeAboutDialog:
         self.wrap_license = None
         self.website = None
         self.website_label = None
+        self.logo_icon_name = None
 
     def set_program_name(self, _value: str) -> None:
         return
@@ -71,8 +72,8 @@ class FakeAboutDialog:
     def set_website_label(self, value: str) -> None:
         self.website_label = value
 
-    def set_logo_icon_name(self, _value: str) -> None:
-        return
+    def set_logo_icon_name(self, value: str) -> None:
+        self.logo_icon_name = value
 
     def set_authors(self, _value: list[str]) -> None:
         return
@@ -224,6 +225,28 @@ class TestAboutDialogController:
         assert dialog is not None
 
         assert dialog.version == about_mod.docking_version
+
+    def test_show_uses_flatpak_id_as_logo_icon_when_available(self, monkeypatch):
+        monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
+        monkeypatch.setenv("FLATPAK_ID", "cc.docking.Docking")
+        controller = about_mod.AboutDialogController(parent=object())
+
+        controller.show()
+        dialog = controller._dialog
+        assert dialog is not None
+
+        assert dialog.logo_icon_name == "cc.docking.Docking"
+
+    def test_show_uses_legacy_logo_icon_outside_flatpak(self, monkeypatch):
+        monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
+        monkeypatch.delenv("FLATPAK_ID", raising=False)
+        controller = about_mod.AboutDialogController(parent=object())
+
+        controller.show()
+        dialog = controller._dialog
+        assert dialog is not None
+
+        assert dialog.logo_icon_name == about_mod.DEFAULT_LOGO_ICON_NAME
 
     def test_show_sets_website_and_github_button(self, monkeypatch):
         monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
