@@ -21,6 +21,7 @@ from docking.log import get_logger, with_context
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
+    flatpak,
     is_flatpak,
     is_gnome_session,
     is_kde_session,
@@ -77,6 +78,8 @@ def _visible_trash_files_directory() -> Path:
 
 
 def _kde_kiorc_file() -> Path:
+    if is_flatpak():
+        return Path.home() / ".config" / "kiorc"
     return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kiorc"
 
 
@@ -91,11 +94,11 @@ def _open_trash_uri(uri: str) -> None:
 
 
 def _open_host_trash_uri(*, uri: str) -> bool:
-    flatpak_spawn = shutil.which("flatpak-spawn")
-    if flatpak_spawn is None:
+    command = flatpak.host_command(["gio", "open", uri])
+    if command is None:
         return False
     try:
-        subprocess.Popen([*_host_gio_command(flatpak_spawn=flatpak_spawn), "open", uri])
+        subprocess.Popen(command)
         return True
     except OSError as exc:
         log.bind(action="open_trash").warning(
@@ -108,12 +111,12 @@ def _open_host_trash_uri(*, uri: str) -> bool:
 def _empty_host_trash() -> bool:
     if not is_flatpak():
         return False
-    flatpak_spawn = shutil.which("flatpak-spawn")
-    if flatpak_spawn is None:
+    command = flatpak.host_command(["gio", "trash", "--empty"])
+    if command is None:
         return False
     try:
         result = subprocess.run(
-            [*_host_gio_command(flatpak_spawn=flatpak_spawn), "trash", "--empty"],
+            command,
             capture_output=True,
             text=True,
             timeout=10,
@@ -131,23 +134,6 @@ def _empty_host_trash() -> bool:
         result.stderr.strip() or result.stdout.strip() or result.returncode,
     )
     return False
-
-
-def _host_gio_command(*, flatpak_spawn: str) -> list[str]:
-    return [
-        flatpak_spawn,
-        "--host",
-        "env",
-        "-u",
-        "GIO_USE_VFS",
-        "-u",
-        "GI_TYPELIB_PATH",
-        "-u",
-        "GSETTINGS_SCHEMA_DIR",
-        "-u",
-        "XDG_DATA_DIRS",
-        "gio",
-    ]
 
 
 class GioTrashBackend:
@@ -340,7 +326,13 @@ class KdeTrashBackend:
     )
 
     def count_items(self) -> int:
-        files_dir = _kde_trash_files_directory()
+        # Inside Flatpak, trash:/// enumeration can report the sandbox trash.
+        # The host trash files are visible through home access, so count them.
+        files_dir = (
+            _visible_trash_files_directory()
+            if is_flatpak()
+            else _kde_trash_files_directory()
+        )
         try:
             return sum(1 for _child in files_dir.iterdir())
         except OSError as exc:
@@ -351,6 +343,8 @@ class KdeTrashBackend:
             return 0
 
     def monitor_file(self) -> Gio.File:
+        if is_flatpak():
+            return Gio.File.new_for_path(str(_visible_trash_files_directory()))
         return Gio.File.new_for_path(str(_kde_trash_files_directory()))
 
     def open(self) -> None:
@@ -370,6 +364,8 @@ class KdeTrashBackend:
 
     def empty(self, confirm: Callable[[], bool]) -> None:
         if self._confirmation_preference() is False or confirm():
+            if _empty_host_trash():
+                return
             self._delete_contents()
 
     def _confirmation_preference(self) -> bool:
@@ -402,6 +398,15 @@ class KdeTrashBackend:
 
     def _available_open_command(self) -> tuple[str, ...] | None:
         for command in self.open_commands:
+            if is_flatpak():
+                # KDE open helpers live on the host, not in the GNOME runtime.
+                host_command = flatpak.host_command(list(command))
+                if (
+                    flatpak.host_command_available(command[0])
+                    and host_command is not None
+                ):
+                    return tuple(host_command)
+                continue
             if shutil.which(command[0]):
                 return command
         return None

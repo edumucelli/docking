@@ -22,7 +22,7 @@ from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform.environment import is_flatpak
+from docking.platform.environment import flatpak, is_flatpak
 
 from .render import create_notifications_icon
 from .state import (
@@ -263,19 +263,18 @@ class NotificationsApplet(Applet):
 
     def _activity_monitor_command(self) -> list[str] | None:
         if is_flatpak():
-            flatpak_spawn = shutil.which("flatpak-spawn")
-            if flatpak_spawn is None:
-                return None
+            # The Flatpak D-Bus proxy does not expose other clients' Notify
+            # method calls to sandbox dbus-monitor, so observe on the host.
             monitor_rule = shlex.quote(NOTIFICATION_MONITOR_RULE)
-            return [
-                flatpak_spawn,
-                "--host",
-                "sh",
-                "-c",
-                "command -v dbus-monitor >/dev/null || exit 127; "
-                f"echo {HOST_MONITOR_PID_PREFIX}$$; "
-                f"exec dbus-monitor --session {monitor_rule}",
-            ]
+            return flatpak.host_command(
+                [
+                    "sh",
+                    "-c",
+                    "command -v dbus-monitor >/dev/null || exit 127; "
+                    f"echo {HOST_MONITOR_PID_PREFIX}$$; "
+                    f"exec dbus-monitor --session {monitor_rule}",
+                ]
+            )
 
         dbus_monitor = shutil.which("dbus-monitor")
         if dbus_monitor is None:
@@ -302,12 +301,12 @@ class NotificationsApplet(Applet):
             return
 
     def _stop_host_activity_monitor(self, pid: str) -> None:
-        flatpak_spawn = shutil.which("flatpak-spawn")
-        if flatpak_spawn is None:
+        command = flatpak.host_command(["kill", pid], sanitize_env=False)
+        if command is None:
             return
         try:
             subprocess.run(
-                [flatpak_spawn, "--host", "kill", pid],
+                command,
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -325,6 +324,8 @@ class NotificationsApplet(Applet):
         try:
             for line in proc.stdout:
                 if line.startswith(HOST_MONITOR_PID_PREFIX):
+                    # Store the host-side pid so stop() can kill the actual
+                    # dbus-monitor, not just the flatpak-spawn wrapper.
                     self._activity_monitor_host_pid = line[
                         len(HOST_MONITOR_PID_PREFIX) :
                     ].strip()

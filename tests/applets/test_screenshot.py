@@ -74,36 +74,26 @@ class TestDetectTool:
             assert _detect_tool() == screenshot_state._PORTAL_TOOL
 
     def test_flatpak_falls_back_to_host_screenshot_tool(self):
-        def which(command: str) -> str | None:
-            if command == "flatpak-spawn":
-                return "/usr/bin/flatpak-spawn"
-            return None
-
         with (
             patch.object(screenshot_state, "is_wayland_session", return_value=False),
             patch.object(screenshot_state, "is_flatpak", return_value=True),
             patch.object(screenshot_state, "_portal_available", return_value=False),
-            patch("docking.applets.screenshot.state.shutil.which", side_effect=which),
-            patch(
-                "docking.applets.screenshot.state.subprocess.run",
-                return_value=subprocess.CompletedProcess(args=[], returncode=0),
-            ) as run,
+            patch("docking.applets.screenshot.state.shutil.which", return_value=None),
+            patch.object(
+                screenshot_state.flatpak,
+                "spawn_path",
+                return_value="/usr/bin/flatpak-spawn",
+            ),
+            patch.object(
+                screenshot_state.flatpak,
+                "host_command_available",
+                return_value=True,
+            ) as available,
         ):
             result = _detect_tool()
 
         assert result == Tool("mate-screenshot", [], ["-w"], ["-a"], "flatpak-host")
-        run.assert_called_once_with(
-            [
-                "/usr/bin/flatpak-spawn",
-                "--host",
-                "sh",
-                "-lc",
-                "command -v mate-screenshot >/dev/null",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=1.5,
-        )
+        available.assert_called_once_with("mate-screenshot")
 
 
 class TestPortal:
@@ -339,10 +329,33 @@ class TestRun:
 
     def test_flatpak_host_run_prefixes_host_spawn(self):
         tool = Tool("mate-screenshot", [], ["-w"], ["-a"], "flatpak-host")
-        with patch("docking.applets.screenshot.state.subprocess.Popen") as p:
+        with (
+            patch.object(
+                screenshot_state.flatpak,
+                "spawn_path",
+                return_value="/usr/bin/flatpak-spawn",
+            ),
+            patch("docking.applets.screenshot.state.subprocess.Popen") as p,
+        ):
             _run(tool=tool, mode="region", delay_seconds=3)
         p.assert_called_once_with(
-            ["flatpak-spawn", "--host", "mate-screenshot", "-a", "-d", "3"],
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "mate-screenshot",
+                "-a",
+                "-d",
+                "3",
+            ],
             start_new_session=True,
         )
 

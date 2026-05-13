@@ -334,6 +334,53 @@ class TestDesktopActions:
             MiddleClickAction.NEW_WINDOW.value, None
         )
 
+    @patch("subprocess.Popen")
+    def test_launch_action_uses_host_exec_for_host_desktop_file(
+        self, popen_mock, tmp_path, monkeypatch
+    ):
+        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        desktop_file = host_apps / "browser.desktop"
+        desktop_file.write_text(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=Browser\n"
+            "Exec=browser\n"
+            "Actions=new-window;\n"
+            "\n"
+            "[Desktop Action new-window]\n"
+            "Name=New Window\n"
+            "Exec=browser --new-window\n",
+            encoding="utf-8",
+        )
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-window"]
+        monkeypatch.setattr(
+            launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
+        )
+        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new",
+            lambda _desktop_id: None,
+        )
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new_from_filename",
+            lambda _path: mock_app,
+        )
+
+        launch_action(desktop_id="browser.desktop", action_id="new-window")
+
+        mock_app.launch_action.assert_not_called()
+        args, _kwargs = popen_mock.call_args
+        assert args[0][-2:] == ["browser", "--new-window"]
+
     def test_get_actions_returns_empty_when_gio_raises(self, monkeypatch):
         # Given / When
         from docking.platform import launcher as launcher_mod
@@ -939,9 +986,9 @@ class TestOpenTarget:
         target.write_text("hello")
         monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            launcher_mod.shutil,
-            "which",
-            lambda name: "/usr/bin/flatpak-spawn" if name == "flatpak-spawn" else None,
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
 
         with (
@@ -1020,6 +1067,11 @@ class TestLaunch:
         monkeypatch.setattr(
             launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
         )
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
         monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
         monkeypatch.setattr(
             launcher_mod.Gio.DesktopAppInfo,
@@ -1036,7 +1088,20 @@ class TestLaunch:
 
         popen_mock.assert_called_once()
         args, kwargs = popen_mock.call_args
-        assert args[0] == ["flatpak-spawn", "--host", "file-roller"]
+        assert args[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "file-roller",
+        ]
         assert kwargs["shell"] is False
 
     @patch("subprocess.Popen")
@@ -1053,6 +1118,11 @@ class TestLaunch:
         mock_app = MagicMock()
         mock_app.get_commandline.return_value = "user-app %U"
         monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
         monkeypatch.setattr(
             launcher_mod.Gio.DesktopAppInfo,
             "new",
@@ -1071,7 +1141,20 @@ class TestLaunch:
 
         popen_mock.assert_called_once()
         args, kwargs = popen_mock.call_args
-        assert args[0] == ["flatpak-spawn", "--host", "user-app"]
+        assert args[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "user-app",
+        ]
         assert kwargs["shell"] is False
 
     @patch("subprocess.Popen")
@@ -1095,6 +1178,11 @@ class TestLaunch:
         monkeypatch.setattr(
             launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
         )
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
         monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
         monkeypatch.setattr(launcher_mod.Gio.DesktopAppInfo, "new", lambda _id: None)
         monkeypatch.setattr(
@@ -1108,7 +1196,20 @@ class TestLaunch:
 
         popen_mock.assert_called_once()
         args, kwargs = popen_mock.call_args
-        assert args[0] == ["flatpak-spawn", "--host", "file-roller"]
+        assert args[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "file-roller",
+        ]
         assert kwargs["shell"] is False
         assert "constructor returned NULL" not in caplog.text
 
