@@ -598,22 +598,50 @@ class TestXkbBackend:
             calls.append(cmd)
             if cmd == ["setxkbmap", "-query"]:
                 raise OSError("missing in sandbox")
-            if cmd == ["/usr/bin/flatpak-spawn", "--host", "setxkbmap", "-query"]:
+            if cmd == [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "setxkbmap",
+                "-query",
+            ]:
                 return subprocess.CompletedProcess(cmd, 0, stdout=SETXKBMAP_MULTI)
             raise AssertionError(cmd)
 
         monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            kbl_state.shutil,
-            "which",
-            lambda name: "/usr/bin/flatpak-spawn" if name == "flatpak-spawn" else None,
+            kbl_state.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
 
         assert _run(["setxkbmap", "-query"]) == SETXKBMAP_MULTI.strip()
         assert calls == [
             ["setxkbmap", "-query"],
-            ["/usr/bin/flatpak-spawn", "--host", "setxkbmap", "-query"],
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "setxkbmap",
+                "-query",
+            ],
         ]
 
     def test_run_falls_back_to_host_after_sandbox_command_failure(self, monkeypatch):
@@ -626,6 +654,15 @@ class TestXkbBackend:
             if cmd == [
                 "/usr/bin/flatpak-spawn",
                 "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
                 "gsettings",
                 "get",
                 "schema",
@@ -636,16 +673,32 @@ class TestXkbBackend:
 
         monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            kbl_state.shutil,
-            "which",
-            lambda name: "/usr/bin/flatpak-spawn" if name == "flatpak-spawn" else None,
+            kbl_state.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
 
         assert _run(["gsettings", "get", "schema", "key"]) == "'value'"
         assert calls == [
             ["gsettings", "get", "schema", "key"],
-            ["/usr/bin/flatpak-spawn", "--host", "gsettings", "get", "schema", "key"],
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "gsettings",
+                "get",
+                "schema",
+                "key",
+            ],
         ]
 
 

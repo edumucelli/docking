@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import shlex
-import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Protocol
@@ -12,7 +10,7 @@ from typing import Protocol
 from docking.applets.notifications import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform.environment import is_flatpak
+from docking.platform.environment import flatpak
 
 log = with_context(
     get_logger(name="notifications"),
@@ -77,18 +75,9 @@ def _run_direct(cmd: list[str], timeout_s: float = 2.0) -> str | None:
     return result.stdout.strip()
 
 
-def _host_command(cmd: list[str]) -> list[str] | None:
-    if not is_flatpak():
-        return None
-    flatpak_spawn = shutil.which("flatpak-spawn")
-    if flatpak_spawn is None:
-        return None
-    return [flatpak_spawn, "--host", *cmd]
-
-
 def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
     """Run host notification command when sandboxed, else run directly."""
-    host_cmd = _host_command(cmd)
+    host_cmd = flatpak.host_command(cmd)
     if host_cmd is not None:
         output = _run_direct(host_cmd, timeout_s=timeout_s)
         if output is not None:
@@ -128,26 +117,6 @@ def _parse_pending_count(value: str | None) -> int | None:
         if isinstance(waiting, int):
             return max(0, waiting)
     return None
-
-
-def _has_command(command: str) -> bool:
-    if shutil.which(command) is not None:
-        return True
-    flatpak_spawn = shutil.which("flatpak-spawn")
-    if not is_flatpak() or flatpak_spawn is None:
-        return False
-    return (
-        _run_direct(
-            [
-                flatpak_spawn,
-                "--host",
-                "sh",
-                "-c",
-                f"command -v {shlex.quote(command)}",
-            ]
-        )
-        is not None
-    )
 
 
 class NotificationsBackend(Protocol):
@@ -252,11 +221,11 @@ class NullBackend:
 
 def detect_backend() -> NotificationsBackend:
     """Detect the best available notification backend."""
-    if _has_command("dunstctl"):
+    if flatpak.host_command_available("dunstctl"):
         backend = DunstBackend()
         if backend.get_state().available:
             return backend
-    if _has_command("gsettings"):
+    if flatpak.host_command_available("gsettings"):
         backend = GnomeBackend()
         if backend.get_state().available:
             return backend

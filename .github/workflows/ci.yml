@@ -752,16 +752,16 @@ jobs:
         run: |
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
-          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/org.docking.Docking.json
+          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
           mkdir -p artifacts
-          flatpak build-bundle flatpak-repo artifacts/org.docking.Docking.flatpak org.docking.Docking
-          ls -lh artifacts/org.docking.Docking.flatpak
+          flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
+          ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload Flatpak artifact
         uses: actions/upload-artifact@v4
         with:
           name: docking-flatpak
-          path: artifacts/org.docking.Docking.flatpak
+          path: artifacts/cc.docking.Docking.flatpak
 
   build-flatpak-arm64:
     name: Build Flatpak (ARM64)
@@ -783,16 +783,16 @@ jobs:
         run: |
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
-          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/org.docking.Docking.json
+          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
           mkdir -p artifacts
-          flatpak build-bundle flatpak-repo artifacts/org.docking.Docking.flatpak org.docking.Docking
-          ls -lh artifacts/org.docking.Docking.flatpak
+          flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
+          ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload ARM64 Flatpak artifact
         uses: actions/upload-artifact@v4
         with:
           name: docking-flatpak-arm64
-          path: artifacts/org.docking.Docking.flatpak
+          path: artifacts/cc.docking.Docking.flatpak
 
   build-snap:
     name: Build Snap

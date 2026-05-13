@@ -7,6 +7,7 @@ import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
 from docking.applets.applications.applet import ApplicationsApplet
 from docking.applets.applications.state import (
+    ApplicationEntry,
     _all_desktop_app_infos,
     _build_app_categories,
 )
@@ -92,6 +93,23 @@ class TestBuildAppCategories:
         apps = _all_desktop_app_infos()
 
         assert [app.get_id() for app in apps] == ["org.example.Tool.desktop"]
+
+    def test_application_entry_launch_uses_launcher_bridge(self, monkeypatch):
+        launched: list[str] = []
+        monkeypatch.setattr(
+            "docking.applets.applications.state.launch_desktop_id",
+            lambda *, desktop_id: launched.append(desktop_id),
+        )
+        entry = ApplicationEntry(
+            desktop_id="org.example.Tool.desktop",
+            name="Example Tool",
+            categories="Utility;",
+            icon_name="",
+        )
+
+        entry.launch([], None)
+
+        assert launched == ["org.example.Tool.desktop"]
 
 
 class TestApplicationsApplet:

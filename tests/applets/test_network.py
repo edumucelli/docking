@@ -1514,26 +1514,32 @@ class TestNetworkCommands:
         assert connection_info_command() == ["gnome-control-center", "wifi"]
 
     def test_connection_info_command_uses_host_tool_in_flatpak(self, monkeypatch):
-        monkeypatch.setattr(network_state_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            network_state_mod.shutil,
-            "which",
-            lambda binary: (
-                "/usr/bin/flatpak-spawn" if binary == "flatpak-spawn" else None
-            ),
+            network_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
         seen: list[list[str]] = []
 
-        def fake_run(cmd, capture_output, text, timeout):
-            _ = (capture_output, text, timeout)
+        def fake_run(cmd, stdout, stderr, timeout, check):
+            _ = (stdout, stderr, timeout, check)
             seen.append(list(cmd))
             return SimpleNamespace(returncode=0)
 
-        monkeypatch.setattr(network_state_mod.subprocess, "run", fake_run)
+        monkeypatch.setattr(network_state_mod.flatpak.subprocess, "run", fake_run)
 
         assert connection_info_command() == [
             "/usr/bin/flatpak-spawn",
             "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
             "gnome-control-center",
             "wifi",
         ]
@@ -1562,26 +1568,32 @@ class TestNetworkCommands:
     def test_edit_connections_command_skips_missing_host_tool_in_flatpak(
         self, monkeypatch
     ):
-        monkeypatch.setattr(network_state_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            network_state_mod.shutil,
-            "which",
-            lambda binary: (
-                "/usr/bin/flatpak-spawn" if binary == "flatpak-spawn" else None
-            ),
+            network_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
         )
 
-        def fake_run(cmd, capture_output, text, timeout):
-            _ = (capture_output, text, timeout)
+        def fake_run(cmd, stdout, stderr, timeout, check):
+            _ = (stdout, stderr, timeout, check)
             return SimpleNamespace(
                 returncode=0 if "nm-connection-editor" in cmd[-1] else 1
             )
 
-        monkeypatch.setattr(network_state_mod.subprocess, "run", fake_run)
+        monkeypatch.setattr(network_state_mod.flatpak.subprocess, "run", fake_run)
 
         assert edit_connections_command() == [
             "/usr/bin/flatpak-spawn",
             "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
             "nm-connection-editor",
         ]
 
