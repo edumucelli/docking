@@ -103,6 +103,7 @@ from docking.applets.trash.render import create_trash_icon
 from docking.applets.trivia.render import draw_trivia_icon
 from docking.applets.unitconverter.render import create_icon as render_unitconverter
 from docking.applets.urlshortener.render import create_icon as render_urlshortener
+from docking.applets.usbwatch.render import create_usbwatch_icon
 from docking.applets.volume.render import create_volume_icon
 from docking.applets.weather.render import create_icon as render_weather
 from docking.applets.windowkiller.render import create_icon as render_windowkiller
@@ -358,6 +359,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.TRASH: create_trash_icon(size=size, item_count=0),
         AppletId.UNITCONVERTER: render_unitconverter(size=size),
         AppletId.URLSHORTENER: render_urlshortener(size=size),
+        AppletId.USBWATCH: create_usbwatch_icon(size=size, device_count=1),
         AppletId.VOLUME: create_volume_icon(size=size, volume=60, muted=False),
         AppletId.WEATHER: render_weather(
             size=size,
