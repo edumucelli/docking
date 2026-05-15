@@ -94,6 +94,7 @@ def fetch_cert(
     status without crashing a background thread.
     """
     context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     try:
         with (
             socket.create_connection((host, port), timeout=timeout) as raw,
