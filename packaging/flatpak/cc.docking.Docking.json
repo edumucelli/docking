@@ -18,7 +18,8 @@
     "--filesystem=host",
     "--talk-name=org.freedesktop.Notifications",
     "--talk-name=org.freedesktop.Flatpak",
-    "--system-talk-name=org.freedesktop.NetworkManager"
+    "--system-talk-name=org.freedesktop.NetworkManager",
+    "--system-talk-name=org.freedesktop.UDisks2"
   ],
   "modules": [
     {

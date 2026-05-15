@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 49 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 50 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 13 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -339,6 +339,16 @@ Shows the current state of the system trash. Icon switches between empty and ful
 **Right-click options:**
 - **Open Trash** -- open in file manager
 - **Empty Trash** -- permanently delete all trashed items
+
+### USB Watch
+
+<img src="docking/assets/icons/applets/usbwatch.png" alt="USB Watch" width="48">
+
+Shows mounted removable USB storage devices and provides safe-remove actions without opening a file manager.
+
+**Tooltip:** mounted device count and mount paths
+**Right-click options:**
+- **Safely Remove _device_** -- unmount and eject a removable USB device when supported
 
 ### Desktop
 
