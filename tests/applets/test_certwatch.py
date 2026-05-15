@@ -749,6 +749,7 @@ class _FakeSslContext:
         self.peer = peer
         self.error = error
         self.server_hostname = ""
+        self.minimum_version = None
 
     def wrap_socket(self, _raw, *, server_hostname: str):
         self.server_hostname = server_hostname
@@ -780,6 +781,7 @@ class TestCertApiFetch:
 
         info = fetch_cert(host="example.com", port=443)
 
+        assert context.minimum_version is certwatch_api.ssl.TLSVersion.TLSv1_2
         assert info.not_after == datetime(
             2026,
             6,
