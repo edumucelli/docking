@@ -177,7 +177,9 @@ class DockPlacementController:
         barrier: PointerBarrier | None = None,
     ) -> None:
         self._window = window
-        self._barrier = barrier or PointerBarrier()
+        self._barrier: PointerBarrier = (
+            barrier if barrier is not None else PointerBarrier()
+        )
         self._active_display_timer: int = 0
         self._active_monitor: Gdk.Monitor | None = None
         self._screen_signal_handlers: list[tuple[object, int]] = []
@@ -417,6 +419,7 @@ class DockPlacementController:
             monitor_y=geom.y,
             monitor_w=geom.width,
             monitor_h=geom.height,
+            scale=self._window.get_scale_factor(),
         )
 
     def clear_struts(self) -> None:
