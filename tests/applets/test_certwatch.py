@@ -824,7 +824,8 @@ class TestCertApiFetch:
             lambda *_args, **_kwargs: (_ for _ in ()).throw(socket.gaierror("no host")),
         )
 
-        assert "no host" in fetch_cert(host="example.com", port=443).error
+        error = fetch_cert(host="example.com", port=443).error
+        assert error is not None and "no host" in error
 
     def test_fetch_cert_reports_empty_peer(self, monkeypatch):
         self._patch_peer(monkeypatch, peer={})
@@ -836,10 +837,5 @@ class TestCertApiFetch:
         assert fetch_cert(host="example.com", port=443).error == "missing notAfter"
 
         self._patch_peer(monkeypatch, peer={"notAfter": "bad"})
-        assert (
-            "unparseable notAfter"
-            in fetch_cert(
-                host="example.com",
-                port=443,
-            ).error
-        )
+        error = fetch_cert(host="example.com", port=443).error
+        assert error is not None and "unparseable notAfter" in error

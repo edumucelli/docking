@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 # Mock gi before importing launcher only when PyGObject is unavailable.
 try:
-    import gi  # type: ignore # noqa: F401
+    import gi  # noqa: F401
 except Exception:
     gi_mock = MagicMock()
     gi_mock.require_version = MagicMock()
