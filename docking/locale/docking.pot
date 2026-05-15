@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-08 00:57+0200\n"
+"POT-Creation-Date: 2026-05-14 23:24+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,59 +18,59 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: docking/applets/aiusage/applet.py:91
+#: docking/applets/aiusage/applet.py:62
 msgid "AI Usage"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:156
+#: docking/applets/aiusage/applet.py:126
 msgid "Auto"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:157
+#: docking/applets/aiusage/applet.py:127
 msgid "Claude"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:158
+#: docking/applets/aiusage/applet.py:128
 msgid "Codex"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:159
+#: docking/applets/aiusage/applet.py:129
 msgid "OpenCode"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:168
+#: docking/applets/aiusage/applet.py:138
 msgid "Show Cost"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:169
+#: docking/applets/aiusage/applet.py:139
 msgid "Show Tokens"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:176
+#: docking/applets/aiusage/applet.py:146
 #: docking/applets/deskpresence/applet.py:103
 msgid "Reset Today"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:252 docking/applets/aiusage/applet.py:267
+#: docking/applets/aiusage/applet.py:207 docking/applets/aiusage/applet.py:222
 #, python-brace-format
 msgid "{name}: no usage today"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:284
+#: docking/applets/aiusage/applet.py:239
 #, python-brace-format
 msgid "<b>{name}: {value}</b>"
 msgstr ""
 
-#: docking/applets/aiusage/applet.py:328
+#: docking/applets/aiusage/applet.py:283
 #, python-brace-format
 msgid "This week: {value}"
 msgstr ""
 
-#: docking/applets/aiusage/state.py:463
+#: docking/applets/aiusage/state.py:459
 msgid "no usage today"
 msgstr ""
 
-#: docking/applets/aiusage/state.py:467
+#: docking/applets/aiusage/state.py:463
 #, python-brace-format
 msgid "Today: {cost}"
 msgstr ""
@@ -457,6 +457,7 @@ msgid "{command} (PID {pid}) using {devices}"
 msgstr ""
 
 #: docking/applets/camshield/state.py:78 docking/applets/micshield/state.py:210
+#: docking/applets/usbwatch/state.py:85
 #, python-brace-format
 msgid "{count} more"
 msgstr ""
@@ -1219,8 +1220,8 @@ msgstr ""
 msgid "Stopped"
 msgstr ""
 
-#: docking/applets/network/applet.py:64 docking/applets/network/state.py:219
-#: docking/applets/network/state.py:230
+#: docking/applets/network/applet.py:64 docking/applets/network/state.py:214
+#: docking/applets/network/state.py:225
 msgid "Network"
 msgstr ""
 
@@ -1234,7 +1235,7 @@ msgstr ""
 msgid "Ethernet: {iface}"
 msgstr ""
 
-#: docking/applets/network/applet.py:132 docking/applets/network/state.py:220
+#: docking/applets/network/applet.py:132 docking/applets/network/state.py:215
 msgid "Not connected"
 msgstr ""
 
@@ -1305,30 +1306,30 @@ msgstr ""
 msgid "Unnamed VPN"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:60
+#: docking/applets/notifications/applet.py:64
 #: docking/applets/notifications/state.py:49
 msgid "Notifications"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:127
+#: docking/applets/notifications/applet.py:132
 msgid "No notification backend available"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:129
+#: docking/applets/notifications/applet.py:134
 msgid "Do Not Disturb"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:137
+#: docking/applets/notifications/applet.py:142
 #: docking/applets/notifications/state.py:47
 #, python-brace-format
 msgid "Pending: {n}"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:142
+#: docking/applets/notifications/applet.py:147
 msgid "Clear History"
 msgstr ""
 
-#: docking/applets/notifications/applet.py:147
+#: docking/applets/notifications/applet.py:152
 msgid "Clear Notifications"
 msgstr ""
 
@@ -1521,23 +1522,23 @@ msgstr ""
 msgid "Session"
 msgstr ""
 
-#: docking/applets/session/applet.py:56 docking/applets/session/state.py:28
+#: docking/applets/session/applet.py:56 docking/applets/session/state.py:29
 msgid "Suspend"
 msgstr ""
 
-#: docking/applets/session/state.py:24
+#: docking/applets/session/state.py:25
 msgid "Lock Screen"
 msgstr ""
 
-#: docking/applets/session/state.py:27
+#: docking/applets/session/state.py:28
 msgid "Log Out"
 msgstr ""
 
-#: docking/applets/session/state.py:29
+#: docking/applets/session/state.py:30
 msgid "Restart"
 msgstr ""
 
-#: docking/applets/session/state.py:30
+#: docking/applets/session/state.py:31
 msgid "Shut Down"
 msgstr ""
 
@@ -1853,6 +1854,29 @@ msgstr ""
 msgid "Copied!"
 msgstr ""
 
+#: docking/applets/usbwatch/applet.py:37 docking/applets/usbwatch/state.py:80
+#: docking/applets/usbwatch/state.py:87
+msgid "USB Watch"
+msgstr ""
+
+#: docking/applets/usbwatch/applet.py:61 docking/applets/usbwatch/state.py:81
+msgid "No mounted USB devices"
+msgstr ""
+
+#: docking/applets/usbwatch/applet.py:70
+#, python-brace-format
+msgid "Safely Remove {name}"
+msgstr ""
+
+#: docking/applets/usbwatch/state.py:88
+#, python-brace-format
+msgid "{count} mounted device(s)"
+msgstr ""
+
+#: docking/applets/usbwatch/state.py:95
+msgid "Removable Drive"
+msgstr ""
+
 #: docking/applets/volume/applet.py:42
 msgid "Volume"
 msgstr ""
@@ -1931,7 +1955,7 @@ msgstr ""
 msgid "Workspaces"
 msgstr ""
 
-#: docking/ui/about.py:53
+#: docking/ui/about.py:55
 msgid "Website"
 msgstr ""
 
