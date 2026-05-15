@@ -736,6 +736,7 @@ class TestAppletPopup:
         applet._show_popup()
 
         assert applet._popup is dialog
+        assert dialog.connected is not None
         assert dialog.connected[0] == "delete-event"
         assert dialog.content.get_children() == ["content"]
         assert dialog.size == (unitconverter_applet_mod.POPUP_WIDTH_PX, -1)
