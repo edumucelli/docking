@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-16 10:52+0200\n"
+"POT-Creation-Date: 2026-05-17 00:29+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -73,6 +73,175 @@ msgstr ""
 #: docking/applets/aiusage/state.py:463
 #, python-brace-format
 msgid "Today: {cost}"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:54
+msgid "Alarm"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:91 docking/applets/alarm/applet.py:199
+msgid "Snooze"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:93
+msgid "Dismiss"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:97
+msgid "Add Alarm..."
+msgstr ""
+
+#: docking/applets/alarm/applet.py:119
+#, python-brace-format
+msgid "Edit {label}..."
+msgstr ""
+
+#: docking/applets/alarm/applet.py:147
+msgid "Edit Alarm"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:147
+msgid "Add Alarm"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:150 docking/applets/certwatch/state.py:233
+#: docking/applets/clock/applet.py:205 docking/applets/quicknote/applet.py:74
+msgid "OK"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:150 docking/applets/clock/applet.py:205
+#: docking/applets/quicknote/applet.py:73 docking/applets/sunrise/applet.py:175
+#: docking/applets/trash/applet.py:114 docking/applets/weather/applet.py:258
+msgid "Cancel"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:152 docking/applets/certwatch/applet.py:157
+msgid "Remove"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:180
+msgid "Enabled"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:193
+msgid "Label"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:195 docking/applets/clock/applet.py:242
+msgid "Hour"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:197 docking/applets/clock/applet.py:244
+msgid "Minute"
+msgstr ""
+
+#: docking/applets/alarm/applet.py:202
+msgid "Repeat"
+msgstr ""
+
+#: docking/applets/alarm/state.py:17
+msgid "Mon"
+msgstr ""
+
+#: docking/applets/alarm/state.py:18
+msgid "Tue"
+msgstr ""
+
+#: docking/applets/alarm/state.py:19
+msgid "Wed"
+msgstr ""
+
+#: docking/applets/alarm/state.py:20
+msgid "Thu"
+msgstr ""
+
+#: docking/applets/alarm/state.py:21
+msgid "Fri"
+msgstr ""
+
+#: docking/applets/alarm/state.py:22
+msgid "Sat"
+msgstr ""
+
+#: docking/applets/alarm/state.py:23
+msgid "Sun"
+msgstr ""
+
+#: docking/applets/alarm/state.py:204
+msgid "Ring"
+msgstr ""
+
+#: docking/applets/alarm/state.py:213
+#, python-brace-format
+msgid "{hours}h"
+msgstr ""
+
+#: docking/applets/alarm/state.py:214 docking/applets/alarm/state.py:293
+#: docking/applets/battery/state.py:131 docking/applets/sunrise/state.py:404
+#, python-brace-format
+msgid "{minutes}m"
+msgstr ""
+
+#: docking/applets/alarm/state.py:222
+#, python-brace-format
+msgid "Alarm ringing: {label}"
+msgstr ""
+
+#: docking/applets/alarm/state.py:225
+msgid "Alarm: no enabled alarms"
+msgstr ""
+
+#: docking/applets/alarm/state.py:226
+#, python-brace-format
+msgid "Next alarm: {label} at {time}"
+msgstr ""
+
+#: docking/applets/alarm/state.py:238
+msgid "No enabled alarms"
+msgstr ""
+
+#: docking/applets/alarm/state.py:239
+#, python-brace-format
+msgid "{label}: {time} ({duration})"
+msgstr ""
+
+#: docking/applets/alarm/state.py:249
+msgid "on"
+msgstr ""
+
+#: docking/applets/alarm/state.py:249
+msgid "off"
+msgstr ""
+
+#: docking/applets/alarm/state.py:250
+#, python-brace-format
+msgid "{time} {label} - {repeat}, {state}"
+msgstr ""
+
+#: docking/applets/alarm/state.py:262
+msgid "once"
+msgstr ""
+
+#: docking/applets/alarm/state.py:264
+msgid "weekdays"
+msgstr ""
+
+#: docking/applets/alarm/state.py:266
+msgid "weekends"
+msgstr ""
+
+#: docking/applets/alarm/state.py:268
+msgid "daily"
+msgstr ""
+
+#: docking/applets/alarm/state.py:290
+#, python-brace-format
+msgid "{days}d {hours}h"
+msgstr ""
+
+#: docking/applets/alarm/state.py:292 docking/applets/sunrise/state.py:403
+#, python-brace-format
+msgid "{hours}h {minutes}m"
 msgstr ""
 
 #: docking/applets/ambient/applet.py:66 docking/applets/ambient/state.py:87
@@ -218,11 +387,6 @@ msgstr ""
 #: docking/applets/battery/state.py:130
 #, python-brace-format
 msgid "{hours}h {minutes:02d}m"
-msgstr ""
-
-#: docking/applets/battery/state.py:131 docking/applets/sunrise/state.py:414
-#, python-brace-format
-msgid "{minutes}m"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:68
@@ -519,21 +683,12 @@ msgstr ""
 msgid "Add Domain..."
 msgstr ""
 
-#: docking/applets/certwatch/applet.py:157
-msgid "Remove"
-msgstr ""
-
 #: docking/applets/certwatch/applet.py:293
 msgid "Add Domain"
 msgstr ""
 
 #: docking/applets/certwatch/applet.py:306
 msgid "example.com or example.com:8443"
-msgstr ""
-
-#: docking/applets/certwatch/state.py:233 docking/applets/clock/applet.py:205
-#: docking/applets/quicknote/applet.py:74
-msgid "OK"
 msgstr ""
 
 #: docking/applets/certwatch/state.py:234
@@ -634,20 +789,6 @@ msgstr ""
 msgid "Set Alarm"
 msgstr ""
 
-#: docking/applets/clock/applet.py:205 docking/applets/quicknote/applet.py:73
-#: docking/applets/sunrise/applet.py:175 docking/applets/trash/applet.py:114
-#: docking/applets/weather/applet.py:258
-msgid "Cancel"
-msgstr ""
-
-#: docking/applets/clock/applet.py:242
-msgid "Hour"
-msgstr ""
-
-#: docking/applets/clock/applet.py:244
-msgid "Minute"
-msgstr ""
-
 #: docking/applets/colorpicker/applet.py:44
 #: docking/applets/colorpicker/applet.py:75
 msgid "Color Picker"
@@ -680,7 +821,7 @@ msgid "Chart Interval"
 msgstr ""
 
 #: docking/applets/currencyfx/applet.py:203
-#: docking/applets/sunrise/state.py:379
+#: docking/applets/sunrise/state.py:369
 msgid "Day"
 msgstr ""
 
@@ -1633,7 +1774,7 @@ msgstr ""
 msgid "Next stretch in {time}"
 msgstr ""
 
-#: docking/applets/sunrise/applet.py:51 docking/applets/sunrise/state.py:227
+#: docking/applets/sunrise/applet.py:51 docking/applets/sunrise/state.py:476
 msgid "Sunrise"
 msgstr ""
 
@@ -1662,114 +1803,109 @@ msgstr ""
 msgid "Type city name..."
 msgstr ""
 
-#: docking/applets/sunrise/state.py:224
-msgid "Astronomical dawn"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:225
-msgid "Nautical dawn"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:226
-msgid "Civil dawn"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:228
-msgid "Solar noon"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:229
-msgid "Sunset"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:230
-msgid "Civil dusk"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:231
-msgid "Nautical dusk"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:232
-msgid "Astronomical dusk"
-msgstr ""
-
-#: docking/applets/sunrise/state.py:325
+#: docking/applets/sunrise/state.py:315
 msgid "Sunrise: no city selected"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:328
+#: docking/applets/sunrise/state.py:318
 #, python-brace-format
 msgid "{phase} now"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:332
+#: docking/applets/sunrise/state.py:322
 #, python-brace-format
 msgid "{event} in {duration}"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:364 docking/applets/sunrise/state.py:375
+#: docking/applets/sunrise/state.py:354 docking/applets/sunrise/state.py:365
 msgid "Night"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:365
+#: docking/applets/sunrise/state.py:355
 msgid "Astronomical twilight"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:366
+#: docking/applets/sunrise/state.py:356
 msgid "Nautical twilight"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:367
+#: docking/applets/sunrise/state.py:357
 msgid "Civil twilight"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:368
+#: docking/applets/sunrise/state.py:358
 msgid "Daylight"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:376
+#: docking/applets/sunrise/state.py:366
 msgid "Astro"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:377
+#: docking/applets/sunrise/state.py:367
 msgid "Naut"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:378
+#: docking/applets/sunrise/state.py:368
 msgid "Civil"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:386
+#: docking/applets/sunrise/state.py:376
 #: docking/applets/todayinhistory/applet.py:96
 msgid "Next Event"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:387
+#: docking/applets/sunrise/state.py:377
 msgid "Current Phase"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:388
+#: docking/applets/sunrise/state.py:378
 msgid "Sunrise/Sunset"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:395 docking/applets/weather/state.py:164
+#: docking/applets/sunrise/state.py:385 docking/applets/weather/state.py:164
 msgid "No city selected"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:397
+#: docking/applets/sunrise/state.py:387
 #, python-brace-format
 msgid "{city}: {phase}"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:401
+#: docking/applets/sunrise/state.py:391
 #, python-brace-format
 msgid "{city}: {event} in {duration}"
 msgstr ""
 
-#: docking/applets/sunrise/state.py:413
-#, python-brace-format
-msgid "{hours}h {minutes}m"
+#: docking/applets/sunrise/state.py:458
+msgid "Astronomical dawn"
+msgstr ""
+
+#: docking/applets/sunrise/state.py:464
+msgid "Nautical dawn"
+msgstr ""
+
+#: docking/applets/sunrise/state.py:470
+msgid "Civil dawn"
+msgstr ""
+
+#: docking/applets/sunrise/state.py:482
+msgid "Solar noon"
+msgstr ""
+
+#: docking/applets/sunrise/state.py:488
+msgid "Sunset"
+msgstr ""
+
+#: docking/applets/sunrise/state.py:494
+msgid "Civil dusk"
+msgstr ""
+
+#: docking/applets/sunrise/state.py:500
+msgid "Nautical dusk"
+msgstr ""
+
+#: docking/applets/sunrise/state.py:506
+msgid "Astronomical dusk"
 msgstr ""
 
 #: docking/applets/systemmonitor/applet.py:51
