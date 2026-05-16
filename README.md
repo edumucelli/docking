@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 51 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 52 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 13 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -328,6 +328,26 @@ Analog or digital clock face. Optional seconds display adds a red seconds hand i
 - **Acknowledge Alarm** -- clear the urgent reminder after it fires
 
 **Preferences stored:** `show_digital`, `show_military`, `show_date`, `show_seconds`, `alarm_target`
+
+### Alarm
+
+<img src="docking/assets/icons/applets/alarm.png" alt="Alarm" width="48">
+
+Multiple alarm presets with local-time scheduling, weekday repeats, one-shot alarms, snooze, and dismiss controls. The icon shows a rounded alarm clock with a compact next-alarm countdown, and switches to a ringing label when an alarm fires.
+
+**Click:** Open the alarm editor, or dismiss the current ringing alarm
+**Right-click options:**
+- **Add Alarm...** -- create a new alarm preset
+- **Snooze** -- move the current ringing alarm forward by its preset snooze duration
+- **Dismiss** -- stop the current ringing alarm
+- **Alarm preset rows** -- enable or disable saved presets from the menu
+- **Edit {label}...** -- edit or remove a saved preset
+
+**Tooltip:** Next enabled alarm with local time, or the currently ringing alarm label.
+
+**Preferences stored:** `presets` with `label`, `hour`, `minute`, `enabled`, `repeat_days`, `snooze_minutes`, `last_triggered`, and `snoozed_until`
+
+**Update interval:** 30 seconds normally, 1 second while ringing
 
 ### Trash
 
