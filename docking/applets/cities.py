@@ -1,7 +1,7 @@
-"""City database for weather applet -- gzipped CSV loading and search.
+"""Shared city database for applets -- gzipped CSV loading and search.
 
 Loads ~48K cities from a gzipped SimpleMaps CSV (871KB on disk).
-Provides prefix-based search for the autocomplete entry in the applet menu.
+Provides prefix-based search for autocomplete entries in applet menus.
 """
 
 from __future__ import annotations
@@ -13,14 +13,12 @@ from typing import NamedTuple
 
 from docking.log import get_logger
 
-_CITIES_GZ = (
-    Path(__file__).parent.parent.parent / "assets" / "weather" / "cities.csv.gz"
-)
-log = get_logger("weather.cities")
+_CITIES_GZ = Path(__file__).parent.parent / "assets" / "cities.csv.gz"
+log = get_logger("applets.cities")
 
 
 class CityEntry(NamedTuple):
-    """A city with coordinates for weather lookup."""
+    """A city with coordinates for applet lookups."""
 
     name: str  # ASCII city name (e.g. "Berlin")
     country: str  # Full country name (e.g. "Germany")
