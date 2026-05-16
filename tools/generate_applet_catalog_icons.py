@@ -44,6 +44,8 @@ from gi.repository import Gdk, GdkPixbuf
 from docking.applets import get_applet_catalog
 from docking.applets.aiusage.render import render_icon as render_aiusage
 from docking.applets.aiusage.state import AiUsageState
+from docking.applets.alarm.render import render_icon as render_alarm
+from docking.applets.alarm.state import AlarmPreset, AlarmState
 from docking.applets.ambient.render import render_icon as render_ambient
 from docking.applets.apod.render import render_icon as render_apod
 from docking.applets.applications.render import create_icon as render_applications
@@ -202,6 +204,19 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
     )
     return {
         AppletId.AIUSAGE: render_aiusage(size=size, state=AiUsageState()),
+        AppletId.ALARM: render_alarm(
+            size=size,
+            state=AlarmState(
+                presets=(
+                    AlarmPreset(
+                        label="Wake",
+                        hour=7,
+                        minute=30,
+                    ),
+                )
+            ),
+            now=dt.datetime(2026, 5, 18, 6, 45, tzinfo=dt.timezone.utc),
+        ),
         AppletId.AMBIENT: render_ambient(size=size),
         AppletId.APOD: render_apod(size=size, cached_path=""),
         AppletId.APPLICATIONS: render_applications(size=size),
