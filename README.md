@@ -40,7 +40,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 50 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 51 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 13 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -437,6 +437,25 @@ Tue: 28/32°C, Rain
 **Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`, `temperature_unit`
 
 **Update interval:** 5 minutes
+
+### Sunrise
+
+<img src="docking/assets/icons/applets/sunrise.png" alt="Sunrise" width="48">
+
+Sunrise, sunset, and twilight countdown applet for a selected city. The icon is a rendered 24-hour solar dial with night, astronomical, nautical, civil, and daylight bands plus a current-time marker.
+
+**Click:** Open city search and add/switch the active city
+**Right-click options:**
+- **Label Mode** -- switch between next-event countdown, current phase, and sunrise/sunset times
+- **Remove {city}** -- remove active city when multiple cities are configured
+
+**Scroll:** Cycle through configured cities
+
+**Tooltip:** Selected city, current solar phase, next solar event countdown, and today's solar event times. Times are calculated locally from the city coordinates and shown in the system timezone.
+
+**Preferences stored:** `cities`, `active_index`, `label_mode`
+
+**Update interval:** 60 seconds
 
 ### Moon
 

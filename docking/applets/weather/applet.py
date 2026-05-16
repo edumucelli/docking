@@ -14,6 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.cities import search_cities
 from docking.applets.freshness import cadence_label, updated_label
 from docking.applets.live_state import (
     live_state_error,
@@ -31,7 +32,6 @@ from docking.applets.weather.api import (
     fetch_weather,
     wmo_icon_name,
 )
-from docking.applets.weather.cities import search_cities
 from docking.applets.weather.render import create_icon
 from docking.applets.weather.state import (
     CityPref,

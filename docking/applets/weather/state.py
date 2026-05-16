@@ -9,6 +9,7 @@ from functools import lru_cache
 from typing import Any, NamedTuple
 
 from docking.applets import temperature as temperature_display
+from docking.applets.cities import CityEntry, load_cities
 from docking.applets.live_state import (
     live_freshness_lines,
     live_state_error,
@@ -18,7 +19,6 @@ from docking.applets.live_state import (
 )
 from docking.applets.tooltip import structured_tooltip
 from docking.applets.weather.api import AirQualityData, WeatherData
-from docking.applets.weather.cities import CityEntry, load_cities
 from docking.i18n import _
 
 DEFAULT_ICON_NAME = "weather-few-clouds"

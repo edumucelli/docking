@@ -95,6 +95,9 @@ from docking.applets.session.render import create_session_icon
 from docking.applets.speedtest.render import render_icon as render_speedtest
 from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
 from docking.applets.stretchcoach.state import StretchCoachState
+from docking.applets.sunrise.render import render_icon as render_sunrise
+from docking.applets.sunrise.state import CityPref as SunriseCityPref
+from docking.applets.sunrise.state import build_snapshot as build_sunrise_snapshot
 from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
 from docking.applets.thermals.render import render_icon as render_thermals
 from docking.applets.thermals.state import FanReading, ThermalReading, ThermalSnapshot
@@ -341,6 +344,17 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.STRETCHCOACH: render_stretchcoach(
             size=size,
             state=StretchCoachState(),
+        ),
+        AppletId.SUNRISE: render_sunrise(
+            size=size,
+            snapshot=build_sunrise_snapshot(
+                city=SunriseCityPref(
+                    city_display="Berlin, Germany",
+                    lat=52.52,
+                    lng=13.41,
+                ),
+                now=dt.datetime(2026, 6, 21, 7, 30, tzinfo=dt.timezone.utc),
+            ),
         ),
         AppletId.THERMALS: render_thermals(
             size=size,
