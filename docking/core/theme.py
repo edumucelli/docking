@@ -171,7 +171,7 @@ _USER_THEME_TEMPLATE = {
     "click_time_ms": 300,
     "hover_lighten": 0.2,
     "active_time_ms": 150,
-    "max_indicator_dots": 3,
+    "max_indicator_dots": 4,
     "glow_opacity": 0.6,
     "indicator_style": "dots",
     "round_bottom": False,
@@ -265,7 +265,7 @@ class Theme:
     click_time_ms: int = 300  # ms
     hover_lighten: float = 0.2  # 0.0-1.0 additive brightness
     active_time_ms: int = 150  # ms for hover fade in/out
-    max_indicator_dots: int = 3  # max running indicator dots
+    max_indicator_dots: int = 4  # max running indicator dots
     glow_opacity: float = 0.6  # active glow gradient max opacity
     urgent_glow_time_ms: int = 10000  # glow visible for 10s after urgency
     urgent_glow_pulse_ms: int = 2000  # one pulse cycle every 2s
@@ -443,7 +443,7 @@ class Theme:
         click_time_ms = int(data.get("click_time_ms", 300))
         hover_lighten = float(data.get("hover_lighten", 0.2))
         active_time_ms = int(data.get("active_time_ms", 150))
-        max_indicator_dots = int(data.get("max_indicator_dots", 3))
+        max_indicator_dots = int(data.get("max_indicator_dots", 4))
         glow_opacity = float(data.get("glow_opacity", 0.6))
         urgent_glow_time_ms = int(data.get("urgent_glow_time_ms", 10000))
         urgent_glow_pulse_ms = int(data.get("urgent_glow_pulse_ms", 2000))
