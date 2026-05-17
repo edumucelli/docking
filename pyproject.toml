@@ -26,7 +26,7 @@ dev = [
     "pytest-cov",
     "ruff==0.15.13",
     "scikit-image>=0.25",
-    "ty==0.0.34",
+    "ty==0.0.37",
     "vulture>=2.16",
 ]
 
