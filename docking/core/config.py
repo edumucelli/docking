@@ -452,6 +452,7 @@ class FolderStackUnfold(str, Enum):
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
 DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.HOVER.value
+DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
 
 
 def _normalize_left_click_action(value: object) -> str:
@@ -722,6 +723,8 @@ class Config:
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
     # How pinned folder stacks open from the dock
     folder_stack_unfold: str = DEFAULT_FOLDER_STACK_UNFOLD
+    # Whether running application indicators show a numeric window count
+    show_window_count_numbers: bool = DEFAULT_SHOW_WINDOW_COUNT_NUMBERS
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
     # Multiplier applied to theme alpha values for the dock shelf
@@ -841,6 +844,10 @@ class Config:
         )
         self.folder_stack_unfold = _normalize_folder_stack_unfold(
             self.folder_stack_unfold,
+        )
+        self.show_window_count_numbers = _normalize_bool(
+            self.show_window_count_numbers,
+            default=DEFAULT_SHOW_WINDOW_COUNT_NUMBERS,
         )
         self.theme = _normalize_theme(self.theme)
         self.transparency = _normalize_transparency(self.transparency)

@@ -477,6 +477,7 @@ def _config():
         left_click_action="toggle",
         middle_click_action="new-window",
         folder_stack_unfold="click",
+        show_window_count_numbers=False,
         lock_icons=False,
         current_workspace_only=False,
         active_display=False,
@@ -744,6 +745,33 @@ class TestSettingsWindowController:
         assert config.folder_stack_unfold == "hover"
         config.save.assert_called_once()
         runtime.assert_not_called()
+
+    def test_show_window_count_numbers_binding_updates_config_and_redraws(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_catalog_icon",
+            lambda applet_id, size: None,
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._window_count_numbers_switch.set_active(True)
+        controller._window_count_numbers_switch.emit_notify_active()
+
+        assert config.show_window_count_numbers is True
+        config.save.assert_called_once()
+        runtime.queue_draw.assert_called_once()
 
     def test_hide_mode_change_updates_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

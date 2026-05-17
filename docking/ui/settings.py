@@ -144,6 +144,7 @@ class SettingsWindowController:
         self._left_click_combo: Any = None
         self._middle_click_combo: Any = None
         self._folder_stack_unfold_combo: Any = None
+        self._window_count_numbers_switch: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -270,6 +271,7 @@ class SettingsWindowController:
 
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
+        self._window_count_numbers_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
         self._workspace_only_switch = self._new_switch()
         self._active_display_switch = self._new_switch()
@@ -343,6 +345,7 @@ class SettingsWindowController:
                 (_("Zoom Percent"), self._zoom_percent_spin),
                 (_("Show Tooltips"), self._tooltips_switch),
                 (_("Window Previews"), self._previews_switch),
+                ("Show Window Counts", self._window_count_numbers_switch),
             ],
         )
         self._append_section(
@@ -536,6 +539,11 @@ class SettingsWindowController:
             self._register_choice_binding(
                 config_attr="folder_stack_unfold",
                 widget=self._folder_stack_unfold_combo,
+            ),
+            self._register_switch_binding(
+                config_attr="show_window_count_numbers",
+                widget=self._window_count_numbers_switch,
+                on_change=lambda _value: self._runtime.queue_draw(),
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",
