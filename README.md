@@ -165,6 +165,8 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
   "active_display": false,
   "left_click_action": "toggle",
   "middle_click_action": "new-window",
+  "folder_stack_unfold": "hover",
+  "show_window_count_numbers": false,
   "theme": "default",
   "transparency": 1.0,
   "pinned": [
@@ -201,6 +203,8 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `update_check_interval_hours` | 24 | Minimum hours between automatic update checks |
 | `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
+| `folder_stack_unfold` | hover | Folder stack open behavior: `hover` or `click` |
+| `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
 | `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders. First run seeds a starter set. |

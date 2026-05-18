@@ -364,6 +364,147 @@ def _draw_indicator_dashes(
         cr.fill()
 
 
+def _window_count_label(count: int) -> str:
+    return "99+" if count > 99 else str(max(1, count))
+
+
+def _window_count_bar_height(*, base_size: int, radius: float) -> float:
+    return max(radius * 3.0, base_size * 0.18)
+
+
+def _window_count_dot_height(*, count: int, base_size: int, radius: float) -> float:
+    if count <= 1:
+        return radius * 2.0
+    return float(round(max(radius * 4.2, base_size * 0.22)))
+
+
+def _snap_count_indicator_rect(
+    *,
+    cx: float,
+    cy: float,
+    width: float,
+    height: float,
+) -> tuple[float, float, float, float]:
+    width = float(max(1, round(width)))
+    height = float(max(1, round(height)))
+    return (
+        float(round(cx - width / 2.0)),
+        float(round(cy - height / 2.0)),
+        width,
+        height,
+    )
+
+
+def _inset_count_indicator_anchor(
+    *,
+    cx: float,
+    cy: float,
+    cross_extent: float,
+    radius: float,
+    pos: Position,
+) -> tuple[float, float]:
+    extra_inset = max(0.0, cross_extent / 2.0 - radius)
+    if pos == Position.BOTTOM:
+        cy -= extra_inset
+    elif pos == Position.TOP:
+        cy += extra_inset
+    elif pos == Position.LEFT:
+        cx += extra_inset
+    else:  # RIGHT
+        cx -= extra_inset
+    return cx, cy
+
+
+def _draw_indicator_count_bar(
+    *,
+    cr: cairo.Context,
+    cx: float,
+    cy: float,
+    count: int,
+    base_size: int,
+    radius: float,
+) -> None:
+    """Draw one running indicator bar, adding a count when there are many windows."""
+    label = _window_count_label(count)
+    show_label = count > 1
+    height = _window_count_bar_height(base_size=base_size, radius=radius)
+    min_width = max(radius * 8.0, base_size * 0.38)
+
+    cr.save()
+    cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.set_font_size(max(8.0, base_size * 0.16))
+    ext = cr.text_extents(label)
+    padding_x = height * 0.45
+    width = max(min_width, ext.width + 2.0 * padding_x) if show_label else min_width
+    x, y, width, height = _snap_count_indicator_rect(
+        cx=cx,
+        cy=cy,
+        width=width,
+        height=height,
+    )
+
+    rounded_rect(cr, x, y, width, height, height / 2.0)
+    cr.fill()
+
+    if show_label:
+        ascent, descent, *_ = cr.font_extents()
+        center_x = x + width / 2.0
+        center_y = y + height / 2.0
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.92)
+        text_x = center_x - (ext.width / 2.0 + ext.x_bearing)
+        text_y = center_y + (ascent - descent) / 2.0
+        cr.move_to(text_x, text_y)
+        cr.show_text(label)
+
+    cr.restore()
+
+
+def _draw_indicator_count_dots(
+    *,
+    cr: cairo.Context,
+    cx: float,
+    cy: float,
+    count: int,
+    base_size: int,
+    radius: float,
+) -> None:
+    """Draw a compact numeric dot in the running-indicator position."""
+    if count <= 1:
+        cr.arc(cx, cy, radius, 0, 2 * math.pi)
+        cr.fill()
+        return
+
+    label = _window_count_label(count)
+    cr.save()
+    cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.set_font_size(max(8.0, base_size * 0.15))
+    ext = cr.text_extents(label)
+    height = _window_count_dot_height(count=count, base_size=base_size, radius=radius)
+    width = height if count < 10 else max(height, ext.width + height * 0.55)
+    x, y, width, height = _snap_count_indicator_rect(
+        cx=cx,
+        cy=cy,
+        width=width,
+        height=height,
+    )
+
+    rounded_rect(cr, x, y, width, height, height / 2.0)
+    cr.fill()
+
+    ascent, descent, *_ = cr.font_extents()
+    center_x = x + width / 2.0
+    center_y = y + height / 2.0
+    cr.set_operator(cairo.OPERATOR_SOURCE)
+    cr.set_source_rgba(1.0, 1.0, 1.0, 0.92)
+    cr.move_to(
+        center_x - (ext.width / 2.0 + ext.x_bearing),
+        center_y + (ascent - descent) / 2.0,
+    )
+    cr.show_text(label)
+    cr.restore()
+
+
 def compute_urgent_glow_opacity(
     elapsed_us: int, glow_time_ms: int, pulse_ms: int
 ) -> float:
@@ -768,6 +909,7 @@ class DockRenderer:
                     cr=cr,
                     item=item,
                     li=li,
+                    show_window_count_numbers=config.show_window_count_numbers,
                     base_size=icon_size,
                     main_pos=icon_offset + slide + drop_shift,
                     cross_size=cross_size,
@@ -1188,6 +1330,7 @@ class DockRenderer:
         cr: cairo.Context,
         item: DockItem,
         li: LayoutItem,
+        show_window_count_numbers: bool,
         base_size: int,
         main_pos: float,
         cross_size: float,
@@ -1220,7 +1363,46 @@ class DockRenderer:
         else:  # RIGHT
             cx, cy = cross_size - edge_padding / 2 + hide_cross, main_center
 
-        if theme.indicator_style == IndicatorStyle.DASHES:
+        if show_window_count_numbers and theme.indicator_style == IndicatorStyle.DASHES:
+            count_cx, count_cy = _inset_count_indicator_anchor(
+                cx=cx,
+                cy=cy,
+                cross_extent=_window_count_bar_height(
+                    base_size=base_size,
+                    radius=radius,
+                ),
+                radius=radius,
+                pos=pos,
+            )
+            _draw_indicator_count_bar(
+                cr=cr,
+                cx=count_cx,
+                cy=count_cy,
+                count=item.instance_count,
+                base_size=base_size,
+                radius=radius,
+            )
+        elif show_window_count_numbers:
+            count_cx, count_cy = _inset_count_indicator_anchor(
+                cx=cx,
+                cy=cy,
+                cross_extent=_window_count_dot_height(
+                    count=item.instance_count,
+                    base_size=base_size,
+                    radius=radius,
+                ),
+                radius=radius,
+                pos=pos,
+            )
+            _draw_indicator_count_dots(
+                cr=cr,
+                cx=count_cx,
+                cy=count_cy,
+                count=item.instance_count,
+                base_size=base_size,
+                radius=radius,
+            )
+        elif theme.indicator_style == IndicatorStyle.DASHES:
             _draw_indicator_dashes(cr, cx, cy, radius, spacing, count, horizontal)
         else:  # DOTS
             for j in range(count):
