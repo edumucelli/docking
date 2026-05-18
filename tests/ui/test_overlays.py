@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import cairo
 
-from docking.ui.overlays import draw_circle_badge, draw_count_badge, draw_progress_bar
+import docking.ui.overlays as overlays_mod
+from docking.ui.overlays import (
+    _snap_badge_rect,
+    draw_circle_badge,
+    draw_count_badge,
+    draw_progress_bar,
+)
 
 
 def _context(size: int = 64) -> tuple[cairo.ImageSurface, cairo.Context]:
@@ -47,6 +53,33 @@ def test_draw_count_badge_supports_all_label_lengths():
     draw_count_badge(cr=cr, x=2, y=28, width=28, height=16, badge_count=120)
 
     assert _non_empty(surface)
+
+
+def test_snap_badge_rect_keeps_badges_on_whole_pixels():
+    assert _snap_badge_rect(x=10.3, y=4.2, width=18.6, height=15.6) == (
+        10.0,
+        4.0,
+        19.0,
+        16.0,
+    )
+
+
+def test_draw_count_badge_uses_snapped_geometry(monkeypatch):
+    _, cr = _context()
+    calls = []
+
+    monkeypatch.setattr(
+        overlays_mod,
+        "rounded_rect",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    draw_count_badge(cr=cr, x=10.3, y=4.2, width=18.6, height=15.6, badge_count=7)
+
+    assert calls[0]["x"] == 10.0
+    assert calls[0]["y"] == 4.0
+    assert calls[0]["width"] == 19.0
+    assert calls[0]["height"] == 16.0
 
 
 def test_draw_progress_bar_clamps_and_switches_dark_fill():
