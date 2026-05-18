@@ -296,7 +296,7 @@ class TestAnimationParams:
     def test_default_visual_params(self):
         t = Theme.load("default", 48)
         assert t.hover_lighten == pytest.approx(0.2)
-        assert t.max_indicator_dots == 3
+        assert t.max_indicator_dots == 4
         assert t.glow_opacity == pytest.approx(0.6)
 
     def test_animation_params_same_at_different_icon_sizes(self):
@@ -322,7 +322,7 @@ class TestAnimationParams:
         assert t.launch_bounce_height == pytest.approx(0.625)
         assert t.click_time_ms == 300
         assert t.hover_lighten == pytest.approx(0.2)
-        assert t.max_indicator_dots == 3
+        assert t.max_indicator_dots == 4
         assert t.glow_opacity == pytest.approx(0.6)
 
 
