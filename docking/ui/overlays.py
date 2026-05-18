@@ -23,6 +23,25 @@ from docking.applets.draw import rounded_rect
 from docking.core.theme import RGB, RGBA
 
 
+def _snap_badge_rect(
+    *,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+) -> tuple[float, float, float, float]:
+    snapped_width = float(max(1, round(width)))
+    snapped_height = float(max(1, round(height)))
+    center_x = x + width / 2.0
+    center_y = y + height / 2.0
+    return (
+        float(round(center_x - snapped_width / 2.0)),
+        float(round(center_y - snapped_height / 2.0)),
+        snapped_width,
+        snapped_height,
+    )
+
+
 def draw_circle_badge(
     *,
     cr: cairo.Context,
@@ -58,6 +77,12 @@ def draw_count_badge(
     font_family: str = "Sans",
 ) -> None:
     """Draw a rounded count badge with centered text."""
+    x, y, width, height = _snap_badge_rect(
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+    )
     text = "99+" if badge_count > 99 else str(badge_count)
     corner = min(height / 2, max(height * 0.35, 4.0))
 
