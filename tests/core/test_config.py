@@ -38,6 +38,7 @@ class TestConfigDefaults:
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
         assert c.folder_stack_unfold == "hover"
+        assert c.show_window_count_numbers is False
         assert c.theme == "default"
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
@@ -80,6 +81,7 @@ class TestConfigDefaults:
             active_display="no",
             update_check_enabled="off",
             update_check_interval_hours="bad",
+            show_window_count_numbers="on",
             theme="",
         )
 
@@ -97,6 +99,7 @@ class TestConfigDefaults:
         assert c.active_display is False
         assert c.update_check_enabled is False
         assert c.update_check_interval_hours == 24
+        assert c.show_window_count_numbers is True
         assert c.theme == "default"
 
 
@@ -258,6 +261,7 @@ class TestConfigLoad:
                     "left_click_action": "cycle",
                     "middle_click_action": "minimize",
                     "folder_stack_unfold": "hover",
+                    "show_window_count_numbers": "true",
                 }
             )
         )
@@ -271,6 +275,7 @@ class TestConfigLoad:
         assert config.left_click_action == "cycle"
         assert config.middle_click_action == "minimize"
         assert config.folder_stack_unfold == "hover"
+        assert config.show_window_count_numbers is True
 
     def test_load_clamps_transparency_to_minimum(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -489,6 +494,15 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["folder_stack_unfold"] == "hover"
+
+    def test_save_persists_show_window_count_numbers(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(show_window_count_numbers=True)
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["show_window_count_numbers"] is True
 
     def test_save_persists_transparency(self, tmp_path):
         path = tmp_path / "dock.json"
