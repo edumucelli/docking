@@ -47,6 +47,7 @@ def _make_window():
         tooltip=SimpleNamespace(hide=MagicMock()),
         preview=SimpleNamespace(hide=MagicMock()),
         theme="old-theme",
+        set_theme=MagicMock(),
         cursor_x=12.0,
         cursor_y=34.0,
         is_pointer_inside_dock=MagicMock(return_value=True),
@@ -115,4 +116,4 @@ class TestDockRuntime:
         window.preview.hide.assert_called_once()
         update_checker.check_now.assert_called_once()
         update_checker.open_releases_page.assert_called_once()
-        assert window.theme == "new-theme"
+        window.set_theme.assert_called_once_with("new-theme")
