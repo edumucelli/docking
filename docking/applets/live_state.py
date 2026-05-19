@@ -20,8 +20,8 @@ from enum import Enum
 
 from docking.applets.freshness import (
     cadence_label,
-    format_local_time,
     parse_timestamp,
+    relative_time_label,
     updated_label,
 )
 from docking.i18n import _
@@ -109,13 +109,14 @@ def live_freshness_lines(
     updated_at: dt.datetime | str | None = None,
     cadence_seconds: int | None = None,
     cadence_verb: str | None = None,
+    now: dt.datetime | None = None,
 ) -> tuple[str, ...]:
     """Build standard freshness/cadence lines for structured tooltips."""
     lines: list[str] = []
     if status is LiveDataStatus.STALE:
-        lines.append(stale_label(updated_at))
+        lines.append(stale_label(updated_at, now=now))
     else:
-        updated = updated_label(updated_at)
+        updated = updated_label(updated_at, now=now)
         if updated:
             lines.append(updated)
     if cadence_seconds:
@@ -123,12 +124,16 @@ def live_freshness_lines(
     return tuple(line for line in lines if line)
 
 
-def stale_label(updated_at: dt.datetime | str | None = None) -> str:
+def stale_label(
+    updated_at: dt.datetime | str | None = None,
+    *,
+    now: dt.datetime | None = None,
+) -> str:
     """Return a standard stale-data line, with last update when known."""
-    parsed = parse_timestamp(updated_at)
-    if parsed is None:
+    age = relative_time_label(timestamp=updated_at, now=now)
+    if not age:
         return _("Stale data")
-    return _("Stale: last updated {time}").format(time=format_local_time(parsed))
+    return _("Stale: last updated {age}").format(age=age)
 
 
 def refresh_recovery_label(status: LiveDataStatus) -> str | None:
