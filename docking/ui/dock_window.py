@@ -468,6 +468,14 @@ class DockWindow(Gtk.Window):
         """Stop update-check scheduling owned by the dock shell."""
         self._update_checker.stop()
 
+    def set_theme(self, theme: Theme) -> None:
+        """Replace the runtime theme and notify collaborators that cache it."""
+        self.theme = theme
+        self.tooltip.set_theme(theme)
+        self.hover.set_theme(theme)
+        self.dnd.set_theme(theme)
+        self._invalidate_current_geometry_frame()
+
     def _build_components(self, *, launcher: Launcher) -> None:
         """Build long-lived UI collaborators that depend on the live window."""
         self._update_checker = UpdateCheckController(window=self, config=self.config)
@@ -688,6 +696,9 @@ class DockWindow(Gtk.Window):
             ]
             log.debug("draw items: %s", " | ".join(item_positions) or "<none>")
         self._sync_background_blur_hint(frame=frame)
+        cursor_main_axis = (
+            self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
+        )
         self.renderer.draw(
             cr,
             widget,
@@ -699,6 +710,7 @@ class DockWindow(Gtk.Window):
             drop_insert,
             hovered_id,
             drop_target_id=drop_target,
+            cursor_main=cursor_main_axis,
         )
         # Update input region as hide state changes (shrink when hidden)
         self.update_input_region(frame=frame)

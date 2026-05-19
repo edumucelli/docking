@@ -226,6 +226,10 @@ class DnDHandler:
 
         self._setup_dnd()
 
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme used for drag-and-drop spacing."""
+        self._theme = theme
+
     def _setup_dnd(self) -> None:
         """Configure GTK drag-and-drop on the drawing area.
 
@@ -395,6 +399,12 @@ class DnDHandler:
             log.debug(f"drag-motion: reorder {self.drag_index} -> {new_index}")
             self._model.reorder_visible(self.drag_index, new_index)
             self.drag_index = new_index
+
+        # Track cursor during drag so the renderer can pin the dragged item's
+        # running-indicator dot under the drag ghost instead of letting it drift
+        # to the layout slot center as the model reorders.
+        self._window.cursor_x = float(x)
+        self._window.cursor_y = float(y)
 
         Gdk.drag_status(context, Gdk.DragAction.MOVE, time)
 
