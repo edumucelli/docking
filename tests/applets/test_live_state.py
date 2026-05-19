@@ -53,16 +53,33 @@ def test_live_state_label_and_error_detail():
 
 def test_live_freshness_uses_stale_label_before_cadence():
     updated = dt.datetime(2026, 4, 30, 10, 0, tzinfo=dt.timezone.utc)
+    now = dt.datetime(2026, 4, 30, 10, 10, tzinfo=dt.timezone.utc)
 
     lines = live_freshness_lines(
         status=LiveDataStatus.STALE,
         updated_at=updated,
         cadence_seconds=300,
+        now=now,
     )
 
-    assert lines[0].startswith("Stale: last updated")
+    assert lines[0] == "Stale: last updated 10 minutes ago"
     assert lines[1] == "Updates every 5 minutes"
     assert stale_label(None) == "Stale data"
+
+
+def test_live_freshness_uses_relative_updated_label_before_cadence():
+    updated = dt.datetime(2026, 4, 30, 10, 0, tzinfo=dt.timezone.utc)
+    now = dt.datetime(2026, 4, 30, 10, 2, tzinfo=dt.timezone.utc)
+
+    lines = live_freshness_lines(
+        status=LiveDataStatus.READY,
+        updated_at=updated,
+        cadence_seconds=300,
+        now=now,
+    )
+
+    assert lines[0] == "Updated: 2 minutes ago"
+    assert lines[1] == "Updates every 5 minutes"
 
 
 def test_refresh_recovery_label_only_for_non_ready_states():

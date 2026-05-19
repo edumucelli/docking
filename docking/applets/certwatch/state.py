@@ -323,6 +323,7 @@ def build_tooltip(
             updated_at=updated_at,
             cadence_seconds=cadence_seconds,
             cadence_verb=_("Checks"),
+            now=now,
         ),
         error=live_state_error(status=status, error=error),
         recovery=refresh_recovery_label(status),
