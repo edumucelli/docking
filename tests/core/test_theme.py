@@ -1,16 +1,19 @@
 """Tests for theme loading, scaling unit system, and color parsing."""
 
 import json
+import logging
 from unittest.mock import patch
 
 import pytest
 
+import docking.core.theme.migration as theme_migration_mod
 from docking.core.theme import (
     _USER_THEME_TEMPLATE_NAME,
     Theme,
     _rgba,
     ensure_user_theme_template,
     list_theme_names,
+    migrate_theme_dict,
     user_themes_dir,
 )
 
@@ -70,7 +73,7 @@ class TestThemeLoad:
         theme_file = tmp_path / "custom.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("custom", 48)
         # Then
         assert t.roundness == 16.0
@@ -166,6 +169,133 @@ class TestThemeLoad:
         assert t.fill_start[3] > 0.9
 
 
+class TestThemeMigration:
+    def test_migrate_theme_dict_is_idempotent_without_registered_keys(self):
+        data = {"roundness": 5, "meta": {"author": "custom"}}
+
+        result = migrate_theme_dict(data, deprecated_keys={})
+
+        assert result.changed is False
+        assert result.data == data
+        assert result.data is not data
+
+    def test_migrate_theme_dict_moves_legacy_key_and_preserves_unknowns(self):
+        data = {
+            "legacy_padding": 3,
+            "roundness": 5,
+            "metadata": {"author": "custom"},
+        }
+
+        result = migrate_theme_dict(
+            data,
+            deprecated_keys={"legacy_padding": "layout.horizontal_padding"},
+        )
+
+        assert result.changed is True
+        assert "legacy_padding" not in result.data
+        assert result.data["layout"]["horizontal_padding"] == 3
+        assert result.data["roundness"] == 5
+        assert result.data["metadata"] == {"author": "custom"}
+        assert "legacy_padding" in data
+
+    def test_migrate_theme_dict_prefers_new_value_when_both_exist(self):
+        data = {
+            "legacy_padding": 3,
+            "layout": {"horizontal_padding": 7},
+        }
+
+        result = migrate_theme_dict(
+            data,
+            deprecated_keys={"legacy_padding": "layout.horizontal_padding"},
+        )
+
+        assert "legacy_padding" not in result.data
+        assert result.data["layout"]["horizontal_padding"] == 7
+        assert result.changes[0].conflict is True
+        assert "ignored" in result.warnings[0]
+
+    def test_migrate_theme_dict_replaces_malformed_nested_section(self):
+        data = {"legacy_padding": 3, "layout": None}
+
+        result = migrate_theme_dict(
+            data,
+            deprecated_keys={"legacy_padding": "layout.horizontal_padding"},
+        )
+
+        assert result.data["layout"] == {"horizontal_padding": 3}
+        assert "not an object" in result.warnings[0]
+
+    def test_theme_load_rewrites_migrated_user_theme_and_creates_backup(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        monkeypatch.setattr(
+            theme_migration_mod,
+            "DEPRECATED_THEME_KEYS",
+            {"legacy_padding": "layout.horizontal_padding"},
+        )
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        original = {"roundness": 14, "legacy_padding": 3}
+        theme_file.write_text(json.dumps(original), encoding="utf-8")
+
+        theme = Theme.load("custom", 48)
+
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        backup = theme_migration_mod._theme_migration_backup_path(theme_file)
+        assert theme.roundness == 14.0
+        assert migrated["layout"]["horizontal_padding"] == 3
+        assert "legacy_padding" not in migrated
+        assert backup.exists()
+        assert json.loads(backup.read_text(encoding="utf-8")) == original
+
+    def test_theme_migration_backup_is_not_listed_as_theme(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        theme_file.write_text("{}", encoding="utf-8")
+        backup = theme_migration_mod._theme_migration_backup_path(theme_file)
+        backup.write_text("{}", encoding="utf-8")
+
+        names = list_theme_names()
+
+        assert "custom" in names
+        assert backup.name not in names
+
+    def test_theme_load_uses_in_memory_migration_when_rewrite_fails(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        monkeypatch.setattr(
+            theme_migration_mod,
+            "DEPRECATED_THEME_KEYS",
+            {"legacy_roundness": "roundness"},
+        )
+
+        def raise_permission(**_kwargs):
+            raise PermissionError("read-only")
+
+        monkeypatch.setattr(
+            theme_migration_mod,
+            "_write_theme_json_atomic",
+            raise_permission,
+        )
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        original = {"legacy_roundness": 19}
+        theme_file.write_text(json.dumps(original), encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING, logger="docking.theme"):
+            theme = Theme.load("custom", 48)
+
+        assert theme.roundness == 19.0
+        assert json.loads(theme_file.read_text(encoding="utf-8")) == original
+        assert "Failed to rewrite migrated user theme" in caplog.text
+
+
 class TestScalingUnit:
     """Tests for the scaling unit system: JSON values * (icon_size / 10)."""
 
@@ -223,7 +353,7 @@ class TestScalingUnit:
         theme_file = tmp_path / "pos.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("pos", 48)
         # Then
         assert t.h_padding == pytest.approx(14.4)
@@ -272,7 +402,7 @@ class TestShelfHeightDerivation:
         theme_file = tmp_path / "neg.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("neg", 48)
         # Then
         assert t.shelf_height >= 0.0
@@ -315,7 +445,7 @@ class TestAnimationParams:
         theme_file = tmp_path / "minimal.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("minimal", 48)
         # Then
         assert t.urgent_bounce_height == pytest.approx(1.66)

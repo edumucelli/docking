@@ -139,10 +139,13 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from docking.core.theme.migration import migrate_loaded_theme_data
 from docking.log import get_logger
 
 # Bundled themes directory (relative to package)
-_BUILTIN_THEMES_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
+_BUILTIN_THEMES_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "assets" / "themes"
+)
 _USER_THEME_TEMPLATE_NAME = "template"
 log = get_logger("theme")
 
@@ -371,6 +374,11 @@ class Theme:
 
         with path.open(encoding="utf-8") as f:
             data: dict[str, Any] = json.load(fp=f)
+        data = migrate_loaded_theme_data(
+            data=data,
+            path=path,
+            user_theme_dir=user_themes_dir(),
+        )
 
         # --- Scale factor ---
         # All layout values in JSON use "tenths of percent of icon_size".
