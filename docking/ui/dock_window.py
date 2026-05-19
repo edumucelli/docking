@@ -696,6 +696,9 @@ class DockWindow(Gtk.Window):
             ]
             log.debug("draw items: %s", " | ".join(item_positions) or "<none>")
         self._sync_background_blur_hint(frame=frame)
+        cursor_main_axis = (
+            self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
+        )
         self.renderer.draw(
             cr,
             widget,
@@ -707,6 +710,7 @@ class DockWindow(Gtk.Window):
             drop_insert,
             hovered_id,
             drop_target_id=drop_target,
+            cursor_main=cursor_main_axis,
         )
         # Update input region as hide state changes (shrink when hidden)
         self.update_input_region(frame=frame)

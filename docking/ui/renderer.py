@@ -616,6 +616,7 @@ class DockRenderer:
         drop_insert_index: int = -1,
         hovered_id: str = "",
         drop_target_id: str = "",
+        cursor_main: float = -1.0,
     ) -> None:
         """Main draw entry point -- called on every 'draw' signal.
 
@@ -651,6 +652,7 @@ class DockRenderer:
             drop_insert_index=drop_insert_index,
             hovered_id=hovered_id,
             drop_target_id=drop_target_id,
+            cursor_main=cursor_main,
         )
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_surface(offscreen, 0, 0)
@@ -667,6 +669,7 @@ class DockRenderer:
         drop_insert_index: int,
         hovered_id: str,
         drop_target_id: str = "",
+        cursor_main: float = -1.0,
     ) -> None:
         """Render all dock content to a Cairo context."""
         pos = config.pos
@@ -899,24 +902,36 @@ class DockRenderer:
             )
 
         # --- Draw indicators ---
+        # While dragging, the dragged item's icon is rendered by GTK as a drag
+        # image that follows the cursor, while its layout slot keeps advancing
+        # as the model reorders. Drawing the dot at the slot drifts visibly
+        # ahead of the cursor until the next reorder snap. Pin the dragged
+        # item's indicator to the cursor instead so it tracks the drag ghost.
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
-            if item.is_running:
-                slide = self.slide_offsets.get(item.desktop_id, 0.0)
-                drop_shift = (
-                    gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
-                )
-                self._draw_indicator(
-                    cr=cr,
-                    item=item,
-                    li=li,
-                    show_window_count_numbers=config.show_window_count_numbers,
-                    base_size=icon_size,
-                    main_pos=icon_offset + slide + drop_shift,
-                    cross_size=cross_size,
-                    hide_cross=hide_cross,
-                    theme=theme,
-                    pos=pos,
-                )
+            if not item.is_running:
+                continue
+            slide = self.slide_offsets.get(item.desktop_id, 0.0)
+            drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
+            if i == drag_index and cursor_main >= 0:
+                # Center the indicator under the cursor by passing a main_pos
+                # such that _draw_indicator's "li.x + main_pos + scaled/2"
+                # resolves to cursor_main.
+                scaled_size = icon_size * li.scale
+                main_pos_indicator = cursor_main - li.x - scaled_size / 2
+            else:
+                main_pos_indicator = icon_offset + slide + drop_shift
+            self._draw_indicator(
+                cr=cr,
+                item=item,
+                li=li,
+                show_window_count_numbers=config.show_window_count_numbers,
+                base_size=icon_size,
+                main_pos=main_pos_indicator,
+                cross_size=cross_size,
+                hide_cross=hide_cross,
+                theme=theme,
+                pos=pos,
+            )
 
         # --- Draw per-app overlays ---
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
