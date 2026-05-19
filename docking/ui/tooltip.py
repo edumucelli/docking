@@ -247,6 +247,10 @@ class TooltipManager:
         self._last_name: str = ""
         self._pending_show_source: int = 0
 
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme used for tooltip spacing."""
+        self._theme = theme
+
     def update(
         self,
         item: DockItem | None,

@@ -226,6 +226,10 @@ class DnDHandler:
 
         self._setup_dnd()
 
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme used for drag-and-drop spacing."""
+        self._theme = theme
+
     def _setup_dnd(self) -> None:
         """Configure GTK drag-and-drop on the drawing area.
 

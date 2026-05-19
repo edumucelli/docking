@@ -906,6 +906,33 @@ class TestDockWindowSetupAndGeometry:
 
         remove_change_listener.assert_called_once_with(stub._on_model_changed)
 
+    def test_set_theme_propagates_to_theme_holders_and_invalidates_geometry(self):
+        old_theme = object()
+        new_theme = object()
+        frame = SimpleNamespace()
+        stub = SimpleNamespace(
+            theme=old_theme,
+            tooltip=SimpleNamespace(set_theme=MagicMock()),
+            hover=SimpleNamespace(set_theme=MagicMock()),
+            dnd=SimpleNamespace(set_theme=MagicMock()),
+            _cache=_window_cache(
+                current_geometry_frame=frame,
+                current_geometry_frame_signature=(),
+            ),
+        )
+        stub._invalidate_current_geometry_frame = MethodType(
+            dock_window_mod.DockWindow._invalidate_current_geometry_frame,
+            stub,
+        )
+
+        dock_window_mod.DockWindow.set_theme(stub, new_theme)
+
+        assert stub.theme is new_theme
+        stub.tooltip.set_theme.assert_called_once_with(new_theme)
+        stub.hover.set_theme.assert_called_once_with(new_theme)
+        stub.dnd.set_theme.assert_called_once_with(new_theme)
+        assert stub._cache.geometry_frame is None
+
 
 class TestDockWindowStrutsAndRegion:
     def testupdate_input_region_applies_shape_and_caches_rect(self, monkeypatch):

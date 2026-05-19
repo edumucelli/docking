@@ -228,6 +228,10 @@ class HoverManager:
     def set_preview(self, preview: PreviewPopup) -> None:
         self._preview = preview
 
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme retained by hover-owned collaborators."""
+        self._theme = theme
+
     def update(
         self, cursor_main: float, frame: DockGeometryFrame | None = None
     ) -> None:

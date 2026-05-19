@@ -261,7 +261,7 @@ class TestTooltip:
         assert "a.test" in text
         assert "b.test" in text
         assert "5d" in text
-        assert "Updated:" in text
+        assert "Updated: just now" in text
         assert "Checks every 1 hour" in text
 
     def test_loading_line_when_cert_missing(self):

@@ -76,7 +76,7 @@ class DockRuntime:
         self._window.preview.hide()
 
     def set_theme(self, theme: Theme) -> None:
-        self._window.theme = theme
+        self._window.set_theme(theme)
 
     def check_for_updates_now(self) -> None:
         self._update_checker.check_now()

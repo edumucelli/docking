@@ -468,6 +468,14 @@ class DockWindow(Gtk.Window):
         """Stop update-check scheduling owned by the dock shell."""
         self._update_checker.stop()
 
+    def set_theme(self, theme: Theme) -> None:
+        """Replace the runtime theme and notify collaborators that cache it."""
+        self.theme = theme
+        self.tooltip.set_theme(theme)
+        self.hover.set_theme(theme)
+        self.dnd.set_theme(theme)
+        self._invalidate_current_geometry_frame()
+
     def _build_components(self, *, launcher: Launcher) -> None:
         """Build long-lived UI collaborators that depend on the live window."""
         self._update_checker = UpdateCheckController(window=self, config=self.config)
