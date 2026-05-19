@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and data helpers for the Today in History applet."""
 
 from __future__ import annotations
@@ -24,6 +37,7 @@ _WIKIPEDIA_ENDPOINT = (
 )
 _WIKIPEDIA_SOURCE = "Wikipedia"
 _OFFLINE_SOURCE = _("Offline fallback")
+DEFAULT_FETCH_LIMIT = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +91,8 @@ def _coerce_year(value: object) -> int | None:
     if isinstance(value, str):
         try:
             return int(value.strip())
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid history year value %r: %s", value, exc)
             return None
     return None
 
@@ -214,7 +229,7 @@ def _parse_wikipedia_events(data: Any, limit: int) -> list[HistoryEvent]:
 def fetch_today_in_history(
     month: int,
     day: int,
-    limit: int = 20,
+    limit: int = DEFAULT_FETCH_LIMIT,
     http_get_json: Callable[[str], Any] | None = None,
 ) -> list[HistoryEvent]:
     getter = http_get_json or _http_get_json

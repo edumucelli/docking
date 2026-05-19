@@ -8,12 +8,27 @@ from docking.core.theme import Theme
 from docking.ui.renderer import (
     SHELF_SMOOTH_FACTOR,
     DockRenderer,
+    _snap_count_indicator_rect,
+    _window_count_dot_height,
 )
 
 # Default theme at 48px for hover lighten tests
 _DEFAULT_THEME = Theme.load("default", 48)
 _HOVER_MAX = _DEFAULT_THEME.hover_lighten
 _FADE_FRAMES = max(1, _DEFAULT_THEME.active_time_ms // 16)
+
+
+class TestWindowCountIndicatorGeometry:
+    def test_count_dot_height_uses_whole_pixels(self):
+        assert _window_count_dot_height(count=2, base_size=48, radius=2.5) == 11.0
+
+    def test_count_indicator_rect_snaps_to_whole_pixels(self):
+        assert _snap_count_indicator_rect(
+            cx=50.3,
+            cy=74.6,
+            width=10.56,
+            height=10.56,
+        ) == (45.0, 69.0, 11.0, 11.0)
 
 
 class TestSmoothShelfW:
@@ -177,3 +192,71 @@ class TestShelfSnapDuringHide:
         # Then
         assert renderer.smooth_shelf_w < 600.0
         assert renderer.smooth_shelf_w > target
+
+
+class TestSlideOffsets:
+    def test_membership_change_resets_slide_offsets(self):
+        renderer = DockRenderer()
+        first = MagicMock()
+        first.desktop_id = "firefox.desktop"
+        layout1 = [MagicMock(x=90.0)]
+        renderer._update_slide_offsets([first], layout1, 846.0)
+        assert renderer.prev_positions == {"firefox.desktop": 936.0}
+
+        renderer.slide_offsets = {"firefox.desktop": 67.5}
+
+        second = MagicMock()
+        second.desktop_id = "terminator.desktop"
+        third = MagicMock()
+        third.desktop_id = "sublime_text.desktop"
+        fourth = MagicMock()
+        fourth.desktop_id = "caja.desktop"
+        layout2 = [
+            MagicMock(x=0.0),
+            MagicMock(x=60.0),
+            MagicMock(x=120.0),
+            MagicMock(x=180.0),
+        ]
+
+        renderer._update_slide_offsets(
+            [first, second, third, fourth],
+            layout2,
+            846.0,
+        )
+
+        assert renderer.slide_offsets == {}
+        assert renderer.prev_positions == {
+            "firefox.desktop": 846.0,
+            "terminator.desktop": 906.0,
+            "sublime_text.desktop": 966.0,
+            "caja.desktop": 1026.0,
+        }
+
+
+class TestShelfWidthMembershipChanges:
+    def test_membership_change_snaps_shelf_width_instead_of_lerping(self):
+        renderer = DockRenderer()
+        renderer.smooth_shelf_w = 48.0
+        renderer.prev_positions = {"firefox.desktop": 936.0}
+
+        current_ids = {
+            "firefox.desktop",
+            "terminator.desktop",
+            "sublime_text.desktop",
+            "caja.desktop",
+        }
+        target_shelf_w = 228.0
+        membership_changed = (
+            bool(renderer.prev_positions)
+            and set(renderer.prev_positions) != current_ids
+        )
+
+        if renderer.smooth_shelf_w == 0.0 or membership_changed:
+            renderer.smooth_shelf_w = target_shelf_w
+        else:
+            renderer.smooth_shelf_w += (
+                target_shelf_w - renderer.smooth_shelf_w
+            ) * SHELF_SMOOTH_FACTOR
+
+        assert membership_changed is True
+        assert renderer.smooth_shelf_w == target_shelf_w

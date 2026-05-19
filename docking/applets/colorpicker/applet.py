@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle for Color Picker applet."""
 
 from __future__ import annotations
@@ -14,6 +27,12 @@ from docking.applets.base import Applet
 from docking.applets.colorpicker import meta
 from docking.applets.colorpicker.render import create_icon
 from docking.applets.colorpicker.state import pick_pixel, rgb_to_hex
+from docking.applets.menu import menu_sections
+from docking.applets.popup import (
+    create_capture_overlay,
+    dismiss_capture_overlay,
+    draw_transparent_capture_overlay,
+)
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -27,7 +46,7 @@ _DEFAULT_RGB = (0.5, 0.5, 0.5)
 
 
 class ColorPickerApplet(Applet):
-    """Eyedropper color picker — click to sample, copies hex to clipboard.
+    """Eyedropper color picker - click to sample, copies hex to clipboard.
 
     Left-click enters pick mode (fullscreen transparent overlay).
     Clicking anywhere samples the pixel color, copies hex to clipboard,
@@ -69,23 +88,22 @@ class ColorPickerApplet(Applet):
         self.item.name = self._hex if self._hex else _("Color Picker")
 
     def on_clicked(self) -> None:
-        """Enter pick mode — fullscreen transparent overlay captures click."""
+        """Enter pick mode - fullscreen transparent overlay captures click."""
         self._start_pick()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        primary: list[Gtk.MenuItem] = []
 
         if self._hex:
             copy = Gtk.MenuItem(label=_("Copy {hex}").format(hex=self._hex))
             copy.connect("activate", lambda _: self._copy_to_clipboard())
-            items.append(copy)
+            primary.append(copy)
 
         show = Gtk.CheckMenuItem(label=_("Show Hex"))
         show.set_active(self._show_hex)
         show.connect("toggled", self._on_toggle_hex)
-        items.append(show)
 
-        return items
+        return menu_sections(primary=primary, display=[show], gtk=Gtk)
 
     def _on_toggle_hex(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_hex = widget.get_active()
@@ -97,50 +115,16 @@ class ColorPickerApplet(Applet):
         if self._overlay:
             return
 
-        overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
-        overlay.set_decorated(False)
-        overlay.set_app_paintable(True)
-
-        screen = overlay.get_screen()
-        visual = screen.get_rgba_visual()
-        if visual:
-            overlay.set_visual(visual)
-
-        overlay.set_default_size(screen.get_width(), screen.get_height())
-        overlay.move(0, 0)
-
-        # Transparent background
-        overlay.connect("draw", self._on_overlay_draw)
-        overlay.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
-        overlay.connect("button-press-event", self._on_overlay_click)
-        overlay.connect("key-press-event", self._on_overlay_key)
-
-        # Crosshair cursor
-        display = Gdk.Display.get_default()
-        crosshair = Gdk.Cursor.new_for_display(display, Gdk.CursorType.CROSSHAIR)
-
-        overlay.show_all()
-        overlay.get_window().set_cursor(crosshair)
-
-        # Grab pointer so click goes to overlay
-        seat = display.get_default_seat()
-        seat.grab(
-            overlay.get_window(),
-            Gdk.SeatCapabilities.ALL_POINTING | Gdk.SeatCapabilities.KEYBOARD,
-            True,
-            crosshair,
-            None,
-            None,
-            None,
+        self._overlay = create_capture_overlay(
+            draw_handler=self._on_overlay_draw,
+            click_handler=self._on_overlay_click,
+            key_handler=self._on_overlay_key,
+            cursor_type=Gdk.CursorType.CROSSHAIR,
         )
-
-        self._overlay = overlay
 
     @staticmethod
     def _on_overlay_draw(widget: Gtk.Window, cr) -> bool:
-        cr.set_source_rgba(0, 0, 0, 0.01)  # near-transparent
-        cr.paint()
-        return True
+        return draw_transparent_capture_overlay(widget, cr)
 
     def _on_overlay_click(self, _widget: Gtk.Window, event: Gdk.EventButton) -> bool:
         """Sample pixel at click position."""
@@ -167,10 +151,7 @@ class ColorPickerApplet(Applet):
 
     def _dismiss_overlay(self) -> None:
         if self._overlay:
-            display = Gdk.Display.get_default()
-            seat = display.get_default_seat()
-            seat.ungrab()
-            self._overlay.destroy()
+            dismiss_capture_overlay(self._overlay)
             self._overlay = None
 
     def _copy_to_clipboard(self) -> None:

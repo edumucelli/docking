@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for System Monitor applet."""
 
 from __future__ import annotations
@@ -9,9 +22,11 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib
+gi.require_version("Gtk", "3.0")
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections, radio_submenu
 from docking.applets.systemmonitor import meta
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
@@ -19,11 +34,15 @@ from docking.applets.systemmonitor.state import (
     MEM_THRESHOLD,
     CpuSample,
     cpu_percent,
+    disk_usage,
     parse_proc_meminfo,
     parse_proc_stat,
+    prefs_from_mapping,
+    prefs_payload,
     tooltip_text,
 )
 from docking.applets.systemmonitor.temperature import TemperatureReader
+from docking.applets.temperature import TemperatureUnit, temperature_unit_label
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -54,6 +73,11 @@ class SystemMonitorApplet(Applet):
         self._temperature_reader = TemperatureReader()
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
+        prefs = prefs_from_mapping(
+            config.applet_prefs.get(meta.id, {}) if config else None
+        )
+        self._show_disk = prefs.show_disk
+        self._temperature_unit = prefs.temperature_unit
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
@@ -66,6 +90,55 @@ class SystemMonitorApplet(Applet):
             cpu=self._cpu,
             mem=self._mem,
             temperature_c=self._temperature_c,
+            disks=disk_usage() if self._show_disk else None,
+            temperature_unit=self._temperature_unit,
+        )
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        show_disk = Gtk.CheckMenuItem(label=_("Show Disk Usage"))
+        show_disk.set_active(self._show_disk)
+        show_disk.connect("toggled", self._on_toggle_disk)
+
+        temperature_unit = radio_submenu(
+            label=_("Temperature Unit"),
+            choices=tuple(
+                (temperature_unit_label(unit), unit)
+                for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
+            ),
+            active_value=self._temperature_unit,
+            on_selected=lambda widget, value: self._on_temperature_unit_selected(
+                widget=widget,
+                temperature_unit=value,
+            ),
+            gtk=Gtk,
+        )
+        return menu_sections(display=[show_disk, temperature_unit], gtk=Gtk)
+
+    def _on_toggle_disk(self, widget: Gtk.CheckMenuItem) -> None:
+        self._show_disk = widget.get_active()
+        self._save_prefs()
+        self._refresh_tooltip_only()
+
+    def _on_temperature_unit_selected(
+        self,
+        *,
+        widget: Gtk.RadioMenuItem,
+        temperature_unit: TemperatureUnit,
+    ) -> None:
+        if not widget.get_active():
+            return
+        if temperature_unit == self._temperature_unit:
+            return
+        self._temperature_unit = temperature_unit
+        self._save_prefs()
+        self._refresh_tooltip_only()
+
+    def _save_prefs(self) -> None:
+        self.save_prefs(
+            prefs=prefs_payload(
+                show_disk=self._show_disk,
+                temperature_unit=self._temperature_unit,
+            )
         )
 
     def start(self, notify: Callable[[], None]) -> None:

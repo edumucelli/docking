@@ -1,9 +1,8 @@
 # Docking Architecture
 
-This document describes the current architecture of `docking` as of the
-`0.1.38` release line. It replaces the older overview that predated the
-geometry refactor, the UI assembly split, and the first wave of `DockWindow`
-decomposition.
+This document describes the current architecture of `docking`. It replaces the
+older overview that predated the geometry refactor, the UI assembly split, and
+the first wave of `DockWindow` decomposition.
 
 This file focuses on what is true in production code today.
 
@@ -52,32 +51,28 @@ docking / run.py
   -> docking.app:main()
      -> apply_tweaks(detect_desktop())
      -> Config.load()
-     -> Theme.load(...)
+     -> Theme.load(...).with_opacity(config.transparency)
      -> Launcher()
      -> DockModel(config, launcher)
      -> DockRenderer()
      -> WindowTracker(model, launcher, config)
      -> build_dock_window(...)
         -> DockWindow(...)
-        -> AutoHideController(window, config)
-        -> DockRuntime(window)
-        -> DockDragRuntime(window)
-        -> AboutDialogController(...)
-        -> SettingsWindowController(...)
-        -> DnDHandler(...)
-        -> MenuHandler(...)
-        -> PreviewPopup(...)
-        -> window.attach_components(...)
-     -> model.start_applets()
+        -> WindowDodgeMonitor(...)
+     -> DockItemsService(model, window)
      -> window.show_all()
+     -> GLib.idle_add(_start_runtime, items_service, model)
+        -> items_service.start()
+        -> model.start_applets()
      -> Gtk.main()
+     -> items_service.stop()
      -> model.stop_applets()
 ```
 
-`build_dock_window()` is now the composition root for the UI graph. That is an
-important change. `DockWindow` still owns the runtime shell, but app-level
-assembly no longer leaks a half-built window and then mutates it piecemeal from
-`app.py`.
+`build_dock_window()` is still the assembly boundary between app bootstrap and
+the GTK shell, but it is thinner than it was during the first round of UI
+splitting. `DockWindow` now constructs its own core UI collaborators directly,
+while `factory.py` mainly wires the shell to the platform-facing dodge monitor.
 
 ## Top-Level Ownership Map
 
@@ -101,13 +96,14 @@ Does not own:
 
 Owns:
 
-- UI graph assembly
-- creation order for components that depend on a live `DockWindow`
-- atomic late attachment through `DockComponents`
+- top-level shell bootstrap around `DockWindow`
+- wiring of the platform-facing `WindowDodgeMonitor`
+- the boundary between app bootstrap and a fully usable dock window
 
-This module exists because several UI collaborators need a realized shell or a
-window-bound runtime surface. Forcing all of them into `DockWindow.__init__`
-would only hide the cycle.
+This module is intentionally thin now. The broader late-attachment phase and
+`DockComponents` model described in older docs no longer exist as the main UI
+assembly strategy; most UI collaborators are created inside `DockWindow`
+itself.
 
 ## Core Layer
 
@@ -122,7 +118,9 @@ Primary modules:
 Responsibilities:
 
 - persisted user configuration and applet prefs
-- theme loading and scaling
+- first-run starter-dock seeding
+- crash-safe config persistence with atomic replace and backup fallback
+- theme loading, scaling, and opacity adjustment
 - dock-edge/orientation helpers
 - zoom/displacement math
 - shared item-level domain constants and data shapes
@@ -147,8 +145,9 @@ Responsibilities:
 
 - authoritative visible dock item list and applet lifecycle
 - running/active/urgent window tracking through Wnck
-- desktop-file resolution, launch helpers, and icon lookup
+- desktop-file resolution, launch helpers, icon lookup, and URL opening
 - X11 strut writes and clearing
+- X11 blur-region hint export for the visible shelf rect
 - pointer barrier integration
 - desktop-environment-specific tweaks at startup
 
@@ -255,7 +254,7 @@ Recent important behavior:
   animation
 
 That last fix is the production fix for the autohide "jump out" bug that was
-still present before `0.1.38`.
+still present in older builds.
 
 ### `docking/ui/interaction.py`
 
@@ -339,7 +338,7 @@ Responsibilities:
 
 - dock background menu
 - item context menus
-- settings/about integration
+- settings/about/support integration
 - monitor-selection actions
 - runtime calls through `DockRuntime`
 
@@ -394,7 +393,8 @@ all had slightly different ideas of where the dock really was.
 Current authoritative owners:
 
 - `Config`
-  persisted settings and applet prefs
+  persisted settings, applet prefs, first-run defaults, and on-disk save/load
+  policy
 - `DockModel`
   visible items, item ordering, applet lifecycle, and item runtime state
 - `DockWindow`
@@ -464,10 +464,13 @@ Release tooling also touches:
 - `tools/bump_version.py`
 - packaging metadata for Arch, Nix, Debian, and Flatpak
 
-Recent maintenance note:
+Recent maintenance notes:
 
-- `tools/bump_version.py` is now expected to be idempotent when asked to bump
-  to the version already present in packaging metadata
+- `tools/bump_version.py` is expected to be idempotent when asked to bump to
+  the version already present in packaging metadata
+- the release pipeline now publishes x64 and arm64 artifacts for every package
+  format, including Debian (`linux-x86_64.deb` and `linux-aarch64.deb`)
+- CI uses explicit ARM64 test/build jobs in addition to the x64 matrix
 
 ## Current Status vs Planned Direction
 
@@ -477,8 +480,12 @@ The architecture is materially ahead of where it was when the original
 - geometry is shared and explicit
 - UI assembly is explicit
 - placement, interaction, and runtime surfaces are split into their own modules
-- autohide behavior is more coherent and the `0.1.38` jump bug is fixed in the
-  state machine
+- autohide behavior is more coherent and the historical jump bug is fixed in
+  the state machine
+- startup/runtime assembly now includes delayed post-show startup and IPC item
+  service wiring
+- config/theme behavior now includes first-run dock seeding, transparency, and
+  crash-safe persistence
 
 But some work is still intentionally described as planned rather than complete:
 

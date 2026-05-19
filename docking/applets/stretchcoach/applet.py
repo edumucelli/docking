@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for the Stretch Coach applet."""
 
 from __future__ import annotations
@@ -12,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.applets.stretchcoach import meta
 from docking.applets.stretchcoach.render import render_icon
 from docking.applets.stretchcoach.state import (
@@ -75,31 +89,31 @@ class StretchCoachApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
         now_label = _("Acknowledge Break") if self._state.due else _("Take Break Now")
         take_break = Gtk.MenuItem(label=now_label)
         take_break.connect("activate", lambda _w: self.on_clicked())
-        items.append(take_break)
 
         preview = Gtk.MenuItem(label=_("Show Random Stretch"))
         preview.connect("activate", lambda _w: self._show_random_stretch())
-        items.append(preview)
 
         cards = Gtk.CheckMenuItem(label=_("Random Stretch Cards"))
         cards.set_active(self._state.cards_enabled)
         cards.connect("toggled", self._on_toggle_cards)
-        items.append(cards)
 
-        items.append(Gtk.SeparatorMenuItem())
+        intervals = radio_menu_items(
+            choices=tuple(
+                (_("{mins} min").format(mins=mins), mins) for mins in INTERVAL_PRESETS
+            ),
+            active_value=self._state.interval_min,
+            on_selected=lambda _widget, value: self._set_interval(value),
+            gtk=Gtk,
+        )
 
-        for mins in INTERVAL_PRESETS:
-            menu_item = Gtk.CheckMenuItem(label=_("{mins} min").format(mins=mins))
-            menu_item.set_active(self._state.interval_min == mins)
-            menu_item.connect("toggled", lambda _w, m=mins: self._set_interval(m))
-            items.append(menu_item)
-
-        return items
+        return menu_sections(
+            primary=[take_break, preview],
+            display=[cards, Gtk.SeparatorMenuItem(), *intervals],
+            gtk=Gtk,
+        )
 
     def _tick(self) -> bool:
         result = tick(self._state, cards=self._cards)

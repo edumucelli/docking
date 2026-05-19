@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and backend helpers for volume applet."""
 
 from __future__ import annotations
@@ -25,6 +38,14 @@ class VolumeState(NamedTuple):
 
 _PACTL_VOL_RE = re.compile(r"(\d+)%")
 _AMIXER_RE = re.compile(r"\[(\d+)%\].*?\[(on|off)\]")
+_VOLUME_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gnome-control-center", "sound"),
+    ("mate-volume-control",),
+    ("xfce4-mixer-settings",),
+    ("pavucontrol",),
+    ("kcmshell6", "kcm_pulseaudio"),
+    ("kcmshell5", "kcm_pulseaudio"),
+)
 
 
 def _parse_pactl_volume(output: str) -> int | None:
@@ -126,6 +147,29 @@ def _amixer_set_volume(volume: int) -> None:
 
 def _amixer_toggle_mute() -> None:
     _run(cmd=["amixer", "set", "Master", "toggle"], action="toggle_mute")
+
+
+def volume_settings_command() -> list[str] | None:
+    """Return the first available desktop volume-settings command."""
+    for cmd in _VOLUME_SETTINGS_COMMANDS:
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None
+
+
+def open_volume_settings() -> bool:
+    """Launch the desktop volume-settings tool when one is available."""
+    cmd = volume_settings_command()
+    if cmd is None:
+        return False
+    try:
+        subprocess.Popen(cmd, start_new_session=True)
+    except OSError as exc:
+        log.bind(action="open_volume_settings").warning(
+            "Failed to run %s: %s", cmd, exc
+        )
+        return False
+    return True
 
 
 _BACKENDS: tuple[Backend, ...] = (

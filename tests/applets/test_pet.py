@@ -1,4 +1,4 @@
-"""Tests for pet applet — state, render, and lifecycle."""
+"""Tests for pet applet - state, render, and lifecycle."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ class TestTick:
         state = PetState(smoothed_cpu=0.0)
         # When
         result = tick(state=state, raw_cpu=1.0)
-        # Then — smoothed should be between 0 and 1
+        # Then - smoothed should be between 0 and 1
         assert 0 < result.state.smoothed_cpu < 1.0
 
     def test_idle_ticks_increment_when_cpu_low(self):
@@ -145,9 +145,9 @@ class TestTick:
     def test_hysteresis_prevents_immediate_mood_change(self):
         # Given relaxed state, one tick of busy-range CPU
         state = PetState(mood=Mood.RELAXED, smoothed_cpu=0.65)
-        # When — single tick at busy CPU
+        # When - single tick at busy CPU
         result = tick(state=state, raw_cpu=0.75)
-        # Then — mood should NOT change yet
+        # Then - mood should NOT change yet
         assert result.state.mood == Mood.RELAXED
         assert not result.mood_changed
         assert result.state.pending_mood == Mood.BUSY
@@ -158,7 +158,7 @@ class TestTick:
         for _ in range(HYSTERESIS):
             result = tick(state=state, raw_cpu=0.75)
             state = result.state
-        # Then — mood should have changed
+        # Then - mood should have changed
         assert state.mood == Mood.BUSY
         assert result.mood_changed
 
@@ -170,9 +170,9 @@ class TestTick:
             pending_mood=Mood.BUSY,
             pending_count=HYSTERESIS - 1,
         )
-        # When — CPU stays in relaxed range (smoothed ~0.12)
+        # When - CPU stays in relaxed range (smoothed ~0.12)
         result = tick(state=state, raw_cpu=0.10)
-        # Then — pending busy should reset (target is RELAXED, matches mood)
+        # Then - pending busy should reset (target is RELAXED, matches mood)
         assert result.state.pending_mood is None
         assert result.state.pending_count == 0
 

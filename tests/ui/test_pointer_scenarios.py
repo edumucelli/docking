@@ -34,7 +34,7 @@ from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.menu import MenuHandler
-from docking.ui.runtime import DockDragRuntime, DockRuntime
+from docking.ui.runtime import DockRuntime
 
 
 class _Seat:
@@ -62,8 +62,10 @@ class _ScenarioHarness:
             pos=pos,
             icon_size=48,
             zoom_percent=1.5,
+            scaled_icon_size=72,
             zoom_enabled=True,
             previews_enabled=True,
+            folder_stack_unfold="click",
             lock_icons=False,
             pinned=[],
             save=MagicMock(),
@@ -98,9 +100,11 @@ class _ScenarioHarness:
         self.cursor_y = -1.0
         self.screen_pointer = (0, 0)
         self.dock_hovered = False
-        self._current_geometry_frame = None
-        self._applied_input_frame = None
-        self._menu = None
+        self._cache = dock_window_mod._DockWindowCache.create()
+        self._redraw_source_id = None
+        self._menu = MagicMock()
+        self._menu.open_folder_stack_item_id.return_value = None
+        self._menu.close_folder_stack = MagicMock()
         self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
@@ -124,7 +128,7 @@ class _ScenarioHarness:
             progress=1.0, on_enter=lambda: None, on_leave=lambda: None
         )
         self.geometry = DockGeometryBuilder(cast(Any, self))
-        self._hover = HoverManager(
+        self.hover = HoverManager(
             window=cast(Any, self),
             config=cast(Any, self.config),
             model=self.model,
@@ -137,7 +141,7 @@ class _ScenarioHarness:
         self.window_tracker = MagicMock()
         self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
-            runtime=DockDragRuntime(cast(Any, self)),
+            window=cast(Any, self),
             model=self.model,
             config=cast(Any, self.config),
             renderer=cast(Any, self.renderer),
@@ -148,8 +152,32 @@ class _ScenarioHarness:
         self.update_input_region = MethodType(
             dock_window_mod.DockWindow.update_input_region, self
         )
+        self.current_interaction_frame = MethodType(
+            dock_window_mod.DockWindow.current_interaction_frame, self
+        )
         self.is_pointer_inside_dock = MethodType(
             dock_window_mod.DockWindow.is_pointer_inside_dock, self
+        )
+        self._geometry_signature = MethodType(
+            dock_window_mod.DockWindow._geometry_signature, self
+        )
+        self._build_and_store_geometry_frame = MethodType(
+            dock_window_mod.DockWindow._build_and_store_geometry_frame, self
+        )
+        self._current_or_build_geometry_frame = MethodType(
+            dock_window_mod.DockWindow._current_or_build_geometry_frame, self
+        )
+        self._clear_scheduled_redraw = MethodType(
+            dock_window_mod.DockWindow._clear_scheduled_redraw, self
+        )
+        self._flush_scheduled_redraw = MethodType(
+            dock_window_mod.DockWindow._flush_scheduled_redraw, self
+        )
+        self._schedule_redraw = MethodType(
+            dock_window_mod.DockWindow._schedule_redraw, self
+        )
+        self._invalidate_current_geometry_frame = MethodType(
+            dock_window_mod.DockWindow._invalidate_current_geometry_frame, self
         )
 
     def get_size(self) -> tuple[int, int]:
@@ -178,8 +206,11 @@ class _ScenarioHarness:
         self.cursor_y = y
         self.screen_pointer = (int(win_x + x), int(win_y + y))
         frame = self.geometry.build_frame(cursor_x=x, cursor_y=y)
-        self._current_geometry_frame = frame
-        self._applied_input_frame = frame
+        self._cache.store_geometry_frame(
+            frame=frame,
+            signature=self._geometry_signature(),
+        )
+        self._cache.applied_input_frame = frame
 
     def rest_frame(self):
         return self.geometry.build_frame(main_cursor=-1e6)
@@ -253,7 +284,7 @@ class TestPointerScenarios:
         harness.enter_at(x, y)
         harness.move_to(x, y)
         assert harness.dock_hovered is True
-        assert harness._hover.hovered_item is harness.items[index]
+        assert harness.hover.hovered_item is harness.items[index]
 
         harness.move_to(out_x, out_y)
 
@@ -268,11 +299,11 @@ class TestPointerScenarios:
 
         harness.enter_at(x0, y0)
         harness.move_to(x0, y0)
-        assert harness._hover.hovered_item is harness.items[0]
+        assert harness.hover.hovered_item is harness.items[0]
         assert harness.dock_hovered is True
 
         harness.move_to(x3, y3)
-        assert harness._hover.hovered_item is harness.items[3]
+        assert harness.hover.hovered_item is harness.items[3]
         harness.autohide.on_mouse_leave.assert_not_called()
 
         harness.move_to(out_x, out_y)
@@ -290,7 +321,7 @@ class TestPointerScenarios:
         harness.move_to(x, y)
 
         assert harness.dock_hovered is True
-        assert harness._hover.hovered_item is harness.items[2]
+        assert harness.hover.hovered_item is harness.items[2]
         assert harness.autohide.on_mouse_leave.call_count == 1
         assert harness.autohide.on_mouse_enter.call_count == 2
 
@@ -308,7 +339,7 @@ class TestPointerScenarios:
 
         harness.preview.schedule_hide.assert_called_once()
         harness.autohide.on_mouse_leave.assert_not_called()
-        assert harness._hover.hovered_item is harness.items[1]
+        assert harness.hover.hovered_item is harness.items[1]
 
     def test_tooltip_updates_across_adjacent_icons_and_hides_on_leave(self):
         harness = _ScenarioHarness()
@@ -359,7 +390,16 @@ class TestMenuLifecycleScenarios:
         self, monkeypatch
     ):
         harness = _ScenarioHarness()
-        harness.autohide = MagicMock(enabled=True)
+        harness.autohide = SimpleNamespace(
+            enabled=True,
+            state=HideState.VISIBLE,
+            zoom_progress=1.0,
+            hide_offset=0.0,
+            on_mouse_leave=MagicMock(),
+            on_mouse_enter=MagicMock(),
+            set_disabled=MagicMock(),
+            set_hovered=MagicMock(),
+        )
 
         class _GeometryBuilder:
             def build_frame(self, **_kwargs: object) -> SimpleNamespace:
@@ -368,7 +408,10 @@ class TestMenuLifecycleScenarios:
                     insertion_index_for_main=lambda *_args, **_kwargs: 0,
                 )
 
-        runtime = DockRuntime(cast(Any, harness))
+        runtime = DockRuntime(
+            cast(Any, harness),
+            update_checker=MagicMock(),
+        )
         handler = MenuHandler(
             about=MagicMock(),
             settings=MagicMock(),
@@ -447,11 +490,19 @@ class TestPlacementScenarios:
     def test_active_display_repositions_when_pointer_moves_between_monitors(
         self, monkeypatch
     ):
-        primary = SimpleNamespace(name="primary")
-        secondary = SimpleNamespace(name="secondary")
+        primary = SimpleNamespace(
+            name="primary",
+            get_geometry=lambda: SimpleNamespace(x=0, y=0, width=1000, height=1080),
+        )
+        secondary = SimpleNamespace(
+            name="secondary",
+            get_geometry=lambda: SimpleNamespace(x=1000, y=0, width=1000, height=1080),
+        )
         pointer = SimpleNamespace(get_position=lambda: (None, 200, 50))
         seat = SimpleNamespace(get_pointer=lambda: pointer)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_monitor=lambda idx: primary if idx == 0 else secondary,
             get_default_seat=lambda: seat,
             get_monitor_at_point=lambda x, y: primary if x < 1000 else secondary,
         )
@@ -461,6 +512,7 @@ class TestPlacementScenarios:
                 zoom_enabled=True,
                 zoom_percent=1.2,
                 pos=Position.BOTTOM,
+                folder_stack_unfold="click",
                 active_display=True,
                 hide_mode="none",
                 monitor_index=-1,

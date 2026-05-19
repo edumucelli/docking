@@ -1,7 +1,7 @@
 name: docking
 title: Docking
 base: core22
-version: "1.2.4"
+version: "1.23.0"
 summary: Feature-rich Linux dock in Python with GTK 3 and Cairo
 description: |
   A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo.
@@ -54,6 +54,16 @@ parts:
     override-build: |
       bash "$CRAFT_PART_SRC/tools/i18n.sh" --compile
       craftctl default
+      mv "${CRAFT_PART_INSTALL}/bin/docking" "${CRAFT_PART_INSTALL}/bin/docking-real"
+      cat > "${CRAFT_PART_INSTALL}/bin/docking" <<'EOF'
+      #!/bin/sh
+      set -eu
+      if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        export GDK_BACKEND=x11
+      fi
+      exec "$SNAP/bin/docking-real" "$@"
+      EOF
+      chmod 0755 "${CRAFT_PART_INSTALL}/bin/docking"
       install -Dm644 "$CRAFT_PROJECT_DIR/../shared/org.docking.Docking.desktop" \
         "${CRAFT_PART_INSTALL}/usr/share/applications/org.docking.Docking.desktop"
 

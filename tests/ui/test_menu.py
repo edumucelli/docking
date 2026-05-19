@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import docking.ui.menu as menu_mod
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR
-from docking.ui.menu import ICON_SIZE_OPTIONS, _build_radio_submenu
+from docking.ui.menu import _build_radio_submenu
 
 
 class _FakeMenu:
@@ -145,20 +145,6 @@ class _FakeGdkPixbuf:
     InterpType = type("InterpType", (), {"BILINEAR": 1})
 
 
-class TestIconSizeOptions:
-    def test_has_multiple_sizes(self):
-        assert len(ICON_SIZE_OPTIONS) >= 3
-
-    def test_sorted_ascending(self):
-        assert list(ICON_SIZE_OPTIONS) == sorted(ICON_SIZE_OPTIONS)
-
-    def test_all_positive(self):
-        assert all(s > 0 for s in ICON_SIZE_OPTIONS)
-
-    def test_default_48_included(self):
-        assert 48 in ICON_SIZE_OPTIONS
-
-
 class TestPositionMenuEntries:
     """Position submenu should cover all Position enum values."""
 
@@ -183,6 +169,9 @@ class TestThemeDiscovery:
         assert (_BUILTIN_THEMES_DIR / "nord.json").exists()
         assert (_BUILTIN_THEMES_DIR / "gruvbox.json").exists()
         assert (_BUILTIN_THEMES_DIR / "solarized.json").exists()
+        assert (_BUILTIN_THEMES_DIR / "paper.json").exists()
+        assert (_BUILTIN_THEMES_DIR / "candy.json").exists()
+        assert (_BUILTIN_THEMES_DIR / "pill.json").exists()
 
 
 class TestBuildRadioSubmenu:
@@ -253,51 +242,6 @@ class TestBuildRadioSubmenu:
 
 
 class TestMenuIcons:
-    def test_menu_icon_pixbuf_handles_none_and_exact_size(self):
-        assert menu_mod._menu_icon_pixbuf(None) is None
-
-        pixbuf = _FakePixbuf(
-            menu_mod.APPLET_MENU_ICON_PX,
-            menu_mod.APPLET_MENU_ICON_PX,
-        )
-
-        assert menu_mod._menu_icon_pixbuf(pixbuf) is pixbuf
-
-    def test_menu_icon_pixbuf_scales_and_falls_back_to_original(self, monkeypatch):
-        monkeypatch.setattr(menu_mod, "GdkPixbuf", _FakeGdkPixbuf)
-        scaled = object()
-        pixbuf = _FakePixbuf(64, 64, scaled=scaled)
-
-        assert menu_mod._menu_icon_pixbuf(pixbuf) is scaled
-
-        fallback = _FakePixbuf(64, 64, scaled=None)
-        assert menu_mod._menu_icon_pixbuf(fallback) is fallback
-
-    def test_set_check_menu_item_icon_replaces_existing_child(self, monkeypatch):
-        monkeypatch.setattr(menu_mod, "Gtk", _FakeGtk)
-        monkeypatch.setattr(menu_mod, "Pango", _FakePango)
-        monkeypatch.setattr(menu_mod, "GdkPixbuf", _FakeGdkPixbuf)
-        item = _FakeMenuItem()
-        old_child = object()
-        item.add(old_child)
-        pixbuf = _FakePixbuf(
-            menu_mod.APPLET_MENU_ICON_PX,
-            menu_mod.APPLET_MENU_ICON_PX,
-        )
-
-        menu_mod._set_check_menu_item_icon(
-            item=item,
-            label="Clock",
-            pixbuf=pixbuf,
-        )
-
-        row = item.get_child()
-        assert item.get_label() == "Clock"
-        assert row is not old_child
-        assert len(row.children) == 2
-        assert row.children[0].pixel_size == menu_mod.APPLET_MENU_ICON_PX
-        assert row.children[1].label == "Clock"
-
     def test_set_menu_item_icon_scales_pixbuf_and_replaces_child(self, monkeypatch):
         monkeypatch.setattr(menu_mod, "Gtk", _FakeGtk)
         monkeypatch.setattr(menu_mod, "Pango", _FakePango)

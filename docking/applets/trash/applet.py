@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Trash applet behavior and GTK wiring."""
 
 from __future__ import annotations
@@ -14,12 +27,14 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.trash import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.environment import detect_desktop
 
+from .backend import TrashBackend, select_trash_backend
 from .render import create_trash_icon, trash_tooltip
-from .state import _count_trash_items
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -33,47 +48,49 @@ class TrashApplet(Applet):
     id = meta.id
     name = _("Trash")
     icon_name = "user-trash"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        self._item_count = _count_trash_items()
+        self._desktop = detect_desktop()
+        self._backend: TrashBackend = select_trash_backend(desktop=self._desktop)
+        self._item_count = self._backend.count_items()
         self._monitor: Gio.FileMonitor | None = None
         super().__init__(icon_size, config)
         self.present()
 
-    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_trash_icon(size=size, item_count=self._item_count)
+
+    def system_icon_name(self) -> str:
+        if self._item_count > 0:
+            return "user-trash-full"
+        return "user-trash"
 
     def refresh_tooltip(self) -> None:
         self.item.name = trash_tooltip(item_count=self._item_count)
 
     def on_clicked(self) -> None:
         """Open trash folder in the default file manager."""
-        try:
-            Gio.AppInfo.launch_default_for_uri("trash:///", None)
-        except GLib.Error as exc:
-            log.bind(action="open_trash").warning(f"Failed to open trash: {exc}")
+        self._backend.open()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Return 'Open Trash' and 'Empty Trash' menu items."""
-        items: list[Gtk.MenuItem] = []
-
         open_item = Gtk.MenuItem(label=_("Open Trash"))
         open_item.connect("activate", lambda _: self.on_clicked())
-        items.append(open_item)
 
         empty_item = Gtk.MenuItem(label=_("Empty Trash"))
         empty_item.set_sensitive(self._item_count > 0)
         empty_item.connect("activate", lambda _: self._empty_trash())
-        items.append(empty_item)
 
-        return items
+        return menu_sections(primary=[open_item], destructive=[empty_item], gtk=Gtk)
 
     def start(self, notify: Callable[[], None]) -> None:
-        """Start Gio.FileMonitor on trash:/// for real-time icon updates."""
+        """Start trash monitoring for real-time icon updates."""
         super().start(notify)
-        trash = Gio.File.new_for_uri("trash:///")
         try:
-            self._monitor = trash.monitor(Gio.FileMonitorFlags.NONE, None)
+            self._monitor = self._backend.monitor_file().monitor(
+                Gio.FileMonitorFlags.NONE, None
+            )
             self._monitor.connect("changed", self._on_trash_changed)
         except GLib.Error as exc:
             log.bind(action="monitor_trash").warning(
@@ -90,70 +107,27 @@ class TrashApplet(Applet):
 
     def _on_trash_changed(self, *_args: object) -> None:
         """File monitor callback: re-count items and update icon."""
-        self._item_count = _count_trash_items()
+        self._item_count = self._backend.count_items()
         self.present()
 
     def _empty_trash(self) -> None:
-        """Empty trash via DBus, with fallback to Gio deletion."""
-        try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            for bus_name, obj_path in [
-                ("org.mate.Caja", "/org/mate/Caja"),
-                ("org.gnome.Nautilus", "/org/gnome/Nautilus"),
-            ]:
-                try:
-                    bus.call_sync(
-                        bus_name,
-                        obj_path,
-                        "org.gnome.Nautilus.FileOperations",
-                        "EmptyTrash",
-                        None,
-                        None,
-                        Gio.DBusCallFlags.NONE,
-                        -1,
-                        None,
-                    )
-                    return
-                except GLib.Error as exc:
-                    log.bind(action="empty_trash_dbus").debug(
-                        "DBus EmptyTrash failed for %s at %s: %s",
-                        bus_name,
-                        obj_path,
-                        exc,
-                    )
-        except GLib.Error as exc:
-            log.bind(action="empty_trash_dbus").debug(
-                "Could not connect to session bus for trash cleanup: %s",
-                exc,
-            )
+        """Empty trash through the selected backend."""
+        self._backend.empty(self._confirm_empty_trash)
 
-        self._delete_trash_contents()
-
-    def _delete_trash_contents(self) -> None:
-        """Delete all top-level items in trash via Gio.File.delete()."""
-        trash = Gio.File.new_for_uri("trash:///")
-        try:
-            enumerator = trash.enumerate_children(
-                Gio.FILE_ATTRIBUTE_STANDARD_NAME, Gio.FileQueryInfoFlags.NONE, None
-            )
-        except GLib.Error as exc:
-            log.bind(action="empty_trash_delete").debug(
-                "Could not enumerate trash for deletion: %s",
-                exc,
-            )
-            return
-
-        while True:
-            info = enumerator.next_file(None)
-            if info is None:
-                break
-            child = trash.get_child(info.get_name())
-            try:
-                child.delete(None)
-            except GLib.Error as exc:
-                log.bind(action="empty_trash_delete").debug(
-                    "Could not delete trash item %s: %s",
-                    info.get_name(),
-                    exc,
-                )
-        enumerator.close(None)
+    def _confirm_empty_trash(self) -> bool:
+        dialog = Gtk.MessageDialog(
+            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text=_("Empty all items from Trash?"),
+        )
+        dialog.format_secondary_text(
+            _("All items in the Trash will be permanently deleted."),
+        )
+        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.add_button(_("Empty Trash"), Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        dialog.set_position(Gtk.WindowPosition.MOUSE)
+        response = dialog.run()
+        dialog.destroy()
+        return response == Gtk.ResponseType.OK

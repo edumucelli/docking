@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.ui.placement as placement_mod
 from docking.core.position import Position
 
@@ -29,6 +31,7 @@ def _make_window(**overrides):
         get_display=MagicMock(),
         get_screen=MagicMock(),
         get_window=MagicMock(),
+        get_scale_factor=MagicMock(return_value=1),
         get_realized=MagicMock(return_value=True),
         set_size_request=MagicMock(),
         resize=MagicMock(),
@@ -140,6 +143,7 @@ class TestPlacementControllerLifecycle:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -272,6 +276,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -291,6 +296,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -324,6 +330,7 @@ class TestPlacementControllerGeometry:
         work = SimpleNamespace(x=0, y=24, width=1920, height=1000)
         monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -495,6 +502,7 @@ class TestPlacementControllerStruts:
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
@@ -614,7 +622,8 @@ class TestPlacementControllerStruts:
         geom = SimpleNamespace(x=100, y=50, width=1280, height=720)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
         window = _make_window(
-            config=SimpleNamespace(hide_mode="autohide", pos=Position.RIGHT)
+            config=SimpleNamespace(hide_mode="autohide", pos=Position.RIGHT),
+            get_scale_factor=lambda: 1,
         )
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
         controller._resolve_target_monitor = MagicMock(return_value=monitor)
@@ -627,7 +636,95 @@ class TestPlacementControllerStruts:
             monitor_y=50,
             monitor_w=1280,
             monitor_h=720,
+            scale=1,
         )
+
+    def test_update_barrier_delivers_physical_coords_to_xfixes_on_hidpi(
+        self, monkeypatch
+    ):
+        """Issue #76 regression.
+
+        Scenario: bottom dock, 4K monitor at scale_factor=2.
+        Gdk reports monitor geometry as logical (0, 0, 1920, 1080) but X11's
+        root window is 3840x2160 physical. XFixesCreatePointerBarrier operates
+        in physical pixels (root-window space). If logical coords leak into
+        XFixes, the BOTTOM barrier lands at physical y=1080 -- the middle of
+        the 2160 physical screen -- which the user sees at logical y=540
+        (the reported "invisible mouse-blocking line at the midpoint")."""
+        import ctypes
+
+        from docking.platform.barriers import PointerBarrier
+
+        xlib = MagicMock()
+        xlib.XDefaultRootWindow.return_value = 1
+        xfixes = MagicMock()
+        xfixes.XFixesCreatePointerBarrier.return_value = 42
+        real_barrier = PointerBarrier()
+        real_barrier._supported = True
+        real_barrier._libs = (xlib, xfixes, MagicMock())
+        real_barrier._xdisplay = ctypes.c_void_p(99)
+
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = SimpleNamespace(get_geometry=lambda: geom)
+        window = _make_window(
+            config=SimpleNamespace(hide_mode="autohide", pos=Position.BOTTOM),
+            get_scale_factor=lambda: 2,
+        )
+        controller = placement_mod.DockPlacementController(window, barrier=real_barrier)
+        controller._resolve_target_monitor = MagicMock(return_value=monitor)
+
+        controller.update_barrier()
+
+        x1, y1, x2, y2 = xfixes.XFixesCreatePointerBarrier.call_args.args[2:6]
+        assert (x1, y1, x2, y2) == (0, 2160, 3840, 2160), (
+            f"XFixes received {(x1, y1, x2, y2)} for a 1920x1080 logical "
+            "monitor at scale=2; expected physical (0, 2160, 3840, 2160). "
+            "Logical coords leaking into XFixes is the root cause of "
+            "issue #76 (midpoint mouse-blocking line on HiDPI)."
+        )
+
+    @pytest.mark.parametrize(
+        "scale,physical_w,physical_h",
+        [
+            (1, 1920, 1080),  # baseline: no scaling, no bug
+            (2, 3840, 2160),  # reported scenario: 200% scaling
+            (3, 5760, 3240),  # reported scenario: 300% scaling
+        ],
+    )
+    def test_update_barrier_scales_with_display_scale_factor(
+        self, scale, physical_w, physical_h, monkeypatch
+    ):
+        """Cross-scale check of the hypothesis.
+
+        At scale=1 the bug is absent (logical == physical). At scale=2 and
+        scale=3 the barrier coords must scale with the display, mirroring
+        how struts.py already handles physical-pixel X11 properties."""
+        import ctypes
+
+        from docking.platform.barriers import PointerBarrier
+
+        xlib = MagicMock()
+        xlib.XDefaultRootWindow.return_value = 1
+        xfixes = MagicMock()
+        xfixes.XFixesCreatePointerBarrier.return_value = 42
+        real_barrier = PointerBarrier()
+        real_barrier._supported = True
+        real_barrier._libs = (xlib, xfixes, MagicMock())
+        real_barrier._xdisplay = ctypes.c_void_p(99)
+
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = SimpleNamespace(get_geometry=lambda: geom)
+        window = _make_window(
+            config=SimpleNamespace(hide_mode="autohide", pos=Position.BOTTOM),
+            get_scale_factor=lambda: scale,
+        )
+        controller = placement_mod.DockPlacementController(window, barrier=real_barrier)
+        controller._resolve_target_monitor = MagicMock(return_value=monitor)
+
+        controller.update_barrier()
+
+        x1, y1, x2, y2 = xfixes.XFixesCreatePointerBarrier.call_args.args[2:6]
+        assert (x1, y1, x2, y2) == (0, physical_h, physical_w, physical_h)
 
     def test_update_struts_refreshes_barrier_and_struts(self):
         controller = placement_mod.DockPlacementController(_make_window())
@@ -666,14 +763,18 @@ class TestPlacementControllerStruts:
         )
         assert controller._poll_active_display() is True
 
-        display = SimpleNamespace(get_default_seat=lambda: None)
+        display = SimpleNamespace(
+            get_default_seat=lambda: None, get_n_monitors=lambda: 0
+        )
         controller = placement_mod.DockPlacementController(
             _make_window(get_display=lambda: display)
         )
         assert controller._poll_active_display() is True
 
         seat = SimpleNamespace(get_pointer=lambda: None)
-        display = SimpleNamespace(get_default_seat=lambda: seat)
+        display = SimpleNamespace(
+            get_default_seat=lambda: seat, get_n_monitors=lambda: 0
+        )
         controller = placement_mod.DockPlacementController(
             _make_window(get_display=lambda: display)
         )
@@ -682,8 +783,12 @@ class TestPlacementControllerStruts:
     def test_poll_active_display_repositions_when_monitor_changes(self):
         pointer = SimpleNamespace(get_position=lambda: (None, 400, 100))
         seat = SimpleNamespace(get_pointer=lambda: pointer)
-        monitor = object()
+        monitor = SimpleNamespace(
+            get_geometry=lambda: SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        )
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_monitor=lambda idx: monitor if idx == 0 else None,
             get_default_seat=lambda: seat,
             get_monitor_at_point=lambda x, y: monitor,
         )
@@ -707,6 +812,7 @@ class TestPlacementControllerStruts:
 
         primary = object()
         no_get_n = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: None,
             get_monitor=lambda idx: primary if idx == 0 else None,
         )

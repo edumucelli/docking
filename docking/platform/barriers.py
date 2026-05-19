@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """X11 pointer barriers used to reinforce edge interaction for the dock.
 
 What a pointer barrier is
@@ -206,28 +219,36 @@ class PointerBarrier:
         monitor_y: int,
         monitor_w: int,
         monitor_h: int,
+        scale: int = 1,
     ) -> None:
-        """Create or recreate the barrier at the monitor's dock edge."""
+        """Create or recreate the barrier at the monitor's dock edge.
+
+        Monitor coordinates are in GDK logical pixels. XFixes operates on the
+        X11 root window in physical pixels, so the scale factor is applied
+        before creating the barrier.
+        """
         if not self._supported or self._libs is None:
             return
 
         self.destroy()
 
         xlib, xfixes, _ = self._libs
+        mx, my = monitor_x * scale, monitor_y * scale
+        mw, mh = monitor_w * scale, monitor_h * scale
 
         # Barrier line spans the full dock edge of the monitor
         if position == Position.BOTTOM:
-            x1, y1 = monitor_x, monitor_y + monitor_h
-            x2, y2 = monitor_x + monitor_w, monitor_y + monitor_h
+            x1, y1 = mx, my + mh
+            x2, y2 = mx + mw, my + mh
         elif position == Position.TOP:
-            x1, y1 = monitor_x, monitor_y
-            x2, y2 = monitor_x + monitor_w, monitor_y
+            x1, y1 = mx, my
+            x2, y2 = mx + mw, my
         elif position == Position.LEFT:
-            x1, y1 = monitor_x, monitor_y
-            x2, y2 = monitor_x, monitor_y + monitor_h
+            x1, y1 = mx, my
+            x2, y2 = mx, my + mh
         else:  # RIGHT
-            x1, y1 = monitor_x + monitor_w, monitor_y
-            x2, y2 = monitor_x + monitor_w, monitor_y + monitor_h
+            x1, y1 = mx + mw, my
+            x2, y2 = mx + mw, my + mh
 
         xlib.XDefaultRootWindow.restype = ctypes.c_ulong
         xlib.XDefaultRootWindow.argtypes = [ctypes.c_void_p]

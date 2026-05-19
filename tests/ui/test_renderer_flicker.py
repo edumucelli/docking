@@ -18,27 +18,29 @@ class TestOffscreenRendering:
         assert callable(renderer._draw_content)
 
     def test_draw_method_creates_offscreen(self):
-        # Verify draw() source code uses create_similar + OPERATOR_SOURCE
-        # (structural test -- ensures the pattern isn't accidentally removed)
+        # Verify draw() requests an offscreen surface and blits with SOURCE.
         import inspect
 
         source = inspect.getsource(DockRenderer.draw)
-        assert "create_similar" in source, "draw() must create offscreen surface"
+        assert "offscreen_surface_for" in source, (
+            "draw() must request offscreen surface"
+        )
         assert "OPERATOR_SOURCE" in source, "draw() must blit with SOURCE operator"
         assert "_draw_content" in source, "draw() must delegate to _draw_content"
 
     def test_draw_method_does_not_clear(self):
-        # Verify draw() does NOT use OPERATOR_CLEAR on the window context
+        # The visible window surface must not be CLEARed directly; the clear is
+        # allowed only on the offscreen context before the final SOURCE blit.
         import inspect
 
         source = inspect.getsource(DockRenderer.draw)
-        assert "OPERATOR_CLEAR" not in source, (
-            "draw() must not CLEAR the window surface -- use offscreen + SOURCE blit"
+        assert source.count("OPERATOR_CLEAR") == 1, (
+            "draw() should clear only the offscreen context once"
         )
+        assert "ocr.set_operator(cairo.OPERATOR_CLEAR)" in source
 
     def test_draw_content_does_not_clear_either(self):
-        # _draw_content renders to a fresh offscreen surface (starts transparent),
-        # so it should not need OPERATOR_CLEAR either
+        # _draw_content only paints content; offscreen clearing belongs in draw().
         import inspect
 
         source = inspect.getsource(DockRenderer._draw_content)

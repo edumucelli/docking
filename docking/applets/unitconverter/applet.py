@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle and popup UI for the Unit Converter applet.
 
 What makes this applet different
@@ -36,12 +49,14 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gtk
+from gi.repository import GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.popup import wrap_popup
+from docking.applets.popup import (
+    entry_completion_combo,
+    prepare_dialog_content,
+)
 from docking.applets.unitconverter import meta
 from docking.applets.unitconverter.render import create_icon
 from docking.applets.unitconverter.state import (
@@ -57,17 +72,40 @@ from docking.applets.unitconverter.state import (
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.ui.runtime import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
 log = with_context(get_logger(name="unitconverter"), applet_id=meta.id)
 
-POPUP_CORNER_RADIUS_PX = 8
 POPUP_PADDING_PX = 12
 POPUP_CURSOR_GAP_PX = 20
 POPUP_WIDTH_PX = 280
+
+
+def _unit_label(unit: Unit) -> str:
+    return f"{unit.name} ({unit.symbol})"
+
+
+def _unit_label_matches(text: str, label: str) -> bool:
+    """Match "Unit Name (sym)" by visible label, unit name, or symbol prefix."""
+    needle = text.strip().casefold()
+    if not needle:
+        return True
+    normalized_label = label.strip().casefold()
+    if normalized_label.startswith(needle):
+        return True
+    name, symbol = _split_unit_label(label=label)
+    return name.casefold().startswith(needle) or symbol.casefold().startswith(needle)
+
+
+def _split_unit_label(*, label: str) -> tuple[str, str]:
+    """Split "Unit Name (sym)" into name and symbol."""
+    text = label.strip()
+    if text.endswith(")") and "(" in text:
+        name, symbol = text.rsplit("(", 1)
+        return name.strip(), symbol[:-1].strip()
+    return text, ""
 
 
 class UnitConverterApplet(Applet):
@@ -78,7 +116,7 @@ class UnitConverterApplet(Applet):
     icon_name = "emblem-synchronizing-symbolic"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        self._popup: Gtk.Window | None = None
+        self._popup: Gtk.Dialog | None = None
         self._result_label: Gtk.Label | None = None
         self._from_combo: Gtk.ComboBoxText | None = None
         self._to_combo: Gtk.ComboBoxText | None = None
@@ -128,45 +166,33 @@ class UnitConverterApplet(Applet):
             set_currency_units(units)
         return False
 
-    # -- Popup ----------------------------------------------------------------
+    # -- Dialog ---------------------------------------------------------------
 
     def _show_popup(self) -> None:
         if self._popup is None:
-            self._popup = Gtk.Window(type=Gtk.WindowType.POPUP)
-            self._popup.set_decorated(False)
-            self._popup.set_skip_taskbar_hint(True)
-            self._popup.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+            self._popup = Gtk.Dialog(
+                title=_("Unit Converter"),
+                flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            )
+            self._popup.connect("delete-event", self._on_popup_delete)
 
-        child = self._popup.get_child()
-        if child:
-            self._popup.remove(child)
-
-        self._popup.add(wrap_popup(self._build_popup_content()))
-        self._popup.show_all()
-
-        # Position near mouse
-        display = Gdk.Display.get_default()
-        pos = get_pointer_position(display)
-        mouse_x, mouse_y = pos if pos else (0, 0)
-
-        pref = self._popup.get_preferred_size()[1]
-        popup_w = max(pref.width, 1)
-        popup_h = max(pref.height, 1)
-
-        screen = self._popup.get_screen()
-        screen_w = screen.get_width()
-        screen_h = screen.get_height()
-
-        popup_x = max(0, min(int(mouse_x - popup_w / 2), screen_w - popup_w))
-        popup_y = max(
-            0,
-            min(
-                int(mouse_y - popup_h - POPUP_CURSOR_GAP_PX),
-                screen_h - popup_h,
-            ),
+        content = prepare_dialog_content(
+            dialog=self._popup,
+            width=POPUP_WIDTH_PX,
+            spacing=0,
+            margin=0,
+            resizable=False,
         )
+        for child in content.get_children():
+            content.remove(child)
+        content.add(self._build_popup_content())
+        self._popup.show_all()
+        self._popup.present()
 
-        self._popup.move(popup_x, popup_y)
+    def _on_popup_delete(self, _dialog: Gtk.Dialog, _event) -> bool:
+        if self._popup:
+            self._popup.hide()
+        return True
 
     def _build_popup_content(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -189,7 +215,7 @@ class UnitConverterApplet(Applet):
         # From / Swap / To row
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
 
-        self._from_combo = Gtk.ComboBoxText()
+        self._from_combo = entry_completion_combo(matches=_unit_label_matches)
         self._from_combo.set_hexpand(True)
         row.pack_start(self._from_combo, True, True, 0)
 
@@ -198,7 +224,7 @@ class UnitConverterApplet(Applet):
         swap_btn.connect("clicked", self._on_swap)
         row.pack_start(swap_btn, False, False, 0)
 
-        self._to_combo = Gtk.ComboBoxText()
+        self._to_combo = entry_completion_combo(matches=_unit_label_matches)
         self._to_combo.set_hexpand(True)
         row.pack_start(self._to_combo, True, True, 0)
 
@@ -232,14 +258,14 @@ class UnitConverterApplet(Applet):
         if self._from_combo:
             self._from_combo.remove_all()
             for u in units:
-                self._from_combo.append_text(f"{u.name} ({u.symbol})")
+                self._from_combo.append_text(_unit_label(u))
             idx = max(0, min(self._from_idx, len(units) - 1))
             self._from_combo.set_active(idx)
 
         if self._to_combo:
             self._to_combo.remove_all()
             for u in units:
-                self._to_combo.append_text(f"{u.name} ({u.symbol})")
+                self._to_combo.append_text(_unit_label(u))
             idx = max(0, min(self._to_idx, len(units) - 1))
             self._to_combo.set_active(idx)
 
@@ -265,11 +291,26 @@ class UnitConverterApplet(Applet):
 
     def _on_unit_changed(self, _combo: Gtk.ComboBoxText) -> None:
         if self._from_combo:
-            self._from_idx = max(0, self._from_combo.get_active())
+            self._from_idx = self._unit_index_from_combo(
+                combo=self._from_combo,
+                fallback=self._from_idx,
+            )
         if self._to_combo:
-            self._to_idx = max(0, self._to_combo.get_active())
+            self._to_idx = self._unit_index_from_combo(
+                combo=self._to_combo,
+                fallback=self._to_idx,
+            )
         self._update_result()
         self._save_prefs()
+
+    def _unit_index_from_combo(self, *, combo: Gtk.ComboBoxText, fallback: int) -> int:
+        """Resolve either selected or typed unit text into the current unit index."""
+        typed = combo.get_child().get_text().strip()
+        units = get_units(get_categories()[self._cat_idx])
+        for index, unit in enumerate(units):
+            if _unit_label_matches(typed, _unit_label(unit)):
+                return index
+        return max(0, combo.get_active(), fallback)
 
     def _on_input_changed(self, _entry: Gtk.Entry) -> None:
         self._update_result()
@@ -292,7 +333,8 @@ class UnitConverterApplet(Applet):
 
         try:
             value = float(text)
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid unit-converter input %r: %s", text, exc)
             self._result_label.set_markup('<span color="#ff6b6b">Enter a number</span>')
             return
 

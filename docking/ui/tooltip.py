@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Tooltip management for dock items, anchored from shared geometry.
 
 What a tooltip means in this dock
@@ -159,8 +172,8 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
+from docking.ui.display import clamp_to_screen
 from docking.ui.geometry import DockGeometryFrame
-from docking.ui.runtime import clamp_to_screen
 
 log = get_logger(name="tooltip")
 
@@ -416,7 +429,8 @@ class TooltipManager:
         screen = self._tooltip_window.get_screen()
         screen_w = screen.get_width()
         screen_h = screen.get_height()
-        tx, ty = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
+        tooltip_pos = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
+        tx, ty = tooltip_pos.x, tooltip_pos.y
 
         log.debug(
             "pos=(%d,%d) anchor=(%.0f,%.0f) size=%dx%d rebuild=%s",

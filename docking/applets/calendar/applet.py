@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for Calendar applet."""
 
 from __future__ import annotations
@@ -8,17 +21,15 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.calendar import meta
 from docking.applets.calendar.render import render_icon
 from docking.applets.calendar.state import snapshot_from
-from docking.applets.popup import wrap_popup
+from docking.applets.popup import create_popup_window, show_wrapped_popup
 from docking.i18n import _
-from docking.ui.runtime import get_pointer_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -82,44 +93,15 @@ class CalendarApplet(Applet):
 
     def _show_popup(self) -> None:
         if self._popup is None:
-            self._popup = Gtk.Window(type=Gtk.WindowType.POPUP)
-            self._popup.set_decorated(False)
-            self._popup.set_skip_taskbar_hint(True)
-            self._popup.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
-
-        child = self._popup.get_child()
-        if child:
-            self._popup.remove(child)
+            self._popup = create_popup_window()
 
         calendar = Gtk.Calendar()
         calendar.set_margin_start(CALENDAR_POPUP_PADDING_PX)
         calendar.set_margin_end(CALENDAR_POPUP_PADDING_PX)
         calendar.set_margin_top(CALENDAR_POPUP_PADDING_PX)
         calendar.set_margin_bottom(CALENDAR_POPUP_PADDING_PX)
-        self._popup.add(wrap_popup(calendar))
-
-        self._popup.show_all()
-
-        # Position near mouse
-        display = Gdk.Display.get_default()
-        pos = get_pointer_position(display)
-        mouse_x, mouse_y = pos if pos else (0, 0)
-
-        pref = self._popup.get_preferred_size()[1]
-        popup_w = max(pref.width, 1)
-        popup_h = max(pref.height, 1)
-
-        screen = self._popup.get_screen()
-        screen_w = screen.get_width()
-        screen_h = screen.get_height()
-
-        popup_x = max(0, min(int(mouse_x - popup_w / 2), screen_w - popup_w))
-        popup_y = max(
-            0,
-            min(
-                int(mouse_y - popup_h - CALENDAR_POPUP_CURSOR_GAP_PX),
-                screen_h - popup_h,
-            ),
+        show_wrapped_popup(
+            window=self._popup,
+            content=calendar,
+            gap_px=CALENDAR_POPUP_CURSOR_GAP_PX,
         )
-
-        self._popup.move(popup_x, popup_y)

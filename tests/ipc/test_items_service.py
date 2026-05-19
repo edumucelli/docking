@@ -16,7 +16,7 @@ from gi.repository import GLib
 from docking.core.position import Position
 from docking.ipc.introspection import ITEMS_INTERFACE, OBJECT_PATH
 from docking.ipc.items_service import DockItemsService
-from docking.ui.dock_window import hover_anchor_from_draw_rect
+from docking.ui.geometry import anchor_from_draw_rect
 
 
 class _FakeConnection:
@@ -298,25 +298,25 @@ class TestHoverAnchorHelper:
     def test_hover_anchor_matches_edge_rules(self):
         rect = SimpleNamespace(x=10, y=20, w=30, h=40)
 
-        assert hover_anchor_from_draw_rect(
+        assert anchor_from_draw_rect(
             win_x=100,
             win_y=200,
             draw_rect=rect,
             position=Position.BOTTOM,
         ) == (110, 220)
-        assert hover_anchor_from_draw_rect(
+        assert anchor_from_draw_rect(
             win_x=100,
             win_y=200,
             draw_rect=rect,
             position=Position.TOP,
         ) == (110, 260)
-        assert hover_anchor_from_draw_rect(
+        assert anchor_from_draw_rect(
             win_x=100,
             win_y=200,
             draw_rect=rect,
             position=Position.LEFT,
         ) == (140, 220)
-        assert hover_anchor_from_draw_rect(
+        assert anchor_from_draw_rect(
             win_x=100,
             win_y=200,
             draw_rect=rect,

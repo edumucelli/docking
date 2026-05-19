@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering helpers for Battery applet."""
 
 from __future__ import annotations
@@ -9,6 +22,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
+from docking.applets.base import draw_icon_label
 from docking.applets.battery.state import BatteryState
 from docking.applets.draw import rounded_rect
 
@@ -111,7 +125,11 @@ def _draw_battery(
         cr.fill()
 
 
-def render_icon(size: int, state: BatteryState | None) -> GdkPixbuf.Pixbuf | None:
+def render_icon(
+    size: int,
+    state: BatteryState | None,
+    show_percent: bool = False,
+) -> GdkPixbuf.Pixbuf | None:
     """Render standardized battery icon independent from system theme."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     cr = cairo.Context(surface)
@@ -127,5 +145,7 @@ def render_icon(size: int, state: BatteryState | None) -> GdkPixbuf.Pixbuf | Non
             capacity=state.capacity,
             charging=state.icon_name.endswith("-charging"),
         )
+        if show_percent:
+            draw_icon_label(cr=cr, text=f"{state.capacity}%", size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

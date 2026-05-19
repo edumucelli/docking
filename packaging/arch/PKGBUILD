@@ -1,8 +1,8 @@
 pkgname=docking
-pkgver=1.2.4
+pkgver=1.23.0
 pkgrel=1
 pkgdesc="A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url="https://github.com/edumucelli/docking"
 license=('GPL3')
 depends=(
@@ -52,11 +52,20 @@ package() {
 #!/bin/sh
 set -eu
 export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
+if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  export GDK_BACKEND=x11
+fi
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
+  install -Dm755 packaging/shared/docking-camshield-helper \
+    "${pkgdir}/usr/bin/docking-camshield-helper"
+
   install -Dm644 packaging/shared/org.docking.Docking.desktop \
     "${pkgdir}/usr/share/applications/org.docking.Docking.desktop"
+
+  install -Dm644 packaging/shared/org.docking.camshield.policy \
+    "${pkgdir}/usr/share/polkit-1/actions/org.docking.camshield.policy"
 
   if [ -d packaging/deb/icons/hicolor ]; then
     mkdir -p "${pkgdir}/usr/share/icons/hicolor"

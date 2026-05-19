@@ -1,17 +1,46 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and formatting logic for weather applet."""
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, NamedTuple
 
+from docking.applets import temperature as temperature_display
+from docking.applets.cities import CityEntry, load_cities
+from docking.applets.live_state import (
+    live_freshness_lines,
+    live_state_error,
+    live_state_label,
+    refresh_recovery_label,
+    resolve_live_status,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.applets.weather.api import AirQualityData, WeatherData
-from docking.applets.weather.cities import CityEntry, load_cities
 from docking.i18n import _
 
 DEFAULT_ICON_NAME = "weather-few-clouds"
+TemperatureUnit = temperature_display.TemperatureUnit
+format_temperature = temperature_display.format_temperature
+format_temperature_compact = temperature_display.format_temperature_compact
+format_temperature_range = temperature_display.format_temperature_range
+normalize_temperature_unit = temperature_display.normalize_temperature_unit
+temperature_unit_label = temperature_display.temperature_unit_label
 
 
 class CityPref(NamedTuple):
@@ -29,6 +58,7 @@ class WeatherPrefs:
     cities: tuple[CityPref, ...] = ()
     active_index: int = 0
     show_temperature: bool = True
+    temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS
 
 
 def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
@@ -40,6 +70,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
         return WeatherPrefs()
 
     show_temperature = bool(prefs.get("show_temperature", True))
+    temperature_unit = normalize_temperature_unit(prefs.get("temperature_unit"))
 
     # New format: cities list
     if "cities" in prefs:
@@ -59,6 +90,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
             cities=cities,
             active_index=idx,
             show_temperature=show_temperature,
+            temperature_unit=temperature_unit,
         )
 
     # Old scalar format migration
@@ -73,9 +105,13 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
             cities=(city,),
             active_index=0,
             show_temperature=show_temperature,
+            temperature_unit=temperature_unit,
         )
 
-    return WeatherPrefs(show_temperature=show_temperature)
+    return WeatherPrefs(
+        show_temperature=show_temperature,
+        temperature_unit=temperature_unit,
+    )
 
 
 def prefs_payload(
@@ -83,6 +119,7 @@ def prefs_payload(
     cities: tuple[CityPref, ...],
     active_index: int,
     show_temperature: bool,
+    temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) -> dict[str, object]:
     """Build payload used by save_prefs()."""
     return {
@@ -91,6 +128,7 @@ def prefs_payload(
         ],
         "active_index": active_index,
         "show_temperature": show_temperature,
+        "temperature_unit": normalize_temperature_unit(temperature_unit).value,
     }
 
 
@@ -106,12 +144,17 @@ def menu_header_label(
     *,
     city_display: str,
     weather: WeatherData | None,
+    temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) -> str:
     """Build the disabled menu header text."""
     if not weather:
         return city_display
-    return _("{city}: {temp}°C").format(
-        city=city_display, temp=f"{weather.temperature:.0f}"
+    return _("{city}: {temp}").format(
+        city=city_display,
+        temp=format_temperature(
+            weather.temperature,
+            temperature_unit=temperature_unit,
+        ),
     )
 
 
@@ -120,20 +163,67 @@ def build_tooltip(
     city_display: str,
     weather: WeatherData | None,
     air_quality: AirQualityData | None,
+    loading: bool = False,
+    fetch_failed: bool = False,
+    error: str | None = None,
+    temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    updated_at: dt.datetime | str | None = None,
+    cadence_seconds: int | None = None,
 ) -> str:
     """Build multi-line tooltip with current + daily forecast."""
     if not city_display:
-        return _("Weather (no city selected)")
+        return structured_tooltip(
+            title=_("Weather"),
+            primary=_("No city selected"),
+        )
+    state_error = error or (_("Unavailable") if fetch_failed else None)
+    status = resolve_live_status(
+        has_data=weather is not None,
+        loading=loading,
+        error=state_error,
+        updated_at=updated_at,
+    )
     if not weather:
-        return _("{city}: loading...").format(city=city_display)
+        return structured_tooltip(
+            title=city_display,
+            primary=live_state_label(status),
+            freshness=live_freshness_lines(
+                status=status,
+                updated_at=updated_at,
+                cadence_seconds=cadence_seconds,
+            ),
+            error=live_state_error(status=status, error=state_error),
+            recovery=refresh_recovery_label(status),
+        )
 
-    lines = [city_display, f"{weather.temperature:.0f}°C, {weather.description}"]
+    details = []
     if air_quality:
-        lines.append(_("Air: {label}").format(label=air_quality.label))
+        details.append(_("Air: {label}").format(label=air_quality.label))
     for day in weather.daily:
-        temp = f"{day.temp_min:.0f}/{day.temp_max:.0f}°C"
-        lines.append(f"{day.date}: {temp}, {day.description}")
-    return "\n".join(lines)
+        temp = format_temperature_range(
+            low_celsius=day.temp_min,
+            high_celsius=day.temp_max,
+            temperature_unit=temperature_unit,
+        )
+        details.append(f"{day.date}: {temp}, {day.description}")
+    return structured_tooltip(
+        title=city_display,
+        primary=_("{temp}, {desc}").format(
+            temp=format_temperature(
+                weather.temperature,
+                temperature_unit=temperature_unit,
+            ),
+            desc=weather.description,
+        ),
+        details=details,
+        freshness=live_freshness_lines(
+            status=status,
+            updated_at=updated_at,
+            cadence_seconds=cadence_seconds,
+        ),
+        error=live_state_error(status=status, error=state_error),
+        recovery=refresh_recovery_label(status),
+    )
 
 
 @lru_cache(maxsize=1)

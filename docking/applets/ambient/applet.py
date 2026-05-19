@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for Ambient applet."""
 
 from __future__ import annotations
@@ -28,6 +41,7 @@ from docking.applets.ambient.state import (
     tooltip_text,
 )
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -135,7 +149,7 @@ class AmbientApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        display: list[Gtk.MenuItem] = []
         for sound in ALL_SOUNDS:
             menu_item = Gtk.CheckMenuItem(label=sound.label)
             menu_item.set_active(
@@ -145,8 +159,8 @@ class AmbientApplet(Applet):
                 "toggled",
                 lambda _w, s=sound.name: self._select_sound(name=s),
             )
-            items.append(menu_item)
-        return items
+            display.append(menu_item)
+        return menu_sections(display=display, gtk=Gtk)
 
     def _select_sound(self, name: str) -> None:
         was_playing = self._state.playing

@@ -53,6 +53,9 @@ class FakeAboutDialog:
         self.license_type = None
         self.license_text = None
         self.wrap_license = None
+        self.website = None
+        self.website_label = None
+        self.logo_icon_name = None
 
     def set_program_name(self, _value: str) -> None:
         return
@@ -63,14 +66,14 @@ class FakeAboutDialog:
     def set_comments(self, _value: str) -> None:
         return
 
-    def set_website(self, _value: str) -> None:
-        return
+    def set_website(self, value: str) -> None:
+        self.website = value
 
-    def set_website_label(self, _value: str) -> None:
-        return
+    def set_website_label(self, value: str) -> None:
+        self.website_label = value
 
-    def set_logo_icon_name(self, _value: str) -> None:
-        return
+    def set_logo_icon_name(self, value: str) -> None:
+        self.logo_icon_name = value
 
     def set_authors(self, _value: list[str]) -> None:
         return
@@ -83,6 +86,11 @@ class FakeAboutDialog:
 
     def set_wrap_license(self, value: bool) -> None:
         self.wrap_license = value
+
+    def add_button(self, label: str, _response) -> FakeButton:
+        button = FakeButton(label=label)
+        self.buttons.append(button)
+        return button
 
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
@@ -100,22 +108,27 @@ class FakeAboutDialog:
         self.destroyed = True
 
 
+def _fake_gtk():
+    return type(
+        "FakeGtk",
+        (),
+        {
+            "AboutDialog": FakeAboutDialog,
+            "Button": FakeButton,
+            "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
+            "ResponseType": type("FakeResponseType", (), {"HELP": 1}),
+            "Window": object,
+        },
+    )
+
+
 class TestAboutDialogController:
     def test_show_reuses_single_dialog(self, monkeypatch):
         # Given
         monkeypatch.setattr(
             about_mod,
             "Gtk",
-            type(
-                "FakeGtk",
-                (),
-                {
-                    "AboutDialog": FakeAboutDialog,
-                    "Button": FakeButton,
-                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
-                    "Window": object,
-                },
-            ),
+            _fake_gtk(),
         )
         monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         controller = about_mod.AboutDialogController(parent=object())
@@ -135,16 +148,7 @@ class TestAboutDialogController:
         monkeypatch.setattr(
             about_mod,
             "Gtk",
-            type(
-                "FakeGtk",
-                (),
-                {
-                    "AboutDialog": FakeAboutDialog,
-                    "Button": FakeButton,
-                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
-                    "Window": object,
-                },
-            ),
+            _fake_gtk(),
         )
         monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         controller = about_mod.AboutDialogController(parent=object())
@@ -190,16 +194,7 @@ class TestAboutDialogController:
         monkeypatch.setattr(
             about_mod,
             "Gtk",
-            type(
-                "FakeGtk",
-                (),
-                {
-                    "AboutDialog": FakeAboutDialog,
-                    "Button": FakeButton,
-                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
-                    "Window": object,
-                },
-            ),
+            _fake_gtk(),
         )
         monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         monkeypatch.setattr(about_mod, "PROJECT_LICENSE_PATH", MagicMock())
@@ -220,16 +215,7 @@ class TestAboutDialogController:
         monkeypatch.setattr(
             about_mod,
             "Gtk",
-            type(
-                "FakeGtk",
-                (),
-                {
-                    "AboutDialog": FakeAboutDialog,
-                    "Button": FakeButton,
-                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
-                    "Window": object,
-                },
-            ),
+            _fake_gtk(),
         )
         monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "9.9.9")
         controller = about_mod.AboutDialogController(parent=object())
@@ -240,21 +226,66 @@ class TestAboutDialogController:
 
         assert dialog.version == about_mod.docking_version
 
+    def test_show_uses_flatpak_id_as_logo_icon_when_available(self, monkeypatch):
+        monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
+        monkeypatch.setenv("FLATPAK_ID", "cc.docking.Docking")
+        controller = about_mod.AboutDialogController(parent=object())
+
+        controller.show()
+        dialog = controller._dialog
+        assert dialog is not None
+
+        assert dialog.logo_icon_name == "cc.docking.Docking"
+
+    def test_show_uses_legacy_logo_icon_outside_flatpak(self, monkeypatch):
+        monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
+        monkeypatch.delenv("FLATPAK_ID", raising=False)
+        controller = about_mod.AboutDialogController(parent=object())
+
+        controller.show()
+        dialog = controller._dialog
+        assert dialog is not None
+
+        assert dialog.logo_icon_name == about_mod.DEFAULT_LOGO_ICON_NAME
+
+    def test_show_sets_website_and_github_button(self, monkeypatch):
+        monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
+        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
+        controller = about_mod.AboutDialogController(parent=object())
+
+        controller.show()
+        dialog = controller._dialog
+        assert dialog is not None
+
+        assert dialog.website == about_mod.PROJECT_WEBSITE_URL
+        assert dialog.website_label == "Website"
+        assert [button.get_label() for button in dialog.buttons].count("GitHub") == 1
+
+    def test_help_response_opens_project_github(self, monkeypatch):
+        monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
+        launch_default_for_uri = MagicMock()
+        monkeypatch.setattr(
+            about_mod.Gio.AppInfo,
+            "launch_default_for_uri",
+            launch_default_for_uri,
+        )
+        controller = about_mod.AboutDialogController(parent=object())
+        dialog = FakeAboutDialog()
+
+        controller._on_response(dialog, about_mod.Gtk.ResponseType.HELP)
+
+        launch_default_for_uri.assert_called_once_with(
+            about_mod.PROJECT_GITHUB_URL,
+            None,
+        )
+        assert dialog.hidden is False
+
     def test_license_fallback_when_license_file_missing(self, monkeypatch):
         # Given
         monkeypatch.setattr(
             about_mod,
             "Gtk",
-            type(
-                "FakeGtk",
-                (),
-                {
-                    "AboutDialog": FakeAboutDialog,
-                    "Button": FakeButton,
-                    "License": type("FakeLicense", (), {"GPL_3_0": "gpl3"}),
-                    "Window": object,
-                },
-            ),
+            _fake_gtk(),
         )
         monkeypatch.setattr(about_mod, "PROJECT_LICENSE_PATH", MagicMock())
         about_mod.PROJECT_LICENSE_PATH.read_text.side_effect = OSError

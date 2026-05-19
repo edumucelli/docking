@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and data helpers for the Quote applet."""
 
 from __future__ import annotations
@@ -15,6 +28,7 @@ from docking.log import get_logger, with_context
 log = with_context(get_logger(name="quote"), applet_id=meta.id)
 
 DEFAULT_SOURCE = "quotationspage"
+DEFAULT_FETCH_LIMIT = 20
 
 SOURCE_LABELS: dict[str, str] = {
     "quotationspage": "Quotationspage.com",
@@ -152,7 +166,7 @@ def _parse_chuck(data: Any) -> list[QuoteEntry]:
 
 def fetch_quotes(
     source: str,
-    limit: int = 20,
+    limit: int = DEFAULT_FETCH_LIMIT,
     http_get_json: Callable[[str], Any] | None = None,
 ) -> list[QuoteEntry]:
     """Fetch quotes for a source. Returns empty list on any failure."""

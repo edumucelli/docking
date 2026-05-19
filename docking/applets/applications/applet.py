@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for Applications applet."""
 
 from __future__ import annotations
@@ -26,6 +39,8 @@ log = with_context(
     applet_id=meta.id,
 )
 
+SEARCH_ENTRY_WIDTH_CHARS = 24
+
 
 class ApplicationsApplet(Applet):
     """Categorized application launcher via left-click menu."""
@@ -33,13 +48,14 @@ class ApplicationsApplet(Applet):
     id = meta.id
     name = _("Applications")
     icon_name = "view-app-grid"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size=icon_size, config=config)
         self._popup_menu: Gtk.Menu | None = None
         self.present()
 
-    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)
 
     def on_clicked(self) -> None:
@@ -72,7 +88,7 @@ class ApplicationsApplet(Applet):
 
         search_entry = Gtk.Entry()
         search_entry.set_placeholder_text(_("Search applications..."))
-        search_entry.set_width_chars(24)
+        search_entry.set_width_chars(SEARCH_ENTRY_WIDTH_CHARS)
         search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         search_box.pack_start(search_entry, True, True, 0)
         search_item = Gtk.MenuItem()

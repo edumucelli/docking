@@ -1,24 +1,31 @@
 """Tests for desktop file resolution."""
 
+import logging
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # Mock gi before importing launcher only when PyGObject is unavailable.
 try:
-    import gi  # type: ignore # noqa: F401
+    import gi  # noqa: F401
 except Exception:
     gi_mock = MagicMock()
     gi_mock.require_version = MagicMock()
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+from docking.core.config import MiddleClickAction
+from docking.platform import launcher as launcher_mod
 from docking.platform.launcher import (
+    DesktopInfo,
     Launcher,
     get_actions,
     launch,
     launch_action,
+    launch_new_window,
+    open_target,
 )
 
 
@@ -51,6 +58,49 @@ class TestGetDesktopDirs:
             launcher = Launcher()
         # Then
         assert Path("/nonexistent/path/applications") not in launcher._desktop_dirs
+
+    def test_includes_flatpak_host_desktop_dirs(self, tmp_path, monkeypatch):
+        # Given
+        host_share = tmp_path / "run" / "host" / "usr" / "share"
+        host_apps = host_share / "applications"
+        host_apps.mkdir(parents=True)
+        monkeypatch.setattr(launcher_mod, "HOST_XDG_DATA_DIRS", (str(host_share),))
+
+        # When
+        with patch.dict(os.environ, {"XDG_DATA_DIRS": "/nonexistent/path"}):
+            launcher = Launcher()
+
+        # Then
+        assert host_apps in launcher._desktop_dirs
+
+    def test_includes_snap_desktop_export_dir(self, tmp_path, monkeypatch):
+        snap_desktop = tmp_path / "var" / "lib" / "snapd" / "desktop"
+        snap_apps = snap_desktop / "applications"
+        snap_apps.mkdir(parents=True)
+        monkeypatch.setattr(launcher_mod, "HOST_XDG_DATA_DIRS", (str(snap_desktop),))
+
+        with patch.dict(os.environ, {"XDG_DATA_DIRS": "/nonexistent/path"}):
+            launcher = Launcher()
+
+        assert snap_apps in launcher._desktop_dirs
+
+    def test_includes_flatpak_host_user_desktop_dir(self, tmp_path, monkeypatch):
+        home = tmp_path / "home"
+        host_user_apps = home / ".local" / "share" / "applications"
+        host_user_apps.mkdir(parents=True)
+        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+
+        with patch.dict(
+            os.environ,
+            {
+                "HOME": str(home),
+                "XDG_DATA_HOME": str(tmp_path / "sandbox-data"),
+                "XDG_DATA_DIRS": "/nonexistent/path",
+            },
+        ):
+            launcher = Launcher()
+
+        assert host_user_apps in launcher._desktop_dirs
 
 
 class TestIconCache:
@@ -97,12 +147,142 @@ class TestIconCache:
 
         assert name is None
 
+    def test_resolve_parses_desktop_file_when_gio_rejects_it(self, tmp_path):
+        apps_dir = tmp_path / "share" / "applications"
+        apps_dir.mkdir(parents=True)
+        (apps_dir / "pycharm.desktop").write_text(
+            "\n".join(
+                [
+                    "[Desktop Entry]",
+                    "Type=Application",
+                    "Name=PyCharm",
+                    "Exec=/opt/pycharm/bin/pycharm %f",
+                    "Icon=/opt/pycharm/bin/pycharm.svg",
+                    "StartupWMClass=jetbrains-pycharm",
+                ]
+            )
+        )
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "XDG_DATA_DIRS": str(tmp_path / "share"),
+                    "XDG_DATA_HOME": str(tmp_path / "data"),
+                },
+            ),
+            patch.object(launcher_mod, "HOST_XDG_DATA_DIRS", ()),
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=None,
+            ),
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new_from_filename",
+                side_effect=TypeError("constructor returned NULL"),
+            ),
+        ):
+            launcher = Launcher()
+            info = launcher.resolve("pycharm.desktop")
+
+        assert info == DesktopInfo(
+            desktop_id="pycharm.desktop",
+            name="PyCharm",
+            icon_name="/opt/pycharm/bin/pycharm.svg",
+            wm_class="jetbrains-pycharm",
+            exec_line="/opt/pycharm/bin/pycharm %f",
+        )
+
+    def test_resolve_file_icon_caches_image_thumbnail_by_file_stat(self, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.return_value = "thumb"
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod,
+            "normalize_file_target",
+            lambda _target: "file:///tmp/photo.png",
+        )
+        monkeypatch.setattr(
+            launcher_mod.Path,
+            "stat",
+            lambda self: SimpleNamespace(st_mtime_ns=10, st_size=20),
+        )
+
+        first = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+        second = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+
+        assert first == "thumb"
+        assert second == "thumb"
+        pixbuf_cls.new_from_file_at_scale.assert_called_once()
+
+    def test_resolve_file_icon_reloads_thumbnail_when_file_stat_changes(
+        self, monkeypatch
+    ):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.side_effect = ["thumb-1", "thumb-2"]
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod,
+            "normalize_file_target",
+            lambda _target: "file:///tmp/photo.png",
+        )
+        stats = iter(
+            (
+                SimpleNamespace(st_mtime_ns=10, st_size=20),
+                SimpleNamespace(st_mtime_ns=11, st_size=20),
+                SimpleNamespace(st_mtime_ns=12, st_size=20),
+                SimpleNamespace(st_mtime_ns=13, st_size=20),
+            )
+        )
+        monkeypatch.setattr(launcher_mod.Path, "stat", lambda self: next(stats))
+
+        first = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+        second = launcher.resolve_file_icon(
+            target="file:///tmp/photo.png",
+            gicon=None,
+            content_type="image/png",
+            size=48,
+            is_dir=False,
+        )
+
+        assert first == "thumb-1"
+        assert second == "thumb-2"
+        assert pixbuf_cls.new_from_file_at_scale.call_count == 2
+
 
 class TestDesktopActions:
     def test_get_actions_returns_pairs(self):
         # Given a mock DesktopAppInfo with actions
         mock_app = MagicMock()
-        mock_app.list_actions.return_value = ["new-window", "new-private"]
+        mock_app.list_actions.return_value = [
+            MiddleClickAction.NEW_WINDOW.value,
+            "new-private",
+        ]
         mock_app.get_action_name.side_effect = lambda a: {
             "new-window": "New Window",
             "new-private": "New Incognito Window",
@@ -150,7 +330,56 @@ class TestDesktopActions:
         ):
             launch_action(desktop_id="chrome.desktop", action_id="new-window")
         # Then
-        mock_app.launch_action.assert_called_once_with("new-window", None)
+        mock_app.launch_action.assert_called_once_with(
+            MiddleClickAction.NEW_WINDOW.value, None
+        )
+
+    @patch("subprocess.Popen")
+    def test_launch_action_uses_host_exec_for_host_desktop_file(
+        self, popen_mock, tmp_path, monkeypatch
+    ):
+        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        desktop_file = host_apps / "browser.desktop"
+        desktop_file.write_text(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=Browser\n"
+            "Exec=browser\n"
+            "Actions=new-window;\n"
+            "\n"
+            "[Desktop Action new-window]\n"
+            "Name=New Window\n"
+            "Exec=browser --new-window\n",
+            encoding="utf-8",
+        )
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-window"]
+        monkeypatch.setattr(
+            launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
+        )
+        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new",
+            lambda _desktop_id: None,
+        )
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new_from_filename",
+            lambda _path: mock_app,
+        )
+
+        launch_action(desktop_id="browser.desktop", action_id="new-window")
+
+        mock_app.launch_action.assert_not_called()
+        args, _kwargs = popen_mock.call_args
+        assert args[0][-2:] == ["browser", "--new-window"]
 
     def test_get_actions_returns_empty_when_gio_raises(self, monkeypatch):
         # Given / When
@@ -164,6 +393,71 @@ class TestDesktopActions:
             actions = get_actions(desktop_id="broken.desktop")
         # Then
         assert actions == []
+
+    def test_get_actions_reads_host_desktop_file_when_id_lookup_fails(
+        self, tmp_path, monkeypatch
+    ):
+        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        desktop_file = host_apps / "org.gnome.FileRoller.desktop"
+        desktop_file.write_text("[Desktop Entry]\nType=Application\n")
+
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["extract-here"]
+        mock_app.get_action_name.return_value = "Extract Here"
+        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new",
+            lambda _desktop_id: None,
+        )
+        new_from_filename = MagicMock(return_value=mock_app)
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new_from_filename",
+            new_from_filename,
+        )
+
+        actions = get_actions(desktop_id="org.gnome.FileRoller.desktop")
+
+        assert actions == [("extract-here", "Extract Here")]
+        new_from_filename.assert_called_once_with(str(desktop_file))
+
+    def test_get_actions_parses_host_desktop_file_when_gio_filename_lookup_fails(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        desktop_file = host_apps / "org.gnome.FileRoller.desktop"
+        desktop_file.write_text(
+            "\n".join(
+                [
+                    "[Desktop Entry]",
+                    "Type=Application",
+                    "Name=Archive Manager",
+                    "Exec=file-roller %U",
+                    "Actions=extract-here;",
+                    "",
+                    "[Desktop Action extract-here]",
+                    "Name=Extract Here",
+                    "Exec=file-roller --extract-here %U",
+                ]
+            )
+        )
+
+        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(launcher_mod.Gio.DesktopAppInfo, "new", lambda _id: None)
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new_from_filename",
+            lambda _path: None,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="docking.launcher"):
+            actions = get_actions(desktop_id="org.gnome.FileRoller.desktop")
+
+        assert actions == [("extract-here", "Extract Here")]
+        assert "constructor returned NULL" not in caplog.text
 
     def test_launch_action_ignores_gio_errors(self, monkeypatch):
         # Given
@@ -242,6 +536,35 @@ class TestResolve:
         assert info.icon_name == "application-x-executable"
         assert info.name == "code.desktop"
 
+    def test_resolve_only_falls_back_when_gio_returns_none(self, tmp_path):
+        apps_dir = tmp_path / "applications"
+        apps_dir.mkdir()
+        (apps_dir / "firefox.desktop").write_text("[Desktop Entry]\nName=Fallback\n")
+        launcher = Launcher()
+        launcher._desktop_dirs = [apps_dir]
+
+        app = MagicMock()
+        app.__bool__.return_value = False
+        app.get_startup_wm_class.return_value = "Firefox"
+        app.get_commandline.return_value = "/usr/bin/firefox %U"
+        app.get_icon.return_value = None
+        app.get_display_name.return_value = "Firefox"
+
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=app,
+            ),
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new_from_filename"
+            ) as from_filename,
+        ):
+            info = launcher.resolve("firefox.desktop")
+
+        assert info is not None
+        assert info.name == "Firefox"
+        from_filename.assert_not_called()
+
     def test_resolve_returns_none_when_lookups_fail(self, monkeypatch):
         # Given
         from docking.platform import launcher as launcher_mod
@@ -259,6 +582,32 @@ class TestResolve:
 
         # Then
         assert info is None
+
+    def test_resolve_by_wm_class_indexes_fallback_exec_alias(self, tmp_path):
+        apps_dir = tmp_path / "applications"
+        apps_dir.mkdir()
+        (apps_dir / "org.gnome.Calculator.desktop").write_text("[Desktop Entry]\n")
+
+        launcher = Launcher()
+        launcher._desktop_dirs = [apps_dir]
+        launcher.resolve = MagicMock(
+            side_effect=lambda desktop_id, **_kwargs: (
+                DesktopInfo(
+                    desktop_id="org.gnome.Calculator.desktop",
+                    name="Calculator",
+                    icon_name="org.gnome.Calculator",
+                    wm_class="gnome-calculator",
+                    exec_line="gnome-calculator",
+                )
+                if desktop_id == "org.gnome.Calculator.desktop"
+                else None
+            )
+        )
+
+        info = launcher.resolve_by_wm_class("gnome-calculator")
+
+        assert info is not None
+        assert info.desktop_id == "org.gnome.Calculator.desktop"
 
     def test_resolve_file_uses_image_thumbnail_for_images(self, monkeypatch):
         from docking.platform import launcher as launcher_mod
@@ -279,6 +628,11 @@ class TestResolve:
         pixbuf_cls.new_from_file_at_scale.return_value = thumb
         monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
         monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: True)
+        monkeypatch.setattr(
+            launcher_mod.Path,
+            "stat",
+            lambda self: SimpleNamespace(st_mtime_ns=10, st_size=20),
+        )
         launcher.load_gicon = MagicMock(return_value="gicon-pixbuf")
         launcher.load_icon = MagicMock(return_value="fallback-pixbuf")
 
@@ -313,7 +667,167 @@ class TestTryLoadIcon:
 
         # Then
         assert out is pix
-        theme.load_icon.assert_not_called()
+        theme.lookup_icon.assert_not_called()
+
+    def test_loads_flatpak_host_icon_for_host_desktop_absolute_path(self, monkeypatch):
+        # Given
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        theme = MagicMock()
+        theme.get_search_path.return_value = []
+        monkeypatch.setattr(
+            launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
+        )
+        monkeypatch.setattr(
+            launcher_mod.Path,
+            "exists",
+            lambda self: str(self) == "/run/host/opt/app/icon.png",
+        )
+
+        pix = object()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.return_value = pix
+        monkeypatch.setattr(launcher_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False)
+
+        # When
+        out = launcher._try_load_icon("/opt/app/icon.png", 48)
+
+        # Then
+        assert out is pix
+        pixbuf_cls.new_from_file_at_scale.assert_called_once_with(
+            "/run/host/opt/app/icon.png",
+            48,
+            48,
+            True,
+        )
+        theme.lookup_icon.assert_not_called()
+
+    def test_loads_host_pixmap_icon_when_desktop_icon_includes_extension(
+        self, tmp_path, monkeypatch
+    ):
+        from docking.platform import launcher as launcher_mod
+
+        host_share = tmp_path / "run" / "host" / "usr" / "share"
+        pixmaps = host_share / "pixmaps"
+        pixmaps.mkdir(parents=True)
+        icon_file = pixmaps / "acvc-64.png"
+        icon_file.write_bytes(b"fake")
+        monkeypatch.setattr(launcher_mod, "HOST_PIXMAP_DIRS", (str(pixmaps),))
+        monkeypatch.setattr(launcher_mod.GLib, "Error", RuntimeError, raising=False)
+
+        launcher = Launcher()
+        theme = MagicMock()
+        theme.get_search_path.return_value = []
+        icon_info = MagicMock()
+        icon_info.load_icon.return_value = "pixbuf"
+        theme.lookup_icon.side_effect = [None, icon_info]
+        monkeypatch.setattr(
+            launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
+        )
+
+        out = launcher._try_load_icon("acvc-64.png", 48)
+
+        assert out == "pixbuf"
+        theme.append_search_path.assert_called_once_with(str(pixmaps))
+        assert [call.args[0] for call in theme.lookup_icon.call_args_list] == [
+            "acvc-64.png",
+            "acvc-64",
+        ]
+
+    def test_loads_host_pixmap_icon_for_extensionless_name(self, tmp_path, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        host_share = tmp_path / "run" / "host" / "usr" / "share"
+        pixmaps = host_share / "pixmaps"
+        pixmaps.mkdir(parents=True)
+        icon_file = pixmaps / "mongodb-compass.png"
+        icon_file.write_bytes(b"fake")
+        monkeypatch.setattr(launcher_mod, "HOST_PIXMAP_DIRS", (str(pixmaps),))
+        monkeypatch.setattr(launcher_mod.GLib, "Error", RuntimeError, raising=False)
+
+        launcher = Launcher()
+        theme = MagicMock()
+        theme.get_search_path.return_value = []
+        icon_info = MagicMock()
+        icon_info.load_icon.return_value = "pixbuf"
+        theme.lookup_icon.return_value = icon_info
+        monkeypatch.setattr(
+            launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
+        )
+
+        out = launcher._try_load_icon("mongodb-compass", 48)
+
+        assert out == "pixbuf"
+        theme.append_search_path.assert_called_once_with(str(pixmaps))
+        theme.lookup_icon.assert_called_once_with(
+            "mongodb-compass",
+            48,
+            launcher_mod.Gtk.IconLookupFlags.FORCE_SIZE,
+        )
+
+    def test_uses_gnome_legacy_icon_alias_before_fallback(self, monkeypatch):
+        # Given
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        monkeypatch.setattr(launcher_mod.GLib, "Error", RuntimeError, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: False)
+
+        theme = MagicMock()
+        theme.get_search_path.return_value = []
+        mock_info = MagicMock()
+        mock_info.load_icon.return_value = "calculator-pixbuf"
+        theme.lookup_icon.side_effect = [None, mock_info]
+        monkeypatch.setattr(
+            launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
+        )
+
+        # When
+        out = launcher._try_load_icon("org.gnome.Calculator", 48)
+
+        # Then
+        assert out == "calculator-pixbuf"
+        assert theme.lookup_icon.call_args_list[0].args[0] == "org.gnome.Calculator"
+        assert theme.lookup_icon.call_args_list[1].args[0] == "gnome-calculator"
+
+    def test_load_desktop_icon_uses_exec_basename_before_fallback(self, monkeypatch):
+        from docking.platform import launcher as launcher_mod
+
+        launcher = Launcher()
+        monkeypatch.setattr(launcher_mod.GLib, "Error", RuntimeError, raising=False)
+        monkeypatch.setattr(launcher_mod.Path, "exists", lambda self: False)
+
+        theme = MagicMock()
+        theme.get_search_path.return_value = []
+        mock_info = MagicMock()
+        mock_info.load_icon.return_value = "file-roller-pixbuf"
+        theme.lookup_icon.side_effect = [
+            None,
+            None,
+            None,
+            mock_info,
+        ]
+        monkeypatch.setattr(
+            launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
+        )
+        info = DesktopInfo(
+            desktop_id="org.gnome.FileRoller.desktop",
+            name="Archive Manager",
+            icon_name="org.gnome.ArchiveManager",
+            wm_class="file-roller",
+            exec_line="file-roller %U",
+        )
+
+        out = launcher.load_desktop_icon(info, 48)
+
+        assert out == "file-roller-pixbuf"
+        assert [call.args[0] for call in theme.lookup_icon.call_args_list] == [
+            "org.gnome.ArchiveManager",
+            "gnome-archivemanager",
+            "archivemanager",
+            "file-roller",
+        ]
 
     def test_uses_theme_fallback_when_primary_icon_lookup_fails(self, monkeypatch):
         # Given
@@ -323,7 +837,9 @@ class TestTryLoadIcon:
         monkeypatch.setattr(launcher_mod.GLib, "Error", RuntimeError, raising=False)
 
         theme = MagicMock()
-        theme.load_icon.side_effect = [RuntimeError("miss"), "fallback-pixbuf"]
+        mock_info = MagicMock()
+        mock_info.load_icon.return_value = "fallback-pixbuf"
+        theme.lookup_icon.side_effect = [None, mock_info]
         monkeypatch.setattr(
             launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
         )
@@ -334,7 +850,7 @@ class TestTryLoadIcon:
 
         # Then
         assert out == "fallback-pixbuf"
-        assert theme.load_icon.call_count == 2
+        assert theme.lookup_icon.call_count == 2
 
     def test_returns_none_when_all_icon_lookups_fail(self, monkeypatch):
         # Given
@@ -344,7 +860,7 @@ class TestTryLoadIcon:
         monkeypatch.setattr(launcher_mod.GLib, "Error", RuntimeError, raising=False)
 
         theme = MagicMock()
-        theme.load_icon.side_effect = [RuntimeError("miss"), RuntimeError("miss")]
+        theme.lookup_icon.return_value = None
         monkeypatch.setattr(
             launcher_mod.Gtk.IconTheme, "get_default", lambda: theme, raising=False
         )
@@ -398,6 +914,121 @@ class TestTryLoadIcon:
         launcher.load_gicon.assert_called_once_with(gicon=gicon, size=48)
 
 
+class TestLaunchNewWindow:
+    def test_launch_new_window_prefers_desktop_action(self):
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-window", "new-private"]
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=mock_app,
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="sublime_text.desktop")
+
+        mock_app.launch_action.assert_called_once_with("new-window", None)
+        launch_mock.assert_not_called()
+
+    def test_launch_new_window_falls_back_without_action(self):
+        mock_app = MagicMock()
+        mock_app.list_actions.return_value = ["new-private"]
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new",
+                return_value=mock_app,
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="app.desktop")
+
+        mock_app.launch_action.assert_not_called()
+        launch_mock.assert_called_once_with(desktop_id="app.desktop")
+
+    def test_launch_new_window_falls_back_when_desktop_missing(self):
+        with (
+            patch(
+                "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=None
+            ),
+            patch("docking.platform.launcher.launch") as launch_mock,
+        ):
+            launch_new_window(desktop_id="missing.desktop")
+
+        launch_mock.assert_called_once_with(desktop_id="missing.desktop")
+
+
+class TestOpenTarget:
+    def test_open_target_accepts_https_url(self):
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target("https://github.com/edumucelli/docking/issues") is True
+
+        launch_mock.assert_called_once_with(
+            "https://github.com/edumucelli/docking/issues", None
+        )
+
+    def test_open_target_normalizes_local_path(self, tmp_path):
+        target = tmp_path / "example.txt"
+        target.write_text("hello")
+
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target(str(target)) is True
+
+        launch_mock.assert_called_once_with(target.resolve().as_uri(), None)
+
+    def test_open_target_uses_host_gio_for_local_file_in_flatpak(
+        self, tmp_path, monkeypatch
+    ):
+        target = tmp_path / "example.txt"
+        target.write_text("hello")
+        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+
+        with (
+            patch("docking.platform.launcher.subprocess.Popen") as popen_mock,
+            patch(
+                "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+            ) as launch_mock,
+        ):
+            assert open_target(str(target)) is True
+
+        popen_mock.assert_called_once()
+        args, kwargs = popen_mock.call_args
+        assert args[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "gio",
+            "open",
+            target.resolve().as_uri(),
+        ]
+        assert kwargs["start_new_session"] is True
+        launch_mock.assert_not_called()
+
+    def test_open_target_returns_false_for_unsupported_scheme(self):
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target("mailto:test@example.com") is False
+
+        launch_mock.assert_not_called()
+
+
 class TestLaunch:
     @patch("subprocess.Popen")
     def test_launch_uses_shell_false_and_new_session(self, popen_mock):
@@ -420,6 +1051,182 @@ class TestLaunch:
             "docking.platform.launcher.Gio.DesktopAppInfo.new", return_value=None
         ):
             launch(desktop_id="missing.desktop")
+        popen_mock.assert_not_called()
+
+    @patch("subprocess.Popen")
+    def test_launch_uses_host_spawn_for_host_desktop_file(
+        self, popen_mock, tmp_path, monkeypatch
+    ):
+        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        desktop_file = host_apps / "org.gnome.FileRoller.desktop"
+        desktop_file.write_text("[Desktop Entry]\nType=Application\n")
+
+        mock_app = MagicMock()
+        mock_app.get_commandline.return_value = "file-roller %U"
+        monkeypatch.setattr(
+            launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
+        )
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new",
+            lambda _desktop_id: None,
+        )
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new_from_filename",
+            lambda _path: mock_app,
+        )
+
+        launch(desktop_id="org.gnome.FileRoller.desktop")
+
+        popen_mock.assert_called_once()
+        args, kwargs = popen_mock.call_args
+        assert args[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "file-roller",
+        ]
+        assert kwargs["shell"] is False
+
+    @patch("subprocess.Popen")
+    def test_launch_uses_host_spawn_for_flatpak_host_user_desktop_file(
+        self, popen_mock, tmp_path, monkeypatch
+    ):
+        home = tmp_path / "home"
+        host_apps = home / ".local" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        (host_apps / "org.example.UserApp.desktop").write_text(
+            "[Desktop Entry]\nType=Application\n"
+        )
+
+        mock_app = MagicMock()
+        mock_app.get_commandline.return_value = "user-app %U"
+        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new",
+            lambda _desktop_id: mock_app,
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "HOME": str(home),
+                "XDG_DATA_HOME": str(tmp_path / "sandbox-data"),
+                "XDG_DATA_DIRS": "/nonexistent/path",
+            },
+        ):
+            launch(desktop_id="org.example.UserApp.desktop")
+
+        popen_mock.assert_called_once()
+        args, kwargs = popen_mock.call_args
+        assert args[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "user-app",
+        ]
+        assert kwargs["shell"] is False
+
+    @patch("subprocess.Popen")
+    def test_launch_parses_host_desktop_file_when_gio_filename_lookup_fails(
+        self, popen_mock, tmp_path, monkeypatch, caplog
+    ):
+        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
+        host_apps.mkdir(parents=True)
+        desktop_file = host_apps / "org.gnome.FileRoller.desktop"
+        desktop_file.write_text(
+            "\n".join(
+                [
+                    "[Desktop Entry]",
+                    "Type=Application",
+                    "Name=Archive Manager",
+                    "Exec=file-roller %U",
+                ]
+            )
+        )
+
+        monkeypatch.setattr(
+            launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
+        )
+        monkeypatch.setattr(
+            launcher_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(launcher_mod.Gio.DesktopAppInfo, "new", lambda _id: None)
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new_from_filename",
+            lambda _path: None,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="docking.launcher"):
+            launch(desktop_id="org.gnome.FileRoller.desktop")
+
+        popen_mock.assert_called_once()
+        args, kwargs = popen_mock.call_args
+        assert args[0] == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "file-roller",
+        ]
+        assert kwargs["shell"] is False
+        assert "constructor returned NULL" not in caplog.text
+
+    @patch("subprocess.Popen")
+    def test_launch_returns_when_desktop_constructor_raises(
+        self, popen_mock, monkeypatch
+    ):
+        monkeypatch.setattr(launcher_mod.GLib, "Error", RuntimeError, raising=False)
+        monkeypatch.setattr(
+            launcher_mod.Gio.DesktopAppInfo,
+            "new",
+            MagicMock(side_effect=TypeError("constructor returned NULL")),
+        )
+        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", list)
+
+        launch(desktop_id="missing.desktop")
+
         popen_mock.assert_not_called()
 
     @patch("subprocess.Popen")

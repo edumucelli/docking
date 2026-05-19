@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Open-Meteo API client for weather applet.
 
 Uses openmeteo_requests with requests-cache and retry (5 attempts).
@@ -21,6 +34,8 @@ log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 # How often weather data is refreshed (seconds). Used for both the
 # polling timer in the applet and the requests-cache expiry.
 REFRESH_INTERVAL = 300  # 5 minutes
+API_RETRY_COUNT = 5
+API_RETRY_BACKOFF_FACTOR = 0.2
 
 _CACHE_DIR = (
     Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
@@ -119,10 +134,16 @@ def _get_client() -> Any:
 
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = str(_CACHE_DIR / "responses")
+    # Three-layer stack: openmeteo_requests wraps retry_requests wraps
+    # requests_cache. Cache avoids redundant HTTP; retry handles failures.
     cache_session = requests_cache.CachedSession(
         cache_path, expire_after=REFRESH_INTERVAL
     )
-    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    retry_session = retry(
+        cache_session,
+        retries=API_RETRY_COUNT,
+        backoff_factor=API_RETRY_BACKOFF_FACTOR,
+    )
     return openmeteo_requests.Client(session=cast(Any, retry_session))
 
 
@@ -181,7 +202,7 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
             icon_name=wmo_icon_name(code=code),
             daily=daily,
         )
-    except (OSError, ValueError, KeyError, IndexError, AttributeError):
+    except Exception:
         log.bind(action="fetch_weather").warning(
             "Failed to fetch weather", exc_info=True
         )
@@ -235,7 +256,7 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
         pm10 = round(current.Variables(1).Value(), 1)
         pm2_5 = round(current.Variables(2).Value(), 1)
         return AirQualityData(aqi=aqi, pm2_5=pm2_5, pm10=pm10, label=aqi_label(aqi=aqi))
-    except (OSError, ValueError, KeyError, IndexError, AttributeError):
+    except Exception:
         log.bind(action="fetch_air_quality").warning(
             "Failed to fetch air quality",
             exc_info=True,

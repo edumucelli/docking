@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Overlay lifecycle and window-picking flow for the Window Killer applet.
 
 What this applet is trying to emulate
@@ -40,6 +53,11 @@ gi.require_version("Wnck", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk, Wnck
 
 from docking.applets.base import Applet
+from docking.applets.popup import (
+    create_capture_overlay,
+    dismiss_capture_overlay,
+    draw_transparent_capture_overlay,
+)
 from docking.applets.windowkiller import meta
 from docking.applets.windowkiller.render import create_icon
 from docking.applets.windowkiller.state import kill_pid
@@ -83,49 +101,16 @@ class WindowKillerApplet(Applet):
         if self._overlay:
             return
 
-        overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
-        overlay.set_decorated(False)
-        overlay.set_app_paintable(True)
-
-        screen = overlay.get_screen()
-        visual = screen.get_rgba_visual()
-        if visual:
-            overlay.set_visual(visual)
-
-        overlay.set_default_size(screen.get_width(), screen.get_height())
-        overlay.move(0, 0)
-
-        overlay.connect("draw", self._on_overlay_draw)
-        overlay.set_events(
-            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.KEY_PRESS_MASK
+        self._overlay = create_capture_overlay(
+            draw_handler=self._on_overlay_draw,
+            click_handler=self._on_overlay_click,
+            key_handler=self._on_overlay_key,
+            cursor_type=Gdk.CursorType.PIRATE,
         )
-        overlay.connect("button-press-event", self._on_overlay_click)
-        overlay.connect("key-press-event", self._on_overlay_key)
-
-        display = Gdk.Display.get_default()
-        crosshair = Gdk.Cursor.new_for_display(display, Gdk.CursorType.PIRATE)
-
-        overlay.show_all()
-        overlay.get_window().set_cursor(crosshair)
-
-        seat = display.get_default_seat()
-        seat.grab(
-            overlay.get_window(),
-            Gdk.SeatCapabilities.ALL_POINTING | Gdk.SeatCapabilities.KEYBOARD,
-            True,
-            crosshair,
-            None,
-            None,
-            None,
-        )
-
-        self._overlay = overlay
 
     @staticmethod
     def _on_overlay_draw(widget: Gtk.Window, cr) -> bool:
-        cr.set_source_rgba(0, 0, 0, 0.01)
-        cr.paint()
-        return True
+        return draw_transparent_capture_overlay(widget, cr)
 
     def _on_overlay_click(self, _widget: Gtk.Window, event: Gdk.EventButton) -> bool:
         self._dismiss_overlay()
@@ -154,10 +139,7 @@ class WindowKillerApplet(Applet):
 
     def _dismiss_overlay(self) -> None:
         if self._overlay:
-            display = Gdk.Display.get_default()
-            seat = display.get_default_seat()
-            seat.ungrab()
-            self._overlay.destroy()
+            dismiss_capture_overlay(self._overlay)
             self._overlay = None
 
     @staticmethod

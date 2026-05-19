@@ -1,10 +1,23 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for Pomodoro applet."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -13,6 +26,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.applets.pomodoro import meta
 from docking.applets.pomodoro.render import render_icon
 from docking.applets.pomodoro.state import (
@@ -150,58 +164,54 @@ class PomodoroApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
-        # Reset
         reset_item = Gtk.MenuItem(label=_("Reset"))
         reset_item.connect("activate", lambda _w: self._reset())
-        items.append(reset_item)
 
         show = Gtk.CheckMenuItem(label=_("Show Timer"))
         show.set_active(self._data.show_timer)
         show.connect("toggled", self._on_toggle_timer)
-        items.append(show)
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        # Work duration
-        items.append(self._make_duration_header(label=_("Work")))
-        for mins in WORK_PRESETS:
-            items.append(
-                self._make_radio_item(
-                    label=_("{mins} min").format(mins=mins),
-                    active=self._data.work_min == mins,
-                    callback=lambda _w, m=mins: self._set_work(minutes=m),
-                )
+        display: list[Gtk.MenuItem] = [show, Gtk.SeparatorMenuItem()]
+        display.append(self._make_duration_header(label=_("Work")))
+        display.extend(
+            radio_menu_items(
+                choices=tuple(
+                    (_("{mins} min").format(mins=mins), mins) for mins in WORK_PRESETS
+                ),
+                active_value=self._data.work_min,
+                on_selected=lambda _widget, value: self._set_work(minutes=value),
+                gtk=Gtk,
             )
+        )
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        # Break duration
-        items.append(self._make_duration_header(label=_("Break")))
-        for mins in BREAK_PRESETS:
-            items.append(
-                self._make_radio_item(
-                    label=_("{mins} min").format(mins=mins),
-                    active=self._data.break_min == mins,
-                    callback=lambda _w, m=mins: self._set_break(minutes=m),
-                )
+        display.append(Gtk.SeparatorMenuItem())
+        display.append(self._make_duration_header(label=_("Break")))
+        display.extend(
+            radio_menu_items(
+                choices=tuple(
+                    (_("{mins} min").format(mins=mins), mins) for mins in BREAK_PRESETS
+                ),
+                active_value=self._data.break_min,
+                on_selected=lambda _widget, value: self._set_break(minutes=value),
+                gtk=Gtk,
             )
+        )
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        # Long break duration
-        items.append(self._make_duration_header(label=_("Long Break")))
-        for mins in LONG_BREAK_PRESETS:
-            items.append(
-                self._make_radio_item(
-                    label=_("{mins} min").format(mins=mins),
-                    active=self._data.long_break_min == mins,
-                    callback=lambda _w, m=mins: self._set_long_break(minutes=m),
-                )
+        display.append(Gtk.SeparatorMenuItem())
+        display.append(self._make_duration_header(label=_("Long Break")))
+        display.extend(
+            radio_menu_items(
+                choices=tuple(
+                    (_("{mins} min").format(mins=mins), mins)
+                    for mins in LONG_BREAK_PRESETS
+                ),
+                active_value=self._data.long_break_min,
+                on_selected=lambda _widget, value: self._set_long_break(minutes=value),
+                gtk=Gtk,
             )
+        )
 
-        return items
+        return menu_sections(display=display, destructive=[reset_item], gtk=Gtk)
 
     # -- Internals -----------------------------------------------------------
 
@@ -247,15 +257,4 @@ class PomodoroApplet(Applet):
     def _make_duration_header(label: str) -> Gtk.MenuItem:
         menu_item = Gtk.MenuItem(label=label)
         menu_item.set_sensitive(False)
-        return menu_item
-
-    @staticmethod
-    def _make_radio_item(
-        label: str,
-        active: bool,
-        callback: Any,
-    ) -> Gtk.CheckMenuItem:
-        menu_item = Gtk.CheckMenuItem(label=label)
-        menu_item.set_active(active)
-        menu_item.connect("toggled", callback)
         return menu_item

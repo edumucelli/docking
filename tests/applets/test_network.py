@@ -8,15 +8,28 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.network.applet as network_applet_mod
+import docking.applets.network.render as network_render_mod
+import docking.applets.network.state as network_state_mod
 from docking.applets.network.applet import NetworkApplet
 from docking.applets.network.render import create_icon as create_network_icon
 from docking.applets.network.state import (
+    AvailableNetwork,
     TrafficCounters,
     compute_speeds,
+    connection_info_command,
+    decode_ssid,
+    dedupe_networks,
+    edit_connections_command,
+    format_compact_speed,
     format_speed,
+    open_connection_info,
+    open_edit_connections,
+    open_hidden_wifi_settings,
+    open_new_wifi_settings,
     parse_proc_net_dev,
     signal_to_icon,
 )
+from docking.core.config import Config
 
 SAMPLE_PROC_NET_DEV = """\
 Inter-|   Receive                                                |  Transmit
@@ -32,6 +45,7 @@ class _FakeMenuItem:
         self._label = label
         self._sensitive = True
         self._signals: dict[str, list[object]] = {}
+        self._submenu = None
 
     def get_label(self) -> str:
         return self._label
@@ -39,8 +53,14 @@ class _FakeMenuItem:
     def set_sensitive(self, value: bool) -> None:
         self._sensitive = value
 
-    def connect(self, signal: str, callback) -> None:
-        self._signals.setdefault(signal, []).append(callback)
+    def connect(self, signal: str, callback, *args) -> None:
+        self._signals.setdefault(signal, []).append((callback, args))
+
+    def set_submenu(self, submenu) -> None:
+        self._submenu = submenu
+
+    def get_submenu(self):
+        return self._submenu
 
 
 class _FakeCheckMenuItem(_FakeMenuItem):
@@ -53,6 +73,26 @@ class _FakeCheckMenuItem(_FakeMenuItem):
 
     def get_active(self) -> bool:
         return self._active
+
+
+class _FakeRadioMenuItem(_FakeCheckMenuItem):
+    def join_group(self, _first) -> None:
+        return
+
+
+class _FakeSeparatorMenuItem(_FakeMenuItem):
+    pass
+
+
+class _FakeMenu:
+    def __init__(self) -> None:
+        self._children: list[object] = []
+
+    def append(self, item) -> None:
+        self._children.append(item)
+
+    def get_children(self):
+        return list(self._children)
 
 
 class TestParseProcNetDev:
@@ -137,6 +177,20 @@ class TestFormatSpeed:
         assert format_speed(bps=0) == "0 B/s"
 
 
+class TestFormatCompactSpeed:
+    def test_bytes(self):
+        assert format_compact_speed(bps=500) == "500B"
+
+    def test_kilobytes_uses_explicit_byte_unit(self):
+        assert format_compact_speed(bps=1536) == "1.5KB"
+
+    def test_megabytes_uses_explicit_byte_unit(self):
+        assert format_compact_speed(bps=5 * 1024 * 1024) == "5MB"
+
+    def test_gigabytes_uses_explicit_byte_unit(self):
+        assert format_compact_speed(bps=2 * 1024 * 1024 * 1024) == "2GB"
+
+
 class TestSignalToIcon:
     def test_disconnected(self):
         assert (
@@ -179,8 +233,11 @@ class TestSignalToIcon:
 class TestNetworkApplet:
     def _fake_gtk(self, monkeypatch):
         fake_gtk = SimpleNamespace(
+            Menu=_FakeMenu,
             MenuItem=_FakeMenuItem,
             CheckMenuItem=_FakeCheckMenuItem,
+            RadioMenuItem=_FakeRadioMenuItem,
+            SeparatorMenuItem=_FakeSeparatorMenuItem,
         )
         monkeypatch.setattr(network_applet_mod, "Gtk", fake_gtk)
 
@@ -204,6 +261,260 @@ class TestNetworkApplet:
         applet = NetworkApplet(48)
         items = applet.get_menu_items()
         assert len(items) >= 1
+
+    def test_loads_speed_overlay_pref(self):
+        applet = NetworkApplet(
+            48,
+            config=Config(applet_prefs={"network": {"speed_overlay": "upload"}}),
+        )
+
+        assert applet._speed_overlay == "upload"
+
+    def test_menu_status_rows_for_wifi_and_ethernet(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        applet = NetworkApplet(48)
+        applet._is_connected = True
+        applet._is_wifi = True
+        applet._ssid = "DockNet"
+        applet._signal_strength = 77
+        applet._ip_address = "10.0.0.2"
+        applet._rx_speed = 2048
+        applet._tx_speed = 1024
+
+        labels = [item.get_label() for item in applet.get_menu_items()]
+
+        assert "WiFi: DockNet (77%)" in labels
+        assert "IP: 10.0.0.2" in labels
+        assert any("KB/s" in label for label in labels)
+
+        applet._ssid = ""
+        applet._is_wifi = False
+        applet._iface = "eth0"
+        labels = [item.get_label() for item in applet.get_menu_items()]
+        assert "Ethernet: eth0" in labels
+
+    def test_menu_includes_tray_style_actions(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(
+            network_applet_mod, "connection_info_command", lambda: ["a"]
+        )
+        monkeypatch.setattr(
+            network_applet_mod,
+            "edit_connections_command",
+            lambda: ["b"],
+        )
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2),
+            raising=False,
+        )
+
+        wifi_device = MagicMock()
+        wifi_device.get_device_type.return_value = 2
+
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [wifi_device]
+        applet._nm_client.networking_get_enabled.return_value = True
+        applet._nm_client.wireless_get_enabled.return_value = True
+        applet._nm_client.wireless_hardware_get_enabled.return_value = True
+
+        labels = [item.get_label() for item in applet.get_menu_items()]
+        assert "Connection Information" in labels
+        assert "Edit Connections..." in labels
+        assert "Available Networks" in labels
+        assert "Connect to Hidden Wi-Fi Network..." in labels
+        assert "Create New Wi-Fi Network..." in labels
+        assert "Enable Networking" in labels
+        assert "Enable Wi-Fi" in labels
+
+    def test_available_networks_submenu_lists_visible_ssids(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(network_applet_mod, "connection_info_command", lambda: None)
+        monkeypatch.setattr(
+            network_applet_mod, "edit_connections_command", lambda: None
+        )
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2),
+            raising=False,
+        )
+
+        def ap(ssid: str, strength: int, path: str):
+            access_point = MagicMock()
+            access_point.get_ssid.return_value = ssid.encode()
+            access_point.get_strength.return_value = strength
+            access_point.get_path.return_value = path
+            return access_point
+
+        active = ap("DockNet", 65, "/ap/1")
+        duplicate_weaker = ap("DockNet", 20, "/ap/2")
+        guest = ap("Guest", 30, "/ap/3")
+
+        wifi_device = MagicMock()
+        wifi_device.get_device_type.return_value = 2
+        wifi_device.get_active_access_point.return_value = active
+        wifi_device.get_access_points.return_value = [active, duplicate_weaker, guest]
+
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [wifi_device]
+        applet._nm_client.get_connections.return_value = []
+        applet._nm_client.networking_get_enabled.return_value = True
+        applet._nm_client.wireless_get_enabled.return_value = True
+        applet._nm_client.wireless_hardware_get_enabled.return_value = True
+
+        networks_item = next(
+            item
+            for item in applet.get_menu_items()
+            if item.get_label() == "Available Networks"
+        )
+        submenu_labels = [
+            child.get_label() for child in networks_item.get_submenu().get_children()
+        ]
+        assert submenu_labels == ["Connected: DockNet (65%)", "Guest (30%)"]
+        wifi_device.request_scan.assert_called_once_with(None)
+
+    def test_available_networks_scan_request_is_rate_limited(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2),
+            raising=False,
+        )
+        times = iter([100.0, 105.0, 121.0])
+        monkeypatch.setattr(network_applet_mod.time, "monotonic", lambda: next(times))
+
+        wifi_device = MagicMock()
+        wifi_device.get_device_type.return_value = 2
+        wifi_device.get_access_points.return_value = []
+        wifi_device.get_active_access_point.return_value = None
+        wifi_device.request_scan.return_value = True
+
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [wifi_device]
+
+        applet._available_networks()
+        applet._available_networks()
+        applet._available_networks()
+
+        assert wifi_device.request_scan.call_count == 2
+
+    def test_available_networks_handles_empty_and_non_wifi(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2, ETHERNET=1),
+            raising=False,
+        )
+        applet = NetworkApplet(48)
+        assert applet._available_networks() == []
+
+        ethernet = MagicMock()
+        ethernet.get_device_type.return_value = 1
+        hidden_ap = MagicMock()
+        hidden_ap.get_ssid.return_value = b""
+        wifi = MagicMock()
+        wifi.get_device_type.return_value = 2
+        wifi.get_active_access_point.return_value = None
+        wifi.get_access_points.return_value = [hidden_ap]
+        wifi.request_scan.return_value = False
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [ethernet, wifi]
+
+        assert applet._available_networks() == []
+        wifi.request_scan.assert_called_once_with(None)
+
+    def test_request_wifi_scan_handles_glib_error(self, monkeypatch):
+        monkeypatch.setattr(
+            network_applet_mod.GLib,
+            "Error",
+            RuntimeError,
+            raising=False,
+        )
+        monkeypatch.setattr(network_applet_mod.time, "monotonic", lambda: 100.0)
+        device = MagicMock()
+        device.request_scan.side_effect = RuntimeError("scan failed")
+        device.get_iface.return_value = "wlan0"
+        applet = NetworkApplet(48)
+
+        applet._request_wifi_scan(device=device)
+
+        assert applet._last_wifi_scan_request_time == 0.0
+
+    def test_menu_includes_vpn_connections_submenu(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(network_applet_mod, "connection_info_command", lambda: None)
+        monkeypatch.setattr(
+            network_applet_mod, "edit_connections_command", lambda: None
+        )
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2),
+            raising=False,
+        )
+
+        wifi_device = MagicMock()
+        wifi_device.get_device_type.return_value = 2
+        wifi_device.get_access_points.return_value = []
+        wifi_device.get_active_access_point.return_value = None
+
+        vpn_connection = MagicMock()
+        vpn_connection.get_setting_vpn.return_value = object()
+        vpn_connection.get_uuid.return_value = "vpn-1"
+        vpn_connection.get_id.return_value = "Work VPN"
+
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [wifi_device]
+        applet._nm_client.get_connections.return_value = [vpn_connection]
+        applet._nm_client.get_active_connections.return_value = []
+        applet._nm_client.networking_get_enabled.return_value = True
+        applet._nm_client.wireless_get_enabled.return_value = True
+        applet._nm_client.wireless_hardware_get_enabled.return_value = True
+
+        vpn_item = next(
+            item
+            for item in applet.get_menu_items()
+            if item.get_label() == "VPN Connections"
+        )
+        submenu_labels = [
+            child.get_label() for child in vpn_item.get_submenu().get_children()
+        ]
+        assert submenu_labels == ["Work VPN"]
+
+    def test_menu_omits_wifi_toggle_without_wifi_device(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(network_applet_mod, "connection_info_command", lambda: None)
+        monkeypatch.setattr(
+            network_applet_mod,
+            "edit_connections_command",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2),
+            raising=False,
+        )
+
+        ethernet_device = MagicMock()
+        ethernet_device.get_device_type.return_value = 1
+
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [ethernet_device]
+        applet._nm_client.networking_get_enabled.return_value = True
+
+        labels = [item.get_label() for item in applet.get_menu_items()]
+        assert "Enable Networking" in labels
+        assert "Enable Wi-Fi" not in labels
 
     def test_tooltip_wifi_shows_ssid(self):
         applet = NetworkApplet(48)
@@ -261,6 +572,248 @@ class TestNmDevicePriority:
 
 
 class TestNetworkAppletInternals:
+    def test_connect_available_network_uses_saved_connection_when_present(
+        self, monkeypatch
+    ):
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        saved_connection = MagicMock()
+        device = MagicMock()
+        access_point = MagicMock()
+        access_point.get_path.return_value = "/ap/known"
+        monkeypatch.setattr(
+            applet,
+            "_find_wifi_access_point",
+            lambda network: (device, access_point),
+        )
+        monkeypatch.setattr(
+            applet,
+            "_find_saved_wifi_connection",
+            lambda ssid: saved_connection,
+        )
+
+        applet._connect_available_network(
+            network=AvailableNetwork(
+                ssid="DockNet",
+                strength=70,
+                access_point_path="/ap/known",
+                is_active=False,
+            )
+        )
+
+        applet._nm_client.activate_connection_async.assert_called_once_with(
+            saved_connection,
+            device,
+            "/ap/known",
+            None,
+            applet._on_activate_connection_finished,
+            None,
+        )
+        applet._nm_client.add_and_activate_connection_async.assert_not_called()
+
+    def test_connect_available_network_adds_connection_when_unsaved(self, monkeypatch):
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        device = MagicMock()
+        access_point = MagicMock()
+        access_point.get_path.return_value = "/ap/new"
+        monkeypatch.setattr(
+            applet,
+            "_find_wifi_access_point",
+            lambda network: (device, access_point),
+        )
+        monkeypatch.setattr(
+            applet,
+            "_find_saved_wifi_connection",
+            lambda ssid: None,
+        )
+
+        applet._connect_available_network(
+            network=AvailableNetwork(
+                ssid="NewNet",
+                strength=45,
+                access_point_path="/ap/new",
+                is_active=False,
+            )
+        )
+
+        applet._nm_client.add_and_activate_connection_async.assert_called_once_with(
+            None,
+            device,
+            "/ap/new",
+            None,
+            applet._on_add_and_activate_connection_finished,
+            None,
+        )
+        applet._nm_client.activate_connection_async.assert_not_called()
+
+    def test_toggle_vpn_connection_activates_saved_vpn(self):
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        connection = MagicMock()
+
+        applet._toggle_vpn_connection(
+            connection=connection,
+            is_active=False,
+            active_connection=None,
+        )
+
+        applet._nm_client.activate_connection_async.assert_called_once_with(
+            connection,
+            None,
+            None,
+            None,
+            applet._on_activate_connection_finished,
+            None,
+        )
+
+    def test_toggle_vpn_connection_deactivates_active_vpn(self):
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        connection = MagicMock()
+        active_connection = MagicMock()
+
+        applet._toggle_vpn_connection(
+            connection=connection,
+            is_active=True,
+            active_connection=active_connection,
+        )
+
+        applet._nm_client.deactivate_connection_async.assert_called_once_with(
+            active_connection,
+            None,
+            applet._on_deactivate_connection_finished,
+            None,
+        )
+
+    def test_connect_available_network_no_client_no_match_and_error(self, monkeypatch):
+        applet = NetworkApplet(48)
+        network = AvailableNetwork("DockNet", 70, "/ap/known", False)
+        applet._connect_available_network(network=network)
+
+        applet._nm_client = MagicMock()
+        monkeypatch.setattr(applet, "_find_wifi_access_point", lambda network: None)
+        applet._connect_available_network(network=network)
+        applet._nm_client.activate_connection_async.assert_not_called()
+
+        monkeypatch.setattr(
+            network_applet_mod.GLib,
+            "Error",
+            RuntimeError,
+            raising=False,
+        )
+        device = MagicMock()
+        access_point = MagicMock()
+        access_point.get_path.return_value = "/ap/known"
+        monkeypatch.setattr(
+            applet,
+            "_find_wifi_access_point",
+            lambda network: (device, access_point),
+        )
+        monkeypatch.setattr(applet, "_find_saved_wifi_connection", lambda ssid: None)
+        applet._nm_client.add_and_activate_connection_async.side_effect = RuntimeError(
+            "boom"
+        )
+        applet._connect_available_network(network=network)
+
+    def test_toggle_vpn_connection_no_client_and_error(self, monkeypatch):
+        applet = NetworkApplet(48)
+        connection = MagicMock()
+        applet._toggle_vpn_connection(
+            connection=connection,
+            is_active=False,
+            active_connection=None,
+        )
+
+        monkeypatch.setattr(
+            network_applet_mod.GLib,
+            "Error",
+            RuntimeError,
+            raising=False,
+        )
+        applet._nm_client = MagicMock()
+        applet._nm_client.activate_connection_async.side_effect = RuntimeError("boom")
+        connection.get_id.return_value = ""
+        connection.get_uuid.return_value = "vpn-1"
+
+        applet._toggle_vpn_connection(
+            connection=connection,
+            is_active=False,
+            active_connection=None,
+        )
+
+    def test_set_networking_enabled_updates_client_and_refreshes(self, monkeypatch):
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        update = MagicMock()
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "_update_nm_state", update)
+        monkeypatch.setattr(applet, "present", refresh)
+
+        applet._set_networking_enabled(enabled=False)
+
+        applet._nm_client.networking_set_enabled.assert_called_once_with(False)
+        update.assert_called_once()
+        refresh.assert_called_once()
+
+    def test_set_networking_enabled_no_client_and_error(self, monkeypatch):
+        applet = NetworkApplet(48)
+        applet._set_networking_enabled(enabled=True)
+
+        monkeypatch.setattr(
+            network_applet_mod.GLib,
+            "Error",
+            RuntimeError,
+            raising=False,
+        )
+        applet._nm_client = MagicMock()
+        applet._nm_client.networking_set_enabled.side_effect = RuntimeError("boom")
+        update = MagicMock()
+        present = MagicMock()
+        monkeypatch.setattr(applet, "_update_nm_state", update)
+        monkeypatch.setattr(applet, "present", present)
+
+        applet._set_networking_enabled(enabled=True)
+
+        update.assert_not_called()
+        present.assert_not_called()
+
+    def test_set_wireless_enabled_updates_client_and_refreshes(self, monkeypatch):
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        update = MagicMock()
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "_update_nm_state", update)
+        monkeypatch.setattr(applet, "present", refresh)
+
+        applet._set_wireless_enabled(enabled=False)
+
+        applet._nm_client.wireless_set_enabled.assert_called_once_with(False)
+        update.assert_called_once()
+        refresh.assert_called_once()
+
+    def test_set_wireless_enabled_no_client_and_error(self, monkeypatch):
+        applet = NetworkApplet(48)
+        applet._set_wireless_enabled(enabled=True)
+
+        monkeypatch.setattr(
+            network_applet_mod.GLib,
+            "Error",
+            RuntimeError,
+            raising=False,
+        )
+        applet._nm_client = MagicMock()
+        applet._nm_client.wireless_set_enabled.side_effect = RuntimeError("boom")
+        update = MagicMock()
+        present = MagicMock()
+        monkeypatch.setattr(applet, "_update_nm_state", update)
+        monkeypatch.setattr(applet, "present", present)
+
+        applet._set_wireless_enabled(enabled=True)
+
+        update.assert_not_called()
+        present.assert_not_called()
+
     def test_start_connects_nm_and_timer(self, monkeypatch):
         # Given
         applet = NetworkApplet(48)
@@ -506,9 +1059,11 @@ class TestNetworkAppletInternals:
     def test_tick_updates_and_refreshes(self, monkeypatch):
         # Given
         applet = NetworkApplet(48)
+        update_nm = MagicMock()
         update_traffic = MagicMock()
         update_wifi = MagicMock()
         refresh = MagicMock()
+        monkeypatch.setattr(applet, "_update_nm_state", update_nm)
         monkeypatch.setattr(applet, "_update_traffic", update_traffic)
         monkeypatch.setattr(applet, "_update_wifi_signal", update_wifi)
         monkeypatch.setattr(applet, "present", refresh)
@@ -516,6 +1071,7 @@ class TestNetworkAppletInternals:
         result = applet._tick()
         # Then
         assert result is True
+        update_nm.assert_called_once()
         update_traffic.assert_called_once()
         update_wifi.assert_called_once()
         refresh.assert_called_once()
@@ -536,7 +1092,11 @@ class TestNetworkAppletInternals:
         # Given
         applet = NetworkApplet(48)
         applet._iface = "eth0"
-        monkeypatch.setattr("builtins.open", MagicMock(side_effect=OSError("boom")))
+        monkeypatch.setattr(
+            type(network_applet_mod._PROC_NET_DEV),
+            "open",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+        )
         # When / Then
         applet._update_traffic()
 
@@ -599,6 +1159,59 @@ class TestNetworkAppletInternals:
         applet._update_wifi_signal()
         # Then
         assert applet._signal_strength == 81
+
+    def test_update_wifi_signal_ignores_unavailable_states(self, monkeypatch):
+        applet = NetworkApplet(48)
+        applet._update_wifi_signal()
+
+        applet._nm_client = MagicMock()
+        applet._is_wifi = False
+        applet._update_wifi_signal()
+
+        applet._is_wifi = True
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "ActiveConnectionState",
+            SimpleNamespace(ACTIVATED=9),
+            raising=False,
+        )
+        conn = MagicMock()
+        conn.get_state.return_value = 0
+        applet._nm_client.get_active_connections.return_value = [conn]
+
+        applet._update_wifi_signal()
+
+        assert applet._signal_strength == 0
+
+    def test_update_wifi_signal_handles_wifi_without_ap(self, monkeypatch):
+        applet = NetworkApplet(48)
+        applet._nm_client = MagicMock()
+        applet._is_wifi = True
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "ActiveConnectionState",
+            SimpleNamespace(ACTIVATED=9),
+            raising=False,
+        )
+
+        class FakeWifiDevice:
+            def get_active_access_point(self):
+                return None
+
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceWifi",
+            FakeWifiDevice,
+            raising=False,
+        )
+        conn = MagicMock()
+        conn.get_state.return_value = 9
+        conn.get_devices.return_value = [FakeWifiDevice()]
+        applet._nm_client.get_active_connections.return_value = [conn]
+
+        applet._update_wifi_signal()
+
+        assert applet._signal_strength == 0
 
     def test_update_wifi_signal_skips_non_wifi_active_connection_first(
         self, monkeypatch
@@ -680,7 +1293,7 @@ class TestNetworkAppletInternals:
         # Given
         applet = NetworkApplet(48)
         # When / Then
-        assert applet._build_tooltip() == "Network: Not connected"
+        assert applet._build_tooltip() == "Network\nNot connected"
 
         # Given
         applet._is_connected = True
@@ -692,9 +1305,135 @@ class TestNetworkAppletInternals:
         # When
         tooltip = applet._build_tooltip()
         # Then
+        assert tooltip.splitlines()[0] == "Network"
         assert "Ethernet: eth0" in tooltip
         assert "IP: 10.0.0.2" in tooltip
         assert "\u2193" in tooltip and "\u2191" in tooltip
+
+    def test_find_wifi_access_point(self, monkeypatch):
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2, ETHERNET=1),
+            raising=False,
+        )
+        applet = NetworkApplet(48)
+        network = AvailableNetwork("DockNet", 70, "/ap/known", False)
+
+        assert applet._find_wifi_access_point(network=network) is None
+
+        ethernet = MagicMock()
+        ethernet.get_device_type.return_value = 1
+        access_point = MagicMock()
+        access_point.get_path.return_value = "/ap/known"
+        wifi = MagicMock()
+        wifi.get_device_type.return_value = 2
+        wifi.get_access_points.return_value = [access_point]
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [ethernet, wifi]
+
+        assert applet._find_wifi_access_point(network=network) == (wifi, access_point)
+        assert (
+            applet._find_wifi_access_point(
+                network=AvailableNetwork("Other", 20, "/ap/missing", False)
+            )
+            is None
+        )
+
+    def test_find_saved_wifi_connection(self):
+        applet = NetworkApplet(48)
+        assert applet._find_saved_wifi_connection(ssid="DockNet") is None
+
+        no_wifi = MagicMock()
+        no_wifi.get_setting_wireless.return_value = None
+        setting = MagicMock()
+        setting.get_ssid.return_value = b"DockNet"
+        match = MagicMock()
+        match.get_setting_wireless.return_value = setting
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_connections.return_value = [no_wifi, match]
+
+        assert applet._find_saved_wifi_connection(ssid="DockNet") is match
+        assert applet._find_saved_wifi_connection(ssid="Other") is None
+
+    def test_vpn_connections_filters_and_sorts_active_first(self):
+        applet = NetworkApplet(48)
+        assert applet._vpn_connections() == []
+
+        plain = MagicMock()
+        plain.get_setting_vpn.return_value = None
+        inactive = MagicMock()
+        inactive.get_setting_vpn.return_value = object()
+        inactive.get_uuid.return_value = "vpn-2"
+        inactive.get_id.return_value = "Zeta"
+        active = MagicMock()
+        active.get_setting_vpn.return_value = object()
+        active.get_uuid.return_value = "vpn-1"
+        active.get_id.return_value = "Alpha"
+        active_connection = MagicMock()
+        active_connection.get_uuid.return_value = "vpn-1"
+        active_connection.get_vpn.return_value = True
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_connections.return_value = [plain, inactive, active]
+        applet._nm_client.get_active_connections.return_value = [active_connection]
+
+        assert applet._vpn_connections() == [
+            (active, True, active_connection),
+            (inactive, False, None),
+        ]
+
+    def test_finish_callbacks_handle_success_and_errors(self, monkeypatch):
+        monkeypatch.setattr(
+            network_applet_mod.GLib,
+            "Error",
+            RuntimeError,
+            raising=False,
+        )
+        applet = NetworkApplet(48)
+        client = MagicMock()
+        applet._on_activate_connection_finished(client, "result", None)
+        client.activate_connection_finish.assert_called_once_with("result")
+        client.activate_connection_finish.side_effect = RuntimeError("boom")
+        applet._on_activate_connection_finished(client, "result", None)
+
+        client = MagicMock()
+        applet._on_add_and_activate_connection_finished(client, "result", None)
+        client.add_and_activate_connection_finish.assert_called_once_with("result")
+        client.add_and_activate_connection_finish.side_effect = RuntimeError("boom")
+        applet._on_add_and_activate_connection_finished(client, "result", None)
+
+        client = MagicMock()
+        applet._on_deactivate_connection_finished(client, "result", None)
+        client.deactivate_connection_finish.assert_called_once_with("result")
+        client.deactivate_connection_finish.side_effect = RuntimeError("boom")
+        applet._on_deactivate_connection_finished(client, "result", None)
+
+    def test_has_wifi_device_and_device_priority(self, monkeypatch):
+        monkeypatch.setattr(
+            network_applet_mod.NM,
+            "DeviceType",
+            SimpleNamespace(WIFI=2, ETHERNET=1, TUN=3, BRIDGE=4, LOOPBACK=5),
+            raising=False,
+        )
+        applet = NetworkApplet(48)
+        assert applet._has_wifi_device() is False
+
+        wifi = MagicMock()
+        wifi.get_device_type.return_value = 2
+        eth = MagicMock()
+        eth.get_device_type.return_value = 1
+        other = MagicMock()
+        other.get_device_type.return_value = 99
+        tun = MagicMock()
+        tun.get_device_type.return_value = 3
+        applet._nm_client = MagicMock()
+        applet._nm_client.get_devices.return_value = [eth, wifi]
+
+        assert applet._has_wifi_device() is True
+        assert NetworkApplet._device_priority(device=wifi) == 2
+        assert NetworkApplet._device_priority(device=eth) == 1
+        assert NetworkApplet._device_priority(device=other) == 0
+        assert NetworkApplet._device_priority(device=tun) == -1
 
 
 class TestNetworkRender:
@@ -718,8 +1457,215 @@ class TestNetworkRender:
             tx_speed=0.0,
         )
         assert pixbuf is not None
-        assert pixbuf.get_width() == 48
-        assert pixbuf.get_height() == 48
+
+    def test_download_overlay_uses_explicit_byte_unit(self, monkeypatch):
+        labels: list[str] = []
+
+        def draw_label(*, cr, text: str, size: int) -> None:
+            labels.append(text)
+
+        monkeypatch.setattr(
+            network_render_mod,
+            "draw_icon_label",
+            draw_label,
+        )
+        pixbuf = create_network_icon(
+            size=48,
+            is_connected=True,
+            is_wifi=True,
+            signal_strength=80,
+            rx_speed=5 * 1024 * 1024,
+            tx_speed=0.0,
+            speed_overlay="download",
+        )
+
+        assert pixbuf is not None
+        assert labels == ["\u21935MB"]
+
+
+class TestNetworkCommands:
+    def test_decode_ssid_supports_nm_byte_container(self):
+        ssid_bytes = SimpleNamespace(get_data=lambda: b"DockNet")
+        assert decode_ssid(ssid_bytes) == "DockNet"
+
+    def test_dedupe_networks_prefers_active_and_stronger(self):
+        networks = [
+            AvailableNetwork("Cafe", 35, "/ap/1", False),
+            AvailableNetwork("DockNet", 20, "/ap/2", False),
+            AvailableNetwork("DockNet", 70, "/ap/3", True),
+            AvailableNetwork("Guest", 50, "/ap/4", False),
+        ]
+        assert dedupe_networks(networks=networks) == [
+            AvailableNetwork("DockNet", 70, "/ap/3", True),
+            AvailableNetwork("Guest", 50, "/ap/4", False),
+            AvailableNetwork("Cafe", 35, "/ap/1", False),
+        ]
+
+    def test_connection_info_command_picks_first_available(self, monkeypatch):
+        monkeypatch.setattr(
+            network_state_mod.shutil,
+            "which",
+            lambda binary: (
+                "/usr/bin/gnome-control-center"
+                if binary == "gnome-control-center"
+                else None
+            ),
+        )
+        assert connection_info_command() == ["gnome-control-center", "wifi"]
+
+    def test_connection_info_command_uses_host_tool_in_flatpak(self, monkeypatch):
+        monkeypatch.setattr(
+            network_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        seen: list[list[str]] = []
+
+        def fake_run(cmd, stdout, stderr, timeout, check):
+            _ = (stdout, stderr, timeout, check)
+            seen.append(list(cmd))
+            return SimpleNamespace(returncode=0)
+
+        monkeypatch.setattr(network_state_mod.flatpak.subprocess, "run", fake_run)
+
+        assert connection_info_command() == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "gnome-control-center",
+            "wifi",
+        ]
+        assert seen == [
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "sh",
+                "-lc",
+                "command -v gnome-control-center >/dev/null",
+            ]
+        ]
+
+    def test_edit_connections_command_picks_nm_connection_editor(self, monkeypatch):
+        monkeypatch.setattr(
+            network_state_mod.shutil,
+            "which",
+            lambda binary: (
+                "/usr/bin/nm-connection-editor"
+                if binary == "nm-connection-editor"
+                else None
+            ),
+        )
+        assert edit_connections_command() == ["nm-connection-editor"]
+
+    def test_edit_connections_command_skips_missing_host_tool_in_flatpak(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(
+            network_state_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+
+        def fake_run(cmd, stdout, stderr, timeout, check):
+            _ = (stdout, stderr, timeout, check)
+            return SimpleNamespace(
+                returncode=0 if "nm-connection-editor" in cmd[-1] else 1
+            )
+
+        monkeypatch.setattr(network_state_mod.flatpak.subprocess, "run", fake_run)
+
+        assert edit_connections_command() == [
+            "/usr/bin/flatpak-spawn",
+            "--host",
+            "env",
+            "-u",
+            "GIO_USE_VFS",
+            "-u",
+            "GI_TYPELIB_PATH",
+            "-u",
+            "GSETTINGS_SCHEMA_DIR",
+            "-u",
+            "XDG_DATA_DIRS",
+            "nm-connection-editor",
+        ]
+
+    def test_open_connection_info_runs_command(self, monkeypatch):
+        launched: list[tuple[str, ...]] = []
+        monkeypatch.setattr(
+            network_state_mod,
+            "connection_info_command",
+            lambda: ["gnome-control-center", "wifi"],
+        )
+        monkeypatch.setattr(
+            network_state_mod.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+        )
+        assert open_connection_info() is True
+        assert launched == [("gnome-control-center", "wifi")]
+
+    def test_open_edit_connections_runs_command(self, monkeypatch):
+        launched: list[tuple[str, ...]] = []
+        monkeypatch.setattr(
+            network_state_mod,
+            "edit_connections_command",
+            lambda: ["nm-connection-editor"],
+        )
+        monkeypatch.setattr(
+            network_state_mod.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+        )
+        assert open_edit_connections() is True
+        assert launched == [("nm-connection-editor",)]
+
+    def test_open_hidden_wifi_settings_uses_editor_or_info_command(self, monkeypatch):
+        launched: list[tuple[str, ...]] = []
+        monkeypatch.setattr(
+            network_state_mod,
+            "edit_connections_command",
+            lambda: ["nm-connection-editor"],
+        )
+        monkeypatch.setattr(
+            network_state_mod,
+            "connection_info_command",
+            lambda: ["gnome-control-center", "wifi"],
+        )
+        monkeypatch.setattr(
+            network_state_mod.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+        )
+        assert open_hidden_wifi_settings() is True
+        assert launched == [("nm-connection-editor",)]
+
+    def test_open_new_wifi_settings_falls_back_to_info_command(self, monkeypatch):
+        launched: list[tuple[str, ...]] = []
+        monkeypatch.setattr(
+            network_state_mod,
+            "edit_connections_command",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            network_state_mod,
+            "connection_info_command",
+            lambda: ["gnome-control-center", "wifi"],
+        )
+        monkeypatch.setattr(
+            network_state_mod.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+        )
+        assert open_new_wifi_settings() is True
+        assert launched == [("gnome-control-center", "wifi")]
 
     @pytest.mark.parametrize("connected", [False, True])
     def test_wired_icon_renders_connected_and_disconnected(self, connected):

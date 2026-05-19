@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for Clippy applet."""
 
 from __future__ import annotations
@@ -21,6 +34,7 @@ from docking.applets.clippy.state import (
     cycle_position,
     tooltip_text,
 )
+from docking.applets.menu import menu_sections
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -79,7 +93,7 @@ class ClippyApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """List all clips (newest first) + Clear button."""
-        items: list[Gtk.MenuItem] = []
+        primary: list[Gtk.MenuItem] = []
 
         for clip in reversed(self._clips):
             menu_item = Gtk.MenuItem(label=_truncate(clip))
@@ -87,15 +101,15 @@ class ClippyApplet(Applet):
                 "activate",
                 lambda _, t=clip: self._copy_to_clipboard(text=t),
             )
-            items.append(menu_item)
+            primary.append(menu_item)
 
+        destructive: list[Gtk.MenuItem] = []
         if self._clips:
-            items.append(Gtk.SeparatorMenuItem())
             clear = Gtk.MenuItem(label=_("Clear"))
             clear.connect("activate", lambda _: self._clear())
-            items.append(clear)
+            destructive.append(clear)
 
-        return items
+        return menu_sections(primary=primary, destructive=destructive, gtk=Gtk)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Connect to clipboard owner-change signal."""

@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """X11 strut management -- reserve screen space for the dock.
 
 What are struts?
@@ -114,6 +127,7 @@ partial variant.
 from __future__ import annotations
 
 import ctypes
+from typing import NamedTuple
 
 from gi.repository import Gdk, GdkX11
 
@@ -134,22 +148,22 @@ _IDX_START = {
 
 ATOM_STRUT_PARTIAL = b"_NET_WM_STRUT_PARTIAL"
 ATOM_STRUT = b"_NET_WM_STRUT"
+ATOM_BACKGROUND_BLUR_REGION = b"_DOCKING_BACKGROUND_BLUR_REGION"
 ATOM_CARDINAL = b"CARDINAL"
 
 
-def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
-    """Write the raw strut arrays to X11 properties via ctypes/Xlib."""
-    xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
-    xid = gdk_window.get_xid()
-    xdisplay = ctypes.c_void_p(hash(GdkX11.X11Display.get_default().get_xdisplay()))
+class BlurRect(NamedTuple):
+    x: int
+    y: int
+    width: int
+    height: int
 
+
+def _xlib_display() -> tuple[object, ctypes.c_void_p]:
+    xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+    xdisplay = ctypes.c_void_p(hash(GdkX11.X11Display.get_default().get_xdisplay()))
     xlib.XInternAtom.restype = ctypes.c_ulong
     xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-
-    atom_partial = xlib.XInternAtom(xdisplay, ATOM_STRUT_PARTIAL, 0)
-    atom_strut = xlib.XInternAtom(xdisplay, ATOM_STRUT, 0)
-    xa_cardinal = xlib.XInternAtom(xdisplay, ATOM_CARDINAL, 0)
-
     xlib.XChangeProperty.argtypes = [
         ctypes.c_void_p,
         ctypes.c_ulong,
@@ -160,6 +174,17 @@ def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
         ctypes.c_void_p,
         ctypes.c_int,
     ]
+    return xlib, xdisplay
+
+
+def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
+    """Write the raw strut arrays to X11 properties via ctypes/Xlib."""
+    xlib, xdisplay = _xlib_display()
+    xid = gdk_window.get_xid()
+
+    atom_partial = xlib.XInternAtom(xdisplay, ATOM_STRUT_PARTIAL, 0)
+    atom_strut = xlib.XInternAtom(xdisplay, ATOM_STRUT, 0)
+    xa_cardinal = xlib.XInternAtom(xdisplay, ATOM_CARDINAL, 0)
 
     strut_partial = (ctypes.c_long * 12)(*struts)
     strut_legacy = (ctypes.c_long * 4)(*struts[:4])
@@ -171,6 +196,77 @@ def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
         xdisplay, xid, atom_strut, xa_cardinal, 32, 0, ctypes.byref(strut_legacy), 4
     )
     xlib.XFlush(xdisplay)
+
+
+def compute_blur_region(
+    *,
+    rect: BlurRect,
+    roundness: float,
+    round_bottom: bool,
+    position: Position,
+    scale: int,
+) -> list[int]:
+    radius = max(0, round(roundness * scale))
+    bottom_radius = radius if round_bottom else 0
+
+    if position == Position.BOTTOM:
+        tl = radius
+        tr = radius
+        bl = bottom_radius
+        br = bottom_radius
+    elif position == Position.TOP:
+        tl = bottom_radius
+        tr = bottom_radius
+        bl = radius
+        br = radius
+    elif position == Position.LEFT:
+        tl = radius
+        tr = bottom_radius
+        bl = radius
+        br = bottom_radius
+    else:
+        tl = bottom_radius
+        tr = radius
+        bl = bottom_radius
+        br = radius
+
+    return [
+        rect.x * scale,
+        rect.y * scale,
+        rect.width * scale,
+        rect.height * scale,
+        tl,
+        tr,
+        bl,
+        br,
+    ]
+
+
+def set_blur_region(gdk_window: GdkX11.X11Window, blur_region: list[int]) -> None:
+    """Write the Docking blur hint property for compositor integrations."""
+    xlib, xdisplay = _xlib_display()
+    xid = gdk_window.get_xid()
+
+    atom_blur = xlib.XInternAtom(xdisplay, ATOM_BACKGROUND_BLUR_REGION, 0)
+    xa_cardinal = xlib.XInternAtom(xdisplay, ATOM_CARDINAL, 0)
+
+    data = (ctypes.c_long * 8)(*blur_region)
+    xlib.XChangeProperty(
+        xdisplay,
+        xid,
+        atom_blur,
+        xa_cardinal,
+        32,
+        0,
+        ctypes.byref(data),
+        8,
+    )
+    xlib.XFlush(xdisplay)
+
+
+def clear_blur_region(gdk_window: GdkX11.X11Window) -> None:
+    """Clear the Docking blur hint by publishing a zero-sized region."""
+    set_blur_region(gdk_window=gdk_window, blur_region=[0] * 8)
 
 
 def compute_struts(

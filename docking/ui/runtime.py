@@ -1,54 +1,39 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Runtime command surfaces exposed by the dock UI shell to handlers."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import gi
-
-gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk
-
 if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.ui.dock_window import DockWindow
-
-
-def get_pointer_position(display: Gdk.Display) -> tuple[int, int] | None:
-    """Return (x, y) screen coordinates of the pointer, or *None* if unavailable."""
-    seat = display.get_default_seat()
-    if not seat:
-        return None
-    pointer = seat.get_pointer()
-    if not pointer:
-        return None
-    try:
-        _, screen_x, screen_y = pointer.get_position()
-    except Exception:
-        return None
-    return int(screen_x), int(screen_y)
-
-
-def clamp_to_screen(
-    rect_x: int,
-    rect_y: int,
-    rect_w: int,
-    rect_h: int,
-    screen_w: int,
-    screen_h: int,
-) -> tuple[int, int]:
-    """Clamp a rectangle so it stays within screen bounds."""
-    return (
-        max(0, min(rect_x, screen_w - rect_w)),
-        max(0, min(rect_y, screen_h - rect_h)),
-    )
+    from docking.ui.update_popup import UpdateCheckController
 
 
 class DockRuntime:
     """Narrow imperative API for subsystems that should not own DockWindow."""
 
-    def __init__(self, window: DockWindow) -> None:
+    def __init__(
+        self,
+        window: DockWindow,
+        *,
+        update_checker: UpdateCheckController,
+    ) -> None:
         self._window = window
+        self._update_checker = update_checker
 
     def menu_popup_opened(self) -> None:
         self._window.interaction.menu_popup_opened()
@@ -56,12 +41,8 @@ class DockRuntime:
     def menu_popup_closed(self) -> None:
         self._window.interaction.menu_popup_closed()
 
-    def reset_autohide(self) -> None:
-        if self._window.autohide:
-            self._window.autohide.reset()
-
-    def update_struts(self) -> None:
-        self._window.placement.update_struts()
+    def on_hide_mode_changed(self) -> None:
+        self._window.on_hide_mode_changed()
 
     def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
         return self._window.placement.get_monitor_menu_choices()
@@ -97,52 +78,8 @@ class DockRuntime:
     def set_theme(self, theme: Theme) -> None:
         self._window.theme = theme
 
-    def cursor_position(self) -> tuple[float, float]:
-        return self._window.cursor_x, self._window.cursor_y
+    def check_for_updates_now(self) -> None:
+        self._update_checker.check_now()
 
-
-class DockDragRuntime:
-    """Drag/drop-specific runtime surface for DnDHandler.
-
-    This is narrower than DockWindow on purpose. Drag-and-drop needs real shell
-    services, but it does not need the entire window object graph.
-    """
-
-    def __init__(self, window: DockWindow) -> None:
-        self._window = window
-
-    def is_pointer_inside_dock(self) -> bool:
-        return self._window.is_pointer_inside_dock()
-
-    def cursor_position(self) -> tuple[float, float]:
-        return self._window.cursor_x, self._window.cursor_y
-
-    def pointer_screen_position(self) -> tuple[int, int]:
-        display = self._window.get_display()
-        return get_pointer_position(display) or (0, 0)
-
-    def window_position(self) -> tuple[int, int]:
-        return self._window.get_position()
-
-    def window_size(self) -> tuple[int, int]:
-        return self._window.get_size()
-
-    def begin_drag(self) -> None:
-        if self._window.autohide and self._window.autohide.enabled:
-            self._window.autohide.set_disabled(True, reason="drag-begin")
-
-    def drag_motion_enter(self) -> None:
-        if self._window.autohide:
-            self._window.autohide.set_disabled(True, reason="drag-motion")
-            self._window.autohide.on_mouse_enter()
-
-    def reconcile_after_drag(self, *, reason: str) -> None:
-        if not self._window.autohide:
-            return
-        if self._window.is_pointer_inside_dock():
-            self._window.autohide.set_hovered(True)
-            self._window.autohide.set_disabled(False, reason=f"{reason}-inside")
-            return
-        self._window.autohide.set_hovered(False)
-        self._window.autohide.set_disabled(False, reason=f"{reason}-outside")
-        self._window.autohide.on_mouse_leave()
+    def open_releases_page(self) -> None:
+        self._update_checker.open_releases_page()

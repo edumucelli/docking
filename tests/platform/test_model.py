@@ -13,7 +13,8 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
-from docking.platform.model import DockItem, DockModel
+from docking.platform.model import DockItem, DockModel, LauncherEntryState
+from docking.platform.running import RunningAppInfo
 
 
 def _make_launcher(*desktop_ids: str):
@@ -28,7 +29,7 @@ def _make_launcher(*desktop_ids: str):
         info.wm_class = did.removesuffix(".desktop")
         infos[did] = info
 
-    def resolve(desktop_id):
+    def resolve(desktop_id, **_kwargs):
         return infos.get(desktop_id)
 
     launcher.resolve.side_effect = resolve
@@ -40,11 +41,18 @@ def _make_config(pinned: list[str]):
     config = MagicMock()
     config.pinned = list(pinned)
     config.icon_size = 48
+    config.scaled_icon_size = 48
     config.zoom_percent = 2.0
     config.anchor_applets = False
     config.anchor_files = False
     config.item_prefs = {}
     return config
+
+
+def _running(
+    *, count: int = 1, active: bool = False, urgent: bool = False
+) -> RunningAppInfo:
+    return RunningAppInfo(count=count, active=active, urgent=urgent)
 
 
 class TestDockModelInit:
@@ -70,38 +78,6 @@ class TestDockModelInit:
         # Then
         assert len(model.visible_items()) == 1
 
-    def test_find_by_wm_class(self):
-        # Given
-        config = _make_config(["firefox.desktop"])
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher)
-        # When
-        found = model.find_by_wm_class("firefox")
-        # Then
-        assert found is not None
-        assert found.desktop_id == "firefox.desktop"
-
-    def test_find_by_wm_class_case_insensitive(self):
-        # Given
-        config = _make_config(["firefox.desktop"])
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher)
-        # When
-        found = model.find_by_wm_class("Firefox")
-        # Then
-        assert found is not None
-        assert found.desktop_id == "firefox.desktop"
-
-    def test_find_by_wm_class_not_found(self):
-        # Given
-        config = _make_config(["firefox.desktop"])
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher)
-        # When
-        found = model.find_by_wm_class("chromium")
-        # Then
-        assert found is None
-
     def test_empty_pinned(self):
         # Given
         config = _make_config([])
@@ -119,7 +95,7 @@ class TestUpdateRunning:
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
         # When
-        model.update_running({"a.desktop": {"count": 2, "active": True}})
+        model.update_running({"a.desktop": _running(count=2, active=True)})
         # Then
         item = model.visible_items()[0]
         assert item.is_running
@@ -134,8 +110,8 @@ class TestUpdateRunning:
         # When
         model.update_running(
             {
-                "a.desktop": {"count": 1, "active": False},
-                "b.desktop": {"count": 1, "active": True},
+                "a.desktop": _running(),
+                "b.desktop": _running(active=True),
             }
         )
         # Then
@@ -150,7 +126,7 @@ class TestUpdateRunning:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"b.desktop": {"count": 1, "active": False}})
+        model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         # When
         model.update_running({})
@@ -164,7 +140,7 @@ class TestUpdateRunning:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"a.desktop": {"count": 1, "active": True}})
+        model.update_running({"a.desktop": _running(active=True)})
         assert model.visible_items()[0].is_running
         # When
         model.update_running({})
@@ -178,7 +154,7 @@ class TestPinUnpin:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"b.desktop": {"count": 1, "active": False}})
+        model.update_running({"b.desktop": _running()})
         # When
         model.pin_item("b.desktop")
         # Then
@@ -193,7 +169,7 @@ class TestPinUnpin:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"a.desktop": {"count": 1, "active": False}})
+        model.update_running({"a.desktop": _running()})
         # When
         model.unpin_item("a.desktop")
         # Then
@@ -215,32 +191,6 @@ class TestPinUnpin:
             pass
         assert len(model.visible_items()) == 1
         config.save.assert_called_once()
-
-
-class TestReorder:
-    def test_reorder_pinned(self):
-        # Given
-        config = _make_config(["a.desktop", "b.desktop", "c.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop", "c.desktop")
-        model = DockModel(config, launcher)
-        # When
-        model.reorder(0, 2)
-        # Then
-        ids = [it.desktop_id for it in model.visible_items()]
-        assert ids == ["b.desktop", "c.desktop", "a.desktop"]
-        assert config.pinned == ["b.desktop", "c.desktop", "a.desktop"]
-        config.save.assert_called_once()
-
-    def test_reorder_out_of_bounds_noop(self):
-        # Given
-        config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
-        # When
-        model.reorder(0, 5)  # out of bounds
-        # Then
-        assert len(model.visible_items()) == 1
-        config.save.assert_not_called()
 
 
 class TestReorderVisible:
@@ -287,7 +237,7 @@ class TestReorderVisible:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         model = DockModel(config, launcher)
-        model.update_running({"b.desktop": {"count": 1, "active": False}})
+        model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         assert not model.visible_items()[1].is_pinned
         # When
@@ -306,8 +256,8 @@ class TestReorderVisible:
         model = DockModel(config, launcher)
         model.update_running(
             {
-                "a.desktop": {"count": 1, "active": False},
-                "b.desktop": {"count": 1, "active": False},
+                "a.desktop": _running(),
+                "b.desktop": _running(),
             }
         )
         assert len(model.visible_items()) == 2
@@ -374,7 +324,7 @@ class TestCallbacks:
         callback = MagicMock()
         model.add_change_listener(callback)
         # When
-        model.update_running({"a.desktop": {"count": 1, "active": False}})
+        model.update_running({"a.desktop": _running()})
         # Then
         callback.assert_called_once()
 
@@ -622,6 +572,216 @@ class TestAppletLifecycleIntegration:
         remove.assert_called_once_with(desktop_id="applet://session")
 
 
+class TestLauncherEntryState:
+    def test_apply_launcher_entry_updates_existing_item(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+
+        applied = model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://a.desktop",
+                desktop_id="a.desktop",
+                badge_count=4,
+                badge_visible=True,
+                progress=0.6,
+                progress_visible=True,
+                urgent=True,
+            ),
+        )
+
+        item = model.visible_items()[0]
+        assert applied is True
+        assert item.badge_count == 4
+        assert item.badge_visible is True
+        assert item.progress == 0.6
+        assert item.progress_visible is True
+        assert item.launcher_entry_urgent is True
+        assert item.is_urgent is True
+
+    def test_launcher_entry_urgent_survives_running_rescan(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://a.desktop",
+                desktop_id="a.desktop",
+                urgent=True,
+            ),
+        )
+
+        model.update_running({"a.desktop": _running(urgent=False)})
+
+        item = model.visible_items()[0]
+        assert item.window_urgent is False
+        assert item.launcher_entry_urgent is True
+        assert item.is_urgent is True
+
+    def test_apply_launcher_entry_creates_transient_after_retry_phase(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=7,
+            badge_visible=True,
+        )
+
+        first = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+        )
+        second = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        assert first is False
+        assert second is True
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_pinned is False
+        assert items[0].is_running is False
+        assert items[0].badge_count == 7
+
+    def test_apply_launcher_entry_creates_urgent_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            urgent=True,
+        )
+
+        applied = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        assert applied is True
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_running is False
+        assert items[0].is_urgent is True
+        assert items[0].launcher_entry_urgent is True
+
+    def test_remove_launcher_entry_drops_launcher_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=7,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        model.remove_launcher_entry(sender_name=":1.9")
+
+        assert model.visible_items() == []
+
+    def test_update_running_preserves_launcher_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=3,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        model.update_running({})
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].badge_count == 3
+        assert items[0].is_running is False
+
+    def test_update_running_preserves_urgent_only_launcher_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            urgent=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        model.update_running({})
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].is_running is False
+        assert items[0].is_urgent is True
+
+    def test_unpin_with_launcher_overlay_becomes_transient(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher)
+        state = LauncherEntryState(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            desktop_id="a.desktop",
+            badge_count=2,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri=state.app_uri,
+            state=state,
+        )
+
+        model.unpin_item("a.desktop")
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "a.desktop"
+        assert items[0].is_pinned is False
+        assert items[0].badge_count == 2
+
+
 class TestDockItemAnimationFields:
     def test_default_timestamps_zero(self):
         # Given / When
@@ -638,9 +798,7 @@ class TestDockItemAnimationFields:
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         # Then
         item = model.visible_items()[0]
         assert item.is_urgent is True
@@ -652,14 +810,10 @@ class TestDockItemAnimationFields:
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         first_ts = model.visible_items()[0].last_urgent
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         second_ts = model.visible_items()[0].last_urgent
         # Then
         assert second_ts is first_ts
@@ -669,13 +823,9 @@ class TestDockItemAnimationFields:
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
         model = DockModel(config, launcher)
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": True}}
-        )
+        model.update_running({"a.desktop": _running(urgent=True)})
         # When
-        model.update_running(
-            {"a.desktop": {"count": 1, "active": False, "urgent": False}}
-        )
+        model.update_running({"a.desktop": _running(urgent=False)})
         # Then
         assert model.visible_items()[0].is_urgent is False
 

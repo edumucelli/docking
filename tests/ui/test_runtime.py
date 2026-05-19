@@ -7,7 +7,18 @@ from typing import cast
 from unittest.mock import MagicMock
 
 from docking.core.theme import Theme
-from docking.ui.runtime import DockDragRuntime, DockRuntime
+from docking.ui.runtime import DockRuntime
+
+
+def _autohide(*, enabled: bool = True):
+    return SimpleNamespace(
+        enabled=enabled,
+        reset=MagicMock(),
+        set_disabled=MagicMock(),
+        set_hovered=MagicMock(),
+        on_mouse_enter=MagicMock(),
+        on_mouse_leave=MagicMock(),
+    )
 
 
 def _make_window():
@@ -31,14 +42,7 @@ def _make_window():
             start_active_display=MagicMock(),
             stop_active_display=MagicMock(),
         ),
-        autohide=SimpleNamespace(
-            enabled=True,
-            reset=MagicMock(),
-            set_disabled=MagicMock(),
-            set_hovered=MagicMock(),
-            on_mouse_enter=MagicMock(),
-            on_mouse_leave=MagicMock(),
-        ),
+        autohide=_autohide(),
         dnd=SimpleNamespace(set_locked=MagicMock()),
         tooltip=SimpleNamespace(hide=MagicMock()),
         preview=SimpleNamespace(hide=MagicMock()),
@@ -49,14 +53,22 @@ def _make_window():
         get_display=MagicMock(return_value=display),
         get_position=MagicMock(return_value=(9, 7)),
         get_size=MagicMock(return_value=(320, 88)),
+        on_hide_mode_changed=MagicMock(),
         queue_redraw=MagicMock(),
+    )
+
+
+def _make_update_checker():
+    return SimpleNamespace(
+        check_now=MagicMock(),
+        open_releases_page=MagicMock(),
     )
 
 
 class TestDockRuntime:
     def test_menu_popup_hooks_delegate_to_interaction(self):
         window = _make_window()
-        runtime = DockRuntime(window)
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
 
         runtime.menu_popup_opened()
         runtime.menu_popup_closed()
@@ -66,9 +78,8 @@ class TestDockRuntime:
 
     def test_placement_commands_delegate_to_placement(self):
         window = _make_window()
-        runtime = DockRuntime(window)
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
 
-        runtime.update_struts()
         assert runtime.get_monitor_menu_choices() == [("Display 1", 0)]
         assert runtime.current_monitor_choice() == 1
         assert runtime.primary_monitor_index() == 0
@@ -76,7 +87,6 @@ class TestDockRuntime:
         runtime.set_active_display(True)
         runtime.set_active_display(False)
 
-        window.placement.update_struts.assert_called_once()
         window.placement.get_monitor_menu_choices.assert_called_once()
         window.placement.current_monitor_choice.assert_called_once()
         window.placement.primary_monitor_index.assert_called_once()
@@ -86,93 +96,23 @@ class TestDockRuntime:
 
     def test_ui_commands_delegate_to_window_subsystems(self):
         window = _make_window()
-        runtime = DockRuntime(window)
+        update_checker = _make_update_checker()
+        runtime = DockRuntime(window, update_checker=update_checker)
 
-        runtime.reset_autohide()
+        runtime.on_hide_mode_changed()
         runtime.set_icons_locked(True)
         runtime.queue_draw()
         runtime.hide_tooltip()
         runtime.hide_hover_ui()
         runtime.set_theme(cast(Theme, "new-theme"))
+        runtime.check_for_updates_now()
+        runtime.open_releases_page()
 
-        window.autohide.reset.assert_called_once()
+        window.on_hide_mode_changed.assert_called_once()
         window.dnd.set_locked.assert_called_once_with(True)
         window.queue_redraw.assert_called_once()
         assert window.tooltip.hide.call_count == 2
         window.preview.hide.assert_called_once()
+        update_checker.check_now.assert_called_once()
+        update_checker.open_releases_page.assert_called_once()
         assert window.theme == "new-theme"
-
-    def test_cursor_position_returns_window_cursor(self):
-        window = _make_window()
-        runtime = DockRuntime(window)
-
-        assert runtime.cursor_position() == (12.0, 34.0)
-
-
-class TestDockDragRuntime:
-    def test_pointer_and_window_queries_delegate_to_window(self):
-        window = _make_window()
-        runtime = DockDragRuntime(window)
-
-        assert runtime.is_pointer_inside_dock() is True
-        assert runtime.cursor_position() == (12.0, 34.0)
-        assert runtime.pointer_screen_position() == (101, 202)
-        assert runtime.window_position() == (9, 7)
-        assert runtime.window_size() == (320, 88)
-
-        window.is_pointer_inside_dock.assert_called_once()
-        window.get_display.assert_called_once()
-        window.get_position.assert_called_once()
-        window.get_size.assert_called_once()
-
-    def test_begin_drag_only_disables_autohide_when_enabled(self):
-        window = _make_window()
-        runtime = DockDragRuntime(window)
-
-        runtime.begin_drag()
-        window.autohide.set_disabled.assert_called_once_with(True, reason="drag-begin")
-
-        window.autohide.set_disabled.reset_mock()
-        window.autohide.enabled = False
-        runtime.begin_drag()
-        window.autohide.set_disabled.assert_not_called()
-
-    def test_drag_motion_enter_disables_autohide_and_marks_hover(self):
-        window = _make_window()
-        runtime = DockDragRuntime(window)
-
-        runtime.drag_motion_enter()
-
-        window.autohide.set_disabled.assert_called_once_with(True, reason="drag-motion")
-        window.autohide.on_mouse_enter.assert_called_once()
-
-    def test_reconcile_after_drag_handles_inside_and_outside(self):
-        window = _make_window()
-        runtime = DockDragRuntime(window)
-
-        runtime.reconcile_after_drag(reason="drop")
-
-        window.autohide.set_hovered.assert_called_once_with(True)
-        window.autohide.set_disabled.assert_called_once_with(
-            False, reason="drop-inside"
-        )
-        window.autohide.on_mouse_leave.assert_not_called()
-
-        window.autohide.set_hovered.reset_mock()
-        window.autohide.set_disabled.reset_mock()
-        window.is_pointer_inside_dock.return_value = False
-
-        runtime.reconcile_after_drag(reason="drop")
-
-        window.autohide.set_hovered.assert_called_once_with(False)
-        window.autohide.set_disabled.assert_called_once_with(
-            False, reason="drop-outside"
-        )
-        window.autohide.on_mouse_leave.assert_called_once()
-
-    def test_reconcile_after_drag_is_noop_without_autohide(self):
-        window = _make_window()
-        window.autohide = None
-        runtime = DockDragRuntime(window)
-
-        runtime.reconcile_after_drag(reason="drop")

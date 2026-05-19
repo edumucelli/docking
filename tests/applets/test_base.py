@@ -1,8 +1,21 @@
 """Tests for the base applet lifecycle contract."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from docking.applets.base import Applet
+import cairo
+
+import docking.applets.base as base_mod
+from docking.applets.base import (
+    ICON_SOURCE_DOCKING,
+    ICON_SOURCE_PREF_KEY,
+    ICON_SOURCE_SYSTEM,
+    Applet,
+    _fit_icon_label_layout,
+    _icon_label_origin,
+    _icon_label_outline_width,
+    draw_icon_label,
+)
 
 
 class _DeferredInitApplet(Applet):
@@ -53,6 +66,26 @@ class _BasicApplet(Applet):
         self.item.name = f"Rendered {self.render_count}"
 
 
+class _SystemIconApplet(Applet):
+    id = "session"
+    name = "System Icon"
+    icon_name = "system-log-out"
+    supports_system_icon = True
+
+    def __init__(self, config=None) -> None:
+        self.docking_icon = object()
+        self.render_count = 0
+        super().__init__(icon_size=32, config=config)
+
+    def create_docking_icon(self, size: int):
+        assert size == 32
+        self.render_count += 1
+        return self.docking_icon
+
+    def system_icon_name(self) -> str:
+        return "system-preferred"
+
+
 class TestAppletBaseHelpers:
     def test_load_prefs_reads_config_for_applet_id(self):
         config = MagicMock()
@@ -91,3 +124,116 @@ class TestAppletBaseHelpers:
         assert applet.item.name == "Rendered 1"
         assert applet.item.icon is not None
         notify.assert_called_once_with()
+
+    def test_system_icon_applet_defaults_to_docking_icon(self):
+        applet = _SystemIconApplet()
+
+        assert applet.icon_source() == ICON_SOURCE_DOCKING
+        assert applet.create_icon(32) is applet.docking_icon
+        assert applet.render_count == 1
+        assert applet.item.icon_name == "system-log-out"
+
+    def test_system_icon_applet_uses_theme_icon_when_selected(self, monkeypatch):
+        icon = object()
+        config = MagicMock()
+        config.applet_prefs = {"session": {ICON_SOURCE_PREF_KEY: ICON_SOURCE_SYSTEM}}
+        monkeypatch.setattr(base_mod, "load_theme_icon", lambda **_: icon)
+        applet = _SystemIconApplet(config=config)
+
+        assert applet.icon_source() == ICON_SOURCE_SYSTEM
+        assert applet.create_icon(32) is icon
+        assert applet.render_count == 0
+        assert applet.item.icon_name == "system-preferred"
+
+    def test_system_icon_applet_falls_back_to_docking_icon(self, monkeypatch):
+        config = MagicMock()
+        config.applet_prefs = {"session": {ICON_SOURCE_PREF_KEY: ICON_SOURCE_SYSTEM}}
+        monkeypatch.setattr(base_mod, "load_theme_icon", lambda **_: None)
+        applet = _SystemIconApplet(config=config)
+
+        assert applet.create_icon(32) is applet.docking_icon
+        assert applet.render_count == 1
+        assert applet.item.icon_name == "system-log-out"
+
+    def test_set_icon_source_persists_and_presents(self, monkeypatch):
+        icon = object()
+        config = MagicMock()
+        config.applet_prefs = {"session": {"existing": True}}
+        monkeypatch.setattr(base_mod, "load_theme_icon", lambda **_: icon)
+        applet = _SystemIconApplet(config=config)
+
+        applet.set_icon_source(ICON_SOURCE_SYSTEM)
+
+        assert config.applet_prefs["session"] == {
+            "existing": True,
+            ICON_SOURCE_PREF_KEY: ICON_SOURCE_SYSTEM,
+        }
+        assert applet.item.icon is icon
+        config.save.assert_called_once_with()
+
+
+class TestDrawIconLabel:
+    def test_long_label_shrinks_to_fit_max_width(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+
+        _layout, logical, font_size = _fit_icon_label_layout(
+            cr=cr,
+            text="1234567890MB",
+            max_width=34.0,
+            initial_font_size=12,
+            min_font_size=4,
+        )
+
+        assert font_size < 12
+        assert logical.width <= 34.0 or font_size == 4
+
+    def test_short_label_keeps_initial_font_size(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+
+        _layout, logical, font_size = _fit_icon_label_layout(
+            cr=cr,
+            text="42",
+            max_width=44.0,
+            initial_font_size=12,
+            min_font_size=4,
+        )
+
+        assert font_size == 12
+        assert logical.width <= 44.0
+
+    def test_origin_keeps_bottom_edge_stable_for_different_heights(self):
+        first = SimpleNamespace(x=0, y=1, width=24, height=9)
+        second = SimpleNamespace(x=0, y=3, width=32, height=6)
+
+        _first_x, first_y = _icon_label_origin(
+            size=48,
+            logical=first,
+            bottom_padding=2.0,
+        )
+        _second_x, second_y = _icon_label_origin(
+            size=48,
+            logical=second,
+            bottom_padding=2.0,
+        )
+
+        assert first_y + first.y + first.height == 46.0
+        assert second_y + second.y + second.height == 46.0
+
+    def test_outline_width_tracks_final_font_size(self):
+        assert _icon_label_outline_width(font_size=12) == 2.64
+        assert _icon_label_outline_width(font_size=4) == 1.0
+
+    def test_draw_icon_label_accepts_optional_width_and_tones(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+
+        draw_icon_label(
+            cr=cr,
+            text="1234567890MB",
+            size=48,
+            max_width=34.0,
+            fill_rgba=(0.9, 1.0, 0.9, 1.0),
+            outline_rgba=(0.0, 0.0, 0.0, 0.75),
+        )

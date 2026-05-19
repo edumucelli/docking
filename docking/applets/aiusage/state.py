@@ -1,15 +1,27 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and cost logic for AI usage tracker applet."""
 
 from __future__ import annotations
 
 import datetime
-import json
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 
 MAX_DAYS = 7
@@ -19,6 +31,11 @@ class Provider(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
     OPENCODE = "opencode"
+
+
+class DisplayMode(str, Enum):
+    COST = "cost"
+    TOKENS = "tokens"
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +216,38 @@ def week_cost(state: AiUsageState) -> float:
 def today_sessions(state: AiUsageState) -> int:
     entry = _today_entry(state=state)
     return entry.sessions if entry else 0
+
+
+# ---------------------------------------------------------------------------
+# Token aggregation
+# ---------------------------------------------------------------------------
+
+
+def total_tokens(usage: ModelUsage) -> int:
+    """Total fresh tokens (non-cached input + output)."""
+    fresh_input = max(0, usage.input_tokens - usage.cache_read_tokens)
+    return fresh_input + usage.output_tokens
+
+
+def day_tokens(entry: DayEntry) -> int:
+    return sum(total_tokens(u) for _, u in entry.by_model)
+
+
+def provider_tokens(entry: DayEntry, provider: Provider) -> int:
+    return sum(
+        total_tokens(u)
+        for m, u in entry.by_model
+        if provider_for_model(model=m) == provider
+    )
+
+
+def today_tokens(state: AiUsageState) -> int:
+    entry = _today_entry(state=state)
+    return day_tokens(entry=entry) if entry else 0
+
+
+def week_tokens(state: AiUsageState) -> int:
+    return sum(day_tokens(entry=d) for d in state.days)
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +441,14 @@ def _format_cost(cost: float) -> str:
     return "$0"
 
 
+def _format_tokens(tokens: int) -> str:
+    if tokens >= 1_000_000:
+        return f"{tokens / 1_000_000:.1f}M"
+    if tokens >= 1_000:
+        return f"{tokens / 1_000:.1f}K"
+    return str(tokens)
+
+
 def _short_model(model: str) -> str:
     """Extract a short display name from a full model ID."""
     raw = model.removeprefix(OPENCODE_PREFIX)
@@ -410,8 +467,14 @@ def tooltip_text(state: AiUsageState, provider: Provider | None = None) -> str:
         name = "AI Usage"
     sessions = today_sessions(state=state)
     if sessions == 0 and cost <= 0:
-        return _("{name}: no usage today").format(name=name)
-    return _("{name} today: {cost}").format(name=name, cost=_format_cost(cost=cost))
+        return structured_tooltip(
+            title=name,
+            primary=_("no usage today"),
+        )
+    return structured_tooltip(
+        title=name,
+        primary=_("Today: {cost}").format(cost=_format_cost(cost=cost)),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -427,184 +490,3 @@ def _has_usage(u: ModelUsage) -> bool:
         or u.cache_read_tokens
         or u.precalculated_cost
     )
-
-
-def parse_claude_transcript(path: Path) -> dict[str, ModelUsage]:
-    """Read a Claude Code JSONL transcript and accumulate per-model usage."""
-    result: dict[str, ModelUsage] = {}
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return result
-
-    for line in text.splitlines():
-        try:
-            entry = json.loads(line)
-        except (json.JSONDecodeError, ValueError):
-            continue
-        if entry.get("type") != "assistant":
-            continue
-        msg = entry.get("message")
-        if not isinstance(msg, dict):
-            continue
-        usage = msg.get("usage")
-        if not isinstance(usage, dict):
-            continue
-        model = msg.get("model", "")
-        if not model:
-            continue
-
-        prev = result.get(model, ModelUsage())
-        result[model] = ModelUsage(
-            input_tokens=prev.input_tokens + int(usage.get("input_tokens", 0)),
-            output_tokens=prev.output_tokens + int(usage.get("output_tokens", 0)),
-            cache_write_tokens=prev.cache_write_tokens
-            + int(usage.get("cache_creation_input_tokens", 0)),
-            cache_read_tokens=prev.cache_read_tokens
-            + int(usage.get("cache_read_input_tokens", 0)),
-        )
-    return {m: u for m, u in result.items() if _has_usage(u)}
-
-
-# ---------------------------------------------------------------------------
-# Codex transcript parsing
-# ---------------------------------------------------------------------------
-
-
-def find_codex_session(thread_id: str | None = None) -> Path | None:
-    """Find a Codex session JSONL file by thread-id or most recent."""
-    sessions_dir = Path.home() / ".codex" / "sessions"
-    if not sessions_dir.is_dir():
-        return None
-
-    if thread_id:
-        for jsonl in sorted(sessions_dir.rglob("*.jsonl"), reverse=True):
-            if thread_id in jsonl.name:
-                return jsonl
-
-    # Fallback: most recent by mtime.
-    candidates = sorted(
-        sessions_dir.rglob("*.jsonl"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    return candidates[0] if candidates else None
-
-
-def parse_codex_transcript(path: Path) -> dict[str, ModelUsage]:
-    """Read a Codex CLI JSONL session and extract cumulative usage."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return {}
-
-    model: str = ""
-    best_total: int = 0
-    best_usage: dict[str, int] = {}
-
-    for line in text.splitlines():
-        try:
-            entry = json.loads(line)
-        except (json.JSONDecodeError, ValueError):
-            continue
-
-        entry_type = entry.get("type", "")
-
-        if entry_type == "turn_context":
-            m = entry.get("payload", {}).get("model", "")
-            if m:
-                model = m
-
-        if entry_type == "event_msg":
-            payload = entry.get("payload", {})
-            if payload.get("type") != "token_count":
-                continue
-            info = payload.get("info")
-            if not isinstance(info, dict):
-                continue
-            total_usage = info.get("total_token_usage", {})
-            total = int(total_usage.get("total_tokens", 0))
-            if total > best_total:
-                best_total = total
-                best_usage = total_usage
-
-    if not model or not best_usage:
-        return {}
-
-    return {
-        model: ModelUsage(
-            input_tokens=int(best_usage.get("input_tokens", 0)),
-            output_tokens=int(best_usage.get("output_tokens", 0)),
-            cache_write_tokens=0,
-            cache_read_tokens=int(best_usage.get("cached_input_tokens", 0)),
-        )
-    }
-
-
-# ---------------------------------------------------------------------------
-# OpenCode usage (SQLite database)
-# ---------------------------------------------------------------------------
-
-_OPENCODE_DB = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
-
-
-def query_opencode_today() -> dict[str, dict[str, ModelUsage]]:
-    """Query OpenCode SQLite for today's sessions.
-
-    Returns {session_id: {prefixed_model: ModelUsage}}.
-    """
-    import sqlite3
-
-    if not _OPENCODE_DB.exists():
-        return {}
-
-    today = _today_iso()
-    # time_created is Unix ms; compute start-of-day in ms.
-    today_start_ms = int(datetime.datetime.fromisoformat(today).timestamp() * 1000)
-
-    try:
-        conn = sqlite3.connect(f"file:{_OPENCODE_DB}?mode=ro", uri=True)
-    except sqlite3.OperationalError:
-        return {}
-
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id FROM session WHERE time_created >= ?",
-            (today_start_ms,),
-        )
-        session_ids = [r[0] for r in cur.fetchall()]
-        if not session_ids:
-            return {}
-
-        result: dict[str, dict[str, ModelUsage]] = {}
-        for sid in session_ids:
-            cur.execute("SELECT data FROM message WHERE session_id = ?", (sid,))
-            by_model: dict[str, ModelUsage] = {}
-            for (data_str,) in cur.fetchall():
-                try:
-                    data = json.loads(data_str)
-                except (json.JSONDecodeError, ValueError):
-                    continue
-                model_id = data.get("modelID", "")
-                if not model_id:
-                    continue
-                tokens = data.get("tokens", {})
-                cost = float(data.get("cost", 0) or 0)
-                inp = int(tokens.get("input", 0))
-                out = int(tokens.get("output", 0))
-                if not (inp or out or cost):
-                    continue
-
-                key = f"{OPENCODE_PREFIX}{model_id}"
-                prev = by_model.get(key, ModelUsage())
-                by_model[key] = ModelUsage(
-                    input_tokens=prev.input_tokens + inp,
-                    output_tokens=prev.output_tokens + out,
-                    precalculated_cost=prev.precalculated_cost + cost,
-                )
-            if by_model:
-                result[sid] = by_model
-        return result
-    finally:
-        conn.close()

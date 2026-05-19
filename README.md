@@ -1,10 +1,14 @@
 # Docking
 
 [![CI](https://github.com/edumucelli/docking/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/edumucelli/docking/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/edumucelli/docking?display_name=tag)](https://github.com/edumucelli/docking/releases)
 [![Coverage](https://codecov.io/gh/edumucelli/docking/branch/master/graph/badge.svg)](https://codecov.io/gh/edumucelli/docking)
-[![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
+[![Release](https://img.shields.io/github/v/release/edumucelli/docking?display_name=tag)](https://github.com/edumucelli/docking/releases)
+[![Downloads](https://img.shields.io/github/downloads/edumucelli/docking/total)](https://github.com/edumucelli/docking/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![GTK 3](https://img.shields.io/badge/GTK-3-blue)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)](#requirements)
+[![License](https://img.shields.io/github/license/edumucelli/docking)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 
 <img src="images/docking.png" alt="Docking" height="48" style="display:block; margin:0 auto;">
 
@@ -35,14 +39,16 @@ Docking is built around a few core capabilities:
 
 - Fast launcher workflow with running-state indicators and preview interactions.
 - Flexible layout with multi-position, multi-monitor, auto-hide, and drag-and-drop organization.
-- Broad customization through themes, icon sizing, menu options, and tooltip controls.
+- Broad customization through themes, transparency, icon sizing, menu options, and tooltip controls.
 - Native support for pinned files/folders, including left-click folder stacks.
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 38 built-in applets enabled from the dock menu, plus a separate dock separator item.
-- 10 built-in themes with scalable layout values.
+- 52 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 13 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
+- Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
+- Exports `_DOCKING_BACKGROUND_BLUR_REGION` on X11 so compositors and scripts can read the exact visible shelf rectangle.
 - 74 locale catalogs plus English fallback.
 
 ## Requirements
@@ -63,13 +69,42 @@ sudo apt install \
 ## Installation
 
 Prebuilt latest release packages are also available on [GitHub Releases](https://github.com/edumucelli/docking/releases), you can download them directly below.
-- [AppImage](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage)
-- [Debian .deb](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-all.deb)
-- [RPM](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm)
-- [Flatpak](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak)
-- [Snap](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap)
-- [Arch package](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst)
-- Nix [store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt) and [output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz)
+- `AppImage`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage)
+- `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb)
+- `RPM`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm)
+- `Flatpak`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak)
+- `Snap`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap)
+- `Arch package`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.zst)
+- `Nix`: [x64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt), [x64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz), [arm64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt), [arm64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz)
+
+Typical local install/run commands after downloading a release asset:
+
+```bash
+# AppImage
+chmod +x docking-latest-linux-x86_64.AppImage
+./docking-latest-linux-x86_64.AppImage
+chmod +x docking-latest-linux-aarch64.AppImage
+./docking-latest-linux-aarch64.AppImage
+
+# Debian / RPM / Arch
+sudo apt install ./docking-latest-linux-x86_64.deb
+sudo apt install ./docking-latest-linux-aarch64.deb
+sudo dnf install ./docking-latest-linux-x86_64.rpm
+sudo dnf install ./docking-latest-linux-aarch64.rpm
+sudo pacman -U ./docking-latest-linux-x86_64.pkg.tar.zst
+sudo pacman -U ./docking-latest-linux-aarch64.pkg.tar.zst
+
+# Flatpak / Snap
+flatpak install --user ./docking-latest-linux-x86_64.flatpak
+flatpak install --user ./docking-latest-linux-aarch64.flatpak
+sudo snap install --dangerous ./docking-latest-linux-x86_64.snap
+sudo snap install --dangerous ./docking-latest-linux-aarch64.snap
+
+# Nix output tarball
+mkdir docking-nix-output
+tar -C docking-nix-output -xf docking-latest-linux-x86_64-nix-output.tar.gz
+./docking-nix-output/bin/docking
+```
 
 ```bash
 # Clone
@@ -107,7 +142,7 @@ DOCKING_LOG_LEVEL=DEBUG python run.py
 
 ## Configuration
 
-Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
+Config is stored at `~/.config/docking/dock.json` (auto-created on first run). New installs are seeded with a starter dock: Applications, a set of common launchers detected from what is installed, then Clock, Calendar, Weather, System Monitor, Hydration, Notifications, and Session.
 
 ```json
 {
@@ -128,10 +163,17 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
   "anchor_applets": false,
   "anchor_files": false,
   "active_display": false,
+  "left_click_action": "toggle",
+  "middle_click_action": "new-window",
+  "folder_stack_unfold": "hover",
+  "show_window_count_numbers": false,
   "theme": "default",
+  "transparency": 1.0,
   "pinned": [
+    { "kind": "applet", "target": "applet://applications" },
     { "kind": "app", "target": "firefox.desktop" },
-    { "kind": "app", "target": "org.gnome.Nautilus.desktop" }
+    { "kind": "app", "target": "org.gnome.Nautilus.desktop" },
+    { "kind": "applet", "target": "applet://clock" }
   ],
   "applet_prefs": {},
   "item_prefs": {}
@@ -146,7 +188,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `zoom_range` | 3 | Icon widths over which zoom tapers off |
 | `position` | bottom | Dock edge: bottom, top, left, right |
 | `monitor_index` | -1 | Target monitor index (`-1` = primary monitor, `0..N` = specific monitor) |
-| `hide_mode` | none | Dock hide behavior: `none`, `autohide`, `intelligent`, `dodge-active`, `window-dodge`, `dodge-maximized` |
+| `hide_mode` | none | Dock hide behavior: `none`, `always-on-top`, `autohide`, `intelligent`, `dodge-active`, `window-dodge`, `dodge-maximized` |
 | `hide_delay_ms` | 0 | Delay before hiding starts (0 = instant) |
 | `unhide_delay_ms` | 0 | Delay before showing the dock again |
 | `hide_time_ms` | 250 | Duration of hide/show slide animation |
@@ -157,21 +199,34 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run).
 | `anchor_files` | false | Keep file and folder entries anchored at the end independently |
 | `tooltips_enabled` | true | Show hover tooltips for dock items |
 | `active_display` | false | Follow the active monitor instead of staying on one display |
-| `theme` | default | Theme name (loads from `assets/themes/{name}.json`) |
-| `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders |
+| `update_check_enabled` | true | Check GitHub for newer Docking releases |
+| `update_check_interval_hours` | 24 | Minimum hours between automatic update checks |
+| `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
+| `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
+| `folder_stack_unfold` | hover | Folder stack open behavior: `hover` or `click` |
+| `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
+| `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
+| `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
+| `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders. First run seeds a starter set. |
 | `applet_prefs` | `{}` | Per-applet preference storage |
 | `item_prefs` | `{}` | Per-item preference storage for files and folders |
 
 `hide_mode` meanings:
 
 - `none`: Dock stays visible and reserves screen space.
+- `always-on-top`: Dock stays visible above all windows without reserving screen space.
 - `autohide`: Dock hides when the cursor leaves.
 - `intelligent`: Dock hides when a window from the focused app overlaps the dock.
 - `dodge-active`: Dock hides when the focused window overlaps the dock.
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor.
+All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can toggle, cycle, or focus the most recently used window of the running app, and middle click can open a new window, minimize the app windows, or close the app's focused window. Pick the left-click mode under right-click -> **Preferences** -> **Behavior** -> **Mouse**. Update checks live under right-click -> **Preferences** -> **Updates**, where you can disable automatic checks, choose daily or weekly checks, check immediately, or open the releases page.
+
+Docking stores update-check preferences in `dock.json`. Runtime update state,
+such as the last checked timestamp, ignored release version, and remind-later
+timestamp, is stored separately under XDG state storage in
+`~/.local/state/docking/updates.json`.
 
 ## Managing Dock Items
 
@@ -180,6 +235,47 @@ All settings are also configurable via the dock's right-click menu. On multi-mon
 - **Drag off**: Drag an icon upward off the dock to remove (poof animation)
 - **Right-click pinned app**: "Remove from Dock" to unpin
 - **Edit config**: Add desktop IDs to `"pinned"` in `dock.json`
+
+## Theming
+
+Themes are JSON files. Docking loads user themes from:
+
+```text
+~/.config/docking/themes/
+```
+
+and then falls back to the built-in themes bundled in `docking/assets/themes/`.
+Thirteen built-in themes are included:
+
+- `default` -- light theme
+- `onyx` -- dark variant
+- `slate` -- flat appearance
+- `transparent` -- minimal, see-through
+- `olive` -- rounded olive-green theme
+- `ember` -- warm dark theme
+- `nord` -- cool, desaturated dark
+- `glass` -- translucent macOS-style floating pill
+- `pill` -- dark floating pill with fully rounded borders
+- `paper` -- matte warm floating pill
+- `candy` -- playful pastel floating pill
+- `gruvbox` -- warm earthy dark
+- `solarized` -- soft light Solarized variant
+
+Theme examples:
+
+| Theme | Preview |
+| --- | --- |
+| Glass | ![Glass theme](images/glass.png) |
+| Transparent | ![Transparent theme](images/transparent.png) |
+
+All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
+
+Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
+
+**Creating a custom theme:**
+- Docking creates `~/.config/docking/themes/template.json` on startup.
+- Copy `template.json` to a new name, such as `my-theme.json`, then edit it.
+- `template.json` is hidden from the selector; renamed `.json` files appear as themes.
 
 ## Applets
 
@@ -199,7 +295,7 @@ Docking applets follow a small, testable architecture:
   - `state.py`: pure logic, parsing, command/state helpers (easy to unit test)
   - `render.py`: Cairo/icon rendering helpers (no applet lifecycle logic)
   - `applet.py`: GTK/Wnck/Gio wiring, timers, click/scroll/menu behavior
-- Package `__init__.py` re-exports public symbols used by the registry/tests.
+- Package `__init__.py` stays metadata-only: declare `meta = AppletMeta(...)` there and keep imports cheap for startup discovery.
 - Applet metadata is auto-discovered through `docking/applets/__init__.py:get_applet_catalog()`.
 - Concrete applet classes are loaded on demand through `docking/applets/__init__.py:load_applet_class()`.
 - Each applet package declares a stable identity via `AppletMeta` in `__init__.py`.
@@ -210,7 +306,7 @@ This split keeps runtime behavior in one place while making parsers/rendering hi
 
 <img src="docking/assets/icons/applets/aiusage.png" alt="AI Usage" width="48">
 
-Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Codex usage are recorded through local hook integration, while OpenCode usage is merged from its local SQLite database.
+Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
 **Scroll:** Cycle provider focus between Auto, Claude, Codex, and OpenCode
 **Right-click options:**
@@ -219,7 +315,7 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Code
 
 **Tooltip:** Today/week cost summary plus per-model usage for the selected provider
 
-**Update interval:** Hook-driven updates for Claude/Codex, plus a 60-second OpenCode poll
+**Update interval:** Updates when usage changes, plus a periodic refresh for providers that need polling
 
 **Preferences stored:** rolling `days` usage history in `applet_prefs.aiusage`
 
@@ -227,25 +323,60 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock. Claude and Code
 
 <img src="docking/assets/icons/applets/clock.png" alt="Clock" width="48">
 
-Analog or digital clock face. The analog mode uses SVG layers for a realistic clock face with hour/minute hands.
+Analog or digital clock face. Optional seconds display adds a red seconds hand in analog mode and `HH:MM:SS` in digital mode, and the applet can keep a simple one-shot alarm reminder.
 
+**Click:** Acknowledge a ringing alarm
 **Right-click options:**
 - **Digital Clock** -- switch between analog and digital display
 - **24-Hour Clock** -- toggle 12/24-hour format
 - **Show Date** -- show date below time (digital mode only)
+- **Show Seconds** -- refresh every second and show seconds on the icon
+- **Set Alarm...** -- choose an hour/minute for the next one-shot reminder
+- **Clear Alarm** -- remove a pending alarm
+- **Acknowledge Alarm** -- clear the urgent reminder after it fires
 
-**Preferences stored:** `show_digital`, `show_military`, `show_date`
+**Preferences stored:** `show_digital`, `show_military`, `show_date`, `show_seconds`, `alarm_target`
+
+### Alarm
+
+<img src="docking/assets/icons/applets/alarm.png" alt="Alarm" width="48">
+
+Multiple alarm presets with local-time scheduling, weekday repeats, one-shot alarms, snooze, and dismiss controls. The icon shows a rounded alarm clock with a compact next-alarm countdown, and switches to a ringing label when an alarm fires.
+
+**Click:** Open the alarm editor, or dismiss the current ringing alarm
+**Right-click options:**
+- **Add Alarm...** -- create a new alarm preset
+- **Snooze** -- move the current ringing alarm forward by its preset snooze duration
+- **Dismiss** -- stop the current ringing alarm
+- **Alarm preset rows** -- enable or disable saved presets from the menu
+- **Edit {label}...** -- edit or remove a saved preset
+
+**Tooltip:** Next enabled alarm with local time, or the currently ringing alarm label.
+
+**Preferences stored:** `presets` with `label`, `hour`, `minute`, `enabled`, `repeat_days`, `snooze_minutes`, `last_triggered`, and `snoozed_until`
+
+**Update interval:** 30 seconds normally, 1 second while ringing
 
 ### Trash
 
 <img src="docking/assets/icons/applets/trash.png" alt="Trash" width="48">
 
-Shows the current state of the system trash. Icon switches between empty and full automatically via file monitoring.
+Shows the current state of the system trash. Icon switches between empty and full automatically.
 
 **Click:** Open trash folder in file manager
 **Right-click options:**
 - **Open Trash** -- open in file manager
-- **Empty Trash** -- permanently delete all trashed items (uses Caja/Nautilus DBus when available)
+- **Empty Trash** -- permanently delete all trashed items
+
+### USB Watch
+
+<img src="docking/assets/icons/applets/usbwatch.png" alt="USB Watch" width="48">
+
+Shows mounted removable USB storage devices and provides safe-remove actions without opening a file manager.
+
+**Tooltip:** mounted device count and mount paths
+**Right-click options:**
+- **Safely Remove _device_** -- unmount and eject a removable USB device when supported
 
 ### Desktop
 
@@ -263,17 +394,33 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 **Tooltip:** `CPU: 23.5% | Mem: 67.2% | Temp: 54.0°C` when CPU temperature is available
 
-**Update interval:** 1 second (with 3% CPU / 1% memory threshold to avoid excessive redraws)
+**Update interval:** 1 second
 
-**Temperature sources:** Linux sysfs first, then common sensor tools such as `sensors`, `vcgencmd`, and `acpi` when installed
+### Thermals
+
+<img src="docking/assets/icons/applets/thermals.png" alt="Thermals" width="48">
+
+Hottest lm-sensors temperature plus fastest fan RPM. The icon is a thermometer with a degree-only bottom label for the current temperature, and the tooltip includes the lm-sensors chip and label for both readings.
+
+**Click:** No-op
+**Right-click options:**
+- **Temperature Unit** -- Celsius or Fahrenheit
+- **Refresh Now**
+
+**Tooltip:** `Hot: coretemp Package 72.4C` and `Fan: thinkpad fan1 2987 RPM`
+
+**Update interval:** 5 seconds
 
 ### Battery
 
 <img src="docking/assets/icons/applets/battery.png" alt="Battery" width="48">
 
-Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/class/power_supply/BAT0/`. Icon changes based on charge level (full, good, low, caution, empty) and charging state.
+Shows battery charge level using standard icons. The icon changes based on charge level and charging state.
 
-**Tooltip:** Shows percentage (e.g. "85%") or "No battery"
+**Right-click options:**
+- **Power Settings** -- open the desktop power settings or power management screen when available
+
+**Tooltip:** Shows percentage and, when the system exposes a battery rate, the estimated time left or time until full. If no estimate is available, it keeps the tooltip simple.
 
 **Update interval:** 60 seconds
 
@@ -281,7 +428,7 @@ Shows battery charge level using standard FreeDesktop icons. Reads from `/sys/cl
 
 <img src="docking/assets/icons/applets/brightness.png" alt="Brightness" width="48">
 
-Screen brightness control via `xrandr`. Auto-detects the primary display output and tracks live brightness value.
+Screen brightness control with a live level indicator.
 
 **Click:** Reset brightness to 100%
 **Scroll:** Adjust brightness by small steps
@@ -296,12 +443,15 @@ Screen brightness control via `xrandr`. Auto-detects the primary display output 
 
 <img src="docking/assets/icons/applets/weather.png" alt="Weather" width="48">
 
-Shows current weather and air quality for a selected city with a 5-day forecast. Uses the [Open-Meteo](https://open-meteo.com/) weather and air quality APIs with automatic caching and retry.
+Shows current weather and air quality for a selected city with a 5-day forecast.
 
-**Click:** Open forecast in browser
+**Click:** Open city search and add/switch the active city
 **Right-click options:**
 - **Show Temperature** -- toggle temperature overlay on icon
-- **Change City...** -- opens search dialog with autocomplete (48,000 cities)
+- **Temperature Unit** -- Celsius or Fahrenheit
+- **Remove {city}** -- remove active city when multiple cities are configured
+
+**Scroll:** Cycle through configured cities
 
 **Tooltip:** Bold city header + current conditions + air quality + daily forecast with icons:
 ```
@@ -312,15 +462,34 @@ Mon: 25/29°C, Partly cloudy
 Tue: 28/32°C, Rain
 ```
 
-**Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`
+**Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`, `temperature_unit`
 
-**Update interval:** 5 minutes (shared between API cache and polling timer)
+**Update interval:** 5 minutes
+
+### Sunrise
+
+<img src="docking/assets/icons/applets/sunrise.png" alt="Sunrise" width="48">
+
+Sunrise, sunset, and twilight countdown applet for a selected city. The icon is a rendered 24-hour solar dial with night, astronomical, nautical, civil, and daylight bands plus a current-time marker.
+
+**Click:** Open city search and add/switch the active city
+**Right-click options:**
+- **Label Mode** -- switch between next-event countdown, current phase, and sunrise/sunset times
+- **Remove {city}** -- remove active city when multiple cities are configured
+
+**Scroll:** Cycle through configured cities
+
+**Tooltip:** Selected city, current solar phase, next solar event countdown, and today's solar event times. Times are calculated locally from the city coordinates and shown in the system timezone.
+
+**Preferences stored:** `cities`, `active_index`, `label_mode`
+
+**Update interval:** 60 seconds
 
 ### Moon
 
 <img src="docking/assets/icons/applets/moon.png" alt="Moon" width="48">
 
-Moon phase applet with Cairo-rendered moon disc and illumination shading. Fetches phase data asynchronously and falls back gracefully while loading.
+Moon phase applet with a rendered moon disc and illumination shading.
 
 **Click:** Refresh moon data now
 **Right-click options:**
@@ -374,7 +543,7 @@ Sticky note applet for a single quick text note.
 
 <img src="docking/assets/icons/applets/recentfiles.png" alt="Recent Files" width="48">
 
-Launcher for the most recently opened files from `Gtk.RecentManager`.
+Launcher for the most recently opened files.
 
 **Click:** Open the newest recent file
 **Right-click options:**
@@ -414,9 +583,27 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 
 **Click:** Cycle to the next available layout
 **Scroll:** Move forward/backward through available layouts
-**Right-click options:** direct selection of each detected layout
+**Right-click options:**
+- **Keyboard Settings** -- open the desktop keyboard settings screen when available
+- **Show Current Layout** -- open the current keyboard layout dialog when available
+- direct selection of each detected layout
 
 **Tooltip:** active layout code or no-layout fallback
+
+### Caps Lock
+
+<img src="docking/assets/icons/applets/capslock.png" alt="Caps Lock" width="48">
+
+Caps Lock and Num Lock indicators for keyboards without physical lights. The icon shows which locks are currently active.
+
+**Click:** Refresh lock state immediately
+**Right-click options:**
+- Current Caps Lock and Num Lock states
+- Refresh Now
+
+**Tooltip:** Caps Lock and Num Lock on/off state, or an unavailable-state fallback
+
+**Update interval:** 1 second
 
 ### Network
 
@@ -431,23 +618,34 @@ IP: 192.168.1.42
 down-arrow 1.2 MB/s  up-arrow 350 KB/s
 ```
 
-**Right-click:** Connection info (read-only)
+**Right-click options:**
+- **Available Networks** -- open a submenu of visible Wi-Fi networks; clicking one asks NetworkManager to connect to it
+- **Connect to Hidden Wi-Fi Network...** -- open the desktop network editor/settings flow for hidden Wi-Fi setup
+- **Create New Wi-Fi Network...** -- open the desktop network editor/settings flow for creating a new Wi-Fi network
+- **VPN Connections** -- open a submenu of saved VPN profiles and toggle them on or off
+- **Connection Information** -- open the desktop network settings or information screen when available
+- **Edit Connections...** -- open the connection editor when available
+- **Enable Networking** -- toggle NetworkManager networking on/off
+- **Enable Wi-Fi** -- toggle Wi-Fi radio on/off when a wireless device is present
+- **Show Download / Show Upload / Hide Speeds** -- control the speed overlay on the icon
 
-**Data sources:**
-- NetworkManager (via NM 1.0) for connection state, SSID, signal strength
-- `/proc/net/dev` for traffic counters
-
-**Update interval:** 2 seconds for traffic, instant for connection state changes (NM signals)
+**Update interval:** 2 seconds
 
 ### Bluetooth
 
 <img src="docking/assets/icons/applets/bluetooth.png" alt="Bluetooth" width="48">
 
-BlueZ-based Bluetooth manager applet for quick adapter/device control from the dock.
+Bluetooth manager applet for quick adapter and device control from the dock.
 
 **Click:** Toggle Bluetooth power for the active adapter
 **Right-click options:**
-- **Bluetooth On** -- power toggle
+- **Turn Bluetooth On / Turn Bluetooth Off** -- power toggle for the active adapter
+- **Disconnect {device}** -- quick disconnect action for connected devices
+- **Send Files to Device...** -- open the desktop Bluetooth file sender when available
+- **Recent Connections** -- reopen recently connected paired devices
+- **Devices...** -- open the desktop Bluetooth devices/settings screen when available
+- **Adapters...** -- open the desktop Bluetooth adapter/settings screen when available
+- **Local Services...** -- open the desktop Bluetooth local-services screen when available
 - **Continuous Discovery** -- keeps discovery active while enabled
 - **Adapter** -- switch active adapter on multi-adapter systems
 - **Connected / Paired / Discovered Devices** -- per-device actions:
@@ -456,14 +654,40 @@ BlueZ-based Bluetooth manager applet for quick adapter/device control from the d
 **Tooltip:** adapter state, connected/paired counts, discovery status, optional battery line
 **Badge:** connected device count
 
-**Backends:**
-- BlueZ DBus (`org.bluez`) for adapter/device operations
-- `bluetoothctl` fallback for pairing when DBus pair fails
+**Update interval:** 2 seconds
 
-**Note:** if another Bluetooth app owns an active discovery session, BlueZ may
-block power-off (`org.bluez.Error.Busy`) until that external scan stops.
+### Cam Shield
 
-**Update interval:** 2 seconds poll + discovery keepalive
+<img src="docking/assets/icons/applets/camshield.png" alt="Cam Shield" width="48">
+
+Camera privacy indicator. The icon shows a red dot while an app is using a camera.
+
+**Right-click options:**
+- Active app list when available
+- Lock Camera / Unlock Camera
+- Refresh Now
+
+**Tooltip:** Shows whether the camera is idle, active, or unavailable, plus active holders when detected
+
+Locking blocks new camera sessions. Apps that are already using the camera may need to be closed first.
+
+**Update interval:** 2 seconds
+
+### Mic Shield
+
+<img src="docking/assets/icons/applets/micshield.png" alt="Mic Shield" width="48">
+
+Microphone privacy indicator and mute toggle. The icon shows a red dot while an app is using microphone input, and clicking the applet quickly mutes or unmutes the microphone.
+
+**Click:** Toggle microphone mute
+**Right-click options:**
+- Active app list when available
+- Mute Microphone / Unmute Microphone
+- Refresh Now
+
+**Tooltip:** Shows mute state, idle/active state, and active capture streams when detected
+
+**Update interval:** 2 seconds
 
 ### Power Profiles
 
@@ -476,28 +700,19 @@ Power profile applet for quick laptop/handheld mode switching.
 - **Select Profile** -- radio selector for available profiles
 - **Power Saver / Balanced / Performance** -- set active profile
 
-**Tooltip:** current profile, available profiles, and backend limitation reason (if any)
-
-**Backend chain (auto-detected):**
-- `power-profiles-daemon` via DBus `net.hadess.PowerProfiles` (preferred)
-- `tuned-adm` fallback (profile-mapped)
-- `tlp` fallback (`ac`/`bat`/`start` mapping)
+**Tooltip:** current profile and available profiles
 
 ### Notifications
 
 <img src="docking/assets/icons/applets/notifications.png" alt="Notifications" width="48">
 
-Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when supported.
+Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when available.
 
 **Click:** Toggle Do Not Disturb on/off
 **Right-click options:**
 - **Do Not Disturb** -- toggle notification pause state
-- **Pending: N** -- pending notifications (when backend exposes queue size)
-- **Clear Notifications** -- clear notification history (when backend supports it)
-
-**Backends:**
-- `dunstctl` (Dunst): pause state, pending count, and clear-history action
-- `gsettings` (GNOME): pause state via `org.gnome.desktop.notifications show-banners`
+- **Pending: N** -- pending notifications (when available)
+- **Clear Notifications** -- clear notification history (when available)
 
 **Update interval:** 2 seconds
 
@@ -505,15 +720,15 @@ Notification center applet with a compact status icon, Do Not Disturb toggle, an
 
 <img src="docking/assets/icons/applets/session.png" alt="Session" width="48">
 
-Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
+Lock, log out, suspend, restart, or shut down from the dock.
 
 **Click:** Lock screen
 **Right-click options:**
-- **Lock Screen** -- `loginctl lock-session`
-- **Log Out** -- `loginctl terminate-session`
-- **Suspend** -- `systemctl suspend`
-- **Restart** -- `systemctl reboot`
-- **Shut Down** -- `systemctl poweroff`
+- **Lock Screen**
+- **Log Out**
+- **Suspend**
+- **Restart**
+- **Shut Down**
 
 ### Calendar
 
@@ -521,7 +736,7 @@ Lock, logout, suspend, restart, or shut down via `loginctl`/`systemctl`.
 
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
-**Click:** Toggle a GtkCalendar popup
+**Click:** Toggle a calendar popup
 **Tooltip:** Full date (e.g. "Tuesday, February 25")
 
 **Update interval:** 30 seconds (refreshes icon at midnight)
@@ -542,7 +757,7 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 <img src="docking/assets/icons/applets/screenshot.png" alt="Screenshot" width="48">
 
-Capture screenshots via the best available tool. Auto-detects mate-screenshot, gnome-screenshot, xfce4-screenshooter, spectacle, flameshot, or scrot.
+Capture screenshots with the available screenshot tool on your system.
 
 **Click:** Full-screen capture
 **Right-click options:**
@@ -555,10 +770,12 @@ Capture screenshots via the best available tool. Auto-detects mate-screenshot, g
 
 <img src="docking/assets/icons/applets/volume.png" alt="Volume" width="48">
 
-System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA). Icon switches between muted/low/medium/high based on level.
+System volume control. The icon switches between muted, low, medium, and high based on level.
 
 **Click:** Toggle mute
 **Scroll:** Adjust volume ±5%
+**Right-click options:**
+- **Volume Settings** -- open the desktop volume or sound settings screen when available
 **Tooltip:** `Volume: 75%` or `Muted`
 
 **Update interval:** 1 second (refreshes only on change)
@@ -567,9 +784,7 @@ System volume control. Auto-detects pactl (PulseAudio/PipeWire) or amixer (ALSA)
 
 <img src="docking/assets/icons/applets/music.png" alt="Music" width="48">
 
-Media controller applet with album-art icon rendering. Uses MPRIS over DBus first, then playerctl fallback for controls when needed.
-
-Current support note: tested with **VLC**, **Clementine**, **Amberol**, and **Recordbox**. In general, the applet should work with MPRIS-compatible players (with `playerctl`/backend fallbacks where available).
+Media controller applet with album-art icon rendering.
 
 **Click:** Play/pause
 **Scroll:** Player volume ±5%
@@ -605,7 +820,6 @@ Animated companion applet that reacts to system activity with different moods.
 **Click:** reset the pet back to a happy state
 **Tooltip:** current mood and CPU percentage
 
-**Data source:** `/proc/stat` via the shared CPU sampling helpers
 
 ### Separator
 
@@ -667,7 +881,7 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 
 <img src="docking/assets/icons/applets/trivia.png" alt="Random Trivia" width="48">
 
-Quick trivia applet backed by **Open Trivia DB** with a local fallback question set. Tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
+Quick trivia applet with local and online questions. The tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
 
 **Click:** Show the next trivia question
 **Scroll:** No-op
@@ -680,7 +894,7 @@ Quick trivia applet backed by **Open Trivia DB** with a local fallback question 
 
 <img src="docking/assets/icons/applets/todayinhistory.png" alt="Today in History" width="48">
 
-One-event-at-a-time history applet backed by Wikipedia's "On this day" feed with a local fallback set for offline use. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
+One-event-at-a-time history applet with online refresh and offline fallback data. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
 
 **Click:** Show the next historical event for today
 **Scroll:** No-op
@@ -689,11 +903,29 @@ One-event-at-a-time history applet backed by Wikipedia's "On this day" feed with
 - **Refresh from Web**
 - **Open Article** -- open the current event's Wikipedia page when available
 
+### Hacker News
+
+<img src="docking/assets/icons/applets/hackernews.png" alt="Hacker News" width="48">
+
+Hacker News headline viewer. It fetches HN top stories, keeps a cached list for startup, lazy-loads more when you land on the last loaded item, and shows the selected title plus points/comments in the tooltip. Paging continues up to 100 loaded headlines.
+
+**Click:** Open the current story
+**Scroll:** Cycle headlines
+**Right-click options:**
+- **Open Story**
+- **Open Comments**
+- **Next Headline**
+- **Refresh Now**
+
+**Update interval:** 10 minutes. Additional pages load on demand when you reach the last loaded headline, up to 100 stories.
+
+**Preferences stored:** cached `stories`, `active_index`, `fetched_at`
+
 ### Ambient
 
 <img src="docking/assets/icons/applets/ambient.png" alt="Ambient" width="48">
 
-Looping ambient soundscape player. Bundled with 7 CC0/Public Domain nature sounds plus procedural white/pink noise via GStreamer.
+Looping ambient soundscape player with 7 bundled nature sounds plus white and pink noise.
 
 **Click:** Toggle play/stop
 **Scroll:** Adjust volume ±10%
@@ -722,14 +954,39 @@ Convert between units directly from the dock popup. Supports length, weight, tem
 
 **Preferences stored:** `last_category`
 
+### Currency FX
+
+<img src="docking/assets/icons/applets/currencyfx.png" alt="Currency FX" width="48">
+
+Live currency pair monitor with a sparkline icon. Add the pairs you care about, cycle between them from the dock, and choose the chart range that fits your glance.
+
+**Click:** Add FX pair
+**Scroll:** Cycle added pairs
+**Right-click:** Refresh, swap pair, add pair, chart interval, switch/remove added pair
+
+**Update interval:** 15 minutes. Day charts use local samples collected on each successful refresh; week and month charts use remote daily history plus the current rate.
+
+**Preferences stored:** `pairs`, `active_index`, `chart_interval`, `sample_source`, `samples`
+
 ### URL Shortener
 
 <img src="docking/assets/icons/applets/urlshortener.png" alt="URL Shortener" width="48">
 
-Shorten URLs via is.gd with one click. Paste a URL, hit Shorten, and copy the result to clipboard.
+Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to the clipboard.
 
 **Click:** Toggle URL shortener dialog
 **Keyboard:** Paste URL, press Enter to shorten
+
+**Preferences stored:** `last_url`
+
+### Drag Share
+
+<img src="docking/assets/icons/applets/dragshare.png" alt="Drag Share" width="48">
+
+Drop a local file onto the applet to upload it to tmpfiles.org and copy the returned URL to the clipboard. Files are temporary and expire automatically.
+
+**Drop:** Upload file and copy URL
+**Click:** Copy last uploaded URL again
 
 **Preferences stored:** `last_url`
 
@@ -737,30 +994,75 @@ Shorten URLs via is.gd with one click. Paste a URL, hit Shorten, and copy the re
 
 <img src="docking/assets/icons/applets/windowkiller.png" alt="Window Killer" width="48">
 
-Click the applet, then click any window to force-close it. Uses `xdotool selectwindow` + `wmctrl -ic` under the hood.
+Click the applet, then click any window to force-close it.
 
 **Click:** Enter kill mode (cursor changes to crosshair)
 
-## Theming
+### Cert Watch
 
-Themes are JSON files in `docking/assets/themes/`. Ten built-in themes are included:
+<img src="docking/assets/icons/applets/certwatch.png" alt="Cert Watch" width="48">
 
-- `default` -- light theme
-- `onyx` -- dark variant
-- `slate` -- flat appearance
-- `transparent` -- minimal, see-through
-- `olive` -- rounded olive-green theme
-- `ember` -- warm dark theme
-- `nord` -- cool, desaturated dark
-- `glass` -- translucent macOS-style floating pill
-- `gruvbox` -- warm earthy dark
-- `solarized` -- soft light Solarized variant
+Monitor certificate expiry for a list of domains. The shield color highlights the most urgent domain, and the icon shows the lowest days remaining so expiring certificates are easy to spot.
 
-All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
+**Click:** Add domain dialog (accepts `example.com`, `example.com:8443`, or a full URL)
 
-Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
+**Right-click menu:**
+- Per-domain status with days remaining
+- Add domain
+- Remove submenu
+- Refresh Now
 
-**Creating a custom theme:** Copy an existing theme JSON and modify the colors and proportions. Place it in the `assets/themes/` directory -- it will appear in the right-click Themes menu.
+**Update interval:** 1 hour. Failed certificate checks retry after 5 minutes.
+
+**Preferences stored:** `domains` list (host, port)
+
+### Speedtest
+
+<img src="docking/assets/icons/applets/speedtest.png" alt="Speedtest" width="48">
+
+One-click internet speed test. The dial is painted as a classic four-band speedometer (red, orange, yellow, green from left to right); the needle points at the last download speed and takes its color from the current tier. The badge shows Mbps (e.g. `250Mb`, `1.2Gb`). Tooltip shows download, upload, ping, jitter, server, and timestamp.
+
+**Click:** Run one test (~20 seconds: ping + 10s download + 10s upload)
+
+**Right-click menu:**
+- Summary header (Down / Up)
+- Run Test (disabled while running)
+- Copy Last Result (to clipboard)
+
+**Update interval:** Manual. Results update only when you run a test.
+
+**Preferences stored:** `last_result` (download_mbps, upload_mbps, ping_ms, jitter_ms, server, timestamp)
+
+### Desk Presence
+
+<img src="docking/assets/icons/applets/deskpresence.png" alt="Desk Presence" width="48">
+
+Tracks time at your desk versus away. The icon shows whether you are currently active or away, the bottom label shows today's at-desk hours, and the tooltip summarizes the recent daily breakdown.
+
+**Right-click menu:**
+- Status header (At desk / Away / Status unknown)
+- Idle Threshold submenu (1 / 2 / 5 / 10 min presets)
+- Reset Today
+
+**Preferences stored:** `today` (ISO date), `at_desk_seconds`, `away_seconds`, `idle_threshold_s`, `history` (last 6 days)
+
+### Astronomy Picture of the Day
+
+<img src="docking/assets/icons/applets/apod.png" alt="APOD" width="48">
+
+Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip includes the date, title, credit, and a short explanation, and the applet keeps showing a graceful placeholder if the image is unavailable.
+
+**Click:** Open today's page on apod.nasa.gov in the default browser
+
+**Right-click menu:**
+- Title header (date + title)
+- Open on apod.nasa.gov
+- Copy Explanation
+- Refresh Now
+
+**Update interval:** 1 hour. The applet fetches again when the APOD date changes and retries errors after 10 minutes.
+
+**Preferences stored:** `last_result` (date, title, explanation, media_type, image_url, page_url, copyright, cached_path)
 
 ## Writing Custom Applets
 
@@ -809,13 +1111,13 @@ Recommended file layout:
 
 ```text
 docking/applets/myapplet/
-  __init__.py   # AppletMeta declaration + public re-exports
+  __init__.py   # metadata only: AppletMeta declaration
   applet.py     # GTK wiring and lifecycle
   state.py      # pure state/logic helpers
   render.py     # icon rendering helpers
 ```
 
-Declare applet metadata in `docking/applets/myapplet/__init__.py` so catalog discovery can find it:
+Declare applet metadata in `docking/applets/myapplet/__init__.py` so catalog discovery can find it. Keep this file metadata-only so applet discovery stays cheap:
 
 ```python
 from docking.applets.identity import AppletCategory, AppletMeta
@@ -826,8 +1128,10 @@ meta = AppletMeta(
     category=AppletCategory.PRODUCTIVITY,
 )
 
-from .applet import MyApplet
+__all__ = ["meta"]
 ```
+
+The concrete `Applet` subclass should live in `docking/applets/myapplet/applet.py`. `load_applet_class()` imports that module lazily when the applet is actually enabled.
 
 **Design principle:** Complex logic is extracted as pure functions (no GTK dependency) so tests run fast without a display server. GTK-dependent tests use lightweight mocks.
 
@@ -876,7 +1180,40 @@ After adding or modifying translatable strings in the source code:
 ./tools/i18n.sh --extract
 ```
 
-This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be updated with `msgmerge`.
+This regenerates `docking/locale/docking.pot`. Existing `.po` files are updated separately in translation-refresh pull requests.
+
+### When CI fails after adding `_()` strings
+
+If you add a new user-visible translatable string such as `_("...")`, CI can fail in two common ways:
+
+- `--check-pot-sync` fails because `docking/locale/docking.pot` is stale
+- `--check-catalogs --allow-incomplete` fails because an existing locale catalog has format errors
+
+Regenerate the template:
+
+```bash
+./tools/i18n.sh --extract
+```
+
+You do not need to update every `docking.po` catalog or fill in every new `msgstr` on regular feature commits. That creates large translation diffs that obscure the code review. Translation catalogs are refreshed periodically in translation-only pull requests:
+
+```bash
+./tools/i18n.sh --update-translations
+```
+
+To verify locally with the same i18n gates CI uses:
+
+```bash
+./tools/i18n.sh --check-pot-sync
+./tools/i18n.sh --check-catalogs --allow-incomplete
+./tools/i18n.sh --compile
+```
+
+Practical sequence:
+
+1. `./tools/i18n.sh --extract`
+2. Rerun the three checks above
+3. Leave `.po` refreshes for a translation-only PR unless this branch is specifically about translations
 
 ### Unified i18n command
 
@@ -889,11 +1226,14 @@ This regenerates `docking/locale/docking.pot`. Existing `.po` files can then be 
 # Verify docking.pot is in sync with source strings
 ./tools/i18n.sh --check-pot-sync
 
-# Validate locale catalogs (strict, fails on untranslated/fuzzy)
-./tools/i18n.sh --check-catalogs --require-complete
+# Update docking.pot, merge every locale catalog, and strip obsolete entries
+./tools/i18n.sh --update-translations
 
-# Validate locale catalogs but allow incomplete translation backlog
+# Validate locale catalogs while allowing incomplete translation backlog
 ./tools/i18n.sh --check-catalogs --allow-incomplete
+
+# Strict translation-maintenance validation, fails on untranslated/fuzzy
+./tools/i18n.sh --check-catalogs --require-complete
 
 # Compile all .po catalogs to .mo
 ./tools/i18n.sh --compile
@@ -981,7 +1321,7 @@ sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
 ./packaging/deb/build.sh
 
 # Install generated package
-sudo dpkg -i ../docking_*_all.deb
+sudo dpkg -i ../docking_*_*.deb
 sudo apt-get -f install
 ```
 
@@ -995,8 +1335,8 @@ sudo apt install flatpak flatpak-builder
 ./packaging/flatpak/build.sh
 
 # Install and run locally
-flatpak install --user ./artifacts/org.docking.Docking.flatpak
-flatpak run org.docking.Docking
+flatpak install --user ./artifacts/cc.docking.Docking.flatpak
+flatpak run cc.docking.Docking
 ```
 
 #### Building a Snap package
@@ -1045,10 +1385,10 @@ Runs automatically on `git commit`:
 - **ruff check** -- linting (E, W, F, I rules)
 - **ty check** -- type checking
 - **i18n-pot-sync** -- ensure `docking/locale/docking.pot` matches source strings (`./tools/i18n.sh --check-pot-sync`)
-- **i18n-complete** -- fail if PO catalogs are out-of-sync, fuzzy, or untranslated (`./tools/i18n.sh --check-catalogs --require-complete`)
+- **i18n-catalogs** -- fail if existing PO catalogs have format errors, while allowing untranslated/fuzzy backlog (`./tools/i18n.sh --check-catalogs --allow-incomplete`)
 - **pytest** -- full test suite
 
-Install/update the strict local hook with:
+Install/update the local hook with:
 
 ```bash
 ./tools/install_precommit_hook.sh
@@ -1064,17 +1404,21 @@ GitHub Actions is split across two workflows:
   - **Test matrix**:
     - Ubuntu 22.04 / Python 3.10
     - Ubuntu 24.04 / Python 3.12
+    - Ubuntu 24.04 ARM64 / Python 3.12
     - Debian 11 / Python 3.10
     - Debian 12 / Python 3.12
   - **Coverage**: pytest-cov on Ubuntu with `--cov-fail-under=55`, artifacts uploaded (XML/HTML), optional Codecov upload when token is configured.
   - **Packaging artifacts**:
-    - `.deb` (with install validation)
-    - `.rpm`
-    - `.flatpak`
-    - `.snap`
-    - `.AppImage`
-    - Arch package (`.pkg.tar.*`)
-    - Nix output tarball + store path
+    - `.deb` (x64 and arm64)
+    - `.rpm` (x64 and arm64)
+    - `.flatpak` (x64 and arm64)
+    - `.snap` (x64 and arm64)
+    - `.AppImage` (x64 and arm64)
+    - Arch package (`.pkg.tar.*`, x64 and arm64)
+    - Nix output tarball + store path (x64 and arm64)
+  - **Release naming**:
+    - arch-specific assets use `linux-x86_64` for x64 and `linux-aarch64` for arm64
+    - Debian now follows the same naming and publishes `linux-x86_64.deb` and `linux-aarch64.deb`
   - **Release step (CD)**:
     - Runs on `master` only after all package builds.
     - Reads version from `pyproject.toml`, checks latest GitHub Release, and only releases if version is newer.

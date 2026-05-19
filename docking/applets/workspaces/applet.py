@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Workspaces applet behavior and GTK/Wnck wiring."""
 
 from __future__ import annotations
@@ -15,6 +28,7 @@ gi.require_version("Wnck", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk, Wnck
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.applets.workspaces import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -158,20 +172,25 @@ class WorkspacesApplet(Applet):
             active_number=active.get_number() if active else None
         )
 
-        items: list[Gtk.MenuItem] = []
-        first: Gtk.RadioMenuItem | None = None
-        for ws in workspaces:
-            label = workspace_label(name=ws.get_name(), number=ws.get_number())
-            radio = Gtk.RadioMenuItem(label=label)
-            if first:
-                radio.join_group(first)
-            else:
-                first = radio
-            if ws.get_number() == active_num:
-                radio.set_active(True)
-            radio.connect("activate", self._on_workspace_activate, ws)
-            items.append(radio)
-        return items
+        return menu_sections(
+            display=radio_menu_items(
+                choices=tuple(
+                    (
+                        workspace_label(name=ws.get_name(), number=ws.get_number()),
+                        ws,
+                    )
+                    for ws in workspaces
+                ),
+                active_value=active_num,
+                is_active=lambda ws: ws.get_number() == active_num,
+                on_selected=lambda widget, value: self._on_workspace_activate(
+                    widget,
+                    value,
+                ),
+                gtk=Gtk,
+            ),
+            gtk=Gtk,
+        )
 
     def _on_workspace_activate(
         self, _widget: Gtk.RadioMenuItem, workspace: Wnck.Workspace

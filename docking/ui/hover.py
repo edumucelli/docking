@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Hover coordination for items, tooltips, previews, and short animation pumps.
 
 Why hover needs its own module
@@ -235,7 +248,7 @@ class HoverManager:
         # state updating, but suppress tooltip display until the dock reaches
         # VISIBLE.
         autohide = self._window.autohide
-        if autohide and autohide.enabled and autohide.state == HideState.SHOWING:
+        if autohide.enabled and autohide.state == HideState.SHOWING:
             self._tooltip.hide()
         else:
             # Always refresh tooltip when allowed (item.name may change while
