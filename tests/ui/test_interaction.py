@@ -36,7 +36,9 @@ def _make_window(item: DockItem | None = None):
     window = SimpleNamespace(
         config=SimpleNamespace(pos=Position.BOTTOM),
         model=MagicMock(),
-        theme=SimpleNamespace(item_padding=8, h_padding=10, urgent_glow_time_ms=500),
+        theme=SimpleNamespace(
+            item_padding=8, horizontal_padding=10, urgent_glow_time_ms=500
+        ),
         _menu=MagicMock(),
         tooltip=MagicMock(),
         hover=MagicMock(),

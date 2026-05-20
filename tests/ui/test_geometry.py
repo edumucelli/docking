@@ -28,7 +28,7 @@ def _theme(distance_from_edge: int = 0) -> SimpleNamespace:
     return SimpleNamespace(
         distance_from_edge=distance_from_edge,
         item_padding=8,
-        h_padding=12,
+        horizontal_padding=12,
         top_padding=0,
         bottom_padding=4,
         shelf_height=21,
@@ -200,7 +200,7 @@ class TestDockGeometryFrame:
         left, right = content_bounds(
             layout=list(frame.layout),
             icon_size=48,
-            h_padding=12,
+            horizontal_padding=12,
             item_padding=8,
         )
         shelf_width = right - left

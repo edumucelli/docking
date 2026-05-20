@@ -75,7 +75,7 @@ class _ScenarioHarness:
         )
         self.theme = SimpleNamespace(
             item_padding=8,
-            h_padding=12,
+            horizontal_padding=12,
             top_padding=0,
             bottom_padding=4,
             shelf_height=21,

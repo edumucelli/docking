@@ -597,7 +597,7 @@ class DockRenderer:
         icon_size = config.icon_size
         total_main = sum(item.main_size or icon_size for item in items)
         width = int(
-            theme.h_padding * 2
+            theme.horizontal_padding * 2
             + total_main
             + max(0, num_items - 1) * theme.item_padding
         )

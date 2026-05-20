@@ -94,7 +94,9 @@ def _make_stub(item: DockItem | None = None):
     stub.model = MagicMock()
     stub.model.visible_items.return_value = [item]
     stub.model.get_applet = MagicMock()
-    stub.theme = SimpleNamespace(item_padding=8, h_padding=10, urgent_glow_time_ms=500)
+    stub.theme = SimpleNamespace(
+        item_padding=8, horizontal_padding=10, urgent_glow_time_ms=500
+    )
     stub.window_tracker = MagicMock()
     stub._menu = MagicMock()
     stub._menu.open_folder_stack_item_id.return_value = None
@@ -667,7 +669,7 @@ class TestLeaveEnterFlow:
         theme = SimpleNamespace(
             distance_from_edge=6,
             item_padding=8,
-            h_padding=12,
+            horizontal_padding=12,
             top_padding=0,
             bottom_padding=4,
             shelf_height=21,
@@ -967,7 +969,7 @@ class TestDockWindowStrutsAndRegion:
         theme = SimpleNamespace(
             distance_from_edge=6,
             item_padding=8,
-            h_padding=12,
+            horizontal_padding=12,
             top_padding=0,
             bottom_padding=4,
             shelf_height=21,

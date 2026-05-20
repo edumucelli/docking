@@ -135,6 +135,7 @@ from __future__ import annotations
 import enum
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -163,7 +164,9 @@ _USER_THEME_TEMPLATE = {
     "indicator_color": [80, 80, 80, 200],
     "active_indicator_color": [50, 50, 50, 255],
     "indicator_size": 5,
-    "h_padding": 0,
+    "layout": {
+        "horizontal_padding": 0,
+    },
     "top_padding": -7,
     "bottom_padding": 1,
     "item_padding": 2.5,
@@ -234,6 +237,15 @@ def _multiply_alpha(color: RGBA, multiplier: float) -> RGBA:
     return color[0], color[1], color[2], color[3] * multiplier
 
 
+def _theme_value(data: Mapping[str, Any], path: str, default: Any) -> Any:
+    current: Any = data
+    for part in path.split("."):
+        if not isinstance(current, Mapping) or part not in current:
+            return default
+        current = current[part]
+    return current
+
+
 @dataclass(frozen=True)
 class Theme:
     """Visual theme for the dock.
@@ -254,7 +266,7 @@ class Theme:
 
     # --- Layout (stored as px after scaling) ---
     indicator_radius: float = 2.5
-    h_padding: float = 12.0
+    horizontal_padding: float = 12.0
     top_padding: float = 4.0
     bottom_padding: float = 8.0
     item_padding: float = 6.0
@@ -303,7 +315,8 @@ class Theme:
 
             JSON value   x  scale   =  pixel value
             ---------      -----      -----------
-            h_padding=0     4.8        0.0 px
+            horizontal_padding=0
+                            4.8        0.0 px
             item_padding=2.5 4.8       12.0 px
             top_padding=-7   4.8      -33.6 px  (negative = icons above shelf)
             bottom_padding=1 4.8        4.8 px
@@ -348,9 +361,9 @@ class Theme:
             ================== |   <- shelf bottom = screen bottom
               bottom_offset        (bottom_padding)
 
-        The Plank h_padding fallback:
-            When h_padding <= 0 in the JSON (producing 0px or negative),
-            effective h_padding becomes 2 * stroke_width.  This mirrors
+        The Plank horizontal padding fallback:
+            When horizontal_padding <= 0 in the JSON (producing 0px or negative),
+            effective horizontal_padding becomes 2 * stroke_width.  This mirrors
             Plank's `items_offset = 2*LineWidth + (HorizPadding>0 ? HorizPadding : 0)`.
 
         Animation parameters (bounce heights, durations, etc.) are loaded
@@ -403,11 +416,14 @@ class Theme:
         # indicator_size is stored as raw pixels (diameter), halved to radius.
         indicator_radius = float(data.get("indicator_size", 5)) / 2.0
 
-        # h_padding: Plank fallback -- when JSON value <= 0, use 2*stroke_width
-        raw_h_padding = float(data.get("h_padding", 0))
-        h_padding_px = raw_h_padding * scaled
-        if h_padding_px <= 0:
-            h_padding_px = 2.0 * stroke_width
+        # horizontal_padding: Plank fallback -- when JSON value <= 0,
+        # use 2*stroke_width.
+        raw_horizontal_padding = float(
+            _theme_value(data, "layout.horizontal_padding", 0)
+        )
+        horizontal_padding_px = raw_horizontal_padding * scaled
+        if horizontal_padding_px <= 0:
+            horizontal_padding_px = 2.0 * stroke_width
 
         top_padding_px = float(data.get("top_padding", -7)) * scaled
         bottom_padding_px = float(data.get("bottom_padding", 1)) * scaled
@@ -480,7 +496,7 @@ class Theme:
             indicator_color=indicator_color,
             active_indicator_color=active_indicator_color,
             indicator_radius=indicator_radius,
-            h_padding=h_padding_px,
+            horizontal_padding=horizontal_padding_px,
             top_padding=top_padding_px,
             bottom_padding=bottom_padding_px,
             item_padding=item_padding_px,

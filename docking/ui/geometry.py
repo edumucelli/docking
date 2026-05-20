@@ -532,14 +532,14 @@ def build_geometry_frame(
             config,
             local_cursor_main,
             item_padding=theme.item_padding,
-            h_padding=theme.h_padding,
+            horizontal_padding=theme.horizontal_padding,
             zoom_progress=zoom_progress,
         )
     )
     left_edge, right_edge = content_bounds(
         layout=list(layout),
         icon_size=config.icon_size,
-        h_padding=theme.h_padding,
+        horizontal_padding=theme.horizontal_padding,
         item_padding=theme.item_padding,
     )
     zoomed_w = right_edge - left_edge
@@ -671,7 +671,7 @@ def _local_cursor_main(
 ) -> float:
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL
-    pad = theme.h_padding + theme.item_padding / 2
+    pad = theme.horizontal_padding + theme.item_padding / 2
     total_main = sum(item.main_size or config.icon_size for item in items)
     base_w = pad * 2 + total_main + max(0, len(items) - 1) * theme.item_padding
     return cursor_main - (main_size - base_w) / 2
@@ -954,7 +954,7 @@ def _compute_background_rect(
     gap = max(0, int(theme.distance_from_edge))
     shelf_cross = max(1, round(theme.shelf_height))
     stroke_width = max(0.0, float(theme.stroke_width))
-    main_padding = theme.item_padding + 2 * theme.h_padding + 4 * stroke_width
+    main_padding = theme.item_padding + 2 * theme.horizontal_padding + 4 * stroke_width
 
     if draw_rects:
         if is_horizontal(pos=pos):

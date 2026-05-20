@@ -699,7 +699,7 @@ class TestTooltipIntegrationBranches:
         )
         model = MagicMock()
         model.visible_items.return_value = []
-        theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
+        theme = SimpleNamespace(horizontal_padding=8, item_padding=8, bottom_padding=4)
         tooltip = TooltipManager(window, config, model, theme)
         hide = MagicMock()
         tooltip.hide = hide  # type: ignore[method-assign]
@@ -730,7 +730,7 @@ class TestTooltipIntegrationBranches:
         built_widget = MagicMock()
         item.tooltip_builder = MagicMock(return_value=built_widget)
         model.visible_items.return_value = [item]
-        theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
+        theme = SimpleNamespace(horizontal_padding=8, item_padding=8, bottom_padding=4)
         tooltip = TooltipManager(window, config, model, theme)
         show_tooltip = MagicMock()
         tooltip._show_tooltip = show_tooltip  # type: ignore[method-assign]
