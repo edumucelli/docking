@@ -155,33 +155,48 @@ RGB = tuple[float, float, float]
 RGBA = tuple[float, float, float, float]
 
 _USER_THEME_TEMPLATE = {
-    "fill_start": [222, 222, 222, 240],
-    "fill_end": [247, 247, 247, 240],
-    "stroke": [145, 145, 145, 255],
-    "stroke_width": 1.0,
-    "inner_stroke": [248, 248, 248, 255],
-    "roundness": 5,
-    "indicator_color": [80, 80, 80, 200],
-    "active_indicator_color": [50, 50, 50, 255],
-    "indicator_size": 5,
+    "shelf": {
+        "fill_start_color": [222, 222, 222, 240],
+        "fill_end_color": [247, 247, 247, 240],
+        "stroke_color": [145, 145, 145, 255],
+        "stroke_width_px": 1.0,
+        "inner_stroke_color": [248, 248, 248, 255],
+        "corner_radius_px": 5,
+        "round_bottom": False,
+    },
     "layout": {
         "horizontal_padding": 0,
+        "top_padding": -7,
+        "bottom_padding": 1,
+        "item_padding": 2.5,
+        "distance_from_edge_px": 0,
     },
-    "top_padding": -7,
-    "bottom_padding": 1,
-    "item_padding": 2.5,
-    "urgent_bounce_height": 1.66,
-    "launch_bounce_height": 0.625,
-    "urgent_bounce_time_ms": 600,
-    "launch_bounce_time_ms": 600,
-    "click_time_ms": 300,
-    "hover_lighten": 0.2,
-    "active_time_ms": 150,
-    "max_indicator_dots": 4,
-    "glow_opacity": 0.6,
-    "indicator_style": "dots",
-    "round_bottom": False,
-    "distance_from_edge": 0,
+    "indicators": {
+        "inactive_color": [80, 80, 80, 200],
+        "active_color": [50, 50, 50, 255],
+        "size_px": 5,
+        "style": "dots",
+        "max_dots": 4,
+    },
+    "items": {
+        "hover": {
+            "lighten_amount": 0.2,
+            "fade_ms": 150,
+        },
+        "bounce": {
+            "urgent_height_ratio": 1.66,
+            "launch_height_ratio": 0.625,
+            "urgent_time_ms": 600,
+            "launch_time_ms": 600,
+            "click_time_ms": 300,
+        },
+        "glow": {
+            "opacity_ratio": 0.6,
+            "urgent_time_ms": 10000,
+            "urgent_pulse_ms": 2000,
+            "urgent_size_ratio": 0.6,
+        },
+    },
 }
 
 
@@ -196,12 +211,29 @@ def ensure_user_theme_template() -> None:
     directory = user_themes_dir()
     template = directory / f"{_USER_THEME_TEMPLATE_NAME}.json"
     if template.exists():
+        _migrate_existing_user_theme_template(path=template, directory=directory)
         return
     directory.mkdir(parents=True, exist_ok=True)
     template.write_text(
         json.dumps(_USER_THEME_TEMPLATE, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def _migrate_existing_user_theme_template(*, path: Path, directory: Path) -> None:
+    try:
+        with path.open(encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception as exc:
+        log.warning("Failed to inspect user theme template %s: %s", path, exc)
+        return
+    if not isinstance(data, dict):
+        log.warning(
+            "User theme template %s is not a JSON object; leaving it unchanged",
+            path,
+        )
+        return
+    migrate_loaded_theme_data(data=data, path=path, user_theme_dir=directory)
 
 
 def _theme_paths(name: str) -> list[Path]:

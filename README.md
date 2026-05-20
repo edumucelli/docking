@@ -270,7 +270,19 @@ Theme examples:
 
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
 
-Theme layout also controls edge spacing through `distance_from_edge`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
+Theme field names use suffixes to make value types clear:
+
+- `_px` means a raw pixel value in JSON/runtime, such as `shelf.stroke_width_px` or `layout.distance_from_edge_px`.
+- No unit suffix means a theme scale unit in JSON, converted to pixels at runtime, such as `layout.horizontal_padding`, `layout.top_padding`, `layout.bottom_padding`, and `layout.item_padding`.
+- `_ms` means milliseconds.
+- `_ratio` means a relative fraction, such as a bounce height relative to icon size.
+- `_color` means an RGBA color array stored as `[red, green, blue, alpha]` in 0-255 values.
+
+Boolean, enum/string-choice, and count fields are exceptions and stay semantic without a type suffix, for example `shelf.round_bottom`, `indicators.style`, and `indicators.max_dots`.
+
+Theme layout also controls edge spacing through `layout.distance_from_edge_px`, which is how floating themes such as `slate` keep the dock visually separated from the screen edge.
+
+Older flat theme fields such as `h_padding` are migrated automatically when a user theme is loaded.
 
 **Creating a custom theme:**
 - Docking creates `~/.config/docking/themes/template.json` on startup.

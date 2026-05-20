@@ -9,6 +9,7 @@ import pytest
 import docking.core.theme.migration as theme_migration_mod
 from docking.core.theme import (
     _USER_THEME_TEMPLATE_NAME,
+    DEPRECATED_THEME_KEYS,
     Theme,
     _rgba,
     ensure_user_theme_template,
@@ -117,7 +118,7 @@ class TestThemeLoad:
         template_data = json.loads(template.read_text(encoding="utf-8"))
         assert template.exists()
         assert template_data["layout"]["horizontal_padding"] == 0
-        assert "h_padding" not in template_data
+        assert not (set(template_data) & set(DEPRECATED_THEME_KEYS))
         assert _USER_THEME_TEMPLATE_NAME not in names
         assert "default" in names
 
@@ -129,9 +130,7 @@ class TestThemeLoad:
         template = user_themes_dir() / f"{_USER_THEME_TEMPLATE_NAME}.json"
         assert template.exists()
 
-    def test_existing_user_theme_template_is_not_overwritten(
-        self, tmp_path, monkeypatch
-    ):
+    def test_existing_user_theme_template_is_migrated(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
         template = user_themes_dir() / f"{_USER_THEME_TEMPLATE_NAME}.json"
         template.parent.mkdir(parents=True)
@@ -139,7 +138,12 @@ class TestThemeLoad:
 
         ensure_user_theme_template()
 
-        assert template.read_text(encoding="utf-8") == '{"roundness": 33}\n'
+        data = json.loads(template.read_text(encoding="utf-8"))
+        backup = theme_migration_mod._theme_migration_backup_path(template)
+        assert data["shelf"]["corner_radius_px"] == 33
+        assert "roundness" not in data
+        assert backup.exists()
+        assert json.loads(backup.read_text(encoding="utf-8")) == {"roundness": 33}
 
     @pytest.mark.parametrize(
         ("theme_name", "expected_roundness"),

@@ -31,6 +31,14 @@ _THEME_MIGRATION_BACKUP_SUFFIX = ".pre-nested-schema.bak"
 _THEME_SAVE_LOCK = threading.RLock()
 log = get_logger("theme")
 
+# Theme schema naming convention:
+# - `_px`: raw pixel values in JSON/runtime.
+# - no unit suffix: theme scale units in JSON, converted to pixels at runtime.
+# - `_ms`: milliseconds.
+# - `_ratio`: relative fractions.
+# - `_color`: RGBA color arrays.
+# Boolean, enum/string-choice, and count fields stay semantic without a type
+# suffix, for example `shelf.round_bottom`, `indicators.style`, `max_dots`.
 DEPRECATED_THEME_KEYS: dict[str, str] = {
     "fill_start": "shelf.fill_start_color",
     "fill_end": "shelf.fill_end_color",
