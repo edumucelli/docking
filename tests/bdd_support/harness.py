@@ -207,7 +207,7 @@ class DockHarness:
                 _redraw_source_id=None,
                 hit_test=MagicMock(return_value=self._folder_item),
                 model=MagicMock(),
-                theme=SimpleNamespace(item_padding=8, h_padding=10),
+                theme=SimpleNamespace(item_padding=8, horizontal_padding=10),
                 window_tracker=MagicMock(),
                 tooltip=MagicMock(),
                 preview=None,
@@ -452,7 +452,7 @@ class DockHarness:
         )
         model = MagicMock()
         renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
-        theme = SimpleNamespace(item_padding=8, h_padding=10)
+        theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
         launcher = MagicMock()
         pointer = MagicMock()
         pointer.get_position.return_value = (None, 0, 0)
@@ -562,7 +562,7 @@ class DockHarness:
         )
         self._hover_theme = SimpleNamespace(
             item_padding=8,
-            h_padding=10,
+            horizontal_padding=10,
             bottom_padding=12,
             launch_bounce_height=0.5,
         )

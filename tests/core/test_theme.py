@@ -114,7 +114,10 @@ class TestThemeLoad:
         names = list_theme_names()
 
         template = user_themes_dir() / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        template_data = json.loads(template.read_text(encoding="utf-8"))
         assert template.exists()
+        assert template_data["layout"]["horizontal_padding"] == 0
+        assert "h_padding" not in template_data
         assert _USER_THEME_TEMPLATE_NAME not in names
         assert "default" in names
 
@@ -339,24 +342,66 @@ class TestScalingUnit:
         assert t64.top_padding == pytest.approx(t48.top_padding * ratio, rel=1e-6)
         assert t64.bottom_padding == pytest.approx(t48.bottom_padding * ratio, rel=1e-6)
 
-    def test_h_padding_fallback_when_zero(self):
+    def test_horizontal_padding_fallback_when_zero(self):
         # Given
-        # When h_padding <= 0, fallback = 2 * stroke_width = 2.0
+        # When horizontal_padding <= 0, fallback = 2 * stroke_width = 2.0
         t = Theme.load("default", 48)
         # Then
-        assert t.h_padding == pytest.approx(2.0)
+        assert t.horizontal_padding == pytest.approx(2.0)
 
-    def test_h_padding_positive_uses_scaled(self, tmp_path):
+    def test_legacy_h_padding_migrates_to_nested_horizontal_padding(
+        self, tmp_path, monkeypatch
+    ):
         # Given
         # 3 * 4.8 = 14.4 > 0, so no fallback
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
         theme_data = {"h_padding": 3, "stroke_width": 1.0}
+        theme_file = directory / "pos.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        # When
+        t = Theme.load("pos", 48)
+        # Then
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.horizontal_padding == pytest.approx(14.4)
+        assert migrated["layout"]["horizontal_padding"] == 3
+        assert "h_padding" not in migrated
+
+    def test_nested_horizontal_padding_uses_scaled(self, tmp_path):
+        # Given
+        theme_data = {"layout": {"horizontal_padding": 3}, "stroke_width": 1.0}
         theme_file = tmp_path / "pos.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
         with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("pos", 48)
         # Then
-        assert t.h_padding == pytest.approx(14.4)
+        assert t.horizontal_padding == pytest.approx(14.4)
+
+    def test_nested_horizontal_padding_wins_over_legacy(self, tmp_path, monkeypatch):
+        # Given
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        theme_file.write_text(
+            json.dumps(
+                {
+                    "h_padding": 1,
+                    "layout": {"horizontal_padding": 3},
+                    "stroke_width": 1.0,
+                }
+            ),
+            encoding="utf-8",
+        )
+        # When
+        t = Theme.load("custom", 48)
+        # Then
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.horizontal_padding == pytest.approx(14.4)
+        assert migrated["layout"]["horizontal_padding"] == 3
+        assert "h_padding" not in migrated
 
     def test_indicator_radius_from_size(self):
         # Given

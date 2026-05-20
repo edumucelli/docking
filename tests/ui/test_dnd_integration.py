@@ -53,7 +53,7 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         save=MagicMock(),
     )
     renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
-    theme = SimpleNamespace(item_padding=8, h_padding=10)
+    theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
     launcher = MagicMock()
     autohide = SimpleNamespace(
         enabled=True,

@@ -31,10 +31,9 @@ _THEME_MIGRATION_BACKUP_SUFFIX = ".pre-nested-schema.bak"
 _THEME_SAVE_LOCK = threading.RLock()
 log = get_logger("theme")
 
-# Future migrations should add entries like:
-#     "h_padding": "layout.horizontal_padding"
-# Keep this empty until a PR introduces the first real rename.
-DEPRECATED_THEME_KEYS: dict[str, str] = {}
+DEPRECATED_THEME_KEYS: dict[str, str] = {
+    "h_padding": "layout.horizontal_padding",
+}
 
 
 @dataclass(frozen=True)
