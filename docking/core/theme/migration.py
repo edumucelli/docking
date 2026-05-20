@@ -32,7 +32,34 @@ _THEME_SAVE_LOCK = threading.RLock()
 log = get_logger("theme")
 
 DEPRECATED_THEME_KEYS: dict[str, str] = {
+    "fill_start": "shelf.fill_start_color",
+    "fill_end": "shelf.fill_end_color",
+    "stroke": "shelf.stroke_color",
+    "stroke_width": "shelf.stroke_width_px",
+    "inner_stroke": "shelf.inner_stroke_color",
+    "roundness": "shelf.corner_radius_px",
+    "indicator_color": "indicators.inactive_color",
+    "active_indicator_color": "indicators.active_color",
+    "indicator_size": "indicators.size_px",
     "h_padding": "layout.horizontal_padding",
+    "top_padding": "layout.top_padding",
+    "bottom_padding": "layout.bottom_padding",
+    "item_padding": "layout.item_padding",
+    "urgent_bounce_height": "items.bounce.urgent_height_ratio",
+    "launch_bounce_height": "items.bounce.launch_height_ratio",
+    "urgent_bounce_time_ms": "items.bounce.urgent_time_ms",
+    "launch_bounce_time_ms": "items.bounce.launch_time_ms",
+    "click_time_ms": "items.bounce.click_time_ms",
+    "hover_lighten": "items.hover.lighten_amount",
+    "active_time_ms": "items.hover.fade_ms",
+    "max_indicator_dots": "indicators.max_dots",
+    "glow_opacity": "items.glow.opacity_ratio",
+    "urgent_glow_time_ms": "items.glow.urgent_time_ms",
+    "urgent_glow_pulse_ms": "items.glow.urgent_pulse_ms",
+    "urgent_glow_size": "items.glow.urgent_size_ratio",
+    "indicator_style": "indicators.style",
+    "round_bottom": "shelf.round_bottom",
+    "distance_from_edge": "layout.distance_from_edge_px",
 }
 
 

@@ -171,6 +171,111 @@ class TestThemeLoad:
         assert t.roundness > t.shelf_height / 2
         assert t.fill_start[3] > 0.9
 
+    def test_load_final_nested_theme_schema(self, tmp_path):
+        theme_data = {
+            "shelf": {
+                "fill_start_color": [1, 2, 3, 128],
+                "fill_end_color": [4, 5, 6, 129],
+                "stroke_color": [7, 8, 9, 130],
+                "stroke_width_px": 2.0,
+                "inner_stroke_color": [10, 11, 12, 131],
+                "corner_radius_px": 11,
+                "round_bottom": True,
+            },
+            "layout": {
+                "horizontal_padding": 3,
+                "top_padding": 2,
+                "bottom_padding": 1.5,
+                "item_padding": 2.5,
+                "distance_from_edge_px": 6,
+            },
+            "indicators": {
+                "inactive_color": [13, 14, 15, 132],
+                "active_color": [16, 17, 18, 133],
+                "size_px": 7,
+                "style": "dashes",
+                "max_dots": 9,
+            },
+            "items": {
+                "hover": {
+                    "lighten_amount": 0.33,
+                    "fade_ms": 222,
+                },
+                "bounce": {
+                    "urgent_height_ratio": 1.2,
+                    "launch_height_ratio": 0.4,
+                    "urgent_time_ms": 700,
+                    "launch_time_ms": 800,
+                    "click_time_ms": 250,
+                },
+                "glow": {
+                    "opacity_ratio": 0.44,
+                    "urgent_time_ms": 9000,
+                    "urgent_pulse_ms": 1200,
+                    "urgent_size_ratio": 0.7,
+                },
+            },
+        }
+        theme_file = tmp_path / "nested.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("nested", 48)
+
+        assert t.fill_start == pytest.approx((1 / 255, 2 / 255, 3 / 255, 128 / 255))
+        assert t.fill_end == pytest.approx((4 / 255, 5 / 255, 6 / 255, 129 / 255))
+        assert t.stroke == pytest.approx((7 / 255, 8 / 255, 9 / 255, 130 / 255))
+        assert t.stroke_width == pytest.approx(2.0)
+        assert t.inner_stroke == pytest.approx(
+            (10 / 255, 11 / 255, 12 / 255, 131 / 255)
+        )
+        assert t.roundness == 11.0
+        assert t.round_bottom is True
+        assert t.horizontal_padding == pytest.approx(14.4)
+        assert t.top_padding == pytest.approx(9.6)
+        assert t.bottom_padding == pytest.approx(7.2)
+        assert t.item_padding == pytest.approx(12.0)
+        assert t.distance_from_edge == 6
+        assert t.indicator_color == pytest.approx(
+            (13 / 255, 14 / 255, 15 / 255, 132 / 255)
+        )
+        assert t.active_indicator_color == pytest.approx(
+            (16 / 255, 17 / 255, 18 / 255, 133 / 255)
+        )
+        assert t.indicator_radius == pytest.approx(3.5)
+        assert t.indicator_style.value == "dashes"
+        assert t.max_indicator_dots == 9
+        assert t.hover_lighten == pytest.approx(0.33)
+        assert t.active_time_ms == 222
+        assert t.urgent_bounce_height == pytest.approx(1.2)
+        assert t.launch_bounce_height == pytest.approx(0.4)
+        assert t.urgent_bounce_time_ms == 700
+        assert t.launch_bounce_time_ms == 800
+        assert t.click_time_ms == 250
+        assert t.glow_opacity == pytest.approx(0.44)
+        assert t.urgent_glow_time_ms == 9000
+        assert t.urgent_glow_pulse_ms == 1200
+        assert t.urgent_glow_size == pytest.approx(0.7)
+
+    def test_partial_nested_theme_uses_defaults(self, tmp_path):
+        theme_data = {
+            "shelf": {"fill_start_color": [1, 2, 3, 4]},
+            "layout": {},
+            "items": {"hover": {"fade_ms": 200}},
+        }
+        theme_file = tmp_path / "partial.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("partial", 48)
+
+        assert t.fill_start == pytest.approx((1 / 255, 2 / 255, 3 / 255, 4 / 255))
+        assert t.fill_end == pytest.approx((30 / 255, 30 / 255, 30 / 255, 220 / 255))
+        assert t.horizontal_padding == pytest.approx(2.0)
+        assert t.item_padding == pytest.approx(12.0)
+        assert t.active_time_ms == 200
+        assert t.hover_lighten == pytest.approx(0.2)
+
 
 class TestThemeMigration:
     def test_migrate_theme_dict_is_idempotent_without_registered_keys(self):
@@ -235,7 +340,10 @@ class TestThemeMigration:
         monkeypatch.setattr(
             theme_migration_mod,
             "DEPRECATED_THEME_KEYS",
-            {"legacy_padding": "layout.horizontal_padding"},
+            {
+                "legacy_padding": "layout.horizontal_padding",
+                "roundness": "shelf.corner_radius_px",
+            },
         )
         directory = user_themes_dir()
         directory.mkdir(parents=True)
@@ -274,7 +382,7 @@ class TestThemeMigration:
         monkeypatch.setattr(
             theme_migration_mod,
             "DEPRECATED_THEME_KEYS",
-            {"legacy_roundness": "roundness"},
+            {"legacy_roundness": "shelf.corner_radius_px"},
         )
 
         def raise_permission(**_kwargs):
@@ -297,6 +405,85 @@ class TestThemeMigration:
         assert theme.roundness == 19.0
         assert json.loads(theme_file.read_text(encoding="utf-8")) == original
         assert "Failed to rewrite migrated user theme" in caplog.text
+
+    def test_flat_user_theme_migrates_to_final_nested_schema(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "flat.json"
+        theme_file.write_text(
+            json.dumps(
+                {
+                    "fill_start": [1, 2, 3, 4],
+                    "stroke_width": 2.0,
+                    "roundness": 10,
+                    "indicator_color": [5, 6, 7, 8],
+                    "indicator_size": 9,
+                    "top_padding": 2,
+                    "urgent_bounce_height": 1.2,
+                    "active_time_ms": 210,
+                    "glow_opacity": 0.5,
+                    "round_bottom": True,
+                    "distance_from_edge": 6,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        t = Theme.load("flat", 48)
+
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.fill_start == pytest.approx((1 / 255, 2 / 255, 3 / 255, 4 / 255))
+        assert t.stroke_width == pytest.approx(2.0)
+        assert t.roundness == 10.0
+        assert t.indicator_color == pytest.approx((5 / 255, 6 / 255, 7 / 255, 8 / 255))
+        assert t.indicator_radius == pytest.approx(4.5)
+        assert t.top_padding == pytest.approx(9.6)
+        assert t.urgent_bounce_height == pytest.approx(1.2)
+        assert t.active_time_ms == 210
+        assert t.glow_opacity == pytest.approx(0.5)
+        assert t.round_bottom is True
+        assert t.distance_from_edge == 6
+        assert "fill_start" not in migrated
+        assert "stroke_width" not in migrated
+        assert "indicator_color" not in migrated
+        assert migrated["shelf"]["fill_start_color"] == [1, 2, 3, 4]
+        assert migrated["shelf"]["stroke_width_px"] == 2.0
+        assert migrated["shelf"]["corner_radius_px"] == 10
+        assert migrated["shelf"]["round_bottom"] is True
+        assert migrated["layout"]["top_padding"] == 2
+        assert migrated["layout"]["distance_from_edge_px"] == 6
+        assert migrated["indicators"]["inactive_color"] == [5, 6, 7, 8]
+        assert migrated["indicators"]["size_px"] == 9
+        assert migrated["items"]["bounce"]["urgent_height_ratio"] == 1.2
+        assert migrated["items"]["hover"]["fade_ms"] == 210
+        assert migrated["items"]["glow"]["opacity_ratio"] == 0.5
+
+    def test_final_nested_value_wins_over_legacy_flat_value(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "mixed.json"
+        theme_file.write_text(
+            json.dumps(
+                {
+                    "fill_start": [1, 1, 1, 255],
+                    "shelf": {"fill_start_color": [2, 3, 4, 255]},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        t = Theme.load("mixed", 48)
+
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.fill_start == pytest.approx((2 / 255, 3 / 255, 4 / 255, 1.0))
+        assert "fill_start" not in migrated
+        assert migrated["shelf"]["fill_start_color"] == [2, 3, 4, 255]
 
 
 class TestScalingUnit:
