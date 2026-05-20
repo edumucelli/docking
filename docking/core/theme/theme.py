@@ -399,22 +399,30 @@ class Theme:
         scaled = icon_size / 10.0
 
         # --- Colors (not scaled, just converted 0-255 -> 0.0-1.0) ---
-        fill_start = _rgba(values=data.get("fill_start", [40, 40, 40, 220]))
-        fill_end = _rgba(values=data.get("fill_end", [30, 30, 30, 220]))
-        stroke = _rgba(values=data.get("stroke", [41, 41, 41, 255]))
-        stroke_width = float(data.get("stroke_width", 1.0))
-        inner_stroke = _rgba(values=data.get("inner_stroke", [255, 255, 255, 255]))
-        roundness = float(data.get("roundness", 4.0))
+        fill_start = _rgba(
+            values=_theme_value(data, "shelf.fill_start_color", [40, 40, 40, 220])
+        )
+        fill_end = _rgba(
+            values=_theme_value(data, "shelf.fill_end_color", [30, 30, 30, 220])
+        )
+        stroke = _rgba(
+            values=_theme_value(data, "shelf.stroke_color", [41, 41, 41, 255])
+        )
+        stroke_width = float(_theme_value(data, "shelf.stroke_width_px", 1.0))
+        inner_stroke = _rgba(
+            values=_theme_value(data, "shelf.inner_stroke_color", [255, 255, 255, 255])
+        )
+        roundness = float(_theme_value(data, "shelf.corner_radius_px", 4.0))
         indicator_color = _rgba(
-            values=data.get("indicator_color", [255, 255, 255, 200])
+            values=_theme_value(data, "indicators.inactive_color", [255, 255, 255, 200])
         )
         active_indicator_color = _rgba(
-            values=data.get("active_indicator_color", [100, 180, 255, 255])
+            values=_theme_value(data, "indicators.active_color", [100, 180, 255, 255])
         )
 
         # --- Layout values: JSON scaling unit -> pixels ---
         # indicator_size is stored as raw pixels (diameter), halved to radius.
-        indicator_radius = float(data.get("indicator_size", 5)) / 2.0
+        indicator_radius = float(_theme_value(data, "indicators.size_px", 5)) / 2.0
 
         # horizontal_padding: Plank fallback -- when JSON value <= 0,
         # use 2*stroke_width.
@@ -425,9 +433,11 @@ class Theme:
         if horizontal_padding_px <= 0:
             horizontal_padding_px = 2.0 * stroke_width
 
-        top_padding_px = float(data.get("top_padding", -7)) * scaled
-        bottom_padding_px = float(data.get("bottom_padding", 1)) * scaled
-        item_padding_px = float(data.get("item_padding", 2.5)) * scaled
+        top_padding_px = float(_theme_value(data, "layout.top_padding", -7)) * scaled
+        bottom_padding_px = (
+            float(_theme_value(data, "layout.bottom_padding", 1)) * scaled
+        )
+        item_padding_px = float(_theme_value(data, "layout.item_padding", 2.5)) * scaled
 
         # --- Derive shelf_height ---
         #
@@ -460,19 +470,33 @@ class Theme:
         shelf_height = max(0.0, icon_size + top_offset + bottom_offset)
 
         # --- Animation params (direct values, not scaled) ---
-        urgent_bounce_height = float(data.get("urgent_bounce_height", 1.66))
-        launch_bounce_height = float(data.get("launch_bounce_height", 0.625))
-        urgent_bounce_time_ms = int(data.get("urgent_bounce_time_ms", 600))
-        launch_bounce_time_ms = int(data.get("launch_bounce_time_ms", 600))
-        click_time_ms = int(data.get("click_time_ms", 300))
-        hover_lighten = float(data.get("hover_lighten", 0.2))
-        active_time_ms = int(data.get("active_time_ms", 150))
-        max_indicator_dots = int(data.get("max_indicator_dots", 4))
-        glow_opacity = float(data.get("glow_opacity", 0.6))
-        urgent_glow_time_ms = int(data.get("urgent_glow_time_ms", 10000))
-        urgent_glow_pulse_ms = int(data.get("urgent_glow_pulse_ms", 2000))
-        urgent_glow_size = float(data.get("urgent_glow_size", 0.6))
-        raw_indicator_style = data.get("indicator_style", "dots")
+        urgent_bounce_height = float(
+            _theme_value(data, "items.bounce.urgent_height_ratio", 1.66)
+        )
+        launch_bounce_height = float(
+            _theme_value(data, "items.bounce.launch_height_ratio", 0.625)
+        )
+        urgent_bounce_time_ms = int(
+            _theme_value(data, "items.bounce.urgent_time_ms", 600)
+        )
+        launch_bounce_time_ms = int(
+            _theme_value(data, "items.bounce.launch_time_ms", 600)
+        )
+        click_time_ms = int(_theme_value(data, "items.bounce.click_time_ms", 300))
+        hover_lighten = float(_theme_value(data, "items.hover.lighten_amount", 0.2))
+        active_time_ms = int(_theme_value(data, "items.hover.fade_ms", 150))
+        max_indicator_dots = int(_theme_value(data, "indicators.max_dots", 4))
+        glow_opacity = float(_theme_value(data, "items.glow.opacity_ratio", 0.6))
+        urgent_glow_time_ms = int(
+            _theme_value(data, "items.glow.urgent_time_ms", 10000)
+        )
+        urgent_glow_pulse_ms = int(
+            _theme_value(data, "items.glow.urgent_pulse_ms", 2000)
+        )
+        urgent_glow_size = float(
+            _theme_value(data, "items.glow.urgent_size_ratio", 0.6)
+        )
+        raw_indicator_style = _theme_value(data, "indicators.style", "dots")
         try:
             indicator_style = IndicatorStyle(raw_indicator_style)
         except ValueError as exc:
@@ -483,8 +507,8 @@ class Theme:
                 exc,
             )
             indicator_style = IndicatorStyle.DOTS
-        round_bottom = bool(data.get("round_bottom", False))
-        distance_from_edge = int(data.get("distance_from_edge", 0))
+        round_bottom = bool(_theme_value(data, "shelf.round_bottom", False))
+        distance_from_edge = int(_theme_value(data, "layout.distance_from_edge_px", 0))
 
         return cls(
             fill_start=fill_start,
