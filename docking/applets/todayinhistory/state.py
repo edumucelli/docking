@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import html
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -23,6 +22,7 @@ from importlib import resources
 from typing import Any
 from urllib.request import Request, urlopen
 
+from docking.applets.text import normalize_text
 from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -48,11 +48,6 @@ class HistoryEvent:
     article_title: str = ""
     article_url: str = ""
     source_label: str = _WIKIPEDIA_SOURCE
-
-
-def normalize_text(text: str) -> str:
-    clean = html.unescape(text).replace("\n", " ").replace("\r", " ").strip()
-    return " ".join(clean.split())
 
 
 def format_history_event(event: HistoryEvent) -> str:

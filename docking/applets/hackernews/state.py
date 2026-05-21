@@ -24,7 +24,6 @@ test without a desktop session.
 from __future__ import annotations
 
 import datetime as dt
-import html
 import json
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
@@ -38,6 +37,7 @@ from docking.applets.live_state import (
     refresh_recovery_label,
     resolve_live_status,
 )
+from docking.applets.text import normalize_text
 from docking.applets.tooltip import structured_tooltip
 from docking.core.math import clamp_index
 from docking.i18n import _
@@ -95,12 +95,6 @@ class HackerNewsPage:
     stories: tuple[HackerNewsStory, ...]
     next_offset: int
     has_more: bool
-
-
-def normalize_text(value: object) -> str:
-    """Normalize API text fields for compact tooltip/menu display."""
-    text = html.unescape(str(value or ""))
-    return " ".join(text.replace("\n", " ").replace("\r", " ").split()).strip()
 
 
 def story_rank(*, index: int, count: int) -> str:
