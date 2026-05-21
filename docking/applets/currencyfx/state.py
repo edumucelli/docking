@@ -54,6 +54,7 @@ from docking.applets.live_state import (
 )
 from docking.applets.tooltip import structured_tooltip
 from docking.applets.unitconverter.state import Unit, fetch_currency_rates
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -206,7 +207,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> CurrencyFxPrefs:
         active_index = int(prefs.get("active_index", 0))
     except (TypeError, ValueError):
         active_index = 0
-    active_index = max(0, min(active_index, len(pairs) - 1))
+    active_index = clamp_index(active_index, len(pairs))
 
     return CurrencyFxPrefs(
         pairs=pairs,
@@ -235,7 +236,7 @@ def prefs_payload(
     file stays canonical after any menu or dialog action.
     """
     normalized_pairs = normalize_pairs(pairs)
-    active_index = max(0, min(active_index, len(normalized_pairs) - 1))
+    active_index = clamp_index(active_index, len(normalized_pairs))
     interval = normalize_chart_interval(chart_interval)
     return {
         "pairs": [

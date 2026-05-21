@@ -39,6 +39,7 @@ from docking.applets.live_state import (
     resolve_live_status,
 )
 from docking.applets.tooltip import structured_tooltip
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -137,7 +138,7 @@ def normalize_active_index(*, index: int, count: int) -> int:
     """Clamp active index for the current story list."""
     if count <= 0:
         return 0
-    return max(0, min(index, count - 1))
+    return clamp_index(index, count)
 
 
 def build_tooltip(

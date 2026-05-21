@@ -34,6 +34,7 @@ from docking.applets.sunrise.state import (
     SolarSnapshot,
     icon_label,
 )
+from docking.core.math import clamp
 
 RGBA = tuple[float, float, float, float]
 
@@ -329,8 +330,8 @@ def _stroke_segment(
     end_minute: float,
     color: RGBA,
 ) -> None:
-    start = max(0.0, min(float(DAY_MINUTES), start_minute))
-    end = max(0.0, min(float(DAY_MINUTES), end_minute))
+    start = clamp(start_minute, 0.0, float(DAY_MINUTES))
+    end = clamp(end_minute, 0.0, float(DAY_MINUTES))
     if end <= start:
         return
     cr.set_source_rgba(*color)
