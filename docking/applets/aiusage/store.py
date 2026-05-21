@@ -22,6 +22,7 @@ from pathlib import Path
 
 from docking.applets.aiusage import state as aiusage_state
 from docking.core.paths import ensure_parent_dir
+from docking.core.serialization import safe_json_load
 from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
 
@@ -37,11 +38,8 @@ def config_path() -> Path:
 
 def read_prefs_from_disk() -> dict | None:
     """Read aiusage prefs directly from dock.json on disk."""
-    path = config_path()
-    try:
-        config = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        log.debug("Failed to read AI usage prefs from %s: %s", path, exc)
+    config = safe_json_load(config_path(), default=None)
+    if not isinstance(config, dict):
         return None
     prefs = config.get("applet_prefs", {})
     return prefs.get(PREFS_KEY) or prefs.get(PREFS_KEY_LEGACY)
