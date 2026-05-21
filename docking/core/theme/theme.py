@@ -134,14 +134,15 @@ from __future__ import annotations
 
 import enum
 import json
-import os
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from docking.core.paths import ensure_dir
 from docking.core.theme.migration import migrate_loaded_theme_data
 from docking.log import get_logger
+from docking.platform.environment import docking_config_dir
 
 # Bundled themes directory (relative to package)
 _BUILTIN_THEMES_DIR = (
@@ -202,8 +203,7 @@ _USER_THEME_TEMPLATE = {
 
 def user_themes_dir() -> Path:
     """Return the user-writable theme directory."""
-    config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return config_home / "docking" / "themes"
+    return docking_config_dir() / "themes"
 
 
 def ensure_user_theme_template() -> None:
@@ -213,7 +213,7 @@ def ensure_user_theme_template() -> None:
     if template.exists():
         _migrate_existing_user_theme_template(path=template, directory=directory)
         return
-    directory.mkdir(parents=True, exist_ok=True)
+    ensure_dir(directory)
     template.write_text(
         json.dumps(_USER_THEME_TEMPLATE, indent=2) + "\n",
         encoding="utf-8",

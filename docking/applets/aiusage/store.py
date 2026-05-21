@@ -21,7 +21,9 @@ import os
 from pathlib import Path
 
 from docking.applets.aiusage import state as aiusage_state
+from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
+from docking.platform.environment import docking_config_dir
 
 PREFS_KEY = "aiusage"
 PREFS_KEY_LEGACY = "claude"
@@ -30,9 +32,7 @@ log = get_logger("aiusage.store")
 
 
 def config_path() -> Path:
-    xdg = os.environ.get("XDG_CONFIG_HOME", "")
-    base = Path(xdg) if xdg else Path.home() / ".config"
-    return base / "docking" / "dock.json"
+    return docking_config_dir() / "dock.json"
 
 
 def read_prefs_from_disk() -> dict | None:
@@ -57,7 +57,7 @@ def replace_session(
         return
 
     path = config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_parent_dir(path)
 
     fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o644)
     try:

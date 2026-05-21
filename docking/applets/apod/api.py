@@ -21,14 +21,14 @@ one image download per day.
 from __future__ import annotations
 
 import json
-import os
 import urllib.request
-from pathlib import Path
 from typing import NamedTuple
 
 from docking.applets.apod import meta
 from docking.applets.apod.state import ApodResult, build_page_url
+from docking.core.paths import ensure_dir
 from docking.log import get_logger, with_context
+from docking.platform.environment import docking_cache_dir
 
 log = with_context(get_logger(name="apod.api"), applet_id=meta.id)
 
@@ -37,9 +37,7 @@ DEFAULT_API_KEY = "DEMO_KEY"
 USER_AGENT = "docking-apod/1.0"
 REQUEST_TIMEOUT_S = 20.0
 
-CACHE_DIR = (
-    Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "docking" / "apod"
-)
+CACHE_DIR = docking_cache_dir() / "apod"
 
 
 class ApodError(NamedTuple):
@@ -112,7 +110,7 @@ def _fetch_json(*, api_key: str) -> dict:
 
 
 def _download_image(*, url: str, date_iso: str) -> str:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_dir(CACHE_DIR)
     suffix = _suffix_for_url(url)
     path = CACHE_DIR / f"{date_iso or 'unknown'}{suffix}"
     if path.exists() and path.stat().st_size > 0:

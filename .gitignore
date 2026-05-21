@@ -15,6 +15,7 @@ htmlcov/
 .ruff_cache/
 .pybuild/
 .claude/
+AGENTS.md
 artifacts/
 AppDir/
 result-nix
