@@ -1,57 +1,41 @@
 {
-  "fill_start": [
-    253,
-    246,
-    227,
-    245
-  ],
-  "fill_end": [
-    238,
-    232,
-    213,
-    245
-  ],
-  "stroke": [
-    147,
-    161,
-    161,
-    255
-  ],
-  "stroke_width": 1.0,
-  "inner_stroke": [
-    255,
-    255,
-    255,
-    210
-  ],
-  "roundness": 5,
-  "indicator_color": [
-    88,
-    110,
-    117,
-    210
-  ],
-  "active_indicator_color": [
-    38,
-    139,
-    210,
-    255
-  ],
-  "indicator_size": 5,
-  "h_padding": 0,
-  "top_padding": -7,
-  "bottom_padding": 1,
-  "item_padding": 2.5,
-  "urgent_bounce_height": 1.66,
-  "launch_bounce_height": 0.625,
-  "urgent_bounce_time_ms": 600,
-  "launch_bounce_time_ms": 600,
-  "click_time_ms": 300,
-  "hover_lighten": 0.2,
-  "active_time_ms": 150,
-  "max_indicator_dots": 4,
-  "glow_opacity": 0.6,
-  "indicator_style": "dots",
-  "round_bottom": false,
-  "distance_from_edge": 0
+  "shelf": {
+    "fill_start_color": [253, 246, 227, 245],
+    "fill_end_color": [238, 232, 213, 245],
+    "stroke_color": [147, 161, 161, 255],
+    "stroke_width_px": 1.0,
+    "inner_stroke_color": [255, 255, 255, 210],
+    "corner_radius_px": 5,
+    "round_bottom": false
+  },
+  "layout": {
+    "horizontal_padding": 0,
+    "top_padding": -7,
+    "bottom_padding": 1,
+    "item_padding": 2.5,
+    "distance_from_edge_px": 0
+  },
+  "indicators": {
+    "inactive_color": [88, 110, 117, 210],
+    "active_color": [38, 139, 210, 255],
+    "size_px": 5,
+    "style": "dots",
+    "max_dots": 4
+  },
+  "items": {
+    "hover": {
+      "lighten_amount": 0.2,
+      "fade_ms": 150
+    },
+    "bounce": {
+      "urgent_height_ratio": 1.66,
+      "launch_height_ratio": 0.625,
+      "urgent_time_ms": 600,
+      "launch_time_ms": 600,
+      "click_time_ms": 300
+    },
+    "glow": {
+      "opacity_ratio": 0.6
+    }
+  }
 }
