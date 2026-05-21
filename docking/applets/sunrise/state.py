@@ -24,6 +24,7 @@ from functools import lru_cache
 from typing import Any, NamedTuple
 
 from docking.applets.cities import CityEntry, load_cities
+from docking.core.math import clamp_index
 from docking.i18n import _
 
 REFRESH_INTERVAL_S = 60
@@ -132,7 +133,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> SunrisePrefs:
             )
 
     active_index = int(prefs.get("active_index", 0))
-    active_index = max(0, min(active_index, len(cities) - 1)) if cities else 0
+    active_index = clamp_index(active_index, len(cities))
     return SunrisePrefs(
         cities=cities,
         active_index=active_index,

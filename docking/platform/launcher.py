@@ -154,7 +154,7 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.core.config import MiddleClickAction
 from docking.log import get_logger, with_context
-from docking.platform.environment import flatpak, is_flatpak
+from docking.platform.environment import flatpak, is_flatpak, xdg_data_home
 
 DESKTOP_SUFFIX = ".desktop"
 FALLBACK_ICON = "application-x-executable"
@@ -344,8 +344,7 @@ def _get_desktop_dirs() -> list[Path]:
         p = Path(d) / "applications"
         if p.is_dir() and p not in dirs:
             dirs.append(p)
-    local = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
-    user_apps = local / "applications"
+    user_apps = xdg_data_home() / "applications"
     if user_apps.is_dir():
         dirs.insert(0, user_apps)
     if is_flatpak():

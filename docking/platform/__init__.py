@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Convenience exports for Docking's platform integration layer.
+"""Docking's platform integration layer.
 
 What the platform layer owns
 
@@ -20,12 +20,13 @@ desktop session: launchers, window tracking, environment quirks, struts,
 barriers, dodge behavior, and model-building rules that depend on what the
 window manager or desktop shell is doing.
 
-Why this module exists
+Why this module is a no-op
 
-Like ``docking.core.__init__``, this file is a stable import surface. Higher
-layers often only need the main platform-facing objects, not the entire module
-layout. Re-exporting them here keeps call sites simpler without collapsing the
-actual implementation into one file.
+Callers import directly from the submodules (``docking.platform.launcher``,
+``docking.platform.model``, etc.). Eager re-exports here previously created a
+cycle when low-level modules (e.g. ``docking.platform.environment.xdg``) were
+needed by ``docking.core.config`` -- loading the parent package triggered
+``launcher`` which imports ``config``, creating an import cycle.
 
 Why the boundary matters
 
@@ -33,8 +34,3 @@ This package is intentionally below the UI layer and above the pure core layer.
 It may know about X11, desktop IDs, running windows, and monitor/workspace
 state, but it should not become responsible for GTK widget trees or drawing.
 """
-
-from docking.platform.launcher import Launcher  # noqa: F401
-from docking.platform.model import DockItem, DockModel, LauncherEntryState  # noqa: F401
-from docking.platform.unity import UnityLauncherListener  # noqa: F401
-from docking.platform.window_tracker import WindowTracker  # noqa: F401

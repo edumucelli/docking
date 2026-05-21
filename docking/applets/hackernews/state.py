@@ -24,7 +24,6 @@ test without a desktop session.
 from __future__ import annotations
 
 import datetime as dt
-import html
 import json
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
@@ -38,7 +37,9 @@ from docking.applets.live_state import (
     refresh_recovery_label,
     resolve_live_status,
 )
+from docking.applets.text import normalize_text
 from docking.applets.tooltip import structured_tooltip
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -96,12 +97,6 @@ class HackerNewsPage:
     has_more: bool
 
 
-def normalize_text(value: object) -> str:
-    """Normalize API text fields for compact tooltip/menu display."""
-    text = html.unescape(str(value or ""))
-    return " ".join(text.replace("\n", " ").replace("\r", " ").split()).strip()
-
-
 def story_rank(*, index: int, count: int) -> str:
     """Human-readable current item position."""
     if count <= 0:
@@ -137,7 +132,7 @@ def normalize_active_index(*, index: int, count: int) -> int:
     """Clamp active index for the current story list."""
     if count <= 0:
         return 0
-    return max(0, min(index, count - 1))
+    return clamp_index(index, count)
 
 
 def build_tooltip(

@@ -163,6 +163,7 @@ from docking.core.items import (
     FOLDER_KIND,
     DockItem,
 )
+from docking.core.math import clamp
 from docking.log import get_logger, with_context
 from docking.platform.running import RunningAppInfo
 
@@ -343,7 +344,7 @@ class DockModel:
     ) -> None:
         item.badge_count = state.badge_count
         item.badge_visible = state.badge_visible
-        item.progress = max(0.0, min(1.0, state.progress))
+        item.progress = clamp(state.progress, 0.0, 1.0)
         item.progress_visible = state.progress_visible
         item.launcher_entry_urgent = state.urgent
         self._recompute_urgent(item=item)

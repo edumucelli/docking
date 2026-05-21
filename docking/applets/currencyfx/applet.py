@@ -74,6 +74,7 @@ from docking.applets.popup import (
     prepare_dialog_content,
 )
 from docking.applets.worker import BackgroundWorker
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -394,7 +395,7 @@ class CurrencyFxApplet(Applet):
         """Switch active pair by index from scroll or the Added Pairs menu."""
         if not self._pairs:
             return
-        index = max(0, min(index, len(self._pairs) - 1))
+        index = clamp_index(index, len(self._pairs))
         if index == self._active_index:
             return
         self._active_index = index
