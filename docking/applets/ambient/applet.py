@@ -42,6 +42,7 @@ from docking.applets.ambient.state import (
 )
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections
+from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -105,7 +106,7 @@ class AmbientApplet(Applet):
     def _volume(self, value: float) -> None:
         self._state = AmbientState(
             current=self._state.current,
-            volume=max(0.0, min(1.0, value)),
+            volume=clamp(value, 0.0, 1.0),
             playing=self._state.playing,
         )
 

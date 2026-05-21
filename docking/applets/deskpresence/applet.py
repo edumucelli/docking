@@ -42,6 +42,7 @@ from docking.applets.deskpresence.state import (
     state_from_prefs,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
+from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -182,7 +183,7 @@ class DeskpresenceApplet(Applet):
         return True
 
     def _set_threshold(self, *, seconds: float) -> None:
-        clamped = max(MIN_IDLE_THRESHOLD_S, min(MAX_IDLE_THRESHOLD_S, seconds))
+        clamped = clamp(seconds, MIN_IDLE_THRESHOLD_S, MAX_IDLE_THRESHOLD_S)
         self._state.idle_threshold_s = clamped
         self._save_prefs()
         self.present()

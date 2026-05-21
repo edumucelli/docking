@@ -70,6 +70,7 @@ from docking.applets.unitconverter.state import (
     set_currency_units,
 )
 from docking.applets.worker import BackgroundWorker
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -130,7 +131,7 @@ class UnitConverterApplet(Applet):
         self._to_idx = int(prefs.get("to_index", 1))
 
         cats = get_categories()
-        self._cat_idx = max(0, min(self._cat_idx, len(cats) - 1))
+        self._cat_idx = clamp_index(self._cat_idx, len(cats))
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -207,7 +208,7 @@ class UnitConverterApplet(Applet):
         self._cat_combo = Gtk.ComboBoxText()
         for cat in cats:
             self._cat_combo.append_text(cat.value)
-        self._cat_idx = max(0, min(self._cat_idx, len(cats) - 1))
+        self._cat_idx = clamp_index(self._cat_idx, len(cats))
         self._cat_combo.set_active(self._cat_idx)
         self._cat_combo.connect("changed", self._on_category_changed)
         box.pack_start(self._cat_combo, False, False, 0)
@@ -259,14 +260,14 @@ class UnitConverterApplet(Applet):
             self._from_combo.remove_all()
             for u in units:
                 self._from_combo.append_text(_unit_label(u))
-            idx = max(0, min(self._from_idx, len(units) - 1))
+            idx = clamp_index(self._from_idx, len(units))
             self._from_combo.set_active(idx)
 
         if self._to_combo:
             self._to_combo.remove_all()
             for u in units:
                 self._to_combo.append_text(_unit_label(u))
-            idx = max(0, min(self._to_idx, len(units) - 1))
+            idx = clamp_index(self._to_idx, len(units))
             self._to_combo.set_active(idx)
 
     def _on_category_changed(self, combo: Gtk.ComboBoxText) -> None:
@@ -328,8 +329,8 @@ class UnitConverterApplet(Applet):
                 '<span color="#ff6b6b">No units available</span>'
             )
             return
-        fi = max(0, min(self._from_idx, len(units) - 1))
-        ti = max(0, min(self._to_idx, len(units) - 1))
+        fi = clamp_index(self._from_idx, len(units))
+        ti = clamp_index(self._to_idx, len(units))
 
         try:
             value = float(text)

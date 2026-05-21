@@ -20,14 +20,14 @@ All functions are pure data -- no GTK dependency.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, NamedTuple, cast
 
 from docking.applets.weather import meta
+from docking.core.paths import ensure_dir
 from docking.log import get_logger, with_context
+from docking.platform.environment import docking_cache_dir
 
 log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 
@@ -37,11 +37,7 @@ REFRESH_INTERVAL = 300  # 5 minutes
 API_RETRY_COUNT = 5
 API_RETRY_BACKOFF_FACTOR = 0.2
 
-_CACHE_DIR = (
-    Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    / "docking"
-    / "weather"
-)
+_CACHE_DIR = docking_cache_dir() / "weather"
 
 _API_URL = "https://api.open-meteo.com/v1/forecast"
 _AQI_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -132,7 +128,7 @@ def _get_client() -> Any:
     import requests_cache
     from retry_requests import retry
 
-    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_dir(_CACHE_DIR)
     cache_path = str(_CACHE_DIR / "responses")
     # Three-layer stack: openmeteo_requests wraps retry_requests wraps
     # requests_cache. Cache avoids redundant HTTP; retry handles failures.

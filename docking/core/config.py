@@ -155,12 +155,12 @@ from urllib.parse import unquote, urlparse
 
 from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
+from docking.core.paths import ensure_parent_dir
 from docking.core.position import Position
 from docking.log import get_logger
+from docking.platform.environment import docking_config_dir
 
-DEFAULT_CONFIG_DIR = (
-    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
-)
+DEFAULT_CONFIG_DIR = docking_config_dir()
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 DEFAULT_CONFIG_BACKUP_FILE = DEFAULT_CONFIG_DIR / "dock.json.bak"
 
@@ -903,7 +903,7 @@ class Config:
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        ensure_parent_dir(path)
         # Write to a sibling temp file and replace in one step so Ctrl+C or
         # process death never leaves the real config half-written.
         backup_path = _backup_path_for(path)
