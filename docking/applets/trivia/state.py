@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import html
 import json
 import random
 from collections.abc import Callable
@@ -23,6 +22,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 from urllib.request import Request, urlopen
 
+from docking.applets.text import normalize_text
 from docking.applets.trivia import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -89,11 +89,6 @@ FALLBACK_TRIVIA: tuple[TriviaEntry, ...] = (
         correct_answer="George Orwell",
     ),
 )
-
-
-def normalize_text(text: str) -> str:
-    clean = html.unescape(text).replace("\n", " ").replace("\r", " ").strip()
-    return " ".join(clean.split())
 
 
 def format_difficulty(difficulty: str) -> str:
