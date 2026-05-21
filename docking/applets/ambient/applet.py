@@ -208,7 +208,7 @@ class AmbientApplet(Applet):
 
     def _stop_playback(self) -> None:
         if self._pipeline:
-            log.debug(f"Stopping pipeline: {self._state.current}")
+            log.debug("Stopping pipeline: %s", self._state.current)
             if self._bus_watching:
                 bus = self._pipeline.get_bus()
                 if bus:

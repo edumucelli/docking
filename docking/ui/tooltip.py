@@ -276,7 +276,7 @@ class TooltipManager:
         # crossing events) vs just repositioning (cheap: move only).
         content_changed = not (item is self._last_item and item.name == self._last_name)
         if content_changed:
-            log.debug(f"content changed: {item.name}")
+            log.debug("content changed: %s", item.name)
 
         item_geometry = geometry.geometry_for_item(item)
         if item_geometry is None:

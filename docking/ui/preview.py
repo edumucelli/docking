@@ -244,10 +244,10 @@ def capture_xid(
                 pixbuf = Gdk.pixbuf_get_from_window(foreign, 0, 0, width, height)
                 x_error = display.error_trap_pop()
                 if x_error or not pixbuf:
-                    log.debug(f"X11 capture failed for xid={xid} (error={x_error})")
+                    log.debug("X11 capture failed for xid=%s (error=%s)", xid, x_error)
                     return None
                 if _looks_unavailable_capture(pixbuf=pixbuf):
-                    log.debug(f"Capture looked unavailable (black) for xid={xid}")
+                    log.debug("Capture looked unavailable (black) for xid=%s", xid)
                     return None
                 # Scale preserving aspect ratio
                 scale = min(thumb_w / width, thumb_h / height)
@@ -531,7 +531,7 @@ class PreviewPopup(Gtk.Window):
 
     def _on_enter(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
         """Keep popup and dock visible while mouse is inside preview."""
-        log.debug(f"preview enter: detail={event.detail} mode={event.mode}")
+        log.debug("preview enter: detail=%s mode=%s", event.detail, event.mode)
         self._cancel_hide_timer()
         if self._autohide:
             self._autohide.on_mouse_enter()
@@ -561,7 +561,7 @@ class PreviewPopup(Gtk.Window):
         if event.detail == Gdk.NotifyType.INFERIOR:
             log.debug("preview leave: INFERIOR (ignored)")
             return False
-        log.debug(f"preview leave: detail={event.detail} mode={event.mode}")
+        log.debug("preview leave: detail=%s mode=%s", event.detail, event.mode)
         self._schedule_hide()
         return False
 
@@ -573,7 +573,7 @@ class PreviewPopup(Gtk.Window):
     def _schedule_hide(self, delay_ms: int = PREVIEW_HIDE_DELAY_MS) -> None:
         """Hide after a grace period (lets user move mouse to popup)."""
         self._cancel_hide_timer()
-        log.debug(f"preview: scheduling hide in {delay_ms}ms")
+        log.debug("preview: scheduling hide in %dms", delay_ms)
         self._hide_timer_id = GLib.timeout_add(delay_ms, self._do_hide)
 
     def _do_hide(self) -> bool:
