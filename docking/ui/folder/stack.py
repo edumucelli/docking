@@ -32,6 +32,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango, PangoCairo
 
 import docking.platform.launcher as launcher_mod
 from docking.core.items import FOLDER_KIND
+from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
 from docking.ui.display import clamp_to_screen
@@ -478,14 +479,16 @@ class FolderStackController:
         return window
 
     def _folder_stack_transition_type(self):
-        pos = self._config.pos
-        if pos == "bottom":
-            return Gtk.RevealerTransitionType.SLIDE_UP
-        if pos == "top":
-            return Gtk.RevealerTransitionType.SLIDE_DOWN
-        if pos == "left":
-            return Gtk.RevealerTransitionType.SLIDE_RIGHT
-        return Gtk.RevealerTransitionType.SLIDE_LEFT
+        # Resolved lazily so test stubs of ``Gtk`` (monkeypatched at module
+        # scope) are visible. A class-level dict would freeze the real
+        # ``Gtk`` reference at import time.
+        transitions = {
+            Position.BOTTOM: Gtk.RevealerTransitionType.SLIDE_UP,
+            Position.TOP: Gtk.RevealerTransitionType.SLIDE_DOWN,
+            Position.LEFT: Gtk.RevealerTransitionType.SLIDE_RIGHT,
+            Position.RIGHT: Gtk.RevealerTransitionType.SLIDE_LEFT,
+        }
+        return transitions[Position(self._config.pos)]
 
     def _replace_folder_stack_content(self, item: DockItem) -> None:
         revealer = self._folder_stack_revealer
@@ -516,18 +519,21 @@ class FolderStackController:
         pos = self._folder_stack_position_value
         local_icon_center_x = max(self._folder_stack_fold_center_x, 1)
 
-        if pos == "bottom":
+        pos_enum = Position(pos)
+        if pos_enum in (Position.BOTTOM, Position.TOP):
             popup_x = int(anchor_x + icon_w / 2 - local_icon_center_x)
-            popup_y = int(anchor_y - popup_h - FOLDER_STACK_GAP_PX)
-        elif pos == "top":
-            popup_x = int(anchor_x + icon_w / 2 - local_icon_center_x)
-            popup_y = int(anchor_y + FOLDER_STACK_GAP_PX)
-        elif pos == "left":
-            popup_x = int(anchor_x + FOLDER_STACK_GAP_PX)
-            popup_y = int(anchor_y + icon_w / 2 - popup_h / 2)
+            popup_y = (
+                int(anchor_y - popup_h - FOLDER_STACK_GAP_PX)
+                if pos_enum is Position.BOTTOM
+                else int(anchor_y + FOLDER_STACK_GAP_PX)
+            )
         else:
-            popup_x = int(anchor_x - popup_w - FOLDER_STACK_GAP_PX)
             popup_y = int(anchor_y + icon_w / 2 - popup_h / 2)
+            popup_x = (
+                int(anchor_x + FOLDER_STACK_GAP_PX)
+                if pos_enum is Position.LEFT
+                else int(anchor_x - popup_w - FOLDER_STACK_GAP_PX)
+            )
 
         screen = window.get_screen()
         popup_pos = clamp_to_screen(
