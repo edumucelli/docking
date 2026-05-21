@@ -20,6 +20,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
+from docking.core.math import clamp_int
 from docking.i18n import _
 
 DEFAULT_SNOOZE_MINUTES = 5
@@ -313,10 +314,10 @@ def normalize_preset(preset: AlarmPreset) -> AlarmPreset:
     return replace(
         preset,
         label=label,
-        hour=max(0, min(23, int(preset.hour))),
-        minute=max(0, min(59, int(preset.minute))),
+        hour=clamp_int(int(preset.hour), 0, 23),
+        minute=clamp_int(int(preset.minute), 0, 59),
         repeat_days=repeat_days,
-        snooze_minutes=max(1, min(120, int(preset.snooze_minutes))),
+        snooze_minutes=clamp_int(int(preset.snooze_minutes), 1, 120),
     )
 
 

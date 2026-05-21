@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
 
 _THEME_MIGRATION_BACKUP_SUFFIX = ".pre-nested-schema.bak"
@@ -284,7 +285,7 @@ def _create_theme_migration_backup(*, path: Path) -> Path:
 
 
 def _write_theme_json_atomic(*, path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_parent_dir(path)
     tmp_path = _new_theme_tmp_path(path=path)
     try:
         with tmp_path.open(mode="w", encoding="utf-8") as handle:
