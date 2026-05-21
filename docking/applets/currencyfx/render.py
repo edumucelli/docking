@@ -41,6 +41,7 @@ from gi.repository import Gdk, GdkPixbuf
 from docking.applets.base import draw_icon_label
 from docking.applets.currencyfx.state import FxPoint, FxSnapshot, percent_change
 from docking.applets.draw import rounded_rect
+from docking.core.math import clamp
 
 _BG_TOP = (0.08, 0.11, 0.15)
 _BG_BOTTOM = (0.12, 0.16, 0.22)
@@ -195,7 +196,7 @@ def _draw_sparkline(
     last_x, last_y = coords[-1]
     dot_radius = max(1.7, size * 0.055)
     if pulse_phase is not None:
-        phase = max(0.0, min(1.0, pulse_phase))
+        phase = clamp(pulse_phase, 0.0, 1.0)
         pulse_radius = dot_radius * (1.18 + 0.82 * phase)
         pulse_alpha = 0.46 * (1.0 - phase)
         if pulse_alpha > 0.02:

@@ -25,6 +25,7 @@ from gi.repository import Gdk, GdkPixbuf
 from docking.applets.base import draw_icon_label
 from docking.applets.battery.state import BatteryState
 from docking.applets.draw import rounded_rect
+from docking.core.math import clamp
 
 _GREEN = (0.00, 0.62, 0.32)
 _GREEN_DARK = (0.00, 0.55, 0.28)
@@ -101,7 +102,7 @@ def _draw_battery(
     iy = y + inner_pad
     iw = w - inner_pad * 2
     ih = h - inner_pad * 2
-    ratio = max(0.0, min(1.0, capacity / 100.0))
+    ratio = clamp(capacity / 100.0, 0.0, 1.0)
 
     if ratio > 0:
         fill_h = ih * ratio
