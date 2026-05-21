@@ -19,6 +19,8 @@ import math
 
 import cairo
 
+from docking.core.math import clamp
+
 
 def rounded_rect(
     *,
@@ -30,7 +32,7 @@ def rounded_rect(
     radius: float,
 ) -> None:
     """Add a closed rounded-rectangle sub-path to *cr*."""
-    radius = max(0.0, min(radius, min(width, height) / 2))
+    radius = clamp(radius, 0.0, min(width, height) / 2)
     cr.new_sub_path()
     cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)
     cr.arc(x + width - radius, y + height - radius, radius, 0, math.pi / 2)

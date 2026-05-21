@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import configparser
-import os
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -39,6 +38,8 @@ from docking.platform.environment import (
     is_gnome_session,
     is_kde_session,
     is_mate_session,
+    xdg_config_home,
+    xdg_data_home,
 )
 
 log = with_context(get_logger(name="trash"), applet_id=meta.id)
@@ -64,16 +65,12 @@ class _CaseSensitiveConfigParser(configparser.ConfigParser):
         return optionstr
 
 
-def _xdg_data_home() -> Path:
-    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-
-
 def _host_user_data_home() -> Path:
     return Path.home() / ".local" / "share"
 
 
 def _kde_trash_directory() -> Path:
-    return _xdg_data_home() / "Trash"
+    return xdg_data_home() / "Trash"
 
 
 def _kde_trash_files_directory() -> Path:
@@ -87,13 +84,13 @@ def _kde_trash_info_directory() -> Path:
 def _visible_trash_files_directory() -> Path:
     if is_flatpak():
         return _host_user_data_home() / "Trash" / "files"
-    return _xdg_data_home() / "Trash" / "files"
+    return xdg_data_home() / "Trash" / "files"
 
 
 def _kde_kiorc_file() -> Path:
     if is_flatpak():
         return Path.home() / ".config" / "kiorc"
-    return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kiorc"
+    return xdg_config_home() / "kiorc"
 
 
 def _open_trash_uri(uri: str) -> None:

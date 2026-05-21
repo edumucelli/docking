@@ -25,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.draw import rounded_rect
+from docking.core.math import clamp
 from docking.ui.overlays import draw_circle_badge
 
 
@@ -48,7 +49,7 @@ def render_icon(
         cx = size - radius - size * 0.06
         cy = radius + size * 0.06
         if pulse_phase is not None:
-            phase = max(0.0, min(1.0, pulse_phase))
+            phase = clamp(pulse_phase, 0.0, 1.0)
             pulse_radius = radius * (1.15 + 0.65 * phase)
             pulse_alpha = 0.46 * (1.0 - phase)
             if pulse_alpha > 0.02:

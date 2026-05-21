@@ -32,6 +32,7 @@ from docking.applets.live_state import (
 )
 from docking.applets.tooltip import structured_tooltip
 from docking.applets.weather.api import AirQualityData, WeatherData
+from docking.core.math import clamp_index
 from docking.i18n import _
 
 DEFAULT_ICON_NAME = "weather-few-clouds"
@@ -85,7 +86,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
             if isinstance(c, Mapping)
         )
         idx = int(prefs.get("active_index", 0))
-        idx = max(0, min(idx, len(cities) - 1)) if cities else 0
+        idx = clamp_index(idx, len(cities))
         return WeatherPrefs(
             cities=cities,
             active_index=idx,

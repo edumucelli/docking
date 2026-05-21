@@ -5,8 +5,6 @@ from unittest.mock import patch
 
 from docking.platform.environment import (
     Desktop,
-    _check_compositor,
-    _parse_desktop,
     detect_desktop,
     is_flatpak,
     is_gnome_session,
@@ -16,6 +14,7 @@ from docking.platform.environment import (
     is_x11_backend,
     is_xwayland_session,
 )
+from docking.platform.environment.environment import _check_compositor, _parse_desktop
 
 
 class TestParseDesktop:
@@ -114,10 +113,14 @@ class TestSessionBackendDetection:
             assert is_wayland_session() is False
 
     def test_is_flatpak_checks_runtime_marker(self):
-        with patch("docking.platform.environment.Path.exists", return_value=True):
+        with patch(
+            "docking.platform.environment.environment.Path.exists", return_value=True
+        ):
             assert is_flatpak() is True
 
-        with patch("docking.platform.environment.Path.exists", return_value=False):
+        with patch(
+            "docking.platform.environment.environment.Path.exists", return_value=False
+        ):
             assert is_flatpak() is False
 
     def test_is_x11_backend_true_for_x11_display(self):

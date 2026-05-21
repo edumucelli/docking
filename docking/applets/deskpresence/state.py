@@ -21,6 +21,7 @@ from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, cast
 
+from docking.core.math import clamp
 from docking.i18n import _
 
 DEFAULT_IDLE_THRESHOLD_S = 120.0
@@ -281,7 +282,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> DeskpresencePrefs:
         threshold = float(prefs.get("idle_threshold_s", DEFAULT_IDLE_THRESHOLD_S))
     except (TypeError, ValueError):
         return DeskpresencePrefs()
-    threshold = max(MIN_IDLE_THRESHOLD_S, min(MAX_IDLE_THRESHOLD_S, threshold))
+    threshold = clamp(threshold, MIN_IDLE_THRESHOLD_S, MAX_IDLE_THRESHOLD_S)
     raw_history = prefs.get("history")
     history = _parse_history(raw_history, today=_today_utc())
     return DeskpresencePrefs(

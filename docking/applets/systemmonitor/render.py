@@ -25,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.systemmonitor.state import cpu_hue_rgb
+from docking.core.math import clamp
 
 RADIUS_PERCENT = 0.9
 
@@ -37,7 +38,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     r, g, b = cpu_hue_rgb(cpu=cpu)
     base_alpha = 0.5
     # *1.3 exaggerates display so ~77% CPU fills the gauge (makes low usage visible)
-    cpu_clamped = max(0.001, min(cpu * 1.3, 1.0))
+    cpu_clamped = clamp(cpu * 1.3, 0.001, 1.0)
 
     # 1. Black underlay
     cr.arc(center, center, radius, 0, math.tau)
