@@ -24,6 +24,7 @@ from typing import Any, cast
 from docking.applets.aiusage.backends.base import ProviderSessions
 from docking.applets.aiusage.state import ModelUsage, Provider, _has_usage
 from docking.applets.aiusage.store import replace_session
+from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger, with_context
 
 log = with_context(get_logger(name="aiusage.claude"))
@@ -108,7 +109,7 @@ def register_hooks() -> None:
 
     if changed:
         try:
-            _CLAUDE_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+            ensure_parent_dir(_CLAUDE_SETTINGS)
             _CLAUDE_SETTINGS.write_text(
                 json.dumps(settings, indent=2) + "\n",
                 encoding="utf-8",

@@ -46,7 +46,12 @@ from docking.platform.environment import Desktop
 
 
 def _set_desktop(monkeypatch: pytest.MonkeyPatch, desktop: Desktop) -> None:
-    monkeypatch.setattr(kbl_state.environment, "detect_desktop", lambda: desktop)
+    # detect_desktop lives in environment.environment; the package __init__
+    # re-exports it but the session-helpers in environment.environment call
+    # it through their own module globals, so we patch at the source.
+    from docking.platform.environment import environment as env_impl
+
+    monkeypatch.setattr(env_impl, "detect_desktop", lambda: desktop)
 
 
 SETXKBMAP_MULTI = """\
