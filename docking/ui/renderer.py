@@ -364,6 +364,31 @@ def _draw_indicator_dashes(
         cr.fill()
 
 
+def _draw_indicator_dots(
+    cr: cairo.Context,
+    cx: float,
+    cy: float,
+    radius: float,
+    spacing: float,
+    count: int,
+    horizontal: bool,
+) -> None:
+    """Draw filled circular dots as running indicators."""
+    for j in range(count):
+        offset = (j - (count - 1) / 2) * spacing
+        if horizontal:
+            cr.arc(cx + offset, cy, radius, 0, 2 * math.pi)
+        else:
+            cr.arc(cx, cy + offset, radius, 0, 2 * math.pi)
+        cr.fill()
+
+
+_INDICATOR_DRAWERS = {
+    IndicatorStyle.DASHES: _draw_indicator_dashes,
+    IndicatorStyle.DOTS: _draw_indicator_dots,
+}
+
+
 def _window_count_label(count: int) -> str:
     return "99+" if count > 99 else str(max(1, count))
 
@@ -1417,16 +1442,9 @@ class DockRenderer:
                 base_size=base_size,
                 radius=radius,
             )
-        elif theme.indicator_style == IndicatorStyle.DASHES:
-            _draw_indicator_dashes(cr, cx, cy, radius, spacing, count, horizontal)
-        else:  # DOTS
-            for j in range(count):
-                offset = (j - (count - 1) / 2) * spacing
-                if horizontal:
-                    cr.arc(cx + offset, cy, radius, 0, 2 * math.pi)
-                else:
-                    cr.arc(cx, cy + offset, radius, 0, 2 * math.pi)
-                cr.fill()
+        else:
+            drawer = _INDICATOR_DRAWERS.get(theme.indicator_style, _draw_indicator_dots)
+            drawer(cr, cx, cy, radius, spacing, count, horizontal)
 
     @staticmethod
     def _draw_badge(
