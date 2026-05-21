@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from docking.core.paths import ensure_dir
+from docking.core.serialization import safe_json_load
 
 STATE_DIR = Path("/var/lib/docking/camshield")
 STATE_FILE = STATE_DIR / "devices.json"
@@ -198,12 +199,9 @@ def _restore_acl(*, snapshot: DeviceSnapshot) -> bool:
 
 def _read_state(*, state_dir: Path) -> dict[str, DeviceSnapshot]:
     path = state_dir / STATE_FILE.name
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    raw = safe_json_load(path, default={})
 
-    if raw.get("version") != _STATE_VERSION:
+    if not isinstance(raw, dict) or raw.get("version") != _STATE_VERSION:
         return {}
 
     result: dict[str, DeviceSnapshot] = {}
