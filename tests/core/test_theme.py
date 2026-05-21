@@ -8,6 +8,7 @@ import pytest
 
 import docking.core.theme.migration as theme_migration_mod
 from docking.core.theme import (
+    _BUILTIN_THEMES_DIR,
     _USER_THEME_TEMPLATE_NAME,
     DEPRECATED_THEME_KEYS,
     Theme,
@@ -174,6 +175,16 @@ class TestThemeLoad:
         assert t.distance_from_edge == 6
         assert t.roundness > t.shelf_height / 2
         assert t.fill_start[3] > 0.9
+
+    def test_builtin_themes_use_current_schema(self):
+        for theme_file in _BUILTIN_THEMES_DIR.glob("*.json"):
+            data = json.loads(theme_file.read_text(encoding="utf-8"))
+            assert not (set(data) & set(DEPRECATED_THEME_KEYS)), theme_file.name
+
+            theme = Theme.load(theme_file.stem, 48)
+            assert all(0 <= c <= 1 for c in theme.fill_start)
+            assert all(0 <= c <= 1 for c in theme.fill_end)
+            assert all(0 <= c <= 1 for c in theme.stroke)
 
     def test_load_final_nested_theme_schema(self, tmp_path):
         theme_data = {
