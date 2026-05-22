@@ -494,6 +494,8 @@ def _config():
         update_check_enabled=True,
         update_check_interval_hours=24,
         additional_distance_from_edge=0,
+        pressure_reveal_enabled=False,
+        pressure_threshold=50,
         save=MagicMock(),
     )
 

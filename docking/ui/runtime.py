@@ -62,6 +62,9 @@ class DockRuntime:
         else:
             self._window.placement.stop_active_display()
 
+    def refresh_pressure_handler(self) -> None:
+        self._window.placement.refresh_pressure_handler()
+
     def set_icons_locked(self, locked: bool) -> None:
         self._window.dnd.set_locked(locked)
 

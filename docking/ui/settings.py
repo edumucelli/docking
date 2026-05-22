@@ -58,10 +58,12 @@ from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
     MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
     MAX_ICON_SIZE,
+    MAX_PRESSURE_THRESHOLD,
     MAX_TRANSPARENCY,
     MAX_ZOOM_PERCENT,
     MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
     MIN_ICON_SIZE,
+    MIN_PRESSURE_THRESHOLD,
     MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
     FolderStackUnfold,
@@ -161,6 +163,8 @@ class SettingsWindowController:
         self._transparency_scale: Any = None
         self._additional_distance_scale: Any = None
         self._additional_distance_desc: Any = None
+        self._pressure_reveal_switch: Any = None
+        self._pressure_threshold_scale: Any = None
         self._zoom_percent_spin: Any = None
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
@@ -365,6 +369,16 @@ class SettingsWindowController:
             maximum=HIDE_DELAY_MAX_MS,
             step=HIDE_DELAY_STEP_MS,
         )
+        self._pressure_reveal_switch = self._new_switch()
+        self._pressure_threshold_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            MIN_PRESSURE_THRESHOLD,
+            MAX_PRESSURE_THRESHOLD,
+            1,
+        )
+        self._pressure_threshold_scale.set_digits(0)
+        self._pressure_threshold_scale.set_draw_value(True)
+        self._pressure_threshold_scale.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
 
         self._register_bindings()
 
@@ -418,6 +432,28 @@ class SettingsWindowController:
         hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
         hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
 
+        pressure_threshold_desc = Gtk.Label(
+            label=_(
+                "Pixels of cursor pressure against the edge required to "
+                "reveal a hidden dock. Higher values mean the dock will not "
+                "reveal as easily."
+            ),
+        )
+        pressure_threshold_desc.set_xalign(0.0)
+        pressure_threshold_desc.set_line_wrap(True)
+        pressure_threshold_desc.set_line_wrap_mode(2)
+        pressure_threshold_desc.set_max_width_chars(HIDE_MODE_DESC_MAX_CHARS)
+        pressure_threshold_desc.get_style_context().add_class("dim-label")
+        pressure_threshold_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        pressure_threshold_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        pressure_threshold_box.pack_start(
+            self._pressure_threshold_scale, False, False, 0
+        )
+        pressure_threshold_box.pack_start(pressure_threshold_desc, False, False, 0)
+
         self._append_section(
             outer=outer,
             title=_("Mouse"),
@@ -433,6 +469,8 @@ class SettingsWindowController:
                 (_("Hide Mode"), hide_mode_box),
                 (_("Hide Delay"), self._hide_delay_spin),
                 (_("Unhide Delay"), self._unhide_delay_spin),
+                (_("Pressure Reveal"), self._pressure_reveal_switch),
+                (_("Pressure Threshold"), pressure_threshold_box),
             ],
         )
         self._append_section(
@@ -690,6 +728,16 @@ class SettingsWindowController:
                 config_attr="unhide_delay_ms",
                 widget=self._unhide_delay_spin,
             ),
+            self._register_switch_binding(
+                config_attr="pressure_reveal_enabled",
+                widget=self._pressure_reveal_switch,
+                on_change=self._after_pressure_reveal_changed,
+            ),
+            self._register_int_binding(
+                config_attr="pressure_threshold",
+                widget=self._pressure_threshold_scale,
+                on_change=self._after_pressure_reveal_changed,
+            ),
         ]
 
     def _register_switch_binding(
@@ -943,6 +991,10 @@ class SettingsWindowController:
         self._runtime.reposition()
         self._runtime.queue_draw()
 
+    def _after_pressure_reveal_changed(self, _value) -> None:
+        self._runtime.refresh_pressure_handler()
+        self._update_dependent_sensitivity()
+
     def _after_hide_mode_changed(self, mode: str) -> None:
         self._runtime.on_hide_mode_changed()
         self._update_hide_mode_description()
@@ -998,6 +1050,10 @@ class SettingsWindowController:
             self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
         if self._unhide_delay_spin is not None:
             self._unhide_delay_spin.set_sensitive(hide_controls_sensitive)
+        if self._pressure_threshold_scale is not None:
+            self._pressure_threshold_scale.set_sensitive(
+                bool(self._config.pressure_reveal_enabled)
+            )
 
     def _on_applet_toggled(
         self,
