@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -138,17 +137,10 @@ class TestPrefsRoundTrip:
 
 
 class TestFetchToday:
-    def test_parses_successful_response(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("docking.applets.apod.api.CACHE_DIR", tmp_path / "apod")
-
-        def fake_urlopen(req, timeout=None):
+    def _patch_image_download(self, monkeypatch, payload_bytes):
+        def fake_urlopen(_req, timeout=None):
             mock = MagicMock()
-            url = req.full_url if hasattr(req, "full_url") else str(req)
-            if url.startswith("https://api.nasa.gov/"):
-                mock.read.return_value = json.dumps(_SAMPLE_PAYLOAD).encode()
-            else:
-                # JPEG magic bytes are enough for the download path.
-                mock.read.side_effect = [b"\xff\xd8\xff\xe0" + b"\x00" * 512, b""]
+            mock.read.side_effect = [payload_bytes, b""]
             mock.__enter__ = lambda self: self
             mock.__exit__ = lambda self, *a: None
             return mock
@@ -156,6 +148,14 @@ class TestFetchToday:
         monkeypatch.setattr(
             "docking.applets.apod.api.urllib.request.urlopen", fake_urlopen
         )
+
+    def test_parses_successful_response(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("docking.applets.apod.api.CACHE_DIR", tmp_path / "apod")
+        monkeypatch.setattr(
+            "docking.applets.apod.api.http_get_json",
+            lambda url, **_kwargs: _SAMPLE_PAYLOAD,
+        )
+        self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 512)
 
         got = fetch_today()
         assert isinstance(got, ApodResult)
@@ -171,20 +171,10 @@ class TestFetchToday:
         payload["url"] = "https://youtube.com/watch?v=abc"
         payload["thumbnail_url"] = "https://example/thumb.jpg"
 
-        def fake_urlopen(req, timeout=None):
-            mock = MagicMock()
-            url = req.full_url if hasattr(req, "full_url") else str(req)
-            if url.startswith("https://api.nasa.gov/"):
-                mock.read.return_value = json.dumps(payload).encode()
-            else:
-                mock.read.side_effect = [b"\xff\xd8\xff\xe0" + b"\x00" * 64, b""]
-            mock.__enter__ = lambda self: self
-            mock.__exit__ = lambda self, *a: None
-            return mock
-
         monkeypatch.setattr(
-            "docking.applets.apod.api.urllib.request.urlopen", fake_urlopen
+            "docking.applets.apod.api.http_get_json", lambda url, **_kwargs: payload
         )
+        self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 64)
 
         got = fetch_today()
         assert isinstance(got, ApodResult)
@@ -192,24 +182,17 @@ class TestFetchToday:
         assert got.image_url == "https://example/thumb.jpg"
 
     def test_network_failure_returns_error(self, monkeypatch):
-        def boom(req, timeout=None):
+        def boom(*_args, **_kwargs):
             raise OSError("network down")
 
-        monkeypatch.setattr("docking.applets.apod.api.urllib.request.urlopen", boom)
+        monkeypatch.setattr("docking.applets.apod.api.http_get_json", boom)
         got = fetch_today()
         assert isinstance(got, ApodError)
         assert "network down" in got.message
 
     def test_unexpected_payload_returns_error(self, monkeypatch):
-        def fake_urlopen(req, timeout=None):
-            mock = MagicMock()
-            mock.read.return_value = b"[]"
-            mock.__enter__ = lambda self: self
-            mock.__exit__ = lambda self, *a: None
-            return mock
-
         monkeypatch.setattr(
-            "docking.applets.apod.api.urllib.request.urlopen", fake_urlopen
+            "docking.applets.apod.api.http_get_json", lambda url, **_kwargs: []
         )
         got = fetch_today()
         assert isinstance(got, ApodError)

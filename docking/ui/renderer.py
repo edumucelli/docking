@@ -214,6 +214,22 @@ URGENT_GLOW_OUTER_ALPHA = 0.33
 
 
 @dataclass(frozen=True)
+class RenderState:
+    """Transient per-frame view state consumed by :meth:`DockRenderer.draw`.
+
+    Frozen so the renderer (and any future caller wanting "did anything
+    change?") can rely on value equality.
+    """
+
+    hide_offset: float = 0.0
+    drag_index: int = -1
+    drop_insert_index: int = -1
+    hovered_id: str = ""
+    drop_target_id: str = ""
+    cursor_main: float = -1.0
+
+
+@dataclass(frozen=True)
 class _IconSurfaceCacheKey:
     """Identity for a rendered icon source surface.
 
@@ -637,12 +653,7 @@ class DockRenderer:
         frame: DockGeometryFrame,
         config: Config,
         theme: Theme,
-        hide_offset: float = 0.0,
-        drag_index: int = -1,
-        drop_insert_index: int = -1,
-        hovered_id: str = "",
-        drop_target_id: str = "",
-        cursor_main: float = -1.0,
+        state: RenderState,
     ) -> None:
         """Main draw entry point -- called on every 'draw' signal.
 
@@ -673,12 +684,7 @@ class DockRenderer:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=hide_offset,
-            drag_index=drag_index,
-            drop_insert_index=drop_insert_index,
-            hovered_id=hovered_id,
-            drop_target_id=drop_target_id,
-            cursor_main=cursor_main,
+            state=state,
         )
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_surface(offscreen, 0, 0)
@@ -690,14 +696,17 @@ class DockRenderer:
         frame: DockGeometryFrame,
         config: Config,
         theme: Theme,
-        hide_offset: float,
-        drag_index: int,
-        drop_insert_index: int,
-        hovered_id: str,
-        drop_target_id: str = "",
-        cursor_main: float = -1.0,
+        state: RenderState,
     ) -> None:
         """Render all dock content to a Cairo context."""
+        # Unpack once so the rest of this method (and helpers) reads naturally.
+        hide_offset = state.hide_offset
+        drag_index = state.drag_index
+        drop_insert_index = state.drop_insert_index
+        hovered_id = state.hovered_id
+        drop_target_id = state.drop_target_id
+        cursor_main = state.cursor_main
+
         pos = config.pos
         width = frame.window_rect.w
         height = frame.window_rect.h

@@ -20,7 +20,7 @@ from docking.ui.autohide import HideState
 from docking.ui.geometry import build_geometry_frame
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
-from docking.ui.renderer import DockRenderer
+from docking.ui.renderer import DockRenderer, RenderState
 from docking.ui.tooltip import TooltipManager
 
 DOCK_CASES = (
@@ -160,6 +160,12 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         assert case_name == "dock-bottom-idle"
 
     cursor_main = 210.0 if hovered_id else -1_000_000.0
+    render_state = RenderState(
+        hide_offset=hide_offset,
+        drop_insert_index=drop_insert_index,
+        hovered_id=hovered_id,
+        cursor_main=cursor_main,
+    )
     frame = build_geometry_frame(
         items=items,
         config=config,
@@ -184,9 +190,7 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=hide_offset,
-            drop_insert_index=drop_insert_index,
-            hovered_id=hovered_id,
+            state=render_state,
         )
         return surface
 
