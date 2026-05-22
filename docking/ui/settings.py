@@ -56,9 +56,11 @@ from docking.applets.identity import (
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
+    MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
     MAX_ICON_SIZE,
     MAX_TRANSPARENCY,
     MAX_ZOOM_PERCENT,
+    MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
     MIN_ICON_SIZE,
     MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
@@ -157,6 +159,8 @@ class SettingsWindowController:
         self._position_combo: Any = None
         self._icon_size_spin: Any = None
         self._transparency_scale: Any = None
+        self._additional_distance_scale: Any = None
+        self._additional_distance_desc: Any = None
         self._zoom_percent_spin: Any = None
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
@@ -321,6 +325,36 @@ class SettingsWindowController:
             maximum=int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
             step=ZOOM_PERCENT_STEP,
         )
+        self._additional_distance_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
+            MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
+            1,
+        )
+        self._additional_distance_scale.set_digits(0)
+        self._additional_distance_scale.set_draw_value(True)
+        self._additional_distance_scale.set_size_request(
+            TRANSPARENCY_SCALE_WIDTH_PX, -1
+        )
+        self._additional_distance_desc = Gtk.Label(
+            label=_("Added on top of the theme's own distance from the edge."),
+        )
+        self._additional_distance_desc.set_xalign(0.0)
+        self._additional_distance_desc.set_line_wrap(True)
+        self._additional_distance_desc.set_line_wrap_mode(2)  # Pango.WrapMode.WORD_CHAR
+        self._additional_distance_desc.set_max_width_chars(HIDE_MODE_DESC_MAX_CHARS)
+        self._additional_distance_desc.get_style_context().add_class("dim-label")
+        additional_distance_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        additional_distance_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        additional_distance_box.pack_start(
+            self._additional_distance_scale, False, False, 0
+        )
+        additional_distance_box.pack_start(
+            self._additional_distance_desc, False, False, 0
+        )
         self._hide_delay_spin = self._new_numeric_spin_button(
             minimum=0,
             maximum=HIDE_DELAY_MAX_MS,
@@ -353,6 +387,7 @@ class SettingsWindowController:
             title=_("Placement"),
             rows=[
                 (_("Position"), self._position_combo),
+                (_("Extra Distance from Edge"), additional_distance_box),
                 (_("Follow Cursor"), self._active_display_switch),
                 (_("Current Workspace Only"), self._workspace_only_switch),
             ],
@@ -611,6 +646,16 @@ class SettingsWindowController:
                 config_attr="icon_size",
                 widget=self._icon_size_spin,
                 on_change=self._after_icon_size_changed,
+            ),
+            self._register_numeric_binding(
+                config_attr="additional_distance_from_edge",
+                widget=self._additional_distance_scale,
+                read_widget=lambda: int(self._additional_distance_scale.get_value()),
+                write_widget=lambda value: self._additional_distance_scale.set_value(
+                    float(value)
+                ),
+                signal="value-changed",
+                on_change=self._after_additional_distance_changed,
             ),
             self._register_numeric_binding(
                 config_attr="transparency",
@@ -892,6 +937,10 @@ class SettingsWindowController:
 
     def _after_transparency_changed(self, _value: float) -> None:
         self._apply_runtime_theme()
+        self._runtime.queue_draw()
+
+    def _after_additional_distance_changed(self, _value: int) -> None:
+        self._runtime.reposition()
         self._runtime.queue_draw()
 
     def _after_hide_mode_changed(self, mode: str) -> None:

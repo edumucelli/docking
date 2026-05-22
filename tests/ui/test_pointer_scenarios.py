@@ -72,6 +72,7 @@ class _ScenarioHarness:
             hide_delay_ms=0,
             unhide_delay_ms=0,
             hide_time_ms=250,
+            additional_distance_from_edge=0,
         )
         self.theme = SimpleNamespace(
             item_padding=8,
@@ -532,6 +533,7 @@ class TestPlacementScenarios:
             move=MagicMock(),
             drawing_area=SimpleNamespace(queue_draw=MagicMock()),
             update_input_region=MagicMock(),
+            additional_distance_from_edge=0,
         )
         controller = placement_mod.DockPlacementController(cast(Any, window))
         reposition = MagicMock()

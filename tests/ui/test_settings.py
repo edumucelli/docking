@@ -493,6 +493,7 @@ def _config():
         unhide_delay_ms=0,
         update_check_enabled=True,
         update_check_interval_hours=24,
+        additional_distance_from_edge=0,
         save=MagicMock(),
     )
 

@@ -167,6 +167,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GdkX11, GLib, Gtk
 
+from docking.core.config import effective_edge_gap
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
@@ -341,7 +342,7 @@ class DockPlacementController:
             + bounce_headroom
         )
         pos = config.pos
-        gap = max(0, int(theme.distance_from_edge))
+        gap = effective_edge_gap(theme, config)
         if is_horizontal(pos=pos):
             win_w, win_h = geom.width, cross + gap
             if pos == Position.BOTTOM:
@@ -402,7 +403,7 @@ class DockPlacementController:
         screen = self._window.get_screen()
 
         icon_size = self._window.config.icon_size
-        gap = max(0, int(self._window.theme.distance_from_edge))
+        gap = effective_edge_gap(self._window.theme, self._window.config)
         strut_height = int(icon_size + self._window.theme.bottom_padding + gap)
 
         set_dock_struts(

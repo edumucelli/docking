@@ -175,6 +175,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
+from docking.core.config import effective_edge_gap
 from docking.core.items import APP_KIND
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import RGB, RGBA, IndicatorStyle
@@ -711,7 +712,7 @@ class DockRenderer:
         height = frame.window_rect.h
         # Offset content away from the screen edge so the gap area
         # (at the edge) stays transparent for the autohide trigger.
-        gap = max(0, int(theme.distance_from_edge))
+        gap = effective_edge_gap(theme, config)
         if gap > 0:
             if pos == Position.TOP:
                 cr.translate(0, gap)
