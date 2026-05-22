@@ -24,12 +24,11 @@ test without a desktop session.
 from __future__ import annotations
 
 import datetime as dt
-import json
-import urllib.request
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
+from docking.applets.http import http_get_json
 from docking.applets.live_state import (
     live_freshness_lines,
     live_state_error,
@@ -435,37 +434,19 @@ def prefs_payload(
     }
 
 
-def _get_json(url: str, *, timeout: float = FETCH_TIMEOUT_S) -> object:
-    request = urllib.request.Request(
-        url=url,
-        headers={
-            "Accept": "application/json",
-            "User-Agent": "DockingHackerNewsApplet/1.0",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read())
-
-
 def fetch_hn_stories(
     *,
     limit: int = DEFAULT_FETCH_LIMIT,
     offset: int = 0,
-    get_json: Callable[[str], object] | None = None,
 ) -> tuple[HackerNewsStory, ...]:
     """Fetch HN top stories using the official Firebase API."""
-    return fetch_hn_story_page(
-        limit=limit,
-        offset=offset,
-        get_json=get_json,
-    ).stories
+    return fetch_hn_story_page(limit=limit, offset=offset).stories
 
 
 def fetch_hn_story_page(
     *,
     limit: int = DEFAULT_FETCH_LIMIT,
     offset: int = 0,
-    get_json: Callable[[str], object] | None = None,
 ) -> HackerNewsPage:
     """Fetch one cursor page using HN topstories ids.
 
@@ -473,9 +454,10 @@ def fetch_hn_story_page(
     stories. That lets paging continue even when a fetched id is dead/deleted
     or otherwise filtered out.
     """
-    fetch = get_json or _get_json
     try:
-        raw_ids = fetch(f"{HN_BASE_URL}/topstories.json")
+        raw_ids = http_get_json(
+            f"{HN_BASE_URL}/topstories.json", timeout=FETCH_TIMEOUT_S
+        )
         ids, next_offset, has_more = parse_top_story_id_page(
             raw_ids,
             limit=limit,
@@ -483,7 +465,9 @@ def fetch_hn_story_page(
         )
         stories: list[HackerNewsStory] = []
         for story_id in ids:
-            raw_story = fetch(f"{HN_BASE_URL}/item/{story_id}.json")
+            raw_story = http_get_json(
+                f"{HN_BASE_URL}/item/{story_id}.json", timeout=FETCH_TIMEOUT_S
+            )
             story = parse_story_payload(raw_story)
             if story is not None:
                 stories.append(story)
