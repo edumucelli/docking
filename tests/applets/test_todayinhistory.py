@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -48,7 +47,7 @@ class TestHistoryHelpers:
         assert "Apollo 11" in text
         assert "Sea of Tranquility" in text
 
-    @patch("docking.applets.todayinhistory.state._http_get_json")
+    @patch("docking.applets.todayinhistory.state.http_get_json")
     def test_fetch_today_in_history_parses_wikipedia_response(self, mock_get):
         mock_get.return_value = {
             "events": [
@@ -78,7 +77,7 @@ class TestHistoryHelpers:
         assert entries[0].article_url.endswith("/Apollo_11")
 
     @patch(
-        "docking.applets.todayinhistory.state._http_get_json",
+        "docking.applets.todayinhistory.state.http_get_json",
         side_effect=RuntimeError,
     )
     def test_fetch_failure_returns_empty(self, _mock_get):
@@ -165,29 +164,6 @@ class TestHistoryHelpers:
         ]
         assert today_state_mod._parse_wikipedia_events(data=[], limit=3) == []
         assert today_state_mod._parse_wikipedia_events(data={}, limit=3) == []
-
-    def test_http_get_json_uses_urlopen(self, monkeypatch):
-        class _Response:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *_args):
-                return False
-
-            def read(self):
-                return json.dumps({"ok": True}).encode()
-
-        seen = []
-        monkeypatch.setattr(
-            today_state_mod,
-            "urlopen",
-            lambda request, timeout: (
-                seen.append((request.full_url, timeout)) or _Response()
-            ),
-        )
-
-        assert today_state_mod._http_get_json("https://example.test") == {"ok": True}
-        assert seen == [("https://example.test", 8.0)]
 
     def test_fallback_catalog_exact_pool_and_empty(self):
         catalog = {

@@ -16,12 +16,12 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
 from typing import Any
-from urllib.request import Request, urlopen
 
+from docking.applets.http import http_get_json
 from docking.applets.text import normalize_text
 from docking.applets.todayinhistory import meta
 from docking.i18n import _
@@ -55,21 +55,6 @@ def format_history_event(event: HistoryEvent) -> str:
     if event.summary:
         return "\n".join((header, event.summary))
     return header
-
-
-def _http_get_json(url: str, timeout: float = 8.0) -> Any:
-    request = Request(
-        url=url,
-        headers={
-            "User-Agent": (
-                "DockingTodayInHistoryApplet/1.0 "
-                "(+https://github.com/edumucelli/docking)"
-            )
-        },
-    )
-    with urlopen(request, timeout=timeout) as response:
-        payload = response.read().decode("utf-8", errors="replace")
-    return json.loads(payload)
 
 
 def _date_key(*, month: int, day: int) -> str:
@@ -225,11 +210,9 @@ def fetch_today_in_history(
     month: int,
     day: int,
     limit: int = DEFAULT_FETCH_LIMIT,
-    http_get_json: Callable[[str], Any] | None = None,
 ) -> list[HistoryEvent]:
-    getter = http_get_json or _http_get_json
     try:
-        data = getter(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
+        data = http_get_json(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
         return _parse_wikipedia_events(data=data, limit=limit)
     except Exception as exc:
         log.bind(action="fetch_today_in_history").debug(
