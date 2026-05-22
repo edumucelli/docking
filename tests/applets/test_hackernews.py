@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 from unittest.mock import MagicMock, patch
 
 import docking.applets.hackernews.applet as hackernews_applet_mod
@@ -313,10 +312,12 @@ class TestHackerNewsState:
 
 
 class TestFetchHnStories:
-    def test_fetches_top_stories(self):
+    def test_fetches_top_stories(self, monkeypatch):
+        import docking.applets.hackernews.state as hn_state
+
         seen = []
 
-        def get_json(url: str):
+        def get_json(url, *, timeout=None):
             seen.append(url)
             if url == f"{HN_BASE_URL}/topstories.json":
                 return [111, 222, 123, 456]
@@ -334,7 +335,8 @@ class TestFetchHnStories:
                 "score": 20,
             }
 
-        stories = fetch_hn_stories(limit=2, offset=2, get_json=get_json)
+        monkeypatch.setattr(hn_state, "http_get_json", get_json)
+        stories = fetch_hn_stories(limit=2, offset=2)
 
         assert [story.title for story in stories] == ["First", "Second"]
         assert seen == [
@@ -343,8 +345,10 @@ class TestFetchHnStories:
             f"{HN_BASE_URL}/item/456.json",
         ]
 
-    def test_fetch_story_page_tracks_cursor_past_filtered_items(self):
-        def get_json(url: str):
+    def test_fetch_story_page_tracks_cursor_past_filtered_items(self, monkeypatch):
+        import docking.applets.hackernews.state as hn_state
+
+        def get_json(url, *, timeout=None):
             if url == f"{HN_BASE_URL}/topstories.json":
                 return [1, 2, 3]
             if url == f"{HN_BASE_URL}/item/1.json":
@@ -353,41 +357,21 @@ class TestFetchHnStories:
                 return {"id": 2, "type": "comment", "title": "Ignored"}
             return {"id": 3, "type": "story", "title": "Third"}
 
-        page = fetch_hn_story_page(limit=2, offset=0, get_json=get_json)
+        monkeypatch.setattr(hn_state, "http_get_json", get_json)
+        page = fetch_hn_story_page(limit=2, offset=0)
 
         assert [story.id for story in page.stories] == [1]
         assert page.next_offset == 2
         assert page.has_more is True
 
-    def test_fetch_failure_returns_empty(self):
-        assert (
-            fetch_hn_stories(get_json=lambda _url: (_ for _ in ()).throw(OSError()))
-            == ()
-        )
-
-    def test_get_json_uses_request_headers(self, monkeypatch):
+    def test_fetch_failure_returns_empty(self, monkeypatch):
         import docking.applets.hackernews.state as hn_state
 
-        seen = []
+        def raising(_url, *, timeout=None):
+            raise OSError("boom")
 
-        class _Response:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *_args):
-                return None
-
-            def read(self):
-                return json.dumps([1, 2]).encode()
-
-        monkeypatch.setattr(
-            hn_state.urllib.request,
-            "urlopen",
-            lambda req, timeout: seen.append((req.full_url, timeout)) or _Response(),
-        )
-
-        assert hn_state._get_json("https://example.test") == [1, 2]
-        assert seen == [("https://example.test", 5)]
+        monkeypatch.setattr(hn_state, "http_get_json", raising)
+        assert fetch_hn_stories() == ()
 
 
 class TestHackerNewsRender:

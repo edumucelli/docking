@@ -20,12 +20,12 @@ one image download per day.
 
 from __future__ import annotations
 
-import json
 import urllib.request
 from typing import NamedTuple
 
 from docking.applets.apod import meta
 from docking.applets.apod.state import ApodResult, build_page_url
+from docking.applets.http import http_get_json
 from docking.core.paths import ensure_dir
 from docking.log import get_logger, with_context
 from docking.platform.environment import docking_cache_dir
@@ -100,13 +100,11 @@ def _pick_image_url(*, payload: dict) -> str:
 
 
 def _fetch_json(*, api_key: str) -> dict:
-    req = urllib.request.Request(
+    return http_get_json(
         f"{API_URL}?api_key={api_key}&thumbs=true",
-        headers={"User-Agent": USER_AGENT},
+        timeout=REQUEST_TIMEOUT_S,
+        user_agent=USER_AGENT,
     )
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
-        raw = resp.read().decode("utf-8", errors="replace")
-    return json.loads(raw)
 
 
 def _download_image(*, url: str, date_iso: str) -> str:
