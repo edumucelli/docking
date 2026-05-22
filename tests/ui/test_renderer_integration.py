@@ -160,7 +160,10 @@ class TestRendererContentFlow:
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
         config = SimpleNamespace(
-            pos=Position.BOTTOM, icon_size=48, show_window_count_numbers=False
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
         )
         i1 = DockItem(
             desktop_id="firefox.desktop",
@@ -221,7 +224,10 @@ class TestRendererContentFlow:
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
         config = SimpleNamespace(
-            pos=Position.BOTTOM, icon_size=48, show_window_count_numbers=False
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
         )
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         model = MagicMock()
@@ -278,7 +284,10 @@ class TestRendererContentFlow:
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
         config = SimpleNamespace(
-            pos=Position.BOTTOM, icon_size=48, show_window_count_numbers=False
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
         )
         item = DockItem(
             desktop_id="firefox.desktop",
@@ -317,7 +326,10 @@ class TestRendererContentFlow:
         renderer = renderer_mod.DockRenderer()
         theme = replace(Theme.load("default", 48), distance_from_edge=6)
         config = SimpleNamespace(
-            pos=Position.BOTTOM, icon_size=48, show_window_count_numbers=False
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
         )
         frame = build_geometry_frame(
             items=[DockItem(desktop_id="firefox.desktop", is_running=True)],
@@ -326,6 +338,7 @@ class TestRendererContentFlow:
                 icon_size=48,
                 zoom_percent=1.5,
                 zoom_enabled=True,
+                additional_distance_from_edge=0,
             ),
             theme=theme,
             window_w=420,
@@ -367,6 +380,7 @@ class TestRendererContentFlow:
             pos=Position.BOTTOM,
             icon_size=48,
             applet_prefs={"separator#0": {"style": "line", "invert_color": False}},
+            additional_distance_from_edge=0,
         )
         item = DockItem(
             desktop_id="applet://separator#0",
@@ -407,7 +421,10 @@ class TestRendererContentFlow:
         model = MagicMock()
         model.visible_items.return_value = []
         config = SimpleNamespace(
-            pos=Position.BOTTOM, icon_size=48, show_window_count_numbers=False
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
         )
         theme = Theme.load("default", 48)
         cr = _surface_context()
@@ -491,7 +508,7 @@ class TestRendererHelpers:
             DockItem(desktop_id="a.desktop", main_size=40),
             DockItem(desktop_id="b.desktop", main_size=0),
         ]
-        config = SimpleNamespace(icon_size=48)
+        config = SimpleNamespace(icon_size=48, additional_distance_from_edge=0)
         theme = Theme.load("default", 48)
 
         width, height = renderer.compute_dock_size(

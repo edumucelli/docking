@@ -150,7 +150,7 @@ import threading
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import unquote, urlparse
 
 from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
@@ -159,6 +159,9 @@ from docking.core.paths import ensure_parent_dir
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
+
+if TYPE_CHECKING:
+    from docking.core.theme import Theme
 
 DEFAULT_CONFIG_DIR = docking_config_dir()
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
@@ -274,6 +277,9 @@ MIN_ZOOM_PERCENT = 1.0
 MAX_ZOOM_PERCENT = 4.0
 MIN_TRANSPARENCY = 0.15
 MAX_TRANSPARENCY = 1.0
+DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MIN_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MAX_ADDITIONAL_DISTANCE_FROM_EDGE = 100
 
 logger = get_logger("config")
 _SAVE_LOCK = threading.RLock()
@@ -729,6 +735,9 @@ class Config:
     theme: str = DEFAULT_THEME
     # Multiplier applied to theme alpha values for the dock shelf
     transparency: float = DEFAULT_TRANSPARENCY
+    # Extra pixels added to the theme's distance_from_edge_px. The on-screen
+    # gap between the dock and the screen edge is the sum of the two.
+    additional_distance_from_edge: int = DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
@@ -851,6 +860,12 @@ class Config:
         )
         self.theme = _normalize_theme(self.theme)
         self.transparency = _normalize_transparency(self.transparency)
+        self.additional_distance_from_edge = _normalize_int(
+            self.additional_distance_from_edge,
+            default=DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE,
+            minimum=MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
+            maximum=MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
+        )
         self.pinned = normalize_pinned_entries(list(self.pinned))
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
@@ -949,6 +964,19 @@ class Config:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def effective_edge_gap(theme: Theme, config: Config) -> int:
+    """Total on-screen dock-to-edge gap.
+
+    Sums the theme's baked-in ``distance_from_edge`` (a visual property) and
+    the user's ``additional_distance_from_edge`` config override
+    (a personal preference), clamped to non-negative.
+    """
+    return max(
+        0,
+        int(theme.distance_from_edge) + int(config.additional_distance_from_edge),
+    )
 
 
 def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:

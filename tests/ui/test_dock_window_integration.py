@@ -90,6 +90,7 @@ def _make_stub(item: DockItem | None = None):
         middle_click_action="new-window",
         folder_stack_unfold="click",
         icon_size=48,
+        additional_distance_from_edge=0,
     )
     stub.model = MagicMock()
     stub.model.visible_items.return_value = [item]
@@ -682,6 +683,7 @@ class TestLeaveEnterFlow:
                 icon_size=48,
                 zoom_percent=1.5,
                 zoom_enabled=True,
+                additional_distance_from_edge=0,
             ),
             theme=theme,
             window_w=420,
@@ -980,6 +982,7 @@ class TestDockWindowStrutsAndRegion:
             icon_size=48,
             zoom_percent=1.5,
             zoom_enabled=True,
+            additional_distance_from_edge=0,
         )
         frame = build_geometry_frame(
             items=[DockItem(desktop_id="firefox.desktop")],
@@ -1408,6 +1411,7 @@ class TestDockWindowDrawAndHelpers:
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
                 _cache=_window_cache(),
+                additional_distance_from_edge=0,
             )
         )
 

@@ -82,6 +82,7 @@ def _renderer_config() -> SimpleNamespace:
         icon_size=ICON_SIZE,
         zoom_percent=2.0,
         zoom_enabled=True,
+        additional_distance_from_edge=0,
         show_window_count_numbers=False,
         applet_prefs={},
     )

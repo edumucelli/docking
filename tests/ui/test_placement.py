@@ -21,6 +21,7 @@ def _make_window(**overrides):
             active_display=False,
             hide_mode="none",
             monitor_index=-1,
+            additional_distance_from_edge=0,
         ),
         theme=SimpleNamespace(
             top_padding=4,
@@ -310,6 +311,7 @@ class TestPlacementControllerGeometry:
                 active_display=False,
                 hide_mode="none",
                 monitor_index=-1,
+                additional_distance_from_edge=0,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
@@ -344,6 +346,7 @@ class TestPlacementControllerGeometry:
                 active_display=False,
                 hide_mode="none",
                 monitor_index=-1,
+                additional_distance_from_edge=0,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
@@ -385,6 +388,7 @@ class TestPlacementControllerGeometry:
                 active_display=False,
                 hide_mode="none",
                 monitor_index=1,
+                additional_distance_from_edge=0,
             ),
         )
         controller = placement_mod.DockPlacementController(window)
@@ -476,6 +480,7 @@ class TestPlacementControllerStruts:
                 pos=Position.BOTTOM,
                 active_display=False,
                 monitor_index=-1,
+                additional_distance_from_edge=0,
             ),
             get_window=lambda: FakeX11Window(),
             get_display=lambda: MagicMock(),
@@ -514,6 +519,7 @@ class TestPlacementControllerStruts:
                 pos=Position.BOTTOM,
                 active_display=False,
                 monitor_index=-1,
+                additional_distance_from_edge=0,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
             get_window=lambda: gdk_window,
@@ -554,6 +560,7 @@ class TestPlacementControllerStruts:
                 pos=Position.BOTTOM,
                 active_display=True,
                 monitor_index=-1,
+                additional_distance_from_edge=0,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
             get_window=lambda: gdk_window,

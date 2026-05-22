@@ -237,6 +237,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
+from docking.core.config import effective_edge_gap
 from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
@@ -516,7 +517,7 @@ def build_geometry_frame(
     pos = config.pos
     horizontal = is_horizontal(pos=pos)
     main_size = window_w if horizontal else window_h
-    gap = max(0, int(theme.distance_from_edge))
+    gap = effective_edge_gap(theme, config)
     cross_size = (window_h if horizontal else window_w) - gap
 
     local_cursor_main = _local_cursor_main(
@@ -556,7 +557,7 @@ def build_geometry_frame(
         autohide_state=(
             None if autohide_state != HideState.HIDDEN else HideState.VISIBLE
         ),
-        distance_from_edge=max(0, int(theme.distance_from_edge)),
+        distance_from_edge=gap,
     )
 
     drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
@@ -582,7 +583,7 @@ def build_geometry_frame(
             content_w=int(zoomed_w),
             content_cross=content_cross,
             autohide_state=HideState.HIDDEN,
-            distance_from_edge=max(0, int(theme.distance_from_edge)),
+            distance_from_edge=gap,
         )
     else:
         cursor_rect = static_dock_rect
@@ -725,6 +726,7 @@ def _build_item_geometries(
         draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
         static_dock_rect=static_dock_rect,
         theme=theme,
+        edge_gap=effective_edge_gap(theme, config),
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
@@ -948,10 +950,11 @@ def _compute_background_rect(
     draw_rects: list[Rect],
     static_dock_rect: Rect,
     theme: Theme,
+    edge_gap: int,
     hide_offset: float,
     drop_gap: float,
 ) -> Rect:
-    gap = max(0, int(theme.distance_from_edge))
+    gap = max(0, int(edge_gap))
     shelf_cross = max(1, round(theme.shelf_height))
     stroke_width = max(0.0, float(theme.stroke_width))
     main_padding = theme.item_padding + 2 * theme.horizontal_padding + 4 * stroke_width

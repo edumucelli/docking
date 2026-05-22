@@ -21,6 +21,7 @@ def _config(pos: Position = Position.BOTTOM) -> SimpleNamespace:
         icon_size=48,
         zoom_percent=1.5,
         zoom_enabled=True,
+        additional_distance_from_edge=0,
     )
 
 
@@ -412,6 +413,7 @@ class TestShelfHidesCompletely:
                 icon_size=icon_size,
                 zoom_percent=zoom,
                 zoom_enabled=True,
+                additional_distance_from_edge=0,
             ),
             theme=theme,
             window_w=1920,

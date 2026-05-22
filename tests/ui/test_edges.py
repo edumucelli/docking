@@ -32,6 +32,7 @@ def _config() -> SimpleNamespace:
         icon_size=48,
         zoom_percent=1.5,
         zoom_enabled=True,
+        additional_distance_from_edge=0,
     )
 
 
@@ -96,6 +97,7 @@ class _Harness:
             zoom_enabled=True,
             previews_enabled=False,
             folder_stack_unfold="click",
+            additional_distance_from_edge=0,
         )
         self.theme = SimpleNamespace(
             item_padding=8,
