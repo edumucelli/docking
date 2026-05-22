@@ -227,6 +227,7 @@ from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.menu import MenuHandler
 from docking.ui.placement import DockPlacementController
 from docking.ui.preview import PreviewPopup
+from docking.ui.renderer import RenderState
 from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsWindowController
 from docking.ui.tooltip import TooltipManager
@@ -699,18 +700,21 @@ class DockWindow(Gtk.Window):
         cursor_main_axis = (
             self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
         )
+        render_state = RenderState(
+            hide_offset=hide_offset,
+            drag_index=drag_index,
+            drop_insert_index=drop_insert,
+            hovered_id=hovered_id,
+            drop_target_id=drop_target,
+            cursor_main=cursor_main_axis,
+        )
         self.renderer.draw(
             cr,
             widget,
             frame,
             self.config,
             self.theme,
-            hide_offset,
-            drag_index,
-            drop_insert,
-            hovered_id,
-            drop_target_id=drop_target,
-            cursor_main=cursor_main_axis,
+            render_state,
         )
         # Update input region as hide state changes (shrink when hidden)
         self.update_input_region(frame=frame)

@@ -20,6 +20,7 @@ from docking.ui.geometry import (
     Rect,
     build_geometry_frame,
 )
+from docking.ui.renderer import RenderState
 
 
 def _surface_context(width: int = 420, height: int = 90):
@@ -90,6 +91,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=config,
             theme=theme,
+            state=renderer_mod.RenderState(),
         )
         # Then
         renderer._draw_content.assert_called_once()
@@ -108,6 +110,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
         first_surface = renderer._cache.offscreen_surface
 
@@ -117,6 +120,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
 
         assert first_surface is not None
@@ -137,6 +141,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
         first_surface = renderer._cache.offscreen_surface
 
@@ -147,6 +152,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
 
         assert first_surface is not None
@@ -202,10 +208,12 @@ class TestRendererContentFlow:
             frame=_frame([i1, i2], layout),
             config=config,
             theme=theme,
-            hide_offset=1.0,
-            drag_index=-1,
-            drop_insert_index=1,
-            hovered_id="firefox.desktop",
+            state=RenderState(
+                hide_offset=1.0,
+                drag_index=-1,
+                drop_insert_index=1,
+                hovered_id="firefox.desktop",
+            ),
         )
 
         # Then
@@ -263,10 +271,12 @@ class TestRendererContentFlow:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         assert shelf_calls
@@ -304,10 +314,12 @@ class TestRendererContentFlow:
             frame=_frame([item], layout),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         renderer._draw_badge.assert_called_once()
@@ -351,10 +363,12 @@ class TestRendererContentFlow:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=1.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=1.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         assert shelf_calls
@@ -392,10 +406,12 @@ class TestRendererContentFlow:
             frame=_frame([item], layout),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         renderer._draw_icon.assert_not_called()
@@ -417,10 +433,12 @@ class TestRendererContentFlow:
             frame=_frame([], []),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
         # Then
         # When
