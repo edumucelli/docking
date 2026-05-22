@@ -41,6 +41,7 @@ class FakeLabel:
         self.margin_bottom = 0
         self.line_wrap = False
         self.max_width_chars = -1
+        self.tooltip_text = None
 
     def get_label(self) -> str:
         return self._label
@@ -71,6 +72,9 @@ class FakeLabel:
 
     def set_line_wrap_mode(self, mode: int) -> None:
         pass
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
 
     def get_style_context(self) -> FakeStyleContext:
         return FakeStyleContext()
@@ -360,6 +364,10 @@ class FakeImage:
         self.pixel_size = None
 
     @classmethod
+    def new_from_icon_name(cls, icon_name: str, icon_size):
+        return cls(("icon", icon_name, icon_size))
+
+    @classmethod
     def new_from_pixbuf(cls, pixbuf):
         return cls(("pixbuf", pixbuf))
 
@@ -392,6 +400,26 @@ class FakePixbuf:
         )
 
 
+class FakeEventBox:
+    def __init__(self) -> None:
+        self.child = None
+        self.visible_window = True
+        self.size_request = None
+        self.tooltip_text = None
+
+    def set_visible_window(self, value: bool) -> None:
+        self.visible_window = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
+
+    def add(self, child) -> None:
+        self.child = child
+
+
 class FakeScrolledWindow:
     def __init__(self) -> None:
         self.child = None
@@ -421,6 +449,10 @@ class FakePolicyType:
 
 class FakeAlign:
     CENTER = 0
+
+
+class FakeIconSize:
+    MENU = 0
 
 
 class FakeWindowPosition:
@@ -461,10 +493,12 @@ class FakeGtk:
     CheckButton = FakeCheckButton
     Button = FakeButton
     Image = FakeImage
+    EventBox = FakeEventBox
     ScrolledWindow = FakeScrolledWindow
     Orientation = FakeOrientation
     PolicyType = FakePolicyType
     Align = FakeAlign
+    IconSize = FakeIconSize
     WindowPosition = FakeWindowPosition
     Settings = FakeGtkSettings
 

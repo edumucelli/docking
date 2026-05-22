@@ -100,8 +100,9 @@ SECTION_HEADER_TOP_MARGIN_PX = 6
 SECTION_HEADER_BOTTOM_MARGIN_PX = 2
 ROW_SPACING_PX = 12
 HIDE_MODE_COMBO_WIDTH_PX = 180
+HIDE_MODE_INFO_ICON_WIDTH_PX = 14
 TRANSPARENCY_SCALE_WIDTH_PX = 132
-HIDE_MODE_DESC_MAX_CHARS = 28
+DESCRIPTION_MAX_CHARS = 28
 HIDE_MODE_BOX_SPACING_PX = 4
 APPLET_GRID_COLUMN_SPACING_PX = 16
 APPLET_GRID_ROW_SPACING_PX = 8
@@ -145,6 +146,7 @@ class SettingsWindowController:
         self._syncing_widgets = False
 
         self._hide_mode_combo: Any = None
+        self._hide_mode_info: Any = None
         self._left_click_combo: Any = None
         self._middle_click_combo: Any = None
         self._folder_stack_unfold_combo: Any = None
@@ -162,7 +164,7 @@ class SettingsWindowController:
         self._icon_size_spin: Any = None
         self._transparency_scale: Any = None
         self._additional_distance_scale: Any = None
-        self._additional_distance_desc: Any = None
+        self._additional_distance_info: Any = None
         self._pressure_reveal_switch: Any = None
         self._pressure_threshold_scale: Any = None
         self._zoom_percent_spin: Any = None
@@ -229,25 +231,24 @@ class SettingsWindowController:
         self._bindings.clear()
 
         self._hide_mode_combo = Gtk.ComboBoxText()
-        self._hide_mode_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        self._hide_mode_combo.set_size_request(
+            HIDE_MODE_COMBO_WIDTH_PX
+            - HIDE_MODE_INFO_ICON_WIDTH_PX
+            - HIDE_MODE_BOX_SPACING_PX,
+            -1,
+        )
         for mode_value, mode_label in [
             ("none", _("Don't Hide")),
             ("always-on-top", _("Always on Top")),
             ("autohide", _("Auto-hide")),
             ("intelligent", _("Intelligent")),
-            ("dodge-active", _("Dodge Active Window")),
-            ("window-dodge", _("Dodge All Windows")),
+            ("dodge-active", _("Dodge Active")),
+            ("window-dodge", _("Dodge Windows")),
             ("dodge-maximized", _("Dodge Maximized")),
         ]:
             self._hide_mode_combo.append(mode_value, mode_label)
 
-        self._hide_mode_desc = Gtk.Label()
-        self._hide_mode_desc.set_xalign(0.0)
-        self._hide_mode_desc.set_line_wrap(True)
-        self._hide_mode_desc.set_line_wrap_mode(2)  # Pango.WrapMode.WORD_CHAR
-        self._hide_mode_desc.set_max_width_chars(HIDE_MODE_DESC_MAX_CHARS)
-        ctx = self._hide_mode_desc.get_style_context()
-        ctx.add_class("dim-label")
+        self._hide_mode_info = self._new_info_icon()
         self._hide_mode_combo.connect("changed", self._on_hide_mode_combo_changed)
         self._update_hide_mode_description()
 
@@ -340,16 +341,11 @@ class SettingsWindowController:
         self._additional_distance_scale.set_size_request(
             TRANSPARENCY_SCALE_WIDTH_PX, -1
         )
-        self._additional_distance_desc = Gtk.Label(
-            label=_("Added on top of the theme's own distance from the edge."),
+        self._additional_distance_info = self._new_info_icon(
+            _("Added on top of the theme's own distance from the edge.")
         )
-        self._additional_distance_desc.set_xalign(0.0)
-        self._additional_distance_desc.set_line_wrap(True)
-        self._additional_distance_desc.set_line_wrap_mode(2)  # Pango.WrapMode.WORD_CHAR
-        self._additional_distance_desc.set_max_width_chars(HIDE_MODE_DESC_MAX_CHARS)
-        self._additional_distance_desc.get_style_context().add_class("dim-label")
         additional_distance_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
+            orientation=Gtk.Orientation.HORIZONTAL,
             spacing=HIDE_MODE_BOX_SPACING_PX,
         )
         additional_distance_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
@@ -357,7 +353,7 @@ class SettingsWindowController:
             self._additional_distance_scale, False, False, 0
         )
         additional_distance_box.pack_start(
-            self._additional_distance_desc, False, False, 0
+            self._additional_distance_info, False, False, 0
         )
         self._hide_delay_spin = self._new_numeric_spin_button(
             minimum=0,
@@ -426,11 +422,12 @@ class SettingsWindowController:
         outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
 
         hide_mode_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
+            orientation=Gtk.Orientation.HORIZONTAL,
             spacing=HIDE_MODE_BOX_SPACING_PX,
         )
-        hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
-        hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
+        hide_mode_box.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        hide_mode_box.pack_start(self._hide_mode_combo, True, True, 0)
+        hide_mode_box.pack_start(self._hide_mode_info, False, False, 0)
 
         pressure_threshold_desc = Gtk.Label(
             label=_(
@@ -442,7 +439,7 @@ class SettingsWindowController:
         pressure_threshold_desc.set_xalign(0.0)
         pressure_threshold_desc.set_line_wrap(True)
         pressure_threshold_desc.set_line_wrap_mode(2)
-        pressure_threshold_desc.set_max_width_chars(HIDE_MODE_DESC_MAX_CHARS)
+        pressure_threshold_desc.set_max_width_chars(DESCRIPTION_MAX_CHARS)
         pressure_threshold_desc.get_style_context().add_class("dim-label")
         pressure_threshold_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -482,6 +479,20 @@ class SettingsWindowController:
         )
 
         return outer
+
+    def _new_info_icon(self, tooltip: str = "") -> Gtk.EventBox:
+        icon = Gtk.EventBox()
+        icon.set_visible_window(False)
+        icon.set_size_request(HIDE_MODE_INFO_ICON_WIDTH_PX, -1)
+        if tooltip:
+            icon.set_tooltip_text(tooltip)
+        icon.add(
+            Gtk.Image.new_from_icon_name(
+                "dialog-information-symbolic",
+                Gtk.IconSize.MENU,
+            )
+        )
+        return icon
 
     def _build_applets_tab(self) -> Gtk.Widget:
         scroller = Gtk.ScrolledWindow()
@@ -1023,13 +1034,11 @@ class SettingsWindowController:
         self._update_hide_mode_description()
 
     def _update_hide_mode_description(self) -> None:
-        if not self._hide_mode_combo or not self._hide_mode_desc:
+        if not self._hide_mode_combo or not self._hide_mode_info:
             return
         mode = self._hide_mode_combo.get_active_id() or "none"
         desc = self._HIDE_MODE_DESCRIPTIONS.get(mode, "")
-        self._hide_mode_desc.set_markup(
-            f"<small>{GLib.markup_escape_text(desc)}</small>"
-        )
+        self._hide_mode_info.set_tooltip_text(desc)
 
     def _after_tooltips_changed(self, active: bool) -> None:
         if not active:
