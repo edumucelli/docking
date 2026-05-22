@@ -56,7 +56,7 @@ class TestTriviaHelpers:
 
 
 class TestFetchTrivia:
-    @patch("docking.applets.trivia.state._http_get_json")
+    @patch("docking.applets.trivia.state.http_get_json")
     def test_fetches_entries_from_api(self, mock_get):
         mock_get.return_value = {
             "response_code": 0,
@@ -82,7 +82,7 @@ class TestFetchTrivia:
         assert entries[0].answers[0] == "Mercury"
 
     @patch(
-        "docking.applets.trivia.state._http_get_json",
+        "docking.applets.trivia.state.http_get_json",
         side_effect=RuntimeError("boom"),
     )
     def test_fetch_failure_returns_empty(self, _mock_get):

@@ -14,6 +14,7 @@ from docking.applets.network.applet import NetworkApplet
 from docking.applets.network.render import create_icon as create_network_icon
 from docking.applets.network.state import (
     AvailableNetwork,
+    NetworkState,
     TrafficCounters,
     compute_speeds,
     connection_info_command,
@@ -273,13 +274,15 @@ class TestNetworkApplet:
     def test_menu_status_rows_for_wifi_and_ethernet(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         applet = NetworkApplet(48)
-        applet._is_connected = True
-        applet._is_wifi = True
-        applet._ssid = "DockNet"
-        applet._signal_strength = 77
-        applet._ip_address = "10.0.0.2"
-        applet._rx_speed = 2048
-        applet._tx_speed = 1024
+        applet._state = NetworkState(
+            is_connected=True,
+            is_wifi=True,
+            ssid="DockNet",
+            signal_strength=77,
+            ip_address="10.0.0.2",
+            rx_speed=2048,
+            tx_speed=1024,
+        )
 
         labels = [item.get_label() for item in applet.get_menu_items()]
 
@@ -287,9 +290,12 @@ class TestNetworkApplet:
         assert "IP: 10.0.0.2" in labels
         assert any("KB/s" in label for label in labels)
 
-        applet._ssid = ""
-        applet._is_wifi = False
-        applet._iface = "eth0"
+        applet._state = NetworkState(
+            is_connected=True,
+            is_wifi=False,
+            iface="eth0",
+            ip_address="10.0.0.2",
+        )
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Ethernet: eth0" in labels
 
@@ -518,21 +524,21 @@ class TestNetworkApplet:
 
     def test_tooltip_wifi_shows_ssid(self):
         applet = NetworkApplet(48)
-        applet._is_connected = True
-        applet._is_wifi = True
-        applet._ssid = "MyNetwork"
-        applet._signal_strength = 72
-        applet._rx_speed = 1500.0
-        applet._tx_speed = 300.0
+        applet._state = NetworkState(
+            is_connected=True,
+            is_wifi=True,
+            ssid="MyNetwork",
+            signal_strength=72,
+            rx_speed=1500.0,
+            tx_speed=300.0,
+        )
         applet.refresh_tooltip()
         assert "MyNetwork" in applet.item.name
         assert "72%" in applet.item.name
 
     def test_tooltip_ethernet(self):
         applet = NetworkApplet(48)
-        applet._is_connected = True
-        applet._is_wifi = False
-        applet._iface = "eth0"
+        applet._state = NetworkState(is_connected=True, is_wifi=False, iface="eth0")
         applet.refresh_tooltip()
         assert "Ethernet" in applet.item.name
         assert "eth0" in applet.item.name
@@ -540,17 +546,19 @@ class TestNetworkApplet:
     def test_icon_changes_with_state(self):
         applet = NetworkApplet(48)
         # Disconnected
-        applet._is_connected = False
+        applet._state = NetworkState(is_connected=False)
         icon1 = signal_to_icon(
-            strength=0, is_connected=applet._is_connected, is_wifi=applet._is_wifi
+            strength=0,
+            is_connected=applet._state.is_connected,
+            is_wifi=applet._state.is_wifi,
         )
         assert "offline" in icon1
         # Connected wifi
-        applet._is_connected = True
-        applet._is_wifi = True
-        applet._signal_strength = 90
+        applet._state = NetworkState(
+            is_connected=True, is_wifi=True, signal_strength=90
+        )
         icon2 = signal_to_icon(
-            strength=applet._signal_strength, is_connected=True, is_wifi=True
+            strength=applet._state.signal_strength, is_connected=True, is_wifi=True
         )
         assert "excellent" in icon2
 
@@ -563,10 +571,12 @@ class TestNmDevicePriority:
         # wifi=2 > ethernet=1 > other=0
         # tun/bridge are skipped entirely
         applet = NetworkApplet(48)
-        applet._is_connected = True
-        applet._is_wifi = True
-        applet._ssid = "TestWifi"
-        applet._signal_strength = 80
+        applet._state = NetworkState(
+            is_connected=True,
+            is_wifi=True,
+            ssid="TestWifi",
+            signal_strength=80,
+        )
         applet.refresh_tooltip()
         assert "TestWifi" in applet.item.name
 
@@ -745,15 +755,12 @@ class TestNetworkAppletInternals:
     def test_set_networking_enabled_updates_client_and_refreshes(self, monkeypatch):
         applet = NetworkApplet(48)
         applet._nm_client = MagicMock()
-        update = MagicMock()
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "_update_nm_state", update)
-        monkeypatch.setattr(applet, "present", refresh)
+        monkeypatch.setattr(applet, "_refresh_state", refresh)
 
         applet._set_networking_enabled(enabled=False)
 
         applet._nm_client.networking_set_enabled.assert_called_once_with(False)
-        update.assert_called_once()
         refresh.assert_called_once()
 
     def test_set_networking_enabled_no_client_and_error(self, monkeypatch):
@@ -768,28 +775,22 @@ class TestNetworkAppletInternals:
         )
         applet._nm_client = MagicMock()
         applet._nm_client.networking_set_enabled.side_effect = RuntimeError("boom")
-        update = MagicMock()
-        present = MagicMock()
-        monkeypatch.setattr(applet, "_update_nm_state", update)
-        monkeypatch.setattr(applet, "present", present)
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "_refresh_state", refresh)
 
         applet._set_networking_enabled(enabled=True)
 
-        update.assert_not_called()
-        present.assert_not_called()
+        refresh.assert_not_called()
 
     def test_set_wireless_enabled_updates_client_and_refreshes(self, monkeypatch):
         applet = NetworkApplet(48)
         applet._nm_client = MagicMock()
-        update = MagicMock()
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "_update_nm_state", update)
-        monkeypatch.setattr(applet, "present", refresh)
+        monkeypatch.setattr(applet, "_refresh_state", refresh)
 
         applet._set_wireless_enabled(enabled=False)
 
         applet._nm_client.wireless_set_enabled.assert_called_once_with(False)
-        update.assert_called_once()
         refresh.assert_called_once()
 
     def test_set_wireless_enabled_no_client_and_error(self, monkeypatch):
@@ -804,15 +805,12 @@ class TestNetworkAppletInternals:
         )
         applet._nm_client = MagicMock()
         applet._nm_client.wireless_set_enabled.side_effect = RuntimeError("boom")
-        update = MagicMock()
-        present = MagicMock()
-        monkeypatch.setattr(applet, "_update_nm_state", update)
-        monkeypatch.setattr(applet, "present", present)
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "_refresh_state", refresh)
 
         applet._set_wireless_enabled(enabled=True)
 
-        update.assert_not_called()
-        present.assert_not_called()
+        refresh.assert_not_called()
 
     def test_start_connects_nm_and_timer(self, monkeypatch):
         # Given
@@ -824,7 +822,7 @@ class TestNetworkAppletInternals:
             network_applet_mod.GLib, "timeout_add_seconds", lambda _sec, _cb: 321
         )
         update = MagicMock()
-        monkeypatch.setattr(applet, "_update_nm_state", update)
+        monkeypatch.setattr(applet, "_refresh_state", update)
         # When
         applet.start(notify)
         # Then
@@ -879,17 +877,14 @@ class TestNetworkAppletInternals:
     def test_on_nm_changed_refreshes(self, monkeypatch):
         # Given
         applet = NetworkApplet(48)
-        update = MagicMock()
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "_update_nm_state", update)
-        monkeypatch.setattr(applet, "present", refresh)
+        monkeypatch.setattr(applet, "_refresh_state", refresh)
         # When
         applet._on_nm_changed()
         # Then
-        update.assert_called_once()
         refresh.assert_called_once()
 
-    def test_update_nm_state_prefers_wifi_and_reads_ip_and_signal(self, monkeypatch):
+    def test_refresh_state_prefers_wifi_and_reads_ip_and_signal(self, monkeypatch):
         # Given
         applet = NetworkApplet(48)
         monkeypatch.setattr(
@@ -951,16 +946,16 @@ class TestNetworkAppletInternals:
         applet._nm_client = MagicMock()
         applet._nm_client.get_active_connections.return_value = [conn_eth, conn_wifi]
         # When
-        applet._update_nm_state()
+        applet._refresh_state()
         # Then
-        assert applet._is_connected is True
-        assert applet._is_wifi is True
-        assert applet._iface == "wlan0"
-        assert applet._ip_address == "192.168.1.10"
-        assert applet._ssid == "MyWifi"
-        assert applet._signal_strength == 73
+        assert applet._state.is_connected is True
+        assert applet._state.is_wifi is True
+        assert applet._state.iface == "wlan0"
+        assert applet._state.ip_address == "192.168.1.10"
+        assert applet._state.ssid == "MyWifi"
+        assert applet._state.signal_strength == 73
 
-    def test_update_nm_state_skips_non_activated_and_tun_bridge(self, monkeypatch):
+    def test_refresh_state_skips_non_activated_and_tun_bridge(self, monkeypatch):
         # Given
         applet = NetworkApplet(48)
         monkeypatch.setattr(
@@ -987,12 +982,12 @@ class TestNetworkAppletInternals:
         applet._nm_client = MagicMock()
         applet._nm_client.get_active_connections.return_value = [bad, tun_conn]
         # When
-        applet._update_nm_state()
+        applet._refresh_state()
         # Then
-        assert applet._is_connected is False
-        assert applet._iface == ""
+        assert applet._state.is_connected is False
+        assert applet._state.iface == ""
 
-    def test_update_nm_state_skips_loopback_when_connection_has_wifi_too(
+    def test_refresh_state_skips_loopback_when_connection_has_wifi_too(
         self, monkeypatch
     ):
         # Given
@@ -1048,62 +1043,43 @@ class TestNetworkAppletInternals:
         applet._nm_client = MagicMock()
         applet._nm_client.get_active_connections.return_value = [conn_wifi]
         # When
-        applet._update_nm_state()
+        applet._refresh_state()
         # Then
-        assert applet._is_connected is True
-        assert applet._is_wifi is True
-        assert applet._iface == "wlan0"
-        assert applet._ssid == "MyWifi"
-        assert applet._signal_strength == 73
+        assert applet._state.is_connected is True
+        assert applet._state.is_wifi is True
+        assert applet._state.iface == "wlan0"
+        assert applet._state.ssid == "MyWifi"
+        assert applet._state.signal_strength == 73
 
-    def test_tick_updates_and_refreshes(self, monkeypatch):
-        # Given
+    def test_tick_delegates_to_refresh_state(self, monkeypatch):
         applet = NetworkApplet(48)
-        update_nm = MagicMock()
-        update_traffic = MagicMock()
-        update_wifi = MagicMock()
         refresh = MagicMock()
-        monkeypatch.setattr(applet, "_update_nm_state", update_nm)
-        monkeypatch.setattr(applet, "_update_traffic", update_traffic)
-        monkeypatch.setattr(applet, "_update_wifi_signal", update_wifi)
-        monkeypatch.setattr(applet, "present", refresh)
-        # When
-        result = applet._tick()
-        # Then
-        assert result is True
-        update_nm.assert_called_once()
-        update_traffic.assert_called_once()
-        update_wifi.assert_called_once()
+        monkeypatch.setattr(applet, "_refresh_state", refresh)
+        assert applet._tick() is True
         refresh.assert_called_once()
 
-    def test_update_traffic_no_iface_resets_speeds(self):
-        # Given
+    def test_apply_traffic_no_iface_resets_speeds(self):
         applet = NetworkApplet(48)
-        applet._iface = ""
-        applet._rx_speed = 10.0
-        applet._tx_speed = 20.0
-        # When
-        applet._update_traffic()
-        # Then
-        assert applet._rx_speed == 0.0
-        assert applet._tx_speed == 0.0
+        new = applet._apply_traffic(
+            state=NetworkState(rx_speed=10.0, tx_speed=20.0, iface="")
+        )
+        assert new.rx_speed == 0.0
+        assert new.tx_speed == 0.0
 
-    def test_update_traffic_handles_proc_read_error(self, monkeypatch):
-        # Given
+    def test_apply_traffic_handles_proc_read_error(self, monkeypatch):
         applet = NetworkApplet(48)
-        applet._iface = "eth0"
         monkeypatch.setattr(
             type(network_applet_mod._PROC_NET_DEV),
             "open",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
         )
-        # When / Then
-        applet._update_traffic()
+        # Returns the input state unchanged on read error.
+        result = applet._apply_traffic(state=NetworkState(iface="eth0"))
+        assert result.rx_speed == 0.0
+        assert result.tx_speed == 0.0
 
-    def test_update_traffic_computes_and_updates_previous(self, monkeypatch):
-        # Given
+    def test_apply_traffic_computes_and_updates_previous(self, monkeypatch):
         applet = NetworkApplet(48)
-        applet._iface = "eth0"
         applet._prev_counters = TrafficCounters(1000, 2000)
         applet._prev_time = 10.0
         data = (
@@ -1122,18 +1098,14 @@ class TestNetworkAppletInternals:
             lambda *_a, **_k: open_cm,
         )
         monkeypatch.setattr(network_applet_mod.time, "monotonic", lambda: 12.0)
-        # When
-        applet._update_traffic()
-        # Then
-        assert applet._rx_speed == pytest.approx(1000.0)
-        assert applet._tx_speed == pytest.approx(1500.0)
+        new = applet._apply_traffic(state=NetworkState(iface="eth0"))
+        assert new.rx_speed == pytest.approx(1000.0)
+        assert new.tx_speed == pytest.approx(1500.0)
         assert applet._prev_counters == TrafficCounters(3000, 5000)
         assert applet._prev_time == 12.0
 
-    def test_update_wifi_signal_reads_strength(self, monkeypatch):
-        # Given
+    def test_refresh_wifi_signal_reads_strength(self, monkeypatch):
         applet = NetworkApplet(48)
-        applet._is_wifi = True
         monkeypatch.setattr(
             network_applet_mod.NM,
             "ActiveConnectionState",
@@ -1155,20 +1127,21 @@ class TestNetworkAppletInternals:
         conn.get_devices.return_value = [FakeWifiDevice()]
         applet._nm_client = MagicMock()
         applet._nm_client.get_active_connections.return_value = [conn]
-        # When
-        applet._update_wifi_signal()
-        # Then
-        assert applet._signal_strength == 81
+        signal = applet._refresh_wifi_signal(state=NetworkState(is_wifi=True))
+        assert signal == 81
 
-    def test_update_wifi_signal_ignores_unavailable_states(self, monkeypatch):
+    def test_refresh_wifi_signal_ignores_unavailable_states(self, monkeypatch):
         applet = NetworkApplet(48)
-        applet._update_wifi_signal()
+        # No NM client -> previous value preserved.
+        assert (
+            applet._refresh_wifi_signal(state=NetworkState(is_wifi=True))
+            == NetworkState().signal_strength
+        )
 
         applet._nm_client = MagicMock()
-        applet._is_wifi = False
-        applet._update_wifi_signal()
+        # is_wifi False -> previous value preserved.
+        assert applet._refresh_wifi_signal(state=NetworkState(is_wifi=False)) == 0
 
-        applet._is_wifi = True
         monkeypatch.setattr(
             network_applet_mod.NM,
             "ActiveConnectionState",
@@ -1176,17 +1149,13 @@ class TestNetworkAppletInternals:
             raising=False,
         )
         conn = MagicMock()
-        conn.get_state.return_value = 0
+        conn.get_state.return_value = 0  # not ACTIVATED
         applet._nm_client.get_active_connections.return_value = [conn]
+        assert applet._refresh_wifi_signal(state=NetworkState(is_wifi=True)) == 0
 
-        applet._update_wifi_signal()
-
-        assert applet._signal_strength == 0
-
-    def test_update_wifi_signal_handles_wifi_without_ap(self, monkeypatch):
+    def test_refresh_wifi_signal_handles_wifi_without_ap(self, monkeypatch):
         applet = NetworkApplet(48)
         applet._nm_client = MagicMock()
-        applet._is_wifi = True
         monkeypatch.setattr(
             network_applet_mod.NM,
             "ActiveConnectionState",
@@ -1208,17 +1177,17 @@ class TestNetworkAppletInternals:
         conn.get_state.return_value = 9
         conn.get_devices.return_value = [FakeWifiDevice()]
         applet._nm_client.get_active_connections.return_value = [conn]
+        assert (
+            applet._refresh_wifi_signal(
+                state=NetworkState(is_wifi=True, signal_strength=55)
+            )
+            == 55
+        )
 
-        applet._update_wifi_signal()
-
-        assert applet._signal_strength == 0
-
-    def test_update_wifi_signal_skips_non_wifi_active_connection_first(
+    def test_refresh_wifi_signal_skips_non_wifi_active_connection_first(
         self, monkeypatch
     ):
-        # Given
         applet = NetworkApplet(48)
-        applet._is_wifi = True
         monkeypatch.setattr(
             network_applet_mod.NM,
             "ActiveConnectionState",
@@ -1249,15 +1218,10 @@ class TestNetworkAppletInternals:
 
         applet._nm_client = MagicMock()
         applet._nm_client.get_active_connections.return_value = [conn_eth, conn_wifi]
-        # When
-        applet._update_wifi_signal()
-        # Then
-        assert applet._signal_strength == 67
+        assert applet._refresh_wifi_signal(state=NetworkState(is_wifi=True)) == 67
 
-    def test_update_wifi_signal_skips_loopback_device_before_wifi(self, monkeypatch):
-        # Given
+    def test_refresh_wifi_signal_skips_loopback_device_before_wifi(self, monkeypatch):
         applet = NetworkApplet(48)
-        applet._is_wifi = True
         monkeypatch.setattr(
             network_applet_mod.NM,
             "ActiveConnectionState",
@@ -1284,27 +1248,21 @@ class TestNetworkAppletInternals:
 
         applet._nm_client = MagicMock()
         applet._nm_client.get_active_connections.return_value = [conn]
-        # When
-        applet._update_wifi_signal()
-        # Then
-        assert applet._signal_strength == 67
+        assert applet._refresh_wifi_signal(state=NetworkState(is_wifi=True)) == 67
 
     def test_build_tooltip_disconnected_and_connected(self):
-        # Given
         applet = NetworkApplet(48)
-        # When / Then
         assert applet._build_tooltip() == "Network\nNot connected"
 
-        # Given
-        applet._is_connected = True
-        applet._is_wifi = False
-        applet._iface = "eth0"
-        applet._ip_address = "10.0.0.2"
-        applet._rx_speed = 2048
-        applet._tx_speed = 1024
-        # When
+        applet._state = NetworkState(
+            is_connected=True,
+            is_wifi=False,
+            iface="eth0",
+            ip_address="10.0.0.2",
+            rx_speed=2048,
+            tx_speed=1024,
+        )
         tooltip = applet._build_tooltip()
-        # Then
         assert tooltip.splitlines()[0] == "Network"
         assert "Ethernet: eth0" in tooltip
         assert "IP: 10.0.0.2" in tooltip
