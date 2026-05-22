@@ -280,6 +280,10 @@ MAX_TRANSPARENCY = 1.0
 DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE = 0
 MIN_ADDITIONAL_DISTANCE_FROM_EDGE = 0
 MAX_ADDITIONAL_DISTANCE_FROM_EDGE = 100
+DEFAULT_PRESSURE_REVEAL_ENABLED = False
+DEFAULT_PRESSURE_THRESHOLD = 50
+MIN_PRESSURE_THRESHOLD = 5
+MAX_PRESSURE_THRESHOLD = 500
 
 logger = get_logger("config")
 _SAVE_LOCK = threading.RLock()
@@ -738,6 +742,13 @@ class Config:
     # Extra pixels added to the theme's distance_from_edge_px. The on-screen
     # gap between the dock and the screen edge is the sum of the two.
     additional_distance_from_edge: int = DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE
+    # When True, the hidden dock only reveals after the cursor has pushed
+    # against the screen edge enough to accumulate ``pressure_threshold``
+    # pixels of resisted motion (X11 pointer-barrier "pressure"). Prevents
+    # accidental reveals on multi-monitor setups where the dock edge sits
+    # between two screens.
+    pressure_reveal_enabled: bool = DEFAULT_PRESSURE_REVEAL_ENABLED
+    pressure_threshold: int = DEFAULT_PRESSURE_THRESHOLD
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
@@ -865,6 +876,16 @@ class Config:
             default=DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE,
             minimum=MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
             maximum=MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
+        )
+        self.pressure_reveal_enabled = _normalize_bool(
+            self.pressure_reveal_enabled,
+            default=DEFAULT_PRESSURE_REVEAL_ENABLED,
+        )
+        self.pressure_threshold = _normalize_int(
+            self.pressure_threshold,
+            default=DEFAULT_PRESSURE_THRESHOLD,
+            minimum=MIN_PRESSURE_THRESHOLD,
+            maximum=MAX_PRESSURE_THRESHOLD,
         )
         self.pinned = normalize_pinned_entries(list(self.pinned))
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)

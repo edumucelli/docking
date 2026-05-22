@@ -435,6 +435,25 @@ class DockPlacementController:
             monitor_h=geom.height,
             scale=self._window.get_scale_factor(),
         )
+        self.refresh_pressure_handler()
+
+    def refresh_pressure_handler(self) -> None:
+        """Wire the barrier's pressure callback to autohide reveal, if enabled."""
+        config = self._window.config
+        if config.pressure_reveal_enabled:
+            self._barrier.set_pressure_handler(
+                callback=self._on_barrier_pressure,
+                threshold=config.pressure_threshold,
+            )
+        else:
+            self._barrier.set_pressure_handler(callback=None, threshold=1)
+
+    def _on_barrier_pressure(self) -> None:
+        """Reveal the dock when accumulated barrier pressure exceeds threshold."""
+        autohide = getattr(self._window, "autohide", None)
+        if autohide is None:
+            return
+        autohide.on_mouse_enter()
 
     def clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""

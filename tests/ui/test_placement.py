@@ -22,6 +22,8 @@ def _make_window(**overrides):
             hide_mode="none",
             monitor_index=-1,
             additional_distance_from_edge=0,
+            pressure_reveal_enabled=False,
+            pressure_threshold=50,
         ),
         theme=SimpleNamespace(
             top_padding=4,
@@ -63,7 +65,11 @@ class TestPlacementControllerLifecycle:
         window = _make_window(
             get_display=lambda: display,
             get_screen=lambda: screen,
-            config=SimpleNamespace(active_display=True),
+            config=SimpleNamespace(
+                active_display=True,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
         )
         barrier = MagicMock()
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
@@ -191,7 +197,9 @@ class TestPlacementControllerGeometry:
         zero_display = SimpleNamespace(get_n_monitors=lambda: 0)
         window = _make_window(
             get_display=lambda: zero_display,
-            config=SimpleNamespace(monitor_index=-1),
+            config=SimpleNamespace(
+                monitor_index=-1, pressure_reveal_enabled=False, pressure_threshold=50
+            ),
         )
         controller = placement_mod.DockPlacementController(window)
         assert controller.current_monitor_choice() == -1
@@ -203,7 +211,9 @@ class TestPlacementControllerGeometry:
         )
         window = _make_window(
             get_display=lambda: display,
-            config=SimpleNamespace(monitor_index=99),
+            config=SimpleNamespace(
+                monitor_index=99, pressure_reveal_enabled=False, pressure_threshold=50
+            ),
         )
         controller = placement_mod.DockPlacementController(window)
         assert controller.current_monitor_choice() == 0
@@ -216,7 +226,9 @@ class TestPlacementControllerGeometry:
         )
         window = _make_window(
             get_display=lambda: display,
-            config=SimpleNamespace(monitor_index=2),
+            config=SimpleNamespace(
+                monitor_index=2, pressure_reveal_enabled=False, pressure_threshold=50
+            ),
         )
         controller = placement_mod.DockPlacementController(window)
 
@@ -312,6 +324,8 @@ class TestPlacementControllerGeometry:
                 hide_mode="none",
                 monitor_index=-1,
                 additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
@@ -347,6 +361,8 @@ class TestPlacementControllerGeometry:
                 hide_mode="none",
                 monitor_index=-1,
                 additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
@@ -389,6 +405,8 @@ class TestPlacementControllerGeometry:
                 hide_mode="none",
                 monitor_index=1,
                 additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
             ),
         )
         controller = placement_mod.DockPlacementController(window)
@@ -444,7 +462,13 @@ class TestPlacementControllerGeometry:
 
 class TestPlacementControllerStruts:
     def test_set_struts_clears_when_autohide_enabled(self):
-        window = _make_window(config=SimpleNamespace(hide_mode="autohide"))
+        window = _make_window(
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            )
+        )
         controller = placement_mod.DockPlacementController(window)
         controller.clear_struts = MagicMock()
 
@@ -454,7 +478,9 @@ class TestPlacementControllerStruts:
 
     def test_set_struts_returns_when_no_window(self):
         window = _make_window(
-            config=SimpleNamespace(hide_mode="none"),
+            config=SimpleNamespace(
+                hide_mode="none", pressure_reveal_enabled=False, pressure_threshold=50
+            ),
             get_window=lambda: None,
         )
         controller = placement_mod.DockPlacementController(window)
@@ -481,6 +507,8 @@ class TestPlacementControllerStruts:
                 active_display=False,
                 monitor_index=-1,
                 additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
             ),
             get_window=lambda: FakeX11Window(),
             get_display=lambda: MagicMock(),
@@ -520,6 +548,8 @@ class TestPlacementControllerStruts:
                 active_display=False,
                 monitor_index=-1,
                 additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
             get_window=lambda: gdk_window,
@@ -561,6 +591,8 @@ class TestPlacementControllerStruts:
                 active_display=True,
                 monitor_index=-1,
                 additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
             get_window=lambda: gdk_window,
@@ -607,7 +639,11 @@ class TestPlacementControllerStruts:
         barrier.update.assert_not_called()
 
         barrier = MagicMock(supported=True)
-        window = _make_window(config=SimpleNamespace(hide_mode="none"))
+        window = _make_window(
+            config=SimpleNamespace(
+                hide_mode="none", pressure_reveal_enabled=False, pressure_threshold=50
+            )
+        )
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
         controller.update_barrier()
         barrier.destroy.assert_called_once()
@@ -615,7 +651,12 @@ class TestPlacementControllerStruts:
     def test_update_barrier_destroys_when_monitor_missing(self):
         barrier = MagicMock(supported=True)
         window = _make_window(
-            config=SimpleNamespace(hide_mode="autohide", pos=Position.BOTTOM)
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pos=Position.BOTTOM,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            )
         )
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
         controller._resolve_target_monitor = MagicMock(return_value=None)
@@ -629,7 +670,12 @@ class TestPlacementControllerStruts:
         geom = SimpleNamespace(x=100, y=50, width=1280, height=720)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
         window = _make_window(
-            config=SimpleNamespace(hide_mode="autohide", pos=Position.RIGHT),
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pos=Position.RIGHT,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
             get_scale_factor=lambda: 1,
         )
         controller = placement_mod.DockPlacementController(window, barrier=barrier)
@@ -674,7 +720,12 @@ class TestPlacementControllerStruts:
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
         window = _make_window(
-            config=SimpleNamespace(hide_mode="autohide", pos=Position.BOTTOM),
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pos=Position.BOTTOM,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
             get_scale_factor=lambda: 2,
         )
         controller = placement_mod.DockPlacementController(window, barrier=real_barrier)
@@ -722,7 +773,12 @@ class TestPlacementControllerStruts:
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         monitor = SimpleNamespace(get_geometry=lambda: geom)
         window = _make_window(
-            config=SimpleNamespace(hide_mode="autohide", pos=Position.BOTTOM),
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pos=Position.BOTTOM,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
             get_scale_factor=lambda: scale,
         )
         controller = placement_mod.DockPlacementController(window, barrier=real_barrier)
@@ -811,7 +867,14 @@ class TestPlacementControllerStruts:
 
     def test_resolve_target_monitor_uses_active_display_and_fallbacks(self):
         controller = placement_mod.DockPlacementController(
-            _make_window(config=SimpleNamespace(active_display=True, monitor_index=-1))
+            _make_window(
+                config=SimpleNamespace(
+                    active_display=True,
+                    monitor_index=-1,
+                    pressure_reveal_enabled=False,
+                    pressure_threshold=50,
+                )
+            )
         )
         active_monitor = object()
         controller._active_monitor = active_monitor
@@ -824,7 +887,14 @@ class TestPlacementControllerStruts:
             get_monitor=lambda idx: primary if idx == 0 else None,
         )
         controller = placement_mod.DockPlacementController(
-            _make_window(config=SimpleNamespace(active_display=False, monitor_index=-1))
+            _make_window(
+                config=SimpleNamespace(
+                    active_display=False,
+                    monitor_index=-1,
+                    pressure_reveal_enabled=False,
+                    pressure_threshold=50,
+                )
+            )
         )
         assert controller._resolve_target_monitor(display=no_get_n) is primary
 
@@ -838,7 +908,14 @@ class TestPlacementControllerStruts:
             get_primary_monitor=lambda: None,
         )
         controller = placement_mod.DockPlacementController(
-            _make_window(config=SimpleNamespace(active_display=False, monitor_index=1))
+            _make_window(
+                config=SimpleNamespace(
+                    active_display=False,
+                    monitor_index=1,
+                    pressure_reveal_enabled=False,
+                    pressure_threshold=50,
+                )
+            )
         )
         assert controller._resolve_target_monitor(display=display) is selected
 
@@ -849,7 +926,14 @@ class TestPlacementControllerStruts:
             get_primary_monitor=lambda: None,
         )
         controller = placement_mod.DockPlacementController(
-            _make_window(config=SimpleNamespace(active_display=False, monitor_index=9))
+            _make_window(
+                config=SimpleNamespace(
+                    active_display=False,
+                    monitor_index=9,
+                    pressure_reveal_enabled=False,
+                    pressure_threshold=50,
+                )
+            )
         )
         assert controller._resolve_target_monitor(display=display) is fallback
 
