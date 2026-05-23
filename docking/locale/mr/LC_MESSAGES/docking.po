@@ -1655,7 +1655,7 @@ msgstr "पुढील स्ट्रेच {time} मध्ये"
 #: docking/applets/systemmonitor/applet.py:51
 #: docking/applets/systemmonitor/state.py:168
 msgid "System Monitor"
-msgstr "CPU Monitor"
+msgstr "System Monitor"
 
 #: docking/applets/systemmonitor/applet.py:85
 msgid "Show Disk Usage"
