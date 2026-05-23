@@ -597,6 +597,8 @@ class TestCurrencyFxState:
         )
         assert "EUR/USD" in tooltip
         assert "1 EUR = 1.1 USD" in tooltip
+        assert "Interval: Week" in tooltip
+        assert "Change: +1.85%" in tooltip
         assert "Updated:" in tooltip
         assert "Updates every 15 minutes" in tooltip
 
@@ -611,6 +613,7 @@ class TestCurrencyFxState:
         )
 
         assert "Day samples every 15 minutes" in tooltip
+        assert "Interval: Day" in tooltip
 
     def test_build_tooltip_empty_and_error_states(self):
         text = build_tooltip(
