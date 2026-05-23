@@ -215,6 +215,7 @@ class AirQualityData(NamedTuple):
     pm2_5: float  # Fine particulate (μg/m³)
     pm10: float  # Particulate (μg/m³)
     label: str  # Human-readable level
+    uv_index: float | None = None  # Current UV index
 
 
 def aqi_label(aqi: int) -> str:
@@ -244,17 +245,31 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
             params={
                 "latitude": lat,
                 "longitude": lng,
-                "current": ["european_aqi", "pm10", "pm2_5"],
+                "current": ["european_aqi", "pm10", "pm2_5", "uv_index"],
             },
         )
         current = responses[0].Current()
         aqi = int(current.Variables(0).Value())
         pm10 = round(current.Variables(1).Value(), 1)
         pm2_5 = round(current.Variables(2).Value(), 1)
-        return AirQualityData(aqi=aqi, pm2_5=pm2_5, pm10=pm10, label=aqi_label(aqi=aqi))
+        uv_index = _optional_current_value(current, index=3)
+        return AirQualityData(
+            aqi=aqi,
+            pm2_5=pm2_5,
+            pm10=pm10,
+            label=aqi_label(aqi=aqi),
+            uv_index=uv_index,
+        )
     except Exception:
         log.bind(action="fetch_air_quality").warning(
             "Failed to fetch air quality",
             exc_info=True,
         )
+        return None
+
+
+def _optional_current_value(current: Any, *, index: int) -> float | None:
+    try:
+        return round(float(current.Variables(index).Value()), 1)
+    except (AttributeError, IndexError, TypeError, ValueError):
         return None
