@@ -65,6 +65,9 @@ from docking.applets.certwatch.state import CertStatus
 from docking.applets.clippy.render import create_icon as render_clippy
 from docking.applets.clock.render import render_icon as render_clock
 from docking.applets.colorpicker.render import create_icon as render_colorpicker
+from docking.applets.crypto.render import render_icon as render_crypto
+from docking.applets.crypto.state import AssetType as CryptoAssetType
+from docking.applets.crypto.state import CryptoAsset, CryptoPoint, CryptoSnapshot
 from docking.applets.currencyfx.render import render_icon as render_currencyfx
 from docking.applets.currencyfx.state import FxPoint, FxSnapshot
 from docking.applets.deskpresence.render import render_icon as render_deskpresence
@@ -203,6 +206,23 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         fetched_at=dt.datetime.now(dt.timezone.utc),
     )
+    crypto_snapshot = CryptoSnapshot(
+        asset=CryptoAsset(
+            asset_type=CryptoAssetType.COIN,
+            asset_id="bitcoin",
+            symbol="BTC",
+            name="Bitcoin",
+        ),
+        vs_currency="usd",
+        price=70_000.0,
+        points=(
+            CryptoPoint(timestamp="2026-05-20T00:00:00+00:00", price=66_500.0),
+            CryptoPoint(timestamp="2026-05-21T00:00:00+00:00", price=68_200.0),
+            CryptoPoint(timestamp="2026-05-22T00:00:00+00:00", price=70_000.0),
+        ),
+        fetched_at=dt.datetime.now(dt.timezone.utc),
+        change_pct_24h=2.5,
+    )
     return {
         AppletId.AIUSAGE: render_aiusage(size=size, state=AiUsageState()),
         AppletId.ALARM: render_alarm(
@@ -274,6 +294,13 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             g=0.5,
             b=0.5,
             hex_label=None,
+        ),
+        AppletId.CRYPTO: render_crypto(
+            size=size,
+            snapshot=crypto_snapshot,
+            asset_symbol="BTC",
+            asset_type=CryptoAssetType.COIN,
+            pulse_phase=0.35,
         ),
         AppletId.CURRENCYFX: render_currencyfx(
             size=size,

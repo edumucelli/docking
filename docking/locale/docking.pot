@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-26 08:23+0200\n"
+"POT-Creation-Date: 2026-05-26 09:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -310,6 +310,7 @@ msgid "Checks"
 msgstr ""
 
 #: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:141
+#: docking/applets/crypto/applet.py:153
 #: docking/applets/currencyfx/applet.py:201
 #: docking/applets/hackernews/applet.py:188
 #: docking/applets/speedtest/applet.py:116
@@ -330,7 +331,7 @@ msgstr ""
 #: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:217
 #: docking/applets/camshield/applet.py:127
 #: docking/applets/capslock/applet.py:97
-#: docking/applets/certwatch/applet.py:158
+#: docking/applets/certwatch/applet.py:158 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:209 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:205
 #: docking/applets/micshield/applet.py:131 docking/applets/moon/applet.py:137
@@ -807,6 +808,114 @@ msgstr ""
 msgid "Show Hex"
 msgstr ""
 
+#: docking/applets/crypto/applet.py:79
+msgid "Crypto"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:161
+#: docking/applets/currencyfx/applet.py:215
+msgid "Chart Interval"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:163
+#: docking/applets/currencyfx/applet.py:217
+#: docking/applets/sunrise/state.py:383
+msgid "Day"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:164
+#: docking/applets/currencyfx/applet.py:218
+msgid "Week"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:165
+#: docking/applets/currencyfx/applet.py:219
+msgid "Month"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:178
+msgid "Selected Assets"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:191
+msgid "Add Asset..."
+msgstr ""
+
+#: docking/applets/crypto/applet.py:196
+msgid "Remove Current Asset"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:289
+msgid "No price data"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:381
+#, python-brace-format
+msgid "{asset}: {price} ({change})"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:401
+msgid "Add Crypto Asset"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:418
+msgid "bitcoin or cryptopunks"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:420
+msgid "BTC"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:422
+msgid "Bitcoin"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:425
+msgid "Type"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:426
+msgid "CoinGecko ID"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:427
+msgid "Symbol"
+msgstr ""
+
+#: docking/applets/crypto/applet.py:428 docking/ui/folder/_browser.py:39
+msgid "Name"
+msgstr ""
+
+#: docking/applets/crypto/state.py:559 docking/applets/currencyfx/state.py:741
+#: docking/applets/live_state.py:91 docking/applets/weather/state.py:180
+msgid "Unavailable"
+msgstr ""
+
+#: docking/applets/crypto/state.py:579 docking/applets/currencyfx/state.py:768
+#, python-brace-format
+msgid "Interval: {interval}"
+msgstr ""
+
+#: docking/applets/crypto/state.py:582 docking/applets/currencyfx/state.py:769
+#, python-brace-format
+msgid "Change: {change}"
+msgstr ""
+
+#: docking/applets/crypto/state.py:586
+#, python-brace-format
+msgid "24h: {change}"
+msgstr ""
+
+#: docking/applets/crypto/state.py:590
+#, python-brace-format
+msgid "{price}"
+msgstr ""
+
+#: docking/applets/crypto/state.py:606
+#, python-brace-format
+msgid "{name} NFT"
+msgstr ""
+
 #: docking/applets/currencyfx/applet.py:102
 msgid "Currency FX"
 msgstr ""
@@ -818,23 +927,6 @@ msgstr ""
 
 #: docking/applets/currencyfx/applet.py:205
 msgid "Swap Pair"
-msgstr ""
-
-#: docking/applets/currencyfx/applet.py:215
-msgid "Chart Interval"
-msgstr ""
-
-#: docking/applets/currencyfx/applet.py:217
-#: docking/applets/sunrise/state.py:383
-msgid "Day"
-msgstr ""
-
-#: docking/applets/currencyfx/applet.py:218
-msgid "Week"
-msgstr ""
-
-#: docking/applets/currencyfx/applet.py:219
-msgid "Month"
 msgstr ""
 
 #: docking/applets/currencyfx/applet.py:234
@@ -872,24 +964,9 @@ msgstr ""
 msgid "Quote"
 msgstr ""
 
-#: docking/applets/currencyfx/state.py:741 docking/applets/live_state.py:91
-#: docking/applets/weather/state.py:180
-msgid "Unavailable"
-msgstr ""
-
 #: docking/applets/currencyfx/state.py:762
 #, python-brace-format
 msgid "1 {base} = {rate} {quote}"
-msgstr ""
-
-#: docking/applets/currencyfx/state.py:768
-#, python-brace-format
-msgid "Interval: {interval}"
-msgstr ""
-
-#: docking/applets/currencyfx/state.py:769
-#, python-brace-format
-msgid "Change: {change}"
 msgstr ""
 
 #: docking/applets/deskpresence/applet.py:66
@@ -2318,10 +2395,6 @@ msgstr ""
 
 #: docking/ui/dock_window.py:393
 msgid "Docking"
-msgstr ""
-
-#: docking/ui/folder/_browser.py:39
-msgid "Name"
 msgstr ""
 
 #: docking/ui/folder/_browser.py:40

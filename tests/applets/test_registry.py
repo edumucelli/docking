@@ -95,6 +95,9 @@ class TestAppletCatalog:
     def test_contains_currencyfx(self):
         assert "currencyfx" in get_applet_catalog()
 
+    def test_contains_crypto(self):
+        assert "crypto" in get_applet_catalog()
+
     def test_contains_micshield(self):
         assert "micshield" in get_applet_catalog()
 
