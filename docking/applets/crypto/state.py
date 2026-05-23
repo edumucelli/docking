@@ -581,10 +581,6 @@ def build_tooltip(
         ),
         _("Change: {change}").format(change=format_change(snapshot.points)),
     ]
-    if snapshot.change_pct_24h is not None:
-        details.append(
-            _("24h: {change}").format(change=f"{snapshot.change_pct_24h:+.2f}%")
-        )
     return structured_tooltip(
         title=asset_label(snapshot.asset),
         primary=_("{price}").format(

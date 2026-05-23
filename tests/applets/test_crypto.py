@@ -128,7 +128,7 @@ class TestCryptoState:
         assert format_price(70_000, vs_currency="usd") == "$70,000"
         assert format_change(_snapshot().points) == "+2.94%"
 
-    def test_tooltip_includes_price_interval_and_24h_change(self):
+    def test_tooltip_includes_price_interval_and_chart_change(self):
         text = build_tooltip(
             asset=BTC,
             snapshot=_snapshot(),
@@ -140,7 +140,8 @@ class TestCryptoState:
         assert "Bitcoin (BTC)" in text
         assert "$70,000" in text
         assert "Interval: Week" in text
-        assert "24h: +2.50%" in text
+        assert "Change: +2.94%" in text
+        assert "24h:" not in text
 
 
 class TestCryptoFetch:

@@ -60,7 +60,8 @@ def render_icon(
     cr = cairo.Context(surface)
 
     _draw_background(cr=cr, size=size)
-    _draw_coin_mark(cr=cr, size=size, asset_type=asset_type)
+    if asset_type == AssetType.NFT:
+        _draw_nft_mark(cr=cr, size=size)
     _draw_grid(cr=cr, size=size)
 
     points = snapshot.points if snapshot else ()
@@ -101,25 +102,23 @@ def _draw_background(*, cr: cairo.Context, size: int) -> None:
     cr.stroke()
 
 
-def _draw_coin_mark(*, cr: cairo.Context, size: int, asset_type: AssetType) -> None:
+def _draw_nft_mark(*, cr: cairo.Context, size: int) -> None:
     cx = size * 0.28
     cy = size * 0.28
     radius = size * 0.14
-    color = _PURPLE if asset_type == AssetType.NFT else _GOLD
     cr.save()
     cr.arc(cx, cy, radius, 0, math.tau)
-    cr.set_source_rgba(color[0], color[1], color[2], 0.22)
+    cr.set_source_rgba(_PURPLE[0], _PURPLE[1], _PURPLE[2], 0.22)
     cr.fill_preserve()
     cr.set_line_width(max(1.0, size * 0.024))
-    cr.set_source_rgba(color[0], color[1], color[2], 0.72)
+    cr.set_source_rgba(_PURPLE[0], _PURPLE[1], _PURPLE[2], 0.72)
     cr.stroke()
     cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     cr.set_font_size(max(6.0, size * 0.15))
-    glyph = "N" if asset_type == AssetType.NFT else "$"
-    ext = cr.text_extents(glyph)
+    ext = cr.text_extents("N")
     cr.move_to(cx - ext.width / 2 - ext.x_bearing, cy + ext.height / 2)
     cr.set_source_rgba(1, 1, 1, 0.86)
-    cr.show_text(glyph)
+    cr.show_text("N")
     cr.restore()
 
 

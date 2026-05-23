@@ -903,15 +903,10 @@ msgstr ""
 
 #: docking/applets/crypto/state.py:586
 #, python-brace-format
-msgid "24h: {change}"
-msgstr ""
-
-#: docking/applets/crypto/state.py:590
-#, python-brace-format
 msgid "{price}"
 msgstr ""
 
-#: docking/applets/crypto/state.py:606
+#: docking/applets/crypto/state.py:602
 #, python-brace-format
 msgid "{name} NFT"
 msgstr ""
