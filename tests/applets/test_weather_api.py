@@ -126,7 +126,7 @@ class _WeatherResp:
 
 class _AqiResp:
     def __init__(self):
-        self._current = _Current([_Var(37), _Var(15.44), _Var(9.93)])
+        self._current = _Current([_Var(37), _Var(15.44), _Var(9.93), _Var(6.32)])
 
     def Current(self):
         return self._current
@@ -164,9 +164,12 @@ class TestWeatherApiFetch:
         assert aqi_label(120) == "Extremely Poor"
 
     def test_fetch_air_quality_success(self, monkeypatch):
+        calls: list[dict[str, object]] = []
+
         class _Client:
             def weather_api(self, url, params):
-                _ = (url, params)
+                _ = url
+                calls.append(params)
                 return [_AqiResp()]
 
         monkeypatch.setattr(weather_api_mod, "_get_client", lambda: _Client())
@@ -175,7 +178,15 @@ class TestWeatherApiFetch:
         assert data.aqi == 37
         assert data.pm10 == 15.4
         assert data.pm2_5 == 9.9
+        assert data.uv_index == 6.3
         assert data.label == "Fair"
+        assert calls == [
+            {
+                "latitude": 1.0,
+                "longitude": 2.0,
+                "current": ["european_aqi", "pm10", "pm2_5", "uv_index"],
+            }
+        ]
 
     def test_fetch_air_quality_error_returns_none(self, monkeypatch):
         class _Client:

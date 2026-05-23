@@ -200,6 +200,10 @@ def build_tooltip(
     details = []
     if air_quality:
         details.append(_("Air: {label}").format(label=air_quality.label))
+        if air_quality.uv_index is not None:
+            details.append(
+                _("UV Index: {value}").format(value=f"{air_quality.uv_index:.1f}")
+            )
     for day in weather.daily:
         temp = format_temperature_range(
             low_celsius=day.temp_min,

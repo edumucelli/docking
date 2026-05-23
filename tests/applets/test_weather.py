@@ -341,7 +341,13 @@ class TestWeatherMenu:
         assert not any("Remove" in label for label in labels)
 
 
-_SAMPLE_AQI = AirQualityData(aqi=28, pm2_5=8.1, pm10=9.1, label="Fair")
+_SAMPLE_AQI = AirQualityData(
+    aqi=28,
+    pm2_5=8.1,
+    pm10=9.1,
+    label="Fair",
+    uv_index=5.7,
+)
 
 
 class TestAqiLabel:
@@ -379,6 +385,7 @@ class TestAirQualityInTooltip:
         applet._air_quality = _SAMPLE_AQI
         applet.refresh_tooltip()
         assert "Air: Fair" in applet.item.name
+        assert "UV Index: 5.7" in applet.item.name
 
     def test_tooltip_no_aqi_when_unavailable(self):
         applet = _make_applet()
@@ -1024,5 +1031,10 @@ class TestWeatherDialogAndWidget:
         box = applet._build_tooltip_widget()
 
         # Then
-        # city + current + air + 2 daily rows
-        assert len(box.get_children()) >= 5
+        labels = [
+            child._label
+            for child in box.get_children()
+            if isinstance(child, _FakeLabel)
+        ]
+        assert "Air: Fair" in labels
+        assert "UV Index: 5.7" in labels

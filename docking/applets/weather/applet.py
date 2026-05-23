@@ -508,6 +508,14 @@ class WeatherApplet(Applet):
             )
             aqi_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
             box.pack_start(aqi_lbl, False, False, 0)
+            if self._air_quality.uv_index is not None:
+                uv_lbl = Gtk.Label(
+                    label=_("UV Index: {value}").format(
+                        value=f"{self._air_quality.uv_index:.1f}"
+                    )
+                )
+                uv_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
+                box.pack_start(uv_lbl, False, False, 0)
 
         for day in weather.daily:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
