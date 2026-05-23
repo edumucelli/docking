@@ -736,11 +736,8 @@ def build_tooltip(
 ) -> str:
     """Build tooltip text."""
     pair = f"{base}/{quote}"
-    verb = (
-        _("Day samples")
-        if normalize_chart_interval(chart_interval) == ChartInterval.DAY
-        else None
-    )
+    interval = normalize_chart_interval(chart_interval)
+    verb = _("Day samples") if interval == ChartInterval.DAY else None
     state_error = error or (_("Unavailable") if fetch_failed else None)
     status = resolve_live_status(
         has_data=snapshot is not None,
@@ -767,7 +764,10 @@ def build_tooltip(
             rate=format_rate(snapshot.rate),
             quote=snapshot.quote,
         ),
-        details=(_("Change: {change}").format(change=format_change(snapshot.points)),),
+        details=(
+            _("Interval: {interval}").format(interval=interval.value.title()),
+            _("Change: {change}").format(change=format_change(snapshot.points)),
+        ),
         freshness=live_freshness_lines(
             status=status,
             updated_at=snapshot.fetched_at,

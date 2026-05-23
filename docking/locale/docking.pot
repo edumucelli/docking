@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-23 19:05+0200\n"
+"POT-Creation-Date: 2026-05-24 00:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -872,17 +872,22 @@ msgstr ""
 msgid "Quote"
 msgstr ""
 
-#: docking/applets/currencyfx/state.py:744 docking/applets/live_state.py:91
+#: docking/applets/currencyfx/state.py:741 docking/applets/live_state.py:91
 #: docking/applets/weather/state.py:180
 msgid "Unavailable"
 msgstr ""
 
-#: docking/applets/currencyfx/state.py:765
+#: docking/applets/currencyfx/state.py:762
 #, python-brace-format
 msgid "1 {base} = {rate} {quote}"
 msgstr ""
 
-#: docking/applets/currencyfx/state.py:770
+#: docking/applets/currencyfx/state.py:768
+#, python-brace-format
+msgid "Interval: {interval}"
+msgstr ""
+
+#: docking/applets/currencyfx/state.py:769
 #, python-brace-format
 msgid "Change: {change}"
 msgstr ""
