@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-24 00:31+0200\n"
+"POT-Creation-Date: 2026-05-26 08:23+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -331,7 +331,7 @@ msgstr ""
 #: docking/applets/camshield/applet.py:127
 #: docking/applets/capslock/applet.py:97
 #: docking/applets/certwatch/applet.py:158
-#: docking/applets/currencyfx/applet.py:209
+#: docking/applets/currencyfx/applet.py:209 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:205
 #: docking/applets/micshield/applet.py:131 docking/applets/moon/applet.py:137
 #: docking/applets/quote/applet.py:105 docking/applets/thermals/applet.py:157
@@ -983,6 +983,79 @@ msgstr ""
 
 #: docking/applets/desktop/applet.py:40 docking/applets/workspaces/applet.py:95
 msgid "Desktop"
+msgstr ""
+
+#: docking/applets/docker/applet.py:54
+msgid "Docker"
+msgstr ""
+
+#: docking/applets/docker/applet.py:109
+#, python-brace-format
+msgid "Docker unavailable: {error}"
+msgstr ""
+
+#: docking/applets/docker/applet.py:110
+msgid "unknown error"
+msgstr ""
+
+#: docking/applets/docker/applet.py:116
+msgid "No running containers"
+msgstr ""
+
+#: docking/applets/docker/applet.py:119
+#, python-brace-format
+msgid "{count} running containers"
+msgstr ""
+
+#: docking/applets/docker/applet.py:130
+msgid "unknown image"
+msgstr ""
+
+#: docking/applets/docker/applet.py:131 docking/applets/docker/state.py:125
+msgid "running"
+msgstr ""
+
+#: docking/applets/docker/applet.py:136
+msgid "Stop"
+msgstr ""
+
+#: docking/applets/docker/applet.py:146 docking/applets/session/state.py:43
+msgid "Restart"
+msgstr ""
+
+#: docking/applets/docker/applet.py:204
+#, python-brace-format
+msgid "{name} ({image})"
+msgstr ""
+
+#: docking/applets/docker/state.py:56
+msgid "Docker command not found"
+msgstr ""
+
+#: docking/applets/docker/state.py:60
+msgid "Docker is unavailable"
+msgstr ""
+
+#: docking/applets/docker/state.py:80
+#, python-brace-format
+msgid "Docker: {error}"
+msgstr ""
+
+#: docking/applets/docker/state.py:80
+msgid "unavailable"
+msgstr ""
+
+#: docking/applets/docker/state.py:83
+msgid "Docker: no running containers"
+msgstr ""
+
+#: docking/applets/docker/state.py:85
+msgid "Docker: 1 running container"
+msgstr ""
+
+#: docking/applets/docker/state.py:86
+#, python-brace-format
+msgid "Docker: {count} running containers"
 msgstr ""
 
 #: docking/applets/dragshare/applet.py:53
@@ -1702,10 +1775,6 @@ msgstr ""
 
 #: docking/applets/session/state.py:41
 msgid "Log Out"
-msgstr ""
-
-#: docking/applets/session/state.py:43
-msgid "Restart"
 msgstr ""
 
 #: docking/applets/session/state.py:44
