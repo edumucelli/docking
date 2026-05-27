@@ -38,6 +38,7 @@ class TestConfigDefaults:
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
         assert c.folder_stack_unfold == "hover"
+        assert c.window_list_sort == "default"
         assert c.show_window_count_numbers is False
         assert c.theme == "default"
         assert c.transparency == 1.0
@@ -261,6 +262,7 @@ class TestConfigLoad:
                     "left_click_action": "cycle",
                     "middle_click_action": "minimize",
                     "folder_stack_unfold": "hover",
+                    "window_list_sort": "alphabetical",
                     "show_window_count_numbers": "true",
                 }
             )
@@ -275,6 +277,7 @@ class TestConfigLoad:
         assert config.left_click_action == "cycle"
         assert config.middle_click_action == "minimize"
         assert config.folder_stack_unfold == "hover"
+        assert config.window_list_sort == "alphabetical"
         assert config.show_window_count_numbers is True
 
     def test_load_clamps_transparency_to_minimum(self, tmp_path):
@@ -293,6 +296,7 @@ class TestConfigLoad:
                     "left_click_action": "explode",
                     "middle_click_action": "quit-all",
                     "folder_stack_unfold": "peek",
+                    "window_list_sort": "reverse",
                 }
             )
         )
@@ -302,6 +306,7 @@ class TestConfigLoad:
         assert config.left_click_action == "toggle"
         assert config.middle_click_action == "new-window"
         assert config.folder_stack_unfold == "hover"
+        assert config.window_list_sort == "default"
 
     def test_load_ignores_legacy_autohide_key(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -494,6 +499,15 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["folder_stack_unfold"] == "hover"
+
+    def test_save_persists_window_list_sort(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(window_list_sort="alphabetical")
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["window_list_sort"] == "alphabetical"
 
     def test_save_persists_show_window_count_numbers(self, tmp_path):
         path = tmp_path / "dock.json"

@@ -69,6 +69,7 @@ from docking.core.config import (
     FolderStackUnfold,
     LeftClickAction,
     MiddleClickAction,
+    WindowListSort,
 )
 from docking.core.position import Position
 from docking.core.theme import Theme, list_theme_names
@@ -150,6 +151,7 @@ class SettingsWindowController:
         self._left_click_combo: Any = None
         self._middle_click_combo: Any = None
         self._folder_stack_unfold_combo: Any = None
+        self._window_list_sort_combo: Any = None
         self._window_count_numbers_switch: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
@@ -277,6 +279,14 @@ class SettingsWindowController:
             (FolderStackUnfold.HOVER.value, _("Hover")),
         ]:
             self._folder_stack_unfold_combo.append(mode_value, mode_label)
+
+        self._window_list_sort_combo = Gtk.ComboBoxText()
+        self._window_list_sort_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for sort_value, sort_label in [
+            (WindowListSort.DEFAULT.value, _("Default")),
+            (WindowListSort.ALPHABETICAL.value, _("Alphabetical")),
+        ]:
+            self._window_list_sort_combo.append(sort_value, sort_label)
 
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
@@ -457,6 +467,7 @@ class SettingsWindowController:
             rows=[
                 (_("Left Click"), self._left_click_combo),
                 (_("Middle Click"), self._middle_click_combo),
+                (_("Window List Sort"), self._window_list_sort_combo),
             ],
         )
         self._append_section(
@@ -623,6 +634,10 @@ class SettingsWindowController:
             self._register_choice_binding(
                 config_attr="folder_stack_unfold",
                 widget=self._folder_stack_unfold_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="window_list_sort",
+                widget=self._window_list_sort_combo,
             ),
             self._register_switch_binding(
                 config_attr="show_window_count_numbers",
