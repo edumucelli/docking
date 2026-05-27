@@ -1133,9 +1133,7 @@ class TestItemMenus:
         row.activate()
         handler._tracker.activate_xid.assert_called_once_with(7)
 
-    def test_window_list_default_preserves_tracker_order(
-        self, handler, monkeypatch
-    ):
+    def test_window_list_default_preserves_tracker_order(self, handler, monkeypatch):
         menu = FakeMenu()
         item = DockItem(
             desktop_id="code.desktop",
@@ -1162,9 +1160,7 @@ class TestItemMenus:
         labels = [r.get_child().children[1].label for r in rows]
         assert labels == ["Charlie", "Alpha", "Bravo"]
 
-    def test_window_list_alphabetical_sorts_by_title(
-        self, handler, monkeypatch
-    ):
+    def test_window_list_alphabetical_sorts_by_title(self, handler, monkeypatch):
         menu = FakeMenu()
         item = DockItem(
             desktop_id="code.desktop",
