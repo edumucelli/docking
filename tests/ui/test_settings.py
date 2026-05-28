@@ -674,6 +674,50 @@ class TestSettingsWindowController:
         assert "Unhide Delay" in behavior_rows
         assert "Open On" in behavior_rows
 
+    def test_pressure_threshold_uses_info_icon_tooltip(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+        stack = controller._window.child.children[1]
+        behavior_box = stack.pages[1][0]
+
+        pressure_row = None
+        for section in behavior_box.get_children():
+            if not isinstance(section, FakeBox):
+                continue
+            children = section.get_children()
+            if len(children) < 2 or not isinstance(children[1], FakeBox):
+                continue
+            for row in children[1].get_children():
+                if not isinstance(row, FakeBox) or not row.get_children():
+                    continue
+                title = row.get_children()[0]
+                if isinstance(title, FakeLabel) and title.get_label() == (
+                    "Pressure Threshold"
+                ):
+                    pressure_row = row
+                    break
+
+        assert pressure_row is not None
+        pressure_box = pressure_row.get_children()[1]
+        assert isinstance(pressure_box, FakeBox)
+        assert pressure_box.get_children() == [
+            controller._pressure_threshold_scale,
+            controller._pressure_threshold_info,
+        ]
+        assert isinstance(controller._pressure_threshold_info, FakeEventBox)
+        assert "cursor pressure" in controller._pressure_threshold_info.tooltip_text
+
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(

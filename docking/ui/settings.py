@@ -103,7 +103,6 @@ ROW_SPACING_PX = 12
 HIDE_MODE_COMBO_WIDTH_PX = 180
 HIDE_MODE_INFO_ICON_WIDTH_PX = 14
 TRANSPARENCY_SCALE_WIDTH_PX = 132
-DESCRIPTION_MAX_CHARS = 28
 HIDE_MODE_BOX_SPACING_PX = 4
 APPLET_GRID_COLUMN_SPACING_PX = 16
 APPLET_GRID_ROW_SPACING_PX = 8
@@ -169,6 +168,7 @@ class SettingsWindowController:
         self._additional_distance_info: Any = None
         self._pressure_reveal_switch: Any = None
         self._pressure_threshold_scale: Any = None
+        self._pressure_threshold_info: Any = None
         self._zoom_percent_spin: Any = None
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
@@ -384,7 +384,19 @@ class SettingsWindowController:
         )
         self._pressure_threshold_scale.set_digits(0)
         self._pressure_threshold_scale.set_draw_value(True)
-        self._pressure_threshold_scale.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        self._pressure_threshold_scale.set_size_request(
+            TRANSPARENCY_SCALE_WIDTH_PX
+            - HIDE_MODE_INFO_ICON_WIDTH_PX
+            - HIDE_MODE_BOX_SPACING_PX,
+            -1,
+        )
+        self._pressure_threshold_info = self._new_info_icon(
+            _(
+                "Pixels of cursor pressure against the edge required to "
+                "reveal a hidden dock. Higher values mean the dock will not "
+                "reveal as easily."
+            )
+        )
 
         self._register_bindings()
 
@@ -439,27 +451,17 @@ class SettingsWindowController:
         hide_mode_box.pack_start(self._hide_mode_combo, True, True, 0)
         hide_mode_box.pack_start(self._hide_mode_info, False, False, 0)
 
-        pressure_threshold_desc = Gtk.Label(
-            label=_(
-                "Pixels of cursor pressure against the edge required to "
-                "reveal a hidden dock. Higher values mean the dock will not "
-                "reveal as easily."
-            ),
-        )
-        pressure_threshold_desc.set_xalign(0.0)
-        pressure_threshold_desc.set_line_wrap(True)
-        pressure_threshold_desc.set_line_wrap_mode(2)
-        pressure_threshold_desc.set_max_width_chars(DESCRIPTION_MAX_CHARS)
-        pressure_threshold_desc.get_style_context().add_class("dim-label")
         pressure_threshold_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
+            orientation=Gtk.Orientation.HORIZONTAL,
             spacing=HIDE_MODE_BOX_SPACING_PX,
         )
         pressure_threshold_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
         pressure_threshold_box.pack_start(
             self._pressure_threshold_scale, False, False, 0
         )
-        pressure_threshold_box.pack_start(pressure_threshold_desc, False, False, 0)
+        pressure_threshold_box.pack_start(
+            self._pressure_threshold_info, False, False, 0
+        )
 
         self._append_section(
             outer=outer,
