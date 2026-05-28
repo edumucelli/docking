@@ -177,6 +177,7 @@ from docking.applets.identity import (
 )
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
+from docking.core.config import WindowListSort
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
@@ -648,6 +649,13 @@ class MenuHandler:
         windows = self._tracker.get_windows_for(desktop_id=desktop_id)
         if not windows:
             return
+        if self._config.window_list_sort == WindowListSort.ALPHABETICAL.value:
+            windows = sorted(
+                windows,
+                key=lambda w: (
+                    self._tracker.get_window_title_for_xid(w.get_xid()) or ""
+                ).lower(),
+            )
         for window in windows:
             menu.append(self._build_window_menu_row(window=window))
         separator = Gtk.SeparatorMenuItem()

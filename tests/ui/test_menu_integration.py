@@ -735,6 +735,7 @@ def handler(monkeypatch):
         pos="bottom",
         position="bottom",
         item_prefs={},
+        window_list_sort="default",
         save=MagicMock(),
     )
     tracker = MagicMock()
@@ -1131,6 +1132,60 @@ class TestItemMenus:
 
         row.activate()
         handler._tracker.activate_xid.assert_called_once_with(7)
+
+    def test_window_list_default_preserves_tracker_order(self, handler, monkeypatch):
+        menu = FakeMenu()
+        item = DockItem(
+            desktop_id="code.desktop",
+            is_running=True,
+            instance_count=3,
+        )
+        w1, w2, w3 = MagicMock(), MagicMock(), MagicMock()
+        w1.get_xid.return_value = 1
+        w2.get_xid.return_value = 2
+        w3.get_xid.return_value = 3
+        handler._tracker.get_windows_for.return_value = [w1, w2, w3]
+        handler._tracker.get_window_title_for_xid.side_effect = {
+            1: "Charlie",
+            2: "Alpha",
+            3: "Bravo",
+        }.get
+        handler._config.window_list_sort = "default"
+        monkeypatch.setattr(menu_mod, "capture_window", lambda **_kwargs: None)
+        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
+
+        handler._build_item_menu(menu=menu, item=item)
+
+        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        labels = [r.get_child().children[1].label for r in rows]
+        assert labels == ["Charlie", "Alpha", "Bravo"]
+
+    def test_window_list_alphabetical_sorts_by_title(self, handler, monkeypatch):
+        menu = FakeMenu()
+        item = DockItem(
+            desktop_id="code.desktop",
+            is_running=True,
+            instance_count=3,
+        )
+        w1, w2, w3 = MagicMock(), MagicMock(), MagicMock()
+        w1.get_xid.return_value = 1
+        w2.get_xid.return_value = 2
+        w3.get_xid.return_value = 3
+        handler._tracker.get_windows_for.return_value = [w1, w2, w3]
+        handler._tracker.get_window_title_for_xid.side_effect = {
+            1: "Charlie",
+            2: "Alpha",
+            3: "Bravo",
+        }.get
+        handler._config.window_list_sort = "alphabetical"
+        monkeypatch.setattr(menu_mod, "capture_window", lambda **_kwargs: None)
+        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
+
+        handler._build_item_menu(menu=menu, item=item)
+
+        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        labels = [r.get_child().children[1].label for r in rows]
+        assert labels == ["Alpha", "Bravo", "Charlie"]
 
 
 class TestDockMenu:

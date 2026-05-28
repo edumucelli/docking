@@ -459,9 +459,23 @@ class FolderStackUnfold(str, Enum):
     HOVER = "hover"
 
 
+class WindowListSort(str, Enum):
+    """Sort order for open windows in the right-click context menu.
+
+    Mode           Behavior
+    ─────────────  ──────────────────────────────────────────────────────
+    DEFAULT        Windows appear in scan order (the order they were discovered).
+    ALPHABETICAL   Windows are sorted alphabetically by title.
+    """
+
+    DEFAULT = "default"
+    ALPHABETICAL = "alphabetical"
+
+
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
 DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.HOVER.value
+DEFAULT_WINDOW_LIST_SORT = WindowListSort.DEFAULT.value
 DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
 
 
@@ -505,6 +519,20 @@ def _normalize_folder_stack_unfold(value: object) -> str:
                 exc,
             )
     return DEFAULT_FOLDER_STACK_UNFOLD
+
+
+def _normalize_window_list_sort(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return WindowListSort(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid window list sort %r; using default %r (%s)",
+                value,
+                DEFAULT_WINDOW_LIST_SORT,
+                exc,
+            )
+    return DEFAULT_WINDOW_LIST_SORT
 
 
 @dataclass
@@ -733,6 +761,8 @@ class Config:
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
     # How pinned folder stacks open from the dock
     folder_stack_unfold: str = DEFAULT_FOLDER_STACK_UNFOLD
+    # Sort order for open windows in the right-click context menu
+    window_list_sort: str = DEFAULT_WINDOW_LIST_SORT
     # Whether running application indicators show a numeric window count
     show_window_count_numbers: bool = DEFAULT_SHOW_WINDOW_COUNT_NUMBERS
     # Theme name (loads from assets/themes/{name}.json)
@@ -864,6 +894,9 @@ class Config:
         )
         self.folder_stack_unfold = _normalize_folder_stack_unfold(
             self.folder_stack_unfold,
+        )
+        self.window_list_sort = _normalize_window_list_sort(
+            self.window_list_sort,
         )
         self.show_window_count_numbers = _normalize_bool(
             self.show_window_count_numbers,
