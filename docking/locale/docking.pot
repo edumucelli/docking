@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-27 09:19-0700\n"
+"POT-Creation-Date: 2026-05-28 19:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -110,8 +110,9 @@ msgid "OK"
 msgstr ""
 
 #: docking/applets/alarm/applet.py:163 docking/applets/clock/applet.py:218
-#: docking/applets/quicknote/applet.py:86 docking/applets/sunrise/applet.py:188
-#: docking/applets/trash/applet.py:127 docking/applets/weather/applet.py:271
+#: docking/applets/lastfm/applet.py:380 docking/applets/quicknote/applet.py:86
+#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:127
+#: docking/applets/weather/applet.py:271
 msgid "Cancel"
 msgstr ""
 
@@ -313,7 +314,7 @@ msgstr ""
 #: docking/applets/crypto/applet.py:153
 #: docking/applets/currencyfx/applet.py:201
 #: docking/applets/hackernews/applet.py:188
-#: docking/applets/speedtest/applet.py:116
+#: docking/applets/lastfm/applet.py:174 docking/applets/speedtest/applet.py:116
 #: docking/applets/thermals/applet.py:147 docking/applets/tooltip.py:46
 #: docking/applets/weather/applet.py:181 docking/applets/weather/applet.py:546
 #, python-brace-format
@@ -334,8 +335,9 @@ msgstr ""
 #: docking/applets/certwatch/applet.py:158 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:209 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:205
-#: docking/applets/micshield/applet.py:131 docking/applets/moon/applet.py:137
-#: docking/applets/quote/applet.py:105 docking/applets/thermals/applet.py:157
+#: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
+#: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
+#: docking/applets/thermals/applet.py:157
 #: docking/applets/todayinhistory/applet.py:112
 #: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:188
 msgid "Refresh Now"
@@ -1341,6 +1343,75 @@ msgstr ""
 
 #: docking/applets/keyboardlayout/applet.py:141
 msgid "Show Current Layout"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:80
+msgid "Last.fm"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:157
+msgid "Set username..."
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:159
+msgid "Set API key and username..."
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:165
+#, python-brace-format
+msgid "Recent tracks for {user} ({count})"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:182
+msgid "Configure..."
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:188
+#, python-brace-format
+msgid "Open {service} Profile"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:377
+msgid "Scrobbler Settings"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:381
+msgid "Save"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:391
+msgid "Service:"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:397
+msgid "API Key:"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:402
+msgid "Username:"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:410
+#, python-brace-format
+msgid "{service} API key (optional)"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:412
+#, python-brace-format
+msgid "{service} API key"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:415
+#, python-brace-format
+msgid "{service} username"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:423
+msgid "Max entries:"
+msgstr ""
+
+#: docking/applets/lastfm/applet.py:432
+msgid "Rounded album-art corners"
 msgstr ""
 
 #: docking/applets/live_state.py:87

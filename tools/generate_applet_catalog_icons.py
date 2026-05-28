@@ -81,6 +81,7 @@ from docking.applets.hackernews.state import HackerNewsStory
 from docking.applets.hydration.render import render_icon as render_hydration
 from docking.applets.hydration.state import HydrationState
 from docking.applets.keyboardlayout.render import render_icon as render_keyboardlayout
+from docking.applets.lastfm.render import render_default_icon as render_lastfm
 from docking.applets.micshield.render import render_icon as render_micshield
 from docking.applets.moon.offline import fetch_moon_offline
 from docking.applets.moon.render import create_icon as render_moon
@@ -323,6 +324,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
         AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
+        AppletId.LASTFM: render_lastfm(size=size),
         AppletId.MICSHIELD: render_micshield(
             size=size,
             available=True,
