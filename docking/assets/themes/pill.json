@@ -20,6 +20,7 @@
     "active_color": [120, 190, 255, 255],
     "size_px": 5,
     "style": "dots",
+    "fill": "flat",
     "max_dots": 4
   },
   "items": {
@@ -35,7 +36,9 @@
       "click_time_ms": 300
     },
     "glow": {
-      "opacity_ratio": 0.45
+      "active_shape": "linear",
+      "active_tint": "icon",
+      "active_opacity_ratio": 0.45
     }
   }
 }
