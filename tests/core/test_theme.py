@@ -11,6 +11,9 @@ from docking.core.theme import (
     _BUILTIN_THEMES_DIR,
     _USER_THEME_TEMPLATE_NAME,
     DEPRECATED_THEME_KEYS,
+    ActiveShape,
+    ActiveTint,
+    IndicatorFill,
     Theme,
     _rgba,
     ensure_user_theme_template,
@@ -474,7 +477,7 @@ class TestThemeMigration:
         assert migrated["indicators"]["size_px"] == 9
         assert migrated["items"]["bounce"]["urgent_height_ratio"] == 1.2
         assert migrated["items"]["hover"]["fade_ms"] == 210
-        assert migrated["items"]["glow"]["opacity_ratio"] == 0.5
+        assert migrated["items"]["glow"]["active_opacity_ratio"] == 0.5
 
     def test_final_nested_value_wins_over_legacy_flat_value(
         self, tmp_path, monkeypatch
@@ -725,3 +728,270 @@ class TestThemeOpacity:
         assert scaled.active_indicator_color == pytest.approx((0.6, 0.5, 0.4, 0.5))
         assert scaled.glow_opacity == pytest.approx(theme.glow_opacity)
         assert scaled.indicator_radius == pytest.approx(theme.indicator_radius)
+
+
+class TestActiveGlowFields:
+    """Active-glow shape/tint/color theme fields and JSON loading."""
+
+    def test_defaults_match_legacy_behaviour(self):
+        t = Theme()
+        assert t.active_shape is ActiveShape.LINEAR
+        assert t.active_tint is ActiveTint.ICON
+        assert t.active_color == pytest.approx((100 / 255, 180 / 255, 1.0, 1.0))
+
+    def test_load_reads_nested_active_glow_keys(self, tmp_path):
+        theme_data = {
+            "items": {
+                "glow": {
+                    "active_shape": "radial",
+                    "active_tint": "theme",
+                    "active_color": [10, 20, 30, 200],
+                    "active_opacity_ratio": 0.7,
+                },
+            },
+        }
+        theme_file = tmp_path / "active.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("active", 48)
+        assert t.active_shape is ActiveShape.RADIAL
+        assert t.active_tint is ActiveTint.THEME
+        assert t.active_color == pytest.approx(
+            (10 / 255, 20 / 255, 30 / 255, 200 / 255)
+        )
+        assert t.glow_opacity == pytest.approx(0.7)
+
+    def test_active_color_falls_back_to_indicators_active_color(self, tmp_path):
+        theme_data = {
+            "indicators": {"active_color": [200, 100, 50, 255]},
+            "items": {"glow": {"active_tint": "theme"}},
+        }
+        theme_file = tmp_path / "fallback.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("fallback", 48)
+        assert t.active_color == pytest.approx((200 / 255, 100 / 255, 50 / 255, 1.0))
+
+    def test_invalid_shape_logs_and_falls_back_to_linear(self, tmp_path, caplog):
+        theme_data = {"items": {"glow": {"active_shape": "bogus"}}}
+        theme_file = tmp_path / "bad-shape.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-shape", 48)
+        assert t.active_shape is ActiveShape.LINEAR
+        assert any("active shape" in r.message.lower() for r in caplog.records)
+
+    def test_invalid_tint_logs_and_falls_back_to_icon(self, tmp_path, caplog):
+        theme_data = {"items": {"glow": {"active_tint": "bogus"}}}
+        theme_file = tmp_path / "bad-tint.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-tint", 48)
+        assert t.active_tint is ActiveTint.ICON
+        assert any("active tint" in r.message.lower() for r in caplog.records)
+
+    def test_with_opacity_scales_active_color_alpha(self):
+        theme = Theme(active_color=(0.3, 0.4, 0.5, 0.8))
+        scaled = theme.with_opacity(0.5)
+        assert scaled.active_color == pytest.approx((0.3, 0.4, 0.5, 0.4))
+
+
+class TestActiveGlowMigration:
+    """Migration of legacy active-glow keys to the active_opacity_ratio path."""
+
+    def test_nested_opacity_ratio_migrates_to_active_opacity_ratio(self):
+        data = {"items": {"glow": {"opacity_ratio": 0.42}}}
+        result = migrate_theme_dict(data)
+        assert result.changed
+        assert result.data["items"]["glow"]["active_opacity_ratio"] == 0.42
+        assert "opacity_ratio" not in result.data["items"]["glow"]
+
+    def test_flat_glow_opacity_migrates_to_nested_active_opacity_ratio(self):
+        data = {"glow_opacity": 0.42}
+        result = migrate_theme_dict(data)
+        assert result.changed
+        assert result.data["items"]["glow"]["active_opacity_ratio"] == 0.42
+        assert "glow_opacity" not in result.data
+
+    def test_existing_active_opacity_ratio_wins_over_legacy(self):
+        data = {
+            "items": {
+                "glow": {
+                    "opacity_ratio": 0.1,
+                    "active_opacity_ratio": 0.9,
+                },
+            },
+        }
+        result = migrate_theme_dict(data)
+        assert result.data["items"]["glow"]["active_opacity_ratio"] == 0.9
+        assert "opacity_ratio" not in result.data["items"]["glow"]
+        conflicts = [c for c in result.changes if c.conflict]
+        assert any(c.old_path == "items.glow.opacity_ratio" for c in conflicts)
+
+
+class TestUserTemplateAdvertisesActiveGlowKeys:
+    """The on-disk template must surface the new keys so users discover them."""
+
+    def test_template_has_new_active_glow_keys(self):
+        from docking.core.theme.theme import _USER_THEME_TEMPLATE
+
+        glow = _USER_THEME_TEMPLATE["items"]["glow"]
+        assert glow["active_shape"] == "linear"
+        assert glow["active_tint"] == "icon"
+        assert isinstance(glow["active_color"], list) and len(glow["active_color"]) == 4
+        assert "active_opacity_ratio" in glow
+
+    def test_template_does_not_leak_legacy_opacity_ratio_key(self):
+        from docking.core.theme.theme import _USER_THEME_TEMPLATE
+
+        glow = _USER_THEME_TEMPLATE["items"]["glow"]
+        assert "opacity_ratio" not in glow
+
+    def test_existing_template_gains_new_keys_on_upgrade(self, tmp_path, monkeypatch):
+        """Pre-existing template files are backfilled with new schema keys."""
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        template_path = directory / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        # Old schema: rename will produce active_opacity_ratio, but the
+        # new active_shape / active_tint / active_color keys are absent.
+        template_path.write_text(
+            json.dumps(
+                {
+                    "items": {
+                        "glow": {"opacity_ratio": 0.7},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ensure_user_theme_template()
+
+        rewritten = json.loads(template_path.read_text(encoding="utf-8"))
+        glow = rewritten["items"]["glow"]
+        # User value preserved through rename + backfill.
+        assert glow["active_opacity_ratio"] == 0.7
+        assert "opacity_ratio" not in glow
+        # New discoverability keys added.
+        assert glow["active_shape"] == "linear"
+        assert glow["active_tint"] == "icon"
+        assert glow["active_color"] == [100, 180, 255, 255]
+        # Other sections backfilled too (e.g. shelf, layout) so the template
+        # remains an exhaustive reference.
+        assert "shelf" in rewritten
+        assert "layout" in rewritten
+        assert "bounce" in rewritten["items"]
+
+    def test_user_values_win_over_template_defaults_on_backfill(
+        self, tmp_path, monkeypatch
+    ):
+        """Backfill must not overwrite values the user already set."""
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        template_path = directory / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        template_path.write_text(
+            json.dumps(
+                {
+                    "items": {
+                        "glow": {
+                            "active_shape": "radial",
+                            "active_opacity_ratio": 0.42,
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ensure_user_theme_template()
+
+        rewritten = json.loads(template_path.read_text(encoding="utf-8"))
+        glow = rewritten["items"]["glow"]
+        assert glow["active_shape"] == "radial"  # user value preserved
+        assert glow["active_opacity_ratio"] == 0.42  # user value preserved
+        assert glow["active_tint"] == "icon"  # backfilled default
+
+
+class TestShippedThemesLoadWithActiveGlow:
+    """All baked-in themes must load cleanly with the new active-glow schema."""
+
+    def test_all_shipped_themes_load_without_warnings(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            for name in list_theme_names():
+                t = Theme.load(name, 48)
+                assert t.active_shape in ActiveShape
+                assert t.active_tint in ActiveTint
+                assert len(t.active_color) == 4
+                assert all(0.0 <= c <= 1.0 for c in t.active_color)
+                assert 0.0 <= t.glow_opacity <= 1.0
+        bad = [r for r in caplog.records if "active " in r.message.lower()]
+        assert not bad, f"shipped themes generated warnings: {bad}"
+
+    def test_shipped_themes_use_new_opacity_key_in_json(self):
+        for path in sorted(_BUILTIN_THEMES_DIR.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            glow = data.get("items", {}).get("glow", {})
+            assert "opacity_ratio" not in glow, (
+                f"{path.name} still has the legacy items.glow.opacity_ratio key"
+            )
+            assert "active_opacity_ratio" in glow, (
+                f"{path.name} missing items.glow.active_opacity_ratio"
+            )
+
+    def test_shipped_themes_omit_active_color_when_tint_is_icon(self):
+        """``active_color`` is unused when tint=icon; carrying it is dead weight."""
+        for path in sorted(_BUILTIN_THEMES_DIR.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            glow = data.get("items", {}).get("glow", {})
+            if glow.get("active_tint", "icon") == "icon":
+                assert "active_color" not in glow, (
+                    f"{path.name} has active_color but tint=icon ignores it"
+                )
+
+
+class TestIndicatorFill:
+    """Indicator fill (flat vs glow) theme field and JSON loading."""
+
+    def test_default_indicator_fill_is_flat(self):
+        t = Theme()
+        assert t.indicator_fill is IndicatorFill.FLAT
+
+    def test_load_reads_indicators_fill(self, tmp_path):
+        theme_data = {"indicators": {"fill": "glow"}}
+        theme_file = tmp_path / "glow-ind.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("glow-ind", 48)
+        assert t.indicator_fill is IndicatorFill.GLOW
+
+    def test_invalid_fill_logs_and_falls_back_to_flat(self, tmp_path, caplog):
+        theme_data = {"indicators": {"fill": "bogus"}}
+        theme_file = tmp_path / "bad-fill.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-fill", 48)
+        assert t.indicator_fill is IndicatorFill.FLAT
+        assert any("indicator fill" in r.message.lower() for r in caplog.records)
+
+    def test_template_advertises_indicator_fill_key(self):
+        from docking.core.theme.theme import _USER_THEME_TEMPLATE
+
+        assert _USER_THEME_TEMPLATE["indicators"]["fill"] == "flat"
+
+    def test_all_shipped_themes_declare_indicator_fill(self):
+        for path in sorted(_BUILTIN_THEMES_DIR.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            assert "fill" in data.get("indicators", {}), (
+                f"{path.name} missing indicators.fill"
+            )

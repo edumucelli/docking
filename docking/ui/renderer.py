@@ -178,7 +178,14 @@ from docking.applets.separator.state import STYLE_LINE
 from docking.core.config import effective_edge_gap
 from docking.core.items import APP_KIND
 from docking.core.position import Position, is_horizontal
-from docking.core.theme import RGB, RGBA, IndicatorStyle
+from docking.core.theme import (
+    RGB,
+    RGBA,
+    ActiveShape,
+    ActiveTint,
+    IndicatorFill,
+    IndicatorStyle,
+)
 from docking.log import get_logger
 from docking.ui.autohide import HideState
 from docking.ui.effects import average_icon_color, easing_bounce
@@ -199,6 +206,7 @@ SLIDE_MOVE_THRESHOLD = 2.0
 SLIDE_DECAY_FACTOR = 0.75
 SLIDE_CLEAR_THRESHOLD = 0.5
 INDICATOR_SPACING_MULT = 3
+INDICATOR_GLOW_RADIUS_MULT = 4.0  # glow extends N x the solid-dot radius
 
 HOVER_LIGHTEN_FRAME_MS = 16
 
@@ -359,6 +367,32 @@ class _RendererCache:
         return surface
 
 
+def _apply_indicator_glow_brush(
+    cr: cairo.Context,
+    *,
+    center_x: float,
+    center_y: float,
+    radius: float,
+    color: RGBA,
+) -> None:
+    """Set the current Cairo source to Plank's radial-halo gradient.
+
+    Hot white core blends through the indicator color to a transparent
+    outer edge. Stops match Plank's DockTheme indicator gradient. The
+    color's alpha multiplies every stop so themes that dial back the
+    indicator color get a subtler glow.
+    """
+    r, g, b, a = color
+    grad = cairo.RadialGradient(center_x, center_y, 0, center_x, center_y, radius)
+    grad.add_color_stop_rgba(0.0, 1.0, 1.0, 1.0, 1.0 * a)
+    grad.add_color_stop_rgba(0.1, r, g, b, 1.0 * a)
+    grad.add_color_stop_rgba(0.2, r, g, b, 0.6 * a)
+    grad.add_color_stop_rgba(0.25, r, g, b, 0.25 * a)
+    grad.add_color_stop_rgba(0.5, r, g, b, 0.15 * a)
+    grad.add_color_stop_rgba(1.0, r, g, b, 0.0)
+    cr.set_source(grad)
+
+
 def _draw_indicator_dashes(
     cr: cairo.Context,
     cx: float,
@@ -367,17 +401,34 @@ def _draw_indicator_dashes(
     spacing: float,
     count: int,
     horizontal: bool,
+    color: RGBA,
+    fill: IndicatorFill,
 ) -> None:
-    """Draw rounded pill-shaped dashes as running indicators."""
+    """Draw rounded pill-shaped dashes as running indicators.
+
+    With ``fill=GLOW`` the dash footprint stays the same but the brush
+    becomes a radial halo centered on the dash midpoint, giving the dash
+    a soft, glowing edge instead of a hard fill.
+    """
     w = radius * 3  # dash length along main axis
     h = radius  # dash thickness
     corner = h / 2
+    glow_radius = radius * INDICATOR_GLOW_RADIUS_MULT
     for j in range(count):
         offset = (j - (count - 1) / 2) * spacing
         if horizontal:
-            rounded_rect(cr, cx + offset - w / 2, cy - h / 2, w, h, corner)
+            x, y, rect_w, rect_h = cx + offset - w / 2, cy - h / 2, w, h
+            mid_x, mid_y = cx + offset, cy
         else:
-            rounded_rect(cr, cx - h / 2, cy + offset - w / 2, h, w, corner)
+            x, y, rect_w, rect_h = cx - h / 2, cy + offset - w / 2, h, w
+            mid_x, mid_y = cx, cy + offset
+        rounded_rect(cr, x, y, rect_w, rect_h, corner)
+        if fill is IndicatorFill.GLOW:
+            _apply_indicator_glow_brush(
+                cr, center_x=mid_x, center_y=mid_y, radius=glow_radius, color=color
+            )
+        else:
+            cr.set_source_rgba(*color)
         cr.fill()
 
 
@@ -389,14 +440,29 @@ def _draw_indicator_dots(
     spacing: float,
     count: int,
     horizontal: bool,
+    color: RGBA,
+    fill: IndicatorFill,
 ) -> None:
-    """Draw filled circular dots as running indicators."""
+    """Draw circular dots as running indicators.
+
+    With ``fill=GLOW`` each dot expands to a soft radial halo (Plank's
+    LEGACY/GLOW look) instead of the flat disc.
+    """
+    glow_radius = radius * INDICATOR_GLOW_RADIUS_MULT
+    paint_radius = glow_radius if fill is IndicatorFill.GLOW else radius
     for j in range(count):
         offset = (j - (count - 1) / 2) * spacing
         if horizontal:
-            cr.arc(cx + offset, cy, radius, 0, 2 * math.pi)
+            x, y = cx + offset, cy
         else:
-            cr.arc(cx, cy + offset, radius, 0, 2 * math.pi)
+            x, y = cx, cy + offset
+        cr.arc(x, y, paint_radius, 0, 2 * math.pi)
+        if fill is IndicatorFill.GLOW:
+            _apply_indicator_glow_brush(
+                cr, center_x=x, center_y=y, radius=glow_radius, color=color
+            )
+        else:
+            cr.set_source_rgba(*color)
         cr.fill()
 
 
@@ -789,9 +855,14 @@ class DockRenderer:
             theme=theme,
         ):
             # Active glow (drawn in shelf transform space)
+            uses_icon_color = theme.active_tint is ActiveTint.ICON
             for item, li in zip(items, layout, strict=True):
                 if item.is_active:
-                    color = self._cache.icon_color_for(item=item)
+                    if uses_icon_color:
+                        r, g, b = self._cache.icon_color_for(item=item)
+                        active_color: RGBA = (r, g, b, 1.0)
+                    else:
+                        active_color = theme.active_color
                     self._draw_active_glow(
                         cr=cr,
                         li=li,
@@ -801,11 +872,14 @@ class DockRenderer:
                         bg_height=bg_height,
                         shelf_x=shelf_main_pos,
                         shelf_w=shelf_main_extent,
-                        color=color,
+                        color=active_color,
+                        shape=theme.active_shape,
                         glow_opacity=theme.glow_opacity,
                     )
 
-            # Drop-target glow: green highlight when dragging a file over a launcher
+            # Drop-target glow: green highlight when dragging a file over a launcher.
+            # Always rendered as a linear gradient so the affordance is recognisable
+            # regardless of the theme's active_shape.
             if drop_target_id:
                 for item, li in zip(items, layout, strict=True):
                     if item.desktop_id == drop_target_id:
@@ -818,7 +892,8 @@ class DockRenderer:
                             bg_height=bg_height,
                             shelf_x=shelf_main_pos,
                             shelf_w=shelf_main_extent,
-                            color=(0.2, 0.8, 0.3),
+                            color=(0.2, 0.8, 0.3, 1.0),
+                            shape=ActiveShape.LINEAR,
                             glow_opacity=theme.glow_opacity,
                         )
                         break
@@ -1286,8 +1361,8 @@ class DockRenderer:
         cr.paint()
         return surface
 
-    @staticmethod
     def _draw_active_glow(
+        self,
         cr: cairo.Context,
         li: LayoutItem,
         icon_size: int,
@@ -1296,28 +1371,111 @@ class DockRenderer:
         bg_height: float,
         shelf_x: float,
         shelf_w: float,
-        color: RGB,
-        glow_opacity: float = 0.6,
+        color: RGBA,
+        shape: ActiveShape,
+        glow_opacity: float,
     ) -> None:
-        """Draw a color-matched glow on the shelf behind the active icon.
+        """Dispatch to the active-glow drawer matching ``shape``.
 
-        Drawn in the shelf's transform space (always as-if-bottom).
+        Drawn in the shelf's transform space (always as-if-bottom). The
+        alpha channel of ``color`` multiplies the per-shape gradient stops
+        so themes can dial the effect down without touching opacity_ratio.
         """
         glow_x = li.x + icon_offset
         glow_width = icon_size * li.scale
         glow_pad = glow_width * ACTIVE_GLOW_PADDING_RATIO
-
-        glow_red, glow_green, glow_blue = color
-        gradient = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
-        gradient.add_color_stop_rgba(0, glow_red, glow_green, glow_blue, 0.0)
-        gradient.add_color_stop_rgba(1, glow_red, glow_green, glow_blue, glow_opacity)
-
         left = max(glow_x - glow_pad, shelf_x)
         right = min(glow_x + glow_width + glow_pad, shelf_x + shelf_w)
-        if right > left:
-            cr.rectangle(left, bg_y, right - left, bg_height)
-            cr.set_source(gradient)
-            cr.fill()
+        if right <= left:
+            return
+
+        if shape is ActiveShape.RADIAL:
+            self._draw_active_radial(
+                cr=cr,
+                left=left,
+                right=right,
+                bg_y=bg_y,
+                bg_height=bg_height,
+                color=color,
+                glow_opacity=glow_opacity,
+            )
+        elif shape is ActiveShape.FLAT:
+            self._draw_active_flat(
+                cr=cr,
+                left=left,
+                right=right,
+                bg_y=bg_y,
+                bg_height=bg_height,
+                color=color,
+                glow_opacity=glow_opacity,
+            )
+        else:  # LINEAR (default)
+            self._draw_active_linear(
+                cr=cr,
+                left=left,
+                right=right,
+                bg_y=bg_y,
+                bg_height=bg_height,
+                color=color,
+                glow_opacity=glow_opacity,
+            )
+
+    @staticmethod
+    def _draw_active_linear(
+        cr: cairo.Context,
+        left: float,
+        right: float,
+        bg_y: float,
+        bg_height: float,
+        color: RGBA,
+        glow_opacity: float,
+    ) -> None:
+        """Vertical gradient: transparent at icon side, color at shelf bottom."""
+        r, g, b, a = color
+        gradient = cairo.LinearGradient(0, bg_y, 0, bg_y + bg_height)
+        gradient.add_color_stop_rgba(0, r, g, b, 0.0)
+        gradient.add_color_stop_rgba(1, r, g, b, glow_opacity * a)
+        cr.rectangle(left, bg_y, right - left, bg_height)
+        cr.set_source(gradient)
+        cr.fill()
+
+    @staticmethod
+    def _draw_active_radial(
+        cr: cairo.Context,
+        left: float,
+        right: float,
+        bg_y: float,
+        bg_height: float,
+        color: RGBA,
+        glow_opacity: float,
+    ) -> None:
+        """Radial halo centered behind the icon, fading to transparent at the edge."""
+        r, g, b, a = color
+        cx = (left + right) / 2.0
+        cy = bg_y + bg_height / 2.0
+        radius = max(right - left, bg_height) / 2.0
+        gradient = cairo.RadialGradient(cx, cy, 0, cx, cy, radius)
+        gradient.add_color_stop_rgba(0, r, g, b, glow_opacity * a)
+        gradient.add_color_stop_rgba(1, r, g, b, 0.0)
+        cr.rectangle(left, bg_y, right - left, bg_height)
+        cr.set_source(gradient)
+        cr.fill()
+
+    @staticmethod
+    def _draw_active_flat(
+        cr: cairo.Context,
+        left: float,
+        right: float,
+        bg_y: float,
+        bg_height: float,
+        color: RGBA,
+        glow_opacity: float,
+    ) -> None:
+        """Flat color fill (no gradient) over the icon's shelf band."""
+        r, g, b, a = color
+        cr.rectangle(left, bg_y, right - left, bg_height)
+        cr.set_source_rgba(r, g, b, glow_opacity * a)
+        cr.fill()
 
     @staticmethod
     def _draw_urgent_glow(
@@ -1396,6 +1554,10 @@ class DockRenderer:
         color = (
             theme.active_indicator_color if item.is_active else theme.indicator_color
         )
+        # Count overlays draw their own brush (white text); set the indicator
+        # color here so the count bar/dot rect path picks it up. The shape
+        # drawers below override the source with either a flat fill or the
+        # glow radial gradient.
         cr.set_source_rgba(*color)
 
         count = min(item.instance_count, theme.max_indicator_dots)
@@ -1454,7 +1616,17 @@ class DockRenderer:
             )
         else:
             drawer = _INDICATOR_DRAWERS.get(theme.indicator_style, _draw_indicator_dots)
-            drawer(cr, cx, cy, radius, spacing, count, horizontal)
+            drawer(
+                cr,
+                cx,
+                cy,
+                radius,
+                spacing,
+                count,
+                horizontal,
+                color,
+                theme.indicator_fill,
+            )
 
     @staticmethod
     def _draw_badge(
