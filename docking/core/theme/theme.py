@@ -177,6 +177,7 @@ _USER_THEME_TEMPLATE = {
         "active_color": [50, 50, 50, 255],
         "size_px": 5,
         "style": "dots",
+        "fill": "flat",
         "max_dots": 4,
     },
     "items": {
@@ -192,7 +193,10 @@ _USER_THEME_TEMPLATE = {
             "click_time_ms": 300,
         },
         "glow": {
-            "opacity_ratio": 0.6,
+            "active_shape": "linear",
+            "active_tint": "icon",
+            "active_color": [100, 180, 255, 255],
+            "active_opacity_ratio": 0.6,
             "urgent_time_ms": 10000,
             "urgent_pulse_ms": 2000,
             "urgent_size_ratio": 0.6,
@@ -233,7 +237,40 @@ def _migrate_existing_user_theme_template(*, path: Path, directory: Path) -> Non
             path,
         )
         return
-    migrate_loaded_theme_data(data=data, path=path, user_theme_dir=directory)
+    migrated = migrate_loaded_theme_data(data=data, path=path, user_theme_dir=directory)
+    # The template is documentation-in-JSON: backfill any newly introduced
+    # keys so users discover them on upgrade. User values always win.
+    augmented = _augment_with_template_defaults(migrated)
+    if augmented != migrated:
+        try:
+            path.write_text(
+                json.dumps(augmented, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            log.warning("Failed to backfill user theme template %s: %s", path, exc)
+
+
+def _augment_with_template_defaults(data: dict[str, Any]) -> dict[str, Any]:
+    """Return ``data`` with any missing keys from ``_USER_THEME_TEMPLATE`` added.
+
+    Pure deep-merge: existing user values are preserved, only missing keys
+    are added. Only applied to the template file -- regular user themes are
+    left untouched.
+    """
+
+    def _merge(existing: Any, default: Any) -> Any:
+        if isinstance(existing, dict) and isinstance(default, dict):
+            merged = dict(existing)
+            for key, default_value in default.items():
+                if key in merged:
+                    merged[key] = _merge(merged[key], default_value)
+                else:
+                    merged[key] = default_value
+            return merged
+        return existing
+
+    return _merge(data, _USER_THEME_TEMPLATE)
 
 
 def _theme_paths(name: str) -> list[Path]:
@@ -258,6 +295,28 @@ def list_theme_names() -> list[str]:
 class IndicatorStyle(str, enum.Enum):
     DOTS = "dots"
     DASHES = "dashes"
+
+
+class IndicatorFill(str, enum.Enum):
+    """Rendering style for the running-app indicator."""
+
+    FLAT = "flat"
+    GLOW = "glow"
+
+
+class ActiveShape(str, enum.Enum):
+    """Shape drawn behind the focused app's icon."""
+
+    LINEAR = "linear"
+    RADIAL = "radial"
+    FLAT = "flat"
+
+
+class ActiveTint(str, enum.Enum):
+    """Color source for the active-glow shape."""
+
+    ICON = "icon"
+    THEME = "theme"
 
 
 def _rgba(values: list[int]) -> RGBA:
@@ -318,8 +377,12 @@ class Theme:
     urgent_glow_pulse_ms: int = 2000  # one pulse cycle every 2s
     urgent_glow_size: float = 0.6  # glow radius as fraction of icon_size
     indicator_style: IndicatorStyle = IndicatorStyle.DOTS
+    indicator_fill: IndicatorFill = IndicatorFill.FLAT  # indicator rendering
     round_bottom: bool = False  # round bottom corners (vs square flush with edge)
     distance_from_edge: int = 0  # gap between dock and screen edge in pixels
+    active_shape: ActiveShape = ActiveShape.LINEAR  # active-glow shape
+    active_tint: ActiveTint = ActiveTint.ICON  # active-glow color source
+    active_color: RGBA = (100 / 255, 180 / 255, 1.0, 1.0)  # theme-tinted active color
 
     def with_opacity(self, multiplier: float) -> Theme:
         """Return a copy whose RGBA colors keep their hue but scale alpha."""
@@ -333,6 +396,7 @@ class Theme:
             active_indicator_color=_multiply_alpha(
                 self.active_indicator_color, multiplier
             ),
+            active_color=_multiply_alpha(self.active_color, multiplier),
         )
 
     @classmethod
@@ -518,7 +582,7 @@ class Theme:
         hover_lighten = float(_theme_value(data, "items.hover.lighten_amount", 0.2))
         active_time_ms = int(_theme_value(data, "items.hover.fade_ms", 150))
         max_indicator_dots = int(_theme_value(data, "indicators.max_dots", 4))
-        glow_opacity = float(_theme_value(data, "items.glow.opacity_ratio", 0.6))
+        glow_opacity = float(_theme_value(data, "items.glow.active_opacity_ratio", 0.6))
         urgent_glow_time_ms = int(
             _theme_value(data, "items.glow.urgent_time_ms", 10000)
         )
@@ -527,6 +591,36 @@ class Theme:
         )
         urgent_glow_size = float(
             _theme_value(data, "items.glow.urgent_size_ratio", 0.6)
+        )
+        raw_active_shape = _theme_value(data, "items.glow.active_shape", "linear")
+        try:
+            active_shape = ActiveShape(raw_active_shape)
+        except ValueError as exc:
+            log.warning(
+                "Invalid active shape %r; using %r (%s)",
+                raw_active_shape,
+                ActiveShape.LINEAR.value,
+                exc,
+            )
+            active_shape = ActiveShape.LINEAR
+        raw_active_tint = _theme_value(data, "items.glow.active_tint", "icon")
+        try:
+            active_tint = ActiveTint(raw_active_tint)
+        except ValueError as exc:
+            log.warning(
+                "Invalid active tint %r; using %r (%s)",
+                raw_active_tint,
+                ActiveTint.ICON.value,
+                exc,
+            )
+            active_tint = ActiveTint.ICON
+        # Default mirrors indicators.active_color so themes need no extra edits
+        # to switch tint=theme.
+        active_color_default = _theme_value(
+            data, "indicators.active_color", [100, 180, 255, 255]
+        )
+        active_color = _rgba(
+            values=_theme_value(data, "items.glow.active_color", active_color_default)
         )
         raw_indicator_style = _theme_value(data, "indicators.style", "dots")
         try:
@@ -539,6 +633,17 @@ class Theme:
                 exc,
             )
             indicator_style = IndicatorStyle.DOTS
+        raw_indicator_fill = _theme_value(data, "indicators.fill", "flat")
+        try:
+            indicator_fill = IndicatorFill(raw_indicator_fill)
+        except ValueError as exc:
+            log.warning(
+                "Invalid indicator fill %r; using %r (%s)",
+                raw_indicator_fill,
+                IndicatorFill.FLAT.value,
+                exc,
+            )
+            indicator_fill = IndicatorFill.FLAT
         round_bottom = bool(_theme_value(data, "shelf.round_bottom", False))
         distance_from_edge = int(_theme_value(data, "layout.distance_from_edge_px", 0))
 
@@ -570,6 +675,10 @@ class Theme:
             urgent_glow_pulse_ms=urgent_glow_pulse_ms,
             urgent_glow_size=urgent_glow_size,
             indicator_style=indicator_style,
+            indicator_fill=indicator_fill,
             round_bottom=round_bottom,
             distance_from_edge=distance_from_edge,
+            active_shape=active_shape,
+            active_tint=active_tint,
+            active_color=active_color,
         )
