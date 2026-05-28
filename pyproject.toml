@@ -24,7 +24,7 @@ dev = [
     "Pillow>=11.0",
     "pytest>=7.0",
     "pytest-cov",
-    "ruff==0.15.13",
+    "ruff==0.15.15",
     "scikit-image>=0.25",
     "ty==0.0.37",
     "vulture>=2.16",
