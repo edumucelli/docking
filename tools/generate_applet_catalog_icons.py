@@ -54,6 +54,8 @@ from docking.applets.battery.state import BatteryState
 from docking.applets.bluetooth.render import create_bluetooth_icon
 from docking.applets.bookmarks.render import render_icon as render_bookmarks
 from docking.applets.brightness.render import create_icon as render_brightness
+from docking.applets.caffeine.render import render_icon as render_caffeine
+from docking.applets.caffeine.state import CaffeineState
 from docking.applets.calculator.render import create_icon as render_calculator
 from docking.applets.calendar.render import render_icon as render_calendar
 from docking.applets.calendar.state import snapshot_from
@@ -263,6 +265,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             size=size,
             brightness=0.70,
             show_level=False,
+        ),
+        AppletId.CAFFEINE: render_caffeine(
+            size=size,
+            state=CaffeineState(active=True),
         ),
         AppletId.CALCULATOR: render_calculator(size=size),
         AppletId.CALENDAR: render_calendar(size=size, snapshot=cal_snapshot),

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-28 20:41+0200\n"
+"POT-Creation-Date: 2026-05-30 00:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -410,7 +410,8 @@ msgid "On"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:187
-#: docking/applets/bluetooth/state.py:155 docking/applets/capslock/state.py:112
+#: docking/applets/bluetooth/state.py:155 docking/applets/caffeine/state.py:128
+#: docking/applets/capslock/state.py:112
 msgid "Off"
 msgstr ""
 
@@ -580,6 +581,50 @@ msgstr ""
 #: docking/applets/brightness/applet.py:109
 #: docking/applets/volume/applet.py:126
 msgid "Show Level"
+msgstr ""
+
+#: docking/applets/caffeine/applet.py:56
+msgid "Caffeine"
+msgstr ""
+
+#: docking/applets/caffeine/applet.py:92
+msgid "Turn off after"
+msgstr ""
+
+#: docking/applets/caffeine/state.py:110
+msgid "Until turned off"
+msgstr ""
+
+#: docking/applets/caffeine/state.py:111
+#: docking/applets/hydration/applet.py:133
+#: docking/applets/pomodoro/applet.py:179
+#: docking/applets/pomodoro/applet.py:192
+#: docking/applets/pomodoro/applet.py:205
+#: docking/applets/stretchcoach/applet.py:105
+#, python-brace-format
+msgid "{mins} min"
+msgstr ""
+
+#: docking/applets/caffeine/state.py:117
+msgid "Caffeine: off"
+msgstr ""
+
+#: docking/applets/caffeine/state.py:119
+msgid "Caffeine: keeping awake"
+msgstr ""
+
+#: docking/applets/caffeine/state.py:120
+#, python-brace-format
+msgid "Caffeine: {time} remaining"
+msgstr ""
+
+#: docking/applets/caffeine/state.py:130
+msgid "Active"
+msgstr ""
+
+#: docking/applets/caffeine/state.py:131
+#, python-brace-format
+msgid "Active - {time} left"
 msgstr ""
 
 #: docking/applets/calculator/applet.py:77
@@ -1309,15 +1354,6 @@ msgstr ""
 #: docking/applets/hydration/applet.py:127
 #: docking/applets/pomodoro/applet.py:170
 msgid "Show Timer"
-msgstr ""
-
-#: docking/applets/hydration/applet.py:133
-#: docking/applets/pomodoro/applet.py:179
-#: docking/applets/pomodoro/applet.py:192
-#: docking/applets/pomodoro/applet.py:205
-#: docking/applets/stretchcoach/applet.py:105
-#, python-brace-format
-msgid "{mins} min"
 msgstr ""
 
 #: docking/applets/hydration/state.py:69
