@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-30 00:13+0200\n"
+"POT-Creation-Date: 2026-05-30 00:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -178,7 +178,7 @@ msgid "{hours}h"
 msgstr ""
 
 #: docking/applets/alarm/state.py:228 docking/applets/alarm/state.py:307
-#: docking/applets/battery/state.py:144 docking/applets/sunrise/state.py:418
+#: docking/applets/battery/state.py:206 docking/applets/sunrise/state.py:418
 #, python-brace-format
 msgid "{minutes}m"
 msgstr ""
@@ -356,38 +356,133 @@ msgstr ""
 msgid "Search applications..."
 msgstr ""
 
-#: docking/applets/battery/applet.py:48
+#: docking/applets/battery/applet.py:63
 msgid "Battery"
 msgstr ""
 
-#: docking/applets/battery/applet.py:85
-msgid "Show Percent"
+#: docking/applets/battery/applet.py:109
+msgid "No overlay"
 msgstr ""
 
-#: docking/applets/battery/applet.py:92
+#: docking/applets/battery/applet.py:110
+msgid "Percentage"
+msgstr ""
+
+#: docking/applets/battery/applet.py:111
+msgid "Power (W)"
+msgstr ""
+
+#: docking/applets/battery/applet.py:121
 msgid "Power Settings"
 msgstr ""
 
-#: docking/applets/battery/state.py:117
+#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:468
+msgid "Mouse"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:47
+msgid "Keyboard"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:48
+msgid "Phone"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:49
+msgid "Media Player"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:50
+msgid "Tablet"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:51
+msgid "Controller"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:52
+msgid "Pen"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:53
+msgid "Touchpad"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:54
+msgid "Headset"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:55
+msgid "Speakers"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:56
+msgid "Headphones"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:57
+msgid "Audio"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:58
+msgid "Remote"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:59
+msgid "Wearable"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:69
+msgid "Low"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:70
+#: docking/applets/certwatch/state.py:248
+msgid "Critical"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:71
+msgid "Normal"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:72
+msgid "High"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:73
+#: docking/applets/moon/offline.py:231 docking/applets/moon/state.py:145
+msgid "Full"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:99
+msgid "Device"
+msgstr ""
+
+#: docking/applets/battery/peripherals.py:130
+#, python-brace-format
+msgid "{charge} (charging)"
+msgstr ""
+
+#: docking/applets/battery/state.py:170
 msgid "No battery"
 msgstr ""
 
-#: docking/applets/battery/state.py:118
+#: docking/applets/battery/state.py:171
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr ""
 
-#: docking/applets/battery/state.py:131
+#: docking/applets/battery/state.py:193
 #, python-brace-format
 msgid "{time} left"
 msgstr ""
 
-#: docking/applets/battery/state.py:133
+#: docking/applets/battery/state.py:195
 #, python-brace-format
 msgid "{time} until full"
 msgstr ""
 
-#: docking/applets/battery/state.py:143
+#: docking/applets/battery/state.py:205
 #, python-brace-format
 msgid "{hours}h {minutes:02d}m"
 msgstr ""
@@ -745,10 +840,6 @@ msgstr ""
 
 #: docking/applets/certwatch/state.py:247
 msgid "Warn"
-msgstr ""
-
-#: docking/applets/certwatch/state.py:248
-msgid "Critical"
 msgstr ""
 
 #: docking/applets/certwatch/state.py:249
@@ -1533,10 +1624,6 @@ msgstr ""
 
 #: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
 msgid "New"
-msgstr ""
-
-#: docking/applets/moon/offline.py:231 docking/applets/moon/state.py:145
-msgid "Full"
 msgstr ""
 
 #: docking/applets/moon/offline.py:233
@@ -2789,10 +2876,6 @@ msgstr ""
 
 #: docking/ui/settings.py:433
 msgid "Anchor Files to End"
-msgstr ""
-
-#: docking/ui/settings.py:468
-msgid "Mouse"
 msgstr ""
 
 #: docking/ui/settings.py:470

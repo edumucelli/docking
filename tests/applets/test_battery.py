@@ -9,11 +9,22 @@ import pytest
 import docking.applets.battery.applet as battery_applet_mod
 import docking.applets.battery.state as battery_state_mod
 from docking.applets.battery.applet import BatteryApplet
+from docking.applets.battery.peripherals import (
+    PeripheralBattery,
+    _peripheral_from_props,
+    peripheral_label,
+)
 from docking.applets.battery.state import (
+    OVERLAY_NONE,
+    OVERLAY_PERCENT,
+    OVERLAY_POWER,
     BatteryState,
+    format_power,
     open_power_settings,
+    overlay_from_prefs,
     power_settings_command,
     read_battery,
+    read_power_watts,
     resolve_battery_icon,
     tooltip_text,
 )
@@ -341,6 +352,167 @@ class TestTooltipText:
         assert tooltip_text(state) == "Battery: 100%"
 
 
+class TestPowerWatts:
+    def test_reads_power_now_microwatts(self, tmp_path):
+        bat = tmp_path / "BAT0"
+        bat.mkdir()
+        (bat / "power_now").write_text("7600000\n")  # 7.6 W
+        assert read_power_watts(base=tmp_path) == pytest.approx(7.6)
+
+    def test_falls_back_to_current_times_voltage(self, tmp_path):
+        bat = tmp_path / "BAT0"
+        bat.mkdir()
+        (bat / "current_now").write_text("500000\n")  # 0.5 A
+        (bat / "voltage_now").write_text("12000000\n")  # 12 V
+        assert read_power_watts(base=tmp_path) == pytest.approx(6.0)
+
+    def test_negative_power_now_is_none(self, tmp_path):
+        bat = tmp_path / "BAT0"
+        bat.mkdir()
+        (bat / "power_now").write_text("-1\n")
+        assert read_power_watts(base=tmp_path) is None
+
+    def test_missing_battery_is_none(self, tmp_path):
+        assert read_power_watts(base=tmp_path) is None
+
+
+class TestFormatPower:
+    def test_one_decimal_below_ten(self):
+        assert format_power(7.64) == "7.6 W"
+
+    def test_no_decimal_at_or_above_ten(self):
+        assert format_power(24.1) == "24 W"
+
+    def test_compact_drops_space(self):
+        assert format_power(7.64, compact=True) == "7.6W"
+
+
+class TestOverlayFromPrefs:
+    def test_explicit_mode_wins(self):
+        assert overlay_from_prefs({"overlay": OVERLAY_POWER}) == OVERLAY_POWER
+
+    def test_migrates_legacy_show_percent(self):
+        assert overlay_from_prefs({"show_percent": True}) == OVERLAY_PERCENT
+
+    def test_defaults_to_none(self):
+        assert overlay_from_prefs({}) == OVERLAY_NONE
+
+
+class TestTooltipPower:
+    def test_appends_power_when_known(self):
+        state = BatteryState(
+            icon_name="battery-good",
+            capacity=67,
+            status="Discharging",
+            seconds_remaining=8040,
+            power_watts=7.6,
+        )
+        assert tooltip_text(state) == "Battery: 67% • 2h 14m left • 7.6 W"
+
+    def test_omits_power_when_zero(self):
+        state = BatteryState(
+            icon_name="battery-good",
+            capacity=100,
+            status="Not charging",
+            seconds_remaining=None,
+            power_watts=0.0,
+        )
+        assert tooltip_text(state) == "Battery: 100%"
+
+
+class TestPeripheralParsing:
+    def _keyboard_props(self, **overrides):
+        props = {
+            "PowerSupply": False,
+            "Type": 6,
+            "Model": "Keychron K8",
+            "Percentage": 96.0,
+            "State": 2,
+            "BatteryLevel": 1,
+        }
+        props.update(overrides)
+        return props
+
+    def test_parses_keyboard(self):
+        p = _peripheral_from_props(self._keyboard_props())
+        assert p == PeripheralBattery(
+            model="Keychron K8",
+            kind="Keyboard",
+            percent=96.0,
+            charging=False,
+            level="",
+        )
+
+    def test_skips_power_supply_devices(self):
+        assert _peripheral_from_props(self._keyboard_props(PowerSupply=True)) is None
+
+    def test_skips_excluded_types(self):
+        # Type 4 == monitor, 1 == line-power.
+        assert _peripheral_from_props(self._keyboard_props(Type=4)) is None
+        assert _peripheral_from_props(self._keyboard_props(Type=1)) is None
+
+    def test_charging_flag_and_coarse_level(self):
+        p = _peripheral_from_props(
+            self._keyboard_props(Type=5, Percentage=0.0, State=1, BatteryLevel=3)
+        )
+        assert p.kind == "Mouse"
+        assert p.charging is True
+        assert p.level == "Low"
+
+
+class TestPeripheralLabel:
+    def test_percent(self):
+        p = PeripheralBattery("Keychron K8", "Keyboard", 96.0, False, "")
+        assert peripheral_label(p) == "Keychron K8: 96%"
+
+    def test_charging_suffix(self):
+        p = PeripheralBattery("MX Master", "Mouse", 40.0, True, "")
+        assert peripheral_label(p) == "MX Master: 40% (charging)"
+
+    def test_coarse_level_when_no_percent(self):
+        p = PeripheralBattery("Headset", "Headset", None, False, "Low")
+        assert peripheral_label(p) == "Headset: Low"
+
+    def test_model_fallback_to_kind(self):
+        p = PeripheralBattery("", "Mouse", None, False, "")
+        assert peripheral_label(p) == "Mouse"
+
+
+class TestPeripheralTooltip:
+    def test_tooltip_lists_peripherals_under_battery(self):
+        applet = BatteryApplet(48)
+        applet._state = BatteryState(
+            icon_name="battery-good",
+            capacity=80,
+            status="Discharging",
+            seconds_remaining=None,
+        )
+        applet._peripherals = [
+            PeripheralBattery("Keychron K8", "Keyboard", 96.0, False, ""),
+            PeripheralBattery("MX Master", "Mouse", 40.0, True, ""),
+        ]
+
+        applet.refresh_tooltip()
+
+        assert applet.item.name == (
+            "Battery: 80%\nKeychron K8: 96%\nMX Master: 40% (charging)"
+        )
+
+    def test_tooltip_battery_only_when_no_peripherals(self):
+        applet = BatteryApplet(48)
+        applet._state = BatteryState(
+            icon_name="battery-good",
+            capacity=80,
+            status="Discharging",
+            seconds_remaining=None,
+        )
+        applet._peripherals = []
+
+        applet.refresh_tooltip()
+
+        assert applet.item.name == "Battery: 80%"
+
+
 class TestPowerSettingsLauncher:
     def test_prefers_first_available_power_settings_command(self, monkeypatch):
         monkeypatch.setattr(
@@ -399,22 +571,23 @@ class TestBatteryAppletRendering:
         pixbuf = applet.create_icon(48)
         assert pixbuf is not None
 
-    def test_renders_with_percent_label_enabled(self):
+    def test_renders_with_power_overlay_enabled(self):
         state = BatteryState(
             icon_name="battery-good",
             capacity=72,
             status="Discharging",
             seconds_remaining=None,
+            power_watts=7.6,
         )
         applet = BatteryApplet(48, config=Config(applet_prefs={"battery": {}}))
         applet._state = state
-        applet._show_percent = True
+        applet._overlay = OVERLAY_POWER
 
         pixbuf = applet.create_icon(48)
 
         assert pixbuf is not None
 
-    def test_menu_shows_power_settings_when_available(self, monkeypatch):
+    def test_menu_shows_overlay_choices_and_power_settings(self, monkeypatch):
         opened: list[str] = []
         monkeypatch.setattr(
             battery_applet_mod,
@@ -431,37 +604,43 @@ class TestBatteryAppletRendering:
         items = applet.get_menu_items()
 
         assert [item.get_label() for item in items] == [
-            "Show Percent",
+            "No overlay",
+            "Percentage",
+            "Power (W)",
             "",
             "Power Settings",
         ]
-        callback, args = items[2]._signals["activate"][0]
+        callback, args = items[4]._signals["activate"][0]
         callback(None, *args)
         assert opened == ["opened"]
 
-    def test_menu_keeps_show_percent_without_power_settings_tool(self, monkeypatch):
+    def test_menu_overlay_only_without_power_settings_tool(self, monkeypatch):
         monkeypatch.setattr(battery_applet_mod, "power_settings_command", lambda: None)
 
         applet = BatteryApplet(48)
         assert [item.get_label() for item in applet.get_menu_items()] == [
-            "Show Percent"
+            "No overlay",
+            "Percentage",
+            "Power (W)",
         ]
 
-    def test_loads_and_saves_show_percent_pref(self, tmp_path):
+    def test_migrates_legacy_show_percent_pref(self, tmp_path):
         path = tmp_path / "dock.json"
         config = Config(applet_prefs={"battery": {"show_percent": True}})
         config.save(path)
         config = Config.load(path)
         applet = BatteryApplet(48, config=config)
 
-        assert applet._show_percent is True
+        assert applet._overlay == OVERLAY_PERCENT
+
+    def test_set_overlay_saves_pref(self, tmp_path):
+        config = Config(applet_prefs={"battery": {}})
+        applet = BatteryApplet(48, config=config)
 
         applet.present = MagicMock()
-        widget = MagicMock()
-        widget.get_active.return_value = False
-        applet._on_toggle_percent(widget)
+        applet._set_overlay(mode=OVERLAY_POWER)
 
-        assert config.applet_prefs["battery"] == {"show_percent": False}
+        assert config.applet_prefs["battery"] == {"overlay": OVERLAY_POWER}
         applet.present.assert_called_once()
 
     def test_tooltip_shows_percentage(self, tmp_path, monkeypatch):
@@ -475,6 +654,7 @@ class TestBatteryAppletRendering:
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )
+        monkeypatch.setattr(battery_applet_mod, "read_peripheral_batteries", list)
         with patch(
             "docking.applets.battery.applet.read_battery",
             return_value=read_battery("BAT0", base=tmp_path),
@@ -482,7 +662,8 @@ class TestBatteryAppletRendering:
             applet = BatteryApplet(48)
         assert applet.item.name == "Battery: 72%"
 
-    def test_tooltip_no_battery(self):
+    def test_tooltip_no_battery(self, monkeypatch):
+        monkeypatch.setattr(battery_applet_mod, "read_peripheral_batteries", list)
         with patch("docking.applets.battery.applet.read_battery", return_value=None):
             applet = BatteryApplet(48)
         assert applet.item.name == "No battery"

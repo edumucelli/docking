@@ -23,7 +23,13 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
-from docking.applets.battery.state import BatteryState
+from docking.applets.battery.state import (
+    OVERLAY_NONE,
+    OVERLAY_PERCENT,
+    OVERLAY_POWER,
+    BatteryState,
+    format_power,
+)
 from docking.applets.draw import rounded_rect
 from docking.core.math import clamp
 
@@ -126,10 +132,19 @@ def _draw_battery(
         cr.fill()
 
 
+def _overlay_label(*, state: BatteryState, overlay: str) -> str | None:
+    """Bottom-center overlay text for the selected mode, or None."""
+    if overlay == OVERLAY_PERCENT:
+        return f"{state.capacity}%"
+    if overlay == OVERLAY_POWER and state.power_watts is not None:
+        return format_power(state.power_watts, compact=True)
+    return None
+
+
 def render_icon(
     size: int,
     state: BatteryState | None,
-    show_percent: bool = False,
+    overlay: str = OVERLAY_NONE,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render standardized battery icon independent from system theme."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -146,7 +161,8 @@ def render_icon(
             capacity=state.capacity,
             charging=state.icon_name.endswith("-charging"),
         )
-        if show_percent:
-            draw_icon_label(cr=cr, text=f"{state.capacity}%", size=size)
+        label = _overlay_label(state=state, overlay=overlay)
+        if label is not None:
+            draw_icon_label(cr=cr, text=label, size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
