@@ -1012,17 +1012,16 @@ class DockWindow(Gtk.Window):
 
         # Spurious leave filter: when the tooltip popup appears, GTK
         # generates a NONLINEAR leave even though the cursor is still
-        # inside the dock's current cursor region. Ignore those leaves
-        # using the same half-open region semantics as the rest of the
-        # shared geometry layer.
+        # inside the dock's current cursor region. Query the live pointer
+        # position instead of trusting event.x/event.y: for top/bottom exits,
+        # GTK can report the last in-window point, which would make a real
+        # leave look like it was still inside the dock and block autohide.
         current_entry = self._cache.geometry_frame
         frame = (
             current_entry.frame if current_entry is not None else None
         ) or self._cache.applied_input_frame
         input_rect = current_input_rect(frame)
-        if input_rect is not None and self.interaction.point_inside_event_frame(
-            x=event.x, y=event.y
-        ):
+        if input_rect is not None and self.interaction.pointer_inside_input_rect():
             return False
 
         if not self.dock_hovered:

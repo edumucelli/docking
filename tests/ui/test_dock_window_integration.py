@@ -131,6 +131,7 @@ def _make_stub(item: DockItem | None = None):
     stub.interaction = MagicMock()
     stub.interaction.on_effective_enter = MagicMock()
     stub.interaction.on_effective_leave = MagicMock()
+    stub.interaction.pointer_inside_input_rect = MagicMock(return_value=False)
     _bind_geometry_signature(stub)
     return stub, item
 
@@ -555,7 +556,7 @@ class TestLeaveEnterFlow:
         # Then
         assert handled is False
 
-    def test_leave_inside_input_rect_is_ignored(self):
+    def test_leave_with_live_pointer_inside_input_rect_is_ignored(self):
         # Given
         stub, _item = _make_stub()
         stub._cache.geometry_frame.frame = SimpleNamespace(
@@ -567,15 +568,39 @@ class TestLeaveEnterFlow:
             x=20.0,
             y=20.0,
         )
+        stub.interaction.pointer_inside_input_rect.return_value = True
 
         # When
         handled = dock_window_mod.DockWindow._on_leave(stub, MagicMock(), event)
         # Then
         assert handled is False
-        stub.interaction.point_inside_event_frame.assert_called_once_with(
-            x=20.0, y=20.0
-        )
+        stub.interaction.pointer_inside_input_rect.assert_called_once_with()
         stub.hover.cancel.assert_not_called()
+
+    def test_leave_with_stale_inside_event_coords_but_pointer_outside_hides(self):
+        # Given
+        stub, _item = _make_stub()
+        widget = MagicMock()
+        stub.autohide = _autohide(enabled=True)
+        stub.preview = MagicMock()
+        stub.preview.get_visible.return_value = False
+        stub._cache.geometry_frame.frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100)
+        )
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=20.0,
+            y=20.0,
+        )
+        stub.interaction.pointer_inside_input_rect.return_value = False
+
+        # When
+        handled = dock_window_mod.DockWindow._on_leave(stub, widget, event)
+        # Then
+        assert handled is True
+        stub.interaction.pointer_inside_input_rect.assert_called_once_with()
+        stub.interaction.on_effective_leave.assert_called_once_with(widget)
 
     def test_leave_clears_hover_and_resets_cursor_without_preview_or_autohide(self):
         # Given
