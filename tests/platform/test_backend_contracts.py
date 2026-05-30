@@ -7,6 +7,7 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
+from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 
 class TestWindowId:
@@ -57,6 +58,40 @@ class TestWindowSnapshot:
         assert not snapshot.active
         assert not snapshot.can_activate
         assert snapshot.geometry is None
+
+
+class TestRunningAppInfo:
+    def test_preserves_xids_and_window_ids(self):
+        first = object()
+        second = object()
+
+        running = RunningAppInfo.from_windows(
+            [
+                RunningWindowInfo(
+                    desktop_id="firefox.desktop",
+                    xid=1,
+                    window_id=WindowId.x11(1),
+                    active=False,
+                    urgent=False,
+                    window=first,
+                ),
+                RunningWindowInfo(
+                    desktop_id="firefox.desktop",
+                    xid=2,
+                    window_id=WindowId.x11(2),
+                    active=True,
+                    urgent=True,
+                    window=second,
+                ),
+            ]
+        )
+
+        assert running.count == 2
+        assert running.active is True
+        assert running.urgent is True
+        assert running.windows == (first, second)
+        assert running.xids == (1, 2)
+        assert running.window_ids == (WindowId.x11(1), WindowId.x11(2))
 
 
 class TestActionResult:

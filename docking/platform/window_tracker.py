@@ -502,6 +502,7 @@ class WindowTracker:
         return RunningWindowInfo(
             desktop_id=desktop_id,
             xid=xid,
+            window_id=WindowId.x11(xid),
             active=xid == active_xid,
             urgent=urgent,
             window=window,

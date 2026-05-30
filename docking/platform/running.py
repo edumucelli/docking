@@ -19,6 +19,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from docking.platform.backends.base import WindowId
+
 
 @dataclass(frozen=True)
 class RunningWindowInfo:
@@ -32,6 +34,9 @@ class RunningWindowInfo:
     # focus actions use XIDs as a stable handoff between scans. Wnck objects
     # themselves can become stale at any time.
     xid: int
+    # Backend-neutral ID for future non-X11 window services. X11 callers should
+    # keep using xid until the UI is migrated to WindowService methods.
+    window_id: WindowId
     # These are per-window booleans. RunningAppInfo folds them with any(), so one
     # active or urgent window makes the app active or urgent.
     active: bool
@@ -56,6 +61,7 @@ class RunningAppInfo:
     # UI consumers.
     windows: tuple[Any, ...] = ()
     xids: tuple[int, ...] = ()
+    window_ids: tuple[WindowId, ...] = ()
 
     @classmethod
     def from_windows(cls, windows: Iterable[RunningWindowInfo]) -> RunningAppInfo:
@@ -70,4 +76,5 @@ class RunningAppInfo:
             urgent=any(snapshot.urgent for snapshot in snapshots),
             windows=tuple(snapshot.window for snapshot in snapshots),
             xids=tuple(snapshot.xid for snapshot in snapshots),
+            window_ids=tuple(snapshot.window_id for snapshot in snapshots),
         )

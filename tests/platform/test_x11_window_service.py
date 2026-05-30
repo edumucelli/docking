@@ -121,7 +121,13 @@ def make_service(
     service._running_xids_by_desktop = {
         "firefox.desktop": [window.get_xid() for window in windows]
     }
-    service._last_running = {"firefox.desktop": RunningAppInfo(count=len(windows))}
+    service._last_running = {
+        "firefox.desktop": RunningAppInfo(
+            count=len(windows),
+            xids=tuple(window.get_xid() for window in windows),
+            window_ids=tuple(WindowId.x11(window.get_xid()) for window in windows),
+        )
+    }
     service._cycle_index = {}
     service._cycle_order_by_desktop = {}
     return service
@@ -174,6 +180,10 @@ def test_snapshot_running_returns_copy():
     running.clear()
 
     assert service.snapshot_running()["firefox.desktop"].count == 1
+    assert service.snapshot_running()["firefox.desktop"].xids == (10,)
+    assert service.snapshot_running()["firefox.desktop"].window_ids == (
+        WindowId.x11(10),
+    )
 
 
 def test_activate_uses_x11_window_id(monkeypatch):
