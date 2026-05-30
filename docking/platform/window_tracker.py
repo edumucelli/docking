@@ -161,6 +161,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
+from docking.platform.backends.base import Rect, WindowId, WindowSnapshot
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
@@ -169,6 +170,7 @@ from docking.platform.running import RunningAppInfo, RunningWindowInfo
 _RECOVERABLE_ERRORS: tuple[type[BaseException], ...] = (TypeError,)
 if isinstance(GLib.Error, type) and issubclass(GLib.Error, BaseException):
     _RECOVERABLE_ERRORS = (TypeError, GLib.Error)
+_GEOMETRY_ERRORS: tuple[type[BaseException], ...] = (ValueError, *_RECOVERABLE_ERRORS)
 
 log = with_context(get_logger(name="window_tracker"))
 
@@ -367,6 +369,7 @@ class WindowTracker:
         # Preview/toggle paths use this cache to avoid rematching WM_CLASS
         # during hover-time UI events.
         self._running_xids_by_desktop: dict[str, list[int]] = {}
+        self._last_running: dict[str, RunningAppInfo] = {}
         self._cycle_index: dict[str, int] = {}
         self._cycle_order_by_desktop: dict[str, list[int]] = {}
 
@@ -424,6 +427,7 @@ class WindowTracker:
                 snapshots_by_desktop[desktop_id].append(snapshot)
 
         running = self._aggregate_running(windows_by_desktop=snapshots_by_desktop)
+        self._last_running = dict(running)
         self._running_xids_by_desktop = {
             desktop_id: list(info.xids) for desktop_id, info in running.items()
         }
@@ -528,12 +532,203 @@ class WindowTracker:
         """Get current window XIDs for a desktop_id from the latest scan."""
         return list(self._running_xids_by_desktop.get(desktop_id, []))
 
+    def snapshot_running(self) -> dict[str, RunningAppInfo]:
+        """Return the latest running-app aggregate for backend-service callers."""
+        return dict(getattr(self, "_last_running", {}))
+
+    def list_windows(self, desktop_id: str) -> list[WindowSnapshot]:
+        """Return backend-neutral snapshots for current windows of a desktop ID."""
+        active_xid = self._active_xid()
+        snapshots: list[WindowSnapshot] = []
+        for window in self._get_windows_for(desktop_id=desktop_id):
+            snapshot = self._window_service_snapshot(
+                window=window,
+                desktop_id=desktop_id,
+                active_xid=active_xid,
+            )
+            if snapshot is not None:
+                snapshots.append(snapshot)
+        return snapshots
+
     def icon_name_for_desktop(self, desktop_id: str) -> str:
         """Return icon name for desktop_id from the current dock model."""
         for item in self._model.visible_items():
             if item.desktop_id == desktop_id:
                 return item.icon_name or "application-x-executable"
         return "application-x-executable"
+
+    def _window_service_snapshot(
+        self, *, window: Wnck.Window, desktop_id: str, active_xid: int
+    ) -> WindowSnapshot | None:
+        """Convert one live Wnck window into the backend-neutral service shape."""
+        try:
+            xid = int(window.get_xid())
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="service_window_xid").warning(
+                f"Skipping window service snapshot: failed to read xid: {exc}"
+            )
+            return None
+
+        title = self._read_window_title(window=window, xid=xid)
+        app_id = self._read_window_string(
+            window=window,
+            method_name="get_class_group_name",
+            action="service_app_id",
+            xid=xid,
+        )
+        wm_class = self._read_window_string(
+            window=window,
+            method_name="get_class_instance_name",
+            action="service_wm_class",
+            xid=xid,
+        )
+        return WindowSnapshot(
+            id=WindowId.x11(xid),
+            desktop_id=desktop_id,
+            title=title,
+            app_id=app_id,
+            wm_class=wm_class or app_id,
+            active=xid == active_xid,
+            urgent=self._read_window_bool(
+                window=window,
+                method_name="needs_attention",
+                action="service_urgent",
+                xid=xid,
+                default=False,
+            ),
+            minimized=self._read_window_optional_bool(
+                window=window,
+                method_name="is_minimized",
+                action="service_minimized",
+                xid=xid,
+            ),
+            maximized=self._read_window_optional_bool(
+                window=window,
+                method_name="is_maximized",
+                action="service_maximized",
+                xid=xid,
+            ),
+            fullscreen=self._read_window_optional_bool(
+                window=window,
+                method_name="is_fullscreen",
+                action="service_fullscreen",
+                xid=xid,
+            ),
+            geometry=self._read_window_geometry(window=window, xid=xid),
+            workspace_id=self._read_window_workspace_id(window=window, xid=xid),
+            can_activate=True,
+            can_minimize=True,
+            can_close=True,
+            can_preview=True,
+        )
+
+    @staticmethod
+    def _read_window_title(*, window: Wnck.Window, xid: int) -> str:
+        try:
+            title = window.get_name()
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="service_title", xid=str(xid)).warning(
+                f"Failed to read window title: {exc}"
+            )
+            return "Window"
+        return title or "Window"
+
+    @staticmethod
+    def _read_window_string(
+        *, window: Wnck.Window, method_name: str, action: str, xid: int
+    ) -> str | None:
+        method = getattr(window, method_name, None)
+        if method is None:
+            return None
+        try:
+            value = method()
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action=action, xid=str(xid)).warning(
+                f"Failed to read window string property: {exc}"
+            )
+            return None
+        return value or None
+
+    @staticmethod
+    def _read_window_bool(
+        *,
+        window: Wnck.Window,
+        method_name: str,
+        action: str,
+        xid: int,
+        default: bool,
+    ) -> bool:
+        method = getattr(window, method_name, None)
+        if method is None:
+            return default
+        try:
+            return bool(method())
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action=action, xid=str(xid)).warning(
+                f"Failed to read window boolean property: {exc}"
+            )
+            return default
+
+    @classmethod
+    def _read_window_optional_bool(
+        cls, *, window: Wnck.Window, method_name: str, action: str, xid: int
+    ) -> bool | None:
+        method = getattr(window, method_name, None)
+        if method is None:
+            return None
+        return cls._read_window_bool(
+            window=window,
+            method_name=method_name,
+            action=action,
+            xid=xid,
+            default=False,
+        )
+
+    @staticmethod
+    def _read_window_geometry(*, window: Wnck.Window, xid: int) -> Rect | None:
+        get_geometry = getattr(window, "get_geometry", None)
+        if get_geometry is None:
+            return None
+        try:
+            x, y, width, height = get_geometry()
+        except _GEOMETRY_ERRORS as exc:
+            log.bind(action="service_geometry", xid=str(xid)).warning(
+                f"Failed to read window geometry: {exc}"
+            )
+            return None
+        return Rect(x=int(x), y=int(y), width=int(width), height=int(height))
+
+    @staticmethod
+    def _read_window_workspace_id(*, window: Wnck.Window, xid: int) -> str | None:
+        get_workspace = getattr(window, "get_workspace", None)
+        if get_workspace is None:
+            return None
+        try:
+            workspace = get_workspace()
+        except _RECOVERABLE_ERRORS as exc:
+            log.bind(action="service_workspace", xid=str(xid)).warning(
+                f"Failed to read window workspace: {exc}"
+            )
+            return None
+        if workspace is None:
+            return None
+        get_number = getattr(workspace, "get_number", None)
+        if get_number is not None:
+            try:
+                return str(get_number())
+            except _RECOVERABLE_ERRORS as exc:
+                log.bind(action="service_workspace_number", xid=str(xid)).warning(
+                    f"Failed to read window workspace number: {exc}"
+                )
+        get_name = getattr(workspace, "get_name", None)
+        if get_name is not None:
+            try:
+                return get_name() or None
+            except _RECOVERABLE_ERRORS as exc:
+                log.bind(action="service_workspace_name", xid=str(xid)).warning(
+                    f"Failed to read window workspace name: {exc}"
+                )
+        return None
 
     def get_window_title_for_xid(self, xid: int) -> str:
         """Get a best-effort window title for an XID."""
