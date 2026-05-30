@@ -545,6 +545,7 @@ class TestLeaveEnterFlow:
     def test_leave_ignores_inferior_notify(self):
         # Given
         stub, _item = _make_stub()
+        stub.interaction.pointer_inside_input_rect.return_value = True
         event = SimpleNamespace(
             detail=dock_window_mod.Gdk.NotifyType.INFERIOR,
             mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
@@ -555,6 +556,27 @@ class TestLeaveEnterFlow:
         handled = dock_window_mod.DockWindow._on_leave(stub, MagicMock(), event)
         # Then
         assert handled is False
+        stub.interaction.pointer_inside_input_rect.assert_called_once_with()
+
+    def test_leave_to_tooltip_outside_shelf_triggers_effective_leave(self):
+        # Given
+        stub, _item = _make_stub()
+        widget = MagicMock()
+        stub.autohide = _autohide(enabled=True)
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.INFERIOR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=20.0,
+            y=20.0,
+        )
+        stub.interaction.pointer_inside_input_rect.return_value = False
+
+        # When
+        handled = dock_window_mod.DockWindow._on_leave(stub, widget, event)
+        # Then
+        assert handled is True
+        stub.interaction.pointer_inside_input_rect.assert_called_once_with()
+        stub.interaction.on_effective_leave.assert_called_once_with(widget)
 
     def test_leave_with_live_pointer_inside_input_rect_is_ignored(self):
         # Given
