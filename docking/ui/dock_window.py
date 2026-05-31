@@ -204,6 +204,7 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.backends.base import PreviewService
 from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.platform.struts import (
@@ -343,6 +344,7 @@ class DockWindow(Gtk.Window):
         theme: Theme,
         window_tracker: WindowTracker,
         launcher: Launcher,
+        preview_service: PreviewService,
     ) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.config = config
@@ -350,6 +352,7 @@ class DockWindow(Gtk.Window):
         self.renderer = renderer
         self.theme = theme
         self.window_tracker = window_tracker
+        self.preview_service = preview_service
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController
@@ -510,7 +513,10 @@ class DockWindow(Gtk.Window):
             launcher=launcher,
         )
         self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
-        self.preview = PreviewPopup(window_tracker=self.window_tracker)
+        self.preview = PreviewPopup(
+            window_tracker=self.window_tracker,
+            preview_service=self.preview_service,
+        )
         self.preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
         self.preview.set_autohide(controller=self.autohide)
         self.hover.set_preview(preview=self.preview)

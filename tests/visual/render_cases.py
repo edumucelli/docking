@@ -16,6 +16,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.core.theme import Theme
+from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
 from docking.ui.autohide import HideState
 from docking.ui.geometry import build_geometry_frame
 from docking.ui.menu import MenuHandler
@@ -361,28 +362,46 @@ def _draw_tooltip_case() -> cairo.ImageSurface:
 
 def _draw_preview_case() -> cairo.ImageSurface:
     tracker = MagicMock()
-    tracker.get_xids_for.return_value = [101, 102]
-    tracker.icon_name_for_desktop.return_value = "firefox"
-    tracker.get_window_title_for_xid.side_effect = [
-        "Firefox - Docking Visual Regression",
-        "Docs - Feature Review",
+    tracker.list_windows.return_value = [
+        WindowSnapshot(
+            id=WindowId.x11(101),
+            desktop_id="firefox.desktop",
+            title="Firefox - Docking Visual Regression",
+            can_activate=True,
+            can_preview=True,
+        ),
+        WindowSnapshot(
+            id=WindowId.x11(102),
+            desktop_id="firefox.desktop",
+            title="Docs - Feature Review",
+            can_activate=True,
+            can_preview=True,
+        ),
     ]
-    popup = PreviewPopup(window_tracker=tracker)
+    tracker.icon_name_for_desktop.return_value = "firefox"
+    preview_service = MagicMock()
+    preview_service.capture.side_effect = [
+        PreviewImage(
+            image=_pixbuf(max(THUMB_W, THUMB_H), red=235, green=94, blue=55),
+            width=THUMB_W,
+            height=THUMB_H,
+        ),
+        PreviewImage(
+            image=_pixbuf(max(THUMB_W, THUMB_H), red=60, green=132, blue=241),
+            width=THUMB_W,
+            height=THUMB_H,
+        ),
+    ]
+    preview_service.fallback_icon_name.return_value = None
+    popup = PreviewPopup(window_tracker=tracker, preview_service=preview_service)
     try:
-        with patch(
-            "docking.ui.preview.capture_xid",
-            side_effect=[
-                _pixbuf(max(THUMB_W, THUMB_H), red=235, green=94, blue=55),
-                _pixbuf(max(THUMB_W, THUMB_H), red=60, green=132, blue=241),
-            ],
-        ):
-            popup.show_for_item(
-                desktop_id="firefox.desktop",
-                anchor_x=140.0,
-                icon_w=48.0,
-                anchor_y=320.0,
-                position=Position.BOTTOM,
-            )
+        popup.show_for_item(
+            desktop_id="firefox.desktop",
+            anchor_x=140.0,
+            icon_w=48.0,
+            anchor_y=320.0,
+            position=Position.BOTTOM,
+        )
         return _capture_window_surface(popup)
     finally:
         popup.destroy()

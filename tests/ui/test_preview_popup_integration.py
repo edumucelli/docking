@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from docking.core.position import Position
+from docking.platform.backends.base import WindowId, WindowSnapshot
 
 
 def _load_preview_module():
@@ -46,35 +47,20 @@ def _load_preview_module():
         NotifyType=SimpleNamespace(INFERIOR=1),
         CrossingMode=SimpleNamespace(NORMAL=1),
     )
-    fake_gdkpixbuf = types.SimpleNamespace(
-        Pixbuf=type("Pixbuf", (), {}),
-        InterpType=SimpleNamespace(BILINEAR=1),
-        Colorspace=SimpleNamespace(RGB=1),
-    )
-    fake_gdkx11 = types.SimpleNamespace(
-        X11Display=SimpleNamespace(get_default=lambda: MagicMock()),
-        X11Window=SimpleNamespace(
-            foreign_new_for_display=lambda _display, _xid: MagicMock()
-        ),
-    )
     fake_glib = types.SimpleNamespace(
         Error=Exception,
         timeout_add=lambda *_args, **_kwargs: 1,
         source_remove=lambda *_args, **_kwargs: None,
     )
     fake_pango = types.SimpleNamespace(EllipsizeMode=SimpleNamespace(END=1))
-    fake_wnck = types.SimpleNamespace(Window=type("Window", (), {}))
 
     gi_module = types.ModuleType("gi")
     gi_module.require_version = lambda *_args, **_kwargs: None
     repo_module = types.ModuleType("gi.repository")
     repo_module.Gtk = fake_gtk
     repo_module.Gdk = fake_gdk
-    repo_module.GdkPixbuf = fake_gdkpixbuf
-    repo_module.GdkX11 = fake_gdkx11
     repo_module.GLib = fake_glib
     repo_module.Pango = fake_pango
-    repo_module.Wnck = fake_wnck
     gi_module.repository = repo_module
     sys.modules["gi"] = gi_module
     sys.modules["gi.repository"] = repo_module
@@ -203,9 +189,26 @@ class FakeLabel:
         return
 
 
+class FakePreviewService:
+    def __init__(self) -> None:
+        self.capture = MagicMock(return_value=None)
+        self.fallback_icon_name = MagicMock(return_value=None)
+
+
+def _snapshot(value: int, title: str = "Window") -> WindowSnapshot:
+    return WindowSnapshot(
+        id=WindowId.x11(value),
+        desktop_id="firefox.desktop",
+        title=title,
+        can_activate=True,
+        can_preview=True,
+    )
+
+
 def _make_popup():
     popup = object.__new__(preview_mod.PreviewPopup)
     popup._tracker = MagicMock()
+    popup._preview_service = FakePreviewService()
     popup._autohide = None
     popup._pointer_inside_dock = None
     popup._hide_timer_id = 0
@@ -217,7 +220,7 @@ class TestPreviewPopupIntegration:
     def test_show_for_item_hides_when_no_windows(self):
         # Given
         popup = _make_popup()
-        popup._tracker.get_xids_for.return_value = []
+        popup._tracker.list_windows.return_value = []
         popup.hide = MagicMock()
 
         # When
@@ -236,10 +239,10 @@ class TestPreviewPopupIntegration:
     def test_show_for_item_builds_content_and_moves(self, monkeypatch):
         # Given
         popup = _make_popup()
-        popup._tracker.get_xids_for.return_value = [1, 2]
+        popup._tracker.list_windows.return_value = [_snapshot(1), _snapshot(2)]
         popup._tracker.icon_name_for_desktop.return_value = "firefox"
         popup._cancel_hide_timer = MagicMock()
-        popup._make_thumbnail_for_xid = MagicMock(return_value=object())
+        popup._make_thumbnail_for_window = MagicMock(return_value=object())
         popup.get_child = MagicMock(return_value=None)
         popup.remove = MagicMock()
         popup.add = MagicMock()
@@ -275,8 +278,7 @@ class TestPreviewPopupIntegration:
     def test_make_thumbnail_truncates_label(self, monkeypatch):
         # Given
         popup = _make_popup()
-        popup._tracker.get_window_title_for_xid.return_value = "A" * 40
-        monkeypatch.setattr(preview_mod, "capture_xid", lambda **_kwargs: None)
+        popup._preview_service.capture.return_value = None
         monkeypatch.setattr(
             preview_mod,
             "Gtk",
@@ -300,8 +302,8 @@ class TestPreviewPopupIntegration:
             ),
         )
         # When
-        widget = preview_mod.PreviewPopup._make_thumbnail_for_xid(
-            popup, xid=42, fallback_icon_name="app"
+        widget = preview_mod.PreviewPopup._make_thumbnail_for_window(
+            popup, window=_snapshot(42, title="A" * 40), fallback_icon_name="app"
         )
 
         # Then
@@ -364,10 +366,10 @@ class TestPreviewPopupIntegration:
         popup.hide = MagicMock()
 
         handled = preview_mod.PreviewPopup._on_thumb_click(
-            popup, MagicMock(), MagicMock(), xid=42
+            popup, MagicMock(), MagicMock(), window_id=WindowId.x11(42)
         )
 
         assert handled is True
-        popup._tracker.activate_xid.assert_called_once_with(xid=42)
+        popup._tracker.activate.assert_called_once_with(WindowId.x11(42))
         popup.hide.assert_called_once()
         popup._autohide.on_mouse_leave.assert_called_once()
