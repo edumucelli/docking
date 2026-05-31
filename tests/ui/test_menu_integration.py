@@ -20,6 +20,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
+from docking.platform.backends.base import WindowId, WindowSnapshot
 from docking.platform.model import DockItem
 
 
@@ -739,8 +740,7 @@ def handler(monkeypatch):
         save=MagicMock(),
     )
     tracker = MagicMock()
-    tracker.get_windows_for.return_value = []
-    tracker.get_window_title_for_xid.side_effect = lambda xid: f"Window {xid}"
+    tracker.list_windows.return_value = []
     launcher = MagicMock()
     launcher.default_directory_app_name.return_value = None
     return menu_mod.MenuHandler(
@@ -1092,11 +1092,14 @@ class TestItemMenus:
             is_running=True,
             instance_count=1,
         )
-        window = MagicMock()
-        window.get_xid.return_value = 7
-        handler._tracker.get_windows_for.return_value = [window]
-        handler._tracker.get_window_title_for_xid.return_value = "A" * 80
-        monkeypatch.setattr(menu_mod, "capture_window", lambda **_kwargs: "thumb")
+        window_id = WindowId.x11(7)
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=window_id,
+                desktop_id="firefox.desktop",
+                title="A" * 80,
+            )
+        ]
         monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
 
         handler._build_item_menu(menu=menu, item=item)
@@ -1115,7 +1118,7 @@ class TestItemMenus:
         close_event = SimpleNamespace(x=170.0)
         assert row.emit("button-press-event", close_event) is True
         assert row.emit("button-release-event", close_event) is True
-        handler._tracker.close_xid.assert_called_once_with(7)
+        handler._tracker.close.assert_called_once_with(window_id)
         handler._runtime.hide_hover_ui.assert_called_once()
         assert row.hidden is True
         assert row.destroyed is True
@@ -1131,7 +1134,7 @@ class TestItemMenus:
         assert menu.popup_event is close_event
 
         row.activate()
-        handler._tracker.activate_xid.assert_called_once_with(7)
+        handler._tracker.activate.assert_called_once_with(window_id)
 
     def test_window_list_default_preserves_tracker_order(self, handler, monkeypatch):
         menu = FakeMenu()
@@ -1140,18 +1143,18 @@ class TestItemMenus:
             is_running=True,
             instance_count=3,
         )
-        w1, w2, w3 = MagicMock(), MagicMock(), MagicMock()
-        w1.get_xid.return_value = 1
-        w2.get_xid.return_value = 2
-        w3.get_xid.return_value = 3
-        handler._tracker.get_windows_for.return_value = [w1, w2, w3]
-        handler._tracker.get_window_title_for_xid.side_effect = {
-            1: "Charlie",
-            2: "Alpha",
-            3: "Bravo",
-        }.get
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=WindowId.x11(1), desktop_id="code.desktop", title="Charlie"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(2), desktop_id="code.desktop", title="Alpha"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(3), desktop_id="code.desktop", title="Bravo"
+            ),
+        ]
         handler._config.window_list_sort = "default"
-        monkeypatch.setattr(menu_mod, "capture_window", lambda **_kwargs: None)
         monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
 
         handler._build_item_menu(menu=menu, item=item)
@@ -1167,18 +1170,18 @@ class TestItemMenus:
             is_running=True,
             instance_count=3,
         )
-        w1, w2, w3 = MagicMock(), MagicMock(), MagicMock()
-        w1.get_xid.return_value = 1
-        w2.get_xid.return_value = 2
-        w3.get_xid.return_value = 3
-        handler._tracker.get_windows_for.return_value = [w1, w2, w3]
-        handler._tracker.get_window_title_for_xid.side_effect = {
-            1: "Charlie",
-            2: "Alpha",
-            3: "Bravo",
-        }.get
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=WindowId.x11(1), desktop_id="code.desktop", title="Charlie"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(2), desktop_id="code.desktop", title="Alpha"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(3), desktop_id="code.desktop", title="Bravo"
+            ),
+        ]
         handler._config.window_list_sort = "alphabetical"
-        monkeypatch.setattr(menu_mod, "capture_window", lambda **_kwargs: None)
         monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
 
         handler._build_item_menu(menu=menu, item=item)
