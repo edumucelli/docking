@@ -25,8 +25,10 @@ from docking.platform.dodge import ScreenRect, WindowDodgeMonitor
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-
-_SUPPORTED_HIDE_MODES = frozenset(
+# These are only the hide modes that depend on foreign-window overlap state.
+# The simpler modes such as NONE, ALWAYS_ON_TOP, and AUTOHIDE are handled by
+# dock autohide/surface behavior and do not need an X11 dodge monitor.
+_OVERLAP_HIDE_MODES = frozenset(
     {
         HideMode.INTELLIGENT,
         HideMode.DODGE_ACTIVE,
@@ -50,7 +52,7 @@ class X11VisibilityService:
 
     def supports_hide_mode(self, mode: object) -> bool:
         """Return whether X11 can monitor foreign-window overlap for a mode."""
-        return mode in _SUPPORTED_HIDE_MODES
+        return mode in _OVERLAP_HIDE_MODES
 
     def create_monitor(
         self,
