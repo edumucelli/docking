@@ -3072,11 +3072,15 @@ The safest first moves are still X11-preserving refactors:
    `PreviewService`.
 6. Move dodge creation behind `VisibilityService`.
 7. Move struts/barriers/blur/input-region ownership behind `SurfaceService`.
-8. Add a `NullSessionBackend` or reduced backend and verify Docking can run
+8. Remove transitional X11 compatibility APIs after all X11 UI callers use
+   backend-neutral services.
+9. Add a `NullSessionBackend` or reduced backend and verify Docking can run
    without Wnck task powers.
-9. Only after that, start layer-shell and Wayland toplevel implementation.
+10. Only after that, start layer-shell and Wayland toplevel implementation.
 
-The key test before real Wayland code is: Docking should be able to run with a
+The key test before real Wayland code is: X11 should first run entirely through
+backend-neutral services, with transitional XID/Wnck compatibility APIs removed
+from backend-neutral UI paths. After that, Docking should be able to run with a
 backend that intentionally lacks taskbar, preview, workspace, and overlap
 powers. That flushes out hidden X11 assumptions before compositor protocols are
 involved.
@@ -3193,6 +3197,13 @@ Do not:
 - add Wayland code
 - change menu or preview behavior
 
+Manual visual checks:
+
+- Launch the dock once on X11 and confirm there is no visible behavior change.
+- Open a few pinned and unpinned apps and confirm running indicators still update.
+- Hover an app with windows and confirm previews still appear.
+- Right-click an app and confirm the existing menu still opens normally.
+
 Exit criteria:
 
 - pure unit tests for dataclasses/capabilities pass
@@ -3231,6 +3242,13 @@ Do not:
 - change `DockModel.update_running()` semantics
 - change `docking.app` startup wiring
 - add Wayland or reduced-backend selection
+
+Manual visual checks:
+
+- Launch the dock on X11 and confirm startup, running indicators, previews, and menus look unchanged.
+- Open multiple windows for one app and confirm the window count and indicator state still match the old behavior.
+- Trigger an urgent window and confirm the same attention animation or highlight appears.
+- Close and reopen apps and confirm transient unpinned app icons appear and disappear normally.
 
 Exit criteria:
 
@@ -3289,6 +3307,14 @@ Do not:
 - change `DockModel.update_running()` semantics
 - thread environment checks beyond the construction point
 
+Manual visual checks:
+
+- Run the default service path and compare it with `DOCKING_X11_WINDOW_SERVICE=legacy`.
+- Watch for duplicate updates: flickering indicators, duplicated menu rows, repeated preview refreshes, or doubled close and activate behavior.
+- Test left-click actions for running apps: focus, cycle, most-recent, minimize, and close-focused.
+- Right-click running apps and confirm open-window rows, close, and close-all still affect the correct windows.
+- Hover apps with one and multiple windows and confirm previews still map to the correct windows.
+
 Exit criteria:
 
 - X11 startup uses `X11WindowService` by default, or can be forced to it with the
@@ -3328,6 +3354,14 @@ Do not:
 - change app startup/backend selection
 - add native Wayland-specific menu behavior
 
+Manual visual checks:
+
+- Right-click apps with zero, one, and multiple windows and confirm menu layout and separators are unchanged.
+- Confirm open-window rows show the right titles, sorted in the expected order.
+- Activate each listed window from the menu and confirm the correct window is focused.
+- Use per-window close buttons and Close or Close All, including with stale or just-closed windows.
+- Check long window titles for truncation, spacing, and menu width regressions.
+
 Exit criteria:
 
 - menu tests no longer need live/fake Wnck windows for open-window rows
@@ -3363,6 +3397,14 @@ Do not:
 - change thumbnail sizing or timing policy unless required by the service
   boundary
 - delete `get_xids_for()` until no callers remain
+
+Manual visual checks:
+
+- Hover apps with one, two, and many windows and confirm preview thumbnails still appear in the right order.
+- Click a preview and confirm it activates the intended window.
+- Close a window while the preview is open and confirm the popup degrades without crashing or stale thumbnails.
+- Check preview sizing, title labels, icon fallback, hover timing, and dismissal behavior.
+- Test minimized windows and windows on other workspaces if the current X11 behavior supports them.
 
 Exit criteria:
 
@@ -3400,6 +3442,13 @@ Do not:
 - change applets yet
 - make `GDK_BACKEND=wayland` claim support
 
+Manual visual checks:
+
+- Launch the dock on X11 and confirm startup order feels unchanged: dock appears, applets start, updates run, and window state populates.
+- Confirm all already-migrated menu and preview flows still work through the session backend.
+- Toggle the temporary X11 fallback if still present and compare behavior.
+- Check logs for backend selection clarity without noisy warnings during normal X11 startup.
+
 Exit criteria:
 
 - startup behavior is unchanged on X11
@@ -3427,6 +3476,14 @@ Do not:
 - change dodge math
 - add Wayland overlap protocols
 - change surface placement or struts
+
+Manual visual checks:
+
+- Test every hide mode, especially dodge-active, dodge-any, dodge-maximized, autohide, and always-visible.
+- Move, maximize, minimize, and close windows near the dock edge and confirm reveal and hide timing is unchanged.
+- Move the dock between screen edges and monitors and confirm overlap detection still follows the correct edge.
+- Check pressure reveal, pointer barriers, and hover reveal if enabled.
+- Confirm unsupported or reduced visibility paths do not leave the dock stuck hidden or stuck visible.
 
 Exit criteria:
 
@@ -3458,6 +3515,14 @@ Do not:
 - rewrite placement math unless required to preserve behavior
 - change always-visible/autohide semantics
 
+Manual visual checks:
+
+- Check dock placement on bottom, top, left, and right positions.
+- Verify edge distance, additional distance, strut reservation, blur hint, keep-above behavior, and rounded-edge rendering.
+- Maximize windows near the dock and confirm reserved space is still correct.
+- Test multi-monitor placement and monitor switching.
+- Check autohide and reveal geometry after changing icon size, zoom, distance, and position settings.
+
 Exit criteria:
 
 - raw `GdkX11` checks are confined to X11 backend code or transitional shims
@@ -3486,13 +3551,49 @@ Do not:
 - make applet UI depend on compositor names directly
 - remove X11 helper paths until each applet has tests
 
+Manual visual checks:
+
+- Review each migrated applet menu, tooltip, icon state, and click behavior on X11.
+- For Desktop, Workspaces, Window Killer, Desk Presence, Color Picker, Screenshot, and Caffeine, confirm the platform-specific action still works.
+- Confirm unsupported-service states are clear and do not crash the applet popup or menu.
+- Check applet ordering, anchoring, and startup behavior after enabling or disabling migrated applets.
+- Verify translated and long labels still fit in applet menus and dialogs.
+
 Exit criteria:
 
 - applets keep current X11 behavior
 - backend-neutral applet loading can skip or disable unsupported actions
 - tests cover at least one unsupported-service path
 
-#### PR 11: Null / Reduced Backend
+#### PR 11: Cleanup Transitional X11 APIs
+
+Remove compatibility methods only after all UI callers and tests use neutral
+backend APIs.
+
+Start here:
+
+- remove or deprecate `get_xids_for`, `activate_xid`, `close_xid` from
+  backend-neutral call paths
+- keep XID internals inside X11 backend where still useful
+- update documentation and support language
+- search the repo for `get_xids_for`, `get_windows_for`, `activate_xid`,
+  `close_xid`, raw `Wnck.Window`, and raw XID usage before deleting anything
+- preserve any X11-only internals that the X11 backend still needs for previews
+  or diagnostics
+
+Manual visual checks:
+
+- Run a full X11 smoke pass: startup, running indicators, click actions, menus, previews, hide modes, and applets.
+- Open and close multiple app windows quickly and confirm no stale XID or window assumptions remain visible.
+- Compare the cleaned path against behavior from before cleanup for menu rows, previews, and click actions.
+- Confirm no unsupported Wayland or reduced backend UI regresses after compatibility methods are removed.
+
+Exit criteria:
+
+- no backend-neutral UI module depends on Wnck windows or XIDs
+- X11 backend remains fully supported
+
+#### PR 12: Null / Reduced Backend
 
 Add a backend with no taskbar powers to validate that X11 assumptions are no
 longer leaking through normal UI.
@@ -3517,13 +3618,21 @@ Do not:
 - import X11 modules from the null backend
 - silently pretend taskbar/window actions succeeded
 
+Manual visual checks:
+
+- Force the reduced backend and confirm the dock starts with pinned launchers and backend-neutral applets.
+- Confirm running indicators, window rows, previews, dodge modes, and unsupported actions disappear or disable cleanly.
+- Check right-click menus for pinned apps: launch, pin, and remove actions should still be usable where applicable.
+- Confirm no X11-only errors leak into the UI and logs explain the reduced capabilities.
+- Switch back to X11 and confirm full behavior returns.
+
 Exit criteria:
 
 - Docking can start without Wnck task powers
 - unsupported features degrade intentionally
 - reduced-backend tests prove no accidental X11 imports
 
-#### PR 12: Native Wayland Detection Stub
+#### PR 13: Native Wayland Detection Stub
 
 Only after the reduced backend works, add native Wayland detection that selects
 a reduced/no-op backend when unsupported.
@@ -3542,13 +3651,20 @@ Do not:
 - run X11 fallback code in native Wayland unless explicitly under XWayland
 - claim current-open-app support on compositors without a toplevel protocol
 
+Manual visual checks:
+
+- Start under native Wayland and confirm Docking enters reduced mode instead of crashing.
+- Start under X11 or XWayland and confirm the X11 backend is still selected and behavior is unchanged.
+- Confirm unsupported taskbar and window features are hidden, disabled, or clearly unavailable on native Wayland.
+- Check logs for a concise backend and capability explanation without noisy repeated warnings.
+
 Exit criteria:
 
 - Docking does not crash on native Wayland startup
 - X11 remains unchanged
 - logs and capability flags explain reduced mode
 
-#### PR 13: Layer-Shell Surface Backend
+#### PR 14: Layer-Shell Surface Backend
 
 Add native Wayland dock-surface placement for compositors that support
 layer-shell.
@@ -3571,6 +3687,14 @@ Do not:
 - make layer-shell a hard dependency
 - import layer-shell modules in X11 sessions
 
+Manual visual checks:
+
+- On a layer-shell compositor, check dock anchoring on all four edges and all configured monitors.
+- Maximize windows and confirm exclusive zones reserve space correctly.
+- Toggle autohide and always-visible modes and confirm reveal or hide geometry stays aligned to the layer-shell edge.
+- Check fallback behavior when layer-shell is missing, especially on GNOME or Mutter native Wayland.
+- Verify X11 placement, struts, and blur behavior are unchanged.
+
 Exit criteria:
 
 - native Wayland dock can reserve edge space on a supported layer-shell
@@ -3578,7 +3702,7 @@ Exit criteria:
 - GNOME native Wayland remains reduced/unsupported with a clear log
 - X11 placement tests remain unchanged
 
-#### PR 14: Generic Foreign-Toplevel Window Service
+#### PR 15: Generic Foreign-Toplevel Window Service
 
 Add wlroots-style opened-app context.
 
@@ -3602,13 +3726,21 @@ Do not:
 - add compositor-specific Plasma or COSMIC code here
 - change X11 matching behavior
 
+Manual visual checks:
+
+- On a supported wlroots compositor, open apps and confirm running indicators appear and clear correctly.
+- Open multiple windows for one app and confirm counts, active state, and basic actions match compositor capability.
+- Test activate, close, and minimize where supported; unsupported actions should be disabled or no-op visibly safely.
+- Check app matching for common desktop IDs, Flatpak apps, and apps with unusual app IDs.
+- Confirm X11 behavior is unchanged after the generic Wayland service lands.
+
 Exit criteria:
 
 - running indicators and basic window actions work on at least one supported
   wlroots compositor
 - unsupported compositors continue reduced mode with clear logs
 
-#### PR 15: KWin / Plasma Backend
+#### PR 16: KWin / Plasma Backend
 
 Add the richest parity backend.
 
@@ -3625,13 +3757,21 @@ Start here:
   present
 - keep protocol selection deterministic and logged
 
+Manual visual checks:
+
+- On Plasma Wayland, check running indicators, active windows, attention state, window actions, and workspace filtering.
+- Move windows across virtual desktops and monitors and confirm Docking tracks the expected workspace state.
+- Test show-desktop, workspace switching, close, minimize, activate, and dodge modes backed by geometry.
+- Confirm Plasma-specific behavior wins over generic foreign-toplevel behavior when both are present.
+- Re-test non-Plasma Wayland and X11 to confirm they are unaffected.
+
 Exit criteria:
 
 - KWin Wayland reaches closest behavior to current X11 for taskbar, actions,
   workspace, and dodge features
 - non-Plasma Wayland backends are unaffected
 
-#### PR 16: COSMIC / Optional Compositor Extras
+#### PR 17: COSMIC / Optional Compositor Extras
 
 Add compositor-specific backends after the generic and KWin paths are stable.
 
@@ -3645,31 +3785,18 @@ Start here:
 - keep each optional backend isolated so a missing dependency or unsupported
   compositor cannot affect X11, generic wlroots, or Plasma
 
+Manual visual checks:
+
+- On each supported optional compositor, confirm only that compositor-specific path activates.
+- Check running indicators, workspace behavior, overlap or dodge behavior, and supported actions against that compositor capability.
+- Start on unsupported compositors and confirm the app falls back to generic or reduced behavior cleanly.
+- Confirm missing optional dependencies produce clear logs and no visible startup breakage.
+- Re-test X11, wlroots generic, and Plasma paths after each optional backend is added.
+
 Exit criteria:
 
 - each compositor extension is capability-gated and does not affect X11 or
   other Wayland backends
-
-#### PR 17: Cleanup Transitional X11 APIs
-
-Remove compatibility methods only after all UI callers and tests use neutral
-backend APIs.
-
-Start here:
-
-- remove or deprecate `get_xids_for`, `activate_xid`, `close_xid` from
-  backend-neutral call paths
-- keep XID internals inside X11 backend where still useful
-- update documentation and support language
-- search the repo for `get_xids_for`, `get_windows_for`, `activate_xid`,
-  `close_xid`, raw `Wnck.Window`, and raw XID usage before deleting anything
-- preserve any X11-only internals that the X11 backend still needs for previews
-  or diagnostics
-
-Exit criteria:
-
-- no backend-neutral UI module depends on Wnck windows or XIDs
-- X11 backend remains fully supported
 
 ### Cairo-Dock Parity Checklist
 
