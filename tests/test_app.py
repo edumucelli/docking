@@ -31,6 +31,14 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     platform_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
 
+    backends_pkg = types.ModuleType("docking.platform.backends")
+    backends_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform.backends", backends_pkg)
+
+    x11_pkg = types.ModuleType("docking.platform.backends.x11")
+    x11_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform.backends.x11", x11_pkg)
+
     ui_pkg = types.ModuleType("docking.ui")
     ui_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
@@ -45,6 +53,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         },
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
+        },
+        "docking.platform.backends.x11.session": {
+            "build_x11_window_tracker": lambda **_kwargs: None,
         },
         "docking.platform.window_tracker": {
             "WindowTracker": type("WindowTracker", (), {}),
@@ -143,7 +154,11 @@ class TestAppMain:
         monkeypatch.setattr(app_mod, "Launcher", MagicMock(return_value=launcher))
         monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
         monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
-        monkeypatch.setattr(app_mod, "WindowTracker", MagicMock(return_value=tracker))
+        monkeypatch.setattr(
+            app_mod,
+            "build_x11_window_tracker",
+            MagicMock(return_value=tracker),
+        )
         monkeypatch.setattr(
             app_mod,
             "UnityLauncherListener",
@@ -174,6 +189,7 @@ class TestAppMain:
             window_tracker=tracker,
             launcher=launcher,
         )
+        tracker.start.assert_called_once()
         model.start_applets.assert_called_once()
         model.stop_applets.assert_called_once()
         items_service.start.assert_called_once()
@@ -188,6 +204,7 @@ class TestAppMain:
             app_mod._start_runtime,
             items_service,
             model,
+            tracker,
         )
         fake_gtk.main.assert_called_once()
         assert call_order == [
@@ -206,6 +223,20 @@ class TestAppMain:
         assert signal.SIGTERM in sig_calls
         for call in fake_glib.unix_signal_add.call_args_list:
             assert call.args[2] is app_mod._quit
+
+    def test_start_runtime_allows_legacy_tracker_without_start(self, monkeypatch):
+        # Given
+        app_mod, _fake_glib, _fake_gtk = _load_app_module(monkeypatch)
+        items_service = MagicMock()
+        model = MagicMock()
+
+        # When
+        result = app_mod._start_runtime(items_service, model, object())
+
+        # Then
+        assert result is False
+        items_service.start.assert_called_once()
+        model.start_applets.assert_called_once()
 
     def test_module_entrypoint_invokes_main(self, monkeypatch):
         # Given
@@ -265,7 +296,9 @@ class TestAppMain:
             sys.modules["docking.ui.renderer"], "DockRenderer", renderer_cls
         )
         monkeypatch.setattr(
-            sys.modules["docking.platform.window_tracker"], "WindowTracker", tracker_cls
+            sys.modules["docking.platform.backends.x11.session"],
+            "build_x11_window_tracker",
+            tracker_cls,
         )
         monkeypatch.setattr(
             sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
@@ -294,6 +327,7 @@ class TestAppMain:
         factory.assert_called_once()
         items_service_cls.assert_called_once_with(model=model, window=window)
         fake_gtk.main.assert_called_once()
+        tracker.start.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
         new_year.start.assert_called_once()
