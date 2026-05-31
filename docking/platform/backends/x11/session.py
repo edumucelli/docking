@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
@@ -26,9 +25,9 @@ from docking.platform.backends.base import (
     PlatformCapabilities,
     Rect,
     ReservationRequest,
-    VisibilityMonitor,
 )
 from docking.platform.backends.x11.previews import X11PreviewService
+from docking.platform.backends.x11.visibility import X11VisibilityService
 from docking.platform.backends.x11.windows import X11WindowService
 from docking.platform.window_tracker import WindowTracker
 
@@ -80,9 +79,9 @@ class X11SessionBackend:
     """SessionBackend implementation for the current X11 runtime.
 
     This backend intentionally remains X11-only. It groups the already-migrated
-    window and preview services so application startup can depend on a session
-    backend shape before native Wayland services exist. Surface and visibility
-    stay transitional until their dedicated migration PRs.
+    window, preview, and visibility services so application startup can depend
+    on a session backend shape before native Wayland services exist. Surface
+    stays transitional until its dedicated migration PR.
     """
 
     def __init__(
@@ -93,7 +92,7 @@ class X11SessionBackend:
         )
         self._previews = X11PreviewService(window_tracker=self._windows)
         self._surface = _TransitionalSurfaceService()
-        self._visibility = _TransitionalVisibilityService()
+        self._visibility = X11VisibilityService(config=config)
 
     @property
     def name(self) -> str:
@@ -147,7 +146,7 @@ class X11SessionBackend:
         return self._surface
 
     @property
-    def visibility(self) -> _TransitionalVisibilityService:
+    def visibility(self) -> X11VisibilityService:
         return self._visibility
 
     @property
@@ -222,24 +221,3 @@ class _TransitionalSurfaceService:
 
     def set_blur_region(self, rect: Rect | None) -> None:
         return
-
-
-class _TransitionalVisibilityService:
-    """Unsupported visibility service until dodge ownership moves in PR 8."""
-
-    def start(self) -> None:
-        return
-
-    def stop(self) -> None:
-        return
-
-    def supports_hide_mode(self, mode: object) -> bool:
-        return False
-
-    def create_monitor(
-        self,
-        *,
-        get_dock_rect: Callable[[], Rect | None],
-        on_change: Callable[[bool], None],
-    ) -> VisibilityMonitor | None:
-        return None

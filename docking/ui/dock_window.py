@@ -245,7 +245,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
     from docking.core.theme import Theme
-    from docking.platform.dodge import WindowDodgeMonitor
+    from docking.platform.backends.base import VisibilityMonitor
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
@@ -379,7 +379,7 @@ class DockWindow(Gtk.Window):
         self._redraw_source_id: int | None = None
         self.dock_hovered: bool = False
         self._last_autohide_state: HideState | None = None
-        self.dodge_monitor: WindowDodgeMonitor | None = None
+        self.dodge_monitor: VisibilityMonitor | None = None
 
         self._setup_window()
         self._setup_drawing_area()

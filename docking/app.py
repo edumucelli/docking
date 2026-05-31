@@ -108,6 +108,7 @@ def main() -> None:
         theme=theme,
         window_tracker=backend.windows,
         preview_service=backend.previews,
+        visibility_service=backend.visibility,
         launcher=launcher,
     )
     items_service = DockItemsService(model=model, window=window)

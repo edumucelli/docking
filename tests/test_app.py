@@ -128,7 +128,9 @@ class TestAppMain:
         preview_service = MagicMock()
         backend = MagicMock()
         backend.windows = tracker
+        visibility_service = MagicMock()
         backend.previews = preview_service
+        backend.visibility = visibility_service
         unity = MagicMock()
         new_year = MagicMock()
         window = MagicMock()
@@ -195,6 +197,7 @@ class TestAppMain:
             theme=applied_theme,
             window_tracker=tracker,
             preview_service=preview_service,
+            visibility_service=visibility_service,
             launcher=launcher,
         )
         backend.start.assert_called_once()
@@ -262,7 +265,9 @@ class TestAppMain:
         preview_service = MagicMock()
         backend = MagicMock()
         backend.windows = tracker
+        visibility_service = MagicMock()
         backend.previews = preview_service
+        backend.visibility = visibility_service
         unity = MagicMock()
         new_year = MagicMock()
         window = MagicMock()

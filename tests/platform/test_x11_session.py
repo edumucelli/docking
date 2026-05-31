@@ -61,19 +61,25 @@ def test_build_x11_window_tracker_ignores_invalid_mode(monkeypatch):
 def test_build_x11_session_backend_groups_x11_services(monkeypatch):
     windows = MagicMock()
     previews = MagicMock()
+    visibility = MagicMock()
+    config = MagicMock()
     monkeypatch.setattr(
         session, "build_x11_window_tracker", MagicMock(return_value=windows)
     )
     monkeypatch.setattr(session, "X11PreviewService", MagicMock(return_value=previews))
+    monkeypatch.setattr(
+        session, "X11VisibilityService", MagicMock(return_value=visibility)
+    )
 
     backend = session.build_x11_session_backend(
-        model=MagicMock(), launcher=MagicMock(), config=MagicMock()
+        model=MagicMock(), launcher=MagicMock(), config=config
     )
 
     assert backend.name == "x11"
     assert backend.display_server is session.DisplayServer.X11
     assert backend.windows is windows
     assert backend.previews is previews
+    assert backend.visibility is visibility
     assert backend.workspaces is None
     assert backend.desktop_actions is None
     assert backend.screen_capture is None
@@ -82,16 +88,22 @@ def test_build_x11_session_backend_groups_x11_services(monkeypatch):
     assert backend.capabilities.tracks_windows is True
     assert backend.capabilities.supports_window_menu is True
     assert backend.capabilities.supports_screen_reservation is True
+    assert backend.capabilities.supports_overlap_active is True
     session.X11PreviewService.assert_called_once_with(window_tracker=windows)
+    session.X11VisibilityService.assert_called_once_with(config=config)
 
 
 def test_x11_session_backend_lifecycle_starts_and_stops_services(monkeypatch):
     windows = MagicMock()
     previews = MagicMock()
+    visibility = MagicMock()
     monkeypatch.setattr(
         session, "build_x11_window_tracker", MagicMock(return_value=windows)
     )
     monkeypatch.setattr(session, "X11PreviewService", MagicMock(return_value=previews))
+    monkeypatch.setattr(
+        session, "X11VisibilityService", MagicMock(return_value=visibility)
+    )
     backend = session.X11SessionBackend(
         model=MagicMock(), launcher=MagicMock(), config=MagicMock()
     )
@@ -101,6 +113,8 @@ def test_x11_session_backend_lifecycle_starts_and_stops_services(monkeypatch):
 
     windows.start.assert_called_once_with()
     previews.start.assert_called_once_with()
+    visibility.start.assert_called_once_with()
+    visibility.stop.assert_called_once_with()
     previews.stop.assert_called_once_with()
     windows.stop.assert_called_once_with()
 
@@ -108,10 +122,14 @@ def test_x11_session_backend_lifecycle_starts_and_stops_services(monkeypatch):
 def test_x11_session_backend_allows_legacy_tracker_without_lifecycle(monkeypatch):
     windows = object()
     previews = MagicMock()
+    visibility = MagicMock()
     monkeypatch.setattr(
         session, "build_x11_window_tracker", MagicMock(return_value=windows)
     )
     monkeypatch.setattr(session, "X11PreviewService", MagicMock(return_value=previews))
+    monkeypatch.setattr(
+        session, "X11VisibilityService", MagicMock(return_value=visibility)
+    )
     backend = session.X11SessionBackend(
         model=MagicMock(), launcher=MagicMock(), config=MagicMock()
     )
@@ -119,5 +137,7 @@ def test_x11_session_backend_allows_legacy_tracker_without_lifecycle(monkeypatch
     backend.start()
     backend.stop()
 
+    visibility.start.assert_called_once_with()
+    visibility.stop.assert_called_once_with()
     previews.start.assert_called_once_with()
     previews.stop.assert_called_once_with()
