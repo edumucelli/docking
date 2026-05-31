@@ -764,6 +764,17 @@ class WindowTracker:
             )
             return
 
+    def activate(self, window_id: WindowId) -> ActionResult:
+        """Activate one X11 window by backend-neutral window ID."""
+        xid = self._xid_from_window_id(window_id)
+        if xid is None:
+            return ActionResult.UNSUPPORTED
+        window = self._window_for_xid(xid=xid)
+        if window is None:
+            return ActionResult.NOT_FOUND
+        self.activate_window(window=window)
+        return ActionResult.OK
+
     def activate_xid(self, xid: int) -> None:
         """Activate a window by XID, if still present."""
         window = self._window_for_xid(xid=xid)
@@ -909,6 +920,16 @@ class WindowTracker:
                 result = ActionResult.FAILED
         return result
 
+    def close(self, window_id: WindowId) -> ActionResult:
+        """Close one X11 window by backend-neutral window ID."""
+        xid = self._xid_from_window_id(window_id)
+        if xid is None:
+            return ActionResult.UNSUPPORTED
+        if self._window_for_xid(xid=xid) is None:
+            return ActionResult.NOT_FOUND
+        self.close_xid(xid=xid)
+        return ActionResult.OK
+
     def close_xid(self, xid: int) -> None:
         """Close a specific window by XID, if still present."""
         window = self._window_for_xid(xid=xid)
@@ -963,6 +984,15 @@ class WindowTracker:
                 f"Failed to read window xid: {exc}"
             )
             return 0
+
+    @staticmethod
+    def _xid_from_window_id(window_id: WindowId) -> int | None:
+        if window_id.backend != "x11":
+            return None
+        try:
+            return int(window_id.value)
+        except (TypeError, ValueError):
+            return None
 
     def _get_windows_for(self, desktop_id: str) -> list[Wnck.Window]:
         """Get windows for desktop_id using cached XIDs from last scan.

@@ -44,7 +44,7 @@ MenuHandler owns:
 - building item-specific and dock-specific actions,
 - applet submenu organization,
 - folder item menus,
-- live window menu entries with thumbnails,
+- live window menu entries with backend-neutral window actions,
 - popup creation and lifecycle hookup.
 
 It does not own:
@@ -120,12 +120,11 @@ Kinds of menus built here
 Left-click folder stacks are coordinated through `FolderStackController`; this
 module only exposes the facade methods used by dock input handling.
 
-Window thumbnails in menus
+Window entries in menus
 
-For running applications, the menu may include live window entries. Those use
-the same preview capture machinery as the preview popup, but at smaller sizes.
-That gives the user recognition value directly inside the menu without having to
-switch to the larger preview surface.
+For running applications, the menu may include live window entries. Those rows
+use backend-neutral window snapshots so activation and close actions do not need
+raw Wnck windows or XIDs in the menu layer.
 
 Popup lifecycle
 
@@ -184,13 +183,13 @@ from docking.log import get_logger
 from docking.ui.about import AboutDialogController
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
-from docking.ui.preview import capture_window
 from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsWindowController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
+    from docking.platform.backends.base import WindowId, WindowSnapshot
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
     from docking.platform.window_tracker import WindowTracker
@@ -646,36 +645,27 @@ class MenuHandler:
 
     def _append_open_windows(self, menu: Gtk.Menu, desktop_id: str) -> None:
         """Append running windows as rich menu rows with activate/close."""
-        windows = self._tracker.get_windows_for(desktop_id=desktop_id)
+        windows = list(self._tracker.list_windows(desktop_id=desktop_id))
         if not windows:
             return
         if self._config.window_list_sort == WindowListSort.ALPHABETICAL.value:
-            windows = sorted(
-                windows,
-                key=lambda w: (
-                    self._tracker.get_window_title_for_xid(w.get_xid()) or ""
-                ).lower(),
-            )
+            windows = sorted(windows, key=lambda window: window.title.lower())
         for window in windows:
             menu.append(self._build_window_menu_row(window=window))
         separator = Gtk.SeparatorMenuItem()
         separator._window_rows_separator = True
         menu.append(separator)
 
-    def _build_window_menu_row(self, window: Any) -> Gtk.MenuItem:
-        xid = window.get_xid()
-        title = self._tracker.get_window_title_for_xid(xid) or _("Window")
+    def _build_window_menu_row(self, window: WindowSnapshot) -> Gtk.MenuItem:
+        title = window.title or _("Window")
         row = Gtk.MenuItem()
         row.set_label(title)
-        thumb = capture_window(
-            wnck_window=window, thumb_w=WINDOW_MENU_THUMB_W, thumb_h=WINDOW_MENU_THUMB_H
-        )
 
         box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=MENU_ROW_SPACING_PX,
         )
-        image = Gtk.Image.new_from_pixbuf(thumb) if thumb is not None else Gtk.Image()
+        image = Gtk.Image()
         image.set_pixel_size(WINDOW_MENU_THUMB_H)
         box.pack_start(image, False, False, 0)
 
@@ -697,9 +687,11 @@ class MenuHandler:
             row.remove(child)
         row.add(box)
         row._window_row = True
-        row.connect("button-press-event", self._on_window_row_button_press, xid)
-        row.connect("button-release-event", self._on_window_row_button_release, xid)
-        row.connect("activate", lambda *_a: self._tracker.activate_xid(xid))
+        row.connect("button-press-event", self._on_window_row_button_press, window.id)
+        row.connect(
+            "button-release-event", self._on_window_row_button_release, window.id
+        )
+        row.connect("activate", lambda *_a: self._tracker.activate(window.id))
         return row
 
     def _window_close_zone_hit(
@@ -713,16 +705,16 @@ class MenuHandler:
         return width > 0 and x >= max(0.0, width - WINDOW_MENU_CLOSE_HIT_W)
 
     def _on_window_row_button_press(
-        self, widget: Gtk.Widget, event: Gdk.EventButton, xid: int
+        self, widget: Gtk.Widget, event: Gdk.EventButton, window_id: WindowId
     ) -> bool:
         return self._window_close_zone_hit(widget=widget, event=event)
 
     def _on_window_row_button_release(
-        self, widget: Gtk.Widget, event: Gdk.EventButton, xid: int
+        self, widget: Gtk.Widget, event: Gdk.EventButton, window_id: WindowId
     ) -> bool:
         if not self._window_close_zone_hit(widget=widget, event=event):
             return False
-        self._tracker.close_xid(xid)
+        self._tracker.close(window_id)
         self._remove_window_row(widget=widget, event=event)
         self._runtime.hide_hover_ui()
         return True

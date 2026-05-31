@@ -17,7 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.platform.window_tracker as window_tracker_mod
-from docking.platform.backends.base import WindowId
+from docking.platform.backends.base import ActionResult, WindowId
 from docking.platform.launcher import DesktopInfo
 from docking.platform.model import DockItem
 
@@ -458,6 +458,37 @@ class TestWindowActions:
 
         tracker.close_xid(2)
 
+        assert w1.closed_with == []
+        assert w2.closed_with == [123]
+
+    def test_activate_uses_window_id(self, tracker_env):
+        tracker, _model, _launcher = tracker_env
+        w1 = FakeWindow(1)
+        w2 = FakeWindow(2)
+        tracker._screen = FakeScreen(windows=[w1, w2], active_window=None)
+
+        result = tracker.activate(WindowId.x11(2))
+
+        assert result is ActionResult.OK
+        assert w1.activated_with == []
+        assert w2.activated_with == [123]
+
+    def test_activate_rejects_non_x11_window_id(self, tracker_env):
+        tracker, _model, _launcher = tracker_env
+
+        result = tracker.activate(WindowId(backend="wayland", value="1"))
+
+        assert result is ActionResult.UNSUPPORTED
+
+    def test_close_uses_window_id(self, tracker_env):
+        tracker, _model, _launcher = tracker_env
+        w1 = FakeWindow(1)
+        w2 = FakeWindow(2)
+        tracker._screen = FakeScreen(windows=[w1, w2], active_window=None)
+
+        result = tracker.close(WindowId.x11(2))
+
+        assert result is ActionResult.OK
         assert w1.closed_with == []
         assert w2.closed_with == [123]
 
