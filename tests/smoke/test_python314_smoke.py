@@ -46,6 +46,14 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     platform_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
 
+    backends_pkg = types.ModuleType("docking.platform.backends")
+    backends_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform.backends", backends_pkg)
+
+    x11_pkg = types.ModuleType("docking.platform.backends.x11")
+    x11_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform.backends.x11", x11_pkg)
+
     ui_pkg = types.ModuleType("docking.ui")
     ui_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
@@ -60,6 +68,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         },
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
+        },
+        "docking.platform.backends.x11.session": {
+            "build_x11_window_tracker": lambda **_kwargs: None,
         },
         "docking.platform.window_tracker": {
             "WindowTracker": type("WindowTracker", (), {}),
@@ -249,7 +260,11 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(app_mod, "Launcher", MagicMock(return_value=launcher))
     monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
     monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
-    monkeypatch.setattr(app_mod, "WindowTracker", MagicMock(return_value=tracker))
+    monkeypatch.setattr(
+        app_mod,
+        "build_x11_window_tracker",
+        MagicMock(return_value=tracker),
+    )
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
     monkeypatch.setattr(
         app_mod,

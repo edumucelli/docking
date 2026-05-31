@@ -381,6 +381,9 @@ class WindowTracker:
 
     def _init_screen(self) -> bool:
         """Initialize Wnck screen and connect signals."""
+        if self._screen is not None:
+            return False
+
         self._screen = Wnck.Screen.get_default()
         if self._screen is None:
             return False

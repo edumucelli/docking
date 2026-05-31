@@ -177,6 +177,31 @@ class TestWindowTrackerInit:
         ]
         tracker._update_running.assert_called_once()
 
+    def test_init_screen_is_idempotent(self, tracker_env, monkeypatch):
+        # Given
+        tracker, _model, _launcher = tracker_env
+        screen = FakeScreen(windows=[], active_window=None)
+        monkeypatch.setattr(
+            window_tracker_mod.Wnck.Screen,
+            "get_default",
+            lambda: screen,
+            raising=False,
+        )
+        tracker._update_running = MagicMock()
+
+        # When
+        assert tracker._init_screen() is False
+        assert tracker._init_screen() is False
+
+        # Then
+        assert screen.force_update_called == 1
+        assert screen.connections == [
+            "window-opened",
+            "window-closed",
+            "active-window-changed",
+        ]
+        tracker._update_running.assert_called_once()
+
 
 class TestWindowTrackerRunningAggregation:
     def test_update_running_aggregates_windows(self, tracker_env):
