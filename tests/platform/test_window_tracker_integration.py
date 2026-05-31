@@ -17,6 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.platform.window_tracker as window_tracker_mod
+from docking.platform.backends.base import WindowId
 from docking.platform.launcher import DesktopInfo
 from docking.platform.model import DockItem
 
@@ -207,7 +208,12 @@ class TestWindowTrackerRunningAggregation:
         assert running["firefox.desktop"].active is True
         assert running["firefox.desktop"].urgent is True
         assert running["firefox.desktop"].xids == (1, 2)
+        assert running["firefox.desktop"].window_ids == (
+            WindowId.x11(1),
+            WindowId.x11(2),
+        )
         assert running["code.desktop"].count == 1
+        assert running["code.desktop"].window_ids == (WindowId.x11(3),)
         assert tracker._running_xids_by_desktop == {
             "firefox.desktop": [1, 2],
             "code.desktop": [3],
@@ -264,6 +270,7 @@ class TestWindowTrackerRunningAggregation:
         model.update_running.assert_called_once()
         running = model.update_running.call_args.kwargs["running"]
         assert running["firefox.desktop"].xids == (10,)
+        assert running["firefox.desktop"].window_ids == (WindowId.x11(10),)
 
     def test_update_running_preserves_matched_app_when_xid_read_fails(
         self, tracker_env
@@ -283,6 +290,7 @@ class TestWindowTrackerRunningAggregation:
         running = model.update_running.call_args.kwargs["running"]
         assert running["firefox.desktop"].count == 0
         assert running["firefox.desktop"].xids == ()
+        assert running["firefox.desktop"].window_ids == ()
 
 
 class TestWindowMatching:

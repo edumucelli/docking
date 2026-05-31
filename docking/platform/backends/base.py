@@ -26,10 +26,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Protocol
 
-from docking.platform.running import RunningAppInfo
-
 if TYPE_CHECKING:
     from docking.platform.model import DockModel
+    from docking.platform.running import RunningAppInfo
 
 
 class DisplayServer(Enum):

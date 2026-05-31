@@ -3063,22 +3063,106 @@ The safest first moves are still X11-preserving refactors:
 
 1. Define `WindowId`, `WindowSnapshot`, `ActionResult`, and `WindowService`.
 2. Add an X11 adapter around the current `WindowTracker` without changing
-   behavior.
-3. Add `window_ids` alongside existing XIDs in running-state dataclasses.
+   behavior, and add `window_ids` alongside existing XIDs in running-state
+   dataclasses. This is the combined PR 2 + PR 3 step currently under review.
+3. Wire the X11 window service into startup behind an X11-only backend/factory
+   path while preserving a temporary legacy fallback if needed.
 4. Convert `MenuHandler` from Wnck windows/XIDs to `WindowSnapshot`.
 5. Convert `PreviewPopup` from XID lists to `WindowSnapshot` plus
    `PreviewService`.
-6. Add `SessionBackend` and wire the current X11 services through it.
-7. Move dodge creation behind `VisibilityService`.
-8. Move struts/barriers/blur/input-region ownership behind `SurfaceService`.
-9. Add a `NullSessionBackend` or reduced backend and verify Docking can run
+6. Move dodge creation behind `VisibilityService`.
+7. Move struts/barriers/blur/input-region ownership behind `SurfaceService`.
+8. Add a `NullSessionBackend` or reduced backend and verify Docking can run
    without Wnck task powers.
-10. Only after that, start layer-shell and Wayland toplevel implementation.
+9. Only after that, start layer-shell and Wayland toplevel implementation.
 
 The key test before real Wayland code is: Docking should be able to run with a
 backend that intentionally lacks taskbar, preview, workspace, and overlap
 powers. That flushes out hidden X11 assumptions before compositor protocols are
 involved.
+
+### X11 Window-Service Migration Shape
+
+Current runtime path:
+
+```text
+docking.app
+  |
+  +--> WindowTracker
+       |
+       +--> Wnck.Screen / Wnck.Window
+       |
+       +--> DockModel.update_running(RunningAppInfo with xids + Wnck windows)
+       |
+       +--> UI direct compatibility calls
+            |
+            +--> DockWindow click actions:
+            |    cycle_windows(), activate_most_recent(), minimize_windows(),
+            |    close_focused(), toggle_focus()
+            |
+            +--> Menu:
+            |    get_windows_for(), get_window_title_for_xid(),
+            |    activate_xid(), close_xid(), close_all()
+            |
+            +--> Preview:
+                 get_xids_for(), get_window_title_for_xid(), activate_xid()
+```
+
+Proposed X11 service path before any Wayland backend is selected:
+
+```text
+docking.app
+  |
+  +--> X11 backend/factory path
+       |
+       +--> X11WindowService
+            |
+            +--> existing WindowTracker/Wnck implementation internally
+            |
+            +--> DockModel.update_running(unchanged X11 aggregate)
+            |
+            +--> backend-neutral service methods
+                 |
+                 +--> list_windows() -> WindowSnapshot + WindowId.x11(xid)
+                 +--> activate(WindowId), close(WindowId)
+                 +--> snapshot_running()
+            |
+            +--> temporary compatibility methods
+                 |
+                 +--> get_xids_for(), get_windows_for(), activate_xid(),
+                      close_xid(), cycle_windows(), close_all()
+```
+
+The current PR is the combined PR 2 + PR 3 step: it introduces the X11 window
+facade and publishes neutral `WindowId` values alongside existing XIDs, but it
+does not switch production startup away from direct `WindowTracker` construction.
+
+The next X11 migration PR should still be X11-only. It should prove that
+`X11WindowService` can replace direct `WindowTracker` construction without
+changing current X11 behavior, and it should not migrate menu or preview callers
+in the same step.
+
+An optional temporary fallback can make that step safer:
+
+```text
+DOCKING_X11_WINDOW_SERVICE=legacy  -> construct WindowTracker directly
+DOCKING_X11_WINDOW_SERVICE=service -> construct X11WindowService
+```
+
+If added, the environment switch should live at one construction point only and
+should be removed after the X11 service path has been the default for a few PRs.
+Do not thread environment checks through menu, preview, applets, or lower-level
+backend code.
+
+Before `X11WindowService` is used in startup, make `_init_screen()` idempotent.
+`WindowTracker.__init__()` schedules `_init_screen()` with `GLib.idle_add`, and
+`X11WindowService.start()` can also call it directly; without a guard, the same
+Wnck screen signals could be connected twice.
+
+Also keep the boundary clear: `snapshot_running()` is useful during migration,
+but `RunningAppInfo.windows` currently carries live Wnck objects. Backend-neutral
+consumers should use `WindowSnapshot` / `WindowId`, or `snapshot_running()` must
+strip live Wnck objects before non-X11 services depend on it.
 
 ### Proposed PR Order
 
@@ -3114,10 +3198,12 @@ Exit criteria:
 - pure unit tests for dataclasses/capabilities pass
 - no runtime behavior changes
 
-#### PR 2: X11 Window Adapter Facade
+#### PR 2 + PR 3: X11 Window Adapter Facade + Neutral Running IDs
 
 Wrap the current `WindowTracker` behavior behind an X11 `WindowService` while
-keeping compatibility methods alive.
+keeping compatibility methods alive. This combined PR also absorbs the neutral
+running-ID step because it is still non-behavioral terrain prep: it only
+publishes `WindowId` beside existing XIDs, without moving any UI caller yet.
 
 Scope:
 
@@ -3128,120 +3214,219 @@ Scope:
 - add `WindowId` mapping from XID to live Wnck window internally
 - preserve `get_xids_for()`, `get_windows_for()`, `activate_xid()`, and
   `close_xid()` temporarily
+- add `window_id` to `RunningWindowInfo`
+- add `window_ids` to `RunningAppInfo`
+- keep `xid` and `xids` as the active compatibility path for current X11 UI
+  code
+- update the X11 scan path so every valid XID snapshot also carries
+  `WindowId.x11(xid)`
+- make `docking/platform/backends/base.py` avoid runtime imports from
+  `docking.platform.running` so `running.py` can import `WindowId` without a
+  circular import
 
 Do not:
 
 - convert preview/menu yet
 - remove XID fields
+- change `DockModel.update_running()` semantics
+- change `docking.app` startup wiring
+- add Wayland or reduced-backend selection
 
 Exit criteria:
 
 - current window-tracker tests pass
-- new adapter tests prove snapshots preserve title, active, urgent, count, and
-  XID identity
+- new adapter tests prove snapshots preserve title, active, urgent, geometry,
+  workspace, capabilities, and XID identity
+- running-state tests prove `xids` and `window_ids` are populated in the same
+  order
+- import smoke tests prove `docking.platform.running` and
+  `docking.platform.backends.base` do not create a circular import
+- current X11 callers still use the old compatibility methods, so user-visible
+  behavior is unchanged
 
-#### PR 3: Neutral Running State IDs
+Implementation notes:
 
-Make running-state data capable of carrying non-XID window IDs.
+- Prefer an additive adapter over a rewrite. `WindowTracker` remains the
+  current runtime object until the X11 runtime service-wiring PR.
+- Keep live Wnck objects inside the X11 implementation. Only
+  `WindowSnapshot`, `RunningAppInfo`, and `WindowId` should cross the new
+  backend-facing API.
+- When a Wnck property read races with a disappearing X11 window, preserve the
+  existing failure policy: skip only the unstable read/window and keep the scan
+  convergent.
+- `WindowId.value` for X11 is the integer XID. Future Wayland backends must not
+  expose protocol handles there; they should use backend-owned opaque IDs.
 
-Scope:
+Validation commands:
 
-- add `window_id` to `RunningWindowInfo`
-- add `window_ids` to `RunningAppInfo`
-- keep `xid` and `xids` for X11 compatibility
-- update X11 tracker/adapter to populate both
-- update tests to assert both where useful
+- `.venv/bin/ruff check docking/platform/backends/base.py docking/platform/running.py docking/platform/window_tracker.py docking/platform/backends/x11 tests/platform/test_backend_contracts.py tests/platform/test_window_tracker_integration.py tests/platform/test_x11_window_service.py`
+- `python3 -m compileall -q docking/platform/backends/base.py docking/platform/running.py docking/platform/window_tracker.py docking/platform/backends/x11 tests/platform/test_backend_contracts.py tests/platform/test_window_tracker_integration.py tests/platform/test_x11_window_service.py`
+- `python3 -c "from docking.platform.running import RunningAppInfo, RunningWindowInfo; from docking.platform.backends.base import WindowId; print(WindowId.x11(1))"`
+- When the local environment has pytest installed:
+  `.venv/bin/pytest tests/platform/test_backend_contracts.py tests/platform/test_window_tracker.py tests/platform/test_window_tracker_integration.py tests/platform/test_x11_window_service.py`
+
+#### PR 4: X11 Runtime Service Wiring
+
+Switch production X11 construction from direct `WindowTracker` ownership to the
+new X11 service path, without moving any menu, preview, applet, visibility, or
+surface caller yet.
+
+Start here:
+
+- add a narrow X11 backend/factory construction point
+- make `docking.app` construct `X11WindowService` through that path
+- keep current X11 behavior and current UI compatibility methods available
+- make `WindowTracker._init_screen()` idempotent before calling service startup
+- optionally add a temporary `DOCKING_X11_WINDOW_SERVICE=legacy|service` switch
+  at the construction point only
+- update startup/factory tests so both the default service path and optional
+  legacy fallback are covered if the fallback exists
 
 Do not:
 
-- remove `xids`
-- change UI callers yet
+- migrate menu or preview callers yet
+- add native Wayland or reduced-backend selection
+- change `DockModel.update_running()` semantics
+- thread environment checks beyond the construction point
 
 Exit criteria:
 
-- `DockModel.update_running()` behavior is unchanged
-- existing X11 tests still pass
+- X11 startup uses `X11WindowService` by default, or can be forced to it with the
+  temporary environment switch
+- the old `WindowTracker` path can still be selected temporarily if the fallback
+  is included
+- current X11 UI tests still pass unchanged
+- no duplicate Wnck signal connection is possible
 
-#### PR 4: Menu Window Rows Use Snapshots
+#### PR 5: Menu Window Rows Use Snapshots
 
-Remove Wnck/XID assumptions from open-window menu rows.
+Remove Wnck/XID assumptions from open-window menu rows. This is the first
+planned UI consumer migration after the combined PR 2 + PR 3 and the X11 runtime
+service-wiring PR, even though X11 behavior should remain visually identical.
 
-Scope:
+Start here:
 
-- change `MenuHandler._append_open_windows()` to use `WindowService.list_windows`
-- sort by `WindowSnapshot.title`
-- activate/close by `WindowId`
-- keep thumbnails optional
-- leave compatibility fallback only if required during transition
+- inspect `docking/ui/menu.py`, especially open-window row creation, row
+  activation, and close-button handlers
+- inject or pass the window service that already has `list_windows()`,
+  `activate(WindowId)`, and `close(WindowId)`
+- keep the compatibility tracker available until all callers have moved; do not
+  delete `get_windows_for()`, `activate_xid()`, or `close_xid()`
+- use `WindowSnapshot.title` for labels and `WindowSnapshot.id` for actions
+- preserve current sorting, empty-state behavior, close-button visibility, and
+  menu teardown behavior
+- update tests in `tests/ui/test_menu_integration.py` so they assert
+  `WindowSnapshot` and `WindowId` usage instead of fake Wnck objects where
+  possible
+- add a focused regression test that an X11 snapshot with XID 7 still calls the
+  X11 adapter close/activate path for `WindowId.x11(7)`
 
 Do not:
 
-- change preview popup yet
-- remove old XID methods from the X11 adapter
+- touch preview popup behavior
+- remove XID fields from running state
+- change app startup/backend selection
+- add native Wayland-specific menu behavior
 
 Exit criteria:
 
-- menu tests no longer need fake Wnck windows for window rows
+- menu tests no longer need live/fake Wnck windows for open-window rows
 - close/activate menu behavior remains unchanged on X11
+- unsupported or empty `list_windows()` produces the current no-window menu
+  behavior rather than a crash
 
-#### PR 5: Preview Popup Uses `PreviewService`
+#### PR 6: Preview Popup Uses `PreviewService`
 
-Remove direct `GdkX11`/`Wnck` usage from backend-neutral preview UI.
+Remove direct `GdkX11`/`Wnck` usage from backend-neutral preview UI while
+keeping the X11 capture path internally unchanged.
 
-Scope:
+Start here:
 
-- add X11 `PreviewService` using current XID capture internally
-- change `PreviewPopup` to consume `WindowSnapshot` and `PreviewService`
-- move `capture_xid()` / `capture_window()` into X11 preview implementation or
-  mark them transitional
-- support icon/title fallback when `can_preview` is false
+- inspect `docking/ui/preview.py` and identify every XID, Wnck, and GdkX11
+  boundary
+- add `docking/platform/backends/x11/previews.py`
+- move current X11 capture logic behind `PreviewService.capture(WindowId, ...)`
+- keep any low-level X11 pixbuf/window lookup helpers private to the X11
+  preview service
+- make `PreviewPopup` consume `WindowSnapshot` or `WindowId` instead of raw XID
+  lists
+- preserve icon/title fallback behavior for windows where capture returns
+  `None`
+- keep X11 screenshot/capture error handling defensive; disappearing windows
+  should drop a preview, not crash hover UI
+- update `tests/ui/test_preview_popup_integration.py` and visual preview cases
+  to use snapshots/service fakes
 
 Do not:
 
-- add native Wayland capture
+- add native Wayland capture portals yet
+- change thumbnail sizing or timing policy unless required by the service
+  boundary
+- delete `get_xids_for()` until no callers remain
 
 Exit criteria:
 
 - `docking/ui/preview.py` no longer imports `GdkX11` or `Wnck`
 - preview behavior remains the same on X11
+- tests cover stale/not-found `WindowId` handling
 
-#### PR 6: Session Backend Selection With X11 Only
+#### PR 7: Complete Session Backend Shape With X11 Only
 
-Introduce `SessionBackend` and a backend factory, but still select only the X11
-backend in production.
+Complete the X11 `SessionBackend` shape after the first runtime service wiring
+and after menu/preview can consume services. Production still selects only the
+X11 backend.
 
-Scope:
+Start here:
 
-- add `docking/platform/backends/selection.py`
-- add `X11SessionBackend`
-- make `docking.app` construct a session backend
-- pass backend/services into `build_dock_window`
-- keep direct X11 behavior through the X11 services
+- add or expand `docking/platform/backends/x11/session.py`
+- add or expand `docking/platform/backends/selection.py`
+- complete `X11SessionBackend` with:
+  - `name == "x11"`
+  - `display_server == DisplayServer.X11`
+  - X11 `WindowService`
+  - X11 `PreviewService` once PR 6 exists
+  - placeholder `None` or transitional services for surface/visibility until
+    their PRs land
+- make `docking.app` pass the service objects needed by migrated UI callers into
+  `build_dock_window`
+- keep imports lazy enough that native Wayland startup does not import X11-only
+  modules before backend selection in later PRs
+- update `tests/test_app.py`, `tests/ui/test_factory.py`, and smoke tests to
+  build/fake a session backend
 
 Do not:
 
 - add native Wayland backend
 - change applets yet
+- make `GDK_BACKEND=wayland` claim support
 
 Exit criteria:
 
 - startup behavior is unchanged on X11
 - tests can construct a fake/null session backend for UI wiring
+- `docking.app` no longer directly decides individual X11 services
 
-#### PR 7: Visibility Service
+#### PR 8: Visibility Service
 
 Move dodge monitor creation behind the session backend.
 
-Scope:
+Start here:
 
-- add X11 `VisibilityService` wrapping current `WindowDodgeMonitor`
-- change `docking.ui.factory` to request a monitor from `backend.visibility`
-- support "no visibility monitor" cleanly
-- add capability checks for hide modes
+- inspect `docking/platform/dodge.py`, `docking/platform/dodge_monitor.py`, and
+  `docking/ui/factory.py`
+- add `docking/platform/backends/x11/visibility.py`
+- wrap current `WindowDodgeMonitor` construction behind `VisibilityService`
+- teach the factory to request a visibility monitor from
+  `backend.visibility.create_monitor(...)`
+- support `None` cleanly for unsupported backends or unsupported hide modes
+- map hide-mode support to `PlatformCapabilities` rather than probing X11 in UI
+- preserve all current X11 hide-mode semantics and signal timing
 
 Do not:
 
-- change hide-mode semantics on X11
+- change dodge math
+- add Wayland overlap protocols
+- change surface placement or struts
 
 Exit criteria:
 
@@ -3249,76 +3434,96 @@ Exit criteria:
 - X11 dodge tests still pass
 - unsupported visibility service can run without crashing
 
-#### PR 8: Surface Service
+#### PR 9: Surface Service
 
 Move struts, barriers, blur hints, and platform surface hooks behind
 `SurfaceService`.
 
-Scope:
+Start here:
 
-- add X11 `SurfaceService`
-- move X11 strut/barrier/blur calls behind service methods
-- make `DockPlacementController` coordinate placement but delegate platform
-  edge integration
+- inspect `docking/platform/struts.py`, pointer barriers, blur helpers, and
+  `DockPlacementController`
+- add `docking/platform/backends/x11/surface.py`
+- move X11 strut/barrier/blur calls behind service methods while keeping
+  placement math in the existing placement controller
 - make input-region support capability-driven
+- keep X11-specific imports under the X11 backend or explicit transitional
+  shims
+- add tests that unsupported reservation/input-region operations are no-ops,
+  not crashes
 
 Do not:
 
 - add layer-shell yet
 - rewrite placement math unless required to preserve behavior
+- change always-visible/autohide semantics
 
 Exit criteria:
 
 - raw `GdkX11` checks are confined to X11 backend code or transitional shims
 - X11 placement, strut, barrier, and blur tests still pass
 
-#### PR 9: Applet Service Extraction
+#### PR 10: Applet Service Extraction
 
 Move Wnck/X11 applet dependencies behind applet-facing services.
 
-Scope:
+Start here:
 
-- add `WorkspaceService`, `DesktopActionService`, `WindowPickService`,
-  `IdleService`, and `ScreenCaptureService` implementations for X11 where
-  applicable
-- migrate Desktop, Workspaces, Window Killer, Desk Presence, and Color Picker
-  toward service use
-- add unsupported-service behavior for applets
+- inventory X11/Wnck usage in Desktop, Workspaces, Window Killer,
+  Desk Presence, Color Picker, Screenshot, Caffeine, and any applet that shells
+  out to X11 tools
+- add X11 implementations for `WorkspaceService`, `DesktopActionService`,
+  `WindowPickService`, `IdleService`, and `ScreenCaptureService` only where the
+  current applet really needs them
+- migrate one applet family at a time, starting with the smallest one
+- add explicit unsupported states so applets can hide actions, disable buttons,
+  or show a concise unavailable state instead of crashing
+- keep service APIs narrow; do not expose raw Wnck windows to applets
 
 Do not:
 
 - attempt full native Wayland applet parity
+- make applet UI depend on compositor names directly
+- remove X11 helper paths until each applet has tests
 
 Exit criteria:
 
 - applets keep current X11 behavior
 - backend-neutral applet loading can skip or disable unsupported actions
+- tests cover at least one unsupported-service path
 
-#### PR 10: Null / Reduced Backend
+#### PR 11: Null / Reduced Backend
 
 Add a backend with no taskbar powers to validate that X11 assumptions are no
 longer leaking through normal UI.
 
-Scope:
+Start here:
 
-- add `NullSessionBackend` or `ReducedSessionBackend`
+- add `docking/platform/backends/null/session.py` or
+  `docking/platform/backends/reduced/session.py`
 - provide no-op services for windows, previews, visibility, workspaces, and
   applet-specific platform actions
-- add a test/dev entry point or environment flag to force it
-- verify pinned launchers, rendering, menus without window rows, and
-  backend-neutral applets still work
+- add a test/dev selection path, preferably an environment variable such as
+  `DOCKING_BACKEND=null`, but keep production auto-detection unchanged
+- verify pinned launchers, rendering, menus without window rows, no-preview
+  hover behavior, and backend-neutral applets
+- assert `PlatformCapabilities` is honest: false for taskbar powers, true only
+  for what the reduced backend actually supports
 
 Do not:
 
 - ship it as user-facing native Wayland support yet unless explicitly labeled
   reduced/experimental
+- import X11 modules from the null backend
+- silently pretend taskbar/window actions succeeded
 
 Exit criteria:
 
 - Docking can start without Wnck task powers
 - unsupported features degrade intentionally
+- reduced-backend tests prove no accidental X11 imports
 
-#### PR 11: Native Wayland Detection Stub
+#### PR 12: Native Wayland Detection Stub
 
 Only after the reduced backend works, add native Wayland detection that selects
 a reduced/no-op backend when unsupported.
@@ -3329,42 +3534,55 @@ Scope:
 - avoid importing X11-only backend modules for native Wayland
 - log protocol/dependency limitations clearly
 - select reduced backend on GNOME/Mutter native Wayland
+- select X11 backend for X11 and XWayland sessions exactly as today
 
 Do not:
 
 - add layer-shell or foreign-toplevel yet
+- run X11 fallback code in native Wayland unless explicitly under XWayland
+- claim current-open-app support on compositors without a toplevel protocol
 
 Exit criteria:
 
-- native GTK Wayland unsupported sessions do not crash
-- X11 and `GDK_BACKEND=x11` XWayland still select X11 backend
+- Docking does not crash on native Wayland startup
+- X11 remains unchanged
+- logs and capability flags explain reduced mode
 
-#### PR 12: Layer-Shell Surface Backend
+#### PR 13: Layer-Shell Surface Backend
 
-Add the first real native Wayland dock-surface capability.
+Add native Wayland dock-surface placement for compositors that support
+layer-shell.
 
-Scope:
+Start here:
 
 - optional `gtk-layer-shell` import inside Wayland surface backend
 - configure layer-shell before first map
 - implement anchors, monitor targeting, layer choice, and exclusive zones
 - keep fallback when layer-shell is unavailable
+- map the existing Docking position/config concepts onto layer-shell anchors
+  without changing X11 placement code
+- keep GNOME/Mutter native Wayland in reduced mode because it does not expose
+  the required third-party layer-shell path
+- add capability flags for layer-shell and exclusive-zone reservation
 
 Do not:
 
 - add taskbar/window tracking yet
+- make layer-shell a hard dependency
+- import layer-shell modules in X11 sessions
 
 Exit criteria:
 
 - native Wayland dock can reserve edge space on a supported layer-shell
   compositor
 - GNOME native Wayland remains reduced/unsupported with a clear log
+- X11 placement tests remain unchanged
 
-#### PR 13: Generic Foreign-Toplevel Window Service
+#### PR 14: Generic Foreign-Toplevel Window Service
 
 Add wlroots-style opened-app context.
 
-Scope:
+Start here:
 
 - bind `zwlr_foreign_toplevel_manager_v1`
 - track app ID, title, active/minimized/maximized/fullscreen, parent, and close
@@ -3372,59 +3590,81 @@ Scope:
 - implement activate/close/minimize where supported
 - publish `RunningAppInfo` through neutral window IDs
 - use Wayland-aware app ID matching
+- store protocol handles only inside the Wayland backend; expose only
+  `WindowId`/`WindowSnapshot` to UI
+- handle protocol absence by keeping the reduced backend active
+- keep geometry, stacking, and workspace capability flags false unless the
+  compositor protocol actually provides them
 
 Do not:
 
 - claim geometry/dodge/workspace parity
+- add compositor-specific Plasma or COSMIC code here
+- change X11 matching behavior
 
 Exit criteria:
 
 - running indicators and basic window actions work on at least one supported
   wlroots compositor
+- unsupported compositors continue reduced mode with clear logs
 
-#### PR 14: KWin / Plasma Backend
+#### PR 15: KWin / Plasma Backend
 
 Add the richest parity backend.
 
-Scope:
+Start here:
 
 - bind Plasma window-management and virtual desktop protocols
 - track UUIDs, app IDs, titles, state, attention, skip-taskbar, geometry, PID,
   virtual desktops, and stacking order where available
 - implement richer actions and show-desktop/workspace services
 - enable more hide modes when geometry/workspace capabilities are present
+- add Plasma-specific `WindowService`, `WorkspaceService`, and
+  `DesktopActionService` pieces behind capability flags
+- prefer Plasma protocol data over generic foreign-toplevel data when both are
+  present
+- keep protocol selection deterministic and logged
 
 Exit criteria:
 
 - KWin Wayland reaches closest behavior to current X11 for taskbar, actions,
   workspace, and dodge features
+- non-Plasma Wayland backends are unaffected
 
-#### PR 15: COSMIC / Optional Compositor Extras
+#### PR 16: COSMIC / Optional Compositor Extras
 
 Add compositor-specific backends after the generic and KWin paths are stable.
 
-Scope:
+Start here:
 
 - COSMIC toplevel/workspace/overlap protocols
 - optional Wayfire IPC extensions
 - optional Niri overview integration
+- add each compositor integration behind explicit detection and capability
+  flags
+- keep each optional backend isolated so a missing dependency or unsupported
+  compositor cannot affect X11, generic wlroots, or Plasma
 
 Exit criteria:
 
 - each compositor extension is capability-gated and does not affect X11 or
   other Wayland backends
 
-#### PR 16: Cleanup Transitional X11 APIs
+#### PR 17: Cleanup Transitional X11 APIs
 
 Remove compatibility methods only after all UI callers and tests use neutral
 backend APIs.
 
-Scope:
+Start here:
 
 - remove or deprecate `get_xids_for`, `activate_xid`, `close_xid` from
   backend-neutral call paths
 - keep XID internals inside X11 backend where still useful
 - update documentation and support language
+- search the repo for `get_xids_for`, `get_windows_for`, `activate_xid`,
+  `close_xid`, raw `Wnck.Window`, and raw XID usage before deleting anything
+- preserve any X11-only internals that the X11 backend still needs for previews
+  or diagnostics
 
 Exit criteria:
 
