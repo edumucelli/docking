@@ -3064,7 +3064,7 @@ The safest first moves are still X11-preserving refactors:
 1. Define `WindowId`, `WindowSnapshot`, `ActionResult`, and `WindowService`.
 2. Add an X11 adapter around the current `WindowTracker` without changing
    behavior, and add `window_ids` alongside existing XIDs in running-state
-   dataclasses. This is the combined PR 2 + PR 3 step currently under review.
+   dataclasses. This is the combined PR 2 + PR 3 step and is already merged.
 3. Wire the X11 window service into startup behind an X11-only backend/factory
    path while preserving a temporary legacy fallback if needed.
 4. Convert `MenuHandler` from Wnck windows/XIDs to `WindowSnapshot`.
@@ -3084,6 +3084,24 @@ from backend-neutral UI paths. After that, Docking should be able to run with a
 backend that intentionally lacks taskbar, preview, workspace, and overlap
 powers. That flushes out hidden X11 assumptions before compositor protocols are
 involved.
+
+### Behavior-Parity Tests
+
+Each migration PR that moves behavior behind a new service boundary must include
+a behavior-parity test at that boundary. The test should prove not only that the
+new API returns a plausible result, but that it preserves the important old
+mechanism and ownership split.
+
+For example, when moving preview capture out of `docking.ui.preview`, the test
+must encode that the old popup path captured directly from the XID, did not ask
+Wnck whether the window was minimized, and left app-icon fallback rendering to
+the UI after capture returned `None`. Without that kind of test, a refactor can
+look structurally correct while still changing visible behavior during pointer
+movement, hide transitions, or transient window-state changes.
+
+Before merging a service-boundary PR, explicitly identify the old call path that
+matters and add at least one regression test that would fail if the new service
+quietly switched to a different lower-level mechanism.
 
 ### X11 Window-Service Migration Shape
 
@@ -3137,14 +3155,14 @@ docking.app
                       close_xid(), cycle_windows(), close_all()
 ```
 
-The current PR is the combined PR 2 + PR 3 step: it introduces the X11 window
-facade and publishes neutral `WindowId` values alongside existing XIDs, but it
-does not switch production startup away from direct `WindowTracker` construction.
+The combined PR 2 + PR 3, PR 4, and PR 5 steps are already merged: Docking
+now has the X11 window facade, production X11 runtime wiring, neutral
+`WindowId` values alongside existing XIDs, and menu rows backed by
+`WindowSnapshot`.
 
-The next X11 migration PR should still be X11-only. It should prove that
-`X11WindowService` can replace direct `WindowTracker` construction without
-changing current X11 behavior, and it should not migrate menu or preview callers
-in the same step.
+The next active X11 migration PR is the preview service step. It should move
+preview capture behind `PreviewService` without changing current X11 behavior,
+and it should not complete the wider session-backend shape in the same step.
 
 An optional temporary fallback can make that step safer:
 
@@ -3174,7 +3192,7 @@ The PR sequence should keep every step reviewable and preserve the existing X11
 runtime after each merge. The first Wayland-specific PR should not appear until
 the app can run through explicit backend services on X11.
 
-#### PR 1: Backend Contracts Only
+#### [x] PR 1: Backend Contracts Only
 
 Add backend-neutral types and protocols without changing runtime wiring.
 
@@ -3209,7 +3227,7 @@ Exit criteria:
 - pure unit tests for dataclasses/capabilities pass
 - no runtime behavior changes
 
-#### PR 2 + PR 3: X11 Window Adapter Facade + Neutral Running IDs
+#### [x] PR 2 + PR 3: X11 Window Adapter Facade + Neutral Running IDs
 
 Wrap the current `WindowTracker` behavior behind an X11 `WindowService` while
 keeping compatibility methods alive. This combined PR also absorbs the neutral
@@ -3283,7 +3301,7 @@ Validation commands:
 - When the local environment has pytest installed:
   `.venv/bin/pytest tests/platform/test_backend_contracts.py tests/platform/test_window_tracker.py tests/platform/test_window_tracker_integration.py tests/platform/test_x11_window_service.py`
 
-#### PR 4: X11 Runtime Service Wiring
+#### [x] PR 4: X11 Runtime Service Wiring
 
 Switch production X11 construction from direct `WindowTracker` ownership to the
 new X11 service path, without moving any menu, preview, applet, visibility, or
@@ -3324,7 +3342,7 @@ Exit criteria:
 - current X11 UI tests still pass unchanged
 - no duplicate Wnck signal connection is possible
 
-#### PR 5: Menu Window Rows Use Snapshots
+#### [x] PR 5: Menu Window Rows Use Snapshots
 
 Remove Wnck/XID assumptions from open-window menu rows. This is the first
 planned UI consumer migration after the combined PR 2 + PR 3 and the X11 runtime
@@ -3369,7 +3387,7 @@ Exit criteria:
 - unsupported or empty `list_windows()` produces the current no-window menu
   behavior rather than a crash
 
-#### PR 6: Preview Popup Uses `PreviewService`
+#### [ ] PR 6: Preview Popup Uses `PreviewService`
 
 Remove direct `GdkX11`/`Wnck` usage from backend-neutral preview UI while
 keeping the X11 capture path internally unchanged.
@@ -3412,7 +3430,7 @@ Exit criteria:
 - preview behavior remains the same on X11
 - tests cover stale/not-found `WindowId` handling
 
-#### PR 7: Complete Session Backend Shape With X11 Only
+#### [ ] PR 7: Complete Session Backend Shape With X11 Only
 
 Complete the X11 `SessionBackend` shape after the first runtime service wiring
 and after menu/preview can consume services. Production still selects only the
@@ -3455,7 +3473,7 @@ Exit criteria:
 - tests can construct a fake/null session backend for UI wiring
 - `docking.app` no longer directly decides individual X11 services
 
-#### PR 8: Visibility Service
+#### [ ] PR 8: Visibility Service
 
 Move dodge monitor creation behind the session backend.
 
@@ -3491,7 +3509,7 @@ Exit criteria:
 - X11 dodge tests still pass
 - unsupported visibility service can run without crashing
 
-#### PR 9: Surface Service
+#### [ ] PR 9: Surface Service
 
 Move struts, barriers, blur hints, and platform surface hooks behind
 `SurfaceService`.
@@ -3528,7 +3546,7 @@ Exit criteria:
 - raw `GdkX11` checks are confined to X11 backend code or transitional shims
 - X11 placement, strut, barrier, and blur tests still pass
 
-#### PR 10: Applet Service Extraction
+#### [ ] PR 10: Applet Service Extraction
 
 Move Wnck/X11 applet dependencies behind applet-facing services.
 
@@ -3565,7 +3583,7 @@ Exit criteria:
 - backend-neutral applet loading can skip or disable unsupported actions
 - tests cover at least one unsupported-service path
 
-#### PR 11: Cleanup Transitional X11 APIs
+#### [ ] PR 11: Cleanup Transitional X11 APIs
 
 Remove compatibility methods only after all UI callers and tests use neutral
 backend APIs.
@@ -3593,7 +3611,7 @@ Exit criteria:
 - no backend-neutral UI module depends on Wnck windows or XIDs
 - X11 backend remains fully supported
 
-#### PR 12: Null / Reduced Backend
+#### [ ] PR 12: Null / Reduced Backend
 
 Add a backend with no taskbar powers to validate that X11 assumptions are no
 longer leaking through normal UI.
@@ -3632,7 +3650,7 @@ Exit criteria:
 - unsupported features degrade intentionally
 - reduced-backend tests prove no accidental X11 imports
 
-#### PR 13: Native Wayland Detection Stub
+#### [ ] PR 13: Native Wayland Detection Stub
 
 Only after the reduced backend works, add native Wayland detection that selects
 a reduced/no-op backend when unsupported.
@@ -3664,7 +3682,7 @@ Exit criteria:
 - X11 remains unchanged
 - logs and capability flags explain reduced mode
 
-#### PR 14: Layer-Shell Surface Backend
+#### [ ] PR 14: Layer-Shell Surface Backend
 
 Add native Wayland dock-surface placement for compositors that support
 layer-shell.
@@ -3702,7 +3720,7 @@ Exit criteria:
 - GNOME native Wayland remains reduced/unsupported with a clear log
 - X11 placement tests remain unchanged
 
-#### PR 15: Generic Foreign-Toplevel Window Service
+#### [ ] PR 15: Generic Foreign-Toplevel Window Service
 
 Add wlroots-style opened-app context.
 
@@ -3740,7 +3758,7 @@ Exit criteria:
   wlroots compositor
 - unsupported compositors continue reduced mode with clear logs
 
-#### PR 16: KWin / Plasma Backend
+#### [ ] PR 16: KWin / Plasma Backend
 
 Add the richest parity backend.
 
@@ -3771,7 +3789,7 @@ Exit criteria:
   workspace, and dodge features
 - non-Plasma Wayland backends are unaffected
 
-#### PR 17: COSMIC / Optional Compositor Extras
+#### [ ] PR 17: COSMIC / Optional Compositor Extras
 
 Add compositor-specific backends after the generic and KWin paths are stable.
 
