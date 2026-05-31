@@ -54,6 +54,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
         },
+        "docking.platform.backends.selection": {
+            "create_session_backend": lambda **_kwargs: None,
+        },
         "docking.platform.backends.x11.session": {
             "build_x11_window_tracker": lambda **_kwargs: None,
         },
@@ -122,6 +125,10 @@ class TestAppMain:
         model = MagicMock()
         renderer = MagicMock()
         tracker = MagicMock()
+        preview_service = MagicMock()
+        backend = MagicMock()
+        backend.windows = tracker
+        backend.previews = preview_service
         unity = MagicMock()
         new_year = MagicMock()
         window = MagicMock()
@@ -156,8 +163,8 @@ class TestAppMain:
         monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
         monkeypatch.setattr(
             app_mod,
-            "build_x11_window_tracker",
-            MagicMock(return_value=tracker),
+            "create_session_backend",
+            MagicMock(return_value=backend),
         )
         monkeypatch.setattr(
             app_mod,
@@ -187,9 +194,11 @@ class TestAppMain:
             renderer=renderer,
             theme=applied_theme,
             window_tracker=tracker,
+            preview_service=preview_service,
             launcher=launcher,
         )
-        tracker.start.assert_called_once()
+        backend.start.assert_called_once()
+        backend.stop.assert_called_once()
         model.start_applets.assert_called_once()
         model.stop_applets.assert_called_once()
         items_service.start.assert_called_once()
@@ -204,7 +213,7 @@ class TestAppMain:
             app_mod._start_runtime,
             items_service,
             model,
-            tracker,
+            backend,
         )
         fake_gtk.main.assert_called_once()
         assert call_order == [
@@ -250,6 +259,10 @@ class TestAppMain:
         model = MagicMock()
         renderer = MagicMock()
         tracker = MagicMock()
+        preview_service = MagicMock()
+        backend = MagicMock()
+        backend.windows = tracker
+        backend.previews = preview_service
         unity = MagicMock()
         new_year = MagicMock()
         window = MagicMock()
@@ -278,7 +291,7 @@ class TestAppMain:
         launcher_cls = MagicMock(return_value=launcher)
         model_cls = MagicMock(return_value=model)
         renderer_cls = MagicMock(return_value=renderer)
-        tracker_cls = MagicMock(return_value=tracker)
+        backend_cls = MagicMock(return_value=backend)
         unity_cls = MagicMock(return_value=unity)
         new_year_cls = MagicMock(return_value=new_year)
         factory = MagicMock(return_value=window)
@@ -296,9 +309,9 @@ class TestAppMain:
             sys.modules["docking.ui.renderer"], "DockRenderer", renderer_cls
         )
         monkeypatch.setattr(
-            sys.modules["docking.platform.backends.x11.session"],
-            "build_x11_window_tracker",
-            tracker_cls,
+            sys.modules["docking.platform.backends.selection"],
+            "create_session_backend",
+            backend_cls,
         )
         monkeypatch.setattr(
             sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
@@ -327,7 +340,8 @@ class TestAppMain:
         factory.assert_called_once()
         items_service_cls.assert_called_once_with(model=model, window=window)
         fake_gtk.main.assert_called_once()
-        tracker.start.assert_called_once()
+        backend.start.assert_called_once()
+        backend.stop.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
         new_year.start.assert_called_once()

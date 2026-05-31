@@ -3160,9 +3160,10 @@ now has the X11 window facade, production X11 runtime wiring, neutral
 `WindowId` values alongside existing XIDs, and menu rows backed by
 `WindowSnapshot`.
 
-The next active X11 migration PR is the preview service step. It should move
-preview capture behind `PreviewService` without changing current X11 behavior,
-and it should not complete the wider session-backend shape in the same step.
+The next active X11 migration PR is the X11-only session backend shape. It
+should group the already-migrated window and preview services behind an explicit
+session backend without changing current X11 behavior, and it should leave
+visibility and surface ownership to their dedicated later PRs.
 
 An optional temporary fallback can make that step safer:
 
@@ -3387,7 +3388,7 @@ Exit criteria:
 - unsupported or empty `list_windows()` produces the current no-window menu
   behavior rather than a crash
 
-#### [ ] PR 6: Preview Popup Uses `PreviewService`
+#### [x] PR 6: Preview Popup Uses `PreviewService`
 
 Remove direct `GdkX11`/`Wnck` usage from backend-neutral preview UI while
 keeping the X11 capture path internally unchanged.

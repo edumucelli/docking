@@ -13,7 +13,16 @@
 
 """X11 backend services."""
 
-from docking.platform.backends.x11.session import build_x11_window_tracker
+from docking.platform.backends.x11.session import (
+    X11SessionBackend,
+    build_x11_session_backend,
+    build_x11_window_tracker,
+)
 from docking.platform.backends.x11.windows import X11WindowService
 
-__all__ = ["X11WindowService", "build_x11_window_tracker"]
+__all__ = [
+    "X11SessionBackend",
+    "X11WindowService",
+    "build_x11_session_backend",
+    "build_x11_window_tracker",
+]

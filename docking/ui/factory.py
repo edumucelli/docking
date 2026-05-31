@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from docking.core.config import Config
 from docking.core.theme import Theme
-from docking.platform.backends.x11.previews import X11PreviewService
+from docking.platform.backends.base import PreviewService
 from docking.platform.dodge import ScreenRect, WindowDodgeMonitor
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
@@ -38,6 +38,7 @@ def build_dock_window(
     renderer: DockRenderer,
     theme: Theme,
     window_tracker: WindowTracker,
+    preview_service: PreviewService,
     launcher: Launcher,
 ) -> DockWindow:
     """Build a fully wired dock window and its UI collaborators."""
@@ -48,7 +49,7 @@ def build_dock_window(
         theme=theme,
         window_tracker=window_tracker,
         launcher=launcher,
-        preview_service=X11PreviewService(window_tracker=window_tracker),
+        preview_service=preview_service,
     )
 
     def _get_dock_rect() -> ScreenRect | None:
