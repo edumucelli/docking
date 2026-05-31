@@ -19,18 +19,13 @@ class TestBuildDockWindow:
         theme = MagicMock()
         tracker = MagicMock()
         launcher = MagicMock()
+        preview_service = MagicMock()
 
         window = MagicMock()
         window.autohide = MagicMock()
         dodge_monitor = MagicMock()
-        preview_service = MagicMock()
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
-        monkeypatch.setattr(
-            factory_mod,
-            "X11PreviewService",
-            MagicMock(return_value=preview_service),
-        )
         monkeypatch.setattr(
             factory_mod,
             "WindowDodgeMonitor",
@@ -43,11 +38,11 @@ class TestBuildDockWindow:
             renderer=renderer,
             theme=theme,
             window_tracker=tracker,
+            preview_service=preview_service,
             launcher=launcher,
         )
 
         assert result is window
-        factory_mod.X11PreviewService.assert_called_once_with(window_tracker=tracker)
         factory_mod.DockWindow.assert_called_once_with(
             config=config,
             model=model,
@@ -69,6 +64,7 @@ class TestBuildDockWindow:
         theme = MagicMock()
         tracker = MagicMock()
         launcher = MagicMock()
+        preview_service = MagicMock()
 
         window = MagicMock()
         window.autohide = MagicMock()
@@ -84,7 +80,6 @@ class TestBuildDockWindow:
             return monitor
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
-        monkeypatch.setattr(factory_mod, "X11PreviewService", MagicMock())
         monkeypatch.setattr(factory_mod, "WindowDodgeMonitor", _make_dodge_monitor)
 
         factory_mod.build_dock_window(
@@ -93,6 +88,7 @@ class TestBuildDockWindow:
             renderer=renderer,
             theme=theme,
             window_tracker=tracker,
+            preview_service=preview_service,
             launcher=launcher,
         )
 
@@ -107,6 +103,7 @@ class TestBuildDockWindow:
         theme = MagicMock()
         tracker = MagicMock()
         launcher = MagicMock()
+        preview_service = MagicMock()
 
         window = MagicMock()
         window.autohide = MagicMock()
@@ -120,7 +117,6 @@ class TestBuildDockWindow:
             return monitor
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
-        monkeypatch.setattr(factory_mod, "X11PreviewService", MagicMock())
         monkeypatch.setattr(factory_mod, "WindowDodgeMonitor", _make_dodge_monitor)
 
         factory_mod.build_dock_window(
@@ -129,6 +125,7 @@ class TestBuildDockWindow:
             renderer=renderer,
             theme=theme,
             window_tracker=tracker,
+            preview_service=preview_service,
             launcher=launcher,
         )
 

@@ -77,7 +77,7 @@ from gi.repository import GLib, Gtk
 from docking.core.config import Config
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
-from docking.platform.backends.x11.session import build_x11_window_tracker
+from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
@@ -98,7 +98,7 @@ def main() -> None:
     launcher = Launcher()
     model = DockModel(config=config, launcher=launcher)
     renderer = DockRenderer()
-    tracker = build_x11_window_tracker(model=model, launcher=launcher, config=config)
+    backend = create_session_backend(config=config, launcher=launcher, model=model)
     unity = UnityLauncherListener(model=model)
 
     window = build_dock_window(
@@ -106,7 +106,8 @@ def main() -> None:
         model=model,
         renderer=renderer,
         theme=theme,
-        window_tracker=tracker,
+        window_tracker=backend.windows,
+        preview_service=backend.previews,
         launcher=launcher,
     )
     items_service = DockItemsService(model=model, window=window)
@@ -121,23 +122,24 @@ def main() -> None:
         window.show_all()
         new_year.start()
         window.start_update_checks()
-        GLib.idle_add(_start_runtime, items_service, model, tracker)
+        GLib.idle_add(_start_runtime, items_service, model, backend)
         Gtk.main()
     finally:
         items_service.stop()
         window.stop_update_checks()
         new_year.stop()
         unity.stop()
+        backend.stop()
         model.stop_applets()
 
 
 def _start_runtime(
-    items_service: DockItemsService, model: DockModel, window_tracker: object
+    items_service: DockItemsService, model: DockModel, backend: object
 ) -> bool:
     """Start background runtime pieces after the window has been shown."""
-    tracker_start = getattr(window_tracker, "start", None)
-    if callable(tracker_start):
-        tracker_start()
+    backend_start = getattr(backend, "start", None)
+    if callable(backend_start):
+        backend_start()
     items_service.start()
     model.start_applets()
     return False

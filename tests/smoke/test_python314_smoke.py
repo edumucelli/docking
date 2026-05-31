@@ -69,6 +69,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
         },
+        "docking.platform.backends.selection": {
+            "create_session_backend": lambda **_kwargs: None,
+        },
         "docking.platform.backends.x11.session": {
             "build_x11_window_tracker": lambda **_kwargs: None,
         },
@@ -244,6 +247,10 @@ def test_app_main_smoke(monkeypatch):
     model = MagicMock()
     renderer = MagicMock()
     tracker = MagicMock()
+    preview_service = MagicMock()
+    backend = MagicMock()
+    backend.windows = tracker
+    backend.previews = preview_service
     unity = MagicMock()
     new_year = MagicMock()
     window = MagicMock()
@@ -262,8 +269,8 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
     monkeypatch.setattr(
         app_mod,
-        "build_x11_window_tracker",
-        MagicMock(return_value=tracker),
+        "create_session_backend",
+        MagicMock(return_value=backend),
     )
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
     monkeypatch.setattr(
