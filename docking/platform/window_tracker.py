@@ -151,7 +151,6 @@ pretending the X11 world is stable during every scan.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from itertools import chain, pairwise
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -161,7 +160,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
-from docking.platform.backends.base import Rect, WindowId, WindowSnapshot
+from docking.platform.backends.base import ActionResult, Rect, WindowId, WindowSnapshot
 from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
@@ -280,7 +279,10 @@ class WindowMatcher:
                 class_lower=class_lower, class_group=class_group
             )
         ]
-        for desktop_id, next_candidate in pairwise(chain(candidate_ids, [None])):
+        for index, desktop_id in enumerate(candidate_ids):
+            next_candidate = (
+                candidate_ids[index + 1] if index + 1 < len(candidate_ids) else None
+            )
             if desktop_id in self._missed_desktop_candidates:
                 continue
             info = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
@@ -784,22 +786,23 @@ class WindowTracker:
             # Activate the most recent window
             self.activate_window(window=windows[0])
 
-    def activate_most_recent(self, desktop_id: str) -> None:
+    def activate_most_recent(self, desktop_id: str) -> ActionResult:
         """Focus the MRU window for desktop_id, or minimize if already active."""
         if self._screen is None:
-            return
+            return ActionResult.UNSUPPORTED
 
         windows = self._get_windows_for(desktop_id=desktop_id)
         if not windows:
-            return
+            return ActionResult.NOT_FOUND
 
         active_window = self._screen.get_active_window()
         if active_window and active_window in windows:
             self.minimize_windows(desktop_id=desktop_id)
-            return
+            return ActionResult.OK
 
         target = self._most_recent_window(windows=windows)
         self.activate_window(window=target)
+        return ActionResult.OK
 
     def _most_recent_window(self, windows: list[Wnck.Window]) -> Wnck.Window:
         """Return the topmost window in stacking order from the candidates."""
@@ -886,16 +889,22 @@ class WindowTracker:
                 f"Failed to close window: {exc}"
             )
 
-    def close_all(self, desktop_id: str) -> None:
+    def close_all(self, desktop_id: str) -> ActionResult:
         """Close all windows for a desktop_id."""
         timestamp = Gtk.get_current_event_time() or 0
-        for w in self._get_windows_for(desktop_id=desktop_id):
+        windows = self._get_windows_for(desktop_id=desktop_id)
+        if not windows:
+            return ActionResult.NOT_FOUND
+        result = ActionResult.OK
+        for w in windows:
             try:
                 w.close(timestamp)
             except _RECOVERABLE_ERRORS as exc:
                 log.bind(action="close_all", desktop_id=desktop_id).warning(
                     f"Failed to close window: {exc}"
                 )
+                result = ActionResult.FAILED
+        return result
 
     def close_xid(self, xid: int) -> None:
         """Close a specific window by XID, if still present."""

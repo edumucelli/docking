@@ -63,8 +63,7 @@ class X11WindowService(WindowTracker):
             return ActionResult.UNSUPPORTED
         if not self._get_windows_for(desktop_id=desktop_id):
             return ActionResult.NOT_FOUND
-        super().activate_most_recent(desktop_id=desktop_id)
-        return ActionResult.OK
+        return super().activate_most_recent(desktop_id=desktop_id)
 
     def cycle(self, desktop_id: str) -> ActionResult:
         """Cycle windows for a desktop ID using the existing X11 policy."""
@@ -100,8 +99,7 @@ class X11WindowService(WindowTracker):
             return ActionResult.UNSUPPORTED
         if not self._get_windows_for(desktop_id=desktop_id):
             return ActionResult.NOT_FOUND
-        super().close_all(desktop_id=desktop_id)
-        return ActionResult.OK
+        return super().close_all(desktop_id=desktop_id)
 
     @staticmethod
     def _xid_from_window_id(window_id: WindowId) -> int | None:
