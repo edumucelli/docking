@@ -250,7 +250,9 @@ def test_app_main_smoke(monkeypatch):
     preview_service = MagicMock()
     backend = MagicMock()
     backend.windows = tracker
+    visibility_service = MagicMock()
     backend.previews = preview_service
+    backend.visibility = visibility_service
     unity = MagicMock()
     new_year = MagicMock()
     window = MagicMock()

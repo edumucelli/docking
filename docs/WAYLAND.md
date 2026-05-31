@@ -3160,10 +3160,10 @@ now has the X11 window facade, production X11 runtime wiring, neutral
 `WindowId` values alongside existing XIDs, and menu rows backed by
 `WindowSnapshot`.
 
-The next active X11 migration PR is the X11-only session backend shape. It
-should group the already-migrated window and preview services behind an explicit
-session backend without changing current X11 behavior, and it should leave
-visibility and surface ownership to their dedicated later PRs.
+The next active X11 migration PR is the visibility service step. It should move
+X11 dodge monitor ownership behind `VisibilityService` without changing current
+overlap or hide-mode behavior, and it should leave surface ownership to its
+dedicated later PR.
 
 An optional temporary fallback can make that step safer:
 
@@ -3431,7 +3431,7 @@ Exit criteria:
 - preview behavior remains the same on X11
 - tests cover stale/not-found `WindowId` handling
 
-#### [ ] PR 7: Complete Session Backend Shape With X11 Only
+#### [x] PR 7: Complete Session Backend Shape With X11 Only
 
 Complete the X11 `SessionBackend` shape after the first runtime service wiring
 and after menu/preview can consume services. Production still selects only the

@@ -18,10 +18,12 @@ from docking.platform.backends.x11.session import (
     build_x11_session_backend,
     build_x11_window_tracker,
 )
+from docking.platform.backends.x11.visibility import X11VisibilityService
 from docking.platform.backends.x11.windows import X11WindowService
 
 __all__ = [
     "X11SessionBackend",
+    "X11VisibilityService",
     "X11WindowService",
     "build_x11_session_backend",
     "build_x11_window_tracker",
