@@ -13,18 +13,30 @@
 
 """X11 backend services."""
 
+from docking.platform.backends.x11.services.actions import WnckDesktopActionService
+from docking.platform.backends.x11.services.capture import X11ScreenCaptureService
+from docking.platform.backends.x11.services.idle import X11IdleService
+from docking.platform.backends.x11.services.picking import WnckWindowPickService
+from docking.platform.backends.x11.services.previews import X11PreviewService
+from docking.platform.backends.x11.services.surface import X11SurfaceService
+from docking.platform.backends.x11.services.visibility import X11VisibilityService
+from docking.platform.backends.x11.services.windows import X11WindowService
+from docking.platform.backends.x11.services.workspaces import WnckWorkspaceService
 from docking.platform.backends.x11.session import (
+    X11RuntimeServices,
     X11SessionBackend,
-    build_x11_session_backend,
-    build_x11_window_tracker,
 )
-from docking.platform.backends.x11.visibility import X11VisibilityService
-from docking.platform.backends.x11.windows import X11WindowService
 
 __all__ = [
+    "WnckDesktopActionService",
+    "WnckWindowPickService",
+    "WnckWorkspaceService",
+    "X11IdleService",
+    "X11PreviewService",
+    "X11RuntimeServices",
+    "X11ScreenCaptureService",
     "X11SessionBackend",
+    "X11SurfaceService",
     "X11VisibilityService",
     "X11WindowService",
-    "build_x11_session_backend",
-    "build_x11_window_tracker",
 ]

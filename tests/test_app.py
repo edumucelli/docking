@@ -57,12 +57,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.backends.selection": {
             "create_session_backend": lambda **_kwargs: None,
         },
-        "docking.platform.backends.x11.session": {
-            "build_x11_window_tracker": lambda **_kwargs: None,
-        },
-        "docking.platform.window_tracker": {
-            "WindowTracker": type("WindowTracker", (), {}),
-        },
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },
@@ -128,9 +122,16 @@ class TestAppMain:
         preview_service = MagicMock()
         backend = MagicMock()
         backend.windows = tracker
+        surface_service = MagicMock()
         visibility_service = MagicMock()
         backend.previews = preview_service
+        backend.surface = surface_service
         backend.visibility = visibility_service
+        backend.desktop_actions = MagicMock()
+        backend.workspaces = MagicMock()
+        backend.window_picker = MagicMock()
+        backend.idle = MagicMock()
+        backend.screen_capture = MagicMock()
         unity = MagicMock()
         new_year = MagicMock()
         window = MagicMock()
@@ -190,6 +191,12 @@ class TestAppMain:
         # Then
         theme_cls.load.assert_called_once_with(name="default", icon_size=48)
         theme.with_opacity.assert_called_once_with(1.0)
+        services = model.set_applet_services.call_args.args[0]
+        assert services.desktop_actions is backend.desktop_actions
+        assert services.workspaces is backend.workspaces
+        assert services.window_picker is backend.window_picker
+        assert services.idle is backend.idle
+        assert services.screen_capture is backend.screen_capture
         factory.assert_called_once_with(
             config=config,
             model=model,
@@ -197,6 +204,7 @@ class TestAppMain:
             theme=applied_theme,
             window_tracker=tracker,
             preview_service=preview_service,
+            surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
         )
@@ -236,20 +244,6 @@ class TestAppMain:
         for call in fake_glib.unix_signal_add.call_args_list:
             assert call.args[2] is app_mod._quit
 
-    def test_start_runtime_allows_legacy_tracker_without_start(self, monkeypatch):
-        # Given
-        app_mod, _fake_glib, _fake_gtk = _load_app_module(monkeypatch)
-        items_service = MagicMock()
-        model = MagicMock()
-
-        # When
-        result = app_mod._start_runtime(items_service, model, object())
-
-        # Then
-        assert result is False
-        items_service.start.assert_called_once()
-        model.start_applets.assert_called_once()
-
     def test_module_entrypoint_invokes_main(self, monkeypatch):
         # Given
         _app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
@@ -265,8 +259,10 @@ class TestAppMain:
         preview_service = MagicMock()
         backend = MagicMock()
         backend.windows = tracker
+        surface_service = MagicMock()
         visibility_service = MagicMock()
         backend.previews = preview_service
+        backend.surface = surface_service
         backend.visibility = visibility_service
         unity = MagicMock()
         new_year = MagicMock()

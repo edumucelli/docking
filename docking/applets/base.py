@@ -83,6 +83,7 @@ from docking.core.items import APPLET_KIND, DockItem
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
 
 log = get_logger("applets.base")
@@ -453,6 +454,11 @@ class Applet(ABC):
         Applets that need per-instance or late-bound preference loading can
         override this method. Default applets have nothing to apply.
         """
+        return
+
+    def set_services(self, services: AppletServices) -> None:
+        """Attach backend services; applets that need them override this hook."""
+        _ = services
         return
 
     def start(self, notify: Callable[[], None]) -> None:

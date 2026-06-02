@@ -28,7 +28,6 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.deskpresence import meta
-from docking.applets.deskpresence.idle import get_idle_ms
 from docking.applets.deskpresence.render import render_icon
 from docking.applets.deskpresence.state import (
     DEFAULT_POLL_INTERVAL_S,
@@ -42,6 +41,7 @@ from docking.applets.deskpresence.state import (
     state_from_prefs,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
+from docking.applets.services import AppletServices
 from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -49,6 +49,7 @@ from docking.log import get_logger, with_context
 if TYPE_CHECKING:
     from docking.applets.deskpresence.state import PresenceState
     from docking.core.config import Config
+    from docking.platform.backends.base import IdleService
 
 log = with_context(get_logger(name="deskpresence"), applet_id=meta.id)
 
@@ -70,7 +71,7 @@ class DeskpresenceApplet(Applet):
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
-        self._idle_probe: Callable[[], int | None] = get_idle_ms
+        self._idle_service: IdleService | None = None
 
         prefs = prefs_from_mapping(
             config.applet_prefs.get(meta.id, {}) if config else None
@@ -79,6 +80,9 @@ class DeskpresenceApplet(Applet):
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        self._idle_service = services.idle
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         phase = self._pulse_phase if self._state.presence is Presence.AT_DESK else None
@@ -148,7 +152,12 @@ class DeskpresenceApplet(Applet):
         return False
 
     def _tick(self) -> bool:
-        idle_ms = self._idle_probe()
+        idle_seconds = (
+            self._idle_service.idle_seconds()
+            if self._idle_service is not None
+            else None
+        )
+        idle_ms = int(idle_seconds * 1000) if idle_seconds is not None else None
         apply_tick(
             state=self._state,
             idle_ms=idle_ms,

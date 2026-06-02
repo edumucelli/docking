@@ -43,9 +43,9 @@ def create_session_backend(
     backend lazily so future native Wayland startup can avoid importing X11-only
     modules before selection.
     """
-    from docking.platform.backends.x11.session import build_x11_session_backend
+    from docking.platform.backends.x11.session import X11SessionBackend
 
-    backend = build_x11_session_backend(
+    backend = X11SessionBackend(
         model=model,
         launcher=launcher,
         config=config,

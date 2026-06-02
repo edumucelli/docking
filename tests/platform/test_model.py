@@ -11,6 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
@@ -61,7 +62,7 @@ class TestDockModelInit:
         config = _make_config(["a.desktop", "b.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         # When
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         items = model.visible_items()
         # Then
         assert len(items) == 2
@@ -74,7 +75,7 @@ class TestDockModelInit:
         config = _make_config(["a.desktop", "missing.desktop"])
         launcher = _make_launcher("a.desktop")
         # When
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # Then
         assert len(model.visible_items()) == 1
 
@@ -83,7 +84,7 @@ class TestDockModelInit:
         config = _make_config([])
         launcher = _make_launcher()
         # When
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # Then
         assert model.visible_items() == []
 
@@ -93,7 +94,7 @@ class TestUpdateRunning:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # When
         model.update_running({"a.desktop": _running(count=2, active=True)})
         # Then
@@ -106,7 +107,7 @@ class TestUpdateRunning:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # When
         model.update_running(
             {
@@ -125,7 +126,7 @@ class TestUpdateRunning:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         # When
@@ -139,7 +140,7 @@ class TestUpdateRunning:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.update_running({"a.desktop": _running(active=True)})
         assert model.visible_items()[0].is_running
         # When
@@ -153,7 +154,7 @@ class TestPinUnpin:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.update_running({"b.desktop": _running()})
         # When
         model.pin_item("b.desktop")
@@ -168,7 +169,7 @@ class TestPinUnpin:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.update_running({"a.desktop": _running()})
         # When
         model.unpin_item("a.desktop")
@@ -183,7 +184,7 @@ class TestPinUnpin:
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # When
         model.unpin_item("b.desktop")
         # Then - item is animating out, flush animation to complete removal
@@ -199,7 +200,7 @@ class TestReorderVisible:
         config = _make_config(["a.desktop", "b.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
         # When
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # Then
         assert isinstance(model.pinned_items, list)
         assert all(isinstance(it, DockItem) for it in model.pinned_items)
@@ -209,7 +210,7 @@ class TestReorderVisible:
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         # When
@@ -224,7 +225,7 @@ class TestReorderVisible:
         # Given
         config = _make_config(["a.desktop", "b.desktop", "c.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop", "c.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # When
         model.reorder_visible(0, 2)
         # Then
@@ -236,7 +237,7 @@ class TestReorderVisible:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         assert not model.visible_items()[1].is_pinned
@@ -253,7 +254,7 @@ class TestReorderVisible:
         # Given
         config = _make_config([])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.update_running(
             {
                 "a.desktop": _running(),
@@ -273,7 +274,7 @@ class TestReorderVisible:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # When
         model.reorder_visible(0, 5)
         # Then
@@ -306,7 +307,7 @@ class TestReorderVisible:
             ),
         ]
 
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
 
         assert [item.kind for item in model.visible_items()] == [
             APP_KIND,
@@ -320,7 +321,7 @@ class TestCallbacks:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         # When
@@ -331,7 +332,7 @@ class TestCallbacks:
     def test_removed_change_listener_does_not_fire(self):
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         model.remove_change_listener(callback)
@@ -343,7 +344,7 @@ class TestCallbacks:
     def test_change_listeners_fire_in_registration_order(self):
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         calls: list[str] = []
 
         model.add_change_listener(lambda: calls.append("first"))
@@ -356,7 +357,7 @@ class TestCallbacks:
     def test_listener_can_remove_itself_during_notify(self):
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         calls: list[str] = []
 
         def first() -> None:
@@ -395,7 +396,7 @@ class TestAppletLifecycleIntegration:
         loader = MagicMock(return_value=lambda icon_size, config: fake_applet)
         monkeypatch.setattr(applets_mod, "load_applet_class", loader)
 
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
 
         loader.assert_called_once_with("session")
         assert model.pinned_items == [fake_item]
@@ -407,7 +408,7 @@ class TestAppletLifecycleIntegration:
         # Given
         config = _make_config([])
         launcher = _make_launcher()
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
 
@@ -447,7 +448,7 @@ class TestAppletLifecycleIntegration:
         # Given
         config = _make_config([])
         launcher = _make_launcher()
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
 
         import docking.applets as applets_mod
 
@@ -479,7 +480,7 @@ class TestAppletLifecycleIntegration:
     ):
         config = _make_config(["a.desktop", "b.desktop"])
         launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
 
         import docking.applets as applets_mod
 
@@ -510,7 +511,7 @@ class TestAppletLifecycleIntegration:
         # Given
         config = _make_config([])
         launcher = _make_launcher()
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         applet = MagicMock()
         applet.item = DockItem(desktop_id="applet://x", name="X")
         model._applets["applet://x"] = applet
@@ -527,7 +528,7 @@ class TestAppletLifecycleIntegration:
         # Given
         config = _make_config([])
         launcher = _make_launcher()
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
 
@@ -558,7 +559,7 @@ class TestAppletLifecycleIntegration:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         item = model.find_by_desktop_id("a.desktop")
         # Then
         assert item is not None
@@ -576,7 +577,7 @@ class TestLauncherEntryState:
     def test_apply_launcher_entry_updates_existing_item(self):
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
 
         applied = model.apply_launcher_entry(
             sender_name=":1.7",
@@ -605,7 +606,7 @@ class TestLauncherEntryState:
     def test_launcher_entry_urgent_survives_running_rescan(self):
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.apply_launcher_entry(
             sender_name=":1.7",
             app_uri="application://a.desktop",
@@ -627,7 +628,7 @@ class TestLauncherEntryState:
     def test_apply_launcher_entry_creates_transient_after_retry_phase(self):
         config = _make_config([])
         launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -660,7 +661,7 @@ class TestLauncherEntryState:
     def test_apply_launcher_entry_creates_urgent_only_transient(self):
         config = _make_config([])
         launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -686,7 +687,7 @@ class TestLauncherEntryState:
     def test_remove_launcher_entry_drops_launcher_only_transient(self):
         config = _make_config([])
         launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -708,7 +709,7 @@ class TestLauncherEntryState:
     def test_update_running_preserves_launcher_only_transient(self):
         config = _make_config([])
         launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -734,7 +735,7 @@ class TestLauncherEntryState:
     def test_update_running_preserves_urgent_only_launcher_transient(self):
         config = _make_config([])
         launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -759,7 +760,7 @@ class TestLauncherEntryState:
     def test_unpin_with_launcher_overlay_becomes_transient(self):
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.7",
             app_uri="application://a.desktop",
@@ -796,7 +797,7 @@ class TestDockItemAnimationFields:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # When
         model.update_running({"a.desktop": _running(urgent=True)})
         # Then
@@ -808,7 +809,7 @@ class TestDockItemAnimationFields:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         # When
         model.update_running({"a.desktop": _running(urgent=True)})
         first_ts = model.visible_items()[0].last_urgent
@@ -822,7 +823,7 @@ class TestDockItemAnimationFields:
         # Given
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher)
+        model = DockModel(config, launcher, AppletServices())
         model.update_running({"a.desktop": _running(urgent=True)})
         # When
         model.update_running({"a.desktop": _running(urgent=False)})

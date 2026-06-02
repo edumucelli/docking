@@ -20,6 +20,7 @@ class TestBuildDockWindow:
         tracker = MagicMock()
         launcher = MagicMock()
         preview_service = MagicMock()
+        surface_service = MagicMock()
         visibility_service = MagicMock()
 
         window = MagicMock()
@@ -36,6 +37,7 @@ class TestBuildDockWindow:
             theme=theme,
             window_tracker=tracker,
             preview_service=preview_service,
+            surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
         )
@@ -49,6 +51,7 @@ class TestBuildDockWindow:
             window_tracker=tracker,
             launcher=launcher,
             preview_service=preview_service,
+            surface_service=surface_service,
         )
         kwargs = visibility_service.create_monitor.call_args.kwargs
         assert callable(kwargs["get_dock_rect"])
@@ -64,6 +67,7 @@ class TestBuildDockWindow:
         tracker = MagicMock()
         launcher = MagicMock()
         preview_service = MagicMock()
+        surface_service = MagicMock()
         visibility_service = MagicMock()
         visibility_service.create_monitor.return_value = None
 
@@ -78,6 +82,7 @@ class TestBuildDockWindow:
             theme=theme,
             window_tracker=tracker,
             preview_service=preview_service,
+            surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
         )
@@ -95,6 +100,7 @@ class TestBuildDockWindow:
         tracker = MagicMock()
         launcher = MagicMock()
         preview_service = MagicMock()
+        surface_service = MagicMock()
         visibility_service = MagicMock()
 
         window = MagicMock()
@@ -120,6 +126,7 @@ class TestBuildDockWindow:
             theme=theme,
             window_tracker=tracker,
             preview_service=preview_service,
+            surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
         )
@@ -136,6 +143,7 @@ class TestBuildDockWindow:
         tracker = MagicMock()
         launcher = MagicMock()
         preview_service = MagicMock()
+        surface_service = MagicMock()
         visibility_service = MagicMock()
 
         window = MagicMock()
@@ -159,6 +167,7 @@ class TestBuildDockWindow:
             theme=theme,
             window_tracker=tracker,
             preview_service=preview_service,
+            surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
         )

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from docking.core.position import Position
-from docking.platform.barriers import PointerBarrier, _load_libs
+from docking.platform.backends.x11.impl.barriers import PointerBarrier, _load_libs
 
 
 class TestLoadLibs:
@@ -61,7 +61,9 @@ class TestPointerBarrierInitialize:
 
     def test_unsupported_when_libs_unavailable(self):
         barrier = PointerBarrier()
-        with patch("docking.platform.barriers._load_libs", return_value=None):
+        with patch(
+            "docking.platform.backends.x11.impl.barriers._load_libs", return_value=None
+        ):
             assert not barrier.initialize(gdk_display=self._make_mock_display())
             assert not barrier.supported
 
@@ -70,7 +72,9 @@ class TestPointerBarrierInitialize:
         xlib = MagicMock()
         xlib.XQueryExtension.return_value = 0  # extension not found
         libs = (xlib, MagicMock(), MagicMock())
-        with patch("docking.platform.barriers._load_libs", return_value=libs):
+        with patch(
+            "docking.platform.backends.x11.impl.barriers._load_libs", return_value=libs
+        ):
             assert not barrier.initialize(gdk_display=self._make_mock_display())
             assert not barrier.supported
 
@@ -81,7 +85,9 @@ class TestPointerBarrierInitialize:
         xi = MagicMock()
         xi.XIQueryVersion.return_value = -1  # failure
         libs = (xlib, MagicMock(), xi)
-        with patch("docking.platform.barriers._load_libs", return_value=libs):
+        with patch(
+            "docking.platform.backends.x11.impl.barriers._load_libs", return_value=libs
+        ):
             # ctypes argtypes assignment will proceed but the mock
             # won't behave like real ctypes; test the load path
             result = barrier.initialize(gdk_display=self._make_mock_display())

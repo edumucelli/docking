@@ -113,6 +113,7 @@ class _ScenarioHarness:
         self.preview = None
         self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
+        self.surface_service = MagicMock()
         self.renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         self.autohide = SimpleNamespace(
             enabled=True,
@@ -420,6 +421,7 @@ class TestMenuLifecycleScenarios:
             model=harness.model,
             config=cast(Any, harness.config),
             window_tracker=harness.window_tracker,
+            preview_service=MagicMock(),
             geometry_builder=cast(Any, _GeometryBuilder()),
         )
         created: list[_FakePopupMenu] = []
@@ -533,9 +535,13 @@ class TestPlacementScenarios:
             move=MagicMock(),
             drawing_area=SimpleNamespace(queue_draw=MagicMock()),
             update_input_region=MagicMock(),
+            surface_service=MagicMock(),
             additional_distance_from_edge=0,
         )
-        controller = placement_mod.DockPlacementController(cast(Any, window))
+        controller = placement_mod.DockPlacementController(
+            cast(Any, window),
+            surface_service=window.surface_service,
+        )
         reposition = MagicMock()
         monkeypatch.setattr(controller, "reposition", reposition)
 

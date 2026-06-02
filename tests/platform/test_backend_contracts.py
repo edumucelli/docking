@@ -1,10 +1,16 @@
 """Tests for backend-neutral platform contracts."""
 
+import pytest
+
 from docking.platform.backends.base import (
     ActionResult,
+    DisplayServer,
     PlatformCapabilities,
     Rect,
+    SessionBackend,
+    SurfaceService,
     WindowId,
+    WindowService,
     WindowSnapshot,
 )
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
@@ -14,13 +20,13 @@ class TestWindowId:
     def test_x11_constructor_preserves_backend_and_xid(self):
         window_id = WindowId.x11(42)
 
-        assert window_id.backend == "x11"
+        assert window_id.backend is DisplayServer.X11
         assert window_id.value == 42
         assert str(window_id) == "x11:42"
 
     def test_distinguishes_same_value_from_different_backends(self):
-        x11 = WindowId("x11", 7)
-        wayland = WindowId("wayland-wlr", 7)
+        x11 = WindowId(DisplayServer.X11, 7)
+        wayland = WindowId(DisplayServer.WAYLAND, 7)
 
         assert x11 != wayland
         assert len({x11, wayland}) == 2
@@ -100,3 +106,10 @@ class TestActionResult:
         assert not ActionResult.UNSUPPORTED.succeeded
         assert not ActionResult.NOT_FOUND.succeeded
         assert not ActionResult.FAILED.succeeded
+
+
+class TestBackendContracts:
+    def test_service_contracts_are_nominal_abstract_bases(self):
+        for cls in (WindowService, SurfaceService, SessionBackend):
+            with pytest.raises(TypeError):
+                cls()

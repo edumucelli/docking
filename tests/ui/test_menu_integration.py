@@ -20,7 +20,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.platform.backends.base import WindowId, WindowSnapshot
+from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
 from docking.platform.model import DockItem
 
 
@@ -267,12 +267,13 @@ class FakeSeparatorMenuItem(FakeMenuItem):
 
 
 class FakeImage:
-    def __init__(self) -> None:
+    def __init__(self, pixbuf=None) -> None:
         self.pixel_size = None
+        self.pixbuf = pixbuf
 
     @classmethod
-    def new_from_pixbuf(cls, _pixbuf):
-        return cls()
+    def new_from_pixbuf(cls, pixbuf):
+        return cls(pixbuf=pixbuf)
 
     def set_pixel_size(self, size: int) -> None:
         self.pixel_size = size
@@ -741,6 +742,8 @@ def handler(monkeypatch):
     )
     tracker = MagicMock()
     tracker.list_windows.return_value = []
+    preview_service = MagicMock()
+    preview_service.thumbnail.return_value = None
     launcher = MagicMock()
     launcher.default_directory_app_name.return_value = None
     return menu_mod.MenuHandler(
@@ -750,6 +753,7 @@ def handler(monkeypatch):
         model=model,
         config=config,
         window_tracker=tracker,
+        preview_service=preview_service,
         launcher=launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )
@@ -1093,6 +1097,7 @@ class TestItemMenus:
             instance_count=1,
         )
         window_id = WindowId.x11(7)
+        pixbuf = object()
         handler._tracker.list_windows.return_value = [
             WindowSnapshot(
                 id=window_id,
@@ -1100,6 +1105,11 @@ class TestItemMenus:
                 title="A" * 80,
             )
         ]
+        handler._preview_service.thumbnail.return_value = PreviewImage(
+            image=pixbuf,
+            width=menu_mod.WINDOW_MENU_THUMB_W,
+            height=menu_mod.WINDOW_MENU_THUMB_H,
+        )
         monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
 
         handler._build_item_menu(menu=menu, item=item)
@@ -1107,6 +1117,12 @@ class TestItemMenus:
         row = menu.children[0]
         assert isinstance(row.get_child(), FakeBox)
         assert isinstance(row.get_child().children[0], FakeImage)
+        assert row.get_child().children[0].pixbuf is pixbuf
+        handler._preview_service.thumbnail.assert_called_once_with(
+            window_id,
+            width=menu_mod.WINDOW_MENU_THUMB_W,
+            height=menu_mod.WINDOW_MENU_THUMB_H,
+        )
         assert isinstance(row.get_child().children[1], FakeLabel)
         assert (
             row.get_child().children[1].max_width_chars == menu_mod.MENU_LABEL_MAX_CHARS

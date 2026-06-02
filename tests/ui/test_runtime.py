@@ -44,6 +44,7 @@ def _make_window():
         ),
         autohide=_autohide(),
         dnd=SimpleNamespace(set_locked=MagicMock()),
+        surface_service=SimpleNamespace(set_workspace_scope=MagicMock()),
         tooltip=SimpleNamespace(hide=MagicMock()),
         preview=SimpleNamespace(hide=MagicMock()),
         theme="old-theme",
@@ -103,6 +104,7 @@ class TestDockRuntime:
         runtime.on_hide_mode_changed()
         runtime.set_icons_locked(True)
         runtime.queue_draw()
+        runtime.set_current_workspace_only(True)
         runtime.hide_tooltip()
         runtime.hide_hover_ui()
         runtime.set_theme(cast(Theme, "new-theme"))
@@ -111,7 +113,10 @@ class TestDockRuntime:
 
         window.on_hide_mode_changed.assert_called_once()
         window.dnd.set_locked.assert_called_once_with(True)
-        window.queue_redraw.assert_called_once()
+        assert window.queue_redraw.call_count == 2
+        window.surface_service.set_workspace_scope.assert_called_once_with(
+            current_workspace_only=True
+        )
         assert window.tooltip.hide.call_count == 2
         window.preview.hide.assert_called_once()
         update_checker.check_now.assert_called_once()

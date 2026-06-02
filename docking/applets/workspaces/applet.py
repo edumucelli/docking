@@ -11,12 +11,12 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Workspaces applet behavior and GTK/Wnck wiring."""
+"""Workspaces applet behavior and GTK wiring."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import cairo
 import gi
@@ -24,18 +24,18 @@ import gi
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
-gi.require_version("Wnck", "3.0")
-from gi.repository import Gdk, GdkPixbuf, Gtk, Wnck
+from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections, radio_menu_items
+from docking.applets.services import AppletServices
 from docking.applets.workspaces import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.backends.base import WorkspaceService, WorkspaceSnapshot
 
 from .render import _render_grid
 from .state import (
-    active_workspace_number,
     next_workspace_index,
     workspace_count,
     workspace_label,
@@ -55,8 +55,8 @@ class WorkspacesApplet(Applet):
     icon_name = "preferences-desktop-workspaces"
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        self._screen: Wnck.Screen | None = None
-        self._signal_id: int = 0
+        self._workspace_service: WorkspaceService | None = None
+        self._watch_handle: object | None = None
         self._last_logged_state: tuple[int, int, str, str] | None = None
         self._workspace_count: int = 1
         self._active_num: int = -1
@@ -64,17 +64,23 @@ class WorkspacesApplet(Applet):
         super().__init__(icon_size, config)
         self.present()
 
+    def set_services(self, services: AppletServices) -> None:
+        if self._workspace_service is not None and self._watch_handle is not None:
+            self._workspace_service.unwatch_active_workspace(self._watch_handle)
+            self._watch_handle = None
+        self._workspace_service = services.workspaces
+        if self._workspace_service is not None and self._notify is not None:
+            self._watch_handle = self._workspace_service.watch_active_workspace(
+                self._on_workspace_changed
+            )
+        self.present()
+
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        screen = self._screen or Wnck.Screen.get_default()
-        if screen:
-            screen.force_update()
-        workspaces = screen.get_workspaces() if screen else []
-        active = screen.get_active_workspace() if screen else None
-        active_num = active_workspace_number(
-            active_number=active.get_number() if active else None
-        )
+        workspaces = self._workspace_snapshots()
+        active = self._active_workspace(workspaces=workspaces)
+        active_num = active.number if active is not None else -1
         count = workspace_count(count=len(workspaces) if workspaces else None)
-        active_name = (active.get_name() or "").strip() if active else ""
+        active_name = active.name if active is not None else ""
         self._workspace_count = count
         self._active_num = active_num
         self._active_name = active_name
@@ -113,76 +119,67 @@ class WorkspacesApplet(Applet):
 
     def on_clicked(self) -> None:
         """Cycle to next workspace."""
-        screen = self._screen
-        if screen is None:
+        service = self._workspace_service
+        if service is None:
             return
-        screen.force_update()
-        active = screen.get_active_workspace()
+        workspaces = self._workspace_snapshots()
+        active = self._active_workspace(workspaces=workspaces)
         if active is None:
             return
-        count = screen.get_workspace_count()
-        next_num = next_workspace_index(
-            current=active.get_number(), count=count, delta=1
-        )
+        count = len(workspaces)
+        next_num = next_workspace_index(current=active.number, count=count, delta=1)
         log.bind(action="on_clicked").debug(
             "workspace switch current=%s next=%s count=%s",
-            active.get_number(),
+            active.number,
             next_num,
             count,
         )
-        target = screen.get_workspace(next_num)
-        if target:
-            target.activate(Gtk.get_current_event_time() or 0)
+        service.activate(str(next_num))
 
     def on_scroll(self, direction_up: bool) -> None:
         """Switch workspace on scroll."""
-        screen = self._screen
-        if screen is None:
+        service = self._workspace_service
+        if service is None:
             return
-        screen.force_update()
-        active = screen.get_active_workspace()
+        workspaces = self._workspace_snapshots()
+        active = self._active_workspace(workspaces=workspaces)
         if active is None:
             return
-        count = screen.get_workspace_count()
+        count = len(workspaces)
         delta = -1 if direction_up else 1
         next_num = next_workspace_index(
-            current=active.get_number(),
+            current=active.number,
             count=count,
             delta=delta,
         )
         log.bind(action="on_scroll").debug(
             "workspace switch direction_up=%s current=%s next=%s count=%s",
             direction_up,
-            active.get_number(),
+            active.number,
             next_num,
             count,
         )
-        target = screen.get_workspace(next_num)
-        if target:
-            target.activate(Gtk.get_current_event_time() or 0)
+        service.activate(str(next_num))
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        screen = self._screen
-        if screen is None:
+        service = self._workspace_service
+        if service is None:
             return []
-        screen.force_update()
-        workspaces = screen.get_workspaces()
-        active = screen.get_active_workspace()
-        active_num = active_workspace_number(
-            active_number=active.get_number() if active else None
-        )
+        workspaces = self._workspace_snapshots()
+        active = self._active_workspace(workspaces=workspaces)
+        active_id = active.id if active else ""
 
         return menu_sections(
             display=radio_menu_items(
                 choices=tuple(
                     (
-                        workspace_label(name=ws.get_name(), number=ws.get_number()),
-                        ws,
+                        workspace_label(name=ws.name, number=ws.number),
+                        ws.id,
                     )
                     for ws in workspaces
                 ),
-                active_value=active_num,
-                is_active=lambda ws: ws.get_number() == active_num,
+                active_value=active_id,
+                is_active=lambda workspace_id: workspace_id == active_id,
                 on_selected=lambda widget, value: self._on_workspace_activate(
                     widget,
                     value,
@@ -193,33 +190,44 @@ class WorkspacesApplet(Applet):
         )
 
     def _on_workspace_activate(
-        self, _widget: Gtk.RadioMenuItem, workspace: Wnck.Workspace
+        self, _widget: Gtk.RadioMenuItem, workspace_id: str
     ) -> None:
         log.bind(action="menu_activate").debug(
-            "menu workspace activate number=%s name=%r",
-            workspace.get_number(),
-            workspace.get_name(),
+            "menu workspace activate id=%s",
+            workspace_id,
         )
-        workspace.activate(Gtk.get_current_event_time() or 0)
+        if self._workspace_service is not None:
+            self._workspace_service.activate(workspace_id)
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)
-        self._screen = Wnck.Screen.get_default()
-        if self._screen:
-            self._screen.force_update()
-            self._signal_id = self._screen.connect(
-                "active-workspace-changed", self._on_workspace_changed
+        if self._workspace_service is not None:
+            self._watch_handle = self._workspace_service.watch_active_workspace(
+                self._on_workspace_changed
             )
             self.present()
 
     def stop(self) -> None:
-        if self._screen and self._signal_id:
-            self._screen.disconnect(self._signal_id)
-            self._signal_id = 0
+        if self._workspace_service is not None and self._watch_handle is not None:
+            self._workspace_service.unwatch_active_workspace(self._watch_handle)
+            self._watch_handle = None
         super().stop()
 
-    def _on_workspace_changed(self, _screen: Wnck.Screen, *_args: Any) -> None:
+    def _on_workspace_changed(self) -> None:
         log.bind(action="workspace_changed").debug("received active-workspace-changed")
-        if self._screen:
-            self._screen.force_update()
         self.present()
+
+    def _workspace_snapshots(self) -> tuple[WorkspaceSnapshot, ...]:
+        if self._workspace_service is None:
+            return ()
+        return tuple(self._workspace_service.list_workspaces())
+
+    def _active_workspace(
+        self, *, workspaces: tuple[WorkspaceSnapshot, ...]
+    ) -> WorkspaceSnapshot | None:
+        for workspace in workspaces:
+            if workspace.active:
+                return workspace
+        if self._workspace_service is None:
+            return None
+        return self._workspace_service.active_workspace()

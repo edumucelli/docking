@@ -155,6 +155,7 @@ from docking.applets.identity import (
     is_applet_desktop_id,
 )
 from docking.applets.separator import meta as _separator_meta
+from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry, normalize_pinned_entries
 from docking.core.items import (
     APP_KIND,
@@ -203,9 +204,15 @@ class LauncherEntryState:
 class DockModel:
     """Ordered collection of dock items, merging pinned and running apps."""
 
-    def __init__(self, config: Config, launcher: Launcher) -> None:
+    def __init__(
+        self,
+        config: Config,
+        launcher: Launcher,
+        applet_services: AppletServices,
+    ) -> None:
         self._config = config
         self._launcher = launcher
+        self._applet_services = applet_services
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
@@ -250,6 +257,7 @@ class DockModel:
             if cls:
                 try:
                     applet = cls(icon_size=icon_size, config=self._config)
+                    applet.set_services(self._applet_services)
                     applet.item.desktop_id = entry.id
                     applet.item.kind = APPLET_KIND
                     applet.item.target = entry.target
@@ -461,6 +469,12 @@ class DockModel:
         """Look up active applet by desktop_id."""
         return self._applets.get(desktop_id)
 
+    def set_applet_services(self, services: AppletServices) -> None:
+        """Attach applet-facing backend services to current and future applets."""
+        self._applet_services = services
+        for applet in self._applets.values():
+            applet.set_services(services)
+
     def add_applet(self, applet_id: str) -> None:
         """Instantiate a applet and add to the dock."""
         did = applet_id
@@ -485,6 +499,7 @@ class DockModel:
         icon_size = self._config.scaled_icon_size
         try:
             applet = cls(icon_size=icon_size, config=self._config)
+            applet.set_services(self._applet_services)
         except Exception:
             log.bind(applet_id=str(did), action="add_applet").exception(
                 f"Failed to create applet {did}"
@@ -516,6 +531,7 @@ class DockModel:
         icon_size = self._config.scaled_icon_size
         try:
             applet = cls(icon_size=icon_size, config=self._config)
+            applet.set_services(self._applet_services)
         except Exception:
             log.bind(applet_id="separator", action="add_separator").exception(
                 "Failed to create separator",

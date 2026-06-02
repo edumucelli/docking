@@ -16,8 +16,8 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.window_tracker as window_tracker_mod
-from docking.platform.backends.base import ActionResult, WindowId
+import docking.platform.backends.x11.impl.window_tracker as window_tracker_mod
+from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.launcher import DesktopInfo
 from docking.platform.model import DockItem
 
@@ -85,9 +85,15 @@ class FakeWindow:
 
 
 class FakeScreen:
-    def __init__(self, windows: list[FakeWindow], active_window: FakeWindow | None):
+    def __init__(
+        self,
+        windows: list[FakeWindow],
+        active_window: FakeWindow | None,
+        active_workspace: object | None = None,
+    ):
         self._windows = windows
         self._active_window = active_window
+        self._active_workspace = active_workspace
         self.force_update_called = 0
         self.connections: list[str] = []
 
@@ -102,6 +108,9 @@ class FakeScreen:
 
     def get_active_window(self) -> FakeWindow | None:
         return self._active_window
+
+    def get_active_workspace(self) -> object | None:
+        return self._active_workspace
 
 
 @pytest.fixture
@@ -244,7 +253,40 @@ class TestWindowTrackerRunningAggregation:
             "code.desktop": [3],
         }
 
-    def test_get_windows_for_uses_cached_xids_and_filters(self, tracker_env):
+    def test_update_running_filters_to_current_workspace(self, tracker_env):
+        tracker, model, _launcher = tracker_env
+        tracker._config = SimpleNamespace(current_workspace_only=True)
+        active_workspace = object()
+
+        class WorkspaceWindow(FakeWindow):
+            def __init__(self, xid: int, *, on_active_workspace: bool) -> None:
+                super().__init__(xid=xid, class_group="Firefox")
+                self._on_active_workspace = on_active_workspace
+
+            def is_on_workspace(self, workspace: object) -> bool:
+                assert workspace is active_workspace
+                return self._on_active_workspace
+
+        current = WorkspaceWindow(1, on_active_workspace=True)
+        other = WorkspaceWindow(2, on_active_workspace=False)
+        tracker._screen = FakeScreen(
+            windows=[current, other],
+            active_window=current,
+            active_workspace=active_workspace,
+        )
+        tracker._matcher.match = MagicMock(
+            side_effect=lambda window: (
+                "firefox.desktop" if window in {current, other} else None
+            )
+        )
+
+        tracker._update_running()
+
+        running = model.update_running.call_args.kwargs["running"]
+        assert running["firefox.desktop"].xids == (1,)
+        assert tracker._running_xids_by_desktop == {"firefox.desktop": [1]}
+
+    def test_internal_get_windows_for_uses_cached_xids_and_filters(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env
         tracker._running_xids_by_desktop = {"firefox.desktop": [1, 2, 3]}
@@ -254,11 +296,11 @@ class TestWindowTrackerRunningAggregation:
         tracker._screen = FakeScreen(windows=[w1, w2, w3], active_window=None)
 
         # When
-        windows = tracker.get_windows_for("firefox.desktop")
+        windows = tracker._get_windows_for("firefox.desktop")
         # Then
         assert windows == [w1]
 
-    def test_get_windows_for_skips_broken_xid_windows(self, tracker_env):
+    def test_internal_get_windows_for_skips_broken_xid_windows(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env
         tracker._running_xids_by_desktop = {"firefox.desktop": [1]}
@@ -272,9 +314,56 @@ class TestWindowTrackerRunningAggregation:
             active_window=None,
         )
         # When
-        windows = tracker.get_windows_for("firefox.desktop")
+        windows = tracker._get_windows_for("firefox.desktop")
         # Then
         assert [w.get_xid() for w in windows] == [1]
+
+    def test_list_preview_windows_preserves_cached_xids_across_workspaces(
+        self, tracker_env
+    ):
+        tracker, _model, _launcher = tracker_env
+        tracker._config = SimpleNamespace(current_workspace_only=True)
+        active_workspace = object()
+        tracker._running_xids_by_desktop = {"firefox.desktop": [1, 2]}
+
+        class WorkspaceWindow(FakeWindow):
+            def __init__(self, xid: int, *, on_active_workspace: bool) -> None:
+                super().__init__(xid=xid, class_group="Firefox")
+                self._on_active_workspace = on_active_workspace
+
+            def is_on_workspace(self, workspace: object) -> bool:
+                assert workspace is active_workspace
+                return self._on_active_workspace
+
+        current_workspace_window = WorkspaceWindow(1, on_active_workspace=True)
+        other_workspace_window = WorkspaceWindow(2, on_active_workspace=False)
+        tracker._screen = FakeScreen(
+            windows=[current_workspace_window, other_workspace_window],
+            active_window=None,
+            active_workspace=active_workspace,
+        )
+
+        assert tracker._get_windows_for("firefox.desktop") == [current_workspace_window]
+
+        snapshots = tracker.list_preview_windows("firefox.desktop")
+
+        assert [snapshot.id for snapshot in snapshots] == [
+            WindowId.x11(1),
+            WindowId.x11(2),
+        ]
+
+    def test_list_preview_windows_keeps_stale_cached_xids(self, tracker_env):
+        tracker, _model, _launcher = tracker_env
+        tracker._running_xids_by_desktop = {"firefox.desktop": [1, 99]}
+        tracker._screen = FakeScreen(windows=[FakeWindow(1)], active_window=None)
+
+        snapshots = tracker.list_preview_windows("firefox.desktop")
+
+        assert [snapshot.id for snapshot in snapshots] == [
+            WindowId.x11(1),
+            WindowId.x11(99),
+        ]
+        assert snapshots[1].title == "Window"
 
     def test_update_running_skips_broken_windows(self, tracker_env):
         # Given
@@ -348,10 +437,6 @@ class TestWindowMatching:
         # When
         # Then
         assert tracker._matcher.match(win) == "mongodb-compass.desktop"
-        assert (
-            tracker._matcher._wm_class_to_desktop["mongodb compass"]
-            == "mongodb-compass.desktop"
-        )
 
     def test_match_uses_gnome_prefix_fallback(self, tracker_env):
         # Given
@@ -400,10 +485,6 @@ class TestWindowMatching:
         win = FakeWindow(16, class_group="gnome-calculator")
 
         assert tracker._matcher.match(win) == "org.gnome.Calculator.desktop"
-        assert (
-            tracker._matcher._wm_class_to_desktop["gnome-calculator"]
-            == "org.gnome.Calculator.desktop"
-        )
 
 
 class TestWindowActions:
@@ -450,13 +531,13 @@ class TestWindowActions:
         assert w1.closed_with == [123]
         assert w2.closed_with == [123]
 
-    def test_close_xid_closes_only_matching_window(self, tracker_env):
+    def test_close_uses_window_id_only_matching_window(self, tracker_env):
         tracker, _model, _launcher = tracker_env
         w1 = FakeWindow(1)
         w2 = FakeWindow(2)
         tracker._screen = FakeScreen(windows=[w1, w2], active_window=None)
 
-        tracker.close_xid(2)
+        tracker.close(WindowId.x11(2))
 
         assert w1.closed_with == []
         assert w2.closed_with == [123]
@@ -476,7 +557,7 @@ class TestWindowActions:
     def test_activate_rejects_non_x11_window_id(self, tracker_env):
         tracker, _model, _launcher = tracker_env
 
-        result = tracker.activate(WindowId(backend="wayland", value="1"))
+        result = tracker.activate(WindowId(backend=DisplayServer.WAYLAND, value="1"))
 
         assert result is ActionResult.UNSUPPORTED
 
@@ -494,7 +575,7 @@ class TestWindowActions:
 
     def test_activate_window_handles_broken_native_calls(self, tracker_env):
         # Given
-        tracker, _model, _launcher = tracker_env
+        _tracker, _model, _launcher = tracker_env
 
         class BrokenActivateWindow(FakeWindow):
             def activate(self, timestamp: int) -> None:  # type: ignore[override]
@@ -502,12 +583,11 @@ class TestWindowActions:
 
         win = BrokenActivateWindow(30)
         # When
-        tracker.activate_xid = MagicMock()
         window_tracker_mod.WindowTracker.activate_window(win)
         # Then
         assert win.unminimize_count == 0
 
-    def test_get_window_title_for_xid_handles_error(self, tracker_env):
+    def test_list_windows_handles_title_error(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env
 
@@ -516,11 +596,12 @@ class TestWindowActions:
                 raise TypeError("bad name")
 
         bad = BrokenTitleWindow(40, class_group="Broken")
+        tracker._running_xids_by_desktop = {"broken.desktop": [40]}
         tracker._screen = FakeScreen(windows=[bad], active_window=None)
         # When
-        title = tracker.get_window_title_for_xid(40)
+        snapshots = tracker.list_windows("broken.desktop")
         # Then
-        assert title == "Window"
+        assert snapshots[0].title == "Window"
 
     def test_icon_name_for_desktop_uses_model_item_icon(self, tracker_env):
         # Given

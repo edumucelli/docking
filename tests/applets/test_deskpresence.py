@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import builtins
-import ctypes
-import sys
 import types
 from datetime import date
 from unittest.mock import patch
 
-import docking.applets.deskpresence.idle as idle_mod
 from docking.applets.deskpresence.applet import DeskpresenceApplet
 from docking.applets.deskpresence.state import (
     DEFAULT_IDLE_THRESHOLD_S,
@@ -28,6 +24,7 @@ from docking.applets.deskpresence.state import (
     week_at_desk_seconds,
     week_away_seconds,
 )
+from docking.applets.services import AppletServices
 from docking.core.config import Config
 
 
@@ -349,7 +346,8 @@ class TestAppletLifecycle:
 class TestAppletTick:
     def test_tick_credits_from_probe(self):
         applet = _make_applet()
-        applet._idle_probe = lambda: 500  # definitely at-desk
+        idle_service = types.SimpleNamespace(idle_seconds=lambda: 0.5)
+        applet.set_services(AppletServices(idle=idle_service))
         applet._state.session_start_epoch = 2000.0
         applet._state.presence = Presence.AT_DESK
         with patch(
@@ -363,7 +361,8 @@ class TestAppletTick:
         applet = _make_applet()
         applet._state.session_start_epoch = 2000.0
         applet._state.presence = Presence.AWAY
-        applet._idle_probe = lambda: 10 * 60 * 1000  # 10 minutes idle
+        idle_service = types.SimpleNamespace(idle_seconds=lambda: 10 * 60.0)
+        applet.set_services(AppletServices(idle=idle_service))
         with patch(
             "docking.applets.deskpresence.applet.time.time", return_value=2020.0
         ):
@@ -372,7 +371,8 @@ class TestAppletTick:
 
     def test_probe_failure_does_not_crash(self):
         applet = _make_applet()
-        applet._idle_probe = lambda: None
+        idle_service = types.SimpleNamespace(idle_seconds=lambda: None)
+        applet.set_services(AppletServices(idle=idle_service))
         applet._tick()
         # No assertion other than surviving; presence becomes UNKNOWN.
         assert applet._state.presence is Presence.UNKNOWN
@@ -472,138 +472,3 @@ class TestAppletPrefs:
         )
         applet = _make_applet(config=config)
         assert applet._state.idle_threshold_s == 240.0
-
-
-def _reset_idle_module() -> None:
-    idle_mod._xlib = None
-    idle_mod._xss = None
-    idle_mod._loaded = False
-
-
-class _FakeCFunc:
-    def __init__(self, func):
-        self._func = func
-        self.restype = None
-        self.argtypes = None
-
-    def __call__(self, *args):
-        return self._func(*args)
-
-
-class _FakeXlib:
-    def __init__(self) -> None:
-        self.freed: list[object] = []
-        self.XDefaultRootWindow = _FakeCFunc(lambda _display: 99)
-        self.XFree = _FakeCFunc(lambda ptr: self.freed.append(ptr))
-
-
-class _FakeXss:
-    def __init__(self, *, idle_ms: int = 1234, query_ok: bool = True) -> None:
-        info = idle_mod._XScreenSaverInfo()
-        info.idle = idle_ms
-        self.info_ptr = ctypes.pointer(info)
-        self.query_ok = query_ok
-        self.XScreenSaverAllocInfo = _FakeCFunc(lambda: self.info_ptr)
-        self.XScreenSaverQueryInfo = _FakeCFunc(
-            lambda _display, _root, _info: int(self.query_ok)
-        )
-
-
-class TestIdleProbe:
-    def setup_method(self):
-        _reset_idle_module()
-
-    def test_load_libraries_failure_is_cached(self, monkeypatch):
-        calls: list[str] = []
-
-        def fail(name: str):
-            calls.append(name)
-            raise OSError("missing")
-
-        monkeypatch.setattr(idle_mod.ctypes.cdll, "LoadLibrary", fail)
-
-        assert idle_mod._load_libraries() is False
-        assert idle_mod._load_libraries() is False
-        assert calls == ["libX11.so.6"]
-
-    def test_load_libraries_success_configures_functions(self, monkeypatch):
-        xlib = _FakeXlib()
-        xss = _FakeXss()
-        monkeypatch.setattr(
-            idle_mod.ctypes.cdll,
-            "LoadLibrary",
-            lambda name: xlib if "X11" in name else xss,
-        )
-
-        assert idle_mod._load_libraries() is True
-        assert idle_mod._load_libraries() is True
-        assert xlib.XDefaultRootWindow.argtypes == [ctypes.c_void_p]
-        assert xss.XScreenSaverQueryInfo.restype is ctypes.c_int
-
-    def test_xdisplay_handle_import_failure(self, monkeypatch):
-        real_import = builtins.__import__
-
-        def fake_import(name, *args, **kwargs):
-            if name == "gi":
-                raise ImportError("missing gi")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", fake_import)
-
-        assert idle_mod._xdisplay_handle() is None
-
-    def test_xdisplay_handle_none_and_success(self, monkeypatch):
-        gi = types.ModuleType("gi")
-        gi.require_version = lambda *_args: None
-        repository = types.ModuleType("gi.repository")
-
-        class _Display:
-            def get_xdisplay(self):
-                return 123
-
-        gdk_x11 = types.SimpleNamespace(
-            X11Display=types.SimpleNamespace(get_default=lambda: None)
-        )
-        repository.GdkX11 = gdk_x11
-        monkeypatch.setitem(sys.modules, "gi", gi)
-        monkeypatch.setitem(sys.modules, "gi.repository", repository)
-
-        assert idle_mod._xdisplay_handle() is None
-
-        gdk_x11.X11Display.get_default = lambda: _Display()
-        handle = idle_mod._xdisplay_handle()
-        assert isinstance(handle, ctypes.c_void_p)
-        assert handle.value == 123
-
-    def test_get_idle_ms_success_and_failures(self, monkeypatch):
-        xlib = _FakeXlib()
-        xss = _FakeXss(idle_ms=4242)
-        monkeypatch.setattr(
-            idle_mod.ctypes.cdll,
-            "LoadLibrary",
-            lambda name: xlib if "X11" in name else xss,
-        )
-        monkeypatch.setattr(idle_mod, "_xdisplay_handle", lambda: ctypes.c_void_p(1))
-
-        assert idle_mod.get_idle_ms() == 4242
-        assert xlib.freed == [xss.info_ptr]
-
-        _reset_idle_module()
-        monkeypatch.setattr(idle_mod, "_load_libraries", lambda: False)
-        assert idle_mod.get_idle_ms() is None
-
-        monkeypatch.setattr(idle_mod, "_load_libraries", lambda: True)
-        idle_mod._xlib = xlib
-        idle_mod._xss = xss
-        monkeypatch.setattr(idle_mod, "_xdisplay_handle", lambda: None)
-        assert idle_mod.get_idle_ms() is None
-
-        monkeypatch.setattr(idle_mod, "_xdisplay_handle", lambda: ctypes.c_void_p(1))
-        null_ptr = ctypes.POINTER(idle_mod._XScreenSaverInfo)()
-        xss.XScreenSaverAllocInfo = _FakeCFunc(lambda: null_ptr)
-        assert idle_mod.get_idle_ms() is None
-
-        xss = _FakeXss(query_ok=False)
-        idle_mod._xss = xss
-        assert idle_mod.get_idle_ms() is None
-        assert xlib.freed[-1] == xss.info_ptr

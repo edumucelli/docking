@@ -12,7 +12,7 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.config import Config
-from docking.platform.dodge import ScreenRect, WindowDodgeMonitor
+from docking.platform.backends.x11.impl.dodge import ScreenRect, WindowDodgeMonitor
 
 # Dock sits at bottom of 1920x1080 screen
 DOCK_RECT = ScreenRect(x=600, y=1030, width=720, height=50)
@@ -281,7 +281,7 @@ class TestLifecycle:
         monitor._debounce_id = 42
         removed: list[int] = []
         monkeypatch.setattr(
-            "docking.platform.dodge.GLib.source_remove",
+            "docking.platform.backends.x11.impl.dodge.GLib.source_remove",
             lambda source_id: removed.append(source_id),
         )
         monitor._do_evaluate = MagicMock()

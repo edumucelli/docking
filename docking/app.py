@@ -52,6 +52,7 @@ import faulthandler
 import signal
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
 # Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
@@ -74,6 +75,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
+from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
@@ -86,6 +88,9 @@ from docking.ui.factory import build_dock_window
 from docking.ui.new_year import NewYearGreetingController
 from docking.ui.renderer import DockRenderer
 
+if TYPE_CHECKING:
+    from docking.platform.backends.base import SessionBackend
+
 
 def main() -> None:
     """Entry point for the docking application."""
@@ -96,9 +101,22 @@ def main() -> None:
         config.transparency
     )
     launcher = Launcher()
-    model = DockModel(config=config, launcher=launcher)
+    model = DockModel(
+        config=config,
+        launcher=launcher,
+        applet_services=AppletServices(),
+    )
     renderer = DockRenderer()
     backend = create_session_backend(config=config, launcher=launcher, model=model)
+    model.set_applet_services(
+        AppletServices(
+            desktop_actions=backend.desktop_actions,
+            workspaces=backend.workspaces,
+            window_picker=backend.window_picker,
+            idle=backend.idle,
+            screen_capture=backend.screen_capture,
+        )
+    )
     unity = UnityLauncherListener(model=model)
 
     window = build_dock_window(
@@ -108,6 +126,7 @@ def main() -> None:
         theme=theme,
         window_tracker=backend.windows,
         preview_service=backend.previews,
+        surface_service=backend.surface,
         visibility_service=backend.visibility,
         launcher=launcher,
     )
@@ -130,17 +149,15 @@ def main() -> None:
         window.stop_update_checks()
         new_year.stop()
         unity.stop()
-        backend.stop()
         model.stop_applets()
+        backend.stop()
 
 
 def _start_runtime(
-    items_service: DockItemsService, model: DockModel, backend: object
+    items_service: DockItemsService, model: DockModel, backend: SessionBackend
 ) -> bool:
     """Start background runtime pieces after the window has been shown."""
-    backend_start = getattr(backend, "start", None)
-    if callable(backend_start):
-        backend_start()
+    backend.start()
     items_service.start()
     model.start_applets()
     return False

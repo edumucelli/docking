@@ -9,8 +9,8 @@ from docking.platform.backends import selection
 
 def test_create_session_backend_selects_x11_backend(monkeypatch):
     backend = MagicMock()
-    builder = MagicMock(return_value=backend)
-    x11_session = MagicMock(build_x11_session_backend=builder)
+    backend_cls = MagicMock(return_value=backend)
+    x11_session = MagicMock(X11SessionBackend=backend_cls)
 
     def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
         if name == "docking.platform.backends.x11.session":
@@ -30,4 +30,4 @@ def test_create_session_backend_selects_x11_backend(monkeypatch):
     )
 
     assert result is backend
-    builder.assert_called_once_with(model=model, launcher=launcher, config=config)
+    backend_cls.assert_called_once_with(model=model, launcher=launcher, config=config)

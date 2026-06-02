@@ -26,18 +26,20 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.applets.base import Applet
 from docking.applets.colorpicker import meta
 from docking.applets.colorpicker.render import create_icon
-from docking.applets.colorpicker.state import pick_pixel, rgb_to_hex
+from docking.applets.colorpicker.state import rgb_to_hex
 from docking.applets.menu import menu_sections
 from docking.applets.popup import (
     create_capture_overlay,
     dismiss_capture_overlay,
     draw_transparent_capture_overlay,
 )
+from docking.applets.services import AppletServices
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.backends.base import ScreenCaptureService
 
 log = with_context(get_logger(name="colorpicker"), applet_id=meta.id)
 
@@ -62,6 +64,7 @@ class ColorPickerApplet(Applet):
         self._hex = ""
         self._show_hex = True
         self._overlay: Gtk.Window | None = None
+        self._screen_capture: ScreenCaptureService | None = None
 
         if config:
             prefs = config.applet_prefs.get(meta.id, {})
@@ -74,6 +77,9 @@ class ColorPickerApplet(Applet):
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        self._screen_capture = services.screen_capture
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(
@@ -90,6 +96,10 @@ class ColorPickerApplet(Applet):
     def on_clicked(self) -> None:
         """Enter pick mode - fullscreen transparent overlay captures click."""
         self._start_pick()
+
+    def stop(self) -> None:
+        self._dismiss_overlay()
+        super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         primary: list[Gtk.MenuItem] = []
@@ -112,7 +122,7 @@ class ColorPickerApplet(Applet):
 
     def _start_pick(self) -> None:
         """Create fullscreen transparent overlay to capture a click."""
-        if self._overlay:
+        if self._overlay or self._screen_capture is None:
             return
 
         self._overlay = create_capture_overlay(
@@ -130,7 +140,11 @@ class ColorPickerApplet(Applet):
         """Sample pixel at click position."""
         self._dismiss_overlay()
 
-        pixel = pick_pixel(x=int(event.x_root), y=int(event.y_root))
+        pixel = (
+            self._screen_capture.pick_color(x=int(event.x_root), y=int(event.y_root))
+            if self._screen_capture is not None
+            else None
+        )
         if pixel:
             r, g, b = pixel
             self._r = r / 255.0

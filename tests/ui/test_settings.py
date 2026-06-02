@@ -877,6 +877,32 @@ class TestSettingsWindowController:
         config.save.assert_called_once()
         runtime.queue_draw.assert_called_once()
 
+    def test_current_workspace_only_updates_surface_scope(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_catalog_icon",
+            lambda applet_id, size: None,
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._workspace_only_switch.set_active(True)
+        controller._workspace_only_switch.emit_notify_active()
+
+        assert config.current_workspace_only is True
+        config.save.assert_called_once()
+        runtime.set_current_workspace_only.assert_called_once_with(True)
+        runtime.queue_draw.assert_not_called()
+
     def test_hide_mode_change_updates_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(

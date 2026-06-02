@@ -189,10 +189,14 @@ from docking.ui.settings import SettingsWindowController
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
-    from docking.platform.backends.base import WindowId, WindowSnapshot
+    from docking.platform.backends.base import (
+        PreviewService,
+        WindowId,
+        WindowService,
+        WindowSnapshot,
+    )
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
-    from docking.platform.window_tracker import WindowTracker
 
 
 APPLET_MENU_ICON_PX = 16
@@ -291,7 +295,8 @@ class MenuHandler:
         runtime: DockRuntime,
         model: DockModel,
         config: Config,
-        window_tracker: WindowTracker,
+        window_tracker: WindowService,
+        preview_service: PreviewService,
         geometry_builder: DockGeometryBuilder,
         launcher: Launcher | None = None,
     ) -> None:
@@ -301,6 +306,7 @@ class MenuHandler:
         self._model = model
         self._config = config
         self._tracker = window_tracker
+        self._preview_service = preview_service
         self._launcher = launcher
         self._geometry_builder = geometry_builder
         self._folder_stack = FolderStackController(
@@ -665,7 +671,16 @@ class MenuHandler:
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=MENU_ROW_SPACING_PX,
         )
-        image = Gtk.Image()
+        thumbnail = self._preview_service.thumbnail(
+            window.id,
+            width=WINDOW_MENU_THUMB_W,
+            height=WINDOW_MENU_THUMB_H,
+        )
+        image = (
+            Gtk.Image.new_from_pixbuf(thumbnail.image)
+            if thumbnail is not None
+            else Gtk.Image()
+        )
         image.set_pixel_size(WINDOW_MENU_THUMB_H)
         box.pack_start(image, False, False, 0)
 

@@ -663,7 +663,7 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="current_workspace_only",
                 widget=self._workspace_only_switch,
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=self._runtime.set_current_workspace_only,
             ),
             self._register_switch_binding(
                 config_attr="active_display",

@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from docking.core.config import HideMode
 from docking.platform.backends.base import Rect
-from docking.platform.backends.x11 import visibility
-from docking.platform.dodge import ScreenRect
+from docking.platform.backends.x11.impl.dodge import ScreenRect
+from docking.platform.backends.x11.services import visibility
 
 
 def test_create_monitor_preserves_window_dodge_monitor_arguments(monkeypatch):
@@ -46,23 +45,3 @@ def test_create_monitor_preserves_unrealized_none_rect(monkeypatch):
     service.create_monitor(get_dock_rect=lambda: None, on_change=MagicMock())
 
     assert monitor_cls.call_args.kwargs["get_dock_rect"]() is None
-
-
-def test_create_monitor_returns_none_without_config():
-    service = visibility.X11VisibilityService(config=None)
-
-    result = service.create_monitor(get_dock_rect=MagicMock(), on_change=MagicMock())
-
-    assert result is None
-
-
-def test_supports_only_overlap_hide_modes():
-    service = visibility.X11VisibilityService(config=MagicMock())
-
-    assert service.supports_hide_mode(HideMode.INTELLIGENT) is True
-    assert service.supports_hide_mode(HideMode.DODGE_ACTIVE) is True
-    assert service.supports_hide_mode(HideMode.WINDOW_DODGE) is True
-    assert service.supports_hide_mode(HideMode.DODGE_MAXIMIZED) is True
-    assert service.supports_hide_mode(HideMode.NONE) is False
-    assert service.supports_hide_mode(HideMode.AUTOHIDE) is False
-    assert service.supports_hide_mode(object()) is False

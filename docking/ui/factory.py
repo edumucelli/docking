@@ -22,10 +22,15 @@ from __future__ import annotations
 
 from docking.core.config import Config
 from docking.core.theme import Theme
-from docking.platform.backends.base import PreviewService, Rect, VisibilityService
+from docking.platform.backends.base import (
+    PreviewService,
+    Rect,
+    SurfaceService,
+    VisibilityService,
+    WindowService,
+)
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
-from docking.platform.window_tracker import WindowTracker
 from docking.ui.dock_window import DockWindow
 from docking.ui.renderer import DockRenderer
 
@@ -36,8 +41,9 @@ def build_dock_window(
     model: DockModel,
     renderer: DockRenderer,
     theme: Theme,
-    window_tracker: WindowTracker,
+    window_tracker: WindowService,
     preview_service: PreviewService,
+    surface_service: SurfaceService,
     visibility_service: VisibilityService,
     launcher: Launcher,
 ) -> DockWindow:
@@ -50,6 +56,7 @@ def build_dock_window(
         window_tracker=window_tracker,
         launcher=launcher,
         preview_service=preview_service,
+        surface_service=surface_service,
     )
 
     def _get_dock_rect() -> Rect | None:
