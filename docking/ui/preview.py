@@ -89,8 +89,9 @@ Thumbnail capture model
 Preview thumbnails try to show real window contents, but the way that happens
 is platform-owned. The popup asks a PreviewService for an image using a
 backend-neutral WindowId. On X11 that service can still do foreign-window
-capture internally; on a future native Wayland backend it may return an icon
-card or nothing if the compositor has no preview capability.
+capture internally; on a future native Wayland backend it should return an
+image only when compositor support exists. If capture is unavailable, this UI
+falls back to the app icon resolved through WindowService.
 
 Why CSS and widget structure live here
 
@@ -121,12 +122,11 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.platform.backends.base import WindowId, WindowSnapshot
+from docking.platform.backends.base import WindowId, WindowService, WindowSnapshot
 from docking.ui.display import clamp_to_screen
 
 if TYPE_CHECKING:
     from docking.platform.backends.base import PreviewService
-    from docking.platform.window_tracker import WindowTracker
     from docking.ui.autohide import AutoHideController
 
 log = get_logger(name="preview")
@@ -187,7 +187,7 @@ class PreviewPopup(Gtk.Window):
     """Floating popup showing window thumbnails for a dock item."""
 
     def __init__(
-        self, window_tracker: WindowTracker, preview_service: PreviewService
+        self, window_tracker: WindowService, preview_service: PreviewService
     ) -> None:
         super().__init__(type=Gtk.WindowType.POPUP)
         _ensure_css()
@@ -240,7 +240,7 @@ class PreviewPopup(Gtk.Window):
         The popup is centered on the icon along the main axis and offset
         away from the screen edge along the cross axis.
         """
-        windows = list(self._tracker.list_windows(desktop_id))
+        windows = list(self._tracker.list_preview_windows(desktop_id))
         if not windows:
             self.hide()
             return
@@ -321,11 +321,9 @@ class PreviewPopup(Gtk.Window):
         if preview is not None:
             image = Gtk.Image.new_from_pixbuf(preview.image)
         else:
-            icon_name = (
-                self._preview_service.fallback_icon_name(window.id)
-                or fallback_icon_name
+            image = Gtk.Image.new_from_icon_name(
+                fallback_icon_name, Gtk.IconSize.DIALOG
             )
-            image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
         image.set_size_request(THUMB_W, THUMB_H)
         vbox.pack_start(image, False, False, 0)
 

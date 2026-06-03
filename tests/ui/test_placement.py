@@ -12,6 +12,7 @@ from docking.core.position import Position
 
 
 def _make_window(**overrides):
+    surface_service = MagicMock()
     window = SimpleNamespace(
         config=SimpleNamespace(
             icon_size=48,
@@ -41,29 +42,32 @@ def _make_window(**overrides):
         move=MagicMock(),
         drawing_area=SimpleNamespace(queue_draw=MagicMock()),
         update_input_region=MagicMock(),
+        surface_service=surface_service,
     )
     for key, value in overrides.items():
         setattr(window, key, value)
+
+    def _position_or_anchor(request):
+        window.set_size_request(request.size.width, request.size.height)
+        window.resize(request.size.width, request.size.height)
+        window.move(request.x, request.y)
+
+    surface_service.position_or_anchor.side_effect = _position_or_anchor
     return window
 
 
-class TestPlacementControllerLifecycle:
-    def test_on_realize_initializes_barrier_and_active_display_for_x11(
-        self, monkeypatch
-    ):
-        class FakeX11Display:
-            pass
+def _make_controller(window):
+    return placement_mod.DockPlacementController(
+        window,
+        surface_service=window.surface_service,
+    )
 
-        monkeypatch.setattr(
-            placement_mod.GdkX11,
-            "X11Display",
-            FakeX11Display,
-            raising=False,
-        )
+
+class TestPlacementControllerLifecycle:
+    def test_on_realize_initializes_surface_and_active_display(self):
         screen = SimpleNamespace(connect=MagicMock(side_effect=[51, 52]))
-        display = FakeX11Display()
         window = _make_window(
-            get_display=lambda: display,
+            get_display=lambda: object(),
             get_screen=lambda: screen,
             config=SimpleNamespace(
                 active_display=True,
@@ -71,15 +75,14 @@ class TestPlacementControllerLifecycle:
                 pressure_threshold=50,
             ),
         )
-        barrier = MagicMock()
-        controller = placement_mod.DockPlacementController(window, barrier=barrier)
+        controller = _make_controller(window)
         controller.position_dock = MagicMock()
         controller.set_struts = MagicMock()
         controller.start_active_display = MagicMock()
 
         controller.on_realize()
 
-        barrier.initialize.assert_called_once_with(gdk_display=display)
+        window.surface_service.on_realize.assert_called_once_with(window)
         controller.start_active_display.assert_called_once()
 
     def test_on_realize_calls_position_struts_and_input_update(self):
@@ -87,7 +90,7 @@ class TestPlacementControllerLifecycle:
             connect=MagicMock(side_effect=[21, 22]), disconnect=MagicMock()
         )
         window = _make_window(get_display=lambda: None, get_screen=lambda: screen)
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.position_dock = MagicMock()
         controller.set_struts = MagicMock()
         controller.start_active_display = MagicMock()
@@ -105,7 +108,7 @@ class TestPlacementControllerLifecycle:
             connect=MagicMock(side_effect=[31, 32]), disconnect=MagicMock()
         )
         window = _make_window(get_screen=lambda: screen)
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.schedule_reposition = MagicMock()
 
         controller.on_screen_changed(MagicMock(), None)
@@ -115,7 +118,7 @@ class TestPlacementControllerLifecycle:
 
     def test_on_scale_factor_changed_schedules_reposition(self):
         window = _make_window()
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.schedule_reposition = MagicMock()
 
         controller.on_scale_factor_changed()
@@ -124,7 +127,7 @@ class TestPlacementControllerLifecycle:
 
     def test_schedule_reposition_coalesces_until_idle_runs(self, monkeypatch):
         window = _make_window()
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.reposition = MagicMock()
         idle_calls: list[object] = []
         monkeypatch.setattr(
@@ -155,7 +158,7 @@ class TestPlacementControllerLifecycle:
             get_monitor=lambda _idx: monitor,
         )
         window = _make_window(get_display=lambda: display)
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.update_barrier = MagicMock()
         controller._geometry_refresh_source = 88
 
@@ -171,7 +174,7 @@ class TestPlacementControllerLifecycle:
     def test_on_destroy_cleans_geometry_refresh_and_screen_handlers(self, monkeypatch):
         screen = SimpleNamespace(disconnect=MagicMock())
         window = _make_window()
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller._geometry_refresh_source = 91
         controller._screen_signal_handlers = [(screen, 4), (screen, 5)]
         removed: list[int] = []
@@ -191,7 +194,7 @@ class TestPlacementControllerLifecycle:
 class TestPlacementControllerGeometry:
     def test_current_monitor_choice_handles_missing_and_invalid_monitors(self):
         window = _make_window(get_display=lambda: None)
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         assert controller.current_monitor_choice() == -1
 
         zero_display = SimpleNamespace(get_n_monitors=lambda: 0)
@@ -201,7 +204,7 @@ class TestPlacementControllerGeometry:
                 monitor_index=-1, pressure_reveal_enabled=False, pressure_threshold=50
             ),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         assert controller.current_monitor_choice() == -1
 
         display = SimpleNamespace(
@@ -215,7 +218,7 @@ class TestPlacementControllerGeometry:
                 monitor_index=99, pressure_reveal_enabled=False, pressure_threshold=50
             ),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         assert controller.current_monitor_choice() == 0
 
     def test_current_monitor_choice_returns_selected_monitor(self):
@@ -230,20 +233,16 @@ class TestPlacementControllerGeometry:
                 monitor_index=2, pressure_reveal_enabled=False, pressure_threshold=50
             ),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
 
         assert controller.current_monitor_choice() == 2
 
     def test_primary_monitor_index_falls_back_to_zero(self):
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: None)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: None))
         assert controller.primary_monitor_index() == 0
 
         zero_display = SimpleNamespace(get_n_monitors=lambda: 0)
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: zero_display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: zero_display))
         assert controller.primary_monitor_index() == 0
 
     def test_primary_monitor_index_uses_primary_fallbacks(self):
@@ -253,9 +252,7 @@ class TestPlacementControllerGeometry:
             get_primary_monitor=lambda: None,
             get_monitor=lambda idx: primary if idx == 0 else object(),
         )
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
         assert controller.primary_monitor_index() == 0
 
         fallback_display = SimpleNamespace(
@@ -263,7 +260,7 @@ class TestPlacementControllerGeometry:
             get_primary_monitor=lambda: object(),
             get_monitor=lambda _idx: object(),
         )
-        controller = placement_mod.DockPlacementController(
+        controller = _make_controller(
             _make_window(get_display=lambda: fallback_display)
         )
         assert controller.primary_monitor_index() == 0
@@ -276,9 +273,7 @@ class TestPlacementControllerGeometry:
             get_primary_monitor=lambda: mon1,
             get_monitor=lambda idx: mon1 if idx == 0 else None,
         )
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
 
         assert controller.get_monitor_menu_choices() == [
             ("Display 1: 1920x1080 (Primary)", 0)
@@ -294,7 +289,7 @@ class TestPlacementControllerGeometry:
             get_monitor=lambda _idx: monitor,
         )
         window = _make_window(get_display=lambda: display)
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.update_barrier = MagicMock()
 
         controller.position_dock()
@@ -334,7 +329,7 @@ class TestPlacementControllerGeometry:
                 distance_from_edge=6,
             ),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.update_barrier = MagicMock()
 
         controller.position_dock()
@@ -371,7 +366,7 @@ class TestPlacementControllerGeometry:
                 distance_from_edge=6,
             ),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.update_barrier = MagicMock()
 
         controller.position_dock()
@@ -409,7 +404,7 @@ class TestPlacementControllerGeometry:
                 pressure_threshold=50,
             ),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.update_barrier = MagicMock()
 
         controller.position_dock()
@@ -418,7 +413,7 @@ class TestPlacementControllerGeometry:
 
     def test_position_dock_returns_when_no_monitor_is_resolved(self):
         window = _make_window(get_display=lambda: MagicMock())
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller._resolve_target_monitor = MagicMock(return_value=None)
 
         controller.position_dock()
@@ -434,9 +429,7 @@ class TestPlacementControllerGeometry:
             get_primary_monitor=lambda: primary,
             get_monitor=lambda _idx: primary,
         )
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
 
         assert controller.get_monitor_menu_choices() == []
 
@@ -450,9 +443,7 @@ class TestPlacementControllerGeometry:
             get_primary_monitor=lambda: mon1,
             get_monitor=lambda idx: mon1 if idx == 0 else mon2,
         )
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
 
         choices = controller.get_monitor_menu_choices()
 
@@ -469,36 +460,14 @@ class TestPlacementControllerStruts:
                 pressure_threshold=50,
             )
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.clear_struts = MagicMock()
 
         controller.set_struts()
 
         controller.clear_struts.assert_called_once()
 
-    def test_set_struts_returns_when_no_window(self):
-        window = _make_window(
-            config=SimpleNamespace(
-                hide_mode="none", pressure_reveal_enabled=False, pressure_threshold=50
-            ),
-            get_window=lambda: None,
-        )
-        controller = placement_mod.DockPlacementController(window)
-
-        controller.set_struts()
-
-    def test_set_struts_returns_when_target_monitor_is_missing(self, monkeypatch):
-        class FakeX11Window:
-            pass
-
-        monkeypatch.setattr(
-            placement_mod.GdkX11,
-            "X11Window",
-            FakeX11Window,
-            raising=False,
-        )
-        set_struts = MagicMock()
-        monkeypatch.setattr(placement_mod, "set_dock_struts", set_struts)
+    def test_set_struts_returns_when_target_monitor_is_missing(self):
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="none",
@@ -509,37 +478,24 @@ class TestPlacementControllerStruts:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
-            ),
-            get_window=lambda: FakeX11Window(),
-            get_display=lambda: MagicMock(),
+            )
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller._resolve_target_monitor = MagicMock(return_value=None)
 
         controller.set_struts()
 
-        set_struts.assert_not_called()
+        window.surface_service.set_reservation.assert_not_called()
 
-    def test_set_struts_calls_platform_helper_for_x11(self, monkeypatch):
-        class FakeX11Window:
-            pass
-
-        monkeypatch.setattr(
-            placement_mod.GdkX11,
-            "X11Window",
-            FakeX11Window,
-            raising=False,
-        )
-        set_struts = MagicMock()
-        monkeypatch.setattr(placement_mod, "set_dock_struts", set_struts)
+    def test_set_struts_calls_surface_reservation(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom)
+        work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _idx: monitor,
         )
-        gdk_window = FakeX11Window()
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="none",
@@ -552,37 +508,40 @@ class TestPlacementControllerStruts:
                 pressure_threshold=50,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
-            get_window=lambda: gdk_window,
             get_display=lambda: display,
-            get_screen=lambda: MagicMock(),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
 
         controller.set_struts()
 
-        set_struts.assert_called_once()
-
-    def test_set_struts_uses_active_display_monitor_when_enabled(self, monkeypatch):
-        class FakeX11Window:
-            pass
-
-        monkeypatch.setattr(
-            placement_mod.GdkX11,
-            "X11Window",
-            FakeX11Window,
-            raising=False,
+        request = window.surface_service.set_reservation.call_args.args[0]
+        assert request.position == Position.BOTTOM
+        assert request.thickness == 56
+        assert request.monitor.geometry == placement_mod.Rect(
+            x=0,
+            y=0,
+            width=1920,
+            height=1080,
         )
-        set_struts = MagicMock()
-        monkeypatch.setattr(placement_mod, "set_dock_struts", set_struts)
+
+    def test_set_struts_uses_active_display_monitor_when_enabled(self):
         primary_geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         active_geom = SimpleNamespace(x=1920, y=0, width=2560, height=1440)
-        primary = SimpleNamespace(get_geometry=lambda: primary_geom)
-        active = SimpleNamespace(get_geometry=lambda: active_geom)
+        primary_work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        active_work = SimpleNamespace(x=1920, y=0, width=2560, height=1440)
+        primary = SimpleNamespace(
+            get_geometry=lambda: primary_geom,
+            get_workarea=lambda: primary_work,
+        )
+        active = SimpleNamespace(
+            get_geometry=lambda: active_geom,
+            get_workarea=lambda: active_work,
+        )
         display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: primary,
             get_monitor=lambda _idx: primary,
         )
-        gdk_window = FakeX11Window()
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="none",
@@ -595,61 +554,46 @@ class TestPlacementControllerStruts:
                 pressure_threshold=50,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
-            get_window=lambda: gdk_window,
             get_display=lambda: display,
-            get_screen=lambda: MagicMock(),
         )
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller._active_monitor = active
 
         controller.set_struts()
 
-        assert set_struts.call_args.kwargs["monitor_geom"] is active_geom
-
-    def test_clear_struts_calls_helper_for_x11(self, monkeypatch):
-        class FakeX11Window:
-            pass
-
-        monkeypatch.setattr(
-            placement_mod.GdkX11,
-            "X11Window",
-            FakeX11Window,
-            raising=False,
+        request = window.surface_service.set_reservation.call_args.args[0]
+        assert request.monitor.geometry == placement_mod.Rect(
+            x=1920,
+            y=0,
+            width=2560,
+            height=1440,
         )
-        clear = MagicMock()
-        monkeypatch.setattr(placement_mod, "clear_struts", clear)
-        gdk_window = FakeX11Window()
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_window=lambda: gdk_window)
-        )
+
+    def test_clear_struts_calls_surface_service(self):
+        window = _make_window()
+        controller = _make_controller(window)
 
         controller.clear_struts()
 
-        clear.assert_called_once_with(gdk_window=gdk_window)
+        window.surface_service.clear_reservation.assert_called_once_with()
 
     def test_update_barrier_handles_supported_states(self):
-        barrier = MagicMock(supported=False)
-        controller = placement_mod.DockPlacementController(
-            _make_window(), barrier=barrier
-        )
-
-        controller.update_barrier()
-
-        barrier.destroy.assert_not_called()
-        barrier.update.assert_not_called()
-
-        barrier = MagicMock(supported=True)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="none", pressure_reveal_enabled=False, pressure_threshold=50
             )
         )
-        controller = placement_mod.DockPlacementController(window, barrier=barrier)
+        controller = _make_controller(window)
+
         controller.update_barrier()
-        barrier.destroy.assert_called_once()
+
+        window.surface_service.update_pointer_barrier.assert_called_once_with(
+            monitor=None,
+            position=Position.BOTTOM,
+            enabled=False,
+        )
 
     def test_update_barrier_destroys_when_monitor_missing(self):
-        barrier = MagicMock(supported=True)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -658,17 +602,21 @@ class TestPlacementControllerStruts:
                 pressure_threshold=50,
             )
         )
-        controller = placement_mod.DockPlacementController(window, barrier=barrier)
+        controller = _make_controller(window)
         controller._resolve_target_monitor = MagicMock(return_value=None)
 
         controller.update_barrier()
 
-        barrier.destroy.assert_called_once()
+        window.surface_service.update_pointer_barrier.assert_called_once_with(
+            monitor=None,
+            position=Position.BOTTOM,
+            enabled=False,
+        )
 
     def test_update_barrier_updates_monitor_geometry(self):
-        barrier = MagicMock(supported=True)
         geom = SimpleNamespace(x=100, y=50, width=1280, height=720)
-        monitor = SimpleNamespace(get_geometry=lambda: geom)
+        work = SimpleNamespace(x=100, y=50, width=1280, height=720)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -678,47 +626,26 @@ class TestPlacementControllerStruts:
             ),
             get_scale_factor=lambda: 1,
         )
-        controller = placement_mod.DockPlacementController(window, barrier=barrier)
+        controller = _make_controller(window)
         controller._resolve_target_monitor = MagicMock(return_value=monitor)
 
         controller.update_barrier()
 
-        barrier.update.assert_called_once_with(
-            position=Position.RIGHT,
-            monitor_x=100,
-            monitor_y=50,
-            monitor_w=1280,
-            monitor_h=720,
-            scale=1,
+        kwargs = window.surface_service.update_pointer_barrier.call_args.kwargs
+        assert kwargs["position"] == Position.RIGHT
+        assert kwargs["enabled"] is True
+        assert kwargs["monitor"].geometry == placement_mod.Rect(
+            x=100,
+            y=50,
+            width=1280,
+            height=720,
         )
+        assert kwargs["monitor"].scale == 1
 
-    def test_update_barrier_delivers_physical_coords_to_xfixes_on_hidpi(
-        self, monkeypatch
-    ):
-        """Issue #76 regression.
-
-        Scenario: bottom dock, 4K monitor at scale_factor=2.
-        Gdk reports monitor geometry as logical (0, 0, 1920, 1080) but X11's
-        root window is 3840x2160 physical. XFixesCreatePointerBarrier operates
-        in physical pixels (root-window space). If logical coords leak into
-        XFixes, the BOTTOM barrier lands at physical y=1080 -- the middle of
-        the 2160 physical screen -- which the user sees at logical y=540
-        (the reported "invisible mouse-blocking line at the midpoint")."""
-        import ctypes
-
-        from docking.platform.barriers import PointerBarrier
-
-        xlib = MagicMock()
-        xlib.XDefaultRootWindow.return_value = 1
-        xfixes = MagicMock()
-        xfixes.XFixesCreatePointerBarrier.return_value = 42
-        real_barrier = PointerBarrier()
-        real_barrier._supported = True
-        real_barrier._libs = (xlib, xfixes, MagicMock())
-        real_barrier._xdisplay = ctypes.c_void_p(99)
-
+    def test_update_barrier_delivers_scale_to_surface_service(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom)
+        work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -728,50 +655,22 @@ class TestPlacementControllerStruts:
             ),
             get_scale_factor=lambda: 2,
         )
-        controller = placement_mod.DockPlacementController(window, barrier=real_barrier)
+        controller = _make_controller(window)
         controller._resolve_target_monitor = MagicMock(return_value=monitor)
 
         controller.update_barrier()
 
-        x1, y1, x2, y2 = xfixes.XFixesCreatePointerBarrier.call_args.args[2:6]
-        assert (x1, y1, x2, y2) == (0, 2160, 3840, 2160), (
-            f"XFixes received {(x1, y1, x2, y2)} for a 1920x1080 logical "
-            "monitor at scale=2; expected physical (0, 2160, 3840, 2160). "
-            "Logical coords leaking into XFixes is the root cause of "
-            "issue #76 (midpoint mouse-blocking line on HiDPI)."
-        )
+        kwargs = window.surface_service.update_pointer_barrier.call_args.kwargs
+        assert kwargs["monitor"].scale == 2
 
     @pytest.mark.parametrize(
-        "scale,physical_w,physical_h",
-        [
-            (1, 1920, 1080),  # baseline: no scaling, no bug
-            (2, 3840, 2160),  # reported scenario: 200% scaling
-            (3, 5760, 3240),  # reported scenario: 300% scaling
-        ],
+        "scale",
+        [1, 2, 3],
     )
-    def test_update_barrier_scales_with_display_scale_factor(
-        self, scale, physical_w, physical_h, monkeypatch
-    ):
-        """Cross-scale check of the hypothesis.
-
-        At scale=1 the bug is absent (logical == physical). At scale=2 and
-        scale=3 the barrier coords must scale with the display, mirroring
-        how struts.py already handles physical-pixel X11 properties."""
-        import ctypes
-
-        from docking.platform.barriers import PointerBarrier
-
-        xlib = MagicMock()
-        xlib.XDefaultRootWindow.return_value = 1
-        xfixes = MagicMock()
-        xfixes.XFixesCreatePointerBarrier.return_value = 42
-        real_barrier = PointerBarrier()
-        real_barrier._supported = True
-        real_barrier._libs = (xlib, xfixes, MagicMock())
-        real_barrier._xdisplay = ctypes.c_void_p(99)
-
+    def test_update_barrier_forwards_display_scale_factor(self, scale):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom)
+        work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -781,16 +680,75 @@ class TestPlacementControllerStruts:
             ),
             get_scale_factor=lambda: scale,
         )
-        controller = placement_mod.DockPlacementController(window, barrier=real_barrier)
+        controller = _make_controller(window)
         controller._resolve_target_monitor = MagicMock(return_value=monitor)
 
         controller.update_barrier()
 
-        x1, y1, x2, y2 = xfixes.XFixesCreatePointerBarrier.call_args.args[2:6]
-        assert (x1, y1, x2, y2) == (0, physical_h, physical_w, physical_h)
+        kwargs = window.surface_service.update_pointer_barrier.call_args.kwargs
+        assert kwargs["monitor"].scale == scale
+
+    def test_update_barrier_enables_pressure_callback_when_configured(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        window = _make_window(
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pos=Position.BOTTOM,
+                pressure_reveal_enabled=True,
+                pressure_threshold=25,
+            ),
+            autohide=SimpleNamespace(on_mouse_enter=MagicMock()),
+        )
+        controller = _make_controller(window)
+        controller._resolve_target_monitor = MagicMock(return_value=monitor)
+
+        controller.update_barrier()
+
+        kwargs = window.surface_service.update_pointer_barrier.call_args.kwargs
+        assert callable(kwargs["pressure_callback"])
+        kwargs["pressure_callback"]()
+        window.autohide.on_mouse_enter.assert_called_once_with()
+        assert kwargs["pressure_threshold"] == 25
+
+    def test_update_barrier_disables_pressure_callback_when_not_configured(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        window = _make_window(
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pos=Position.BOTTOM,
+                pressure_reveal_enabled=False,
+                pressure_threshold=25,
+            )
+        )
+        controller = _make_controller(window)
+        controller._resolve_target_monitor = MagicMock(return_value=monitor)
+
+        controller.update_barrier()
+
+        kwargs = window.surface_service.update_pointer_barrier.call_args.kwargs
+        assert kwargs["pressure_callback"] is None
+        assert kwargs["pressure_threshold"] == 25
+
+    def test_barrier_pressure_reveals_autohide(self):
+        controller = _make_controller(
+            _make_window(autohide=SimpleNamespace(on_mouse_enter=MagicMock()))
+        )
+
+        controller._on_barrier_pressure()
+
+        controller._window.autohide.on_mouse_enter.assert_called_once_with()
+
+    def test_barrier_pressure_noops_without_autohide(self):
+        controller = _make_controller(_make_window(autohide=None))
+
+        controller._on_barrier_pressure()
 
     def test_update_struts_refreshes_barrier_and_struts(self):
-        controller = placement_mod.DockPlacementController(_make_window())
+        controller = _make_controller(_make_window())
         controller.set_struts = MagicMock()
         controller.update_barrier = MagicMock()
 
@@ -798,6 +756,14 @@ class TestPlacementControllerStruts:
 
         controller.set_struts.assert_called_once()
         controller.update_barrier.assert_called_once()
+
+    def test_refresh_pressure_handler_updates_barrier(self):
+        controller = _make_controller(_make_window())
+        controller.update_barrier = MagicMock()
+
+        controller.refresh_pressure_handler()
+
+        controller.update_barrier.assert_called_once_with()
 
     def test_start_and_stop_active_display_manage_timer(self, monkeypatch):
         added: list[tuple[int, object]] = []
@@ -810,7 +776,7 @@ class TestPlacementControllerStruts:
         monkeypatch.setattr(
             placement_mod.GLib, "source_remove", lambda source: removed.append(source)
         )
-        controller = placement_mod.DockPlacementController(_make_window())
+        controller = _make_controller(_make_window())
 
         controller.start_active_display()
         controller.start_active_display()
@@ -821,26 +787,20 @@ class TestPlacementControllerStruts:
         assert controller._active_display_timer == 0
 
     def test_poll_active_display_handles_missing_cursor_services(self):
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: None)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: None))
         assert controller._poll_active_display() is True
 
         display = SimpleNamespace(
             get_default_seat=lambda: None, get_n_monitors=lambda: 0
         )
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
         assert controller._poll_active_display() is True
 
         seat = SimpleNamespace(get_pointer=lambda: None)
         display = SimpleNamespace(
             get_default_seat=lambda: seat, get_n_monitors=lambda: 0
         )
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
         assert controller._poll_active_display() is True
 
     def test_poll_active_display_repositions_when_monitor_changes(self):
@@ -855,9 +815,7 @@ class TestPlacementControllerStruts:
             get_default_seat=lambda: seat,
             get_monitor_at_point=lambda x, y: monitor,
         )
-        controller = placement_mod.DockPlacementController(
-            _make_window(get_display=lambda: display)
-        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
         controller.reposition = MagicMock()
 
         assert controller._poll_active_display() is True
@@ -866,7 +824,7 @@ class TestPlacementControllerStruts:
         controller.reposition.assert_called_once()
 
     def test_resolve_target_monitor_uses_active_display_and_fallbacks(self):
-        controller = placement_mod.DockPlacementController(
+        controller = _make_controller(
             _make_window(
                 config=SimpleNamespace(
                     active_display=True,
@@ -886,7 +844,7 @@ class TestPlacementControllerStruts:
             get_primary_monitor=lambda: None,
             get_monitor=lambda idx: primary if idx == 0 else None,
         )
-        controller = placement_mod.DockPlacementController(
+        controller = _make_controller(
             _make_window(
                 config=SimpleNamespace(
                     active_display=False,
@@ -907,7 +865,7 @@ class TestPlacementControllerStruts:
             get_monitor=lambda idx: selected if idx == 1 else None,
             get_primary_monitor=lambda: None,
         )
-        controller = placement_mod.DockPlacementController(
+        controller = _make_controller(
             _make_window(
                 config=SimpleNamespace(
                     active_display=False,
@@ -925,7 +883,7 @@ class TestPlacementControllerStruts:
             get_monitor=lambda idx: fallback if idx == 0 else None,
             get_primary_monitor=lambda: None,
         )
-        controller = placement_mod.DockPlacementController(
+        controller = _make_controller(
             _make_window(
                 config=SimpleNamespace(
                     active_display=False,
@@ -939,7 +897,7 @@ class TestPlacementControllerStruts:
 
     def test_reposition_updates_input_region_and_redraw(self):
         window = _make_window()
-        controller = placement_mod.DockPlacementController(window)
+        controller = _make_controller(window)
         controller.position_dock = MagicMock()
         controller.set_struts = MagicMock()
 

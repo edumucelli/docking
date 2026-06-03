@@ -27,6 +27,7 @@ from gi.repository import GLib, Wnck
 
 from docking.core.config import HideMode
 from docking.log import get_logger, with_context
+from docking.platform.backends.base import VisibilityMonitor
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -62,7 +63,7 @@ def rects_overlap(a: ScreenRect, b: ScreenRect) -> bool:
     )
 
 
-class WindowDodgeMonitor:
+class WindowDodgeMonitor(VisibilityMonitor):
     """Watches windows and reports whether the dock should hide due to overlap."""
 
     def __init__(
@@ -112,7 +113,11 @@ class WindowDodgeMonitor:
         self._signal_ids.append((obj, sid))
 
     def _connect_window(self, window: Wnck.Window) -> None:
-        xid = window.get_xid()
+        try:
+            xid = window.get_xid()
+        except Exception as exc:
+            log.debug("Failed to read dodge-monitor window xid: %s", exc)
+            return
         if xid in self._window_signal_ids:
             return
         sids: list[int] = []
@@ -124,7 +129,14 @@ class WindowDodgeMonitor:
         self._window_signal_ids[xid] = (window, sids)
 
     def _disconnect_window(self, window: Wnck.Window) -> None:
-        xid = window.get_xid()
+        try:
+            xid = window.get_xid()
+        except Exception as exc:
+            log.debug(
+                "Failed to read dodge-monitor window xid while disconnecting: %s",
+                exc,
+            )
+            return
         _window, sids = self._window_signal_ids.pop(xid, (window, []))
         for sid in sids:
             with suppress(Exception):

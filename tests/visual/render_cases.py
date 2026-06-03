@@ -229,6 +229,7 @@ def _folder_stack_handler() -> MenuHandler:
         model=MagicMock(),
         config=config,
         window_tracker=MagicMock(),
+        preview_service=MagicMock(),
         geometry_builder=MagicMock(),
         launcher=launcher,
     )
@@ -362,7 +363,7 @@ def _draw_tooltip_case() -> cairo.ImageSurface:
 
 def _draw_preview_case() -> cairo.ImageSurface:
     tracker = MagicMock()
-    tracker.list_windows.return_value = [
+    tracker.list_preview_windows.return_value = [
         WindowSnapshot(
             id=WindowId.x11(101),
             desktop_id="firefox.desktop",
@@ -392,7 +393,6 @@ def _draw_preview_case() -> cairo.ImageSurface:
             height=THUMB_H,
         ),
     ]
-    preview_service.fallback_icon_name.return_value = None
     popup = PreviewPopup(window_tracker=tracker, preview_service=preview_service)
     try:
         popup.show_for_item(

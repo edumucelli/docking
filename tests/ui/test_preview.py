@@ -11,9 +11,10 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.backends.x11.previews as x11_preview_mod
+import docking.platform.backends.x11.services.previews as x11_preview_mod
 import docking.ui.preview as preview_mod
-from docking.platform.backends.base import WindowId
+from docking.platform.backends.base import DisplayServer, WindowId
+from docking.platform.backends.x11.impl import preview_capture
 from docking.ui.preview import (
     ICON_FALLBACK_SIZE,
     POPUP_PADDING,
@@ -28,7 +29,7 @@ class TestX11PreviewService:
     def test_capture_uses_xid_without_live_window_state(self, monkeypatch):
         # Given
         tracker = MagicMock()
-        tracker._window_for_xid.side_effect = AssertionError(
+        tracker.window_for_id.side_effect = AssertionError(
             "service should not consult Wnck minimized state for popup capture"
         )
         pixbuf = MagicMock()
@@ -52,18 +53,13 @@ class TestX11PreviewService:
         x11_preview_mod.capture_xid.assert_called_once_with(
             xid=42, thumb_w=200, thumb_h=150
         )
-        tracker._window_for_xid.assert_not_called()
+        tracker.window_for_id.assert_not_called()
 
     def test_capture_returns_none_when_xid_capture_fails(self, monkeypatch):
         # Given
         tracker = MagicMock()
         monkeypatch.setattr(
             x11_preview_mod, "capture_xid", MagicMock(return_value=None)
-        )
-        monkeypatch.setattr(
-            x11_preview_mod,
-            "_icon_fallback",
-            MagicMock(side_effect=AssertionError("UI owns icon fallback")),
         )
         service = x11_preview_mod.X11PreviewService(window_tracker=tracker)
 
@@ -72,7 +68,44 @@ class TestX11PreviewService:
 
         # Then
         assert result is None
-        x11_preview_mod._icon_fallback.assert_not_called()
+
+    def test_thumbnail_uses_live_window_and_backend_fallback(self, monkeypatch):
+        tracker = MagicMock()
+        window = MagicMock()
+        tracker.window_for_id.return_value = window
+        pixbuf = MagicMock()
+        pixbuf.get_width.return_value = 28
+        pixbuf.get_height.return_value = 20
+        monkeypatch.setattr(
+            x11_preview_mod,
+            "capture_window",
+            MagicMock(return_value=pixbuf),
+        )
+        service = x11_preview_mod.X11PreviewService(window_tracker=tracker)
+
+        result = service.thumbnail(WindowId.x11(42), width=28, height=20)
+
+        assert result is not None
+        assert result.image is pixbuf
+        assert result.width == 28
+        assert result.height == 20
+        tracker.window_for_id.assert_called_once_with(WindowId.x11(42))
+        x11_preview_mod.capture_window.assert_called_once_with(
+            wnck_window=window,
+            thumb_w=28,
+            thumb_h=20,
+        )
+
+    def test_thumbnail_rejects_non_x11_window_id(self):
+        tracker = MagicMock()
+        service = x11_preview_mod.X11PreviewService(window_tracker=tracker)
+
+        result = service.thumbnail(
+            WindowId(DisplayServer.WAYLAND, "win-1"), width=28, height=20
+        )
+
+        assert result is None
+        tracker.window_for_id.assert_not_called()
 
 
 class TestPreviewConstants:
@@ -118,16 +151,16 @@ class TestIconFallback:
         pixbuf_cls = MagicMock()
         pixbuf_cls.new.return_value = bg
         monkeypatch.setattr(
-            x11_preview_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False
+            preview_capture.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False
         )
         monkeypatch.setattr(
-            x11_preview_mod.Gtk.IconTheme,
+            preview_capture.Gtk.IconTheme,
             "get_default",
             lambda: None,
             raising=False,
         )
         # When
-        result = x11_preview_mod._icon_fallback(thumb_w=120, thumb_h=80)
+        result = preview_capture._icon_fallback(thumb_w=120, thumb_h=80)
         # Then
         assert result is bg
         bg.fill.assert_called_once()
@@ -142,19 +175,19 @@ class TestIconFallback:
         pixbuf_cls = MagicMock()
         pixbuf_cls.new.return_value = bg
         monkeypatch.setattr(
-            x11_preview_mod.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False
+            preview_capture.GdkPixbuf, "Pixbuf", pixbuf_cls, raising=False
         )
 
         theme = MagicMock()
         theme.load_icon.return_value = icon
         monkeypatch.setattr(
-            x11_preview_mod.Gtk.IconTheme,
+            preview_capture.Gtk.IconTheme,
             "get_default",
             lambda: theme,
             raising=False,
         )
         # When
-        result = x11_preview_mod._icon_fallback(thumb_w=200, thumb_h=150)
+        result = preview_capture._icon_fallback(thumb_w=200, thumb_h=150)
         # Then
         assert result is bg
         scaled_icon.composite.assert_called_once()
@@ -166,9 +199,9 @@ class TestCaptureWindow:
         window = MagicMock()
         window.is_minimized.return_value = True
         fallback = MagicMock()
-        monkeypatch.setattr(x11_preview_mod, "_icon_fallback", lambda **_k: fallback)
+        monkeypatch.setattr(preview_capture, "_icon_fallback", lambda **_k: fallback)
         # When
-        result = x11_preview_mod.capture_window(window)
+        result = preview_capture.capture_window(window)
         # Then
         assert result is fallback
 
@@ -189,25 +222,25 @@ class TestCaptureWindow:
         display = MagicMock()
         display.error_trap_pop.return_value = 0
         monkeypatch.setattr(
-            x11_preview_mod.GdkX11.X11Display,
+            preview_capture.GdkX11.X11Display,
             "get_default",
             lambda: display,
             raising=False,
         )
         monkeypatch.setattr(
-            x11_preview_mod.GdkX11.X11Window,
+            preview_capture.GdkX11.X11Window,
             "foreign_new_for_display",
             lambda _display, _xid: foreign,
             raising=False,
         )
         monkeypatch.setattr(
-            x11_preview_mod.Gdk,
+            preview_capture.Gdk,
             "pixbuf_get_from_window",
             lambda *_a, **_k: pixbuf,
             raising=False,
         )
         # When
-        result = x11_preview_mod.capture_window(window, thumb_w=200, thumb_h=150)
+        result = preview_capture.capture_window(window, thumb_w=200, thumb_h=150)
         # Then
         assert result is scaled
         pixbuf.scale_simple.assert_called_once()
@@ -219,22 +252,22 @@ class TestCaptureWindow:
         window.get_xid.return_value = 100
 
         fallback = MagicMock()
-        monkeypatch.setattr(x11_preview_mod, "_icon_fallback", lambda **_k: fallback)
-        monkeypatch.setattr(x11_preview_mod.GLib, "Error", RuntimeError, raising=False)
+        monkeypatch.setattr(preview_capture, "_icon_fallback", lambda **_k: fallback)
+        monkeypatch.setattr(preview_capture.GLib, "Error", RuntimeError, raising=False)
         monkeypatch.setattr(
-            x11_preview_mod.GdkX11.X11Display,
+            preview_capture.GdkX11.X11Display,
             "get_default",
             lambda: MagicMock(),
             raising=False,
         )
         monkeypatch.setattr(
-            x11_preview_mod.GdkX11.X11Window,
+            preview_capture.GdkX11.X11Window,
             "foreign_new_for_display",
             MagicMock(side_effect=TypeError("bad foreign window")),
             raising=False,
         )
         # When
-        result = x11_preview_mod.capture_window(window, thumb_w=180, thumb_h=120)
+        result = preview_capture.capture_window(window, thumb_w=180, thumb_h=120)
         # Then
         assert result is fallback
 
@@ -256,24 +289,24 @@ class TestCaptureWindow:
         display = MagicMock()
         display.error_trap_pop.return_value = 0
         monkeypatch.setattr(
-            x11_preview_mod.GdkX11.X11Display,
+            preview_capture.GdkX11.X11Display,
             "get_default",
             lambda: display,
             raising=False,
         )
         monkeypatch.setattr(
-            x11_preview_mod.GdkX11.X11Window,
+            preview_capture.GdkX11.X11Window,
             "foreign_new_for_display",
             lambda _display, _xid: foreign,
             raising=False,
         )
         monkeypatch.setattr(
-            x11_preview_mod.Gdk,
+            preview_capture.Gdk,
             "pixbuf_get_from_window",
             lambda *_a, **_k: pixbuf,
             raising=False,
         )
         # When
-        result = x11_preview_mod.capture_xid(42, thumb_w=200, thumb_h=150)
+        result = preview_capture.capture_xid(42, thumb_w=200, thumb_h=150)
         # Then
         assert result is None

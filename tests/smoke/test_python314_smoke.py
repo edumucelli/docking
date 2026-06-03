@@ -72,12 +72,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.backends.selection": {
             "create_session_backend": lambda **_kwargs: None,
         },
-        "docking.platform.backends.x11.session": {
-            "build_x11_window_tracker": lambda **_kwargs: None,
-        },
-        "docking.platform.window_tracker": {
-            "WindowTracker": type("WindowTracker", (), {}),
-        },
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },

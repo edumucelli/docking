@@ -12,8 +12,8 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.position import Position
-from docking.platform import struts as struts_mod
-from docking.platform.struts import (
+from docking.platform.backends.x11.impl import struts as struts_mod
+from docking.platform.backends.x11.impl.struts import (
     BlurRect,
     clear_blur_region,
     clear_struts,

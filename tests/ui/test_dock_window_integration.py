@@ -237,7 +237,7 @@ class TestButtonReleaseFlow:
         )
 
         assert handled is True
-        stub.window_tracker.cycle_windows.assert_called_once_with("firefox.desktop")
+        stub.window_tracker.cycle.assert_called_once_with("firefox.desktop")
         stub.window_tracker.toggle_focus.assert_not_called()
         assert item.last_clicked == 1111
         assert item.last_launched == 0
@@ -278,7 +278,7 @@ class TestButtonReleaseFlow:
         )
 
         assert handled is True
-        stub.window_tracker.minimize_windows.assert_called_once_with("firefox.desktop")
+        stub.window_tracker.minimize_all.assert_called_once_with("firefox.desktop")
         stub.window_tracker.toggle_focus.assert_not_called()
         assert item.last_launched == 0
 
@@ -326,7 +326,7 @@ class TestButtonReleaseFlow:
 
         assert handled is True
         assert launch_calls == ["firefox.desktop"]
-        stub.window_tracker.cycle_windows.assert_not_called()
+        stub.window_tracker.cycle.assert_not_called()
         assert item.last_launched == 2323
 
     def test_left_click_file_item_opens_target(self, monkeypatch):
@@ -809,6 +809,8 @@ class TestDockWindowSetupAndGeometry:
             set_visual=MagicMock(),
             connect=MagicMock(),
             _on_destroy=MagicMock(),
+            config=SimpleNamespace(current_workspace_only=True),
+            surface_service=MagicMock(),
             placement=SimpleNamespace(
                 attach_screen_signals=MagicMock(),
                 on_realize=MagicMock(),
@@ -824,6 +826,10 @@ class TestDockWindowSetupAndGeometry:
         # Then
         stub.set_title.assert_called_once_with("Docking")
         stub.set_visual.assert_called_once_with("sys-visual")
+        stub.surface_service.configure_before_realize.assert_called_once_with(stub)
+        stub.surface_service.set_workspace_scope.assert_called_once_with(
+            current_workspace_only=True
+        )
         assert stub.connect.call_count == 6
         stub.placement.attach_screen_signals.assert_called_once_with(screen)
 
@@ -891,12 +897,16 @@ class TestDockWindowSetupAndGeometry:
         add_change_listener.assert_called_once_with(stub._on_model_changed)
 
     def test_on_destroy_disconnects_model_listener(self):
+        dodge_monitor = MagicMock()
         stub = SimpleNamespace(
             _disconnect_model=MagicMock(),
+            dodge_monitor=dodge_monitor,
         )
 
         dock_window_mod.DockWindow._on_destroy(stub, MagicMock())
 
+        dodge_monitor.stop.assert_called_once_with()
+        assert stub.dodge_monitor is None
         stub._disconnect_model.assert_called_once_with()
 
     def test_disconnect_model_unregisters_change_listener(self):
@@ -941,11 +951,10 @@ class TestDockWindowSetupAndGeometry:
 class TestDockWindowStrutsAndRegion:
     def testupdate_input_region_applies_shape_and_caches_rect(self, monkeypatch):
         # Given
-        gdk_window = MagicMock()
+        surface_service = MagicMock()
         frame = SimpleNamespace(cursor_rect=Rect(140, 36, 120, 54))
         stub = _bind_geometry_signature(
             SimpleNamespace(
-                get_window=lambda: gdk_window,
                 get_size=MagicMock(return_value=(1920, 122)),
                 cursor_x=-1.0,
                 cursor_y=-1.0,
@@ -954,6 +963,7 @@ class TestDockWindowStrutsAndRegion:
                 _test_geometry_frame=frame,
                 _cache=_window_cache(),
                 geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
+                surface_service=surface_service,
             )
         )
 
@@ -965,7 +975,9 @@ class TestDockWindowStrutsAndRegion:
         # Then
         assert first_rect is not None
         assert stub._cache.applied_input_frame.cursor_rect == first_rect
-        gdk_window.input_shape_combine_region.assert_called_once()
+        surface_service.update_input_region.assert_called_once_with(
+            dock_window_mod.Rect(x=140, y=36, width=120, height=54)
+        )
 
     def test_update_input_region_uses_hidden_gap_trigger_from_real_geometry(self):
         theme = SimpleNamespace(
@@ -994,10 +1006,9 @@ class TestDockWindowStrutsAndRegion:
             autohide_state=HideState.HIDDEN,
             hide_offset=1.0,
         )
-        gdk_window = MagicMock()
+        surface_service = MagicMock()
         stub = _bind_geometry_signature(
             SimpleNamespace(
-                get_window=lambda: gdk_window,
                 get_size=MagicMock(return_value=(420, 90)),
                 cursor_x=-1.0,
                 cursor_y=-1.0,
@@ -1006,15 +1017,15 @@ class TestDockWindowStrutsAndRegion:
                 _test_geometry_frame=frame,
                 _cache=_window_cache(),
                 geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
+                surface_service=surface_service,
             )
         )
 
         dock_window_mod.DockWindow.update_input_region(stub)
 
-        region = gdk_window.input_shape_combine_region.call_args.args[0]
-        extents = region.get_extents()
-        assert extents.height == frame.cursor_rect.h
-        assert extents.y == frame.cursor_rect.y
+        rect = surface_service.update_input_region.call_args.args[0]
+        assert rect.height == frame.cursor_rect.h
+        assert rect.y == frame.cursor_rect.y
         assert stub._cache.applied_input_frame.cursor_rect == frame.cursor_rect
 
 
@@ -1560,50 +1571,43 @@ class TestDockWindowDrawAndHelpers:
 
 
 class TestBlurHintSync:
-    def test_sync_background_blur_hint_updates_once_and_caches(self, monkeypatch):
-        class FakeX11Window:
-            def get_scale_factor(self):
-                return 2
-
-        monkeypatch.setattr(dock_window_mod.GdkX11, "X11Window", FakeX11Window)
-        set_mock = MagicMock()
-        monkeypatch.setattr(dock_window_mod, "set_blur_region", set_mock)
-        window = FakeX11Window()
-
+    def test_sync_background_blur_hint_updates_once_and_caches(self):
         frame = SimpleNamespace(background_rect=Rect(10, 20, 100, 30))
+        surface_service = MagicMock()
         stub = SimpleNamespace(
-            get_window=lambda: window,
+            get_scale_factor=lambda: 2,
             autohide=_autohide(enabled=False),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
             config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
             _cache=_window_cache(),
+            surface_service=surface_service,
         )
 
         dock_window_mod.DockWindow._sync_background_blur_hint(stub, frame=frame)
         dock_window_mod.DockWindow._sync_background_blur_hint(stub, frame=frame)
 
-        set_mock.assert_called_once_with(
-            gdk_window=window,
-            blur_region=[20, 40, 200, 60, 8, 8, 8, 8],
+        surface_service.set_blur_region.assert_called_once_with(
+            dock_window_mod.Rect(x=10, y=20, width=100, height=30)
         )
-        assert stub._cache.last_blur_region == (20, 40, 200, 60, 8, 8, 8, 8)
+        assert stub._cache.last_blur_region == (
+            10,
+            20,
+            100,
+            30,
+            4.0,
+            True,
+            Position.BOTTOM,
+            2,
+        )
 
-    def test_sync_background_blur_hint_clears_when_hidden(self, monkeypatch):
-        class FakeX11Window:
-            def get_scale_factor(self):
-                return 1
-
-        monkeypatch.setattr(dock_window_mod.GdkX11, "X11Window", FakeX11Window)
-        clear_mock = MagicMock()
-        monkeypatch.setattr(dock_window_mod, "clear_blur_region", clear_mock)
-        window = FakeX11Window()
-
+    def test_sync_background_blur_hint_clears_when_hidden(self):
+        surface_service = MagicMock()
         stub = SimpleNamespace(
-            get_window=lambda: window,
             autohide=_autohide(enabled=True, state=HideState.HIDDEN),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
             config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
             _cache=_window_cache(last_blur_region=(1, 2, 3, 4, 5, 6, 7, 8)),
+            surface_service=surface_service,
         )
 
         dock_window_mod.DockWindow._sync_background_blur_hint(
@@ -1611,5 +1615,5 @@ class TestBlurHintSync:
             frame=SimpleNamespace(background_rect=Rect(10, 20, 100, 30)),
         )
 
-        clear_mock.assert_called_once_with(gdk_window=window)
+        surface_service.set_blur_region.assert_called_once_with(None)
         assert stub._cache.last_blur_region is None

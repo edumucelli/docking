@@ -21,14 +21,10 @@ bindings so it can be imported before runtime backend selection.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Protocol
-
-if TYPE_CHECKING:
-    from docking.platform.model import DockModel
-    from docking.platform.running import RunningAppInfo
 
 
 class DisplayServer(Enum):
@@ -104,21 +100,21 @@ class MonitorSnapshot:
 class WindowId:
     """Stable backend-owned window identifier.
 
-    X11 implementations may use the XID as ``value`` during migration. Native
-    Wayland implementations should use an internal ID that maps back to a live
-    protocol handle inside the backend.
+    X11 implementations use the XID as ``value``. Native Wayland implementations
+    should use an internal ID that maps back to a live protocol handle inside
+    the backend.
     """
 
-    backend: str
+    backend: DisplayServer
     value: str | int
 
     @classmethod
     def x11(cls, xid: int) -> WindowId:
         """Create an X11 window ID from an XID."""
-        return cls(backend="x11", value=int(xid))
+        return cls(backend=DisplayServer.X11, value=int(xid))
 
     def __str__(self) -> str:
-        return f"{self.backend}:{self.value}"
+        return f"{self.backend.value}:{self.value}"
 
 
 @dataclass(frozen=True)
@@ -168,6 +164,8 @@ class PlacementRequest:
 
     monitor: MonitorSnapshot
     position: object
+    x: int
+    y: int
     size: Size
     gap: int = 0
     keep_above: bool = True
@@ -212,7 +210,6 @@ class PlatformCapabilities:
     supports_overlap_any: bool = False
     supports_overlap_maximized: bool = False
     supports_screen_color_pick: bool = False
-    supports_screenshot: bool = False
     supports_idle_time: bool = False
     supports_window_pick: bool = False
     supports_window_pid: bool = False
@@ -228,91 +225,139 @@ class PlatformCapabilities:
         )
 
 
-class Service(Protocol):
+class Service(ABC):
     """Common lifecycle for optional backend services."""
 
+    @abstractmethod
     def start(self) -> None:
         """Start watching backend state, if the service needs a runtime loop."""
 
+    @abstractmethod
     def stop(self) -> None:
         """Release service resources."""
 
 
-class WindowService(Service, Protocol):
+class WindowService(Service):
     """Taskbar/window state and window actions."""
 
-    def bind_model(self, model: DockModel) -> None:
-        """Attach the DockModel that receives running-state updates."""
-
-    def snapshot_running(self) -> Mapping[str, RunningAppInfo]:
-        """Return latest running-app aggregates."""
-
+    @abstractmethod
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return current windows for a desktop ID."""
 
+    @abstractmethod
+    def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
+        """Return windows that should appear in preview UI for a desktop ID."""
+
+    @abstractmethod
+    def icon_name_for_desktop(self, desktop_id: str) -> str:
+        """Return an icon name fallback for a desktop ID."""
+
+    @abstractmethod
     def activate(self, window_id: WindowId) -> ActionResult:
         """Activate one window by backend ID."""
 
+    @abstractmethod
     def activate_most_recent(self, desktop_id: str) -> ActionResult:
         """Activate the most recent window for an app."""
 
+    @abstractmethod
     def cycle(self, desktop_id: str) -> ActionResult:
         """Cycle windows for an app according to backend policy."""
 
+    @abstractmethod
     def minimize_all(self, desktop_id: str) -> ActionResult:
         """Minimize all windows for an app, when supported."""
 
+    @abstractmethod
     def close(self, window_id: WindowId) -> ActionResult:
         """Close one window by backend ID."""
 
+    @abstractmethod
     def close_all(self, desktop_id: str) -> ActionResult:
         """Close all windows for an app."""
 
+    @abstractmethod
+    def close_focused(self, desktop_id: str) -> ActionResult:
+        """Close the active window if it belongs to an app."""
 
-class SurfaceService(Service, Protocol):
+    @abstractmethod
+    def toggle_focus(self, desktop_id: str) -> ActionResult:
+        """Toggle focus/minimize behavior for an app."""
+
+
+class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
 
+    # TODO: Define a small SurfaceHost/SurfaceWindow ABC for the window
+    # methods/properties surface services need, instead of accepting an untyped
+    # object. Today the object passed here is DockWindow. DockWindow should
+    # satisfy that narrower SurfaceWindow contract, while SurfaceService should
+    # depend only on that contract instead of importing the UI-layer DockWindow.
+    @abstractmethod
     def configure_before_realize(self, window: object) -> None:
         """Configure platform surface role before the GTK window is realized."""
 
+    @abstractmethod
     def on_realize(self, window: object) -> None:
         """Finish surface setup after realization."""
 
+    @abstractmethod
+    def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
+        """Show the dock on one workspace or all workspaces, if supported."""
+
+    @abstractmethod
     def position_or_anchor(self, request: PlacementRequest) -> None:
         """Move an X11 window or configure native Wayland anchors."""
 
+    @abstractmethod
     def set_reservation(self, request: ReservationRequest) -> None:
         """Reserve edge space for an always-visible dock."""
 
+    @abstractmethod
     def clear_reservation(self) -> None:
         """Clear any edge-space reservation owned by this backend."""
 
+    @abstractmethod
+    def update_pointer_barrier(
+        self,
+        *,
+        monitor: MonitorSnapshot | None,
+        position: object,
+        enabled: bool,
+        pressure_callback: Callable[[], None] | None = None,
+        pressure_threshold: int = 1,
+    ) -> None:
+        """Update or clear edge pointer barrier integration, if supported."""
+
+    @abstractmethod
     def update_input_region(self, rect: Rect) -> None:
         """Update the interactive region for the dock surface, if supported."""
 
+    @abstractmethod
     def set_blur_region(self, rect: Rect | None) -> None:
         """Set or clear a compositor blur hint, if supported."""
 
 
-class VisibilityMonitor(Protocol):
+class VisibilityMonitor(ABC):
     """Runtime monitor for overlap-driven hide modes."""
 
+    @abstractmethod
     def start(self) -> None:
         """Start monitoring foreign-window visibility."""
 
+    @abstractmethod
     def stop(self) -> None:
         """Stop monitoring foreign-window visibility."""
 
+    @abstractmethod
     def evaluate_now(self) -> None:
         """Force immediate reevaluation."""
 
 
-class VisibilityService(Service, Protocol):
+class VisibilityService(Service):
     """Factory for overlap/dodge monitors."""
 
-    def supports_hide_mode(self, mode: object) -> bool:
-        """Return whether the selected backend can support a hide mode."""
-
+    @abstractmethod
     def create_monitor(
         self,
         *,
@@ -322,121 +367,153 @@ class VisibilityService(Service, Protocol):
         """Create a monitor, or None when overlap tracking is unsupported."""
 
 
-class PreviewService(Service, Protocol):
-    """Window-preview capture and fallback information."""
+class PreviewService(Service):
+    """Window-preview capture."""
 
+    @abstractmethod
     def capture(
         self, window_id: WindowId, *, width: int, height: int
     ) -> PreviewImage | None:
         """Capture a preview image for one window, if available."""
 
-    def fallback_icon_name(self, window_id: WindowId) -> str | None:
-        """Return a fallback icon name for one window."""
+    @abstractmethod
+    def thumbnail(
+        self, window_id: WindowId, *, width: int, height: int
+    ) -> PreviewImage | None:
+        """Return a compact thumbnail, including backend fallback if available."""
 
 
-class WorkspaceService(Service, Protocol):
+class WorkspaceService(Service):
     """Workspace list and switching operations."""
 
+    @abstractmethod
     def list_workspaces(self) -> Sequence[WorkspaceSnapshot]:
         """Return known workspaces."""
 
+    @abstractmethod
     def active_workspace(self) -> WorkspaceSnapshot | None:
         """Return the active workspace, if known."""
 
+    @abstractmethod
     def activate(self, workspace_id: str) -> ActionResult:
         """Activate a workspace."""
 
+    @abstractmethod
+    def watch_active_workspace(self, on_change: Callable[[], None]) -> object | None:
+        """Watch active workspace changes and return a backend-owned handle."""
 
-class DesktopActionService(Service, Protocol):
+    @abstractmethod
+    def unwatch_active_workspace(self, handle: object) -> None:
+        """Stop watching a handle returned by watch_active_workspace."""
+
+
+class DesktopActionService(Service):
     """Desktop-wide window manager actions."""
 
+    @abstractmethod
     def show_desktop(self, show: bool | None = None) -> ActionResult:
         """Show, hide, or toggle desktop visibility."""
 
 
-class ScreenCaptureService(Service, Protocol):
-    """Screen capture and color-picking operations."""
+class ScreenCaptureService(Service):
+    """Screen color-picking operations."""
 
+    @abstractmethod
     def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
         """Pick a screen color in RGB byte values."""
 
-    def screenshot(self) -> ActionResult:
-        """Request a screenshot through the backend."""
 
-
-class IdleService(Service, Protocol):
+class IdleService(Service):
     """Desktop idle-time source."""
 
+    @abstractmethod
     def idle_seconds(self) -> float | None:
         """Return current idle time in seconds, if available."""
 
 
-class WindowPickService(Service, Protocol):
+class WindowPickService(Service):
     """Window picking and process actions used by window-management applets."""
 
-    def pick_window(self) -> WindowSnapshot | None:
-        """Ask the user to select a window, if supported."""
+    @abstractmethod
+    def pick_window_at(self, *, x: int, y: int) -> WindowSnapshot | None:
+        """Return the topmost window at a screen point, if supported."""
 
+    @abstractmethod
     def pid_for(self, window_id: WindowId) -> int | None:
         """Return the process ID for a window, if known."""
 
+    @abstractmethod
     def kill(self, window_id: WindowId) -> ActionResult:
         """Terminate the process or window represented by the backend ID."""
 
 
-class SessionBackend(Protocol):
+class SessionBackend(ABC):
     """Selected platform backend for the current desktop session."""
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """Human-readable backend name for logging and diagnostics."""
 
     @property
+    @abstractmethod
     def display_server(self) -> DisplayServer:
         """Display-server family used by this backend."""
 
     @property
+    @abstractmethod
     def capabilities(self) -> PlatformCapabilities:
         """Capabilities available in the selected runtime."""
 
     @property
+    @abstractmethod
     def windows(self) -> WindowService:
         """Window/taskbar service."""
 
     @property
+    @abstractmethod
     def surface(self) -> SurfaceService:
         """Dock surface service."""
 
     @property
+    @abstractmethod
     def visibility(self) -> VisibilityService:
         """Overlap/dodge visibility service."""
 
     @property
+    @abstractmethod
     def previews(self) -> PreviewService:
         """Window preview service."""
 
     @property
+    @abstractmethod
     def workspaces(self) -> WorkspaceService | None:
         """Workspace service, when available."""
 
     @property
+    @abstractmethod
     def desktop_actions(self) -> DesktopActionService | None:
         """Desktop action service, when available."""
 
     @property
+    @abstractmethod
     def screen_capture(self) -> ScreenCaptureService | None:
         """Screen capture service, when available."""
 
     @property
+    @abstractmethod
     def idle(self) -> IdleService | None:
         """Idle-time service, when available."""
 
     @property
+    @abstractmethod
     def window_picker(self) -> WindowPickService | None:
         """Window-picking service, when available."""
 
+    @abstractmethod
     def start(self) -> None:
         """Start all backend services needed for runtime operation."""
 
+    @abstractmethod
     def stop(self) -> None:
         """Stop all backend services."""

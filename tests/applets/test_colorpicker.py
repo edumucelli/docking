@@ -3,10 +3,10 @@
 from typing import ClassVar
 
 import docking.applets.colorpicker.applet as colorpicker_applet_mod
-import docking.applets.colorpicker.state as colorpicker_state_mod
 from docking.applets.colorpicker.applet import ColorPickerApplet
 from docking.applets.colorpicker.render import create_icon
 from docking.applets.colorpicker.state import rgb_to_hex
+from docking.applets.services import AppletServices
 
 
 class TestRgbToHex:
@@ -119,9 +119,12 @@ class TestColorPickerApplet:
         applet._copy_to_clipboard = lambda: calls.append("copy")  # type: ignore[method-assign]
         applet._save = lambda: calls.append("save")  # type: ignore[method-assign]
         applet.present = lambda: calls.append("refresh")  # type: ignore[method-assign]
-        monkeypatch.setattr(
-            colorpicker_applet_mod, "pick_pixel", lambda x, y: (10, 20, 30)
-        )
+        screen_capture = type(
+            "_ScreenCapture",
+            (),
+            {"pick_color": lambda self, *, x, y: (10, 20, 30)},
+        )()
+        applet.set_services(AppletServices(screen_capture=screen_capture))
         monkeypatch.setattr(
             colorpicker_applet_mod, "rgb_to_hex", lambda r, g, b: "#0A141E"
         )
@@ -142,7 +145,12 @@ class TestColorPickerApplet:
         calls: list[str] = []
         applet._dismiss_overlay = lambda: calls.append("dismiss")  # type: ignore[method-assign]
         applet._copy_to_clipboard = lambda: calls.append("copy")  # type: ignore[method-assign]
-        monkeypatch.setattr(colorpicker_applet_mod, "pick_pixel", lambda x, y: None)
+        screen_capture = type(
+            "_ScreenCapture",
+            (),
+            {"pick_color": lambda self, *, x, y: None},
+        )()
+        applet.set_services(AppletServices(screen_capture=screen_capture))
 
         class _Event:
             x_root = 1
@@ -272,11 +280,18 @@ class TestColorPickerApplet:
         applet = ColorPickerApplet(48)
         marker = object()
         applet._overlay = marker
+        applet.set_services(AppletServices(screen_capture=object()))
         applet._start_pick()
         assert applet._overlay is marker
 
+    def test_start_pick_noop_without_screen_capture_service(self):
+        applet = ColorPickerApplet(48)
+        applet._start_pick()
+        assert applet._overlay is None
+
     def test_start_pick_creates_overlay_and_grabs_pointer(self, monkeypatch):
         applet = ColorPickerApplet(48)
+        applet.set_services(AppletServices(screen_capture=object()))
         calls: list[str] = []
 
         class _Screen:
@@ -350,36 +365,28 @@ class TestColorPickerApplet:
         assert "grab" in calls
         assert "set_cursor" in calls
 
+    def test_stop_dismisses_active_overlay(self, monkeypatch):
+        applet = ColorPickerApplet(48)
+        calls: list[str] = []
 
-class TestColorPickerState:
-    def test_pick_pixel_without_root_window(self, monkeypatch):
-        monkeypatch.setattr(
-            colorpicker_state_mod.Gdk, "get_default_root_window", lambda: None
-        )
-        assert colorpicker_state_mod.pick_pixel(1, 2) is None
+        class _Seat:
+            def ungrab(self):
+                calls.append("ungrab")
 
-    def test_pick_pixel_without_pixbuf(self, monkeypatch):
-        monkeypatch.setattr(
-            colorpicker_state_mod.Gdk, "get_default_root_window", lambda: object()
-        )
-        monkeypatch.setattr(
-            colorpicker_state_mod.Gdk,
-            "pixbuf_get_from_window",
-            lambda root, x, y, w, h: None,
-        )
-        assert colorpicker_state_mod.pick_pixel(1, 2) is None
+        class _Display:
+            def get_default_seat(self):
+                return _Seat()
 
-    def test_pick_pixel_reads_rgb_triplet(self, monkeypatch):
-        class _PB:
-            def get_pixels(self):
-                return [12, 34, 56, 200]
+        class _Overlay:
+            def destroy(self):
+                calls.append("destroy")
 
+        applet._overlay = _Overlay()
         monkeypatch.setattr(
-            colorpicker_state_mod.Gdk, "get_default_root_window", lambda: object()
+            colorpicker_applet_mod.Gdk.Display, "get_default", lambda: _Display()
         )
-        monkeypatch.setattr(
-            colorpicker_state_mod.Gdk,
-            "pixbuf_get_from_window",
-            lambda root, x, y, w, h: _PB(),
-        )
-        assert colorpicker_state_mod.pick_pixel(10, 20) == (12, 34, 56)
+
+        applet.stop()
+
+        assert calls == ["ungrab", "destroy"]
+        assert applet._overlay is None

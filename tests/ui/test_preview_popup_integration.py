@@ -192,7 +192,6 @@ class FakeLabel:
 class FakePreviewService:
     def __init__(self) -> None:
         self.capture = MagicMock(return_value=None)
-        self.fallback_icon_name = MagicMock(return_value=None)
 
 
 def _snapshot(value: int, title: str = "Window") -> WindowSnapshot:
@@ -220,7 +219,7 @@ class TestPreviewPopupIntegration:
     def test_show_for_item_hides_when_no_windows(self):
         # Given
         popup = _make_popup()
-        popup._tracker.list_windows.return_value = []
+        popup._tracker.list_preview_windows.return_value = []
         popup.hide = MagicMock()
 
         # When
@@ -239,7 +238,7 @@ class TestPreviewPopupIntegration:
     def test_show_for_item_builds_content_and_moves(self, monkeypatch):
         # Given
         popup = _make_popup()
-        popup._tracker.list_windows.return_value = [_snapshot(1), _snapshot(2)]
+        popup._tracker.list_preview_windows.return_value = [_snapshot(1), _snapshot(2)]
         popup._tracker.icon_name_for_desktop.return_value = "firefox"
         popup._cancel_hide_timer = MagicMock()
         popup._make_thumbnail_for_window = MagicMock(return_value=object())

@@ -196,7 +196,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GdkX11, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.core.config import FolderStackUnfold, LeftClickAction, MiddleClickAction
@@ -204,15 +204,14 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.backends.base import PreviewService
+from docking.platform.backends.base import (
+    PreviewService,
+    Rect,
+    SurfaceService,
+    WindowService,
+)
 from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.platform.launcher import launch, launch_new_window, open_target
-from docking.platform.struts import (
-    BlurRect,
-    clear_blur_region,
-    compute_blur_region,
-    set_blur_region,
-)
 from docking.ui import geometry
 from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
@@ -248,7 +247,6 @@ if TYPE_CHECKING:
     from docking.platform.backends.base import VisibilityMonitor
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
-    from docking.platform.window_tracker import WindowTracker
     from docking.ui.renderer import DockRenderer
 
 
@@ -274,7 +272,7 @@ class _DockWindowCache:
 
     geometry_frame: _GeometryFrameCacheEntry | None = None
     applied_input_frame: DockGeometryFrame | None = None
-    last_blur_region: tuple[int, ...] | None = None
+    last_blur_region: tuple[object, ...] | None = None
 
     @classmethod
     def create(cls) -> _DockWindowCache:
@@ -342,9 +340,10 @@ class DockWindow(Gtk.Window):
         model: DockModel,
         renderer: DockRenderer,
         theme: Theme,
-        window_tracker: WindowTracker,
+        window_tracker: WindowService,
         launcher: Launcher,
         preview_service: PreviewService,
+        surface_service: SurfaceService,
     ) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.config = config
@@ -353,6 +352,7 @@ class DockWindow(Gtk.Window):
         self.theme = theme
         self.window_tracker = window_tracker
         self.preview_service = preview_service
+        self.surface_service = surface_service
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController
@@ -373,7 +373,7 @@ class DockWindow(Gtk.Window):
             geometry_builder=self.geometry,
         )
 
-        self.placement = DockPlacementController(self)
+        self.placement = DockPlacementController(self, surface_service=surface_service)
         self.interaction = DockInteractionCoordinator(self)
         self._cache = _DockWindowCache.create()
         self._redraw_source_id: int | None = None
@@ -395,13 +395,12 @@ class DockWindow(Gtk.Window):
         """
         self.set_title(_("Docking"))
         self.set_decorated(False)
-        self.set_skip_taskbar_hint(True)
-        self.set_skip_pager_hint(True)
-        self.stick()
-        self.set_keep_above(True)
-        self.set_type_hint(Gdk.WindowTypeHint.DOCK)
         self.set_app_paintable(True)
         self.set_resizable(False)
+        self.surface_service.configure_before_realize(self)
+        self.surface_service.set_workspace_scope(
+            current_workspace_only=self.config.current_workspace_only
+        )
 
         # Enable RGBA visual for transparency
         screen = self.get_screen()
@@ -462,6 +461,9 @@ class DockWindow(Gtk.Window):
 
     def _on_destroy(self, _window: Gtk.Window) -> None:
         """Release model subscriptions owned by the dock shell."""
+        if self.dodge_monitor is not None:
+            self.dodge_monitor.stop()
+            self.dodge_monitor = None
         self._disconnect_model()
 
     def start_update_checks(self) -> None:
@@ -509,6 +511,7 @@ class DockWindow(Gtk.Window):
             model=self.model,
             config=self.config,
             window_tracker=self.window_tracker,
+            preview_service=self.preview_service,
             geometry_builder=self.geometry,
             launcher=launcher,
         )
@@ -958,13 +961,13 @@ class DockWindow(Gtk.Window):
                     launch(desktop_id=item.desktop_id)
                 self.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
             elif action == LeftClickAction.CYCLE.value:
-                self.window_tracker.cycle_windows(item.desktop_id)
+                self.window_tracker.cycle(item.desktop_id)
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
             elif action == LeftClickAction.MOST_RECENT.value:
                 self.window_tracker.activate_most_recent(item.desktop_id)
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
             elif action == MiddleClickAction.MINIMIZE.value:
-                self.window_tracker.minimize_windows(item.desktop_id)
+                self.window_tracker.minimize_all(item.desktop_id)
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
             elif action == MiddleClickAction.CLOSE_FOCUSED.value:
                 self.window_tracker.close_focused(item.desktop_id)
@@ -1114,9 +1117,6 @@ class DockWindow(Gtk.Window):
         containment on the same geometry source instead of rebuilding window
         interaction bounds separately inside DockWindow.
         """
-        gdk_window = self.get_window()
-        if not gdk_window:
-            return
         frame = frame or self._current_or_build_geometry_frame()
         current_entry = self._cache.geometry_frame
         current_frame = current_entry.frame if current_entry is not None else None
@@ -1128,42 +1128,45 @@ class DockWindow(Gtk.Window):
         old_rect = current_input_rect(self._cache.applied_input_frame)
         new_rect = frame.cursor_rect
         if new_rect != old_rect:
-            region = cairo.Region(
-                cairo.RectangleInt(new_rect.x, new_rect.y, new_rect.w, new_rect.h)
+            self.surface_service.update_input_region(
+                Rect(
+                    x=new_rect.x,
+                    y=new_rect.y,
+                    width=new_rect.w,
+                    height=new_rect.h,
+                )
             )
-            gdk_window.input_shape_combine_region(region, 0, 0)
             self._cache.applied_input_frame = frame
 
     def _sync_background_blur_hint(self, *, frame: DockGeometryFrame) -> None:
-        gdk_window = self.get_window()
-        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
-            return
-
         if self.autohide.enabled and self.autohide.state == HideState.HIDDEN:
             if self._cache.last_blur_region is not None:
-                clear_blur_region(gdk_window=gdk_window)
+                self.surface_service.set_blur_region(None)
                 self._cache.last_blur_region = None
             return
 
         background = frame.background_rect
-        blur_region = tuple(
-            compute_blur_region(
-                rect=BlurRect(
-                    x=background.x,
-                    y=background.y,
-                    width=background.w,
-                    height=background.h,
-                ),
-                roundness=self.theme.roundness,
-                round_bottom=self.theme.round_bottom,
-                position=self.config.pos,
-                scale=gdk_window.get_scale_factor(),
+        blur_key = (
+            background.x,
+            background.y,
+            background.w,
+            background.h,
+            self.theme.roundness,
+            self.theme.round_bottom,
+            self.config.pos,
+            self.get_scale_factor(),
+        )
+        if blur_key == self._cache.last_blur_region:
+            return
+        self.surface_service.set_blur_region(
+            Rect(
+                x=background.x,
+                y=background.y,
+                width=background.w,
+                height=background.h,
             )
         )
-        if blur_region == self._cache.last_blur_region:
-            return
-        set_blur_region(gdk_window=gdk_window, blur_region=list(blur_region))
-        self._cache.last_blur_region = blur_region
+        self._cache.last_blur_region = blur_key
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""

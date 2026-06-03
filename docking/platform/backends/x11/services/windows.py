@@ -15,22 +15,27 @@
 
 from __future__ import annotations
 
-from docking.platform.backends.base import ActionResult, WindowId
-from docking.platform.window_tracker import WindowTracker
+from typing import TYPE_CHECKING
+
+from docking.platform.backends.base import (
+    ActionResult,
+    DisplayServer,
+    WindowId,
+    WindowService,
+)
+from docking.platform.backends.x11.impl.window_tracker import WindowTracker
+
+if TYPE_CHECKING:
+    from gi.repository import Wnck
 
 
-class X11WindowService(WindowTracker):
+class X11WindowService(WindowTracker, WindowService):
     """WindowService adapter for the current X11/Wnck window tracker.
 
-    The inherited methods keep the old UI-facing API alive while this facade
-    exposes backend-neutral actions for the future session backend. Runtime
-    startup still constructs ``WindowTracker`` directly until later PRs switch
-    application wiring to session services.
+    WindowTracker owns the Wnck scanning and matching implementation; this class
+    exposes that implementation through the backend-neutral WindowService
+    contract used by the session backend.
     """
-
-    def bind_model(self, model) -> None:
-        """Attach a model after construction for backend-service callers."""
-        self._model = model
 
     def start(self) -> None:
         """Start X11 screen tracking if it has not already been initialized."""
@@ -40,10 +45,10 @@ class X11WindowService(WindowTracker):
     def stop(self) -> None:
         """Release service state owned by the facade.
 
-        Wnck signal handles are currently owned by the existing tracker path and
-        are not disconnected here; later session-backend PRs can make lifecycle
-        ownership explicit without changing this adapter contract.
+        Disconnect Wnck screen signals before dropping the screen reference so
+        repeated start/stop cycles cannot duplicate callbacks.
         """
+        self._disconnect_screen_signals()
         self._screen = None
 
     def activate(self, window_id: WindowId) -> ActionResult:
@@ -71,7 +76,7 @@ class X11WindowService(WindowTracker):
             return ActionResult.UNSUPPORTED
         if not self._get_windows_for(desktop_id=desktop_id):
             return ActionResult.NOT_FOUND
-        super().cycle_windows(desktop_id=desktop_id)
+        self._cycle_windows(desktop_id=desktop_id)
         return ActionResult.OK
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
@@ -80,7 +85,7 @@ class X11WindowService(WindowTracker):
             return ActionResult.UNSUPPORTED
         if not self._get_windows_for(desktop_id=desktop_id):
             return ActionResult.NOT_FOUND
-        super().minimize_windows(desktop_id=desktop_id)
+        self._minimize_windows(desktop_id=desktop_id)
         return ActionResult.OK
 
     def close(self, window_id: WindowId) -> ActionResult:
@@ -90,8 +95,7 @@ class X11WindowService(WindowTracker):
             return ActionResult.UNSUPPORTED
         if self._window_for_xid(xid=xid) is None:
             return ActionResult.NOT_FOUND
-        super().close_xid(xid=xid)
-        return ActionResult.OK
+        return super().close(window_id=window_id)
 
     def close_all(self, desktop_id: str) -> ActionResult:
         """Close all known windows for a desktop ID."""
@@ -101,9 +105,24 @@ class X11WindowService(WindowTracker):
             return ActionResult.NOT_FOUND
         return super().close_all(desktop_id=desktop_id)
 
+    def close_focused(self, desktop_id: str) -> ActionResult:
+        """Close the active window for a desktop ID."""
+        return super().close_focused(desktop_id=desktop_id)
+
+    def toggle_focus(self, desktop_id: str) -> ActionResult:
+        """Toggle focus/minimize behavior for a desktop ID."""
+        return super().toggle_focus(desktop_id=desktop_id)
+
+    def window_for_id(self, window_id: WindowId) -> Wnck.Window | None:
+        """Resolve a live Wnck window by backend-neutral X11 window ID."""
+        xid = self._xid_from_window_id(window_id)
+        if xid is None:
+            return None
+        return self._window_for_xid(xid=xid)
+
     @staticmethod
     def _xid_from_window_id(window_id: WindowId) -> int | None:
-        if window_id.backend != "x11":
+        if window_id.backend is not DisplayServer.X11:
             return None
         try:
             return int(window_id.value)

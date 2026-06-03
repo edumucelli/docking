@@ -11,16 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""X11 idle-time probe for the desk-presence applet.
-
-Uses the XScreenSaver extension via ctypes (libXss). The extension reports
-how long it has been since the last input event; we read that value every
-few seconds to decide whether the user is currently at the desk.
-
-Returns ``None`` in environments where the extension is unavailable
-(e.g. headless CI without an X server, or a display without libXss). The
-caller treats ``None`` as "unknown" and does not credit any bucket.
-"""
+"""X11 idle-time probe backed by the XScreenSaver extension."""
 
 from __future__ import annotations
 
@@ -29,7 +20,7 @@ from typing import ClassVar
 
 from docking.log import get_logger
 
-log = get_logger("deskpresence.idle")
+log = get_logger("x11_idle")
 
 
 class _XScreenSaverInfo(ctypes.Structure):
@@ -92,8 +83,8 @@ def _xdisplay_handle() -> ctypes.c_void_p | None:
     return ctypes.c_void_p(hash(display.get_xdisplay()))
 
 
-def get_idle_ms() -> int | None:
-    """Return idle time in milliseconds, or ``None`` if unavailable."""
+def _get_idle_ms() -> int | None:
+    """Return idle time in milliseconds, or None if unavailable."""
     if not _load_libraries():
         return None
     assert _xlib is not None

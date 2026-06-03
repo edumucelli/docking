@@ -14,9 +14,9 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.window_tracker as tracker_mod
-from docking.platform.backends.base import ActionResult, WindowId
-from docking.platform.backends.x11.windows import X11WindowService
+import docking.platform.backends.x11.impl.window_tracker as tracker_mod
+from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
+from docking.platform.backends.x11.services.windows import X11WindowService
 from docking.platform.running import RunningAppInfo
 
 
@@ -102,6 +102,7 @@ class FakeScreen:
     def __init__(self, windows: list[FakeWindow], active_window: FakeWindow | None):
         self._windows = windows
         self._active_window = active_window
+        self.force_update = MagicMock()
 
     def get_windows(self) -> list[FakeWindow]:
         return list(self._windows)
@@ -130,6 +131,7 @@ def make_service(
     }
     service._cycle_index = {}
     service._cycle_order_by_desktop = {}
+    service._screen_signal_ids = []
     return service
 
 
@@ -173,17 +175,18 @@ def test_list_windows_returns_backend_snapshots(monkeypatch):
     assert snapshots[1].can_close is True
 
 
-def test_snapshot_running_returns_copy():
+def test_stop_disconnects_screen_signals():
     service = make_service([FakeWindow(10)])
+    screen = MagicMock()
+    service._screen = screen
+    service._screen_signal_ids = [1, 2]
 
-    running = service.snapshot_running()
-    running.clear()
+    service.stop()
 
-    assert service.snapshot_running()["firefox.desktop"].count == 1
-    assert service.snapshot_running()["firefox.desktop"].xids == (10,)
-    assert service.snapshot_running()["firefox.desktop"].window_ids == (
-        WindowId.x11(10),
-    )
+    screen.disconnect.assert_any_call(1)
+    screen.disconnect.assert_any_call(2)
+    assert service._screen_signal_ids == []
+    assert service._screen is None
 
 
 def test_activate_uses_x11_window_id(monkeypatch):
@@ -207,7 +210,7 @@ def test_activate_rejects_non_x11_window_id():
     service = make_service([FakeWindow(10)])
 
     assert (
-        service.activate(WindowId(backend="wayland", value="window-1"))
+        service.activate(WindowId(backend=DisplayServer.WAYLAND, value="window-1"))
         is ActionResult.UNSUPPORTED
     )
 

@@ -1,6 +1,6 @@
 """Tests for window-dock overlap detection geometry."""
 
-from docking.platform.dodge import ScreenRect, rects_overlap
+from docking.platform.backends.x11.impl.dodge import ScreenRect, rects_overlap
 
 
 class TestRectsOverlap:

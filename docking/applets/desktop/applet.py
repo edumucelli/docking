@@ -19,18 +19,18 @@ from typing import TYPE_CHECKING
 
 import gi
 
-gi.require_version("Wnck", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Wnck
+from gi.repository import GdkPixbuf
 
 from docking.applets.base import Applet
 from docking.applets.desktop import meta
 from docking.applets.desktop.render import create_icon
-from docking.applets.desktop.state import next_showing_desktop
 from docking.i18n import _
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.platform.backends.base import DesktopActionService
 
 
 class DesktopApplet(Applet):
@@ -42,16 +42,18 @@ class DesktopApplet(Applet):
     supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
+        self._desktop_actions: DesktopActionService | None = None
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        self._desktop_actions = services.desktop_actions
 
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)
 
     def on_clicked(self) -> None:
-        """Toggle show desktop via Wnck."""
-        screen = Wnck.Screen.get_default()
-        screen.force_update()
-        screen.toggle_showing_desktop(
-            next_showing_desktop(current=screen.get_showing_desktop())
-        )
+        """Toggle show desktop through the selected backend service."""
+        if self._desktop_actions is None:
+            return
+        self._desktop_actions.show_desktop()
