@@ -2117,7 +2117,7 @@ Work:
 - add a non-X11 backend used only for development/tests, or a reduced runtime
   mode that implements launcher-only behavior
 - possible shapes:
-  - `NullSessionBackend` for tests and contract validation
+  - `ReducedSessionBackend` for tests and contract validation
   - `ReducedSessionBackend` for launcher-shelf behavior
 - make unsupported features fail closed and intentionally:
   - no tasklist
@@ -3072,7 +3072,7 @@ The safest first moves are still X11-preserving refactors:
 7. Move struts/barriers/blur/input-region ownership behind `SurfaceService`.
 8. Remove transitional X11 compatibility APIs after all X11 UI callers use
    backend-neutral services.
-9. Add a `NullSessionBackend` or reduced backend and verify Docking can run
+9. Add a `ReducedSessionBackend` or reduced backend and verify Docking can run
    without Wnck task powers.
 10. Only after that, start layer-shell and Wayland toplevel implementation.
 
@@ -3413,7 +3413,7 @@ Manual visual checks:
 Exit criteria:
 
 - startup behavior is unchanged on X11
-- tests can construct a fake/null session backend for UI wiring
+- tests can construct a fake/reduced session backend for UI wiring
 - `docking.app` no longer directly decides individual X11 services
 
 #### [x] PR 8: Visibility Service
@@ -3555,26 +3555,24 @@ Exit criteria:
 - no backend-neutral UI module depends on Wnck windows or XIDs
 - X11 backend remains fully supported
 
-#### [ ] PR 12: X11 Parity Hardening After Service Split
+#### [x] PR 12: X11 Parity Hardening After Service Split
 
-Fix the remaining X11 behavior and lifecycle issues found after PRs 8-11 before
-using a reduced backend to validate Wayland assumptions.
+Fix the remaining confirmed X11 behavior and lifecycle issues found after PRs
+8-11 before using a reduced backend to validate Wayland assumptions.
 
-Start here:
+Completed scope:
 
-- fix dodge overlap geometry so `VisibilityService` receives the actual dock
+- fixed dodge overlap geometry so `VisibilityService` receives the actual dock
   band/background rect in screen coordinates, not the full GTK toplevel
   rectangle used for transparent structural space
-- make `DockPlacementController.on_destroy()` stop active-display polling as
+- made `DockPlacementController.on_destroy()` stop active-display polling as
   well as idle reposition callbacks and screen signal handlers
-- make Window Killer avoid resolving the PID twice after a pick; kill the PID
-  that was selected/logged, or carry the selected PID in the pick result
-- make `WorkspacesApplet.start()` idempotent so duplicate starts cannot leak
+- made Window Killer avoid resolving the PID twice after a pick by killing the
+  selected/logged PID directly through the picker service
+- made `WorkspacesApplet.start()` idempotent so duplicate starts cannot leak
   `active-workspace-changed` watches
-- keep `docking.platform.backends.x11.__init__` from becoming the public path
-  that imports every X11 service eagerly if that conflicts with future backend
-  selection; prefer importing concrete services from `x11.services.*` or
-  `x11.session` where needed
+- kept the completed `Current Workspace Only` surface-scope behavior covered by
+  tests and manual checks
 
 Do not:
 
@@ -3606,19 +3604,18 @@ Exit criteria:
   watch idempotency
 - full non-visual suite and the usual X11 manual smoke pass both pass
 
-#### [ ] PR 13: Null / Reduced Backend
+#### [x] PR 13: Null / Reduced Backend
 
 Add a backend with no taskbar powers to validate that X11 assumptions are no
 longer leaking through normal UI.
 
 Start here:
 
-- add `docking/platform/backends/null/session.py` or
-  `docking/platform/backends/reduced/session.py`
+- add `docking/platform/backends/reduced/session.py`
 - provide no-op services for windows, previews, visibility, workspaces, and
   applet-specific platform actions
 - add a test/dev selection path, preferably an environment variable such as
-  `DOCKING_BACKEND=null`, but keep production auto-detection unchanged
+  `DOCKING_BACKEND=reduced`, but keep production auto-detection unchanged
 - verify pinned launchers, rendering, menus without window rows, no-preview
   hover behavior, and backend-neutral applets
 - assert `PlatformCapabilities` is honest: false for taskbar powers, true only
@@ -3628,7 +3625,7 @@ Do not:
 
 - ship it as user-facing native Wayland support yet unless explicitly labeled
   reduced/experimental
-- import X11 modules from the null backend
+- import X11 modules from the reduced backend
 - silently pretend taskbar/window actions succeeded
 
 Manual visual checks:
@@ -3645,7 +3642,7 @@ Exit criteria:
 - unsupported features degrade intentionally
 - reduced-backend tests prove no accidental X11 imports
 
-#### [ ] PR 14: Native Wayland Detection Stub
+#### [x] PR 14: Native Wayland Detection Stub
 
 Only after the reduced backend works, add native Wayland detection that selects
 a reduced/no-op backend when unsupported.

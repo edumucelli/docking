@@ -60,6 +60,7 @@ from docking.applets.popup import (
 from docking.applets.services import AppletServices
 from docking.applets.windowkiller import meta
 from docking.applets.windowkiller.render import create_icon
+from docking.applets.windowkiller.state import kill_pid
 from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.backends.base import ActionResult, WindowPickService
@@ -131,7 +132,7 @@ class WindowKillerApplet(Applet):
         if pid is None:
             log.bind(action="kill").warning("No PID for window: %s", name)
             return True
-        result = picker.kill(target.id)
+        result = ActionResult.OK if kill_pid(pid=pid) else ActionResult.FAILED
         log.bind(action="kill").info(
             "Killed %s (pid=%d): %s",
             name,

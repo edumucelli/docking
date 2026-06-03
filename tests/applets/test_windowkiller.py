@@ -9,7 +9,7 @@ import docking.applets.windowkiller.applet as windowkiller_applet_mod
 from docking.applets.services import AppletServices
 from docking.applets.windowkiller.applet import WindowKillerApplet
 from docking.applets.windowkiller.state import kill_pid
-from docking.platform.backends.base import ActionResult, WindowId, WindowSnapshot
+from docking.platform.backends.base import WindowId, WindowSnapshot
 
 
 class TestKillPid:
@@ -186,7 +186,8 @@ class TestAppletOverlay:
         picker = MagicMock()
         picker.pick_window_at.return_value = target
         picker.pid_for.return_value = 123
-        picker.kill.return_value = ActionResult.OK
+        kill = MagicMock(return_value=True)
+        monkeypatch.setattr(windowkiller_applet_mod, "kill_pid", kill)
         applet.set_services(AppletServices(window_picker=picker))
         logger = SimpleNamespace(info=MagicMock(), warning=MagicMock())
         monkeypatch.setattr(
@@ -198,7 +199,8 @@ class TestAppletOverlay:
         assert dismiss == [True]
         picker.pick_window_at.assert_called_once_with(x=10, y=20)
         picker.pid_for.assert_called_once_with(window_id)
-        picker.kill.assert_called_once_with(window_id)
+        kill.assert_called_once_with(pid=123)
+        picker.kill.assert_not_called()
         logger.info.assert_called_once()
 
     def test_overlay_click_warns_when_window_has_no_pid(self, monkeypatch):

@@ -176,6 +176,7 @@ class TestPlacementControllerLifecycle:
         window = _make_window()
         controller = _make_controller(window)
         controller._geometry_refresh_source = 91
+        controller._active_display_timer = 92
         controller._screen_signal_handlers = [(screen, 4), (screen, 5)]
         removed: list[int] = []
         monkeypatch.setattr(
@@ -184,8 +185,9 @@ class TestPlacementControllerLifecycle:
 
         controller.on_destroy()
 
-        assert removed == [91]
+        assert removed == [91, 92]
         assert controller._geometry_refresh_source == 0
+        assert controller._active_display_timer == 0
         assert controller._screen_signal_handlers == []
         screen.disconnect.assert_any_call(4)
         screen.disconnect.assert_any_call(5)

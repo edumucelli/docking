@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -107,7 +108,12 @@ class TestBuildDockWindow:
         window.autohide = MagicMock()
         window.get_realized.return_value = True
         window.get_position.return_value = (10, 20)
-        window.get_size.return_value = (300, 40)
+        window.geometry.build_frame.return_value.background_rect = SimpleNamespace(
+            x=100,
+            y=30,
+            w=300,
+            h=40,
+        )
         captured: dict[str, object] = {}
 
         def _make_dodge_monitor(**kwargs):
@@ -133,7 +139,7 @@ class TestBuildDockWindow:
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])
         dock_rect = get_dock_rect()
-        assert dock_rect == factory_mod.Rect(x=10, y=20, width=300, height=40)
+        assert dock_rect == factory_mod.Rect(x=110, y=50, width=300, height=40)
 
     def test_build_dock_window_returns_none_rect_until_realized(self, monkeypatch):
         config = MagicMock()

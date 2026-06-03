@@ -21,13 +21,19 @@ checks through app startup or UI modules.
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
+from docking.platform.environment import (
+    backend_name,
+    is_wayland_session,
+    is_x11_backend,
+)
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.backends.x11.session import X11SessionBackend
+    from docking.platform.backends.base import SessionBackend
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
@@ -36,13 +42,45 @@ log = get_logger(name="backend_selection")
 
 def create_session_backend(
     *, config: Config, launcher: Launcher, model: DockModel
-) -> X11SessionBackend:
+) -> SessionBackend:
     """Create the production session backend for the current runtime.
 
-    Native Wayland and reduced backends are not selected yet. Import the X11
-    backend lazily so future native Wayland startup can avoid importing X11-only
-    modules before selection.
+    Production still defaults to X11. ``DOCKING_BACKEND=reduced`` selects the
+    reduced backend explicitly for validation without importing X11 services.
     """
+    requested = os.environ.get("DOCKING_BACKEND", "").strip().lower()
+    if requested == "reduced":
+        return _create_reduced_backend(reason="requested by DOCKING_BACKEND=reduced")
+    if requested == "x11":
+        return _create_x11_backend(
+            config=config,
+            launcher=launcher,
+            model=model,
+            reason="requested by DOCKING_BACKEND=x11",
+        )
+
+    if not is_x11_backend():
+        return _create_reduced_backend(reason=_non_x11_reason())
+
+    return _create_x11_backend(
+        config=config,
+        launcher=launcher,
+        model=model,
+        reason="GTK display is X11",
+    )
+
+
+def _create_reduced_backend(*, reason: str) -> SessionBackend:
+    from docking.platform.backends.reduced.session import ReducedSessionBackend
+
+    backend = ReducedSessionBackend()
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_x11_backend(
+    *, config: Config, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend:
     from docking.platform.backends.x11.session import X11SessionBackend
 
     backend = X11SessionBackend(
@@ -50,5 +88,10 @@ def create_session_backend(
         launcher=launcher,
         config=config,
     )
-    log.info("Selected session backend: %s", backend.name)
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
+
+
+def _non_x11_reason() -> str:
+    session = "native Wayland" if is_wayland_session() else "non-X11"
+    return f"{session} GTK backend: {backend_name()}"

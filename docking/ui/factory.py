@@ -63,8 +63,13 @@ def build_dock_window(
         if not window.get_realized():
             return None
         wx, wy = window.get_position()
-        ww, wh = window.get_size()
-        return Rect(x=wx, y=wy, width=ww, height=wh)
+        dock_rect = window.geometry.build_frame().background_rect
+        return Rect(
+            x=wx + dock_rect.x,
+            y=wy + dock_rect.y,
+            width=dock_rect.w,
+            height=dock_rect.h,
+        )
 
     dodge_monitor = visibility_service.create_monitor(
         get_dock_rect=_get_dock_rect,
