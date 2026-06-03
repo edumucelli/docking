@@ -127,11 +127,11 @@ class TestAppMain:
         backend.previews = preview_service
         backend.surface = surface_service
         backend.visibility = visibility_service
-        backend.desktop_actions = MagicMock()
-        backend.workspaces = MagicMock()
-        backend.window_picker = MagicMock()
-        backend.idle = MagicMock()
-        backend.screen_capture = MagicMock()
+        backend.desktop_actions = None
+        backend.workspaces = None
+        backend.window_picker = None
+        backend.idle = None
+        backend.screen_capture = None
         unity = MagicMock()
         new_year = MagicMock()
         window = MagicMock()
@@ -192,11 +192,11 @@ class TestAppMain:
         theme_cls.load.assert_called_once_with(name="default", icon_size=48)
         theme.with_opacity.assert_called_once_with(1.0)
         services = model.set_applet_services.call_args.args[0]
-        assert services.desktop_actions is backend.desktop_actions
-        assert services.workspaces is backend.workspaces
-        assert services.window_picker is backend.window_picker
-        assert services.idle is backend.idle
-        assert services.screen_capture is backend.screen_capture
+        assert services.desktop_actions is None
+        assert services.workspaces is None
+        assert services.window_picker is None
+        assert services.idle is None
+        assert services.screen_capture is None
         factory.assert_called_once_with(
             config=config,
             model=model,

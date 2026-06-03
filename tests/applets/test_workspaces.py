@@ -175,6 +175,26 @@ class TestWorkspacesBehavior:
         service.unwatch_active_workspace.assert_called_once_with(handle)
         assert applet._watch_handle is None
 
+    def test_start_is_idempotent_for_workspace_watch(self, monkeypatch):
+        applet = WorkspacesApplet(48)
+        service = MagicMock()
+        handle = object()
+        service.list_workspaces.return_value = []
+        service.active_workspace.return_value = None
+        service.watch_active_workspace.return_value = handle
+        applet.set_services(AppletServices(workspaces=service))
+        refresh = MagicMock()
+        monkeypatch.setattr(applet, "present", refresh)
+
+        applet.start(lambda: None)
+        applet.start(lambda: None)
+
+        service.watch_active_workspace.assert_called_once_with(
+            applet._on_workspace_changed
+        )
+        assert applet._watch_handle is handle
+        assert refresh.call_count == 2
+
     def test_set_services_rewatches_when_already_started(self, monkeypatch):
         applet = WorkspacesApplet(48)
         old_service = MagicMock()

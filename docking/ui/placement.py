@@ -320,6 +320,7 @@ class DockPlacementController:
         if refresh_source:
             GLib.source_remove(refresh_source)
             self._geometry_refresh_source = 0
+        self.stop_active_display()
         self.disconnect_screen_signals()
 
     def position_dock(self) -> None:

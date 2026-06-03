@@ -201,11 +201,11 @@ class WorkspacesApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)
-        if self._workspace_service is not None:
+        if self._workspace_service is not None and self._watch_handle is None:
             self._watch_handle = self._workspace_service.watch_active_workspace(
                 self._on_workspace_changed
             )
-            self.present()
+        self.present()
 
     def stop(self) -> None:
         if self._workspace_service is not None and self._watch_handle is not None:
