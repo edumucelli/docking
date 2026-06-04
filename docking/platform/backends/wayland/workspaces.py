@@ -27,6 +27,8 @@ from docking.platform.backends.base import (
 
 STATE_ACTIVE = "active"
 CAPABILITY_ACTIVATE = "activate"
+STATE_ACTIVE_BIT = 1
+CAPABILITY_ACTIVATE_BIT = 1
 
 
 @dataclass
@@ -140,17 +142,23 @@ class WaylandWorkspaceService(WorkspaceService):
     def name_changed(self, handle: object, name: str) -> None:
         self._ensure_state(handle=handle).name = name.strip()
 
-    def state_changed(self, handle: object, states: Iterable[object]) -> None:
+    def state_changed(self, handle: object, states: Iterable[object] | int) -> None:
         state = self._ensure_state(handle=handle)
-        normalized = {_normalize_token(value) for value in states}
-        state.active = STATE_ACTIVE in normalized
+        state.active = _has_flag(
+            states,
+            token=STATE_ACTIVE,
+            bit=STATE_ACTIVE_BIT,
+        )
 
     def capabilities_changed(
-        self, handle: object, capabilities: Iterable[object]
+        self, handle: object, capabilities: Iterable[object] | int
     ) -> None:
         state = self._ensure_state(handle=handle)
-        normalized = {_normalize_token(value) for value in capabilities}
-        state.can_activate = CAPABILITY_ACTIVATE in normalized
+        state.can_activate = _has_flag(
+            capabilities,
+            token=CAPABILITY_ACTIVATE,
+            bit=CAPABILITY_ACTIVATE_BIT,
+        )
 
     def done(self) -> None:
         active = self.active_workspace()
@@ -211,3 +219,9 @@ def _normalize_token(value: object) -> str:
     if isinstance(name, str) and name:
         return name.strip().lower()
     return str(value).strip().lower()
+
+
+def _has_flag(values: Iterable[object] | int, *, token: str, bit: int) -> bool:
+    if isinstance(values, int):
+        return bool(values & bit)
+    return token in {_normalize_token(value) for value in values}

@@ -69,6 +69,21 @@ def test_wayland_workspace_service_reports_unsupported_activate():
     assert service.activate("missing") is ActionResult.NOT_FOUND
 
 
+def test_wayland_workspace_service_accepts_protocol_bitfields():
+    service = WaylandWorkspaceService(protocol=_protocol())
+    handle = object()
+    service.workspace_created(handle)
+    service.id_changed(handle, "workspace-a")
+    service.capabilities_changed(handle, 1)
+    service.state_changed(handle, 1)
+    service.done()
+
+    active = service.active_workspace()
+    assert active is not None
+    assert active.id == "workspace-a"
+    assert service.activate("workspace-a") is ActionResult.OK
+
+
 def test_wayland_workspace_service_removes_workspaces():
     service = WaylandWorkspaceService(protocol=_protocol())
     handle = object()
