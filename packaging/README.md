@@ -51,6 +51,12 @@ docking
 ### How it works
 
 - **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`
+- **Optional Wayland deps**: native Wayland layer-shell placement requires
+  `gir1.2-gtklayershell-0.1` on Debian/Ubuntu. It should be packaged as an
+  optional/recommended dependency until native Wayland support grows beyond the
+  layer-shell surface backend. Foreign-toplevel taskbar support additionally
+  needs the optional Python `pywayland` runtime for Docking's vendored wlroots
+  protocol binding.
 - **Application code**: installed to `/usr/lib/docking/python/` and loaded via the
   `/usr/bin/docking` wrapper so the package stays compatible across supported
   Python 3 minors on the same architecture.
@@ -127,10 +133,13 @@ flatpak run cc.docking.Docking
 
 - App ID is `cc.docking.Docking`; system packages keep the shared
   `org.docking.Docking` desktop file and icons.
+- Native Wayland layer-shell placement needs `gtk-layer-shell` available inside
+  the runtime if the Flatpak is expected to use the native Wayland backend.
 - Flatpak build installs hicolor icons and a local `hicolor/index.theme` so
   AppStream icon checks pass in sandboxed builds.
 - The app requires X11 window management behavior, so the Flatpak manifest enables
-  `--socket=x11` and host filesystem access.
+  `--socket=x11` and host filesystem access for full functionality. Native
+  Wayland layer-shell mode is reduced until foreign-window services exist.
 
 ## Snap
 

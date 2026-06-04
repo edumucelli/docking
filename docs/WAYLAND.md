@@ -426,6 +426,33 @@ The current ecosystem points to the same conclusion repeatedly:
 This is useful because it gives Docking a realistic map of what "Wayland
 support" could actually mean in practice.
 
+### Can Docking Bypass the Compositor?
+
+No, not for the capabilities that matter to a dock.
+
+On Wayland, global window state, stacking order, workspace membership, foreign
+window geometry, activation policy, and foreign-window pixels belong to the
+compositor. A normal client can only use information and requests that the
+compositor intentionally exposes through Wayland protocols, desktop portals,
+IPC, or shell extensions.
+
+This means "copy the compositor implementation" is not a replacement for a
+runtime compositor API:
+
+- copying or vendoring protocol XML/client bindings can reduce build-time or
+  packaging dependencies
+- copying compositor-side logic does not grant access to compositor-owned
+  state
+- reimplementing protocol helpers such as `gtk-layer-shell` inside Docking
+  would still require the compositor to advertise and honor the same protocol
+- GNOME-level parity requires GNOME Shell integration because GNOME Shell
+  extensions run inside the shell and can access Mutter/Shell APIs that
+  ordinary clients cannot
+
+The practical rule is: prefer public protocols first, isolate
+compositor-specific bridges second, and keep unsupported features reduced
+rather than pretending that plain GTK can recover X11-style authority.
+
 ## What GTK4 and Wayland Do and Do Not Allow
 
 The important distinction is not "GTK4 versus GTK3" so much as "Wayland versus
@@ -582,10 +609,14 @@ Examples in the Wayland ecosystem:
   - often used for exclusive zones and anchored layer surfaces
 - `wlr-foreign-toplevel-management`
   - for tasklist-like discovery/control of top-level windows
+- `ext-foreign-toplevel-list-v1`
+  - for stable mapped-toplevel handles and app/title metadata, without actions
 - `ext-workspace-v1`
   - for workspace enumeration and switching
-- screencopy/image-capture style protocols
-  - for thumbnails/previews
+- `ext-image-copy-capture-v1` and related image-capture-source protocols
+  - for future output/toplevel capture where the compositor supports them
+- XDG desktop portals
+  - for user-mediated screenshots, screencast, and color picking
 
 This bucket is the natural place for a native dock on wlroots/KWin-style
 compositors.
@@ -914,6 +945,226 @@ If instead the project goal is:
 
 then a normal-app Wayland path may still be worthwhile, but it should be
 understood as a reduced feature target on GNOME.
+
+## GNOME Shell Extension Support
+
+GNOME Shell extension support is feasible, but it is not the same kind of
+backend as X11, layer-shell, foreign-toplevel, or compositor IPC.
+
+GNOME Shell extensions run inside the `gnome-shell` process using GJS
+JavaScript. They can use Mutter/Shell APIs through namespaces such as `Meta`,
+`Shell`, `Clutter`, and `St`. This is why extensions such as Dash to Dock and
+Dash to Panel can work on GNOME Wayland while an ordinary third-party GTK
+client cannot.
+
+The key architectural consequence is that a GNOME extension is shell
+integration, not a normal Python/GTK runtime backend.
+
+### What an Extension Can Access
+
+Inside GNOME Shell, an extension can use Mutter's `Meta.Window` and
+`Meta.Workspace` abstractions rather than Wayland client protocols.
+
+Relevant capabilities include:
+
+- list and inspect windows through Shell/Mutter workspace and display state
+- read window title, app identity, focus state, minimized/maximized/fullscreen
+  state, monitor, workspace, geometry, and PID where Mutter exposes them
+- observe window-added, window-removed, focus, workspace, size, and position
+  changes
+- activate, focus, minimize, unminimize, maximize, close, move, resize, stick,
+  and change-workspace for windows where Mutter permits it
+- inspect and activate workspaces through `Meta.Workspace` /
+  `global.workspace_manager`
+- create visible shell UI with `St` and `Clutter` actors, styled by the
+  extension's shell CSS
+
+This is fundamentally different from trying to bypass Wayland from a normal
+client. The extension does not escape the compositor; it runs as part of the
+shell/compositor environment and uses the shell's internal APIs.
+
+### Option 1: Full GNOME Shell Frontend
+
+This is the path used by serious GNOME docks.
+
+In this model, Docking would ship a GNOME Shell extension that owns the visible
+dock/shelf UI. The dock would be implemented with shell actors (`St`, Clutter,
+GNOME Shell UI modules), not with the existing GTK `DockWindow`.
+
+What it can solve:
+
+- true GNOME Wayland shelf/dock placement
+- running and active application indicators
+- workspace-aware window grouping
+- shell-level autohide and dodge behavior
+- show-desktop and window actions
+- monitor-aware shell placement
+- behavior comparable to Dash to Dock / Dash to Panel
+
+What it costs:
+
+- the GTK renderer/widgets cannot be reused directly
+- much of the visual shell would need a GJS/St implementation or a shared
+  model/theme layer that both Python and GJS can consume
+- GNOME Shell APIs change across releases, so every supported GNOME version
+  needs explicit compatibility work
+- bugs in the extension can affect `gnome-shell` stability, performance, and
+  user session behavior
+- distribution follows GNOME extension packaging/review/version rules, not
+  ordinary Python package rules
+
+This is the only realistic path for full GNOME Wayland parity, but it is closer
+to building a second frontend than adding another backend service.
+
+### Option 2: GNOME Shell Bridge Extension
+
+A smaller extension could expose GNOME window/workspace state to the existing
+Python Docking process over D-Bus.
+
+Existing extensions such as `ws-dbus`, `Window Calls`, and `Focused Window
+D-Bus` prove this pattern is possible: a shell extension can list windows,
+report focused-window changes, expose workspace data, and perform actions such
+as focus, move, resize, minimize, maximize, close, or workspace switching.
+
+What it can help with:
+
+- active/running indicators for native GNOME Wayland windows
+- window titles and window menu rows
+- workspace-aware filtering
+- focus/close/minimize-style actions
+- possibly geometry-backed dodge decisions if the bridge exports enough state
+
+What it cannot fully solve:
+
+- the Python GTK dock window is still an ordinary Wayland client
+- it does not turn `DockWindow` into a real shell panel
+- it does not provide layer-shell-style edge reservation on GNOME
+- it creates a trust boundary where an extension exposes shell authority to an
+  external process over D-Bus
+- bridge APIs would be project-specific and must be versioned/tested like any
+  other public interface
+
+This bridge is useful as an experiment or reduced GNOME support layer, but it
+should not be described as full GNOME dock parity unless the visible dock
+surface problem is also solved.
+
+### Option 3: Hybrid Extension and App
+
+A hybrid design could let the GNOME Shell extension own the visible dock while
+the Python app continues to provide configuration, applet data, indexing, or
+other non-shell services.
+
+Possible shape:
+
+- GNOME extension draws the shelf/dock and talks to Mutter/Shell for windows
+  and workspaces
+- Python process provides model data, applet state, launcher metadata, settings,
+  and background services over D-Bus or another local IPC
+- both frontends share desktop-file matching rules, icon lookup rules, and theme
+  tokens as much as practical
+
+This could preserve some Docking logic without forcing the GTK window to do
+things GNOME Wayland does not permit.
+
+The risk is complexity: there would be two frontends, two runtimes, two
+packaging paths, and a new IPC contract.
+
+### Can These Options Live in This Codebase?
+
+Yes, but they fit the current Docking codebase at different depths.
+
+The bridge extension is the cleanest fit. It can live in the same repository as
+an optional GNOME integration package, for example under
+`gnome-shell-extension/bridge/` or `extensions/gnome-shell/bridge/`. The
+extension would expose D-Bus state/actions, and the existing Python app would
+consume that through a GNOME-specific backend service.
+
+The hybrid extension can also live in the same repository, but it requires a
+clear IPC contract and shared data boundaries. In this model, the GNOME
+extension owns the visible shelf, while Python Docking provides settings,
+launcher metadata, applet data, indexing, theme tokens, or other non-shell
+services.
+
+The full GNOME Shell frontend can live in the same repository too, but it should
+be treated as a second frontend. It can reuse concepts, configuration schema,
+desktop-file matching rules, icon lookup rules, and generated data. It cannot
+directly reuse the GTK `DockWindow`, GTK widgets, or Cairo/GTK renderer inside
+GNOME Shell.
+
+A possible repository shape:
+
+```text
+docking/
+  platform/backends/
+    x11/
+    reduced/
+    wayland/
+gnome-shell-extension/
+  bridge/
+  frontend/
+shared/
+  app-matching-rules.json
+  theme-tokens.json
+```
+
+Important boundaries:
+
+- do not import Python code into GNOME Shell
+- do not try to use GTK widgets as GNOME Shell actors
+- share data, schemas, generated metadata, matching rules, and IPC contracts
+  rather than UI objects
+- keep GNOME extension packaging separate from the Python package, even if both
+  live in the same source repository
+- keep tests and release gates separate enough that GNOME extension breakage
+  does not block X11 or layer-shell backends unless that is intentional
+
+### GNOME Extension Maintenance Risks
+
+GNOME Shell extensions are powerful because they are close to the shell. That
+is also why they are fragile.
+
+Known risks:
+
+- `metadata.json` must list supported `shell-version` values; unsupported
+  versions may not load
+- GNOME 45 and later use ES modules for extension code, while older Shell
+  versions use different import patterns
+- GNOME Shell and Mutter APIs can change between releases, especially for
+  overview, workspace, layout, and actor internals
+- extension `enable()` must create/connect state and `disable()` must undo all
+  changes; leaked signals, actors, timers, or monkey patches are common causes
+  of review rejection and runtime instability
+- actor allocation/rendering mistakes can cause shell log spam, high CPU, or
+  visible stutter
+- extensions submitted through extensions.gnome.org are reviewed and versioned
+  by GNOME extension distribution rules
+
+For Docking, this means GNOME extension support should be planned as an
+explicit product track:
+
+- first decide whether GNOME requires full parity or reduced support is enough
+- if full parity is required, plan a GNOME Shell frontend
+- if only indicators/actions are needed, prototype a bridge extension first
+- keep the native Wayland client backend for layer-shell compositors separate
+  from the GNOME extension codepath
+- do not try to make a normal GTK Wayland window behave like a GNOME Shell dock
+  by copying compositor code
+
+### Recommended GNOME Path
+
+The safest staged plan is:
+
+1. Keep GNOME/Mutter native Wayland in reduced mode for the normal Python/GTK
+   app.
+2. Prototype a small GNOME Shell bridge extension that exposes read-only window
+   and workspace state over D-Bus.
+3. Use that bridge to validate app ID matching, running indicators, active
+   indicators, and workspace filtering.
+4. Only after that, decide whether to build a full GNOME Shell frontend that
+   owns the visible shelf surface.
+
+This avoids committing to a full GJS frontend before proving that the shell
+integration model fits Docking's architecture.
 
 ## Case Study: Cairo-Dock on Wayland
 
@@ -3604,7 +3855,7 @@ Exit criteria:
   watch idempotency
 - full non-visual suite and the usual X11 manual smoke pass both pass
 
-#### [x] PR 13: Null / Reduced Backend
+#### [x] PR 13: Reduced Backend
 
 Add a backend with no taskbar powers to validate that X11 assumptions are no
 longer leaking through normal UI.
@@ -3674,28 +3925,57 @@ Exit criteria:
 - X11 remains unchanged
 - logs and capability flags explain reduced mode
 
-#### [ ] PR 15: Layer-Shell Surface Backend
+#### [x] PR 15: Layer-Shell Surface Backend
 
 Add native Wayland dock-surface placement for compositors that support
 layer-shell.
 
-Start here:
+Research findings:
 
-- optional `gtk-layer-shell` import inside Wayland surface backend
-- configure layer-shell before first map
-- implement anchors, monitor targeting, layer choice, and exclusive zones
-- keep fallback when layer-shell is unavailable
-- map the existing Docking position/config concepts onto layer-shell anchors
-  without changing X11 placement code
-- keep GNOME/Mutter native Wayland in reduced mode because it does not expose
-  the required third-party layer-shell path
-- add capability flags for layer-shell and exclusive-zone reservation
+- Native Wayland does not require rebuilding the shelf UI from scratch. The
+  existing GTK window/widgets/rendering can remain the shelf; what changes is
+  the surface role and placement path.
+- `wlr-layer-shell` is the right primitive for dock/panel surfaces: anchors,
+  layer choice, margins, keyboard mode, and exclusive zones.
+- `gtk-layer-shell` is the right GTK3 integration point because the layer-shell
+  role must be assigned before the GTK window is first mapped.
+- `gtk-layer-shell` makes the GTK window a layer-shell surface instead of an
+  ordinary `xdg_toplevel` application window. That is what enables native
+  panel/dock placement, edge reservation, and non-Alt-Tab-like behavior on
+  supporting compositors.
+- Layer-shell does not provide taskbar data. Running/active application
+  indicators need a separate foreign-toplevel or compositor-specific window
+  service.
+- Reimplementing `gtk-layer-shell` inside Docking would still depend on the
+  compositor advertising `zwlr_layer_shell_v1`, while adding fragile GTK/GDK
+  Wayland pointer plumbing.
+- GNOME/Mutter native Wayland should remain reduced unless Mutter exposes a
+  supported third-party shell-component path or Docking grows a GNOME Shell
+  extension.
+
+Completed scope:
+
+- added `WaylandLayerShellSessionBackend` for native Wayland layer-shell mode
+- added `WaylandLayerShellSurfaceService`, which imports `GtkLayerShell` only
+  inside the Wayland backend path and assigns the layer-shell role before map
+- maps existing `PlacementRequest` and `ReservationRequest` data onto
+  layer-shell anchors, monitor selection, size, and exclusive zones without
+  changing X11 placement code
+- reuses reduced window, preview, and visibility services so PR15 only claims
+  surface placement/reservation support
+- keeps fallback to reduced mode when `GtkLayerShell` is unavailable or the
+  compositor does not advertise layer-shell support
+- documents the optional system dependency in the README and packaging notes
+- adds focused tests for layer-shell surface calls, backend selection/fallback,
+  and X11 import isolation
 
 Do not:
 
 - add taskbar/window tracking yet
-- make layer-shell a hard dependency
+- make `gtk-layer-shell` a hard dependency for X11 users
 - import layer-shell modules in X11 sessions
+- hand-roll raw Wayland surface role setup unless `gtk-layer-shell` proves
+  impossible to package
 
 Manual visual checks:
 
@@ -3712,101 +3992,837 @@ Exit criteria:
 - GNOME native Wayland remains reduced/unsupported with a clear log
 - X11 placement tests remain unchanged
 
-#### [ ] PR 16: Generic Foreign-Toplevel Window Service
+#### [x] PR 16: Generic Foreign-Toplevel Window Service
 
-Add wlroots-style opened-app context.
+Add basic opened-app context for compositors that expose foreign-toplevel
+management.
 
-Start here:
+Research findings:
 
-- bind `zwlr_foreign_toplevel_manager_v1`
-- track app ID, title, active/minimized/maximized/fullscreen, parent, and close
-  events
-- implement activate/close/minimize where supported
-- publish `RunningAppInfo` through neutral window IDs
-- use Wayland-aware app ID matching
-- store protocol handles only inside the Wayland backend; expose only
-  `WindowId`/`WindowSnapshot` to UI
-- handle protocol absence by keeping the reduced backend active
-- keep geometry, stacking, and workspace capability flags false unless the
-  compositor protocol actually provides them
+- `zwlr_foreign_toplevel_manager_v1` is the best current generic taskbar
+  protocol when action support is needed.
+- It can provide app ID, title, active/minimized/maximized/fullscreen state,
+  output enter/leave, parent, close events, activate, close, minimize,
+  maximize, and fullscreen requests.
+- This is the generic native-Wayland path for running dots and active
+  application indicators: aggregate foreign toplevel handles by compositor
+  `app_id`, match those app IDs to Docking desktop IDs, and mark the matching
+  shelf item as running/active.
+- Multiple windows for the same app are represented as multiple toplevel handles
+  with the same matched desktop ID, so the same backend state can power counts,
+  window menus, and active-window highlighting.
+- The active indicator comes from the toplevel `activated` state, not from
+  layer-shell or from the dock surface.
+- It does not provide reliable window geometry, workspace membership, PID,
+  stacking order, or window-at-point picking.
+- `ext_foreign_toplevel_list_v1` is newer and gives stable mapped-toplevel
+  handles with app/title/identifier metadata, but it is intentionally minimal
+  and does not itself provide taskbar actions.
+- KWin/Plasma should not be treated as part of this generic path:
+  `zwlr_foreign_toplevel_manager_v1` is not the rich Plasma taskbar API.
+
+Completed scope:
+
+- added a lazy foreign-toplevel protocol adapter/probe behind optional imports;
+  missing Python bindings or compositor support keep the reduced window service
+  active
+- vendored the wlroots `wlr-foreign-toplevel-management-unstable-v1.xml` source
+  and generated PyWayland binding so the missing protocol module is available
+  from Docking's source tree
+- kept the live registry/event-loop bridge separate; without optional
+  `pywayland` runtime support and a concrete adapter, the backend still falls
+  back to reduced window state
+- added `WaylandForeignToplevelWindowService`, which owns protocol handles
+  internally and exposes only backend-neutral `WindowId` and `WindowSnapshot`
+  values
+- tracks app ID, title, active/minimized/maximized/fullscreen state, output
+  enter/leave, parent, and closed/done events through a fakeable protocol-event
+  surface
+- added `WaylandAppIdMatcher` for Wayland app IDs, including direct desktop IDs,
+  reverse-DNS-style IDs, Flatpak-style IDs, and executable-style aliases without
+  changing X11 WM_CLASS matching
+- aggregates matched toplevels into `RunningAppInfo` and publishes them through
+  `DockModel.update_running()` so existing running dots, active indicators, and
+  instance counts work from the same model path as X11
+- implements basic activate, close, minimize, close-all, activate-most-recent,
+  and toggle-focus actions when the protocol adapter exposes them
+- keeps geometry, dodge, PID, stacking, preview, and workspace capability flags
+  false unless a later backend actually provides those facts
+- updates the Wayland session so foreign-toplevel support upgrades only the
+  `windows` service; layer-shell surface, reduced previews, and reduced
+  visibility remain unchanged
 
 Do not:
 
 - claim geometry/dodge/workspace parity
-- add compositor-specific Plasma or COSMIC code here
+- add compositor-specific Plasma, COSMIC, Hyprland, Niri, or Wayfire code here
 - change X11 matching behavior
+- infer unsupported capabilities from titles, app IDs, or output-enter events
 
 Manual visual checks:
 
-- On a supported wlroots compositor, open apps and confirm running indicators appear and clear correctly.
+- On a supported compositor, open apps and confirm running indicators appear and clear correctly.
 - Open multiple windows for one app and confirm counts, active state, and basic actions match compositor capability.
-- Test activate, close, and minimize where supported; unsupported actions should be disabled or no-op visibly safely.
+- Test activate, close, minimize, and maximize where supported; unsupported actions should be disabled or no-op visibly safely.
 - Check app matching for common desktop IDs, Flatpak apps, and apps with unusual app IDs.
 - Confirm X11 behavior is unchanged after the generic Wayland service lands.
 
 Exit criteria:
 
 - running indicators and basic window actions work on at least one supported
-  wlroots compositor
+  compositor
 - unsupported compositors continue reduced mode with clear logs
+- geometry, workspace, preview, PID, and dodge features remain capability-gated
 
-#### [ ] PR 17: KWin / Plasma Backend
+#### [x] PR 17: Standard Workspace, Idle, and Portal Services
 
-Add the richest parity backend.
+Add portable Wayland services only where standard protocols or portals exist.
 
-Start here:
+Research findings:
 
-- bind Plasma window-management and virtual desktop protocols
-- track UUIDs, app IDs, titles, state, attention, skip-taskbar, geometry, PID,
-  virtual desktops, and stacking order where available
-- implement richer actions and show-desktop/workspace services
-- enable more hide modes when geometry/workspace capabilities are present
-- add Plasma-specific `WindowService`, `WorkspaceService`, and
-  `DesktopActionService` pieces behind capability flags
-- prefer Plasma protocol data over generic foreign-toplevel data when both are
-  present
-- keep protocol selection deterministic and logged
+- `ext_workspace_v1` can enumerate workspace groups/workspaces and request
+  activate/deactivate/remove/assign where the compositor advertises those
+  capabilities.
+- Workspace support is still compositor-dependent and should be optional, not a
+  requirement for the generic foreign-toplevel backend.
+- XDG desktop portal `Screenshot` can provide user-mediated screenshots and
+  `PickColor`; it cannot be used as a silent arbitrary-window preview backend.
+- `ext_idle_notify_v1` can report idled/resumed transitions, but it is not a
+  direct replacement for XScreenSaver-style exact idle seconds.
+- Pointer barriers have no normal-client equivalent to X11 global barriers;
+  Wayland pointer constraints and relative pointer protocols are focused on
+  surfaces with pointer focus, not global dock edge barriers.
+
+Completed scope:
+
+- vendored `ext-workspace-v1.xml` and generated PyWayland protocol bindings
+  alongside the other Wayland protocol artifacts
+- added `WaylandWorkspaceService`, a fakeable `WorkspaceService` driven by
+  standard workspace protocol events and capability-gated activate requests
+- wired the Wayland session so `workspaces` upgrades only when a live workspace
+  adapter is available; otherwise it remains `None`
+- added `WaylandPortalColorPickerService` using XDG Desktop Portal
+  `PickColor` as the native Wayland `ScreenCaptureService` path
+- wired portal-backed color picking into the Wayland session when Gio/portal
+  dependencies are available
+- kept idle support unavailable because the current `IdleService` contract
+  requires exact `idle_seconds()`, while `ext-idle-notify-v1` provides
+  threshold-based idled/resumed notifications instead
+- added focused tests for workspace events, active workspace watchers,
+  activation behavior, color conversion/cancel handling, and session
+  capabilities
+
+Do not:
+
+- force workspaces into the generic foreign-toplevel service
+- claim current-workspace filtering for windows unless the backend can map
+  windows to workspaces
+- use portals for background, silent, per-window previews
+- claim pointer-barrier parity on native Wayland
 
 Manual visual checks:
 
-- On Plasma Wayland, check running indicators, active windows, attention state, window actions, and workspace filtering.
-- Move windows across virtual desktops and monitors and confirm Docking tracks the expected workspace state.
-- Test show-desktop, workspace switching, close, minimize, activate, and dodge modes backed by geometry.
-- Confirm Plasma-specific behavior wins over generic foreign-toplevel behavior when both are present.
-- Re-test non-Plasma Wayland and X11 to confirm they are unaffected.
+- On compositors with `ext_workspace_v1`, confirm workspace list and activation behavior matches advertised capabilities.
+- On compositors without workspace protocol support, confirm the Workspaces applet degrades cleanly.
+- Test portal color picking under native Wayland and confirm the user-mediated flow is acceptable.
+- Confirm X11 workspace, idle, and color-picking behavior is unchanged.
 
 Exit criteria:
 
-- KWin Wayland reaches closest behavior to current X11 for taskbar, actions,
-  workspace, and dodge features
-- non-Plasma Wayland backends are unaffected
+- standard workspace support works where the compositor advertises it
+- portal-backed color picking replaces X11-root sampling on native Wayland
+- unsupported services remain absent or reduced with clear capability flags
 
-#### [ ] PR 18: COSMIC / Optional Compositor Extras
+#### [ ] PR 18: Compositor-Specific Rich Backends
 
-Add compositor-specific backends after the generic and KWin paths are stable.
+Add richer compositor-specific integrations after the generic layer-shell,
+foreign-toplevel, workspace, and portal paths are stable.
+
+Research findings:
+
+- KWin/Plasma has the richest taskbar protocol in
+  `org_kde_plasma_window_management`, including UUIDs, app IDs, title/state,
+  attention, skip-taskbar, geometry, client geometry, PID, virtual desktops,
+  stacking order, icons, show desktop, and richer actions. It is explicitly a
+  private desktop implementation detail and only one client can bind it, so it
+  must be treated as a risky trusted-integration path, not a generic backend.
+- KWin scripting can expose window/workspace state through JavaScript and D-Bus,
+  but it is also a Plasma-specific trusted bridge.
+- COSMIC exposes promising protocols for toplevel info, toplevel management,
+  workspaces, overlap notification, and image capture; it is a strong candidate
+  for rich native parity.
+- Hyprland exposes practical JSON IPC for clients, workspaces, events, and
+  dispatch actions. This can provide rich behavior, but it is specific to that
+  compositor.
+- Niri exposes JSON IPC through `$NIRI_SOCKET`, including windows, workspaces,
+  event streams, focus, and close actions.
+- Wayfire exposes IPC via plugins and `pywayfire`; capabilities depend on
+  enabled plugins such as `ipc` and `ipc-rules`.
+- GNOME/Mutter native Wayland remains a separate GNOME Shell extension project
+  if full parity is desired.
+
+Backend-specific findings:
+
+- COSMIC is the strongest protocol-first rich backend candidate. Its
+  `cosmic-protocols` set includes toplevel info, toplevel management,
+  workspace extensions, overlap notification, and image-capture-source
+  extensions. `zcosmic_toplevel_manager_v1` exposes capability-gated close,
+  activate, maximize, minimize, fullscreen, sticky, and move-to-workspace
+  requests. `zcosmic_overlap_notify_v1` is especially important for Docking
+  because it can notify a layer-shell client when toplevels or other layer
+  surfaces overlap the dock surface, which is much closer to native dodge
+  behavior than generic foreign-toplevel can provide.
+- Hyprland is an IPC-first backend candidate. It exposes two UNIX sockets under
+  `$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/`: one synchronous
+  hyprctl-like command socket and one event stream socket. The event stream
+  reports workspace, focused monitor, active window, open/close window,
+  move-window, title, urgent, fullscreen, pin, and minimized events. Its JSON
+  `hyprctl -j` queries can provide current clients/workspaces, while dispatch
+  commands can focus or close windows by address. The main risk is that the
+  command socket is synchronous and can freeze Hyprland if clients hold it open.
+- Niri is an IPC-first backend with the cleanest JSON contract. It exposes a
+  UNIX socket via `$NIRI_SOCKET`; requests and replies are newline-delimited
+  JSON. It has explicit `Windows`, `Workspaces`, `FocusedWindow`,
+  `FocusedOutput`, `PickWindow`, `PickColor`, and `EventStream` requests. The
+  event stream provides current state up front and then streams updates, making
+  it well suited to a taskbar backend. Window/workspace actions can target
+  stable IDs, but clients should not batch unrelated requests and assume
+  consistency between them.
+- Wayfire is IPC-first but plugin-dependent. Its IPC socket exists only when the
+  `ipc` plugin is enabled, and useful window-management methods depend on
+  companion plugins such as `ipc-rules`, `wm-actions`, or other extensions. The
+  `pywayfire` package can provide a Python-facing wrapper with methods such as
+  `list_views()`, `set_focus()`, `close_view()`, `set_view_minimized()`,
+  workspace operations, scale/expo actions, and event watching where the
+  required plugins are enabled. This can be rich, but availability varies by
+  user configuration.
+- KWin/Plasma has two possible paths. The private
+  `org_kde_plasma_window_management` protocol is closest to X11/libwnck parity,
+  but it is explicitly an implementation detail, warns regular clients not to
+  use it, and allows only one client to bind it. A KWin script bridge is a
+  higher-level alternative: JavaScript/QML scripts run inside KWin, use the
+  global `workspace` object to access client lists, active windows, stacking
+  order, geometry, and signals, and could expose a D-Bus contract to Docking.
+  The bridge is safer than competing for the private protocol but creates a
+  Plasma-specific install/configuration surface.
+- GNOME/Mutter remains extension-first. A normal Python GTK client cannot
+  become a full GNOME dock by adding compositor IPC. Full parity belongs in a
+  GNOME Shell extension/frontend or, at minimum, a Shell extension bridge that
+  exposes Mutter window/workspace state over D-Bus.
+- Generic wlroots compositors such as Sway, river, and labwc should stay on the
+  standard layer-shell plus foreign-toplevel path unless they expose a richer
+  stable IPC. Do not add per-compositor backends where the generic protocol
+  backend already gives equivalent behavior.
+
+Capability summary:
+
+| Backend path | Running state | Actions | Workspaces | Geometry/dodge | Previews/capture | Risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| COSMIC protocols | strong | strong | strong | strongest via overlap notify | promising via image-capture protocols | protocol churn while COSMIC matures |
+| Hyprland IPC | strong | strong | strong | geometry available from client IPC | compositor-specific only | socket protocol and synchronous command caveats |
+| Niri IPC | strong | medium/strong | strong | geometry/layout data available | pick/color/cast APIs, preview still separate | JSON contract evolves with niri |
+| Wayfire IPC | medium/strong | medium/strong | medium/strong | possible via view data/plugins | plugin-dependent | user plugin configuration |
+| KWin private protocol | strongest | strongest | strong | strong | icons/private data available | private API, one-client binding |
+| KWin script bridge | strong | strong | strong | strong | bridge-defined | extra install/runtime component |
+| GNOME Shell extension | strongest on GNOME | strongest on GNOME | strongest on GNOME | strongest on GNOME | shell-defined | second frontend/version maintenance |
 
 Start here:
 
-- COSMIC toplevel/workspace/overlap protocols
-- optional Wayfire IPC extensions
-- optional Niri overview integration
-- add each compositor integration behind explicit detection and capability
-  flags
-- keep each optional backend isolated so a missing dependency or unsupported
-  compositor cannot affect X11, generic wlroots, or Plasma
+- choose one compositor-specific backend at a time based on available test
+  hardware/session access
+- add explicit detection and capability flags for each backend
+- prefer public standard protocols over compositor-specific IPC when both offer
+  equivalent capability
+- isolate each backend so missing sockets, missing protocol globals, missing
+  desktop-file permissions, or disabled compositor plugins cannot affect X11 or
+  other Wayland backends
+- document each backend's trust and stability model
+- implement each backend as an adapter that feeds the same existing service
+  contracts: `WindowService`, `WorkspaceService`, `VisibilityService`, and
+  optional capture/action services
+- keep backend-specific identifiers private and expose only `WindowId`,
+  `WindowSnapshot`, `WorkspaceSnapshot`, and capability flags to UI code
+- prefer event streams over polling where the compositor provides them, but add
+  a startup full-state snapshot so the dock can recover after missed events
+- add one manual smoke profile per compositor because CI will not cover these
+  runtime integrations reliably
+
+Candidate order:
+
+- COSMIC first if a COSMIC test session is available, because its protocol set
+  most directly maps to Docking's missing native Wayland features.
+- Niri next if JSON socket integration is preferred, because its event stream
+  and typed request/response model are clean and taskbar-oriented.
+- Hyprland next if broader user impact is preferred, but isolate the synchronous
+  command socket carefully and avoid long-lived command connections.
+- Wayfire after that, gated on `ipc`/`ipc-rules`/needed plugin availability.
+- KWin/Plasma only after choosing between private protocol access and a KWin
+  script/D-Bus bridge.
+- GNOME Shell extension as a separate frontend/bridge track, not as a normal
+  Python GTK backend.
+
+##### [ ] PR 18a: Common Compositor IPC Scaffolding
+
+Add shared infrastructure for compositor-specific socket/IPC backends without
+adding a concrete compositor integration yet.
+
+Start here:
+
+- add a small internal IPC adapter interface for request/response calls,
+  event-stream subscriptions, reconnect, shutdown, and diagnostics
+- support newline-delimited JSON socket protocols because Niri and several
+  compositor tools use that shape
+- add text event parsing helpers for Hyprland-style `EVENT>>DATA` streams
+- add lifecycle ownership for background event readers so they stop cleanly when
+  the session backend stops
+- add logging conventions that include compositor name, socket path, capability
+  flags, and fallback reason
+- add test fakes for event streams and request/reply sockets so compositor
+  backends can be tested without running the compositor
+- document the expected contract between compositor adapters and existing
+  `WindowService`, `WorkspaceService`, and `VisibilityService` implementations
+
+Do not:
+
+- add compositor-specific behavior here
+- make any IPC package a hard dependency
+- expose compositor socket payloads to UI code
+- let IPC failures affect X11, generic Wayland, or reduced backends
+
+Manual visual checks:
+
+- Force each existing backend and confirm behavior is unchanged.
+- Simulate a missing socket/dependency and confirm Docking falls back with one
+  clear log line.
+- Start and stop Docking repeatedly and confirm no background reader remains.
+
+Exit criteria:
+
+- compositor IPC adapters can be unit-tested with fake sockets/events
+- service code can consume normalized events without knowing the compositor
+- no existing backend imports compositor-specific IPC modules at startup
+
+##### [ ] PR 18b: COSMIC Rich Protocol Backend
+
+Add the first protocol-first rich backend if a COSMIC Wayland test session is
+available.
+
+Start here:
+
+- bind COSMIC toplevel info and management protocols only when advertised
+- map COSMIC toplevel handles to backend-neutral `WindowId` values
+- track app ID, title, active/minimized/maximized/fullscreen/sticky state,
+  outputs, and workspace links where the protocols expose them
+- implement capability-gated close, activate, maximize, minimize, fullscreen,
+  sticky, and move-to-workspace actions
+- add COSMIC workspace support through COSMIC workspace extensions and/or
+  `ext_workspace_v1` where appropriate
+- add COSMIC overlap-notify support as a native `VisibilityService` for
+  layer-shell dock overlap/dodge behavior
+- evaluate image-capture-source support for previews, but keep previews
+  disabled unless a reliable toplevel capture path is confirmed
+
+Do not:
+
+- assume COSMIC protocols are stable across releases without version checks
+- use COSMIC overlap notifications on non-COSMIC compositors
+- enable preview capability until real image capture is implemented
+- replace generic foreign-toplevel behavior on non-COSMIC sessions
+
+Manual visual checks:
+
+- On COSMIC Wayland, verify running dots, active app state, window counts, and
+  menu rows.
+- Test activate, close, minimize, maximize, fullscreen, and sticky actions only
+  when the compositor advertises the capability.
+- Move windows across workspaces/outputs and confirm Docking tracks expected
+  state.
+- Test dodge/autohide against overlapping toplevels using COSMIC overlap
+  notifications.
+- Start on non-COSMIC Wayland and confirm this backend does not activate.
+
+Exit criteria:
+
+- COSMIC reaches richer-than-generic taskbar behavior through capability flags
+- overlap-driven hide modes work natively on COSMIC
+- missing or changed COSMIC protocol globals fall back cleanly
+
+##### [ ] PR 18c: Hyprland IPC Backend
+
+Add a Hyprland-specific backend using its command and event sockets.
+
+Start here:
+
+- detect Hyprland through `HYPRLAND_INSTANCE_SIGNATURE` and expected socket paths
+- read initial state using short-lived `hyprctl -j`-style client queries for
+  clients, active window, workspaces, and monitors
+- subscribe to `.socket2.sock` for `openwindow`, `closewindow`,
+  `activewindowv2`, `windowtitlev2`, `movewindowv2`, `workspacev2`,
+  `focusedmonv2`, `urgent`, `fullscreen`, `pin`, and `minimized` events
+- map Hyprland window addresses to backend-neutral `WindowId` values
+- implement actions through short-lived command socket/dispatch calls such as
+  `focuswindow address:<addr>` and `closewindow address:<addr>`
+- expose workspace support from Hyprland workspace data where the IPC provides
+  stable IDs/names
+- use client geometry/workspace data for capability-gated geometry and dodge
+  experiments only after basic taskbar behavior is stable
+
+Do not:
+
+- keep the synchronous command socket open
+- parse human-readable `hyprctl` output when JSON is available
+- assume event stream data alone is complete; always reconcile with a startup
+  snapshot
+- claim preview support
+
+Manual visual checks:
+
+- On Hyprland, open/close/focus apps and confirm indicators update from events.
+- Rename/move windows and confirm title/workspace state converges.
+- Test focus and close actions by window address.
+- Restart Hyprland or kill the socket reader and confirm Docking degrades or
+  reconnects without hanging the compositor.
+
+Exit criteria:
+
+- Hyprland running indicators, active state, and basic actions work from IPC
+- socket failures never freeze Hyprland or Docking
+- geometry/workspace capabilities are advertised only after verified
+
+##### [ ] PR 18d: Wayfire IPC Backend
+
+Add a Wayfire-specific backend through `pywayfire` or direct Wayfire IPC.
+
+Start here:
+
+- detect Wayfire through `WAYFIRE_SOCKET` and confirm the `ipc` plugin is active
+- load `pywayfire` lazily, or fall back to a direct JSON socket adapter if the
+  package is unavailable
+- read initial view/workspace/output state with `list_views()` and related IPC
+  calls
+- subscribe to Wayfire IPC watch/events where available
+- map Wayfire view IDs to backend-neutral `WindowId` values
+- implement focus, close, minimize, fullscreen, sticky, show-desktop, and
+  workspace actions only when the installed plugins expose them
+- gate scale/expo and other Wayfire-specific extras behind optional applet or
+  desktop-action capabilities
+
+Do not:
+
+- assume users have `ipc-rules`, `wm-actions`, `grid`, scale, expo, or extra
+  plugins enabled
+- make `pywayfire` a hard dependency for non-Wayfire users
+- expose Wayfire-specific actions in generic UI unless capability-gated
+
+Manual visual checks:
+
+- Start with only `ipc` enabled and confirm graceful reduced capability logging.
+- Enable `ipc-rules`/needed plugins and confirm views, focus, close, minimize,
+  and workspace behavior.
+- Toggle scale/expo integrations only if explicitly supported.
+- Start on non-Wayfire sessions and confirm no Wayfire imports or sockets are
+  used.
+
+Exit criteria:
+
+- Wayfire backend activates only when required socket/plugins are available
+- taskbar actions match the installed plugin capability set
+- missing plugins degrade without noisy repeated errors
+
+##### [ ] PR 18e: KWin / Plasma Decision and Backend
+
+Decide and implement the Plasma integration path: private Wayland protocol or
+KWin script bridge.
+
+Start here:
+
+- run a decision spike comparing `org_kde_plasma_window_management` against a
+  KWin script/D-Bus bridge
+- verify whether a third-party Docking process can bind the private protocol on
+  current Plasma, including any desktop-file permission requirements
+- test whether binding conflicts with `plasmashell` or other task manager
+  components
+- if private protocol is accepted, implement a Plasma protocol backend with
+  UUIDs, app IDs, title/state, attention, skip-taskbar, geometry, client
+  geometry, PID, virtual desktops, stacking order, icons, show desktop, and
+  richer actions
+- if script bridge is accepted, package a KWin script that exposes a narrow
+  D-Bus API and implement Docking's Python backend as a D-Bus client
+- document the selected trust model and installation path
+
+Do not:
+
+- use the private protocol without an explicit decision about its maintenance
+  and one-client binding risks
+- ship a script bridge that exposes arbitrary code execution
+- make Plasma-specific assumptions in generic Wayland services
+
+Manual visual checks:
+
+- On Plasma Wayland, verify running indicators, active windows, attention,
+  window menu rows, workspace filtering, and show-desktop.
+- Move windows between virtual desktops and monitors and confirm state follows.
+- Test activate, close, minimize, maximize, fullscreen, sticky/above, and
+  workspace actions where supported.
+- Start with `plasmashell` running normally and confirm Docking does not break
+  Plasma's own task manager.
+
+Exit criteria:
+
+- one Plasma integration path is chosen and documented
+- Plasma backend reaches the closest native Wayland parity target
+- non-Plasma Wayland and X11 backends remain unaffected
+
+##### [ ] PR 18f: GNOME Shell Extension Prototype
+
+Prototype the GNOME track separately from the normal Python GTK backend.
+
+Start here:
+
+- choose bridge-first or frontend-first based on the GNOME Shell extension
+  support section above
+- for bridge-first, expose read-only window/workspace state over D-Bus from a
+  GNOME Shell extension and consume it from a Docking backend
+- for frontend-first, build a minimal Shell `St`/Clutter dock surface that owns
+  placement and reads existing Docking settings/model data through a narrow IPC
+  or generated data contract
+- define how configuration, icons, desktop matching, and theme tokens are shared
+  without importing Python into GNOME Shell
+- add GNOME Shell version metadata and a version test matrix
+- keep GNOME extension packaging separate from the Python package even if it
+  lives in the same repository
+
+Do not:
+
+- try to make a normal GTK Wayland window behave like a GNOME Shell dock
+- expose arbitrary shell evaluation over D-Bus
+- mix GTK widgets into the Shell extension runtime
+- block X11 or layer-shell releases on GNOME extension compatibility
+
+Manual visual checks:
+
+- On GNOME Wayland, enable the prototype extension and confirm it loads/unloads
+  cleanly.
+- For bridge mode, verify running and active window state reaches Docking
+  without shell log spam.
+- For frontend mode, verify shell actor placement, monitor behavior, app
+  indicators, and workspace behavior.
+- Disable/re-enable the extension and confirm signals, actors, and timers are
+  cleaned up.
+
+Exit criteria:
+
+- a clear GNOME integration direction is validated
+- the prototype does not destabilize `gnome-shell`
+- shared-code/data boundaries are documented before expanding the extension
 
 Manual visual checks:
 
 - On each supported optional compositor, confirm only that compositor-specific path activates.
-- Check running indicators, workspace behavior, overlap or dodge behavior, and supported actions against that compositor capability.
+- Check running indicators, workspace behavior, overlap or dodge behavior, previews where available, and supported actions against that compositor capability.
 - Start on unsupported compositors and confirm the app falls back to generic or reduced behavior cleanly.
 - Confirm missing optional dependencies produce clear logs and no visible startup breakage.
-- Re-test X11, wlroots generic, and Plasma paths after each optional backend is added.
+- Re-test X11, layer-shell, generic foreign-toplevel, and reduced paths after each optional backend is added.
 
 Exit criteria:
 
 - each compositor extension is capability-gated and does not affect X11 or
   other Wayland backends
+- richer features such as geometry, workspace filtering, previews, PID, and
+  dodge are enabled only by backends that actually expose those facts
+
+### Advance Research Findings Before More Wayland Work
+
+These findings cut across PR16-18 and should guide implementation order before
+more compositor-specific code lands.
+
+#### Protocol Binding Strategy
+
+Docking should treat Wayland protocol bindings as source-controlled interface
+artifacts, not as invisible local setup.
+
+Practical rules:
+
+- use `pywayland` as the optional runtime binding for direct Wayland protocol
+  clients
+- vendor protocol XML plus generated bindings for protocols that `pywayland`
+  does not ship, such as wlroots or compositor-specific protocols
+- keep the XML source next to generated code and include it in package data
+- document the upstream source URL and protocol version for each vendored XML
+- avoid generating bindings implicitly during normal installation unless the
+  build system has a clear, reproducible scanner step
+- keep generated code isolated under a `protocols/` package and keep Docking
+  logic in service/adapters
+
+Risks:
+
+- staging/unstable/compositor-specific protocols can be replaced or revised
+- generated bindings can drift from XML if updates are manual
+- different protocol families may need different source repositories
+  (`wayland-protocols`, `wlr-protocols`, COSMIC protocols, Plasma protocols)
+
+Recommended next step:
+
+- add a small developer tool or documented command that regenerates vendored
+  bindings from vendored XML and compares the result
+
+#### Wayland Event-Loop Integration
+
+The critical runtime spike is integrating a direct Wayland client connection
+with GTK's GLib main loop.
+
+Preferred first spike:
+
+- create a separate `pywayland.client.Display` connection instead of borrowing
+  GTK's internal Wayland connection
+- bind the registry and requested globals on that separate connection
+- integrate `display.get_fd()` with `GLib.io_add_watch`
+- dispatch pending events and flush outgoing requests without blocking GTK
+- prove clean shutdown removes GLib sources and disconnects the display
+
+Why not start by reusing GTK's connection:
+
+- GTK3 does not expose `GdkWayland` through normal PyGObject introspection
+- using `ctypes` to pull `wl_display` out of GDK is possible but fragile
+- sharing GTK's internal display connection risks dispatch ordering surprises
+
+Exit criteria for the spike:
+
+- event callbacks arrive on the GTK main loop
+- Docking exits without leaked GLib sources or file descriptors
+- failed Wayland connections fall back to reduced services
+
+#### App ID Matching Corpus
+
+Wayland taskbar correctness depends on matching compositor `app_id` values to
+Docking desktop IDs. This is inherently messy.
+
+Known failure modes:
+
+- app ID matches desktop file basename exactly (`firefox`)
+- app ID is reverse-DNS (`org.gnome.Nautilus`)
+- app ID is a server/helper process (`gnome-terminal-server`)
+- Flatpak/Snap IDs may not match visible desktop files
+- Electron and Chromium PWAs can create long app IDs that do not match the
+  exported desktop file
+- Wine/Steam games may use `.exe`, `steam_app_*`, or launcher-specific IDs
+- app ID can be missing or `null` on some compositors/apps
+
+Recommended next step:
+
+- add an app ID corpus test file with real samples and expected desktop IDs
+- add a user override map similar to Waybar's `app_ids-mapping`
+- log unmatched app IDs at debug level so users can report mapping fixes
+
+Matching order should be:
+
+1. user override map
+2. visible dock item desktop IDs and aliases
+3. exact `<app_id>.desktop`
+4. `StartupWMClass`/runtime alias lookup
+5. reverse-DNS basename fallback
+6. optional title-based fallback only for known difficult cases
+
+#### Capability UX
+
+Unsupported backend actions should not silently do nothing.
+
+UI rules:
+
+- disable controls when the feature exists but is unavailable in the current
+  backend or current window state
+- hide controls only when they are irrelevant for the current context
+- prefer stable labels; do not rename disabled actions into "Cannot ..."
+- add tooltips or adjacent explanations when the reason is not obvious
+- let `WindowSnapshot.can_activate`, `can_minimize`, `can_close`,
+  `can_preview`, and `PlatformCapabilities` drive menu/action sensitivity
+
+Recommended next step:
+
+- make dock window menu rows capability-aware before adding more backends
+- add tests that unsupported actions are insensitive, not no-op clickable
+
+#### Manual Compositor Test Matrix
+
+Compositor backends need manual smoke profiles because CI will not run Sway,
+Hyprland, Niri, Wayfire, COSMIC, Plasma, and GNOME Shell reliably.
+
+Each compositor profile should include:
+
+- session/compositor version and installed optional packages
+- exact backend expected to activate
+- startup logs to verify selected backend and capability flags
+- open/focus/close two or three common apps
+- verify running dots, active indicator, instance counts, and window menu rows
+- test activate, close, minimize, maximize, and workspace actions only when
+  supported
+- test fallback when protocol/socket/dependency is missing
+- test shutdown/restart for background event reader cleanup
+- re-run the X11 smoke pass after backend-specific changes
+
+Recommended next step:
+
+- add a `docs/wayland-smoke-matrix.md` or a section in this file with exact
+  manual commands and expected results per compositor
+
+#### Packaging Strategy
+
+Wayland support has two different dependency classes.
+
+System/GIR dependencies:
+
+- `gtk-layer-shell` is not a pip package; it is a native library plus GIR
+  typelib
+- Debian/Ubuntu package: `gir1.2-gtklayershell-0.1`
+- Fedora/Arch package: usually `gtk-layer-shell`
+- Flatpak/Snap/Nix need explicit runtime inclusion and GI typelib paths
+
+Python/runtime dependencies:
+
+- `pywayland` is a Python package with CFFI/libwayland runtime expectations
+- vendored protocol XML/generated bindings do not remove the need for
+  `pywayland`
+- compositor-specific IPC wrappers such as `pywayfire` should remain optional
+
+Dependency model:
+
+- vendored XML/generated bindings define protocol messages, requests, events,
+  and enums
+- `pywayland` provides the live runtime connection: registry binding, event
+  dispatch, request sending, and file-descriptor integration
+- higher-level libraries such as `gtk-layer-shell` replace direct `pywayland`
+  usage only for the protocol they wrap
+- socket/IPC backends such as Niri, Hyprland, and Wayfire do not need
+  `pywayland` unless they also bind Wayland protocols directly
+
+`pyproject.toml` should eventually expose `pywayland` as an optional extra, not
+as a default X11 dependency:
+
+```toml
+[project.optional-dependencies]
+wayland = [
+    "pywayland>=0.4.18",
+]
+```
+
+Then developers or users testing native Wayland protocol backends can install:
+
+```bash
+pip install -e ".[wayland]"
+```
+
+Packaging policy:
+
+- keep X11 packages working without Wayland extras
+- mark native Wayland dependencies as recommended/optional until parity is real
+- for Flatpak/Snap, decide whether native Wayland support is included in the
+  package or documented as unavailable in that format
+- include vendored XML in package data so source provenance is shipped
+
+#### Preview and Capture Feasibility
+
+Native Wayland previews should be treated as a separate future backend, not a
+side effect of foreign-toplevel tracking.
+
+Potential capture paths:
+
+- `ext-image-capture-source-v1` plus `ext-image-copy-capture-v1`
+- `ext_foreign_toplevel_image_capture_source_manager_v1` for toplevel capture
+- COSMIC image-capture-source extensions for workspaces or other sources
+- Plasma/KWin task-manager style PipeWire/KPipeWire window thumbnail requests
+- XDG desktop portals for user-mediated screenshot/screencast flows
+
+Constraints:
+
+- portals are user-mediated and not suitable for silent hover thumbnails
+- old `wlr-screencopy` is output/region-oriented and deprecated for new work
+- toplevel image capture support is still uneven across compositors
+- PipeWire paths may need compositor-specific permission/stream handling
+
+Recommended next step:
+
+- do a dedicated preview PR that first proves one compositor can capture a
+  toplevel into a `PreviewImage` without blocking or prompting on every hover
+
+#### Workspace Model Mismatch
+
+"Current workspace" is not portable as one simple integer.
+
+Examples:
+
+- `ext_workspace_v1` exposes workspace groups assigned to sets of outputs
+- Hyprland workspaces are explicit, monitor-associated, and include special
+  workspaces
+- Niri has dynamic per-monitor workspaces that can disappear, reorder, and be
+  addressed by monitor-local index or stable names
+- KWin has virtual desktops and activities
+- COSMIC exposes workspace protocols and may also use `ext_workspace_v1`
+
+Policy:
+
+- backend should define what `workspace_id` means
+- UI should not assume workspace numbers are stable across all compositors
+- `current_workspace_only` should be disabled unless the backend can map both
+  windows and active workspace reliably
+- workspace applet should display backend-provided names/ordering, not infer a
+  universal grid
+
+Recommended next step:
+
+- add workspace model notes/tests before implementing `ext_workspace_v1`
+
+#### GNOME Shell Extension Bridge Spike
+
+GNOME Shell bridge support is feasible and should be explored separately from
+normal Wayland backends.
+
+Feasible bridge shape:
+
+- GJS extension exports a narrow D-Bus interface with
+  `Gio.DBusExportedObject.wrapJSObject`
+- first version is read-only: list windows, focused window, workspace list, and
+  active workspace
+- Docking consumes that D-Bus interface through a GNOME-specific backend
+
+Rules:
+
+- do not use `org.gnome.Shell.Eval`
+- do not enable unsafe mode
+- do not expose arbitrary JavaScript execution
+- expose specific data/actions only
+- clean up every signal, actor, timer, and D-Bus export in `disable()`
+
+Recommended next step:
+
+- prototype a read-only bridge and validate focused-window/app-list state before
+  attempting a full GNOME Shell frontend
+
+#### Security and Trust Model
+
+Compositor IPC and shell extensions are authority surfaces.
+
+Trust assumptions:
+
+- unsandboxed same-user host processes are usually trusted by compositors
+- sandboxed applications should not automatically receive compositor IPC,
+  shell-extension D-Bus, or unfiltered Wayland sockets
+- D-Bus bridges are callable by same-user host processes unless explicitly
+  filtered
+- compositor IPC sockets can perform powerful actions such as focusing,
+  closing, moving, or spawning clients
+
+Rules for Docking:
+
+- expose narrow, named methods only
+- never expose arbitrary code execution
+- never keep dangerous synchronous command sockets open
+- document who can call each bridge and what authority it grants
+- fail closed when permissions/dependencies are missing
+- avoid leaking backend-private handles into UI or public APIs
+
+Recommended next step:
+
+- add a security note for each compositor-specific backend before shipping it
 
 ### Cairo-Dock Parity Checklist
 
@@ -3816,6 +4832,8 @@ support, the backend work eventually needs the following native pieces.
 
 Dock surface support:
 
+- keep the existing GTK shelf UI where possible, but give the main dock window a
+  native layer-shell surface role instead of a normal `xdg_toplevel` role
 - `gtk-layer-shell` / `wlr-layer-shell` initialization before the main dock
   window is first mapped
 - edge anchors for all four dock positions
@@ -3827,9 +4845,20 @@ Dock surface support:
 Taskbar/current-open-app context:
 
 - generic wlroots backend using `zwlr_foreign_toplevel_manager_v1`
-- KWin backend using `org_kde_plasma_window_management`
+- running dots and active indicators come from foreign-toplevel state, not from
+  layer-shell
+- active app state is driven by the toplevel `activated` state and then
+  aggregated through Docking's desktop ID/app matching
+- multiple windows for one app are multiple toplevel handles that should map to
+  one dock item and window menu group
+- optional `ext_foreign_toplevel_list_v1` tracking for compositors that expose
+  stable mapped-toplevel handles but not actions
+- KWin backend using `org_kde_plasma_window_management` only if the private
+  protocol / one-client binding tradeoff is accepted
 - COSMIC backend using `ext_foreign_toplevel_list_v1`,
   `zcosmic_toplevel_info_v1`, and `zcosmic_toplevel_manager_v1`
+- compositor-specific IPC for Hyprland, Niri, and Wayfire when their richer
+  state/action APIs are explicitly selected
 - one Wayland-aware app matcher that resolves compositor `app_id` values to
   Docking desktop IDs without disturbing the existing WM_CLASS matcher
 - backend-neutral window IDs so UI code no longer requires XIDs
@@ -3845,8 +4874,11 @@ Window actions:
 
 Geometry, workspace, and dodge behavior:
 
-- KWin geometry/workspace/stacking-order support for the richest parity target
+- KWin geometry/workspace/stacking-order support only through the Plasma
+  private protocol or a KWin scripting bridge
 - COSMIC overlap notification support for native overlap-based hiding
+- Hyprland/Niri/Wayfire IPC where those compositors expose geometry, workspace,
+  and focus/action state
 - optional Wayfire IPC for overlap, scale/expo, sticky/above, and other extras
 - reduced behavior on generic foreign-toplevel compositors where geometry and
   workspaces are unavailable
@@ -3856,6 +4888,10 @@ Preview and menu behavior:
 - X11 preview capture remains the X11 preview backend
 - native Wayland should return preview images only when a compositor provides a
   real capture path; otherwise UI renders the app icon/title fallback
+- XDG desktop portals are acceptable for user-mediated screenshots and color
+  picking, but not for silent arbitrary-window previews
+- `ext-image-copy-capture-v1` is the future protocol-shaped preview candidate
+  where toplevel capture sources are available
 - menus list `WindowSnapshot` objects rather than Wnck windows
 - activate/close menu actions use backend-neutral window IDs
 
@@ -3911,6 +4947,65 @@ These references were used to shape the current understanding.
   https://wayland.app/protocols/ext-foreign-toplevel-list-v1
 - `ext-workspace-v1` protocol:
   https://wayland.app/protocols/ext-workspace-v1
+- `ext-image-capture-source-v1` protocol:
+  https://wayland.app/protocols/ext-image-capture-source-v1
+- `ext-image-copy-capture-v1` protocol:
+  https://wayland.app/protocols/ext-image-copy-capture-v1
+- `ext-idle-notify-v1` protocol:
+  https://wayland.app/protocols/ext-idle-notify-v1
+- XDG desktop portal Screenshot / PickColor:
+  https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Screenshot.html
+- KWin / Plasma window-management protocol:
+  https://wayland.app/protocols/kde-plasma-window-management
+- XDG activation protocol:
+  https://wayland.app/protocols/xdg-activation-v1
+
+### Compositor-specific integration references
+
+- GNOME Shell extension architecture:
+  https://gjs.guide/extensions/overview/architecture.html
+- GNOME Shell extension anatomy / packaging:
+  https://gjs.guide/extensions/overview/anatomy.html
+- GNOME Shell extension version targeting:
+  https://gjs.guide/extensions/development/targeting-older-gnome.html
+- Mutter `Meta.Window` API:
+  https://mutter.gnome.org/meta/class.Window.html
+- Mutter `Meta.Workspace` API:
+  https://gnome.pages.gitlab.gnome.org/mutter/meta/class.Workspace.html
+- `ws-dbus` GNOME Shell D-Bus bridge example:
+  https://github.com/kemallette/ws-dbus
+- `Window Calls` GNOME Shell D-Bus bridge example:
+  https://extensions.gnome.org/extension/4724/window-calls/
+- `Focused Window D-Bus` GNOME Shell D-Bus bridge example:
+  https://extensions.gnome.org/extension/5592/focused-window-d-bus/
+- Hyprland IPC:
+  https://wiki.hypr.land/IPC/
+- Hyprland dispatchers:
+  https://wiki.hypr.land/Configuring/Dispatchers/
+- Niri IPC:
+  https://niri-wm.github.io/niri/IPC.html
+- Niri IPC request/reference docs:
+  https://niri-wm.github.io/niri/niri_ipc/enum.Request.html
+- Wayfire IPC / `pywayfire`:
+  https://github.com/WayfireWM/pywayfire
+- Wayfire IPC developer notes:
+  https://github.com/WayfireWM/wayfire/wiki/IPC-for-developers
+- COSMIC protocol bindings:
+  https://pop-os.github.io/libcosmic/cosmic/cctk/cosmic_protocols/index.html
+- COSMIC toplevel management protocol:
+  https://wayland.app/protocols/cosmic-toplevel-management-unstable-v1
+- COSMIC overlap notify protocol:
+  https://wayland.app/protocols/cosmic-overlap-notify-unstable-v1
+- COSMIC image capture source protocol:
+  https://wayland.app/protocols/cosmic-image-capture-source-unstable-v1
+- KWin scripting tutorial:
+  https://develop.kde.org/docs/plasma/kwin/
+- PyWayland scanner:
+  https://pywayland.readthedocs.io/en/latest/scanner.html
+- PyWayland client module:
+  https://pywayland.readthedocs.io/en/latest/module/client.html
+- Waybar `wlr/taskbar` app ID mapping reference:
+  https://man.archlinux.org/man/waybar-wlr-taskbar.5.en
 
 ### Related downstream project discussion
 

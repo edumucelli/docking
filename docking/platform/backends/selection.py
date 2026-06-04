@@ -13,10 +13,8 @@
 
 """Session backend selection.
 
-This module is intentionally small while production still selects only the X11
-backend. Keeping the selection point explicit now gives later native Wayland and
-reduced-backend work a single place to add detection without threading display
-checks through app startup or UI modules.
+This module keeps display-server decisions in one place so X11, reduced, and
+native Wayland paths can stay lazy and isolated from each other.
 """
 
 from __future__ import annotations
@@ -45,8 +43,8 @@ def create_session_backend(
 ) -> SessionBackend:
     """Create the production session backend for the current runtime.
 
-    Production still defaults to X11. ``DOCKING_BACKEND=reduced`` selects the
-    reduced backend explicitly for validation without importing X11 services.
+    X11 remains the default on X11 displays. Native Wayland first tries the
+    optional layer-shell backend and falls back to reduced mode when unavailable.
     """
     requested = os.environ.get("DOCKING_BACKEND", "").strip().lower()
     if requested == "reduced":
@@ -58,8 +56,26 @@ def create_session_backend(
             model=model,
             reason="requested by DOCKING_BACKEND=x11",
         )
+    if requested in {"wayland", "wayland-layer-shell", "layer-shell"}:
+        backend = _create_wayland_layer_shell_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=f"layer-shell unavailable after DOCKING_BACKEND={requested}"
+        )
 
     if not is_x11_backend():
+        backend = _create_wayland_layer_shell_backend(
+            launcher=launcher,
+            model=model,
+            reason=_non_x11_reason(),
+        )
+        if backend is not None:
+            return backend
         return _create_reduced_backend(reason=_non_x11_reason())
 
     return _create_x11_backend(
@@ -74,6 +90,36 @@ def _create_reduced_backend(*, reason: str) -> SessionBackend:
     from docking.platform.backends.reduced.session import ReducedSessionBackend
 
     backend = ReducedSessionBackend()
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_wayland_layer_shell_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+    from docking.platform.backends.wayland.session import (
+        WaylandLayerShellSessionBackend,
+    )
+
+    layer_shell = load_gtk_layer_shell()
+    if layer_shell is None:
+        log.info("Wayland layer-shell backend unavailable: GtkLayerShell not installed")
+        return None
+    if not layer_shell_is_supported(layer_shell):
+        log.info(
+            "Wayland layer-shell backend unavailable: compositor does not support "
+            "layer-shell"
+        )
+        return None
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=layer_shell,
+        launcher=launcher,
+        model=model,
+    )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 

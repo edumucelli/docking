@@ -53,7 +53,9 @@ Highlights:
 
 ## Requirements
 
-- Linux with X11
+- Linux with X11 for full dock functionality
+- Native Wayland support is experimental and currently limited to layer-shell
+  dock placement on compositors that support `zwlr_layer_shell_v1`
 - Python 3.10+
 - System packages (Ubuntu/Debian):
 
@@ -65,6 +67,24 @@ sudo apt install \
   gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
   libcairo2-dev libgirepository1.0-dev pkg-config
 ```
+
+Optional native Wayland layer-shell placement requires a compositor with
+layer-shell support plus the system `gtk-layer-shell` GIR package:
+
+```bash
+# Debian / Ubuntu
+sudo apt install gir1.2-gtklayershell-0.1
+
+# Fedora
+sudo dnf install gtk-layer-shell
+
+# Arch
+sudo pacman -S gtk-layer-shell
+```
+
+This package is not a pip dependency. Docking imports it lazily only for native
+Wayland layer-shell sessions. If it is missing, or the compositor does not
+advertise layer-shell, Docking falls back to reduced native Wayland mode.
 
 ## Installation
 
@@ -138,6 +158,22 @@ python run.py
 
 # With debug logging
 DOCKING_LOG_LEVEL=DEBUG python run.py
+```
+
+### Wayland Notes
+
+X11 remains the full-support backend. Native Wayland support is experimental:
+`gtk-layer-shell` provides dock placement/reservation on supported compositors,
+and foreign-toplevel support can provide running/active indicators when the
+protocol adapter is available. Unsupported native Wayland sessions fall back to
+reduced mode; GNOME/Mutter still needs future Shell integration for parity.
+
+To force a backend for testing:
+
+```bash
+DOCKING_BACKEND=wayland-layer-shell docking
+DOCKING_BACKEND=reduced docking
+DOCKING_BACKEND=x11 docking
 ```
 
 ## Configuration
