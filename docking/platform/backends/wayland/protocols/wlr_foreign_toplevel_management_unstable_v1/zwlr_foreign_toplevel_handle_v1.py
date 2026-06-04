@@ -139,7 +139,9 @@ class ZwlrForeignToplevelHandleV1Proxy(Proxy[ZwlrForeignToplevelHandleV1]):
         Argument(ArgumentType.Int),
         Argument(ArgumentType.Int),
     )
-    def set_rectangle(self, surface: WlSurface, x: int, y: int, width: int, height: int) -> None:
+    def set_rectangle(
+        self, surface: WlSurface, x: int, y: int, width: int, height: int
+    ) -> None:
         """The rectangle which represents the toplevel
 
         The rectangle of the surface specified in this request corresponds to
@@ -322,7 +324,9 @@ class ZwlrForeignToplevelHandleV1Resource(Resource):
         self._post_event(6)
 
     @ZwlrForeignToplevelHandleV1.event(
-        Argument(ArgumentType.Object, interface=ZwlrForeignToplevelHandleV1, nullable=True),
+        Argument(
+            ArgumentType.Object, interface=ZwlrForeignToplevelHandleV1, nullable=True
+        ),
         version=3,
     )
     def parent(self, parent: ZwlrForeignToplevelHandleV1 | None) -> None:

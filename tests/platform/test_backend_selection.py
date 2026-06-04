@@ -42,7 +42,9 @@ def test_create_session_backend_selects_reduced_for_non_x11_without_x11_import(
     monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
     monkeypatch.setattr(selection, "is_wayland_session", lambda: True)
     monkeypatch.setattr(selection, "backend_name", lambda: "GdkWayland.WaylandDisplay")
-    monkeypatch.setattr(selection, "_create_wayland_layer_shell_backend", lambda **_: None)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", lambda **_: None
+    )
 
     def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
         if name == "docking.platform.backends.x11.session":
@@ -66,7 +68,9 @@ def test_create_session_backend_selects_layer_shell_for_supported_wayland(monkey
     monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
     backend = MagicMock(name="wayland-layer-shell")
     create_wayland = MagicMock(return_value=backend)
-    monkeypatch.setattr(selection, "_create_wayland_layer_shell_backend", create_wayland)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", create_wayland
+    )
 
     result = selection.create_session_backend(
         config=MagicMock(),
@@ -83,7 +87,9 @@ def test_create_session_backend_can_force_layer_shell_backend(monkeypatch):
     monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
     backend = MagicMock(name="wayland-layer-shell")
     create_wayland = MagicMock(return_value=backend)
-    monkeypatch.setattr(selection, "_create_wayland_layer_shell_backend", create_wayland)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", create_wayland
+    )
 
     result = selection.create_session_backend(
         config=MagicMock(),

@@ -147,8 +147,7 @@ class WaylandForeignToplevelWindowService(WindowService):
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return current Wayland toplevels matched to one desktop ID."""
         return tuple(
-            self._snapshot_for(state)
-            for state in self._states_for_desktop(desktop_id)
+            self._snapshot_for(state) for state in self._states_for_desktop(desktop_id)
         )
 
     def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
