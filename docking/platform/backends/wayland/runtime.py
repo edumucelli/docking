@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -45,10 +46,14 @@ class ForeignToplevelProtocolAdapter:
     def __init__(self) -> None:
         self._manager = None
         self._seat = None
+        self._flush: Callable[[], None] | None = None
         self._service: WaylandForeignToplevelWindowService | None = None
         self._pending_toplevels: list[object] = []
         self._pending_data: dict[object, dict[str, object]] = {}
         self.available = False
+
+    def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
+        self._flush = callback
 
     def bind(self, *, registry, name: int, version: int) -> None:
         from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management_unstable_v1 import (  # noqa: E501
@@ -92,6 +97,7 @@ class ForeignToplevelProtocolAdapter:
                 stop()
         self._manager = None
         self._seat = None
+        self._flush = None
         self._service = None
         self._pending_toplevels.clear()
         self._pending_data.clear()
@@ -109,16 +115,23 @@ class ForeignToplevelProtocolAdapter:
         method = getattr(handle, "activate", None)
         if callable(method) and self._seat is not None:
             method(self._seat)
+            self._flush_pending()
 
     def close(self, handle: object) -> None:
         method = getattr(handle, "close", None)
         if callable(method):
             method()
+            self._flush_pending()
 
     def set_minimized(self, handle: object) -> None:
         method = getattr(handle, "set_minimized", None)
         if callable(method):
             method()
+            self._flush_pending()
+
+    def _flush_pending(self) -> None:
+        if self._flush is not None:
+            self._flush()
 
     def _on_toplevel(self, manager, toplevel) -> None:
         if toplevel not in self._pending_toplevels:
@@ -192,11 +205,15 @@ class WorkspaceProtocolAdapter:
 
     def __init__(self) -> None:
         self._manager = None
+        self._flush: Callable[[], None] | None = None
         self._service: WaylandWorkspaceService | None = None
         self._pending_workspaces: list[object] = []
         self._pending_data: dict[object, dict[str, object]] = {}
         self._pending_done = False
         self.available = False
+
+    def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
+        self._flush = callback
 
     def bind(self, *, registry, name: int, version: int) -> None:
         from docking.platform.backends.wayland.protocols.ext_workspace_v1 import (
@@ -236,6 +253,7 @@ class WorkspaceProtocolAdapter:
             if callable(stop):
                 stop()
         self._manager = None
+        self._flush = None
         self._service = None
         self._pending_workspaces.clear()
         self._pending_data.clear()
@@ -250,6 +268,8 @@ class WorkspaceProtocolAdapter:
         commit = getattr(manager, "commit", None)
         if callable(commit):
             commit()
+        if self._flush is not None:
+            self._flush()
 
     def _on_workspace(self, manager, workspace) -> None:
         if workspace not in self._pending_workspaces:
@@ -355,6 +375,8 @@ class WaylandProtocolRuntime:
             registry.dispatcher["global"] = self._on_global
             self._display = display
             self._registry = registry
+            self.foreign_toplevel.set_flush_callback(display.flush)
+            self.workspaces.set_flush_callback(display.flush)
             display.dispatch(block=False)
             display.roundtrip()
             # The roundtrip discovers globals and binds protocol managers. Flush

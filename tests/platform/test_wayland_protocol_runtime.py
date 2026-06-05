@@ -247,6 +247,21 @@ def test_workspace_adapter_replays_initial_events_after_service_start():
     assert service.activate("workspace-a") is not None
 
 
+def test_workspace_adapter_flushes_activation_commit():
+    adapter = WorkspaceProtocolAdapter()
+    workspace = SimpleNamespace(activate=MagicMock())
+    manager = SimpleNamespace(commit=MagicMock())
+    flush = MagicMock()
+
+    adapter._manager = manager
+    adapter.set_flush_callback(flush)
+    adapter.activate(workspace)
+
+    workspace.activate.assert_called_once_with()
+    manager.commit.assert_called_once_with()
+    flush.assert_called_once_with()
+
+
 def test_foreign_toplevel_adapter_replays_initial_events_after_service_start():
     adapter = ForeignToplevelProtocolAdapter()
     toplevel = FakeHandle()
@@ -289,3 +304,25 @@ def test_foreign_toplevel_adapter_requires_seat_for_activation():
     assert adapter.supports_action("activate", handle) is True
     adapter.activate(handle)
     handle.activate.assert_called_once_with(registry.proxies["wl_seat"])
+
+
+def test_foreign_toplevel_adapter_flushes_outgoing_actions():
+    adapter = ForeignToplevelProtocolAdapter()
+    handle = SimpleNamespace(
+        activate=MagicMock(),
+        close=MagicMock(),
+        set_minimized=MagicMock(),
+    )
+    registry = FakeRegistry()
+    flush = MagicMock()
+
+    adapter.bind_seat(registry=registry, name=12, version=99)
+    adapter.set_flush_callback(flush)
+    adapter.activate(handle)
+    adapter.set_minimized(handle)
+    adapter.close(handle)
+
+    handle.activate.assert_called_once_with(registry.proxies["wl_seat"])
+    handle.set_minimized.assert_called_once_with()
+    handle.close.assert_called_once_with()
+    assert flush.call_count == 3
