@@ -180,6 +180,7 @@ from docking.core.config import WindowListSort
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.backends.base import DisplayServer
 from docking.ui.about import AboutDialogController
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
@@ -730,12 +731,24 @@ class MenuHandler:
         if not self._window_close_zone_hit(widget=widget, event=event):
             return False
         self._tracker.close(window_id)
-        self._remove_window_row(widget=widget, event=event)
+        if window_id.backend is DisplayServer.WAYLAND:
+            GLib.idle_add(self._remove_window_row_deferred, widget, event)
+        else:
+            self._remove_window_row(widget=widget, event=event)
         self._runtime.hide_hover_ui()
         return True
 
-    def _remove_window_row(
+    def _remove_window_row_deferred(
         self, widget: Gtk.Widget, event: Gdk.EventButton | None = None
+    ) -> bool:
+        self._remove_window_row(widget=widget, event=event, refresh_popup=False)
+        return False
+
+    def _remove_window_row(
+        self,
+        widget: Gtk.Widget,
+        event: Gdk.EventButton | None = None,
+        refresh_popup: bool = True,
     ) -> None:
         parent = widget.get_parent()
         if parent is None or not isinstance(parent, Gtk.Menu):
@@ -751,12 +764,14 @@ class MenuHandler:
                     parent.remove(child)
                     child.destroy()
                     break
-        parent.popdown()
+        if refresh_popup:
+            parent.popdown()
         parent.show_all()
         parent.queue_resize()
         parent.check_resize()
         parent.queue_draw()
-        parent.popup_at_pointer(event)
+        if refresh_popup:
+            parent.popup_at_pointer(event)
 
     def _on_add_applet_activate(self, _widget: Gtk.MenuItem, applet_id: str) -> None:
         self._model.add_applet(applet_id)

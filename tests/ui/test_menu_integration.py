@@ -20,7 +20,12 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
+from docking.platform.backends.base import (
+    DisplayServer,
+    PreviewImage,
+    WindowId,
+    WindowSnapshot,
+)
 from docking.platform.model import DockItem
 
 
@@ -1131,6 +1136,11 @@ class TestItemMenus:
         assert isinstance(close_label, FakeLabel)
         assert close_label.label == "×"
 
+        monkeypatch.setattr(
+            menu_mod.GLib,
+            "idle_add",
+            lambda *_args: pytest.fail("X11 row removal should not be deferred"),
+        )
         close_event = SimpleNamespace(x=170.0)
         assert row.emit("button-press-event", close_event) is True
         assert row.emit("button-release-event", close_event) is True
@@ -1151,6 +1161,53 @@ class TestItemMenus:
 
         row.activate()
         handler._tracker.activate.assert_called_once_with(window_id)
+
+    def test_wayland_window_row_close_defers_menu_mutation(self, handler, monkeypatch):
+        menu = FakeMenu()
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            is_running=True,
+            instance_count=1,
+        )
+        window_id = WindowId(DisplayServer.WAYLAND, 7)
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=window_id,
+                desktop_id="firefox.desktop",
+                title="Firefox",
+            )
+        ]
+        handler._preview_service.thumbnail.return_value = None
+        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
+        idle_calls: list[tuple[object, tuple[object, ...]]] = []
+        monkeypatch.setattr(
+            menu_mod.GLib,
+            "idle_add",
+            lambda callback, *args: idle_calls.append((callback, args)) or 91,
+        )
+
+        handler._build_item_menu(menu=menu, item=item)
+        row = menu.children[0]
+        close_event = SimpleNamespace(x=170.0)
+
+        assert row.emit("button-release-event", close_event) is True
+
+        handler._tracker.close.assert_called_once_with(window_id)
+        handler._runtime.hide_hover_ui.assert_called_once()
+        assert row in menu.children
+        assert row.hidden is False
+        assert idle_calls == [(handler._remove_window_row_deferred, (row, close_event))]
+
+        assert idle_calls[0][0](*idle_calls[0][1]) is False
+        assert row.hidden is True
+        assert row.destroyed is True
+        assert row not in menu.children
+        assert menu.popdown_called is False
+        assert menu.popup_event is None
+        assert menu.shown is True
+        assert menu.resize_queued is True
+        assert menu.resize_checked is True
+        assert menu.draw_queued is True
 
     def test_window_list_default_preserves_tracker_order(self, handler, monkeypatch):
         menu = FakeMenu()
