@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import struct
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -134,6 +135,55 @@ def test_foreign_toplevel_service_actions_call_protocol_methods():
     protocol.activate.assert_any_call(handle)
     protocol.close.assert_any_call(handle)
     protocol.set_minimized.assert_any_call(handle)
+
+
+def test_foreign_toplevel_service_respects_protocol_action_support():
+    model = _model(_item("firefox.desktop"))
+    protocol = _protocol()
+    protocol.supports_action = MagicMock(
+        side_effect=lambda action, _handle: action != "activate"
+    )
+    service = WaylandForeignToplevelWindowService(
+        model=model,
+        launcher=_launcher(),
+        protocol=protocol,
+    )
+    handle = object()
+    window_id = service.toplevel_created(handle)
+    service.app_id_changed(handle, "firefox")
+    service.done(handle)
+
+    snapshot = service.list_windows("firefox.desktop")[0]
+
+    assert snapshot.can_activate is False
+    assert service.activate(window_id) is ActionResult.UNSUPPORTED
+    protocol.activate.assert_not_called()
+
+
+def test_foreign_toplevel_service_decodes_protocol_state_bytes():
+    model = _model(_item("firefox.desktop"))
+    service = WaylandForeignToplevelWindowService(
+        model=model,
+        launcher=_launcher(),
+        protocol=_protocol(),
+    )
+    handle = object()
+
+    service.toplevel_created(handle)
+    service.app_id_changed(handle, "firefox")
+    service.state_changed(
+        handle,
+        struct.pack("II", 2, 3),
+    )
+    service.done(handle)
+
+    running = model.update_running.call_args.kwargs["running"]
+    assert running["firefox.desktop"].active is True
+    snapshot = service.list_windows("firefox.desktop")[0]
+    assert snapshot.active is True
+    assert snapshot.fullscreen is True
+    assert snapshot.minimized is False
+    assert snapshot.maximized is False
 
 
 def test_foreign_toplevel_service_removes_closed_windows():

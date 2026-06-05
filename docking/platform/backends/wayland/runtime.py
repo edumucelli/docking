@@ -44,6 +44,7 @@ class ForeignToplevelProtocolAdapter:
 
     def __init__(self) -> None:
         self._manager = None
+        self._seat = None
         self._service: WaylandForeignToplevelWindowService | None = None
         self._pending_toplevels: list[object] = []
         self._pending_data: dict[object, dict[str, object]] = {}
@@ -63,6 +64,11 @@ class ForeignToplevelProtocolAdapter:
         self._manager.dispatcher["toplevel"] = self._on_toplevel
         self._manager.dispatcher["finished"] = self._on_finished
         self.available = True
+
+    def bind_seat(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.wayland import WlSeat
+
+        self._seat = registry.bind(name, WlSeat, min(version, WlSeat.version))
 
     def start(self, service: WaylandForeignToplevelWindowService) -> None:
         self._service = service
@@ -85,15 +91,24 @@ class ForeignToplevelProtocolAdapter:
             if callable(stop):
                 stop()
         self._manager = None
+        self._seat = None
         self._service = None
         self._pending_toplevels.clear()
         self._pending_data.clear()
         self.available = False
 
+    def supports_action(self, action: str, handle: object) -> bool:
+        method = getattr(handle, action, None)
+        if not callable(method):
+            return False
+        if action == "activate":
+            return self._seat is not None
+        return True
+
     def activate(self, handle: object) -> None:
         method = getattr(handle, "activate", None)
-        if callable(method):
-            method(None)
+        if callable(method) and self._seat is not None:
+            method(self._seat)
 
     def close(self, handle: object) -> None:
         method = getattr(handle, "close", None)
@@ -379,6 +394,12 @@ class WaylandProtocolRuntime:
     def _on_global(self, registry, name: int, interface: str, version: int) -> None:
         if interface == "zwlr_foreign_toplevel_manager_v1":
             self.foreign_toplevel.bind(registry=registry, name=name, version=version)
+        elif interface == "wl_seat":
+            self.foreign_toplevel.bind_seat(
+                registry=registry,
+                name=name,
+                version=version,
+            )
         elif interface == "ext_workspace_manager_v1":
             self.workspaces.bind(registry=registry, name=name, version=version)
 

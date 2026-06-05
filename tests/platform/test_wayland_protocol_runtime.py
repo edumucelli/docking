@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from pywayland.protocol.wayland import WlSeat
+
 from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (
     ExtWorkspaceManagerV1,
 )
@@ -163,12 +165,14 @@ def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
         99,
     )
     registry.dispatcher["global"](registry, 11, "ext_workspace_manager_v1", 99)
+    registry.dispatcher["global"](registry, 12, "wl_seat", 99)
 
     assert runtime.foreign_toplevel_protocol is runtime.foreign_toplevel
     assert runtime.workspace_protocol is runtime.workspaces
     assert registry.bound == [
         (10, ZwlrForeignToplevelManagerV1, ZwlrForeignToplevelManagerV1.version),
         (11, ExtWorkspaceManagerV1, ExtWorkspaceManagerV1.version),
+        (12, WlSeat, WlSeat.version),
     ]
     assert glib.watch is not None
 
@@ -269,3 +273,19 @@ def test_foreign_toplevel_adapter_replays_initial_events_after_service_start():
     running = model.update_running.call_args.kwargs["running"]
     assert running["foot.desktop"].active is True
     assert service.list_windows("foot.desktop")[0].title == "Terminal"
+
+
+def test_foreign_toplevel_adapter_requires_seat_for_activation():
+    adapter = ForeignToplevelProtocolAdapter()
+    handle = SimpleNamespace(activate=MagicMock())
+
+    assert adapter.supports_action("activate", handle) is False
+    adapter.activate(handle)
+    handle.activate.assert_not_called()
+
+    registry = FakeRegistry()
+    adapter.bind_seat(registry=registry, name=12, version=99)
+
+    assert adapter.supports_action("activate", handle) is True
+    adapter.activate(handle)
+    handle.activate.assert_called_once_with(registry.proxies["wl_seat"])

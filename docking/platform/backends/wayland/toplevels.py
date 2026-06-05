@@ -27,6 +27,7 @@ WindowId, WindowSnapshot, and RunningAppInfo values.
 from __future__ import annotations
 
 import importlib
+import struct
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -50,6 +51,12 @@ STATE_ACTIVATED = "activated"
 STATE_MINIMIZED = "minimized"
 STATE_MAXIMIZED = "maximized"
 STATE_FULLSCREEN = "fullscreen"
+_STATE_BY_VALUE = {
+    0: STATE_MAXIMIZED,
+    1: STATE_MINIMIZED,
+    2: STATE_ACTIVATED,
+    3: STATE_FULLSCREEN,
+}
 
 
 @dataclass
@@ -252,7 +259,7 @@ class WaylandForeignToplevelWindowService(WindowService):
     def state_changed(self, handle: object, states: Iterable[object]) -> None:
         """Apply a foreign-toplevel state-list event."""
         state = self._ensure_state(handle=handle)
-        normalized = {_normalize_state(value) for value in states}
+        normalized = _normalize_states(states)
         state.active = STATE_ACTIVATED in normalized
         state.minimized = STATE_MINIMIZED in normalized
         state.maximized = STATE_MAXIMIZED in normalized
@@ -365,11 +372,16 @@ class WaylandForeignToplevelWindowService(WindowService):
         )
 
     def _supports_action(self, action: str, handle: object) -> bool:
+        protocol_supports_action = getattr(self._protocol, "supports_action", None)
+        if callable(protocol_supports_action):
+            return bool(protocol_supports_action(action, handle))
         return callable(getattr(self._protocol, action, None)) or callable(
             getattr(handle, action, None)
         )
 
     def _call_action(self, *, state: _ToplevelState, action: str) -> ActionResult:
+        if not self._supports_action(action, state.handle):
+            return ActionResult.UNSUPPORTED
         protocol_method = getattr(self._protocol, action, None)
         if callable(protocol_method):
             protocol_method(state.handle)
@@ -428,9 +440,24 @@ def _app_id_candidates(app_id: str) -> list[str]:
 
 
 def _normalize_state(value: object) -> str:
+    if isinstance(value, int):
+        return _STATE_BY_VALUE.get(value, str(value)).strip().lower()
     if isinstance(value, str):
         return value.strip().lower()
     name = getattr(value, "name", "")
     if isinstance(name, str) and name:
         return name.strip().lower()
     return str(value).strip().lower()
+
+
+def _normalize_states(values: Iterable[object]) -> set[str]:
+    if isinstance(values, bytes | bytearray | memoryview):
+        data = bytes(values)
+        size = struct.calcsize("I")
+        return {
+            _normalize_state(value)
+            for (value,) in struct.iter_unpack(
+                "I", data[: len(data) - len(data) % size]
+            )
+        }
+    return {_normalize_state(value) for value in values}
