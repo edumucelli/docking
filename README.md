@@ -89,6 +89,9 @@ advertise layer-shell, Docking falls back to reduced native Wayland mode.
 Live native Wayland protocol backends also need the optional Python extra:
 
 ```bash
+# Debian / Ubuntu build dependencies for pywayland
+sudo apt install libwayland-dev wayland-protocols
+
 pip install -e ".[wayland]"
 ```
 
