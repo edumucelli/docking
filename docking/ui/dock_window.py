@@ -437,6 +437,7 @@ class DockWindow(Gtk.Window):
             | Gdk.EventMask.ENTER_NOTIFY_MASK
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
             | Gdk.EventMask.SCROLL_MASK
+            | Gdk.EventMask.SMOOTH_SCROLL_MASK
         )
         self.drawing_area.connect("draw", self._on_draw)
         self.drawing_area.connect("motion-notify-event", self._on_motion)
