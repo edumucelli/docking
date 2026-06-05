@@ -55,6 +55,19 @@ class TestParseDesktop:
     def test_lxqt_maps_to_lxde(self):
         assert _parse_desktop("lxqt") == Desktop.LXDE
 
+    def test_labwc_wlroots_desktop_list(self):
+        result = _parse_desktop("labwc:wlroots")
+        assert result & Desktop.LABWC
+        assert result & Desktop.WLROOTS
+
+    def test_common_wayland_compositors(self):
+        assert _parse_desktop("sway") == Desktop.SWAY
+        assert _parse_desktop("river") == Desktop.RIVER
+        assert _parse_desktop("wayfire") == Desktop.WAYFIRE
+        assert _parse_desktop("hyprland") == Desktop.HYPRLAND
+        assert _parse_desktop("niri") == Desktop.NIRI
+        assert _parse_desktop("cosmic") == Desktop.COSMIC
+
 
 class TestDetectDesktop:
     """Detection priority: XDG_SESSION_DESKTOP > XDG_CURRENT_DESKTOP > DESKTOP_SESSION."""
@@ -84,6 +97,14 @@ class TestDetectDesktop:
         }
         with patch.dict("os.environ", env, clear=True):
             assert detect_desktop() == Desktop.MATE
+
+    def test_detects_labwc_wlroots_session(self):
+        env = {
+            "XDG_SESSION_DESKTOP": "labwc",
+            "XDG_CURRENT_DESKTOP": "labwc:wlroots",
+        }
+        with patch.dict("os.environ", env, clear=True):
+            assert detect_desktop() == Desktop.LABWC
 
     def test_no_env_returns_unknown(self):
         with patch.dict("os.environ", {}, clear=True):
