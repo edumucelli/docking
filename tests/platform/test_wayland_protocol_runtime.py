@@ -67,6 +67,34 @@ class FakeDisplay:
         return 123
 
 
+class DelayedWorkspaceDisplay(FakeDisplay):
+    registry = FakeRegistry()
+
+    def __init__(self) -> None:
+        self.dispatch = MagicMock()
+        self.flush = MagicMock()
+        self.disconnect = MagicMock()
+        self._roundtrips = 0
+
+    def roundtrip(self):
+        self._roundtrips += 1
+        if self._roundtrips == 1:
+            self.registry.dispatcher["global"](
+                self.registry,
+                11,
+                "ext_workspace_manager_v1",
+                99,
+            )
+            return
+        manager = self.registry.proxies["ext_workspace_manager_v1"]
+        workspace = FakeHandle()
+        manager.dispatcher["workspace"](manager, workspace)
+        workspace.dispatcher["name"](workspace, "Workspace 1")
+        workspace.dispatcher["capabilities"](workspace, 1)
+        workspace.dispatcher["state"](workspace, 1)
+        manager.dispatcher["done"](manager)
+
+
 class FakeChannel:
     def __init__(self, fd: int, glib: object) -> None:
         self.fd = fd
@@ -109,6 +137,16 @@ def _factories(glib: FakeGLib) -> WaylandProtocolFactories:
     )
 
 
+def _workspace_factories(glib: FakeGLib) -> WaylandProtocolFactories:
+    DelayedWorkspaceDisplay.registry = FakeRegistry()
+    return WaylandProtocolFactories(
+        display_cls=DelayedWorkspaceDisplay,
+        manager_cls=ZwlrForeignToplevelManagerV1,
+        workspace_manager_cls=ExtWorkspaceManagerV1,
+        glib=glib,
+    )
+
+
 def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
     glib = FakeGLib()
     runtime = WaylandProtocolRuntime(factories=_factories(glib))
@@ -130,6 +168,19 @@ def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
         (11, ExtWorkspaceManagerV1, ExtWorkspaceManagerV1.version),
     ]
     assert glib.watch is not None
+
+
+def test_wayland_protocol_runtime_second_roundtrip_receives_initial_workspaces():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_workspace_factories(glib))
+
+    assert runtime.start() is True
+    service = WaylandWorkspaceService(protocol=runtime.workspaces)
+    service.start()
+
+    active = service.active_workspace()
+    assert active is not None
+    assert active.name == "Workspace 1"
 
 
 def test_wayland_protocol_runtime_dispatches_and_stops_cleanly():
