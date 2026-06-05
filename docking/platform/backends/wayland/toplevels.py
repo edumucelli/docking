@@ -44,6 +44,7 @@ from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
     from docking.core.items import DockItem
+    from docking.platform.backends.wayland.previews import WaylandPreviewHandleTracker
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
@@ -125,10 +126,12 @@ class WaylandForeignToplevelWindowService(WindowService):
         model: DockModel,
         launcher: Launcher,
         protocol: object,
+        preview_handles: WaylandPreviewHandleTracker | None = None,
     ) -> None:
         self._model = model
         self._matcher = WaylandAppIdMatcher(launcher=launcher)
         self._protocol = protocol
+        self._preview_handles = preview_handles
         self._next_id = 1
         self._state_by_handle: dict[object, _ToplevelState] = {}
         self._state_by_id: dict[int, _ToplevelState] = {}
@@ -356,6 +359,14 @@ class WaylandForeignToplevelWindowService(WindowService):
         return state
 
     def _snapshot_for(self, state: _ToplevelState) -> WindowSnapshot:
+        preview_handles = self._preview_handles
+        if preview_handles is not None:
+            preview_handles.associate_window(
+                window_id=state.window_id,
+                desktop_id=state.desktop_id,
+                app_id=state.app_id,
+                title=state.title,
+            )
         return WindowSnapshot(
             id=state.window_id,
             desktop_id=state.desktop_id or "",
@@ -368,7 +379,9 @@ class WaylandForeignToplevelWindowService(WindowService):
             can_activate=self._supports_action("activate", state.handle),
             can_minimize=self._supports_action("set_minimized", state.handle),
             can_close=self._supports_action("close", state.handle),
-            can_preview=False,
+            can_preview=preview_handles.can_preview(state.window_id)
+            if preview_handles is not None
+            else False,
         )
 
     def _supports_action(self, action: str, handle: object) -> bool:

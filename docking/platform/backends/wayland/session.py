@@ -40,6 +40,10 @@ from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     load_portal_color_picker,
 )
+from docking.platform.backends.wayland.previews import (
+    WaylandPreviewHandleTracker,
+    WaylandPreviewService,
+)
 from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
 from docking.platform.backends.wayland.toplevels import (
@@ -57,7 +61,7 @@ class WaylandLayerShellRuntimeServices:
     """Concrete services selected for native Wayland support."""
 
     windows: WindowService
-    previews: ReducedPreviewService
+    previews: PreviewService
     surface: WaylandLayerShellSurfaceService
     visibility: ReducedVisibilityService
     workspaces: WorkspaceService | None
@@ -104,15 +108,31 @@ class WaylandLayerShellSessionBackend(SessionBackend):
                 else load_workspace_protocol()
             )
         )
+        preview_protocol = (
+            getattr(runtime, "preview_protocol", None) if runtime is not None else None
+        )
         windows: WindowService
+        preview_handles: WaylandPreviewHandleTracker | None = None
         if foreign_protocol is not None and model is not None and launcher is not None:
+            if preview_protocol is not None:
+                preview_handles = WaylandPreviewHandleTracker(
+                    model=model,
+                    launcher=launcher,
+                    protocol=preview_protocol,
+                )
             windows = WaylandForeignToplevelWindowService(
                 model=model,
                 launcher=launcher,
                 protocol=foreign_protocol,
+                preview_handles=preview_handles,
             )
         else:
             windows = ReducedWindowService()
+        previews: PreviewService = (
+            WaylandPreviewService(protocol=preview_protocol, handles=preview_handles)
+            if preview_protocol is not None and preview_handles is not None
+            else ReducedPreviewService()
+        )
         workspaces = (
             WaylandWorkspaceService(protocol=workspace_protocol)
             if workspace_protocol is not None
@@ -120,7 +140,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         )
         self._services = WaylandLayerShellRuntimeServices(
             windows=windows,
-            previews=ReducedPreviewService(),
+            previews=previews,
             surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
             visibility=ReducedVisibilityService(),
             workspaces=workspaces,
@@ -204,8 +224,8 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         return None
 
     def start(self) -> None:
-        self._services.windows.start()
         self._services.previews.start()
+        self._services.windows.start()
         self._services.surface.start()
         self._services.visibility.start()
         if self._services.workspaces is not None:
@@ -220,7 +240,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             self._services.workspaces.stop()
         self._services.visibility.stop()
         self._services.surface.stop()
-        self._services.previews.stop()
         self._services.windows.stop()
+        self._services.previews.stop()
         if self._services.protocol_runtime is not None:
             self._services.protocol_runtime.stop()

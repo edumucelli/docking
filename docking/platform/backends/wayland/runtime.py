@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from docking.platform.backends.wayland.previews import (
+        WaylandPreviewHandleTracker,
+    )
     from docking.platform.backends.wayland.toplevels import (
         WaylandForeignToplevelWindowService,
     )
@@ -337,6 +340,191 @@ class WorkspaceProtocolAdapter:
         self.available = False
 
 
+class PreviewProtocolAdapter:
+    """Adapter for generic Wayland toplevel preview capture protocols."""
+
+    def __init__(self) -> None:
+        self._toplevel_list = None
+        self._source_manager = None
+        self._capture_manager = None
+        self._shm = None
+        self._flush: Callable[[], None] | None = None
+        self._tracker: WaylandPreviewHandleTracker | None = None
+        self._pending_toplevels: list[object] = []
+        self._pending_data: dict[object, dict[str, object]] = {}
+        self._shm_formats: set[int] = set()
+        self.available = False
+
+    @property
+    def capture_available(self) -> bool:
+        return (
+            self.available
+            and self._source_manager is not None
+            and self._capture_manager is not None
+            and self._shm is not None
+            and bool(self._shm_formats.intersection({0, 1}))
+        )
+
+    def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
+        self._flush = callback
+
+    def bind_toplevel_list(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.ext_foreign_toplevel_list_v1 import (
+            ExtForeignToplevelListV1,
+        )
+
+        bind_version = min(version, ExtForeignToplevelListV1.version)
+        self._toplevel_list = registry.bind(
+            name,
+            ExtForeignToplevelListV1,
+            bind_version,
+        )
+        self._toplevel_list.dispatcher["toplevel"] = self._on_toplevel
+        self._toplevel_list.dispatcher["finished"] = self._on_finished
+        self.available = True
+
+    def bind_source_manager(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.ext_image_capture_source_v1 import (
+            ExtForeignToplevelImageCaptureSourceManagerV1,
+        )
+
+        bind_version = min(
+            version,
+            ExtForeignToplevelImageCaptureSourceManagerV1.version,
+        )
+        self._source_manager = registry.bind(
+            name,
+            ExtForeignToplevelImageCaptureSourceManagerV1,
+            bind_version,
+        )
+
+    def bind_capture_manager(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.ext_image_copy_capture_v1 import (
+            ExtImageCopyCaptureManagerV1,
+        )
+
+        bind_version = min(version, ExtImageCopyCaptureManagerV1.version)
+        self._capture_manager = registry.bind(
+            name,
+            ExtImageCopyCaptureManagerV1,
+            bind_version,
+        )
+
+    def bind_shm(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.wayland import WlShm
+
+        self._shm = registry.bind(name, WlShm, min(version, WlShm.version))
+        self._shm.dispatcher["format"] = self._on_shm_format
+
+    def start(self, tracker: WaylandPreviewHandleTracker) -> None:
+        self._tracker = tracker
+        for toplevel in tuple(self._pending_toplevels):
+            tracker.toplevel_created(toplevel)
+            data = self._pending_data.get(toplevel, {})
+            if "title" in data:
+                tracker.title_changed(toplevel, str(data["title"]))
+            if "app_id" in data:
+                tracker.app_id_changed(toplevel, str(data["app_id"]))
+            if "identifier" in data:
+                tracker.identifier_changed(toplevel, str(data["identifier"]))
+            if data.get("done"):
+                tracker.done(toplevel)
+
+    def stop(self) -> None:
+        list_manager = self._toplevel_list
+        if list_manager is not None:
+            stop = getattr(list_manager, "stop", None)
+            if callable(stop):
+                stop()
+        for manager in (self._source_manager, self._capture_manager, self._shm):
+            destroy = getattr(manager, "destroy", None)
+            if callable(destroy):
+                destroy()
+        self._toplevel_list = None
+        self._source_manager = None
+        self._capture_manager = None
+        self._shm = None
+        self._flush = None
+        self._tracker = None
+        self._pending_toplevels.clear()
+        self._pending_data.clear()
+        self._shm_formats.clear()
+        self.available = False
+
+    def create_source(self, handle: object) -> object:
+        if not self.capture_available or self._source_manager is None:
+            raise RuntimeError("Wayland preview capture is unavailable")
+        return self._source_manager.create_source(handle)
+
+    def create_session(self, source: object) -> object:
+        if not self.capture_available or self._capture_manager is None:
+            raise RuntimeError("Wayland preview capture is unavailable")
+        return self._capture_manager.create_session(source, 0)
+
+    def create_shm_pool(self, fd: int, size: int) -> object:
+        if not self.capture_available or self._shm is None:
+            raise RuntimeError("Wayland preview shm is unavailable")
+        return self._shm.create_pool(fd, size)
+
+    def flush(self) -> None:
+        if self._flush is not None:
+            self._flush()
+
+    def _on_toplevel(self, manager, toplevel) -> None:
+        if toplevel not in self._pending_toplevels:
+            self._pending_toplevels.append(toplevel)
+        self._pending_data.setdefault(toplevel, {})
+        if self._tracker is not None:
+            self._tracker.toplevel_created(toplevel)
+        toplevel.dispatcher["title"] = lambda _handle, title: self._on_toplevel_title(
+            toplevel,
+            title,
+        )
+        toplevel.dispatcher["app_id"] = lambda _handle, app_id: (
+            self._on_toplevel_app_id(toplevel, app_id)
+        )
+        toplevel.dispatcher["identifier"] = lambda _handle, identifier: (
+            self._on_toplevel_identifier(toplevel, identifier)
+        )
+        toplevel.dispatcher["done"] = lambda _handle: self._on_toplevel_done(toplevel)
+        toplevel.dispatcher["closed"] = lambda _handle: self._on_toplevel_closed(
+            toplevel
+        )
+
+    def _on_toplevel_title(self, toplevel: object, title: str) -> None:
+        self._pending_data.setdefault(toplevel, {})["title"] = title
+        if self._tracker is not None:
+            self._tracker.title_changed(toplevel, title)
+
+    def _on_toplevel_app_id(self, toplevel: object, app_id: str) -> None:
+        self._pending_data.setdefault(toplevel, {})["app_id"] = app_id
+        if self._tracker is not None:
+            self._tracker.app_id_changed(toplevel, app_id)
+
+    def _on_toplevel_identifier(self, toplevel: object, identifier: str) -> None:
+        self._pending_data.setdefault(toplevel, {})["identifier"] = identifier
+        if self._tracker is not None:
+            self._tracker.identifier_changed(toplevel, identifier)
+
+    def _on_toplevel_done(self, toplevel: object) -> None:
+        self._pending_data.setdefault(toplevel, {})["done"] = True
+        if self._tracker is not None:
+            self._tracker.done(toplevel)
+
+    def _on_toplevel_closed(self, toplevel: object) -> None:
+        if toplevel in self._pending_toplevels:
+            self._pending_toplevels.remove(toplevel)
+        self._pending_data.pop(toplevel, None)
+        if self._tracker is not None:
+            self._tracker.closed(toplevel)
+
+    def _on_finished(self, manager) -> None:
+        self.available = False
+
+    def _on_shm_format(self, shm, format_: int) -> None:
+        self._shm_formats.add(int(format_))
+
+
 class WaylandProtocolRuntime:
     """Owns direct Wayland protocol connection and event-loop integration."""
 
@@ -346,10 +534,12 @@ class WaylandProtocolRuntime:
         factories: WaylandProtocolFactories | None = None,
         foreign_adapter: ForeignToplevelProtocolAdapter | None = None,
         workspace_adapter: WorkspaceProtocolAdapter | None = None,
+        preview_adapter: PreviewProtocolAdapter | None = None,
     ) -> None:
         self._factories = factories
         self.foreign_toplevel = foreign_adapter or ForeignToplevelProtocolAdapter()
         self.workspaces = workspace_adapter or WorkspaceProtocolAdapter()
+        self.previews = preview_adapter or PreviewProtocolAdapter()
         self._display = None
         self._registry = None
         self._glib_source_id = 0
@@ -362,6 +552,10 @@ class WaylandProtocolRuntime:
     @property
     def workspace_protocol(self) -> object | None:
         return self.workspaces if self.workspaces.available else None
+
+    @property
+    def preview_protocol(self) -> object | None:
+        return self.previews if self.previews.capture_available else None
 
     def start(self) -> bool:
         factories = self._factories or load_protocol_factories()
@@ -377,6 +571,7 @@ class WaylandProtocolRuntime:
             self._registry = registry
             self.foreign_toplevel.set_flush_callback(display.flush)
             self.workspaces.set_flush_callback(display.flush)
+            self.previews.set_flush_callback(display.flush)
             display.dispatch(block=False)
             display.roundtrip()
             # The roundtrip discovers globals and binds protocol managers. Flush
@@ -399,6 +594,7 @@ class WaylandProtocolRuntime:
     def stop(self) -> None:
         self.foreign_toplevel.stop()
         self.workspaces.stop()
+        self.previews.stop()
         source_id = self._glib_source_id
         factories = self._factories or load_protocol_factories()
         if source_id and factories is not None:
@@ -424,6 +620,26 @@ class WaylandProtocolRuntime:
             )
         elif interface == "ext_workspace_manager_v1":
             self.workspaces.bind(registry=registry, name=name, version=version)
+        elif interface == "ext_foreign_toplevel_list_v1":
+            self.previews.bind_toplevel_list(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "ext_foreign_toplevel_image_capture_source_manager_v1":
+            self.previews.bind_source_manager(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "ext_image_copy_capture_manager_v1":
+            self.previews.bind_capture_manager(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "wl_shm":
+            self.previews.bind_shm(registry=registry, name=name, version=version)
 
     def _install_glib_watch(
         self, *, factories: WaylandProtocolFactories, display

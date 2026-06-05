@@ -5,7 +5,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from pywayland.protocol.wayland import WlSeat
+from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelListV1
+from pywayland.protocol.ext_image_capture_source_v1 import (
+    ExtForeignToplevelImageCaptureSourceManagerV1,
+)
+from pywayland.protocol.ext_image_copy_capture_v1 import ExtImageCopyCaptureManagerV1
+from pywayland.protocol.wayland import WlSeat, WlShm
 
 from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (
     ExtWorkspaceManagerV1,
@@ -15,6 +20,7 @@ from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management
 )
 from docking.platform.backends.wayland.runtime import (
     ForeignToplevelProtocolAdapter,
+    PreviewProtocolAdapter,
     WaylandProtocolFactories,
     WaylandProtocolRuntime,
     WorkspaceProtocolAdapter,
@@ -177,6 +183,41 @@ def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
     assert glib.watch is not None
 
 
+def test_wayland_protocol_runtime_binds_preview_protocol_set():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](registry, 20, "ext_foreign_toplevel_list_v1", 99)
+    registry.dispatcher["global"](
+        registry,
+        21,
+        "ext_foreign_toplevel_image_capture_source_manager_v1",
+        99,
+    )
+    registry.dispatcher["global"](
+        registry,
+        22,
+        "ext_image_copy_capture_manager_v1",
+        99,
+    )
+    registry.dispatcher["global"](registry, 23, "wl_shm", 99)
+    registry.proxies["wl_shm"].dispatcher["format"](registry.proxies["wl_shm"], 0)
+
+    assert runtime.preview_protocol is runtime.previews
+    assert registry.bound == [
+        (20, ExtForeignToplevelListV1, ExtForeignToplevelListV1.version),
+        (
+            21,
+            ExtForeignToplevelImageCaptureSourceManagerV1,
+            ExtForeignToplevelImageCaptureSourceManagerV1.version,
+        ),
+        (22, ExtImageCopyCaptureManagerV1, ExtImageCopyCaptureManagerV1.version),
+        (23, WlShm, WlShm.version),
+    ]
+
+
 def test_wayland_protocol_runtime_fd_read_receives_initial_workspaces():
     glib = FakeGLib()
     runtime = WaylandProtocolRuntime(factories=_workspace_factories(glib))
@@ -326,3 +367,22 @@ def test_foreign_toplevel_adapter_flushes_outgoing_actions():
     handle.set_minimized.assert_called_once_with()
     handle.close.assert_called_once_with()
     assert flush.call_count == 3
+
+
+def test_preview_adapter_replays_initial_toplevels_after_tracker_start():
+    adapter = PreviewProtocolAdapter()
+    toplevel = FakeHandle()
+    tracker = MagicMock()
+
+    adapter._on_toplevel(None, toplevel)
+    toplevel.dispatcher["title"](toplevel, "Files")
+    toplevel.dispatcher["app_id"](toplevel, "org.gnome.Nautilus")
+    toplevel.dispatcher["identifier"](toplevel, "opaque-handle-id")
+    toplevel.dispatcher["done"](toplevel)
+    adapter.start(tracker)
+
+    tracker.toplevel_created.assert_called_once_with(toplevel)
+    tracker.title_changed.assert_called_once_with(toplevel, "Files")
+    tracker.app_id_changed.assert_called_once_with(toplevel, "org.gnome.Nautilus")
+    tracker.identifier_changed.assert_called_once_with(toplevel, "opaque-handle-id")
+    tracker.done.assert_called_once_with(toplevel)

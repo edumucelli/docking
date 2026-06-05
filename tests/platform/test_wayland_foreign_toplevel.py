@@ -112,6 +112,37 @@ def test_foreign_toplevel_service_publishes_running_state_and_snapshots():
     assert snapshot.can_preview is False
 
 
+def test_foreign_toplevel_service_marks_snapshots_previewable_when_matched():
+    model = _model(_item("org.gnome.Nautilus.desktop"))
+    preview_handles = SimpleNamespace(
+        associate_window=MagicMock(),
+        can_preview=MagicMock(return_value=True),
+    )
+    service = WaylandForeignToplevelWindowService(
+        model=model,
+        launcher=_launcher(),
+        protocol=_protocol(),
+        preview_handles=preview_handles,
+    )
+    handle = object()
+
+    window_id = service.toplevel_created(handle)
+    service.title_changed(handle, "Files")
+    service.app_id_changed(handle, "org.gnome.Nautilus")
+    service.done(handle)
+
+    snapshot = service.list_windows("org.gnome.Nautilus.desktop")[0]
+
+    assert snapshot.can_preview is True
+    preview_handles.associate_window.assert_called_once_with(
+        window_id=window_id,
+        desktop_id="org.gnome.Nautilus.desktop",
+        app_id="org.gnome.Nautilus",
+        title="Files",
+    )
+    preview_handles.can_preview.assert_called_once_with(window_id)
+
+
 def test_foreign_toplevel_service_actions_call_protocol_methods():
     model = _model(_item("firefox.desktop"))
     protocol = _protocol()
