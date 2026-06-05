@@ -127,11 +127,13 @@ class WaylandForeignToplevelWindowService(WindowService):
         launcher: Launcher,
         protocol: object,
         preview_handles: WaylandPreviewHandleTracker | None = None,
+        can_preview: bool = False,
     ) -> None:
         self._model = model
         self._matcher = WaylandAppIdMatcher(launcher=launcher)
         self._protocol = protocol
         self._preview_handles = preview_handles
+        self._can_preview = can_preview
         self._next_id = 1
         self._state_by_handle: dict[object, _ToplevelState] = {}
         self._state_by_id: dict[int, _ToplevelState] = {}
@@ -167,6 +169,11 @@ class WaylandForeignToplevelWindowService(WindowService):
     def icon_name_for_desktop(self, desktop_id: str) -> str:
         """Return a generic icon fallback; model icon lookup handles launchers."""
         return "application-x-executable"
+
+    def protocol_handle_for_window_id(self, window_id: WindowId) -> object | None:
+        """Return the private protocol handle for same-backend preview services."""
+        state = self._state_for_window_id(window_id)
+        return state.handle if state is not None else None
 
     def activate(self, window_id: WindowId) -> ActionResult:
         """Activate one foreign toplevel by backend ID."""
@@ -381,7 +388,7 @@ class WaylandForeignToplevelWindowService(WindowService):
             can_close=self._supports_action("close", state.handle),
             can_preview=preview_handles.can_preview(state.window_id)
             if preview_handles is not None
-            else False,
+            else self._can_preview,
         )
 
     def _supports_action(self, action: str, handle: object) -> bool:

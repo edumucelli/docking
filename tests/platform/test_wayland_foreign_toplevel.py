@@ -143,6 +143,23 @@ def test_foreign_toplevel_service_marks_snapshots_previewable_when_matched():
     preview_handles.can_preview.assert_called_once_with(window_id)
 
 
+def test_foreign_toplevel_service_can_mark_snapshots_previewable_without_tracker():
+    model = _model(_item("firefox.desktop"))
+    service = WaylandForeignToplevelWindowService(
+        model=model,
+        launcher=_launcher(),
+        protocol=_protocol(),
+        can_preview=True,
+    )
+    handle = object()
+
+    service.toplevel_created(handle)
+    service.app_id_changed(handle, "firefox")
+    service.done(handle)
+
+    assert service.list_windows("firefox.desktop")[0].can_preview is True
+
+
 def test_foreign_toplevel_service_actions_call_protocol_methods():
     model = _model(_item("firefox.desktop"))
     protocol = _protocol()

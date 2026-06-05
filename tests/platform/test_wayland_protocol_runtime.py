@@ -15,6 +15,9 @@ from pywayland.protocol.wayland import WlSeat, WlShm
 from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (
     ExtWorkspaceManagerV1,
 )
+from docking.platform.backends.wayland.protocols.hyprland_toplevel_export_v1 import (
+    HyprlandToplevelExportManagerV1,
+)
 from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management_unstable_v1 import (
     ZwlrForeignToplevelManagerV1,
 )
@@ -214,6 +217,33 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
         ),
         (22, ExtImageCopyCaptureManagerV1, ExtImageCopyCaptureManagerV1.version),
         (23, WlShm, WlShm.version),
+        (23, WlShm, WlShm.version),
+    ]
+
+
+def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](
+        registry,
+        30,
+        "hyprland_toplevel_export_manager_v1",
+        99,
+    )
+    registry.dispatcher["global"](registry, 31, "wl_shm", 99)
+
+    assert runtime.hyprland_preview_protocol is runtime.hyprland_previews
+    assert registry.bound == [
+        (
+            30,
+            HyprlandToplevelExportManagerV1,
+            HyprlandToplevelExportManagerV1.version,
+        ),
+        (31, WlShm, WlShm.version),
+        (31, WlShm, WlShm.version),
     ]
 
 

@@ -20,7 +20,10 @@ from docking.platform.backends.reduced.services import (
     ReducedWindowService,
 )
 from docking.platform.backends.wayland.portals import WaylandPortalColorPickerService
-from docking.platform.backends.wayland.previews import WaylandPreviewService
+from docking.platform.backends.wayland.previews import (
+    HyprlandPreviewService,
+    WaylandPreviewService,
+)
 from docking.platform.backends.wayland.services import (
     WaylandLayerShellSurfaceService,
     layer_shell_is_supported,
@@ -64,6 +67,7 @@ def _empty_runtime() -> SimpleNamespace:
         foreign_toplevel_protocol=None,
         workspace_protocol=None,
         preview_protocol=None,
+        hyprland_preview_protocol=None,
         stop=MagicMock(),
     )
 
@@ -134,12 +138,41 @@ def test_wayland_layer_shell_session_uses_wayland_previews_when_available():
             foreign_toplevel_protocol=None,
             workspace_protocol=None,
             preview_protocol=preview_protocol,
+            hyprland_preview_protocol=None,
             stop=MagicMock(),
         ),
     )
 
     assert isinstance(backend.windows, WaylandForeignToplevelWindowService)
     assert isinstance(backend.previews, WaylandPreviewService)
+
+
+def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
+    hyprland_preview_protocol = SimpleNamespace(
+        capture_available=True,
+        create_frame=MagicMock(),
+        create_shm_pool=MagicMock(),
+        flush=MagicMock(),
+    )
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        foreign_toplevel_protocol=SimpleNamespace(),
+        protocol_runtime=SimpleNamespace(
+            foreign_toplevel_protocol=None,
+            workspace_protocol=None,
+            preview_protocol=None,
+            hyprland_preview_protocol=hyprland_preview_protocol,
+            stop=MagicMock(),
+        ),
+    )
+
+    assert isinstance(backend.windows, WaylandForeignToplevelWindowService)
+    assert isinstance(backend.previews, HyprlandPreviewService)
 
 
 def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_available():

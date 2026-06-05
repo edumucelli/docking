@@ -41,6 +41,7 @@ from docking.platform.backends.wayland.portals import (
     load_portal_color_picker,
 )
 from docking.platform.backends.wayland.previews import (
+    HyprlandPreviewService,
     WaylandPreviewHandleTracker,
     WaylandPreviewService,
 )
@@ -111,6 +112,11 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         preview_protocol = (
             getattr(runtime, "preview_protocol", None) if runtime is not None else None
         )
+        hyprland_preview_protocol = (
+            getattr(runtime, "hyprland_preview_protocol", None)
+            if runtime is not None
+            else None
+        )
         windows: WindowService
         preview_handles: WaylandPreviewHandleTracker | None = None
         if foreign_protocol is not None and model is not None and launcher is not None:
@@ -125,14 +131,25 @@ class WaylandLayerShellSessionBackend(SessionBackend):
                 launcher=launcher,
                 protocol=foreign_protocol,
                 preview_handles=preview_handles,
+                can_preview=preview_protocol is None
+                and hyprland_preview_protocol is not None,
             )
         else:
             windows = ReducedWindowService()
-        previews: PreviewService = (
-            WaylandPreviewService(protocol=preview_protocol, handles=preview_handles)
-            if preview_protocol is not None and preview_handles is not None
-            else ReducedPreviewService()
-        )
+        if preview_protocol is not None and preview_handles is not None:
+            previews: PreviewService = WaylandPreviewService(
+                protocol=preview_protocol,
+                handles=preview_handles,
+            )
+        elif hyprland_preview_protocol is not None and isinstance(
+            windows, WaylandForeignToplevelWindowService
+        ):
+            previews = HyprlandPreviewService(
+                protocol=hyprland_preview_protocol,
+                windows=windows,
+            )
+        else:
+            previews = ReducedPreviewService()
         workspaces = (
             WaylandWorkspaceService(protocol=workspace_protocol)
             if workspace_protocol is not None

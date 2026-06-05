@@ -9,6 +9,7 @@ from docking.platform.backends.base import DisplayServer, PreviewImage, WindowId
 from docking.platform.backends.wayland import previews as preview_mod
 from docking.platform.backends.wayland.previews import (
     SHM_ARGB8888,
+    HyprlandPreviewService,
     WaylandPreviewHandleTracker,
     WaylandPreviewService,
 )
@@ -45,6 +46,7 @@ class FakeFrame:
         self.attach_buffer = MagicMock()
         self.damage_buffer = MagicMock()
         self.capture = MagicMock()
+        self.copy = MagicMock()
         self.destroy = MagicMock()
 
 
@@ -120,5 +122,41 @@ def test_wayland_preview_service_starts_once_and_returns_cached_frame(monkeypatc
     session.dispatcher["shm_format"](session, SHM_ARGB8888)
     session.dispatcher["done"](session)
     session.frame.dispatcher["ready"](session.frame)
+
+    assert service.capture(window_id, width=100, height=60) is image
+
+
+def test_hyprland_preview_service_uses_wlr_handle_and_returns_cached_frame(
+    monkeypatch,
+):
+    window_id = WindowId(backend=DisplayServer.WAYLAND, value=7)
+    handle = object()
+    frame = FakeFrame()
+    pool = FakePool()
+    protocol = SimpleNamespace(
+        create_frame=MagicMock(return_value=frame),
+        create_shm_pool=MagicMock(return_value=pool),
+        flush=MagicMock(),
+    )
+    windows = SimpleNamespace(
+        protocol_handle_for_window_id=MagicMock(return_value=handle),
+    )
+    image = PreviewImage(image=object(), width=100, height=60)
+    monkeypatch.setattr(
+        preview_mod,
+        "_pixbuf_from_request",
+        MagicMock(return_value=image),
+    )
+    service = HyprlandPreviewService(protocol=protocol, windows=windows)
+
+    assert service.capture(window_id, width=100, height=60) is None
+    assert service.capture(window_id, width=100, height=60) is None
+    protocol.create_frame.assert_called_once_with(handle)
+
+    frame.dispatcher["buffer"](frame, SHM_ARGB8888, 320, 240, 1280)
+    frame.dispatcher["buffer_done"](frame)
+    frame.copy.assert_called_once_with(pool.buffer, 1)
+    frame.dispatcher["flags"](frame, 1)
+    frame.dispatcher["ready"](frame, 0, 0, 0)
 
     assert service.capture(window_id, width=100, height=60) is image

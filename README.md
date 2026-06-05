@@ -185,7 +185,7 @@ Native Wayland features are enabled per advertised compositor protocol:
 | Running/active windows and basic actions | `zwlr_foreign_toplevel_manager_v1`; `wl_seat` for activate |
 | Workspace applet | `ext_workspace_manager_v1` |
 | Color picker | XDG Desktop Portal `org.freedesktop.portal.Screenshot.PickColor` |
-| Preview thumbnails | `ext_foreign_toplevel_list_v1`, `ext_foreign_toplevel_image_capture_source_manager_v1`, `ext_image_copy_capture_manager_v1`, and `wl_shm` with ARGB/XRGB (`AR24`/`XR24`, formats `0`/`1`) |
+| Preview thumbnails | Generic: `ext_foreign_toplevel_list_v1`, `ext_foreign_toplevel_image_capture_source_manager_v1`, `ext_image_copy_capture_manager_v1`, and `wl_shm` with ARGB/XRGB (`AR24`/`XR24`, formats `0`/`1`); Hyprland: `hyprland_toplevel_export_manager_v1` v2 |
 
 Check a Wayland session with:
 

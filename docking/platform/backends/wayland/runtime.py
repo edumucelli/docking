@@ -524,6 +524,65 @@ class PreviewProtocolAdapter:
         self._shm_formats.add(int(format_))
 
 
+class HyprlandPreviewProtocolAdapter:
+    """Adapter for Hyprland's toplevel export preview protocol."""
+
+    def __init__(self) -> None:
+        self._manager = None
+        self._shm = None
+        self._flush: Callable[[], None] | None = None
+        self.available = False
+
+    @property
+    def capture_available(self) -> bool:
+        return self.available and self._manager is not None and self._shm is not None
+
+    def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
+        self._flush = callback
+
+    def bind_export_manager(self, *, registry, name: int, version: int) -> None:
+        from docking.platform.backends.wayland.protocols.hyprland_toplevel_export_v1 import (  # noqa: E501
+            HyprlandToplevelExportManagerV1,
+        )
+
+        bind_version = min(version, HyprlandToplevelExportManagerV1.version)
+        self._manager = registry.bind(
+            name,
+            HyprlandToplevelExportManagerV1,
+            bind_version,
+        )
+        self.available = bind_version >= 2
+
+    def bind_shm(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.wayland import WlShm
+
+        self._shm = registry.bind(name, WlShm, min(version, WlShm.version))
+
+    def stop(self) -> None:
+        for obj in (self._manager, self._shm):
+            destroy = getattr(obj, "destroy", None)
+            if callable(destroy):
+                destroy()
+        self._manager = None
+        self._shm = None
+        self._flush = None
+        self.available = False
+
+    def create_frame(self, handle: object) -> object:
+        if not self.capture_available or self._manager is None:
+            raise RuntimeError("Hyprland preview capture is unavailable")
+        return self._manager.capture_toplevel_with_wlr_toplevel_handle(0, handle)
+
+    def create_shm_pool(self, fd: int, size: int) -> object:
+        if not self.capture_available or self._shm is None:
+            raise RuntimeError("Hyprland preview shm is unavailable")
+        return self._shm.create_pool(fd, size)
+
+    def flush(self) -> None:
+        if self._flush is not None:
+            self._flush()
+
+
 class WaylandProtocolRuntime:
     """Owns direct Wayland protocol connection and event-loop integration."""
 
@@ -534,11 +593,15 @@ class WaylandProtocolRuntime:
         foreign_adapter: ForeignToplevelProtocolAdapter | None = None,
         workspace_adapter: WorkspaceProtocolAdapter | None = None,
         preview_adapter: PreviewProtocolAdapter | None = None,
+        hyprland_preview_adapter: HyprlandPreviewProtocolAdapter | None = None,
     ) -> None:
         self._factories = factories
         self.foreign_toplevel = foreign_adapter or ForeignToplevelProtocolAdapter()
         self.workspaces = workspace_adapter or WorkspaceProtocolAdapter()
         self.previews = preview_adapter or PreviewProtocolAdapter()
+        self.hyprland_previews = (
+            hyprland_preview_adapter or HyprlandPreviewProtocolAdapter()
+        )
         self._display = None
         self._registry = None
         self._glib_source_id = 0
@@ -556,6 +619,12 @@ class WaylandProtocolRuntime:
     def preview_protocol(self) -> object | None:
         return self.previews if self.previews.capture_available else None
 
+    @property
+    def hyprland_preview_protocol(self) -> object | None:
+        return (
+            self.hyprland_previews if self.hyprland_previews.capture_available else None
+        )
+
     def start(self) -> bool:
         factories = self._factories or load_protocol_factories()
         if factories is None:
@@ -571,6 +640,7 @@ class WaylandProtocolRuntime:
             self.foreign_toplevel.set_flush_callback(display.flush)
             self.workspaces.set_flush_callback(display.flush)
             self.previews.set_flush_callback(display.flush)
+            self.hyprland_previews.set_flush_callback(display.flush)
             display.dispatch(block=False)
             display.roundtrip()
             # The roundtrip discovers globals and binds protocol managers. Flush
@@ -594,6 +664,7 @@ class WaylandProtocolRuntime:
         self.foreign_toplevel.stop()
         self.workspaces.stop()
         self.previews.stop()
+        self.hyprland_previews.stop()
         source_id = self._glib_source_id
         factories = self._factories or load_protocol_factories()
         if source_id and factories is not None:
@@ -639,6 +710,17 @@ class WaylandProtocolRuntime:
             )
         elif interface == "wl_shm":
             self.previews.bind_shm(registry=registry, name=name, version=version)
+            self.hyprland_previews.bind_shm(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "hyprland_toplevel_export_manager_v1":
+            self.hyprland_previews.bind_export_manager(
+                registry=registry,
+                name=name,
+                version=version,
+            )
 
     def _install_glib_watch(
         self, *, factories: WaylandProtocolFactories, display
