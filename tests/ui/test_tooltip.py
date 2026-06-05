@@ -458,6 +458,16 @@ class _FakeTooltipWindow:
         self._removed = 0
         self._moved = None
         self._draw_cb = None
+        self._transient_for = None
+        self._attached_to = None
+        self._accept_focus = None
+        self._focus_on_map = None
+
+    def set_transient_for(self, window) -> None:
+        self._transient_for = window
+
+    def set_attached_to(self, window) -> None:
+        self._attached_to = window
 
     def set_decorated(self, _value: bool) -> None:
         return
@@ -470,6 +480,12 @@ class _FakeTooltipWindow:
 
     def set_type_hint(self, _value) -> None:
         return
+
+    def set_accept_focus(self, value: bool) -> None:
+        self._accept_focus = value
+
+    def set_focus_on_map(self, value: bool) -> None:
+        self._focus_on_map = value
 
     def set_app_paintable(self, _value: bool) -> None:
         return
@@ -571,6 +587,10 @@ class TestTooltipIntegrationBranches:
 
         # Then
         assert isinstance(tooltip._tooltip_window, _FakeTooltipWindow)
+        assert tooltip._tooltip_window._transient_for is window
+        assert tooltip._tooltip_window._attached_to is window
+        assert tooltip._tooltip_window._accept_focus is False
+        assert tooltip._tooltip_window._focus_on_map is False
         moved = tooltip._tooltip_window._moved
         assert moved is not None
         assert moved[0] >= 0
