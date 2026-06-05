@@ -58,8 +58,21 @@ def _monitor_snapshot() -> MonitorSnapshot:
     )
 
 
+def _empty_runtime() -> SimpleNamespace:
+    return SimpleNamespace(
+        foreign_toplevel_protocol=None,
+        workspace_protocol=None,
+        stop=MagicMock(),
+    )
+
+
 def test_wayland_layer_shell_session_exposes_surface_capabilities():
-    backend = WaylandLayerShellSessionBackend(layer_shell=_layer_shell())
+    screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        protocol_runtime=_empty_runtime(),
+        screen_capture=screen_capture,
+    )
 
     assert backend.name == "wayland-layer-shell"
     assert backend.display_server is DisplayServer.WAYLAND
@@ -73,7 +86,7 @@ def test_wayland_layer_shell_session_exposes_surface_capabilities():
     assert isinstance(backend.surface, WaylandLayerShellSurfaceService)
     assert backend.workspaces is None
     assert backend.desktop_actions is None
-    assert isinstance(backend.screen_capture, WaylandPortalColorPickerService)
+    assert backend.screen_capture is screen_capture
     assert backend.idle is None
     assert backend.window_picker is None
 
@@ -87,6 +100,7 @@ def test_wayland_layer_shell_session_uses_foreign_toplevel_service_when_availabl
         ),
         launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
         foreign_toplevel_protocol=SimpleNamespace(),
+        protocol_runtime=_empty_runtime(),
     )
 
     assert isinstance(backend.windows, WaylandForeignToplevelWindowService)
@@ -106,6 +120,7 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
         layer_shell=_layer_shell(),
         workspace_protocol=SimpleNamespace(),
         screen_capture=screen_capture,
+        protocol_runtime=_empty_runtime(),
     )
 
     assert isinstance(backend.workspaces, WaylandWorkspaceService)
@@ -117,7 +132,10 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
 
 
 def test_wayland_layer_shell_session_lifecycle_is_safe():
-    backend = WaylandLayerShellSessionBackend(layer_shell=_layer_shell())
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        protocol_runtime=_empty_runtime(),
+    )
 
     backend.start()
     backend.start()

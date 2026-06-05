@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from docking.platform.backends.base import ActionResult
+from docking.platform.backends.wayland import portals
 from docking.platform.backends.wayland.portals import WaylandPortalColorPickerService
 from docking.platform.backends.wayland.workspaces import (
     CAPABILITY_ACTIVATE,
@@ -130,3 +131,9 @@ def test_portal_color_picker_clamps_channels_and_handles_cancel():
 
     assert service.pick_color(x=10, y=20) == (0, 255, 64)
     assert cancelled.pick_color(x=10, y=20) is None
+
+
+def test_load_portal_color_picker_fails_closed_without_frontend(monkeypatch):
+    monkeypatch.setattr(portals, "_portal_frontend_available", lambda: False)
+
+    assert portals.load_portal_color_picker() is None

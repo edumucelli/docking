@@ -129,7 +129,32 @@ def load_portal_color_picker() -> WaylandPortalColorPickerService | None:
         from gi.repository import Gio  # noqa: F401
     except (ImportError, ValueError):
         return None
+    if not _portal_frontend_available():
+        return None
     return WaylandPortalColorPickerService(picker=XdgDesktopPortalColorPicker())
+
+
+def _portal_frontend_available(*, timeout_ms: int = 250) -> bool:
+    try:
+        from gi.repository import Gio, GLib
+    except (ImportError, ValueError):
+        return False
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        result = bus.call_sync(
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "NameHasOwner",
+            GLib.Variant("(s)", ("org.freedesktop.portal.Desktop",)),
+            GLib.VariantType.new("(b)"),
+            Gio.DBusCallFlags.NO_AUTO_START,
+            timeout_ms,
+            None,
+        )
+    except GLib.Error:
+        return False
+    return bool(result.unpack()[0])
 
 
 def _float_channel_to_byte(value: float) -> int:
