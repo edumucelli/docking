@@ -362,7 +362,6 @@ class PreviewProtocolAdapter:
             and self._source_manager is not None
             and self._capture_manager is not None
             and self._shm is not None
-            and bool(self._shm_formats.intersection({0, 1}))
         )
 
     def set_flush_callback(self, callback: Callable[[], None] | None) -> None:

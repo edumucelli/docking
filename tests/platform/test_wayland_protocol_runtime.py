@@ -203,7 +203,6 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
         99,
     )
     registry.dispatcher["global"](registry, 23, "wl_shm", 99)
-    registry.proxies["wl_shm"].dispatcher["format"](registry.proxies["wl_shm"], 0)
 
     assert runtime.preview_protocol is runtime.previews
     assert registry.bound == [
