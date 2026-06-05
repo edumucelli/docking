@@ -126,8 +126,8 @@ class WaylandWorkspaceService(WorkspaceService):
         state = self._state_by_handle.get(handle)
         if state is not None:
             return state.snapshot_id
-        self._next_id += 1
         state = _WorkspaceState(internal_id=self._next_id, handle=handle)
+        self._next_id += 1
         self._state_by_handle[handle] = state
         self._state_by_id[state.snapshot_id] = state
         return state.snapshot_id

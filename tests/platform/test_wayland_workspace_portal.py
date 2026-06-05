@@ -58,6 +58,22 @@ def test_wayland_workspace_service_tracks_workspaces_and_active_watchers():
     assert changed == ["changed"]
 
 
+def test_wayland_workspace_service_numbers_first_workspace_from_zero():
+    service = WaylandWorkspaceService(protocol=_protocol())
+    handle = object()
+    service.workspace_created(handle)
+    service.name_changed(handle, "Workspace 1")
+    service.state_changed(handle, 1)
+    service.done()
+
+    workspaces = service.list_workspaces()
+    assert len(workspaces) == 1
+    assert workspaces[0].id == "0"
+    assert workspaces[0].number == 0
+    assert workspaces[0].name == "Workspace 1"
+    assert service.active_workspace() == workspaces[0]
+
+
 def test_wayland_workspace_service_reports_unsupported_activate():
     service = WaylandWorkspaceService(protocol=_protocol())
     handle = object()
