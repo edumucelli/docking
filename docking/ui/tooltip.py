@@ -360,8 +360,11 @@ class TooltipManager:
         """
         if self._tooltip_window is None:
             self._tooltip_window = Gtk.Window(type=Gtk.WindowType.POPUP)
-            self._tooltip_window.set_transient_for(self._window)
-            self._tooltip_window.set_attached_to(self._window)
+            try:
+                self._tooltip_window.set_transient_for(self._window)
+                self._tooltip_window.set_attached_to(self._window)
+            except TypeError:
+                pass
             self._tooltip_window.set_decorated(False)
             self._tooltip_window.set_skip_taskbar_hint(True)
             self._tooltip_window.set_resizable(False)

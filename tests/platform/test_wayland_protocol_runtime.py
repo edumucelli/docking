@@ -5,6 +5,10 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
+pytest.importorskip("pywayland")
+
 from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelListV1
 from pywayland.protocol.ext_image_capture_source_v1 import (
     ExtForeignToplevelImageCaptureSourceManagerV1,
