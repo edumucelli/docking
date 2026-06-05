@@ -342,10 +342,10 @@ class WaylandProtocolRuntime:
             self._registry = registry
             display.dispatch(block=False)
             display.roundtrip()
-            # The first roundtrip discovers globals and binds protocol managers.
-            # Some compositors send each newly bound manager's initial object list
-            # only on the following roundtrip.
-            display.roundtrip()
+            # The roundtrip discovers globals and binds protocol managers. Flush
+            # those bind requests so compositors can send initial manager state
+            # through the GLib watch without blocking GTK on another roundtrip.
+            display.flush()
             self._install_glib_watch(factories=factories, display=display)
             self._running = True
             log.info(
@@ -401,6 +401,7 @@ class WaylandProtocolRuntime:
             self.stop()
             return False
         try:
+            display.read()
             display.dispatch(block=False)
             display.flush()
         except Exception as exc:

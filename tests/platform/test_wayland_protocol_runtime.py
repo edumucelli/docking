@@ -54,6 +54,7 @@ class FakeDisplay:
     def __init__(self) -> None:
         self.dispatch = MagicMock()
         self.roundtrip = MagicMock()
+        self.read = MagicMock()
         self.flush = MagicMock()
         self.disconnect = MagicMock()
 
@@ -74,18 +75,20 @@ class DelayedWorkspaceDisplay(FakeDisplay):
         self.dispatch = MagicMock()
         self.flush = MagicMock()
         self.disconnect = MagicMock()
-        self._roundtrips = 0
+        self._workspace_sent = False
 
     def roundtrip(self):
-        self._roundtrips += 1
-        if self._roundtrips == 1:
-            self.registry.dispatcher["global"](
-                self.registry,
-                11,
-                "ext_workspace_manager_v1",
-                99,
-            )
+        self.registry.dispatcher["global"](
+            self.registry,
+            11,
+            "ext_workspace_manager_v1",
+            99,
+        )
+
+    def read(self):
+        if self._workspace_sent:
             return
+        self._workspace_sent = True
         manager = self.registry.proxies["ext_workspace_manager_v1"]
         workspace = FakeHandle()
         manager.dispatcher["workspace"](manager, workspace)
@@ -170,11 +173,13 @@ def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
     assert glib.watch is not None
 
 
-def test_wayland_protocol_runtime_second_roundtrip_receives_initial_workspaces():
+def test_wayland_protocol_runtime_fd_read_receives_initial_workspaces():
     glib = FakeGLib()
     runtime = WaylandProtocolRuntime(factories=_workspace_factories(glib))
 
     assert runtime.start() is True
+    _condition, callback, display = glib.watch
+    assert callback(None, glib.IO_IN, display) is True
     service = WaylandWorkspaceService(protocol=runtime.workspaces)
     service.start()
 
