@@ -149,4 +149,3 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
         self._services.surface.stop()
         self._services.windows.stop()
         self._services.previews.stop()
-

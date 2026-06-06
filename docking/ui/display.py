@@ -93,6 +93,10 @@ def clamp_popup(
     # Screen-absolute or no parent: clamp to screen bounds.
     screen = popup.get_screen()
     return clamp_to_screen(
-        popup_x, popup_y, popup_w, popup_h,
-        screen.get_width(), screen.get_height(),
+        popup_x,
+        popup_y,
+        popup_w,
+        popup_h,
+        screen.get_width(),
+        screen.get_height(),
     )

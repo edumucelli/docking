@@ -790,9 +790,7 @@ class GnomeShellBridgePreviewService(PreviewService):
         bridge_id = self._bridge_id(window_id)
         if bridge_id is None:
             return None
-        png_bytes = self._bridge.capture_window(
-            bridge_id, width=width, height=height
-        )
+        png_bytes = self._bridge.capture_window(bridge_id, width=width, height=height)
         if not png_bytes:
             return None
         # Decode PNG → GdkPixbuf so the UI can use it directly.
@@ -811,9 +809,7 @@ class GnomeShellBridgePreviewService(PreviewService):
             return None
 
     @staticmethod
-    def _pixbuf_from_png(
-        data: bytes, width: int, height: int
-    ) -> PreviewImage | None:
+    def _pixbuf_from_png(data: bytes, width: int, height: int) -> PreviewImage | None:
         import gi
 
         gi.require_version("GdkPixbuf", "2.0")

@@ -461,10 +461,7 @@ def _app_id_candidates(app_id: str) -> list[str]:
     body = stripped.removesuffix(DESKTOP_SUFFIX)
     if "_" in body:
         segments = body.split("_")
-        prefixes = [
-            "_".join(segments[: i + 1])
-            for i in range(len(segments) - 1)
-        ]
+        prefixes = ["_".join(segments[: i + 1]) for i in range(len(segments) - 1)]
         for prefix in prefixes:
             candidates.append(prefix)
             candidates.append(f"{prefix}{DESKTOP_SUFFIX}")
