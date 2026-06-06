@@ -114,6 +114,48 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         """Remember the realized GTK window."""
         self._window = window
 
+    @property
+    def popups_use_parent_relative_coordinates(self) -> bool:
+        # Wayland GDK: move() with transient_for is parent-relative.
+        return True
+
+    def get_surface_position(self) -> tuple[int, int] | None:
+        """Compute screen position from layer-shell anchor / margin state."""
+        window = self._window
+        if window is None:
+            return None
+        try:
+            from gi.repository import GtkLayerShell
+        except ImportError:
+            return None
+
+        monitor = GtkLayerShell.get_monitor(window)
+        if monitor is None:
+            return None
+        geom = monitor.get_geometry()
+        if geom is None:
+            return None
+
+        anchor = GtkLayerShell.get_anchor(window)
+        left_margin = GtkLayerShell.get_margin(window, GtkLayerShell.Edge.LEFT)
+        right_margin = GtkLayerShell.get_margin(window, GtkLayerShell.Edge.RIGHT)
+        top_margin = GtkLayerShell.get_margin(window, GtkLayerShell.Edge.TOP)
+        bottom_margin = GtkLayerShell.get_margin(window, GtkLayerShell.Edge.BOTTOM)
+
+        w, h = window.get_size()
+
+        if anchor & GtkLayerShell.Edge.TOP:
+            y = geom.y + top_margin
+        else:
+            y = geom.y + geom.height - h - bottom_margin
+
+        if anchor & GtkLayerShell.Edge.LEFT:
+            x = geom.x + left_margin
+        else:
+            x = geom.x + geom.width - w - right_margin
+
+        return x, y
+
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         """Layer-shell surfaces are compositor-managed shell components."""
 
