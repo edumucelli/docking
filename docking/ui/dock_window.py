@@ -199,6 +199,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
+from docking.applets.popup import set_dock_window
 from docking.core.config import FolderStackUnfold, LeftClickAction, MiddleClickAction
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
@@ -402,6 +403,7 @@ class DockWindow(Gtk.Window):
         self.surface_service.set_workspace_scope(
             current_workspace_only=self.config.current_workspace_only
         )
+        set_dock_window(self)
 
         # Enable RGBA visual for transparency
         screen = self.get_screen()

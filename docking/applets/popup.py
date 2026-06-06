@@ -23,7 +23,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
-from docking.ui.display import clamp_to_screen, get_pointer_position
+from docking.ui.display import clamp_popup, clamp_to_screen, get_pointer_position
 
 _POPUP_CLASS = "applet-popup-surface"
 _POPUP_CSS = f"""
@@ -38,6 +38,19 @@ _POPUP_CSS = f"""
 _popup_css_provider: Gtk.CssProvider | None = None
 
 DEFAULT_POPUP_CURSOR_GAP_PX = 20
+
+# Set by the dock window so popup creation code can call set_transient_for
+# before the xdg-popup is realised (required on Wayland).  Has no effect on
+# X11 where move() always uses screen-absolute coordinates.
+_dock_window: Gtk.Window | None = None
+_surface_svc: object | None = None
+
+
+def set_dock_window(window: Gtk.Window) -> None:
+    """Register the dock window for popup parent and coordinate conversion."""
+    global _dock_window, _surface_svc
+    _dock_window = window
+    _surface_svc = getattr(window, "surface_service", None)
 DEFAULT_DIALOG_CONTENT_SPACING_PX = 8
 DEFAULT_DIALOG_MARGIN_PX = 12
 
@@ -126,6 +139,8 @@ def create_popup_window() -> Gtk.Window:
     window.set_accept_focus(True)
     window.set_focus_on_map(True)
     window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
+    if _dock_window is not None:
+        window.set_transient_for(_dock_window)
     return window
 
 
@@ -156,21 +171,37 @@ def position_popup_near_pointer(
     mouse_x = pos.x if pos is not None else 0
     mouse_y = pos.y if pos is not None else 0
 
+    # On Wayland the popup has transient_for set (xdg-popup parent-relative
+    # coordinates).  Convert the pointer's screen-absolute position to
+    # parent-relative so move() works correctly.
+    use_parent_relative = False
+    svc = _surface_svc
+    if svc is not None and svc.popups_use_parent_relative_coordinates:
+        surface_pos = svc.get_surface_position()
+        if surface_pos is not None:
+            mouse_x -= surface_pos[0]
+            mouse_y -= surface_pos[1]
+            use_parent_relative = True
+
     pref = window.get_preferred_size()[1]
     popup_w = max(pref.width, 1)
     popup_h = max(pref.height, 1)
 
-    screen = window.get_screen()
     popup_x = int(mouse_x - popup_w / 2)
     popup_y = int(mouse_y - popup_h - gap_px)
-    popup_pos = clamp_to_screen(
-        popup_x,
-        popup_y,
-        popup_w,
-        popup_h,
-        screen.get_width(),
-        screen.get_height(),
-    )
+
+    if use_parent_relative:
+        popup_pos = clamp_popup(window, popup_x, popup_y, popup_w, popup_h)
+    else:
+        screen = window.get_screen()
+        popup_pos = clamp_to_screen(
+            popup_x,
+            popup_y,
+            popup_w,
+            popup_h,
+            screen.get_width(),
+            screen.get_height(),
+        )
     window.move(popup_pos.x, popup_pos.y)
 
 
@@ -185,6 +216,8 @@ def prepare_dialog_content(
     resizable: bool | None = None,
 ) -> Gtk.Box:
     """Apply standard applet dialog sizing, placement, and content spacing."""
+    if _dock_window is not None:
+        dialog.set_transient_for(_dock_window)
     if width is not None:
         dialog.set_default_size(width, height)
     dialog.set_position(Gtk.WindowPosition.MOUSE)
