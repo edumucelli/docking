@@ -5,8 +5,17 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from docking.platform.backends.base import ActionResult, DisplayServer
+import docking.platform.backends.gnome.bridge as bridge_mod
+from docking.platform.backends.base import (
+    ActionResult,
+    DisplayServer,
+    MonitorSnapshot,
+    PlacementRequest,
+    Rect,
+    Size,
+)
 from docking.platform.backends.gnome.bridge import (
+    GnomeShellBridgeSurfaceService,
     GnomeShellBridgeWindowService,
     GnomeShellBridgeWorkspaceService,
 )
@@ -73,8 +82,22 @@ def _bridge() -> SimpleNamespace:
         minimize=MagicMock(return_value=True),
         close=MagicMock(return_value=True),
         activate_workspace=MagicMock(return_value=True),
+        position_dock=MagicMock(return_value=True),
         subscribe_changed=MagicMock(return_value=99),
         unsubscribe_changed=MagicMock(),
+    )
+
+
+def _placement(x: int, y: int, width: int, height: int) -> PlacementRequest:
+    return PlacementRequest(
+        monitor=MonitorSnapshot(
+            index=0,
+            geometry=Rect(x=0, y=0, width=1920, height=1080),
+        ),
+        position=SimpleNamespace(value="bottom"),
+        x=x,
+        y=y,
+        size=Size(width=width, height=height),
     )
 
 
@@ -179,3 +202,45 @@ def test_gnome_shell_bridge_workspace_watchers_are_called_on_refresh():
     service.refresh()
 
     assert callback.call_count == 2
+
+
+def test_gnome_shell_bridge_surface_retries_latest_position_request(monkeypatch):
+    scheduled: list[object] = []
+    monkeypatch.setattr(
+        bridge_mod.GLib,
+        "timeout_add",
+        lambda _interval, callback: scheduled.append(callback) or 77,
+    )
+    shell_bridge = _bridge()
+    service = GnomeShellBridgeSurfaceService(bridge=shell_bridge)
+    window = MagicMock()
+    service.configure_before_realize(window)
+
+    service.position_or_anchor(_placement(0, 1000, 1920, 80))
+    service.position_or_anchor(_placement(0, 990, 1920, 90))
+
+    assert len(scheduled) == 1
+    assert shell_bridge.position_dock.call_args_list[-1].args == (0, 990, 1920, 90)
+
+    scheduled[0]()
+
+    assert shell_bridge.position_dock.call_args_list[-1].args == (0, 990, 1920, 90)
+    assert service.get_surface_position() == (0, 990)
+
+
+def test_gnome_shell_bridge_surface_stop_removes_pending_position_retry(monkeypatch):
+    removed: list[int] = []
+    monkeypatch.setattr(bridge_mod.GLib, "timeout_add", lambda _interval, _callback: 88)
+    monkeypatch.setattr(
+        bridge_mod.GLib,
+        "source_remove",
+        lambda source_id: removed.append(source_id),
+    )
+    service = GnomeShellBridgeSurfaceService(bridge=_bridge())
+    service.configure_before_realize(MagicMock())
+
+    service.position_or_anchor(_placement(0, 1000, 1920, 80))
+    service.stop()
+
+    assert removed == [88]
+    assert service.get_surface_position() is None

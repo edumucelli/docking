@@ -71,7 +71,9 @@ export default class DockingBridgeExtension extends Extension {
     this._windowById = new Map();
     this._signals = [];
     this._dockConfigured = false;
+    this._configuredDockWindow = null;
     this._dockConfigureTimerId = 0;
+    this._changedSourceId = 0;
     this._connect(global.display, "window-created", () => this._queueChanged());
     this._connect(global.display, "notify::focus-window", () => this._queueChanged());
     this._connect(global.workspace_manager, "workspace-switched", () => this._queueChanged());
@@ -120,6 +122,7 @@ export default class DockingBridgeExtension extends Extension {
     }
 
     this._dockConfigured = false;
+    this._configuredDockWindow = null;
 
     for (const [object, signalId] of this._signals)
       object.disconnect(signalId);
@@ -221,9 +224,10 @@ export default class DockingBridgeExtension extends Extension {
     const win = this._findDockWindow();
     if (!win)
       return false;
-    if (!this._dockConfigured) {
+    if (!this._dockConfigured || this._configuredDockWindow !== win) {
       this._configureDockWindow(win);
       this._dockConfigured = true;
+      this._configuredDockWindow = win;
     }
     // gravity 0 = NORTH_WEST: (x,y) is the top-left corner
     win.move_resize_frame(0, x, y, width, height);
@@ -352,6 +356,10 @@ export default class DockingBridgeExtension extends Extension {
     if (id)
       this._windowById.delete(id);
     this._idByWindow.delete(window);
+    if (this._configuredDockWindow === window) {
+      this._configuredDockWindow = null;
+      this._dockConfigured = false;
+    }
     this._queueChanged();
   }
 

@@ -60,6 +60,8 @@ log = get_logger(name="backend.gnome.bridge")
 BUS_NAME = "org.docking.Docking.GnomeShellBridge"
 OBJECT_PATH = "/org/docking/Docking/GnomeShellBridge"
 INTERFACE = "org.docking.Docking.GnomeShellBridge1"
+_DOCK_POSITION_RETRY_MS = 100
+_DOCK_POSITION_RETRY_ATTEMPTS = 15
 
 
 class GnomeShellBridgeClient:
@@ -604,6 +606,8 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
         self._bridge = bridge
         self._window: object | None = None
         self._position_retry_source_id: int = 0
+        self._position_retry_attempts_remaining: int = 0
+        self._latest_position_request: PlacementRequest | None = None
         # Wayland: GTK does not know the absolute screen position.
         # We track it here so get_surface_position() can return it.
         self._surface_x: int | None = None
@@ -622,6 +626,8 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
         if self._position_retry_source_id:
             GLib.source_remove(self._position_retry_source_id)
             self._position_retry_source_id = 0
+        self._position_retry_attempts_remaining = 0
+        self._latest_position_request = None
         self._window = None
         self._surface_x = None
         self._surface_y = None
@@ -648,22 +654,10 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
         )
         _call_method(window, "resize", request.size.width, request.size.height)
 
-        # Track the compositor-assigned position so get_surface_position()
-        # can report it.  GTK's get_position() returns (0,0) on Wayland.
-        self._surface_x = request.x
-        self._surface_y = request.y
-
-        # Mutter's initial placement (centre-screen) fires during the
-        # map phase and overrides any move before the window is fully
-        # realised.  Call immediately for subsequent repositioning and
-        # schedule a delayed call that runs after Mutter settles.
-        self._bridge.position_dock(
-            request.x, request.y, request.size.width, request.size.height
-        )
-        if self._position_retry_source_id == 0:
-            self._position_retry_source_id = GLib.timeout_add(
-                500, self._retry_position, request
-            )
+        self._latest_position_request = request
+        self._position_retry_attempts_remaining = _DOCK_POSITION_RETRY_ATTEMPTS
+        self._apply_position_request(request)
+        self._schedule_position_retry()
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         pass
@@ -693,14 +687,39 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
 
     # -- internals --------------------------------------------------------
 
-    def _retry_position(self, request: PlacementRequest) -> bool:
+    def _retry_latest_position(self) -> bool:
         self._position_retry_source_id = 0
+        request = self._latest_position_request
+        if request is None or self._position_retry_attempts_remaining <= 0:
+            return False
+
+        self._position_retry_attempts_remaining -= 1
+        self._apply_position_request(request)
+        self._schedule_position_retry()
+        return False
+
+    def _schedule_position_retry(self) -> None:
+        if self._position_retry_source_id:
+            return
+        if (
+            self._latest_position_request is None
+            or self._position_retry_attempts_remaining <= 0
+        ):
+            return
+        self._position_retry_source_id = GLib.timeout_add(
+            _DOCK_POSITION_RETRY_MS, self._retry_latest_position
+        )
+
+    def _apply_position_request(self, request: PlacementRequest) -> bool:
+        # Track the compositor-assigned position so get_surface_position()
+        # can report it.  GTK's get_position() returns (0,0) on Wayland.
         self._surface_x = request.x
         self._surface_y = request.y
-        self._bridge.position_dock(
-            request.x, request.y, request.size.width, request.size.height
+        return bool(
+            self._bridge.position_dock(
+                request.x, request.y, request.size.width, request.size.height
+            )
         )
-        return False  # GLib.SOURCE_REMOVE
 
 
 # -- surface helpers (mirror reduced/services.py) ----------------------------
