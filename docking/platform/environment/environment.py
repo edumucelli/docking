@@ -53,6 +53,14 @@ class Desktop(enum.Flag):
     PANTHEON = enum.auto()
     UNITY = enum.auto()
     UBUNTU = enum.auto()
+    WLROOTS = enum.auto()
+    LABWC = enum.auto()
+    SWAY = enum.auto()
+    RIVER = enum.auto()
+    WAYFIRE = enum.auto()
+    HYPRLAND = enum.auto()
+    NIRI = enum.auto()
+    COSMIC = enum.auto()
 
     @property
     def uses_monitor_geometry(self) -> bool:
@@ -90,6 +98,14 @@ _DESKTOP_MAP: dict[str, Desktop] = {
     "x-cinnamon": Desktop.CINNAMON,
     "pantheon": Desktop.PANTHEON,
     "unity": Desktop.UNITY,
+    "wlroots": Desktop.WLROOTS,
+    "labwc": Desktop.LABWC,
+    "sway": Desktop.SWAY,
+    "river": Desktop.RIVER,
+    "wayfire": Desktop.WAYFIRE,
+    "hyprland": Desktop.HYPRLAND,
+    "niri": Desktop.NIRI,
+    "cosmic": Desktop.COSMIC,
 }
 
 

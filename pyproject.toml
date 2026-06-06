@@ -19,6 +19,9 @@ docking = "docking.app:main"
 docking-camshield-helper = "docking.applets.camshield.helper:main"
 
 [project.optional-dependencies]
+wayland = [
+    "pywayland>=0.4.18",
+]
 dev = [
     "behave>=1.2.6",
     "Pillow>=11.0",
@@ -47,6 +50,7 @@ docking = [
     "assets/sounds/*.md",
     "assets/history/*.json",
     "assets/stretch/*.json",
+    "platform/backends/wayland/protocols/*.xml",
     "locale/*.pot",
     "locale/*/LC_MESSAGES/*.mo",
     "locale/*/LC_MESSAGES/*.po",

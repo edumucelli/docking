@@ -53,7 +53,9 @@ Highlights:
 
 ## Requirements
 
-- Linux with X11
+- Linux with X11 for full dock functionality
+- Native Wayland support is experimental and currently limited to layer-shell
+  dock placement on compositors that support `zwlr_layer_shell_v1`
 - Python 3.10+
 - System packages (Ubuntu/Debian):
 
@@ -64,6 +66,33 @@ sudo apt install \
   gir1.2-gtk-3.0 gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
   gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
   libcairo2-dev libgirepository1.0-dev pkg-config
+```
+
+Optional native Wayland layer-shell placement requires a compositor with
+layer-shell support plus the system `gtk-layer-shell` GIR package:
+
+```bash
+# Debian / Ubuntu
+sudo apt install gir1.2-gtklayershell-0.1
+
+# Fedora
+sudo dnf install gtk-layer-shell
+
+# Arch
+sudo pacman -S gtk-layer-shell
+```
+
+This package is not a pip dependency. Docking imports it lazily only for native
+Wayland layer-shell sessions. If it is missing, or the compositor does not
+advertise layer-shell, Docking falls back to reduced native Wayland mode.
+
+Live native Wayland protocol backends also need the optional Python extra:
+
+```bash
+# Debian / Ubuntu build dependencies for pywayland
+sudo apt install libwayland-dev wayland-protocols
+
+pip install -e ".[wayland]"
 ```
 
 ## Installation
@@ -138,6 +167,38 @@ python run.py
 
 # With debug logging
 DOCKING_LOG_LEVEL=DEBUG python run.py
+```
+
+### Wayland Notes
+
+X11 remains the full-support backend. Native Wayland support is experimental:
+`gtk-layer-shell` provides dock placement/reservation on supported compositors,
+and foreign-toplevel support can provide running/active indicators when the
+protocol adapter is available. Unsupported native Wayland sessions fall back to
+reduced mode; GNOME/Mutter still needs future Shell integration for parity.
+
+Native Wayland features are enabled per advertised compositor protocol:
+
+| Feature | Required support |
+| --- | --- |
+| Dock surface/reservation | `zwlr_layer_shell_v1` via `gtk-layer-shell` |
+| Running/active windows and basic actions | `zwlr_foreign_toplevel_manager_v1`; `wl_seat` for activate |
+| Workspace applet | `ext_workspace_manager_v1` |
+| Color picker | XDG Desktop Portal `org.freedesktop.portal.Screenshot.PickColor` |
+| Preview thumbnails | Generic: `ext_foreign_toplevel_list_v1`, `ext_foreign_toplevel_image_capture_source_manager_v1`, `ext_image_copy_capture_manager_v1`, and `wl_shm` with ARGB/XRGB (`AR24`/`XR24`, formats `0`/`1`); Hyprland: `hyprland_toplevel_export_manager_v1` v2 |
+
+Check a Wayland session with:
+
+```bash
+wayland-info | grep -E 'zwlr_layer_shell_v1|zwlr_foreign_toplevel_manager_v1|ext_workspace_manager_v1|ext_foreign_toplevel_list_v1|ext_foreign_toplevel_image_capture_source_manager_v1|ext_image_copy_capture_manager_v1|wl_shm'
+```
+
+To force a backend for testing:
+
+```bash
+DOCKING_BACKEND=wayland-layer-shell docking
+DOCKING_BACKEND=reduced docking
+DOCKING_BACKEND=x11 docking
 ```
 
 ## Configuration

@@ -877,6 +877,9 @@ class TestDockWindowSetupAndGeometry:
         # Then
         assert isinstance(stub.drawing_area, FakeDrawingArea)
         assert stub.drawing_area.double_buffered is False
+        assert (
+            stub.drawing_area.events & dock_window_mod.Gdk.EventMask.SMOOTH_SCROLL_MASK
+        )
         assert "draw" in stub.drawing_area.connected
         assert "scroll-event" in stub.drawing_area.connected
         assert stub._cache.geometry_frame.frame == "sentinel-current"
