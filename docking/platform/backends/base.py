@@ -337,6 +337,32 @@ class SurfaceService(Service):
     def set_blur_region(self, rect: Rect | None) -> None:
         """Set or clear a compositor blur hint, if supported."""
 
+    @property
+    def popups_use_parent_relative_coordinates(self) -> bool:
+        """True when ``Gtk.Window.move()`` on a popup child uses
+        parent-relative coordinates.
+
+        On X11 ``move()`` always receives screen-absolute coordinates
+        regardless of ``set_transient_for()``, so the default is
+        ``False``.  Wayland compositor-positioned backends override this
+        to ``True`` because xdg-popup coordinates are always relative to
+        the parent surface.
+        """
+        return False
+
+    def get_surface_position(self) -> tuple[int, int] | None:
+        """Return the dock surface's screen (root) position, if known.
+
+        Returns ``None`` when the backend cannot track the surface position,
+        which means the caller should fall back to
+        ``Gtk.Window.get_position()``.
+
+        Backends that position the surface through the compositor (e.g.
+        Wayland) are expected to override this because GTK always reports
+        ``(0, 0)`` when it has no knowledge of the absolute placement.
+        """
+        return None
+
 
 class VisibilityMonitor(ABC):
     """Runtime monitor for overlap-driven hide modes."""

@@ -40,7 +40,7 @@ from docking.core.greeting import consume_new_year_greeting
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup
 from docking.ui.tooltip import compute_tooltip_position
 
 log = get_logger("new_year")
@@ -207,15 +207,7 @@ class NewYearGreetingController:
             gap=GREETING_GAP_PX,
         )
 
-        screen = self._popup.get_screen()
-        clamped = clamp_to_screen(
-            popup_x,
-            popup_y,
-            popup_w,
-            popup_h,
-            screen.get_width(),
-            screen.get_height(),
-        )
+        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
         log.debug(
             "Positioned New Year greeting popup at (%s, %s) "
             "size=%sx%s dock=(%s,%s %sx%s pos=%s)",

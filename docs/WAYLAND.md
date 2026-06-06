@@ -122,6 +122,44 @@ GDK_BACKEND=x11 .venv/bin/docking
 
 This is the mode that should be tested and documented today.
 
+## GNOME Shell Bridge Prototype
+
+Docking also has an experimental GNOME Shell bridge under
+`docking/platform/backends/gnome/extension/`.
+
+This is not a full GNOME dock frontend. The visible dock is still the Python/GTK
+window, so this prototype does not provide GNOME panel placement or edge
+reservation. The bridge only exposes GNOME Shell/Mutter window and workspace
+state over D-Bus so Docking can validate native GNOME Wayland running
+indicators, active-window state, workspace filtering, and basic window actions.
+
+Local test flow:
+
+```bash
+tools/gnome_bridge.sh install
+tools/gnome_bridge.sh enable
+tools/gnome_bridge.sh status
+DOCKING_BACKEND=gnome-shell python3 run.py
+```
+
+If the bridge is active, this command should return workspace rows:
+
+```bash
+gdbus call --session \
+  --dest org.docking.Docking.GnomeShellBridge \
+  --object-path /org/docking/Docking/GnomeShellBridge \
+  --method org.docking.Docking.GnomeShellBridge1.ListWorkspaces
+```
+
+Current caveat from GNOME Shell 50.1 testing: the extension bundle can be packed
+and installed, and the UUID can be added to `org.gnome.shell enabled-extensions`,
+but the running Shell did not discover the new user extension immediately in the
+tested Wayland session. A logout/login or fresh Shell session may be required
+before the bridge D-Bus name appears. After editing `extension.js`, GNOME Shell
+may also keep serving the old GJS module for the same extension UUID until the
+next login; disable/enable is not enough for reliable source reloads on the
+tested GNOME 50.1 session.
+
 ### What To Verify
 
 Smoke-test these behaviors first:
@@ -258,6 +296,31 @@ Observed facts:
   the main dock surface has stopped repainting.
 - Some failing runs suggested compositor trouble as well: the runtime snapshot
   recorded `xwayland=True` with `compositor_active=False`.
+
+#### Test: GNOME Shell bridge prototype
+
+- Date: 2026-06-06
+- Distro: Ubuntu GNOME
+- Desktop: GNOME Shell 50.1
+- Session type: Wayland
+- Compositor: GNOME Shell / Mutter
+- Display variables: `XDG_SESSION_TYPE=wayland`, `WAYLAND_DISPLAY=wayland-0`, `DISPLAY=:0`
+- Launch command: `DOCKING_BACKEND=gnome-shell python3 run.py`
+- Result summary: The GNOME Shell extension bridge loads, exports D-Bus state,
+  and Docking selects the `gnome-shell-bridge` backend. Active indicators and
+  workspace switching work in manual testing.
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Extension load | works | `tools/gnome_bridge.sh status` reports the extension as enabled/active and the bridge D-Bus API as available. |
+| Backend selection | works | Log reports `Selected session backend: gnome-shell-bridge`. |
+| Running-window tracking | partly works | The bridge exports native GNOME window rows and active state; active indicators work in manual testing. App matching now handles Snap-style app-ids (e.g., `firefox_firefox.desktop`) by also trying leading underscore segments. |
+| Workspace switching | works | The Workspaces applet can switch GNOME workspaces through the bridge. |
+| Minimize / restore / focus cycling | works | Activate, Minimize, and Close bridge methods validated live against GNOME Shell 50.1. Activate now calls `unminimize()` before `activate()` for minimized windows (needs logout/login to reload the updated extension due to GJS module caching). |
+| Window previews | fails | The bridge does not implement preview capture. |
+| Screen-edge reservation / struts | works | The GNOME Shell extension positions the dock window at the configured screen edge via Mutter's `move_resize_frame()`. The Docking GTK window identifies itself via `GLib.set_prgname("Docking")` so the extension can find it. Fully Wayland-native — no XWayland required. |
+| Shutdown | works | Direct SIGTERM smoke test exited within 2 seconds after adding a GTK-main fallback. |
+| Notes / anomalies | partly works | GNOME Shell may cache GJS modules for an extension UUID. After editing `extension.js`, a logout/login was required before the running Shell used the corrected source. |
 
 What this means:
 
@@ -1075,7 +1138,7 @@ Yes, but they fit the current Docking codebase at different depths.
 
 The bridge extension is the cleanest fit. It can live in the same repository as
 an optional GNOME integration package, for example under
-`gnome-shell-extension/bridge/` or `extensions/gnome-shell/bridge/`. The
+`docking/platform/backends/gnome/extension/`. The
 extension would expose D-Bus state/actions, and the existing Python app would
 consume that through a GNOME-specific backend service.
 
@@ -1099,9 +1162,8 @@ docking/
     x11/
     reduced/
     wayland/
-gnome-shell-extension/
-  bridge/
-  frontend/
+    gnome/
+      extension/    # GNOME Shell JS extension
 shared/
   app-matching-rules.json
   theme-tokens.json

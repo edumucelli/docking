@@ -36,10 +36,6 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
-from docking.platform.backends.wayland.hyprland_ipc import (
-    HyprlandWindowService,
-    load_hyprland_window_service,
-)
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     load_portal_color_picker,
@@ -123,30 +119,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         )
         windows: WindowService
         preview_handles: WaylandPreviewHandleTracker | None = None
-        hyprland_windows = (
-            load_hyprland_window_service(model=model, launcher=launcher)
-            if model is not None and launcher is not None
-            else None
-        )
-        if hyprland_windows is not None:
-            windows = hyprland_windows
-            if (
-                hyprland_preview_protocol is not None
-                and foreign_protocol is not None
-                and model is not None
-                and launcher is not None
-            ):
-                hyprland_windows.set_preview_handle_source(
-                    WaylandForeignToplevelWindowService(
-                        model=model,
-                        launcher=launcher,
-                        protocol=foreign_protocol,
-                        can_preview=True,
-                    )
-                )
-        elif (
-            foreign_protocol is not None and model is not None and launcher is not None
-        ):
+        if foreign_protocol is not None and model is not None and launcher is not None:
             if preview_protocol is not None:
                 preview_handles = WaylandPreviewHandleTracker(
                     model=model,
@@ -169,7 +142,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
                 handles=preview_handles,
             )
         elif hyprland_preview_protocol is not None and isinstance(
-            windows, (WaylandForeignToplevelWindowService, HyprlandWindowService)
+            windows, WaylandForeignToplevelWindowService
         ):
             previews = HyprlandPreviewService(
                 protocol=hyprland_preview_protocol,
@@ -205,10 +178,8 @@ class WaylandLayerShellSessionBackend(SessionBackend):
     @property
     def capabilities(self) -> PlatformCapabilities:
         tracks_windows = isinstance(
-            self._services.windows,
-            (WaylandForeignToplevelWindowService, HyprlandWindowService),
+            self._services.windows, WaylandForeignToplevelWindowService
         )
-        tracks_geometry = isinstance(self._services.windows, HyprlandWindowService)
         supports_workspaces = isinstance(
             self._services.workspaces, WaylandWorkspaceService
         )
@@ -225,8 +196,6 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             supports_minimize=tracks_windows,
             supports_close=tracks_windows,
             supports_window_menu=tracks_windows,
-            tracks_window_geometry=tracks_geometry,
-            tracks_window_workspace=tracks_geometry,
             supports_workspace_list=supports_workspaces,
             supports_workspace_switch=supports_workspaces,
             supports_screen_color_pick=supports_color_pick,

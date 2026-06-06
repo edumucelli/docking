@@ -19,8 +19,10 @@ def _install_fake_gi(monkeypatch):
         PRIORITY_HIGH=100,
         Error=RuntimeError,
         markup_escape_text=lambda text: text,
+        set_prgname=MagicMock(),
         unix_signal_add=MagicMock(),
         idle_add=MagicMock(),
+        timeout_add_seconds=MagicMock(return_value=77),
     )
     fake_gio = SimpleNamespace(
         AppInfo=SimpleNamespace(launch_default_for_uri=MagicMock())
@@ -307,3 +309,4 @@ def test_app_quit_smoke(monkeypatch):
 
     assert result is False
     fake_gtk.main_quit.assert_called_once()
+    _fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)

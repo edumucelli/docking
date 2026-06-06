@@ -54,8 +54,10 @@ Highlights:
 ## Requirements
 
 - Linux with X11 for full dock functionality
-- Native Wayland support is experimental and currently limited to layer-shell
-  dock placement on compositors that support `zwlr_layer_shell_v1`
+- Wayland: full support on GNOME / Mutter 45+ via the companion
+  `docking-bridge@docking.org` GNOME Shell extension; layer-shell support
+  on wlroots-based compositors (Hyprland, Sway); reduced mode on other
+  Wayland compositors
 - Python 3.10+
 - System packages (Ubuntu/Debian):
 
@@ -169,36 +171,71 @@ python run.py
 DOCKING_LOG_LEVEL=DEBUG python run.py
 ```
 
-### Wayland Notes
+### Wayland Support
 
-X11 remains the full-support backend. Native Wayland support is experimental:
-`gtk-layer-shell` provides dock placement/reservation on supported compositors,
-and foreign-toplevel support can provide running/active indicators when the
-protocol adapter is available. Unsupported native Wayland sessions fall back to
-reduced mode; GNOME/Mutter still needs future Shell integration for parity.
+X11 remains the primary backend. Native Wayland is supported through two
+backends, selected automatically or via `DOCKING_BACKEND`:
 
-Native Wayland features are enabled per advertised compositor protocol:
+| Backend | Compositor | Coverage |
+|---|---|---|
+| **GNOME Shell bridge** | GNOME / Mutter 45+ | Full: dock placement, window tracking, window actions (activate / minimize / close), window previews, workspace switching, Show Desktop, Alt+Tab hiding |
+| **Native layer-shell** | wlroots-based (Hyprland, Sway) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
+| **Reduced** | Any Wayland | Dock visible but no window management (no running indicators, no previews, no workspace switching) |
 
-| Feature | Required support |
-| --- | --- |
-| Dock surface/reservation | `zwlr_layer_shell_v1` via `gtk-layer-shell` |
-| Running/active windows and basic actions | `zwlr_foreign_toplevel_manager_v1`; `wl_seat` for activate |
-| Workspace applet | `ext_workspace_manager_v1` |
-| Color picker | XDG Desktop Portal `org.freedesktop.portal.Screenshot.PickColor` |
-| Preview thumbnails | Generic: `ext_foreign_toplevel_list_v1`, `ext_foreign_toplevel_image_capture_source_manager_v1`, `ext_image_copy_capture_manager_v1`, and `wl_shm` with ARGB/XRGB (`AR24`/`XR24`, formats `0`/`1`); Hyprland: `hyprland_toplevel_export_manager_v1` v2 |
+#### GNOME Shell Bridge (Mutter 45+)
 
-Check a Wayland session with:
+On GNOME, Docking uses a companion GNOME Shell extension
+(`docking-bridge@docking.org`) that provides window management, previews,
+workspace switching, and Show Desktop over a private session D-Bus interface.
 
+**How to enable:**
 ```bash
-wayland-info | grep -E 'zwlr_layer_shell_v1|zwlr_foreign_toplevel_manager_v1|ext_workspace_manager_v1|ext_foreign_toplevel_list_v1|ext_foreign_toplevel_image_capture_source_manager_v1|ext_image_copy_capture_manager_v1|wl_shm'
+# Install and enable the extension (one-time)
+tools/gnome_bridge.sh install
+
+# Run the dock with the GNOME Shell bridge backend
+DOCKING_BACKEND=gnome-shell docking
 ```
 
-To force a backend for testing:
+The extension is included in the system package (deb / rpm / Arch) and
+auto-enabled on install when a D-Bus session is available. AppImage and
+Nix users should run `tools/gnome_bridge.sh install` once, or copy
+`docking/platform/backends/gnome/extension/` to
+`~/.local/share/gnome-shell/extensions/docking-bridge@docking.org/`.
+
+#### Native layer-shell
+
+Native Wayland layer-shell placement requires a compositor with
+`zwlr_layer_shell_v1` plus the system `gtk-layer-shell` GIR package:
 
 ```bash
-DOCKING_BACKEND=wayland-layer-shell docking
-DOCKING_BACKEND=reduced docking
-DOCKING_BACKEND=x11 docking
+# Debian / Ubuntu
+sudo apt install gir1.2-gtklayershell-0.1
+
+# Fedora
+sudo dnf install gtk-layer-shell
+
+# Arch
+sudo pacman -S gtk-layer-shell
+```
+
+Optional live Wayland protocol backends need the `[wayland]` extra:
+```bash
+sudo apt install libwayland-dev wayland-protocols
+pip install -e ".[wayland]"
+```
+
+Check capabilities:
+```bash
+wayland-info | grep -E 'zwlr_layer_shell_v1|zwlr_foreign_toplevel_manager_v1|ext_workspace_manager_v1'
+```
+
+To force a specific backend for testing:
+```bash
+DOCKING_BACKEND=gnome-shell docking       # GNOME / Mutter 45+
+DOCKING_BACKEND=wayland-layer-shell docking  # wlroots compositors
+DOCKING_BACKEND=reduced docking           # any Wayland (no WM integration)
+DOCKING_BACKEND=x11 docking               # X11 (full support)
 ```
 
 ## Configuration

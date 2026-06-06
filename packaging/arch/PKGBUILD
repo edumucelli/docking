@@ -67,6 +67,11 @@ EOF
   install -Dm644 packaging/shared/org.docking.camshield.policy \
     "${pkgdir}/usr/share/polkit-1/actions/org.docking.camshield.policy"
 
+  install -Dm644 docking/platform/backends/gnome/extension/metadata.json \
+    "${pkgdir}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/metadata.json"
+  install -Dm644 docking/platform/backends/gnome/extension/extension.js \
+    "${pkgdir}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/extension.js"
+
   if [ -d packaging/deb/icons/hicolor ]; then
     mkdir -p "${pkgdir}/usr/share/icons/hicolor"
     cp -a packaging/deb/icons/hicolor/. "${pkgdir}/usr/share/icons/hicolor/"

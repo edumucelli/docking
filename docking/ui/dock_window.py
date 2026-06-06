@@ -394,6 +394,7 @@ class DockWindow(Gtk.Window):
         sticky) and enables RGBA visual for composited transparency.
         """
         self.set_title(_("Docking"))
+        self.set_wmclass("Docking", "Docking")
         self.set_decorated(False)
         self.set_app_paintable(True)
         self.set_resizable(False)
@@ -515,12 +516,14 @@ class DockWindow(Gtk.Window):
             preview_service=self.preview_service,
             geometry_builder=self.geometry,
             launcher=launcher,
+            dock_window=self,
         )
         self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
         self.preview = PreviewPopup(
             window_tracker=self.window_tracker,
             preview_service=self.preview_service,
         )
+        self.preview.set_transient_for(self)
         self.preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
         self.preview.set_autohide(controller=self.autohide)
         self.hover.set_preview(preview=self.preview)

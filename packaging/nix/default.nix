@@ -70,6 +70,11 @@ EOF
 
     mkdir -p "$out/share/icons/hicolor"
     cp -a ${../deb/icons/hicolor}/. "$out/share/icons/hicolor/"
+
+    install -Dm644 ${../../docking/platform/backends/gnome/extension/metadata.json} \
+      "$out/share/gnome-shell/extensions/docking-bridge@docking.org/metadata.json"
+    install -Dm644 ${../../docking/platform/backends/gnome/extension/extension.js} \
+      "$out/share/gnome-shell/extensions/docking-bridge@docking.org/extension.js"
   '';
 
   meta = with pkgs.lib; {

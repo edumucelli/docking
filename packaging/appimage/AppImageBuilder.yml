@@ -8,6 +8,8 @@ script:
   - python3 -m pip install --upgrade pip
   - python3 -m pip install --no-cache-dir --target AppDir/usr/lib/python3/dist-packages .
   - install -Dm644 packaging/shared/org.docking.Docking.desktop AppDir/usr/share/applications/org.docking.Docking.desktop
+  - install -Dm644 docking/platform/backends/gnome/extension/metadata.json AppDir/usr/share/gnome-shell/extensions/docking-bridge@docking.org/metadata.json
+  - install -Dm644 docking/platform/backends/gnome/extension/extension.js AppDir/usr/share/gnome-shell/extensions/docking-bridge@docking.org/extension.js
   - cp -r packaging/deb/icons/hicolor AppDir/usr/share/icons/
 
 AppDir:
