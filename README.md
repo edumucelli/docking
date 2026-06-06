@@ -57,7 +57,8 @@ Highlights:
 - Wayland: full support on GNOME / Mutter 45+ via the companion
   `docking-bridge@docking.org` GNOME Shell extension; layer-shell support
   on wlroots-based compositors (Hyprland, Sway); reduced mode on other
-  Wayland compositors
+  Wayland compositors. Recent GNOME / Mutter 45+ examples include Ubuntu
+  26.04 LTS and Fedora Workstation 40+.
 - Python 3.10+
 - System packages (Ubuntu/Debian):
 
@@ -187,6 +188,8 @@ backends, selected automatically or via `DOCKING_BACKEND`:
 On GNOME, Docking uses a companion GNOME Shell extension
 (`docking-bridge@docking.org`) that provides window management, previews,
 workspace switching, and Show Desktop over a private session D-Bus interface.
+Recent GNOME / Mutter 45+ examples include Ubuntu 26.04 LTS and Fedora
+Workstation 40+.
 
 **How to enable:**
 ```bash
