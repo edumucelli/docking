@@ -13,6 +13,13 @@
 
 """Native Wayland backend package."""
 
+from docking.platform.backends.wayland.hyprland_ipc import (
+    HyprlandIpcClient,
+    HyprlandWindowService,
+    hyprland_socket_paths,
+    load_hyprland_window_service,
+    parse_hyprland_event,
+)
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     XdgDesktopPortalColorPicker,
@@ -43,6 +50,8 @@ from docking.platform.backends.wayland.workspaces import (
 
 __all__ = [
     "ForeignToplevelProtocolAdapter",
+    "HyprlandIpcClient",
+    "HyprlandWindowService",
     "WaylandAppIdMatcher",
     "WaylandForeignToplevelWindowService",
     "WaylandLayerShellSessionBackend",
@@ -53,10 +62,13 @@ __all__ = [
     "WaylandWorkspaceService",
     "WorkspaceProtocolAdapter",
     "XdgDesktopPortalColorPicker",
+    "hyprland_socket_paths",
     "layer_shell_is_supported",
     "load_foreign_toplevel_protocol",
     "load_gtk_layer_shell",
+    "load_hyprland_window_service",
     "load_portal_color_picker",
     "load_protocol_factories",
     "load_workspace_protocol",
+    "parse_hyprland_event",
 ]

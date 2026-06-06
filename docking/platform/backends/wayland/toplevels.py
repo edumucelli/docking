@@ -175,6 +175,27 @@ class WaylandForeignToplevelWindowService(WindowService):
         state = self._state_for_window_id(window_id)
         return state.handle if state is not None else None
 
+    def protocol_handle_for_match(
+        self,
+        *,
+        desktop_id: str | None,
+        app_id: str,
+        title: str,
+    ) -> object | None:
+        """Return a protocol handle matching backend-neutral window facts."""
+        for state in self._state_by_id.values():
+            if state.closed:
+                continue
+            if state.desktop_id is None:
+                self._refresh_match(state=state)
+            if desktop_id and state.desktop_id != desktop_id:
+                continue
+            if title and state.title and state.title == title:
+                return state.handle
+            if app_id and state.app_id and state.app_id == app_id:
+                return state.handle
+        return None
+
     def activate(self, window_id: WindowId) -> ActionResult:
         """Activate one foreign toplevel by backend ID."""
         state = self._state_for_window_id(window_id)
