@@ -85,7 +85,10 @@ def clamp_popup(
     property).
     """
     parent = popup.get_transient_for()
-    if parent is not None and parent.surface_service.popups_use_parent_relative_coordinates:
+    if (
+        parent is not None
+        and parent.surface_service.popups_use_parent_relative_coordinates
+    ):
         return ScreenPosition(x=popup_x, y=popup_y)
     # Screen-absolute or no parent: clamp to screen bounds.
     screen = popup.get_screen()
