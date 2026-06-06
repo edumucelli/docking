@@ -56,3 +56,15 @@ def test_packaging_uses_shared_canonical_desktop_entry():
     assert expected in appimage
     assert "../shared/org.docking.Docking.desktop" in nix
     assert "printf '%s\\n'" not in snap
+
+
+def test_application_desktop_entries_do_not_disable_autostart():
+    desktop_entries = (
+        ROOT / "packaging/shared/org.docking.Docking.desktop",
+        ROOT / "packaging/deb/org.docking.Docking.desktop",
+        ROOT / "packaging/flatpak/cc.docking.Docking.desktop",
+    )
+
+    for desktop_entry in desktop_entries:
+        content = desktop_entry.read_text(encoding="utf-8")
+        assert "X-GNOME-Autostart-enabled" not in content
