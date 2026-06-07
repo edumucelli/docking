@@ -62,6 +62,8 @@ OBJECT_PATH = "/org/docking/Docking/GnomeShellBridge"
 INTERFACE = "org.docking.Docking.GnomeShellBridge1"
 _DOCK_POSITION_RETRY_MS = 100
 _DOCK_POSITION_RETRY_ATTEMPTS = 15
+_WORKSPACE_INITIAL_RETRY_MS = 100
+_WORKSPACE_INITIAL_RETRY_ATTEMPTS = 15
 
 
 class GnomeShellBridgeClient:
@@ -456,15 +458,25 @@ class GnomeShellBridgeWorkspaceService(WorkspaceService):
         self._next_watch_id = 1
         self._changed_handle: object | None = None
         self._poll_source_id = 0
+        self._initial_retry_source_id = 0
+        self._initial_retry_attempts_remaining = 0
+        self._started = False
 
     def start(self) -> None:
+        self._started = True
         subscribe = getattr(self._bridge, "subscribe_changed", None)
         if callable(subscribe):
             self._changed_handle = subscribe(self.refresh)
         self.refresh()
+        self._ensure_initial_active_workspace()
         self._poll_source_id = GLib.timeout_add_seconds(2, self._poll)
 
     def stop(self) -> None:
+        self._started = False
+        if self._initial_retry_source_id:
+            GLib.source_remove(self._initial_retry_source_id)
+            self._initial_retry_source_id = 0
+        self._initial_retry_attempts_remaining = 0
         if self._poll_source_id:
             GLib.source_remove(self._poll_source_id)
             self._poll_source_id = 0
@@ -476,20 +488,21 @@ class GnomeShellBridgeWorkspaceService(WorkspaceService):
         self._workspaces = ()
 
     def refresh(self) -> None:
-        previous_active = self.active_workspace()
+        previous_signature = _workspace_signature(self._workspaces)
         rows = self._bridge.list_workspaces()
         self._workspaces = tuple(
             workspace
             for row in rows
             if (workspace := _workspace_from_row(row)) is not None
         )
-        current_active = self.active_workspace()
-        if _workspace_identity(previous_active) == _workspace_identity(current_active):
+        if previous_signature == _workspace_signature(self._workspaces):
             return
         for callback in tuple(self._watchers.values()):
             callback()
 
     def list_workspaces(self) -> Sequence[WorkspaceSnapshot]:
+        if not self._workspaces or self.active_workspace() is None:
+            self.refresh()
         return self._workspaces
 
     def active_workspace(self) -> WorkspaceSnapshot | None:
@@ -516,6 +529,29 @@ class GnomeShellBridgeWorkspaceService(WorkspaceService):
     def _poll(self) -> bool:
         self.refresh()
         return True
+
+    def _ensure_initial_active_workspace(self) -> None:
+        if not self._started or self.active_workspace() is not None:
+            return
+        if self._initial_retry_source_id:
+            return
+        self._initial_retry_attempts_remaining = _WORKSPACE_INITIAL_RETRY_ATTEMPTS
+        self._initial_retry_source_id = GLib.timeout_add(
+            _WORKSPACE_INITIAL_RETRY_MS,
+            self._retry_initial_active_workspace,
+        )
+
+    def _retry_initial_active_workspace(self) -> bool:
+        self._initial_retry_attempts_remaining -= 1
+        self.refresh()
+        if (
+            self.active_workspace() is not None
+            or self._initial_retry_attempts_remaining <= 0
+        ):
+            self._initial_retry_source_id = 0
+            self._initial_retry_attempts_remaining = 0
+            return GLib.SOURCE_REMOVE
+        return GLib.SOURCE_CONTINUE
 
 
 def _action_result(ok: bool) -> ActionResult:
@@ -588,8 +624,13 @@ def _workspace_from_row(row: Mapping[str, Any]) -> WorkspaceSnapshot | None:
     )
 
 
-def _workspace_identity(workspace: WorkspaceSnapshot | None) -> str | None:
-    return workspace.id if workspace is not None else None
+def _workspace_signature(
+    workspaces: Sequence[WorkspaceSnapshot],
+) -> tuple[tuple[str, int, str, bool], ...]:
+    return tuple(
+        (workspace.id, workspace.number, workspace.name, workspace.active)
+        for workspace in workspaces
+    )
 
 
 class GnomeShellBridgeSurfaceService(SurfaceService):
