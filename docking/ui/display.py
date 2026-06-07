@@ -20,7 +20,8 @@ from typing import NamedTuple
 import gi
 
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gdk, Gtk
 
 from docking.log import get_logger
 
@@ -62,4 +63,40 @@ def clamp_to_screen(
     return ScreenPosition(
         x=max(0, min(rect_x, screen_w - rect_w)),
         y=max(0, min(rect_y, screen_h - rect_h)),
+    )
+
+
+def clamp_popup(
+    popup: Gtk.Window,
+    popup_x: int,
+    popup_y: int,
+    popup_w: int,
+    popup_h: int,
+) -> ScreenPosition:
+    """Clamp a popup to screen bounds, respecting the coordinate space.
+
+    On X11 ``Gtk.Window.move()`` uses screen-absolute coordinates
+    regardless of ``set_transient_for``, so we clamp to the screen.
+
+    On Wayland a popup with a transient parent receives *parent-relative*
+    coordinates, and the compositor handles on-screen clamping for us.
+    Which coordinate space is in use is determined by the surface service
+    backing the transient parent (``popups_use_parent_relative_coordinates``
+    property).
+    """
+    parent = popup.get_transient_for()
+    if (
+        parent is not None
+        and parent.surface_service.popups_use_parent_relative_coordinates
+    ):
+        return ScreenPosition(x=popup_x, y=popup_y)
+    # Screen-absolute or no parent: clamp to screen bounds.
+    screen = popup.get_screen()
+    return clamp_to_screen(
+        popup_x,
+        popup_y,
+        popup_w,
+        popup_h,
+        screen.get_width(),
+        screen.get_height(),
     )

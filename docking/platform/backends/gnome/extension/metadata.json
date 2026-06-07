@@ -1,0 +1,7 @@
+{
+  "uuid": "docking-bridge@docking.org",
+  "name": "Docking Bridge",
+  "description": "Prototype D-Bus bridge for Docking window and workspace state on GNOME Shell.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/edumucelli/docking"
+}

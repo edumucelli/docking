@@ -219,6 +219,12 @@ class TestApplet:
             def add_buttons(self, *_args):
                 return
 
+            def set_skip_taskbar_hint(self, _value):
+                return
+
+            def set_skip_pager_hint(self, _value):
+                return
+
             def set_default_size(self, *_args):
                 return
 
@@ -303,6 +309,12 @@ class TestApplet:
                 self.content = _FakeBox()
 
             def add_buttons(self, *_args):
+                return
+
+            def set_skip_taskbar_hint(self, _value):
+                return
+
+            def set_skip_pager_hint(self, _value):
                 return
 
             def set_default_size(self, *_args):

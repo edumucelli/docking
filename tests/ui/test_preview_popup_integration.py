@@ -212,6 +212,7 @@ def _make_popup():
     popup._pointer_inside_dock = None
     popup._hide_timer_id = 0
     popup._current_desktop_id = ""
+    popup.get_transient_for = MagicMock(return_value=None)
     return popup
 
 
@@ -245,6 +246,7 @@ class TestPreviewPopupIntegration:
         popup.get_child = MagicMock(return_value=None)
         popup.remove = MagicMock()
         popup.add = MagicMock()
+        popup.get_transient_for = MagicMock(return_value=None)
         popup.get_screen = MagicMock(return_value=FakeScreen(width=320, height=200))
         popup.move = MagicMock()
         popup.show_all = MagicMock()

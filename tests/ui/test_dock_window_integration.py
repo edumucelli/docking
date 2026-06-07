@@ -796,6 +796,7 @@ class TestDockWindowSetupAndGeometry:
         )
         stub = SimpleNamespace(
             set_title=MagicMock(),
+            set_wmclass=MagicMock(),
             set_decorated=MagicMock(),
             set_skip_taskbar_hint=MagicMock(),
             set_skip_pager_hint=MagicMock(),

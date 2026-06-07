@@ -507,6 +507,9 @@ class FakeWindow:
     def get_screen(self):
         return self.screen
 
+    def get_transient_for(self):
+        return None
+
 
 class FakeRevealer:
     def __init__(self) -> None:

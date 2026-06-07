@@ -123,7 +123,7 @@ from gi.repository import Gdk, GLib, Gtk
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
 from docking.platform.backends.base import WindowId, WindowService, WindowSnapshot
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup
 
 if TYPE_CHECKING:
     from docking.platform.backends.base import PreviewService
@@ -290,13 +290,8 @@ class PreviewPopup(Gtk.Window):
             popup_x = int(anchor_x - popup_width - PREVIEW_GAP_PX)
             popup_y = int(anchor_y + icon_w / 2 - popup_height / 2)
 
-        # Clamp to screen
-        screen = self.get_screen()
-        screen_w = screen.get_width()
-        screen_h = screen.get_height()
-        popup_pos = clamp_to_screen(
-            popup_x, popup_y, popup_width, popup_height, screen_w, screen_h
-        )
+        # Clamp to screen (respects parent-relative vs screen-absolute coords)
+        popup_pos = clamp_popup(self, popup_x, popup_y, popup_width, popup_height)
 
         self.move(popup_pos.x, popup_pos.y)
         self.show_all()

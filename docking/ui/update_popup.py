@@ -40,7 +40,7 @@ from docking.core.updates import (
 )
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup
 from docking.ui.tooltip import compute_tooltip_position
 
 if TYPE_CHECKING:
@@ -234,15 +234,7 @@ class UpdateCheckController:
             tooltip_h=popup_h,
             gap=UPDATE_POPUP_GAP_PX,
         )
-        screen = self._popup.get_screen()
-        clamped = clamp_to_screen(
-            popup_x,
-            popup_y,
-            popup_w,
-            popup_h,
-            screen.get_width(),
-            screen.get_height(),
-        )
+        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
         self._popup.move(clamped.x, clamped.y)
 
     def _on_view_release(self, _button: Gtk.Button) -> None:

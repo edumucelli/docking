@@ -49,6 +49,7 @@ cleanly?
 from __future__ import annotations
 
 import faulthandler
+import os
 import signal
 import sys
 from pathlib import Path
@@ -75,6 +76,10 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
+# Give GTK / Mutter a stable program name so the GNOME Shell extension
+# can find the dock window on Wayland (where WM_CLASS is not forwarded).
+GLib.set_prgname("Docking")
+
 from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.core.theme import Theme
@@ -90,6 +95,8 @@ from docking.ui.renderer import DockRenderer
 
 if TYPE_CHECKING:
     from docking.platform.backends.base import SessionBackend
+
+_FORCE_QUIT_SOURCE_ID = 0
 
 
 def main() -> None:
@@ -164,8 +171,16 @@ def _start_runtime(
 
 
 def _quit() -> bool:
+    global _FORCE_QUIT_SOURCE_ID
+
     Gtk.main_quit()
+    if _FORCE_QUIT_SOURCE_ID == 0:
+        _FORCE_QUIT_SOURCE_ID = GLib.timeout_add_seconds(3, _force_quit)
     return False
+
+
+def _force_quit() -> bool:
+    os._exit(0)
 
 
 if __name__ == "__main__":

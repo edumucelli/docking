@@ -127,7 +127,15 @@ class _FakeDialog:
         self.position = None
         self.resizable = None
         self.default_response = None
+        self.skip_taskbar = None
+        self.skip_pager = None
         self.buttons: list[object] = []
+
+    def set_skip_taskbar_hint(self, value: bool) -> None:
+        self.skip_taskbar = value
+
+    def set_skip_pager_hint(self, value: bool) -> None:
+        self.skip_pager = value
 
     def set_default_size(self, width: int, height: int) -> None:
         self.size = (width, height)
@@ -322,6 +330,8 @@ def test_prepare_dialog_content_applies_standard_layout():
     )
 
     assert box is dialog.box
+    assert dialog.skip_taskbar is True
+    assert dialog.skip_pager is True
     assert dialog.size == (320, 120)
     assert dialog.position == popup.Gtk.WindowPosition.MOUSE
     assert dialog.resizable is False

@@ -51,6 +51,12 @@ class _FakeDialog:
     def set_default_size(self, *_args) -> None:
         return
 
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
+
+    def set_skip_pager_hint(self, _value: bool) -> None:
+        return
+
     def set_position(self, *_args) -> None:
         return
 
