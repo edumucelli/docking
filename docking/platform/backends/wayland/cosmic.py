@@ -138,9 +138,7 @@ class CosmicToplevelAdapter:
         )
 
         bind_version = min(version, ZcosmicToplevelInfoV1.version)
-        self._toplevel_info = registry.bind(
-            name, ZcosmicToplevelInfoV1, bind_version
-        )
+        self._toplevel_info = registry.bind(name, ZcosmicToplevelInfoV1, bind_version)
         if bind_version >= 2:
             self._toplevel_info.dispatcher["done"] = self._on_info_done
 
@@ -182,8 +180,11 @@ class CosmicToplevelAdapter:
                 self._request_cosmic_info(toplevel)
 
     def stop(self) -> None:
-        for manager in (self._toplevel_list, self._toplevel_info,
-                        self._toplevel_manager):
+        for manager in (
+            self._toplevel_list,
+            self._toplevel_info,
+            self._toplevel_manager,
+        ):
             if manager is not None:
                 stop = getattr(manager, "stop", None) or getattr(
                     manager, "destroy", None
@@ -261,17 +262,15 @@ class CosmicToplevelAdapter:
         if service is not None:
             service.toplevel_created(toplevel)
 
-        toplevel.dispatcher["title"] = (
-            lambda _handle, title: self._on_toplevel_title(toplevel, title)
+        toplevel.dispatcher["title"] = lambda _handle, title: self._on_toplevel_title(
+            toplevel, title
         )
-        toplevel.dispatcher["app_id"] = (
-            lambda _handle, app_id: self._on_toplevel_app_id(toplevel, app_id)
+        toplevel.dispatcher["app_id"] = lambda _handle, app_id: (
+            self._on_toplevel_app_id(toplevel, app_id)
         )
-        toplevel.dispatcher["done"] = (
-            lambda _handle: self._on_toplevel_done(toplevel)
-        )
-        toplevel.dispatcher["closed"] = (
-            lambda _handle: self._on_toplevel_closed(toplevel)
+        toplevel.dispatcher["done"] = lambda _handle: self._on_toplevel_done(toplevel)
+        toplevel.dispatcher["closed"] = lambda _handle: self._on_toplevel_closed(
+            toplevel
         )
 
         # Request COSMIC info extension if available
@@ -313,9 +312,7 @@ class CosmicToplevelAdapter:
 
     def _on_capabilities(self, manager, caps) -> None:
         caps_bytes = _array_to_bytes(caps)
-        self._capabilities = {
-            val[0] for val in struct.iter_unpack("I", caps_bytes)
-        }
+        self._capabilities = {val[0] for val in struct.iter_unpack("I", caps_bytes)}
         log.info("COSMIC toplevel management capabilities: %s", self._capabilities)
 
     # -- Internal helpers ----------------------------------------------------
@@ -335,34 +332,24 @@ class CosmicToplevelAdapter:
         self._ext_handles[cosmic_handle] = toplevel
         # Wire COSMIC handle events to the service
         service = self._service
-        cosmic_handle.dispatcher["state"] = (
-            lambda _h, states: self._on_cosmic_state(toplevel, states)
+        cosmic_handle.dispatcher["state"] = lambda _h, states: self._on_cosmic_state(
+            toplevel, states
         )
-        cosmic_handle.dispatcher["geometry"] = (
-            lambda _h, output, x, y, w, h: self._on_cosmic_geometry(
-                toplevel, output, x, y, w, h
-            )
+        cosmic_handle.dispatcher["geometry"] = lambda _h, output, x, y, w, h: (
+            self._on_cosmic_geometry(toplevel, output, x, y, w, h)
         )
-        cosmic_handle.dispatcher["output_enter"] = (
-            lambda _h, output: (
-                service.output_entered(toplevel, output)
-                if service is not None
-                else None
-            )
+        cosmic_handle.dispatcher["output_enter"] = lambda _h, output: (
+            service.output_entered(toplevel, output) if service is not None else None
         )
-        cosmic_handle.dispatcher["output_leave"] = (
-            lambda _h, output: (
-                service.output_left(toplevel, output)
-                if service is not None
-                else None
-            )
+        cosmic_handle.dispatcher["output_leave"] = lambda _h, output: (
+            service.output_left(toplevel, output) if service is not None else None
         )
         # v3: ext_workspace_enter / ext_workspace_leave
-        cosmic_handle.dispatcher["ext_workspace_enter"] = (
-            lambda _h, ws: self._on_cosmic_workspace_enter(toplevel, ws)
+        cosmic_handle.dispatcher["ext_workspace_enter"] = lambda _h, ws: (
+            self._on_cosmic_workspace_enter(toplevel, ws)
         )
-        cosmic_handle.dispatcher["ext_workspace_leave"] = (
-            lambda _h, ws: self._on_cosmic_workspace_leave(toplevel, ws)
+        cosmic_handle.dispatcher["ext_workspace_leave"] = lambda _h, ws: (
+            self._on_cosmic_workspace_leave(toplevel, ws)
         )
 
     def _on_cosmic_state(self, toplevel: object, states) -> None:
@@ -380,7 +367,11 @@ class CosmicToplevelAdapter:
     ) -> None:
         # Store geometry on pending data for future use
         self._pending_data.setdefault(toplevel, {})["geometry"] = (
-            output, x, y, width, height
+            output,
+            x,
+            y,
+            width,
+            height,
         )
 
     def _on_cosmic_workspace_enter(self, toplevel: object, workspace) -> None:
@@ -496,17 +487,17 @@ class CosmicWorkspaceAdapter:
         if service is not None:
             service.workspace_created(workspace)
 
-        workspace.dispatcher["name"] = (
-            lambda _h, name: self._on_workspace_name(workspace, name)
+        workspace.dispatcher["name"] = lambda _h, name: self._on_workspace_name(
+            workspace, name
         )
-        workspace.dispatcher["state"] = (
-            lambda _h, states: self._on_workspace_state(workspace, states)
+        workspace.dispatcher["state"] = lambda _h, states: self._on_workspace_state(
+            workspace, states
         )
-        workspace.dispatcher["capabilities"] = (
-            lambda _h, caps: self._on_workspace_capabilities(workspace, caps)
+        workspace.dispatcher["capabilities"] = lambda _h, caps: (
+            self._on_workspace_capabilities(workspace, caps)
         )
-        workspace.dispatcher["remove"] = (
-            lambda _h: self._on_workspace_removed(workspace)
+        workspace.dispatcher["remove"] = lambda _h: self._on_workspace_removed(
+            workspace
         )
 
     def _on_workspace_name(self, workspace: object, name: str) -> None:
@@ -579,9 +570,7 @@ class CosmicOverlapAdapter:
         )
 
         bind_version = min(version, ZcosmicOverlapNotifyV1.version)
-        self._overlap_notify = registry.bind(
-            name, ZcosmicOverlapNotifyV1, bind_version
-        )
+        self._overlap_notify = registry.bind(name, ZcosmicOverlapNotifyV1, bind_version)
         self.available = True
 
     def start(self, layer_surface: object, on_change: Callable[[bool], None]) -> None:
@@ -591,9 +580,7 @@ class CosmicOverlapAdapter:
         self._on_change = on_change
         self._layer_surface = layer_surface
         try:
-            self._notification = self._overlap_notify.notify_on_overlap(
-                layer_surface
-            )
+            self._notification = self._overlap_notify.notify_on_overlap(layer_surface)
         except Exception as exc:
             log.info("COSMIC overlap notify unavailable: %s", exc)
             self.available = False

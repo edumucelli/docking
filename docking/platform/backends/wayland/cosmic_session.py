@@ -178,9 +178,7 @@ class CosmicSessionBackend(SessionBackend):
         cosmic_overlap = (
             runtime.cosmic_overlap_protocol if runtime is not None else None
         )
-        preview_protocol = (
-            runtime.preview_protocol if runtime is not None else None
-        )
+        preview_protocol = runtime.preview_protocol if runtime is not None else None
         hyprland_preview_protocol = (
             runtime.hyprland_preview_protocol if runtime is not None else None
         )
@@ -223,6 +221,7 @@ class CosmicSessionBackend(SessionBackend):
                 from docking.platform.backends.reduced.services import (
                     ReducedWindowService,
                 )
+
                 windows = ReducedWindowService()
 
         # Workspace service: prefer ext_workspace_manager_v1 (standard) on COSMIC
@@ -235,11 +234,13 @@ class CosmicSessionBackend(SessionBackend):
             from docking.platform.backends.wayland.workspaces import (
                 WaylandWorkspaceService,
             )
+
             workspaces = WaylandWorkspaceService(protocol=std_workspace)
         elif cosmic_workspace is not None:
             from docking.platform.backends.wayland.workspaces import (
                 WaylandWorkspaceService,
             )
+
             workspaces = WaylandWorkspaceService(protocol=cosmic_workspace)
 
         # Visibility service backed by COSMIC overlap notify
@@ -252,6 +253,7 @@ class CosmicSessionBackend(SessionBackend):
             from docking.platform.backends.reduced.services import (
                 ReducedVisibilityService,
             )
+
             visibility = ReducedVisibilityService()
 
         # Surface: always use layer-shell on COSMIC, with overlap binding
@@ -278,6 +280,7 @@ class CosmicSessionBackend(SessionBackend):
             from docking.platform.backends.wayland.previews import (
                 HyprlandPreviewService,
             )
+
             previews = HyprlandPreviewService(
                 protocol=hyprland_preview_protocol,
                 windows=windows,

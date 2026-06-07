@@ -210,9 +210,7 @@ def _create_cosmic_backend(
         log.info("COSMIC backend unavailable: GtkLayerShell not installed")
         return None
     if not layer_shell_is_supported(layer_shell):
-        log.info(
-            "COSMIC backend unavailable: compositor does not support layer-shell"
-        )
+        log.info("COSMIC backend unavailable: compositor does not support layer-shell")
         return None
     backend = CosmicSessionBackend(
         layer_shell=layer_shell,
