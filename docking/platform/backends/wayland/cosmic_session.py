@@ -25,8 +25,9 @@ Backend selection
                                          +-- CosmicOverlapVisibilityService
                                          |     (native overlap-notify protocol)
                                          +-- WaylandPreviewService
-                                         |     (via ext_image_copy_capture +
-                                         |      ext_foreign_toplevel_image_capture_source)
+                                         |     (via ext_image_copy_capture
+                                         |      + ext_foreign_toplevel_
+                                         |      image_capture_source)
 """
 
 from __future__ import annotations
@@ -406,6 +407,6 @@ class CosmicSessionBackend(SessionBackend):
         visibility = self._services.visibility
         if not isinstance(visibility, CosmicOverlapVisibilityService):
             return
-        for monitor in visibility._monitors:  # noqa: SLF001
-            if isinstance(monitor, CosmicOverlapMonitor) and not monitor._started:  # noqa: SLF001
+        for monitor in visibility._monitors:
+            if isinstance(monitor, CosmicOverlapMonitor) and not monitor._started:
                 monitor.attach_layer_surface(layer_surface)

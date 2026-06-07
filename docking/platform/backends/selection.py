@@ -24,7 +24,9 @@ from typing import TYPE_CHECKING
 
 from docking.log import get_logger
 from docking.platform.environment import (
+    Desktop,
     backend_name,
+    detect_desktop,
     is_wayland_session,
     is_x11_backend,
 )
@@ -92,7 +94,7 @@ def create_session_backend(
 
     if not is_x11_backend():
         # COSMIC takes priority on its native desktop
-        if _is_cosmic_session():
+        if detect_desktop() is Desktop.COSMIC:
             backend = _create_cosmic_backend(
                 launcher=launcher,
                 model=model,
@@ -219,15 +221,6 @@ def _create_cosmic_backend(
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
-
-
-def _is_cosmic_session() -> bool:
-    """Return True when running under a COSMIC desktop session."""
-    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").strip()
-    if desktop:
-        return desktop.lower() == "cosmic"
-    session = os.environ.get("DESKTOP_SESSION", "").strip().lower()
-    return session == "cosmic"
 
 
 def _non_x11_reason() -> str:

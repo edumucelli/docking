@@ -133,7 +133,7 @@ class CosmicToplevelAdapter:
         self.available = True
 
     def bind_toplevel_info(self, *, registry, name: int, version: int) -> None:
-        from docking.platform.backends.wayland.protocols.cosmic_toplevel_info_v1 import (
+        from docking.platform.backends.wayland.protocols.cosmic_toplevel_info_v1 import (  # noqa: E501
             ZcosmicToplevelInfoV1,
         )
 
@@ -637,9 +637,12 @@ class CosmicOverlapAdapter:
 
     def _on_toplevel_leave(self, toplevel: object) -> None:
         self._overlapping_toplevels.discard(toplevel)
-        if not self._overlapping_toplevels and not self._overlapping_layers:
-            if self._on_change is not None:
-                self._on_change(False)
+        if (
+            not self._overlapping_toplevels
+            and not self._overlapping_layers
+            and self._on_change is not None
+        ):
+            self._on_change(False)
 
     def _on_layer_enter(
         self,
@@ -654,15 +657,21 @@ class CosmicOverlapAdapter:
     ) -> None:
         was_empty = not self._overlapping_layers
         self._overlapping_layers.add(identifier)
-        if was_empty and not self._overlapping_toplevels:
-            if self._on_change is not None:
-                self._on_change(True)
+        if (
+            was_empty
+            and not self._overlapping_toplevels
+            and self._on_change is not None
+        ):
+            self._on_change(True)
 
     def _on_layer_leave(self, identifier: str) -> None:
         self._overlapping_layers.discard(identifier)
-        if not self._overlapping_layers and not self._overlapping_toplevels:
-            if self._on_change is not None:
-                self._on_change(False)
+        if (
+            not self._overlapping_layers
+            and not self._overlapping_toplevels
+            and self._on_change is not None
+        ):
+            self._on_change(False)
 
 
 # ---------------------------------------------------------------------------

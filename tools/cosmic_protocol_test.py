@@ -9,14 +9,12 @@ Docking GTK application.
 
 from __future__ import annotations
 
-import struct
 import sys
 import time
 
 sys.path.insert(0, ".")
 
 from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -57,9 +55,9 @@ def test_backend_autodetection() -> bool:
     import os
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
     print(f"  XDG_CURRENT_DESKTOP = {desktop}")
-    from docking.platform.backends.selection import _is_cosmic_session
-    if not _is_cosmic_session():
-        print("  FAIL: expected True on COSMIC")
+    from docking.platform.environment import Desktop, detect_desktop
+    if detect_desktop() is not Desktop.COSMIC:
+        print("  FAIL: expected COSMIC desktop")
         return False
     print("  PASS")
     return True
@@ -113,17 +111,17 @@ def test_toplevel_management_capabilities(runtime: WaylandProtocolRuntime) -> bo
         return True  # management is optional
 
     caps = adapter.capabilities
-    CAP_NAMES = {
+    cap_names = {
         1: "close", 2: "activate", 3: "maximize",
         4: "minimize", 5: "fullscreen", 6: "move_to_workspace",
         7: "sticky", 8: "move_to_ext_workspace",
     }
     print(f"  Capabilities: {len(caps)}")
     for cap in sorted(caps):
-        print(f"    [{cap}] {CAP_NAMES.get(cap, 'unknown')}")
+        print(f"    [{cap}] {cap_names.get(cap, 'unknown')}")
 
     # Verify essential dock capabilities
-    found = {CAP_NAMES.get(c, "?") for c in caps}
+    found = {cap_names.get(c, "?") for c in caps}
     for name in ("activate", "close", "minimize"):
         if name not in found:
             print(f"  WARN: '{name}' not advertised")
@@ -155,9 +153,16 @@ def test_workspaces(runtime: WaylandProtocolRuntime) -> bool:
         name = data.get("name", "?")
         state = data.get("state")
         caps = data.get("capabilities")
-        active = _has_flag(state, token="active", bit=1) if state is not None else None
-        can_activate = _has_flag(caps, token="activate", bit=1) if caps is not None else None
-        print(f"    [{i}] name={name!r}  active={active}  can_activate={can_activate}")
+        active = (
+            _has_flag(state, token="active", bit=1) if state is not None else None
+        )
+        can_activate = (
+            _has_flag(caps, token="activate", bit=1) if caps is not None else None
+        )
+        print(
+            f"    [{i}] name={name!r}  active={active}"
+            f"  can_activate={can_activate}"
+        )
 
     if not pending:
         print("  FAIL: no workspaces discovered on COSMIC desktop")
@@ -181,7 +186,7 @@ def test_workspace_activation(runtime: WaylandProtocolRuntime) -> bool:
     pending = getattr(adapter, "_pending_workspaces", [])
     pending_data = getattr(adapter, "_pending_data", {})
     if len(pending) < 2:
-        print("  SKIP: need at least 2 workspaces (found {})".format(len(pending)))
+        print(f"  SKIP: need at least 2 workspaces (found {len(pending)})")
         return True
 
     # Find active and first inactive workspace
@@ -206,7 +211,9 @@ def test_workspace_activation(runtime: WaylandProtocolRuntime) -> bool:
     # Verify the switch
     data2 = getattr(adapter, "_pending_data", {}).get(inactive_ws, {})
     state2 = data2.get("state")
-    now_active = _has_flag(state2, token="active", bit=1) if state2 is not None else False
+    now_active = (
+        _has_flag(state2, token="active", bit=1) if state2 is not None else False
+    )
     print(f"  Switch result: active={now_active}")
 
     # Switch back
@@ -249,13 +256,19 @@ def test_backend_creation() -> bool:
     os.environ["DOCKING_BACKEND"] = "cosmic"
 
     from unittest.mock import MagicMock
+
     from docking.platform.backends.selection import create_session_backend
-    from docking.platform.backends.wayland.toplevels import WaylandForeignToplevelWindowService
-    from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
-    from docking.platform.backends.wayland.cosmic_session import CosmicOverlapVisibilityService
-    from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
+    from docking.platform.backends.wayland.cosmic_session import (
+        CosmicOverlapVisibilityService,
+    )
     from docking.platform.backends.wayland.previews import WaylandPreviewService
-    from docking.platform.backends.reduced.services import ReducedPreviewService
+    from docking.platform.backends.wayland.services import (
+        WaylandLayerShellSurfaceService,
+    )
+    from docking.platform.backends.wayland.toplevels import (
+        WaylandForeignToplevelWindowService,
+    )
+    from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
 
     config = MagicMock()
     launcher = MagicMock()
@@ -267,13 +280,23 @@ def test_backend_creation() -> bool:
     print(f"  Windows svc : {type(backend.windows).__name__}")
     print(f"  Surface svc : {type(backend.surface).__name__}")
     print(f"  Visibility : {type(backend.visibility).__name__}")
-    print(f"  Workspaces : {type(backend.workspaces).__name__ if backend.workspaces else 'None'}")
+    ws_name = type(backend.workspaces).__name__ if backend.workspaces else "None"
+    print(f"  Workspaces : {ws_name}")
     print(f"  Previews   : {type(backend.previews).__name__}")
 
     checks = [
-        ("WindowService", isinstance(backend.windows, WaylandForeignToplevelWindowService)),
-        ("LayerShell", isinstance(backend.surface, WaylandLayerShellSurfaceService)),
-        ("OverlapVis", isinstance(backend.visibility, CosmicOverlapVisibilityService)),
+        (
+            "WindowService",
+            isinstance(backend.windows, WaylandForeignToplevelWindowService),
+        ),
+        (
+            "LayerShell",
+            isinstance(backend.surface, WaylandLayerShellSurfaceService),
+        ),
+        (
+            "OverlapVis",
+            isinstance(backend.visibility, CosmicOverlapVisibilityService),
+        ),
         ("Workspaces", isinstance(backend.workspaces, WaylandWorkspaceService)),
         ("Previews", isinstance(backend.previews, WaylandPreviewService)),
     ]
@@ -308,7 +331,7 @@ def main() -> int:
         print("FATAL: Could not start Wayland protocol runtime")
         return 1
 
-    print(f"\nProtocol availability:")
+    print("\nProtocol availability:")
     print(f"  COSMIC toplevel       : {runtime.cosmic_toplevel.available}")
     print(f"  COSMIC toplevel mgmt  : {runtime.cosmic_toplevel.has_management}")
     print(f"  COSMIC workspace (v2) : {runtime.cosmic_workspace.available}")
@@ -333,9 +356,8 @@ def main() -> int:
     if all_passed:
         print("All COSMIC protocol tests passed!")
         return 0
-    else:
-        print("Some tests FAILED — see output above")
-        return 1
+    print("Some tests FAILED — see output above")
+    return 1
 
 
 if __name__ == "__main__":
