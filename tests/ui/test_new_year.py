@@ -70,6 +70,9 @@ class _FakePopup:
     def set_transient_for(self, window):
         self.transient_for = window
 
+    def get_transient_for(self):
+        return getattr(self, "transient_for", None)
+
     def connect(self, signal, callback):
         self.connections[signal] = callback
 
@@ -157,6 +160,9 @@ class _FakeWindow:
     def __init__(self, *, pos=Position.BOTTOM, realized=True) -> None:
         self.config = SimpleNamespace(pos=pos)
         self.realized = realized
+        self.surface_service = SimpleNamespace(
+            popups_use_parent_relative_coordinates=False,
+        )
 
     def get_realized(self):
         return self.realized

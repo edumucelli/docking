@@ -15,8 +15,10 @@ from unittest.mock import MagicMock
 def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     fake_glib = SimpleNamespace(
         PRIORITY_HIGH=100,
+        set_prgname=MagicMock(),
         unix_signal_add=MagicMock(),
         idle_add=MagicMock(),
+        timeout_add_seconds=MagicMock(return_value=77),
     )
     fake_gtk = SimpleNamespace(main=MagicMock(), main_quit=MagicMock())
     fake_repo = SimpleNamespace(GLib=fake_glib, Gtk=fake_gtk)
@@ -361,9 +363,30 @@ class TestAppMain:
 
     def test_quit_requests_gtk_main_quit(self, monkeypatch):
         # Given
-        app_mod, _fake_glib, fake_gtk = _load_app_module(monkeypatch)
+        app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
         # When
         result = app_mod._quit()
         # Then
         assert result is False
         fake_gtk.main_quit.assert_called_once()
+        fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)
+
+    def test_quit_schedules_force_quit_once(self, monkeypatch):
+        # Given
+        app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
+        # When
+        app_mod._quit()
+        app_mod._quit()
+        # Then
+        assert fake_gtk.main_quit.call_count == 2
+        fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)
+
+    def test_force_quit_exits_process(self, monkeypatch):
+        # Given
+        app_mod, _fake_glib, _fake_gtk = _load_app_module(monkeypatch)
+        exit_mock = MagicMock()
+        monkeypatch.setattr(app_mod.os, "_exit", exit_mock)
+        # When
+        app_mod._force_quit()
+        # Then
+        exit_mock.assert_called_once_with(0)

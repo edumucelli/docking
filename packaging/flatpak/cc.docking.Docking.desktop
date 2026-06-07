@@ -7,4 +7,3 @@ Icon=cc.docking.Docking
 Categories=Utility;GTK;
 Terminal=false
 StartupNotify=false
-X-GNOME-Autostart-enabled=false

@@ -75,6 +75,15 @@ def test_wayland_app_id_matcher_falls_back_to_launcher_aliases():
     assert matcher.match("unknown") is None
 
 
+def test_wayland_app_id_matcher_handles_snap_container_app_ids():
+    launcher = _launcher()
+    matcher = WaylandAppIdMatcher(launcher=launcher)
+    matcher.sync_visible_items([])
+
+    assert matcher.match("firefox_firefox.desktop") == "firefox.desktop"
+    assert matcher.match("firefox_firefox") == "firefox.desktop"
+
+
 def test_foreign_toplevel_service_publishes_running_state_and_snapshots():
     model = _model(_item("org.gnome.Nautilus.desktop"))
     protocol = _protocol()

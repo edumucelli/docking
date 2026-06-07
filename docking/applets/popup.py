@@ -185,6 +185,13 @@ def prepare_dialog_content(
     resizable: bool | None = None,
 ) -> Gtk.Box:
     """Apply standard applet dialog sizing, placement, and content spacing."""
+    # Window-manager hints: applet-owned dialogs are secondary UI, so they
+    # should not become separate dock/task-list/pager entries on X11.
+    dialog.set_skip_taskbar_hint(True)
+    dialog.set_skip_pager_hint(True)
+
+    # Window geometry: make dialogs open near the pointer and honor optional
+    # caller-provided size, resize, and default-response settings.
     if width is not None:
         dialog.set_default_size(width, height)
     dialog.set_position(Gtk.WindowPosition.MOUSE)
@@ -193,6 +200,7 @@ def prepare_dialog_content(
     if default_response is not None:
         dialog.set_default_response(default_response)
 
+    # Content layout: standardize spacing and margins for applet dialog bodies.
     box = dialog.get_content_area()
     box.set_spacing(spacing)
     box.set_margin_start(margin)

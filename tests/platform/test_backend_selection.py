@@ -45,6 +45,9 @@ def test_create_session_backend_selects_reduced_for_non_x11_without_x11_import(
     monkeypatch.setattr(
         selection, "_create_wayland_layer_shell_backend", lambda **_: None
     )
+    monkeypatch.setattr(
+        selection, "_create_gnome_shell_bridge_backend", lambda **_: None
+    )
 
     def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
         if name == "docking.platform.backends.x11.session":
@@ -82,6 +85,28 @@ def test_create_session_backend_selects_layer_shell_for_supported_wayland(monkey
     create_wayland.assert_called_once()
 
 
+def test_create_session_backend_selects_gnome_bridge_after_layer_shell_fallback(
+    monkeypatch,
+):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", lambda **_: None
+    )
+    backend = MagicMock(name="gnome-shell-bridge")
+    create_gnome = MagicMock(return_value=backend)
+    monkeypatch.setattr(selection, "_create_gnome_shell_bridge_backend", create_gnome)
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_gnome.assert_called_once()
+
+
 def test_create_session_backend_can_force_layer_shell_backend(monkeypatch):
     monkeypatch.setenv("DOCKING_BACKEND", "wayland-layer-shell")
     monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
@@ -99,6 +124,23 @@ def test_create_session_backend_can_force_layer_shell_backend(monkeypatch):
 
     assert result is backend
     create_wayland.assert_called_once()
+
+
+def test_create_session_backend_can_force_gnome_bridge_backend(monkeypatch):
+    monkeypatch.setenv("DOCKING_BACKEND", "gnome-shell")
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
+    backend = MagicMock(name="gnome-shell-bridge")
+    create_gnome = MagicMock(return_value=backend)
+    monkeypatch.setattr(selection, "_create_gnome_shell_bridge_backend", create_gnome)
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_gnome.assert_called_once()
 
 
 def test_create_session_backend_can_select_reduced_backend_by_override(monkeypatch):

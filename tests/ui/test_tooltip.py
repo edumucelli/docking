@@ -466,6 +466,9 @@ class _FakeTooltipWindow:
     def set_transient_for(self, window) -> None:
         self._transient_for = window
 
+    def get_transient_for(self):
+        return self._transient_for
+
     def set_attached_to(self, window) -> None:
         self._attached_to = window
 
@@ -570,6 +573,7 @@ class TestTooltipIntegrationBranches:
         monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
         monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
         window = MagicMock()
+        window.surface_service.popups_use_parent_relative_coordinates = False
         config = SimpleNamespace(icon_size=48)
         model = MagicMock()
         theme = SimpleNamespace(launch_bounce_height=0.5)

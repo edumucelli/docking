@@ -35,7 +35,7 @@ from docking.core.items import FOLDER_KIND
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup
 from docking.ui.folder._browser import (
     FOLDER_SMALL_ICON_PX,
     FOLDER_SORT_OPTIONS,
@@ -252,10 +252,12 @@ class FolderStackController:
         config: Config,
         runtime: DockRuntime,
         launcher: Launcher | None,
+        dock_window: Gtk.Window | None = None,
     ) -> None:
         self._config = config
         self._runtime = runtime
         self._launcher = launcher
+        self._dock_window = dock_window
         self._browser = FolderBrowser(launcher=launcher)
         self._folder_stack_cache = FolderStackCache()
         self._folder_stack_window: Gtk.Window | None = None
@@ -463,6 +465,11 @@ class FolderStackController:
         window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
         window.set_app_paintable(True)
 
+        # On Wayland popups need a transient parent so the compositor
+        # positions them relative to the dock rather than at (0,0).
+        if self._dock_window is not None:
+            window.set_transient_for(self._dock_window)
+
         screen = window.get_screen()
         visual = screen.get_rgba_visual()
         if visual:
@@ -535,15 +542,7 @@ class FolderStackController:
                 else int(anchor_x - popup_w - FOLDER_STACK_GAP_PX)
             )
 
-        screen = window.get_screen()
-        popup_pos = clamp_to_screen(
-            popup_x,
-            popup_y,
-            popup_w,
-            popup_h,
-            screen.get_width(),
-            screen.get_height(),
-        )
+        popup_pos = clamp_popup(window, popup_x, popup_y, popup_w, popup_h)
         window.move(popup_pos.x, popup_pos.y)
 
     def _track_folder_stack(self, target: str) -> None:

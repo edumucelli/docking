@@ -56,6 +56,17 @@ def create_session_backend(
             model=model,
             reason="requested by DOCKING_BACKEND=x11",
         )
+    if requested in {"gnome", "gnome-shell", "gnome-shell-bridge"}:
+        backend = _create_gnome_shell_bridge_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=f"GNOME Shell bridge unavailable after DOCKING_BACKEND={requested}"
+        )
     if requested in {"wayland", "wayland-layer-shell", "layer-shell"}:
         backend = _create_wayland_layer_shell_backend(
             launcher=launcher,
@@ -70,6 +81,13 @@ def create_session_backend(
 
     if not is_x11_backend():
         backend = _create_wayland_layer_shell_backend(
+            launcher=launcher,
+            model=model,
+            reason=_non_x11_reason(),
+        )
+        if backend is not None:
+            return backend
+        backend = _create_gnome_shell_bridge_backend(
             launcher=launcher,
             model=model,
             reason=_non_x11_reason(),
@@ -119,6 +137,24 @@ def _create_wayland_layer_shell_backend(
         layer_shell=layer_shell,
         launcher=launcher,
         model=model,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_gnome_shell_bridge_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.gnome.bridge import GnomeShellBridgeClient
+    from docking.platform.backends.gnome.session import GnomeShellBridgeSessionBackend
+
+    bridge = GnomeShellBridgeClient.connect()
+    if bridge is None:
+        return None
+    backend = GnomeShellBridgeSessionBackend(
+        model=model,
+        launcher=launcher,
+        bridge=bridge,
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend

@@ -300,6 +300,7 @@ class MenuHandler:
         preview_service: PreviewService,
         geometry_builder: DockGeometryBuilder,
         launcher: Launcher | None = None,
+        dock_window: Gtk.Window | None = None,
     ) -> None:
         self._about = about
         self._settings = settings
@@ -310,10 +311,12 @@ class MenuHandler:
         self._preview_service = preview_service
         self._launcher = launcher
         self._geometry_builder = geometry_builder
+        self._dock_window = dock_window
         self._folder_stack = FolderStackController(
             config=config,
             runtime=runtime,
             launcher=launcher,
+            dock_window=dock_window,
         )
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}

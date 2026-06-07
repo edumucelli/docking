@@ -61,6 +61,11 @@ install -Dm644 packaging/shared/org.docking.camshield.policy \
 install -Dm755 packaging/shared/refresh-desktop-caches.sh \
   %{buildroot}/usr/lib/docking/refresh-desktop-caches
 
+install -Dm644 docking/platform/backends/gnome/extension/metadata.json \
+  %{buildroot}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/metadata.json
+install -Dm644 docking/platform/backends/gnome/extension/extension.js \
+  %{buildroot}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/extension.js
+
 if [ -d packaging/deb/icons/hicolor ]; then
   mkdir -p %{buildroot}/usr/share/icons/hicolor
   cp -a packaging/deb/icons/hicolor/. %{buildroot}/usr/share/icons/hicolor/
@@ -70,10 +75,18 @@ fi
 if [ -x /usr/lib/docking/refresh-desktop-caches ]; then
   /usr/lib/docking/refresh-desktop-caches
 fi
+if command -v gnome-extensions >/dev/null 2>&1 \
+   && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+  gnome-extensions enable docking-bridge@docking.org || true
+fi
 
 %postun
 if [ -x /usr/lib/docking/refresh-desktop-caches ]; then
   /usr/lib/docking/refresh-desktop-caches
+fi
+if [ "$1" -eq 0 ] && command -v gnome-extensions >/dev/null 2>&1 \
+   && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+  gnome-extensions disable docking-bridge@docking.org || true
 fi
 
 %files
@@ -85,6 +98,7 @@ fi
 /usr/lib/docking/refresh-desktop-caches
 /usr/share/applications/org.docking.Docking.desktop
 /usr/share/polkit-1/actions/org.docking.camshield.policy
+/usr/share/gnome-shell/extensions/docking-bridge@docking.org
 /usr/share/icons/hicolor
 
 %changelog
