@@ -52,9 +52,7 @@ class ZcosmicToplevelInfoV1Proxy(Proxy[ZcosmicToplevelInfoV1]):
         self, foreign_toplevel: object | None
     ) -> Proxy[ZcosmicToplevelHandleV1]:
         """Get a zcosmic_toplevel_handle_v1 for an ext_foreign_toplevel_handle_v1."""
-        return self._marshal_constructor(
-            1, ZcosmicToplevelHandleV1, foreign_toplevel
-        )
+        return self._marshal_constructor(1, ZcosmicToplevelHandleV1, foreign_toplevel)
 
 
 class ZcosmicToplevelInfoV1Resource(Resource):

@@ -116,9 +116,7 @@ class ZcosmicToplevelHandleV1Resource(Resource):
         Argument(ArgumentType.Int),
         version=2,
     )
-    def geometry(
-        self, output: object, x: int, y: int, width: int, height: int
-    ) -> None:
+    def geometry(self, output: object, x: int, y: int, width: int, height: int) -> None:
         """The toplevel's geometry relative to an output has changed."""
         self._post_event(9, output, x, y, width, height)
 

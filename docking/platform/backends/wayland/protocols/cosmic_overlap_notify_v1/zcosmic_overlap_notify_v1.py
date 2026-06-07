@@ -45,9 +45,7 @@ class ZcosmicOverlapNotifyV1Proxy(Proxy[ZcosmicOverlapNotifyV1]):
         Requests notifications for toplevels and layer-surfaces entering
         and leaving the surface-area of the given zwlr_layer_surface_v1.
         """
-        return self._marshal_constructor(
-            0, ZcosmicOverlapNotificationV1, layer_surface
-        )
+        return self._marshal_constructor(0, ZcosmicOverlapNotificationV1, layer_surface)
 
 
 class ZcosmicOverlapNotifyV1Resource(Resource):
