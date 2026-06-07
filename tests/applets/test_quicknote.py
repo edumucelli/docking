@@ -244,6 +244,12 @@ class TestApplet:
                 self.content = _FakeBox()
                 self.response_cb = None
 
+            def set_skip_taskbar_hint(self, _value):
+                return
+
+            def set_skip_pager_hint(self, _value):
+                return
+
             def set_default_size(self, *_args):
                 return
 

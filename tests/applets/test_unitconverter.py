@@ -68,6 +68,12 @@ class _FakePopupWindow:
     def connect(self, signal: str, callback) -> None:
         self.connected = (signal, callback)
 
+    def set_skip_taskbar_hint(self, value: bool) -> None:
+        self.skip_taskbar = value
+
+    def set_skip_pager_hint(self, value: bool) -> None:
+        self.skip_pager = value
+
     def set_default_size(self, width: int, height: int) -> None:
         self.size = (width, height)
 
