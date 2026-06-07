@@ -254,6 +254,8 @@ def test_backend_creation() -> bool:
     from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
     from docking.platform.backends.wayland.cosmic_session import CosmicOverlapVisibilityService
     from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
+    from docking.platform.backends.wayland.previews import WaylandPreviewService
+    from docking.platform.backends.reduced.services import ReducedPreviewService
 
     config = MagicMock()
     launcher = MagicMock()
@@ -266,12 +268,14 @@ def test_backend_creation() -> bool:
     print(f"  Surface svc : {type(backend.surface).__name__}")
     print(f"  Visibility : {type(backend.visibility).__name__}")
     print(f"  Workspaces : {type(backend.workspaces).__name__ if backend.workspaces else 'None'}")
+    print(f"  Previews   : {type(backend.previews).__name__}")
 
     checks = [
         ("WindowService", isinstance(backend.windows, WaylandForeignToplevelWindowService)),
         ("LayerShell", isinstance(backend.surface, WaylandLayerShellSurfaceService)),
         ("OverlapVis", isinstance(backend.visibility, CosmicOverlapVisibilityService)),
         ("Workspaces", isinstance(backend.workspaces, WaylandWorkspaceService)),
+        ("Previews", isinstance(backend.previews, WaylandPreviewService)),
     ]
     all_ok = True
     for name, result in checks:

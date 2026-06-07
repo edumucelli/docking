@@ -323,7 +323,7 @@ Observed facts:
 | Drag and drop | not tested | |
 | Running-window tracking | works | `terminator.desktop` (Claude Code terminal) detected as running via COSMIC toplevel adapter. Running indicator dot visible in dock. |
 | Minimize / restore / focus cycling | partly works | Management capabilities received: `{close, activate, maximize, minimize, move_to_workspace}`. Actions available through protocol but not yet exercised in full UI flow. |
-| Window previews | fails | Preview capture not implemented. `ReducedPreviewService` is used. Future work: COSMIC image capture source protocols. |
+| Window previews | partly works | Standard Wayland image-copy capture protocols are wired in via `WaylandPreviewService` using `ext_foreign_toplevel_image_capture_source_manager_v1` + `ext_image_copy_capture_manager_v1`. Previews not yet exercised in full UI flow but backend infrastructure is in place. |
 | Applets (general) | works | Applets load and render correctly. |
 | Autohide | works | Auto hide behavior works. |
 | Pointer barriers | not tested | |
