@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""COSMIC session backend with native toplevel, workspace, and overlap support.
+"""COSMIC session backend with native toplevel, workspace, overlap, and preview.
 
 Backend selection
   |
@@ -21,10 +21,12 @@ Backend selection
                                          +-- WaylandForeignToplevelWindowService
                                          |     (via CosmicToplevelAdapter)
                                          +-- WaylandWorkspaceService
-                                         |     (via CosmicWorkspaceAdapter)
+                                         |     (via ext_workspace_manager_v1)
                                          +-- CosmicOverlapVisibilityService
                                          |     (native overlap-notify protocol)
-                                         +-- ReducedPreviewService
+                                         +-- WaylandPreviewService
+                                         |     (via ext_image_copy_capture +
+                                         |      ext_foreign_toplevel_image_capture_source)
 """
 
 from __future__ import annotations
@@ -54,6 +56,10 @@ from docking.platform.backends.reduced.services import (
 )
 from docking.platform.backends.wayland.portals import (
     load_portal_color_picker,
+)
+from docking.platform.backends.wayland.previews import (
+    WaylandPreviewHandleTracker,
+    WaylandPreviewService,
 )
 from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
@@ -171,6 +177,21 @@ class CosmicSessionBackend(SessionBackend):
         cosmic_overlap = (
             runtime.cosmic_overlap_protocol if runtime is not None else None
         )
+        preview_protocol = (
+            runtime.preview_protocol if runtime is not None else None
+        )
+        hyprland_preview_protocol = (
+            runtime.hyprland_preview_protocol if runtime is not None else None
+        )
+
+        # Preview handle tracker for window preview capture
+        preview_handles: WaylandPreviewHandleTracker | None = None
+        if preview_protocol is not None:
+            preview_handles = WaylandPreviewHandleTracker(
+                model=model,
+                launcher=launcher,
+                protocol=preview_protocol,
+            )
 
         # Window service backed by COSMIC toplevel adapter
         windows: WindowService
@@ -181,6 +202,9 @@ class CosmicSessionBackend(SessionBackend):
                 model=model,
                 launcher=launcher,
                 protocol=cosmic_toplevel,
+                preview_handles=preview_handles,
+                can_preview=preview_protocol is None
+                and hyprland_preview_protocol is not None,
             )
         else:
             # Fall back to generic foreign-toplevel if available
@@ -192,6 +216,7 @@ class CosmicSessionBackend(SessionBackend):
                     model=model,
                     launcher=launcher,
                     protocol=generic_toplevel,
+                    preview_handles=preview_handles,
                 )
             else:
                 from docking.platform.backends.reduced.services import (
@@ -239,9 +264,29 @@ class CosmicSessionBackend(SessionBackend):
             else None,
         )
 
+        # Preview service: use standard Wayland capture when available
+        previews: PreviewService
+        if preview_protocol is not None and preview_handles is not None:
+            previews = WaylandPreviewService(
+                protocol=preview_protocol,
+                handles=preview_handles,
+            )
+        elif hyprland_preview_protocol is not None and isinstance(
+            windows, WaylandForeignToplevelWindowService
+        ):
+            from docking.platform.backends.wayland.previews import (
+                HyprlandPreviewService,
+            )
+            previews = HyprlandPreviewService(
+                protocol=hyprland_preview_protocol,
+                windows=windows,
+            )
+        else:
+            previews = ReducedPreviewService()
+
         self._services = CosmicRuntimeServices(
             windows=windows,
-            previews=ReducedPreviewService(),
+            previews=previews,
             surface=surface,
             visibility=visibility,
             workspaces=workspaces,
