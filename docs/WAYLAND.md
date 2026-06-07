@@ -297,6 +297,41 @@ Observed facts:
 - Some failing runs suggested compositor trouble as well: the runtime snapshot
   recorded `xwayland=True` with `compositor_active=False`.
 
+#### Test: COSMIC native Wayland
+
+- Date: 2026-06-08
+- Distro: Ubuntu (COSMIC-based)
+- Desktop: COSMIC
+- Session type: Wayland
+- Compositor: cosmic-comp
+- Display variables: `XDG_SESSION_TYPE=wayland`, `WAYLAND_DISPLAY=wayland-1`, `XDG_CURRENT_DESKTOP=COSMIC`
+- Launch command: `DOCKING_BACKEND=cosmic DOCKING_LOG_LEVEL=DEBUG python3 run.py`
+- Result summary: Docking launches as a native Wayland COSMIC client using layer-shell
+  for surface placement, `ext_foreign_toplevel_list_v1` + `zcosmic_toplevel_info_v1`
+  for window tracking, `zcosmic_toplevel_manager_v1` for window actions (activate,
+  close, minimize), `ext_workspace_manager_v1` for workspace listing and switching,
+  and `zcosmic_overlap_notify_v1` for overlap-driven visibility.
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Launch/startup | works | Docking launches cleanly with the COSMIC backend auto-selected. Log confirms: `Selected session backend: cosmic`. |
+| Edge placement | works | Layer-shell positions the dock at the bottom edge. `dock position: monitor=0 geom=(1920,0 1920x1080)` |
+| Stays on top | works | Layer-shell TOP layer with exclusive zone keeps dock visible above other windows. |
+| Screen-edge reservation / struts | works | Layer-shell exclusive zone reserves edge space for the dock. |
+| Hover and click interaction | works | Basic interaction works in smoke testing. |
+| Menus | not tested | |
+| Drag and drop | not tested | |
+| Running-window tracking | works | `terminator.desktop` (Claude Code terminal) detected as running via COSMIC toplevel adapter. Running indicator dot visible in dock. |
+| Minimize / restore / focus cycling | partly works | Management capabilities received: `{close, activate, maximize, minimize, move_to_workspace}`. Actions available through protocol but not yet exercised in full UI flow. |
+| Window previews | fails | Preview capture not implemented. `ReducedPreviewService` is used. Future work: COSMIC image capture source protocols. |
+| Applets (general) | works | Applets load and render correctly. |
+| Autohide | works | Auto hide behavior works. |
+| Pointer barriers | not tested | |
+| Overlap-based hide modes | partly works | `zcosmic_overlap_notify_v1` protocol bound successfully. Overlap subscription requires a realized layer-shell surface (wired in surface service via `on_layer_surface_ready` callback). |
+| Multi-monitor behavior | not tested | |
+| Suspend / resume recovery | not tested | |
+| Notes / anomalies | partly works | `zcosmic_workspace_manager_v2` protocol is advertised but does not send workspace events with the vendored XML-based bindings; `ext_workspace_manager_v1` is used instead and works correctly (3 workspaces discovered). A single cffi `AttributeError: 'NoneType' object has no attribute 'registry'` is logged as "Exception ignored" on startup from deprecated protocol events; it does not affect runtime behavior. |
+
 #### Test: GNOME Shell bridge prototype
 
 - Date: 2026-06-06
