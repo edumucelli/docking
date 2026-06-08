@@ -1,11 +1,13 @@
 # Docking on Wayland
 
 This document captures the current understanding of what Wayland means for
-`docking`, why the existing codebase is fundamentally X11-centric, and what
-future work would be required to make the project available on Wayland in a
-serious way.
+`docking`, how the project moved its original X11-centric implementation behind
+backend services, and which Wayland paths are currently available or still
+compositor-dependent.
 
-It is intended as a baseline engineering document, not as a promise of support.
+It is intended as an engineering document for support boundaries, backend
+sequencing, and remaining gaps. The user-facing support summary lives in the
+README and website.
 
 ## Scope
 
@@ -13,14 +15,16 @@ This document focuses on:
 
 - the practical impact of GNOME and Ubuntu moving away from Xorg sessions
 - what still works for GTK applications on Wayland
-- which Docking features are blocked by X11-only assumptions today
+- which Docking features used to be blocked by X11-only assumptions and which
+  ones still require backend-specific services
 - the difference between:
   - features that work with ordinary GTK on Wayland
   - features that require compositor protocols
-  - features that likely require GNOME Shell integration
-- plausible migration strategies for future work
+  - features that use the GNOME Shell bridge
+  - features that deliberately fall back to reduced mode
+- migration strategies for remaining compositor-specific work
 
-This document does not define implementation details for a specific port yet.
+This document records both completed migration work and planned follow-up work.
 
 ## Date Context
 
@@ -38,36 +42,42 @@ GNOME/Ubuntu stack from `GNOME 49` / `Ubuntu 25.10` onward.
 
 ## Executive Summary
 
-There are three very different targets people may mean when they say "support
+There are several different targets people may mean when they say "support
 Wayland":
 
-1. Run the current X11 dock under `XWayland`
-2. Build a native Wayland dock on compositors that expose dock/taskbar
+1. Run the X11 backend under `XWayland`
+2. Run the GNOME Shell bridge backend on GNOME / Mutter
+3. Run the native layer-shell backend on compositors that expose dock/taskbar
    protocols
-3. Build a full GNOME dock on GNOME Wayland
+4. Run the reduced backend when compositor integration is unavailable
 
 These are not equivalent.
 
 Short version:
 
-- Running under `XWayland` may let Docking appear on screen, but it is not a
-  real Wayland port and does not solve the core desktop-integration problem
-- A native Wayland dock is plausible on compositor families that expose
-  layer-shell and foreign-toplevel protocols
-- A full dock on GNOME Wayland is a separate, harder problem because Mutter
-  intentionally does not expose the common protocols that third-party docks use
+- X11 remains the full-featured backend and also works as an XWayland
+  compatibility path where the desktop exposes enough X11 state
+- GNOME / Mutter support is handled through a companion GNOME Shell bridge
+  because Mutter does not expose the common third-party dock protocols
+- wlroots-style native Wayland support depends on layer-shell and related
+  compositor protocols
+- reduced mode keeps the dock visible on unsupported Wayland sessions while
+  intentionally disabling taskbar/window-management features
 
 ## How To Test Today
 
-The most practical test Docking can support today is not "native Wayland".
-It is:
+The most useful smoke tests now cover each backend boundary explicitly:
 
-- a real Wayland desktop session
-- with `XWayland` available
-- forcing Docking to run as an X11 client via `GDK_BACKEND=x11`
+- X11 full functionality on a normal X11 session
+- XWayland compatibility by forcing `GDK_BACKEND=x11` inside a real Wayland
+  session
+- GNOME / Mutter native support through the companion Shell bridge backend
+- wlroots-style native placement through the layer-shell backend where the
+  compositor advertises the needed protocols
+- reduced backend startup on unsupported native Wayland sessions
 
-That is the correct compatibility test for the current codebase because Docking
-still depends heavily on X11-only integration such as:
+The X11 and XWayland paths remain important because several full-featured dock
+capabilities are still implemented through X11-specific services:
 
 - `libwnck` window tracking
 - X11 window IDs and foreign-window capture
