@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration</title>
-  <meta name="description" content="Docking is an open source dock for Linux (X11) with 56 built-in applets, customizable themes, multi-monitor support, and full desktop integration. Written in Python with GTK and Cairo.">
+  <meta name="description" content="Docking is an open source dock for Linux with X11 and Wayland backends, 52 built-in applets, customizable themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/32x32/apps/org.docking.Docking.png">
   <link rel="canonical" href="https://docking.cc">
   <meta property="og:title" content="Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration">
-  <meta property="og:description" content="Fast, customizable dock for Linux (X11) with 56 built-in applets, themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
+  <meta property="og:description" content="Fast, customizable dock for Linux with X11 and Wayland backends, 52 built-in applets, themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://docking.cc">
   <meta property="og:image" content="https://raw.githubusercontent.com/edumucelli/docking/master/website/hero.png">
@@ -17,7 +17,7 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Docking",
-    "description": "Open source dock for Linux (X11) with 56 built-in applets, customizable themes, multi-monitor support, and full desktop integration.",
+    "description": "Open source dock for Linux with X11 and Wayland backends, 52 built-in applets, customizable themes, multi-monitor support, and desktop integration.",
     "applicationCategory": "DesktopEnhancement",
     "operatingSystem": "Linux",
     "url": "https://docking.cc",
@@ -47,7 +47,7 @@
         "name": "What Linux desktop environments does Docking support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Docking runs on any Linux desktop environment using X11, including GNOME, KDE Plasma, XFCE, MATE, Cinnamon, and others. It uses GTK 3 and Cairo for rendering, with Wnck for window tracking."
+          "text": "Docking supports full functionality on X11 desktops and Wayland support through backend-specific integrations: GNOME / Mutter via the companion Shell bridge, wlroots compositors via layer-shell where available, and reduced mode on other Wayland compositors."
         }
       },
       {
@@ -63,7 +63,7 @@
         "name": "Does Docking support Wayland?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Docking currently targets X11. Wayland support is not available yet due to fundamental differences in how Wayland handles window positioning, struts, and input grabbing."
+          "text": "Yes. Docking supports X11 for full dock functionality and has native Wayland paths for GNOME / Mutter through the companion Shell bridge, wlroots layer-shell compositors where the required protocols are available, and reduced mode when compositor integration is unavailable."
         }
       },
       {
@@ -366,11 +366,11 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">56 built-in applets: useful widgets, already in the dock</h2>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">52 built-in applets: useful widgets, already in the dock</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Small tools with real utility: glanceable information, richer controls, and compact workflow helpers. Browse the full applet catalog without leaving the page.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">56 built-in applets, with more room to explore</div>
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">52 built-in applets, with more room to explore</div>
             <div class="hidden items-center gap-2 sm:flex">
               <button type="button" data-carousel-target="applets-carousel" data-carousel-direction="prev" class="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:border-white/30 hover:bg-white/14" aria-label="Previous applets">
                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"></path></svg>
@@ -1075,7 +1075,7 @@ pip install -e ".[dev]"</code></pre>
           <div class="mt-10 space-y-6">
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-skyline/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What Linux desktop environments does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Docking runs on any Linux desktop environment using X11, including GNOME, KDE Plasma, XFCE, MATE, Cinnamon, and others. It uses GTK 3 and Cairo for rendering, with Wnck for window tracking.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports full functionality on X11 desktops and Wayland support through backend-specific integrations: GNOME / Mutter via the companion Shell bridge, wlroots compositors via layer-shell where available, and reduced mode on other Wayland compositors.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-accent/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Can I create my own applets?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -1083,7 +1083,7 @@ pip install -e ".[dev]"</code></pre>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Does Docking support Wayland?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Docking currently targets X11. Wayland support is not available yet due to fundamental differences in how Wayland handles window positioning, struts, and input grabbing.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking supports X11 for full dock functionality and has native Wayland paths for GNOME / Mutter through the companion Shell bridge, wlroots layer-shell compositors where the required protocols are available, and reduced mode when compositor integration is unavailable.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-ember/8 to-skyline/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Is Docking free and open source?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -1114,7 +1114,7 @@ pip install -e ".[dev]"</code></pre>
 
     <footer class="border-t border-white/10">
       <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-slate-300 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div>Docking is an open source dock for Linux (X11), written in Python with GTK and Cairo.</div>
+        <div>Docking is an open source dock for Linux with X11 and Wayland backends, written in Python with GTK and Cairo.</div>
         <div class="flex items-center gap-6">
           <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">GitHub</a>
           <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">Releases</a>

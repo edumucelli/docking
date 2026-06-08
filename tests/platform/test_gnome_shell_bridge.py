@@ -183,6 +183,25 @@ def test_gnome_shell_bridge_workspace_service_lists_and_activates_workspaces():
     bridge.activate_workspace.assert_called_once_with("1")
 
 
+def test_gnome_shell_bridge_workspace_service_refreshes_empty_cache_on_list():
+    bridge = _bridge()
+    bridge.list_workspaces.side_effect = [
+        [],
+        [
+            {"id": 0, "index": 0, "name": "1", "active": True},
+            {"id": 1, "index": 1, "name": "2", "active": False},
+        ],
+    ]
+    service = GnomeShellBridgeWorkspaceService(bridge=bridge)
+
+    service.refresh()
+    workspaces = service.list_workspaces()
+
+    assert len(workspaces) == 2
+    assert workspaces[0].active is True
+    assert bridge.list_workspaces.call_count == 2
+
+
 def test_gnome_shell_bridge_workspace_watchers_are_called_on_refresh():
     bridge = _bridge()
     service = GnomeShellBridgeWorkspaceService(bridge=bridge)
@@ -202,6 +221,36 @@ def test_gnome_shell_bridge_workspace_watchers_are_called_on_refresh():
     service.refresh()
 
     assert callback.call_count == 2
+
+
+def test_gnome_shell_bridge_workspace_service_retries_initial_active_workspace(
+    monkeypatch,
+):
+    scheduled: list[object] = []
+    monkeypatch.setattr(
+        bridge_mod.GLib,
+        "timeout_add",
+        lambda _interval, callback: scheduled.append(callback) or 55,
+    )
+    monkeypatch.setattr(bridge_mod.GLib, "timeout_add_seconds", lambda *_args: 66)
+    bridge = _bridge()
+    bridge.list_workspaces.side_effect = [
+        [],
+        [
+            {"id": 0, "index": 0, "name": "1", "active": True},
+            {"id": 1, "index": 1, "name": "2", "active": False},
+        ],
+    ]
+    service = GnomeShellBridgeWorkspaceService(bridge=bridge)
+    callback = MagicMock()
+
+    service.start()
+    service.watch_active_workspace(callback)
+
+    assert len(scheduled) == 1
+    assert scheduled[0]() is bridge_mod.GLib.SOURCE_REMOVE
+    assert service.active_workspace().id == "0"
+    callback.assert_called_once_with()
 
 
 def test_gnome_shell_bridge_surface_retries_latest_position_request(monkeypatch):
