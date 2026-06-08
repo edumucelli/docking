@@ -13,6 +13,7 @@
 
 """Native Wayland backend package."""
 
+from docking.platform.backends.wayland.cosmic_session import CosmicSessionBackend
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     XdgDesktopPortalColorPicker,
@@ -42,6 +43,7 @@ from docking.platform.backends.wayland.workspaces import (
 )
 
 __all__ = [
+    "CosmicSessionBackend",
     "ForeignToplevelProtocolAdapter",
     "WaylandAppIdMatcher",
     "WaylandForeignToplevelWindowService",

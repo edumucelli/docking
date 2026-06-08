@@ -24,7 +24,9 @@ from typing import TYPE_CHECKING
 
 from docking.log import get_logger
 from docking.platform.environment import (
+    Desktop,
     backend_name,
+    detect_desktop,
     is_wayland_session,
     is_x11_backend,
 )
@@ -78,8 +80,28 @@ def create_session_backend(
         return _create_reduced_backend(
             reason=f"layer-shell unavailable after DOCKING_BACKEND={requested}"
         )
+    if requested in {"cosmic", "cosmic-session"}:
+        backend = _create_cosmic_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=f"COSMIC backend unavailable after DOCKING_BACKEND={requested}"
+        )
 
     if not is_x11_backend():
+        # COSMIC takes priority on its native desktop
+        if detect_desktop() is Desktop.COSMIC:
+            backend = _create_cosmic_backend(
+                launcher=launcher,
+                model=model,
+                reason=_non_x11_reason(),
+            )
+            if backend is not None:
+                return backend
         backend = _create_wayland_layer_shell_backend(
             launcher=launcher,
             model=model,
@@ -169,6 +191,31 @@ def _create_x11_backend(
         model=model,
         launcher=launcher,
         config=config,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_cosmic_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.wayland.cosmic_session import CosmicSessionBackend
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+
+    layer_shell = load_gtk_layer_shell()
+    if layer_shell is None:
+        log.info("COSMIC backend unavailable: GtkLayerShell not installed")
+        return None
+    if not layer_shell_is_supported(layer_shell):
+        log.info("COSMIC backend unavailable: compositor does not support layer-shell")
+        return None
+    backend = CosmicSessionBackend(
+        layer_shell=layer_shell,
+        launcher=launcher,
+        model=model,
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
