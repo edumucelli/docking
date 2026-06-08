@@ -56,9 +56,11 @@ Highlights:
 - Linux with X11 for full dock functionality
 - Wayland: full support on GNOME / Mutter 45+ via the companion
   `docking-bridge@docking.org` GNOME Shell extension; layer-shell support
-  on wlroots-based compositors (Hyprland, Sway); reduced mode on other
-  Wayland compositors. Recent GNOME / Mutter 45+ examples include Ubuntu
-  26.04 LTS and Fedora Workstation 40+.
+  on wlroots-based compositors (Hyprland, Sway); KDE Plasma 6 KWin
+  support; reduced
+  mode on other Wayland compositors. Example environments include GNOME /
+  Mutter 45+ (Ubuntu 26.04 LTS, Fedora Workstation 40+) and KDE Plasma 6
+  (Kubuntu 26.04 LTS).
 - Python 3.10+
 - System packages (Ubuntu/Debian):
 
@@ -174,12 +176,13 @@ DOCKING_LOG_LEVEL=DEBUG python run.py
 
 ### Wayland Support
 
-X11 remains the primary backend. Native Wayland is supported through two
+X11 remains the primary backend. Native Wayland is supported through several
 backends, selected automatically or via `DOCKING_BACKEND`:
 
 | Backend | Compositor | Coverage |
 |---|---|---|
 | **GNOME Shell bridge** | GNOME / Mutter 45+ | Full: dock placement, window tracking, window actions (activate / minimize / close), window previews, workspace switching, Show Desktop, Alt+Tab hiding |
+| **KWin** | KDE Plasma 6 Wayland | Dock placement (layer-shell), window tracking with titles via AT-SPI accessibility bus, workspace switching via KWin D-Bus. No window actions (KWin 6 does not expose a public activate/close/minimize protocol) |
 | **Native layer-shell** | wlroots-based (Hyprland, Sway) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
 | **Reduced** | Any Wayland | Dock visible but no window management (no running indicators, no previews, no workspace switching) |
 
@@ -205,6 +208,28 @@ auto-enabled on install when a D-Bus session is available. AppImage and
 Nix users should run `tools/gnome_bridge.sh install` once, or copy
 `docking/platform/backends/gnome/extension/` to
 `~/.local/share/gnome-shell/extensions/docking-bridge@docking.org/`.
+
+#### KWin / KDE Plasma 6
+
+On KDE Plasma 6 Wayland, Docking uses a native KWin backend with Wayland
+layer-shell dock placement, running-window indicators, and workspace
+switching.
+
+**What works:**
+- Proper layer-shell anchored dock positioning
+- Running window indicators with titles
+- Workspace list and switching
+- Workspace-aware filtering
+
+**What is not yet available on KWin 6:**
+- Window actions (activate, minimize, close) — KWin 6 has no public
+  protocol for third-party window management
+- Window previews — no capture protocol available
+- Active-window highlighting — KWin does not expose the focused window
+  through a public API
+
+No extra configuration is needed. The backend auto-detects a KDE Plasma
+session and is also selectable with `DOCKING_BACKEND=kwin`.
 
 #### Native layer-shell
 
@@ -235,10 +260,11 @@ wayland-info | grep -E 'zwlr_layer_shell_v1|zwlr_foreign_toplevel_manager_v1|ext
 
 To force a specific backend for testing:
 ```bash
-DOCKING_BACKEND=gnome-shell docking       # GNOME / Mutter 45+
-DOCKING_BACKEND=wayland-layer-shell docking  # wlroots compositors
-DOCKING_BACKEND=reduced docking           # any Wayland (no WM integration)
-DOCKING_BACKEND=x11 docking               # X11 (full support)
+DOCKING_BACKEND=gnome-shell docking          # GNOME / Mutter 45+
+DOCKING_BACKEND=kwin docking                  # KDE Plasma 6 Wayland
+DOCKING_BACKEND=wayland-layer-shell docking   # wlroots compositors
+DOCKING_BACKEND=reduced docking               # any Wayland (no WM integration)
+DOCKING_BACKEND=x11 docking                   # X11 (full support)
 ```
 
 ## Configuration
