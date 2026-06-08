@@ -117,7 +117,23 @@ def wrap_popup(content: Gtk.Widget) -> Gtk.Frame:
     return frame
 
 
-def create_popup_window() -> Gtk.Window:
+def _find_parent_window() -> Gtk.Window | None:
+    """Return the dock toplevel when it exists, for parenting popups.
+
+    On Wayland every popup needs a parent surface to create an xdg_popup.
+    We locate the dock window by walking the toplevel list and picking the
+    first non-popup window — the dock is the only *real* toplevel; everything
+    else is a transient popup/dialog/overlay child.
+
+    On X11 the return value is harmless: set_transient_for is advisory there.
+    """
+    for window in Gtk.Window.list_toplevels():
+        if window.get_window_type() is Gtk.WindowType.TOPLEVEL:
+            return window
+    return None
+
+
+def create_popup_window(*, parent: Gtk.Window | None = None) -> Gtk.Window:
     """Create a transient, undecorated applet popup window."""
     window = Gtk.Window(type=Gtk.WindowType.POPUP)
     window.set_decorated(False)
@@ -126,6 +142,9 @@ def create_popup_window() -> Gtk.Window:
     window.set_accept_focus(True)
     window.set_focus_on_map(True)
     window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
+    parent = parent or _find_parent_window()
+    if parent is not None:
+        window.set_transient_for(parent)
     return window
 
 
@@ -185,6 +204,13 @@ def prepare_dialog_content(
     resizable: bool | None = None,
 ) -> Gtk.Box:
     """Apply standard applet dialog sizing, placement, and content spacing."""
+    # On Wayland every secondary window needs a parent xdg_surface for
+    # the compositor to create an xdg_popup. Walk the toplevel list for
+    # the dock window and use it as the transient parent when found.
+    parent = _find_parent_window()
+    if parent is not None:
+        dialog.set_transient_for(parent)
+
     # Window-manager hints: applet-owned dialogs are secondary UI, so they
     # should not become separate dock/task-list/pager entries on X11.
     dialog.set_skip_taskbar_hint(True)
