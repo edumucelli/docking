@@ -594,7 +594,16 @@ class WaylandProtocolRuntime:
         workspace_adapter: WorkspaceProtocolAdapter | None = None,
         preview_adapter: PreviewProtocolAdapter | None = None,
         hyprland_preview_adapter: HyprlandPreviewProtocolAdapter | None = None,
+        cosmic_toplevel_adapter: object | None = None,
+        cosmic_workspace_adapter: object | None = None,
+        cosmic_overlap_adapter: object | None = None,
     ) -> None:
+        from docking.platform.backends.wayland.cosmic import (
+            CosmicOverlapAdapter,
+            CosmicToplevelAdapter,
+            CosmicWorkspaceAdapter,
+        )
+
         self._factories = factories
         self.foreign_toplevel = foreign_adapter or ForeignToplevelProtocolAdapter()
         self.workspaces = workspace_adapter or WorkspaceProtocolAdapter()
@@ -602,6 +611,9 @@ class WaylandProtocolRuntime:
         self.hyprland_previews = (
             hyprland_preview_adapter or HyprlandPreviewProtocolAdapter()
         )
+        self.cosmic_toplevel = cosmic_toplevel_adapter or CosmicToplevelAdapter()
+        self.cosmic_workspace = cosmic_workspace_adapter or CosmicWorkspaceAdapter()
+        self.cosmic_overlap = cosmic_overlap_adapter or CosmicOverlapAdapter()
         self._display = None
         self._registry = None
         self._glib_source_id = 0
@@ -625,6 +637,18 @@ class WaylandProtocolRuntime:
             self.hyprland_previews if self.hyprland_previews.capture_available else None
         )
 
+    @property
+    def cosmic_toplevel_protocol(self) -> object | None:
+        return self.cosmic_toplevel if self.cosmic_toplevel.available else None
+
+    @property
+    def cosmic_workspace_protocol(self) -> object | None:
+        return self.cosmic_workspace if self.cosmic_workspace.available else None
+
+    @property
+    def cosmic_overlap_protocol(self) -> object | None:
+        return self.cosmic_overlap if self.cosmic_overlap.available else None
+
     def start(self) -> bool:
         factories = self._factories or load_protocol_factories()
         if factories is None:
@@ -641,6 +665,9 @@ class WaylandProtocolRuntime:
             self.workspaces.set_flush_callback(display.flush)
             self.previews.set_flush_callback(display.flush)
             self.hyprland_previews.set_flush_callback(display.flush)
+            self.cosmic_toplevel.set_flush_callback(display.flush)
+            self.cosmic_workspace.set_flush_callback(display.flush)
+            self.cosmic_overlap.set_flush_callback(display.flush)
             display.dispatch(block=False)
             display.roundtrip()
             # The roundtrip discovers globals and binds protocol managers. Flush
@@ -650,9 +677,13 @@ class WaylandProtocolRuntime:
             self._install_glib_watch(factories=factories, display=display)
             self._running = True
             log.info(
-                "Wayland protocol runtime started: foreign_toplevel=%s workspaces=%s",
+                "Wayland protocol runtime started: foreign_toplevel=%s workspaces=%s "
+                "cosmic_toplevel=%s cosmic_workspaces=%s cosmic_overlap=%s",
                 self.foreign_toplevel.available,
                 self.workspaces.available,
+                self.cosmic_toplevel.available,
+                self.cosmic_workspace.available,
+                self.cosmic_overlap.available,
             )
             return True
         except Exception as exc:
@@ -665,6 +696,9 @@ class WaylandProtocolRuntime:
         self.workspaces.stop()
         self.previews.stop()
         self.hyprland_previews.stop()
+        self.cosmic_toplevel.stop()
+        self.cosmic_workspace.stop()
+        self.cosmic_overlap.stop()
         source_id = self._glib_source_id
         factories = self._factories or load_protocol_factories()
         if source_id and factories is not None:
@@ -688,10 +722,44 @@ class WaylandProtocolRuntime:
                 name=name,
                 version=version,
             )
+            self.cosmic_toplevel.bind_seat(
+                registry=registry,
+                name=name,
+                version=version,
+            )
         elif interface == "ext_workspace_manager_v1":
             self.workspaces.bind(registry=registry, name=name, version=version)
         elif interface == "ext_foreign_toplevel_list_v1":
             self.previews.bind_toplevel_list(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+            self.cosmic_toplevel.bind_toplevel_list(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "zcosmic_toplevel_info_v1":
+            self.cosmic_toplevel.bind_toplevel_info(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "zcosmic_toplevel_manager_v1":
+            self.cosmic_toplevel.bind_toplevel_manager(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "zcosmic_workspace_manager_v2":
+            self.cosmic_workspace.bind(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "zcosmic_overlap_notify_v1":
+            self.cosmic_overlap.bind(
                 registry=registry,
                 name=name,
                 version=version,

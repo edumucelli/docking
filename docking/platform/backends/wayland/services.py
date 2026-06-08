@@ -74,10 +74,16 @@ def layer_shell_is_supported(layer_shell: object) -> bool:
 class WaylandLayerShellSurfaceService(SurfaceService):
     """Layer-shell implementation for the main dock surface."""
 
-    def __init__(self, *, layer_shell: object) -> None:
+    def __init__(
+        self,
+        *,
+        layer_shell: object,
+        on_layer_surface_ready: Callable[[object], None] | None = None,
+    ) -> None:
         self._layer_shell = layer_shell
         self._window: object | None = None
         self._exclusive_zone: int = 0
+        self._on_layer_surface_ready = on_layer_surface_ready
 
     def start(self) -> None:
         """No service-level runtime loop is needed."""
@@ -111,8 +117,12 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._set_anchors(Position.BOTTOM)
 
     def on_realize(self, window: object) -> None:
-        """Remember the realized GTK window."""
+        """Remember the realized GTK window and signal layer-surface readiness."""
         self._window = window
+        if self._on_layer_surface_ready is not None:
+            layer_surface = get_layer_surface(self._layer_shell, window)
+            if layer_surface is not None:
+                self._on_layer_surface_ready(layer_surface)
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         """Layer-shell surfaces are compositor-managed shell components."""
@@ -273,3 +283,18 @@ def _call_if_available(
     if callable(method):
         return method(*args)
     return None
+
+
+def get_layer_surface(layer_shell: object, window: object) -> object | None:
+    """Return the zwlr_layer_surface_v1 for a layer-shell GTK window.
+
+    Returns None before layer-shell initialization or when the compositor
+    does not support the protocol.
+    """
+    getter = getattr(layer_shell, "get_zwlr_layer_surface_v1", None)
+    if not callable(getter):
+        return None
+    try:
+        return getter(window)
+    except Exception:
+        return None
