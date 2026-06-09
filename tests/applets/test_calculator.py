@@ -255,8 +255,9 @@ class TestAppletPopup:
             applet._entry.connect("activate", lambda _entry: applet._do_evaluate())
             return {"expr": applet._last_expr}
 
-        def show_wrapped_popup(*, window, content, gap_px):
+        def show_wrapped_popup(*, window, content, gap_px, anchor=None):
             _ = gap_px
+            assert anchor is applet.popup_anchor
             window.add(content)
             window.show_all()
             window.move(80, 80)
@@ -338,6 +339,7 @@ class TestAppletPopup:
             window=fake_popup,
             content="content",
             gap_px=calculator_applet_mod.POPUP_CURSOR_GAP_PX,
+            anchor=None,
         )
         applet.stop()
 

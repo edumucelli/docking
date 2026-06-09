@@ -73,6 +73,9 @@ def _bind_geometry_signature(stub):
     stub._show_folder_stack_for_item = MethodType(
         dock_window_mod.DockWindow._show_folder_stack_for_item, stub
     )
+    stub._popup_anchor_for_item = MethodType(
+        dock_window_mod.DockWindow._popup_anchor_for_item, stub
+    )
     return stub
 
 
@@ -155,6 +158,10 @@ class TestButtonReleaseFlow:
         # Given
         item = DockItem(desktop_id="applet://quote")
         stub, _ = _make_stub(item=item)
+        stub._test_geometry_frame.geometry_for_item.return_value = SimpleNamespace(
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48),
+            anchor_point=lambda *, win_x, win_y, position: (win_x + 4, win_y + 5),
+        )
         applet = MagicMock()
         stub.model.get_applet.return_value = applet
         event = SimpleNamespace(
@@ -173,6 +180,11 @@ class TestButtonReleaseFlow:
         )
         # Then
         assert handled is True
+        anchor = applet.set_popup_anchor.call_args.args[0]
+        assert anchor.x == 104
+        assert anchor.y == 205
+        assert anchor.position == Position.BOTTOM
+        assert anchor.parent is stub
         applet.on_clicked.assert_called_once()
         stub.tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
         stub.hover.start_anim_pump.assert_called_once_with(350)

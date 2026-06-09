@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import gi
 
@@ -23,7 +24,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
-from docking.ui.display import clamp_to_screen, get_pointer_position
+from docking.core.position import Position
+from docking.ui.display import clamp_popup, clamp_to_screen, get_pointer_position
 
 _POPUP_CLASS = "applet-popup-surface"
 _POPUP_CSS = f"""
@@ -40,6 +42,16 @@ _popup_css_provider: Gtk.CssProvider | None = None
 DEFAULT_POPUP_CURSOR_GAP_PX = 20
 DEFAULT_DIALOG_CONTENT_SPACING_PX = 8
 DEFAULT_DIALOG_MARGIN_PX = 12
+
+
+@dataclass(frozen=True, slots=True)
+class PopupAnchor:
+    """Screen-space applet popup anchor."""
+
+    x: int
+    y: int
+    position: Position
+    parent: Gtk.Window | None = None
 
 
 def entry_completion_combo(
@@ -134,15 +146,50 @@ def show_wrapped_popup(
     window: Gtk.Window,
     content: Gtk.Widget,
     gap_px: int = DEFAULT_POPUP_CURSOR_GAP_PX,
+    anchor: PopupAnchor | None = None,
 ) -> None:
-    """Replace popup content, show it, and place it near the pointer."""
+    """Replace popup content, show it, and place it near the applet anchor."""
     child = window.get_child()
     if child:
         window.remove(child)
 
+    if anchor is not None and anchor.parent is not None:
+        window.set_transient_for(anchor.parent)
+        window.set_attached_to(anchor.parent)
     window.add(wrap_popup(content))
     window.show_all()
-    position_popup_near_pointer(window=window, gap_px=gap_px)
+    if anchor is not None:
+        position_popup_near_anchor(window=window, anchor=anchor, gap_px=gap_px)
+    else:
+        position_popup_near_pointer(window=window, gap_px=gap_px)
+
+
+def position_popup_near_anchor(
+    *,
+    window: Gtk.Window,
+    anchor: PopupAnchor,
+    gap_px: int = DEFAULT_POPUP_CURSOR_GAP_PX,
+) -> None:
+    """Position a popup near an icon anchor, clamped to the current screen."""
+    pref = window.get_preferred_size()[1]
+    popup_w = max(pref.width, 1)
+    popup_h = max(pref.height, 1)
+
+    if anchor.position == Position.BOTTOM:
+        popup_x = int(anchor.x - popup_w / 2)
+        popup_y = int(anchor.y - popup_h - gap_px)
+    elif anchor.position == Position.TOP:
+        popup_x = int(anchor.x - popup_w / 2)
+        popup_y = int(anchor.y + gap_px)
+    elif anchor.position == Position.LEFT:
+        popup_x = int(anchor.x + gap_px)
+        popup_y = int(anchor.y - popup_h / 2)
+    else:
+        popup_x = int(anchor.x - popup_w - gap_px)
+        popup_y = int(anchor.y - popup_h / 2)
+
+    popup_pos = clamp_popup(window, popup_x, popup_y, popup_w, popup_h)
+    window.move(popup_pos.x, popup_pos.y)
 
 
 def position_popup_near_pointer(
