@@ -27,6 +27,7 @@ from docking.platform.environment import (
     Desktop,
     backend_name,
     detect_desktop,
+    is_kde_session,
     is_wayland_session,
     is_x11_backend,
 )
@@ -91,11 +92,31 @@ def create_session_backend(
         return _create_reduced_backend(
             reason=f"COSMIC backend unavailable after DOCKING_BACKEND={requested}"
         )
+    if requested in {"kwin", "kde", "plasma", "kwin-script"}:
+        backend = _create_kwin_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=f"KWin backend unavailable after DOCKING_BACKEND={requested}"
+        )
 
     if not is_x11_backend():
         # COSMIC takes priority on its native desktop
         if detect_desktop() is Desktop.COSMIC:
             backend = _create_cosmic_backend(
+                launcher=launcher,
+                model=model,
+                reason=_non_x11_reason(),
+            )
+            if backend is not None:
+                return backend
+        # KWin / KDE Plasma native backend
+        if is_kde_session():
+            backend = _create_kwin_backend(
                 launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
@@ -213,6 +234,39 @@ def _create_cosmic_backend(
         log.info("COSMIC backend unavailable: compositor does not support layer-shell")
         return None
     backend = CosmicSessionBackend(
+        layer_shell=layer_shell,
+        launcher=launcher,
+        model=model,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_kwin_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.kwin.session import KWinSessionBackend
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+
+    layer_shell = load_gtk_layer_shell()
+    if layer_shell is None:
+        log.info("KWin backend unavailable: GtkLayerShell not installed")
+        return None
+    if not layer_shell_is_supported(layer_shell) and not is_wayland_session():
+        # layer_shell_is_supported uses the current GDK backend, which
+        # returns False when GDK defaults to X11 even though the Wayland
+        # compositor supports layer-shell.  On a KDE Wayland session we
+        # know KWin supports layer-shell, so only reject on non-Wayland.
+        log.info(
+            "KWin backend unavailable: compositor does not "
+            "support layer-shell (try GDK_BACKEND=wayland)"
+        )
+        return None
+
+    backend = KWinSessionBackend(
         layer_shell=layer_shell,
         launcher=launcher,
         model=model,
