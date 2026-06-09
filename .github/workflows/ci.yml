@@ -84,6 +84,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install i18n tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext
+
       - name: Cache pip downloads
         uses: actions/cache@v4
         with:
@@ -91,14 +96,6 @@ jobs:
           key: ${{ runner.os }}-quality-pip-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-quality-pip-
-
-      - name: Install i18n tooling (gettext 0.23.2)
-        run: |
-          curl -sSfL -o /tmp/gettext-base.deb \
-            http://archive.ubuntu.com/ubuntu/pool/main/g/gettext/gettext-base_0.23.2-1_amd64.deb
-          curl -sSfL -o /tmp/gettext.deb \
-            http://archive.ubuntu.com/ubuntu/pool/main/g/gettext/gettext_0.23.2-1_amd64.deb
-          sudo dpkg -i /tmp/gettext-base.deb /tmp/gettext.deb
 
       - name: Install project
         run: |
