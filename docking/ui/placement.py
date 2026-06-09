@@ -246,7 +246,7 @@ class DockPlacementController:
                 height=geom.height,
             )
             if idx == primary_idx:
-                label += f" ({_('Primary')})"
+                label += " (" + _("Primary") + ")"
             choices.append((label, idx))
         return choices
 
