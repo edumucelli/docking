@@ -31,6 +31,7 @@ import contextlib
 import os
 from collections.abc import Sequence
 from threading import Lock, Thread
+from typing import TYPE_CHECKING
 
 from gi.repository import Gio, GLib
 
@@ -45,6 +46,9 @@ from docking.platform.backends.base import (
 )
 from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
+
+if TYPE_CHECKING:
+    from docking.platform.launcher import Launcher
 
 log = get_logger(name="atspi_window")
 
@@ -131,7 +135,10 @@ class AtspiWindowService(WindowService):
     """
 
     def __init__(
-        self, *, launcher: object | None = None, model: object | None = None
+        self,
+        *,
+        launcher: Launcher | None = None,
+        model: object | None = None,
     ) -> None:
         self._connection: Gio.DBusConnection | None = None
         self._windows: dict[str, _AtspiWindow] = {}
@@ -371,7 +378,8 @@ class AtspiWindowService(WindowService):
         """Walk the accessible tree of *service* and collect windows."""
         root = "/org/a11y/atspi/accessible/root"
 
-        app_name = self._get_prop(conn, service, root, "Name") or service
+        raw_name = self._get_prop(conn, service, root, "Name")
+        app_name: str = str(raw_name) if raw_name else service
 
         # Get children of the application root
         try:
@@ -467,8 +475,8 @@ class AtspiWindowService(WindowService):
         w = _AtspiWindow(internal_id)
 
         # Window title
-        name = self._get_prop(conn, service, path, "Name")
-        w.title = name or ""
+        raw_name = self._get_prop(conn, service, path, "Name")
+        w.title = str(raw_name) if raw_name else ""
 
         # App identification
         w.app_name = app_name
@@ -482,12 +490,12 @@ class AtspiWindowService(WindowService):
         # Attributes may carry PID, WM_CLASS, etc.
         attrs = self._get_prop(conn, service, path, "GetAttributes")
         if isinstance(attrs, dict):
-            pid_str = attrs.get("process-id", "")
+            pid_str: object = attrs.get("process-id", "")
             if pid_str:
                 with contextlib.suppress(ValueError, TypeError):
-                    w.pid = int(pid_str)
+                    w.pid = int(str(pid_str))
             # Use toolkit name as additional app_id disambiguation
-            toolkit = attrs.get("toolkit", "")
+            toolkit: object = attrs.get("toolkit", "")
             if toolkit and w.app_id:
                 w.app_id = f"{w.app_id}.{toolkit}"
 
