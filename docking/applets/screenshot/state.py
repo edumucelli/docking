@@ -51,6 +51,12 @@ _PORTAL_METHOD = f"{_PORTAL_INTERFACE}.Screenshot"
 
 
 _TOOLS: tuple[Tool, ...] = (
+    Tool(
+        command="cosmic-screenshot",
+        full=["--interactive=false"],
+        window=["--interactive=true"],
+        region=["--interactive=true"],
+    ),
     Tool(command="mate-screenshot", full=[], window=["-w"], region=["-a"]),
     Tool(command="gnome-screenshot", full=[], window=["-w"], region=["-a"]),
     Tool(command="xfce4-screenshooter", full=["-f"], window=["-w"], region=["-r"]),
@@ -176,14 +182,21 @@ def _portal_args(*, mode: Mode) -> list[str]:
 
 def _launch(*, cmd: list[str], delay_seconds: int) -> None:
     """Launch *cmd* immediately or after a simple in-process delay."""
+    kwargs: dict = {"start_new_session": True}
+    # Suppress stdout/stderr for portal calls — the D-Bus request handle
+    # emitted to stdout is noise to the user and the portal completes
+    # asynchronously.
+    if cmd[0] == "gdbus":
+        kwargs["stdout"] = subprocess.DEVNULL
+        kwargs["stderr"] = subprocess.DEVNULL
     if delay_seconds <= 0:
-        subprocess.Popen(cmd, start_new_session=True)
+        subprocess.Popen(cmd, **kwargs)
         return
     timer = threading.Timer(
         delay_seconds,
         subprocess.Popen,
         args=(cmd,),
-        kwargs={"start_new_session": True},
+        kwargs=kwargs,
     )
     timer.daemon = True
     timer.start()

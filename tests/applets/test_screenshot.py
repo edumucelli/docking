@@ -23,6 +23,7 @@ class TestTool:
     def test_tools_order(self):
         commands = [t.command for t in _TOOLS]
         assert commands == [
+            "cosmic-screenshot",
             "mate-screenshot",
             "gnome-screenshot",
             "xfce4-screenshooter",
@@ -50,7 +51,7 @@ class TestDetectTool:
             patch.object(screenshot_state, "_portal_available", return_value=False),
             patch(
                 "docking.applets.screenshot.state.shutil.which",
-                side_effect=[None, "/usr/bin/gnome-screenshot"],
+                side_effect=[None, None, "/usr/bin/gnome-screenshot"],
             ),
         ):
             result = _detect_tool()
@@ -92,8 +93,14 @@ class TestDetectTool:
         ):
             result = _detect_tool()
 
-        assert result == Tool("mate-screenshot", [], ["-w"], ["-a"], "flatpak-host")
-        available.assert_called_once_with("mate-screenshot")
+        assert result == Tool(
+            "cosmic-screenshot",
+            ["--interactive=false"],
+            ["--interactive=true"],
+            ["--interactive=true"],
+            "flatpak-host",
+        )
+        available.assert_called_once_with("cosmic-screenshot")
 
 
 class TestPortal:
@@ -300,7 +307,7 @@ class TestRun:
         monkeypatch.setattr(
             screenshot_state.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+            lambda cmd, **_: launched.append(list(cmd)),
         )
 
         cmd = _run(tool=screenshot_state._PORTAL_TOOL, mode="window")
