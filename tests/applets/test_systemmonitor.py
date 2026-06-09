@@ -5,8 +5,15 @@ import subprocess
 import pytest
 
 import docking.applets.systemmonitor.applet as systemmonitor_mod
+import docking.applets.systemmonitor.gpu as gpu_mod
 import docking.applets.systemmonitor.temperature as temperature_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
+from docking.applets.systemmonitor.gpu import (
+    GpuReader,
+    GpuStats,
+    gpu_summary,
+    parse_nvidia_smi_output,
+)
 from docking.applets.systemmonitor.state import (
     CpuSample,
     SystemMonitorPrefs,
@@ -374,6 +381,18 @@ class TestTooltipText:
         assert "/: 45%" in text
         assert "/home: 72%" in text
 
+    def test_with_gpu(self):
+        gpu = GpuStats(
+            name="GeForce 840M",
+            utilization=0.42,
+            memory_used_mib=256,
+            memory_total_mib=2048,
+        )
+        text = tooltip_text(cpu=0.1, mem=0.5, gpu=gpu)
+
+        assert "GPU: 42%" in text
+        assert "Mem: 256/2048 MiB" in text
+
     def test_with_temperature_and_disks(self):
         disks = [("/", 0.8)]
         text = tooltip_text(cpu=0.1, mem=0.5, temperature_c=55.0, disks=disks)
@@ -399,6 +418,82 @@ class TestSystemMonitorPrefs:
             show_disk=False,
             temperature_unit=TemperatureUnit.FAHRENHEIT,
         ) == {"show_disk": False, "temperature_unit": "fahrenheit"}
+
+
+class TestGpuReader:
+    def test_parse_nvidia_smi_output(self):
+        stats = parse_nvidia_smi_output("GeForce 840M, 37, 212, 2048\n")
+
+        assert stats == GpuStats(
+            name="GeForce 840M",
+            utilization=pytest.approx(0.37),
+            memory_used_mib=212,
+            memory_total_mib=2048,
+        )
+
+    def test_parse_nvidia_smi_output_ignores_bad_lines(self):
+        assert parse_nvidia_smi_output("") is None
+        assert parse_nvidia_smi_output("bad\n") is None
+
+    def test_gpu_summary_formats_minimal_info(self):
+        stats = GpuStats(
+            name="GPU",
+            utilization=0.123,
+            memory_used_mib=100,
+            memory_total_mib=1000,
+        )
+
+        assert gpu_summary(stats) == "GPU: 12% | Mem: 100/1000 MiB"
+
+    def test_reader_returns_none_without_nvidia_smi(self):
+        reader = GpuReader(which=lambda _command: None)
+
+        assert reader.read() is None
+
+    def test_reader_returns_none_when_driver_unavailable(self):
+        def fake_run(*_args, **_kwargs):
+            return gpu_mod.subprocess.CompletedProcess(
+                args=["nvidia-smi"],
+                returncode=9,
+                stdout="",
+                stderr="driver unavailable",
+            )
+
+        reader = GpuReader(which=lambda _command: "/usr/bin/nvidia-smi", run=fake_run)
+
+        assert reader.read() is None
+
+    def test_reader_supports_amdgpu_sysfs(self, tmp_path):
+        device_dir = tmp_path / "card0" / "device"
+        device_dir.mkdir(parents=True)
+        (device_dir / "vendor").write_text("0x1002\n", encoding="utf-8")
+        (device_dir / "gpu_busy_percent").write_text("55\n", encoding="utf-8")
+        (device_dir / "mem_info_vram_used").write_text(
+            str(512 * 1024 * 1024),
+            encoding="utf-8",
+        )
+        (device_dir / "mem_info_vram_total").write_text(
+            str(4096 * 1024 * 1024),
+            encoding="utf-8",
+        )
+
+        reader = GpuReader(which=lambda _command: None, drm_dir=tmp_path)
+
+        assert reader.read() == GpuStats(
+            name="Radeon GPU",
+            utilization=pytest.approx(0.55),
+            memory_used_mib=512,
+            memory_total_mib=4096,
+        )
+
+    def test_reader_ignores_amdgpu_without_live_stats(self, tmp_path):
+        device_dir = tmp_path / "card0" / "device"
+        device_dir.mkdir(parents=True)
+        (device_dir / "vendor").write_text("0x1002\n", encoding="utf-8")
+
+        reader = GpuReader(which=lambda _command: None, drm_dir=tmp_path)
+
+        assert reader.read() is None
 
 
 class TestCpuHueRgb:
@@ -436,10 +531,17 @@ class TestSystemMonitorRendering:
         applet._cpu = 0.423
         applet._mem = 0.671
         applet._temperature_c = 58.4
+        applet._gpu = GpuStats(
+            name="GeForce 840M",
+            utilization=0.33,
+            memory_used_mib=128,
+            memory_total_mib=2048,
+        )
         applet.refresh_tooltip()
         assert "CPU: 42.3%" in applet.item.name
         assert "Mem: 67.1%" in applet.item.name
         assert "Temp: 58.4°C" in applet.item.name
+        assert "GPU: 33%" in applet.item.name
 
     def test_tooltip_uses_selected_temperature_unit(self):
         applet = SystemMonitorApplet(48)
@@ -597,9 +699,48 @@ class TestSystemMonitorLifecycle:
         monkeypatch.setattr(systemmonitor_mod, "cpu_percent", lambda prev, curr: 0.5)
         monkeypatch.setattr(systemmonitor_mod, "parse_proc_meminfo", lambda text: 0.25)
         monkeypatch.setattr(applet._temperature_reader, "read", lambda: 56.2)
+        monkeypatch.setattr(applet._gpu_reader, "read", lambda: None)
         notified = []
         applet._notify = lambda: notified.append(True)
 
         assert applet._tick() is True
         assert notified == [True]
         assert "Temp: 56.2°C" in applet.item.name
+
+    def test_tick_refreshes_tooltip_when_only_gpu_changes(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        proc_stat = tmp_path / "stat"
+        proc_meminfo = tmp_path / "meminfo"
+        proc_stat.write_text("cpu  200 0 100 100 0 0 0\n", encoding="utf-8")
+        proc_meminfo.write_text(
+            "MemTotal: 1000 kB\nMemAvailable: 750 kB\n",
+            encoding="utf-8",
+        )
+
+        applet = SystemMonitorApplet(48)
+        applet._cpu = 0.5
+        applet._mem = 0.25
+        applet._temperature_c = 55.0
+        applet._last_drawn_cpu = 0.5
+        applet._last_drawn_mem = 0.25
+        applet._prev_sample = CpuSample(total=100, idle=50)
+
+        monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
+        monkeypatch.setattr(systemmonitor_mod, "_PROC_MEMINFO", proc_meminfo)
+        monkeypatch.setattr(systemmonitor_mod, "cpu_percent", lambda prev, curr: 0.5)
+        monkeypatch.setattr(systemmonitor_mod, "parse_proc_meminfo", lambda text: 0.25)
+        monkeypatch.setattr(applet._temperature_reader, "read", lambda: 55.0)
+        monkeypatch.setattr(
+            applet._gpu_reader,
+            "read",
+            lambda: GpuStats(name="GPU", utilization=0.4),
+        )
+        notified = []
+        applet._notify = lambda: notified.append(True)
+
+        assert applet._tick() is True
+        assert notified == [True]
+        assert "GPU: 40%" in applet.item.name
