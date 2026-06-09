@@ -38,11 +38,10 @@ class ScreenPosition(NamedTuple):
 def backend_surface_position(window: object) -> ScreenPosition | None:
     """Return backend-owned screen coordinates for a window, when known."""
     surface_service = window_surface_service(window)
-    get_surface_position = getattr(surface_service, "get_surface_position", None)
-    if not callable(get_surface_position):
+    if surface_service is None:
         return None
     try:
-        position = get_surface_position()
+        position = surface_service.get_surface_position()
     except Exception as exc:
         log.debug("Failed to query backend surface position: %s", exc)
         return None
@@ -139,7 +138,8 @@ def clamp_popup(
     surface_service = window_surface_service(parent) if parent is not None else None
     if (
         parent is not None
-        and getattr(surface_service, "popups_use_parent_relative_coordinates", False)
+        and surface_service is not None
+        and surface_service.popups_use_parent_relative_coordinates
     ):
         parent_position = backend_surface_position(parent)
         if parent_position is not None:
