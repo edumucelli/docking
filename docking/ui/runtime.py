@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from docking.core.theme import Theme
+    from docking.platform.backends.base import DisplayServer, PlatformCapabilities
     from docking.ui.dock_window import DockWindow
     from docking.ui.update_popup import UpdateCheckController
 
@@ -90,3 +91,13 @@ class DockRuntime:
 
     def open_releases_page(self) -> None:
         self._update_checker.open_releases_page()
+
+    @property
+    def capabilities(self) -> PlatformCapabilities:
+        """Backend capabilities for the current session."""
+        return self._window._backend_capabilities
+
+    @property
+    def display_server(self) -> DisplayServer:
+        """Display-server family for the current session."""
+        return self._window._backend_display_server

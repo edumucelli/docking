@@ -252,6 +252,7 @@ class FakeSpinButton:
         self.callbacks: dict[str, object] = {}
         self.properties: dict[str, object] = {}
         self.sensitive = True
+        self.tooltip_text = ""
 
     @classmethod
     def new_with_range(cls, *_args):
@@ -277,6 +278,9 @@ class FakeSpinButton:
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
 
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
+
     def set_size_request(self, width: int, height: int) -> None:
         self.size_request = (width, height)
 
@@ -301,6 +305,7 @@ class FakeSwitch:
         self._active = False
         self.callbacks: dict[str, object] = {}
         self.sensitive = True
+        self.tooltip_text = ""
 
     def connect(self, signal: str, callback, *args) -> None:
         self.callbacks[signal] = (callback, args)
@@ -317,6 +322,9 @@ class FakeSwitch:
 
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
 
 
 class FakeCheckButton(FakeSwitch):

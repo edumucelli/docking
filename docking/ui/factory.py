@@ -23,6 +23,8 @@ from __future__ import annotations
 from docking.core.config import Config
 from docking.core.theme import Theme
 from docking.platform.backends.base import (
+    DisplayServer,
+    PlatformCapabilities,
     PreviewService,
     Rect,
     SurfaceService,
@@ -46,6 +48,8 @@ def build_dock_window(
     preview_service: PreviewService,
     surface_service: SurfaceService,
     visibility_service: VisibilityService,
+    capabilities: PlatformCapabilities,
+    display_server: DisplayServer,
     launcher: Launcher,
 ) -> DockWindow:
     """Build a fully wired dock window and its UI collaborators."""
@@ -58,6 +62,8 @@ def build_dock_window(
         launcher=launcher,
         preview_service=preview_service,
         surface_service=surface_service,
+        capabilities=capabilities,
+        display_server=display_server,
     )
 
     def _get_dock_rect() -> Rect | None:

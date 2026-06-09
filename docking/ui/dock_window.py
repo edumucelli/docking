@@ -205,6 +205,8 @@ from docking.core.position import is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.backends.base import (
+    DisplayServer,
+    PlatformCapabilities,
     PreviewService,
     Rect,
     SurfaceService,
@@ -345,6 +347,8 @@ class DockWindow(Gtk.Window):
         launcher: Launcher,
         preview_service: PreviewService,
         surface_service: SurfaceService,
+        capabilities: PlatformCapabilities,
+        display_server: DisplayServer,
     ) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.config = config
@@ -354,6 +358,8 @@ class DockWindow(Gtk.Window):
         self.window_tracker = window_tracker
         self.preview_service = preview_service
         self.surface_service = surface_service
+        self._backend_capabilities = capabilities
+        self._backend_display_server = display_server
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController

@@ -76,6 +76,7 @@ from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.backends.base import DisplayServer
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -1065,7 +1066,16 @@ class SettingsWindowController:
         self._runtime.set_active_display(active)
         self._runtime.reposition()
 
+    _ACTIVE_DISPLAY_WAYLAND_TOOLTIP: ClassVar[str] = _(
+        "This feature requires global pointer tracking,"
+        " which is not available on Wayland."
+    )
+    _PRESSURE_REVEAL_WAYLAND_TOOLTIP: ClassVar[str] = _(
+        "Pressure reveal requires pointer barriers, which are only available on X11."
+    )
+
     def _update_dependent_sensitivity(self) -> None:
+        # Config-driven sensitivity (independent of backend)
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
         hide_controls_sensitive = self._config.hide_mode not in (
@@ -1076,10 +1086,45 @@ class SettingsWindowController:
             self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
         if self._unhide_delay_spin is not None:
             self._unhide_delay_spin.set_sensitive(hide_controls_sensitive)
+
+        # Backend-driven sensitivity
+        caps = self._runtime.capabilities
+        wayland = self._runtime.display_server == DisplayServer.WAYLAND
+
+        # Active Display ("Follow Cursor") — needs global pointer tracking
+        if self._active_display_switch is not None:
+            if wayland:
+                self._active_display_switch.set_sensitive(False)
+                self._active_display_switch.set_tooltip_text(
+                    self._ACTIVE_DISPLAY_WAYLAND_TOOLTIP
+                )
+            else:
+                self._active_display_switch.set_sensitive(True)
+                self._active_display_switch.set_tooltip_text("")
+
+        # Pressure Reveal — needs pointer barriers (X11-only)
+        if self._pressure_reveal_switch is not None:
+            if not caps.supports_pointer_barrier:
+                self._pressure_reveal_switch.set_sensitive(False)
+                self._pressure_reveal_switch.set_tooltip_text(
+                    self._PRESSURE_REVEAL_WAYLAND_TOOLTIP
+                )
+            else:
+                self._pressure_reveal_switch.set_sensitive(True)
+                self._pressure_reveal_switch.set_tooltip_text("")
+
+        # Pressure Threshold — same gate as Pressure Reveal
         if self._pressure_threshold_scale is not None:
-            self._pressure_threshold_scale.set_sensitive(
-                bool(self._config.pressure_reveal_enabled)
-            )
+            if not caps.supports_pointer_barrier:
+                self._pressure_threshold_scale.set_sensitive(False)
+                self._pressure_threshold_scale.set_tooltip_text(
+                    self._PRESSURE_REVEAL_WAYLAND_TOOLTIP
+                )
+            else:
+                self._pressure_threshold_scale.set_sensitive(
+                    bool(self._config.pressure_reveal_enabled)
+                )
+                self._pressure_threshold_scale.set_tooltip_text("")
 
     def _on_applet_toggled(
         self,

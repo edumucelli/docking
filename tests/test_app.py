@@ -208,6 +208,8 @@ class TestAppMain:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
+            capabilities=backend.capabilities,
+            display_server=backend.display_server,
             launcher=launcher,
         )
         backend.start.assert_called_once()

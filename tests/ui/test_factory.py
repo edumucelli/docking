@@ -8,6 +8,10 @@ from typing import cast
 from unittest.mock import MagicMock
 
 import docking.ui.factory as factory_mod
+from docking.platform.backends.base import DisplayServer, PlatformCapabilities
+
+_FAKE_CAPABILITIES = PlatformCapabilities()
+_FAKE_DISPLAY_SERVER = DisplayServer.X11
 
 
 class TestBuildDockWindow:
@@ -40,6 +44,8 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
+            capabilities=_FAKE_CAPABILITIES,
+            display_server=_FAKE_DISPLAY_SERVER,
             launcher=launcher,
         )
 
@@ -53,6 +59,8 @@ class TestBuildDockWindow:
             launcher=launcher,
             preview_service=preview_service,
             surface_service=surface_service,
+            capabilities=_FAKE_CAPABILITIES,
+            display_server=_FAKE_DISPLAY_SERVER,
         )
         kwargs = visibility_service.create_monitor.call_args.kwargs
         assert callable(kwargs["get_dock_rect"])
@@ -85,6 +93,8 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
+            capabilities=_FAKE_CAPABILITIES,
+            display_server=_FAKE_DISPLAY_SERVER,
             launcher=launcher,
         )
 
@@ -134,6 +144,8 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
+            capabilities=_FAKE_CAPABILITIES,
+            display_server=_FAKE_DISPLAY_SERVER,
             launcher=launcher,
         )
 
@@ -175,6 +187,8 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
+            capabilities=_FAKE_CAPABILITIES,
+            display_server=_FAKE_DISPLAY_SERVER,
             launcher=launcher,
         )
 
