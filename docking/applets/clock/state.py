@@ -137,8 +137,7 @@ def build_tooltip(
         alarm_text = time.strftime("%H:%M", alarm_now)
     else:
         alarm_text = time.strftime("%-I:%M %p", alarm_now)
-    alarm_line = _("Alarm: {time}").format(time=alarm_text)
-    return f"{current}\n{alarm_line}"
+    return f"{current}\n{_('Alarm: {time}').format(time=alarm_text)}"
 
 
 def save_payload(

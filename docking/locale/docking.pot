@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-06-10 00:13+0200\n"
+"POT-Creation-Date: 2026-06-10 00:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -932,10 +932,6 @@ msgstr ""
 msgid "Set Alarm"
 msgstr ""
 
-#: docking/applets/clock/state.py:140
-#, python-brace-format
-msgid "Alarm: {time}"
-msgstr ""
 
 #: docking/applets/colorpicker/applet.py:59
 #: docking/applets/colorpicker/applet.py:94
@@ -2738,9 +2734,6 @@ msgstr ""
 msgid "Display {display}: {width}x{height}"
 msgstr ""
 
-#: docking/ui/placement.py:249
-msgid "Primary"
-msgstr ""
 
 #: docking/ui/settings.py:217
 msgid "Appearance"
