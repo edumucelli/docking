@@ -274,7 +274,9 @@ def test_wrap_popup_applies_theme_class_and_adds_child(monkeypatch):
 
 def test_create_popup_window_configures_transient_surface(monkeypatch):
     window = _FakePopupWindow()
-    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: window)
+    mock_window_cls = lambda **_kwargs: window
+    mock_window_cls.list_toplevels = list
+    monkeypatch.setattr(popup.Gtk, "Window", mock_window_cls)
 
     created = popup.create_popup_window()
 
