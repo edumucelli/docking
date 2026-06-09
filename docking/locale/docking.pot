@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-30 00:38+0200\n"
+"POT-Creation-Date: 2026-06-10 00:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,7 +47,7 @@ msgid "Show Tokens"
 msgstr ""
 
 #: docking/applets/aiusage/applet.py:159
-#: docking/applets/deskpresence/applet.py:117
+#: docking/applets/deskpresence/applet.py:121
 msgid "Reset Today"
 msgstr ""
 
@@ -932,17 +932,22 @@ msgstr ""
 msgid "Set Alarm"
 msgstr ""
 
-#: docking/applets/colorpicker/applet.py:57
-#: docking/applets/colorpicker/applet.py:88
+#: docking/applets/clock/state.py:140
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr ""
+
+#: docking/applets/colorpicker/applet.py:59
+#: docking/applets/colorpicker/applet.py:94
 msgid "Color Picker"
 msgstr ""
 
-#: docking/applets/colorpicker/applet.py:98
+#: docking/applets/colorpicker/applet.py:108
 #, python-brace-format
 msgid "Copy {hex}"
 msgstr ""
 
-#: docking/applets/colorpicker/applet.py:102
+#: docking/applets/colorpicker/applet.py:112
 msgid "Show Hex"
 msgstr ""
 
@@ -1102,40 +1107,40 @@ msgstr ""
 msgid "1 {base} = {rate} {quote}"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:66
+#: docking/applets/deskpresence/applet.py:67
 #: docking/applets/deskpresence/state.py:206
 msgid "Desk Presence"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:98
+#: docking/applets/deskpresence/applet.py:102
 #, python-brace-format
 msgid "{status}"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:106
+#: docking/applets/deskpresence/applet.py:110
 msgid "Idle Threshold"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:204
+#: docking/applets/deskpresence/applet.py:213
 #: docking/applets/deskpresence/state.py:183
 msgid "At desk"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:205
+#: docking/applets/deskpresence/applet.py:214
 #: docking/applets/deskpresence/state.py:184
 msgid "Away"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:206
+#: docking/applets/deskpresence/applet.py:215
 msgid "Status unknown"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:213
+#: docking/applets/deskpresence/applet.py:222
 #, python-brace-format
 msgid "{m} min"
 msgstr ""
 
-#: docking/applets/deskpresence/applet.py:214
+#: docking/applets/deskpresence/applet.py:223
 #, python-brace-format
 msgid "{s} sec"
 msgstr ""
@@ -1191,7 +1196,8 @@ msgstr ""
 msgid "Week total at desk: {d}"
 msgstr ""
 
-#: docking/applets/desktop/applet.py:40 docking/applets/workspaces/applet.py:95
+#: docking/applets/desktop/applet.py:40
+#: docking/applets/workspaces/applet.py:101
 msgid "Desktop"
 msgstr ""
 
@@ -2270,31 +2276,51 @@ msgstr ""
 msgid "Astronomical dusk"
 msgstr ""
 
-#: docking/applets/systemmonitor/applet.py:64
-#: docking/applets/systemmonitor/state.py:181
+#: docking/applets/systemmonitor/applet.py:65
+#: docking/applets/systemmonitor/state.py:186
 msgid "System Monitor"
 msgstr ""
 
-#: docking/applets/systemmonitor/applet.py:98
+#: docking/applets/systemmonitor/applet.py:102
 msgid "Show Disk Usage"
 msgstr ""
 
-#: docking/applets/systemmonitor/applet.py:103
+#: docking/applets/systemmonitor/applet.py:107
 #: docking/applets/thermals/applet.py:162 docking/applets/weather/applet.py:199
 msgid "Temperature Unit"
 msgstr ""
 
-#: docking/applets/systemmonitor/state.py:164
+#: docking/applets/systemmonitor/gpu.py:145
+#, python-brace-format
+msgid "GPU: {pct}%"
+msgstr ""
+
+#: docking/applets/systemmonitor/gpu.py:147
+#, python-brace-format
+msgid "GPU: {name}"
+msgstr ""
+
+#: docking/applets/systemmonitor/gpu.py:151
+#, python-brace-format
+msgid "Mem: {used}/{total} MiB"
+msgstr ""
+
+#: docking/applets/systemmonitor/gpu.py:157
+#, python-brace-format
+msgid "Mem: {used} MiB"
+msgstr ""
+
+#: docking/applets/systemmonitor/state.py:166
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr ""
 
-#: docking/applets/systemmonitor/state.py:168
+#: docking/applets/systemmonitor/state.py:170
 #, python-brace-format
 msgid "{text} | Temp: {temp}"
 msgstr ""
 
-#: docking/applets/systemmonitor/state.py:179
+#: docking/applets/systemmonitor/state.py:184
 #, python-brace-format
 msgid "Disk: {usage}"
 msgstr ""
@@ -2566,11 +2592,11 @@ msgstr ""
 msgid "{city}: {temp}"
 msgstr ""
 
-#: docking/applets/windowkiller/applet.py:77
+#: docking/applets/windowkiller/applet.py:78
 msgid "Window Killer"
 msgstr ""
 
-#: docking/applets/windowkiller/applet.py:89
+#: docking/applets/windowkiller/applet.py:94
 msgid "Click, then select a window to kill"
 msgstr ""
 
@@ -2582,7 +2608,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/dock_window.py:393
+#: docking/ui/dock_window.py:397
 msgid "Docking"
 msgstr ""
 
@@ -2602,103 +2628,103 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: docking/ui/folder/stack.py:679
+#: docking/ui/folder/stack.py:678
 msgid "Folder not found"
 msgstr ""
 
-#: docking/ui/folder/stack.py:693
+#: docking/ui/folder/stack.py:692
 msgid "Folder is empty"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1150
+#: docking/ui/folder/stack.py:1149
 #, python-format
 msgid "Open in %s"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1152
+#: docking/ui/folder/stack.py:1151
 #, python-format
 msgid "%d More in %s"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1155
+#: docking/ui/folder/stack.py:1154
 msgid "Open Folder"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1157
+#: docking/ui/folder/stack.py:1156
 #, python-format
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:391
+#: docking/ui/menu.py:400
 msgid "Icon"
 msgstr ""
 
-#: docking/ui/menu.py:393
+#: docking/ui/menu.py:402
 msgid "Docking Icon"
 msgstr ""
 
-#: docking/ui/menu.py:394
+#: docking/ui/menu.py:403
 msgid "System Icon"
 msgstr ""
 
-#: docking/ui/menu.py:437 docking/ui/menu.py:457 docking/ui/menu.py:473
-#: docking/ui/menu.py:521
+#: docking/ui/menu.py:446 docking/ui/menu.py:466 docking/ui/menu.py:482
+#: docking/ui/menu.py:530
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:450
+#: docking/ui/menu.py:459
 msgid "Open"
 msgstr ""
 
-#: docking/ui/menu.py:480
+#: docking/ui/menu.py:489
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:489
+#: docking/ui/menu.py:498
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:489
+#: docking/ui/menu.py:498
 msgid "Close"
 msgstr ""
 
-#: docking/ui/menu.py:506
+#: docking/ui/menu.py:515
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:514
+#: docking/ui/menu.py:523
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:551
+#: docking/ui/menu.py:560
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:589
+#: docking/ui/menu.py:598
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:596
+#: docking/ui/menu.py:605
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:606 docking/ui/settings.py:193
+#: docking/ui/menu.py:615 docking/ui/settings.py:193
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:611
+#: docking/ui/menu.py:620
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:616
+#: docking/ui/menu.py:625
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:623
+#: docking/ui/menu.py:632
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:667
+#: docking/ui/menu.py:670
 msgid "Window"
 msgstr ""
 
@@ -2707,9 +2733,13 @@ msgstr ""
 msgid "Happy new year {year} !!!"
 msgstr ""
 
-#: docking/ui/placement.py:239
+#: docking/ui/placement.py:243
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
+msgstr ""
+
+#: docking/ui/placement.py:249
+msgid "Primary"
 msgstr ""
 
 #: docking/ui/settings.py:217

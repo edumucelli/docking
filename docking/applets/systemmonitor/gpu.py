@@ -106,11 +106,7 @@ class GpuReader:
             memory_total = _bytes_to_mib(
                 _int_or_none(_read_text(device_dir / "mem_info_vram_total") or "")
             )
-            if (
-                utilization is None
-                and memory_used is None
-                and memory_total is None
-            ):
+            if utilization is None and memory_used is None and memory_total is None:
                 continue
             return GpuStats(
                 name=_read_text(device_dir / "product_name") or AMD_VENDOR_NAME,
