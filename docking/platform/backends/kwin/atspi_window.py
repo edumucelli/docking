@@ -147,11 +147,17 @@ class AtspiWindowService(WindowService):
     # ------------------------------------------------------------------
 
     # Set of window titles that indicate system/utility apps (not user windows)
-    _SYSTEM_APPS = frozenset({
-        "ksmserver", "kaccess", "gmenudbusmenuproxy", "xembedsniproxy",
-        "evolution-alarm-notify", "xdg-desktop-portal-gtk",
-        "polkit-kde-authentication-agent-1",
-    })
+    _SYSTEM_APPS = frozenset(
+        {
+            "ksmserver",
+            "kaccess",
+            "gmenudbusmenuproxy",
+            "xembedsniproxy",
+            "evolution-alarm-notify",
+            "xdg-desktop-portal-gtk",
+            "polkit-kde-authentication-agent-1",
+        }
+    )
 
     # Refresh interval in milliseconds
     _REFRESH_INTERVAL_MS = 5000
@@ -184,7 +190,8 @@ class AtspiWindowService(WindowService):
             self._schedule_refresh()
             # Start periodic refresh (runs in background thread)
             self._refresh_source_id = GLib.timeout_add(
-                self._REFRESH_INTERVAL_MS, self._on_refresh_timer,
+                self._REFRESH_INTERVAL_MS,
+                self._on_refresh_timer,
             )
             log.info("AT-SPI window service: connected")
         except Exception:
@@ -193,7 +200,7 @@ class AtspiWindowService(WindowService):
             self._refresh_source_id: int = 0
 
     def stop(self) -> None:
-        sid = getattr(self, '_refresh_source_id', 0)
+        sid = getattr(self, "_refresh_source_id", 0)
         if sid:
             GLib.source_remove(sid)
             self._refresh_source_id = 0
@@ -338,14 +345,16 @@ class AtspiWindowService(WindowService):
         for desktop_id, windows in by_desktop.items():
             rwis = []
             for w in windows:
-                rwis.append(RunningWindowInfo(
-                    desktop_id=desktop_id,
-                    xid=0,
-                    window_id=w.window_id,
-                    active=w.active,
-                    urgent=False,
-                    window=None,
-                ))
+                rwis.append(
+                    RunningWindowInfo(
+                        desktop_id=desktop_id,
+                        xid=0,
+                        window_id=w.window_id,
+                        active=w.active,
+                        urgent=False,
+                        window=None,
+                    )
+                )
             running[desktop_id] = RunningAppInfo.from_windows(rwis)
 
         try:
@@ -624,11 +633,11 @@ class AtspiWindowService(WindowService):
                 y=w.y,
                 width=w.width,
                 height=w.height,
-            ) if (w.width > 0 and w.height > 0) else None,
+            )
+            if (w.width > 0 and w.height > 0)
+            else None,
             can_activate=False,
             can_minimize=False,
             can_close=False,
             can_preview=False,
         )
-
-

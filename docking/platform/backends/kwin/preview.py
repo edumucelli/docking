@@ -243,7 +243,9 @@ class KWinPreviewService(PreviewService):
             pw, ph = pixbuf.get_width(), pixbuf.get_height()
             if pw != target_w or ph != target_h:
                 return pixbuf.scale_simple(
-                    target_w, target_h, GdkPixbuf.InterpType.BILINEAR,
+                    target_w,
+                    target_h,
+                    GdkPixbuf.InterpType.BILINEAR,
                 )
 
             return pixbuf

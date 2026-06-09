@@ -133,11 +133,14 @@ class KWinWorkspaceService(WorkspaceService):
         if self._proxy is None:
             return ActionResult.UNSUPPORTED
         try:
-            variant = GLib.Variant("(ssv)", (
-                "org.kde.KWin.VirtualDesktopManager",
-                "current",
-                GLib.Variant("s", workspace_id),
-            ))
+            variant = GLib.Variant(
+                "(ssv)",
+                (
+                    "org.kde.KWin.VirtualDesktopManager",
+                    "current",
+                    GLib.Variant("s", workspace_id),
+                ),
+            )
             self._proxy.call_sync(
                 "org.freedesktop.DBus.Properties.Set",
                 variant,
@@ -201,13 +204,19 @@ class KWinWorkspaceService(WorkspaceService):
                 prev = self._workspaces.get(self._active_id)
                 if prev is not None:
                     self._workspaces[self._active_id] = WorkspaceSnapshot(
-                        id=prev.id, number=prev.number, name=prev.name, active=False,
+                        id=prev.id,
+                        number=prev.number,
+                        name=prev.name,
+                        active=False,
                     )
                 self._active_id = new_active
                 curr = self._workspaces.get(new_active)
                 if curr is not None:
                     self._workspaces[new_active] = WorkspaceSnapshot(
-                        id=curr.id, number=curr.number, name=curr.name, active=True,
+                        id=curr.id,
+                        number=curr.number,
+                        name=curr.name,
+                        active=True,
                     )
                 for cb in list(self._watchers.values()):
                     with contextlib.suppress(Exception):
