@@ -84,6 +84,8 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._window: object | None = None
         self._exclusive_zone: int = 0
         self._on_layer_surface_ready = on_layer_surface_ready
+        self._surface_x: int = 0
+        self._surface_y: int = 0
 
     def start(self) -> None:
         """No service-level runtime loop is needed."""
@@ -136,6 +138,11 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         position = request.position if isinstance(request.position, Position) else None
         if position is None:
             return
+
+        # Track the computed position so popups can be positioned
+        # relative to the dock surface on Wayland.
+        self._surface_x = request.x
+        self._surface_y = request.y
 
         self._set_monitor(request.monitor)
         self._set_anchors(position)
@@ -190,6 +197,15 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             return
         gdk_window = _call_if_available(window, "get_window")
         _call_if_available(gdk_window, "input_shape_combine_region", region, 0, 0)
+
+    @property
+    def popups_use_parent_relative_coordinates(self) -> bool:
+        """Wayland xdg-popup coordinates are always parent-relative."""
+        return True
+
+    def get_surface_position(self) -> tuple[int, int] | None:
+        """Return the dock's computed screen position on Wayland."""
+        return (self._surface_x, self._surface_y)
 
     def set_blur_region(self, rect: Rect | None) -> None:
         """Blur hints are not part of the generic layer-shell path."""

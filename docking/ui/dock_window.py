@@ -622,6 +622,18 @@ class DockWindow(Gtk.Window):
             drop_insert_index=drop_insert_index,
         )
 
+    def _get_root_position(self) -> tuple[int, int]:
+        """Return the dock window's screen position.
+
+        On Wayland compositors that position the surface (e.g. layer-shell),
+        ``Gtk.Window.get_position()`` returns ``(0, 0)``.  We fall back to
+        the surface service which tracks the placement coordinates.
+        """
+        pos = self.surface_service.get_surface_position()
+        if pos is not None:
+            return pos
+        return self.get_position()
+
     def get_hover_anchor(self, *, desktop_id: str) -> tuple[int, int, str] | None:
         """Return the absolute hover/preview anchor for one visible item."""
         if not self.get_realized():
@@ -633,7 +645,7 @@ class DockWindow(Gtk.Window):
         geometry = frame.geometry_for_item(item)
         if geometry is None:
             return None
-        win_x, win_y = self.get_position()
+        win_x, win_y = self._get_root_position()
         x, y = geometry.anchor_point(
             win_x=win_x,
             win_y=win_y,
@@ -836,7 +848,7 @@ class DockWindow(Gtk.Window):
     ) -> None:
         item_geometry = frame.geometry_for_item(item)
         if item_geometry is not None:
-            win_x, win_y = self.get_position()
+            win_x, win_y = self._get_root_position()
             anchor_x, anchor_y = item_geometry.anchor_point(
                 win_x=win_x,
                 win_y=win_y,
@@ -844,7 +856,7 @@ class DockWindow(Gtk.Window):
             )
             icon_w = int(item_geometry.draw_rect.w)
         else:
-            win_x, win_y = self.get_position()
+            win_x, win_y = self._get_root_position()
             anchor_x = win_x + int(fallback_x)
             anchor_y = win_y + int(fallback_y)
             icon_w = int(self.config.icon_size)
