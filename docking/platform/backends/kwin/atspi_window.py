@@ -27,16 +27,17 @@ works on KDE, GNOME, and other Wayland compositors.
 
 from __future__ import annotations
 
+import contextlib
 import os
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from threading import Lock, Thread
 
 from gi.repository import Gio, GLib
 
+from docking.log import get_logger
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
-    PlatformCapabilities,
     Rect,
     WindowId,
     WindowService,
@@ -44,8 +45,6 @@ from docking.platform.backends.base import (
 )
 from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
-
-from docking.log import get_logger
 
 log = get_logger(name="atspi_window")
 
@@ -86,18 +85,18 @@ class _AtspiWindow:
     """Mutable snapshot of one AT-SPI accessible window."""
 
     __slots__ = (
-        "window_id",
-        "title",
-        "app_name",
-        "app_id",
         "active",
-        "minimized",
+        "app_id",
+        "app_name",
         "fullscreen",
+        "height",
+        "minimized",
+        "pid",
+        "title",
+        "width",
+        "window_id",
         "x",
         "y",
-        "width",
-        "height",
-        "pid",
     )
 
     def __init__(self, internal_id: str) -> None:
@@ -131,7 +130,9 @@ class AtspiWindowService(WindowService):
     through AT-SPI.  They return :attr:`ActionResult.UNSUPPORTED`.
     """
 
-    def __init__(self, *, launcher: object | None = None, model: object | None = None) -> None:
+    def __init__(
+        self, *, launcher: object | None = None, model: object | None = None
+    ) -> None:
         self._connection: Gio.DBusConnection | None = None
         self._windows: dict[str, _AtspiWindow] = {}
         self._lock = Lock()
@@ -197,10 +198,8 @@ class AtspiWindowService(WindowService):
             GLib.source_remove(sid)
             self._refresh_source_id = 0
         if self._connection is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._connection.close_sync(None)
-            except Exception:
-                pass
             self._connection = None
         with self._lock:
             self._windows.clear()
@@ -300,10 +299,8 @@ class AtspiWindowService(WindowService):
             for svc in names:
                 if not svc.startswith(":") or svc == ":1.0":
                     continue
-                try:
+                with contextlib.suppress(Exception):
                     self._enumerate_service(conn, svc, new_windows)
-                except Exception:
-                    pass
 
             with self._lock:
                 self._windows = new_windows
@@ -322,10 +319,8 @@ class AtspiWindowService(WindowService):
 
         # Sync visible items into the matcher
         if matcher is not None:
-            try:
+            with contextlib.suppress(Exception):
                 matcher.sync_visible_items(model.visible_items())
-            except Exception:
-                pass
 
         # Group windows by resolved desktop_id
         by_desktop: dict[str, list[_AtspiWindow]] = {}
@@ -480,10 +475,8 @@ class AtspiWindowService(WindowService):
         if isinstance(attrs, dict):
             pid_str = attrs.get("process-id", "")
             if pid_str:
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     w.pid = int(pid_str)
-                except (ValueError, TypeError):
-                    pass
             # Use toolkit name as additional app_id disambiguation
             toolkit = attrs.get("toolkit", "")
             if toolkit and w.app_id:

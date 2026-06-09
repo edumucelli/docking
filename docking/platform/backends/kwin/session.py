@@ -51,16 +51,12 @@ from docking.platform.backends.base import (
     IdleService,
     PlatformCapabilities,
     PreviewService,
-    Rect,
     ScreenCaptureService,
     SessionBackend,
     SurfaceService,
-    VisibilityMonitor,
     VisibilityService,
-    WindowId,
     WindowPickService,
     WindowService,
-    WindowSnapshot,
     WorkspaceService,
     WorkspaceSnapshot,
 )
@@ -75,6 +71,8 @@ from docking.platform.backends.reduced.services import (
 if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
+
+import contextlib
 
 from docking.log import get_logger
 
@@ -212,10 +210,8 @@ class KWinWorkspaceService(WorkspaceService):
                         id=curr.id, number=curr.number, name=curr.name, active=True,
                     )
                 for cb in list(self._watchers.values()):
-                    try:
+                    with contextlib.suppress(Exception):
                         cb()
-                    except Exception:
-                        pass
 
         if "desktops" in changed_dict or "count" in changed_dict:
             needs_refresh = True
@@ -223,10 +219,8 @@ class KWinWorkspaceService(WorkspaceService):
         if needs_refresh:
             self._refresh()
             for cb in list(self._watchers.values()):
-                try:
+                with contextlib.suppress(Exception):
                     cb()
-                except Exception:
-                    pass
 
 
 # ---------------------------------------------------------------------------

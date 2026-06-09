@@ -255,17 +255,16 @@ def _create_kwin_backend(
     if layer_shell is None:
         log.info("KWin backend unavailable: GtkLayerShell not installed")
         return None
-    if not layer_shell_is_supported(layer_shell):
+    if not layer_shell_is_supported(layer_shell) and not is_wayland_session():
         # layer_shell_is_supported uses the current GDK backend, which
         # returns False when GDK defaults to X11 even though the Wayland
         # compositor supports layer-shell.  On a KDE Wayland session we
         # know KWin supports layer-shell, so only reject on non-Wayland.
-        if not is_wayland_session():
-            log.info(
-                "KWin backend unavailable: compositor does not "
-                "support layer-shell (try GDK_BACKEND=wayland)"
-            )
-            return None
+        log.info(
+            "KWin backend unavailable: compositor does not "
+            "support layer-shell (try GDK_BACKEND=wayland)"
+        )
+        return None
 
     backend = KWinSessionBackend(
         layer_shell=layer_shell,

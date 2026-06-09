@@ -33,15 +33,14 @@ from __future__ import annotations
 
 import os
 import select
-from typing import TYPE_CHECKING
 
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib, Gio
+from gi.repository import GdkPixbuf, Gio, GLib
 
-from docking.platform.backends.base import PreviewImage, PreviewService, WindowId
 from docking.log import get_logger
+from docking.platform.backends.base import PreviewImage, PreviewService, WindowId
 
 log = get_logger(name="kwin_preview")
 
@@ -243,10 +242,9 @@ class KWinPreviewService(PreviewService):
             # Scale to requested size if needed
             pw, ph = pixbuf.get_width(), pixbuf.get_height()
             if pw != target_w or ph != target_h:
-                scaled = pixbuf.scale_simple(
+                return pixbuf.scale_simple(
                     target_w, target_h, GdkPixbuf.InterpType.BILINEAR,
                 )
-                return scaled
 
             return pixbuf
         except Exception:
