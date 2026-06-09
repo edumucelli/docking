@@ -172,7 +172,7 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
-from docking.ui.display import clamp_popup
+from docking.ui.display import clamp_popup, window_screen_position
 from docking.ui.geometry import DockGeometryFrame
 
 log = get_logger(name="tooltip")
@@ -283,9 +283,9 @@ class TooltipManager:
             self.hide()
             return
         pos = self._config.pos
-        win_x, win_y = self._window.get_position()
-        anchor_x = win_x + item_geometry.anchor_x
-        anchor_y = win_y + item_geometry.anchor_y
+        window_pos = window_screen_position(self._window)
+        anchor_x = window_pos.x + item_geometry.anchor_x
+        anchor_y = window_pos.y + item_geometry.anchor_y
 
         if not content_changed:
             self._cancel_pending_show()

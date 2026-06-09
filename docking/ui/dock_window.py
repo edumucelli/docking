@@ -215,6 +215,7 @@ from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.ui import geometry
 from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
+from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
 from docking.ui.effects import ZoomAnimator
 from docking.ui.geometry import (
@@ -633,7 +634,8 @@ class DockWindow(Gtk.Window):
         geometry = frame.geometry_for_item(item)
         if geometry is None:
             return None
-        win_x, win_y = self.get_position()
+        window_pos = window_screen_position(self)
+        win_x, win_y = window_pos.x, window_pos.y
         x, y = geometry.anchor_point(
             win_x=win_x,
             win_y=win_y,
@@ -836,7 +838,8 @@ class DockWindow(Gtk.Window):
     ) -> None:
         item_geometry = frame.geometry_for_item(item)
         if item_geometry is not None:
-            win_x, win_y = self.get_position()
+            window_pos = window_screen_position(self)
+            win_x, win_y = window_pos.x, window_pos.y
             anchor_x, anchor_y = item_geometry.anchor_point(
                 win_x=win_x,
                 win_y=win_y,
@@ -844,7 +847,8 @@ class DockWindow(Gtk.Window):
             )
             icon_w = int(item_geometry.draw_rect.w)
         else:
-            win_x, win_y = self.get_position()
+            window_pos = window_screen_position(self)
+            win_x, win_y = window_pos.x, window_pos.y
             anchor_x = win_x + int(fallback_x)
             anchor_y = win_y + int(fallback_y)
             icon_w = int(self.config.icon_size)

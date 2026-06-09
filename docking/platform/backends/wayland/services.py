@@ -84,12 +84,30 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._window: object | None = None
         self._exclusive_zone: int = 0
         self._on_layer_surface_ready = on_layer_surface_ready
+        self._surface_x: int | None = None
+        self._surface_y: int | None = None
+        self._monitor: MonitorSnapshot | None = None
 
     def start(self) -> None:
         """No service-level runtime loop is needed."""
 
     def stop(self) -> None:
         """No service-level resources are held."""
+        self._window = None
+        self._surface_x = None
+        self._surface_y = None
+        self._monitor = None
+
+    @property
+    def popups_use_parent_relative_coordinates(self) -> bool:
+        """Layer-shell GTK popups are positioned relative to their parent."""
+        return True
+
+    def get_surface_position(self) -> tuple[int, int] | None:
+        """Return the last compositor placement requested for the dock."""
+        if self._surface_x is not None and self._surface_y is not None:
+            return self._surface_x, self._surface_y
+        return None
 
     def configure_before_realize(self, window: object) -> None:
         """Assign the layer-shell role before the GTK window is mapped."""
@@ -137,7 +155,10 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         if position is None:
             return
 
-        self._set_monitor(request.monitor)
+        self._surface_x = request.x
+        self._surface_y = request.y
+        self._monitor = request.monitor
+        self._set_monitor_for_window(window, request.monitor)
         self._set_anchors(position)
         self._set_margins(position=position, gap=0)
         _call_if_available(
@@ -198,6 +219,9 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         window = self._window
         if window is None:
             return
+        self._set_monitor_for_window(window, monitor)
+
+    def _set_monitor_for_window(self, window: object, monitor: MonitorSnapshot) -> None:
         display = _call_if_available(window, "get_display")
         if display is None:
             return
