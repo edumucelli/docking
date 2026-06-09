@@ -267,18 +267,41 @@ class DockInteractionCoordinator:
         if pos is None:
             return False
         try:
-            window_pos = window_screen_position(self._window)
-            win_x, win_y = window_pos.x, window_pos.y
+            gtk_x, gtk_y = self._window.get_position()
         except Exception as exc:
             log.debug(
-                "Failed to query pointer/window position for dock hit test: %s",
+                "Failed to query GTK window position for dock hit test: %s",
                 exc,
             )
             return False
 
-        local_x = pos.x - win_x
-        local_y = pos.y - win_y
-        return point_inside_input_rect(frame, x=local_x, y=local_y)
+        if _point_inside_frame_at_window_position(
+            frame=frame,
+            screen_x=pos.x,
+            screen_y=pos.y,
+            window_x=int(gtk_x),
+            window_y=int(gtk_y),
+        ):
+            return True
+
+        try:
+            backend_pos = window_screen_position(self._window)
+        except Exception as exc:
+            log.debug(
+                "Failed to query backend window position for dock hit test: %s",
+                exc,
+            )
+            return False
+        if backend_pos.x == int(gtk_x) and backend_pos.y == int(gtk_y):
+            return False
+
+        return _point_inside_frame_at_window_position(
+            frame=frame,
+            screen_x=pos.x,
+            screen_y=pos.y,
+            window_x=backend_pos.x,
+            window_y=backend_pos.y,
+        )
 
     def on_effective_enter(self) -> None:
         if self._window.dock_hovered:
@@ -347,3 +370,16 @@ class DockInteractionCoordinator:
         if input_rect is None:
             return False
         return input_rect.contains(x, y)
+
+
+def _point_inside_frame_at_window_position(
+    *,
+    frame: object,
+    screen_x: int,
+    screen_y: int,
+    window_x: int,
+    window_y: int,
+) -> bool:
+    local_x = screen_x - window_x
+    local_y = screen_y - window_y
+    return point_inside_input_rect(frame, x=local_x, y=local_y)
