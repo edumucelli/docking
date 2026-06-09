@@ -183,7 +183,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
-from docking.ui.display import get_pointer_position
+from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import current_input_rect, point_inside_input_rect
 
 if TYPE_CHECKING:
@@ -267,7 +267,8 @@ class DockInteractionCoordinator:
         if pos is None:
             return False
         try:
-            win_x, win_y = self._window.get_position()
+            window_pos = window_screen_position(self._window)
+            win_x, win_y = window_pos.x, window_pos.y
         except Exception as exc:
             log.debug(
                 "Failed to query pointer/window position for dock hit test: %s",

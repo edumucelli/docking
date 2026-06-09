@@ -252,6 +252,26 @@ def test_position_or_anchor_maps_placement_to_layer_shell():
     window.set_size_request.assert_called_with(64, 560)
     window.resize.assert_called_with(64, 560)
     window.move.assert_not_called()
+    assert service.popups_use_parent_relative_coordinates is True
+    assert service.get_surface_position() == (100, 220)
+
+
+def test_layer_shell_surface_position_clears_on_stop():
+    service = WaylandLayerShellSurfaceService(layer_shell=_layer_shell())
+    service.configure_before_realize(MagicMock())
+
+    service.position_or_anchor(
+        PlacementRequest(
+            monitor=_monitor_snapshot(),
+            position=Position.BOTTOM,
+            x=100,
+            y=720,
+            size=Size(width=800, height=64),
+        )
+    )
+    service.stop()
+
+    assert service.get_surface_position() is None
 
 
 def test_reservation_updates_layer_shell_exclusive_zone():

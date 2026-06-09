@@ -176,6 +176,7 @@ from gi.repository import GLib
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.ui.autohide import HideState
+from docking.ui.display import window_screen_position
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 
 log = get_logger(name="hover")
@@ -352,7 +353,8 @@ class HoverManager:
             return False
         pos = self._config.pos
 
-        win_x, win_y = self._window.get_position()
+        window_pos = window_screen_position(self._window)
+        win_x, win_y = window_pos.x, window_pos.y
         draw_rect = geometry.draw_rect
         main_size = (
             draw_rect.w if pos in (Position.BOTTOM, Position.TOP) else draw_rect.h

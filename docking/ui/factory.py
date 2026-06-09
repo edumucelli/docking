@@ -31,6 +31,7 @@ from docking.platform.backends.base import (
 )
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
+from docking.ui.display import window_screen_position
 from docking.ui.dock_window import DockWindow
 from docking.ui.renderer import DockRenderer
 
@@ -62,7 +63,8 @@ def build_dock_window(
     def _get_dock_rect() -> Rect | None:
         if not window.get_realized():
             return None
-        wx, wy = window.get_position()
+        window_pos = window_screen_position(window)
+        wx, wy = window_pos.x, window_pos.y
         dock_rect = window.geometry.build_frame().background_rect
         return Rect(
             x=wx + dock_rect.x,

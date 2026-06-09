@@ -163,7 +163,7 @@ from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.ui.display import get_pointer_position
+from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
 
@@ -659,7 +659,8 @@ class DnDHandler:
             pos = get_pointer_position(display)
             screen_x = pos.x if pos is not None else 0
             screen_y = pos.y if pos is not None else 0
-            win_x, win_y = self._window.get_position()
+            window_pos = window_screen_position(self._window)
+            win_x, win_y = window_pos.x, window_pos.y
             win_w, win_h = self._window.get_size()
 
             # Outside if cursor moved away from the dock edge
