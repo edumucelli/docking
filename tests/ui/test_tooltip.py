@@ -771,9 +771,7 @@ class TestTooltipIntegrationBranches:
         kwargs = show_tooltip.call_args.kwargs
         assert kwargs["widget"] is built_widget
 
-    def test_update_uses_backend_surface_position_for_wayland_anchor(
-        self, monkeypatch
-    ):
+    def test_update_uses_backend_surface_position_for_wayland_anchor(self, monkeypatch):
         window = MagicMock()
         window.get_position.return_value = (0, 0)
         window.surface_service = SimpleNamespace(
