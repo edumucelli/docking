@@ -104,4 +104,5 @@ class CalendarApplet(Applet):
             window=self._popup,
             content=calendar,
             gap_px=CALENDAR_POPUP_CURSOR_GAP_PX,
+            anchor=self.popup_anchor,
         )

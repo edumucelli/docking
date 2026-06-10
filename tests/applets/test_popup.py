@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import docking.applets.popup as popup
+from docking.core.position import Position
 from docking.ui.display import ScreenPosition
 
 
@@ -51,6 +52,8 @@ class _FakePopupWindow:
         self.type_hint = None
         self.accept_focus = None
         self.focus_on_map = None
+        self.transient_for = None
+        self.attached_to = None
 
     def set_decorated(self, value: bool) -> None:
         self.decorated = value
@@ -69,6 +72,15 @@ class _FakePopupWindow:
 
     def set_type_hint(self, hint) -> None:
         self.type_hint = hint
+
+    def set_transient_for(self, parent) -> None:
+        self.transient_for = parent
+
+    def set_attached_to(self, parent) -> None:
+        self.attached_to = parent
+
+    def get_transient_for(self):
+        return self.transient_for
 
     def get_child(self):
         return self.child
@@ -302,6 +314,35 @@ def test_show_wrapped_popup_replaces_content_and_positions(monkeypatch):
     position.assert_called_once_with(window=window, gap_px=24)
 
 
+def test_show_wrapped_popup_positions_from_anchor(monkeypatch):
+    window = _FakePopupWindow()
+    wrapped = object()
+    parent = object()
+    anchor = popup.PopupAnchor(
+        x=40,
+        y=50,
+        position=Position.BOTTOM,
+        parent=parent,
+    )
+    position_anchor = MagicMock()
+    position_pointer = MagicMock()
+    monkeypatch.setattr(popup, "wrap_popup", lambda _content: wrapped)
+    monkeypatch.setattr(popup, "position_popup_near_anchor", position_anchor)
+    monkeypatch.setattr(popup, "position_popup_near_pointer", position_pointer)
+
+    popup.show_wrapped_popup(
+        window=window,
+        content="content",
+        gap_px=12,
+        anchor=anchor,
+    )
+
+    assert window.transient_for is parent
+    assert window.attached_to is parent
+    position_anchor.assert_called_once_with(window=window, anchor=anchor, gap_px=12)
+    position_pointer.assert_not_called()
+
+
 def test_position_popup_near_pointer_clamps_to_screen(monkeypatch):
     window = _FakePopupWindow()
     monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: object())
@@ -314,6 +355,15 @@ def test_position_popup_near_pointer_clamps_to_screen(monkeypatch):
     popup.position_popup_near_pointer(window=window, gap_px=20)
 
     assert window.moved_to == (0, 0)
+
+
+def test_position_popup_near_anchor_uses_bottom_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=50, y=60, position=Position.BOTTOM)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=10)
+
+    assert window.moved_to == (10, 10)
 
 
 def test_prepare_dialog_content_applies_standard_layout():

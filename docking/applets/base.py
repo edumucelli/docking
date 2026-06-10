@@ -79,6 +79,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from docking.applets.identity import applet_desktop_id
+from docking.applets.popup import PopupAnchor
 from docking.core.items import APPLET_KIND, DockItem
 from docking.log import get_logger
 
@@ -343,6 +344,7 @@ class Applet(ABC):
         self._config = config
         self._icon_size = icon_size
         self._notify: Callable[[], None] | None = None
+        self._popup_anchor: PopupAnchor | None = None
         self.item = DockItem(
             desktop_id=self.desktop_id,
             kind=APPLET_KIND,
@@ -426,6 +428,15 @@ class Applet(ABC):
     def on_clicked(self) -> None:
         """Handle left-click (default: no-op)."""
         return
+
+    @property
+    def popup_anchor(self) -> PopupAnchor | None:
+        """Most recent dock icon anchor for applet-owned popup surfaces."""
+        return self._popup_anchor
+
+    def set_popup_anchor(self, anchor: PopupAnchor | None) -> None:
+        """Update the dock icon anchor used by applet-owned popup surfaces."""
+        self._popup_anchor = anchor
 
     def on_scroll(self, direction_up: bool) -> None:
         """Handle scroll wheel on applet icon (default: no-op)."""

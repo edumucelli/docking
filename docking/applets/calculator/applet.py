@@ -116,6 +116,7 @@ class CalculatorApplet(Applet):
             window=self._popup,
             content=self._build_popup_content(),
             gap_px=POPUP_CURSOR_GAP_PX,
+            anchor=self.popup_anchor,
         )
 
     def _build_popup_content(self) -> Gtk.Box:

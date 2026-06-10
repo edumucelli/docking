@@ -233,10 +233,11 @@ class TestCalendarPopup:
         fake_popup = _FakePopupWindow()
         shown: dict[str, object] = {}
 
-        def show_wrapped_popup(*, window, content, gap_px):
+        def show_wrapped_popup(*, window, content, gap_px, anchor=None):
             shown["window"] = window
             shown["content"] = content
             shown["gap_px"] = gap_px
+            shown["anchor"] = anchor
             window.add(content)
             window.show_all()
 
@@ -264,6 +265,7 @@ class TestCalendarPopup:
         assert shown["window"] is fake_popup
         assert isinstance(shown["content"], _FakeCalendar)
         assert shown["gap_px"] == calendar_applet_mod.CALENDAR_POPUP_CURSOR_GAP_PX
+        assert shown["anchor"] is None
 
     def test_stop_destroys_popup(self):
         # Given
