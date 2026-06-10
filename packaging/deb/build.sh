@@ -4,7 +4,7 @@
 # Usage: ./packaging/deb/build.sh
 #
 # Prerequisites:
-#   sudo apt install debhelper dh-python python3-setuptools python3-wheel
+#   sudo apt install debhelper dh-python python3-dev python3-setuptools python3-wheel libwayland-dev wayland-protocols
 #
 # Output: ../docking_<version>-<debian_revision>_<arch>.deb
 

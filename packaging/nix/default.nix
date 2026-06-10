@@ -20,6 +20,7 @@ pyPkgs.buildPythonApplication rec {
 
   buildInputs = with pkgs; [
     gtk3
+    gtk-layer-shell
     libwnck
     networkmanager
     gdk-pixbuf
@@ -32,6 +33,7 @@ pyPkgs.buildPythonApplication rec {
   propagatedBuildInputs = with pyPkgs; [
     pycairo
     pygobject3
+    pywayland
   ];
 
   # Weather client deps are not consistently available in nixpkgs channels.
@@ -53,9 +55,6 @@ pyPkgs.buildPythonApplication rec {
     cat > "$out/bin/docking" <<EOF
 #!/bin/sh
 set -eu
-if [ "''${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "''${WAYLAND_DISPLAY:-}" ]; then
-  export GDK_BACKEND=x11
-fi
 exec "$out/bin/docking-real" "\$@"
 EOF
     chmod 0755 "$out/bin/docking"

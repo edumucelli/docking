@@ -8,7 +8,12 @@ URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
 
 Requires:       python3
+Requires:       gtk-layer-shell
+Recommends:     python3-pywayland
+BuildRequires:  gcc
 BuildRequires:  gettext
+BuildRequires:  python3-devel
+BuildRequires:  wayland-devel
 
 %description
 Docking is a lightweight, feature-rich dock for Linux written in Python
@@ -39,13 +44,23 @@ python3 -m pip install --no-compile --target %{buildroot}/usr/lib/docking/vendor
 rm -rf %{buildroot}/usr/lib/docking/vendor/*.dist-info
 rm -rf %{buildroot}/usr/lib/docking/vendor/bin
 
+py_minor="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+mkdir -p "%{buildroot}/usr/lib/docking/vendor-python${py_minor}"
+python3 -m pip install --no-compile \
+  --target "%{buildroot}/usr/lib/docking/vendor-python${py_minor}" \
+  "pywayland>=0.4.18,<0.5"
+rm -rf %{buildroot}/usr/lib/docking/vendor-python*/bin
+
 install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'
 #!/bin/sh
 set -eu
-export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
-if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-  export GDK_BACKEND=x11
+PYTHON_VERSION="$(/usr/bin/python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+PYWAYLAND_VENDOR="/usr/lib/docking/vendor-python${PYTHON_VERSION}"
+PYTHONPATH_PREFIX="/usr/lib/docking/python:/usr/lib/docking/vendor"
+if [ -d "${PYWAYLAND_VENDOR}" ]; then
+  PYTHONPATH_PREFIX="${PYWAYLAND_VENDOR}:${PYTHONPATH_PREFIX}"
 fi
+export PYTHONPATH="${PYTHONPATH_PREFIX}${PYTHONPATH:+:$PYTHONPATH}"
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
@@ -95,6 +110,7 @@ fi
 /usr/bin/docking-camshield-helper
 /usr/lib/docking/python
 /usr/lib/docking/vendor
+/usr/lib/docking/vendor-python*
 /usr/lib/docking/refresh-desktop-caches
 /usr/share/applications/org.docking.Docking.desktop
 /usr/share/polkit-1/actions/org.docking.camshield.policy

@@ -9,7 +9,9 @@ depends=(
   'python'
   'python-gobject'
   'python-cairo'
+  'python-pywayland'
   'gtk3'
+  'gtk-layer-shell'
   'libwnck3'
   'networkmanager'
   'gstreamer'
@@ -52,9 +54,6 @@ package() {
 #!/bin/sh
 set -eu
 export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
-if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-  export GDK_BACKEND=x11
-fi
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
