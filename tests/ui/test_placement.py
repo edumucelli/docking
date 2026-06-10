@@ -582,7 +582,10 @@ class TestPlacementControllerStruts:
     def test_update_barrier_handles_supported_states(self):
         window = _make_window(
             config=SimpleNamespace(
-                hide_mode="none", pressure_reveal_enabled=False, pressure_threshold=50
+                hide_mode="none",
+                pos=Position.BOTTOM,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
             )
         )
         controller = _make_controller(window)
