@@ -199,6 +199,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
+from docking.applets.popup import PopupAnchor
 from docking.core.config import FolderStackUnfold, LeftClickAction, MiddleClickAction
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
@@ -927,6 +928,7 @@ class DockWindow(Gtk.Window):
             if is_applet(desktop_id=item.desktop_id):
                 applet = self.model.get_applet(item.desktop_id)
                 if applet:
+                    applet.set_popup_anchor(self._popup_anchor_for_item(item, frame))
                     applet.on_clicked()
                     # Refresh tooltip immediately so applet name/tooltip
                     # changes are visible without waiting for pointer motion.
@@ -985,6 +987,28 @@ class DockWindow(Gtk.Window):
                 self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
 
         return True
+
+    def _popup_anchor_for_item(
+        self,
+        item: DockItem,
+        frame: DockGeometryFrame,
+    ) -> PopupAnchor | None:
+        """Build the current screen-space popup anchor for one dock item."""
+        item_geometry = frame.geometry_for_item(item)
+        if item_geometry is None:
+            return None
+        window_pos = window_screen_position(self)
+        anchor_x, anchor_y = item_geometry.anchor_point(
+            win_x=window_pos.x,
+            win_y=window_pos.y,
+            position=self.config.pos,
+        )
+        return PopupAnchor(
+            x=anchor_x,
+            y=anchor_y,
+            position=self.config.pos,
+            parent=self,
+        )
 
     def _on_scroll(self, _widget: Gtk.DrawingArea, event: Gdk.EventScroll) -> bool:
         """Forward scroll events to the applet under the cursor, if any.

@@ -42,8 +42,9 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets import get_applet_catalog
 from docking.applets.base import load_catalog_icon
@@ -113,6 +114,7 @@ TRANSPARENCY_PERCENT_SCALE = 100
 TRANSPARENCY_PERCENT_STEP = 5
 HIDE_DELAY_MAX_MS = 5000
 HIDE_DELAY_STEP_MS = 50
+INFO_POPOVER_PADDING_PX = 8
 log = get_logger("settings")
 
 
@@ -497,15 +499,50 @@ class SettingsWindowController:
         icon = Gtk.EventBox()
         icon.set_visible_window(False)
         icon.set_size_request(HIDE_MODE_INFO_ICON_WIDTH_PX, -1)
-        if tooltip:
-            icon.set_tooltip_text(tooltip)
+        icon.add_events(
+            Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
+        )
         icon.add(
             Gtk.Image.new_from_icon_name(
                 "dialog-information-symbolic",
                 Gtk.IconSize.MENU,
             )
         )
+
+        popover = Gtk.Popover.new(icon)
+        popover.set_modal(False)
+        popover.set_position(Gtk.PositionType.TOP)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content.set_border_width(INFO_POPOVER_PADDING_PX)
+        label = Gtk.Label()
+        label.set_xalign(0.0)
+        label.set_line_wrap(True)
+        label.set_max_width_chars(48)
+        content.pack_start(label, False, False, 0)
+        popover.add(content)
+
+        icon._docking_info_popover = popover
+        icon._docking_info_label = label
+        icon._docking_info_text = ""
+        icon.connect("enter-notify-event", self._on_info_icon_enter)
+        icon.connect("leave-notify-event", self._on_info_icon_leave)
+        self._set_info_icon_text(icon, tooltip)
         return icon
+
+    def _set_info_icon_text(self, icon: Gtk.Widget, text: str) -> None:
+        icon._docking_info_text = text
+        icon._docking_info_label.set_label(text)
+
+    def _on_info_icon_enter(self, icon: Gtk.Widget, _event) -> bool:
+        if not icon._docking_info_text:
+            return False
+        icon._docking_info_popover.show_all()
+        icon._docking_info_popover.popup()
+        return False
+
+    def _on_info_icon_leave(self, icon: Gtk.Widget, _event) -> bool:
+        icon._docking_info_popover.popdown()
+        return False
 
     def _build_applets_tab(self) -> Gtk.Widget:
         scroller = Gtk.ScrolledWindow()
@@ -1055,7 +1092,7 @@ class SettingsWindowController:
             return
         mode = self._hide_mode_combo.get_active_id() or "none"
         desc = self._HIDE_MODE_DESCRIPTIONS.get(mode, "")
-        self._hide_mode_info.set_tooltip_text(desc)
+        self._set_info_icon_text(self._hide_mode_info, desc)
 
     def _after_tooltips_changed(self, active: bool) -> None:
         if not active:

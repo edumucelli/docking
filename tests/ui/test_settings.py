@@ -362,6 +362,8 @@ class FakeImage:
     def __init__(self, source: object) -> None:
         self.source = source
         self.pixel_size = None
+        self.size_request = None
+        self.tooltip_text = None
 
     @classmethod
     def new_from_icon_name(cls, icon_name: str, icon_size):
@@ -373,6 +375,12 @@ class FakeImage:
 
     def set_pixel_size(self, value: int) -> None:
         self.pixel_size = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
 
 
 class FakePixbuf:
@@ -406,6 +414,8 @@ class FakeEventBox:
         self.visible_window = True
         self.size_request = None
         self.tooltip_text = None
+        self.events = 0
+        self.callbacks: dict[str, object] = {}
 
     def set_visible_window(self, value: bool) -> None:
         self.visible_window = value
@@ -413,11 +423,60 @@ class FakeEventBox:
     def set_size_request(self, width: int, height: int) -> None:
         self.size_request = (width, height)
 
+    def add_events(self, events: int) -> None:
+        self.events |= events
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
     def set_tooltip_text(self, value: str) -> None:
         self.tooltip_text = value
 
     def add(self, child) -> None:
         self.child = child
+
+    def emit_enter(self) -> None:
+        callback = self.callbacks.get("enter-notify-event")
+        if callback is not None:
+            callback(self, object())
+
+    def emit_leave(self) -> None:
+        callback = self.callbacks.get("leave-notify-event")
+        if callback is not None:
+            callback(self, object())
+
+
+class FakePopover:
+    def __init__(self, relative_to) -> None:
+        self.relative_to = relative_to
+        self.child = None
+        self.modal = True
+        self.position = None
+        self.popup_count = 0
+        self.popdown_count = 0
+        self.show_all_count = 0
+
+    @classmethod
+    def new(cls, relative_to):
+        return cls(relative_to)
+
+    def set_modal(self, value: bool) -> None:
+        self.modal = value
+
+    def set_position(self, value) -> None:
+        self.position = value
+
+    def add(self, child) -> None:
+        self.child = child
+
+    def show_all(self) -> None:
+        self.show_all_count += 1
+
+    def popup(self) -> None:
+        self.popup_count += 1
+
+    def popdown(self) -> None:
+        self.popdown_count += 1
 
 
 class FakeScrolledWindow:
@@ -453,6 +512,15 @@ class FakeAlign:
 
 class FakeIconSize:
     MENU = 0
+
+
+class FakePositionType:
+    TOP = 0
+
+
+class FakeEventMask:
+    ENTER_NOTIFY_MASK = 1
+    LEAVE_NOTIFY_MASK = 2
 
 
 class FakeWindowPosition:
@@ -494,13 +562,19 @@ class FakeGtk:
     Button = FakeButton
     Image = FakeImage
     EventBox = FakeEventBox
+    Popover = FakePopover
     ScrolledWindow = FakeScrolledWindow
     Orientation = FakeOrientation
     PolicyType = FakePolicyType
     Align = FakeAlign
     IconSize = FakeIconSize
+    PositionType = FakePositionType
     WindowPosition = FakeWindowPosition
     Settings = FakeGtkSettings
+
+
+class FakeGdk:
+    EventMask = FakeEventMask
 
 
 def _config():
@@ -538,6 +612,7 @@ def _config():
 class TestSettingsWindowController:
     def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
@@ -600,6 +675,7 @@ class TestSettingsWindowController:
 
     def test_numeric_spin_buttons_use_simple_im_context(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
@@ -630,6 +706,7 @@ class TestSettingsWindowController:
 
     def test_hide_controls_exist_only_in_behavior_tab(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
@@ -676,6 +753,7 @@ class TestSettingsWindowController:
 
     def test_pressure_threshold_uses_info_icon_tooltip(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
@@ -716,7 +794,25 @@ class TestSettingsWindowController:
             controller._pressure_threshold_info,
         ]
         assert isinstance(controller._pressure_threshold_info, FakeEventBox)
-        assert "cursor pressure" in controller._pressure_threshold_info.tooltip_text
+        assert controller._pressure_threshold_info.tooltip_text is None
+        assert controller._pressure_threshold_info.events == (
+            FakeEventMask.ENTER_NOTIFY_MASK | FakeEventMask.LEAVE_NOTIFY_MASK
+        )
+        assert "cursor pressure" in (
+            controller._pressure_threshold_info._docking_info_label.get_label()
+        )
+
+        controller._pressure_threshold_info.emit_enter()
+        popover = controller._pressure_threshold_info._docking_info_popover
+        assert isinstance(popover.child, FakeBox)
+        assert popover.child.border_width == settings_mod.INFO_POPOVER_PADDING_PX
+        assert popover.child.get_children() == [
+            controller._pressure_threshold_info._docking_info_label
+        ]
+        assert popover.show_all_count == 1
+        assert popover.popup_count == 1
+        controller._pressure_threshold_info.emit_leave()
+        assert popover.popdown_count == 1
 
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
