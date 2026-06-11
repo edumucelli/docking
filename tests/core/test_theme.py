@@ -957,6 +957,73 @@ class TestShippedThemesLoadWithActiveGlow:
                 )
 
 
+class TestMigrationEdgeCases:
+    def test_self_mapping_key_is_skipped(self):
+        """A deprecated key that maps to itself produces no changes."""
+        result = migrate_theme_dict(
+            {"roundness": 5},
+            deprecated_keys={"self_key": "self_key"},
+        )
+        assert result.changed is False
+
+    def test_path_value_empty_parts_returns_none(self):
+        from docking.core.theme.migration import _theme_path_value
+
+        found, val = _theme_path_value({}, "")
+        assert found is False
+        assert val is None
+
+    def test_path_pop_empty_parts_is_noop(self):
+        from docking.core.theme.migration import _theme_path_pop
+
+        data = {"key": "value"}
+        _theme_path_pop(data, "")
+        assert data == {"key": "value"}
+
+    def test_path_pop_non_dict_current_is_noop(self):
+        from docking.core.theme.migration import _theme_path_pop
+
+        data = {"outer": "not-a-dict"}
+        _theme_path_pop(data, "outer.missing")
+        assert data == {"outer": "not-a-dict"}
+
+    def test_is_user_theme_path_oserror_fallback(self, tmp_path):
+        from docking.core.theme.migration import _is_user_theme_path
+
+        class BadPath:
+            def resolve(self):
+                raise OSError("broken")
+
+            parent = tmp_path
+
+        assert _is_user_theme_path(path=BadPath(), user_theme_dir=tmp_path) is True
+
+    def test_is_user_theme_path_mismatch(self, tmp_path):
+        from docking.core.theme.migration import _is_user_theme_path
+
+        other_dir = tmp_path / "other"
+        other_dir.mkdir()
+        file_path = tmp_path / "theme.json"
+        file_path.write_text("{}")
+        assert _is_user_theme_path(path=file_path, user_theme_dir=other_dir) is False
+
+    def test_create_migration_backup_no_existing_path(self, tmp_path):
+        from docking.core.theme.migration import _create_theme_migration_backup
+
+        nonexistent = tmp_path / "nonexistent_theme.json"
+        backup = _create_theme_migration_backup(path=nonexistent)
+        assert not backup.exists()  # No backup created when source missing
+
+    def test_write_theme_json_atomic_valid(self, tmp_path):
+        from docking.core.theme.migration import _write_theme_json_atomic
+
+        path = tmp_path / "valid.json"
+        _write_theme_json_atomic(path=path, payload={"key": "value"})
+        import json
+
+        assert json.loads(path.read_text()) == {"key": "value"}
+
+
 class TestIndicatorFill:
     """Indicator fill (flat vs glow) theme field and JSON loading."""
 
