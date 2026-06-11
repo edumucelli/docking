@@ -421,14 +421,14 @@ class DockPlacementController:
                     monitor=monitor,
                     monitor_idx=self._monitor_index(display=display, monitor=monitor),
                 ),
-                position=getattr(self._window.config, "pos", Position.BOTTOM),
+                position=self._window.config.pos,
                 thickness=strut_height,
             )
         )
 
     def update_barrier(self) -> None:
         """Create or destroy the pointer barrier based on autohide state."""
-        position = getattr(self._window.config, "pos", Position.BOTTOM)
+        position = self._window.config.pos
         if self._window.config.hide_mode in ("none", "always-on-top"):
             self._surface.update_pointer_barrier(
                 monitor=None,
@@ -543,17 +543,14 @@ class DockPlacementController:
 
     def _resolve_target_monitor(self, display: Gdk.Display) -> Gdk.Monitor | None:
         """Resolve configured monitor, falling back to primary monitor."""
-        if (
-            getattr(self._window.config, "active_display", False)
-            and self._active_monitor is not None
-        ):
+        if self._window.config.active_display and self._active_monitor is not None:
             return self._active_monitor
 
         n_monitors = display.get_n_monitors()
         if n_monitors <= 0:
             return None
 
-        selected = int(getattr(self._window.config, "monitor_index", -1))
+        selected = int(self._window.config.monitor_index)
         if 0 <= selected < n_monitors:
             monitor = display.get_monitor(selected)
             if monitor is not None:
