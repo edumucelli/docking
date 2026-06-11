@@ -43,6 +43,14 @@ override_dh_auto_install:
 	# packages as system dependencies.
 	rm -rf debian/docking/usr/lib/docking/vendor/*.dist-info
 	rm -rf debian/docking/usr/lib/docking/vendor/bin
+	# PyWayland ships CPython-specific native glue. Keep it in a Python-version
+	# scoped vendor path so the package can still run on newer hosts that use
+	# distro python3-pywayland instead of this fallback.
+	py_minor="$$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')" ; \
+	python3 -m pip install --no-compile \
+		--target="debian/docking/usr/lib/docking/vendor-python$${py_minor}" \
+		"pywayland>=0.4.18,<0.5"
+	rm -rf debian/docking/usr/lib/docking/vendor-python*/bin
 	# Drop minor-version-specific accelerators so the package remains compatible
 	# across Python 3.10+ on the same CPU architecture.
 	find debian/docking/usr/lib/docking/vendor -name '*.cpython-*.so' -delete
@@ -51,6 +59,15 @@ override_dh_python3:
 	# Docking installs into private paths under /usr/lib/docking and uses an
 	# explicit python3 (>= 3.10) dependency in debian/control.
 	:
+
+override_dh_dwz:
+	dh_dwz -Xvendor-python
+
+override_dh_strip:
+	dh_strip -Xvendor-python
+
+override_dh_shlibdeps:
+	dh_shlibdeps -Xvendor-python
 
 override_dh_builddeb:
 	# Use xz instead of newer zstd-compressed .deb members so release artifacts

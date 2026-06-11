@@ -28,6 +28,7 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections, radio_submenu
 from docking.applets.systemmonitor import meta
+from docking.applets.systemmonitor.gpu import GpuReader, GpuStats
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
     CPU_THRESHOLD,
@@ -71,6 +72,8 @@ class SystemMonitorApplet(Applet):
         self._mem: float = 0.0
         self._temperature_c: float | None = None
         self._temperature_reader = TemperatureReader()
+        self._gpu: GpuStats | None = None
+        self._gpu_reader = GpuReader()
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
         prefs = prefs_from_mapping(
@@ -91,6 +94,7 @@ class SystemMonitorApplet(Applet):
             mem=self._mem,
             temperature_c=self._temperature_c,
             disks=disk_usage() if self._show_disk else None,
+            gpu=self._gpu,
             temperature_unit=self._temperature_unit,
         )
 
@@ -193,6 +197,8 @@ class SystemMonitorApplet(Applet):
 
         previous_temperature = self._temperature_c
         self._temperature_c = self._temperature_reader.read()
+        previous_gpu = self._gpu
+        self._gpu = self._gpu_reader.read()
 
         cpu_delta = abs(self._cpu - self._last_drawn_cpu)
         mem_delta = abs(self._mem - self._last_drawn_mem)
@@ -203,7 +209,7 @@ class SystemMonitorApplet(Applet):
         else:
             previous_display = self._display_temperature(previous_temperature)
             current_display = self._display_temperature(self._temperature_c)
-            if previous_display != current_display:
+            if previous_display != current_display or previous_gpu != self._gpu:
                 self._refresh_tooltip_only()
 
         return True
