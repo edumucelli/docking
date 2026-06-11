@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 
 from docking.core.greeting import (
     StartupGreetingState,
+    _coerce_bool,
+    _coerce_int,
     consume_new_year_greeting,
     load_state,
     save_state,
@@ -29,6 +32,16 @@ class TestLoadState:
 
         assert state == StartupGreetingState()
 
+    def test_non_dict_payload_returns_defaults(self, tmp_path, caplog):
+        path = tmp_path / "startup.json"
+        path.write_text("[1, 2, 3]", encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING, logger="docking.greeting"):
+            state = load_state(path=path)
+
+        assert state == StartupGreetingState()
+        assert "Invalid greeting state payload" in caplog.text
+
     def test_round_trip(self, tmp_path):
         path = tmp_path / "startup.json"
         state = StartupGreetingState(
@@ -39,6 +52,11 @@ class TestLoadState:
         save_state(state, path=path)
 
         assert load_state(path=path) == state
+
+    def test_load_state_with_str_path(self, tmp_path):
+        """load_state accepts a string path."""
+        state = load_state(path=str(tmp_path / "nonexistent.json"))
+        assert state == StartupGreetingState()
 
 
 class TestConsumeNewYearGreeting:
@@ -140,3 +158,47 @@ class TestConsumeNewYearGreeting:
         )
 
         assert year == 2026
+
+
+class TestCoerceBool:
+    def test_true_like_strings(self):
+        assert _coerce_bool("true", default=False) is True
+        assert _coerce_bool("1", default=False) is True
+        assert _coerce_bool("yes", default=False) is True
+        assert _coerce_bool("on", default=False) is True
+
+    def test_false_like_strings(self):
+        assert _coerce_bool("false", default=True) is False
+        assert _coerce_bool("0", default=True) is False
+        assert _coerce_bool("no", default=True) is False
+        assert _coerce_bool("off", default=True) is False
+
+    def test_actual_bool_passes_through(self):
+        assert _coerce_bool(True, default=False) is True
+        assert _coerce_bool(False, default=True) is False
+
+    def test_int_coerced_to_bool(self):
+        assert _coerce_bool(1, default=False) is True
+        assert _coerce_bool(0, default=True) is False
+
+    def test_unknown_value_returns_default(self):
+        assert _coerce_bool("unknown", default=True) is True
+        assert _coerce_bool(3.14, default=False) is False
+
+
+class TestCoerceInt:
+    def test_bool_to_int(self):
+        assert _coerce_int(True, default=0) == 1
+        assert _coerce_int(False, default=0) == 0
+
+    def test_float_to_int(self):
+        assert _coerce_int(3.14, default=0) == 3
+
+    def test_string_stripped_and_parsed(self):
+        assert _coerce_int("  42  ", default=0) == 42
+
+    def test_invalid_string_returns_default(self):
+        assert _coerce_int("abc", default=7) == 7
+
+    def test_none_returns_default(self):
+        assert _coerce_int(None, default=99) == 99
