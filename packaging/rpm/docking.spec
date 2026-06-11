@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.0.0}
+Version:        %{?pkg_version}%{!?pkg_version:2.0.1}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
@@ -118,6 +118,12 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+
+* Wed Jun 11 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.0.1-1
+- Refresh README, packaging docs, and website for v2.0.1
+- Add GPU utilization summary to System Monitor applet
+- Fix Opus 4.7/4.8 and Sonnet 4.5/4.6 pricing tiers
+- Replace getattr calls with direct attribute access in placement.py
 
 * Sat Jun 06 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 1.29.0-1
 - Add experimental Wayland runtime support
