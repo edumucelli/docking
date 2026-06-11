@@ -35,7 +35,7 @@ That check confirms:
 
 ```bash
 # Install build dependencies
-sudo apt install debhelper dh-python python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject
+sudo apt install debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject libwayland-dev wayland-protocols
 
 # Build .deb
 ./packaging/deb/build.sh
@@ -50,13 +50,14 @@ docking
 
 ### How it works
 
-- **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`
-- **Optional Wayland deps**: native Wayland layer-shell placement requires
-  `gir1.2-gtklayershell-0.1` on Debian/Ubuntu. It should be packaged as an
-  optional/recommended dependency until native Wayland support grows beyond the
-  layer-shell surface backend. Foreign-toplevel taskbar support additionally
-  needs the optional Python `pywayland` runtime for Docking's vendored wlroots
-  protocol binding.
+- **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`.
+  Native Wayland placement is included through Debian/Ubuntu's
+  `gir1.2-gtklayershell-0.1` package.
+- **PyWayland**: the package recommends distro `python3-pywayland` where it is
+  available. The build also installs a Python-minor-specific PyPI fallback under
+  `/usr/lib/docking/vendor-pythonX.Y/` so Jammy-built packages can use the live
+  protocol runtime on matching Python hosts without shadowing newer host Python
+  installations.
 - **Application code**: installed to `/usr/lib/docking/python/` and loaded via the
   `/usr/bin/docking` wrapper so the package stays compatible across supported
   Python 3 minors on the same architecture.
@@ -133,13 +134,14 @@ flatpak run cc.docking.Docking
 
 - App ID is `cc.docking.Docking`; system packages keep the shared
   `org.docking.Docking` desktop file and icons.
-- Native Wayland layer-shell placement needs `gtk-layer-shell` available inside
-  the runtime if the Flatpak is expected to use the native Wayland backend.
+- Native Wayland layer-shell placement is built into the Flatpak through a
+  bundled `gtk-layer-shell` module, and live protocol support is included through
+  `pywayland`.
 - Flatpak build installs hicolor icons and a local `hicolor/index.theme` so
   AppStream icon checks pass in sandboxed builds.
-- The app requires X11 window management behavior, so the Flatpak manifest enables
-  `--socket=x11` and host filesystem access for full functionality. Native
-  Wayland layer-shell mode is reduced until foreign-window services exist.
+- The Flatpak keeps `--socket=x11` for compatibility and also enables
+  `--socket=wayland` so backend selection can use native Wayland where the
+  compositor exposes the required protocols.
 
 ## Snap
 
@@ -169,7 +171,7 @@ Notes:
 
 ```bash
 # Install tooling
-sudo apt install python3-pip libfuse2
+sudo apt install python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools
 python3 -m pip install --upgrade pip
 python3 -m pip install appimage-builder
 
@@ -194,6 +196,7 @@ Notes:
 - Build script: `packaging/appimage/build.sh`
 - Runtime dependencies are bundled from Ubuntu 22.04 packages listed in the recipe.
 - The AppImage build script selects the correct Ubuntu mirror, package architecture, typelib path, and output name for `x86_64` vs `aarch64`.
+- The AppImage bundles GtkLayerShell runtime libraries.
 
 ## RPM
 
