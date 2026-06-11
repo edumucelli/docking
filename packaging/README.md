@@ -28,21 +28,23 @@ python3 tools/check_translation_packaging.py
 ```
 
 That check confirms:
-- compiled `.mo` catalogs are declared in both `pyproject.toml` and `setup.cfg`
+- compiled `.mo` catalogs are declared in `pyproject.toml`
 - packaging/CI paths still invoke `tools/i18n.sh --compile`
 
 ## DEB (Debian/Ubuntu)
 
 ```bash
 # Install build dependencies
-sudo apt install debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject libwayland-dev wayland-protocols
+sudo apt install debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject libwayland-dev wayland-protocols gettext
 
 # Build .deb
 ./packaging/deb/build.sh
 
 # Install
-sudo dpkg -i ../docking_*_*.deb
-sudo apt-get -f install  # fix any missing deps
+sudo apt install ../docking_*_*.deb
+
+# If you used dpkg -i and dependencies were left unconfigured:
+sudo apt-get -f install
 
 # Verify
 docking
@@ -64,9 +66,8 @@ docking
 - **Vendored deps**: all pip dependencies go to `/usr/lib/docking/vendor/` to avoid
   file conflicts with Ubuntu's python3-* packages. The entrypoint adds this path to
   `sys.path` at startup.
-- **Assets**: theme JSON files, clock SVG layers, and weather city database are bundled
-  via `package_data` in `setup.cfg` (shim for Ubuntu 22.04's older setuptools that
-  can't read PEP 621 from `pyproject.toml`). Installed to
+- **Assets**: theme JSON files, clock SVG layers, and weather city database are
+  declared as package data in `pyproject.toml`. Installed to
   `/usr/lib/docking/python/docking/assets/`.
 - **Application icon**: add `org.docking.Docking` icon files under
   `packaging/deb/icons/hicolor/<size>x<size>/apps/org.docking.Docking.png` (and
@@ -202,7 +203,7 @@ Notes:
 
 ```bash
 # Install tooling
-sudo apt install rpm python3-pip
+sudo apt install rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
 
 # Build RPM package
 ./packaging/rpm/build.sh

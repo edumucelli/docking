@@ -10,11 +10,9 @@
 [![License](https://img.shields.io/github/license/edumucelli/docking)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 
-<img src="images/docking.png" alt="Docking" height="48" style="display:block; margin:0 auto;">
 
 A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
-![all.gif](images/all.gif)
 
 ## Contents
 
@@ -44,7 +42,7 @@ Docking is built around a few core capabilities:
 - Extensible applet surface for system status, productivity, media, and utilities.
 
 Highlights:
-- 52 built-in applets enabled from the dock menu, plus a separate dock separator item.
+- 56 built-in applets enabled from the dock menu, plus a separate dock separator item.
 - 13 built-in themes with scalable layout values.
 - Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
 - Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
@@ -53,15 +51,14 @@ Highlights:
 
 ## Requirements
 
-- Linux with X11 for full dock functionality
-- Wayland: full support on GNOME / Mutter 45+ via the companion
-  `docking-bridge@docking.org` GNOME Shell extension; layer-shell support
-  on wlroots-based compositors (Hyprland, Sway); KDE Plasma 6 KWin
-  support; reduced
-  mode on other Wayland compositors. Example environments include GNOME /
-  Mutter 45+ (Ubuntu 26.04 LTS, Fedora Workstation 40+) and KDE Plasma 6
-  (Kubuntu 26.04 LTS).
+- Linux desktop with X11 or Wayland
 - Python 3.10+
+- X11 remains fully supported.
+- Wayland support is backend-specific:
+  - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension
+  - KDE Plasma 6 through the native KWin backend
+  - wlroots-style compositors through layer-shell and advertised Wayland protocols
+  - reduced mode when compositor integration is unavailable
 - System packages (Ubuntu/Debian):
 
 ```bash
@@ -73,8 +70,8 @@ sudo apt install \
   libcairo2-dev libgirepository1.0-dev pkg-config
 ```
 
-Optional native Wayland layer-shell placement requires a compositor with
-layer-shell support plus the system `gtk-layer-shell` GIR package:
+Native Wayland layer-shell source installs also need the system
+`gtk-layer-shell` GIR package:
 
 ```bash
 # Debian / Ubuntu
@@ -87,11 +84,10 @@ sudo dnf install gtk-layer-shell
 sudo pacman -S gtk-layer-shell
 ```
 
-This package is not a pip dependency. Docking imports it lazily only for native
-Wayland layer-shell sessions. If it is missing, or the compositor does not
-advertise layer-shell, Docking falls back to reduced native Wayland mode.
+Release packages include or depend on this where native Wayland support is
+advertised. Source installs must install it separately.
 
-Live native Wayland protocol backends also need the optional Python extra:
+Live Wayland protocol clients in source installs need the `[wayland]` extra:
 
 ```bash
 # Debian / Ubuntu build dependencies for pywayland
@@ -176,8 +172,8 @@ DOCKING_LOG_LEVEL=DEBUG python run.py
 
 ### Wayland Support
 
-X11 remains the primary backend. Native Wayland is supported through several
-backends, selected automatically or via `DOCKING_BACKEND`:
+Docking selects a backend from the current desktop session. You can also force
+one with `DOCKING_BACKEND`.
 
 | Backend | Compositor | Coverage |
 |---|---|---|
@@ -186,13 +182,11 @@ backends, selected automatically or via `DOCKING_BACKEND`:
 | **Native layer-shell** | wlroots-based (Hyprland, Sway) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
 | **Reduced** | Any Wayland | Dock visible but no window management (no running indicators, no previews, no workspace switching) |
 
-#### GNOME Shell Bridge (Mutter 45+)
+#### GNOME Shell Bridge
 
 On GNOME, Docking uses a companion GNOME Shell extension
 (`docking-bridge@docking.org`) that provides window management, previews,
 workspace switching, and Show Desktop over a private session D-Bus interface.
-Recent GNOME / Mutter 45+ examples include Ubuntu 26.04 LTS and Fedora
-Workstation 40+.
 
 **How to enable:**
 ```bash
@@ -203,11 +197,10 @@ tools/gnome_bridge.sh install
 DOCKING_BACKEND=gnome-shell docking
 ```
 
-The extension is included in the system package (deb / rpm / Arch) and
-auto-enabled on install when a D-Bus session is available. AppImage and
-Nix users should run `tools/gnome_bridge.sh install` once, or copy
-`docking/platform/backends/gnome/extension/` to
-`~/.local/share/gnome-shell/extensions/docking-bridge@docking.org/`.
+System packages include the extension. AppImage and Nix users should run
+`tools/gnome_bridge.sh install` once, or copy
+`docking/platform/backends/gnome/extension/` into the GNOME Shell user
+extensions directory.
 
 #### KWin / KDE Plasma 6
 
@@ -221,7 +214,7 @@ switching.
 - Workspace list and switching
 - Workspace-aware filtering
 
-**What is not yet available on KWin 6:**
+**Not available through public KWin 6 APIs:**
 - Window actions (activate, minimize, close) — KWin 6 has no public
   protocol for third-party window management
 - Window previews — no capture protocol available
@@ -233,8 +226,8 @@ session and is also selectable with `DOCKING_BACKEND=kwin`.
 
 #### Native layer-shell
 
-Native Wayland layer-shell placement requires a compositor with
-`zwlr_layer_shell_v1` plus the system `gtk-layer-shell` GIR package:
+Native layer-shell mode needs a compositor with `zwlr_layer_shell_v1`.
+Source installs also need the system `gtk-layer-shell` GIR package:
 
 ```bash
 # Debian / Ubuntu
@@ -247,7 +240,7 @@ sudo dnf install gtk-layer-shell
 sudo pacman -S gtk-layer-shell
 ```
 
-Optional live Wayland protocol backends need the `[wayland]` extra:
+Source installs that use live protocol clients also need the `[wayland]` extra:
 ```bash
 sudo apt install libwayland-dev wayland-protocols
 pip install -e ".[wayland]"
@@ -293,9 +286,13 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
   "left_click_action": "toggle",
   "middle_click_action": "new-window",
   "folder_stack_unfold": "hover",
+  "window_list_sort": "default",
   "show_window_count_numbers": false,
   "theme": "default",
   "transparency": 1.0,
+  "additional_distance_from_edge": 0,
+  "pressure_reveal_enabled": false,
+  "pressure_threshold": 50,
   "pinned": [
     { "kind": "applet", "target": "applet://applications" },
     { "kind": "app", "target": "firefox.desktop" },
@@ -331,9 +328,13 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
 | `folder_stack_unfold` | hover | Folder stack open behavior: `hover` or `click` |
+| `window_list_sort` | default | Open-window menu order: `default` or `alphabetical` |
 | `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
 | `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
+| `additional_distance_from_edge` | 0 | Extra pixels added to the theme's edge gap |
+| `pressure_reveal_enabled` | false | Require pointer-barrier pressure before revealing a hidden X11 dock |
+| `pressure_threshold` | 50 | Pointer pressure threshold in pixels, from `5` to `500` |
 | `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders. First run seeds a starter set. |
 | `applet_prefs` | `{}` | Per-applet preference storage |
 | `item_prefs` | `{}` | Per-item preference storage for files and folders |
@@ -387,13 +388,6 @@ Thirteen built-in themes are included:
 - `candy` -- playful pastel floating pill
 - `gruvbox` -- warm earthy dark
 - `solarized` -- soft light Solarized variant
-
-Theme examples:
-
-| Theme | Preview |
-| --- | --- |
-| Glass | ![Glass theme](images/glass.png) |
-| Transparent | ![Transparent theme](images/transparent.png) |
 
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
 
@@ -507,7 +501,6 @@ This split keeps runtime behavior in one place while making parsers/rendering hi
 
 ### AI Usage
 
-<img src="docking/assets/icons/applets/aiusage.png" alt="AI Usage" width="48">
 
 Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
@@ -524,7 +517,6 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
 ### Clock
 
-<img src="docking/assets/icons/applets/clock.png" alt="Clock" width="48">
 
 Analog or digital clock face. Optional seconds display adds a red seconds hand in analog mode and `HH:MM:SS` in digital mode, and the applet can keep a simple one-shot alarm reminder.
 
@@ -542,7 +534,6 @@ Analog or digital clock face. Optional seconds display adds a red seconds hand i
 
 ### Alarm
 
-<img src="docking/assets/icons/applets/alarm.png" alt="Alarm" width="48">
 
 Multiple alarm presets with local-time scheduling, weekday repeats, one-shot alarms, snooze, and dismiss controls. The icon shows a rounded alarm clock with a compact next-alarm countdown, and switches to a ringing label when an alarm fires.
 
@@ -562,7 +553,6 @@ Multiple alarm presets with local-time scheduling, weekday repeats, one-shot ala
 
 ### Trash
 
-<img src="docking/assets/icons/applets/trash.png" alt="Trash" width="48">
 
 Shows the current state of the system trash. Icon switches between empty and full automatically.
 
@@ -573,7 +563,6 @@ Shows the current state of the system trash. Icon switches between empty and ful
 
 ### USB Watch
 
-<img src="docking/assets/icons/applets/usbwatch.png" alt="USB Watch" width="48">
 
 Shows mounted removable USB storage devices and provides safe-remove actions without opening a file manager.
 
@@ -583,7 +572,6 @@ Shows mounted removable USB storage devices and provides safe-remove actions wit
 
 ### Desktop
 
-<img src="docking/assets/icons/applets/desktop.png" alt="Desktop" width="48">
 
 Toggle "show desktop" mode -- minimizes or restores all windows.
 
@@ -591,7 +579,6 @@ Toggle "show desktop" mode -- minimizes or restores all windows.
 
 ### System Monitor
 
-<img src="docking/assets/icons/applets/systemmonitor.png" alt="System Monitor" width="48">
 
 Circular gauge showing real-time CPU and memory usage. The fill color shifts from green (idle) to red (busy). A white arc around the edge shows memory usage.
 
@@ -601,7 +588,6 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 ### Thermals
 
-<img src="docking/assets/icons/applets/thermals.png" alt="Thermals" width="48">
 
 Hottest lm-sensors temperature plus fastest fan RPM. The icon is a thermometer with a degree-only bottom label for the current temperature, and the tooltip includes the lm-sensors chip and label for both readings.
 
@@ -616,7 +602,6 @@ Hottest lm-sensors temperature plus fastest fan RPM. The icon is a thermometer w
 
 ### Battery
 
-<img src="docking/assets/icons/applets/battery.png" alt="Battery" width="48">
 
 Shows battery charge level using standard icons. The icon changes based on charge level and charging state.
 
@@ -629,7 +614,6 @@ Shows battery charge level using standard icons. The icon changes based on charg
 
 ### Brightness
 
-<img src="docking/assets/icons/applets/brightness.png" alt="Brightness" width="48">
 
 Screen brightness control with a live level indicator.
 
@@ -644,7 +628,6 @@ Screen brightness control with a live level indicator.
 
 ### Weather
 
-<img src="docking/assets/icons/applets/weather.png" alt="Weather" width="48">
 
 Shows current weather and air quality for a selected city with a 5-day forecast.
 
@@ -671,7 +654,6 @@ Tue: 28/32°C, Rain
 
 ### Sunrise
 
-<img src="docking/assets/icons/applets/sunrise.png" alt="Sunrise" width="48">
 
 Sunrise, sunset, and twilight countdown applet for a selected city. The icon is a rendered 24-hour solar dial with night, astronomical, nautical, civil, and daylight bands plus a current-time marker.
 
@@ -690,7 +672,6 @@ Sunrise, sunset, and twilight countdown applet for a selected city. The icon is 
 
 ### Moon
 
-<img src="docking/assets/icons/applets/moon.png" alt="Moon" width="48">
 
 Moon phase applet with a rendered moon disc and illumination shading.
 
@@ -705,7 +686,6 @@ Moon phase applet with a rendered moon disc and illumination shading.
 
 ### Clippy
 
-<img src="docking/assets/icons/applets/clippy.png" alt="Clippy" width="48">
 
 Clipboard history manager. Monitors the system clipboard and stores the last 15 text entries.
 
@@ -717,7 +697,6 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 
 ### Bookmarks
 
-<img src="docking/assets/icons/applets/bookmarks.png" alt="Bookmarks" width="48">
 
 Bookmarks launcher for pinned URLs.
 
@@ -731,7 +710,6 @@ Bookmarks launcher for pinned URLs.
 
 ### Quick Note
 
-<img src="docking/assets/icons/applets/quicknote.png" alt="Quick Note" width="48">
 
 Sticky note applet for a single quick text note.
 
@@ -744,7 +722,6 @@ Sticky note applet for a single quick text note.
 
 ### Recent Files
 
-<img src="docking/assets/icons/applets/recentfiles.png" alt="Recent Files" width="48">
 
 Launcher for the most recently opened files.
 
@@ -757,7 +734,6 @@ Launcher for the most recently opened files.
 
 ### Color Picker
 
-<img src="docking/assets/icons/applets/colorpicker.png" alt="Color Picker" width="48">
 
 Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel color, copies hex value to clipboard, and updates the icon swatch.
 
@@ -772,7 +748,6 @@ Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel colo
 
 ### Applications
 
-<img src="docking/assets/icons/applets/applications.png" alt="Applications" width="48">
 
 Categorized application launcher. Groups all installed `.desktop` applications by FreeDesktop category (Multimedia, Development, Internet, etc.) with icons.
 
@@ -780,7 +755,6 @@ Categorized application launcher. Groups all installed `.desktop` applications b
 
 ### Keyboard Layout
 
-<img src="docking/assets/icons/applets/keyboardlayout.png" alt="Keyboard Layout" width="48">
 
 Keyboard layout switcher with a compact keyboard icon and active layout code overlay.
 
@@ -795,7 +769,6 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 
 ### Caps Lock
 
-<img src="docking/assets/icons/applets/capslock.png" alt="Caps Lock" width="48">
 
 Caps Lock and Num Lock indicators for keyboards without physical lights. The icon shows which locks are currently active.
 
@@ -810,7 +783,6 @@ Caps Lock and Num Lock indicators for keyboards without physical lights. The ico
 
 ### Network
 
-<img src="docking/assets/icons/applets/network.png" alt="Network" width="48">
 
 Shows WiFi signal strength or wired connection status, with live upload/download speed overlay.
 
@@ -836,7 +808,6 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 
 ### Bluetooth
 
-<img src="docking/assets/icons/applets/bluetooth.png" alt="Bluetooth" width="48">
 
 Bluetooth manager applet for quick adapter and device control from the dock.
 
@@ -861,7 +832,6 @@ Bluetooth manager applet for quick adapter and device control from the dock.
 
 ### Cam Shield
 
-<img src="docking/assets/icons/applets/camshield.png" alt="Cam Shield" width="48">
 
 Camera privacy indicator. The icon shows a red dot while an app is using a camera.
 
@@ -878,7 +848,6 @@ Locking blocks new camera sessions. Apps that are already using the camera may n
 
 ### Mic Shield
 
-<img src="docking/assets/icons/applets/micshield.png" alt="Mic Shield" width="48">
 
 Microphone privacy indicator and mute toggle. The icon shows a red dot while an app is using microphone input, and clicking the applet quickly mutes or unmutes the microphone.
 
@@ -894,7 +863,6 @@ Microphone privacy indicator and mute toggle. The icon shows a red dot while an 
 
 ### Power Profiles
 
-<img src="docking/assets/icons/applets/powerprofiles.png" alt="Power Profiles" width="48">
 
 Power profile applet for quick laptop/handheld mode switching.
 
@@ -905,9 +873,15 @@ Power profile applet for quick laptop/handheld mode switching.
 
 **Tooltip:** current profile and available profiles
 
+### Caffeine
+
+Keeps the session awake for a selected duration or indefinitely.
+
+**Click:** Toggle inhibit on/off
+**Right-click:** Duration presets and status
+
 ### Notifications
 
-<img src="docking/assets/icons/applets/notifications.png" alt="Notifications" width="48">
 
 Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when available.
 
@@ -921,7 +895,6 @@ Notification center applet with a compact status icon, Do Not Disturb toggle, an
 
 ### Session
 
-<img src="docking/assets/icons/applets/session.png" alt="Session" width="48">
 
 Lock, log out, suspend, restart, or shut down from the dock.
 
@@ -935,7 +908,6 @@ Lock, log out, suspend, restart, or shut down from the dock.
 
 ### Calendar
 
-<img src="docking/assets/icons/applets/calendar.png" alt="Calendar" width="48">
 
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
@@ -946,7 +918,6 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 
 ### Workspaces
 
-<img src="docking/assets/icons/applets/workspaces.png" alt="Workspaces" width="48">
 
 Workspace switcher with a visual grid icon. Active workspace is highlighted in blue.
 
@@ -958,7 +929,6 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 ### Screenshot
 
-<img src="docking/assets/icons/applets/screenshot.png" alt="Screenshot" width="48">
 
 Capture screenshots with the available screenshot tool on your system.
 
@@ -971,7 +941,6 @@ Capture screenshots with the available screenshot tool on your system.
 
 ### Volume
 
-<img src="docking/assets/icons/applets/volume.png" alt="Volume" width="48">
 
 System volume control. The icon switches between muted, low, medium, and high based on level.
 
@@ -985,7 +954,6 @@ System volume control. The icon switches between muted, low, medium, and high ba
 
 ### Music
 
-<img src="docking/assets/icons/applets/music.png" alt="Music" width="48">
 
 Media controller applet with album-art icon rendering.
 
@@ -999,9 +967,15 @@ Media controller applet with album-art icon rendering.
 
 **Tooltip:** multiline summary, e.g. `Artist - Title`, `Album: ...`, `Vol N%`
 
+### Last.fm
+
+Shows recent Last.fm listening activity for a configured user.
+
+**Click:** Configure the applet, or open the current track when available
+**Right-click:** Recent tracks, profile link, refresh, and configuration
+
 ### Pomodoro
 
-<img src="docking/assets/icons/applets/pomodoro.png" alt="Pomodoro" width="48">
 
 Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases with configurable durations. Triggers urgent bounce+glow on phase transitions.
 
@@ -1016,7 +990,6 @@ Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases wi
 
 ### Pet
 
-<img src="docking/assets/icons/applets/pet.png" alt="Pet" width="48">
 
 Animated companion applet that reacts to system activity with different moods.
 
@@ -1037,7 +1010,6 @@ Added via right-click on dock background -> **Add Separator** (inserts at click 
 
 ### Hydration
 
-<img src="docking/assets/icons/applets/hydration.png" alt="Hydration" width="48">
 
 Water drop icon that drains over a configurable interval, reminding you to drink water. Click to refill. Triggers urgent bounce when empty.
 
@@ -1051,7 +1023,6 @@ Water drop icon that drains over a configurable interval, reminding you to drink
 
 ### Stretch Coach
 
-<img src="docking/assets/icons/applets/stretchcoach.png" alt="Stretch Coach" width="48">
 
 Periodic micro-break reminder applet with offline stretch cards. Reminders stay inside the dock: the icon becomes urgent when a break is due, and clicking acknowledges the reminder and restarts the timer.
 
@@ -1067,7 +1038,6 @@ Periodic micro-break reminder applet with offline stretch cards. Reminders stay 
 
 ### Quote
 
-<img src="docking/assets/icons/applets/quote.png" alt="Quote" width="48">
 
 Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with local fallback quotes and supports online refresh from active sources.
 
@@ -1082,7 +1052,6 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 
 ### Random Trivia
 
-<img src="docking/assets/icons/applets/trivia.png" alt="Random Trivia" width="48">
 
 Quick trivia applet with local and online questions. The tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
 
@@ -1095,7 +1064,6 @@ Quick trivia applet with local and online questions. The tooltip shows the curre
 
 ### Today in History
 
-<img src="docking/assets/icons/applets/todayinhistory.png" alt="Today in History" width="48">
 
 One-event-at-a-time history applet with online refresh and offline fallback data. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
 
@@ -1108,7 +1076,6 @@ One-event-at-a-time history applet with online refresh and offline fallback data
 
 ### Hacker News
 
-<img src="docking/assets/icons/applets/hackernews.png" alt="Hacker News" width="48">
 
 Hacker News headline viewer. It fetches HN top stories, keeps a cached list for startup, lazy-loads more when you land on the last loaded item, and shows the selected title plus points/comments in the tooltip. Paging continues up to 100 loaded headlines.
 
@@ -1126,7 +1093,6 @@ Hacker News headline viewer. It fetches HN top stories, keeps a cached list for 
 
 ### Ambient
 
-<img src="docking/assets/icons/applets/ambient.png" alt="Ambient" width="48">
 
 Looping ambient soundscape player with 7 bundled nature sounds plus white and pink noise.
 
@@ -1138,7 +1104,6 @@ Looping ambient soundscape player with 7 bundled nature sounds plus white and pi
 
 ### Calculator
 
-<img src="docking/assets/icons/applets/calculator.png" alt="Calculator" width="48">
 
 Basic four-function calculator with a popup interface. Supports +, -, *, /, parentheses, and decimal numbers.
 
@@ -1149,7 +1114,6 @@ Basic four-function calculator with a popup interface. Supports +, -, *, /, pare
 
 ### Unit Converter
 
-<img src="docking/assets/icons/applets/unitconverter.png" alt="Unit Converter" width="48">
 
 Convert between units directly from the dock popup. Supports length, weight, temperature, volume, speed, and data categories.
 
@@ -1159,7 +1123,6 @@ Convert between units directly from the dock popup. Supports length, weight, tem
 
 ### Currency FX
 
-<img src="docking/assets/icons/applets/currencyfx.png" alt="Currency FX" width="48">
 
 Live currency pair monitor with a sparkline icon. Add the pairs you care about, cycle between them from the dock, and choose the chart range that fits your glance.
 
@@ -1171,9 +1134,16 @@ Live currency pair monitor with a sparkline icon. Add the pairs you care about, 
 
 **Preferences stored:** `pairs`, `active_index`, `chart_interval`, `sample_source`, `samples`
 
+### Crypto
+
+Tracks selected cryptocurrency prices with compact dock display and refresh actions.
+
+**Click:** Add an asset
+**Scroll:** Switch tracked assets
+**Right-click:** Refresh, chart interval, switch, add, or remove assets
+
 ### URL Shortener
 
-<img src="docking/assets/icons/applets/urlshortener.png" alt="URL Shortener" width="48">
 
 Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to the clipboard.
 
@@ -1184,7 +1154,6 @@ Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to th
 
 ### Drag Share
 
-<img src="docking/assets/icons/applets/dragshare.png" alt="Drag Share" width="48">
 
 Drop a local file onto the applet to upload it to tmpfiles.org and copy the returned URL to the clipboard. Files are temporary and expire automatically.
 
@@ -1195,7 +1164,6 @@ Drop a local file onto the applet to upload it to tmpfiles.org and copy the retu
 
 ### Window Killer
 
-<img src="docking/assets/icons/applets/windowkiller.png" alt="Window Killer" width="48">
 
 Click the applet, then click any window to force-close it.
 
@@ -1203,7 +1171,6 @@ Click the applet, then click any window to force-close it.
 
 ### Cert Watch
 
-<img src="docking/assets/icons/applets/certwatch.png" alt="Cert Watch" width="48">
 
 Monitor certificate expiry for a list of domains. The shield color highlights the most urgent domain, and the icon shows the lowest days remaining so expiring certificates are easy to spot.
 
@@ -1221,7 +1188,6 @@ Monitor certificate expiry for a list of domains. The shield color highlights th
 
 ### Speedtest
 
-<img src="docking/assets/icons/applets/speedtest.png" alt="Speedtest" width="48">
 
 One-click internet speed test. The dial is painted as a classic four-band speedometer (red, orange, yellow, green from left to right); the needle points at the last download speed and takes its color from the current tier. The badge shows Mbps (e.g. `250Mb`, `1.2Gb`). Tooltip shows download, upload, ping, jitter, server, and timestamp.
 
@@ -1238,7 +1204,6 @@ One-click internet speed test. The dial is painted as a classic four-band speedo
 
 ### Desk Presence
 
-<img src="docking/assets/icons/applets/deskpresence.png" alt="Desk Presence" width="48">
 
 Tracks time at your desk versus away. The icon shows whether you are currently active or away, the bottom label shows today's at-desk hours, and the tooltip summarizes the recent daily breakdown.
 
@@ -1249,9 +1214,15 @@ Tracks time at your desk versus away. The icon shows whether you are currently a
 
 **Preferences stored:** `today` (ISO date), `at_desk_seconds`, `away_seconds`, `idle_threshold_s`, `history` (last 6 days)
 
+### Docker
+
+Shows Docker availability and container status when Docker is installed.
+
+**Click:** Refresh container state
+**Right-click:** Container actions when available
+
 ### Astronomy Picture of the Day
 
-<img src="docking/assets/icons/applets/apod.png" alt="APOD" width="48">
 
 Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip includes the date, title, credit, and a short explanation, and the applet keeps showing a graceful placeholder if the image is unavailable.
 
@@ -1269,48 +1240,7 @@ Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip inclu
 
 ## Writing Custom Applets
 
-Applets extend the `Applet` abstract base class in `docking/applets/base.py`:
-
-```python
-from docking.applets.base import Applet, load_theme_icon
-
-class MyApplet(Applet):
-    id = "myapplet"
-    name = "My Applet"       # display name in menus
-    icon_name = "my-icon"    # fallback icon
-
-    def create_icon(self, size):
-        """Render your icon as a GdkPixbuf at the given size."""
-        return load_theme_icon(name="my-icon", size=size)
-
-    def on_clicked(self):
-        """Handle left-click."""
-
-    def on_scroll(self, direction_up):
-        """Handle scroll wheel."""
-
-    def get_menu_items(self):
-        """Return list of Gtk.MenuItem for right-click menu."""
-        return []
-
-    def start(self, notify):
-        """Called after dock is ready. Start timers/monitors."""
-        super().start(notify)
-
-    def stop(self):
-        """Cleanup. Called on removal or shutdown."""
-        super().stop()
-```
-
-**Key patterns:**
-- Call `self.refresh_icon()` to trigger a redraw after state changes
-- Use `self.save_prefs(dict)` / `self.load_prefs()` for persistent preferences
-- Use `load_theme_icon(name, size)` for GTK theme icons
-- Use `load_theme_icon_centered(name, size)` for non-square icons (e.g. battery)
-- For Cairo rendering: create a surface, draw, return via `Gdk.pixbuf_get_from_surface()`
-- For background work: use `threading.Thread` + `GLib.idle_add()` to dispatch results to main thread
-
-Recommended file layout:
+Applets are discovered from metadata and loaded lazily when enabled.
 
 ```text
 docking/applets/myapplet/
@@ -1320,7 +1250,7 @@ docking/applets/myapplet/
   render.py     # icon rendering helpers
 ```
 
-Declare applet metadata in `docking/applets/myapplet/__init__.py` so catalog discovery can find it. Keep this file metadata-only so applet discovery stays cheap:
+`__init__.py`:
 
 ```python
 from docking.applets.identity import AppletCategory, AppletMeta
@@ -1334,9 +1264,28 @@ meta = AppletMeta(
 __all__ = ["meta"]
 ```
 
-The concrete `Applet` subclass should live in `docking/applets/myapplet/applet.py`. `load_applet_class()` imports that module lazily when the applet is actually enabled.
+`applet.py`:
 
-**Design principle:** Complex logic is extracted as pure functions (no GTK dependency) so tests run fast without a display server. GTK-dependent tests use lightweight mocks.
+```python
+from docking.applets.base import Applet, load_theme_icon
+
+class MyApplet(Applet):
+    def create_icon(self, size):
+        return load_theme_icon(name="my-icon", size=size)
+
+    def refresh_tooltip(self):
+        self.item.name = "My Applet"
+        self.item.tooltip_text = "Useful status"
+
+    def start(self, notify):
+        super().start(notify)
+
+    def stop(self):
+        super().stop()
+```
+
+Use `self.present()` after state changes to refresh icon, tooltip, and dock UI.
+Keep parsing/state logic in plain Python modules so tests do not need a display.
 
 ## Translations
 
@@ -1517,15 +1466,31 @@ bash tools/test_gui_headless.sh tests/ui/test_pointer_scenarios.py
 
 ```bash
 # Install build dependencies
-sudo apt install python3-all python3-setuptools python3-wheel python3-pip \
-  debhelper dh-python pybuild-plugin-pyproject
+sudo apt install python3-all python3-dev python3-setuptools python3-wheel \
+  python3-pip debhelper dh-python pybuild-plugin-pyproject \
+  libwayland-dev wayland-protocols gettext
 
 # Build
 ./packaging/deb/build.sh
 
 # Install generated package
-sudo dpkg -i ../docking_*_*.deb
+sudo apt install ../docking_*_*.deb
+
+# If you used dpkg -i and dependencies were left unconfigured:
 sudo apt-get -f install
+```
+
+#### Building an RPM package
+
+```bash
+# Install tooling
+sudo apt install rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+
+# Build package
+./packaging/rpm/build.sh
+
+# Install locally on an RPM-based distro
+sudo dnf install ./artifacts/docking-*.rpm
 ```
 
 #### Building a Flatpak bundle
@@ -1549,17 +1514,34 @@ flatpak run cc.docking.Docking
 sudo apt install snapcraft
 
 # Build snap package
-snapcraft --destructive-mode --project-dir packaging/snap --output artifacts/docking.snap
+mkdir -p artifacts
+(
+  cd packaging/snap
+  sudo snapcraft pack --destructive-mode --output ../../artifacts/docking.snap
+)
 
 # Install locally
 sudo snap install --dangerous artifacts/docking.snap
+```
+
+#### Building an AppImage
+
+```bash
+# Install tooling
+sudo apt install python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin \
+  libglib2.0-bin libgtk-3-bin squashfs-tools gettext
+python3 -m pip install --upgrade pip
+python3 -m pip install appimage-builder
+
+# Build AppImage
+./packaging/appimage/build.sh
 ```
 
 #### Building an Arch package
 
 ```bash
 # Arch Linux tooling
-sudo pacman -S --needed base-devel git python python-pip
+sudo pacman -S --needed base-devel git python python-pip gettext
 
 # Build package
 ./packaging/arch/build.sh
@@ -1581,14 +1563,13 @@ sudo pacman -U artifacts/docking-*.pkg.tar.*
 ### Pre-commit Hooks
 
 Runs automatically on `git commit`:
-- **check-yaml** -- validate YAML files
-- **end-of-file-fixer** -- ensure trailing newline
-- **trailing-whitespace** -- remove trailing spaces
-- **ruff format** -- code formatting
-- **ruff check** -- linting (E, W, F, I rules)
-- **ty check** -- type checking
+- **ruff format --check**
+- **ruff check**
+- **ty check**
 - **i18n-pot-sync** -- ensure `docking/locale/docking.pot` matches source strings (`./tools/i18n.sh --check-pot-sync`)
 - **i18n-catalogs** -- fail if existing PO catalogs have format errors, while allowing untranslated/fuzzy backlog (`./tools/i18n.sh --check-catalogs --allow-incomplete`)
+- **package-data sync** -- verify packaged data declarations
+- **translation packaging** -- verify compiled catalog packaging
 - **pytest** -- full test suite
 
 Install/update the local hook with:
@@ -1606,10 +1587,11 @@ GitHub Actions is split across two workflows:
   - **Quality**: `ruff check`, `ruff format --check`, `ty check`.
   - **Test matrix**:
     - Ubuntu 22.04 / Python 3.10
-    - Ubuntu 24.04 / Python 3.12
+    - Ubuntu 24.04 / Python 3.12 and Python 3.14 smoke tests
     - Ubuntu 24.04 ARM64 / Python 3.12
     - Debian 11 / Python 3.10
-    - Debian 12 / Python 3.12
+    - Debian 12 / Python 3.12 and Python 3.14 smoke tests
+    - Fedora and openSUSE smoke tests
   - **Coverage**: pytest-cov on Ubuntu with `--cov-fail-under=55`, artifacts uploaded (XML/HTML), optional Codecov upload when token is configured.
   - **Packaging artifacts**:
     - `.deb` (x64 and arm64)
@@ -1621,7 +1603,7 @@ GitHub Actions is split across two workflows:
     - Nix output tarball + store path (x64 and arm64)
   - **Release naming**:
     - arch-specific assets use `linux-x86_64` for x64 and `linux-aarch64` for arm64
-    - Debian now follows the same naming and publishes `linux-x86_64.deb` and `linux-aarch64.deb`
+    - Debian packages use `linux-x86_64.deb` and `linux-aarch64.deb`
   - **Release step (CD)**:
     - Runs on `master` only after all package builds.
     - Reads version from `pyproject.toml`, checks latest GitHub Release, and only releases if version is newer.
