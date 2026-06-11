@@ -11,9 +11,12 @@ Build-Depends:
     dh-python,
     pybuild-plugin-pyproject,
     python3-all,
+    python3-dev,
     python3-setuptools,
     python3-wheel,
     python3-pip,
+    libwayland-dev,
+    wayland-protocols,
     gettext
 
 Package: docking
@@ -26,9 +29,12 @@ Depends:
     gir1.2-gtk-3.0,
     gir1.2-gdk-3.0,
     gir1.2-gdkpixbuf-2.0,
+    gir1.2-gtklayershell-0.1,
     gir1.2-wnck-3.0,
     gir1.2-nm-1.0,
     gir1.2-pango-1.0
+Recommends:
+    python3-pywayland
 Description: A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
  Inspired by Plank and Cairo-Dock.
  Features parabolic zoom, window previews, autohide, drag-and-drop,
@@ -36,4 +42,4 @@ Description: A lightweight, feature-rich dock for Linux written in Python with G
  trash, weather, CPU monitor, battery, clipboard, applications,
  network, show desktop, session, calendar, workspaces).
  .
- Requires X11.
+ Supports X11 and native Wayland backends where compositor protocols are available.

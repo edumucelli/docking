@@ -48,10 +48,14 @@ _OPUS46 = {"input": 5.0, "output": 25.0, "cache_write": 6.25, "cache_read": 0.50
 _OPUS4 = {"input": 15.0, "output": 75.0, "cache_write": 18.75, "cache_read": 1.50}
 
 CLAUDE_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
-    ("opus-4-5", _OPUS46),
+    ("opus-4-8", _OPUS46),
+    ("opus-4-7", _OPUS46),
     ("opus-4-6", _OPUS46),
+    ("opus-4-5", _OPUS46),
     ("opus-4-1", _OPUS4),
     ("opus-4", _OPUS4),
+    ("sonnet-4-6", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
+    ("sonnet-4-5", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("sonnet", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("haiku-4-5", {"input": 1, "output": 5, "cache_write": 1.25, "cache_read": 0.10}),
     ("haiku", {"input": 0.80, "output": 4, "cache_write": 1.0, "cache_read": 0.08}),

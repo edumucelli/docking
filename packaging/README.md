@@ -28,21 +28,23 @@ python3 tools/check_translation_packaging.py
 ```
 
 That check confirms:
-- compiled `.mo` catalogs are declared in both `pyproject.toml` and `setup.cfg`
+- compiled `.mo` catalogs are declared in `pyproject.toml`
 - packaging/CI paths still invoke `tools/i18n.sh --compile`
 
 ## DEB (Debian/Ubuntu)
 
 ```bash
 # Install build dependencies
-sudo apt install debhelper dh-python python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject
+sudo apt install debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject libwayland-dev wayland-protocols gettext
 
 # Build .deb
 ./packaging/deb/build.sh
 
 # Install
-sudo dpkg -i ../docking_*_*.deb
-sudo apt-get -f install  # fix any missing deps
+sudo apt install ../docking_*_*.deb
+
+# If you used dpkg -i and dependencies were left unconfigured:
+sudo apt-get -f install
 
 # Verify
 docking
@@ -50,22 +52,22 @@ docking
 
 ### How it works
 
-- **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`
-- **Optional Wayland deps**: native Wayland layer-shell placement requires
-  `gir1.2-gtklayershell-0.1` on Debian/Ubuntu. It should be packaged as an
-  optional/recommended dependency until native Wayland support grows beyond the
-  layer-shell surface backend. Foreign-toplevel taskbar support additionally
-  needs the optional Python `pywayland` runtime for Docking's vendored wlroots
-  protocol binding.
+- **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`.
+  Native Wayland placement is included through Debian/Ubuntu's
+  `gir1.2-gtklayershell-0.1` package.
+- **PyWayland**: the package recommends distro `python3-pywayland` where it is
+  available. The build also installs a Python-minor-specific PyPI fallback under
+  `/usr/lib/docking/vendor-pythonX.Y/` so Jammy-built packages can use the live
+  protocol runtime on matching Python hosts without shadowing newer host Python
+  installations.
 - **Application code**: installed to `/usr/lib/docking/python/` and loaded via the
   `/usr/bin/docking` wrapper so the package stays compatible across supported
   Python 3 minors on the same architecture.
 - **Vendored deps**: all pip dependencies go to `/usr/lib/docking/vendor/` to avoid
   file conflicts with Ubuntu's python3-* packages. The entrypoint adds this path to
   `sys.path` at startup.
-- **Assets**: theme JSON files, clock SVG layers, and weather city database are bundled
-  via `package_data` in `setup.cfg` (shim for Ubuntu 22.04's older setuptools that
-  can't read PEP 621 from `pyproject.toml`). Installed to
+- **Assets**: theme JSON files, clock SVG layers, and weather city database are
+  declared as package data in `pyproject.toml`. Installed to
   `/usr/lib/docking/python/docking/assets/`.
 - **Application icon**: add `org.docking.Docking` icon files under
   `packaging/deb/icons/hicolor/<size>x<size>/apps/org.docking.Docking.png` (and
@@ -133,13 +135,14 @@ flatpak run cc.docking.Docking
 
 - App ID is `cc.docking.Docking`; system packages keep the shared
   `org.docking.Docking` desktop file and icons.
-- Native Wayland layer-shell placement needs `gtk-layer-shell` available inside
-  the runtime if the Flatpak is expected to use the native Wayland backend.
+- Native Wayland layer-shell placement is built into the Flatpak through a
+  bundled `gtk-layer-shell` module, and live protocol support is included through
+  `pywayland`.
 - Flatpak build installs hicolor icons and a local `hicolor/index.theme` so
   AppStream icon checks pass in sandboxed builds.
-- The app requires X11 window management behavior, so the Flatpak manifest enables
-  `--socket=x11` and host filesystem access for full functionality. Native
-  Wayland layer-shell mode is reduced until foreign-window services exist.
+- The Flatpak keeps `--socket=x11` for compatibility and also enables
+  `--socket=wayland` so backend selection can use native Wayland where the
+  compositor exposes the required protocols.
 
 ## Snap
 
@@ -169,7 +172,7 @@ Notes:
 
 ```bash
 # Install tooling
-sudo apt install python3-pip libfuse2
+sudo apt install python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools
 python3 -m pip install --upgrade pip
 python3 -m pip install appimage-builder
 
@@ -194,12 +197,13 @@ Notes:
 - Build script: `packaging/appimage/build.sh`
 - Runtime dependencies are bundled from Ubuntu 22.04 packages listed in the recipe.
 - The AppImage build script selects the correct Ubuntu mirror, package architecture, typelib path, and output name for `x86_64` vs `aarch64`.
+- The AppImage bundles GtkLayerShell runtime libraries.
 
 ## RPM
 
 ```bash
 # Install tooling
-sudo apt install rpm python3-pip
+sudo apt install rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
 
 # Build RPM package
 ./packaging/rpm/build.sh

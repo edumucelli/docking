@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration</title>
-  <meta name="description" content="Docking is an open source dock for Linux with X11 and Wayland backends, 52 built-in applets, customizable themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
+  <meta name="description" content="Docking is an open source dock for Linux with X11 and Wayland backends, 56 built-in applets, customizable themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/32x32/apps/org.docking.Docking.png">
   <link rel="canonical" href="https://docking.cc">
   <meta property="og:title" content="Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration">
-  <meta property="og:description" content="Fast, customizable dock for Linux with X11 and Wayland backends, 52 built-in applets, themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
+  <meta property="og:description" content="Fast, customizable dock for Linux with X11 and Wayland backends, 56 built-in applets, themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://docking.cc">
   <meta property="og:image" content="https://raw.githubusercontent.com/edumucelli/docking/master/website/hero.png">
@@ -17,12 +17,12 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Docking",
-    "description": "Open source dock for Linux with X11 and Wayland backends, 52 built-in applets, customizable themes, multi-monitor support, and desktop integration.",
+    "description": "Open source dock for Linux with X11 and Wayland backends, 56 built-in applets, customizable themes, multi-monitor support, and desktop integration.",
     "applicationCategory": "DesktopEnhancement",
     "operatingSystem": "Linux",
     "url": "https://docking.cc",
     "downloadUrl": "https://github.com/edumucelli/docking/releases",
-    "softwareVersion": "1.3.0",
+    "softwareVersion": "2.0.0",
     "license": "https://www.gnu.org/licenses/gpl-3.0.html",
     "programmingLanguage": "Python",
     "offers": {
@@ -47,7 +47,7 @@
         "name": "What Linux desktop environments does Docking support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Docking supports full functionality on X11 desktops and Wayland support through backend-specific integrations: GNOME / Mutter via the companion Shell bridge, wlroots compositors via layer-shell where available, and reduced mode on other Wayland compositors."
+          "text": "Docking supports X11 and Wayland through backend-specific integrations: GNOME / Mutter via the companion Shell bridge, KDE Plasma 6 through the native KWin backend, wlroots-style compositors via layer-shell, and reduced mode when compositor integration is unavailable."
         }
       },
       {
@@ -63,7 +63,7 @@
         "name": "Does Docking support Wayland?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Docking supports X11 for full dock functionality and has native Wayland paths for GNOME / Mutter through the companion Shell bridge, wlroots layer-shell compositors where the required protocols are available, and reduced mode when compositor integration is unavailable."
+          "text": "Yes. Docking supports X11 and Wayland. Native Wayland support is selected per desktop: GNOME Shell bridge, KWin, wlroots layer-shell protocols, or reduced mode when needed."
         }
       },
       {
@@ -291,7 +291,6 @@
             <div class="absolute inset-x-24 -bottom-4 h-28 rounded-full bg-ember/16 blur-[80px]"></div>
             <div class="absolute -left-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-accent/10 blur-[70px]"></div>
             <div class="absolute -right-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
-            <!-- Dock image -->
             <div class="relative w-full transition duration-500 hover:scale-[1.008]">
               <img src="hero.png" alt="Docking dock preview with applets" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
             </div>
@@ -366,11 +365,11 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">52 built-in applets: useful widgets, already in the dock</h2>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">56 built-in applets: useful widgets, already in the dock</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Small tools with real utility: glanceable information, richer controls, and compact workflow helpers. Browse the full applet catalog without leaving the page.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">52 built-in applets, with more room to explore</div>
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">56 built-in applets, with more room to explore</div>
             <div class="hidden items-center gap-2 sm:flex">
               <button type="button" data-carousel-target="applets-carousel" data-carousel-direction="prev" class="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:border-white/30 hover:bg-white/14" aria-label="Previous applets">
                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"></path></svg>
@@ -1075,7 +1074,7 @@ pip install -e ".[dev]"</code></pre>
           <div class="mt-10 space-y-6">
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-skyline/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What Linux desktop environments does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports full functionality on X11 desktops and Wayland support through backend-specific integrations: GNOME / Mutter via the companion Shell bridge, wlroots compositors via layer-shell where available, and reduced mode on other Wayland compositors.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports X11 and Wayland through backend-specific integrations: GNOME / Mutter via the companion Shell bridge, KDE Plasma 6 through the native KWin backend, wlroots-style compositors via layer-shell, and reduced mode when compositor integration is unavailable.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-accent/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Can I create my own applets?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -1083,7 +1082,7 @@ pip install -e ".[dev]"</code></pre>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Does Docking support Wayland?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking supports X11 for full dock functionality and has native Wayland paths for GNOME / Mutter through the companion Shell bridge, wlroots layer-shell compositors where the required protocols are available, and reduced mode when compositor integration is unavailable.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking supports X11 and Wayland. Native Wayland support is selected per desktop: GNOME Shell bridge, KWin, wlroots layer-shell protocols, or reduced mode when needed.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-ember/8 to-skyline/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Is Docking free and open source?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -1134,6 +1133,25 @@ pip install -e ".[dev]"</code></pre>
     }, { threshold: 0.18 });
 
     document.querySelectorAll(".reveal").forEach((element) => observer.observe(element));
+
+    document.querySelectorAll('img[src*="/docking/assets/icons/applets/"]').forEach((image) => {
+      const fallback = () => {
+        const label = (image.alt || "Applet").replace(" applet icon", "");
+        const initials = label
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase();
+        const badge = document.createElement("span");
+        badge.className = "flex h-full w-full items-center justify-center rounded-xl bg-white/10 text-xs font-bold tracking-wide text-white";
+        badge.textContent = initials || "A";
+        image.replaceWith(badge);
+      };
+      image.addEventListener("error", fallback, { once: true });
+      if (image.complete && image.naturalWidth === 0) fallback();
+    });
 
     const mobileDockToggle = document.getElementById("mobile-dock-toggle");
     const mobileDockMenu = document.getElementById("mobile-dock-menu");

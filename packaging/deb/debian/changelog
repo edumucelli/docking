@@ -1,395 +1,787 @@
+docking (2.0.0-1) stable; urgency=medium
+
+  * First-class Wayland support across all packaging formats
+  * Remove GDK_BACKEND=x11 forcing from all launcher wrappers
+  * Add native Wayland dependencies (gtk-layer-shell, pywayland)
+  * AppImage: bundle GtkLayerShell and libwayland runtime libraries
+  * Debian: vendor pywayland per Python minor version
+  * Flatpak: bundle gtk-layer-shell module and pywayland
+  * RPM: add gtk-layer-shell and pywayland dependencies
+  * Snap: add Wayland build and stage packages
+  * Arch: add python-pywayland and gtk-layer-shell dependencies
+  * Nix: add gtk-layer-shell and pywayland dependencies
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 10 Jun 2026 20:30:00 +0200
+
 docking (1.29.0-1) stable; urgency=medium
+  * Add experimental Wayland runtime support
+  * Add reduced session backend
+  * Refactor X11 backend service layout
+  * Move X11 dodge monitor behind visibility service
+  * Complete X11 session backend shape
+  * Route preview popup through preview service
+  * Use window snapshots for menu window rows
+  * Wire X11 runtime through window service
+  * Add X11 window service facade
+  * Add platform backend contracts
 
-  * Release 1.29.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 04 Jun 2026 20:13:26 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 06 Jun 2026 10:43:49 +0200
 
 docking (1.28.0-1) stable; urgency=medium
+  * Stop tracking architecture notes
+  * Add battery power and peripheral details
+  * Add Caffeine applet
 
-  * Release 1.28.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 30 May 2026 23:30:25 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 30 May 2026 23:38:52 +0200
 
 docking (1.27.0-1) stable; urgency=medium
+  * Move pressure threshold help to info tooltip
+  * Bump ty from 0.0.37 to 0.0.40
+  * Bump ruff from 0.15.13 to 0.15.15
+  * Add Last.fm applet
+  * Add indicator fill and active item theme styles
 
-  * Release 1.27.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 30 May 2026 00:07:58 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 30 May 2026 00:18:17 +0200
 
 docking (1.26.0-1) stable; urgency=medium
+  * Add optional alphabetical sorting for context menu window list
+  * Add Crypto applet
+  * Add Docker applet
 
-  * Release 1.26.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 28 May 2026 19:43:41 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 28 May 2026 18:52:52 +0100
 
 docking (1.25.1-1) stable; urgency=medium
+  * Tighten settings slider widths
+  * Fix system monitor tooltip translations
+  * Show Currency FX chart interval in tooltip
+  * Add UV index to weather applet
 
-  * Release 1.25.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 24 May 2026 00:51:20 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 24 May 2026 00:01:45 +0100
 
 docking (1.25.0-1) stable; urgency=medium
+  * Add pressure reveal support
+  * Add distance from edge setting
 
-  * Release 1.25.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 22 May 2026 20:36:26 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 23 May 2026 14:31:56 +0100
 
 docking (1.24.1-1) stable; urgency=medium
+  * Group renderer state inputs
+  * Detect network applet state changes
+  * Adopt shared applet HTTP helpers
+  * Dispatch indicator rendering by style
+  * Use position enum for folder stack placement
+  * Add shared applet text and HTTP helpers
+  * Add shared math clamp helpers
+  * Simplify environment and XDG path helpers
 
-  * Release 1.24.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 22 May 2026 20:35:10 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 23 May 2026 00:08:41 +0100
 
 docking (1.24.0-1) stable; urgency=medium
+  * Convert bundled themes to nested schema
+  * Document theme schema naming conventions
+  * Support full nested theme schema
+  * Rename theme horizontal padding field
+  * Add theme migration infrastructure
 
-  * Release 1.24.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 21 May 2026 20:36:28 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 21 May 2026 19:46:47 +0100
 
 docking (1.23.1-1) stable; urgency=medium
+  * Keep dragged indicators under cursor
+  * Propagate runtime theme updates
+  * Use relative freshness update labels
 
-  * Release 1.23.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 19 May 2026 21:17:31 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 19 May 2026 20:40:20 +0100
 
 docking (1.23.0-1) stable; urgency=medium
+  * Snap count badge geometry to pixels
+  * Add window count indicator display modes
+  * Raise running indicator dot cap
+  * Bump ruff from 0.15.12 to 0.15.13
+  * Bump ty from 0.0.34 to 0.0.37
+  * Add GPL header to docking Python files
 
-  * Release 1.23.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 18 May 2026 21:26:58 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 18 May 2026 20:40:10 +0100
 
 docking (1.22.0-1) stable; urgency=medium
+  * Add Alarm applet
+  * Add README project badges
+  * Add Sunrise applet
+  * Tighten test None narrowing
+  * Require TLS 1.2 for Cert Watch checks
 
-  * Release 1.22.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 17 May 2026 01:25:18 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 17 May 2026 00:40:00 +0100
 
 docking (1.21.0-1) stable; urgency=medium
+  * Update translations
+  * Fix HiDPI pointer barrier placement
+  * Add USB Watch applet
+  * Bundle NetworkManager in Flatpak
 
-  * Release 1.21.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 16 May 2026 00:31:36 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 15 May 2026 23:42:31 +0100
 
 docking (1.20.0-1) stable; urgency=medium
+  * Refactor AI usage backends
+  * Update Flatpak integration
 
-  * Release 1.20.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 14 May 2026 00:18:48 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 13 May 2026 23:31:18 +0100
 
 docking (1.19.0-1) stable; urgency=medium
+  * Deduplicate Flatpak runtime detection
+  * Improve Flatpak launcher integration
+  * Prepare applets for Flatpak runtime
+  * Apply section 4 running-app code patch
 
-  * Release 1.19.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 13 May 2026 00:29:25 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 12 May 2026 23:41:32 +0100
 
 docking (1.18.0-1) stable; urgency=medium
+  * Load custom themes from user config
+  * Add system icon source option for supported applets
+  * Add "Always on Top" hide mode
+  * Fix ty type-checking warnings
+  * Refactor folder stack handling
 
-  * Release 1.18.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 08 May 2026 11:40:46 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 08 May 2026 10:47:27 +0100
 
 docking (1.17.0-1) stable; urgency=medium
+  * Add KDE trash support
+  * Add sysfs thermals backend
+  * Improve applet selector autocomplete
+  * Bump ty from 0.0.32 to 0.0.34
+  * Add update release checks
 
-  * Release 1.17.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 06 May 2026 21:31:57 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 06 May 2026 21:39:36 +0200
 
 docking (1.16.0-1) stable; urgency=medium
+  * Release: bump version to 1.16.0
+  * Add dark pill dock theme
+  * Apply applet usability updates
 
-  * Release 1.16.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 30 Apr 2026 20:52:10 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 30 Apr 2026 21:17:47 +0200
 
 docking (1.15.0-1) stable; urgency=medium
+  * Release: bump version to 1.15.0
+  * Fit applet icon labels within badge bounds
+  * Clarify compact network speed units
+  * Add Hacker News and Thermals applets
 
-  * Release 1.15.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 29 Apr 2026 20:29:50 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 29 Apr 2026 20:38:02 +0200
 
 docking (1.14.1-1) stable; urgency=medium
+  * Release: bump version to 1.14.1
+  * Poll Codex sessions in AI usage applet
+  * Fix keyboard layout backend selection on MATE
 
-  * Release 1.14.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 29 Apr 2026 09:41:52 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 29 Apr 2026 09:51:03 +0200
 
 docking (1.14.0-1) stable; urgency=medium
+  * Release: bump version to 1.14.0
+  * Add Currency FX and Mic Shield applets
+  * Refactor gobject-introspection placement in default.nix
 
-  * Release 1.14.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 28 Apr 2026 20:23:54 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 28 Apr 2026 22:32:20 +0200
 
 docking (1.13.0-1) stable; urgency=medium
+  * Release: bump version to 1.13.0
+  * Add Caps Lock applet
+  * Relax i18n catalog completeness checks
+  * Add Drag Share applet
+  * Bump ruff from 0.15.11 to 0.15.12
+  * Bump ty from 0.0.22 to 0.0.32
+  * Add Cam Shield applet
 
-  * Release 1.13.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 28 Apr 2026 09:07:50 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 28 Apr 2026 09:18:03 +0200
 
 docking (1.12.1-1) stable; urgency=medium
+  * Use xz compression for deb packages
+  * Add Cairo-Dock-inspired New Year greeting
 
-  * Release 1.12.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 25 Apr 2026 12:15:34 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 25 Apr 2026 12:21:31 +0200
 
 docking (1.12.0-1) stable; urgency=medium
+  * Release: bump version to 1.12.0
+  * Add APOD, Cert Watch, Desk Presence, and Speedtest applets
+  * Cache folder stack content and thumbnails
 
-  * Release 1.12.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 24 Apr 2026 21:14:20 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 24 Apr 2026 22:52:42 +0200
 
 docking (1.11.0-1) stable; urgency=medium
+  * Release: bump version to 1.11.0
+  * Add folder stack unfold behavior setting
+  * Add Unity LauncherEntry overlays
+  * Bump ruff from 0.15.9 to 0.15.10
+  * Refactor worktree cleanups
 
-  * Release 1.11.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 23 Apr 2026 23:48:01 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 23 Apr 2026 23:59:01 +0200
 
 docking (1.10.0-1) stable; urgency=medium
+  * Release: bump version to 1.10.0
+  * Docs: document i18n update workflow
+  * Skip Bluetooth logs for missing optional values
+  * Match transient launchers by WM_CLASS aliases
+  * Add most-recent left-click action
+  * Ci: isolate Python 3.14 smoke test files
+  * Test: expand headless coverage harnesses
 
-  * Release 1.10.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 21 Apr 2026 20:26:28 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 21 Apr 2026 20:26:55 +0200
 
 docking (1.9.13-1) stable; urgency=medium
+  * Avoid blocking Bluetooth applet startup
 
-  * Release 1.9.13.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 20 Apr 2026 22:05:58 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 20 Apr 2026 22:06:35 +0200
 
 docking (1.9.12-1) stable; urgency=medium
+  * Fix preferences IM warnings and bump to 1.9.12
+  * Retry transient AppImage apt failures
+  * Adjust theme screenshot layout in README
+  * Add theme screenshots to README
+  * Remove unused shelf transform sizes
+  * Improve dock performance instrumentation and caching
 
-  * Release 1.9.12.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 20 Apr 2026 21:57:05 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 20 Apr 2026 21:58:32 +0200
 
 docking (1.9.11-1) stable; urgency=medium
+  * Fix dock window integration test stub
+  * Document XWayland freeze investigation
+  * Investigate XWayland redraw issues
 
-  * Release 1.9.11.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 11 Apr 2026 08:41:44 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 12 Apr 2026 19:45:48 +0200
 
 docking (1.9.10-1) stable; urgency=medium
+  * Fix Nix and AppImage launcher packaging
+  * Fix packaging CI checks
+  * Align package launchers on Wayland
+  * Force Debian launches to use X11 backend on Wayland
 
-  * Release 1.9.10.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 10 Apr 2026 00:13:27 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 11 Apr 2026 08:29:38 +0200
 
 docking (1.9.9-1) stable; urgency=medium
+  * Align placement test formatting with pinned Ruff
+  * Apply Wayland compatibility fixes and bump version to 1.9.9
 
-  * Release 1.9.9.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 23:49:57 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 09 Apr 2026 00:08:36 +0200
 
 docking (1.9.8-1) stable; urgency=medium
+  * Align session test formatting with pinned Ruff
+  * Fix session applet lock action and bump version to 1.9.8
 
-  * Release 1.9.8.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 01:45:47 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 23:42:30 +0200
 
 docking (1.9.7-1) stable; urgency=medium
+  * Fix Debian packaging for Python 3.10+ and bump 1.9.7
 
-  * Release 1.9.7.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 01:37:44 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 01:38:22 +0200
 
 docking (1.9.6-1) stable; urgency=medium
+  * Pin ruff and ty and align keyboardlayout formatting
+  * Add keyboard layout tools and bump version to 1.9.6
+  * Expand Bluetooth applet menu and bump version to 1.9.5
 
-  * Release 1.9.6.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 01:09:39 +0200
-
-docking (1.9.5-1) stable; urgency=medium
-
-  * Release 1.9.5.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 01:03:24 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 01:15:48 +0200
 
 docking (1.9.4-1) stable; urgency=medium
+  * Expand network applet menu and bump version to 1.9.4
 
-  * Release 1.9.4.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 00:49:34 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 00:50:10 +0200
 
 docking (1.9.3-1) stable; urgency=medium
+  * Add volume settings menu and bump version to 1.9.3
 
-  * Release 1.9.3.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 00:17:16 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 08 Apr 2026 00:17:57 +0200
 
 docking (1.9.2-1) stable; urgency=medium
+  * Add battery time estimates and fix deb entrypoint
 
-  * Release 1.9.2.
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 07 Apr 2026 21:36:57 +0200
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 07 Apr 2026 21:34:36 +0200
+docking (1.9.1-1) stable; urgency=medium
+  * Refresh architecture and weather docs, fix weather city dialog, and bump vers...
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 05 Apr 2026 11:20:55 +0200
+
+docking (1.9.0-1) stable; urgency=medium
+  * Seed starter dock on first run and bump version to 1.9.0
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 05 Apr 2026 10:59:42 +0200
+
+docking (1.8.2-1) stable; urgency=medium
+  * Reorganize preferences tabs and bump version to 1.8.2
+  * Add transparency slider
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 04 Apr 2026 16:19:25 +0200
+
+docking (1.8.1-1) stable; urgency=medium
+  * Fix support menu link and bump version to 1.8.1
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 04 Apr 2026 13:31:05 +0200
+
+docking (1.8.0-1) stable; urgency=medium
+  * Add clock alarms and seconds display
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 04 Apr 2026 10:13:05 +0200
+
+docking (1.7.0-1) stable; urgency=medium
+  * Add configurable app click actions and bump version to 1.7.0
+  * Skip CI for website-only changes
+  * Document x64 and arm64 release assets
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 04 Apr 2026 01:14:02 +0200
 
 docking (1.6.0-1) stable; urgency=medium
+  * Fix ARM64 Arch CI image
+  * Fix remaining ARM64 package builders
+  * Fix ARM64 packaging CI jobs
+  * Add ARM64 package builds and bump version to 1.6.0
+  * Improve desktop candidate matching
 
-  * Release 1.6.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 03 Apr 2026 22:23:00 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 03 Apr 2026 23:51:08 +0200
 
 docking (1.5.0-1) stable; urgency=medium
+  * Add X11 blur region hint and bump version to 1.5.0
 
-  * Release 1.5.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 03 Apr 2026 22:06:31 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 03 Apr 2026 22:08:13 +0200
 
 docking (1.4.1-1) stable; urgency=medium
+  * Fix keyboard layout switching on MATE and bump version to 1.4.1
 
-  * Release 1.4.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 03 Apr 2026 08:52:13 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 03 Apr 2026 08:52:31 +0200
 
 docking (1.4.0-1) stable; urgency=medium
+  * Harden config persistence and dock startup layout
+  * Clarify applet rendering and state comments
+  * Add visual regression and BDD interaction coverage
+  * Add paper and candy themes
+  * Refresh README and website docs
 
-  * Release 1.4.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 02 Apr 2026 21:14:17 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 02 Apr 2026 21:16:46 +0200
 
 docking (1.3.1-1) stable; urgency=medium
+  * Fix external drop targeting and bump version to 1.3.1
 
-  * Release 1.3.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 31 Mar 2026 20:41:44 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 31 Mar 2026 20:42:15 +0200
 
 docking (1.3.0-1) stable; urgency=medium
+  * Improve exception logging and bump version to 1.3.0
+  * Constantize applet UI and fetch defaults
 
-  * Release 1.3.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 31 Mar 2026 19:27:44 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 31 Mar 2026 19:32:36 +0200
 
 docking (1.2.9-1) stable; urgency=medium
+  * Refine screen position helpers and bump version to 1.2.9
+  * Move display helpers out of runtime
+  * Remove dead UI helpers and add test-only code scan
+  * Add vulture dead code checks
+  * Remove stale UI helpers and normalize dashes
 
-  * Release 1.2.9.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 31 Mar 2026 00:58:08 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 31 Mar 2026 00:58:35 +0200
 
 docking (1.2.8-1) stable; urgency=medium
+  * Simplify dock UI helpers and bump version to 1.2.8
 
-  * Release 1.2.8.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 22:59:01 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 22:59:19 +0200
 
 docking (1.2.7-1) stable; urgency=medium
+  * Reconcile hide mode changes immediately and bump version to 1.2.7
 
-  * Release 1.2.7.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 19:38:39 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 19:39:12 +0200
 
 docking (1.2.6-1) stable; urgency=medium
+  * Tighten dock window autohide contracts and bump version to 1.2.6
 
-  * Release 1.2.6.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 15:28:08 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 15:28:45 +0200
 
 docking (1.2.5-1) stable; urgency=medium
+  * Simplify dock window assembly and bump version to 1.2.5
+  * Add folder stacks popup
 
-  * Release 1.2.5.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 14:56:48 +0200
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 29 Mar 2026 14:57:07 +0200
 
 docking (1.2.4-1) stable; urgency=medium
+  * Refine applet popups and bump version to 1.2.4
 
-  * Release 1.2.4.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 28 Mar 2026 13:26:33 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 28 Mar 2026 13:26:56 +0100
 
 docking (1.2.3-1) stable; urgency=medium
+  * Make applet discovery metadata-only and bump version to 1.2.3
+  * Skip CI for docs and site-only changes
+  * Remove simplification plan from repo
 
-  * Release 1.2.3.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 28 Mar 2026 13:04:32 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 28 Mar 2026 13:05:03 +0100
 
 docking (1.2.2-1) stable; urgency=medium
+  * Refine dock model listeners and bump version to 1.2.2
+  * Document AI Usage applet
 
-  * Release 1.2.2.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 22:31:19 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 22:31:49 +0100
 
 docking (1.2.1-1) stable; urgency=medium
+  * Fix aiusage Codex hook state lookup
+  * Rename loggers and bump version to 1.2.1
+  * Add AI usage applet and bump version to 1.2.0
 
-  * Release 1.2.1.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 21:36:27 +0100
-
-docking (1.2.0-1) stable; urgency=medium
-
-  * Release 1.2.0.
-
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 21:15:27 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 21:58:46 +0100
 
 docking (1.1.2-1) stable; urgency=medium
+  * Mark Debian release stable and bump version to 1.1.2
 
-  * Release 1.1.2.
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 00:06:23 +0100
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 00:06:06 +0100
+docking (1.1.1-1) stable; urgency=medium
+  * Update 1.1.1 release metadata
+  * Update stale README applet and theme counts
 
-docking (1.1.1-1) unstable; urgency=medium
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 00:04:07 +0100
 
-  * Release 1.1.1.
+docking (1.1.0-1) stable; urgency=medium
+  * Release 1.1.0
+  * Increase coverage and add dock hide regression tests
+  * Expand long-form module documentation
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 27 Mar 2026 00:03:50 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 26 Mar 2026 22:59:37 +0100
 
-docking (0.1.42-1) unstable; urgency=medium
+docking (1.0.0-1) stable; urgency=medium
+  * Sync locale catalogs
+  * Release 1.0.0
+  * Polish Docking website carousel interactions
+  * Update Docking website interactions and applet carousel
 
-  * Release 0.1.42.
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 26 Mar 2026 00:20:35 +0100
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 14 Mar 2026 00:44:25 +0100
+docking (0.1.45-1) stable; urgency=medium
+  * Rename system monitor applet and release 0.1.45
+  * Refine Docking website color system
+  * Add initial Docking website landing page
+  * Stabilize UI GI fallback mocks
+  * Fix settings GI fallback mock
+  * Lazy-load UI package exports
+  * Install pycairo in Python 3.14 smoke lanes
+  * Use smoke tests for Python 3.14 lanes
+  * Add Python 3.14 CI coverage
+  * Decouple applet catalog from imports
 
-docking (0.1.41-1) unstable; urgency=medium
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 22 Mar 2026 12:47:51 +0100
 
-  * Release 0.1.41.
+docking (0.1.44-1) stable; urgency=medium
+  * Fix app bootstrap import test stubs
+  * Harden CI test dependencies
+  * Fix UI test GI and dodge monitor isolation
+  * Guard applet polling workers
+  * Fix today in history day rollover
+  * Disconnect dodge window handlers on stop
+  * Persist dock model pin order changes
+  * Rename applet present method
+  * Expand Ruff lint coverage
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 14 Mar 2026 00:28:53 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 16 Mar 2026 00:08:59 +0100
 
-docking (0.1.39-1) unstable; urgency=medium
+docking (0.1.43-1) stable; urgency=medium
+  * Add today in history applet
+  * Add openSUSE Wnck typelib
+  * Add openSUSE GI typelibs
+  * Use Xvfb directly in openSUSE smoke
+  * Use venv for openSUSE smoke job
+  * Harden openSUSE smoke setup
+  * Fix openSUSE smoke dependencies
+  * Add openSUSE smoke CI job
+  * Add Fedora smoke CI job
 
-  * Release 0.1.39.
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 14 Mar 2026 23:38:09 +0100
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 10 Mar 2026 23:51:46 +0100
+docking (0.1.42-1) stable; urgency=medium
+  * Sync package data declarations
+  * Add random trivia applet
+  * Fix type-check warnings
+  * Add stretch coach applet
+  * Add Launchpad PPA packaging scaffolding
+  * Replace magic numbers with named constants
+  * Remove legacy autohide config compatibility
 
-docking (0.1.37-1) unstable; urgency=medium
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 14 Mar 2026 00:47:27 +0100
 
-  * Release 0.1.37.
+docking (0.1.40-1) stable; urgency=medium
+  * Add autohide dodge and bump version to 0.1.40
+  * Add application menu search
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 23:15:18 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 11 Mar 2026 20:34:18 +0100
 
-docking (0.1.36-1) unstable; urgency=medium
+docking (0.1.39-1) stable; urgency=medium
+  * Add new applets and bump version to 0.1.39
+  * Add targeted UI coverage tests
+  * Tighten preferences dialog layout
+  * Rewrite architecture documentation
 
-  * Release 0.1.36.
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 10 Mar 2026 23:54:51 +0100
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 22:58:40 +0100
+docking (0.1.38-1) stable; urgency=medium
+  * Fix autohide jump and bump version to 0.1.38
+  * Add shared applet worker service
 
-docking (0.1.35-1) unstable; urgency=medium
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 09 Mar 2026 23:59:25 +0100
 
+docking (0.1.37-1) stable; urgency=medium
+  * Enable stricter Ruff checks
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 23:15:43 +0100
+
+docking (0.1.36-1) stable; urgency=medium
+  * Harden config normalization and exception logging
+  * Refactor settings bindings
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 22:58:54 +0100
+
+docking (0.1.35-1) stable; urgency=medium
   * Release 0.1.35.
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 22:26:57 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 22:27:04 +0100
 
-docking (0.1.34-1) unstable; urgency=medium
+docking (0.1.34-1) stable; urgency=medium
+  * Fix snap build asset source paths
+  * Fix snap desktop asset install paths
+  * Harden headless tool and applet tests
+  * Improve packaging and release tooling
+  * Update README header image
 
-  * Release 0.1.34.
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 22:26:23 +0100
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 12:19:23 +0100
+docking (0.1.33-1) stable; urgency=medium
+  * Refresh app icons and fix network device selection
 
-docking (0.1.33-1) unstable; urgency=medium
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 11:21:33 +0100
 
-  * Release 0.1.33.
+docking (0.1.32-1) stable; urgency=medium
+  * Include applet catalog assets in packages
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 11:55:51 +0100
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 01:43:04 +0100
 
-docking (0.1.18-1) unstable; urgency=medium
+docking (0.1.31-1) stable; urgency=medium
+  * Use generated applet catalog icons
+  * Add dock preferences window
 
-  * Release 0.1.18.
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 01:41:05 +0100
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 20:00:00 +0100
+docking (0.1.30-1) stable; urgency=medium
+  * Refine dock component assembly and bluetooth polling
 
-docking (0.1.0-1) unstable; urgency=medium
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 23:57:52 +0100
 
-  * Initial release
-  * 9 applets: clock, trash, desktop, CPU monitor, battery, weather,
-    clipboard, applications, network
-  * Parabolic zoom, window previews, autohide, drag-and-drop
-  * 6 themes, multi-position support (bottom/top/left/right)
-  * Desktop actions (quicklists) in right-click menus
-  * Urgent glow animation when dock is hidden
+docking (0.1.29-1) stable; urgency=medium
+  * Normalize dock window tracker naming
+  * Refine dock runtime assembly
 
- -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 25 Feb 2026 14:00:00 +0000
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 20:50:49 +0100
+
+docking (0.1.28-1) stable; urgency=medium
+  * Refine dock interaction cleanup
+  * Split dock layout from zoom module
+  * Expand module documentation and pointer scenarios
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 20:26:09 +0100
+
+docking (0.1.27-1) stable; urgency=medium
+  * Keep dock visible after drag drop
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 19:17:59 +0100
+
+docking (0.1.26-1) stable; urgency=medium
+  * Remove dock window interaction wrappers
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 19:13:34 +0100
+
+docking (0.1.25-1) stable; urgency=medium
+  * Simplify dock geometry builder
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 18:59:32 +0100
+
+docking (0.1.24-1) stable; urgency=medium
+  * Decompose DockWindow collaborators
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 18:40:19 +0100
+
+docking (0.1.23-1) stable; urgency=medium
+  * Refine dock geometry boundaries
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 17:48:32 +0100
+
+docking (0.1.22-1) stable; urgency=medium
+  * Refine preview autohide behavior
+  * Tighten internal attribute access
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 00:37:48 +0100
+
+docking (0.1.21-1) stable; urgency=medium
+  * Make edge spacing theme-owned
+  * Update README to match current config and locale count
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 07 Mar 2026 00:07:17 +0100
+
+docking (0.1.20-1) stable; urgency=medium
+  * Apply docking changes and bump version to 0.1.20
+  * Group icon menu options and refresh i18n catalogs
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 06 Mar 2026 20:03:46 +0100
+
+docking (0.1.19-1) stable; urgency=medium
+  * Sync i18n catalogs for tooltip toggle
+  * Add tooltip toggle setting and bump version to 0.1.19
+  * Add 70 locale catalogs and complete existing translations
+  * Consolidate translation tooling into unified i18n script
+  * Ignore compiled gettext .mo catalogs
+  * Enforce strict i18n checks and update display menu translations
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 06 Mar 2026 01:17:26 +0100
+
+docking (0.1.18-1) stable; urgency=medium
+  * Apply all-features updates and bump version to 0.1.18
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 06 Mar 2026 00:02:25 +0100
+
+docking (0.1.17-1) stable; urgency=medium
+  * Fix(snap): use CRAFT_PART_SRC for translation compile script
+  * Feat: apply plank quick wins and bump version to 0.1.17
+  * Feat(i18n): add gettext translations, compile step, and bump 0.1.16
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 23:35:33 +0100
+
+docking (0.1.15-1) stable; urgency=medium
+  * Test: raise coverage to 95% and bump version to 0.1.15
+  * Test: expand log and config branch coverage
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 01:15:24 +0100
+
+docking (0.1.14-1) stable; urgency=medium
+  * Fix preview title chip width and bump version to 0.1.14
+  * Keep power profile documentation in code; remove standalone doc file
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 00:44:35 +0100
+
+docking (0.1.13-1) stable; urgency=medium
+  * Add Power Profiles applet with backend fallbacks and extensive docs; bump 0.1.13
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 00:40:27 +0100
+
+docking (0.1.12-1) stable; urgency=medium
+  * Add Bluetooth applet and harden BlueZ power/discovery flow; bump 0.1.12
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 00:27:02 +0100
+
+docking (0.1.11-1) stable; urgency=medium
+  * Style: apply ruff formatting in notifications files
+  * Feat: add notifications applet with history and bump version to 0.1.11
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 04 Mar 2026 23:54:40 +0100
+
+docking (0.1.10-1) stable; urgency=medium
+  * Feat: add multi-monitor dock selection and bump version to 0.1.10
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 04 Mar 2026 20:45:32 +0100
+
+docking (0.1.9-1) stable; urgency=medium
+  * Fix: reconcile autohide after menu close and bump version to 0.1.9
+  * Docs: add brightness/color/moon applet sections and screenshots
+  * Fix: configure about dialog license metadata
+  * Chore: remove committed patch artifact
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 04 Mar 2026 20:30:02 +0100
+
+docking (0.1.8-1) stable; urgency=medium
+  * Feat: apply patch changes and bump release version to 0.1.8
+  * Docs: update latest release installation links
+  * Ci: ignore arch debug package in release normalization
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 04 Mar 2026 19:57:28 +0100
+
+docking (0.1.7-1) stable; urgency=medium
+  * Ci: harden release asset normalization for latest aliases
+  * Ci: add stable latest release asset aliases
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 04 Mar 2026 00:28:34 +0100
+
+docking (0.1.6-1) stable; urgency=medium
+  * Ci: standardize release assets and bump version to 0.1.6
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 04 Mar 2026 00:16:08 +0100
+
+docking (0.1.5-1) stable; urgency=medium
+  * Add music applet improvements and timed screenshot captures
+  * Raise tests to 95% coverage and expand applet/UI coverage
+  * Extract About dialog module and commit current WIP
+  * Docs: expand architecture narratives for core dock modules
+  * Create custom Cairo icons for applets visual identity
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 04 Mar 2026 00:03:34 +0100
+
+docking (0.1.4-1) stable; urgency=medium
+  * Refactor applets into modular packages and migrate weather applet
+  * Refine applet icons and harden preview/window error handling
+  * Apply preview segfault patch with merge conflict resolution
+  * Extract DockItem to core and stabilize runtime imports
+  * Standardize exception logging across runtime modules
+  * Increase coverage to 80% with applet and model integration tests
+  * Refine Session applet with Cairo user-avatar icon
+  * Improve Snap metadata and icon wiring for lint warnings
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 03 Mar 2026 00:20:23 +0100
+
+docking (0.1.3-1) stable; urgency=medium
+  * Fix Arch build by syncing PKGBUILD pkgver with project version
+  * Increase test coverage to 75% with app/platform/ui tests and add Debian autop...
+  * Fix Codecov workflow condition by using env token guard
+  * Fix Nix build inputs and relax weather deps for CI reproducibility
+  * Require CODECOV_TOKEN for coverage upload in CI
+  * Polish README badge and layout tweaks
+  * Add Python version badge to README
+  * Add CI/release/coverage badges and publish coverage to Codecov
+  * Adjust applet categories and add Nix packaging with CI artifacts
+  * Make Arch source tarball fallback work without git metadata
+  * Add Arch package CI/release artifacts and standardize package descriptions
+  * Consolidate typed applet identity and category metadata
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 01 Mar 2026 20:59:53 +0100
+
+docking (0.1.2-1) stable; urgency=medium
+  * Rename CI Ubuntu test job id to test-ubuntu
+  * Replace raw applet id strings with AppletId constants
+  * Centralize applet IDs and reuse them in Applets category mapping
+  * Group Applets submenu by categories and fix RPM arch packaging
+  * Fix Snap asset sourcing and stabilize RPM Python install layout
+  * Fix Snap asset path resolution and RPM install fallback
+  * Fix Snap build paths and add initial RPM packaging pipeline
+  * Fix Snap/AppImage CI packaging failures
+  * Center README header image with valid CSS
+  * Expand integration coverage and add AppImage artifact pipeline
+  * Add Snap packaging and CI build/release integration
+  * Refresh README to match current architecture, applets, packaging, and CI
+  * Improve repository hygiene and CI execution model
+  * Harden desktop launcher execution by removing shell=True
+  * Harden CI and developer workflow with coverage gates, security scans, and dep...
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 01 Mar 2026 19:22:02 +0100
+
+docking (0.1.1-1) stable; urgency=medium
+  * Add Quote applet, improve hydration visuals, and publish CI coverage artifacts
+  * Fix Flatpak AppStream icon lookup during compose
+  * Fix Flatpak builder option compatibility
+  * Fix Flatpak builder networking in CI and local script
+  * Fix Flatpak CI permissions by using user-scoped remotes
+  * Add Flatpak packaging and CI build artifact
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 01 Mar 2026 01:25:42 +0100
+
+docking (0.1.0-1) stable; urgency=medium
+  * Fix release version parsing for Python 3.10 runners
+  * Fix CI YAML syntax error in release version check
+  * Make CI release automation master-only with version gating
+  * Another adjustement
+  * Remove visible borders from README title table
+  * Use table layout for README title icon alignment
+  * Tune README title icon alignment via local render loop
+  * Fine-tune README title icon vertical alignment
+  * Align README title icon using trimmed header asset
+  * Refresh WM_CLASS mapping on each window scan
+  * Fix weather API typing issues flagged by ty
+  * Application image and update on applet
+  * Fix Debian CI glibc mismatch by using Python base images
+  * Add Debian matrix CI coverage alongside Ubuntu jobs
+  * Use workspace-local artifacts path for deb build/upload/release
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 28 Feb 2026 23:59:53 +0100
+
