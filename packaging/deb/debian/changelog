@@ -1,3 +1,12 @@
+docking (2.0.1-1) stable; urgency=medium
+
+  * Refresh README, packaging docs, and website for v2.0.1
+  * Add GPU utilization summary to System Monitor applet
+  * Fix Opus 4.7/4.8 and Sonnet 4.5/4.6 pricing tiers
+  * Replace getattr calls with direct attribute access in placement.py
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 11 Jun 2026 00:00:00 -0000
+
 docking (2.0.0-1) stable; urgency=medium
 
   * First-class Wayland support across all packaging formats
