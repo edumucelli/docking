@@ -16,7 +16,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 ## Contents
 
-- [Features](#features)
+- [Highlights](#highlights)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Running](#running)
@@ -31,23 +31,17 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - [Contributing](#contributing)
 - [License](#license)
 
-## Features
+## Highlights
 
-Docking is built around a few core capabilities:
-
-- Fast launcher workflow with running-state indicators and preview interactions.
-- Flexible layout with multi-position, multi-monitor, auto-hide, and drag-and-drop organization.
-- Broad customization through themes, transparency, icon sizing, menu options, and tooltip controls.
-- Native support for pinned files/folders, including left-click folder stacks.
-- Extensible applet surface for system status, productivity, media, and utilities.
-
-Highlights:
-- 56 built-in applets enabled from the dock menu, plus a separate dock separator item.
-- 13 built-in themes with scalable layout values.
-- Desktop-environment integration across MATE, Xfce, KDE, Cinnamon, GNOME, and others.
-- Unity LauncherEntry support for per-app badge counts and progress bars on dock icons.
-- Exports `_DOCKING_BACKGROUND_BLUR_REGION` on X11 so compositors and scripts can read the exact visible shelf rectangle.
-- 74 locale catalogs plus English fallback.
+- Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
+- Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
+- 57 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
+- Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
+- Deep customization through 13 built-in themes, transparency, icon sizing, menu behavior, and tooltip controls.
+- Broad release packaging: AppImage, Debian package, RPM, Flatpak, Snap, Arch package, and Nix output.
+- Desktop integration details such as Unity LauncherEntry badge/progress support, X11 background blur region export, and 74 locale catalogs plus English fallback.
+- Extensible Python applet system for adding custom dock-resident tools without changing the core runtime.
 
 ## Requirements
 

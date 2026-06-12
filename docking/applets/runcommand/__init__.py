@@ -11,14 +11,16 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Applications applet metadata."""
+"""Applet metadata for the Run Application applet."""
 
 from __future__ import annotations
 
 from docking.applets.identity import AppletCategory, AppletMeta
 
 meta = AppletMeta(
-    id="applications",
-    name="Applications",
+    id="runcommand",
+    name="Run Application",
     category=AppletCategory.LAUNCHER,
 )
+
+__all__ = ["meta"]
