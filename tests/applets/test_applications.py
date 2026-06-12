@@ -5,12 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
+import docking.applets.apps as apps_shared
 from docking.applets.applications.applet import ApplicationsApplet
-from docking.applets.applications.state import (
-    ApplicationEntry,
-    _all_desktop_app_infos,
-    _build_app_categories,
-)
+from docking.applets.applications.state import _build_app_categories
+from docking.applets.apps import ApplicationEntry, all_desktop_app_infos
 
 
 class TestBuildAppCategories:
@@ -25,11 +23,11 @@ class TestBuildAppCategories:
 
         with (
             patch(
-                "docking.applets.applications.state.Gio.AppInfo.get_all",
+                "docking.applets.apps.Gio.AppInfo.get_all",
                 return_value=[mock_app],
             ),
             patch(
-                "docking.applets.applications.state.Launcher._get_desktop_dirs",
+                "docking.applets.apps.Launcher._get_desktop_dirs",
                 return_value=[],
             ),
         ):
@@ -53,11 +51,11 @@ class TestBuildAppCategories:
             encoding="utf-8",
         )
         monkeypatch.setattr(
-            "docking.applets.applications.state.Gio.AppInfo.get_all",
+            "docking.applets.apps.Gio.AppInfo.get_all",
             list,
         )
         monkeypatch.setattr(
-            "docking.applets.applications.state.Launcher._get_desktop_dirs",
+            "docking.applets.apps.Launcher._get_desktop_dirs",
             lambda: [host_apps],
         )
 
@@ -82,22 +80,23 @@ class TestBuildAppCategories:
                 encoding="utf-8",
             )
         monkeypatch.setattr(
-            "docking.applets.applications.state.Gio.AppInfo.get_all",
+            "docking.applets.apps.Gio.AppInfo.get_all",
             list,
         )
         monkeypatch.setattr(
-            "docking.applets.applications.state.Launcher._get_desktop_dirs",
+            "docking.applets.apps.Launcher._get_desktop_dirs",
             lambda: [first_apps, second_apps],
         )
 
-        apps = _all_desktop_app_infos()
+        apps = all_desktop_app_infos()
 
         assert [app.get_id() for app in apps] == ["org.example.Tool.desktop"]
 
     def test_application_entry_launch_uses_launcher_bridge(self, monkeypatch):
         launched: list[str] = []
         monkeypatch.setattr(
-            "docking.applets.applications.state.launch_desktop_id",
+            apps_shared,
+            "launch_desktop_id",
             lambda *, desktop_id: launched.append(desktop_id),
         )
         entry = ApplicationEntry(
