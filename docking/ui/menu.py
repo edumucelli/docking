@@ -182,6 +182,7 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.backends.base import DisplayServer
 from docking.ui.about import AboutDialogController
+from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.runtime import DockRuntime
@@ -212,6 +213,11 @@ FOLDER_MENU_REFRESH_DEBOUNCE_MS = 120
 log = get_logger("menu")
 
 SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
+
+
+class _NoopDiagnostics:
+    def show(self) -> None:
+        return
 
 
 def _make_menu_header(label: str) -> Gtk.MenuItem:
@@ -299,11 +305,13 @@ class MenuHandler:
         window_tracker: WindowService,
         preview_service: PreviewService,
         geometry_builder: DockGeometryBuilder,
+        diagnostics: DiagnosticsDialogController | None = None,
         launcher: Launcher | None = None,
         dock_window: Gtk.Window | None = None,
     ) -> None:
         self._about = about
         self._settings = settings
+        self._diagnostics = diagnostics or _NoopDiagnostics()
         self._runtime = runtime
         self._model = model
         self._config = config
@@ -610,6 +618,10 @@ class MenuHandler:
         menu.append(add_sep)
 
         menu.append(Gtk.SeparatorMenuItem())
+
+        diagnostics_item = Gtk.MenuItem(label=_("Diagnostics"))
+        diagnostics_item.connect("activate", lambda _: self._diagnostics.show())
+        menu.append(diagnostics_item)
 
         # Preferences
         prefs_item = Gtk.MenuItem(label=_("Preferences"))

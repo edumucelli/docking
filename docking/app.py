@@ -135,6 +135,7 @@ def main() -> None:
         preview_service=backend.previews,
         surface_service=backend.surface,
         visibility_service=backend.visibility,
+        session_backend=backend,
         launcher=launcher,
     )
     items_service = DockItemsService(model=model, window=window)

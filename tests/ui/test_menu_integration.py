@@ -1299,6 +1299,7 @@ class TestDockMenu:
         # Then
         assert menu_mod._("Add Applet") in labels
         assert "Add Separator" in labels
+        assert "Diagnostics" in labels
         assert "Preferences" in labels
         assert "About" in labels
         assert "Get Support" in labels
@@ -1317,10 +1318,15 @@ class TestDockMenu:
 
         show_about = MagicMock()
         handler._about.show = show_about
+        show_diagnostics = MagicMock()
+        handler._diagnostics.show = show_diagnostics
         show_settings = MagicMock()
         handler._settings.show = show_settings
         open_target = MagicMock()
         menu_mod.launcher_mod.open_target = open_target
+        next(mi for mi in menu.children if mi.get_label() == "Diagnostics").activate()
+        show_diagnostics.assert_called_once()
+
         next(mi for mi in menu.children if mi.get_label() == "Preferences").activate()
         show_settings.assert_called_once()
 

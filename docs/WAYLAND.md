@@ -78,6 +78,10 @@ Docking selects a session backend at startup based on the GTK display type
 and the desktop environment. The selection logic lives in
 `docking/platform/backends/selection.py`.
 
+For support and compatibility reports, open right-click -> **Diagnostics** in
+Docking. The dialog shows the selected backend, session variables, feature
+availability, optional helper tools, monitors, and a copyable Markdown report.
+
 **Auto-detection order on native Wayland:**
 
 1. COSMIC (if `XDG_CURRENT_DESKTOP=COSMIC`)

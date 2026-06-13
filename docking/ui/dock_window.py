@@ -216,6 +216,7 @@ from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.ui import geometry
 from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
+from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
 from docking.ui.effects import ZoomAnimator
@@ -346,6 +347,7 @@ class DockWindow(Gtk.Window):
         launcher: Launcher,
         preview_service: PreviewService,
         surface_service: SurfaceService,
+        session_backend: object | None = None,
     ) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.config = config
@@ -355,6 +357,7 @@ class DockWindow(Gtk.Window):
         self.window_tracker = window_tracker
         self.preview_service = preview_service
         self.surface_service = surface_service
+        self.session_backend = session_backend
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController
@@ -497,6 +500,10 @@ class DockWindow(Gtk.Window):
             model=self.model,
             config=self.config,
         )
+        diagnostics = DiagnosticsDialogController(
+            parent=self,
+            backend=self.session_backend,
+        )
         self.autohide = AutoHideController(self, self.config)
         self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
@@ -511,6 +518,7 @@ class DockWindow(Gtk.Window):
         self._menu = MenuHandler(
             about=about,
             settings=settings,
+            diagnostics=diagnostics,
             runtime=runtime,
             model=self.model,
             config=self.config,
