@@ -19,6 +19,11 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
+from docking.platform.backends.wayland.hyprland_ipc import (
+    HyprlandSocketPaths,
+    HyprlandWindowService,
+)
+from docking.platform.backends.wayland.hyprland_session import HyprlandSessionBackend
 from docking.platform.backends.wayland.portals import WaylandPortalColorPickerService
 from docking.platform.backends.wayland.previews import (
     HyprlandPreviewService,
@@ -190,6 +195,60 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
     assert backend.capabilities.supports_workspace_list is True
     assert backend.capabilities.supports_workspace_switch is True
     assert backend.capabilities.supports_screen_color_pick is True
+
+
+def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
+    window_service = HyprlandWindowService(
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        client=SimpleNamespace(paths=HyprlandSocketPaths(command="", events="")),
+    )
+    backend = HyprlandSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
+        protocol_runtime=_empty_runtime(),
+        window_service=window_service,
+    )
+
+    assert backend.name == "hyprland"
+    assert backend.display_server is DisplayServer.WAYLAND
+    assert backend.windows is window_service
+    assert backend.capabilities.tracks_windows is True
+    assert backend.capabilities.tracks_active_window is True
+    assert backend.capabilities.tracks_attention is True
+    assert backend.capabilities.tracks_window_geometry is True
+    assert backend.capabilities.tracks_window_workspace is True
+    assert backend.capabilities.supports_current_workspace_filter is True
+    assert backend.capabilities.supports_activate is True
+    assert backend.capabilities.supports_minimize is True
+    assert backend.capabilities.supports_close is True
+    assert backend.capabilities.supports_layer_shell is True
+    assert backend.capabilities.supports_screen_reservation is True
+    assert backend.capabilities.supports_input_region is True
+
+
+def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.hyprland_session."
+        "load_hyprland_window_service",
+        lambda **_: None,
+    )
+    backend = HyprlandSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
+        protocol_runtime=_empty_runtime(),
+    )
+
+    assert isinstance(backend.windows, ReducedWindowService)
+    assert backend.capabilities.tracks_windows is False
+    assert backend.capabilities.supports_layer_shell is True
 
 
 def test_wayland_layer_shell_session_lifecycle_is_safe():
