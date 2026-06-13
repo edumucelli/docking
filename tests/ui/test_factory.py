@@ -23,6 +23,7 @@ class TestBuildDockWindow:
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
+        session_backend = MagicMock()
 
         window = MagicMock()
         window.autohide = MagicMock()
@@ -41,6 +42,7 @@ class TestBuildDockWindow:
             surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
+            session_backend=session_backend,
         )
 
         assert result is window
@@ -53,6 +55,7 @@ class TestBuildDockWindow:
             launcher=launcher,
             preview_service=preview_service,
             surface_service=surface_service,
+            session_backend=session_backend,
         )
         kwargs = visibility_service.create_monitor.call_args.kwargs
         assert callable(kwargs["get_dock_rect"])
@@ -71,6 +74,7 @@ class TestBuildDockWindow:
         surface_service = MagicMock()
         visibility_service = MagicMock()
         visibility_service.create_monitor.return_value = None
+        session_backend = MagicMock()
 
         window = MagicMock()
         window.autohide = MagicMock()
@@ -86,6 +90,7 @@ class TestBuildDockWindow:
             surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
+            session_backend=session_backend,
         )
 
         assert result is window
@@ -103,6 +108,7 @@ class TestBuildDockWindow:
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
+        session_backend = MagicMock()
 
         window = MagicMock()
         window.autohide = MagicMock()
@@ -135,6 +141,7 @@ class TestBuildDockWindow:
             surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
+            session_backend=session_backend,
         )
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])
@@ -151,6 +158,7 @@ class TestBuildDockWindow:
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
+        session_backend = MagicMock()
 
         window = MagicMock()
         window.autohide = MagicMock()
@@ -176,6 +184,7 @@ class TestBuildDockWindow:
             surface_service=surface_service,
             visibility_service=visibility_service,
             launcher=launcher,
+            session_backend=session_backend,
         )
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])

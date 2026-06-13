@@ -231,6 +231,7 @@ def _folder_stack_handler() -> MenuHandler:
         window_tracker=MagicMock(),
         preview_service=MagicMock(),
         geometry_builder=MagicMock(),
+        diagnostics=MagicMock(),
         launcher=launcher,
     )
     handler._folder_stack._folder_stack_position_value = "bottom"

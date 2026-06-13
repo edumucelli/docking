@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-06-12 15:59+0200\n"
+"POT-Creation-Date: 2026-06-13 20:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -114,7 +114,7 @@ msgstr ""
 #: docking/applets/runcommand/applet.py:121
 #: docking/applets/runcommand/applet.py:339
 #: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:127
-#: docking/applets/weather/applet.py:271
+#: docking/applets/weather/applet.py:271 docking/ui/diagnostics.py:344
 msgid "Cancel"
 msgstr ""
 
@@ -308,7 +308,7 @@ msgstr ""
 
 #: docking/applets/apod/applet.py:119 docking/applets/apod/state.py:119
 #: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:147
-#: docking/applets/certwatch/state.py:325
+#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:102
 msgid "Checks"
 msgstr ""
 
@@ -634,11 +634,11 @@ msgstr ""
 msgid "Discovering: {state}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:165
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:393
 msgid "Yes"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:165
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:393
 msgid "No"
 msgstr ""
 
@@ -783,7 +783,7 @@ msgstr ""
 #: docking/applets/camshield/state.py:192
 #: docking/applets/deskpresence/state.py:185
 #: docking/applets/micshield/state.py:193 docking/applets/music/state.py:95
-#: docking/applets/powerprofiles/state.py:150
+#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:398
 msgid "Unknown"
 msgstr ""
 
@@ -1194,7 +1194,7 @@ msgid "Week total at desk: {d}"
 msgstr ""
 
 #: docking/applets/desktop/applet.py:40
-#: docking/applets/workspaces/applet.py:101
+#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:148
 msgid "Desktop"
 msgstr ""
 
@@ -1505,7 +1505,7 @@ msgstr ""
 msgid "Scrobbler Settings"
 msgstr ""
 
-#: docking/applets/lastfm/applet.py:381
+#: docking/applets/lastfm/applet.py:381 docking/ui/diagnostics.py:343
 msgid "Save"
 msgstr ""
 
@@ -2033,7 +2033,7 @@ msgstr ""
 msgid "Run with file"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:340 docking/ui/menu.py:459
+#: docking/applets/runcommand/applet.py:340 docking/ui/menu.py:467
 msgid "Open"
 msgstr ""
 
@@ -2074,7 +2074,7 @@ msgstr ""
 msgid "Invert Color"
 msgstr ""
 
-#: docking/applets/session/applet.py:41
+#: docking/applets/session/applet.py:41 docking/ui/diagnostics.py:149
 msgid "Session"
 msgstr ""
 
@@ -2649,8 +2649,132 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/dock_window.py:398
+#: docking/ui/diagnostics.py:72 docking/ui/menu.py:622
+msgid "Diagnostics"
+msgstr ""
+
+#: docking/ui/diagnostics.py:94
+msgid "Overview"
+msgstr ""
+
+#: docking/ui/diagnostics.py:98
+msgid "Features"
+msgstr ""
+
+#: docking/ui/diagnostics.py:106 docking/ui/diagnostics.py:224
+msgid "Environment"
+msgstr ""
+
+#: docking/ui/diagnostics.py:110
+msgid "Report"
+msgstr ""
+
+#: docking/ui/diagnostics.py:117
+msgid "Refresh"
+msgstr ""
+
+#: docking/ui/diagnostics.py:119
+msgid "Copy Report"
+msgstr ""
+
+#: docking/ui/diagnostics.py:121
+msgid "Save Report..."
+msgstr ""
+
+#: docking/ui/diagnostics.py:123 docking/ui/menu.py:506
+msgid "Close"
+msgstr ""
+
+#: docking/ui/diagnostics.py:146 docking/ui/dock_window.py:401
 msgid "Docking"
+msgstr ""
+
+#: docking/ui/diagnostics.py:147
+msgid "OS"
+msgstr ""
+
+#: docking/ui/diagnostics.py:150
+msgid "Selected Backend"
+msgstr ""
+
+#: docking/ui/diagnostics.py:151
+msgid "Display Server"
+msgstr ""
+
+#: docking/ui/diagnostics.py:152
+msgid "GTK Backend"
+msgstr ""
+
+#: docking/ui/diagnostics.py:153
+msgid "Forced Backend"
+msgstr ""
+
+#: docking/ui/diagnostics.py:153
+msgid "None"
+msgstr ""
+
+#: docking/ui/diagnostics.py:154
+msgid "XWayland"
+msgstr ""
+
+#: docking/ui/diagnostics.py:155
+msgid "X11 Compositor"
+msgstr ""
+
+#: docking/ui/diagnostics.py:162
+msgid "Warnings"
+msgstr ""
+
+#: docking/ui/diagnostics.py:166
+msgid "No compatibility warnings detected."
+msgstr ""
+
+#: docking/ui/diagnostics.py:192
+msgid "Runtime"
+msgstr ""
+
+#: docking/ui/diagnostics.py:196
+msgid "Python"
+msgstr ""
+
+#: docking/ui/diagnostics.py:197
+msgid "GTK"
+msgstr ""
+
+#: docking/ui/diagnostics.py:198
+msgid "Backend Class"
+msgstr ""
+
+#: docking/ui/diagnostics.py:199
+msgid "Wayland Session"
+msgstr ""
+
+#: docking/ui/diagnostics.py:200
+msgid "X11 GTK Backend"
+msgstr ""
+
+#: docking/ui/diagnostics.py:206
+msgid "Monitors"
+msgstr ""
+
+#: docking/ui/diagnostics.py:210
+msgid "primary"
+msgstr ""
+
+#: docking/ui/diagnostics.py:210
+msgid "secondary"
+msgstr ""
+
+#: docking/ui/diagnostics.py:220
+msgid "Monitor details unavailable."
+msgstr ""
+
+#: docking/ui/diagnostics.py:340
+msgid "Save Diagnostics Report"
+msgstr ""
+
+#: docking/ui/diagnostics.py:360
+msgid "Failed to save diagnostics report."
 msgstr ""
 
 #: docking/ui/folder/_browser.py:40
@@ -2696,72 +2820,68 @@ msgstr ""
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:400
+#: docking/ui/menu.py:408
 msgid "Icon"
 msgstr ""
 
-#: docking/ui/menu.py:402
+#: docking/ui/menu.py:410
 msgid "Docking Icon"
 msgstr ""
 
-#: docking/ui/menu.py:403
+#: docking/ui/menu.py:411
 msgid "System Icon"
 msgstr ""
 
-#: docking/ui/menu.py:446 docking/ui/menu.py:466 docking/ui/menu.py:482
-#: docking/ui/menu.py:530
+#: docking/ui/menu.py:454 docking/ui/menu.py:474 docking/ui/menu.py:490
+#: docking/ui/menu.py:538
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:489
+#: docking/ui/menu.py:497
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:498
+#: docking/ui/menu.py:506
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:498
-msgid "Close"
-msgstr ""
-
-#: docking/ui/menu.py:515
+#: docking/ui/menu.py:523
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:523
+#: docking/ui/menu.py:531
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:560
+#: docking/ui/menu.py:568
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:598
+#: docking/ui/menu.py:606
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:605
+#: docking/ui/menu.py:613
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:615 docking/ui/settings.py:195
+#: docking/ui/menu.py:627 docking/ui/settings.py:195
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:620
+#: docking/ui/menu.py:632
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:625
+#: docking/ui/menu.py:637
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:632
+#: docking/ui/menu.py:644
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:670
+#: docking/ui/menu.py:682
 msgid "Window"
 msgstr ""
 
