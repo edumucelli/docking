@@ -85,10 +85,11 @@ availability, optional helper tools, monitors, and a copyable Markdown report.
 **Auto-detection order on native Wayland:**
 
 1. COSMIC (if `XDG_CURRENT_DESKTOP=COSMIC`)
-2. KWin / KDE Plasma 6 (if `XDG_CURRENT_DESKTOP=KDE`)
-3. Generic layer-shell (if the compositor advertises `zwlr_layer_shell_v1`)
-4. GNOME Shell bridge (if the bridge D-Bus service is available)
-5. Reduced (fallback)
+2. Niri (if `XDG_CURRENT_DESKTOP=niri`)
+3. KWin / KDE Plasma 6 (if `XDG_CURRENT_DESKTOP=KDE`)
+4. Generic layer-shell (if the compositor advertises `zwlr_layer_shell_v1`)
+5. GNOME Shell bridge (if the bridge D-Bus service is available)
+6. Reduced (fallback)
 
 **Manual override** via `DOCKING_BACKEND`:
 
@@ -97,6 +98,7 @@ DOCKING_BACKEND=x11          # Force X11 backend
 DOCKING_BACKEND=cosmic       # Force COSMIC backend
 DOCKING_BACKEND=kwin         # Force KWin backend
 DOCKING_BACKEND=wayland      # Force generic layer-shell backend
+DOCKING_BACKEND=niri         # Force Niri IPC backend
 DOCKING_BACKEND=hyprland     # Force Hyprland backend
 DOCKING_BACKEND=gnome-shell  # Force GNOME Shell bridge backend
 DOCKING_BACKEND=reduced      # Force reduced (launcher-only) backend
@@ -180,6 +182,36 @@ to avoid stalling the compositor.
 | Applets | ✓ | Backend-neutral applets work |
 
 Launch: `DOCKING_BACKEND=hyprland python3 run.py`
+
+---
+
+### Niri
+
+**Backend:** `wayland/niri_session.py` + `wayland/niri_ipc.py`
+**Auto-detected:** Yes, when desktop detection reports Niri
+**Status:** IPC-based window tracking, actions, and layer-shell placement
+
+Uses Niri's JSON IPC socket (`$NIRI_SOCKET`) for live window state and
+short-lived request/response calls for actions. The event stream delivers
+full current state up-front followed by incremental events — no polling needed.
+
+| Capability | Status | Mechanism |
+| --- | --- | --- |
+| Edge placement / exclusive zone | ✓ | `zwlr_layer_shell_v1` via `gtk-layer-shell` |
+| Running indicators / active state | ✓ | Event stream (`WindowsChanged`, `WindowOpenedOrChanged`, `WindowFocusChanged`) |
+| Window actions (focus, close, fullscreen) | ✓ | Action requests (`FocusWindow`, `CloseWindow`, `FullscreenWindow`) via IPC |
+| Workspace listing / switching | ✓ | Workspace protocol when available; window workspace state via IPC |
+| Overlap-driven autohide | ✗ | Not available (tiling compositor) |
+| Window previews | ✓ | `ScreenshotWindow` IPC action → temp-file PNG capture |
+| Color Picker | ✓ | Native `PickColor` IPC request |
+| Applets | ✓ | Backend-neutral applets work |
+
+Niri is a tiling compositor without a traditional minimize concept, so
+`minimize_all` returns `UNSUPPORTED`. Close, focus, and fullscreen actions
+work for windows tracked via IPC. The ``OverviewOpenedOrClosed`` event is
+tracked and exposed via ``NiriWindowService.is_overview_open``.
+
+Launch: `DOCKING_BACKEND=niri python3 run.py`
 
 ---
 
@@ -273,22 +305,24 @@ Launch: `DOCKING_BACKEND=reduced python3 run.py`
 
 ## Feature Support Matrix
 
-| Feature | X11 | COSMIC | Hyprland | KWin 6 | wlroots | GNOME Shell bridge | Reduced |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Edge reservation (struts/exclusive zone) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
-| Running indicators | ✓ | ✓ | ✓ | ~ | ✓ | ✓ | ✗ |
-| Active window tracking | ✓ | ✓ | ✓ | ~ | ✓ | ✓ | ✗ |
-| Window actions (focus, close, minimize) | ✓ | ✓ | ✓ | ~ | ✓ | ✓ | ✗ |
-| Window previews | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Workspaces | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
-| Overlap-driven autohide | ✓ | ✓ | ~ | ✗ | ✗ | ✗ | ✗ |
-| Pointer barriers | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Background blur hint | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Window Killer | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Pinned launchers | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Backend-neutral applets | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Color Picker | ✓ | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✗ | ✗ |
-| Screenshot | ✓ | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) |
+| Feature | X11 | COSMIC | Hyprland | Niri | KWin 6 | wlroots | GNOME Shell bridge | Reduced |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Edge reservation (struts/exclusive zone) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
+| Running indicators | ✓ | ✓ | ✓ | ✓ | ~ | ✓ | ✓ | ✗ |
+| Active window tracking | ✓ | ✓ | ✓ | ✓ | ~ | ✓ | ✓ | ✗ |
+| Window actions (focus, close, minimize) | ✓ | ✓ | ✓ | ✓¹ | ~ | ✓ | ✓ | ✗ |
+| Window previews | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Workspaces | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
+| Overlap-driven autohide | ✓ | ✓ | ~ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Pointer barriers | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Background blur hint | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Window Killer | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Pinned launchers | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Backend-neutral applets | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Color Picker | ✓ | ✓ (portal) | ✓ (portal) | ✓ (IPC) | ✓ (portal) | ✓ (portal) | ✗ | ✗ |
+| Screenshot | ✓ | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) | ✓ (portal) |
+
+¹ Niri is a tiling compositor — focus and close work, minimize is unsupported.
 
 Legend: ✓ = supported, ~ = partial, ✗ = unavailable
 
@@ -2982,8 +3016,8 @@ These questions were answered through implementation:
   `ipc` plugin and companion plugins (`ipc-rules`, `wm-actions`) which vary
   by user configuration.
 
-- **Niri IPC backend** — not yet implemented. Niri has a clean JSON IPC
-  contract well-suited to a taskbar backend.
+- **Niri IPC backend** — implemented. Uses Niri's JSON IPC socket for window
+  tracking and actions with event-stream updates.
 
 - **Multi-monitor behavior** on non-X11 backends needs broader testing.
 
@@ -3003,6 +3037,8 @@ When documenting Wayland support publicly, avoid ambiguous statements like
   window actions, workspaces, overlap-driven autohide, preview image capture
 - **Hyprland native Wayland:** IPC-based window tracking, actions, and
   workspaces
+- **Niri native Wayland:** IPC-based window tracking, actions, and
+  layer-shell placement
 - **KDE Plasma 6 native Wayland:** layer-shell placement and workspace support;
   window tracking is limited (AT-SPI best-effort)
 - **Generic wlroots native Wayland** (Sway, river, labwc): layer-shell placement;
@@ -3029,8 +3065,8 @@ implemented as:
 Remaining compositor integration work:
 
 - **Wayfire** — IPC backend not yet implemented (plugin-dependent)
-- **Niri** — clean JSON IPC contract, well-suited to a taskbar backend;
-  not yet implemented
+- **Niri** — implemented; JSON IPC for window tracking, actions, and
+  event-stream updates
 - **GNOME Shell frontend** — the bridge provides window/workspace state and
   actions; a full GNOME Shell frontend (shell-owned dock surface, overview
   integration) would be a separate project comparable to Dash to Dock
@@ -3767,7 +3803,7 @@ its startup is guarded so Wnck screen signals are not connected twice.
 
 The PR sequence below was designed to keep every step reviewable and preserve
 the existing X11 runtime after each merge. All PRs 1-18 and sub-PRs 19a-c,
-19e-f are merged. Wayfire (19d) and Niri remain unimplemented.
+19e-f are merged. Wayfire (19d) remains unimplemented.
 
 #### PR Summary
 
@@ -3800,7 +3836,7 @@ platform-specific behavior behind backend contracts.
 | 19e | GNOME bridge | GNOME Shell extension (`extension.js`) + Python `GnomeShellBridgeSessionBackend`; D-Bus window/workspace/action bridge |
 | 19f | — | Extension loads, D-Bus state export, backend integration complete |
 
-**Not yet implemented:** Wayfire IPC backend (PR 19d), Niri IPC backend.
+**Not yet implemented:** Wayfire IPC backend (PR 19d).
 
 ### Advance Research Findings Before More Wayland Work
 
