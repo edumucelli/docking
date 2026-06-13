@@ -762,6 +762,7 @@ def handler(monkeypatch):
         config=config,
         window_tracker=tracker,
         preview_service=preview_service,
+        diagnostics=MagicMock(),
         launcher=launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )

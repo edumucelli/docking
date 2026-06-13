@@ -215,11 +215,6 @@ log = get_logger("menu")
 SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
 
 
-class _NoopDiagnostics:
-    def show(self) -> None:
-        return
-
-
 def _make_menu_header(label: str) -> Gtk.MenuItem:
     item = Gtk.MenuItem(label=label)
     item.set_sensitive(False)
@@ -305,13 +300,13 @@ class MenuHandler:
         window_tracker: WindowService,
         preview_service: PreviewService,
         geometry_builder: DockGeometryBuilder,
-        diagnostics: DiagnosticsDialogController | None = None,
+        diagnostics: DiagnosticsDialogController,
         launcher: Launcher | None = None,
         dock_window: Gtk.Window | None = None,
     ) -> None:
         self._about = about
         self._settings = settings
-        self._diagnostics = diagnostics or _NoopDiagnostics()
+        self._diagnostics = diagnostics
         self._runtime = runtime
         self._model = model
         self._config = config
