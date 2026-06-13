@@ -61,25 +61,12 @@ jobs:
           printf 'Changed files:\n'
           printf ' - %s\n' "${changed_files[@]}"
 
-          for path in "${changed_files[@]}"; do
-            case "${path}" in
-              docs/**|website/**|images/**)
-                ;;
-              *)
-                echo "CI-relevant change detected: ${path}"
-                echo "run_ci=true" >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-            esac
-          done
-
-          echo "Only docs/ website/ and images/ changed; skipping CI."
-          echo "run_ci=false" >> "$GITHUB_OUTPUT"
+          echo "All changes trigger CI; no path-based exclusions."
+          echo "run_ci=true" >> "$GITHUB_OUTPUT"
 
   quality:
     name: Quality (ruff + ty)
     needs: [changes]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -131,7 +118,6 @@ jobs:
   bdd-visual:
     name: BDD + Visual Regression
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -194,7 +180,6 @@ jobs:
   test-ubuntu:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-${{ matrix.ubuntu }}
     strategy:
       matrix:
@@ -302,7 +287,6 @@ jobs:
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -368,7 +352,6 @@ jobs:
   test-arm64:
     name: Test (Python 3.12, Ubuntu 24.04 ARM64)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
@@ -420,7 +403,6 @@ jobs:
   test-fedora-smoke:
     name: Smoke (Fedora 41)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: fedora:41
@@ -460,7 +442,6 @@ jobs:
   test-opensuse-smoke:
     name: Smoke (openSUSE Tumbleweed)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: opensuse/tumbleweed:latest
@@ -529,7 +510,6 @@ jobs:
     name: Build .deb
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -605,7 +585,6 @@ jobs:
     name: Build .deb (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -684,7 +663,6 @@ jobs:
     name: Build RPM (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -711,7 +689,6 @@ jobs:
     name: Build RPM
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -738,7 +715,6 @@ jobs:
     name: Build Flatpak
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -769,7 +745,6 @@ jobs:
     name: Build Flatpak (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -800,7 +775,6 @@ jobs:
     name: Build Snap
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -832,7 +806,6 @@ jobs:
     name: Build Snap (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -867,7 +840,6 @@ jobs:
     name: Build AppImage
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -896,7 +868,6 @@ jobs:
     name: Build AppImage (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -925,7 +896,6 @@ jobs:
     name: Build Arch package
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     container:
       image: archlinux:latest
     steps:
@@ -957,7 +927,6 @@ jobs:
     name: Build Arch package (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     container:
       image: adyranov/archlinux:latest
     steps:
@@ -989,7 +958,6 @@ jobs:
     name: Build Nix package
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -1023,7 +991,6 @@ jobs:
     name: Build Nix package (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -1057,7 +1024,7 @@ jobs:
     name: Release
     runs-on: ubuntu-22.04
     needs: [changes, build-deb, build-deb-arm64, build-rpm, build-rpm-arm64, build-flatpak, build-flatpak-arm64, build-snap, build-snap-arm64, build-appimage, build-appimage-arm64, build-arch, build-arch-arm64, build-nix, build-nix-arm64]
-    if: github.ref == 'refs/heads/master' && needs.changes.outputs.run_ci == 'true'
+    if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
     steps:
