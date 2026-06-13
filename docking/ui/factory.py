@@ -25,6 +25,7 @@ from docking.core.theme import Theme
 from docking.platform.backends.base import (
     PreviewService,
     Rect,
+    SessionBackend,
     SurfaceService,
     VisibilityService,
     WindowService,
@@ -47,32 +48,20 @@ def build_dock_window(
     surface_service: SurfaceService,
     visibility_service: VisibilityService,
     launcher: Launcher,
-    session_backend: object | None = None,
+    session_backend: SessionBackend,
 ) -> DockWindow:
     """Build a fully wired dock window and its UI collaborators."""
-    if session_backend is None:
-        window = DockWindow(
-            config=config,
-            model=model,
-            renderer=renderer,
-            theme=theme,
-            window_tracker=window_tracker,
-            launcher=launcher,
-            preview_service=preview_service,
-            surface_service=surface_service,
-        )
-    else:
-        window = DockWindow(
-            config=config,
-            model=model,
-            renderer=renderer,
-            theme=theme,
-            window_tracker=window_tracker,
-            launcher=launcher,
-            preview_service=preview_service,
-            surface_service=surface_service,
-            session_backend=session_backend,
-        )
+    window = DockWindow(
+        config=config,
+        model=model,
+        renderer=renderer,
+        theme=theme,
+        window_tracker=window_tracker,
+        launcher=launcher,
+        preview_service=preview_service,
+        surface_service=surface_service,
+        session_backend=session_backend,
+    )
 
     def _get_dock_rect() -> Rect | None:
         if not window.get_realized():

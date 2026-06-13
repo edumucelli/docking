@@ -208,6 +208,7 @@ from docking.log import get_logger
 from docking.platform.backends.base import (
     PreviewService,
     Rect,
+    SessionBackend,
     SurfaceService,
     WindowService,
 )
@@ -347,7 +348,7 @@ class DockWindow(Gtk.Window):
         launcher: Launcher,
         preview_service: PreviewService,
         surface_service: SurfaceService,
-        session_backend: object | None = None,
+        session_backend: SessionBackend,
     ) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.config = config
