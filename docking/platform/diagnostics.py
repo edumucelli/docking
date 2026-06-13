@@ -21,7 +21,7 @@ import platform
 import shutil
 import sys
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from typing import Literal
@@ -195,7 +195,7 @@ def collect_diagnostics(
         compositor_active_status=compositor,
     )
     return DiagnosticsSnapshot(
-        generated_at=datetime.now(tz=UTC),
+        generated_at=datetime.now(tz=timezone.utc),
         docking_version=_project_version(),
         python_version=sys.version.split()[0],
         gtk_version=_gtk_version(),
