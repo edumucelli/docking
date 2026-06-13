@@ -1,3 +1,12 @@
+docking (2.1.0-1) stable; urgency=medium
+
+  * Add Niri IPC backend with native window tracking, previews, and color picker
+  * Add runtime diagnostics dialog for backend and session troubleshooting
+  * Add Run Application applet for quick command launching
+  * Expand test coverage across core and applet modules
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 13 Jun 2026 22:54:20 +0200
+
 docking (2.0.1-1) stable; urgency=medium
 
   * Refresh README, packaging docs, and website for v2.0.1
