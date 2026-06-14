@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for keyboard layout applet."""
 
 from __future__ import annotations
@@ -16,11 +29,16 @@ from docking.applets.keyboardlayout import meta
 from docking.applets.keyboardlayout.render import render_icon
 from docking.applets.keyboardlayout.state import (
     LayoutState,
+    current_layout_command,
     cycle_layout,
     detect_backend,
+    keyboard_settings_command,
     layout_label,
+    open_keyboard_settings,
+    show_current_layout,
     tooltip_text,
 )
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -111,17 +129,37 @@ class KeyboardLayoutApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-        for code in self._available:
-            prefix = "\u2022 " if code == self._active else "  "
-            label = f"{prefix}{layout_label(code=code)} — {code}"
-            mi = Gtk.MenuItem(label=label)
-            mi.connect(
+        settings: list[Gtk.MenuItem] = []
+        settings_cmd = keyboard_settings_command()
+        if settings_cmd is not None:
+            settings_item = Gtk.MenuItem(label=_("Keyboard Settings"))
+            settings_item.connect("activate", lambda _w: open_keyboard_settings())
+            settings.append(settings_item)
+
+        primary: list[Gtk.MenuItem] = []
+        if self._active and current_layout_command(self._active) is not None:
+            layout_item = Gtk.MenuItem(label=_("Show Current Layout"))
+            layout_item.connect(
                 "activate",
-                lambda _w, c=code: self._select_layout(code=c),
+                lambda _w: show_current_layout(self._active),
             )
-            items.append(mi)
-        return items
+            primary.append(layout_item)
+
+        display = radio_menu_items(
+            choices=tuple(
+                (f"{layout_label(code=code)} - {code}", code)
+                for code in self._available
+            ),
+            active_value=self._active,
+            on_selected=lambda _widget, code: self._select_layout(code=code),
+            gtk=Gtk,
+        )
+        return menu_sections(
+            primary=primary,
+            display=display,
+            settings=settings,
+            gtk=Gtk,
+        )
 
     def _select_layout(self, code: str) -> None:
         self._backend.switch(layout_code=code)

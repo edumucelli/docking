@@ -162,6 +162,16 @@ class TestAutoHideState:
         assert ctrl.state == HideState.VISIBLE
         assert ctrl.hide_offset == 0.0
 
+    def test_reconcile_reapplies_policy_without_input_change(self):
+        ctrl = self._make_controller()
+        ctrl._hide = MagicMock()
+        ctrl._show = MagicMock()
+
+        ctrl.reconcile()
+
+        ctrl._hide.assert_called_once_with()
+        ctrl._show.assert_not_called()
+
 
 class TestZoomProgressFormula:
     """zoom_progress must use linear formula (1 - hide_offset), not compound.

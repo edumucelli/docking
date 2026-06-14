@@ -5,7 +5,7 @@ formula derived from Plank's PositionManager.  Each icon is displaced from
 its REST position based on distance from the cursor, then scaled using a
 parabolic curve.
 
-The scaling unit for h_padding and item_padding is pixels (already scaled
+The scaling unit for horizontal_padding and item_padding is pixels (already scaled
 from the theme's "tenths of one percent of icon_size" at load time).
 """
 
@@ -49,14 +49,14 @@ class TestRestPositions:
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         # When
         layout = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # Then
         for i in range(1, len(layout)):
             gap = layout[i].x - layout[i - 1].x
             assert gap == pytest.approx(48 + 10)  # icon_size + item_padding
 
-    def test_first_icon_starts_at_h_padding(self):
+    def test_first_icon_starts_at_horizontal_padding(self):
         # Given
         config = MagicMock(main_size=0, insert_factor=1.0)
         config.icon_size = 48
@@ -66,7 +66,7 @@ class TestRestPositions:
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(3)]
         # When
         layout = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # Then
         assert layout[0].x == pytest.approx(12.0)
@@ -84,11 +84,13 @@ class TestZoomedPositions:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         center_x = rest[2].x + 24  # center of 3rd icon
-        layout = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, center_x, item_padding=10, horizontal_padding=12
+        )
         # Then
         assert layout[2].scale == pytest.approx(config.zoom_percent)
 
@@ -101,11 +103,11 @@ class TestZoomedPositions:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(10)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         layout = compute_layout(
-            items, config, rest[0].x + 24, item_padding=10, h_padding=12
+            items, config, rest[0].x + 24, item_padding=10, horizontal_padding=12
         )
         # Then
         assert layout[-1].scale == pytest.approx(1.0)
@@ -119,11 +121,11 @@ class TestZoomedPositions:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         layout = compute_layout(
-            items, config, rest[2].x + 24, item_padding=10, h_padding=12
+            items, config, rest[2].x + 24, item_padding=10, horizontal_padding=12
         )
         # Then
         for li in layout:
@@ -138,11 +140,11 @@ class TestZoomedPositions:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         layout = compute_layout(
-            items, config, rest[0].x + 24, item_padding=10, h_padding=12
+            items, config, rest[0].x + 24, item_padding=10, horizontal_padding=12
         )
         # Then
         assert layout[0].scale == pytest.approx(1.5)
@@ -159,11 +161,11 @@ class TestZoomedPositions:
             SimpleNamespace(main_size=0, allow_zoom=True, insert_factor=1.0),
         ]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
 
         layout = compute_layout(
-            items, config, rest[1].x + 8, item_padding=10, h_padding=12
+            items, config, rest[1].x + 8, item_padding=10, horizontal_padding=12
         )
 
         assert layout[1].scale == pytest.approx(1.0)
@@ -185,7 +187,9 @@ class TestEdgeCases:
         config.zoom_percent = 1.5
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(3)]
-        layout = compute_layout(items, config, 99999.0, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, 99999.0, item_padding=10, horizontal_padding=12
+        )
         for li in layout:
             assert li.scale == pytest.approx(1.0)
 
@@ -201,11 +205,13 @@ class TestEdgeCases:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(2)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         center_x = (rest[0].x + rest[1].x + 48) / 2
-        layout = compute_layout(items, config, center_x, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, center_x, item_padding=10, horizontal_padding=12
+        )
         # Then
         assert layout[0].scale == pytest.approx(layout[1].scale, abs=0.01)
 
@@ -218,11 +224,11 @@ class TestEdgeCases:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         layout = compute_layout(
-            items, config, rest[0].x + 24, item_padding=10, h_padding=12
+            items, config, rest[0].x + 24, item_padding=10, horizontal_padding=12
         )
         # Then
         assert layout[0].scale == pytest.approx(1.5)
@@ -237,21 +243,23 @@ class TestEdgeCases:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
 
-        layout = compute_layout(items, config, -2.0, item_padding=10, h_padding=12)
+        layout = compute_layout(
+            items, config, -2.0, item_padding=10, horizontal_padding=12
+        )
 
         assert layout[0].scale > 1.0
 
 
 class TestContentBounds:
     def test_no_layout_returns_zero_and_padding(self):
-        # Given / When -- with item_padding, total pad = h_padding + item_padding/2
+        # Given / When -- with item_padding, total pad = horizontal_padding + item_padding/2
         left, right = content_bounds([], 48, 12, item_padding=10)
         # Then
         assert left == 0.0
         assert right == pytest.approx(2 * (12 + 5))  # 34.0
 
     def test_no_layout_without_item_padding(self):
-        left, right = content_bounds([], 48, 12)
+        _left, right = content_bounds([], 48, 12)
         assert right == pytest.approx(24.0)
 
     def test_rest_layout_includes_half_item_padding_per_side(self):
@@ -264,7 +272,7 @@ class TestContentBounds:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(3)]
         layout = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         left, right = content_bounds(layout, 48, 12, item_padding=10)
@@ -282,7 +290,7 @@ class TestContentBounds:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(3)]
         layout = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         with_ipad = content_bounds(layout, 48, 12, item_padding=10)
@@ -300,11 +308,13 @@ class TestContentBounds:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         rest_l, rest_r = content_bounds(rest, 48, 12, item_padding=10)
         # When
-        zoomed = compute_layout(items, config, 150.0, item_padding=10, h_padding=12)
+        zoomed = compute_layout(
+            items, config, 150.0, item_padding=10, horizontal_padding=12
+        )
         zoom_l, zoom_r = content_bounds(zoomed, 48, 12, item_padding=10)
         # Then
         assert (zoom_r - zoom_l) >= (rest_r - rest_l)
@@ -319,11 +329,11 @@ class TestContentBounds:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=10, h_padding=12
+            items, config, NO_CURSOR_SENTINEL, item_padding=10, horizontal_padding=12
         )
         # When
         zoomed = compute_layout(
-            items, config, rest[-1].x + 24, item_padding=10, h_padding=12
+            items, config, rest[-1].x + 24, item_padding=10, horizontal_padding=12
         )
         left, _ = content_bounds(zoomed, 48, 12, item_padding=10)
         # Then
@@ -342,7 +352,7 @@ class TestBaseWConsistency:
 
     def test_base_w_matches_rest_content_width(self):
         # Given
-        h_padding = 2.0
+        horizontal_padding = 2.0
         item_padding = 12.0
         icon_size = 48
         n = 5
@@ -353,19 +363,19 @@ class TestBaseWConsistency:
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(n)]
         # When
-        pad = h_padding + item_padding / 2
+        pad = horizontal_padding + item_padding / 2
         base_w = pad * 2 + n * icon_size + max(0, n - 1) * item_padding
         layout = compute_layout(
             items,
             config,
             NO_CURSOR_SENTINEL,
             item_padding=item_padding,
-            h_padding=h_padding,
+            horizontal_padding=horizontal_padding,
         )
         left, right = content_bounds(
             layout=layout,
             icon_size=icon_size,
-            h_padding=h_padding,
+            horizontal_padding=horizontal_padding,
             item_padding=item_padding,
         )
         bounds_w = right - left
@@ -374,20 +384,27 @@ class TestBaseWConsistency:
 
     def test_consistency_across_item_counts(self):
         for n in (1, 2, 5, 11):
-            h_pad, i_pad, size = 2.0, 12.0, 48
+            horizontal_pad, i_pad, size = 2.0, 12.0, 48
             config = MagicMock(main_size=0, insert_factor=1.0)
             config.icon_size = size
             config.zoom_enabled = False
             config.zoom_percent = 1.0
             config.zoom_range = 3
             items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(n)]
-            pad = h_pad + i_pad / 2
+            pad = horizontal_pad + i_pad / 2
             base_w = pad * 2 + n * size + max(0, n - 1) * i_pad
             layout = compute_layout(
-                items, config, NO_CURSOR_SENTINEL, item_padding=i_pad, h_padding=h_pad
+                items,
+                config,
+                NO_CURSOR_SENTINEL,
+                item_padding=i_pad,
+                horizontal_padding=horizontal_pad,
             )
             left, right = content_bounds(
-                layout=layout, icon_size=size, h_padding=h_pad, item_padding=i_pad
+                layout=layout,
+                icon_size=size,
+                horizontal_padding=horizontal_pad,
+                item_padding=i_pad,
             )
             assert base_w == pytest.approx(right - left), f"mismatch at n={n}"
 
@@ -403,19 +420,19 @@ class TestBaseWConsistency:
         config.zoom_percent = 1.0
         config.zoom_range = 3
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(n)]
-        pad = theme.h_padding + theme.item_padding / 2
+        pad = theme.horizontal_padding + theme.item_padding / 2
         base_w = pad * 2 + n * 48 + max(0, n - 1) * theme.item_padding
         layout = compute_layout(
             items,
             config,
             NO_CURSOR_SENTINEL,
             item_padding=theme.item_padding,
-            h_padding=theme.h_padding,
+            horizontal_padding=theme.horizontal_padding,
         )
         left, right = content_bounds(
             layout=layout,
             icon_size=48,
-            h_padding=theme.h_padding,
+            horizontal_padding=theme.horizontal_padding,
             item_padding=theme.item_padding,
         )
         assert base_w == pytest.approx(right - left)
@@ -442,12 +459,17 @@ class TestZoomProgressDecay:
         config = self._make_config()
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, horizontal_padding=2
         )
         cursor = rest[2].x + 24
         # When
         full = compute_layout(
-            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0
+            items,
+            config,
+            cursor,
+            item_padding=12,
+            horizontal_padding=2,
+            zoom_progress=1.0,
         )
         # Then
         assert full[2].scale == pytest.approx(1.5)
@@ -457,12 +479,17 @@ class TestZoomProgressDecay:
         config = self._make_config()
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, horizontal_padding=2
         )
         cursor = rest[2].x + 24
         # When
         decayed = compute_layout(
-            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.0
+            items,
+            config,
+            cursor,
+            item_padding=12,
+            horizontal_padding=2,
+            zoom_progress=0.0,
         )
         # Then
         for li in decayed:
@@ -474,18 +501,33 @@ class TestZoomProgressDecay:
         config = self._make_config()
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, horizontal_padding=2
         )
         cursor = rest[2].x + 24
         full = compute_layout(
-            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0
+            items,
+            config,
+            cursor,
+            item_padding=12,
+            horizontal_padding=2,
+            zoom_progress=1.0,
         )
         # When
         half = compute_layout(
-            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.5
+            items,
+            config,
+            cursor,
+            item_padding=12,
+            horizontal_padding=2,
+            zoom_progress=0.5,
         )
         decayed = compute_layout(
-            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.0
+            items,
+            config,
+            cursor,
+            item_padding=12,
+            horizontal_padding=2,
+            zoom_progress=0.0,
         )
         # Then
         full_spread = full[-1].x - full[0].x
@@ -501,21 +543,35 @@ class TestZoomProgressDecay:
         config = self._make_config()
         items = [MagicMock(main_size=0, insert_factor=1.0) for _ in range(5)]
         rest = compute_layout(
-            items, config, NO_CURSOR_SENTINEL, item_padding=12, h_padding=2
+            items, config, NO_CURSOR_SENTINEL, item_padding=12, horizontal_padding=2
         )
         cursor = rest[2].x + 24
         full = compute_layout(
-            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=1.0
+            items,
+            config,
+            cursor,
+            item_padding=12,
+            horizontal_padding=2,
+            zoom_progress=1.0,
         )
         decayed = compute_layout(
-            items, config, cursor, item_padding=12, h_padding=2, zoom_progress=0.0
+            items,
+            config,
+            cursor,
+            item_padding=12,
+            horizontal_padding=2,
+            zoom_progress=0.0,
         )
         # When
-        fl, fr = content_bounds(layout=full, icon_size=48, h_padding=2, item_padding=12)
-        dl, dr = content_bounds(
-            layout=decayed, icon_size=48, h_padding=2, item_padding=12
+        fl, fr = content_bounds(
+            layout=full, icon_size=48, horizontal_padding=2, item_padding=12
         )
-        rl, rr = content_bounds(layout=rest, icon_size=48, h_padding=2, item_padding=12)
+        dl, dr = content_bounds(
+            layout=decayed, icon_size=48, horizontal_padding=2, item_padding=12
+        )
+        rl, rr = content_bounds(
+            layout=rest, icon_size=48, horizontal_padding=2, item_padding=12
+        )
         # Then
         assert (fr - fl) > (dr - dl)
         assert (dr - dl) == pytest.approx(rr - rl)

@@ -1,6 +1,9 @@
 """Tests for the desktop (show desktop) applet."""
 
+from unittest.mock import MagicMock
+
 from docking.applets.desktop.applet import DesktopApplet
+from docking.applets.services import AppletServices
 
 
 class TestDesktopApplet:
@@ -19,3 +22,17 @@ class TestDesktopApplet:
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
+
+    def test_click_uses_desktop_action_service(self):
+        service = MagicMock()
+        applet = DesktopApplet(48)
+        applet.set_services(AppletServices(desktop_actions=service))
+
+        applet.on_clicked()
+
+        service.show_desktop.assert_called_once_with()
+
+    def test_click_without_desktop_action_service_is_safe(self):
+        applet = DesktopApplet(48)
+
+        applet.on_clicked()

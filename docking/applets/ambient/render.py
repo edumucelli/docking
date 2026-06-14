@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for Ambient applet icon."""
 
 from __future__ import annotations
@@ -68,6 +81,7 @@ def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
         0.30,
     ]
 
+    # 0.76 width ratio centers waveform with padding; 0.024 spacing between bars
     waveform_w = w * 0.76
     spacing = w * 0.024
     total_spacing = spacing * (bar_count - 1)
@@ -79,7 +93,7 @@ def _draw_waveform_icon(cr: cairo.Context, size: int) -> None:
     for i, height in enumerate(heights):
         bar_h = height * max_bar_h
         if i >= bar_count // 2:
-            # Keep horizontal spacing symmetric; compact right half vertically.
+            # Asymmetric: shorter right half suggests waveform envelope shape
             bar_h *= 0.84
         bar_x = start_x + i * (bar_w + spacing)
         bar_y = center_y - (bar_h / 2)

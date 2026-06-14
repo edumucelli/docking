@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Autohide controller for the dock's visible/hidden state and motion.
 
 Autohide from first principles
@@ -190,20 +203,19 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from docking.log import get_logger
-
-log = get_logger(name="autohide")
-
 import gi
+
+from docking.core.config import HideMode
+from docking.log import get_logger
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-from docking.core.config import HideMode
-
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.ui.dock_window import DockWindow
+
+log = get_logger(name="autohide")
 
 FRAME_INTERVAL_MS = 16  # ~60fps
 MIN_HIDE_GRACE_MS = 60
@@ -285,7 +297,7 @@ class AutoHideController:
 
     @property
     def enabled(self) -> bool:
-        return self._config.hide_mode != "none"
+        return self._config.hide_mode not in ("none", "always-on-top")
 
     def reset(self) -> None:
         """Force dock visible -- call when auto-hide is toggled off."""
@@ -347,6 +359,12 @@ class AutoHideController:
         self._window_should_hide = should_hide
         self._update_hidden()
 
+    def reconcile(self) -> None:
+        """Re-run hide/show policy without changing current inputs."""
+        if not self.enabled:
+            return
+        self._update_hidden()
+
     def _update_hidden(self) -> None:
         """Reconcile hover/disabled state into show-or-hide behavior."""
         if self._disabled or self._hovered:
@@ -396,7 +414,7 @@ class AutoHideController:
         """Begin show animation."""
         self._unhide_timer_id = 0
         if self.hide_offset <= 0.0:
-            # Already fully visible — skip animation entirely.
+            # Already fully visible - skip animation entirely.
             self.state = HideState.VISIBLE
             self.hide_offset = 0.0
             self.zoom_progress = 1.0

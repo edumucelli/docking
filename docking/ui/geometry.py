@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Shared dock geometry used by rendering, hover, input masking, and popups.
 
 Why this module exists
@@ -224,6 +237,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
+from docking.core.config import effective_edge_gap
 from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
@@ -276,6 +290,19 @@ class Rect(NamedTuple):
         return Rect(left, top, right - left, bottom - top)
 
 
+def anchor_from_draw_rect(
+    *, win_x: int, win_y: int, draw_rect: Rect, position: Position
+) -> tuple[int, int]:
+    """Translate an item draw rect into the preview/hover anchor point."""
+    if position == Position.BOTTOM:
+        return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
+    if position == Position.TOP:
+        return int(win_x + draw_rect.x), int(win_y + draw_rect.y + draw_rect.h)
+    if position == Position.LEFT:
+        return int(win_x + draw_rect.x + draw_rect.w), int(win_y + draw_rect.y)
+    return int(win_x + draw_rect.x), int(win_y + draw_rect.y)
+
+
 @dataclass(frozen=True)
 class ItemGeometry:
     """Geometry for a single item in the current dock frame."""
@@ -290,6 +317,17 @@ class ItemGeometry:
     anchor_y: float
     scaled_size: float
     main_pos: float
+
+    def anchor_point(
+        self, *, win_x: int, win_y: int, position: Position
+    ) -> tuple[int, int]:
+        """Absolute preview/hover anchor for this item."""
+        return anchor_from_draw_rect(
+            win_x=win_x,
+            win_y=win_y,
+            draw_rect=self.draw_rect,
+            position=position,
+        )
 
 
 @dataclass(frozen=True)
@@ -315,12 +353,8 @@ class DockGeometryFrame:
     shelf_as_bottom_y: float = 0.0
 
     def item_at_point(self, x: float, y: float) -> DockItem | None:
-        if not self.cursor_rect.contains(x=x, y=y):
-            return None
-        for item_geometry in self.item_geometries:
-            if item_geometry.hit_rect.contains(x=x, y=y):
-                return item_geometry.item
-        return None
+        index = self.item_index_at_point(x=x, y=y)
+        return self.item_geometries[index].item if index >= 0 else None
 
     def hover_item_at_point(self, x: float, y: float) -> DockItem | None:
         if not self.cursor_rect.contains(x=x, y=y):
@@ -483,7 +517,7 @@ def build_geometry_frame(
     pos = config.pos
     horizontal = is_horizontal(pos=pos)
     main_size = window_w if horizontal else window_h
-    gap = max(0, int(theme.distance_from_edge))
+    gap = effective_edge_gap(theme, config)
     cross_size = (window_h if horizontal else window_w) - gap
 
     local_cursor_main = _local_cursor_main(
@@ -499,14 +533,14 @@ def build_geometry_frame(
             config,
             local_cursor_main,
             item_padding=theme.item_padding,
-            h_padding=theme.h_padding,
+            horizontal_padding=theme.horizontal_padding,
             zoom_progress=zoom_progress,
         )
     )
     left_edge, right_edge = content_bounds(
         layout=list(layout),
         icon_size=config.icon_size,
-        h_padding=theme.h_padding,
+        horizontal_padding=theme.horizontal_padding,
         item_padding=theme.item_padding,
     )
     zoomed_w = right_edge - left_edge
@@ -523,7 +557,7 @@ def build_geometry_frame(
         autohide_state=(
             None if autohide_state != HideState.HIDDEN else HideState.VISIBLE
         ),
-        distance_from_edge=max(0, int(theme.distance_from_edge)),
+        distance_from_edge=gap,
     )
 
     drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
@@ -549,7 +583,7 @@ def build_geometry_frame(
             content_w=int(zoomed_w),
             content_cross=content_cross,
             autohide_state=HideState.HIDDEN,
-            distance_from_edge=max(0, int(theme.distance_from_edge)),
+            distance_from_edge=gap,
         )
     else:
         cursor_rect = static_dock_rect
@@ -608,20 +642,10 @@ def capture_geometry_inputs(
             window.cursor_x if is_horizontal(pos=pos) else window.cursor_y
         )
 
-    autohide_state = (
-        window.autohide.state if window.autohide and window.autohide.enabled else None
-    )
-    autohide_zoom = (
-        window.autohide.zoom_progress
-        if window.autohide and window.autohide.enabled
-        else 1.0
-    )
+    autohide_state = window.autohide.state if window.autohide.enabled else None
+    autohide_zoom = window.autohide.zoom_progress if window.autohide.enabled else 1.0
     zoom_progress = window.zoom_animator.progress * autohide_zoom
-    hide_offset = (
-        window.autohide.hide_offset
-        if window.autohide and window.autohide.enabled
-        else 0.0
-    )
+    hide_offset = window.autohide.hide_offset if window.autohide.enabled else 0.0
     return DockGeometryInputs(
         items=tuple(window.model.visible_items()),
         config=window.config,
@@ -648,7 +672,7 @@ def _local_cursor_main(
 ) -> float:
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL
-    pad = theme.h_padding + theme.item_padding / 2
+    pad = theme.horizontal_padding + theme.item_padding / 2
     total_main = sum(item.main_size or config.icon_size for item in items)
     base_w = pad * 2 + total_main + max(0, len(items) - 1) * theme.item_padding
     return cursor_main - (main_size - base_w) / 2
@@ -685,10 +709,10 @@ def _build_item_geometries(
             hide_cross=hide_cross,
         )
         draw_rect = Rect(
-            int(math.floor(draw_x)),
-            int(math.floor(draw_y)),
-            max(1, int(math.ceil(scaled_size))),
-            max(1, int(math.ceil(scaled_size))),
+            math.floor(draw_x),
+            math.floor(draw_y),
+            max(1, math.ceil(scaled_size)),
+            max(1, math.ceil(scaled_size)),
         )
         anchor_x, anchor_y = _item_anchor(
             pos=pos, draw_x=draw_x, draw_y=draw_y, scaled_size=scaled_size
@@ -702,6 +726,7 @@ def _build_item_geometries(
         draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
         static_dock_rect=static_dock_rect,
         theme=theme,
+        edge_gap=effective_edge_gap(theme, config),
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
@@ -812,13 +837,13 @@ def _compute_item_hover_base_rect(
     background_rect: Rect,
     theme: Theme,
 ) -> Rect:
-    item_padding = max(0, int(round(theme.item_padding)))
-    top_padding = max(0, int(math.ceil(theme.top_padding)))
-    bottom_padding = max(0, int(math.ceil(theme.bottom_padding)))
+    item_padding = max(0, round(theme.item_padding))
+    top_padding = max(0, math.ceil(theme.top_padding))
+    bottom_padding = max(0, math.ceil(theme.bottom_padding))
 
     if is_horizontal(pos=pos):
-        left = int(math.floor(draw_rect.x - item_padding / 2))
-        right = int(math.ceil(draw_rect.x + draw_rect.w + item_padding / 2))
+        left = math.floor(draw_rect.x - item_padding / 2)
+        right = math.ceil(draw_rect.x + draw_rect.w + item_padding / 2)
         if pos == Position.BOTTOM:
             top = draw_rect.y - top_padding
             bottom = draw_rect.y + draw_rect.h + bottom_padding
@@ -826,8 +851,8 @@ def _compute_item_hover_base_rect(
             top = draw_rect.y - bottom_padding
             bottom = draw_rect.y + draw_rect.h + top_padding
     else:
-        top = int(math.floor(draw_rect.y - item_padding / 2))
-        bottom = int(math.ceil(draw_rect.y + draw_rect.h + item_padding / 2))
+        top = math.floor(draw_rect.y - item_padding / 2)
+        bottom = math.ceil(draw_rect.y + draw_rect.h + item_padding / 2)
         if pos == Position.LEFT:
             left = draw_rect.x - bottom_padding
             right = draw_rect.x + draw_rect.w + top_padding
@@ -867,11 +892,11 @@ def _compute_item_hit_rect(
     background_rect: Rect,
     theme: Theme,
 ) -> Rect:
-    main_pad = max(0, int(round(theme.item_padding / 2)))
+    main_pad = max(0, round(theme.item_padding / 2))
     if is_horizontal(pos=pos):
         center_x = draw_rect.x + draw_rect.w / 2
         width = draw_rect.w + main_pad
-        left = int(round(center_x - width / 2))
+        left = round(center_x - width / 2)
         right = left + max(1, width)
         top = min(draw_rect.y, background_rect.y)
         bottom = max(draw_rect.y + draw_rect.h, background_rect.y + background_rect.h)
@@ -879,7 +904,7 @@ def _compute_item_hit_rect(
 
     center_y = draw_rect.y + draw_rect.h / 2
     height = draw_rect.h + main_pad
-    top = int(round(center_y - height / 2))
+    top = round(center_y - height / 2)
     bottom = top + max(1, height)
     left = min(draw_rect.x, background_rect.x)
     right = max(draw_rect.x + draw_rect.w, background_rect.x + background_rect.w)
@@ -897,7 +922,7 @@ def _compute_main_axis_boundaries(
         starts = [min(static_dock_rect.x, background_rect.x)]
         centers = [hover_rect.x + hover_rect.w / 2 for hover_rect in hover_rects]
         for left_center, right_center in pairwise(centers):
-            starts.append(int(round((left_center + right_center) / 2)))
+            starts.append(round((left_center + right_center) / 2))
         starts.append(
             max(
                 static_dock_rect.x + static_dock_rect.w,
@@ -909,7 +934,7 @@ def _compute_main_axis_boundaries(
     starts = [min(static_dock_rect.y, background_rect.y)]
     centers = [hover_rect.y + hover_rect.h / 2 for hover_rect in hover_rects]
     for top_center, bottom_center in pairwise(centers):
-        starts.append(int(round((top_center + bottom_center) / 2)))
+        starts.append(round((top_center + bottom_center) / 2))
     starts.append(
         max(
             static_dock_rect.y + static_dock_rect.h,
@@ -925,13 +950,14 @@ def _compute_background_rect(
     draw_rects: list[Rect],
     static_dock_rect: Rect,
     theme: Theme,
+    edge_gap: int,
     hide_offset: float,
     drop_gap: float,
 ) -> Rect:
-    gap = max(0, int(theme.distance_from_edge))
-    shelf_cross = max(1, int(round(theme.shelf_height)))
+    gap = max(0, int(edge_gap))
+    shelf_cross = max(1, round(theme.shelf_height))
     stroke_width = max(0.0, float(theme.stroke_width))
-    main_padding = theme.item_padding + 2 * theme.h_padding + 4 * stroke_width
+    main_padding = theme.item_padding + 2 * theme.horizontal_padding + 4 * stroke_width
 
     if draw_rects:
         if is_horizontal(pos=pos):
@@ -948,8 +974,8 @@ def _compute_background_rect(
             (draw_rects[-1].w if is_horizontal(pos=pos) else draw_rects[-1].h)
             + main_padding
         ) / 2
-        main_start = int(round(first_center - first_half))
-        main_end = int(round(last_center + last_half + drop_gap))
+        main_start = round(first_center - first_half)
+        main_end = round(last_center + last_half + drop_gap)
     else:
         if is_horizontal(pos=pos):
             main_start = static_dock_rect.x
@@ -967,27 +993,21 @@ def _compute_background_rect(
 
     if pos == Position.BOTTOM:
         shelf_slide = hide_offset * (shelf_cross + gap)
-        shelf_y = int(
-            round(
-                static_dock_rect.y
-                + static_dock_rect.h
-                - gap
-                - shelf_cross
-                + shelf_slide
-            )
+        shelf_y = round(
+            static_dock_rect.y + static_dock_rect.h - gap - shelf_cross + shelf_slide
         )
         return Rect(main_start, shelf_y, max(1, main_end - main_start), shelf_cross)
     if pos == Position.TOP:
         shelf_slide = hide_offset * (shelf_cross + gap)
-        shelf_y = int(round(static_dock_rect.y + gap - shelf_slide))
+        shelf_y = round(static_dock_rect.y + gap - shelf_slide)
         return Rect(main_start, shelf_y, max(1, main_end - main_start), shelf_cross)
     if pos == Position.LEFT:
         shelf_slide = hide_offset * (shelf_cross + gap)
-        shelf_x = int(round(static_dock_rect.x + gap - shelf_slide))
+        shelf_x = round(static_dock_rect.x + gap - shelf_slide)
         return Rect(shelf_x, main_start, shelf_cross, max(1, main_end - main_start))
     shelf_slide = hide_offset * (shelf_cross + gap)
-    shelf_x = int(
-        round(static_dock_rect.x + static_dock_rect.w - gap - shelf_cross + shelf_slide)
+    shelf_x = round(
+        static_dock_rect.x + static_dock_rect.w - gap - shelf_cross + shelf_slide
     )
     return Rect(shelf_x, main_start, shelf_cross, max(1, main_end - main_start))
 

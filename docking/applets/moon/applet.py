@@ -1,10 +1,23 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle for Moon phase applet.
 
 This applet is a spiritual successor to the Moon applet originally written
 for Cairo-Dock by Eduardo Mucelli (circa 2012). The original fetched moon
 data from briancasey.org using SGMLParser and displayed phase images as
 sub-icons. This version renders the moon in Cairo and fetches from the
-same website — coming full circle after over a decade.
+same website - coming full circle after over a decade.
 """
 
 from __future__ import annotations
@@ -18,6 +31,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.moon import meta
 from docking.applets.moon.render import create_icon
 from docking.applets.moon.state import MoonData, fetch_moon, phase_name
@@ -35,7 +49,7 @@ REFRESH_INTERVAL = 6 * 60 * 60
 
 
 class MoonApplet(Applet):
-    """Moon phase display — fetches data from briancasey.org.
+    """Moon phase display - fetches data from briancasey.org.
 
     Shows current moon phase as a Cairo-rendered disc with illumination.
     Click to refresh. Tooltip shows phase name and illumination percentage.
@@ -116,18 +130,14 @@ class MoonApplet(Applet):
         self._fetch_async()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
         show = Gtk.CheckMenuItem(label=_("Show Phase Name"))
         show.set_active(self._show_phase)
         show.connect("toggled", self._on_toggle_phase)
-        items.append(show)
 
-        refresh = Gtk.MenuItem(label=_("Refresh"))
+        refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _: self._fetch_async())
-        items.append(refresh)
 
-        return items
+        return menu_sections(refresh=[refresh], display=[show], gtk=Gtk)
 
     def _on_toggle_phase(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_phase = widget.get_active()

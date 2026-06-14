@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and backend helpers for Bluetooth applet (BlueZ DBus)."""
 
 from __future__ import annotations
@@ -32,18 +45,39 @@ ADAPTER_IFACE = "org.bluez.Adapter1"
 DEVICE_IFACE = "org.bluez.Device1"
 BATTERY_IFACE = "org.bluez.Battery1"
 BLUEZ_ERR_NOT_READY = "org.bluez.Error.NotReady"
-BLUEZ_ERR_BUSY = "org.bluez.Error.Busy"
-POWER_OFF_RETRY_COUNT = 5
-POWER_OFF_FINAL_RETRY_COUNT = 3
-POWER_RETRY_SLEEP_S = 0.15
-DISCOVERY_STOP_SETTLE_TIMEOUT_S = 1.2
-DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S = 2.5
+# Power-off retries: BlueZ returns Busy while discovery/connections are active.
+POWER_OFF_RETRY_COUNT = 5  # attempts before disconnecting devices
+POWER_OFF_FINAL_RETRY_COUNT = 3  # attempts after disconnect cleanup
+POWER_RETRY_SLEEP_S = 0.15  # pause between retry attempts
+# Settlement timeouts: wait for BlueZ to propagate state after stop/disconnect.
+DISCOVERY_STOP_SETTLE_TIMEOUT_S = 1.2  # after StopDiscovery call
+DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S = 2.5  # after disconnecting all devices
 DISCOVERY_POLL_INTERVAL_S = 0.1
 DBUS_NAME_HAS_OWNER_TIMEOUT_MS = 1200
 DBUS_GET_MANAGED_OBJECTS_TIMEOUT_MS = 1800
 DBUS_SET_PROPERTY_TIMEOUT_MS = 1800
 DBUS_METHOD_TIMEOUT_MS = 5000
 BLUETOOTHCTL_POWER_TIMEOUT_S = 8
+_SEND_FILES_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("blueman-sendto",),
+    ("bluetooth-sendto",),
+    ("gnome-bluetooth-sendto",),
+)
+_DEVICES_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("blueman-manager",),
+    ("gnome-control-center", "bluetooth"),
+    ("mate-bluetooth-properties",),
+    ("kcmshell6", "kcm_bluetooth"),
+    ("kcmshell5", "kcm_bluetooth"),
+)
+_ADAPTERS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("blueman-adapters",),
+    ("gnome-control-center", "bluetooth"),
+    ("mate-bluetooth-properties",),
+    ("kcmshell6", "kcm_bluetooth"),
+    ("kcmshell5", "kcm_bluetooth"),
+)
+_LOCAL_SERVICES_COMMANDS: tuple[tuple[str, ...], ...] = (("blueman-services",),)
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +192,49 @@ def device_menu_label(device: BluetoothDeviceState) -> str:
     return f"{base} ({', '.join(tags)})"
 
 
+def send_files_command() -> list[str] | None:
+    """Return the first available Bluetooth file-sender command."""
+    return _first_available_command(_SEND_FILES_COMMANDS)
+
+
+def devices_command() -> list[str] | None:
+    """Return the first available Bluetooth devices/settings command."""
+    return _first_available_command(_DEVICES_COMMANDS)
+
+
+def adapters_command() -> list[str] | None:
+    """Return the first available Bluetooth adapters/settings command."""
+    return _first_available_command(_ADAPTERS_COMMANDS)
+
+
+def local_services_command() -> list[str] | None:
+    """Return the first available Bluetooth local-services command."""
+    return _first_available_command(_LOCAL_SERVICES_COMMANDS)
+
+
+def open_send_files() -> bool:
+    """Launch the desktop Bluetooth file sender when available."""
+    return _open_command(cmd=send_files_command(), action="open_send_files")
+
+
+def open_devices() -> bool:
+    """Launch the desktop Bluetooth devices/settings screen when available."""
+    return _open_command(cmd=devices_command(), action="open_devices")
+
+
+def open_adapters() -> bool:
+    """Launch the desktop Bluetooth adapters/settings screen when available."""
+    return _open_command(cmd=adapters_command(), action="open_adapters")
+
+
+def open_local_services() -> bool:
+    """Launch the desktop Bluetooth local-services screen when available."""
+    return _open_command(
+        cmd=local_services_command(),
+        action="open_local_services",
+    )
+
+
 class BluezBackend:
     """BlueZ system bus backend.
 
@@ -256,7 +333,7 @@ class BluezBackend:
                     "(adapter still discovering)."
                 )
                 return False
-            for _ in range(POWER_OFF_RETRY_COUNT):
+            for _attempt in range(POWER_OFF_RETRY_COUNT):
                 if self._set_property(
                     path=adapter_path,
                     interface=ADAPTER_IFACE,
@@ -275,7 +352,7 @@ class BluezBackend:
                 target_discovering=False,
                 timeout_s=DISCOVERY_DISCONNECT_SETTLE_TIMEOUT_S,
             )
-            for _ in range(POWER_OFF_FINAL_RETRY_COUNT):
+            for _attempt in range(POWER_OFF_FINAL_RETRY_COUNT):
                 if self._set_property(
                     path=adapter_path,
                     interface=ADAPTER_IFACE,
@@ -380,7 +457,8 @@ class BluezBackend:
             )
             unpacked = result.unpack() if result is not None else ()
             return bool(unpacked[0]) if unpacked else False
-        except GLib.Error:
+        except GLib.Error as exc:
+            log.debug("BlueZ NameHasOwner failed: %s", exc)
             return False
 
     def _get_managed_objects(self) -> dict[str, Any] | None:
@@ -494,7 +572,8 @@ class BluezBackend:
                 timeout=timeout_s,
                 check=False,
             )
-        except (subprocess.TimeoutExpired, OSError):
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            log.debug("bluetoothctl pair failed for %s: %s", address, exc)
             return False
         text = f"{result.stdout}\n{result.stderr}".lower()
         if "failed" in text or "not available" in text:
@@ -559,7 +638,8 @@ class BluezBackend:
                 timeout=BLUETOOTHCTL_POWER_TIMEOUT_S,
                 check=False,
             )
-        except (subprocess.TimeoutExpired, OSError):
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            log.debug("bluetoothctl power %s failed: %s", value, exc)
             return False
         text = f"{result.stdout}\n{result.stderr}".lower()
         if "failed" in text or "not available" in text:
@@ -647,7 +727,8 @@ def _unpack(value: Any) -> Any:
     if hasattr(value, "unpack"):
         try:
             return _unpack(value.unpack())
-        except Exception:
+        except Exception as exc:
+            log.debug("Failed to unpack Bluetooth variant-like value: %s", exc)
             return value
     if isinstance(value, dict):
         return {k: _unpack(v) for k, v in value.items()}
@@ -674,7 +755,34 @@ def _as_bool(value: Any) -> bool:
 
 def _as_int(value: Any, default: int | None = 0) -> int | None:
     unpacked = _unpack(value)
+    if unpacked is None:
+        return default
+    if isinstance(unpacked, str):
+        unpacked = unpacked.strip()
+        if not unpacked:
+            return default
     try:
         return int(unpacked)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        log.debug("Failed to coerce Bluetooth value %r to int: %s", unpacked, exc)
         return default
+
+
+def _first_available_command(
+    candidates: tuple[tuple[str, ...], ...],
+) -> list[str] | None:
+    for cmd in candidates:
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None
+
+
+def _open_command(*, cmd: list[str] | None, action: str) -> bool:
+    if cmd is None:
+        return False
+    try:
+        subprocess.Popen(cmd, start_new_session=True)
+    except OSError as exc:
+        log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
+        return False
+    return True

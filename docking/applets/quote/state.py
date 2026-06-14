@@ -1,20 +1,32 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and data helpers for the Quote applet."""
 
 from __future__ import annotations
 
 import html
-import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-from urllib.request import Request, urlopen
 
+from docking.applets.http import http_get_json
 from docking.applets.quote import meta
 from docking.log import get_logger, with_context
 
 log = with_context(get_logger(name="quote"), applet_id=meta.id)
 
 DEFAULT_SOURCE = "quotationspage"
+DEFAULT_FETCH_LIMIT = 20
 
 SOURCE_LABELS: dict[str, str] = {
     "quotationspage": "Quotationspage.com",
@@ -86,16 +98,6 @@ def format_quote(entry: QuoteEntry) -> str:
     return entry.text
 
 
-def _http_get_json(url: str, timeout: float = 8.0) -> Any:
-    request = Request(
-        url=url,
-        headers={"User-Agent": "DockingQuoteApplet/1.0 (+https://github.com/)"},
-    )
-    with urlopen(request, timeout=timeout) as response:
-        payload = response.read().decode("utf-8", errors="replace")
-    return json.loads(payload)
-
-
 def _parse_zenquotes(data: Any, limit: int) -> list[QuoteEntry]:
     quotes: list[QuoteEntry] = []
     if not isinstance(data, list):
@@ -150,21 +152,18 @@ def _parse_chuck(data: Any) -> list[QuoteEntry]:
     return [QuoteEntry(text=text)]
 
 
-def fetch_quotes(
-    source: str,
-    limit: int = 20,
-    http_get_json: Callable[[str], Any] | None = None,
-) -> list[QuoteEntry]:
+def fetch_quotes(source: str, limit: int = DEFAULT_FETCH_LIMIT) -> list[QuoteEntry]:
     """Fetch quotes for a source. Returns empty list on any failure."""
-    getter = http_get_json or _http_get_json
     try:
         if source == "quotationspage":
-            data = getter("https://zenquotes.io/api/quotes")
+            data = http_get_json("https://zenquotes.io/api/quotes")
             return _parse_zenquotes(data=data, limit=limit)
         if source == "chucknorrisfactsfr":
-            data = getter("https://api.chucknorris.io/jokes/random")
+            data = http_get_json("https://api.chucknorris.io/jokes/random")
             return _parse_chuck(data=data)
-        data = getter(f"https://v2.jokeapi.dev/joke/Any?type=single&amount={limit}")
+        data = http_get_json(
+            f"https://v2.jokeapi.dev/joke/Any?type=single&amount={limit}"
+        )
         return _parse_jokeapi(data=data, limit=limit)
     except Exception as exc:
         log.bind(action="fetch_quotes").debug(

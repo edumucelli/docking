@@ -165,7 +165,7 @@ class TestMusicStateHelpers:
         assert clamp_percent(42) == 42
 
     def test_unavailable_tooltip(self):
-        assert tooltip_text(unavailable_state()) == "Music: No active player"
+        assert tooltip_text(unavailable_state()) == "Music\nNo active player"
 
     def test_detailed_tooltip(self):
         text = tooltip_text(_state())
@@ -242,7 +242,7 @@ class TestMusicStateHelpers:
 
     def test_tooltip_with_title_only(self):
         text = tooltip_text(_state(artist="", album="", title="Only Title"))
-        assert text == "Only Title"
+        assert text == "Music\nOnly Title"
 
 
 class TestMprisBackendInternals:

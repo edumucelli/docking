@@ -25,7 +25,7 @@ class TestFormatQuote:
 
 
 class TestFetchQuotes:
-    @patch("docking.applets.quote.state._http_get_json")
+    @patch("docking.applets.quote.state.http_get_json")
     def test_fetches_quotations_source(self, mock_get):
         mock_get.return_value = [
             {"q": "Alpha quote", "a": "Alice"},
@@ -35,7 +35,7 @@ class TestFetchQuotes:
         assert len(quotes) == 2
         assert quotes[0] == QuoteEntry(text="Alpha quote", author="Alice")
 
-    @patch("docking.applets.quote.state._http_get_json")
+    @patch("docking.applets.quote.state.http_get_json")
     def test_fetches_joke_sources(self, mock_get):
         mock_get.return_value = {
             "jokes": [
@@ -47,14 +47,14 @@ class TestFetchQuotes:
         assert len(quotes) == 2
         assert quotes[0] == QuoteEntry(text="First joke")
 
-    @patch("docking.applets.quote.state._http_get_json")
+    @patch("docking.applets.quote.state.http_get_json")
     def test_fetches_chuck_source(self, mock_get):
         mock_get.return_value = {"value": "Chuck quote"}
         quotes = fetch_quotes(source="chucknorrisfactsfr", limit=1)
         assert quotes == [QuoteEntry(text="Chuck quote")]
 
     @patch(
-        "docking.applets.quote.state._http_get_json", side_effect=RuntimeError("boom")
+        "docking.applets.quote.state.http_get_json", side_effect=RuntimeError("boom")
     )
     def test_fetch_failure_returns_empty(self, _mock_get):
         assert fetch_quotes(source="quotationspage") == []
@@ -96,7 +96,7 @@ class TestQuoteApplet:
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Next Quote" in labels
         assert "Copy Quote" in labels
-        assert "Refresh from Web" in labels
+        assert "Refresh Now" in labels
         assert "Source" in labels
 
     def test_menu_contains_legacy_source_labels(self):

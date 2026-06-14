@@ -138,7 +138,7 @@ class TestApplet:
 
         applet = QuickNoteApplet(48)
         items = applet.get_menu_items()
-        assert len(items) == 2
+        assert [item.get_label() for item in items] == ["Edit Note", "", "Clear Note"]
 
     def test_on_clicked_opens_edit_dialog(self, monkeypatch):
         from docking.applets.quicknote.applet import QuickNoteApplet
@@ -174,7 +174,7 @@ class TestApplet:
 
         items = applet.get_menu_items()
         items[0].emit("activate")
-        items[1].emit("activate")
+        items[2].emit("activate")
 
         show.assert_called_once_with()
         clear.assert_called_once_with()
@@ -244,10 +244,19 @@ class TestApplet:
                 self.content = _FakeBox()
                 self.response_cb = None
 
+            def set_skip_taskbar_hint(self, _value):
+                return
+
+            def set_skip_pager_hint(self, _value):
+                return
+
             def set_default_size(self, *_args):
                 return
 
             def set_position(self, *_args):
+                return
+
+            def set_default_response(self, *_args):
                 return
 
             def add_button(self, *_args):
@@ -279,10 +288,17 @@ class TestApplet:
 
         applet._show_edit_dialog()
         text_view = created["text_view"]
+        text_view.get_buffer().set_text("cancelled")
+        dialog.response_cb(dialog, quicknote_applet_mod.Gtk.ResponseType.CANCEL)
+        assert applet._note == "old"
+        config.save.assert_not_called()
+
+        applet._show_edit_dialog()
+        text_view = created["text_view"]
         text_view.get_buffer().set_text("updated note")
         dialog.response_cb(dialog, quicknote_applet_mod.Gtk.ResponseType.OK)
 
         assert applet._note == "updated note"
         assert config.applet_prefs[applet.id]["note"] == "updated note"
         config.save.assert_called_once_with()
-        assert destroyed == [True]
+        assert destroyed == [True, True]

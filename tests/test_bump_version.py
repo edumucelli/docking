@@ -44,7 +44,7 @@ def test_bump_version_updates_all_known_surfaces(tmp_path):
         " -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 05 Mar 2026 20:00:00 +0100\n",
     )
     _write(
-        tmp_path / "packaging/flatpak/org.docking.Docking.metainfo.xml",
+        tmp_path / "packaging/flatpak/cc.docking.Docking.metainfo.xml",
         '<component>\n  <releases>\n    <release version="0.1.1" date="2026-03-05" />\n  </releases>\n</component>\n',
     )
 
@@ -76,7 +76,7 @@ def test_bump_version_updates_all_known_surfaces(tmp_path):
         .splitlines()[0]
     )
     assert 'version="0.2.0"' in (
-        tmp_path / "packaging/flatpak/org.docking.Docking.metainfo.xml"
+        tmp_path / "packaging/flatpak/cc.docking.Docking.metainfo.xml"
     ).read_text(encoding="utf-8")
 
 
@@ -103,7 +103,7 @@ def test_bump_version_is_idempotent_for_current_version(tmp_path):
         " -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 08 Mar 2026 11:00:00 +0100\n",
     )
     _write(
-        tmp_path / "packaging/flatpak/org.docking.Docking.metainfo.xml",
+        tmp_path / "packaging/flatpak/cc.docking.Docking.metainfo.xml",
         '<component>\n  <releases>\n    <release version="0.2.0" date="2026-03-08" />\n  </releases>\n</component>\n',
     )
 

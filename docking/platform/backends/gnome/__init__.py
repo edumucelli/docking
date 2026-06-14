@@ -1,0 +1,1 @@
+"""GNOME Shell bridge backend."""

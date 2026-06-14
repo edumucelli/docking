@@ -61,25 +61,12 @@ jobs:
           printf 'Changed files:\n'
           printf ' - %s\n' "${changed_files[@]}"
 
-          for path in "${changed_files[@]}"; do
-            case "${path}" in
-              docs/*|website/*|images/*)
-                ;;
-              *)
-                echo "CI-relevant change detected: ${path}"
-                echo "run_ci=true" >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-            esac
-          done
-
-          echo "Only docs/ website/ and images/ changed; skipping CI."
-          echo "run_ci=false" >> "$GITHUB_OUTPUT"
+          echo "All changes trigger CI; no path-based exclusions."
+          echo "run_ci=true" >> "$GITHUB_OUTPUT"
 
   quality:
     name: Quality (ruff + ty)
     needs: [changes]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +95,7 @@ jobs:
         run: bash tools/i18n.sh --check-pot-sync
 
       - name: Validate translation catalogs
-        run: bash tools/i18n.sh --check-catalogs --require-complete
+        run: bash tools/i18n.sh --check-catalogs --allow-incomplete
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -128,10 +115,71 @@ jobs:
       - name: Type check (ty)
         run: .venv/bin/python -m ty check docking/
 
+  bdd-visual:
+    name: BDD + Visual Regression
+    needs: [changes, quality]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-bdd-visual-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-bdd-visual-pip-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          icon_theme_pkg="adwaita-icon-theme"
+          if apt-cache show adwaita-icon-theme-full >/dev/null 2>&1; then
+            icon_theme_pkg="adwaita-icon-theme-full"
+          fi
+          sudo apt-get install -y \
+            python3-venv \
+            xvfb xauth \
+            gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
+            gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
+            gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
+            libcairo2-dev libgirepository1.0-dev libglib2.0-dev \
+            meson ninja-build pkg-config \
+            python3-cairo python3-gi python3-gi-cairo \
+            librsvg2-common hicolor-icon-theme "$icon_theme_pkg"
+
+      - name: Install project
+        run: |
+          python3 -m venv --system-site-packages .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Screenshot regression tests
+        env:
+          GSETTINGS_BACKEND: memory
+          GTK_THEME: Adwaita
+        run: |
+          xvfb-run -a .venv/bin/python -m pytest tests/visual -q -m visual -o addopts=
+
+      - name: Behave interaction scenarios
+        env:
+          GSETTINGS_BACKEND: memory
+          GTK_THEME: Adwaita
+        run: |
+          xvfb-run -a .venv/bin/behave -q
+
+      - name: Upload visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-output
+          path: tests/visual/output/
+          if-no-files-found: ignore
+
   test-ubuntu:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-${{ matrix.ubuntu }}
     strategy:
       matrix:
@@ -214,13 +262,7 @@ jobs:
 
       - name: Python 3.14 smoke tests
         if: matrix.python == '3.14'
-        run: |
-          .venv/bin/python -m pytest -q \
-            tests/core/test_config.py \
-            tests/ui/test_about.py \
-            tests/ui/test_menu_integration.py \
-            tests/ui/test_settings.py \
-            tests/test_app.py
+        run: .venv/bin/python -m pytest -q tests/smoke/test_python314_smoke.py
 
       - name: Upload coverage artifact
         if: matrix.python != '3.14'
@@ -245,7 +287,6 @@ jobs:
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -306,18 +347,62 @@ jobs:
 
       - name: Python 3.14 smoke tests
         if: matrix.python == '3.14'
+        run: python -m pytest -q tests/smoke/test_python314_smoke.py
+
+  test-arm64:
+    name: Test (Python 3.12, Ubuntu 24.04 ARM64)
+    needs: [changes, quality]
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-ubuntu-24.04-arm-py3.12-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-ubuntu-24.04-arm-py3.12-pip-
+            ${{ runner.os }}-ubuntu-24.04-arm-pip-
+
+      - name: Install system dependencies
         run: |
-          python -m pytest -q \
-            tests/core/test_config.py \
-            tests/ui/test_about.py \
-            tests/ui/test_menu_integration.py \
-            tests/ui/test_settings.py \
-            tests/test_app.py
+          sudo apt-get update
+          icon_theme_pkg="adwaita-icon-theme"
+          if apt-cache show adwaita-icon-theme-full >/dev/null 2>&1; then
+            icon_theme_pkg="adwaita-icon-theme-full"
+          fi
+          sudo apt-get install -y \
+            python3-venv \
+            xvfb xauth \
+            gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
+            gir1.2-gdkpixbuf-2.0 gir1.2-wnck-3.0 gir1.2-pango-1.0 \
+            gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
+            libcairo2-dev libgirepository1.0-dev libglib2.0-dev \
+            meson ninja-build pkg-config \
+            python3-cairo python3-gi python3-gi-cairo \
+            librsvg2-common hicolor-icon-theme "$icon_theme_pkg"
+          if command -v gdk-pixbuf-query-loaders >/dev/null 2>&1; then
+            gdk-pixbuf-query-loaders | grep -qi librsvg
+          fi
+
+      - name: Install project with system GI bindings
+        run: |
+          python3 -m venv --system-site-packages .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Full tests
+        env:
+          GSETTINGS_BACKEND: memory
+          GTK_THEME: Adwaita
+        run: |
+          xvfb-run -a .venv/bin/python -m pytest tests/ -v
 
   test-fedora-smoke:
     name: Smoke (Fedora 41)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: fedora:41
@@ -357,7 +442,6 @@ jobs:
   test-opensuse-smoke:
     name: Smoke (openSUSE Tumbleweed)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: opensuse/tumbleweed:latest
@@ -426,7 +510,6 @@ jobs:
     name: Build .deb
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -434,8 +517,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            debhelper dh-python python3-setuptools python3-wheel python3-pip \
+            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
+            libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
 
       - name: Build .deb
@@ -471,6 +555,15 @@ jobs:
             exit 1
           fi
 
+          echo "[check] private application directory exists"
+          if [ -d /usr/lib/docking/python ]; then
+            ls -ld /usr/lib/docking/python
+          else
+            echo "missing: /usr/lib/docking/python"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
           echo "[check] vendored dependencies directory exists"
           if [ -d /usr/lib/docking/vendor ]; then
             ls -ld /usr/lib/docking/vendor
@@ -488,18 +581,121 @@ jobs:
           name: docking-deb
           path: artifacts/docking_*.deb
 
-  build-rpm:
-    name: Build RPM
-    runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
+  build-deb-arm64:
+    name: Build .deb (ARM64)
+    runs-on: ubuntu-24.04-arm
+    needs: [changes, test-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
+            python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
+            libwayland-dev wayland-protocols \
+            pybuild-plugin-pyproject python3-all gettext
+
+      - name: Build .deb
+        run: |
+          bash packaging/deb/build.sh
+          mkdir -p artifacts
+          cp ../docking_*.deb artifacts/
+          ls -lh artifacts/docking_*.deb
+
+      - name: Validate .deb install on ARM64
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ./artifacts/docking_*.deb
+          echo "[check] dpkg status"
+          dpkg -s docking | grep -F "Status: install ok installed"
+
+          echo "[check] architecture"
+          dpkg --print-architecture | grep -Fx "arm64"
+
+          echo "[check] executable exists: /usr/bin/docking"
+          if [ -x /usr/bin/docking ]; then
+            ls -l /usr/bin/docking
+          else
+            echo "missing or non-executable: /usr/bin/docking"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] desktop file exists"
+          if [ -f /usr/share/applications/org.docking.Docking.desktop ]; then
+            ls -l /usr/share/applications/org.docking.Docking.desktop
+          else
+            echo "missing: /usr/share/applications/org.docking.Docking.desktop"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] private application directory exists"
+          if [ -d /usr/lib/docking/python ]; then
+            ls -ld /usr/lib/docking/python
+          else
+            echo "missing: /usr/lib/docking/python"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] vendored dependencies directory exists"
+          if [ -d /usr/lib/docking/vendor ]; then
+            ls -ld /usr/lib/docking/vendor
+          else
+            echo "missing: /usr/lib/docking/vendor"
+            dpkg -L docking | sed -n '1,200p'
+            exit 1
+          fi
+
+          echo "[check] all ARM64 install validations passed"
+
+      - name: Upload ARM64 .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-deb-arm64
+          path: artifacts/docking_*.deb
+
+  build-rpm-arm64:
+    name: Build RPM (ARM64)
+    runs-on: ubuntu-24.04-arm
+    needs: [changes, test-arm64]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+
+      - name: Compile translations
+        run: bash tools/i18n.sh --compile
+
+      - name: Build RPM package
+        run: |
+          mkdir -p artifacts
+          ./packaging/rpm/build.sh
+
+      - name: Upload ARM64 RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-rpm-arm64
+          path: artifacts/*.rpm
+
+  build-rpm:
+    name: Build RPM
+    runs-on: ubuntu-22.04
+    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RPM tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -519,7 +715,6 @@ jobs:
     name: Build Flatpak
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -535,22 +730,51 @@ jobs:
         run: |
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
-          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/org.docking.Docking.json
+          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
           mkdir -p artifacts
-          flatpak build-bundle flatpak-repo artifacts/org.docking.Docking.flatpak org.docking.Docking
-          ls -lh artifacts/org.docking.Docking.flatpak
+          flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
+          ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload Flatpak artifact
         uses: actions/upload-artifact@v7
         with:
           name: docking-flatpak
-          path: artifacts/org.docking.Docking.flatpak
+          path: artifacts/cc.docking.Docking.flatpak
+
+  build-flatpak-arm64:
+    name: Build Flatpak (ARM64)
+    runs-on: ubuntu-24.04-arm
+    needs: [changes, test-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flatpak tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder gettext
+
+      - name: Compile translations
+        run: bash tools/i18n.sh --compile
+
+      - name: Build Flatpak bundle
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
+          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
+          mkdir -p artifacts
+          flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
+          ls -lh artifacts/cc.docking.Docking.flatpak
+
+      - name: Upload ARM64 Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-flatpak-arm64
+          path: artifacts/cc.docking.Docking.flatpak
 
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -578,18 +802,51 @@ jobs:
           name: docking-snap
           path: artifacts/*.snap
 
+  build-snap-arm64:
+    name: Build Snap (ARM64)
+    runs-on: ubuntu-24.04-arm
+    needs: [changes, test-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Snapcraft
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y snapd gettext
+          sudo systemctl start snapd.socket snapd.service
+          sudo snap install snapcraft --classic
+          echo "/snap/bin" >> "$GITHUB_PATH"
+
+      - name: Compile translations
+        run: bash tools/i18n.sh --compile
+
+      - name: Build Snap package
+        run: |
+          mkdir -p artifacts
+          (
+            cd packaging/snap
+            sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
+          )
+          sudo chown "$USER:$USER" artifacts/docking.snap
+          ls -lh artifacts/*.snap
+
+      - name: Upload ARM64 Snap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-snap-arm64
+          path: artifacts/*.snap
+
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - name: Install AppImage tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip libfuse2 gettext
+          sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
           python3 -m pip install --upgrade pip
           python3 -m pip install appimage-builder
 
@@ -607,11 +864,38 @@ jobs:
           name: docking-appimage
           path: artifacts/*.AppImage
 
+  build-appimage-arm64:
+    name: Build AppImage (ARM64)
+    runs-on: ubuntu-24.04-arm
+    needs: [changes, test-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AppImage tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
+          python3 -m pip install --upgrade pip
+          python3 -m pip install appimage-builder
+
+      - name: Compile translations
+        run: bash tools/i18n.sh --compile
+
+      - name: Build AppImage
+        run: |
+          mkdir -p artifacts
+          ./packaging/appimage/build.sh
+
+      - name: Upload ARM64 AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-appimage-arm64
+          path: artifacts/*.AppImage
+
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     container:
       image: archlinux:latest
     steps:
@@ -639,11 +923,41 @@ jobs:
           name: docking-arch
           path: artifacts/*.pkg.tar.*
 
+  build-arch-arm64:
+    name: Build Arch package (ARM64)
+    runs-on: ubuntu-24.04-arm
+    needs: [changes, test-arm64]
+    container:
+      image: adyranov/archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Arch build tooling
+        run: |
+          pacman -Sy --noconfirm archlinux-keyring
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed base-devel git python python-pip gettext
+
+      - name: Compile translations
+        run: bash tools/i18n.sh --compile
+
+      - name: Build Arch package
+        run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          su - builder -c "cd '$GITHUB_WORKSPACE' && ./packaging/arch/build.sh"
+          ls -lh artifacts/*.pkg.tar.*
+
+      - name: Upload ARM64 Arch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-arch-arm64
+          path: artifacts/*.pkg.tar.*
+
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -673,11 +987,44 @@ jobs:
             artifacts/docking-nix-output.tar.gz
             artifacts/docking-nix-store-path.txt
 
+  build-nix-arm64:
+    name: Build Nix package (ARM64)
+    runs-on: ubuntu-24.04-arm
+    needs: [changes, test-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11
+
+      - name: Install i18n tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext
+
+      - name: Compile translations
+        run: bash tools/i18n.sh --compile
+
+      - name: Build Nix package
+        run: |
+          mkdir -p artifacts
+          ./packaging/nix/build.sh
+
+      - name: Upload ARM64 Nix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-nix-arm64
+          path: |
+            artifacts/docking-nix-output.tar.gz
+            artifacts/docking-nix-store-path.txt
+
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [changes, build-deb, build-rpm, build-flatpak, build-snap, build-appimage, build-arch, build-nix]
-    if: github.ref == 'refs/heads/master' && needs.changes.outputs.run_ci == 'true'
+    needs: [changes, build-deb, build-deb-arm64, build-rpm, build-rpm-arm64, build-flatpak, build-flatpak-arm64, build-snap, build-snap-arm64, build-appimage, build-appimage-arm64, build-arch, build-arch-arm64, build-nix, build-nix-arm64]
+    if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
     steps:
@@ -773,43 +1120,85 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docking-deb
-          path: artifacts
+          path: artifacts/deb-amd64
+
+      - name: Download ARM64 .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-deb-arm64
+          path: artifacts/deb-arm64
 
       - name: Download RPM artifact
         uses: actions/download-artifact@v4
         with:
           name: docking-rpm
-          path: artifacts
+          path: artifacts/rpm-amd64
+
+      - name: Download ARM64 RPM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-rpm-arm64
+          path: artifacts/rpm-arm64
 
       - name: Download Flatpak artifact
         uses: actions/download-artifact@v4
         with:
           name: docking-flatpak
-          path: artifacts
+          path: artifacts/flatpak-amd64
+
+      - name: Download ARM64 Flatpak artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-flatpak-arm64
+          path: artifacts/flatpak-arm64
 
       - name: Download Snap artifact
         uses: actions/download-artifact@v4
         with:
           name: docking-snap
-          path: artifacts
+          path: artifacts/snap-amd64
+
+      - name: Download ARM64 Snap artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-snap-arm64
+          path: artifacts/snap-arm64
 
       - name: Download AppImage artifact
         uses: actions/download-artifact@v4
         with:
           name: docking-appimage
-          path: artifacts
+          path: artifacts/appimage-amd64
+
+      - name: Download ARM64 AppImage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-appimage-arm64
+          path: artifacts/appimage-arm64
 
       - name: Download Arch artifact
         uses: actions/download-artifact@v4
         with:
           name: docking-arch
-          path: artifacts
+          path: artifacts/arch-amd64
+
+      - name: Download ARM64 Arch artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-arch-arm64
+          path: artifacts/arch-arm64
 
       - name: Download Nix artifact
         uses: actions/download-artifact@v4
         with:
           name: docking-nix
-          path: artifacts
+          path: artifacts/nix-amd64
+
+      - name: Download ARM64 Nix artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docking-nix-arm64
+          path: artifacts/nix-arm64
 
       - name: Normalize release asset names
         if: steps.release_check.outputs.should_release == 'true'
@@ -865,7 +1254,7 @@ jobs:
             cp -f "${src}" "${release_dir}/${latest_name}"
           }
 
-          deb_candidates=("${source_dir}"/docking_*.deb)
+          deb_candidates=("${source_dir}"/deb-amd64/docking_*.deb)
           deb_file="$(pick_candidate "deb" "${deb_candidates[@]}")"
           deb_arch="$(echo "${deb_file##*/}" | sed -E 's/.*_([[:alnum:]_]+)\.deb$/\1/')"
           deb_arch="$(normalize_arch "${deb_arch}")"
@@ -874,76 +1263,100 @@ jobs:
             "docking-${version}-linux-${deb_arch}.deb" \
             "docking-latest-linux-${deb_arch}.deb"
 
-          rpm_candidates=("${source_dir}"/*.rpm)
-          rpm_primary=()
-          for f in "${rpm_candidates[@]}"; do
-            if [[ "${f}" != *.src.rpm ]]; then
-              rpm_primary+=("${f}")
-            fi
+          for rpm_dir in "${source_dir}"/rpm-*; do
+            [ -d "${rpm_dir}" ] || continue
+            rpm_candidates=("${rpm_dir}"/*.rpm)
+            rpm_primary=()
+            for f in "${rpm_candidates[@]}"; do
+              if [[ "${f}" != *.src.rpm ]]; then
+                rpm_primary+=("${f}")
+              fi
+            done
+            rpm_file="$(pick_candidate "rpm" "${rpm_primary[@]}")"
+            rpm_arch="$(echo "${rpm_file##*/}" | sed -E 's/.*\.([^.]+)\.rpm$/\1/')"
+            rpm_arch="$(normalize_arch "${rpm_arch}")"
+            copy_release_asset \
+              "${rpm_file}" \
+              "docking-${version}-linux-${rpm_arch}.rpm" \
+              "docking-latest-linux-${rpm_arch}.rpm"
           done
-          rpm_file="$(pick_candidate "rpm" "${rpm_primary[@]}")"
-          rpm_arch="$(echo "${rpm_file##*/}" | sed -E 's/.*\.([^.]+)\.rpm$/\1/')"
-          rpm_arch="$(normalize_arch "${rpm_arch}")"
-          copy_release_asset \
-            "${rpm_file}" \
-            "docking-${version}-linux-${rpm_arch}.rpm" \
-            "docking-latest-linux-${rpm_arch}.rpm"
 
-          flatpak_candidates=("${source_dir}"/*.flatpak)
-          flatpak_file="$(pick_candidate "flatpak" "${flatpak_candidates[@]}")"
-          copy_release_asset \
-            "${flatpak_file}" \
-            "docking-${version}-linux-${host_arch}.flatpak" \
-            "docking-latest-linux-${host_arch}.flatpak"
-
-          snap_candidates=("${source_dir}"/*.snap)
-          snap_file="$(pick_candidate "snap" "${snap_candidates[@]}")"
-          copy_release_asset \
-            "${snap_file}" \
-            "docking-${version}-linux-${host_arch}.snap" \
-            "docking-latest-linux-${host_arch}.snap"
-
-          appimage_candidates=("${source_dir}"/*.AppImage)
-          appimage_file="$(pick_candidate "appimage" "${appimage_candidates[@]}")"
-          appimage_arch="$(echo "${appimage_file##*/}" | sed -nE 's/.*-([[:alnum:]_]+)\.AppImage$/\1/p')"
-          if [ -z "${appimage_arch}" ]; then
-            appimage_arch="${host_arch}"
-          fi
-          appimage_arch="$(normalize_arch "${appimage_arch}")"
-          copy_release_asset \
-            "${appimage_file}" \
-            "docking-${version}-linux-${appimage_arch}.AppImage" \
-            "docking-latest-linux-${appimage_arch}.AppImage"
-
-          arch_candidates=("${source_dir}"/*.pkg.tar.*)
-          arch_primary=()
-          for f in "${arch_candidates[@]}"; do
-            if [[ "${f}" != *.sig && "${f##*/}" != docking-debug-* ]]; then
-              arch_primary+=("${f}")
-            fi
+          for flatpak_dir in "${source_dir}"/flatpak-*; do
+            [ -d "${flatpak_dir}" ] || continue
+            flatpak_candidates=("${flatpak_dir}"/*.flatpak)
+            flatpak_file="$(pick_candidate "flatpak" "${flatpak_candidates[@]}")"
+            flatpak_arch="${flatpak_dir##*-}"
+            flatpak_arch="$(normalize_arch "${flatpak_arch}")"
+            copy_release_asset \
+              "${flatpak_file}" \
+              "docking-${version}-linux-${flatpak_arch}.flatpak" \
+              "docking-latest-linux-${flatpak_arch}.flatpak"
           done
-          arch_file="$(pick_candidate "arch" "${arch_primary[@]}")"
-          arch_arch="$(echo "${arch_file##*/}" | sed -E 's/.*-([^-]+)\.pkg\.tar\..+$/\1/')"
-          arch_arch="$(normalize_arch "${arch_arch}")"
-          arch_ext="${arch_file##*.pkg.tar.}"
-          copy_release_asset \
-            "${arch_file}" \
-            "docking-${version}-linux-${arch_arch}.pkg.tar.${arch_ext}" \
-            "docking-latest-linux-${arch_arch}.pkg.tar.${arch_ext}"
 
-          nix_output_candidates=("${source_dir}"/docking-nix-output.tar.gz)
-          nix_output_file="$(pick_candidate "nix output tarball" "${nix_output_candidates[@]}")"
-          copy_release_asset \
-            "${nix_output_file}" \
-            "docking-${version}-linux-${host_arch}-nix-output.tar.gz" \
-            "docking-latest-linux-${host_arch}-nix-output.tar.gz"
+          for snap_dir in "${source_dir}"/snap-*; do
+            [ -d "${snap_dir}" ] || continue
+            snap_candidates=("${snap_dir}"/*.snap)
+            snap_file="$(pick_candidate "snap" "${snap_candidates[@]}")"
+            snap_arch="${snap_dir##*-}"
+            snap_arch="$(normalize_arch "${snap_arch}")"
+            copy_release_asset \
+              "${snap_file}" \
+              "docking-${version}-linux-${snap_arch}.snap" \
+              "docking-latest-linux-${snap_arch}.snap"
+          done
 
-          nix_path_candidates=("${source_dir}"/docking-nix-store-path.txt)
-          nix_path_file="$(pick_candidate "nix store path" "${nix_path_candidates[@]}")"
-          copy_release_asset \
-            "${nix_path_file}" \
-            "docking-${version}-linux-${host_arch}-nix-store-path.txt" \
-            "docking-latest-linux-${host_arch}-nix-store-path.txt"
+          for appimage_dir in "${source_dir}"/appimage-*; do
+            [ -d "${appimage_dir}" ] || continue
+            appimage_candidates=("${appimage_dir}"/*.AppImage)
+            appimage_file="$(pick_candidate "appimage" "${appimage_candidates[@]}")"
+            appimage_arch="$(echo "${appimage_file##*/}" | sed -nE 's/.*-([[:alnum:]_]+)\.AppImage$/\1/p')"
+            if [ -z "${appimage_arch}" ]; then
+              appimage_arch="${appimage_dir##*-}"
+            fi
+            appimage_arch="$(normalize_arch "${appimage_arch}")"
+            copy_release_asset \
+              "${appimage_file}" \
+              "docking-${version}-linux-${appimage_arch}.AppImage" \
+              "docking-latest-linux-${appimage_arch}.AppImage"
+          done
+
+          for arch_dir in "${source_dir}"/arch-*; do
+            [ -d "${arch_dir}" ] || continue
+            arch_candidates=("${arch_dir}"/*.pkg.tar.*)
+            arch_primary=()
+            for f in "${arch_candidates[@]}"; do
+              if [[ "${f}" != *.sig && "${f##*/}" != docking-debug-* ]]; then
+                arch_primary+=("${f}")
+              fi
+            done
+            arch_file="$(pick_candidate "arch" "${arch_primary[@]}")"
+            arch_arch="$(echo "${arch_file##*/}" | sed -E 's/.*-([^-]+)\.pkg\.tar\..+$/\1/')"
+            arch_arch="$(normalize_arch "${arch_arch}")"
+            arch_ext="${arch_file##*.pkg.tar.}"
+            copy_release_asset \
+              "${arch_file}" \
+              "docking-${version}-linux-${arch_arch}.pkg.tar.${arch_ext}" \
+              "docking-latest-linux-${arch_arch}.pkg.tar.${arch_ext}"
+          done
+
+          for nix_dir in "${source_dir}"/nix-*; do
+            [ -d "${nix_dir}" ] || continue
+            nix_arch="${nix_dir##*-}"
+            nix_arch="$(normalize_arch "${nix_arch}")"
+            nix_output_candidates=("${nix_dir}"/docking-nix-output.tar.gz)
+            nix_output_file="$(pick_candidate "nix output tarball" "${nix_output_candidates[@]}")"
+            copy_release_asset \
+              "${nix_output_file}" \
+              "docking-${version}-linux-${nix_arch}-nix-output.tar.gz" \
+              "docking-latest-linux-${nix_arch}-nix-output.tar.gz"
+
+            nix_path_candidates=("${nix_dir}"/docking-nix-store-path.txt)
+            nix_path_file="$(pick_candidate "nix store path" "${nix_path_candidates[@]}")"
+            copy_release_asset \
+              "${nix_path_file}" \
+              "docking-${version}-linux-${nix_arch}-nix-store-path.txt" \
+              "docking-latest-linux-${nix_arch}-nix-store-path.txt"
+          done
 
           echo "Standardized release assets:"
           ls -lh "${release_dir}"

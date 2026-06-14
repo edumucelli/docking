@@ -1,44 +1,40 @@
-"""Composition root for building a fully assembled dock window.
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
 
-This module owns UI graph assembly. The dock has one unavoidable construction
-cycle:
+"""Composition root for building a dock window plus edge-dodge integration.
 
-    DockWindow must exist
-      before
-    DnD / menu / preview collaborators that depend on that live window
-      can be created
-
-Trying to force all of that through ``DockWindow.__init__`` would only hide the
-cycle behind placeholders or partially initialized collaborators.
-
-So the assembly model is explicit:
-
-1. create the window shell,
-2. create the collaborators that require that shell,
-3. attach them in one atomic step,
-4. return a fully usable window.
-
-That keeps ``app.py`` small and stops the rest of the runtime from seeing a
-half-assembled window with several nullable collaborators.
+`DockWindow` now leaves construction already owning its UI collaborators. This
+module stays as the thin bootstrap layer for the extra platform piece that does
+not belong inside the GTK shell itself: the dodge monitor.
 """
 
 from __future__ import annotations
 
 from docking.core.config import Config
 from docking.core.theme import Theme
-from docking.platform.dodge import ScreenRect, WindowDodgeMonitor
+from docking.platform.backends.base import (
+    PreviewService,
+    Rect,
+    SessionBackend,
+    SurfaceService,
+    VisibilityService,
+    WindowService,
+)
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
-from docking.platform.window_tracker import WindowTracker
-from docking.ui.about import AboutDialogController
-from docking.ui.autohide import AutoHideController
-from docking.ui.dnd import DnDHandler
-from docking.ui.dock_window import DockComponents, DockWindow
-from docking.ui.menu import MenuHandler
-from docking.ui.preview import PreviewPopup
+from docking.ui.display import window_screen_position
+from docking.ui.dock_window import DockWindow
 from docking.ui.renderer import DockRenderer
-from docking.ui.runtime import DockDragRuntime, DockRuntime
-from docking.ui.settings import SettingsWindowController
 
 
 def build_dock_window(
@@ -47,8 +43,12 @@ def build_dock_window(
     model: DockModel,
     renderer: DockRenderer,
     theme: Theme,
-    window_tracker: WindowTracker,
+    window_tracker: WindowService,
+    preview_service: PreviewService,
+    surface_service: SurfaceService,
+    visibility_service: VisibilityService,
     launcher: Launcher,
+    session_backend: SessionBackend,
 ) -> DockWindow:
     """Build a fully wired dock window and its UI collaborators."""
     window = DockWindow(
@@ -57,56 +57,30 @@ def build_dock_window(
         renderer=renderer,
         theme=theme,
         window_tracker=window_tracker,
+        launcher=launcher,
+        preview_service=preview_service,
+        surface_service=surface_service,
+        session_backend=session_backend,
     )
 
-    autohide = AutoHideController(window, config)
-
-    def _get_dock_rect() -> ScreenRect | None:
+    def _get_dock_rect() -> Rect | None:
         if not window.get_realized():
             return None
-        wx, wy = window.get_position()
-        ww, wh = window.get_size()
-        return ScreenRect(x=wx, y=wy, width=ww, height=wh)
+        window_pos = window_screen_position(window)
+        wx, wy = window_pos.x, window_pos.y
+        dock_rect = window.geometry.build_frame().background_rect
+        return Rect(
+            x=wx + dock_rect.x,
+            y=wy + dock_rect.y,
+            width=dock_rect.w,
+            height=dock_rect.h,
+        )
 
-    dodge_monitor = WindowDodgeMonitor(
-        config=config,
+    dodge_monitor = visibility_service.create_monitor(
         get_dock_rect=_get_dock_rect,
-        on_change=autohide.set_window_should_hide,
+        on_change=window.autohide.set_window_should_hide,
     )
-    dodge_monitor.start()
-
-    runtime = DockRuntime(window)
-    drag_runtime = DockDragRuntime(window)
-    about = AboutDialogController(parent=window)
-    settings = SettingsWindowController(
-        parent=window,
-        runtime=runtime,
-        model=model,
-        config=config,
-    )
-
-    dnd = DnDHandler(
-        drawing_area=window.drawing_area,
-        runtime=drag_runtime,
-        model=model,
-        config=config,
-        renderer=renderer,
-        theme=theme,
-        launcher=launcher,
-        geometry_builder=window.geometry,
-    )
-    menu = MenuHandler(
-        about=about,
-        settings=settings,
-        runtime=runtime,
-        model=model,
-        config=config,
-        window_tracker=window_tracker,
-        geometry_builder=window.geometry,
-        launcher=launcher,
-    )
-    preview = PreviewPopup(window_tracker=window_tracker)
-    window.attach_components(
-        DockComponents(autohide=autohide, dnd=dnd, menu=menu, preview=preview)
-    )
+    window.dodge_monitor = dodge_monitor
+    if dodge_monitor is not None:
+        dodge_monitor.start()
     return window

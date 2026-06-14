@@ -1,15 +1,17 @@
 pkgname=docking
-pkgver=1.2.4
+pkgver=2.1.0
 pkgrel=1
 pkgdesc="A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url="https://github.com/edumucelli/docking"
 license=('GPL3')
 depends=(
   'python'
   'python-gobject'
   'python-cairo'
+  'python-pywayland'
   'gtk3'
+  'gtk-layer-shell'
   'libwnck3'
   'networkmanager'
   'gstreamer'
@@ -55,8 +57,19 @@ export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
+  install -Dm755 packaging/shared/docking-camshield-helper \
+    "${pkgdir}/usr/bin/docking-camshield-helper"
+
   install -Dm644 packaging/shared/org.docking.Docking.desktop \
     "${pkgdir}/usr/share/applications/org.docking.Docking.desktop"
+
+  install -Dm644 packaging/shared/org.docking.camshield.policy \
+    "${pkgdir}/usr/share/polkit-1/actions/org.docking.camshield.policy"
+
+  install -Dm644 docking/platform/backends/gnome/extension/metadata.json \
+    "${pkgdir}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/metadata.json"
+  install -Dm644 docking/platform/backends/gnome/extension/extension.js \
+    "${pkgdir}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/extension.js"
 
   if [ -d packaging/deb/icons/hicolor ]; then
     mkdir -p "${pkgdir}/usr/share/icons/hicolor"

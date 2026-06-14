@@ -111,13 +111,13 @@ TW, TH = 80, 24
 
 class TestTooltipPositionBottom:
     def test_centered_horizontally(self):
-        tx, ty = compute_tooltip_position(
+        tx, _ty = compute_tooltip_position(
             pos=Position.BOTTOM, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert tx == int(AX - TW / 2)
 
     def test_above_anchor(self):
-        tx, ty = compute_tooltip_position(
+        _tx, ty = compute_tooltip_position(
             pos=Position.BOTTOM, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert ty == int(AY - TH - TOOLTIP_BASE_GAP)
@@ -126,13 +126,13 @@ class TestTooltipPositionBottom:
 
 class TestTooltipPositionTop:
     def test_centered_horizontally(self):
-        tx, ty = compute_tooltip_position(
+        tx, _ty = compute_tooltip_position(
             pos=Position.TOP, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert tx == int(AX - TW / 2)
 
     def test_below_anchor(self):
-        tx, ty = compute_tooltip_position(
+        _tx, ty = compute_tooltip_position(
             pos=Position.TOP, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert ty == int(AY + TOOLTIP_BASE_GAP)
@@ -141,14 +141,14 @@ class TestTooltipPositionTop:
 
 class TestTooltipPositionLeft:
     def test_right_of_anchor(self):
-        tx, ty = compute_tooltip_position(
+        tx, _ty = compute_tooltip_position(
             pos=Position.LEFT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert tx == int(AX + TOOLTIP_BASE_GAP)
         assert tx > AX
 
     def test_centered_vertically(self):
-        tx, ty = compute_tooltip_position(
+        _tx, ty = compute_tooltip_position(
             pos=Position.LEFT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert ty == int(AY - TH / 2)
@@ -156,14 +156,14 @@ class TestTooltipPositionLeft:
 
 class TestTooltipPositionRight:
     def test_left_of_anchor(self):
-        tx, ty = compute_tooltip_position(
+        tx, _ty = compute_tooltip_position(
             pos=Position.RIGHT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert tx == int(AX - TW - TOOLTIP_BASE_GAP)
         assert tx < AX
 
     def test_centered_vertically(self):
-        tx, ty = compute_tooltip_position(
+        _tx, ty = compute_tooltip_position(
             pos=Position.RIGHT, anchor_x=AX, anchor_y=AY, tooltip_w=TW, tooltip_h=TH
         )
         assert ty == int(AY - TH / 2)
@@ -458,6 +458,19 @@ class _FakeTooltipWindow:
         self._removed = 0
         self._moved = None
         self._draw_cb = None
+        self._transient_for = None
+        self._attached_to = None
+        self._accept_focus = None
+        self._focus_on_map = None
+
+    def set_transient_for(self, window) -> None:
+        self._transient_for = window
+
+    def get_transient_for(self):
+        return self._transient_for
+
+    def set_attached_to(self, window) -> None:
+        self._attached_to = window
 
     def set_decorated(self, _value: bool) -> None:
         return
@@ -470,6 +483,12 @@ class _FakeTooltipWindow:
 
     def set_type_hint(self, _value) -> None:
         return
+
+    def set_accept_focus(self, value: bool) -> None:
+        self._accept_focus = value
+
+    def set_focus_on_map(self, value: bool) -> None:
+        self._focus_on_map = value
 
     def set_app_paintable(self, _value: bool) -> None:
         return
@@ -554,6 +573,7 @@ class TestTooltipIntegrationBranches:
         monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
         monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
         window = MagicMock()
+        window.surface_service.popups_use_parent_relative_coordinates = False
         config = SimpleNamespace(icon_size=48)
         model = MagicMock()
         theme = SimpleNamespace(launch_bounce_height=0.5)
@@ -571,6 +591,10 @@ class TestTooltipIntegrationBranches:
 
         # Then
         assert isinstance(tooltip._tooltip_window, _FakeTooltipWindow)
+        assert tooltip._tooltip_window._transient_for is window
+        assert tooltip._tooltip_window._attached_to is window
+        assert tooltip._tooltip_window._accept_focus is False
+        assert tooltip._tooltip_window._focus_on_map is False
         moved = tooltip._tooltip_window._moved
         assert moved is not None
         assert moved[0] >= 0
@@ -699,7 +723,7 @@ class TestTooltipIntegrationBranches:
         )
         model = MagicMock()
         model.visible_items.return_value = []
-        theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
+        theme = SimpleNamespace(horizontal_padding=8, item_padding=8, bottom_padding=4)
         tooltip = TooltipManager(window, config, model, theme)
         hide = MagicMock()
         tooltip.hide = hide  # type: ignore[method-assign]
@@ -730,7 +754,7 @@ class TestTooltipIntegrationBranches:
         built_widget = MagicMock()
         item.tooltip_builder = MagicMock(return_value=built_widget)
         model.visible_items.return_value = [item]
-        theme = SimpleNamespace(h_padding=8, item_padding=8, bottom_padding=4)
+        theme = SimpleNamespace(horizontal_padding=8, item_padding=8, bottom_padding=4)
         tooltip = TooltipManager(window, config, model, theme)
         show_tooltip = MagicMock()
         tooltip._show_tooltip = show_tooltip  # type: ignore[method-assign]
@@ -746,3 +770,63 @@ class TestTooltipIntegrationBranches:
         show_tooltip.assert_called_once()
         kwargs = show_tooltip.call_args.kwargs
         assert kwargs["widget"] is built_widget
+
+    def test_update_uses_backend_surface_position_for_wayland_anchor(self, monkeypatch):
+        window = MagicMock()
+        window.get_position.return_value = (0, 0)
+        window.surface_service = SimpleNamespace(
+            get_surface_position=lambda: (100, 200),
+            popups_use_parent_relative_coordinates=True,
+        )
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            tooltips_enabled=True,
+        )
+        item = _make_item("Weather")
+        tooltip = TooltipManager(
+            window,
+            config,
+            MagicMock(),
+            SimpleNamespace(launch_bounce_height=0.0),
+        )
+        show_tooltip = MagicMock()
+        tooltip._show_tooltip = show_tooltip  # type: ignore[method-assign]
+        frame = _frame_for_item(item, anchor_x=40.0, anchor_y=10.0)
+        monkeypatch.setattr(
+            tooltip_mod.GLib, "idle_add", lambda callback: callback() or 1
+        )
+
+        tooltip.update(item=item, geometry=frame)
+
+        kwargs = show_tooltip.call_args.kwargs
+        assert kwargs["anchor_x"] == 140.0
+        assert kwargs["anchor_y"] == 210.0
+
+    def test_show_tooltip_converts_absolute_position_to_parent_relative_wayland(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
+        window = MagicMock()
+        window.surface_service = SimpleNamespace(
+            get_surface_position=lambda: (100, 200),
+            popups_use_parent_relative_coordinates=True,
+        )
+        tooltip = TooltipManager(
+            window,
+            SimpleNamespace(icon_size=48),
+            MagicMock(),
+            SimpleNamespace(launch_bounce_height=0.0),
+        )
+
+        tooltip._show_tooltip(
+            text="Weather",
+            pos=Position.BOTTOM,
+            anchor_x=140.0,
+            anchor_y=210.0,
+            widget=None,
+            content_changed=True,
+        )
+
+        assert tooltip._tooltip_window._moved == (-20, -30)

@@ -1,10 +1,23 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Shared dock item data structures."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 ItemKind = Literal["app", "applet", "file", "folder"]
 
@@ -12,6 +25,20 @@ APP_KIND: ItemKind = "app"
 APPLET_KIND: ItemKind = "applet"
 FILE_KIND: ItemKind = "file"
 FOLDER_KIND: ItemKind = "folder"
+
+
+class IconPixmapLike(Protocol):
+    """Pixmap-like icon contract used by the renderer and color helpers."""
+
+    def get_width(self) -> int: ...
+
+    def get_height(self) -> int: ...
+
+    def get_pixels(self) -> object: ...
+
+    def get_n_channels(self) -> int: ...
+
+    def get_rowstride(self) -> int: ...
 
 
 @dataclass
@@ -30,15 +57,22 @@ class DockItem:
     is_running: bool = False
     is_active: bool = False
     is_urgent: bool = False
+    window_urgent: bool = False
     instance_count: int = 0
-    # Icon object (typically GdkPixbuf.Pixbuf), kept generic to avoid GTK coupling.
-    icon: Any | None = None
+    # Icon object (typically GdkPixbuf.Pixbuf), typed structurally to avoid runtime
+    # GTK coupling while keeping test doubles valid.
+    icon: IconPixmapLike | None = None
     # Custom slot width along main axis (0 = use icon_size)
     main_size: int = 0
     # Timestamps for animations (monotonic microseconds, 0 = inactive)
     last_clicked: int = 0
     last_launched: int = 0
     last_urgent: int = 0
+    badge_count: int = 0
+    badge_visible: bool = False
+    progress: float = 0.0
+    progress_visible: bool = False
+    launcher_entry_urgent: bool = False
     # Callable returning tooltip widget/content; used by applets for rich tooltips
     tooltip_builder: Callable[[], Any] | None = None
     # Optional key for per-item preferences (folder sort/view options, etc.).

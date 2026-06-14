@@ -1,0 +1,1 @@
+"""Vendored Wayland protocol bindings."""

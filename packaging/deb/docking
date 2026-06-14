@@ -1,4 +1,12 @@
 #!/bin/sh
 set -eu
 
+PYTHON_VERSION="$(/usr/bin/python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+PYWAYLAND_VENDOR="/usr/lib/docking/vendor-python${PYTHON_VERSION}"
+PYTHONPATH_PREFIX="/usr/lib/docking/python:/usr/lib/docking/vendor"
+if [ -d "${PYWAYLAND_VENDOR}" ]; then
+    PYTHONPATH_PREFIX="${PYWAYLAND_VENDOR}:${PYTHONPATH_PREFIX}"
+fi
+export PYTHONPATH="${PYTHONPATH_PREFIX}${PYTHONPATH:+:$PYTHONPATH}"
+
 exec /usr/bin/python3 -m docking.app "$@"

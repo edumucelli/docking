@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Preferences window controller for Docking.
 
 This module owns the dock settings window opened from the dock background menu.
@@ -29,8 +42,9 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets import get_applet_catalog
 from docking.applets.base import load_catalog_icon
@@ -43,13 +57,24 @@ from docking.applets.identity import (
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
+    MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
     MAX_ICON_SIZE,
+    MAX_PRESSURE_THRESHOLD,
+    MAX_TRANSPARENCY,
     MAX_ZOOM_PERCENT,
+    MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
     MIN_ICON_SIZE,
+    MIN_PRESSURE_THRESHOLD,
+    MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
+    FolderStackUnfold,
+    LeftClickAction,
+    MiddleClickAction,
+    WindowListSort,
 )
 from docking.core.position import Position
-from docking.core.theme import _BUILTIN_THEMES_DIR, Theme
+from docking.core.theme import Theme, list_theme_names
+from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -77,15 +102,19 @@ SECTION_HEADER_TOP_MARGIN_PX = 6
 SECTION_HEADER_BOTTOM_MARGIN_PX = 2
 ROW_SPACING_PX = 12
 HIDE_MODE_COMBO_WIDTH_PX = 180
-HIDE_MODE_DESC_MAX_CHARS = 28
+HIDE_MODE_INFO_ICON_WIDTH_PX = 14
+TRANSPARENCY_SCALE_WIDTH_PX = 132
 HIDE_MODE_BOX_SPACING_PX = 4
 APPLET_GRID_COLUMN_SPACING_PX = 16
 APPLET_GRID_ROW_SPACING_PX = 8
 APPLET_ROW_CONTENT_SPACING_PX = 6
 ZOOM_PERCENT_SCALE = 100
 ZOOM_PERCENT_STEP = 5
+TRANSPARENCY_PERCENT_SCALE = 100
+TRANSPARENCY_PERCENT_STEP = 5
 HIDE_DELAY_MAX_MS = 5000
 HIDE_DELAY_STEP_MS = 50
+INFO_POPOVER_PADDING_PX = 8
 log = get_logger("settings")
 
 
@@ -119,6 +148,12 @@ class SettingsWindowController:
         self._syncing_widgets = False
 
         self._hide_mode_combo: Any = None
+        self._hide_mode_info: Any = None
+        self._left_click_combo: Any = None
+        self._middle_click_combo: Any = None
+        self._folder_stack_unfold_combo: Any = None
+        self._window_list_sort_combo: Any = None
+        self._window_count_numbers_switch: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -130,9 +165,18 @@ class SettingsWindowController:
         self._theme_combo: Any = None
         self._position_combo: Any = None
         self._icon_size_spin: Any = None
+        self._transparency_scale: Any = None
+        self._additional_distance_scale: Any = None
+        self._additional_distance_info: Any = None
+        self._pressure_reveal_switch: Any = None
+        self._pressure_threshold_scale: Any = None
+        self._pressure_threshold_info: Any = None
         self._zoom_percent_spin: Any = None
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
+        self._update_check_switch: Any = None
+        self._update_interval_combo: Any = None
+        self._update_status_label: Any = None
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
         self._bindings: list[_ScalarBinding] = []
@@ -173,7 +217,9 @@ class SettingsWindowController:
         switcher.set_halign(Gtk.Align.CENTER)
 
         stack.add_titled(self._build_appearance_tab(), "appearance", _("Appearance"))
+        stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
+        stack.add_titled(self._build_updates_tab(), "updates", _("Updates"))
 
         outer.pack_start(switcher, False, False, 0)
         outer.pack_start(stack, True, True, 0)
@@ -189,63 +235,169 @@ class SettingsWindowController:
         self._bindings.clear()
 
         self._hide_mode_combo = Gtk.ComboBoxText()
-        self._hide_mode_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        self._hide_mode_combo.set_size_request(
+            HIDE_MODE_COMBO_WIDTH_PX
+            - HIDE_MODE_INFO_ICON_WIDTH_PX
+            - HIDE_MODE_BOX_SPACING_PX,
+            -1,
+        )
         for mode_value, mode_label in [
             ("none", _("Don't Hide")),
+            ("always-on-top", _("Always on Top")),
             ("autohide", _("Auto-hide")),
             ("intelligent", _("Intelligent")),
-            ("dodge-active", _("Dodge Active Window")),
-            ("window-dodge", _("Dodge All Windows")),
+            ("dodge-active", _("Dodge Active")),
+            ("window-dodge", _("Dodge Windows")),
             ("dodge-maximized", _("Dodge Maximized")),
         ]:
             self._hide_mode_combo.append(mode_value, mode_label)
 
-        self._hide_mode_desc = Gtk.Label()
-        self._hide_mode_desc.set_xalign(0.0)
-        self._hide_mode_desc.set_line_wrap(True)
-        self._hide_mode_desc.set_line_wrap_mode(2)  # Pango.WrapMode.WORD_CHAR
-        self._hide_mode_desc.set_max_width_chars(HIDE_MODE_DESC_MAX_CHARS)
-        ctx = self._hide_mode_desc.get_style_context()
-        ctx.add_class("dim-label")
+        self._hide_mode_info = self._new_info_icon()
         self._hide_mode_combo.connect("changed", self._on_hide_mode_combo_changed)
         self._update_hide_mode_description()
 
+        self._left_click_combo = Gtk.ComboBoxText()
+        self._left_click_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for action_value, action_label in [
+            (LeftClickAction.TOGGLE.value, _("Toggle Focus")),
+            (LeftClickAction.CYCLE.value, _("Cycle Windows")),
+            (LeftClickAction.MOST_RECENT.value, _("Most Recent Window")),
+        ]:
+            self._left_click_combo.append(action_value, action_label)
+
+        self._middle_click_combo = Gtk.ComboBoxText()
+        self._middle_click_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for action_value, action_label in [
+            (MiddleClickAction.NEW_WINDOW.value, _("New Window")),
+            (MiddleClickAction.MINIMIZE.value, _("Minimize Windows")),
+            (MiddleClickAction.CLOSE_FOCUSED.value, _("Close Focused Window")),
+        ]:
+            self._middle_click_combo.append(action_value, action_label)
+
+        self._folder_stack_unfold_combo = Gtk.ComboBoxText()
+        self._folder_stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for mode_value, mode_label in [
+            (FolderStackUnfold.CLICK.value, _("Click")),
+            (FolderStackUnfold.HOVER.value, _("Hover")),
+        ]:
+            self._folder_stack_unfold_combo.append(mode_value, mode_label)
+
+        self._window_list_sort_combo = Gtk.ComboBoxText()
+        self._window_list_sort_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        for sort_value, sort_label in [
+            (WindowListSort.DEFAULT.value, _("Default")),
+            (WindowListSort.ALPHABETICAL.value, _("Alphabetical")),
+        ]:
+            self._window_list_sort_combo.append(sort_value, sort_label)
+
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
+        self._window_count_numbers_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
         self._workspace_only_switch = self._new_switch()
         self._active_display_switch = self._new_switch()
         self._anchor_applets_switch = self._new_switch()
         self._anchor_files_switch = self._new_switch()
         self._zoom_enabled_switch = self._new_switch()
+        self._update_check_switch = self._new_switch()
+
+        self._update_interval_combo = Gtk.ComboBoxText()
+        for value, label in [
+            ("24", _("Daily")),
+            ("168", _("Weekly")),
+        ]:
+            self._update_interval_combo.append(value, label)
+
+        self._update_status_label = Gtk.Label()
+        self._update_status_label.set_xalign(0.0)
+        self._update_status_label.set_line_wrap(True)
 
         self._theme_combo = Gtk.ComboBoxText()
-        for theme_name in sorted(p.stem for p in _BUILTIN_THEMES_DIR.glob("*.json")):
+        for theme_name in list_theme_names():
             self._theme_combo.append(theme_name, theme_name.replace("-", " ").title())
 
         self._position_combo = Gtk.ComboBoxText()
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
 
-        self._icon_size_spin = Gtk.SpinButton.new_with_range(
-            MIN_ICON_SIZE,
-            MAX_ICON_SIZE,
+        self._icon_size_spin = self._new_numeric_spin_button(
+            minimum=MIN_ICON_SIZE,
+            maximum=MAX_ICON_SIZE,
+            step=1,
+        )
+        self._transparency_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            int(MIN_TRANSPARENCY * TRANSPARENCY_PERCENT_SCALE),
+            int(MAX_TRANSPARENCY * TRANSPARENCY_PERCENT_SCALE),
+            TRANSPARENCY_PERCENT_STEP,
+        )
+        self._transparency_scale.set_digits(0)
+        self._transparency_scale.set_draw_value(True)
+        self._transparency_scale.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        transparency_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        transparency_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        transparency_box.pack_end(self._transparency_scale, False, False, 0)
+        self._zoom_percent_spin = self._new_numeric_spin_button(
+            minimum=int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            maximum=int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
+            step=ZOOM_PERCENT_STEP,
+        )
+        self._additional_distance_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
+            MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
             1,
         )
-        self._zoom_percent_spin = Gtk.SpinButton.new_with_range(
-            int(MIN_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
-            int(MAX_ZOOM_PERCENT * ZOOM_PERCENT_SCALE),
-            ZOOM_PERCENT_STEP,
+        self._additional_distance_scale.set_digits(0)
+        self._additional_distance_scale.set_draw_value(True)
+        self._additional_distance_scale.set_size_request(
+            TRANSPARENCY_SCALE_WIDTH_PX, -1
         )
-        self._hide_delay_spin = Gtk.SpinButton.new_with_range(
-            0,
-            HIDE_DELAY_MAX_MS,
-            HIDE_DELAY_STEP_MS,
+        self._additional_distance_info = self._new_info_icon(
+            _("Added on top of the theme's own distance from the edge.")
         )
-        self._unhide_delay_spin = Gtk.SpinButton.new_with_range(
-            0,
-            HIDE_DELAY_MAX_MS,
-            HIDE_DELAY_STEP_MS,
+        additional_distance_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        additional_distance_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        additional_distance_box.pack_start(
+            self._additional_distance_scale, False, False, 0
+        )
+        additional_distance_box.pack_start(
+            self._additional_distance_info, False, False, 0
+        )
+        self._hide_delay_spin = self._new_numeric_spin_button(
+            minimum=0,
+            maximum=HIDE_DELAY_MAX_MS,
+            step=HIDE_DELAY_STEP_MS,
+        )
+        self._unhide_delay_spin = self._new_numeric_spin_button(
+            minimum=0,
+            maximum=HIDE_DELAY_MAX_MS,
+            step=HIDE_DELAY_STEP_MS,
+        )
+        self._pressure_reveal_switch = self._new_switch()
+        self._pressure_threshold_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            MIN_PRESSURE_THRESHOLD,
+            MAX_PRESSURE_THRESHOLD,
+            1,
+        )
+        self._pressure_threshold_scale.set_digits(0)
+        self._pressure_threshold_scale.set_draw_value(True)
+        self._pressure_threshold_scale.set_size_request(
+            TRANSPARENCY_SCALE_WIDTH_PX
+            - HIDE_MODE_INFO_ICON_WIDTH_PX
+            - HIDE_MODE_BOX_SPACING_PX,
+            -1,
+        )
+        self._pressure_threshold_info = self._new_info_icon(
+            _(
+                "Pixels of cursor pressure against the edge required to "
+                "reveal a hidden dock. Higher values mean the dock will not "
+                "reveal as easily."
+            )
         )
 
         self._register_bindings()
@@ -256,26 +408,12 @@ class SettingsWindowController:
             rows=[
                 (_("Theme"), self._theme_combo),
                 (_("Icon Size"), self._icon_size_spin),
+                (_("Transparency"), transparency_box),
                 (_("Zoom"), self._zoom_enabled_switch),
                 (_("Zoom Percent"), self._zoom_percent_spin),
                 (_("Show Tooltips"), self._tooltips_switch),
                 (_("Window Previews"), self._previews_switch),
-            ],
-        )
-        hide_mode_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
-            spacing=HIDE_MODE_BOX_SPACING_PX,
-        )
-        hide_mode_box.pack_start(self._hide_mode_combo, False, False, 0)
-        hide_mode_box.pack_start(self._hide_mode_desc, False, False, 0)
-
-        self._append_section(
-            outer=outer,
-            title=_("Behavior"),
-            rows=[
-                (_("Hide Mode"), hide_mode_box),
-                (_("Hide Delay"), self._hide_delay_spin),
-                (_("Unhide Delay"), self._unhide_delay_spin),
+                ("Show Window Counts", self._window_count_numbers_switch),
             ],
         )
         self._append_section(
@@ -283,6 +421,7 @@ class SettingsWindowController:
             title=_("Placement"),
             rows=[
                 (_("Position"), self._position_combo),
+                (_("Extra Distance from Edge"), additional_distance_box),
                 (_("Follow Cursor"), self._active_display_switch),
                 (_("Current Workspace Only"), self._workspace_only_switch),
             ],
@@ -299,6 +438,112 @@ class SettingsWindowController:
 
         return outer
 
+    def _build_behavior_tab(self) -> Gtk.Widget:
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPEARANCE_TAB_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
+
+        hide_mode_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        hide_mode_box.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        hide_mode_box.pack_start(self._hide_mode_combo, True, True, 0)
+        hide_mode_box.pack_start(self._hide_mode_info, False, False, 0)
+
+        pressure_threshold_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        pressure_threshold_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        pressure_threshold_box.pack_start(
+            self._pressure_threshold_scale, False, False, 0
+        )
+        pressure_threshold_box.pack_start(
+            self._pressure_threshold_info, False, False, 0
+        )
+
+        self._append_section(
+            outer=outer,
+            title=_("Mouse"),
+            rows=[
+                (_("Left Click"), self._left_click_combo),
+                (_("Middle Click"), self._middle_click_combo),
+                (_("Window List Sort"), self._window_list_sort_combo),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Behavior"),
+            rows=[
+                (_("Hide Mode"), hide_mode_box),
+                (_("Hide Delay"), self._hide_delay_spin),
+                (_("Unhide Delay"), self._unhide_delay_spin),
+                (_("Pressure Reveal"), self._pressure_reveal_switch),
+                (_("Pressure Threshold"), pressure_threshold_box),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Folder Stacks"),
+            rows=[
+                (_("Open On"), self._folder_stack_unfold_combo),
+            ],
+        )
+
+        return outer
+
+    def _new_info_icon(self, tooltip: str = "") -> Gtk.EventBox:
+        icon = Gtk.EventBox()
+        icon.set_visible_window(False)
+        icon.set_size_request(HIDE_MODE_INFO_ICON_WIDTH_PX, -1)
+        icon.add_events(
+            Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
+        )
+        icon.add(
+            Gtk.Image.new_from_icon_name(
+                "dialog-information-symbolic",
+                Gtk.IconSize.MENU,
+            )
+        )
+
+        popover = Gtk.Popover.new(icon)
+        popover.set_modal(False)
+        popover.set_position(Gtk.PositionType.TOP)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content.set_border_width(INFO_POPOVER_PADDING_PX)
+        label = Gtk.Label()
+        label.set_xalign(0.0)
+        label.set_line_wrap(True)
+        label.set_max_width_chars(48)
+        content.pack_start(label, False, False, 0)
+        popover.add(content)
+
+        icon._docking_info_popover = popover
+        icon._docking_info_label = label
+        icon._docking_info_text = ""
+        icon.connect("enter-notify-event", self._on_info_icon_enter)
+        icon.connect("leave-notify-event", self._on_info_icon_leave)
+        self._set_info_icon_text(icon, tooltip)
+        return icon
+
+    def _set_info_icon_text(self, icon: Gtk.Widget, text: str) -> None:
+        icon._docking_info_text = text
+        icon._docking_info_label.set_label(text)
+
+    def _on_info_icon_enter(self, icon: Gtk.Widget, _event) -> bool:
+        if not icon._docking_info_text:
+            return False
+        icon._docking_info_popover.show_all()
+        icon._docking_info_popover.popup()
+        return False
+
+    def _on_info_icon_leave(self, icon: Gtk.Widget, _event) -> bool:
+        icon._docking_info_popover.popdown()
+        return False
+
     def _build_applets_tab(self) -> Gtk.Widget:
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -310,6 +555,37 @@ class SettingsWindowController:
         scroller.add(self._applets_box)
         self._rebuild_applet_tab()
         return scroller
+
+    def _build_updates_tab(self) -> Gtk.Widget:
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPEARANCE_TAB_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
+
+        check_now = Gtk.Button(label=_("Check Now"))
+        check_now.connect("clicked", self._on_check_updates_now)
+        view_releases = Gtk.Button(label=_("View Releases"))
+        view_releases.connect("clicked", self._on_view_releases)
+
+        actions = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=ROW_SPACING_PX,
+        )
+        actions.pack_start(check_now, False, False, 0)
+        actions.pack_start(view_releases, False, False, 0)
+
+        self._append_section(
+            outer=outer,
+            title=_("Update Checks"),
+            rows=[
+                (_("Check Automatically"), self._update_check_switch),
+                (_("Frequency"), self._update_interval_combo),
+                (_("Status"), self._update_status_label),
+                (_("Actions"), actions),
+            ],
+        )
+        return outer
 
     def _build_row(self, *, label: str, widget: Gtk.Widget) -> Gtk.Box:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=ROW_SPACING_PX)
@@ -356,12 +632,56 @@ class SettingsWindowController:
     def _new_switch(self) -> Gtk.Switch:
         return Gtk.Switch()
 
+    def _new_numeric_spin_button(
+        self,
+        *,
+        minimum: float,
+        maximum: float,
+        step: float,
+    ) -> Gtk.SpinButton:
+        settings = Gtk.Settings.get_default()
+        previous_im_module = None
+        if settings is not None:
+            previous_im_module = settings.get_property("gtk-im-module")
+            settings.set_property("gtk-im-module", "gtk-im-context-simple")
+        try:
+            spin = Gtk.SpinButton.new_with_range(minimum, maximum, step)
+        finally:
+            if settings is not None:
+                settings.set_property("gtk-im-module", previous_im_module)
+
+        # Keep the widget on the simple context after construction too, so GTK
+        # does not switch it back to the desktop-wide IM module later on.
+        spin.set_property("im-module", "gtk-im-context-simple")
+        return spin
+
     def _register_bindings(self) -> None:
         self._bindings = [
             self._register_choice_binding(
                 config_attr="hide_mode",
                 widget=self._hide_mode_combo,
                 on_change=self._after_hide_mode_changed,
+            ),
+            self._register_choice_binding(
+                config_attr="left_click_action",
+                widget=self._left_click_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="middle_click_action",
+                widget=self._middle_click_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="folder_stack_unfold",
+                widget=self._folder_stack_unfold_combo,
+            ),
+            self._register_choice_binding(
+                config_attr="window_list_sort",
+                widget=self._window_list_sort_combo,
+            ),
+            self._register_switch_binding(
+                config_attr="show_window_count_numbers",
+                widget=self._window_count_numbers_switch,
+                on_change=lambda _value: self._runtime.queue_draw(),
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",
@@ -380,7 +700,7 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="current_workspace_only",
                 widget=self._workspace_only_switch,
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=self._runtime.set_current_workspace_only,
             ),
             self._register_switch_binding(
                 config_attr="active_display",
@@ -402,6 +722,19 @@ class SettingsWindowController:
                 widget=self._zoom_enabled_switch,
                 on_change=lambda _value: self._runtime.queue_draw(),
             ),
+            self._register_switch_binding(
+                config_attr="update_check_enabled",
+                widget=self._update_check_switch,
+            ),
+            self._register_numeric_binding(
+                config_attr="update_check_interval_hours",
+                widget=self._update_interval_combo,
+                read_widget=self._read_update_interval_hours,
+                write_widget=lambda value: self._update_interval_combo.set_active_id(
+                    str(value)
+                ),
+                signal="changed",
+            ),
             self._register_choice_binding(
                 config_attr="theme",
                 widget=self._theme_combo,
@@ -416,6 +749,29 @@ class SettingsWindowController:
                 config_attr="icon_size",
                 widget=self._icon_size_spin,
                 on_change=self._after_icon_size_changed,
+            ),
+            self._register_numeric_binding(
+                config_attr="additional_distance_from_edge",
+                widget=self._additional_distance_scale,
+                read_widget=lambda: int(self._additional_distance_scale.get_value()),
+                write_widget=lambda value: self._additional_distance_scale.set_value(
+                    float(value)
+                ),
+                signal="value-changed",
+                on_change=self._after_additional_distance_changed,
+            ),
+            self._register_numeric_binding(
+                config_attr="transparency",
+                widget=self._transparency_scale,
+                read_widget=lambda: (
+                    float(self._transparency_scale.get_value())
+                    / TRANSPARENCY_PERCENT_SCALE
+                ),
+                write_widget=lambda value: self._transparency_scale.set_value(
+                    float(value) * TRANSPARENCY_PERCENT_SCALE
+                ),
+                signal="value-changed",
+                on_change=self._after_transparency_changed,
             ),
             self._register_numeric_binding(
                 config_attr="zoom_percent",
@@ -436,6 +792,16 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="unhide_delay_ms",
                 widget=self._unhide_delay_spin,
+            ),
+            self._register_switch_binding(
+                config_attr="pressure_reveal_enabled",
+                widget=self._pressure_reveal_switch,
+                on_change=self._after_pressure_reveal_changed,
+            ),
+            self._register_int_binding(
+                config_attr="pressure_threshold",
+                widget=self._pressure_threshold_scale,
+                on_change=self._after_pressure_reveal_changed,
             ),
         ]
 
@@ -521,6 +887,7 @@ class SettingsWindowController:
             }
             for desktop_id, check in self._applet_checks.items():
                 check.set_active(desktop_id in active_ids)
+            self._update_updates_status()
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
@@ -620,9 +987,6 @@ class SettingsWindowController:
         image.set_pixel_size(APPLET_LIST_ICON_PX)
         return image
 
-    def _save(self) -> None:
-        self._config.save()
-
     def _on_destroy(self, window: Gtk.Window) -> None:
         if self._window is window:
             self._window = None
@@ -637,29 +1001,76 @@ class SettingsWindowController:
         if value == current_value:
             return
         setattr(self._config, binding.config_attr, value)
-        self._save()
+        self._config.save()
         if binding.on_change is not None:
             binding.on_change(value)
         self._update_dependent_sensitivity()
 
-    def _after_theme_changed(self, name: str) -> None:
-        theme = Theme.load(str(name), self._config.icon_size)
+    def _read_update_interval_hours(self) -> int | None:
+        active_id = self._update_interval_combo.get_active_id()
+        if active_id is None:
+            return None
+        return int(active_id)
+
+    def _update_updates_status(self) -> None:
+        if self._update_status_label is None:
+            return
+        state = load_state()
+        if state.last_seen_version:
+            text = _("Last seen version: {version}").format(
+                version=state.last_seen_version
+            )
+        elif state.last_checked_at:
+            text = _("No update found yet")
+        else:
+            text = _("Not checked yet")
+        self._update_status_label.set_label(text)
+
+    def _on_check_updates_now(self, _button: Gtk.Button) -> None:
+        self._runtime.check_for_updates_now()
+
+    def _on_view_releases(self, _button: Gtk.Button) -> None:
+        self._runtime.open_releases_page()
+
+    def _apply_runtime_theme(self) -> None:
+        theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
+            self._config.transparency
+        )
         self._runtime.set_theme(theme)
+
+    def _after_theme_changed(self, _name: str) -> None:
+        self._apply_runtime_theme()
         self._runtime.reposition()
         self._runtime.queue_draw()
 
     def _after_icon_size_changed(self, _value: int) -> None:
+        self._apply_runtime_theme()
         self._runtime.reposition()
         self._runtime.queue_draw()
 
+    def _after_transparency_changed(self, _value: float) -> None:
+        self._apply_runtime_theme()
+        self._runtime.queue_draw()
+
+    def _after_additional_distance_changed(self, _value: int) -> None:
+        self._runtime.reposition()
+        self._runtime.queue_draw()
+
+    def _after_pressure_reveal_changed(self, _value) -> None:
+        self._runtime.refresh_pressure_handler()
+        self._update_dependent_sensitivity()
+
     def _after_hide_mode_changed(self, mode: str) -> None:
-        if mode == "none":
-            self._runtime.reset_autohide()
-        self._runtime.update_struts()
+        self._runtime.on_hide_mode_changed()
         self._update_hide_mode_description()
+        self._update_dependent_sensitivity()
 
     _HIDE_MODE_DESCRIPTIONS: ClassVar[dict[str, str]] = {
         "none": _("The dock is always visible and reserves screen space."),
+        "always-on-top": _(
+            "Always visible and floats above all windows"
+            " without reserving screen space."
+        ),
         "autohide": _("Hides when the mouse cursor leaves the dock."),
         "intelligent": _(
             "Hides when a window from the focused application overlaps the dock area."
@@ -677,13 +1088,11 @@ class SettingsWindowController:
         self._update_hide_mode_description()
 
     def _update_hide_mode_description(self) -> None:
-        if not self._hide_mode_combo or not self._hide_mode_desc:
+        if not self._hide_mode_combo or not self._hide_mode_info:
             return
         mode = self._hide_mode_combo.get_active_id() or "none"
         desc = self._HIDE_MODE_DESCRIPTIONS.get(mode, "")
-        self._hide_mode_desc.set_markup(
-            f"<small>{GLib.markup_escape_text(desc)}</small>"
-        )
+        self._set_info_icon_text(self._hide_mode_info, desc)
 
     def _after_tooltips_changed(self, active: bool) -> None:
         if not active:
@@ -696,11 +1105,18 @@ class SettingsWindowController:
     def _update_dependent_sensitivity(self) -> None:
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
-        hide_controls_sensitive = self._config.hide_mode != "none"
+        hide_controls_sensitive = self._config.hide_mode not in (
+            "none",
+            "always-on-top",
+        )
         if self._hide_delay_spin is not None:
             self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
         if self._unhide_delay_spin is not None:
             self._unhide_delay_spin.set_sensitive(hide_controls_sensitive)
+        if self._pressure_threshold_scale is not None:
+            self._pressure_threshold_scale.set_sensitive(
+                bool(self._config.pressure_reveal_enabled)
+            )
 
     def _on_applet_toggled(
         self,

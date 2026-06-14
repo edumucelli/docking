@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for hydration applet."""
 
 from __future__ import annotations
@@ -26,6 +39,7 @@ from docking.applets.hydration.state import (
     tooltip_text,
     with_fill,
 )
+from docking.applets.menu import menu_sections, radio_menu_items
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -110,24 +124,22 @@ class HydrationApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
         show = Gtk.CheckMenuItem(label=_("Show Timer"))
         show.set_active(self._state.show_timer)
         show.connect("toggled", self._on_toggle_timer)
-        items.append(show)
 
-        items.append(Gtk.SeparatorMenuItem())
-
-        for mins in INTERVAL_PRESETS:
-            mi = Gtk.CheckMenuItem(label=_("{mins} min").format(mins=mins))
-            mi.set_active(self._state.interval_min == mins)
-            mi.connect(
-                "toggled",
-                lambda _w, m=mins: self._set_interval(minutes=m),
-            )
-            items.append(mi)
-        return items
+        intervals = radio_menu_items(
+            choices=tuple(
+                (_("{mins} min").format(mins=mins), mins) for mins in INTERVAL_PRESETS
+            ),
+            active_value=self._state.interval_min,
+            on_selected=lambda _widget, value: self._set_interval(minutes=value),
+            gtk=Gtk,
+        )
+        return menu_sections(
+            display=[show, Gtk.SeparatorMenuItem(), *intervals],
+            gtk=Gtk,
+        )
 
     def _on_toggle_timer(self, widget: Gtk.CheckMenuItem) -> None:
         self._state = set_show_timer(

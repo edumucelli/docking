@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and data helpers for the Stretch Coach applet."""
 
 from __future__ import annotations
@@ -72,13 +85,14 @@ FALLBACK_CARDS: tuple[StretchCard, ...] = (
 
 def _parse_interval(value: object) -> int:
     try:
-        if isinstance(value, (bool, int, float)):
+        if isinstance(value, bool | int | float):
             minutes = int(value)
         elif isinstance(value, str):
             minutes = int(value.strip())
         else:
             return DEFAULT_INTERVAL
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        log.debug("Invalid stretch interval %r: %s", value, exc)
         return DEFAULT_INTERVAL
     return max(1, minutes)
 

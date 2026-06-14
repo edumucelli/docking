@@ -6,6 +6,13 @@ case "${1:-}" in
         if [ -f /usr/lib/docking/refresh-desktop-caches ]; then
             sh /usr/lib/docking/refresh-desktop-caches
         fi
+        # Enable the GNOME Shell bridge extension system-wide.
+        # gnome-extensions requires a running session bus; skip when
+        # unavailable (e.g. headless / CI installs).
+        if command -v gnome-extensions >/dev/null 2>&1 \
+           && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+            gnome-extensions enable docking-bridge@docking.org || true
+        fi
         ;;
 esac
 

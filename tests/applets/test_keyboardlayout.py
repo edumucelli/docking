@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from unittest.mock import MagicMock
 
@@ -18,16 +19,40 @@ except ModuleNotFoundError:  # pragma: no cover
 import docking.applets.keyboardlayout.state as kbl_state
 from docking.applets.keyboardlayout.state import (
     Fcitx5Backend,
+    GnomeBackend,
     IBusBackend,
+    MateBackend,
     XkbBackend,
     _fcitx5_layout_code,
+    _first_available_command,
     _ibus_layout_code,
+    _open_command,
+    _parse_gsettings_string,
+    _parse_gsettings_string_list,
+    _parse_input_sources,
+    _run,
+    _source_layout_code,
+    current_layout_command,
     cycle_layout,
     detect_backend,
+    keyboard_settings_command,
     layout_display_name,
     layout_label,
+    open_keyboard_settings,
+    show_current_layout,
     tooltip_text,
 )
+from docking.platform.environment import Desktop
+
+
+def _set_desktop(monkeypatch: pytest.MonkeyPatch, desktop: Desktop) -> None:
+    # detect_desktop lives in environment.environment; the package __init__
+    # re-exports it but the session-helpers in environment.environment call
+    # it through their own module globals, so we patch at the source.
+    from docking.platform.environment import environment as env_impl
+
+    monkeypatch.setattr(env_impl, "detect_desktop", lambda: desktop)
+
 
 SETXKBMAP_MULTI = """\
 rules:      evdev
@@ -54,6 +79,8 @@ Layout=
 [Groups/1]
 Name=Other
 """
+GNOME_SOURCES = "[('xkb', 'us'), ('xkb', 'br')]"
+GNOME_MRU_SOURCES = "[('xkb', 'br')]"
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +162,35 @@ class TestIBusBackend:
         state = IBusBackend().query()
         assert state.active == "br"
 
+    def test_query_unavailable_and_fallback_to_active_engine(self, monkeypatch):
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        assert IBusBackend().query().available == []
+
+        def mock_run(cmd):
+            if cmd == ["ibus", "engine"]:
+                return "xkb:us::eng"
+            if cmd[:2] == ["dconf", "read"]:
+                return ""
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        assert IBusBackend().query().available == ["us"]
+
+    def test_switch_falls_back_to_synthetic_engine(self, monkeypatch):
+        commands = []
+
+        def mock_run(cmd):
+            commands.append(cmd)
+            if cmd[:2] == ["dconf", "read"]:
+                return ""
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+
+        IBusBackend().switch(layout_code="de")
+
+        assert ["ibus", "engine", "xkb:de::eng"] in commands
+
 
 # ---------------------------------------------------------------------------
 # Fcitx5Backend
@@ -200,6 +256,312 @@ class TestFcitx5Backend:
         assert state.active == "us"
         assert state.available == ["us"]
 
+    def test_query_unavailable_and_switch_fallback(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        monkeypatch.setattr(kbl_state.Path, "home", lambda: tmp_path)
+        assert Fcitx5Backend().query().available == []
+
+        commands = []
+        monkeypatch.setattr(
+            kbl_state,
+            "_run",
+            lambda cmd: commands.append(cmd) or None,
+        )
+        Fcitx5Backend().switch(layout_code="de")
+        assert ["fcitx5-remote", "-s", "keyboard-de"] in commands
+
+    def test_profile_parser_stops_at_next_group(self, monkeypatch, tmp_path):
+        profile = tmp_path / ".config" / "fcitx5" / "profile"
+        profile.parent.mkdir(parents=True)
+        profile.write_text(FCITX5_PROFILE + "\n[Other]\nName=keyboard-de\n")
+        monkeypatch.setattr(kbl_state.Path, "home", lambda: tmp_path)
+
+        assert Fcitx5Backend()._get_ims() == ["keyboard-us", "keyboard-br"]
+
+
+# ---------------------------------------------------------------------------
+# MATE backend
+# ---------------------------------------------------------------------------
+
+
+class TestMateBackend:
+    def test_parse_gsettings_string_list(self):
+        assert _parse_gsettings_string_list("['gb', 'br', 'us']") == ["gb", "br", "us"]
+        assert _parse_gsettings_string_list("@as []") == []
+        assert _parse_gsettings_string_list("bad [") == []
+        assert _parse_gsettings_string_list("'not-list'") == []
+        assert _parse_gsettings_string_list("[1, 'us', '']") == ["us"]
+
+    def test_parse_gsettings_string(self):
+        assert _parse_gsettings_string("'pc101'") == "pc101"
+        assert _parse_gsettings_string("") == ""
+        assert _parse_gsettings_string("pc105") == "pc105"
+        assert _parse_gsettings_string("123") == ""
+
+    def test_query_returns_mate_layouts(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.MATE)
+
+        def mock_run(cmd):
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     br"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+
+        state = MateBackend().query()
+        assert state.active == "br"
+        assert state.available == ["gb", "br", "us"]
+
+    def test_switch_preserves_mate_model_and_options(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.MATE)
+        commands = []
+
+        def mock_run(cmd):
+            commands.append(cmd)
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "model",
+            ]:
+                return "'pc101'"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "options",
+            ]:
+                return "['grp:alt_shift_toggle']"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+
+        MateBackend().switch(layout_code="us")
+
+        assert [
+            "setxkbmap",
+            "-model",
+            "pc101",
+            "-layout",
+            "us,gb,br",
+            "-option",
+            "grp:alt_shift_toggle",
+        ] in commands
+
+    def test_is_available_requires_mate_session(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.UNKNOWN)
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: "['gb', 'br', 'us']")
+
+        assert not MateBackend().is_available()
+
+    def test_is_available_true_and_query_falls_back_to_first_layout(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.MATE)
+
+        def mock_run(cmd):
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br']"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+
+        assert MateBackend().is_available()
+        assert MateBackend().query() == kbl_state.LayoutState("gb", ["gb", "br"])
+
+    def test_switch_unknown_layout_without_model_or_options(self, monkeypatch):
+        commands = []
+
+        def mock_run(cmd):
+            commands.append(cmd)
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br']"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+
+        MateBackend().switch(layout_code="de")
+
+        assert ["setxkbmap", "-layout", "de"] in commands
+
+
+class TestGnomeBackend:
+    def test_parse_input_sources(self):
+        assert _parse_input_sources(GNOME_SOURCES) == [("xkb", "us"), ("xkb", "br")]
+        assert _parse_input_sources("@a(ss) []") == []
+        assert _parse_input_sources("bad [") == []
+        assert _parse_input_sources("'not-list'") == []
+        assert _parse_input_sources("[('bad',), ('xkb', 'us'), (1, 'bad')]") == [
+            ("xkb", "us")
+        ]
+        assert _source_layout_code("br+abnt2") == "br"
+
+    def test_query_returns_gnome_sources(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
+
+        def mock_run(cmd):
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "current",
+            ]:
+                return "uint32 1"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "mru-sources",
+            ]:
+                return GNOME_MRU_SOURCES
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        state = GnomeBackend().query()
+        assert state.active == "br"
+        assert state.available == ["us", "br"]
+
+    def test_switch_calls_gdbus_eval(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
+        commands = []
+
+        def mock_run(cmd):
+            commands.append(cmd)
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        GnomeBackend().switch(layout_code="br")
+        assert [
+            "gsettings",
+            "set",
+            "org.gnome.desktop.input-sources",
+            "current",
+            "1",
+        ] in commands
+        assert [
+            "/usr/bin/gdbus",
+            "call",
+            "--session",
+            "--dest",
+            "org.gnome.Shell",
+            "--object-path",
+            "/org/gnome/Shell",
+            "--method",
+            "org.gnome.Shell.Eval",
+            "imports.ui.status.keyboard.getInputSourceManager().inputSources[1].activate()",
+        ] in commands
+
+    def test_is_available_requires_gnome_and_gdbus(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
+        monkeypatch.setattr(
+            kbl_state,
+            "_run",
+            lambda cmd: GNOME_SOURCES if cmd[0] == "gsettings" else None,
+        )
+        assert GnomeBackend().is_available()
+
+    def test_is_available_false_outside_gnome(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.UNKNOWN)
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: GNOME_SOURCES)
+        assert not GnomeBackend().is_available()
+
+    def test_active_source_falls_back_to_mru_and_first_xkb(self, monkeypatch):
+        backend = GnomeBackend()
+
+        def mock_run_mru(cmd):
+            if cmd[-1] == "current":
+                return "uint32 99"
+            if cmd[-1] == "mru-sources":
+                return GNOME_MRU_SOURCES
+            return GNOME_SOURCES
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run_mru)
+        assert (
+            backend._active_source_code(sources=[("xkb", "us"), ("xkb", "br")]) == "br"
+        )
+
+        def mock_run_first(cmd):
+            if cmd[-1] == "current":
+                return "none"
+            if cmd[-1] == "mru-sources":
+                return "[('ibus', 'anthy')]"
+            return GNOME_SOURCES
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run_first)
+        assert (
+            backend._active_source_code(sources=[("ibus", "anthy"), ("xkb", "us")])
+            == "us"
+        )
+        assert backend._current_index() == -1
+
+    def test_query_without_active_uses_available_first(self, monkeypatch):
+        monkeypatch.setattr(GnomeBackend, "_sources", lambda self: [("xkb", "us")])
+        monkeypatch.setattr(
+            GnomeBackend, "_active_source_code", lambda self, sources: ""
+        )
+
+        assert GnomeBackend().query() == kbl_state.LayoutState("us", ["us"])
+
+    def test_switch_without_gdbus_and_no_match(self, monkeypatch):
+        commands = []
+        monkeypatch.setattr(
+            GnomeBackend,
+            "_sources",
+            lambda self: [("ibus", "anthy"), ("xkb", "br")],
+        )
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: commands.append(cmd) or None)
+
+        GnomeBackend().switch(layout_code="br")
+        GnomeBackend().switch(layout_code="de")
+
+        assert [
+            "gsettings",
+            "set",
+            "org.gnome.desktop.input-sources",
+            "current",
+            "1",
+        ] in commands
+
 
 # ---------------------------------------------------------------------------
 # XkbBackend
@@ -227,6 +589,123 @@ class TestXkbBackend:
         XkbBackend().switch(layout_code="es")
         assert ["setxkbmap", "-layout", "es"] in commands
 
+    def test_query_empty_and_missing_layout(self, monkeypatch):
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        assert XkbBackend().query() == kbl_state.LayoutState("", [])
+
+        monkeypatch.setattr(kbl_state, "_run", lambda cmd: "rules: evdev")
+        assert XkbBackend().query() == kbl_state.LayoutState("", [])
+
+    def test_run_falls_back_to_host_command_in_flatpak(self, monkeypatch):
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **_kwargs):
+            calls.append(cmd)
+            if cmd == ["setxkbmap", "-query"]:
+                raise OSError("missing in sandbox")
+            if cmd == [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "setxkbmap",
+                "-query",
+            ]:
+                return subprocess.CompletedProcess(cmd, 0, stdout=SETXKBMAP_MULTI)
+            raise AssertionError(cmd)
+
+        monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            kbl_state.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
+
+        assert _run(["setxkbmap", "-query"]) == SETXKBMAP_MULTI.strip()
+        assert calls == [
+            ["setxkbmap", "-query"],
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "setxkbmap",
+                "-query",
+            ],
+        ]
+
+    def test_run_falls_back_to_host_after_sandbox_command_failure(self, monkeypatch):
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **_kwargs):
+            calls.append(cmd)
+            if cmd == ["gsettings", "get", "schema", "key"]:
+                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="missing")
+            if cmd == [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "gsettings",
+                "get",
+                "schema",
+                "key",
+            ]:
+                return subprocess.CompletedProcess(cmd, 0, stdout="'value'\n")
+            raise AssertionError(cmd)
+
+        monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            kbl_state.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
+
+        assert _run(["gsettings", "get", "schema", "key"]) == "'value'"
+        assert calls == [
+            ["gsettings", "get", "schema", "key"],
+            [
+                "/usr/bin/flatpak-spawn",
+                "--host",
+                "env",
+                "-u",
+                "GIO_USE_VFS",
+                "-u",
+                "GI_TYPELIB_PATH",
+                "-u",
+                "GSETTINGS_SCHEMA_DIR",
+                "-u",
+                "XDG_DATA_DIRS",
+                "gsettings",
+                "get",
+                "schema",
+                "key",
+            ],
+        ]
+
 
 # ---------------------------------------------------------------------------
 # detect_backend
@@ -242,6 +721,37 @@ class TestDetectBackend:
         )
         backend = detect_backend()
         assert isinstance(backend, IBusBackend)
+
+    def test_prefers_gnome_over_ibus_in_gnome_session(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
+
+        def mock_run(cmd):
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "current",
+            ]:
+                return "uint32 0"
+            if cmd == ["ibus", "engine"]:
+                return "xkb:us::eng"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
+        )
+        backend = detect_backend()
+        assert isinstance(backend, GnomeBackend)
 
     def test_falls_back_to_fcitx5(self, monkeypatch):
         def mock_run(cmd):
@@ -272,6 +782,92 @@ class TestDetectBackend:
         monkeypatch.setattr(kbl_state, "_run", mock_run)
         backend = detect_backend()
         assert isinstance(backend, XkbBackend)
+
+    def test_prefers_mate_before_xkb(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.MATE)
+
+        def mock_run(cmd):
+            if cmd == ["ibus", "engine"]:
+                return None
+            if cmd == ["fcitx5-remote", "-n"]:
+                return None
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     br"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        backend = detect_backend()
+        assert isinstance(backend, MateBackend)
+
+    def test_prefers_mate_before_ibus_in_mate_session(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.MATE)
+
+        def mock_run(cmd):
+            if cmd == ["ibus", "engine"]:
+                return "xkb:us::eng"
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return "['gb', 'br', 'us']"
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     gb,br,us"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        backend = detect_backend()
+        assert isinstance(backend, MateBackend)
+
+    def test_prefers_gnome_before_xkb(self, monkeypatch):
+        _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
+
+        def mock_run(cmd):
+            if cmd == ["ibus", "engine"]:
+                return None
+            if cmd == ["fcitx5-remote", "-n"]:
+                return None
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.mate.peripherals-keyboard-xkb.kbd",
+                "layouts",
+            ]:
+                return None
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "sources",
+            ]:
+                return GNOME_SOURCES
+            if cmd == [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.input-sources",
+                "mru-sources",
+            ]:
+                return GNOME_MRU_SOURCES
+            if cmd == ["setxkbmap", "-query"]:
+                return "layout:     us"
+            return None
+
+        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
+        )
+        backend = detect_backend()
+        assert isinstance(backend, GnomeBackend)
 
 
 # ---------------------------------------------------------------------------
@@ -306,6 +902,109 @@ class TestLabels:
 
     def test_tooltip(self):
         assert tooltip_text(active="br") == "Portuguese (BR)"
+
+
+class TestCommandHelpers:
+    def test_keyboard_settings_command(self, monkeypatch):
+        commands = {
+            "mate-keyboard-properties": None,
+            "gnome-control-center": "/usr/bin/gnome-control-center",
+            "ibus-setup": "/usr/bin/ibus-setup",
+        }
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: commands.get(cmd),
+        )
+        assert keyboard_settings_command() == ["gnome-control-center", "keyboard"]
+
+    def test_current_layout_command(self, monkeypatch):
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: (
+                "/usr/bin/gkbd-keyboard-display"
+                if cmd == "gkbd-keyboard-display"
+                else None
+            ),
+        )
+        assert current_layout_command("br") == ["gkbd-keyboard-display", "-l", "br"]
+        assert current_layout_command("") is None
+
+        monkeypatch.setattr(
+            kbl_state.shutil,
+            "which",
+            lambda cmd: "/usr/bin/tecla" if cmd == "tecla" else None,
+        )
+        assert current_layout_command("") == ["tecla"]
+
+    def test_open_commands(self, monkeypatch):
+        launched: list[list[str]] = []
+        monkeypatch.setattr(
+            kbl_state,
+            "keyboard_settings_command",
+            lambda: ["mate-keyboard-properties"],
+        )
+        monkeypatch.setattr(
+            kbl_state,
+            "current_layout_command",
+            lambda layout_code: ["gkbd-keyboard-display", "-l", layout_code],
+        )
+        monkeypatch.setattr(
+            kbl_state.subprocess,
+            "Popen",
+            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+        )
+        assert open_keyboard_settings() is True
+        assert show_current_layout("us") is True
+        assert launched == [
+            ["mate-keyboard-properties"],
+            ["gkbd-keyboard-display", "-l", "us"],
+        ]
+
+    def test_first_available_and_open_command_failures(self, monkeypatch):
+        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
+        assert _first_available_command((("missing",),)) is None
+        assert _open_command(cmd=None, action="missing") is False
+
+        monkeypatch.setattr(
+            kbl_state.subprocess,
+            "Popen",
+            MagicMock(side_effect=OSError("boom")),
+        )
+        assert _open_command(cmd=["missing"], action="missing") is False
+
+    def test_run_helper_success_failure_and_timeout(self, monkeypatch):
+        monkeypatch.setattr(
+            kbl_state.subprocess,
+            "run",
+            lambda *_args, **_kwargs: subprocess.CompletedProcess(
+                args=["cmd"],
+                returncode=0,
+                stdout=" ok \n",
+            ),
+        )
+        assert kbl_state._run(["cmd"]) == "ok"
+
+        monkeypatch.setattr(
+            kbl_state.subprocess,
+            "run",
+            lambda *_args, **_kwargs: subprocess.CompletedProcess(
+                args=["cmd"],
+                returncode=1,
+                stdout="bad",
+            ),
+        )
+        assert kbl_state._run(["cmd"]) is None
+
+        monkeypatch.setattr(
+            kbl_state.subprocess,
+            "run",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                subprocess.TimeoutExpired("cmd", 1)
+            ),
+        )
+        assert kbl_state._run(["cmd"]) is None
 
 
 # ---------------------------------------------------------------------------
@@ -394,8 +1093,26 @@ class TestKeyboardLayoutApplet:
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
+        monkeypatch.setattr(
+            "docking.applets.keyboardlayout.applet.keyboard_settings_command",
+            lambda: ["mate-keyboard-properties"],
+        )
+        monkeypatch.setattr(
+            "docking.applets.keyboardlayout.applet.current_layout_command",
+            lambda layout_code: ["gkbd-keyboard-display", "-l", layout_code],
+        )
         applet = KeyboardLayoutApplet(icon_size=48)
-        assert len(applet.get_menu_items()) == 2
+        labels = [item.get_label() for item in applet.get_menu_items()]
+        assert labels[0] == "Show Current Layout"
+        assert labels[-1] == "Keyboard Settings"
+        assert "EN - us" in labels
+        assert "BR - br" in labels
+        active_items = [
+            item
+            for item in applet.get_menu_items()
+            if hasattr(item, "get_active") and item.get_active()
+        ]
+        assert [item.get_label() for item in active_items] == ["EN - us"]
 
     def test_no_layout_detected(self, monkeypatch):
         monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)

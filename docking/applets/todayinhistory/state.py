@@ -1,15 +1,28 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and data helpers for the Today in History applet."""
 
 from __future__ import annotations
 
-import html
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
 from typing import Any
-from urllib.request import Request, urlopen
 
+from docking.applets.http import http_get_json
+from docking.applets.text import normalize_text
 from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -24,6 +37,7 @@ _WIKIPEDIA_ENDPOINT = (
 )
 _WIKIPEDIA_SOURCE = "Wikipedia"
 _OFFLINE_SOURCE = _("Offline fallback")
+DEFAULT_FETCH_LIMIT = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,31 +50,11 @@ class HistoryEvent:
     source_label: str = _WIKIPEDIA_SOURCE
 
 
-def normalize_text(text: str) -> str:
-    clean = html.unescape(text).replace("\n", " ").replace("\r", " ").strip()
-    return " ".join(clean.split())
-
-
 def format_history_event(event: HistoryEvent) -> str:
     header = _("{year} - {title}").format(year=event.year, title=event.title)
     if event.summary:
         return "\n".join((header, event.summary))
     return header
-
-
-def _http_get_json(url: str, timeout: float = 8.0) -> Any:
-    request = Request(
-        url=url,
-        headers={
-            "User-Agent": (
-                "DockingTodayInHistoryApplet/1.0 "
-                "(+https://github.com/edumucelli/docking)"
-            )
-        },
-    )
-    with urlopen(request, timeout=timeout) as response:
-        payload = response.read().decode("utf-8", errors="replace")
-    return json.loads(payload)
 
 
 def _date_key(*, month: int, day: int) -> str:
@@ -77,7 +71,8 @@ def _coerce_year(value: object) -> int | None:
     if isinstance(value, str):
         try:
             return int(value.strip())
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid history year value %r: %s", value, exc)
             return None
     return None
 
@@ -214,12 +209,10 @@ def _parse_wikipedia_events(data: Any, limit: int) -> list[HistoryEvent]:
 def fetch_today_in_history(
     month: int,
     day: int,
-    limit: int = 20,
-    http_get_json: Callable[[str], Any] | None = None,
+    limit: int = DEFAULT_FETCH_LIMIT,
 ) -> list[HistoryEvent]:
-    getter = http_get_json or _http_get_json
     try:
-        data = getter(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
+        data = http_get_json(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
         return _parse_wikipedia_events(data=data, limit=limit)
     except Exception as exc:
         log.bind(action="fetch_today_in_history").debug(

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>cc.docking.Docking</id>
+  <name>Docking</name>
+  <summary>Customizable X11 dock with previews, applets, and rich drag and drop</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer_name>Eduardo Mucelli Rezende Oliveira</developer_name>
+  <launchable type="desktop-id">cc.docking.Docking.desktop</launchable>
+  <description>
+    <p>
+      Docking is a lightweight but feature-rich dock for Linux desktop environments
+      built with Python, GTK 3, and Cairo. It focuses on fast launcher workflows,
+      polished hover behavior, and a practical applet system while staying close to
+      the simplicity that makes docks useful in day-to-day desktop work.
+    </p>
+    <p>
+      It supports pinned launchers, running-window indicators, window previews,
+      autohide, drag and drop, folders and files in the dock, theme selection,
+      geometry-aware hover behavior, and a growing built-in applet catalog.
+      Current runtime support targets X11 desktop sessions.
+    </p>
+    <ul>
+      <li>Pin launchers, files, folders, and separators directly in the dock</li>
+      <li>Use hover previews, tooltips, and rich app menus for open windows</li>
+      <li>Customize themes, position, icon behavior, and autohide timing</li>
+      <li>Enable built-in applets such as clock, weather, battery, clipboard, and network</li>
+    </ul>
+  </description>
+  <url type="homepage">https://github.com/edumucelli/docking</url>
+  <url type="bugtracker">https://github.com/edumucelli/docking/issues</url>
+  <url type="vcs-browser">https://github.com/edumucelli/docking</url>
+  <provides>
+    <binary>docking</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="2.1.0" date="2026-06-13" />
+    <release version="1.29.0" date="2026-06-04" />
+    <release version="1.28.0" date="2026-05-30" />
+    <release version="1.27.0" date="2026-05-30" />
+    <release version="1.26.0" date="2026-05-28" />
+    <release version="1.25.1" date="2026-05-24" />
+    <release version="1.25.0" date="2026-05-22" />
+    <release version="1.24.1" date="2026-05-22" />
+    <release version="1.24.0" date="2026-05-21" />
+    <release version="1.23.1" date="2026-05-19" />
+    <release version="1.23.0" date="2026-05-18" />
+    <release version="1.22.0" date="2026-05-17" />
+    <release version="1.21.0" date="2026-05-16" />
+    <release version="1.20.0" date="2026-05-14" />
+    <release version="1.19.0" date="2026-05-13" />
+    <release version="1.18.0" date="2026-05-08" />
+    <release version="1.17.0" date="2026-05-06" />
+    <release version="1.16.0" date="2026-04-30" />
+    <release version="1.15.0" date="2026-04-29" />
+    <release version="1.14.1" date="2026-04-29" />
+    <release version="1.14.0" date="2026-04-28" />
+    <release version="1.13.0" date="2026-04-28" />
+    <release version="1.12.1" date="2026-04-25" />
+    <release version="1.12.0" date="2026-04-24" />
+    <release version="1.11.0" date="2026-04-23" />
+    <release version="1.10.0" date="2026-04-21" />
+    <release version="1.9.13" date="2026-04-20" />
+    <release version="1.9.12" date="2026-04-20" />
+    <release version="1.9.11" date="2026-04-11" />
+    <release version="1.9.10" date="2026-04-10" />
+    <release version="1.9.9" date="2026-04-08" />
+    <release version="1.9.8" date="2026-04-08" />
+    <release version="1.9.7" date="2026-04-08" />
+    <release version="1.9.6" date="2026-04-08" />
+    <release version="1.9.5" date="2026-04-08" />
+    <release version="1.9.4" date="2026-04-08" />
+    <release version="1.9.3" date="2026-04-08" />
+    <release version="1.9.2" date="2026-04-07" />
+    <release version="1.6.0" date="2026-04-03" />
+    <release version="1.5.0" date="2026-04-03" />
+    <release version="1.4.1" date="2026-04-03" />
+    <release version="1.4.0" date="2026-04-02" />
+    <release version="1.3.1" date="2026-03-31" />
+    <release version="1.3.0" date="2026-03-31" />
+    <release version="1.2.9" date="2026-03-31" />
+    <release version="1.2.8" date="2026-03-29" />
+    <release version="1.2.7" date="2026-03-29" />
+    <release version="1.2.6" date="2026-03-29" />
+    <release version="1.2.5" date="2026-03-29" />
+    <release version="1.2.4" date="2026-03-28" />
+    <release version="1.2.3" date="2026-03-28" />
+    <release version="1.2.2" date="2026-03-27" />
+    <release version="1.2.1" date="2026-03-27" />
+    <release version="1.2.0" date="2026-03-27" />
+    <release version="1.1.2" date="2026-03-27" />
+    <release version="1.1.1" date="2026-03-27" />
+    <release version="1.1.0" date="2026-03-26" />
+    <release version="1.0.0" date="2026-03-26" />
+    <release version="0.1.42" date="2026-03-14" />
+    <release version="0.1.41" date="2026-03-14" />
+    <release version="0.1.39" date="2026-03-10" />
+    <release version="0.1.37" date="2026-03-08" />
+    <release version="0.1.36" date="2026-03-08" />
+    <release version="0.1.35" date="2026-03-08" />
+    <release version="0.1.34" date="2026-03-08" />
+    <release version="0.1.33" date="2026-03-08" />
+    <release version="0.1.32" date="2026-03-08" />
+    <release version="0.1.31" date="2026-03-08" />
+  </releases>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/edumucelli/docking/master/images/all.png</image>
+      <caption>Main dock with launchers, previews, and applets</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/edumucelli/docking/master/images/applets.png</image>
+      <caption>Applet catalog and dock customization workflow</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/edumucelli/docking/master/images/preview.png</image>
+      <caption>Window preview popup for multi-window applications</caption>
+    </screenshot>
+  </screenshots>
+</component>

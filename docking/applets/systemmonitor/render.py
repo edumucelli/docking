@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for System Monitor applet."""
 
 from __future__ import annotations
@@ -12,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.systemmonitor.state import cpu_hue_rgb
+from docking.core.math import clamp
 
 RADIUS_PERCENT = 0.9
 
@@ -23,7 +37,8 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
 
     r, g, b = cpu_hue_rgb(cpu=cpu)
     base_alpha = 0.5
-    cpu_clamped = max(0.001, min(cpu * 1.3, 1.0))
+    # *1.3 exaggerates display so ~77% CPU fills the gauge (makes low usage visible)
+    cpu_clamped = clamp(cpu * 1.3, 0.001, 1.0)
 
     # 1. Black underlay
     cr.arc(center, center, radius, 0, math.tau)
@@ -42,6 +57,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     ind = cairo.RadialGradient(center, center, 0, center, center, radius * cpu_clamped)
     ind.add_color_stop_rgba(0, r, g, b, 1.0)
     ind.add_color_stop_rgba(0.2, r, g, b, 1.0)
+    # Warning glow: only activates above ~77% CPU (1.0/1.3)
     edge_alpha = max(0.0, cpu * 1.3 - 1.0)
     ind.add_color_stop_rgba(1.0, r, g, b, edge_alpha)
     cr.set_source(ind)
@@ -66,7 +82,9 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     cr.set_source_rgba(0.8, 0.8, 0.8, 0.75)
     cr.stroke()
 
-    # 6. Memory arc (white, from 9 o'clock counter-clockwise)
+    # 6. Memory arc (white, from 9 o'clock counter-clockwise).
+    # arc_negative draws CCW from pi (9 o'clock); subtracting 2*pi*mem sweeps
+    # proportionally - full memory wraps the entire circle.
     if mem > 0.001:
         cr.set_line_width(size / 32.0)
         cr.arc_negative(

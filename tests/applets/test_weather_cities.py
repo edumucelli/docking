@@ -5,7 +5,7 @@ import gzip
 
 import pytest
 
-from docking.applets.weather.cities import load_cities, search_cities
+from docking.applets.cities import load_cities, search_cities
 
 _FIELDS = ["city_ascii", "lat", "lng", "country", "population"]
 

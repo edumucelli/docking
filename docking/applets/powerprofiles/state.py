@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and backend helpers for Power Profiles applet.
 
 This module intentionally contains most of the applet's complexity so that:
@@ -300,7 +313,8 @@ class PowerProfilesBackend:
             )
             unpacked = result.unpack() if result is not None else ()
             return bool(unpacked[0]) if unpacked else False
-        except GLib.Error:
+        except GLib.Error as exc:
+            log.debug("PowerProfiles NameHasOwner failed: %s", exc)
             return False
 
     def _get_all_properties(self) -> dict[str, Any] | None:
@@ -378,7 +392,7 @@ class PowerProfilesBackend:
         """
         extracted: list[str] = []
         raw_profiles = _unpack(props.get("Profiles"))
-        if isinstance(raw_profiles, (list, tuple)):
+        if isinstance(raw_profiles, list | tuple):
             for entry in raw_profiles:
                 if not isinstance(entry, dict):
                     continue
@@ -610,7 +624,8 @@ def _unpack(value: Any) -> Any:
     if hasattr(value, "unpack"):
         try:
             return _unpack(value.unpack())
-        except Exception:
+        except Exception as exc:
+            log.debug("Failed to unpack GLib variant-like value: %s", exc)
             return value
     if isinstance(value, dict):
         return {k: _unpack(v) for k, v in value.items()}

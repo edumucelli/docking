@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Docking
+Comment=A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
+Exec=docking
+Icon=org.docking.Docking
+Categories=Utility;GTK;
+Terminal=false
+StartupNotify=false
+
+X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1
