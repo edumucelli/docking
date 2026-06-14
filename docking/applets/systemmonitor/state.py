@@ -1,11 +1,33 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and parsing helpers for System Monitor applet."""
 
 from __future__ import annotations
 
 import colorsys
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
+from docking.applets.systemmonitor.gpu import GpuStats, gpu_summary
+from docking.applets.temperature import (
+    TemperatureUnit,
+    format_temperature,
+    normalize_temperature_unit,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -20,6 +42,36 @@ class CpuSample(NamedTuple):
 
     total: int
     idle: int
+
+
+@dataclass(frozen=True, slots=True)
+class SystemMonitorPrefs:
+    """Persisted System Monitor applet preferences."""
+
+    show_disk: bool = True
+    temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS
+
+
+def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> SystemMonitorPrefs:
+    """Build preferences from persisted values."""
+    if not prefs:
+        return SystemMonitorPrefs()
+    return SystemMonitorPrefs(
+        show_disk=bool(prefs.get("show_disk", True)),
+        temperature_unit=normalize_temperature_unit(prefs.get("temperature_unit")),
+    )
+
+
+def prefs_payload(
+    *,
+    show_disk: bool,
+    temperature_unit: TemperatureUnit,
+) -> dict[str, object]:
+    """Build payload used by save_prefs()."""
+    return {
+        "show_disk": show_disk,
+        "temperature_unit": normalize_temperature_unit(temperature_unit).value,
+    }
 
 
 def parse_proc_stat(text: str) -> CpuSample:
@@ -107,17 +159,31 @@ def tooltip_text(
     mem: float,
     temperature_c: float | None = None,
     disks: list[tuple[str, float]] | None = None,
+    gpu: GpuStats | None = None,
+    temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) -> str:
     """Build tooltip text for current cpu/memory values."""
-    text = _("CPU: {cpu}% | Mem: {mem}%").format(
+    primary = _("CPU: {cpu}% | Mem: {mem}%").format(
         cpu=f"{cpu * 100:.1f}", mem=f"{mem * 100:.1f}"
     )
     if temperature_c is not None:
-        text = _("{text} | Temp: {temp}°C").format(
-            text=text,
-            temp=f"{temperature_c:.1f}",
+        primary = _("{text} | Temp: {temp}").format(
+            text=primary,
+            temp=format_temperature(
+                temperature_c,
+                temperature_unit=temperature_unit,
+                precision=1,
+            ),
         )
+    details = []
+    gpu_line = gpu_summary(gpu)
+    if gpu_line:
+        details.append(gpu_line)
     if disks:
         parts = [f"{mount}: {pct * 100:.0f}%" for mount, pct in disks]
-        text += "\n" + _("Disk: {usage}").format(usage="  ".join(parts))
-    return text
+        details.append(_("Disk: {usage}").format(usage="  ".join(parts)))
+    return structured_tooltip(
+        title=_("System Monitor"),
+        primary=primary,
+        details=details,
+    )

@@ -1,0 +1,152 @@
+{
+  "app-id": "cc.docking.Docking",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "46",
+  "sdk": "org.gnome.Sdk",
+  "command": "docking",
+  "build-options": {
+    "build-args": [
+      "--share=network"
+    ]
+  },
+  "finish-args": [
+    "--share=network",
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=x11",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--filesystem=host",
+    "--talk-name=org.freedesktop.Notifications",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--system-talk-name=org.freedesktop.NetworkManager",
+    "--system-talk-name=org.freedesktop.UDisks2"
+  ],
+  "modules": [
+    {
+      "name": "libwnck",
+      "buildsystem": "meson",
+      "config-opts": [
+        "--libdir=lib",
+        "-Dgtk_doc=false"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://download.gnome.org/sources/libwnck/43/libwnck-43.3.tar.xz",
+          "sha256": "6af8ac41a8f067ade1d3caaed254a83423b5f61ad3f7a460fcacbac2e192bdf7"
+        }
+      ]
+    },
+    {
+      "name": "libndp",
+      "buildsystem": "autotools",
+      "config-opts": [
+        "--disable-static"
+      ],
+      "cleanup": [
+        "/bin",
+        "/share/man"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "http://libndp.org/files/libndp-1.9.tar.gz",
+          "sha256": "a8ab214e01dc3a9b615276905395637f391298c84d77651f0cbf0b1082dd2dd4"
+        }
+      ]
+    },
+    {
+      "name": "gtk-layer-shell",
+      "buildsystem": "meson",
+      "config-opts": [
+        "--libdir=lib",
+        "-Ddocs=false",
+        "-Dexamples=false",
+        "-Dtests=false",
+        "-Dvapi=false"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://github.com/wmww/gtk-layer-shell/archive/refs/tags/v0.10.1.tar.gz",
+          "sha256": "88c3a3e0a5300532f3d368d5df64838a87f1fb85273f22d41df0a6b8d0ec59c6"
+        }
+      ]
+    },
+    {
+      "name": "NetworkManager",
+      "buildsystem": "meson",
+      "config-opts": [
+        "--libdir=lib",
+        "-Ddocs=false",
+        "-Dtests=no",
+        "-Dintrospection=true",
+        "-Dnmcli=false",
+        "-Dnmtui=false",
+        "-Dnm_cloud_setup=false",
+        "-Dpolkit=false",
+        "-Dselinux=false",
+        "-Dsystemd_journal=false",
+        "-Dlibaudit=no",
+        "-Dppp=false",
+        "-Dmodem_manager=false",
+        "-Dovs=false",
+        "-Dconcheck=false",
+        "-Dfirewalld_zone=false",
+        "-Dqt=false",
+        "-Dreadline=none",
+        "-Dcrypto=null",
+        "-Dudev_dir=no",
+        "-Ddbus_conf_dir=/app/etc/dbus-1/system.d",
+        "-Dsystemdsystemunitdir=no",
+        "-Dsession_tracking=no",
+        "-Dsuspend_resume=auto",
+        "-Dnbft=false",
+        "-Dvapi=false"
+      ],
+      "cleanup": [
+        "/bin",
+        "/etc",
+        "/lib/systemd",
+        "/lib/udev",
+        "/sbin",
+        "/share/bash-completion",
+        "/share/dbus-1",
+        "/share/doc",
+        "/share/man",
+        "/var"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/archive/1.54.3/NetworkManager-1.54.3.tar.gz",
+          "sha256": "16c1e954a8598a0afc71c9936a7e4f0ad949522438d96fec63aa1abb6f2207fe"
+        }
+      ]
+    },
+    {
+      "name": "docking",
+      "buildsystem": "simple",
+      "build-commands": [
+        "python3 -m ensurepip --upgrade || true",
+        "bash tools/i18n.sh --compile",
+        "python3 -m pip install --prefix=/app --ignore-installed --no-build-isolation --no-deps \"openmeteo-requests==1.2.0\" \"requests-cache==1.3.1\" \"retry-requests==2.0.0\" \"openmeteo-sdk==1.26.0\" \"requests==2.33.1\" \"cattrs==26.1.0\" \"platformdirs==4.9.6\" \"url-normalize==3.0.0\" \"urllib3==2.7.0\" \"typing-extensions==4.15.0\" \"flatbuffers==25.9.23\" \"charset-normalizer==3.4.7\" \"idna==3.13\" \"certifi==2026.4.22\" \"pywayland==0.4.18\" \"cffi==1.17.1\" \"pycparser==2.22\"",
+        "python3 -m pip install --prefix=/app --no-build-isolation --no-deps .",
+        "mv /app/bin/docking /app/bin/docking-real",
+        "install -Dm755 /dev/stdin /app/bin/docking <<'EOF'\n#!/bin/sh\nset -eu\nif [ -z \"${XDG_STATE_HOME:-}\" ] && [ -n \"${XDG_DATA_HOME:-}\" ]; then\n  export XDG_STATE_HOME=\"${XDG_DATA_HOME}/state\"\nfi\nexec /app/bin/docking-real \"$@\"\nEOF",
+        "install -Dm644 packaging/flatpak/cc.docking.Docking.desktop /app/share/applications/cc.docking.Docking.desktop",
+        "install -Dm644 packaging/flatpak/cc.docking.Docking.metainfo.xml /app/share/metainfo/cc.docking.Docking.metainfo.xml",
+        "install -Dm644 packaging/flatpak/hicolor.index.theme /app/share/icons/hicolor/index.theme",
+        "for size in 16 24 32 48 64 128 256 512; do install -Dm644 \"packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png\" \"/app/share/icons/hicolor/${size}x${size}/apps/cc.docking.Docking.png\"; done",
+        "install -Dm644 packaging/deb/icons/hicolor/symbolic/apps/org.docking.Docking-symbolic.svg /app/share/icons/hicolor/symbolic/apps/cc.docking.Docking-symbolic.svg"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../.."
+        }
+      ]
+    }
+  ]
+}

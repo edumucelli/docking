@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Configuration schema, defaults, normalization, loading, and saving.
 
 What configuration means in this project
@@ -137,17 +150,20 @@ import threading
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import unquote, urlparse
 
 from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
+from docking.core.paths import ensure_parent_dir
 from docking.core.position import Position
 from docking.log import get_logger
+from docking.platform.environment import docking_config_dir
 
-DEFAULT_CONFIG_DIR = (
-    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
-)
+if TYPE_CHECKING:
+    from docking.core.theme import Theme
+
+DEFAULT_CONFIG_DIR = docking_config_dir()
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 DEFAULT_CONFIG_BACKUP_FILE = DEFAULT_CONFIG_DIR / "dock.json.bak"
 
@@ -251,6 +267,8 @@ DEFAULT_ANCHOR_APPLETS = False
 DEFAULT_ANCHOR_FILES = False
 DEFAULT_TOOLTIPS_ENABLED = True
 DEFAULT_ACTIVE_DISPLAY = False
+DEFAULT_UPDATE_CHECK_ENABLED = True
+DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 24
 DEFAULT_THEME = "default"
 DEFAULT_TRANSPARENCY = 1.0
 MIN_ICON_SIZE = 32
@@ -259,6 +277,13 @@ MIN_ZOOM_PERCENT = 1.0
 MAX_ZOOM_PERCENT = 4.0
 MIN_TRANSPARENCY = 0.15
 MAX_TRANSPARENCY = 1.0
+DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MIN_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MAX_ADDITIONAL_DISTANCE_FROM_EDGE = 100
+DEFAULT_PRESSURE_REVEAL_ENABLED = False
+DEFAULT_PRESSURE_THRESHOLD = 50
+MIN_PRESSURE_THRESHOLD = 5
+MAX_PRESSURE_THRESHOLD = 500
 
 logger = get_logger("config")
 _SAVE_LOCK = threading.RLock()
@@ -269,7 +294,10 @@ class HideMode(str, Enum):
 
     Mode            Behavior
     ──────────────  ──────────────────────────────────────────────────────
-    NONE            Never hides, reserves struts for window managers.
+    NONE            Never hides, reserves struts so maximized windows
+                    avoid the dock area.
+    ALWAYS_ON_TOP   Never hides, but does not reserve struts — maximized
+                    windows fill the full screen and the dock floats above.
     AUTOHIDE        Hides when the mouse leaves the dock area.
     INTELLIGENT     Hides when any window from the active app overlaps
                     the dock (matched by WM_CLASS).
@@ -289,6 +317,7 @@ class HideMode(str, Enum):
     """
 
     NONE = "none"
+    ALWAYS_ON_TOP = "always-on-top"
     AUTOHIDE = "autohide"
     INTELLIGENT = "intelligent"
     DODGE_ACTIVE = "dodge-active"
@@ -430,9 +459,24 @@ class FolderStackUnfold(str, Enum):
     HOVER = "hover"
 
 
+class WindowListSort(str, Enum):
+    """Sort order for open windows in the right-click context menu.
+
+    Mode           Behavior
+    ─────────────  ──────────────────────────────────────────────────────
+    DEFAULT        Windows appear in scan order (the order they were discovered).
+    ALPHABETICAL   Windows are sorted alphabetically by title.
+    """
+
+    DEFAULT = "default"
+    ALPHABETICAL = "alphabetical"
+
+
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
-DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.CLICK.value
+DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.HOVER.value
+DEFAULT_WINDOW_LIST_SORT = WindowListSort.DEFAULT.value
+DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
 
 
 def _normalize_left_click_action(value: object) -> str:
@@ -471,10 +515,24 @@ def _normalize_folder_stack_unfold(value: object) -> str:
             logger.warning(
                 "Invalid folder stack unfold mode %r; using default %r (%s)",
                 value,
-                FolderStackUnfold.CLICK.value,
+                DEFAULT_FOLDER_STACK_UNFOLD,
                 exc,
             )
-    return FolderStackUnfold.CLICK.value
+    return DEFAULT_FOLDER_STACK_UNFOLD
+
+
+def _normalize_window_list_sort(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return WindowListSort(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid window list sort %r; using default %r (%s)",
+                value,
+                DEFAULT_WINDOW_LIST_SORT,
+                exc,
+            )
+    return DEFAULT_WINDOW_LIST_SORT
 
 
 @dataclass
@@ -693,16 +751,34 @@ class Config:
     tooltips_enabled: bool = DEFAULT_TOOLTIPS_ENABLED
     # Whether the dock follows the cursor across monitors
     active_display: bool = DEFAULT_ACTIVE_DISPLAY
+    # Whether Docking checks GitHub for newer releases
+    update_check_enabled: bool = DEFAULT_UPDATE_CHECK_ENABLED
+    # Minimum hours between automatic update checks
+    update_check_interval_hours: int = DEFAULT_UPDATE_CHECK_INTERVAL_HOURS
     # Left-click behavior for running apps
     left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
     # Middle-click behavior for app items
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
     # How pinned folder stacks open from the dock
     folder_stack_unfold: str = DEFAULT_FOLDER_STACK_UNFOLD
+    # Sort order for open windows in the right-click context menu
+    window_list_sort: str = DEFAULT_WINDOW_LIST_SORT
+    # Whether running application indicators show a numeric window count
+    show_window_count_numbers: bool = DEFAULT_SHOW_WINDOW_COUNT_NUMBERS
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
     # Multiplier applied to theme alpha values for the dock shelf
     transparency: float = DEFAULT_TRANSPARENCY
+    # Extra pixels added to the theme's distance_from_edge_px. The on-screen
+    # gap between the dock and the screen edge is the sum of the two.
+    additional_distance_from_edge: int = DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE
+    # When True, the hidden dock only reveals after the cursor has pushed
+    # against the screen edge enough to accumulate ``pressure_threshold``
+    # pixels of resisted motion (X11 pointer-barrier "pressure"). Prevents
+    # accidental reveals on multi-monitor setups where the dock edge sits
+    # between two screens.
+    pressure_reveal_enabled: bool = DEFAULT_PRESSURE_REVEAL_ENABLED
+    pressure_threshold: int = DEFAULT_PRESSURE_THRESHOLD
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
@@ -801,6 +877,15 @@ class Config:
             self.active_display,
             default=DEFAULT_ACTIVE_DISPLAY,
         )
+        self.update_check_enabled = _normalize_bool(
+            self.update_check_enabled,
+            default=DEFAULT_UPDATE_CHECK_ENABLED,
+        )
+        self.update_check_interval_hours = _normalize_int(
+            self.update_check_interval_hours,
+            default=DEFAULT_UPDATE_CHECK_INTERVAL_HOURS,
+            minimum=1,
+        )
         self.left_click_action = _normalize_left_click_action(
             self.left_click_action,
         )
@@ -810,8 +895,31 @@ class Config:
         self.folder_stack_unfold = _normalize_folder_stack_unfold(
             self.folder_stack_unfold,
         )
+        self.window_list_sort = _normalize_window_list_sort(
+            self.window_list_sort,
+        )
+        self.show_window_count_numbers = _normalize_bool(
+            self.show_window_count_numbers,
+            default=DEFAULT_SHOW_WINDOW_COUNT_NUMBERS,
+        )
         self.theme = _normalize_theme(self.theme)
         self.transparency = _normalize_transparency(self.transparency)
+        self.additional_distance_from_edge = _normalize_int(
+            self.additional_distance_from_edge,
+            default=DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE,
+            minimum=MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
+            maximum=MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
+        )
+        self.pressure_reveal_enabled = _normalize_bool(
+            self.pressure_reveal_enabled,
+            default=DEFAULT_PRESSURE_REVEAL_ENABLED,
+        )
+        self.pressure_threshold = _normalize_int(
+            self.pressure_threshold,
+            default=DEFAULT_PRESSURE_THRESHOLD,
+            minimum=MIN_PRESSURE_THRESHOLD,
+            maximum=MAX_PRESSURE_THRESHOLD,
+        )
         self.pinned = normalize_pinned_entries(list(self.pinned))
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
@@ -864,7 +972,7 @@ class Config:
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        ensure_parent_dir(path)
         # Write to a sibling temp file and replace in one step so Ctrl+C or
         # process death never leaves the real config half-written.
         backup_path = _backup_path_for(path)
@@ -910,6 +1018,19 @@ class Config:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def effective_edge_gap(theme: Theme, config: Config) -> int:
+    """Total on-screen dock-to-edge gap.
+
+    Sums the theme's baked-in ``distance_from_edge`` (a visual property) and
+    the user's ``additional_distance_from_edge`` config override
+    (a personal preference), clamped to non-negative.
+    """
+    return max(
+        0,
+        int(theme.distance_from_edge) + int(config.additional_distance_from_edge),
+    )
 
 
 def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:

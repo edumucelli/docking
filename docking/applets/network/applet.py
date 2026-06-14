@@ -1,9 +1,23 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for Network applet."""
 
 from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,10 +29,12 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import NM, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.network import meta
 from docking.applets.network.render import create_icon
 from docking.applets.network.state import (
     AvailableNetwork,
+    NetworkState,
     TrafficCounters,
     build_tooltip,
     compute_speeds,
@@ -69,15 +85,8 @@ class NetworkApplet(Applet):
         self._nm_handler_id: int = 0
         self._nm_state_handler_id: int = 0
 
-        # State
-        self._is_connected = False
-        self._is_wifi = False
-        self._ssid = ""
-        self._signal_strength = 0
-        self._iface = ""
-        self._ip_address = ""
-        self._rx_speed = 0.0
-        self._tx_speed = 0.0
+        # Visible state. Frozen so equality gates re-renders.
+        self._state = NetworkState()
         # "download", "upload", or "none"
         self._speed_overlay = "download"
 
@@ -97,11 +106,11 @@ class NetworkApplet(Applet):
         """Load network icon with optional speed overlay."""
         return create_icon(
             size=size,
-            is_connected=self._is_connected,
-            is_wifi=self._is_wifi,
-            signal_strength=self._signal_strength,
-            rx_speed=self._rx_speed,
-            tx_speed=self._tx_speed,
+            is_connected=self._state.is_connected,
+            is_wifi=self._state.is_wifi,
+            signal_strength=self._state.signal_strength,
+            rx_speed=self._state.rx_speed,
+            tx_speed=self._state.tx_speed,
             speed_overlay=self._speed_overlay,
         )
 
@@ -110,59 +119,54 @@ class NetworkApplet(Applet):
 
     def get_menu_items(self) -> list:
         """Show connection info and common network actions."""
-        items = []
-        if self._ssid:
-            header = Gtk.MenuItem(
-                label=_("WiFi: {ssid} ({pct}%)").format(
-                    ssid=self._ssid, pct=self._signal_strength
+        state = self._state
+        status: list[Gtk.MenuItem] = []
+        if state.ssid:
+            status.append(
+                disabled_menu_item(
+                    _("WiFi: {ssid} ({pct}%)").format(
+                        ssid=state.ssid, pct=state.signal_strength
+                    ),
+                    gtk=Gtk,
                 )
             )
-            header.set_sensitive(False)
-            items.append(header)
-        elif self._is_connected:
-            header = Gtk.MenuItem(
-                label=_("Ethernet: {iface}").format(iface=self._iface)
+        elif state.is_connected:
+            status.append(
+                disabled_menu_item(
+                    _("Ethernet: {iface}").format(iface=state.iface),
+                    gtk=Gtk,
+                )
             )
-            header.set_sensitive(False)
-            items.append(header)
         else:
-            header = Gtk.MenuItem(label=_("Not connected"))
-            header.set_sensitive(False)
-            items.append(header)
+            status.append(disabled_menu_item(_("Not connected"), gtk=Gtk))
 
-        if self._ip_address:
-            ip_item = Gtk.MenuItem(label=_("IP: {ip}").format(ip=self._ip_address))
-            ip_item.set_sensitive(False)
-            items.append(ip_item)
+        if state.ip_address:
+            status.append(
+                disabled_menu_item(_("IP: {ip}").format(ip=state.ip_address), gtk=Gtk)
+            )
 
-        if self._is_connected:
-            down = format_speed(bps=self._rx_speed)
-            up = format_speed(bps=self._tx_speed)
-            speed_item = Gtk.MenuItem(label=f"\u2193 {down}  \u2191 {up}")
-            speed_item.set_sensitive(False)
-            items.append(speed_item)
+        if state.is_connected:
+            down = format_speed(bps=state.rx_speed)
+            up = format_speed(bps=state.tx_speed)
+            status.append(disabled_menu_item(f"\u2193 {down}  \u2191 {up}", gtk=Gtk))
 
-        if items:
-            items.append(Gtk.SeparatorMenuItem())
-
+        settings: list[Gtk.MenuItem] = []
         info_cmd = connection_info_command()
         if info_cmd is not None:
             info_item = Gtk.MenuItem(label=_("Connection Information"))
             info_item.connect("activate", lambda _widget: open_connection_info())
-            items.append(info_item)
+            settings.append(info_item)
 
         edit_cmd = edit_connections_command()
         if edit_cmd is not None:
             edit_item = Gtk.MenuItem(label=_("Edit Connections..."))
             edit_item.connect("activate", lambda _widget: open_edit_connections())
-            items.append(edit_item)
+            settings.append(edit_item)
 
+        manage: list[Gtk.MenuItem] = []
         if self._nm_client is not None:
-            if info_cmd is not None or edit_cmd is not None:
-                items.append(Gtk.SeparatorMenuItem())
-
             if self._has_wifi_device():
-                items.append(self._build_available_networks_submenu())
+                manage.append(self._build_available_networks_submenu())
 
                 hidden_item = Gtk.MenuItem(
                     label=_("Connect to Hidden Wi-Fi Network...")
@@ -170,11 +174,11 @@ class NetworkApplet(Applet):
                 hidden_item.connect(
                     "activate", lambda _widget: open_hidden_wifi_settings()
                 )
-                items.append(hidden_item)
+                manage.append(hidden_item)
 
                 new_item = Gtk.MenuItem(label=_("Create New Wi-Fi Network..."))
                 new_item.connect("activate", lambda _widget: open_new_wifi_settings())
-                items.append(new_item)
+                manage.append(new_item)
 
             networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))
             networking_item.set_active(self._nm_client.networking_get_enabled())
@@ -184,7 +188,7 @@ class NetworkApplet(Applet):
                     enabled=widget.get_active()
                 ),
             )
-            items.append(networking_item)
+            manage.append(networking_item)
 
             if self._has_wifi_device():
                 wifi_item = Gtk.CheckMenuItem(label=_("Enable Wi-Fi"))
@@ -196,28 +200,30 @@ class NetworkApplet(Applet):
                         enabled=widget.get_active()
                     ),
                 )
-                items.append(wifi_item)
+                manage.append(wifi_item)
 
             vpn_item = self._build_vpn_connections_submenu()
             if vpn_item is not None:
-                items.append(vpn_item)
+                manage.append(vpn_item)
 
-            items.append(Gtk.SeparatorMenuItem())
+        display = radio_menu_items(
+            choices=(
+                (_("Show Download"), "download"),
+                (_("Show Upload"), "upload"),
+                (_("Hide Speeds"), "none"),
+            ),
+            active_value=self._speed_overlay,
+            on_selected=lambda _widget, value: self._set_speed_overlay(mode=value),
+            gtk=Gtk,
+        )
 
-        for label, mode in [
-            ("Show Download", "download"),
-            ("Show Upload", "upload"),
-            ("Hide Speeds", "none"),
-        ]:
-            mi = Gtk.CheckMenuItem(label=label)
-            mi.set_active(self._speed_overlay == mode)
-            mi.connect(
-                "toggled",
-                lambda _w, m=mode: self._set_speed_overlay(mode=m),
-            )
-            items.append(mi)
-
-        return items
+        return menu_sections(
+            status=status,
+            display=display,
+            manage=manage,
+            settings=settings,
+            gtk=Gtk,
+        )
 
     def _set_speed_overlay(self, mode: str) -> None:
         self._speed_overlay = mode
@@ -236,8 +242,7 @@ class NetworkApplet(Applet):
                 exc,
             )
             return
-        self._update_nm_state()
-        self.present()
+        self._refresh_state()
 
     def _set_wireless_enabled(self, *, enabled: bool) -> None:
         if self._nm_client is None:
@@ -251,8 +256,7 @@ class NetworkApplet(Applet):
                 exc,
             )
             return
-        self._update_nm_state()
-        self.present()
+        self._refresh_state()
 
     def _build_available_networks_submenu(self) -> Gtk.MenuItem:
         item = Gtk.MenuItem(label=_("Available Networks"))
@@ -496,7 +500,7 @@ class NetworkApplet(Applet):
                 "notify::state",
                 self._on_nm_changed,
             )
-            self._update_nm_state()
+            self._refresh_state()
         except GLib.Error:
             log.bind(action="connect_nm").warning(
                 "Could not connect to NetworkManager",
@@ -519,21 +523,21 @@ class NetworkApplet(Applet):
         super().stop()
 
     def _on_nm_changed(self, *_args: object) -> None:
-        """NM active-connections changed: update state immediately."""
-        self._update_nm_state()
-        self.present()
+        """NM active-connections changed: refresh and re-render on change."""
+        self._refresh_state()
 
-    def _update_nm_state(self) -> None:
-        """Read current connection info from NetworkManager."""
+    def _refresh_state(self) -> None:
+        """Recompute the full visible state and present only on change."""
+        new_state = self._compute_nm_state()
+        new_state = self._apply_traffic(state=new_state)
+        if new_state != self._state:
+            self._state = new_state
+            self.present()
+
+    def _compute_nm_state(self) -> NetworkState:
+        """Return a NetworkState reflecting current NetworkManager status."""
         if not self._nm_client:
-            return
-
-        self._is_connected = False
-        self._is_wifi = False
-        self._ssid = ""
-        self._signal_strength = 0
-        self._iface = ""
-        self._ip_address = ""
+            return NetworkState()
 
         # Collect candidates, prioritize wifi > ethernet > other
         best_device: NM.Device | None = None
@@ -554,54 +558,65 @@ class NetworkApplet(Applet):
                     best_device = device
 
         if not best_device:
-            return
+            return NetworkState()
 
-        self._is_connected = True
-        self._iface = best_device.get_iface() or ""
-
-        # IP address
+        iface = best_device.get_iface() or ""
+        ip_address = ""
         ip4_config = best_device.get_ip4_config()
         if ip4_config:
             addrs = ip4_config.get_addresses()
             if addrs:
-                self._ip_address = addrs[0].get_address() or ""
+                ip_address = addrs[0].get_address() or ""
 
-        # WiFi specifics
+        is_wifi = False
+        ssid = ""
+        signal_strength = 0
         if isinstance(best_device, NM.DeviceWifi):
-            self._is_wifi = True
+            is_wifi = True
             ap = best_device.get_active_access_point()
             if ap:
                 ssid_bytes = ap.get_ssid()
                 if ssid_bytes:
-                    self._ssid = ssid_bytes.get_data().decode("utf-8", errors="replace")
-                self._signal_strength = ap.get_strength()
+                    ssid = ssid_bytes.get_data().decode("utf-8", errors="replace")
+                signal_strength = ap.get_strength()
+
+        return NetworkState(
+            is_connected=True,
+            is_wifi=is_wifi,
+            ssid=ssid,
+            signal_strength=signal_strength,
+            iface=iface,
+            ip_address=ip_address,
+            # Traffic speeds get filled in by _apply_traffic; keep previous values
+            # so equality comparison doesn't flap between NM refresh and tick.
+            rx_speed=self._state.rx_speed,
+            tx_speed=self._state.tx_speed,
+        )
 
     def _tick(self) -> bool:
-        """Poll traffic counters and wifi signal."""
-        self._update_nm_state()
-        self._update_traffic()
-        self._update_wifi_signal()
-        self.present()
+        """Poll traffic counters and wifi signal, re-render only on change."""
+        self._refresh_state()
         return True
 
-    def _update_traffic(self) -> None:
-        """Read /proc/net/dev and compute speeds for active interface."""
-        if not self._iface:
-            self._rx_speed = 0.0
-            self._tx_speed = 0.0
-            return
+    def _apply_traffic(self, *, state: NetworkState) -> NetworkState:
+        """Return ``state`` with rx/tx speeds updated from /proc/net/dev."""
+        if not state.iface:
+            self._prev_counters = None
+            return replace(state, rx_speed=0.0, tx_speed=0.0)
         try:
             with _PROC_NET_DEV.open() as f:
                 counters = parse_proc_net_dev(text=f.read())
         except OSError as exc:
             log.debug("Failed to read %s: %s", _PROC_NET_DEV, exc)
-            return
+            return state
 
         now = time.monotonic()
-        current = counters.get(self._iface)
+        current = counters.get(state.iface)
+        rx_speed = state.rx_speed
+        tx_speed = state.tx_speed
         if current and self._prev_counters:
             elapsed = now - self._prev_time
-            self._rx_speed, self._tx_speed = compute_speeds(
+            rx_speed, tx_speed = compute_speeds(
                 prev=self._prev_counters,
                 curr=current,
                 elapsed_s=elapsed,
@@ -609,11 +624,23 @@ class NetworkApplet(Applet):
         if current:
             self._prev_counters = current
         self._prev_time = now
+        # NM may have stale signal strength; refresh while we have the client.
+        signal = self._refresh_wifi_signal(state=state)
+        return NetworkState(
+            is_connected=state.is_connected,
+            is_wifi=state.is_wifi,
+            ssid=state.ssid,
+            signal_strength=signal,
+            iface=state.iface,
+            ip_address=state.ip_address,
+            rx_speed=rx_speed,
+            tx_speed=tx_speed,
+        )
 
-    def _update_wifi_signal(self) -> None:
-        """Re-read wifi signal from NM (access point strength can change)."""
-        if not self._nm_client or not self._is_wifi:
-            return
+    def _refresh_wifi_signal(self, *, state: NetworkState) -> int:
+        """Return the current wifi signal strength, or ``state.signal_strength``."""
+        if not self._nm_client or not state.is_wifi:
+            return state.signal_strength
         for conn in self._nm_client.get_active_connections():
             if conn.get_state() != NM.ActiveConnectionState.ACTIVATED:
                 continue
@@ -621,18 +648,19 @@ class NetworkApplet(Applet):
                 if isinstance(device, NM.DeviceWifi):
                     ap = device.get_active_access_point()
                     if ap:
-                        self._signal_strength = ap.get_strength()
-                    return
+                        return ap.get_strength()
+                    return state.signal_strength
+        return state.signal_strength
 
     def _build_tooltip(self) -> str:
         return build_tooltip(
-            is_connected=self._is_connected,
-            ssid=self._ssid,
-            signal_strength=self._signal_strength,
-            iface=self._iface,
-            ip_address=self._ip_address,
-            rx_speed=self._rx_speed,
-            tx_speed=self._tx_speed,
+            is_connected=self._state.is_connected,
+            ssid=self._state.ssid,
+            signal_strength=self._state.signal_strength,
+            iface=self._state.iface,
+            ip_address=self._state.ip_address,
+            rx_speed=self._state.rx_speed,
+            tx_speed=self._state.tx_speed,
         )
 
     def _has_wifi_device(self) -> bool:

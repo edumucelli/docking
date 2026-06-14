@@ -47,7 +47,7 @@ def _make_hover():
         icon_size=48,
         pos=Position.BOTTOM,
     )
-    theme = SimpleNamespace(item_padding=8, h_padding=10, bottom_padding=12)
+    theme = SimpleNamespace(item_padding=8, horizontal_padding=10, bottom_padding=12)
     tooltip = MagicMock()
     hover = hover_mod.HoverManager(
         window,

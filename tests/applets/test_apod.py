@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -98,8 +97,12 @@ class TestBuildPageUrl:
 
 
 class TestBuildTooltip:
-    def test_loading_state(self):
+    def test_no_data_state(self):
         text = build_tooltip(result=None, error=None)
+        assert "No data yet" in text
+
+    def test_loading_state(self):
+        text = build_tooltip(result=None, error=None, loading=True)
         assert "Loading" in text
 
     def test_error_state(self):
@@ -107,11 +110,16 @@ class TestBuildTooltip:
         assert "network down" in text
 
     def test_full_result(self):
-        text = build_tooltip(result=_sample_result(), error=None)
+        text = build_tooltip(
+            result=_sample_result(),
+            error=None,
+            cadence_seconds=3600,
+        )
         assert "Spiral Galaxy" in text
         assert "NASA" in text
         assert "2026-04-24" in text
         assert "distant spiral" in text
+        assert "Checks every 1 hour" in text
 
 
 class TestPrefsRoundTrip:
@@ -129,17 +137,10 @@ class TestPrefsRoundTrip:
 
 
 class TestFetchToday:
-    def test_parses_successful_response(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("docking.applets.apod.api.CACHE_DIR", tmp_path / "apod")
-
-        def fake_urlopen(req, timeout=None):
+    def _patch_image_download(self, monkeypatch, payload_bytes):
+        def fake_urlopen(_req, timeout=None):
             mock = MagicMock()
-            url = req.full_url if hasattr(req, "full_url") else str(req)
-            if url.startswith("https://api.nasa.gov/"):
-                mock.read.return_value = json.dumps(_SAMPLE_PAYLOAD).encode()
-            else:
-                # JPEG magic bytes are enough for the download path.
-                mock.read.side_effect = [b"\xff\xd8\xff\xe0" + b"\x00" * 512, b""]
+            mock.read.side_effect = [payload_bytes, b""]
             mock.__enter__ = lambda self: self
             mock.__exit__ = lambda self, *a: None
             return mock
@@ -147,6 +148,14 @@ class TestFetchToday:
         monkeypatch.setattr(
             "docking.applets.apod.api.urllib.request.urlopen", fake_urlopen
         )
+
+    def test_parses_successful_response(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("docking.applets.apod.api.CACHE_DIR", tmp_path / "apod")
+        monkeypatch.setattr(
+            "docking.applets.apod.api.http_get_json",
+            lambda url, **_kwargs: _SAMPLE_PAYLOAD,
+        )
+        self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 512)
 
         got = fetch_today()
         assert isinstance(got, ApodResult)
@@ -162,20 +171,10 @@ class TestFetchToday:
         payload["url"] = "https://youtube.com/watch?v=abc"
         payload["thumbnail_url"] = "https://example/thumb.jpg"
 
-        def fake_urlopen(req, timeout=None):
-            mock = MagicMock()
-            url = req.full_url if hasattr(req, "full_url") else str(req)
-            if url.startswith("https://api.nasa.gov/"):
-                mock.read.return_value = json.dumps(payload).encode()
-            else:
-                mock.read.side_effect = [b"\xff\xd8\xff\xe0" + b"\x00" * 64, b""]
-            mock.__enter__ = lambda self: self
-            mock.__exit__ = lambda self, *a: None
-            return mock
-
         monkeypatch.setattr(
-            "docking.applets.apod.api.urllib.request.urlopen", fake_urlopen
+            "docking.applets.apod.api.http_get_json", lambda url, **_kwargs: payload
         )
+        self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 64)
 
         got = fetch_today()
         assert isinstance(got, ApodResult)
@@ -183,24 +182,17 @@ class TestFetchToday:
         assert got.image_url == "https://example/thumb.jpg"
 
     def test_network_failure_returns_error(self, monkeypatch):
-        def boom(req, timeout=None):
+        def boom(*_args, **_kwargs):
             raise OSError("network down")
 
-        monkeypatch.setattr("docking.applets.apod.api.urllib.request.urlopen", boom)
+        monkeypatch.setattr("docking.applets.apod.api.http_get_json", boom)
         got = fetch_today()
         assert isinstance(got, ApodError)
         assert "network down" in got.message
 
     def test_unexpected_payload_returns_error(self, monkeypatch):
-        def fake_urlopen(req, timeout=None):
-            mock = MagicMock()
-            mock.read.return_value = b"[]"
-            mock.__enter__ = lambda self: self
-            mock.__exit__ = lambda self, *a: None
-            return mock
-
         monkeypatch.setattr(
-            "docking.applets.apod.api.urllib.request.urlopen", fake_urlopen
+            "docking.applets.apod.api.http_get_json", lambda url, **_kwargs: []
         )
         got = fetch_today()
         assert isinstance(got, ApodError)
@@ -216,16 +208,55 @@ class TestAppletLifecycle:
             applet = _make_applet(size)
             assert applet.create_icon(size) is not None
 
-    def test_tooltip_initial_loading(self):
+    def test_tooltip_initial_no_data(self):
         applet = _make_applet()
         applet.refresh_tooltip()
-        assert "Loading" in applet.item.name
+        assert "No data yet" in applet.item.name
 
     def test_tooltip_with_result(self):
         applet = _make_applet()
         applet._result = _sample_result()
         applet.refresh_tooltip()
         assert "Spiral Galaxy" in applet.item.name
+
+    def test_start_stop_and_ticks_manage_timers(self, monkeypatch):
+        applet = _make_applet()
+        add = MagicMock(side_effect=[11, 12, 13])
+        removed: list[int] = []
+        monkeypatch.setattr("docking.applets.apod.applet.GLib.timeout_add_seconds", add)
+        monkeypatch.setattr(
+            "docking.applets.apod.applet.GLib.source_remove",
+            lambda timer_id: removed.append(timer_id),
+        )
+        applet._fetch_async = MagicMock()
+
+        applet.start(lambda: None)
+        assert applet._refresh_timer_id == 11
+        assert applet._startup_fetch_timer_id == 12
+
+        assert applet._tick() is True
+        assert applet._run_startup_fetch() is False
+
+        applet._retry_timer_id = 13
+        applet.stop()
+
+        assert removed == [11, 13]
+        assert applet._refresh_timer_id == 0
+        assert applet._retry_timer_id == 0
+        assert applet._startup_fetch_timer_id == 0
+        assert applet._fetch_async.call_count == 2
+
+    def test_run_retry_only_fetches_when_needed(self, monkeypatch):
+        applet = _make_applet()
+        applet._fetch_async = MagicMock()
+        monkeypatch.setattr(applet, "_needs_fetch", lambda: False)
+
+        assert applet._run_retry() is False
+        applet._fetch_async.assert_not_called()
+
+        monkeypatch.setattr(applet, "_needs_fetch", lambda: True)
+        assert applet._run_retry() is False
+        applet._fetch_async.assert_called_once()
 
 
 class TestAppletMenu:
@@ -240,6 +271,7 @@ class TestAppletMenu:
         applet._result = _sample_result()
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert any("Spiral Galaxy" in label for label in labels)
+        assert "Checks every 1 hour" in labels
         assert any("Copy Explanation" in label for label in labels)
 
 
@@ -264,6 +296,85 @@ class TestAppletFetch:
             applet._fetch_async()
         assert applet._result == prev
         assert applet._error == "down"
+
+    def test_fetch_result_and_error_ignore_stale_requests(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 7
+        applet.present = MagicMock()
+
+        assert applet._on_fetch_result(request_id=6, result=_sample_result()) is False
+        assert applet._on_fetch_error(request_id=6, exc=RuntimeError("old")) is False
+
+        applet.present.assert_not_called()
+
+    def test_fetch_error_uses_exception_name_when_message_empty(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 7
+
+        assert applet._on_fetch_error(request_id=7, exc=RuntimeError()) is False
+
+        assert applet._error == "RuntimeError"
+
+    def test_schedule_retry_is_idempotent(self, monkeypatch):
+        applet = _make_applet()
+        add = MagicMock(return_value=42)
+        monkeypatch.setattr("docking.applets.apod.applet.GLib.timeout_add_seconds", add)
+
+        applet._schedule_retry()
+        applet._schedule_retry()
+
+        assert applet._retry_timer_id == 42
+        add.assert_called_once()
+
+    def test_open_page_and_copy_explanation(self, monkeypatch):
+        applet = _make_applet()
+        applet._result = _sample_result(page_url="https://example.test/apod")
+        opened: list[str] = []
+        monkeypatch.setattr(
+            "docking.applets.apod.applet.Gio.AppInfo.launch_default_for_uri",
+            lambda url, _ctx: opened.append(url),
+        )
+
+        applet.on_clicked()
+        assert opened == ["https://example.test/apod"]
+
+        copied: list[str] = []
+
+        class _Clipboard:
+            def set_text(self, text: str, length: int) -> None:
+                copied.append(text)
+                copied.append(str(length))
+
+        monkeypatch.setattr(
+            "docking.applets.apod.applet.Gtk.Clipboard.get",
+            lambda _selection: _Clipboard(),
+        )
+
+        applet._copy_explanation()
+
+        assert copied == ["A distant spiral galaxy.", "-1"]
+
+    def test_open_page_uses_default_and_swallows_launch_error(self, monkeypatch):
+        applet = _make_applet()
+        opened: list[str] = []
+        monkeypatch.setattr(
+            "docking.applets.apod.applet.GLib.Error",
+            RuntimeError,
+            raising=False,
+        )
+
+        def launch(url, _ctx):
+            opened.append(url)
+            raise RuntimeError("no handler")
+
+        monkeypatch.setattr(
+            "docking.applets.apod.applet.Gio.AppInfo.launch_default_for_uri",
+            launch,
+        )
+
+        applet._open_page()
+
+        assert opened == ["https://apod.nasa.gov/"]
 
     def test_needs_fetch_when_date_stale(self):
         applet = _make_applet()
@@ -306,6 +417,96 @@ class TestRenderPixbuf:
 
         pb = render_icon(size=48, cached_path="")
         assert pb is not None
+
+    def test_renders_real_pixbuf_cover_path(self, monkeypatch):
+        import docking.applets.apod.render as render_mod
+
+        pixbuf = render_mod.GdkPixbuf.Pixbuf.new(
+            render_mod.GdkPixbuf.Colorspace.RGB,
+            True,
+            8,
+            48,
+            48,
+        )
+        pixbuf.fill(0x336699FF)
+        monkeypatch.setattr(render_mod, "_load_cover_pixbuf", lambda **_kwargs: pixbuf)
+
+        pb = render_mod.render_icon(
+            size=48,
+            cached_path="/tmp/image.png",
+            warning=True,
+        )
+
+        assert pb is not None
+        assert pb.get_width() == 48
+
+    def test_load_cover_pixbuf_fallback_edges(self, monkeypatch, tmp_path):
+        import docking.applets.apod.render as render_mod
+
+        path = str(tmp_path / "image.png")
+        monkeypatch.setattr(
+            render_mod.GdkPixbuf.Pixbuf,
+            "get_file_info",
+            staticmethod(lambda _path: None),
+        )
+        fallback = MagicMock(return_value="fallback")
+        monkeypatch.setattr(render_mod, "_fallback_scaled_pixbuf", fallback)
+
+        assert render_mod._load_cover_pixbuf(path=path, size=48) == "fallback"
+
+        monkeypatch.setattr(
+            render_mod.GdkPixbuf.Pixbuf,
+            "get_file_info",
+            staticmethod(lambda _path: ("fmt", 0, 10)),
+        )
+        assert render_mod._load_cover_pixbuf(path=path, size=48) == "fallback"
+
+    def test_load_cover_pixbuf_scales_and_crops(self, monkeypatch):
+        import docking.applets.apod.render as render_mod
+
+        class _Pixbuf:
+            def __init__(self, width: int, height: int) -> None:
+                self.width = width
+                self.height = height
+                self.crop: tuple[int, int, int, int] | None = None
+
+            def get_width(self) -> int:
+                return self.width
+
+            def get_height(self) -> int:
+                return self.height
+
+            def new_subpixbuf(self, x: int, y: int, w: int, h: int):
+                self.crop = (x, y, w, h)
+                return self
+
+        scaled = _Pixbuf(96, 48)
+        monkeypatch.setattr(
+            render_mod.GdkPixbuf.Pixbuf,
+            "get_file_info",
+            staticmethod(lambda _path: ("fmt", 100, 50)),
+        )
+        monkeypatch.setattr(
+            render_mod.GdkPixbuf.Pixbuf,
+            "new_from_file_at_scale",
+            staticmethod(lambda _path, _w, _h, _preserve: scaled),
+        )
+
+        assert render_mod._load_cover_pixbuf(path="/tmp/img", size=48) is scaled
+        assert scaled.crop == (24, 0, 48, 48)
+
+    def test_fallback_scaled_pixbuf_returns_none_on_error(self, monkeypatch):
+        import docking.applets.apod.render as render_mod
+
+        monkeypatch.setattr(
+            render_mod.GdkPixbuf.Pixbuf,
+            "new_from_file_at_scale",
+            staticmethod(
+                lambda *_args: (_ for _ in ()).throw(render_mod.GLib.Error("bad"))
+            ),
+        )
+
+        assert render_mod._fallback_scaled_pixbuf(path="/bad", size=48) is None
 
 
 class TestAppletResponseStream:

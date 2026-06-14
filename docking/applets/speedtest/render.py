@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for speedtest applet icon."""
 
 from __future__ import annotations
@@ -13,6 +26,7 @@ from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 from docking.applets.speedtest.state import format_speed, speed_tier
+from docking.core.math import clamp
 
 # Visible tick positions along the dial (0.0..1.0).
 _TICK_STEPS = (0.0, 0.25, 0.5, 0.75, 1.0)
@@ -97,7 +111,7 @@ def _draw_needle(
     tier: str,
 ) -> None:
     cx, cy, radius = _dial_center(size)
-    fraction = max(0.0, min(1.0, download_mbps / _NEEDLE_FULL_SCALE_MBPS))
+    fraction = clamp(download_mbps / _NEEDLE_FULL_SCALE_MBPS, 0.0, 1.0)
     angle = math.pi + fraction * math.pi
 
     length = radius - size * 0.04

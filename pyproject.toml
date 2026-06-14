@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docking"
-version = "1.12.1"
+version = "2.1.0"
 description = "A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
@@ -19,14 +19,17 @@ docking = "docking.app:main"
 docking-camshield-helper = "docking.applets.camshield.helper:main"
 
 [project.optional-dependencies]
+wayland = [
+    "pywayland>=0.4.18",
+]
 dev = [
     "behave>=1.2.6",
     "Pillow>=11.0",
     "pytest>=7.0",
     "pytest-cov",
-    "ruff==0.15.11",
+    "ruff==0.15.16",
     "scikit-image>=0.25",
-    "ty==0.0.22",
+    "ty==0.0.48",
     "vulture>=2.16",
 ]
 
@@ -42,11 +45,12 @@ docking = [
     "assets/icons/*.png",
     "assets/icons/applets/*.png",
     "assets/themes/*.json",
-    "assets/weather/*.csv.gz",
+    "assets/*.csv.gz",
     "assets/sounds/*.ogg",
     "assets/sounds/*.md",
     "assets/history/*.json",
     "assets/stretch/*.json",
+    "platform/backends/wayland/protocols/*.xml",
     "locale/*.pot",
     "locale/*/LC_MESSAGES/*.mo",
     "locale/*/LC_MESSAGES/*.po",

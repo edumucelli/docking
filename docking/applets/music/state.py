@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and backend helpers for music control applet."""
 
 from __future__ import annotations
@@ -10,6 +23,7 @@ from typing import Any
 
 import gi
 
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 
 gi.require_version("Gio", "2.0")
@@ -124,19 +138,25 @@ def _icon_name_from_bus_name(bus_name: str) -> str:
 def tooltip_text(state: MusicState) -> str:
     """Detailed tooltip text for the music applet."""
     if not state.available:
-        return _("Music: No active player")
+        return structured_tooltip(
+            title=_("Music"),
+            primary=_("No active player"),
+        )
 
-    lines: list[str] = []
     details = " - ".join(part for part in [state.artist, state.title] if part)
+    primary = None
     if details:
-        lines.append(details)
+        primary = details
     elif state.title:
-        lines.append(state.title)
+        primary = state.title
+    secondary = []
     if state.album:
-        lines.append(f"Album: {state.album}")
-    if not lines:
-        return _("Music")
-    return "\n".join(lines)
+        secondary.append(f"Album: {state.album}")
+    return structured_tooltip(
+        title=_("Music"),
+        primary=primary,
+        details=secondary,
+    )
 
 
 def _unpack(value: Any) -> Any:

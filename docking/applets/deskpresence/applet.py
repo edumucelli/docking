@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for desk-presence applet."""
 
 from __future__ import annotations
@@ -15,7 +28,6 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.deskpresence import meta
-from docking.applets.deskpresence.idle import get_idle_ms
 from docking.applets.deskpresence.render import render_icon
 from docking.applets.deskpresence.state import (
     DEFAULT_POLL_INTERVAL_S,
@@ -28,12 +40,16 @@ from docking.applets.deskpresence.state import (
     prefs_payload,
     state_from_prefs,
 )
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
+from docking.applets.services import AppletServices
+from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.applets.deskpresence.state import PresenceState
     from docking.core.config import Config
+    from docking.platform.backends.base import IdleService
 
 log = with_context(get_logger(name="deskpresence"), applet_id=meta.id)
 
@@ -55,7 +71,7 @@ class DeskpresenceApplet(Applet):
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
-        self._idle_probe: Callable[[], int | None] = get_idle_ms
+        self._idle_service: IdleService | None = None
 
         prefs = prefs_from_mapping(
             config.applet_prefs.get(meta.id, {}) if config else None
@@ -64,6 +80,9 @@ class DeskpresenceApplet(Applet):
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        self._idle_service = services.idle
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         phase = self._pulse_phase if self._state.presence is Presence.AT_DESK else None
@@ -78,35 +97,36 @@ class DeskpresenceApplet(Applet):
         self.item.name = build_tooltip(state=self._state, now_epoch=time.time())
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
-        header = Gtk.MenuItem(
-            label=_("{status}").format(
-                status=_presence_text(self._state.presence),
+        status = [
+            disabled_menu_item(
+                _("{status}").format(
+                    status=_presence_text(self._state.presence),
+                ),
+                gtk=Gtk,
             )
+        ]
+
+        threshold = radio_submenu(
+            label=_("Idle Threshold"),
+            choices=tuple(
+                (_threshold_label(preset_s), preset_s)
+                for preset_s in _IDLE_THRESHOLD_PRESETS_S
+            ),
+            active_value=self._state.idle_threshold_s,
+            is_active=lambda value: abs(self._state.idle_threshold_s - value) < 0.5,
+            on_selected=lambda _widget, value: self._set_threshold(seconds=value),
+            gtk=Gtk,
         )
-        header.set_sensitive(False)
-        items.append(header)
-        items.append(Gtk.SeparatorMenuItem())
-
-        threshold_root = Gtk.MenuItem(label=_("Idle Threshold"))
-        threshold_menu = Gtk.Menu()
-        for preset_s in _IDLE_THRESHOLD_PRESETS_S:
-            item = Gtk.CheckMenuItem(label=_threshold_label(preset_s))
-            item.set_active(abs(self._state.idle_threshold_s - preset_s) < 0.5)
-            item.connect(
-                "activate",
-                lambda _w, v=preset_s: self._set_threshold(seconds=v),
-            )
-            threshold_menu.append(item)
-        threshold_root.set_submenu(threshold_menu)
-        items.append(threshold_root)
 
         reset = Gtk.MenuItem(label=_("Reset Today"))
         reset.connect("activate", lambda _w: self._reset_today())
-        items.append(reset)
 
-        return items
+        return menu_sections(
+            status=status,
+            display=[threshold],
+            destructive=[reset],
+            gtk=Gtk,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
@@ -132,7 +152,12 @@ class DeskpresenceApplet(Applet):
         return False
 
     def _tick(self) -> bool:
-        idle_ms = self._idle_probe()
+        idle_seconds = (
+            self._idle_service.idle_seconds()
+            if self._idle_service is not None
+            else None
+        )
+        idle_ms = int(idle_seconds * 1000) if idle_seconds is not None else None
         apply_tick(
             state=self._state,
             idle_ms=idle_ms,
@@ -167,7 +192,7 @@ class DeskpresenceApplet(Applet):
         return True
 
     def _set_threshold(self, *, seconds: float) -> None:
-        clamped = max(MIN_IDLE_THRESHOLD_S, min(MAX_IDLE_THRESHOLD_S, seconds))
+        clamped = clamp(seconds, MIN_IDLE_THRESHOLD_S, MAX_IDLE_THRESHOLD_S)
         self._state.idle_threshold_s = clamped
         self._save_prefs()
         self.present()

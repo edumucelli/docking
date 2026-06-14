@@ -72,10 +72,11 @@ class _ScenarioHarness:
             hide_delay_ms=0,
             unhide_delay_ms=0,
             hide_time_ms=250,
+            additional_distance_from_edge=0,
         )
         self.theme = SimpleNamespace(
             item_padding=8,
-            h_padding=12,
+            horizontal_padding=12,
             top_padding=0,
             bottom_padding=4,
             shelf_height=21,
@@ -112,6 +113,7 @@ class _ScenarioHarness:
         self.preview = None
         self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
+        self.surface_service = MagicMock()
         self.renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         self.autohide = SimpleNamespace(
             enabled=True,
@@ -408,7 +410,10 @@ class TestMenuLifecycleScenarios:
                     insertion_index_for_main=lambda *_args, **_kwargs: 0,
                 )
 
-        runtime = DockRuntime(cast(Any, harness))
+        runtime = DockRuntime(
+            cast(Any, harness),
+            update_checker=MagicMock(),
+        )
         handler = MenuHandler(
             about=MagicMock(),
             settings=MagicMock(),
@@ -416,7 +421,9 @@ class TestMenuLifecycleScenarios:
             model=harness.model,
             config=cast(Any, harness.config),
             window_tracker=harness.window_tracker,
+            preview_service=MagicMock(),
             geometry_builder=cast(Any, _GeometryBuilder()),
+            diagnostics=MagicMock(),
         )
         created: list[_FakePopupMenu] = []
 
@@ -529,8 +536,13 @@ class TestPlacementScenarios:
             move=MagicMock(),
             drawing_area=SimpleNamespace(queue_draw=MagicMock()),
             update_input_region=MagicMock(),
+            surface_service=MagicMock(),
+            additional_distance_from_edge=0,
         )
-        controller = placement_mod.DockPlacementController(cast(Any, window))
+        controller = placement_mod.DockPlacementController(
+            cast(Any, window),
+            surface_service=window.surface_service,
+        )
         reposition = MagicMock()
         monkeypatch.setattr(controller, "reposition", reposition)
 

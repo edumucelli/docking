@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Separator applet behavior and config wiring."""
 
 from __future__ import annotations
@@ -10,6 +23,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections, radio_submenu
 from docking.applets.separator import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -119,27 +133,16 @@ class SeparatorApplet(Applet):
         increase.connect("activate", lambda _: self._set_gap(gap=self._gap + STEP))
         decrease = Gtk.MenuItem(label=_("Decrease Gap"))
         decrease.connect("activate", lambda _: self._set_gap(gap=self._gap - STEP))
-        style = Gtk.MenuItem(label=_("Style"))
-        style_menu = Gtk.Menu()
-        style.set_submenu(style_menu)
-
-        line = Gtk.CheckMenuItem(label=_("Line"))
-        line.set_draw_as_radio(True)
-        line.set_active(self._style == STYLE_LINE)
-        line.connect(
-            "toggled",
-            lambda widget: widget.get_active() and self._set_style(STYLE_LINE),
+        style = radio_submenu(
+            label=_("Style"),
+            choices=(
+                (_("Line"), STYLE_LINE),
+                (_("Space"), STYLE_SPACE),
+            ),
+            active_value=self._style,
+            on_selected=lambda _widget, value: self._set_style(value),
+            gtk=Gtk,
         )
-        style_menu.append(line)
-
-        space = Gtk.CheckMenuItem(label=_("Space"))
-        space.set_draw_as_radio(True)
-        space.set_active(self._style == STYLE_SPACE)
-        space.connect(
-            "toggled",
-            lambda widget: widget.get_active() and self._set_style(STYLE_SPACE),
-        )
-        style_menu.append(space)
 
         invert = Gtk.CheckMenuItem(label=_("Invert Color"))
         invert.set_active(self._invert_color)
@@ -147,7 +150,11 @@ class SeparatorApplet(Applet):
             "toggled",
             lambda widget: self._set_invert_color(widget.get_active()),
         )
-        return [increase, decrease, Gtk.SeparatorMenuItem(), style, invert]
+        return menu_sections(
+            primary=[increase, decrease],
+            display=[style, invert],
+            gtk=Gtk,
+        )
 
 
 def _normalized_gap(*, value: object) -> int:

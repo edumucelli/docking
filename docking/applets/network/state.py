@@ -1,13 +1,30 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state/parsing helpers for Network applet."""
 
 from __future__ import annotations
 
 import shutil
 import subprocess
+from dataclasses import dataclass
 from typing import NamedTuple
 
+from docking.applets.tooltip import structured_tooltip
+from docking.applets.units import format_compact_number
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.environment import flatpak
 
 log = get_logger("network.state")
 
@@ -33,6 +50,24 @@ class AvailableNetwork(NamedTuple):
     strength: int
     access_point_path: str
     is_active: bool
+
+
+@dataclass(frozen=True)
+class NetworkState:
+    """Visible state of the Network applet.
+
+    Frozen so equality comparison gates re-rendering: the applet only calls
+    ``present()`` when this value actually changes between polls.
+    """
+
+    is_connected: bool = False
+    is_wifi: bool = False
+    ssid: str = ""
+    signal_strength: int = 0
+    iface: str = ""
+    ip_address: str = ""
+    rx_speed: float = 0.0
+    tx_speed: float = 0.0
 
 
 _CONNECTION_INFO_COMMANDS: tuple[tuple[str, ...], ...] = (
@@ -93,20 +128,25 @@ def format_speed(bps: float) -> str:
     return f"{bps / (1024 * 1024 * 1024):.1f} GB/s"
 
 
+def format_compact_speed(bps: float) -> str:
+    """Format bytes/sec for compact icon labels with explicit byte units."""
+    if bps < 1024:
+        return f"{bps:.0f}B"
+    if bps < 1024 * 1024:
+        return f"{format_compact_number(bps / 1024)}KB"
+    if bps < 1024 * 1024 * 1024:
+        return f"{format_compact_number(bps / (1024 * 1024))}MB"
+    return f"{format_compact_number(bps / (1024 * 1024 * 1024))}GB"
+
+
 def connection_info_command() -> list[str] | None:
     """Return the first available desktop network-info/settings command."""
-    for cmd in _CONNECTION_INFO_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
+    return _available_desktop_command(_CONNECTION_INFO_COMMANDS)
 
 
 def edit_connections_command() -> list[str] | None:
     """Return the first available network-connections editor command."""
-    for cmd in _EDIT_CONNECTIONS_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
+    return _available_desktop_command(_EDIT_CONNECTIONS_COMMANDS)
 
 
 def open_connection_info() -> bool:
@@ -202,18 +242,22 @@ def build_tooltip(
 ) -> str:
     """Multi-line tooltip with connection details."""
     if not is_connected:
-        return _("Network: Not connected")
-    lines = []
-    if ssid:
-        lines.append(f"WiFi: {ssid} ({signal_strength}%)")
-    else:
-        lines.append(f"Ethernet: {iface}")
+        return structured_tooltip(
+            title=_("Network"),
+            primary=_("Not connected"),
+        )
+    primary = f"WiFi: {ssid} ({signal_strength}%)" if ssid else f"Ethernet: {iface}"
+    details = []
     if ip_address:
-        lines.append(f"IP: {ip_address}")
+        details.append(f"IP: {ip_address}")
     down = format_speed(bps=rx_speed)
     up = format_speed(bps=tx_speed)
-    lines.append(f"\u2193 {down}  \u2191 {up}")
-    return "\n".join(lines)
+    details.append(f"\u2193 {down}  \u2191 {up}")
+    return structured_tooltip(
+        title=_("Network"),
+        primary=primary,
+        details=details,
+    )
 
 
 def _open_command(*, cmd: list[str] | None, action: str) -> bool:
@@ -225,3 +269,18 @@ def _open_command(*, cmd: list[str] | None, action: str) -> bool:
         log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
         return False
     return True
+
+
+def _available_desktop_command(
+    candidates: tuple[tuple[str, ...], ...],
+) -> list[str] | None:
+    flatpak_spawn = flatpak.spawn_path()
+    for cmd in candidates:
+        if flatpak_spawn is not None:
+            host_command = flatpak.host_command(list(cmd))
+            if flatpak.host_command_available(cmd[0]) and host_command is not None:
+                return host_command
+            continue
+        if shutil.which(cmd[0]):
+            return list(cmd)
+    return None

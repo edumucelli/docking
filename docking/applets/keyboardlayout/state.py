@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state logic for keyboard layout applet - no GTK/Cairo.
 
 Supports four backends (tried in order):
@@ -13,7 +26,6 @@ Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
 from __future__ import annotations
 
 import ast
-import os
 import re
 import shutil
 import subprocess
@@ -22,6 +34,8 @@ from pathlib import Path
 from typing import NamedTuple
 
 from docking.log import get_logger, with_context
+from docking.platform import environment
+from docking.platform.environment import flatpak
 
 log = with_context(get_logger(name="keyboardlayout"))
 
@@ -159,13 +173,14 @@ def keyboard_settings_command() -> list[str] | None:
 def current_layout_command(layout_code: str) -> list[str] | None:
     """Return the command to show the active keyboard layout, if available."""
     for cmd in _LAYOUT_VIEWER_COMMANDS:
-        if shutil.which(cmd[0]) is None:
+        base_cmd = _available_command(list(cmd))
+        if base_cmd is None:
             continue
         if cmd[0] == "gkbd-keyboard-display":
             if not layout_code:
                 return None
-            return [cmd[0], "-l", layout_code]
-        return list(cmd)
+            return [*base_cmd, "-l", layout_code]
+        return base_cmd
     return None
 
 
@@ -186,6 +201,17 @@ def show_current_layout(layout_code: str) -> bool:
 
 
 def _run(cmd: list[str]) -> str | None:
+    result = _run_direct(cmd=cmd)
+    if result is not None:
+        return result
+    if environment.is_flatpak() and cmd[:2] != ["flatpak-spawn", "--host"]:
+        host_cmd = flatpak.host_command(cmd)
+        if host_cmd is not None:
+            return _run_direct(cmd=host_cmd)
+    return None
+
+
+def _run_direct(cmd: list[str]) -> str | None:
     try:
         result = subprocess.run(
             cmd,
@@ -225,29 +251,6 @@ def _parse_gsettings_string(raw: str | None) -> str:
     except (ValueError, SyntaxError):
         return cleaned.strip("'\"")
     return value if isinstance(value, str) else ""
-
-
-def _desktop_tokens() -> set[str]:
-    values = [
-        os.environ.get("XDG_CURRENT_DESKTOP", ""),
-        os.environ.get("XDG_SESSION_DESKTOP", ""),
-    ]
-    tokens: set[str] = set()
-    for value in values:
-        for token in re.split(r"[:;]", value):
-            normalized = token.strip().lower()
-            if normalized:
-                tokens.add(normalized)
-    return tokens
-
-
-def _is_mate_session() -> bool:
-    return "mate" in _desktop_tokens()
-
-
-def _is_gnome_session() -> bool:
-    tokens = _desktop_tokens()
-    return "gnome" in tokens or "ubuntu" in tokens
 
 
 class LayoutBackend(ABC):
@@ -306,7 +309,7 @@ class GnomeBackend(LayoutBackend):
     name = "gnome"
 
     def is_available(self) -> bool:
-        if not _is_gnome_session():
+        if not environment.is_gnome_session():
             return False
         return bool(self._sources())
 
@@ -512,7 +515,7 @@ class MateBackend(LayoutBackend):
     name = "mate"
 
     def is_available(self) -> bool:
-        if not _is_mate_session():
+        if not environment.is_mate_session():
             return False
         return bool(self._layouts())
 
@@ -577,7 +580,7 @@ class XkbBackend(LayoutBackend):
 def detect_backend() -> LayoutBackend:
     """Return the first available backend, falling back to XKB."""
     backends: list[type[LayoutBackend]]
-    if _is_gnome_session():
+    if environment.is_gnome_session():
         backends = [
             GnomeBackend,
             IBusBackend,
@@ -586,13 +589,22 @@ def detect_backend() -> LayoutBackend:
             XkbBackend,
         ]
     else:
-        backends = [
-            IBusBackend,
-            Fcitx5Backend,
-            MateBackend,
-            GnomeBackend,
-            XkbBackend,
-        ]
+        if environment.is_mate_session():
+            backends = [
+                MateBackend,
+                IBusBackend,
+                Fcitx5Backend,
+                GnomeBackend,
+                XkbBackend,
+            ]
+        else:
+            backends = [
+                IBusBackend,
+                Fcitx5Backend,
+                MateBackend,
+                GnomeBackend,
+                XkbBackend,
+            ]
     for cls in backends:
         backend = cls()
         if backend.is_available():
@@ -636,8 +648,17 @@ def _first_available_command(
     candidates: tuple[tuple[str, ...], ...],
 ) -> list[str] | None:
     for cmd in candidates:
-        if shutil.which(cmd[0]):
-            return list(cmd)
+        command = _available_command(list(cmd))
+        if command is not None:
+            return command
+    return None
+
+
+def _available_command(cmd: list[str]) -> list[str] | None:
+    if shutil.which(cmd[0]):
+        return cmd
+    if flatpak.host_command_available(cmd[0]):
+        return flatpak.host_command(cmd)
     return None
 
 

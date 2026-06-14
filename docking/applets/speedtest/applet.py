@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for speedtest applet."""
 
 from __future__ import annotations
@@ -13,6 +26,8 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.freshness import on_demand_label
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.speedtest import meta
 from docking.applets.speedtest.api import SpeedtestError, run_librespeed
 from docking.applets.speedtest.render import render_icon
@@ -70,27 +85,26 @@ class SpeedtestApplet(Applet):
         self._start_test()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
         header = self._menu_header_label()
         if header:
-            item = Gtk.MenuItem(label=header)
-            item.set_sensitive(False)
-            items.append(item)
-            items.append(Gtk.SeparatorMenuItem())
+            status.append(disabled_menu_item(header, gtk=Gtk))
+
+        status.append(disabled_menu_item(on_demand_label(verb=_("Runs")), gtk=Gtk))
 
         run_item = Gtk.MenuItem(
             label=_("Running...") if self._running else _("Run Test")
         )
         run_item.set_sensitive(not self._running)
         run_item.connect("activate", lambda _w: self._start_test())
-        items.append(run_item)
+        primary = [run_item]
 
         if self._result is not None:
             copy_item = Gtk.MenuItem(label=_("Copy Last Result"))
             copy_item.connect("activate", lambda _w: self._copy_last_result())
-            items.append(copy_item)
+            primary.append(copy_item)
 
-        return items
+        return menu_sections(status=status, primary=primary, gtk=Gtk)
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import types
 from datetime import date
 from unittest.mock import patch
 
@@ -23,6 +24,7 @@ from docking.applets.deskpresence.state import (
     week_at_desk_seconds,
     week_away_seconds,
 )
+from docking.applets.services import AppletServices
 from docking.core.config import Config
 
 
@@ -259,7 +261,11 @@ class TestHistoryPrefs:
             ],
         )
         payload = prefs_payload(state=state)
-        back = prefs_from_mapping(payload)
+        with patch(
+            "docking.applets.deskpresence.state._today_utc",
+            return_value=state.today,
+        ):
+            back = prefs_from_mapping(payload)
         assert len(back.history) == 2
         assert back.history[0].date == "2026-04-23"
         assert back.history[0].at_desk_seconds == 3600.0
@@ -340,7 +346,8 @@ class TestAppletLifecycle:
 class TestAppletTick:
     def test_tick_credits_from_probe(self):
         applet = _make_applet()
-        applet._idle_probe = lambda: 500  # definitely at-desk
+        idle_service = types.SimpleNamespace(idle_seconds=lambda: 0.5)
+        applet.set_services(AppletServices(idle=idle_service))
         applet._state.session_start_epoch = 2000.0
         applet._state.presence = Presence.AT_DESK
         with patch(
@@ -354,7 +361,8 @@ class TestAppletTick:
         applet = _make_applet()
         applet._state.session_start_epoch = 2000.0
         applet._state.presence = Presence.AWAY
-        applet._idle_probe = lambda: 10 * 60 * 1000  # 10 minutes idle
+        idle_service = types.SimpleNamespace(idle_seconds=lambda: 10 * 60.0)
+        applet.set_services(AppletServices(idle=idle_service))
         with patch(
             "docking.applets.deskpresence.applet.time.time", return_value=2020.0
         ):
@@ -363,7 +371,8 @@ class TestAppletTick:
 
     def test_probe_failure_does_not_crash(self):
         applet = _make_applet()
-        applet._idle_probe = lambda: None
+        idle_service = types.SimpleNamespace(idle_seconds=lambda: None)
+        applet.set_services(AppletServices(idle=idle_service))
         applet._tick()
         # No assertion other than surviving; presence becomes UNKNOWN.
         assert applet._state.presence is Presence.UNKNOWN

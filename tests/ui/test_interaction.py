@@ -36,7 +36,9 @@ def _make_window(item: DockItem | None = None):
     window = SimpleNamespace(
         config=SimpleNamespace(pos=Position.BOTTOM),
         model=MagicMock(),
-        theme=SimpleNamespace(item_padding=8, h_padding=10, urgent_glow_time_ms=500),
+        theme=SimpleNamespace(
+            item_padding=8, horizontal_padding=10, urgent_glow_time_ms=500
+        ),
         _menu=MagicMock(),
         tooltip=MagicMock(),
         hover=MagicMock(),
@@ -268,6 +270,36 @@ class TestPointerContainment:
         coordinator = DockInteractionCoordinator(window)
 
         assert coordinator.pointer_inside_input_rect() is False
+
+    def test_pointer_inside_input_rect_prefers_gtk_coordinate_space(self):
+        window, _item = _make_window()
+        window.get_position.return_value = (0, 0)
+        window.surface_service = SimpleNamespace(
+            get_surface_position=lambda: (0, 1000),
+        )
+        pointer = SimpleNamespace(get_position=MagicMock(return_value=(None, 50, 50)))
+        seat = SimpleNamespace(get_pointer=lambda: pointer)
+        display = SimpleNamespace(get_default_seat=lambda: seat)
+        window.get_display.return_value = display
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.pointer_inside_input_rect() is True
+
+    def test_pointer_inside_input_rect_falls_back_to_backend_surface_position(self):
+        window, _item = _make_window()
+        window.get_position.return_value = (0, 0)
+        window.surface_service = SimpleNamespace(
+            get_surface_position=lambda: (100, 1000),
+        )
+        pointer = SimpleNamespace(
+            get_position=MagicMock(return_value=(None, 100, 1050))
+        )
+        seat = SimpleNamespace(get_pointer=lambda: pointer)
+        display = SimpleNamespace(get_default_seat=lambda: seat)
+        window.get_display.return_value = display
+        coordinator = DockInteractionCoordinator(window)
+
+        assert coordinator.pointer_inside_input_rect() is True
 
     def test_point_inside_event_frame_returns_false_without_input_rect(self):
         window, _item = _make_window()

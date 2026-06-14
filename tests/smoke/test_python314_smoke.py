@@ -19,8 +19,10 @@ def _install_fake_gi(monkeypatch):
         PRIORITY_HIGH=100,
         Error=RuntimeError,
         markup_escape_text=lambda text: text,
+        set_prgname=MagicMock(),
         unix_signal_add=MagicMock(),
         idle_add=MagicMock(),
+        timeout_add_seconds=MagicMock(return_value=77),
     )
     fake_gio = SimpleNamespace(
         AppInfo=SimpleNamespace(launch_default_for_uri=MagicMock())
@@ -46,6 +48,14 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     platform_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
 
+    backends_pkg = types.ModuleType("docking.platform.backends")
+    backends_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform.backends", backends_pkg)
+
+    x11_pkg = types.ModuleType("docking.platform.backends.x11")
+    x11_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform.backends.x11", x11_pkg)
+
     ui_pkg = types.ModuleType("docking.ui")
     ui_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
@@ -61,8 +71,8 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
         },
-        "docking.platform.window_tracker": {
-            "WindowTracker": type("WindowTracker", (), {}),
+        "docking.platform.backends.selection": {
+            "create_session_backend": lambda **_kwargs: None,
         },
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
@@ -233,6 +243,12 @@ def test_app_main_smoke(monkeypatch):
     model = MagicMock()
     renderer = MagicMock()
     tracker = MagicMock()
+    preview_service = MagicMock()
+    backend = MagicMock()
+    backend.windows = tracker
+    visibility_service = MagicMock()
+    backend.previews = preview_service
+    backend.visibility = visibility_service
     unity = MagicMock()
     new_year = MagicMock()
     window = MagicMock()
@@ -249,7 +265,11 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(app_mod, "Launcher", MagicMock(return_value=launcher))
     monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
     monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
-    monkeypatch.setattr(app_mod, "WindowTracker", MagicMock(return_value=tracker))
+    monkeypatch.setattr(
+        app_mod,
+        "create_session_backend",
+        MagicMock(return_value=backend),
+    )
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
     monkeypatch.setattr(
         app_mod,
@@ -270,6 +290,8 @@ def test_app_main_smoke(monkeypatch):
 
     new_year.start.assert_called_once()
     new_year.stop.assert_called_once()
+    window.start_update_checks.assert_called_once()
+    window.stop_update_checks.assert_called_once()
 
     fake_gtk.main.assert_called_once()
     assert fake_glib.unix_signal_add.call_count == 2
@@ -287,3 +309,4 @@ def test_app_quit_smoke(monkeypatch):
 
     assert result is False
     fake_gtk.main_quit.assert_called_once()
+    _fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)

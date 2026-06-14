@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and command helpers for screenshot applet."""
 
 from __future__ import annotations
@@ -9,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, NamedTuple
 
-from docking.platform.environment import is_wayland_session
+from docking.platform.environment import flatpak, is_flatpak, is_wayland_session
 
 
 class Tool(NamedTuple):
@@ -33,10 +46,17 @@ _PORTAL_TOOL = Tool(
 )
 _PORTAL_DEST = "org.freedesktop.portal.Desktop"
 _PORTAL_PATH = "/org/freedesktop/portal/desktop"
-_PORTAL_METHOD = "org.freedesktop.portal.Screenshot.Screenshot"
+_PORTAL_INTERFACE = "org.freedesktop.portal.Screenshot"
+_PORTAL_METHOD = f"{_PORTAL_INTERFACE}.Screenshot"
 
 
 _TOOLS: tuple[Tool, ...] = (
+    Tool(
+        command="cosmic-screenshot",
+        full=["--interactive=false"],
+        window=["--interactive=true"],
+        region=["--interactive=true"],
+    ),
     Tool(command="mate-screenshot", full=[], window=["-w"], region=["-a"]),
     Tool(command="gnome-screenshot", full=[], window=["-w"], region=["-a"]),
     Tool(command="xfce4-screenshooter", full=["-f"], window=["-w"], region=["-r"]),
@@ -52,7 +72,7 @@ _TOOLS: tuple[Tool, ...] = (
 
 
 def _portal_available() -> bool:
-    """True when the XDG screenshot portal is reachable via gdbus."""
+    """True when the XDG screenshot portal interface is available via gdbus."""
     gdbus = shutil.which("gdbus")
     if not gdbus:
         return False
@@ -60,22 +80,38 @@ def _portal_available() -> bool:
         result = subprocess.run(
             [
                 gdbus,
-                "call",
+                "introspect",
                 "--session",
                 "--dest",
                 _PORTAL_DEST,
                 "--object-path",
                 _PORTAL_PATH,
-                "--method",
-                "org.freedesktop.DBus.Peer.Ping",
             ],
             capture_output=True,
             text=True,
             timeout=1.5,
         )
-        return result.returncode == 0
+        return (
+            result.returncode == 0 and f"interface {_PORTAL_INTERFACE}" in result.stdout
+        )
     except (OSError, subprocess.TimeoutExpired):
         return False
+
+
+def _detect_flatpak_host_tool() -> Tool | None:
+    flatpak_spawn = flatpak.spawn_path()
+    if flatpak_spawn is None:
+        return None
+    for tool in _TOOLS:
+        if flatpak.host_command_available(tool.command):
+            return Tool(
+                command=tool.command,
+                full=tool.full,
+                window=tool.window,
+                region=tool.region,
+                backend="flatpak-host",
+            )
+    return None
 
 
 def _detect_tool() -> Tool | None:
@@ -85,6 +121,10 @@ def _detect_tool() -> Tool | None:
     for tool in _TOOLS:
         if shutil.which(tool.command):
             return tool
+    if is_flatpak():
+        flatpak_host_tool = _detect_flatpak_host_tool()
+        if flatpak_host_tool is not None:
+            return flatpak_host_tool
     if _portal_available():
         return _PORTAL_TOOL
     return None
@@ -142,14 +182,21 @@ def _portal_args(*, mode: Mode) -> list[str]:
 
 def _launch(*, cmd: list[str], delay_seconds: int) -> None:
     """Launch *cmd* immediately or after a simple in-process delay."""
+    kwargs: dict = {"start_new_session": True}
+    # Suppress stdout/stderr for portal calls — the D-Bus request handle
+    # emitted to stdout is noise to the user and the portal completes
+    # asynchronously.
+    if cmd[0] == "gdbus":
+        kwargs["stdout"] = subprocess.DEVNULL
+        kwargs["stderr"] = subprocess.DEVNULL
     if delay_seconds <= 0:
-        subprocess.Popen(cmd, start_new_session=True)
+        subprocess.Popen(cmd, **kwargs)
         return
     timer = threading.Timer(
         delay_seconds,
         subprocess.Popen,
         args=(cmd,),
-        kwargs={"start_new_session": True},
+        kwargs=kwargs,
     )
     timer.daemon = True
     timer.start()
@@ -162,11 +209,13 @@ def _run(tool: Tool, mode: Mode, delay_seconds: int = 0) -> list[str]:
         _launch(cmd=cmd, delay_seconds=delay_seconds)
     else:
         args = _mode_args(tool=tool, mode=mode)
-        cmd = [
-            tool.command,
-            *args,
-            *_delay_args(tool=tool, delay_seconds=delay_seconds),
-        ]
+        command = [tool.command]
+        if tool.backend == "flatpak-host":
+            command = flatpak.host_command(
+                [tool.command],
+                require_flatpak=False,
+            ) or [tool.command]
+        cmd = [*command, *args, *_delay_args(tool=tool, delay_seconds=delay_seconds)]
         if tool.command == "scrot":
             cmd.append(_scrot_path())
         subprocess.Popen(cmd, start_new_session=True)

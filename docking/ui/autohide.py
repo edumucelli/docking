@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Autohide controller for the dock's visible/hidden state and motion.
 
 Autohide from first principles
@@ -284,7 +297,7 @@ class AutoHideController:
 
     @property
     def enabled(self) -> bool:
-        return self._config.hide_mode != "none"
+        return self._config.hide_mode not in ("none", "always-on-top")
 
     def reset(self) -> None:
         """Force dock visible -- call when auto-hide is toggled off."""

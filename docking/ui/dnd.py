@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Drag-and-drop controller for internal reorder and external application drops.
 
 Why drag-and-drop needs its own controller
@@ -147,10 +160,10 @@ import gi
 
 import docking.platform.launcher as launcher_mod
 from docking.core.config import PinnedEntry
-from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
+from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.ui.display import get_pointer_position
+from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
 
@@ -212,6 +225,10 @@ class DnDHandler:
         self._drop_committed: bool = False  # True after drag-drop fires
 
         self._setup_dnd()
+
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme used for drag-and-drop spacing."""
+        self._theme = theme
 
     def _setup_dnd(self) -> None:
         """Configure GTK drag-and-drop on the drawing area.
@@ -347,11 +364,20 @@ class DnDHandler:
             if changed:
                 self.drop_insert_index = insert
 
-            # Green glow on any app icon under cursor during external drag
+            # Green glow on any compatible target under cursor during external drag
             gap_frame = self._geometry_builder.build_frame(
                 main_cursor=-1.0, drop_insert_index=self.drop_insert_index
             )
-            item = self._drop_target_item_at_point(gap_frame, x=float(x), y=float(y))
+            item = self._drop_target_item_at_point(
+                gap_frame,
+                x=float(x),
+                y=float(y),
+                accepted_kinds=(APP_KIND, APPLET_KIND),
+            )
+            if item is not None and item.kind == APPLET_KIND:
+                applet = self._model.get_applet(item.desktop_id)
+                if applet is None or not applet.accepts_drop_uris():
+                    item = None
             new_target = item.desktop_id if item is not None else ""
             if new_target != self.drop_target_id:
                 self.drop_target_id = new_target
@@ -373,6 +399,12 @@ class DnDHandler:
             log.debug(f"drag-motion: reorder {self.drag_index} -> {new_index}")
             self._model.reorder_visible(self.drag_index, new_index)
             self.drag_index = new_index
+
+        # Track cursor during drag so the renderer can pin the dragged item's
+        # running-indicator dot under the drag ghost instead of letting it drift
+        # to the layout slot center as the model reorders.
+        self._window.cursor_x = float(x)
+        self._window.cursor_y = float(y)
 
         Gdk.drag_status(context, Gdk.DragAction.MOVE, time)
 
@@ -436,6 +468,15 @@ class DnDHandler:
             if text:
                 uris = [line.strip() for line in text.splitlines() if line.strip()]
 
+        # Check if dropped onto an applet that handles file/URI drops.
+        applet_drop = self._try_drop_on_applet(x=x, y=y, uris=uris)
+        if applet_drop is not None:
+            self.drop_insert_index = -1
+            self.drop_target_id = ""
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
+            Gtk.drag_finish(context, applet_drop, False, time)
+            return
+
         # Check if dropped onto a launcher icon -- open files with that app
         if uris and self._try_open_with_launcher(x=x, y=y, uris=uris):
             self.drop_insert_index = -1
@@ -472,12 +513,43 @@ class DnDHandler:
         self._reconcile_autohide_after_drag(reason="drag-data-received")
         Gtk.drag_finish(context, added, False, time)
 
+    def _try_drop_on_applet(self, *, x: int, y: int, uris: list[str]) -> bool | None:
+        """Return drop success for applet targets, or None when not on an applet."""
+        if not uris:
+            return None
+        frame = self._geometry_builder.build_frame(
+            main_cursor=-1.0, drop_insert_index=self.drop_insert_index
+        )
+        item = self._drop_target_item_at_point(
+            frame,
+            x=float(x),
+            y=float(y),
+            accepted_kinds=(APPLET_KIND,),
+        )
+        if item is None:
+            return None
+
+        applet = self._model.get_applet(item.desktop_id)
+        if applet is None or not applet.accepts_drop_uris():
+            return False
+
+        try:
+            return applet.on_drop_uris(uris)
+        except Exception as exc:
+            log.warning("Applet drop handler failed for %s: %s", item.desktop_id, exc)
+            return False
+
     def _try_open_with_launcher(self, *, x: int, y: int, uris: list[str]) -> bool:
         """If drop lands on an app icon, try opening the files with it."""
         frame = self._geometry_builder.build_frame(
             main_cursor=-1.0, drop_insert_index=self.drop_insert_index
         )
-        item = self._drop_target_item_at_point(frame, x=float(x), y=float(y))
+        item = self._drop_target_item_at_point(
+            frame,
+            x=float(x),
+            y=float(y),
+            accepted_kinds=(APP_KIND,),
+        )
         if item is None:
             return False
 
@@ -506,13 +578,18 @@ class DnDHandler:
             return False
 
     def _drop_target_item_at_point(
-        self, frame, *, x: float, y: float
+        self,
+        frame,
+        *,
+        x: float,
+        y: float,
+        accepted_kinds: tuple[str, ...],
     ) -> DockItem | None:
-        """Return the app icon directly under the pointer during an external drop.
+        """Return the target icon directly under the pointer during an external drop.
 
-        External launcher drops should only target the visible app icon itself.
+        External drops should only target the visible icon itself.
         Using the broader item hit rect would make the shelf/background segment
-        under an app steal drops that should land in the insertion gap.
+        under an item steal drops that should land in the insertion gap.
         """
         if not frame.cursor_rect.contains(x=x, y=y):
             return None
@@ -523,7 +600,7 @@ class DnDHandler:
         )
         horizontal = is_horizontal(pos=self._config.pos)
         for index, item_geometry in enumerate(frame.item_geometries):
-            if item_geometry.item.kind != APP_KIND:
+            if item_geometry.item.kind not in accepted_kinds:
                 continue
             draw_rect = item_geometry.draw_rect
             if gap > 0 and index >= self.drop_insert_index:
@@ -582,7 +659,8 @@ class DnDHandler:
             pos = get_pointer_position(display)
             screen_x = pos.x if pos is not None else 0
             screen_y = pos.y if pos is not None else 0
-            win_x, win_y = self._window.get_position()
+            window_pos = window_screen_position(self._window)
+            win_x, win_y = window_pos.x, window_pos.y
             win_w, win_h = self._window.get_size()
 
             # Outside if cursor moved away from the dock edge
@@ -637,11 +715,19 @@ class DnDHandler:
         """Build a pinned DockItem from an external URI drop."""
         desktop_id = self._uri_to_desktop_id(uri)
         icon_size = self._config.scaled_icon_size
+        log.debug("_item_from_uri: uri=%s desktop_id=%s", uri, desktop_id)
         if desktop_id:
             resolved = self._launcher.resolve(desktop_id)
             if resolved is None:
+                log.debug("_item_from_uri: resolve returned None for %s", desktop_id)
                 return None
-            icon = self._launcher.load_icon(resolved.icon_name, icon_size)
+            icon = self._launcher.load_desktop_icon(resolved, icon_size)
+            log.debug(
+                "_item_from_uri: desktop_id=%s icon_name=%s icon_loaded=%s",
+                desktop_id,
+                resolved.icon_name,
+                icon is not None,
+            )
             return DockItem(
                 desktop_id=desktop_id,
                 kind=APP_KIND,

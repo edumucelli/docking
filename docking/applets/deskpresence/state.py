@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and accounting logic for desk-presence applet."""
 
 from __future__ import annotations
@@ -6,8 +19,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
+from docking.core.math import clamp
 from docking.i18n import _
 
 DEFAULT_IDLE_THRESHOLD_S = 120.0
@@ -230,7 +244,8 @@ def _parse_history(raw: object, *, today: date) -> list[DayEntry]:
     for rd in raw:
         if not isinstance(rd, dict):
             continue
-        iso = str(rd.get("date", ""))
+        entry = cast(dict[str, Any], rd)
+        iso = str(entry.get("date", ""))
         if not iso:
             continue
         try:
@@ -242,8 +257,8 @@ def _parse_history(raw: object, *, today: date) -> list[DayEntry]:
             # anything older than the rolling window.
             continue
         try:
-            at_desk = float(rd.get("at_desk_seconds", 0.0))
-            away = float(rd.get("away_seconds", 0.0))
+            at_desk = float(entry.get("at_desk_seconds", 0.0))
+            away = float(entry.get("away_seconds", 0.0))
         except (TypeError, ValueError):
             continue
         parsed.append(
@@ -267,7 +282,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> DeskpresencePrefs:
         threshold = float(prefs.get("idle_threshold_s", DEFAULT_IDLE_THRESHOLD_S))
     except (TypeError, ValueError):
         return DeskpresencePrefs()
-    threshold = max(MIN_IDLE_THRESHOLD_S, min(MAX_IDLE_THRESHOLD_S, threshold))
+    threshold = clamp(threshold, MIN_IDLE_THRESHOLD_S, MAX_IDLE_THRESHOLD_S)
     raw_history = prefs.get("history")
     history = _parse_history(raw_history, today=_today_utc())
     return DeskpresencePrefs(

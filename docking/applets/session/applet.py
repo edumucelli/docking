@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Session applet behavior and GTK wiring."""
 
 from __future__ import annotations
@@ -10,6 +23,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.session import meta
 from docking.i18n import _
 
@@ -26,12 +40,13 @@ class SessionApplet(Applet):
     id = meta.id
     name = _("Session")
     icon_name = "system-log-out"
+    supports_system_icon = True
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size, config)
         self.present()
 
-    def create_icon(self, size: int):
+    def create_docking_icon(self, size: int):
         return create_session_icon(size=size)
 
     def on_clicked(self) -> None:
@@ -39,7 +54,8 @@ class SessionApplet(Applet):
         lock_screen()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        primary: list[Gtk.MenuItem] = []
+        destructive: list[Gtk.MenuItem] = []
         for label, cmd in _ACTIONS:
             mi = Gtk.MenuItem(label=label)
             action = label.lower().replace(" ", "_")
@@ -50,5 +66,8 @@ class SessionApplet(Applet):
                     "activate",
                     lambda _w, c=cmd, a=action: _run(cmd=c, action=a),
                 )
-            items.append(mi)
-        return items
+            if label in (LOCK_SCREEN_LABEL, _("Suspend")):
+                primary.append(mi)
+            else:
+                destructive.append(mi)
+        return menu_sections(primary=primary, destructive=destructive, gtk=Gtk)

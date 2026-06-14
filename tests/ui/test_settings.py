@@ -41,6 +41,7 @@ class FakeLabel:
         self.margin_bottom = 0
         self.line_wrap = False
         self.max_width_chars = -1
+        self.tooltip_text = None
 
     def get_label(self) -> str:
         return self._label
@@ -71,6 +72,9 @@ class FakeLabel:
 
     def set_line_wrap_mode(self, mode: int) -> None:
         pass
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
 
     def get_style_context(self) -> FakeStyleContext:
         return FakeStyleContext()
@@ -340,10 +344,30 @@ class FakeCheckButton(FakeSwitch):
         self.size_request = (width, height)
 
 
+class FakeButton:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+        self.callbacks: dict[str, object] = {}
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+    def click(self) -> None:
+        callback = self.callbacks.get("clicked")
+        if callback is not None:
+            callback(self)
+
+
 class FakeImage:
     def __init__(self, source: object) -> None:
         self.source = source
         self.pixel_size = None
+        self.size_request = None
+        self.tooltip_text = None
+
+    @classmethod
+    def new_from_icon_name(cls, icon_name: str, icon_size):
+        return cls(("icon", icon_name, icon_size))
 
     @classmethod
     def new_from_pixbuf(cls, pixbuf):
@@ -351,6 +375,12 @@ class FakeImage:
 
     def set_pixel_size(self, value: int) -> None:
         self.pixel_size = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
 
 
 class FakePixbuf:
@@ -376,6 +406,77 @@ class FakePixbuf:
             and self.width == other.width
             and self.height == other.height
         )
+
+
+class FakeEventBox:
+    def __init__(self) -> None:
+        self.child = None
+        self.visible_window = True
+        self.size_request = None
+        self.tooltip_text = None
+        self.events = 0
+        self.callbacks: dict[str, object] = {}
+
+    def set_visible_window(self, value: bool) -> None:
+        self.visible_window = value
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+    def add_events(self, events: int) -> None:
+        self.events |= events
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
+
+    def add(self, child) -> None:
+        self.child = child
+
+    def emit_enter(self) -> None:
+        callback = self.callbacks.get("enter-notify-event")
+        if callback is not None:
+            callback(self, object())
+
+    def emit_leave(self) -> None:
+        callback = self.callbacks.get("leave-notify-event")
+        if callback is not None:
+            callback(self, object())
+
+
+class FakePopover:
+    def __init__(self, relative_to) -> None:
+        self.relative_to = relative_to
+        self.child = None
+        self.modal = True
+        self.position = None
+        self.popup_count = 0
+        self.popdown_count = 0
+        self.show_all_count = 0
+
+    @classmethod
+    def new(cls, relative_to):
+        return cls(relative_to)
+
+    def set_modal(self, value: bool) -> None:
+        self.modal = value
+
+    def set_position(self, value) -> None:
+        self.position = value
+
+    def add(self, child) -> None:
+        self.child = child
+
+    def show_all(self) -> None:
+        self.show_all_count += 1
+
+    def popup(self) -> None:
+        self.popup_count += 1
+
+    def popdown(self) -> None:
+        self.popdown_count += 1
 
 
 class FakeScrolledWindow:
@@ -407,6 +508,19 @@ class FakePolicyType:
 
 class FakeAlign:
     CENTER = 0
+
+
+class FakeIconSize:
+    MENU = 0
+
+
+class FakePositionType:
+    TOP = 0
+
+
+class FakeEventMask:
+    ENTER_NOTIFY_MASK = 1
+    LEAVE_NOTIFY_MASK = 2
 
 
 class FakeWindowPosition:
@@ -445,13 +559,22 @@ class FakeGtk:
     Scale = FakeScale
     Switch = FakeSwitch
     CheckButton = FakeCheckButton
+    Button = FakeButton
     Image = FakeImage
+    EventBox = FakeEventBox
+    Popover = FakePopover
     ScrolledWindow = FakeScrolledWindow
     Orientation = FakeOrientation
     PolicyType = FakePolicyType
     Align = FakeAlign
+    IconSize = FakeIconSize
+    PositionType = FakePositionType
     WindowPosition = FakeWindowPosition
     Settings = FakeGtkSettings
+
+
+class FakeGdk:
+    EventMask = FakeEventMask
 
 
 def _config():
@@ -462,6 +585,8 @@ def _config():
         left_click_action="toggle",
         middle_click_action="new-window",
         folder_stack_unfold="click",
+        window_list_sort="default",
+        show_window_count_numbers=False,
         lock_icons=False,
         current_workspace_only=False,
         active_display=False,
@@ -475,13 +600,19 @@ def _config():
         zoom_percent=1.5,
         hide_delay_ms=0,
         unhide_delay_ms=0,
+        update_check_enabled=True,
+        update_check_interval_hours=24,
+        additional_distance_from_edge=0,
+        pressure_reveal_enabled=False,
+        pressure_threshold=50,
         save=MagicMock(),
     )
 
 
 class TestSettingsWindowController:
-    def test_show_reuses_single_window_and_builds_three_tabs(self, monkeypatch):
+    def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
@@ -510,6 +641,7 @@ class TestSettingsWindowController:
             "Appearance",
             "Behavior",
             "Applets",
+            "Updates",
         ]
         appearance_box = stack.pages[0][0]
         section_labels = [
@@ -533,9 +665,17 @@ class TestSettingsWindowController:
             "<b>Behavior</b>",
             "<b>Folder Stacks</b>",
         ]
+        updates_box = stack.pages[3][0]
+        updates_labels = [
+            child.get_children()[0].markup
+            for child in updates_box.get_children()
+            if isinstance(child, FakeBox) and child.get_children()
+        ]
+        assert updates_labels == ["<b>Update Checks</b>"]
 
     def test_numeric_spin_buttons_use_simple_im_context(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
@@ -566,6 +706,7 @@ class TestSettingsWindowController:
 
     def test_hide_controls_exist_only_in_behavior_tab(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
@@ -609,6 +750,69 @@ class TestSettingsWindowController:
         assert "Hide Delay" in behavior_rows
         assert "Unhide Delay" in behavior_rows
         assert "Open On" in behavior_rows
+
+    def test_pressure_threshold_uses_info_icon_tooltip(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+        stack = controller._window.child.children[1]
+        behavior_box = stack.pages[1][0]
+
+        pressure_row = None
+        for section in behavior_box.get_children():
+            if not isinstance(section, FakeBox):
+                continue
+            children = section.get_children()
+            if len(children) < 2 or not isinstance(children[1], FakeBox):
+                continue
+            for row in children[1].get_children():
+                if not isinstance(row, FakeBox) or not row.get_children():
+                    continue
+                title = row.get_children()[0]
+                if isinstance(title, FakeLabel) and title.get_label() == (
+                    "Pressure Threshold"
+                ):
+                    pressure_row = row
+                    break
+
+        assert pressure_row is not None
+        pressure_box = pressure_row.get_children()[1]
+        assert isinstance(pressure_box, FakeBox)
+        assert pressure_box.get_children() == [
+            controller._pressure_threshold_scale,
+            controller._pressure_threshold_info,
+        ]
+        assert isinstance(controller._pressure_threshold_info, FakeEventBox)
+        assert controller._pressure_threshold_info.tooltip_text is None
+        assert controller._pressure_threshold_info.events == (
+            FakeEventMask.ENTER_NOTIFY_MASK | FakeEventMask.LEAVE_NOTIFY_MASK
+        )
+        assert "cursor pressure" in (
+            controller._pressure_threshold_info._docking_info_label.get_label()
+        )
+
+        controller._pressure_threshold_info.emit_enter()
+        popover = controller._pressure_threshold_info._docking_info_popover
+        assert isinstance(popover.child, FakeBox)
+        assert popover.child.border_width == settings_mod.INFO_POPOVER_PADDING_PX
+        assert popover.child.get_children() == [
+            controller._pressure_threshold_info._docking_info_label
+        ]
+        assert popover.show_all_count == 1
+        assert popover.popup_count == 1
+        controller._pressure_threshold_info.emit_leave()
+        assert popover.popdown_count == 1
 
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -720,6 +924,81 @@ class TestSettingsWindowController:
         config.save.assert_called_once()
         runtime.assert_not_called()
 
+    def test_window_list_sort_binding_updates_config(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._window_list_sort_combo.set_active_id("alphabetical")
+        controller._window_list_sort_combo.emit_changed()
+
+        assert config.window_list_sort == "alphabetical"
+        config.save.assert_called_once()
+
+    def test_show_window_count_numbers_binding_updates_config_and_redraws(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_catalog_icon",
+            lambda applet_id, size: None,
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._window_count_numbers_switch.set_active(True)
+        controller._window_count_numbers_switch.emit_notify_active()
+
+        assert config.show_window_count_numbers is True
+        config.save.assert_called_once()
+        runtime.queue_draw.assert_called_once()
+
+    def test_current_workspace_only_updates_surface_scope(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_catalog_icon",
+            lambda applet_id, size: None,
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._workspace_only_switch.set_active(True)
+        controller._workspace_only_switch.emit_notify_active()
+
+        assert config.current_workspace_only is True
+        config.save.assert_called_once()
+        runtime.set_current_workspace_only.assert_called_once_with(True)
+        runtime.queue_draw.assert_not_called()
+
     def test_hide_mode_change_updates_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
@@ -789,6 +1068,47 @@ class TestSettingsWindowController:
         assert config.save.call_count == save_before + 1
         runtime.queue_draw.assert_called_once()
         assert controller._zoom_percent_spin.sensitive is False
+
+    def test_updates_tab_controls_preferences_and_runtime_actions(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_state",
+            lambda: SimpleNamespace(last_seen_version="", last_checked_at=""),
+        )
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._update_check_switch.set_active(False)
+        controller._update_check_switch.emit_notify_active()
+        controller._update_interval_combo.set_active_id("168")
+        controller._update_interval_combo.emit_changed()
+
+        assert config.update_check_enabled is False
+        assert config.update_check_interval_hours == 168
+        assert config.save.call_count == 2
+        assert controller._update_status_label.get_label() == "Not checked yet"
+
+        updates_box = controller._window.child.children[1].pages[3][0]
+        actions_row = updates_box.children[0].children[1].children[3]
+        actions_box = actions_row.children[1]
+        check_now, view_releases = actions_box.children
+        check_now.click()
+        view_releases.click()
+
+        runtime.check_for_updates_now.assert_called_once()
+        runtime.open_releases_page.assert_called_once()
 
     def test_applet_toggle_adds_and_removes_items(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

@@ -1,5 +1,5 @@
 pkgname=docking
-pkgver=1.12.1
+pkgver=2.1.0
 pkgrel=1
 pkgdesc="A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
 arch=('x86_64' 'aarch64')
@@ -9,7 +9,9 @@ depends=(
   'python'
   'python-gobject'
   'python-cairo'
+  'python-pywayland'
   'gtk3'
+  'gtk-layer-shell'
   'libwnck3'
   'networkmanager'
   'gstreamer'
@@ -52,9 +54,6 @@ package() {
 #!/bin/sh
 set -eu
 export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
-if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-  export GDK_BACKEND=x11
-fi
 exec /usr/bin/python3 -m docking.app "$@"
 EOF
 
@@ -66,6 +65,11 @@ EOF
 
   install -Dm644 packaging/shared/org.docking.camshield.policy \
     "${pkgdir}/usr/share/polkit-1/actions/org.docking.camshield.policy"
+
+  install -Dm644 docking/platform/backends/gnome/extension/metadata.json \
+    "${pkgdir}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/metadata.json"
+  install -Dm644 docking/platform/backends/gnome/extension/extension.js \
+    "${pkgdir}/usr/share/gnome-shell/extensions/docking-bridge@docking.org/extension.js"
 
   if [ -d packaging/deb/icons/hicolor ]; then
     mkdir -p "${pkgdir}/usr/share/icons/hicolor"

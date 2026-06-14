@@ -86,7 +86,7 @@ def _prepend_rpm_changelog(*, version: str) -> None:
 
 
 def _upsert_metainfo_release(*, version: str) -> None:
-    path = ROOT / "packaging/flatpak/org.docking.Docking.metainfo.xml"
+    path = ROOT / "packaging/flatpak/cc.docking.Docking.metainfo.xml"
     text = path.read_text(encoding="utf-8")
     if re.search(rf'<release version="{re.escape(version)}" date="[^"]+" />', text):
         return

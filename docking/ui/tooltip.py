@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Tooltip management for dock items, anchored from shared geometry.
 
 What a tooltip means in this dock
@@ -159,7 +172,7 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup, window_screen_position
 from docking.ui.geometry import DockGeometryFrame
 
 log = get_logger(name="tooltip")
@@ -234,6 +247,10 @@ class TooltipManager:
         self._last_name: str = ""
         self._pending_show_source: int = 0
 
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme used for tooltip spacing."""
+        self._theme = theme
+
     def update(
         self,
         item: DockItem | None,
@@ -266,9 +283,9 @@ class TooltipManager:
             self.hide()
             return
         pos = self._config.pos
-        win_x, win_y = self._window.get_position()
-        anchor_x = win_x + item_geometry.anchor_x
-        anchor_y = win_y + item_geometry.anchor_y
+        window_pos = window_screen_position(self._window)
+        anchor_x = window_pos.x + item_geometry.anchor_x
+        anchor_y = window_pos.y + item_geometry.anchor_y
 
         if not content_changed:
             self._cancel_pending_show()
@@ -343,10 +360,17 @@ class TooltipManager:
         """
         if self._tooltip_window is None:
             self._tooltip_window = Gtk.Window(type=Gtk.WindowType.POPUP)
+            try:
+                self._tooltip_window.set_transient_for(self._window)
+                self._tooltip_window.set_attached_to(self._window)
+            except TypeError:
+                pass
             self._tooltip_window.set_decorated(False)
             self._tooltip_window.set_skip_taskbar_hint(True)
             self._tooltip_window.set_resizable(False)
             self._tooltip_window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+            self._tooltip_window.set_accept_focus(False)
+            self._tooltip_window.set_focus_on_map(False)
             self._tooltip_window.set_app_paintable(True)
 
             screen = self._tooltip_window.get_screen()
@@ -412,11 +436,8 @@ class TooltipManager:
             gap=gap,
         )
 
-        # Clamp to screen
-        screen = self._tooltip_window.get_screen()
-        screen_w = screen.get_width()
-        screen_h = screen.get_height()
-        tooltip_pos = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
+        # Clamp to screen (respects parent-relative vs screen-absolute coords)
+        tooltip_pos = clamp_popup(self._tooltip_window, tx, ty, tw, th)
         tx, ty = tooltip_pos.x, tooltip_pos.y
 
         log.debug(

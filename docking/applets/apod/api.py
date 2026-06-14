@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """NASA APOD fetcher using only the Python standard library.
 
 No API key required beyond the public ``DEMO_KEY`` identifier, which api.nasa.gov
@@ -7,15 +20,15 @@ one image download per day.
 
 from __future__ import annotations
 
-import json
-import os
 import urllib.request
-from pathlib import Path
 from typing import NamedTuple
 
 from docking.applets.apod import meta
 from docking.applets.apod.state import ApodResult, build_page_url
+from docking.applets.http import http_get_json
+from docking.core.paths import ensure_dir
 from docking.log import get_logger, with_context
+from docking.platform.environment import docking_cache_dir
 
 log = with_context(get_logger(name="apod.api"), applet_id=meta.id)
 
@@ -24,9 +37,7 @@ DEFAULT_API_KEY = "DEMO_KEY"
 USER_AGENT = "docking-apod/1.0"
 REQUEST_TIMEOUT_S = 20.0
 
-CACHE_DIR = (
-    Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "docking" / "apod"
-)
+CACHE_DIR = docking_cache_dir() / "apod"
 
 
 class ApodError(NamedTuple):
@@ -89,17 +100,15 @@ def _pick_image_url(*, payload: dict) -> str:
 
 
 def _fetch_json(*, api_key: str) -> dict:
-    req = urllib.request.Request(
+    return http_get_json(
         f"{API_URL}?api_key={api_key}&thumbs=true",
-        headers={"User-Agent": USER_AGENT},
+        timeout=REQUEST_TIMEOUT_S,
+        user_agent=USER_AGENT,
     )
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
-        raw = resp.read().decode("utf-8", errors="replace")
-    return json.loads(raw)
 
 
 def _download_image(*, url: str, date_iso: str) -> str:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_dir(CACHE_DIR)
     suffix = _suffix_for_url(url)
     path = CACHE_DIR / f"{date_iso or 'unknown'}{suffix}"
     if path.exists() and path.stat().st_size > 0:

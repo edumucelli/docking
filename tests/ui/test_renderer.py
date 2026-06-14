@@ -8,12 +8,27 @@ from docking.core.theme import Theme
 from docking.ui.renderer import (
     SHELF_SMOOTH_FACTOR,
     DockRenderer,
+    _snap_count_indicator_rect,
+    _window_count_dot_height,
 )
 
 # Default theme at 48px for hover lighten tests
 _DEFAULT_THEME = Theme.load("default", 48)
 _HOVER_MAX = _DEFAULT_THEME.hover_lighten
 _FADE_FRAMES = max(1, _DEFAULT_THEME.active_time_ms // 16)
+
+
+class TestWindowCountIndicatorGeometry:
+    def test_count_dot_height_uses_whole_pixels(self):
+        assert _window_count_dot_height(count=2, base_size=48, radius=2.5) == 11.0
+
+    def test_count_indicator_rect_snaps_to_whole_pixels(self):
+        assert _snap_count_indicator_rect(
+            cx=50.3,
+            cy=74.6,
+            width=10.56,
+            height=10.56,
+        ) == (45.0, 69.0, 11.0, 11.0)
 
 
 class TestSmoothShelfW:

@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a Docking bug with a diagnostics report
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a Docking bug.
+
+        Before submitting, open Docking's right-click menu, choose **Diagnostics**, click **Copy Report**, and paste the report below. The report includes the selected backend, desktop session, feature availability, optional helper tools, and monitor details.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics report
+      description: Paste the full report from right-click -> Diagnostics -> Copy Report.
+      placeholder: |
+        # Docking Diagnostics Report
+        Generated: ...
+
+        ## Summary
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected to happen.
+      placeholder: The dock...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest set of steps that reproduces the problem.
+      placeholder: |
+        1. Start Docking
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, or extra context
+      description: Add logs, screenshots, videos, or anything else that helps explain the issue.
+    validations:
+      required: false

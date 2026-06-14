@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK wiring for the Today in History applet."""
 
 from __future__ import annotations
@@ -15,6 +28,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -84,26 +98,27 @@ class TodayInHistoryApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status = [disabled_menu_item(self._source_label(), gtk=Gtk)]
 
-        source_header = Gtk.MenuItem(label=self._source_label())
-        source_header.set_sensitive(False)
-        items.append(source_header)
-
+        primary: list[Gtk.MenuItem] = []
         if self._current is not None and self._current.article_url:
             open_item = Gtk.MenuItem(label=_("Open Article"))
             open_item.connect("activate", lambda _w: self._open_current_article())
-            items.append(open_item)
+            primary.append(open_item)
 
         next_item = Gtk.MenuItem(label=_("Next Event"))
         next_item.connect("activate", lambda _w: self.on_clicked())
-        items.append(next_item)
 
-        refresh_item = Gtk.MenuItem(label=_("Refresh from Web"))
+        refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _w: self._refresh_from_web())
-        items.append(refresh_item)
 
-        return items
+        return menu_sections(
+            status=status,
+            primary=primary,
+            navigation=[next_item],
+            refresh=[refresh_item],
+            gtk=Gtk,
+        )
 
     def refresh_tooltip(self) -> None:
         if self._loading and self._current is None:

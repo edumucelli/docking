@@ -9,7 +9,6 @@ import docking.applets.calculator.applet as calculator_applet_mod
 from docking.applets.calculator.applet import CalculatorApplet
 from docking.applets.calculator.state import evaluate, prefs_payload
 from docking.core.config import Config
-from docking.ui.display import ScreenPosition
 
 
 def _make_applet(config: Config | None = None) -> CalculatorApplet:
@@ -256,12 +255,19 @@ class TestAppletPopup:
             applet._entry.connect("activate", lambda _entry: applet._do_evaluate())
             return {"expr": applet._last_expr}
 
+        def show_wrapped_popup(*, window, content, gap_px, anchor=None):
+            _ = gap_px
+            assert anchor is applet.popup_anchor
+            window.add(content)
+            window.show_all()
+            window.move(80, 80)
+
+        monkeypatch.setattr(calculator_applet_mod, "create_popup_window", lambda: popup)
         monkeypatch.setattr(
-            calculator_applet_mod.Gtk,
-            "Window",
-            lambda **_kwargs: popup,
+            calculator_applet_mod,
+            "show_wrapped_popup",
+            show_wrapped_popup,
         )
-        monkeypatch.setattr(calculator_applet_mod, "wrap_popup", lambda child: child)
         monkeypatch.setattr(applet, "_build_popup_content", build_popup_content)
         return wrapped_children
 
@@ -296,12 +302,6 @@ class TestAppletPopup:
         applet = _make_applet()
         fake_popup = _FakePopupWindow()
         self._patch_popup(monkeypatch, applet, fake_popup)
-        monkeypatch.setattr(
-            calculator_applet_mod,
-            "get_pointer_position",
-            lambda _display: ScreenPosition(x=120, y=140),
-        )
-
         applet._show_popup()
         first_popup = applet._popup
         first_child = first_popup.get_child()
@@ -322,36 +322,30 @@ class TestAppletPopup:
     def test_show_popup_uses_themed_surface_wrapper(self, monkeypatch):
         applet = _make_applet()
         fake_popup = _FakePopupWindow()
-        wrapped = MagicMock(name="wrapped-popup")
+        show_wrapped_popup = MagicMock()
         monkeypatch.setattr(
-            calculator_applet_mod.Gtk,
-            "Window",
-            lambda **_kwargs: fake_popup,
+            calculator_applet_mod, "create_popup_window", lambda: fake_popup
         )
-        monkeypatch.setattr(
-            calculator_applet_mod, "wrap_popup", MagicMock(return_value=wrapped)
-        )
-        monkeypatch.setattr(applet, "_build_popup_content", lambda: "content")
         monkeypatch.setattr(
             calculator_applet_mod,
-            "get_pointer_position",
-            lambda _display: ScreenPosition(x=120, y=140),
+            "show_wrapped_popup",
+            show_wrapped_popup,
         )
+        monkeypatch.setattr(applet, "_build_popup_content", lambda: "content")
 
         applet._show_popup()
 
-        popup_child = applet._popup.get_child()
-        assert popup_child is wrapped
+        show_wrapped_popup.assert_called_once_with(
+            window=fake_popup,
+            content="content",
+            gap_px=calculator_applet_mod.POPUP_CURSOR_GAP_PX,
+            anchor=None,
+        )
         applet.stop()
 
     def test_activate_signal_evaluates_entry(self, monkeypatch):
         applet = _make_applet()
         self._patch_popup(monkeypatch, applet, _FakePopupWindow())
-        monkeypatch.setattr(
-            calculator_applet_mod,
-            "get_pointer_position",
-            lambda _display: ScreenPosition(x=100, y=120),
-        )
         applet._show_popup()
         assert applet._entry is not None
         applet._entry.set_text("2+3")

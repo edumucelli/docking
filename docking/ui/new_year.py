@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Temporary dock-anchored New Year greeting popup.
 
 The trigger semantics intentionally follow Cairo-Dock for reference.
@@ -27,7 +40,7 @@ from docking.core.greeting import consume_new_year_greeting
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup, window_screen_position
 from docking.ui.tooltip import compute_tooltip_position
 
 log = get_logger("new_year")
@@ -171,7 +184,8 @@ class NewYearGreetingController:
         if self._popup is None:
             return
 
-        win_x, win_y = self._window.get_position()
+        window_pos = window_screen_position(self._window)
+        win_x, win_y = window_pos.x, window_pos.y
         win_w, win_h = self._window.get_size()
         pref = self._popup.get_preferred_size()[1]
         popup_w = max(pref.width, 1)
@@ -194,15 +208,7 @@ class NewYearGreetingController:
             gap=GREETING_GAP_PX,
         )
 
-        screen = self._popup.get_screen()
-        clamped = clamp_to_screen(
-            popup_x,
-            popup_y,
-            popup_w,
-            popup_h,
-            screen.get_width(),
-            screen.get_height(),
-        )
+        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
         log.debug(
             "Positioned New Year greeting popup at (%s, %s) "
             "size=%sx%s dock=(%s,%s %sx%s pos=%s)",

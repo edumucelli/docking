@@ -15,7 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.ui.dnd as dnd_mod
-from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
+from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.geometry import Rect
@@ -53,7 +53,7 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         save=MagicMock(),
     )
     renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
-    theme = SimpleNamespace(item_padding=8, h_padding=10)
+    theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
     launcher = MagicMock()
     autohide = SimpleNamespace(
         enabled=True,
@@ -208,6 +208,43 @@ class TestDragBeginMotion:
         assert handled is True
         assert handler.drop_insert_index == 1
         assert handler.drop_target_id == ""
+
+    def test_drag_motion_external_marks_drop_aware_applet_target(self, monkeypatch):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        applet_item = DockItem("applet://dragshare", kind=APPLET_KIND)
+        applet = SimpleNamespace(accepts_drop_uris=MagicMock(return_value=True))
+        handler._model.get_applet.return_value = applet
+        rest_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 400, 60),
+            item_geometries=(),
+            insertion_index_for_main=MagicMock(return_value=-1),
+        )
+        target_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 400, 60),
+            item_geometries=(
+                SimpleNamespace(item=applet_item, draw_rect=Rect(0, 0, 48, 48)),
+            ),
+        )
+
+        def build_frame(**kwargs):
+            if "drop_insert_index" in kwargs:
+                return target_frame
+            return rest_frame
+
+        handler._geometry_builder = SimpleNamespace(build_frame=build_frame)
+        monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_a, **_k: None)
+
+        handled = handler._on_drag_motion(
+            handler._drawing_area,
+            MagicMock(),
+            x=10,
+            y=10,
+            time=1,
+        )
+
+        assert handled is True
+        assert handler.drop_target_id == "applet://dragshare"
 
     def test_drag_motion_internal_reorders(self, monkeypatch):
         # Given
@@ -389,6 +426,80 @@ class TestDropAndReceive:
         assert [entry.target for entry in handler._config.pinned] == [file_uri]
         assert len(handler._model.pinned_items) == 1
         finish.assert_called_once_with(ANY, True, False, 77)
+
+    def test_drag_data_received_on_applet_dispatches_drop(self, monkeypatch, tmp_path):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        handler.drop_insert_index = -1
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        applet_item = DockItem("applet://dragshare", kind=APPLET_KIND)
+        applet = SimpleNamespace(
+            accepts_drop_uris=MagicMock(return_value=True),
+            on_drop_uris=MagicMock(return_value=True),
+        )
+        handler._model.get_applet.return_value = applet
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: SimpleNamespace(
+                cursor_rect=Rect(0, 0, 400, 60),
+                item_geometries=(
+                    SimpleNamespace(item=applet_item, draw_rect=Rect(0, 0, 48, 48)),
+                ),
+            )
+        )
+        selection = MagicMock()
+        selection.get_uris.return_value = [file_uri]
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+        handler._on_drag_data_received(
+            handler._drawing_area,
+            MagicMock(),
+            10,
+            10,
+            selection,
+            1,
+            77,
+        )
+
+        applet.on_drop_uris.assert_called_once_with([file_uri])
+        handler._model.find_by_desktop_id.assert_not_called()
+        finish.assert_called_once_with(ANY, True, False, 77)
+
+    def test_drag_data_received_on_applet_rejection_does_not_pin(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        handler.drop_insert_index = -1
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        applet_item = DockItem("applet://other", kind=APPLET_KIND)
+        applet = SimpleNamespace(accepts_drop_uris=MagicMock(return_value=False))
+        handler._model.get_applet.return_value = applet
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: SimpleNamespace(
+                cursor_rect=Rect(0, 0, 400, 60),
+                item_geometries=(
+                    SimpleNamespace(item=applet_item, draw_rect=Rect(0, 0, 48, 48)),
+                ),
+            )
+        )
+        selection = MagicMock()
+        selection.get_uris.return_value = [file_uri]
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+        handler._on_drag_data_received(
+            handler._drawing_area,
+            MagicMock(),
+            10,
+            10,
+            selection,
+            1,
+            77,
+        )
+
+        handler._model.find_by_desktop_id.assert_not_called()
+        finish.assert_called_once_with(ANY, False, False, 77)
 
     def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
         handler = _make_handler(monkeypatch)

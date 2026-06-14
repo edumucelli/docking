@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and parsing logic for Battery applet."""
 
 from __future__ import annotations
@@ -9,10 +22,16 @@ from pathlib import Path
 from typing import NamedTuple
 
 from docking.i18n import _
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
 BAT_BASE = Path("/sys/class/power_supply")
-log = get_logger("battery.state")
+log = with_context(get_logger("battery.state"))
+
+# Bottom-center overlay modes (mutually exclusive, mirroring the network applet).
+OVERLAY_NONE = "none"
+OVERLAY_PERCENT = "percent"
+OVERLAY_POWER = "power"
+OVERLAY_MODES = (OVERLAY_NONE, OVERLAY_PERCENT, OVERLAY_POWER)
 
 
 class BatteryState(NamedTuple):
@@ -22,6 +41,7 @@ class BatteryState(NamedTuple):
     capacity: int  # 0-100 percent
     status: str  # Kernel battery status (e.g. Charging / Discharging / Full)
     seconds_remaining: int | None  # Time estimate until empty/full when known
+    power_watts: float | None = None  # Instantaneous battery power draw/input
 
 
 # Kernel capacity_level values -> FDO icon base names
@@ -66,6 +86,7 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
                 bat_dir=bat_dir,
                 status=status,
             )
+        power_watts = _read_power_watts(bat_dir=bat_dir)
     except (OSError, ValueError) as exc:
         log.debug("Failed to read battery state from %s: %s", bat_dir, exc)
         return None
@@ -74,7 +95,52 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
         capacity=capacity,
         status=status,
         seconds_remaining=seconds_remaining,
+        power_watts=power_watts,
     )
+
+
+def read_power_watts(bat_name: str = "BAT0", base: Path = BAT_BASE) -> float | None:
+    """Read just the instantaneous battery power in watts (no subprocess).
+
+    Cheap sysfs-only read used for the live power overlay's fast refresh, kept
+    separate from ``read_battery`` so the frequent poll never spawns ``upower``.
+    """
+    bat_dir = base / bat_name
+    if not bat_dir.exists():
+        return None
+    return _read_power_watts(bat_dir=bat_dir)
+
+
+def _read_power_watts(*, bat_dir: Path) -> float | None:
+    """Resolve battery power in watts from sysfs.
+
+    Prefers ``power_now`` (microwatts); falls back to ``current_now`` (microamps)
+    times ``voltage_now`` (microvolts) for charge-based batteries. The value is a
+    magnitude; direction (draw vs input) comes from ``status``.
+    """
+    power_now = _read_int(path=bat_dir / "power_now")
+    if power_now is not None:
+        return power_now / 1_000_000 if power_now >= 0 else None
+
+    current_now = _read_int(path=bat_dir / "current_now")
+    voltage_now = _read_int(path=bat_dir / "voltage_now")
+    if current_now is not None and voltage_now is not None:
+        return (current_now * voltage_now) / 1e12
+    return None
+
+
+def overlay_from_prefs(prefs: dict[str, object]) -> str:
+    """Resolve the overlay mode, migrating the legacy ``show_percent`` flag."""
+    mode = prefs.get("overlay")
+    if mode in OVERLAY_MODES:
+        return str(mode)
+    return OVERLAY_PERCENT if prefs.get("show_percent") else OVERLAY_NONE
+
+
+def format_power(watts: float, *, compact: bool = False) -> str:
+    """Format watts as e.g. ``7.6 W`` (or ``7.6W`` for the compact overlay)."""
+    digits = f"{watts:.1f}" if watts < 10 else f"{watts:.0f}"
+    return f"{digits}W" if compact else f"{digits} W"
 
 
 def power_settings_command() -> list[str] | None:
@@ -102,11 +168,20 @@ def tooltip_text(state: BatteryState | None) -> str:
     """Build tooltip string from current state."""
     if state is None:
         return _("No battery")
-    base = _("Battery: {pct}%").format(pct=state.capacity)
+    parts = [_("Battery: {pct}%").format(pct=state.capacity)]
     estimate = _estimate_suffix(state=state)
-    if estimate is None:
-        return base
-    return f"{base} • {estimate}"
+    if estimate is not None:
+        parts.append(estimate)
+    power = _power_suffix(state=state)
+    if power is not None:
+        parts.append(power)
+    return " • ".join(parts)
+
+
+def _power_suffix(state: BatteryState) -> str | None:
+    if state.power_watts is None or state.power_watts <= 0:
+        return None
+    return format_power(state.power_watts)
 
 
 def _estimate_suffix(state: BatteryState) -> str | None:

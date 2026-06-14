@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Dock placement, monitor choice, struts, barriers, and edge integration.
 
 Why placement is its own module
@@ -152,13 +165,20 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GdkX11, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
+from docking.core.config import effective_edge_gap
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.barriers import PointerBarrier
-from docking.platform.struts import clear_struts, set_dock_struts
+from docking.platform.backends.base import (
+    MonitorSnapshot,
+    PlacementRequest,
+    Rect,
+    ReservationRequest,
+    Size,
+    SurfaceService,
+)
 from docking.ui.display import get_pointer_position
 
 if TYPE_CHECKING:
@@ -174,10 +194,10 @@ class DockPlacementController:
         self,
         window: DockWindow,
         *,
-        barrier: PointerBarrier | None = None,
+        surface_service: SurfaceService,
     ) -> None:
         self._window = window
-        self._barrier = barrier or PointerBarrier()
+        self._surface = surface_service
         self._active_display_timer: int = 0
         self._active_monitor: Gdk.Monitor | None = None
         self._screen_signal_handlers: list[tuple[object, int]] = []
@@ -247,9 +267,7 @@ class DockPlacementController:
     def on_realize(self, *_args: object) -> None:
         """Position dock and set struts after window is realized."""
         self.attach_screen_signals(self._window.get_screen())
-        display = self._window.get_display()
-        if display and isinstance(display, GdkX11.X11Display):
-            self._barrier.initialize(gdk_display=display)
+        self._surface.on_realize(self._window)
         self.position_dock()
         self.set_struts()
         self._window.update_input_region()
@@ -302,6 +320,7 @@ class DockPlacementController:
         if refresh_source:
             GLib.source_remove(refresh_source)
             self._geometry_refresh_source = 0
+        self.stop_active_display()
         self.disconnect_screen_signals()
 
     def position_dock(self) -> None:
@@ -326,7 +345,7 @@ class DockPlacementController:
             + bounce_headroom
         )
         pos = config.pos
-        gap = max(0, int(theme.distance_from_edge))
+        gap = effective_edge_gap(theme, config)
         if is_horizontal(pos=pos):
             win_w, win_h = geom.width, cross + gap
             if pos == Position.BOTTOM:
@@ -363,9 +382,21 @@ class DockPlacementController:
             cross,
             bounce_headroom,
         )
-        self._window.set_size_request(win_w, win_h)
-        self._window.resize(win_w, win_h)
-        self._window.move(win_x, win_y)
+        self._surface.position_or_anchor(
+            PlacementRequest(
+                monitor=self._monitor_snapshot(
+                    display=display,
+                    monitor=monitor,
+                    monitor_idx=monitor_idx,
+                ),
+                position=pos,
+                x=win_x,
+                y=win_y,
+                size=Size(width=win_w, height=win_h),
+                gap=gap,
+                keep_above=True,
+            )
+        )
 
         self.update_barrier()
 
@@ -375,60 +406,78 @@ class DockPlacementController:
             self.clear_struts()
             return
 
-        gdk_window = self._window.get_window()
-        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
-            return
-
         display = self._window.get_display()
         monitor = self._resolve_target_monitor(display=display)
         if monitor is None:
             return
-        geom = monitor.get_geometry()
-        screen = self._window.get_screen()
-
         icon_size = self._window.config.icon_size
-        gap = max(0, int(self._window.theme.distance_from_edge))
+        gap = effective_edge_gap(self._window.theme, self._window.config)
         strut_height = int(icon_size + self._window.theme.bottom_padding + gap)
 
-        set_dock_struts(
-            gdk_window=gdk_window,
-            dock_height=strut_height,
-            monitor_geom=geom,
-            screen=screen,
-            position=self._window.config.pos,
+        self._surface.set_reservation(
+            ReservationRequest(
+                monitor=self._monitor_snapshot(
+                    display=display,
+                    monitor=monitor,
+                    monitor_idx=self._monitor_index(display=display, monitor=monitor),
+                ),
+                position=self._window.config.pos,
+                thickness=strut_height,
+            )
         )
 
     def update_barrier(self) -> None:
         """Create or destroy the pointer barrier based on autohide state."""
-        if not self._barrier.supported:
-            return
-        if self._window.config.hide_mode == "none":
-            self._barrier.destroy()
+        position = self._window.config.pos
+        if self._window.config.hide_mode in ("none", "always-on-top"):
+            self._surface.update_pointer_barrier(
+                monitor=None,
+                position=position,
+                enabled=False,
+            )
             return
         display = self._window.get_display()
         monitor = self._resolve_target_monitor(display=display)
         if monitor is None:
-            self._barrier.destroy()
+            self._surface.update_pointer_barrier(
+                monitor=None,
+                position=position,
+                enabled=False,
+            )
             return
-        geom = monitor.get_geometry()
-        self._barrier.update(
-            position=self._window.config.pos,
-            monitor_x=geom.x,
-            monitor_y=geom.y,
-            monitor_w=geom.width,
-            monitor_h=geom.height,
+        config = self._window.config
+        self._surface.update_pointer_barrier(
+            monitor=self._monitor_snapshot(
+                display=display,
+                monitor=monitor,
+                monitor_idx=self._monitor_index(display=display, monitor=monitor),
+            ),
+            position=position,
+            enabled=True,
+            pressure_callback=self._on_barrier_pressure
+            if config.pressure_reveal_enabled
+            else None,
+            pressure_threshold=config.pressure_threshold,
         )
+
+    def _on_barrier_pressure(self) -> None:
+        """Reveal the dock when accumulated barrier pressure exceeds threshold."""
+        autohide = getattr(self._window, "autohide", None)
+        if autohide is None:
+            return
+        autohide.on_mouse_enter()
 
     def clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
-        gdk_window = self._window.get_window()
-        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
-            return
-        clear_struts(gdk_window=gdk_window)
+        self._surface.clear_reservation()
 
     def update_struts(self) -> None:
         """Refresh struts and barrier after autohide toggle."""
         self.set_struts()
+        self.update_barrier()
+
+    def refresh_pressure_handler(self) -> None:
+        """Refresh pointer-barrier pressure settings from current config."""
         self.update_barrier()
 
     def start_active_display(self) -> None:
@@ -520,3 +569,34 @@ class DockPlacementController:
             if display.get_monitor(idx) is monitor:
                 return idx
         return -1
+
+    def _monitor_snapshot(
+        self,
+        *,
+        display: Gdk.Display | None,
+        monitor: Gdk.Monitor,
+        monitor_idx: int,
+    ) -> MonitorSnapshot:
+        geom = monitor.get_geometry()
+        workarea = monitor.get_workarea()
+        primary = (
+            display is not None
+            and (display.get_primary_monitor() or display.get_monitor(0)) is monitor
+        )
+        return MonitorSnapshot(
+            index=monitor_idx,
+            geometry=Rect(
+                x=geom.x,
+                y=geom.y,
+                width=geom.width,
+                height=geom.height,
+            ),
+            workarea=Rect(
+                x=workarea.x,
+                y=workarea.y,
+                width=workarea.width,
+                height=workarea.height,
+            ),
+            scale=self._window.get_scale_factor(),
+            primary=primary,
+        )

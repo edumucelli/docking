@@ -1,15 +1,27 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and data helpers for the Random Trivia applet."""
 
 from __future__ import annotations
 
-import html
-import json
 import random
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
-from urllib.request import Request, urlopen
 
+from docking.applets.http import http_get_json
+from docking.applets.text import normalize_text
 from docking.applets.trivia import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -78,11 +90,6 @@ FALLBACK_TRIVIA: tuple[TriviaEntry, ...] = (
 )
 
 
-def normalize_text(text: str) -> str:
-    clean = html.unescape(text).replace("\n", " ").replace("\r", " ").strip()
-    return " ".join(clean.split())
-
-
 def format_difficulty(difficulty: str) -> str:
     mapping = {
         "easy": _("Easy"),
@@ -112,16 +119,6 @@ def format_trivia(entry: TriviaEntry) -> str:
     lines.append(_("Your answer: {answer}").format(answer=entry.selected_answer))
     lines.append(_("Correct answer: {answer}").format(answer=entry.correct_answer))
     return "\n".join(lines)
-
-
-def _http_get_json(url: str, timeout: float = 8.0) -> Any:
-    request = Request(
-        url=url,
-        headers={"User-Agent": "DockingTriviaApplet/1.0 (+https://github.com/)"},
-    )
-    with urlopen(request, timeout=timeout) as response:
-        payload = response.read().decode("utf-8", errors="replace")
-    return json.loads(payload)
 
 
 def _shuffle_answers(
@@ -194,12 +191,10 @@ def _parse_results(
 
 def fetch_trivia(
     limit: int = DEFAULT_FETCH_LIMIT,
-    http_get_json: Callable[[str], Any] | None = None,
     shuffle_answers: Callable[[list[str]], None] | None = None,
 ) -> list[TriviaEntry]:
-    getter = http_get_json or _http_get_json
     try:
-        data = getter(_TRIVIA_ENDPOINT.format(limit=limit))
+        data = http_get_json(_TRIVIA_ENDPOINT.format(limit=limit))
         return _parse_results(
             data=data,
             limit=limit,

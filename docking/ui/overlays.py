@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Shared Cairo overlay helpers for badges and progress bars."""
 
 from __future__ import annotations
@@ -8,6 +21,25 @@ import cairo
 
 from docking.applets.draw import rounded_rect
 from docking.core.theme import RGB, RGBA
+
+
+def _snap_badge_rect(
+    *,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+) -> tuple[float, float, float, float]:
+    snapped_width = float(max(1, round(width)))
+    snapped_height = float(max(1, round(height)))
+    center_x = x + width / 2.0
+    center_y = y + height / 2.0
+    return (
+        float(round(center_x - snapped_width / 2.0)),
+        float(round(center_y - snapped_height / 2.0)),
+        snapped_width,
+        snapped_height,
+    )
 
 
 def draw_circle_badge(
@@ -45,6 +77,12 @@ def draw_count_badge(
     font_family: str = "Sans",
 ) -> None:
     """Draw a rounded count badge with centered text."""
+    x, y, width, height = _snap_badge_rect(
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+    )
     text = "99+" if badge_count > 99 else str(badge_count)
     corner = min(height / 2, max(height * 0.35, 4.0))
 

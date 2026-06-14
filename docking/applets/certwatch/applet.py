@@ -1,7 +1,21 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for certwatch applet."""
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -29,6 +43,14 @@ from docking.applets.certwatch.state import (
     tooltip_line,
     worst_status,
 )
+from docking.applets.freshness import cadence_label
+from docking.applets.live_state import (
+    live_state_error,
+    live_state_label,
+    resolve_live_status,
+)
+from docking.applets.menu import disabled_menu_item, menu_sections
+from docking.applets.popup import add_cancel_ok_buttons, prepare_dialog_content
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -45,7 +67,6 @@ STARTUP_FETCH_DELAY_S = 2
 ADD_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
 DIALOG_HORIZONTAL_MARGIN_PX = 12
-DIALOG_VERTICAL_MARGIN_PX = 8
 
 
 class CertwatchApplet(Applet):
@@ -60,6 +81,9 @@ class CertwatchApplet(Applet):
         self._startup_fetch_timer_id: int = 0
         self._retry_timer_id: int = 0
         self._fetch_request_id: int = 0
+        self._last_updated: dt.datetime | None = None
+        self._loading = False
+        self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
         prefs = prefs_from_mapping(
@@ -73,21 +97,29 @@ class CertwatchApplet(Applet):
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         certs = self._current_certs()
-        status = worst_status(certs) if self._domains else CertStatus.UNKNOWN
-        label = icon_label(certs) if self._domains else ""
+        if self._domains and self._fetch_error and not certs:
+            status = CertStatus.ERROR
+            label = "!"
+        else:
+            status = worst_status(certs) if self._domains else CertStatus.UNKNOWN
+            label = icon_label(certs) if self._domains else ""
         return render_icon(size=size, status=status, label=label)
 
     def refresh_tooltip(self) -> None:
         self.item.name = build_tooltip(
             domains=self._domains,
             certs=self._current_certs(),
+            loading=self._loading,
+            error=self._fetch_error,
+            updated_at=self._last_updated,
+            cadence_seconds=REFRESH_INTERVAL_S if self._domains else None,
         )
 
     def on_clicked(self) -> None:
         self._show_add_dialog()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
 
         if self._domains:
             for pref in self._domains:
@@ -97,16 +129,36 @@ class CertwatchApplet(Applet):
                     if cert is not None
                     else _("{host}: loading...").format(host=format_host(pref))
                 )
-                row = Gtk.MenuItem(label=label)
-                row.set_sensitive(False)
-                items.append(row)
-            items.append(Gtk.SeparatorMenuItem())
+                status.append(disabled_menu_item(label, gtk=Gtk))
+            state_status = self._live_status()
+            state_label = live_state_label(state_status)
+            if state_label:
+                status.append(disabled_menu_item(state_label, gtk=Gtk))
+            error = live_state_error(status=state_status, error=self._fetch_error)
+            if error:
+                status.append(
+                    disabled_menu_item(
+                        _("Error: {msg}").format(msg=error),
+                        gtk=Gtk,
+                    )
+                )
+            status.append(
+                disabled_menu_item(
+                    cadence_label(seconds=REFRESH_INTERVAL_S, verb=_("Checks")),
+                    gtk=Gtk,
+                )
+            )
 
         add_item = Gtk.MenuItem(label=_("Add Domain..."))
         add_item.connect("activate", lambda _w: self._show_add_dialog())
-        items.append(add_item)
 
+        refresh: list[Gtk.MenuItem] = []
+        destructive: list[Gtk.MenuItem] = []
         if self._domains:
+            refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
+            refresh_item.connect("activate", lambda _w: self._fetch_all())
+            refresh.append(refresh_item)
+
             remove_menu = Gtk.Menu()
             for pref in self._domains:
                 entry = Gtk.MenuItem(label=format_host(pref))
@@ -117,13 +169,15 @@ class CertwatchApplet(Applet):
                 remove_menu.append(entry)
             remove_root = Gtk.MenuItem(label=_("Remove"))
             remove_root.set_submenu(remove_menu)
-            items.append(remove_root)
+            destructive.append(remove_root)
 
-            refresh = Gtk.MenuItem(label=_("Refresh Now"))
-            refresh.connect("activate", lambda _w: self._fetch_all())
-            items.append(refresh)
-
-        return items
+        return menu_sections(
+            status=status,
+            refresh=refresh,
+            manage=[add_item],
+            destructive=destructive,
+            gtk=Gtk,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
@@ -173,6 +227,9 @@ class CertwatchApplet(Applet):
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
         targets = tuple(self._domains)
+        self._loading = not self._current_certs()
+        self._fetch_error = ""
+        self.present()
 
         def fetch() -> list[CertInfo]:
             return [fetch_cert(host=d.host, port=d.port) for d in targets]
@@ -189,8 +246,11 @@ class CertwatchApplet(Applet):
     def _on_fetch_result(self, *, request_id: int, certs: list[CertInfo]) -> bool:
         if request_id != self._fetch_request_id:
             return False
+        self._loading = False
+        self._fetch_error = ""
         for cert in certs:
             self._certs[(cert.host, cert.port)] = cert
+        self._last_updated = dt.datetime.now(dt.timezone.utc)
         self._prune_stale_certs()
         self._log_critical(certs=certs)
         self._schedule_retry_if_any_error(certs=certs)
@@ -200,7 +260,15 @@ class CertwatchApplet(Applet):
     def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
         if request_id != self._fetch_request_id:
             return False
+        self._loading = False
+        self._fetch_error = str(exc) or exc.__class__.__name__
         log.bind(action="fetch_error").debug("Cert fetch failed: %s", exc)
+        if not self._retry_timer_id:
+            self._retry_timer_id = GLib.timeout_add_seconds(
+                RETRY_ON_ERROR_S,
+                self._run_retry,
+            )
+        self.present()
         return False
 
     def _schedule_retry_if_any_error(self, *, certs: list[CertInfo]) -> None:
@@ -238,29 +306,22 @@ class CertwatchApplet(Applet):
             title=_("Add Domain"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL,
-            Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OK,
-            Gtk.ResponseType.OK,
+        add_cancel_ok_buttons(dialog=dialog)
+        box = prepare_dialog_content(
+            dialog=dialog,
+            width=ADD_DIALOG_WIDTH_PX,
+            spacing=DIALOG_CONTENT_SPACING_PX,
+            margin=DIALOG_HORIZONTAL_MARGIN_PX,
+            default_response=Gtk.ResponseType.OK,
         )
-        dialog.set_default_size(ADD_DIALOG_WIDTH_PX, -1)
-        dialog.set_position(Gtk.WindowPosition.MOUSE)
-
-        box = dialog.get_content_area()
-        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
-        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
-        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
 
         entry = Gtk.Entry()
         entry.set_placeholder_text(_("example.com or example.com:8443"))
         entry.set_activates_default(True)
         box.pack_start(entry, False, False, 0)
 
-        dialog.set_default_response(Gtk.ResponseType.OK)
         dialog.show_all()
+        entry.grab_focus()
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
@@ -289,3 +350,12 @@ class CertwatchApplet(Applet):
 
     def _save_prefs(self) -> None:
         self.save_prefs(prefs=prefs_payload(domains=self._domains))
+
+    def _live_status(self):
+        return resolve_live_status(
+            has_data=bool(self._current_certs()),
+            loading=self._loading,
+            error=self._fetch_error,
+            updated_at=self._last_updated,
+            stale_after_seconds=REFRESH_INTERVAL_S * 2,
+        )

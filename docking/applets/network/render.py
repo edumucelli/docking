@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for Network applet icon."""
 
 from __future__ import annotations
@@ -13,6 +26,7 @@ from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 from docking.applets.draw import rounded_rect
+from docking.applets.network.state import format_compact_speed
 
 _BG_ARC = (0.72, 0.84, 0.97)
 _FG = (0.42, 0.64, 0.90)
@@ -148,19 +162,16 @@ def create_icon(
         _draw_wired_icon(cr=cr, size=size, connected=is_connected)
 
     if is_connected and speed_overlay == "download" and rx_speed > 0:
-        draw_icon_label(cr=cr, text=f"\u2193{_short(bps=rx_speed)}", size=size)
+        draw_icon_label(
+            cr=cr,
+            text=f"\u2193{format_compact_speed(bps=rx_speed)}",
+            size=size,
+        )
     elif is_connected and speed_overlay == "upload" and tx_speed > 0:
-        draw_icon_label(cr=cr, text=f"\u2191{_short(bps=tx_speed)}", size=size)
+        draw_icon_label(
+            cr=cr,
+            text=f"\u2191{format_compact_speed(bps=tx_speed)}",
+            size=size,
+        )
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
-
-
-def _short(bps: float) -> str:
-    """Compact speed value without unit suffix (e.g. '1.2M')."""
-    if bps < 1024:
-        return f"{bps:.0f}B"
-    if bps < 1024 * 1024:
-        return f"{bps / 1024:.0f}K"
-    if bps < 1024 * 1024 * 1024:
-        return f"{bps / (1024 * 1024):.1f}M"
-    return f"{bps / (1024 * 1024 * 1024):.1f}G"

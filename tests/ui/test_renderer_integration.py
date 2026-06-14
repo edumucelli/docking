@@ -20,6 +20,7 @@ from docking.ui.geometry import (
     Rect,
     build_geometry_frame,
 )
+from docking.ui.renderer import RenderState
 
 
 def _surface_context(width: int = 420, height: int = 90):
@@ -90,6 +91,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=config,
             theme=theme,
+            state=renderer_mod.RenderState(),
         )
         # Then
         renderer._draw_content.assert_called_once()
@@ -108,6 +110,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
         first_surface = renderer._cache.offscreen_surface
 
@@ -117,6 +120,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
 
         assert first_surface is not None
@@ -137,6 +141,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
         first_surface = renderer._cache.offscreen_surface
 
@@ -147,6 +152,7 @@ class TestRendererDrawEntry:
             frame=frame,
             config=SimpleNamespace(),
             theme=MagicMock(),
+            state=renderer_mod.RenderState(),
         )
 
         assert first_surface is not None
@@ -159,7 +165,12 @@ class TestRendererContentFlow:
         # Given
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
+        )
         i1 = DockItem(
             desktop_id="firefox.desktop",
             is_active=True,
@@ -200,10 +211,12 @@ class TestRendererContentFlow:
             frame=_frame([i1, i2], layout),
             config=config,
             theme=theme,
-            hide_offset=1.0,
-            drag_index=-1,
-            drop_insert_index=1,
-            hovered_id="firefox.desktop",
+            state=RenderState(
+                hide_offset=1.0,
+                drag_index=-1,
+                drop_insert_index=1,
+                hovered_id="firefox.desktop",
+            ),
         )
 
         # Then
@@ -218,7 +231,12 @@ class TestRendererContentFlow:
     def test_draw_content_uses_frame_background_rect_for_shelf(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
+        )
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         model = MagicMock()
         model.visible_items.return_value = [item]
@@ -259,10 +277,12 @@ class TestRendererContentFlow:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         assert shelf_calls
@@ -273,7 +293,12 @@ class TestRendererContentFlow:
     def test_draw_content_dispatches_badge_and_progress_overlays(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
+        )
         item = DockItem(
             desktop_id="firefox.desktop",
             is_running=True,
@@ -298,10 +323,12 @@ class TestRendererContentFlow:
             frame=_frame([item], layout),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         renderer._draw_badge.assert_called_once()
@@ -310,7 +337,12 @@ class TestRendererContentFlow:
     def test_draw_content_hides_shelf_when_dock_is_hidden_with_gap(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = replace(Theme.load("default", 48), distance_from_edge=6)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
+        )
         frame = build_geometry_frame(
             items=[DockItem(desktop_id="firefox.desktop", is_running=True)],
             config=SimpleNamespace(
@@ -318,6 +350,7 @@ class TestRendererContentFlow:
                 icon_size=48,
                 zoom_percent=1.5,
                 zoom_enabled=True,
+                additional_distance_from_edge=0,
             ),
             theme=theme,
             window_w=420,
@@ -343,10 +376,12 @@ class TestRendererContentFlow:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=1.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=1.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         assert shelf_calls
@@ -359,6 +394,7 @@ class TestRendererContentFlow:
             pos=Position.BOTTOM,
             icon_size=48,
             applet_prefs={"separator#0": {"style": "line", "invert_color": False}},
+            additional_distance_from_edge=0,
         )
         item = DockItem(
             desktop_id="applet://separator#0",
@@ -384,10 +420,12 @@ class TestRendererContentFlow:
             frame=_frame([item], layout),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         renderer._draw_icon.assert_not_called()
@@ -398,7 +436,12 @@ class TestRendererContentFlow:
         renderer = renderer_mod.DockRenderer()
         model = MagicMock()
         model.visible_items.return_value = []
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
+        )
         theme = Theme.load("default", 48)
         cr = _surface_context()
 
@@ -407,10 +450,12 @@ class TestRendererContentFlow:
             frame=_frame([], []),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
         # Then
         # When
@@ -481,7 +526,7 @@ class TestRendererHelpers:
             DockItem(desktop_id="a.desktop", main_size=40),
             DockItem(desktop_id="b.desktop", main_size=0),
         ]
-        config = SimpleNamespace(icon_size=48)
+        config = SimpleNamespace(icon_size=48, additional_distance_from_edge=0)
         theme = Theme.load("default", 48)
 
         width, height = renderer.compute_dock_size(
@@ -520,6 +565,7 @@ class TestRendererHelpers:
             cr=cr,
             item=item,
             li=li,
+            show_window_count_numbers=False,
             base_size=48,
             main_pos=5.0,
             cross_size=80.0,
@@ -529,3 +575,87 @@ class TestRendererHelpers:
             # Then
             # When
         )
+
+    @pytest.mark.parametrize(
+        "theme", [Theme.load("default", 48), Theme.load("slate", 48)]
+    )
+    def test_draw_indicator_supports_numbered_window_counts(self, theme):
+        cr = _surface_context()
+        item = DockItem(desktop_id="x.desktop", instance_count=12, is_active=True)
+        li = SimpleNamespace(x=10.0, scale=1.0)
+
+        renderer_mod.DockRenderer._draw_indicator(
+            cr=cr,
+            item=item,
+            li=li,
+            show_window_count_numbers=True,
+            base_size=48,
+            main_pos=5.0,
+            cross_size=80.0,
+            hide_cross=0.0,
+            theme=theme,
+            pos=Position.BOTTOM,
+        )
+
+    @pytest.mark.parametrize(
+        ("pos", "expected_axis", "expected_direction"),
+        [
+            (Position.BOTTOM, "cy", -1.0),
+            (Position.TOP, "cy", 1.0),
+            (Position.LEFT, "cx", 1.0),
+            (Position.RIGHT, "cx", -1.0),
+        ],
+    )
+    def test_draw_indicator_insets_numbered_dot_from_screen_edge(
+        self, monkeypatch, pos, expected_axis, expected_direction
+    ):
+        # Given
+        cr = _surface_context()
+        theme = Theme.load("default", 48)
+        item = DockItem(desktop_id="x.desktop", instance_count=12, is_active=True)
+        li = SimpleNamespace(x=10.0, scale=1.0)
+        calls = []
+        original_main_center = 39.0
+        original_edge_center = (
+            80.0 - theme.bottom_padding / 2.0
+            if pos in (Position.BOTTOM, Position.RIGHT)
+            else theme.bottom_padding / 2.0
+        )
+        count_height = renderer_mod._window_count_dot_height(
+            count=item.instance_count,
+            base_size=48,
+            radius=theme.indicator_radius,
+        )
+        count_inset = count_height / 2.0 - theme.indicator_radius
+
+        monkeypatch.setattr(
+            renderer_mod,
+            "_draw_indicator_count_dots",
+            lambda **kwargs: calls.append(kwargs),
+        )
+
+        # When
+        renderer_mod.DockRenderer._draw_indicator(
+            cr=cr,
+            item=item,
+            li=li,
+            show_window_count_numbers=True,
+            base_size=48,
+            main_pos=5.0,
+            cross_size=80.0,
+            hide_cross=0.0,
+            theme=theme,
+            pos=pos,
+        )
+
+        # Then
+        if expected_axis == "cy":
+            assert calls[0]["cx"] == pytest.approx(original_main_center)
+            assert calls[0]["cy"] == pytest.approx(
+                original_edge_center + count_inset * expected_direction
+            )
+        else:
+            assert calls[0]["cx"] == pytest.approx(
+                original_edge_center + count_inset * expected_direction
+            )
+            assert calls[0]["cy"] == pytest.approx(original_main_center)

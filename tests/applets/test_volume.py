@@ -15,6 +15,7 @@ from docking.applets.volume.state import (
     open_volume_settings,
     volume_settings_command,
 )
+from docking.core.config import Config
 
 
 class _ImmediateWorker:
@@ -178,7 +179,11 @@ class TestVolumeSettingsLauncher:
 _MOCK_STATE = VolumeState(volume=45, muted=False)
 
 
-def _make_applet(state: VolumeState = _MOCK_STATE) -> VolumeApplet:
+def _make_applet(
+    state: VolumeState = _MOCK_STATE,
+    *,
+    config: Config | None = None,
+) -> VolumeApplet:
     """Create applet with mocked backend."""
     with (
         patch("docking.applets.volume.applet.BackgroundWorker", _ImmediateWorker),
@@ -187,7 +192,7 @@ def _make_applet(state: VolumeState = _MOCK_STATE) -> VolumeApplet:
         mock_backend = mock_detect.return_value
         mock_backend.command = "pactl"
         mock_backend.get_state.return_value = state
-        applet = VolumeApplet(48)
+        applet = VolumeApplet(48, config=config)
     # Re-attach the mock backend so tests can inspect calls
     applet._backend = mock_backend
     return applet
@@ -205,6 +210,11 @@ class TestVolumeApplet:
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
+
+    def test_loads_show_level_pref(self):
+        config = Config(applet_prefs={"volume": {"show_level": True}})
+        applet = _make_applet(config=config)
+        assert applet._show_level is True
 
     def test_tooltip_when_muted(self):
         applet = _make_applet(state=VolumeState(volume=45, muted=True))
@@ -251,16 +261,36 @@ class TestVolumeApplet:
         applet = _make_applet()
         items = applet.get_menu_items()
 
-        assert [item.get_label() for item in items] == ["Volume Settings"]
-        callback, args = items[0]._signals["activate"][0]
+        assert [item.get_label() for item in items] == [
+            "Show Level",
+            "",
+            "Volume Settings",
+        ]
+        callback, args = items[2]._signals["activate"][0]
         callback(None, *args)
         assert opened == ["opened"]
 
-    def test_menu_is_empty_when_no_volume_settings_tool_is_available(self, monkeypatch):
+    def test_menu_keeps_show_level_without_volume_settings_tool(self, monkeypatch):
         monkeypatch.setattr(volume_applet_mod, "volume_settings_command", lambda: None)
 
         applet = _make_applet()
-        assert applet.get_menu_items() == []
+        assert [item.get_label() for item in applet.get_menu_items()] == ["Show Level"]
+
+    def test_toggle_show_level_saves_and_refreshes(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(applet_prefs={})
+        config.save(path)
+        config = Config.load(path)
+        applet = _make_applet(config=config)
+        applet.present = MagicMock()
+
+        widget = MagicMock()
+        widget.get_active.return_value = True
+        applet._on_toggle_level(widget)
+
+        assert applet._show_level is True
+        assert config.applet_prefs["volume"] == {"show_level": True}
+        applet.present.assert_called_once()
 
 
 def _make_applet_no_backend() -> VolumeApplet:

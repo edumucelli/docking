@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK dialog lifecycle for the URL Shortener applet.
 
 How this applet is structured
@@ -36,6 +49,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.popup import prepare_dialog_content
 from docking.applets.urlshortener import meta
 from docking.applets.urlshortener.render import create_icon
 from docking.applets.urlshortener.state import prefs_payload, shorten_url
@@ -47,7 +61,6 @@ if TYPE_CHECKING:
 DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
 DIALOG_HORIZONTAL_MARGIN_PX = 12
-DIALOG_VERTICAL_MARGIN_PX = 8
 RESULT_LABEL_MAX_CHARS = 45
 COPY_FEEDBACK_RESET_MS = 1500
 
@@ -98,16 +111,13 @@ class UrlShortenerApplet(Applet):
             title=_("URL Shortener"),
             flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        self._dialog.set_default_size(DIALOG_WIDTH_PX, -1)
-        self._dialog.set_position(Gtk.WindowPosition.MOUSE)
-        self._dialog.set_resizable(False)
-
-        box = self._dialog.get_content_area()
-        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
-        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
-        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
+        box = prepare_dialog_content(
+            dialog=self._dialog,
+            width=DIALOG_WIDTH_PX,
+            spacing=DIALOG_CONTENT_SPACING_PX,
+            margin=DIALOG_HORIZONTAL_MARGIN_PX,
+            resizable=False,
+        )
 
         # URL entry
         self._url_entry = Gtk.Entry()

@@ -6,8 +6,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.windowkiller.applet as windowkiller_applet_mod
+from docking.applets.services import AppletServices
 from docking.applets.windowkiller.applet import WindowKillerApplet
 from docking.applets.windowkiller.state import kill_pid
+from docking.platform.backends.base import WindowId, WindowSnapshot
 
 
 class TestKillPid:
@@ -75,13 +77,22 @@ class TestAppletOverlay:
         applet = WindowKillerApplet(48)
         marker = object()
         applet._overlay = marker
+        applet.set_services(AppletServices(window_picker=object()))
 
         applet._start_pick()
 
         assert applet._overlay is marker
 
+    def test_start_pick_noop_without_window_picker_service(self):
+        applet = WindowKillerApplet(48)
+
+        applet._start_pick()
+
+        assert applet._overlay is None
+
     def test_start_pick_creates_overlay_and_grabs_input(self, monkeypatch):
         applet = WindowKillerApplet(48)
+        applet.set_services(AppletServices(window_picker=object()))
         calls: list[object] = []
 
         class _Seat:
@@ -170,15 +181,15 @@ class TestAppletOverlay:
         applet = WindowKillerApplet(48)
         dismiss = []
         monkeypatch.setattr(applet, "_dismiss_overlay", lambda: dismiss.append(True))
-        screen = SimpleNamespace(force_update=MagicMock())
-        target = SimpleNamespace(get_pid=lambda: 123, get_name=lambda: "Firefox")
+        window_id = WindowId.x11(7)
+        target = WindowSnapshot(id=window_id, desktop_id="", title="Firefox")
+        picker = MagicMock()
+        picker.pick_window_at.return_value = target
+        picker.pid_for.return_value = 123
+        kill = MagicMock(return_value=True)
+        monkeypatch.setattr(windowkiller_applet_mod, "kill_pid", kill)
+        applet.set_services(AppletServices(window_picker=picker))
         logger = SimpleNamespace(info=MagicMock(), warning=MagicMock())
-        monkeypatch.setattr(
-            windowkiller_applet_mod.Wnck.Screen, "get_default", lambda: screen
-        )
-        monkeypatch.setattr(applet, "_window_at", lambda **_kwargs: target)
-        killed = MagicMock(return_value=True)
-        monkeypatch.setattr(windowkiller_applet_mod, "kill_pid", killed)
         monkeypatch.setattr(
             windowkiller_applet_mod.log, "bind", lambda **_kwargs: logger
         )
@@ -186,20 +197,22 @@ class TestAppletOverlay:
         event = SimpleNamespace(x_root=10, y_root=20)
         assert applet._on_overlay_click(MagicMock(), event) is True
         assert dismiss == [True]
-        screen.force_update.assert_called_once_with()
-        killed.assert_called_once_with(pid=123)
+        picker.pick_window_at.assert_called_once_with(x=10, y=20)
+        picker.pid_for.assert_called_once_with(window_id)
+        kill.assert_called_once_with(pid=123)
+        picker.kill.assert_not_called()
         logger.info.assert_called_once()
 
     def test_overlay_click_warns_when_window_has_no_pid(self, monkeypatch):
         applet = WindowKillerApplet(48)
         monkeypatch.setattr(applet, "_dismiss_overlay", lambda: None)
-        screen = SimpleNamespace(force_update=MagicMock())
-        target = SimpleNamespace(get_pid=lambda: 0, get_name=lambda: "Nameless")
+        window_id = WindowId.x11(7)
+        target = WindowSnapshot(id=window_id, desktop_id="", title="Nameless")
+        picker = MagicMock()
+        picker.pick_window_at.return_value = target
+        picker.pid_for.return_value = None
+        applet.set_services(AppletServices(window_picker=picker))
         logger = SimpleNamespace(info=MagicMock(), warning=MagicMock())
-        monkeypatch.setattr(
-            windowkiller_applet_mod.Wnck.Screen, "get_default", lambda: screen
-        )
-        monkeypatch.setattr(applet, "_window_at", lambda **_kwargs: target)
         monkeypatch.setattr(
             windowkiller_applet_mod.log, "bind", lambda **_kwargs: logger
         )
@@ -220,26 +233,3 @@ class TestAppletOverlay:
 
         assert applet._on_overlay_key(MagicMock(), _Event()) is True
         assert dismiss == []
-
-    def test_window_at_returns_topmost_normal_window_containing_point(self):
-        applet = WindowKillerApplet(48)
-        skipped_type = SimpleNamespace(
-            get_window_type=lambda: object(),
-            is_minimized=lambda: False,
-            get_geometry=lambda: (0, 0, 100, 100),
-        )
-        skipped_minimized = SimpleNamespace(
-            get_window_type=lambda: windowkiller_applet_mod.Wnck.WindowType.NORMAL,
-            is_minimized=lambda: True,
-            get_geometry=lambda: (0, 0, 100, 100),
-        )
-        target = SimpleNamespace(
-            get_window_type=lambda: windowkiller_applet_mod.Wnck.WindowType.NORMAL,
-            is_minimized=lambda: False,
-            get_geometry=lambda: (10, 10, 60, 60),
-        )
-        screen = SimpleNamespace(
-            get_windows_stacked=lambda: [target, skipped_minimized, skipped_type]
-        )
-
-        assert applet._window_at(screen, 20, 20) is target

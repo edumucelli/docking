@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and formatting logic for the APOD applet."""
 
 from __future__ import annotations
@@ -7,6 +20,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
+from docking.applets.live_state import (
+    LiveDataStatus,
+    live_freshness_lines,
+    live_state_error,
+    live_state_label,
+    refresh_recovery_label,
+    resolve_live_status,
+)
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 
 # Maximum characters per tooltip line. Chosen so the wrapped explanation
@@ -74,23 +96,50 @@ def format_explanation(
     )
 
 
-def build_tooltip(*, result: ApodResult | None, error: str | None) -> str:
-    lines = [_("Astronomy Picture of the Day")]
-    if error and result is None:
-        lines.append(_("Error: {msg}").format(msg=error))
-        return "\n".join(lines)
+def build_tooltip(
+    *,
+    result: ApodResult | None,
+    error: str | None,
+    loading: bool = False,
+    cadence_seconds: int | None = None,
+) -> str:
+    status = resolve_live_status(
+        has_data=result is not None,
+        loading=loading,
+        error=error,
+        stale_after_seconds=None,
+    )
     if result is None:
-        lines.append(_("Loading..."))
-        return "\n".join(lines)
-    lines.append(result.date)
+        return structured_tooltip(
+            title=_("Astronomy Picture of the Day"),
+            primary=live_state_label(status),
+            freshness=live_freshness_lines(
+                status=status,
+                cadence_seconds=cadence_seconds,
+                cadence_verb=_("Checks"),
+            ),
+            error=live_state_error(status=status, error=error),
+            recovery=refresh_recovery_label(status),
+        )
+    details = []
     if result.title:
-        lines.append(result.title)
+        details.append(result.title)
     if result.copyright:
-        lines.append(_("(c) {who}").format(who=result.copyright.strip()))
+        details.append(_("(c) {who}").format(who=result.copyright.strip()))
     if result.explanation:
-        lines.append("")
-        lines.append(format_explanation(result.explanation))
-    return "\n".join(lines)
+        details.append(format_explanation(result.explanation))
+    return structured_tooltip(
+        title=_("Astronomy Picture of the Day"),
+        primary=result.date,
+        details=details,
+        freshness=live_freshness_lines(
+            status=LiveDataStatus.STALE if error else LiveDataStatus.READY,
+            cadence_seconds=cadence_seconds,
+            cadence_verb=_("Checks"),
+        ),
+        error=live_state_error(status=status, error=error),
+        recovery=refresh_recovery_label(status),
+    )
 
 
 def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> ApodPrefs:

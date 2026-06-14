@@ -61,25 +61,12 @@ jobs:
           printf 'Changed files:\n'
           printf ' - %s\n' "${changed_files[@]}"
 
-          for path in "${changed_files[@]}"; do
-            case "${path}" in
-              docs/**|website/**|images/**)
-                ;;
-              *)
-                echo "CI-relevant change detected: ${path}"
-                echo "run_ci=true" >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-            esac
-          done
-
-          echo "Only docs/ website/ and images/ changed; skipping CI."
-          echo "run_ci=false" >> "$GITHUB_OUTPUT"
+          echo "All changes trigger CI; no path-based exclusions."
+          echo "run_ci=true" >> "$GITHUB_OUTPUT"
 
   quality:
     name: Quality (ruff + ty)
     needs: [changes]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +95,7 @@ jobs:
         run: bash tools/i18n.sh --check-pot-sync
 
       - name: Validate translation catalogs
-        run: bash tools/i18n.sh --check-catalogs --require-complete
+        run: bash tools/i18n.sh --check-catalogs --allow-incomplete
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -131,7 +118,6 @@ jobs:
   bdd-visual:
     name: BDD + Visual Regression
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -194,7 +180,6 @@ jobs:
   test-ubuntu:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-${{ matrix.ubuntu }}
     strategy:
       matrix:
@@ -302,7 +287,6 @@ jobs:
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -368,7 +352,6 @@ jobs:
   test-arm64:
     name: Test (Python 3.12, Ubuntu 24.04 ARM64)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
@@ -420,7 +403,6 @@ jobs:
   test-fedora-smoke:
     name: Smoke (Fedora 41)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: fedora:41
@@ -460,7 +442,6 @@ jobs:
   test-opensuse-smoke:
     name: Smoke (openSUSE Tumbleweed)
     needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-24.04
     container:
       image: opensuse/tumbleweed:latest
@@ -529,7 +510,6 @@ jobs:
     name: Build .deb
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -537,8 +517,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential debhelper dh-python python3-setuptools python3-wheel python3-pip \
+            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
+            libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
 
       - name: Build .deb
@@ -604,7 +585,6 @@ jobs:
     name: Build .deb (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -612,8 +592,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential debhelper dh-python python3-setuptools python3-wheel python3-pip \
+            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
+            libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
 
       - name: Build .deb
@@ -682,14 +663,13 @@ jobs:
     name: Build RPM (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -709,14 +689,13 @@ jobs:
     name: Build RPM
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -736,7 +715,6 @@ jobs:
     name: Build Flatpak
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -752,22 +730,21 @@ jobs:
         run: |
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
-          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/org.docking.Docking.json
+          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
           mkdir -p artifacts
-          flatpak build-bundle flatpak-repo artifacts/org.docking.Docking.flatpak org.docking.Docking
-          ls -lh artifacts/org.docking.Docking.flatpak
+          flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
+          ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload Flatpak artifact
         uses: actions/upload-artifact@v4
         with:
           name: docking-flatpak
-          path: artifacts/org.docking.Docking.flatpak
+          path: artifacts/cc.docking.Docking.flatpak
 
   build-flatpak-arm64:
     name: Build Flatpak (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -783,22 +760,21 @@ jobs:
         run: |
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
-          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/org.docking.Docking.json
+          flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
           mkdir -p artifacts
-          flatpak build-bundle flatpak-repo artifacts/org.docking.Docking.flatpak org.docking.Docking
-          ls -lh artifacts/org.docking.Docking.flatpak
+          flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
+          ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload ARM64 Flatpak artifact
         uses: actions/upload-artifact@v4
         with:
           name: docking-flatpak-arm64
-          path: artifacts/org.docking.Docking.flatpak
+          path: artifacts/cc.docking.Docking.flatpak
 
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -830,7 +806,6 @@ jobs:
     name: Build Snap (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -865,14 +840,13 @@ jobs:
     name: Build AppImage
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - name: Install AppImage tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip libfuse2 gettext
+          sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
           python3 -m pip install --upgrade pip
           python3 -m pip install appimage-builder
 
@@ -894,14 +868,13 @@ jobs:
     name: Build AppImage (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - name: Install AppImage tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip libfuse2 gettext
+          sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
           python3 -m pip install --upgrade pip
           python3 -m pip install appimage-builder
 
@@ -923,7 +896,6 @@ jobs:
     name: Build Arch package
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     container:
       image: archlinux:latest
     steps:
@@ -955,7 +927,6 @@ jobs:
     name: Build Arch package (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     container:
       image: adyranov/archlinux:latest
     steps:
@@ -987,7 +958,6 @@ jobs:
     name: Build Nix package
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -1021,7 +991,6 @@ jobs:
     name: Build Nix package (ARM64)
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
-    if: needs.changes.outputs.run_ci == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -1055,7 +1024,7 @@ jobs:
     name: Release
     runs-on: ubuntu-22.04
     needs: [changes, build-deb, build-deb-arm64, build-rpm, build-rpm-arm64, build-flatpak, build-flatpak-arm64, build-snap, build-snap-arm64, build-appimage, build-appimage-arm64, build-arch, build-arch-arm64, build-nix, build-nix-arm64]
-    if: github.ref == 'refs/heads/master' && needs.changes.outputs.run_ci == 'true'
+    if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
     steps:

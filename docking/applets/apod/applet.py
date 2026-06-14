@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for the APOD applet."""
 
 from __future__ import annotations
@@ -25,6 +38,13 @@ from docking.applets.apod.state import (
     prefs_payload,
 )
 from docking.applets.base import Applet
+from docking.applets.freshness import cadence_label
+from docking.applets.live_state import (
+    live_state_error,
+    live_state_label,
+    resolve_live_status,
+)
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -53,6 +73,7 @@ class ApodApplet(Applet):
         self._retry_timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._fetch_request_id: int = 0
+        self._loading = False
         self._error: str | None = None
         self._worker = BackgroundWorker(logger=log)
 
@@ -66,41 +87,68 @@ class ApodApplet(Applet):
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         cached = self._result.cached_path if self._result else ""
-        return render_icon(size=size, cached_path=cached)
+        return render_icon(size=size, cached_path=cached, warning=bool(self._error))
 
     def refresh_tooltip(self) -> None:
-        self.item.name = build_tooltip(result=self._result, error=self._error)
+        self.item.name = build_tooltip(
+            result=self._result,
+            error=self._error,
+            loading=self._loading,
+            cadence_seconds=REFRESH_CHECK_INTERVAL_S,
+        )
 
     def on_clicked(self) -> None:
         self._open_page()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
         if self._result is not None:
-            header = Gtk.MenuItem(
-                label=_("{date}: {title}").format(
-                    date=self._result.date,
-                    title=self._result.title or _("Untitled"),
+            status.append(
+                disabled_menu_item(
+                    _("{date}: {title}").format(
+                        date=self._result.date,
+                        title=self._result.title or _("Untitled"),
+                    ),
+                    gtk=Gtk,
                 )
             )
-            header.set_sensitive(False)
-            items.append(header)
-            items.append(Gtk.SeparatorMenuItem())
+            status.append(
+                disabled_menu_item(
+                    cadence_label(
+                        seconds=REFRESH_CHECK_INTERVAL_S,
+                        verb=_("Checks"),
+                    ),
+                    gtk=Gtk,
+                )
+            )
+        state_status = self._live_status()
+        state_label = live_state_label(state_status)
+        if state_label:
+            status.append(disabled_menu_item(state_label, gtk=Gtk))
+        error = live_state_error(status=state_status, error=self._error)
+        if error:
+            status.append(
+                disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
+            )
 
         open_item = Gtk.MenuItem(label=_("Open on apod.nasa.gov"))
         open_item.connect("activate", lambda _w: self._open_page())
-        items.append(open_item)
+        primary = [open_item]
 
         if self._result is not None and self._result.explanation:
             copy_item = Gtk.MenuItem(label=_("Copy Explanation"))
             copy_item.connect("activate", lambda _w: self._copy_explanation())
-            items.append(copy_item)
+            primary.append(copy_item)
 
         refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _w: self._fetch_async())
-        items.append(refresh_item)
 
-        return items
+        return menu_sections(
+            status=status,
+            primary=primary,
+            refresh=[refresh_item],
+            gtk=Gtk,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
@@ -141,6 +189,9 @@ class ApodApplet(Applet):
             self._startup_fetch_timer_id = 0
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
+        self._loading = True
+        self._error = None
+        self.present()
 
         self._worker.run(
             name="apod-fetch",
@@ -157,6 +208,7 @@ class ApodApplet(Applet):
     ) -> bool:
         if request_id != self._fetch_request_id:
             return False
+        self._loading = False
         if isinstance(result, ApodError):
             self._error = result.message
             self._schedule_retry()
@@ -170,6 +222,7 @@ class ApodApplet(Applet):
     def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
         if request_id != self._fetch_request_id:
             return False
+        self._loading = False
         self._error = str(exc) or exc.__class__.__name__
         log.bind(action="fetch_error").debug("APOD fetch crashed: %s", exc)
         self._schedule_retry()
@@ -204,3 +257,10 @@ class ApodApplet(Applet):
 
     def _save_prefs(self) -> None:
         self.save_prefs(prefs=prefs_payload(result=self._result))
+
+    def _live_status(self):
+        return resolve_live_status(
+            has_data=self._result is not None,
+            loading=self._loading,
+            error=self._error,
+        )

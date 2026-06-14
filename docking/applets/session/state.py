@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and command helpers for session applet."""
 
 from __future__ import annotations
@@ -10,6 +23,7 @@ from typing import NamedTuple
 from docking.applets.session import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.environment import flatpak
 
 log = with_context(get_logger(name="session"), applet_id=meta.id)
 
@@ -36,6 +50,23 @@ _LOCK_SCREEN_COMMAND_CANDIDATES: tuple[tuple[str, ...], ...] = (
     ("xdg-screensaver", "lock"),
     ("dm-tool", "lock"),
     ("loginctl", "lock-session"),
+)
+_LOCK_SCREEN_DBUS_CANDIDATES: tuple[tuple[str, str, str], ...] = (
+    (
+        "org.mate.ScreenSaver",
+        "/org/mate/ScreenSaver",
+        "org.mate.ScreenSaver.Lock",
+    ),
+    (
+        "org.gnome.ScreenSaver",
+        "/org/gnome/ScreenSaver",
+        "org.gnome.ScreenSaver.Lock",
+    ),
+    (
+        "org.freedesktop.ScreenSaver",
+        "/org/freedesktop/ScreenSaver",
+        "org.freedesktop.ScreenSaver.Lock",
+    ),
 )
 
 
@@ -69,18 +100,46 @@ def lock_screen() -> bool:
 
 def _run(*, cmd: list[str], action: str) -> None:
     """Run a session/power command, logging failures."""
+    # Resolve session-id placeholder for loginctl commands.
+    resolved_cmd = list(cmd)
+    if resolved_cmd[0:2] == ["loginctl", "terminate-session"] and resolved_cmd[2] == "":
+        session_id = (os.environ.get("XDG_SESSION_ID") or "").strip()
+        resolved_cmd[2] = session_id
+    resolved_cmd = flatpak.host_command(resolved_cmd) or resolved_cmd
+    # Remove empty arguments so loginctl auto-detects the calling session
+    # when XDG_SESSION_ID is not available.
+    resolved_cmd = [a for a in resolved_cmd if a != ""]
     try:
-        subprocess.Popen(cmd, start_new_session=True)
+        subprocess.Popen(resolved_cmd)
     except OSError as exc:
         log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
 
 
 def _lock_screen_commands(*, session_id: str) -> list[list[str]]:
     commands: list[list[str]] = []
+    gdbus = shutil.which("gdbus")
+    if gdbus is not None:
+        for destination, object_path, method in _LOCK_SCREEN_DBUS_CANDIDATES:
+            commands.append(
+                [
+                    gdbus,
+                    "call",
+                    "--session",
+                    "--dest",
+                    destination,
+                    "--object-path",
+                    object_path,
+                    "--method",
+                    method,
+                ]
+            )
+    flatpak_spawn = flatpak.spawn_path()
     for cmd in _LOCK_SCREEN_COMMAND_CANDIDATES:
-        if shutil.which(cmd[0]) is None:
+        if flatpak_spawn is None and shutil.which(cmd[0]) is None:
             continue
         if cmd[0] == "loginctl" and session_id:
-            commands.append([cmd[0], cmd[1], session_id])
-        commands.append(list(cmd))
+            loginctl_cmd = [cmd[0], cmd[1], session_id]
+            commands.append(flatpak.host_command(loginctl_cmd) or loginctl_cmd)
+        candidate_cmd = list(cmd)
+        commands.append(flatpak.host_command(candidate_cmd) or candidate_cmd)
     return commands

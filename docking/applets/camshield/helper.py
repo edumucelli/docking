@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Privileged camera device lock helper for Cam Shield.
 
 This module is intentionally small and command-shaped. The GTK applet remains
@@ -17,6 +30,8 @@ import sys
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+
+from docking.core.paths import ensure_dir
 
 STATE_DIR = Path("/var/lib/docking/camshield")
 STATE_FILE = STATE_DIR / "devices.json"
@@ -60,7 +75,7 @@ def lock_devices(
         print("No camera devices found.", file=sys.stderr)
         return 1
 
-    state_dir.mkdir(parents=True, exist_ok=True)
+    ensure_dir(state_dir)
     state = _read_state(state_dir=state_dir)
     changed = 0
     for device in devices:
@@ -144,7 +159,7 @@ def _save_acl_snapshot(*, device: Path, state_dir: Path) -> Path | None:
         return None
 
     acl_dir = state_dir / "acl"
-    acl_dir.mkdir(parents=True, exist_ok=True)
+    ensure_dir(acl_dir)
     acl_file = acl_dir / f"{device.name}.acl"
     try:
         with acl_file.open("w", encoding="utf-8") as handle:

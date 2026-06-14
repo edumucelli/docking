@@ -16,11 +16,12 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.core.theme import Theme
+from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
 from docking.ui.autohide import HideState
 from docking.ui.geometry import build_geometry_frame
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
-from docking.ui.renderer import DockRenderer
+from docking.ui.renderer import DockRenderer, RenderState
 from docking.ui.tooltip import TooltipManager
 
 DOCK_CASES = (
@@ -82,6 +83,8 @@ def _renderer_config() -> SimpleNamespace:
         icon_size=ICON_SIZE,
         zoom_percent=2.0,
         zoom_enabled=True,
+        additional_distance_from_edge=0,
+        show_window_count_numbers=False,
         applet_prefs={},
     )
 
@@ -158,6 +161,12 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         assert case_name == "dock-bottom-idle"
 
     cursor_main = 210.0 if hovered_id else -1_000_000.0
+    render_state = RenderState(
+        hide_offset=hide_offset,
+        drop_insert_index=drop_insert_index,
+        hovered_id=hovered_id,
+        cursor_main=cursor_main,
+    )
     frame = build_geometry_frame(
         items=items,
         config=config,
@@ -182,9 +191,7 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=hide_offset,
-            drop_insert_index=drop_insert_index,
-            hovered_id=hovered_id,
+            state=render_state,
         )
         return surface
 
@@ -222,11 +229,13 @@ def _folder_stack_handler() -> MenuHandler:
         model=MagicMock(),
         config=config,
         window_tracker=MagicMock(),
+        preview_service=MagicMock(),
         geometry_builder=MagicMock(),
+        diagnostics=MagicMock(),
         launcher=launcher,
     )
-    handler._folder_stack_position_value = "bottom"
-    handler._folder_target_state = lambda _target: "ok"
+    handler._folder_stack._folder_stack_position_value = "bottom"
+    handler._folder_stack._browser.target_state = lambda _target: "ok"
     return handler
 
 
@@ -264,14 +273,16 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
         kind=FOLDER_KIND,
         target="file:///tmp/docs",
     )
-    handler._list_directory = lambda **_kwargs: _folder_stack_rows()
-    cards, popup_w, popup_h = handler._folder_stack_cards_for_item(folder_item)
-    handler._folder_stack_cards = cards
+    handler._folder_stack._list_directory_rows = lambda **_kwargs: _folder_stack_rows()
+    cards, popup_w, popup_h = handler._folder_stack._folder_stack_cards_for_item(
+        folder_item
+    )
+    handler._folder_stack._folder_stack_cards = cards
     if case_name == "folder-stack-hover-item-bottom":
         hover_target = next(
             card.target for card in cards if card.target and card.label == "Notes"
         )
-        handler._folder_stack_hover_values[hover_target] = 1.0
+        handler._folder_stack._folder_stack_hover_values[hover_target] = 1.0
     elif case_name != "folder-stack-open-bottom":
         raise AssertionError(f"Unknown folder stack case {case_name}")
 
@@ -287,7 +298,7 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
     now_us = 500_000
     total_cards = len(cards)
     for draw_index, card in enumerate(cards):
-        handler._draw_folder_stack_card(
+        handler._folder_stack._draw_folder_stack_card(
             cr=cr,
             card=card,
             sequence_index=total_cards - 1 - draw_index,
@@ -353,28 +364,45 @@ def _draw_tooltip_case() -> cairo.ImageSurface:
 
 def _draw_preview_case() -> cairo.ImageSurface:
     tracker = MagicMock()
-    tracker.get_xids_for.return_value = [101, 102]
-    tracker.icon_name_for_desktop.return_value = "firefox"
-    tracker.get_window_title_for_xid.side_effect = [
-        "Firefox - Docking Visual Regression",
-        "Docs - Feature Review",
+    tracker.list_preview_windows.return_value = [
+        WindowSnapshot(
+            id=WindowId.x11(101),
+            desktop_id="firefox.desktop",
+            title="Firefox - Docking Visual Regression",
+            can_activate=True,
+            can_preview=True,
+        ),
+        WindowSnapshot(
+            id=WindowId.x11(102),
+            desktop_id="firefox.desktop",
+            title="Docs - Feature Review",
+            can_activate=True,
+            can_preview=True,
+        ),
     ]
-    popup = PreviewPopup(window_tracker=tracker)
+    tracker.icon_name_for_desktop.return_value = "firefox"
+    preview_service = MagicMock()
+    preview_service.capture.side_effect = [
+        PreviewImage(
+            image=_pixbuf(max(THUMB_W, THUMB_H), red=235, green=94, blue=55),
+            width=THUMB_W,
+            height=THUMB_H,
+        ),
+        PreviewImage(
+            image=_pixbuf(max(THUMB_W, THUMB_H), red=60, green=132, blue=241),
+            width=THUMB_W,
+            height=THUMB_H,
+        ),
+    ]
+    popup = PreviewPopup(window_tracker=tracker, preview_service=preview_service)
     try:
-        with patch(
-            "docking.ui.preview.capture_xid",
-            side_effect=[
-                _pixbuf(max(THUMB_W, THUMB_H), red=235, green=94, blue=55),
-                _pixbuf(max(THUMB_W, THUMB_H), red=60, green=132, blue=241),
-            ],
-        ):
-            popup.show_for_item(
-                desktop_id="firefox.desktop",
-                anchor_x=140.0,
-                icon_w=48.0,
-                anchor_y=320.0,
-                position=Position.BOTTOM,
-            )
+        popup.show_for_item(
+            desktop_id="firefox.desktop",
+            anchor_x=140.0,
+            icon_w=48.0,
+            anchor_y=320.0,
+            position=Position.BOTTOM,
+        )
         return _capture_window_surface(popup)
     finally:
         popup.destroy()

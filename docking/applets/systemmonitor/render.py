@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for System Monitor applet."""
 
 from __future__ import annotations
@@ -12,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.systemmonitor.state import cpu_hue_rgb
+from docking.core.math import clamp
 
 RADIUS_PERCENT = 0.9
 
@@ -24,7 +38,7 @@ def _render_gauge(cr: cairo.Context, size: int, cpu: float, mem: float) -> None:
     r, g, b = cpu_hue_rgb(cpu=cpu)
     base_alpha = 0.5
     # *1.3 exaggerates display so ~77% CPU fills the gauge (makes low usage visible)
-    cpu_clamped = max(0.001, min(cpu * 1.3, 1.0))
+    cpu_clamped = clamp(cpu * 1.3, 0.001, 1.0)
 
     # 1. Black underlay
     cr.arc(center, center, radius, 0, math.tau)

@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Shared dock geometry used by rendering, hover, input masking, and popups.
 
 Why this module exists
@@ -224,6 +237,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
+from docking.core.config import effective_edge_gap
 from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
@@ -503,7 +517,7 @@ def build_geometry_frame(
     pos = config.pos
     horizontal = is_horizontal(pos=pos)
     main_size = window_w if horizontal else window_h
-    gap = max(0, int(theme.distance_from_edge))
+    gap = effective_edge_gap(theme, config)
     cross_size = (window_h if horizontal else window_w) - gap
 
     local_cursor_main = _local_cursor_main(
@@ -519,14 +533,14 @@ def build_geometry_frame(
             config,
             local_cursor_main,
             item_padding=theme.item_padding,
-            h_padding=theme.h_padding,
+            horizontal_padding=theme.horizontal_padding,
             zoom_progress=zoom_progress,
         )
     )
     left_edge, right_edge = content_bounds(
         layout=list(layout),
         icon_size=config.icon_size,
-        h_padding=theme.h_padding,
+        horizontal_padding=theme.horizontal_padding,
         item_padding=theme.item_padding,
     )
     zoomed_w = right_edge - left_edge
@@ -543,7 +557,7 @@ def build_geometry_frame(
         autohide_state=(
             None if autohide_state != HideState.HIDDEN else HideState.VISIBLE
         ),
-        distance_from_edge=max(0, int(theme.distance_from_edge)),
+        distance_from_edge=gap,
     )
 
     drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
@@ -569,7 +583,7 @@ def build_geometry_frame(
             content_w=int(zoomed_w),
             content_cross=content_cross,
             autohide_state=HideState.HIDDEN,
-            distance_from_edge=max(0, int(theme.distance_from_edge)),
+            distance_from_edge=gap,
         )
     else:
         cursor_rect = static_dock_rect
@@ -658,7 +672,7 @@ def _local_cursor_main(
 ) -> float:
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL
-    pad = theme.h_padding + theme.item_padding / 2
+    pad = theme.horizontal_padding + theme.item_padding / 2
     total_main = sum(item.main_size or config.icon_size for item in items)
     base_w = pad * 2 + total_main + max(0, len(items) - 1) * theme.item_padding
     return cursor_main - (main_size - base_w) / 2
@@ -712,6 +726,7 @@ def _build_item_geometries(
         draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
         static_dock_rect=static_dock_rect,
         theme=theme,
+        edge_gap=effective_edge_gap(theme, config),
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
@@ -935,13 +950,14 @@ def _compute_background_rect(
     draw_rects: list[Rect],
     static_dock_rect: Rect,
     theme: Theme,
+    edge_gap: int,
     hide_offset: float,
     drop_gap: float,
 ) -> Rect:
-    gap = max(0, int(theme.distance_from_edge))
+    gap = max(0, int(edge_gap))
     shelf_cross = max(1, round(theme.shelf_height))
     stroke_width = max(0.0, float(theme.stroke_width))
-    main_padding = theme.item_padding + 2 * theme.h_padding + 4 * stroke_width
+    main_padding = theme.item_padding + 2 * theme.horizontal_padding + 4 * stroke_width
 
     if draw_rects:
         if is_horizontal(pos=pos):

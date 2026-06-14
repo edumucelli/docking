@@ -5,6 +5,11 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+import gi
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+
 import docking.applets.weather.applet as weather_applet_mod
 from docking.applets.weather.api import (
     AirQualityData,
@@ -15,8 +20,12 @@ from docking.applets.weather.api import (
 from docking.applets.weather.applet import WeatherApplet
 from docking.applets.weather.state import (
     CityPref,
+    TemperatureUnit,
     WeatherPrefs,
     cycle_active_index,
+    format_temperature,
+    format_temperature_compact,
+    format_temperature_range,
     prefs_from_mapping,
     prefs_payload,
 )
@@ -91,12 +100,14 @@ class TestPrefsFromMapping:
             ],
             "active_index": 1,
             "show_temperature": False,
+            "temperature_unit": "fahrenheit",
         }
         prefs = prefs_from_mapping(raw)
         assert len(prefs.cities) == 2
         assert prefs.cities[0].city_display == "Berlin"
         assert prefs.active_index == 1
         assert prefs.show_temperature is False
+        assert prefs.temperature_unit == TemperatureUnit.FAHRENHEIT
 
     def test_old_scalar_format_migrates(self):
         raw = {
@@ -132,11 +143,39 @@ class TestPrefsFromMapping:
 class TestPrefsPayload:
     def test_round_trips(self):
         cities = (_BERLIN, _TOKYO)
-        payload = prefs_payload(cities=cities, active_index=1, show_temperature=False)
+        payload = prefs_payload(
+            cities=cities,
+            active_index=1,
+            show_temperature=False,
+            temperature_unit=TemperatureUnit.FAHRENHEIT,
+        )
         prefs = prefs_from_mapping(payload)
         assert prefs.cities == cities
         assert prefs.active_index == 1
         assert prefs.show_temperature is False
+        assert prefs.temperature_unit == TemperatureUnit.FAHRENHEIT
+
+    def test_temperature_formatting(self):
+        assert format_temperature(22.0) == "22\N{DEGREE SIGN}C"
+        assert (
+            format_temperature(22.0, temperature_unit=TemperatureUnit.FAHRENHEIT)
+            == "72\N{DEGREE SIGN}F"
+        )
+        assert (
+            format_temperature_compact(
+                22.0,
+                temperature_unit=TemperatureUnit.FAHRENHEIT,
+            )
+            == "72\N{DEGREE SIGN}"
+        )
+        assert (
+            format_temperature_range(
+                low_celsius=18.0,
+                high_celsius=25.0,
+                temperature_unit=TemperatureUnit.FAHRENHEIT,
+            )
+            == "64/77\N{DEGREE SIGN}F"
+        )
 
 
 # -- Applet-level tests -------------------------------------------------------
@@ -169,6 +208,25 @@ class TestWeatherTooltip:
         assert "Berlin" in applet.item.name
         assert "22" in applet.item.name
 
+    def test_tooltip_discloses_update_cadence(self):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._weather = _SAMPLE_WEATHER
+        applet.refresh_tooltip()
+
+        assert "Updates every 5 minutes" in applet.item.name
+
+    def test_tooltip_uses_selected_temperature_unit(self):
+        config = Config(applet_prefs={"weather": {"temperature_unit": "fahrenheit"}})
+        applet = _make_applet(config=config)
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._weather = _SAMPLE_WEATHER
+        applet.refresh_tooltip()
+        assert "72\N{DEGREE SIGN}F" in applet.item.name
+        assert "64/77\N{DEGREE SIGN}F" in applet.item.name
+
     def test_tooltip_includes_daily_forecast(self):
         applet = _make_applet()
         applet._cities = [_BERLIN]
@@ -182,8 +240,17 @@ class TestWeatherTooltip:
         applet._cities = [_BERLIN]
         applet._active_index = 0
         applet._weather = None
+        applet._loading = True
         applet.refresh_tooltip()
         assert "loading" in applet.item.name.lower()
+
+    def test_tooltip_no_data_state(self):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._weather = None
+        applet.refresh_tooltip()
+        assert "no data yet" in applet.item.name.lower()
 
     def test_tooltip_unavailable_state_after_failed_fetch(self):
         applet = _make_applet()
@@ -219,11 +286,12 @@ class TestWeatherTemperatureOverlay:
 
 
 class TestWeatherMenu:
-    def test_menu_has_show_temp_only(self):
+    def test_menu_has_show_temp_and_unit_selector(self):
         applet = _make_applet()
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items]
         assert "Show Temperature" in labels
+        assert "Temperature Unit" in labels
         assert "Add City..." not in labels
 
     def test_menu_includes_city_header_when_set(self):
@@ -234,6 +302,7 @@ class TestWeatherMenu:
         items = applet.get_menu_items()
         assert "Tokyo" in items[0].get_label()
         assert not items[0].get_sensitive()
+        assert any(item.get_label() == "Updates every 5 minutes" for item in items)
 
     def test_menu_no_city_header_when_unset(self):
         applet = _make_applet()
@@ -242,6 +311,18 @@ class TestWeatherMenu:
         assert "Show Temperature" in labels
         # No city header -> first item is show_temp
         assert items[0].get_label() == "Show Temperature"
+
+    def test_menu_unit_selector_contains_celsius_and_fahrenheit(self):
+        applet = _make_applet()
+        unit_root = next(
+            item
+            for item in applet.get_menu_items()
+            if item.get_label() == "Temperature Unit"
+        )
+
+        labels = [item.get_label() for item in unit_root.get_submenu().children]
+
+        assert labels == ["Celsius", "Fahrenheit"]
 
     def test_menu_has_remove_when_multi_city(self):
         applet = _make_applet()
@@ -260,7 +341,13 @@ class TestWeatherMenu:
         assert not any("Remove" in label for label in labels)
 
 
-_SAMPLE_AQI = AirQualityData(aqi=28, pm2_5=8.1, pm10=9.1, label="Fair")
+_SAMPLE_AQI = AirQualityData(
+    aqi=28,
+    pm2_5=8.1,
+    pm10=9.1,
+    label="Fair",
+    uv_index=5.7,
+)
 
 
 class TestAqiLabel:
@@ -298,6 +385,7 @@ class TestAirQualityInTooltip:
         applet._air_quality = _SAMPLE_AQI
         applet.refresh_tooltip()
         assert "Air: Fair" in applet.item.name
+        assert "UV Index: 5.7" in applet.item.name
 
     def test_tooltip_no_aqi_when_unavailable(self):
         applet = _make_applet()
@@ -340,12 +428,14 @@ class TestWeatherPrefs:
                     ],
                     "active_index": 1,
                     "show_temperature": True,
+                    "temperature_unit": "fahrenheit",
                 }
             }
         )
         applet = _make_applet(config=config)
         assert len(applet._cities) == 2
         assert applet._active_index == 1
+        assert applet._temperature_unit == TemperatureUnit.FAHRENHEIT
 
     def test_saves_prefs_on_add_city(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -373,6 +463,19 @@ class TestWeatherPrefs:
 
         reloaded = Config.load(path)
         assert reloaded.applet_prefs["weather"]["show_temperature"] is False
+
+    def test_saves_temperature_unit_pref(self):
+        config = Config(applet_prefs={})
+        applet = _make_applet(config=config)
+        item = Gtk.RadioMenuItem(label="Fahrenheit")
+        item.set_active(True)
+
+        applet._on_temperature_unit_selected(
+            widget=item,
+            temperature_unit=TemperatureUnit.FAHRENHEIT,
+        )
+
+        assert config.applet_prefs["weather"]["temperature_unit"] == "fahrenheit"
 
 
 class TestWeatherAsyncFetch:
@@ -423,7 +526,20 @@ class TestWeatherAsyncFetch:
         assert applet._weather is None
         assert applet._air_quality is None
         assert applet._fetch_failed is True
+        assert applet._fetch_error == "boom"
         refresh.assert_called_once()
+
+    def test_fetch_error_keeps_previous_weather(self):
+        applet = _make_applet()
+        applet._fetch_request_id = 5
+        applet._weather = _SAMPLE_WEATHER
+        applet._air_quality = _SAMPLE_AQI
+
+        assert applet._on_fetch_error(request_id=5, exc=RuntimeError("boom")) is False
+
+        assert applet._weather == _SAMPLE_WEATHER
+        assert applet._air_quality == _SAMPLE_AQI
+        assert applet._fetch_failed is True
 
     def test_fetch_async_uses_active_city_coords(self, monkeypatch):
         applet = _make_applet()
@@ -754,12 +870,26 @@ class _FakeWeatherDialog:
     def __init__(self, **_kwargs):
         self.destroy = MagicMock()
         self._content = _FakeWeatherBox()
+        self.buttons: list[tuple[object, object]] = []
+        self.callbacks: dict[str, object] = {}
 
     def set_default_size(self, *_args) -> None:
         return
 
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
+
+    def set_skip_pager_hint(self, _value: bool) -> None:
+        return
+
     def set_position(self, *_args) -> None:
         return
+
+    def add_button(self, label, response) -> None:
+        self.buttons.append((label, response))
+
+    def connect(self, signal: str, callback) -> None:
+        self.callbacks[signal] = callback
 
     def get_content_area(self):
         return self._content
@@ -786,6 +916,7 @@ class TestWeatherDialogAndWidget:
             SimpleNamespace(
                 Dialog=lambda **_kwargs: created_dialog,
                 DialogFlags=SimpleNamespace(MODAL=1, DESTROY_WITH_PARENT=2),
+                ResponseType=SimpleNamespace(CANCEL=0),
                 WindowPosition=SimpleNamespace(MOUSE=1),
                 Entry=lambda: created_entry,
                 EntryCompletion=lambda: created_completion,
@@ -906,5 +1037,10 @@ class TestWeatherDialogAndWidget:
         box = applet._build_tooltip_widget()
 
         # Then
-        # city + current + air + 2 daily rows
-        assert len(box.get_children()) >= 5
+        labels = [
+            child._label
+            for child in box.get_children()
+            if isinstance(child, _FakeLabel)
+        ]
+        assert "Air: Fair" in labels
+        assert "UV Index: 5.7" in labels

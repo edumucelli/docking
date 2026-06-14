@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for Cam Shield applet icon."""
 
 from __future__ import annotations
@@ -12,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.draw import rounded_rect
+from docking.core.math import clamp
 from docking.ui.overlays import draw_circle_badge
 
 
@@ -35,7 +49,7 @@ def render_icon(
         cx = size - radius - size * 0.06
         cy = radius + size * 0.06
         if pulse_phase is not None:
-            phase = max(0.0, min(1.0, pulse_phase))
+            phase = clamp(pulse_phase, 0.0, 1.0)
             pulse_radius = radius * (1.15 + 0.65 * phase)
             pulse_alpha = 0.46 * (1.0 - phase)
             if pulse_alpha > 0.02:

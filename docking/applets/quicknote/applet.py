@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for quick note applet."""
 
 from __future__ import annotations
@@ -11,6 +24,8 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
+from docking.applets.popup import prepare_dialog_content
 from docking.applets.quicknote import meta
 from docking.applets.quicknote.render import render_icon
 from docking.applets.quicknote.state import (
@@ -30,7 +45,6 @@ EDIT_DIALOG_WIDTH_PX = 350
 EDIT_DIALOG_HEIGHT_PX = 250
 DIALOG_CONTENT_SPACING_PX = 8
 DIALOG_HORIZONTAL_MARGIN_PX = 12
-DIALOG_VERTICAL_MARGIN_PX = 8
 
 
 class QuickNoteApplet(Applet):
@@ -56,33 +70,29 @@ class QuickNoteApplet(Applet):
         self._show_edit_dialog()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
         edit = Gtk.MenuItem(label=_("Edit Note"))
         edit.connect("activate", lambda _: self._show_edit_dialog())
-        items.append(edit)
 
         clear = Gtk.MenuItem(label=_("Clear Note"))
         clear.connect("activate", lambda _: self._clear_note())
-        items.append(clear)
 
-        return items
+        return menu_sections(manage=[edit], destructive=[clear], gtk=Gtk)
 
     def _show_edit_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Quick Note"),
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
         )
-        dialog.set_default_size(EDIT_DIALOG_WIDTH_PX, EDIT_DIALOG_HEIGHT_PX)
-        dialog.set_position(Gtk.WindowPosition.MOUSE)
+        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("OK"), Gtk.ResponseType.OK)
-
-        box = dialog.get_content_area()
-        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
-        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
-        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
+        box = prepare_dialog_content(
+            dialog=dialog,
+            width=EDIT_DIALOG_WIDTH_PX,
+            height=EDIT_DIALOG_HEIGHT_PX,
+            spacing=DIALOG_CONTENT_SPACING_PX,
+            margin=DIALOG_HORIZONTAL_MARGIN_PX,
+            default_response=Gtk.ResponseType.OK,
+        )
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -95,11 +105,12 @@ class QuickNoteApplet(Applet):
         box.pack_start(scroll, True, True, 0)
 
         def on_response(_dlg: Gtk.Dialog, _response_id: int) -> None:
-            buf = text_view.get_buffer()
-            start, end = buf.get_bounds()
-            self._note = buf.get_text(start, end, include_hidden_chars=True)
-            self._save()
-            self.present()
+            if _response_id == Gtk.ResponseType.OK:
+                buf = text_view.get_buffer()
+                start, end = buf.get_bounds()
+                self._note = buf.get_text(start, end, include_hidden_chars=True)
+                self._save()
+                self.present()
             dialog.destroy()
 
         dialog.connect("response", on_response)

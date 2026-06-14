@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
+import os
+import sqlite3
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.aiusage.applet as aiusage_mod
+import docking.applets.aiusage.backends.claude as claude_backend
+import docking.applets.aiusage.backends.codex as codex_backend
+import docking.applets.aiusage.backends.opencode as opencode_backend
 import docking.applets.aiusage.render as aiusage_render_mod
+import docking.applets.aiusage.store as aiusage_store
 from docking.applets.aiusage.applet import AiUsageApplet
 from docking.applets.aiusage.state import (
     AiUsageState,
@@ -20,16 +27,23 @@ from docking.applets.aiusage.state import (
     Provider,
     cost_for_usage,
     day_cost,
+    day_tokens,
     dominant_provider,
     match_model_tier,
-    parse_claude_transcript,
-    parse_codex_transcript,
     prefs_from_state,
+    provider_cost,
     provider_for_model,
+    provider_tokens,
     reset_today,
     set_session,
     state_from_prefs,
+    today_cost,
+    today_sessions,
+    today_tokens,
     tooltip_text,
+    total_tokens,
+    week_cost,
+    week_tokens,
 )
 from docking.core.config import Config
 
@@ -143,6 +157,70 @@ class TestState:
         )
         assert reset_today(state=state).days == ()
 
+    def test_state_from_prefs_handles_invalid_and_session_format(self):
+        assert state_from_prefs(prefs={"days": "bad"}) == AiUsageState()
+        state = state_from_prefs(
+            prefs={
+                "days": [
+                    "bad",
+                    {"by_model": {}},
+                    {
+                        "date": "2026-04-29",
+                        "by_session": {
+                            "s1": {
+                                "gpt-5": {"in": 100, "out": 20, "cr": 10},
+                            },
+                            "s2": {
+                                "gpt-5": {"in": 50, "pc": 1.25},
+                                "bad": "skip",
+                            },
+                        },
+                    },
+                ]
+            }
+        )
+
+        assert len(state.days) == 1
+        assert state.days[0].sessions == 2
+        usage = dict(state.days[0].by_model)["gpt-5"]
+        assert usage.input_tokens == 150
+        assert usage.precalculated_cost == 1.25
+
+    def test_prefs_from_state_serializes_session_and_precalculated_cost(self):
+        state = AiUsageState(
+            days=(
+                DayEntry(
+                    date="2026-04-29",
+                    sessions=1,
+                    by_model=(
+                        (
+                            "opencode:model",
+                            ModelUsage(input_tokens=10, precalculated_cost=0.25),
+                        ),
+                    ),
+                    by_session=(
+                        (
+                            "s1",
+                            (
+                                (
+                                    "opencode:model",
+                                    ModelUsage(
+                                        input_tokens=10,
+                                        precalculated_cost=0.25,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        )
+
+        payload = prefs_from_state(state=state)
+
+        assert payload["days"][0]["by_model"]["opencode:model"]["pc"] == 0.25
+        assert "by_session" in payload["days"][0]
+
 
 # ---------------------------------------------------------------
 # Provider detection
@@ -155,6 +233,11 @@ class TestProvider:
 
     def test_codex_model(self):
         assert provider_for_model(model="gpt-5.4") == Provider.CODEX
+
+    def test_opencode_model(self):
+        assert (
+            provider_for_model(model="opencode:anthropic/claude") == Provider.OPENCODE
+        )
 
     def test_gpt_prefix(self):
         assert provider_for_model(model="gpt-4o") == Provider.CODEX
@@ -177,6 +260,18 @@ class TestProvider:
 
     def test_dominant_provider_none_when_empty(self):
         assert dominant_provider(state=AiUsageState()) is None
+
+    def test_dominant_provider_uses_highest_cost(self):
+        state = set_session(
+            session_id="test",
+            state=AiUsageState(),
+            model_usage={
+                "claude-opus-4-6": ModelUsage(input_tokens=1000),
+                "opencode:model": ModelUsage(precalculated_cost=5.0),
+            },
+        )
+
+        assert dominant_provider(state=state) == Provider.OPENCODE
 
 
 # ---------------------------------------------------------------
@@ -207,6 +302,10 @@ class TestClaudeCost:
     def test_unknown_model_zero(self):
         usage = ModelUsage(input_tokens=1_000_000)
         assert cost_for_usage(model="unknown-model", usage=usage) == 0.0
+
+    def test_opencode_cost_is_precalculated(self):
+        usage = ModelUsage(input_tokens=1_000_000, precalculated_cost=0.42)
+        assert cost_for_usage(model="opencode:model", usage=usage) == 0.42
 
 
 # ---------------------------------------------------------------
@@ -248,6 +347,40 @@ class TestCodexCost:
         )
         assert day_cost(entry=entry) == 5.0 + 2.50
 
+    def test_cached_tokens_do_not_make_negative_input_cost(self):
+        usage = ModelUsage(input_tokens=100, cache_read_tokens=200, output_tokens=100)
+        expected = (200 * 0.62 + 100 * 10.0) / 1_000_000
+        assert cost_for_usage(model="gpt-5", usage=usage) == expected
+
+
+class TestTokenAggregation:
+    def test_day_week_today_and_provider_totals(self):
+        today = datetime.date.today().isoformat()
+        today_entry = DayEntry(
+            date=today,
+            sessions=2,
+            by_model=(
+                ("gpt-5", ModelUsage(input_tokens=100, cache_read_tokens=25)),
+                ("claude-opus-4-6", ModelUsage(input_tokens=80, output_tokens=20)),
+            ),
+        )
+        old_entry = DayEntry(
+            date="2026-04-01",
+            sessions=1,
+            by_model=(("gpt-5", ModelUsage(input_tokens=10, output_tokens=5)),),
+        )
+        state = AiUsageState(days=(today_entry, old_entry))
+
+        assert total_tokens(ModelUsage(input_tokens=100, cache_read_tokens=25)) == 75
+        assert day_tokens(today_entry) == 175
+        assert provider_tokens(today_entry, Provider.CODEX) == 75
+        assert today_tokens(state) == 175
+        assert week_tokens(state) == 190
+        assert today_sessions(state) == 2
+        assert provider_cost(today_entry, Provider.CLAUDE) > 0
+        assert today_cost(state) > 0
+        assert week_cost(state) > today_cost(state)
+
 
 # ---------------------------------------------------------------
 # Tooltip
@@ -266,6 +399,20 @@ class TestTooltip:
         )
         text = tooltip_text(state=state)
         assert "$" in text
+
+    def test_provider_specific_tooltip(self):
+        state = set_session(
+            session_id="test",
+            state=AiUsageState(),
+            model_usage={
+                "claude-opus-4": ModelUsage(input_tokens=1000),
+                "gpt-5": ModelUsage(input_tokens=1000),
+            },
+        )
+
+        text = tooltip_text(state=state, provider=Provider.CODEX)
+
+        assert "Codex" in text
 
 
 # ---------------------------------------------------------------
@@ -297,16 +444,42 @@ class TestClaudeTranscript:
             ),
         ]
         jsonl.write_text("\n".join(lines))
-        result = parse_claude_transcript(path=jsonl)
+        result = claude_backend.parse_transcript(path=jsonl)
         assert result["claude-opus-4-20250514"].input_tokens == 400
 
     def test_missing_file(self, tmp_path):
-        assert parse_claude_transcript(path=tmp_path / "x.jsonl") == {}
+        assert claude_backend.parse_transcript(path=tmp_path / "x.jsonl") == {}
 
     def test_ignores_non_assistant(self, tmp_path):
         jsonl = tmp_path / "session.jsonl"
         jsonl.write_text(json.dumps({"type": "user", "message": {"role": "user"}}))
-        assert parse_claude_transcript(path=jsonl) == {}
+        assert claude_backend.parse_transcript(path=jsonl) == {}
+
+    def test_ignores_malformed_and_zero_usage_entries(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    "{",
+                    json.dumps({"type": "assistant", "message": "bad"}),
+                    json.dumps({"type": "assistant", "message": {"usage": "bad"}}),
+                    json.dumps(
+                        {
+                            "type": "assistant",
+                            "message": {"usage": {}, "model": ""},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "assistant",
+                            "message": {"usage": {}, "model": "claude-haiku"},
+                        }
+                    ),
+                ]
+            )
+        )
+
+        assert claude_backend.parse_transcript(path=jsonl) == {}
 
 
 # ---------------------------------------------------------------
@@ -315,6 +488,25 @@ class TestClaudeTranscript:
 
 
 class TestCodexTranscript:
+    def test_find_codex_session_missing_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        assert codex_backend.find_session() is None
+
+    def test_find_codex_session_by_thread_or_mtime(self, tmp_path, monkeypatch):
+        sessions_dir = tmp_path / ".codex" / "sessions"
+        sessions_dir.mkdir(parents=True)
+        older = sessions_dir / "session-old.jsonl"
+        newer = sessions_dir / "session-thread-123.jsonl"
+        older.write_text("{}", encoding="utf-8")
+        newer.write_text("{}", encoding="utf-8")
+        os.utime(older, (1000, 1000))
+        os.utime(newer, (2000, 2000))
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        assert codex_backend.find_session(thread_id="thread-123") == newer
+        assert codex_backend.find_session() == newer
+
     def test_parses_valid_session(self, tmp_path):
         jsonl = tmp_path / "session.jsonl"
         lines = [
@@ -342,7 +534,7 @@ class TestCodexTranscript:
             ),
         ]
         jsonl.write_text("\n".join(lines))
-        result = parse_codex_transcript(path=jsonl)
+        result = codex_backend.parse_transcript(path=jsonl)
         assert "gpt-5.4" in result
         u = result["gpt-5.4"]
         assert u.input_tokens == 1000
@@ -387,11 +579,11 @@ class TestCodexTranscript:
             ),
         ]
         jsonl.write_text("\n".join(lines))
-        result = parse_codex_transcript(path=jsonl)
+        result = codex_backend.parse_transcript(path=jsonl)
         assert result["gpt-5.4"].input_tokens == 500
 
     def test_missing_file(self, tmp_path):
-        assert parse_codex_transcript(path=tmp_path / "x.jsonl") == {}
+        assert codex_backend.parse_transcript(path=tmp_path / "x.jsonl") == {}
 
     def test_no_model_returns_empty(self, tmp_path):
         jsonl = tmp_path / "session.jsonl"
@@ -406,7 +598,178 @@ class TestCodexTranscript:
                 }
             )
         )
-        assert parse_codex_transcript(path=jsonl) == {}
+        assert codex_backend.parse_transcript(path=jsonl) == {}
+
+    def test_ignores_malformed_and_non_token_entries(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    "{",
+                    json.dumps({"type": "turn_context", "payload": {}}),
+                    json.dumps({"type": "event_msg", "payload": {"type": "other"}}),
+                    json.dumps(
+                        {
+                            "type": "event_msg",
+                            "payload": {"type": "token_count", "info": "bad"},
+                        }
+                    ),
+                ]
+            )
+        )
+
+        assert codex_backend.parse_transcript(path=jsonl) == {}
+
+    def test_codex_session_id_falls_back_to_stem(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text("{\n{}\n", encoding="utf-8")
+
+        assert codex_backend.session_id(jsonl) == "session"
+        assert codex_backend.session_id(tmp_path / "missing") == "missing"
+
+    def test_query_codex_today_reads_recent_sessions(self, tmp_path, monkeypatch):
+        sessions_dir = tmp_path / ".codex" / "sessions" / "2026" / "04" / "29"
+        sessions_dir.mkdir(parents=True)
+        jsonl = sessions_dir / "rollout-2026-04-29T08-00-00-thread-1.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "type": "session_meta",
+                            "payload": {"id": "thread-1"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "turn_context",
+                            "payload": {"model": "gpt-5.5"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "event_msg",
+                            "payload": {
+                                "type": "token_count",
+                                "info": {
+                                    "total_token_usage": {
+                                        "input_tokens": 1200,
+                                        "cached_input_tokens": 200,
+                                        "output_tokens": 50,
+                                        "total_tokens": 1250,
+                                    }
+                                },
+                            },
+                        }
+                    ),
+                ]
+            )
+        )
+        today_ts = datetime.datetime.fromisoformat("2026-04-29T12:00:00").timestamp()
+        os.utime(jsonl, (today_ts, today_ts))
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            "docking.applets.aiusage.backends.codex._today_iso",
+            lambda: "2026-04-29",
+        )
+
+        result = codex_backend.query_today()
+
+        assert result["thread-1"]["gpt-5.5"].input_tokens == 1200
+
+    def test_query_codex_today_skips_old_and_empty_sessions(
+        self, tmp_path, monkeypatch
+    ):
+        sessions_dir = tmp_path / ".codex" / "sessions"
+        sessions_dir.mkdir(parents=True)
+        old = sessions_dir / "old.jsonl"
+        old.write_text("{}", encoding="utf-8")
+        current = sessions_dir / "current.jsonl"
+        current.write_text(json.dumps({"type": "turn_context", "payload": {}}))
+        os.utime(old, (1000, 1000))
+        os.utime(current, (2000, 2000))
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            "docking.applets.aiusage.backends.codex._today_iso",
+            lambda: "1970-01-01",
+        )
+
+        assert codex_backend.query_today() == {}
+
+
+class TestOpenCodeUsage:
+    def test_query_opencode_today_missing_db(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(opencode_backend, "_OPENCODE_DB", tmp_path / "missing.db")
+
+        assert opencode_backend.query_today() == {}
+
+    def test_query_opencode_today_connect_error(self, tmp_path, monkeypatch):
+        db = tmp_path / "opencode.db"
+        db.write_text("", encoding="utf-8")
+        monkeypatch.setattr(opencode_backend, "_OPENCODE_DB", db)
+
+        def fail(*_args, **_kwargs):
+            raise sqlite3.OperationalError("locked")
+
+        monkeypatch.setattr(sqlite3, "connect", fail)
+
+        assert opencode_backend.query_today() == {}
+
+    def test_query_opencode_today_no_sessions(self, tmp_path, monkeypatch):
+        db = tmp_path / "opencode.db"
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE session (id TEXT, time_created INTEGER)")
+        conn.execute("CREATE TABLE message (session_id TEXT, data TEXT)")
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(opencode_backend, "_OPENCODE_DB", db)
+        monkeypatch.setattr(opencode_backend, "_today_iso", lambda: "2026-04-29")
+
+        assert opencode_backend.query_today() == {}
+
+    def test_query_opencode_today_accumulates_valid_rows(self, tmp_path, monkeypatch):
+        db = tmp_path / "opencode.db"
+        today_start_ms = int(
+            datetime.datetime.fromisoformat("2026-04-29").timestamp() * 1000
+        )
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE session (id TEXT, time_created INTEGER)")
+        conn.execute("CREATE TABLE message (session_id TEXT, data TEXT)")
+        conn.execute(
+            "INSERT INTO session VALUES (?, ?)",
+            ("s1", today_start_ms + 1000),
+        )
+        rows = [
+            "{",
+            json.dumps({"modelID": "", "tokens": {"input": 10}}),
+            json.dumps({"modelID": "m", "tokens": {}, "cost": 0}),
+            json.dumps(
+                {
+                    "modelID": "m",
+                    "tokens": {"input": 10, "output": 5},
+                    "cost": 0.25,
+                }
+            ),
+            json.dumps(
+                {
+                    "modelID": "m",
+                    "tokens": {"input": 2, "output": 3},
+                    "cost": 0.10,
+                }
+            ),
+        ]
+        conn.executemany("INSERT INTO message VALUES (?, ?)", [("s1", r) for r in rows])
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(opencode_backend, "_OPENCODE_DB", db)
+        monkeypatch.setattr(opencode_backend, "_today_iso", lambda: "2026-04-29")
+
+        result = opencode_backend.query_today()
+
+        usage = result["oc:s1"]["opencode:m"]
+        assert usage.input_tokens == 12
+        assert usage.output_tokens == 8
+        assert usage.precalculated_cost == 0.35
 
 
 # ---------------------------------------------------------------
@@ -432,10 +795,11 @@ class TestHook:
         config_path = tmp_path / "dock.json"
         config_path.write_text("{}")
 
-        from docking.applets.aiusage import hook
-
-        monkeypatch.setattr(hook, "_config_path", lambda: config_path)
-        hook._handle_claude_stop(data={"transcript_path": str(jsonl)})
+        monkeypatch.setattr(aiusage_store, "config_path", lambda: config_path)
+        claude_backend.ClaudeBackend().handle_hook(
+            event="Stop",
+            payload={"transcript_path": str(jsonl)},
+        )
 
         config = json.loads(config_path.read_text())
         prefs = config["applet_prefs"]["aiusage"]
@@ -468,13 +832,10 @@ class TestHook:
         config_path = tmp_path / "dock.json"
         config_path.write_text("{}")
 
-        from docking.applets.aiusage import hook
-        from docking.applets.aiusage import state as state_mod
+        monkeypatch.setattr(aiusage_store, "config_path", lambda: config_path)
+        monkeypatch.setattr(codex_backend, "find_session", lambda thread_id: jsonl)
 
-        monkeypatch.setattr(hook, "_config_path", lambda: config_path)
-        monkeypatch.setattr(state_mod, "find_codex_session", lambda thread_id: jsonl)
-
-        hook._handle_codex_turn(json_arg=json.dumps({"thread-id": "test"}))
+        codex_backend.handle_turn(json_arg=json.dumps({"thread-id": "test"}))
 
         config = json.loads(config_path.read_text())
         prefs = config["applet_prefs"]["aiusage"]
@@ -484,10 +845,8 @@ class TestHook:
         config_path = tmp_path / "dock.json"
         config_path.write_text("{}")
 
-        from docking.applets.aiusage import hook
-
-        monkeypatch.setattr(hook, "_config_path", lambda: config_path)
-        hook._handle_claude_stop(data={})
+        monkeypatch.setattr(claude_backend, "replace_session", MagicMock())
+        claude_backend.ClaudeBackend().handle_hook(event="Stop", payload={})
         assert json.loads(config_path.read_text()) == {}
 
 
@@ -550,8 +909,17 @@ class TestAiUsageApplet:
             "source_remove",
             lambda timer_id: removed.append(timer_id),
         )
-        monkeypatch.setattr(aiusage_mod, "_register_claude_hooks", lambda: None)
-        monkeypatch.setattr(aiusage_mod, "_register_codex_hook", lambda: None)
+        monkeypatch.setattr(
+            aiusage_mod,
+            "BACKENDS",
+            (
+                SimpleNamespace(
+                    provider=Provider.CLAUDE,
+                    register_hooks=lambda: None,
+                    poll_today=dict,
+                ),
+            ),
+        )
 
         applet.start(lambda: None)
         assert applet._timer_id == 999
@@ -647,21 +1015,57 @@ class TestAiUsageApplet:
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
         monkeypatch.setattr(
             aiusage_mod,
-            "query_opencode_today",
-            lambda: {
-                "abc": {
-                    "opencode:gpt-oss": ModelUsage(
-                        input_tokens=10,
-                        output_tokens=5,
-                        precalculated_cost=1.25,
-                    )
-                }
-            },
+            "BACKENDS",
+            (
+                SimpleNamespace(
+                    provider=Provider.OPENCODE,
+                    register_hooks=lambda: None,
+                    poll_today=lambda: {
+                        "abc": {
+                            "opencode:gpt-oss": ModelUsage(
+                                input_tokens=10,
+                                output_tokens=5,
+                                precalculated_cost=1.25,
+                            )
+                        }
+                    },
+                ),
+            ),
         )
 
         assert applet._tick() is True
-        assert applet._opencode_poll_error is None
+        assert applet._poll_errors == {}
         assert applet._state.days[0].sessions == 1
+        assert applet.present.call_count == 1
+
+    def test_tick_merges_codex_sessions_and_updates_state(self, monkeypatch):
+        applet = AiUsageApplet(48)
+        applet.present = MagicMock()
+        monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(
+            aiusage_mod,
+            "BACKENDS",
+            (
+                SimpleNamespace(
+                    provider=Provider.CODEX,
+                    register_hooks=lambda: None,
+                    poll_today=lambda: {
+                        "thread-1": {
+                            "gpt-5.5": ModelUsage(
+                                input_tokens=1200,
+                                output_tokens=50,
+                                cache_read_tokens=200,
+                            )
+                        }
+                    },
+                ),
+            ),
+        )
+
+        assert applet._tick() is True
+        assert applet._poll_errors == {}
+        assert applet._state.days[0].sessions == 1
+        assert applet._state.days[0].by_model[0][0] == "gpt-5.5"
         assert applet.present.call_count == 1
 
     def test_reset_today_saves_prefs_and_presents(self):
@@ -687,13 +1091,23 @@ class TestAiUsageApplet:
         def fail_query():
             raise RuntimeError("database locked")
 
-        monkeypatch.setattr(aiusage_mod, "query_opencode_today", fail_query)
+        monkeypatch.setattr(
+            aiusage_mod,
+            "BACKENDS",
+            (
+                SimpleNamespace(
+                    provider=Provider.OPENCODE,
+                    register_hooks=lambda: None,
+                    poll_today=fail_query,
+                ),
+            ),
+        )
 
         with caplog.at_level(logging.WARNING, logger="docking.aiusage"):
             assert applet._tick() is True
             assert applet._tick() is True
 
-        assert caplog.text.count("Failed to poll OpenCode usage") == 1
+        assert caplog.text.count("Failed to poll opencode usage") == 1
 
 
 # ---------------------------------------------------------------
@@ -717,9 +1131,9 @@ class TestClaudeHookRegistration:
         settings_path = tmp_path / ".claude" / "settings.json"
         settings_path.parent.mkdir(parents=True)
         settings_path.write_text("{}")
-        monkeypatch.setattr(aiusage_mod, "_CLAUDE_SETTINGS", settings_path)
+        monkeypatch.setattr(claude_backend, "_CLAUDE_SETTINGS", settings_path)
 
-        aiusage_mod._register_claude_hooks()
+        claude_backend.register_hooks()
 
         settings = json.loads(settings_path.read_text())
         assert "Stop" in settings["hooks"]
@@ -739,9 +1153,9 @@ class TestClaudeHookRegistration:
             }
         }
         settings_path.write_text(json.dumps(existing))
-        monkeypatch.setattr(aiusage_mod, "_CLAUDE_SETTINGS", settings_path)
+        monkeypatch.setattr(claude_backend, "_CLAUDE_SETTINGS", settings_path)
 
-        aiusage_mod._register_claude_hooks()
+        claude_backend.register_hooks()
 
         settings = json.loads(settings_path.read_text())
         assert len(settings["hooks"]["Stop"]) == 2
@@ -750,10 +1164,10 @@ class TestClaudeHookRegistration:
         settings_path = tmp_path / ".claude" / "settings.json"
         settings_path.parent.mkdir(parents=True)
         settings_path.write_text("{}")
-        monkeypatch.setattr(aiusage_mod, "_CLAUDE_SETTINGS", settings_path)
+        monkeypatch.setattr(claude_backend, "_CLAUDE_SETTINGS", settings_path)
 
-        aiusage_mod._register_claude_hooks()
-        aiusage_mod._register_claude_hooks()
+        claude_backend.register_hooks()
+        claude_backend.register_hooks()
 
         settings = json.loads(settings_path.read_text())
         assert len(settings["hooks"]["Stop"]) == 1
@@ -763,10 +1177,10 @@ class TestClaudeHookRegistration:
         settings_path.parent.mkdir(parents=True)
         settings_path.write_text("{")
         logger = SimpleNamespace(warning=MagicMock())
-        monkeypatch.setattr(aiusage_mod, "_CLAUDE_SETTINGS", settings_path)
-        monkeypatch.setattr(aiusage_mod.log, "bind", lambda **_kwargs: logger)
+        monkeypatch.setattr(claude_backend, "_CLAUDE_SETTINGS", settings_path)
+        monkeypatch.setattr(claude_backend.log, "bind", lambda **_kwargs: logger)
 
-        aiusage_mod._register_claude_hooks()
+        claude_backend.register_hooks()
 
         logger.warning.assert_called_once()
 
@@ -775,8 +1189,8 @@ class TestClaudeHookRegistration:
         settings_path.parent.mkdir(parents=True)
         settings_path.write_text("{}")
         logger = SimpleNamespace(warning=MagicMock())
-        monkeypatch.setattr(aiusage_mod, "_CLAUDE_SETTINGS", settings_path)
-        monkeypatch.setattr(aiusage_mod.log, "bind", lambda **_kwargs: logger)
+        monkeypatch.setattr(claude_backend, "_CLAUDE_SETTINGS", settings_path)
+        monkeypatch.setattr(claude_backend.log, "bind", lambda **_kwargs: logger)
         original_write_text = Path.write_text
 
         def fail_write_text(self, *args, **kwargs):
@@ -786,12 +1200,12 @@ class TestClaudeHookRegistration:
 
         monkeypatch.setattr(Path, "write_text", fail_write_text)
 
-        aiusage_mod._register_claude_hooks()
+        claude_backend.register_hooks()
 
         logger.warning.assert_called_once()
 
     def test_has_hook_detects_existing_command(self):
-        assert aiusage_mod._has_hook(
+        assert claude_backend._has_hook(
             entries=[{"hooks": [{"command": "prefix value"}]}],
             needle="prefix",
         )
@@ -801,9 +1215,9 @@ class TestCodexHookRegistration:
     def test_registers_notify(self, tmp_path, monkeypatch):
         config_path = tmp_path / "config.toml"
         config_path.write_text('model = "gpt-5.4"\n')
-        monkeypatch.setattr(aiusage_mod, "_CODEX_CONFIG", config_path)
+        monkeypatch.setattr(codex_backend, "_CODEX_CONFIG", config_path)
 
-        aiusage_mod._register_codex_hook()
+        codex_backend.register_hook()
 
         content = config_path.read_text()
         assert "docking.applets.aiusage.hook" in content
@@ -814,9 +1228,9 @@ class TestCodexHookRegistration:
         config_path.write_text(
             'model = "gpt-5"\nnotify = ["codex-sync", "hook", "agent-turn-complete"]\n'
         )
-        monkeypatch.setattr(aiusage_mod, "_CODEX_CONFIG", config_path)
+        monkeypatch.setattr(codex_backend, "_CODEX_CONFIG", config_path)
 
-        aiusage_mod._register_codex_hook()
+        codex_backend.register_hook()
 
         content = config_path.read_text()
         assert "codex-sync" in content
@@ -825,10 +1239,10 @@ class TestCodexHookRegistration:
     def test_idempotent(self, tmp_path, monkeypatch):
         config_path = tmp_path / "config.toml"
         config_path.write_text('model = "gpt-5.4"\n')
-        monkeypatch.setattr(aiusage_mod, "_CODEX_CONFIG", config_path)
+        monkeypatch.setattr(codex_backend, "_CODEX_CONFIG", config_path)
 
-        aiusage_mod._register_codex_hook()
-        aiusage_mod._register_codex_hook()
+        codex_backend.register_hook()
+        codex_backend.register_hook()
 
         content = config_path.read_text()
         assert content.count("notify") == 1
@@ -836,9 +1250,9 @@ class TestCodexHookRegistration:
     def test_inserts_notify_before_first_section(self, tmp_path, monkeypatch):
         config_path = tmp_path / "config.toml"
         config_path.write_text('[profiles]\ndefault = "x"\n')
-        monkeypatch.setattr(aiusage_mod, "_CODEX_CONFIG", config_path)
+        monkeypatch.setattr(codex_backend, "_CODEX_CONFIG", config_path)
 
-        aiusage_mod._register_codex_hook()
+        codex_backend.register_hook()
 
         content = config_path.read_text()
         assert content.startswith("notify = ")
@@ -848,8 +1262,8 @@ class TestCodexHookRegistration:
         config_path = tmp_path / "config.toml"
         config_path.write_text('[profiles]\ndefault = "x"\n')
         logger = SimpleNamespace(warning=MagicMock(), info=MagicMock())
-        monkeypatch.setattr(aiusage_mod, "_CODEX_CONFIG", config_path)
-        monkeypatch.setattr(aiusage_mod.log, "bind", lambda **_kwargs: logger)
+        monkeypatch.setattr(codex_backend, "_CODEX_CONFIG", config_path)
+        monkeypatch.setattr(codex_backend.log, "bind", lambda **_kwargs: logger)
         original_write_text = Path.write_text
 
         def fail_write_text(self, *args, **kwargs):
@@ -859,7 +1273,7 @@ class TestCodexHookRegistration:
 
         monkeypatch.setattr(Path, "write_text", fail_write_text)
 
-        aiusage_mod._register_codex_hook()
+        codex_backend.register_hook()
 
         logger.warning.assert_called_once()
 
@@ -868,13 +1282,11 @@ class TestHookCli:
     def test_update_config_recovers_from_invalid_existing_json(
         self, tmp_path, monkeypatch
     ):
-        from docking.applets.aiusage import hook
-
         config_path = tmp_path / "dock.json"
         config_path.write_text("{")
-        monkeypatch.setattr(hook, "_config_path", lambda: config_path)
+        monkeypatch.setattr(aiusage_store, "config_path", lambda: config_path)
 
-        hook._update_config(
+        aiusage_store.replace_session(
             session_id="s1",
             model_usage={"gpt-5.4": ModelUsage(input_tokens=12)},
         )
@@ -885,8 +1297,8 @@ class TestHookCli:
     def test_main_handles_invalid_claude_stdin(self, monkeypatch):
         from docking.applets.aiusage import hook
 
-        monkeypatch.setattr(aiusage_mod.sys, "argv", ["hook", "claude", "Stop"])
-        monkeypatch.setattr(aiusage_mod.sys, "stdin", StringIO("{"))
+        monkeypatch.setattr(hook.sys, "argv", ["hook", "claude", "Stop"])
+        monkeypatch.setattr(hook.sys, "stdin", StringIO("{"))
 
         hook.main()
 
@@ -894,10 +1306,10 @@ class TestHookCli:
         from docking.applets.aiusage import hook
 
         find_session = MagicMock(return_value=None)
-        monkeypatch.setattr(aiusage_mod.sys, "argv", ["hook"])
-        monkeypatch.setattr(hook.aiusage_state, "find_codex_session", find_session)
+        monkeypatch.setattr(hook.sys, "argv", ["hook"])
+        monkeypatch.setattr(codex_backend, "find_session", find_session)
 
-        hook._handle_codex_turn(json_arg="{")
+        codex_backend.handle_turn(json_arg="{")
 
         find_session.assert_called_once_with(thread_id=None)
 

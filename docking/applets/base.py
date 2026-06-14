@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Base applet contract and shared icon-rendering utilities.
 
 Every dock applet (clock, weather, quote, hydration, and so on) is a small UI
@@ -51,7 +64,7 @@ consistent visual behavior across applets.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Callable
 from importlib import resources
 from typing import TYPE_CHECKING, Any
@@ -66,10 +79,12 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from docking.applets.identity import applet_desktop_id
+from docking.applets.popup import PopupAnchor
 from docking.core.items import APPLET_KIND, DockItem
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
 
 log = get_logger("applets.base")
@@ -107,6 +122,11 @@ _BUNDLED_FALLBACK_ICON_PREFIXES = (
 )
 
 CATALOG_ICON_DIR = "icons/applets"
+
+ICON_SOURCE_PREF_KEY = "icon_source"
+ICON_SOURCE_DOCKING = "docking"
+ICON_SOURCE_SYSTEM = "system"
+ICON_SOURCE_VALUES = frozenset({ICON_SOURCE_DOCKING, ICON_SOURCE_SYSTEM})
 
 
 def _icon_name_candidates(name: str) -> tuple[str, ...]:
@@ -159,8 +179,11 @@ def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
     flags = Gtk.IconLookupFlags.FORCE_SIZE
     for icon_name in _icon_name_candidates(name=name):
         for theme in _icon_theme_candidates():
+            icon_info = theme.lookup_icon(icon_name, size, flags)
+            if icon_info is None:
+                continue
             try:
-                return theme.load_icon(icon_name, size, flags)
+                return icon_info.load_icon()
             except GLib.Error as exc:
                 log.debug(
                     "Theme icon lookup failed for %s at size %s: %s",
@@ -196,39 +219,114 @@ def load_catalog_icon(*, applet_id: str, size: int) -> GdkPixbuf.Pixbuf | None:
         return None
 
 
-def draw_icon_label(cr: cairo.Context, text: str, size: int) -> None:
+RGBA = tuple[float, float, float, float]
+
+_ICON_LABEL_FONT_SCALE = 0.22
+_ICON_LABEL_MIN_FONT_SCALE = 0.12
+_ICON_LABEL_MAX_WIDTH_SCALE = 0.92
+_ICON_LABEL_OUTLINE_SCALE = 0.22
+
+
+def draw_icon_label(
+    cr: cairo.Context,
+    text: str,
+    size: int,
+    *,
+    max_width: float | None = None,
+    fill_rgba: RGBA = (1, 1, 1, 1),
+    outline_rgba: RGBA = (0, 0, 0, 0.8),
+) -> None:
     """Draw outlined text at the bottom center of a size x size icon.
 
     Shared by weather (temperature), pomodoro (countdown), and hydration
     (countdown) for a uniform appearance.
     """
-    font_size = max(1, int(size * 0.22))
-    layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
-    layout.set_text(text, -1)
-    _, logical = layout.get_pixel_extents()
+    if not text:
+        return
 
-    tx = (size - logical.width) / 2 - logical.x
-    ty = size - logical.height - max(1, size * 0.02) - logical.y
+    target_width = max(1.0, float(max_width or size * _ICON_LABEL_MAX_WIDTH_SCALE))
+    initial_font_size = max(1, int(size * _ICON_LABEL_FONT_SCALE))
+    min_font_size = max(
+        1, min(initial_font_size, int(size * _ICON_LABEL_MIN_FONT_SCALE))
+    )
+    layout, logical, final_font_size = _fit_icon_label_layout(
+        cr=cr,
+        text=text,
+        max_width=target_width,
+        initial_font_size=initial_font_size,
+        min_font_size=min_font_size,
+    )
+
+    tx, ty = _icon_label_origin(
+        size=size,
+        logical=logical,
+        bottom_padding=max(1, size * 0.02),
+    )
 
     cr.save()
     cr.move_to(tx, ty)
     PangoCairo.layout_path(cr, layout)
-    cr.set_source_rgba(0, 0, 0, 0.8)
-    cr.set_line_width(max(2.0, size * 0.05))
+    cr.set_source_rgba(*outline_rgba)
+    cr.set_line_width(_icon_label_outline_width(font_size=final_font_size))
     cr.set_line_join(cairo.LINE_JOIN_ROUND)
     cr.stroke_preserve()
-    cr.set_source_rgba(1, 1, 1, 1)
+    cr.set_source_rgba(*fill_rgba)
     cr.fill()
     cr.restore()
 
 
-class Applet(ABC):
-    """Base class for dock plugins that render custom icons.
+def _fit_icon_label_layout(
+    *,
+    cr: cairo.Context,
+    text: str,
+    max_width: float,
+    initial_font_size: int,
+    min_font_size: int,
+) -> tuple[Pango.Layout, Pango.Rectangle, int]:
+    """Build a Pango layout, shrinking the font until it fits max_width."""
+    for font_size in range(initial_font_size, min_font_size - 1, -1):
+        layout = _icon_label_layout(cr=cr, text=text, font_size=font_size)
+        _, logical = layout.get_pixel_extents()
+        if logical.width <= max_width or font_size == min_font_size:
+            return layout, logical, font_size
+    layout = _icon_label_layout(cr=cr, text=text, font_size=min_font_size)
+    _, logical = layout.get_pixel_extents()
+    return layout, logical, min_font_size
 
-    Each applet owns a DockItem. The applet renders custom Cairo
-    content to a pixbuf and assigns it to item.icon. The existing
-    renderer draws it like any other icon -- no renderer changes needed.
+
+def _icon_label_layout(
+    *,
+    cr: cairo.Context,
+    text: str,
+    font_size: int,
+) -> Pango.Layout:
+    layout = PangoCairo.create_layout(cr)
+    layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
+    layout.set_text(text, -1)
+    return layout
+
+
+def _icon_label_origin(
+    *,
+    size: int,
+    logical: Pango.Rectangle,
+    bottom_padding: float,
+) -> tuple[float, float]:
+    tx = (size - logical.width) / 2 - logical.x
+    ty = size - logical.height - bottom_padding - logical.y
+    return tx, ty
+
+
+def _icon_label_outline_width(*, font_size: int) -> float:
+    return max(1.0, font_size * _ICON_LABEL_OUTLINE_SCALE)
+
+
+class Applet(ABC):
+    """Base class for dock plugins that render Docking icons.
+
+    Each applet owns a DockItem. Most applets render their own pixbuf, while
+    simple applets can opt into a user-selected system theme icon. The existing
+    renderer draws both paths like any other item icon.
 
     Lifecycle:
       __init__  -> create item
@@ -240,11 +338,13 @@ class Applet(ABC):
     id: str
     name: str
     icon_name: str
+    supports_system_icon = False
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._config = config
         self._icon_size = icon_size
         self._notify: Callable[[], None] | None = None
+        self._popup_anchor: PopupAnchor | None = None
         self.item = DockItem(
             desktop_id=self.desktop_id,
             kind=APPLET_KIND,
@@ -272,9 +372,54 @@ class Applet(ABC):
             self._config.applet_prefs[self.id] = prefs
             self._config.save()
 
-    @abstractmethod
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        """Render custom content to a pixbuf at the given size."""
+        """Render the active icon source at the given size."""
+        if self.uses_system_icon():
+            icon_name = self.system_icon_name()
+            icon = load_theme_icon(name=icon_name, size=size)
+            if icon is not None:
+                self.item.icon_name = icon_name
+                return icon
+
+        self.item.icon_name = self.icon_name
+        return self.create_docking_icon(size=size)
+
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+        """Render the built-in Docking icon when an applet opts into icon sources."""
+        _ = size
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement create_icon() "
+            "or create_docking_icon()"
+        )
+
+    def system_icon_name(self) -> str:
+        """Theme icon name used when the applet is set to System Icon."""
+        return self.icon_name
+
+    def icon_source(self) -> str:
+        """Return the selected icon source, defaulting to the Docking icon."""
+        if not self.supports_system_icon:
+            return ICON_SOURCE_DOCKING
+        source = self.load_prefs().get(ICON_SOURCE_PREF_KEY)
+        if source == ICON_SOURCE_SYSTEM:
+            return ICON_SOURCE_SYSTEM
+        return ICON_SOURCE_DOCKING
+
+    def uses_system_icon(self) -> bool:
+        """Whether this applet currently requests a theme icon."""
+        return self.icon_source() == ICON_SOURCE_SYSTEM
+
+    def set_icon_source(self, source: str) -> None:
+        """Persist and present the selected icon source."""
+        if not self.supports_system_icon or source not in ICON_SOURCE_VALUES:
+            return
+        if source == self.icon_source():
+            return
+
+        prefs = self.load_prefs()
+        prefs[ICON_SOURCE_PREF_KEY] = source
+        self.save_prefs(prefs)
+        self.present()
 
     def refresh_tooltip(self) -> None:
         """Sync tooltip/text presentation fields on self.item."""
@@ -284,10 +429,31 @@ class Applet(ABC):
         """Handle left-click (default: no-op)."""
         return
 
+    @property
+    def popup_anchor(self) -> PopupAnchor | None:
+        """Most recent dock icon anchor for applet-owned popup surfaces."""
+        return self._popup_anchor
+
+    def set_popup_anchor(self, anchor: PopupAnchor | None) -> None:
+        """Update the dock icon anchor used by applet-owned popup surfaces."""
+        self._popup_anchor = anchor
+
     def on_scroll(self, direction_up: bool) -> None:
         """Handle scroll wheel on applet icon (default: no-op)."""
         _ = direction_up
         return
+
+    def accepts_drop_uris(self) -> bool:
+        """Whether this applet can receive external URI drops."""
+        return False
+
+    def on_drop_uris(self, uris: list[str]) -> bool:
+        """Handle external URI drops on the applet icon.
+
+        Returns True when the applet consumed the drop.
+        """
+        _ = uris
+        return False
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Extra right-click menu items (default: empty)."""
@@ -299,6 +465,11 @@ class Applet(ABC):
         Applets that need per-instance or late-bound preference loading can
         override this method. Default applets have nothing to apply.
         """
+        return
+
+    def set_services(self, services: AppletServices) -> None:
+        """Attach backend services; applets that need them override this hook."""
+        _ = services
         return
 
     def start(self, notify: Callable[[], None]) -> None:

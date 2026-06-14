@@ -5,12 +5,28 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+import pytest
+
+import docking.applets.speedtest.librespeed as librespeed
 from docking.applets.speedtest.api import SpeedtestError, run_librespeed
 from docking.applets.speedtest.applet import SpeedtestApplet
 from docking.applets.speedtest.librespeed import (
     LibrespeedError,
     Server,
+    _Counter,
+    _download_worker,
+    _http_get_drain,
+    _http_get_text,
+    _open_connection,
+    _run_test,
+    _upload_worker,
+    fetch_server_list,
     parse_server_list,
+    ping_jitter,
+    run_download,
+    run_speedtest,
+    run_upload,
+    select_fastest,
 )
 from docking.applets.speedtest.state import (
     SpeedtestPrefs,
@@ -69,16 +85,16 @@ def _make_applet(
 
 class TestFormatSpeed:
     def test_giga(self):
-        assert format_speed(1500.0) == "1.5G"
+        assert format_speed(1500.0) == "1.5Gb"
 
     def test_triple_digit(self):
-        assert format_speed(250.0) == "250M"
+        assert format_speed(250.0) == "250Mb"
 
     def test_double_digit(self):
-        assert format_speed(45.0) == "45M"
+        assert format_speed(45.0) == "45Mb"
 
     def test_single_digit(self):
-        assert format_speed(4.5) == "4.5M"
+        assert format_speed(4.5) == "4.5Mb"
 
 
 class TestSpeedTier:
@@ -132,6 +148,370 @@ class TestParseServerList:
         servers = parse_server_list(text=raw)
         assert len(servers) == 1
         assert servers[0].name == "ok"
+
+    def test_rejects_non_list_shape(self):
+        with pytest.raises(LibrespeedError, match="unexpected"):
+            parse_server_list(text='{"not": "a list"}')
+
+    def test_skips_bad_id(self):
+        raw = """[
+            {"id": "bad", "name": "broken", "server": "//bad.test"},
+            {"id": 2, "name": "ok", "server": "//ok.test"}
+        ]"""
+
+        servers = parse_server_list(text=raw)
+
+        assert [server.name for server in servers] == ["ok"]
+
+
+class TestLibrespeedNetworkHelpers:
+    def test_fetch_server_list_primary_success(self, monkeypatch):
+        monkeypatch.setattr(
+            librespeed,
+            "_http_get_text",
+            lambda **_kwargs: '[{"id": 1, "name": "A", "server": "//a.test"}]',
+        )
+
+        servers = fetch_server_list(url="https://servers.test", timeout=1.0)
+
+        assert servers[0].name == "A"
+
+    def test_fetch_server_list_uses_well_known_fallback(self, monkeypatch):
+        calls: list[str] = []
+
+        def fake_get_text(*, url, timeout):
+            calls.append(url)
+            if len(calls) == 1:
+                raise OSError("down")
+            return '[{"id": 1, "name": "Fallback", "server": "//b.test"}]'
+
+        monkeypatch.setattr(librespeed, "_http_get_text", fake_get_text)
+
+        servers = fetch_server_list(url="https://servers.test", timeout=1.0)
+
+        assert calls == [
+            "https://servers.test",
+            "https://servers.test/.well-known/librespeed",
+        ]
+        assert servers[0].name == "Fallback"
+
+    def test_http_get_text_and_drain_use_user_agent(self, monkeypatch):
+        seen = []
+
+        class _Response:
+            def __init__(self, payload: bytes) -> None:
+                self.payload = payload
+                self.read_args = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self, *args):
+                self.read_args.append(args)
+                return self.payload
+
+        response = _Response(b"hello")
+
+        def fake_urlopen(req, timeout):
+            seen.append((req.full_url, req.headers["User-agent"], timeout))
+            return response
+
+        monkeypatch.setattr(librespeed.urllib.request, "urlopen", fake_urlopen)
+
+        assert _http_get_text(url="https://x.test", timeout=3.0) == "hello"
+        _http_get_drain(url="https://x.test/ping", timeout=4.0)
+
+        assert seen == [
+            ("https://x.test", librespeed.USER_AGENT, 3.0),
+            ("https://x.test/ping", librespeed.USER_AGENT, 4.0),
+        ]
+        assert response.read_args[-1] == (1,)
+
+    def test_open_connection_variants(self, monkeypatch):
+        made = []
+
+        class _Http:
+            def __init__(self, host, port=None, timeout=None, **kwargs):
+                made.append(("http", host, port, timeout, kwargs))
+
+        class _Https:
+            def __init__(self, host, port=None, timeout=None, **kwargs):
+                made.append(("https", host, port, timeout, kwargs))
+
+        monkeypatch.setattr(librespeed.http.client, "HTTPConnection", _Http)
+        monkeypatch.setattr(librespeed.http.client, "HTTPSConnection", _Https)
+        monkeypatch.setattr(librespeed.ssl, "create_default_context", lambda: "ctx")
+
+        assert (
+            _open_connection(
+                parsed=librespeed.urllib.parse.urlsplit("http://a.test:8080/x"),
+                timeout=1.0,
+            )
+            is not None
+        )
+        assert (
+            _open_connection(
+                parsed=librespeed.urllib.parse.urlsplit("https://b.test/y"),
+                timeout=2.0,
+            )
+            is not None
+        )
+        assert (
+            _open_connection(
+                parsed=librespeed.urllib.parse.urlsplit("https:///broken"),
+                timeout=2.0,
+            )
+            is None
+        )
+
+        assert made[0][:4] == ("http", "a.test", 8080, 1.0)
+        assert made[1][:4] == ("https", "b.test", None, 2.0)
+        assert made[1][4]["context"] == "ctx"
+
+
+class TestLibrespeedPingAndSelection:
+    def test_ping_jitter_discards_first_sample_and_smooths_jitter(self, monkeypatch):
+        times = iter([0.00, 0.10, 0.20, 0.35, 0.40, 0.70, 0.80, 1.15])
+        drained: list[str] = []
+        server = Server(1, "A", "https://a.test", "dl", "ul", "ping")
+
+        monkeypatch.setattr(librespeed.time, "monotonic", lambda: next(times))
+        monkeypatch.setattr(
+            librespeed,
+            "_http_get_drain",
+            lambda *, url, timeout: drained.append(url),
+        )
+
+        avg, jitter = ping_jitter(server=server, count=4, timeout=1.0)
+
+        assert drained == ["https://a.test/ping"] * 4
+        assert avg == pytest.approx((150 + 300 + 350) / 3)
+        assert jitter > 0
+
+    def test_ping_jitter_raises_when_all_samples_fail(self, monkeypatch):
+        server = Server(1, "A", "https://a.test", "dl", "ul", "ping")
+        monkeypatch.setattr(
+            librespeed,
+            "_http_get_drain",
+            lambda **_kwargs: (_ for _ in ()).throw(OSError("down")),
+        )
+
+        with pytest.raises(LibrespeedError, match="no successful"):
+            ping_jitter(server=server, count=2)
+
+    def test_select_fastest_picks_lowest_ping_and_skips_failures(self, monkeypatch):
+        servers = [
+            Server(1, "slow", "https://slow.test", "dl", "ul", "ping"),
+            Server(2, "bad", "https://bad.test", "dl", "ul", "ping"),
+            Server(3, "fast", "https://fast.test", "dl", "ul", "ping"),
+        ]
+
+        def fake_ping(*, server, count, timeout):
+            if server.name == "bad":
+                raise OSError("down")
+            return (20.0 if server.name == "slow" else 5.0, 1.0)
+
+        monkeypatch.setattr(librespeed, "ping_jitter", fake_ping)
+
+        selected, ping, jitter = select_fastest(servers, pool=3)
+
+        assert selected.name == "fast"
+        assert ping == 5.0
+        assert jitter == 1.0
+
+    def test_select_fastest_errors(self, monkeypatch):
+        with pytest.raises(LibrespeedError, match="no servers"):
+            select_fastest([])
+
+        monkeypatch.setattr(
+            librespeed,
+            "ping_jitter",
+            lambda **_kwargs: (_ for _ in ()).throw(OSError("down")),
+        )
+        with pytest.raises(LibrespeedError, match="no server responded"):
+            select_fastest([Server(1, "bad", "https://b.test", "dl", "ul", "ping")])
+
+
+class TestLibrespeedTransfers:
+    def test_run_test_counts_bytes(self, monkeypatch):
+        now = iter([0.0, 0.2])
+        monkeypatch.setattr(librespeed.time, "monotonic", lambda: next(now))
+        monkeypatch.setattr(librespeed.time, "sleep", lambda _seconds: None)
+
+        def worker(counter, stop):
+            counter.add(250_000)
+            stop.set()
+
+        assert _run_test(worker=worker, duration=0.01, concurrency=1) == pytest.approx(
+            10.0
+        )
+
+    def test_run_download_and_upload_build_expected_workers(self, monkeypatch):
+        server = Server(
+            1,
+            "A",
+            "https://a.test",
+            "backend/garbage.php?x=1",
+            "backend/empty.php",
+            "ping",
+        )
+        captured = []
+
+        def fake_run_test(*, worker, duration, concurrency):
+            captured.append((worker, duration, concurrency))
+            return 123.0
+
+        monkeypatch.setattr(librespeed, "_run_test", fake_run_test)
+        monkeypatch.setattr(librespeed.os, "urandom", lambda size: b"x" * size)
+
+        assert run_download(server=server, duration=2.0, concurrency=4) == 123.0
+        assert run_upload(server=server, duration=3.0, concurrency=5) == 123.0
+
+        assert captured[0][1:] == (2.0, 4)
+        assert captured[1][1:] == (3.0, 5)
+
+    def test_download_worker_reads_until_response_ends(self, monkeypatch):
+        stop = librespeed.threading.Event()
+        counter = _Counter()
+
+        class _Response:
+            def __init__(self) -> None:
+                self.chunks = [b"abc", b"de", b""]
+
+            def read(self, _size):
+                chunk = self.chunks.pop(0)
+                if not chunk:
+                    stop.set()
+                return chunk
+
+            def close(self):
+                self.closed = True
+
+        class _Conn:
+            def __init__(self) -> None:
+                self.response = _Response()
+                self.closed = False
+                self.requests = []
+
+            def request(self, method, path, headers):
+                self.requests.append((method, path, headers))
+
+            def getresponse(self):
+                return self.response
+
+            def close(self):
+                self.closed = True
+
+        conn = _Conn()
+        monkeypatch.setattr(librespeed, "_open_connection", lambda **_kwargs: conn)
+
+        _download_worker(
+            url="https://a.test/backend/garbage.php?ckSize=100",
+            counter=counter,
+            stop=stop,
+            timeout=1.0,
+        )
+
+        assert counter.total == 5
+        assert conn.requests[0][0] == "GET"
+        assert conn.requests[0][1] == "/backend/garbage.php?ckSize=100"
+        assert conn.closed
+
+    def test_download_worker_returns_when_connection_missing(self, monkeypatch):
+        stop = librespeed.threading.Event()
+        counter = _Counter()
+        monkeypatch.setattr(librespeed, "_open_connection", lambda **_kwargs: None)
+
+        _download_worker(
+            url="https://a.test/backend/garbage.php",
+            counter=counter,
+            stop=stop,
+            timeout=1.0,
+        )
+
+        assert counter.total == 0
+
+    def test_upload_worker_sends_payload_and_counts_bytes(self, monkeypatch):
+        stop = librespeed.threading.Event()
+        counter = _Counter()
+
+        class _Response:
+            def read(self):
+                stop.set()
+                return b"ok"
+
+            def close(self):
+                self.closed = True
+
+        class _Conn:
+            def __init__(self) -> None:
+                self.headers = []
+                self.sent = []
+                self.closed = False
+
+            def putrequest(self, *args, **kwargs):
+                self.request = (args, kwargs)
+
+            def putheader(self, *args):
+                self.headers.append(args)
+
+            def endheaders(self):
+                self.ended = True
+
+            def send(self, payload):
+                self.sent.append(payload)
+
+            def getresponse(self):
+                return _Response()
+
+            def close(self):
+                self.closed = True
+
+        conn = _Conn()
+        monkeypatch.setattr(librespeed, "_open_connection", lambda **_kwargs: conn)
+
+        _upload_worker(
+            url="https://a.test/backend/empty.php?x=1",
+            counter=counter,
+            stop=stop,
+            timeout=1.0,
+            payload=b"abcdef",
+        )
+
+        assert counter.total == 6
+        assert conn.request[0] == ("POST", "/backend/empty.php?x=1")
+        assert ("Content-Length", "6") in conn.headers
+        assert b"".join(conn.sent) == b"abcdef"
+        assert conn.closed
+
+
+class TestRunSpeedtest:
+    def test_orchestrates_speedtest(self, monkeypatch):
+        server = Server(7, "Node", "https://n.test", "dl", "ul", "ping")
+        monkeypatch.setattr(librespeed, "fetch_server_list", lambda **_k: [server])
+        monkeypatch.setattr(
+            librespeed,
+            "select_fastest",
+            lambda servers, timeout: (servers[0], 8.0, 1.5),
+        )
+        monkeypatch.setattr(librespeed, "run_download", lambda **_k: 100.0)
+        monkeypatch.setattr(librespeed, "run_upload", lambda **_k: 20.0)
+
+        result = run_speedtest(duration=0.1, concurrency=1, timeout=2.0)
+
+        assert result.download_mbps == 100.0
+        assert result.upload_mbps == 20.0
+        assert result.ping_ms == 8.0
+        assert result.server_name == "Node"
+
+    def test_errors_when_server_list_empty(self, monkeypatch):
+        monkeypatch.setattr(librespeed, "fetch_server_list", lambda **_k: [])
+
+        with pytest.raises(LibrespeedError, match="server list is empty"):
+            run_speedtest()
 
 
 class TestRunLibrespeedFailure:
@@ -223,6 +603,7 @@ class TestBuildTooltip:
     def test_idle_without_result(self):
         text = build_tooltip(result=None, running=False, error=None)
         assert "Click" in text
+        assert "Runs on demand" in text
 
     def test_running_state(self):
         text = build_tooltip(result=_result(), running=True, error=None)
@@ -239,6 +620,7 @@ class TestBuildTooltip:
         assert "Ping" in text
         assert "Jitter" in text
         assert "Test Node" in text
+        assert "Runs on demand" in text
 
 
 class TestAppletCreation:
@@ -276,6 +658,7 @@ class TestAppletMenu:
     def test_empty_menu_has_run(self):
         applet = _make_applet()
         labels = [mi.get_label() for mi in applet.get_menu_items()]
+        assert "Runs on demand" in labels
         assert any("Run Test" in label or "Running" in label for label in labels)
 
     def test_menu_with_result_shows_summary_and_copy(self):

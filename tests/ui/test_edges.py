@@ -32,6 +32,7 @@ def _config() -> SimpleNamespace:
         icon_size=48,
         zoom_percent=1.5,
         zoom_enabled=True,
+        additional_distance_from_edge=0,
     )
 
 
@@ -39,7 +40,7 @@ def _theme() -> SimpleNamespace:
     return SimpleNamespace(
         distance_from_edge=0,
         item_padding=8,
-        h_padding=12,
+        horizontal_padding=12,
         top_padding=0,
         bottom_padding=4,
         shelf_height=21,
@@ -96,10 +97,11 @@ class _Harness:
             zoom_enabled=True,
             previews_enabled=False,
             folder_stack_unfold="click",
+            additional_distance_from_edge=0,
         )
         self.theme = SimpleNamespace(
             item_padding=8,
-            h_padding=12,
+            horizontal_padding=12,
             top_padding=0,
             bottom_padding=4,
             shelf_height=21,
@@ -132,6 +134,7 @@ class _Harness:
         self._click_button = 0
         self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
+        self.surface_service = MagicMock()
         self.autohide = SimpleNamespace(
             enabled=True,
             state=HideState.VISIBLE,

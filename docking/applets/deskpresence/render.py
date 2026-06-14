@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for desk-presence applet icon."""
 
 from __future__ import annotations
@@ -13,6 +26,7 @@ from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 from docking.applets.deskpresence.state import Presence, format_badge
+from docking.core.math import clamp
 
 # Per-status color of strokes and (when applicable) fills.
 _STATUS_COLORS: dict[Presence, tuple[float, float, float]] = {
@@ -112,7 +126,7 @@ def _draw_presence(
     # draws while AT_DESK, and only when the applet supplies a live phase
     # (catalog thumbnails and tests render without it).
     if pulse_phase is not None and presence is Presence.AT_DESK:
-        phase = max(0.0, min(1.0, pulse_phase))
+        phase = clamp(pulse_phase, 0.0, 1.0)
         pulse_r = size * (0.40 + 0.12 * phase)
         pulse_alpha = 0.55 * (1.0 - phase)
         if pulse_alpha > 0.02:

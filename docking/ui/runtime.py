@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Runtime command surfaces exposed by the dock UI shell to handlers."""
 
 from __future__ import annotations
@@ -7,13 +20,20 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.ui.dock_window import DockWindow
+    from docking.ui.update_popup import UpdateCheckController
 
 
 class DockRuntime:
     """Narrow imperative API for subsystems that should not own DockWindow."""
 
-    def __init__(self, window: DockWindow) -> None:
+    def __init__(
+        self,
+        window: DockWindow,
+        *,
+        update_checker: UpdateCheckController,
+    ) -> None:
         self._window = window
+        self._update_checker = update_checker
 
     def menu_popup_opened(self) -> None:
         self._window.interaction.menu_popup_opened()
@@ -42,10 +62,17 @@ class DockRuntime:
         else:
             self._window.placement.stop_active_display()
 
+    def refresh_pressure_handler(self) -> None:
+        self._window.placement.refresh_pressure_handler()
+
     def set_icons_locked(self, locked: bool) -> None:
         self._window.dnd.set_locked(locked)
 
     def queue_draw(self) -> None:
+        self._window.queue_redraw()
+
+    def set_current_workspace_only(self, enabled: bool) -> None:
+        self._window.surface_service.set_workspace_scope(current_workspace_only=enabled)
         self._window.queue_redraw()
 
     def hide_tooltip(self) -> None:
@@ -56,4 +83,10 @@ class DockRuntime:
         self._window.preview.hide()
 
     def set_theme(self, theme: Theme) -> None:
-        self._window.theme = theme
+        self._window.set_theme(theme)
+
+    def check_for_updates_now(self) -> None:
+        self._update_checker.check_now()
+
+    def open_releases_page(self) -> None:
+        self._update_checker.open_releases_page()

@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Application bootstrap for the Docking process.
 
 What this module owns
@@ -36,9 +49,11 @@ cleanly?
 from __future__ import annotations
 
 import faulthandler
+import os
 import signal
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
 # Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
@@ -61,17 +76,27 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
+# Give GTK / Mutter a stable program name so the GNOME Shell extension
+# can find the dock window on Wayland (where WM_CLASS is not forwarded).
+GLib.set_prgname("Docking")
+
+from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
+from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.platform.unity import UnityLauncherListener
-from docking.platform.window_tracker import WindowTracker
 from docking.ui.factory import build_dock_window
 from docking.ui.new_year import NewYearGreetingController
 from docking.ui.renderer import DockRenderer
+
+if TYPE_CHECKING:
+    from docking.platform.backends.base import SessionBackend
+
+_FORCE_QUIT_SOURCE_ID = 0
 
 
 def main() -> None:
@@ -83,9 +108,22 @@ def main() -> None:
         config.transparency
     )
     launcher = Launcher()
-    model = DockModel(config=config, launcher=launcher)
+    model = DockModel(
+        config=config,
+        launcher=launcher,
+        applet_services=AppletServices(),
+    )
     renderer = DockRenderer()
-    tracker = WindowTracker(model=model, launcher=launcher, config=config)
+    backend = create_session_backend(config=config, launcher=launcher, model=model)
+    model.set_applet_services(
+        AppletServices(
+            desktop_actions=backend.desktop_actions,
+            workspaces=backend.workspaces,
+            window_picker=backend.window_picker,
+            idle=backend.idle,
+            screen_capture=backend.screen_capture,
+        )
+    )
     unity = UnityLauncherListener(model=model)
 
     window = build_dock_window(
@@ -93,7 +131,11 @@ def main() -> None:
         model=model,
         renderer=renderer,
         theme=theme,
-        window_tracker=tracker,
+        window_tracker=backend.windows,
+        preview_service=backend.previews,
+        surface_service=backend.surface,
+        visibility_service=backend.visibility,
+        session_backend=backend,
         launcher=launcher,
     )
     items_service = DockItemsService(model=model, window=window)
@@ -107,25 +149,39 @@ def main() -> None:
         unity.start()
         window.show_all()
         new_year.start()
-        GLib.idle_add(_start_runtime, items_service, model)
+        window.start_update_checks()
+        GLib.idle_add(_start_runtime, items_service, model, backend)
         Gtk.main()
     finally:
         items_service.stop()
+        window.stop_update_checks()
         new_year.stop()
         unity.stop()
         model.stop_applets()
+        backend.stop()
 
 
-def _start_runtime(items_service: DockItemsService, model: DockModel) -> bool:
+def _start_runtime(
+    items_service: DockItemsService, model: DockModel, backend: SessionBackend
+) -> bool:
     """Start background runtime pieces after the window has been shown."""
+    backend.start()
     items_service.start()
     model.start_applets()
     return False
 
 
 def _quit() -> bool:
+    global _FORCE_QUIT_SOURCE_ID
+
     Gtk.main_quit()
+    if _FORCE_QUIT_SOURCE_ID == 0:
+        _FORCE_QUIT_SOURCE_ID = GLib.timeout_add_seconds(3, _force_quit)
     return False
+
+
+def _force_quit() -> bool:
+    os._exit(0)
 
 
 if __name__ == "__main__":
