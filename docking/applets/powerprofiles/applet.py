@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle and menu wiring for Power Profiles applet.
 
 The applet is intentionally thin and delegates backend complexity to
@@ -27,9 +40,11 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.powerprofiles import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
+from docking.log import get_logger, with_context
 
 from .render import create_power_profiles_icon
 from .state import (
@@ -46,6 +61,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 POLL_INTERVAL_S = 5
+log = with_context(get_logger(name="powerprofiles"), applet_id=meta.id)
 
 
 class PowerProfilesApplet(Applet):
@@ -104,7 +120,12 @@ class PowerProfilesApplet(Applet):
             return
         try:
             current_index = profiles.index(self._state.active_profile)
-        except ValueError:
+        except ValueError as exc:
+            log.debug(
+                "Active profile %r not found in ordered profile list: %s",
+                self._state.active_profile,
+                exc,
+            )
             current_index = -1
         target = profiles[(current_index + 1) % len(profiles)]
         self._set_profile_async(profile=target)
@@ -112,36 +133,34 @@ class PowerProfilesApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Build context menu with radio-selector profile entries."""
         if not self._state.available:
-            item = Gtk.MenuItem(label=_("Power Profiles unavailable"))
-            item.set_sensitive(False)
-            return [item]
+            return [disabled_menu_item(_("Power Profiles unavailable"), gtk=Gtk)]
 
-        items: list[Gtk.MenuItem] = []
-        title = Gtk.MenuItem(label=_("Select Profile"))
-        title.set_sensitive(False)
-        items.append(title)
+        display = [
+            disabled_menu_item(_("Select Profile"), gtk=Gtk),
+            *radio_menu_items(
+                choices=tuple(
+                    (profile_label(profile), profile)
+                    for profile in self._ordered_profiles()
+                ),
+                active_value=self._state.active_profile,
+                on_selected=lambda widget, value: self._on_profile_toggled(
+                    widget,
+                    value,
+                ),
+                gtk=Gtk,
+            ),
+        ]
 
-        group_head: Gtk.RadioMenuItem | None = None
-        for profile in self._ordered_profiles():
-            label = profile_label(profile)
-            item = Gtk.RadioMenuItem(label=label)
-            if group_head is None:
-                group_head = item
-            else:
-                item.join_group(group_head)
-            item.set_active(profile == self._state.active_profile)
-            item.connect("toggled", self._on_profile_toggled, profile)
-            items.append(item)
-
+        status: list[Gtk.MenuItem] = []
         if self._state.degraded_reason:
-            items.append(Gtk.SeparatorMenuItem())
-            reason = Gtk.MenuItem(
-                label=_("Limited: {reason}").format(reason=self._state.degraded_reason)
+            status.append(
+                disabled_menu_item(
+                    _("Limited: {reason}").format(reason=self._state.degraded_reason),
+                    gtk=Gtk,
+                )
             )
-            reason.set_sensitive(False)
-            items.append(reason)
 
-        return items
+        return menu_sections(status=status, display=display, gtk=Gtk)
 
     def _ordered_profiles(self) -> tuple[str, ...]:
         """Resolve safe ordered profile list for menu/cycle actions."""

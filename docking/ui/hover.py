@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Hover coordination for items, tooltips, previews, and short animation pumps.
 
 Why hover needs its own module
@@ -163,6 +176,7 @@ from gi.repository import GLib
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.ui.autohide import HideState
+from docking.ui.display import window_screen_position
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 
 log = get_logger(name="hover")
@@ -215,6 +229,10 @@ class HoverManager:
     def set_preview(self, preview: PreviewPopup) -> None:
         self._preview = preview
 
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme retained by hover-owned collaborators."""
+        self._theme = theme
+
     def update(
         self, cursor_main: float, frame: DockGeometryFrame | None = None
     ) -> None:
@@ -235,7 +253,7 @@ class HoverManager:
         # state updating, but suppress tooltip display until the dock reaches
         # VISIBLE.
         autohide = self._window.autohide
-        if autohide and autohide.enabled and autohide.state == HideState.SHOWING:
+        if autohide.enabled and autohide.state == HideState.SHOWING:
             self._tooltip.hide()
         else:
             # Always refresh tooltip when allowed (item.name may change while
@@ -335,7 +353,8 @@ class HoverManager:
             return False
         pos = self._config.pos
 
-        win_x, win_y = self._window.get_position()
+        window_pos = window_screen_position(self._window)
+        win_x, win_y = window_pos.x, window_pos.y
         draw_rect = geometry.draw_rect
         main_size = (
             draw_rect.w if pos in (Position.BOTTOM, Position.TOP) else draw_rect.h

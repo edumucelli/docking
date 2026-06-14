@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Cairo icon rendering for Brightness applet."""
 
 from __future__ import annotations
@@ -26,7 +39,7 @@ def create_icon(
     brightness: float,
     show_level: bool = False,
 ) -> GdkPixbuf.Pixbuf | None:
-    """Render a sun icon — left half yellow, right half blue.
+    """Render a sun icon - left half yellow, right half blue.
 
     The split moves with brightness: 100% = all yellow, 0% = all blue.
     Rays on the bright side are yellow, dim side orange.
@@ -52,6 +65,7 @@ def create_icon(
     cr.set_line_cap(cairo.LINE_CAP_BUTT)
 
     for i in range(_NUM_RAYS):
+        # -pi/2 rotates 0 degrees from 3 o'clock (Cairo default) to 12 o'clock
         angle = math.tau * i / _NUM_RAYS - math.pi / 2
         x0 = cx + math.cos(angle) * ray_inner
         y0 = cy + math.sin(angle) * ray_inner
@@ -69,7 +83,7 @@ def create_icon(
         cr.line_to(x1, y1)
         cr.stroke()
 
-    # Disc — left half yellow, right half blue, split by brightness
+    # Disc - left half yellow, right half blue, split by brightness
     # Yellow half (clip left of split)
     cr.save()
     cr.rectangle(0, 0, split_x, size)

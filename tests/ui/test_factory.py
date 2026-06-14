@@ -2,56 +2,35 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock
 
 import docking.ui.factory as factory_mod
 
 
 class TestBuildDockWindow:
-    def test_build_dock_window_wires_components_and_attaches_once(self, monkeypatch):
+    def test_build_dock_window_constructs_window_and_starts_dodge_monitor(
+        self, monkeypatch
+    ):
         config = MagicMock()
         model = MagicMock()
         renderer = MagicMock()
         theme = MagicMock()
         tracker = MagicMock()
         launcher = MagicMock()
+        preview_service = MagicMock()
+        surface_service = MagicMock()
+        visibility_service = MagicMock()
+        session_backend = MagicMock()
 
         window = MagicMock()
-        window.geometry = MagicMock()
-        autohide = MagicMock()
-        runtime = MagicMock()
-        settings = MagicMock()
-        dnd = MagicMock()
-        menu = MagicMock()
-        preview = MagicMock()
-        about = MagicMock()
+        window.autohide = MagicMock()
         dodge_monitor = MagicMock()
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
-        monkeypatch.setattr(
-            factory_mod, "AutoHideController", MagicMock(return_value=autohide)
-        )
-        monkeypatch.setattr(
-            factory_mod,
-            "WindowDodgeMonitor",
-            MagicMock(return_value=dodge_monitor),
-        )
-        monkeypatch.setattr(factory_mod, "DockRuntime", MagicMock(return_value=runtime))
-        monkeypatch.setattr(
-            factory_mod,
-            "SettingsWindowController",
-            MagicMock(return_value=settings),
-        )
-        monkeypatch.setattr(factory_mod, "DnDHandler", MagicMock(return_value=dnd))
-        monkeypatch.setattr(factory_mod, "MenuHandler", MagicMock(return_value=menu))
-        monkeypatch.setattr(
-            factory_mod, "PreviewPopup", MagicMock(return_value=preview)
-        )
-        monkeypatch.setattr(
-            factory_mod,
-            "AboutDialogController",
-            MagicMock(return_value=about),
-        )
+        visibility_service.create_monitor.return_value = dodge_monitor
 
         result = factory_mod.build_dock_window(
             config=config,
@@ -59,17 +38,63 @@ class TestBuildDockWindow:
             renderer=renderer,
             theme=theme,
             window_tracker=tracker,
+            preview_service=preview_service,
+            surface_service=surface_service,
+            visibility_service=visibility_service,
             launcher=launcher,
+            session_backend=session_backend,
         )
 
         assert result is window
+        factory_mod.DockWindow.assert_called_once_with(
+            config=config,
+            model=model,
+            renderer=renderer,
+            theme=theme,
+            window_tracker=tracker,
+            launcher=launcher,
+            preview_service=preview_service,
+            surface_service=surface_service,
+            session_backend=session_backend,
+        )
+        kwargs = visibility_service.create_monitor.call_args.kwargs
+        assert callable(kwargs["get_dock_rect"])
+        assert kwargs["on_change"] is window.autohide.set_window_should_hide
         dodge_monitor.start.assert_called_once_with()
-        window.attach_components.assert_called_once()
-        attached = window.attach_components.call_args.args[0]
-        assert attached.autohide is autohide
-        assert attached.dnd is dnd
-        assert attached.menu is menu
-        assert attached.preview is preview
+        assert window.dodge_monitor is dodge_monitor
+
+    def test_build_dock_window_allows_unsupported_visibility_service(self, monkeypatch):
+        config = MagicMock()
+        model = MagicMock()
+        renderer = MagicMock()
+        theme = MagicMock()
+        tracker = MagicMock()
+        launcher = MagicMock()
+        preview_service = MagicMock()
+        surface_service = MagicMock()
+        visibility_service = MagicMock()
+        visibility_service.create_monitor.return_value = None
+        session_backend = MagicMock()
+
+        window = MagicMock()
+        window.autohide = MagicMock()
+        monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
+
+        result = factory_mod.build_dock_window(
+            config=config,
+            model=model,
+            renderer=renderer,
+            theme=theme,
+            window_tracker=tracker,
+            preview_service=preview_service,
+            surface_service=surface_service,
+            visibility_service=visibility_service,
+            launcher=launcher,
+            session_backend=session_backend,
+        )
+
+        assert result is window
+        assert window.dodge_monitor is None
 
     def test_build_dock_window_exposes_realized_dock_rect_to_dodge_monitor(
         self, monkeypatch
@@ -80,12 +105,21 @@ class TestBuildDockWindow:
         theme = MagicMock()
         tracker = MagicMock()
         launcher = MagicMock()
+        preview_service = MagicMock()
+        surface_service = MagicMock()
+        visibility_service = MagicMock()
+        session_backend = MagicMock()
 
         window = MagicMock()
-        window.geometry = MagicMock()
+        window.autohide = MagicMock()
         window.get_realized.return_value = True
         window.get_position.return_value = (10, 20)
-        window.get_size.return_value = (300, 40)
+        window.geometry.build_frame.return_value.background_rect = SimpleNamespace(
+            x=100,
+            y=30,
+            w=300,
+            h=40,
+        )
         captured: dict[str, object] = {}
 
         def _make_dodge_monitor(**kwargs):
@@ -95,15 +129,7 @@ class TestBuildDockWindow:
             return monitor
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
-        monkeypatch.setattr(factory_mod, "AutoHideController", MagicMock())
-        monkeypatch.setattr(factory_mod, "WindowDodgeMonitor", _make_dodge_monitor)
-        monkeypatch.setattr(factory_mod, "DockRuntime", MagicMock())
-        monkeypatch.setattr(factory_mod, "DockDragRuntime", MagicMock())
-        monkeypatch.setattr(factory_mod, "AboutDialogController", MagicMock())
-        monkeypatch.setattr(factory_mod, "SettingsWindowController", MagicMock())
-        monkeypatch.setattr(factory_mod, "DnDHandler", MagicMock())
-        monkeypatch.setattr(factory_mod, "MenuHandler", MagicMock())
-        monkeypatch.setattr(factory_mod, "PreviewPopup", MagicMock())
+        visibility_service.create_monitor.side_effect = _make_dodge_monitor
 
         factory_mod.build_dock_window(
             config=config,
@@ -111,11 +137,16 @@ class TestBuildDockWindow:
             renderer=renderer,
             theme=theme,
             window_tracker=tracker,
+            preview_service=preview_service,
+            surface_service=surface_service,
+            visibility_service=visibility_service,
             launcher=launcher,
+            session_backend=session_backend,
         )
 
-        dock_rect = captured["get_dock_rect"]()
-        assert dock_rect == factory_mod.ScreenRect(x=10, y=20, width=300, height=40)
+        get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])
+        dock_rect = get_dock_rect()
+        assert dock_rect == factory_mod.Rect(x=110, y=50, width=300, height=40)
 
     def test_build_dock_window_returns_none_rect_until_realized(self, monkeypatch):
         config = MagicMock()
@@ -124,9 +155,13 @@ class TestBuildDockWindow:
         theme = MagicMock()
         tracker = MagicMock()
         launcher = MagicMock()
+        preview_service = MagicMock()
+        surface_service = MagicMock()
+        visibility_service = MagicMock()
+        session_backend = MagicMock()
 
         window = MagicMock()
-        window.geometry = MagicMock()
+        window.autohide = MagicMock()
         window.get_realized.return_value = False
         captured: dict[str, object] = {}
 
@@ -137,15 +172,7 @@ class TestBuildDockWindow:
             return monitor
 
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
-        monkeypatch.setattr(factory_mod, "AutoHideController", MagicMock())
-        monkeypatch.setattr(factory_mod, "WindowDodgeMonitor", _make_dodge_monitor)
-        monkeypatch.setattr(factory_mod, "DockRuntime", MagicMock())
-        monkeypatch.setattr(factory_mod, "DockDragRuntime", MagicMock())
-        monkeypatch.setattr(factory_mod, "AboutDialogController", MagicMock())
-        monkeypatch.setattr(factory_mod, "SettingsWindowController", MagicMock())
-        monkeypatch.setattr(factory_mod, "DnDHandler", MagicMock())
-        monkeypatch.setattr(factory_mod, "MenuHandler", MagicMock())
-        monkeypatch.setattr(factory_mod, "PreviewPopup", MagicMock())
+        visibility_service.create_monitor.side_effect = _make_dodge_monitor
 
         factory_mod.build_dock_window(
             config=config,
@@ -153,7 +180,12 @@ class TestBuildDockWindow:
             renderer=renderer,
             theme=theme,
             window_tracker=tracker,
+            preview_service=preview_service,
+            surface_service=surface_service,
+            visibility_service=visibility_service,
             launcher=launcher,
+            session_backend=session_backend,
         )
 
-        assert captured["get_dock_rect"]() is None
+        get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])
+        assert get_dock_rect() is None

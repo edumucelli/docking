@@ -17,8 +17,15 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
+from docking.platform.backends.base import (
+    DisplayServer,
+    PreviewImage,
+    WindowId,
+    WindowSnapshot,
+)
 from docking.platform.model import DockItem
 
 
@@ -265,12 +272,13 @@ class FakeSeparatorMenuItem(FakeMenuItem):
 
 
 class FakeImage:
-    def __init__(self) -> None:
+    def __init__(self, pixbuf=None) -> None:
         self.pixel_size = None
+        self.pixbuf = pixbuf
 
     @classmethod
-    def new_from_pixbuf(cls, _pixbuf):
-        return cls()
+    def new_from_pixbuf(cls, pixbuf):
+        return cls(pixbuf=pixbuf)
 
     def set_pixel_size(self, size: int) -> None:
         self.pixel_size = size
@@ -499,6 +507,9 @@ class FakeWindow:
     def get_screen(self):
         return self.screen
 
+    def get_transient_for(self):
+        return None
+
 
 class FakeRevealer:
     def __init__(self) -> None:
@@ -583,6 +594,36 @@ class FakeDrawingArea:
             SimpleNamespace(width=width, height=height),
             SimpleNamespace(width=width, height=height),
         )
+
+
+class FakePixbuf:
+    def __init__(self, width: int, height: int, scaled=None) -> None:
+        self.width = width
+        self.height = height
+        self.scaled = scaled
+        self.scale_calls: list[tuple[int, int, object]] = []
+
+    def get_width(self) -> int:
+        return self.width
+
+    def get_height(self) -> int:
+        return self.height
+
+    def scale_simple(self, width: int, height: int, interp):
+        self.scale_calls.append((width, height, interp))
+        return self.scaled
+
+
+class FakeMonitor:
+    def __init__(self) -> None:
+        self.changed = None
+        self.cancelled = False
+
+    def connect(self, signal: str, callback, *args) -> None:
+        self.changed = (signal, callback, args)
+
+    def cancel(self) -> None:
+        self.cancelled = True
 
 
 class FakeWindowType:
@@ -677,14 +718,13 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
     monkeypatch.setattr(menu_mod, "Pango", FakePango)
-    monkeypatch.setattr(menu_mod, "PangoCairo", FakePangoCairo)
+    monkeypatch.setattr(folder_stack_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(folder_stack_mod, "Pango", FakePango)
+    monkeypatch.setattr(folder_stack_mod, "PangoCairo", FakePangoCairo)
     monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
     about = MagicMock()
     settings = MagicMock()
     runtime = MagicMock()
-    runtime.get_monitor_menu_choices.return_value = []
-    runtime.current_monitor_choice.return_value = -1
-    runtime.primary_monitor_index.return_value = 0
     runtime.cursor_position.return_value = (20.0, 8.0)
     frame = _frame()
 
@@ -705,11 +745,13 @@ def handler(monkeypatch):
         pos="bottom",
         position="bottom",
         item_prefs={},
+        window_list_sort="default",
         save=MagicMock(),
     )
     tracker = MagicMock()
-    tracker.get_windows_for.return_value = []
-    tracker.get_window_title_for_xid.side_effect = lambda xid: f"Window {xid}"
+    tracker.list_windows.return_value = []
+    preview_service = MagicMock()
+    preview_service.thumbnail.return_value = None
     launcher = MagicMock()
     launcher.default_directory_app_name.return_value = None
     return menu_mod.MenuHandler(
@@ -719,6 +761,8 @@ def handler(monkeypatch):
         model=model,
         config=config,
         window_tracker=tracker,
+        preview_service=preview_service,
+        diagnostics=MagicMock(),
         launcher=launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
     )
@@ -755,6 +799,44 @@ class TestItemMenus:
 
         next(mi for mi in menu.children if mi.get_label() == "Close All").activate()
         handler._tracker.close_all.assert_called_once_with("firefox.desktop")
+
+    def test_applet_item_menu_includes_icon_source_when_supported(self, handler):
+        # Given
+        menu = FakeMenu()
+        applet_item = DockItem(desktop_id="applet://session")
+        applet = SimpleNamespace(
+            supports_system_icon=True,
+            get_menu_items=MagicMock(return_value=[FakeMenuItem(label="Lock Screen")]),
+            icon_source=MagicMock(return_value=menu_mod.ICON_SOURCE_DOCKING),
+            set_icon_source=MagicMock(),
+        )
+        handler._model.get_applet.return_value = applet
+
+        # When
+        handler._build_item_menu(menu=menu, item=applet_item)
+        labels = _labels(menu)
+        icon_menu = next(mi for mi in menu.children if mi.get_label() == "Icon")
+        icon_options = icon_menu.get_submenu().get_children()
+        system_option = next(
+            mi for mi in icon_options if mi.get_label() == "System Icon"
+        )
+        system_option.set_active(True)
+        system_option.activate()
+
+        # Then
+        assert labels == [
+            "Lock Screen",
+            "---",
+            "Icon",
+            "---",
+            "Remove from Dock",
+        ]
+        assert [mi.get_label() for mi in icon_options] == [
+            "Docking Icon",
+            "System Icon",
+        ]
+        applet.get_menu_items.assert_called_once_with()
+        applet.set_icon_source.assert_called_once_with(menu_mod.ICON_SOURCE_SYSTEM)
 
     def test_applet_item_menu_includes_applet_items_and_remove(self, handler):
         # Given
@@ -806,7 +888,7 @@ class TestItemMenus:
         labels = _labels(menu)
         assert "Sort By" in labels
         assert "Show Hidden Files" in labels
-        assert "Large Icons" in labels
+        assert "Large Icons" not in labels
 
     def test_folder_item_menu_keeps_all_entries_and_actions_in_one_menu(
         self, handler, monkeypatch
@@ -820,8 +902,8 @@ class TestItemMenus:
             is_pinned=True,
         )
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack,
+            "list_directory",
             lambda **kwargs: [
                 {
                     "target": f"file:///tmp/docs/{i}",
@@ -839,7 +921,7 @@ class TestItemMenus:
         assert "Item 22" in labels
         assert "Sort By" in labels
         assert "Show Hidden Files" in labels
-        assert "Large Icons" in labels
+        assert "Large Icons" not in labels
         assert not any(label.startswith("More (") for label in labels)
 
     def test_directory_rows_ellipsize_long_names(self, handler, monkeypatch):
@@ -852,8 +934,8 @@ class TestItemMenus:
             is_pinned=True,
         )
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack,
+            "list_directory",
             lambda **kwargs: [
                 {
                     "target": "file:///tmp/docs/very-long-name",
@@ -925,7 +1007,9 @@ class TestItemMenus:
         folder.get_child.return_value = child
         monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: folder)
         monkeypatch.setattr(
-            handler, "_directory_has_visible_children", lambda **_kwargs: False
+            handler._folder_stack._browser,
+            "directory_has_visible_children",
+            lambda **_kwargs: False,
         )
         handler._launcher.resolve_file_icon.return_value = "folder-pixbuf"
         item = DockItem(
@@ -935,7 +1019,9 @@ class TestItemMenus:
             prefs_key="file:///tmp/root",
         )
 
-        rows = handler._list_directory(folder_item=item, target="file:///tmp/root")
+        rows = handler._folder_stack.list_directory(
+            folder_item=item, target="file:///tmp/root"
+        )
 
         assert rows[0]["icon"] == "folder-pixbuf"
         handler._launcher.resolve_file_icon.assert_called_once_with(
@@ -945,6 +1031,51 @@ class TestItemMenus:
             size=16,
             is_dir=True,
         )
+
+    def test_list_directory_reuses_cached_rows_for_same_folder(
+        self, handler, monkeypatch
+    ):
+        gicon = MagicMock()
+        info = MagicMock()
+        info.get_name.return_value = "docs"
+        info.get_display_name.return_value = "docs"
+        info.get_icon.return_value = gicon
+        info.get_content_type.return_value = "inode/directory"
+        info.get_file_type.return_value = menu_mod.Gio.FileType.DIRECTORY
+        info.get_is_hidden.return_value = False
+        info.get_size.return_value = 0
+        info.get_attribute_uint64.return_value = 0
+        enumerator = MagicMock()
+        enumerator.next_file.side_effect = [info, None]
+        folder = MagicMock()
+        folder.enumerate_children.return_value = enumerator
+        child = MagicMock()
+        child.get_uri.return_value = "file:///tmp/docs"
+        folder.get_child.return_value = child
+        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: folder)
+        monkeypatch.setattr(
+            handler._folder_stack._browser,
+            "directory_has_visible_children",
+            lambda **_kwargs: False,
+        )
+        handler._launcher.resolve_file_icon.return_value = "folder-pixbuf"
+        item = DockItem(
+            desktop_id="file:///tmp/root",
+            kind=FOLDER_KIND,
+            target="file:///tmp/root",
+            prefs_key="file:///tmp/root",
+        )
+
+        first = handler._folder_stack.list_directory(
+            folder_item=item, target="file:///tmp/root"
+        )
+        second = handler._folder_stack.list_directory(
+            folder_item=item, target="file:///tmp/root"
+        )
+
+        assert first == second
+        folder.enumerate_children.assert_called_once()
+        handler._launcher.resolve_file_icon.assert_called_once()
 
     def test_file_item_menu_opens_target(self, handler, monkeypatch):
         menu = FakeMenu()
@@ -974,11 +1105,20 @@ class TestItemMenus:
             is_running=True,
             instance_count=1,
         )
-        window = MagicMock()
-        window.get_xid.return_value = 7
-        handler._tracker.get_windows_for.return_value = [window]
-        handler._tracker.get_window_title_for_xid.return_value = "A" * 80
-        monkeypatch.setattr(menu_mod, "capture_window", lambda **_kwargs: "thumb")
+        window_id = WindowId.x11(7)
+        pixbuf = object()
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=window_id,
+                desktop_id="firefox.desktop",
+                title="A" * 80,
+            )
+        ]
+        handler._preview_service.thumbnail.return_value = PreviewImage(
+            image=pixbuf,
+            width=menu_mod.WINDOW_MENU_THUMB_W,
+            height=menu_mod.WINDOW_MENU_THUMB_H,
+        )
         monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
 
         handler._build_item_menu(menu=menu, item=item)
@@ -986,6 +1126,12 @@ class TestItemMenus:
         row = menu.children[0]
         assert isinstance(row.get_child(), FakeBox)
         assert isinstance(row.get_child().children[0], FakeImage)
+        assert row.get_child().children[0].pixbuf is pixbuf
+        handler._preview_service.thumbnail.assert_called_once_with(
+            window_id,
+            width=menu_mod.WINDOW_MENU_THUMB_W,
+            height=menu_mod.WINDOW_MENU_THUMB_H,
+        )
         assert isinstance(row.get_child().children[1], FakeLabel)
         assert (
             row.get_child().children[1].max_width_chars == menu_mod.MENU_LABEL_MAX_CHARS
@@ -994,10 +1140,15 @@ class TestItemMenus:
         assert isinstance(close_label, FakeLabel)
         assert close_label.label == "×"
 
+        monkeypatch.setattr(
+            menu_mod.GLib,
+            "idle_add",
+            lambda *_args: pytest.fail("X11 row removal should not be deferred"),
+        )
         close_event = SimpleNamespace(x=170.0)
         assert row.emit("button-press-event", close_event) is True
         assert row.emit("button-release-event", close_event) is True
-        handler._tracker.close_xid.assert_called_once_with(7)
+        handler._tracker.close.assert_called_once_with(window_id)
         handler._runtime.hide_hover_ui.assert_called_once()
         assert row.hidden is True
         assert row.destroyed is True
@@ -1013,7 +1164,108 @@ class TestItemMenus:
         assert menu.popup_event is close_event
 
         row.activate()
-        handler._tracker.activate_xid.assert_called_once_with(7)
+        handler._tracker.activate.assert_called_once_with(window_id)
+
+    def test_wayland_window_row_close_defers_menu_mutation(self, handler, monkeypatch):
+        menu = FakeMenu()
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            is_running=True,
+            instance_count=1,
+        )
+        window_id = WindowId(DisplayServer.WAYLAND, 7)
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=window_id,
+                desktop_id="firefox.desktop",
+                title="Firefox",
+            )
+        ]
+        handler._preview_service.thumbnail.return_value = None
+        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
+        idle_calls: list[tuple[object, tuple[object, ...]]] = []
+        monkeypatch.setattr(
+            menu_mod.GLib,
+            "idle_add",
+            lambda callback, *args: idle_calls.append((callback, args)) or 91,
+        )
+
+        handler._build_item_menu(menu=menu, item=item)
+        row = menu.children[0]
+        close_event = SimpleNamespace(x=170.0)
+
+        assert row.emit("button-release-event", close_event) is True
+
+        handler._tracker.close.assert_called_once_with(window_id)
+        handler._runtime.hide_hover_ui.assert_called_once()
+        assert row in menu.children
+        assert row.hidden is False
+        assert idle_calls == [(handler._remove_window_row_deferred, (row, close_event))]
+
+        assert idle_calls[0][0](*idle_calls[0][1]) is False
+        assert row.hidden is True
+        assert row.destroyed is True
+        assert row not in menu.children
+        assert menu.popdown_called is False
+        assert menu.popup_event is None
+        assert menu.shown is True
+        assert menu.resize_queued is True
+        assert menu.resize_checked is True
+        assert menu.draw_queued is True
+
+    def test_window_list_default_preserves_tracker_order(self, handler, monkeypatch):
+        menu = FakeMenu()
+        item = DockItem(
+            desktop_id="code.desktop",
+            is_running=True,
+            instance_count=3,
+        )
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=WindowId.x11(1), desktop_id="code.desktop", title="Charlie"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(2), desktop_id="code.desktop", title="Alpha"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(3), desktop_id="code.desktop", title="Bravo"
+            ),
+        ]
+        handler._config.window_list_sort = "default"
+        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
+
+        handler._build_item_menu(menu=menu, item=item)
+
+        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        labels = [r.get_child().children[1].label for r in rows]
+        assert labels == ["Charlie", "Alpha", "Bravo"]
+
+    def test_window_list_alphabetical_sorts_by_title(self, handler, monkeypatch):
+        menu = FakeMenu()
+        item = DockItem(
+            desktop_id="code.desktop",
+            is_running=True,
+            instance_count=3,
+        )
+        handler._tracker.list_windows.return_value = [
+            WindowSnapshot(
+                id=WindowId.x11(1), desktop_id="code.desktop", title="Charlie"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(2), desktop_id="code.desktop", title="Alpha"
+            ),
+            WindowSnapshot(
+                id=WindowId.x11(3), desktop_id="code.desktop", title="Bravo"
+            ),
+        ]
+        handler._config.window_list_sort = "alphabetical"
+        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
+
+        handler._build_item_menu(menu=menu, item=item)
+
+        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        labels = [r.get_child().children[1].label for r in rows]
+        assert labels == ["Alpha", "Bravo", "Charlie"]
 
 
 class TestDockMenu:
@@ -1022,7 +1274,7 @@ class TestDockMenu:
     ):
         # Given
         menu = FakeMenu()
-        FakeGtk.main_quit.reset_mock()
+        handler._runtime._window.destroy.reset_mock()
         handler._model.pinned_items = [DockItem(desktop_id="applet://clock")]
         monkeypatch.setattr(
             menu_mod,
@@ -1048,8 +1300,10 @@ class TestDockMenu:
         # Then
         assert menu_mod._("Add Applet") in labels
         assert "Add Separator" in labels
+        assert "Diagnostics" in labels
         assert "Preferences" in labels
         assert "About" in labels
+        assert "Get Support" in labels
         assert "Quit" in labels
         assert "Auto-hide" not in labels
         assert "Window Previews" not in labels
@@ -1057,23 +1311,34 @@ class TestDockMenu:
         assert "Themes" not in labels
         assert "Position" not in labels
         assert labels.index("Preferences") == labels.index("About") - 1
-        assert labels.index("About") == labels.index("Quit") - 1
+        assert labels.index("About") == labels.index("Get Support") - 1
+        assert labels.index("Get Support") == labels.index("Quit") - 1
 
         next(mi for mi in menu.children if mi.get_label() == "Add Separator").activate()
         handler._model.add_separator.assert_called_once_with(index=3)
 
         show_about = MagicMock()
         handler._about.show = show_about
+        show_diagnostics = MagicMock()
+        handler._diagnostics.show = show_diagnostics
         show_settings = MagicMock()
         handler._settings.show = show_settings
+        open_target = MagicMock()
+        menu_mod.launcher_mod.open_target = open_target
+        next(mi for mi in menu.children if mi.get_label() == "Diagnostics").activate()
+        show_diagnostics.assert_called_once()
+
         next(mi for mi in menu.children if mi.get_label() == "Preferences").activate()
         show_settings.assert_called_once()
 
         next(mi for mi in menu.children if mi.get_label() == "About").activate()
         show_about.assert_called_once()
 
+        next(mi for mi in menu.children if mi.get_label() == "Get Support").activate()
+        open_target.assert_called_once_with(menu_mod.SUPPORT_URL)
+
         next(mi for mi in menu.children if mi.get_label() == "Quit").activate()
-        FakeGtk.main_quit.assert_called_once()
+        handler._runtime._window.destroy.assert_called_once()
 
         applets_item = next(
             mi for mi in menu.children if mi.get_label() == menu_mod._("Add Applet")
@@ -1170,9 +1435,7 @@ class TestDockMenu:
 
 
 class TestMenuCallbacks:
-    def test_show_builds_item_menu_and_show_item_pops_pointer(
-        self, handler, monkeypatch
-    ):
+    def test_show_builds_item_menu(self, handler, monkeypatch):
         event = SimpleNamespace(x=20.0, y=9.0)
         item = DockItem(desktop_id="firefox.desktop")
         handler._geometry_builder = SimpleNamespace(
@@ -1186,10 +1449,9 @@ class TestMenuCallbacks:
         monkeypatch.setattr(handler, "_build_item_menu", capture_build)
 
         handler.show(event=event, cursor_main=20.0)
-        handler.show_item(event=event, item=item)
 
-        assert built == [("item", item), ("item", item)]
-        assert handler._runtime.menu_popup_opened.call_count == 2
+        assert built == [("item", item)]
+        assert handler._runtime.menu_popup_opened.call_count == 1
 
     def test_append_desktop_actions_triggers_launch_action(self, handler, monkeypatch):
         # Given
@@ -1210,158 +1472,9 @@ class TestMenuCallbacks:
         # Then
         assert launch_calls == [("firefox.desktop", "new-window")]
 
-    def test_theme_position_and_size_callbacks(self, handler, monkeypatch):
-        # Given
-        widget = FakeCheckMenuItem("Theme")
-        widget.set_active(True)
-        new_theme = object()
-        monkeypatch.setattr(menu_mod.Theme, "load", lambda name, _size: new_theme)
-        # When
-        handler._on_theme_changed(widget, "solar")
-        # Then
-        assert handler._config.theme == "solar"
-        handler._runtime.set_theme.assert_called_once_with(new_theme)
-        handler._runtime.reposition.assert_called_once()
-        handler._runtime.queue_draw.assert_called()
+    def test_insert_index(self, handler):
+        frame = _frame(item_index=0, insert_index=1)
 
-        pos_widget = FakeCheckMenuItem("Position")
-        pos_widget.set_active(True)
-        handler._on_position_changed(pos_widget, "left")
-        assert handler._config.position == "left"
-        assert handler._runtime.reposition.call_count == 2
-
-        size_widget = FakeCheckMenuItem("Icon Size")
-        size_widget.set_active(True)
-        handler._on_icon_size_changed(size_widget, 64)
-        assert handler._config.icon_size == 64
-
-    def test_monitor_changed_repositions_and_saves(self, handler):
-        # Given
-        widget = FakeCheckMenuItem("Display")
-        widget.set_active(True)
-        handler._config.monitor_index = -1
-
-        # When
-        handler._on_monitor_changed(widget, 1)
-
-        # Then
-        assert handler._config.monitor_index == 1
-        handler._config.save.assert_called_once()
-        handler._runtime.reposition.assert_called_once()
-
-    def test_monitor_changed_primary_persists_as_follow_primary(self, handler):
-        # Given
-        widget = FakeCheckMenuItem("Display")
-        widget.set_active(True)
-        handler._config.monitor_index = 1
-        handler._runtime.primary_monitor_index.return_value = 0
-
-        # When
-        handler._on_monitor_changed(widget, 0)
-
-        # Then
-        assert handler._config.monitor_index == -1
-        handler._config.save.assert_called_once()
-        handler._runtime.reposition.assert_called_once()
-
-    def test_monitor_items_filters_invalid_payloads_and_handles_errors(self, handler):
-        handler._runtime.get_monitor_menu_choices.return_value = [
-            ("Display 1", 0),
-            ("bad", "1"),
-            "bad",
-            ("Display 2", 1, "extra"),
-        ]
-        assert handler._monitor_items() == [("Display 1", 0)]
-
-        handler._runtime.get_monitor_menu_choices.side_effect = RuntimeError("boom")
-        assert handler._monitor_items() == []
-
-    def test_current_monitor_choice_falls_back_when_runtime_is_invalid(self, handler):
-        handler._config.monitor_index = 3
-        handler._runtime.current_monitor_choice.return_value = "bad"
-        assert handler._current_monitor_choice() == 3
-
-        handler._runtime.current_monitor_choice.side_effect = RuntimeError("boom")
-        assert handler._current_monitor_choice() == 3
-
-    def test_monitor_changed_noops_for_inactive_or_unchanged_selection(self, handler):
-        widget = FakeCheckMenuItem("Display")
-        widget.set_active(False)
-
-        handler._on_monitor_changed(widget, 1)
-
-        handler._config.save.assert_not_called()
-        handler._runtime.reposition.assert_not_called()
-
-        widget.set_active(True)
-        handler._config.monitor_index = -1
-        handler._runtime.primary_monitor_index.side_effect = RuntimeError("boom")
-        handler._on_monitor_changed(widget, 1)
-
-        handler._config.save.assert_not_called()
-        handler._runtime.reposition.assert_not_called()
-
-    def test_simple_toggle_callbacks_update_runtime_and_config(self, handler):
-        toggle = FakeCheckMenuItem("Toggle")
-        toggle.set_active(True)
-
-        handler._on_active_display_toggled(toggle)
-        handler._on_lock_toggled(toggle)
-        handler._on_anchor_toggled(toggle)
-        handler._on_anchor_files_toggled(toggle)
-        handler._on_workspace_only_toggled(toggle)
-        handler._on_tooltips_toggled(toggle)
-
-        assert handler._config.active_display is True
-        assert handler._config.lock_icons is True
-        assert handler._config.anchor_applets is True
-        assert handler._config.anchor_files is True
-        assert handler._config.current_workspace_only is True
-        assert handler._config.tooltips_enabled is True
-        handler._runtime.set_active_display.assert_called_once_with(True)
-        handler._runtime.set_icons_locked.assert_called_once_with(True)
-        assert handler._runtime.reposition.call_count == 1
-        assert handler._runtime.queue_draw.call_count == 3
-        handler._runtime.hide_tooltip.assert_not_called()
-
-        toggle.set_active(False)
-        handler._on_tooltips_toggled(toggle)
-        handler._runtime.hide_tooltip.assert_called_once()
-
-    def test_theme_and_position_changes_ignore_inactive_or_same_values(
-        self, handler, monkeypatch
-    ):
-        widget = FakeCheckMenuItem("Theme")
-        widget.set_active(False)
-
-        handler._on_theme_changed(widget, "default")
-        handler._on_position_changed(widget, "bottom")
-
-        handler._config.save.assert_not_called()
-        handler._runtime.set_theme.assert_not_called()
-
-        widget.set_active(True)
-        handler._config.theme = "default"
-        handler._config.position = "bottom"
-        monkeypatch.setattr(menu_mod.Theme, "load", MagicMock())
-
-        handler._on_theme_changed(widget, "default")
-        handler._on_position_changed(widget, "bottom")
-
-        handler._config.save.assert_not_called()
-        menu_mod.Theme.load.assert_not_called()
-
-    def test_hit_test_and_insert_index(self, handler):
-        # Given
-        items = [DockItem(desktop_id="a.desktop"), DockItem(desktop_id="b.desktop")]
-        handler._runtime.cursor_position.return_value = (20.0, 8.0)
-        frame = _frame(item=items[0], item_index=0, insert_index=1)
-
-        found = handler._hit_test(main_coord=20, items=items, frame=frame)
-        # Then
-        assert found is items[0]
-
-        # When
         idx = handler._insert_index(cursor_main=40, frame=frame)
         assert idx == 1
 
@@ -1376,11 +1489,11 @@ class TestMenuCallbacks:
         toggle.set_active(True)
 
         handler._on_folder_hidden_toggled(toggle, item)
-        handler._on_folder_large_icons_toggled(toggle, item)
+        handler._folder_stack.update_folder_pref(item, "unsupported", True)
 
         assert handler._config.item_prefs["file:///tmp/docs"]["show_hidden"] is True
-        assert handler._config.item_prefs["file:///tmp/docs"]["large_icons"] is True
-        assert handler._config.save.call_count >= 2
+        assert "unsupported" not in handler._config.item_prefs["file:///tmp/docs"]
+        assert handler._config.save.call_count >= 1
 
     def test_folder_menu_change_debounces_refresh(self, handler, monkeypatch):
         menu = FakeMenu()
@@ -1439,10 +1552,12 @@ class TestMenuCallbacks:
             target="file:///tmp/docs",
         )
         monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_list_directory_rows",
             lambda **_kwargs: [
                 {
                     "target": "file:///tmp/docs/readme.txt",
@@ -1454,7 +1569,9 @@ class TestMenuCallbacks:
         )
         tracked: list[str] = []
         monkeypatch.setattr(
-            handler, "_track_folder_stack", lambda target: tracked.append(target)
+            handler._folder_stack,
+            "_track_folder_stack",
+            lambda target: tracked.append(target),
         )
 
         handler.show_folder_stack(
@@ -1480,9 +1597,15 @@ class TestMenuCallbacks:
             target="file:///tmp/docs",
         )
         monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
-        monkeypatch.setattr(handler, "_list_directory", lambda **_kwargs: [])
-        monkeypatch.setattr(handler, "_track_folder_stack", lambda target: None)
+        monkeypatch.setattr(
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack, "_list_directory_rows", lambda **_kwargs: []
+        )
+        monkeypatch.setattr(
+            handler._folder_stack, "_track_folder_stack", lambda target: None
+        )
 
         handler.show_folder_stack(
             item=item,
@@ -1504,7 +1627,79 @@ class TestMenuCallbacks:
         assert window is not None
         assert window.visible is False
         assert handler._runtime.menu_popup_opened.call_count == 1
-        handler._runtime.menu_popup_closed.assert_called_once()
+
+    def test_show_folder_stack_same_item_can_stay_open(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
+        monkeypatch.setattr(
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack, "_list_directory_rows", lambda **_kwargs: []
+        )
+        monkeypatch.setattr(
+            handler._folder_stack, "_track_folder_stack", lambda target: None
+        )
+
+        handler.show_folder_stack(
+            item=item,
+            anchor_x=120,
+            anchor_y=800,
+            icon_w=48,
+            position="bottom",
+            toggle_if_same_item=False,
+        )
+        window = FakeWindow.last_created
+
+        handler.show_folder_stack(
+            item=item,
+            anchor_x=120,
+            anchor_y=800,
+            icon_w=48,
+            position="bottom",
+            toggle_if_same_item=False,
+        )
+
+        assert window is not None
+        assert window.visible is True
+        assert handler._runtime.menu_popup_opened.call_count == 1
+        handler._runtime.menu_popup_closed.assert_not_called()
+
+    def test_folder_stack_cards_reuse_cached_layout(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        calls: list[str] = []
+        monkeypatch.setattr(
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_list_directory_rows",
+            lambda **_kwargs: (
+                calls.append("listed")
+                or [
+                    {
+                        "target": "file:///tmp/docs/readme.txt",
+                        "name": "readme.txt",
+                        "is_dir": False,
+                        "icon": object(),
+                    }
+                ]
+            ),
+        )
+
+        first = handler._folder_stack._folder_stack_cards_for_item(item)
+        second = handler._folder_stack._folder_stack_cards_for_item(item)
+
+        assert first == second
+        assert calls == ["listed"]
 
     def test_folder_stack_requests_dock_sized_icons(self, handler, monkeypatch):
         handler._config.icon_size = 52
@@ -1515,10 +1710,12 @@ class TestMenuCallbacks:
         )
         requested_icon_sizes: list[int] = []
 
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_list_directory_rows",
             lambda **kwargs: (
                 requested_icon_sizes.append(kwargs["icon_px"])
                 or [
@@ -1532,11 +1729,13 @@ class TestMenuCallbacks:
             ),
         )
 
-        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+        cards, _popup_w, _popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
 
         assert requested_icon_sizes == [52]
         assert cards[1].icon_size == 52
-        assert cards[1].label_w <= menu_mod.FOLDER_STACK_LABEL_MAX_WIDTH_PX
+        assert cards[1].label_w <= folder_stack_mod.FOLDER_STACK_LABEL_MAX_WIDTH_PX
 
     def test_folder_stack_action_chip_allows_wider_more_label(
         self, handler, monkeypatch
@@ -1546,11 +1745,13 @@ class TestMenuCallbacks:
             kind=FOLDER_KIND,
             target="file:///tmp/docs",
         )
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
         handler._launcher.default_directory_app_name.return_value = "Caja"
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack,
+            "_list_directory_rows",
             lambda **_kwargs: [
                 {
                     "target": f"file:///tmp/docs/{i}.txt",
@@ -1562,21 +1763,23 @@ class TestMenuCallbacks:
             ],
         )
 
-        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+        cards, _popup_w, _popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
 
         assert cards[0].label == "5 More in Caja"
         expected_width = (
-            menu_mod._measure_stack_text_px("5 More in Caja")
-            + 2 * menu_mod.FOLDER_STACK_LABEL_TEXT_MARGIN_PX
-            + menu_mod.FOLDER_STACK_ACTION_ARROW_GAP_PX
-            + menu_mod.FOLDER_STACK_ACTION_ARROW_SIZE_PX
+            folder_stack_mod._measure_stack_text_px("5 More in Caja")
+            + 2 * folder_stack_mod.FOLDER_STACK_LABEL_TEXT_MARGIN_PX
+            + folder_stack_mod.FOLDER_STACK_ACTION_ARROW_GAP_PX
+            + folder_stack_mod.FOLDER_STACK_ACTION_ARROW_SIZE_PX
             + 10
         )
-        assert cards[0].label_w == handler._folder_stack_action_width(
+        assert cards[0].label_w == handler._folder_stack._folder_stack_action_width(
             label="5 More in Caja"
         )
         assert cards[0].label_w == expected_width
-        assert cards[0].label_w <= menu_mod.FOLDER_STACK_ACTION_MAX_WIDTH_PX
+        assert cards[0].label_w <= folder_stack_mod.FOLDER_STACK_ACTION_MAX_WIDTH_PX
 
     def test_folder_stack_action_chip_falls_back_without_directory_app(
         self, handler, monkeypatch
@@ -1586,11 +1789,13 @@ class TestMenuCallbacks:
             kind=FOLDER_KIND,
             target="file:///tmp/docs",
         )
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
+        monkeypatch.setattr(
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
         handler._launcher.default_directory_app_name.return_value = None
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack,
+            "_list_directory_rows",
             lambda **_kwargs: [
                 {
                     "target": f"file:///tmp/docs/{i}.txt",
@@ -1602,7 +1807,9 @@ class TestMenuCallbacks:
             ],
         )
 
-        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+        cards, _popup_w, _popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
 
         assert cards[0].label == "5 More in Folder"
 
@@ -1612,10 +1819,12 @@ class TestMenuCallbacks:
             kind=FOLDER_KIND,
             target="file:///tmp/docs",
         )
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_list_directory_rows",
             lambda **_kwargs: [
                 {
                     "target": "file:///tmp/docs/doc",
@@ -1626,7 +1835,9 @@ class TestMenuCallbacks:
             ],
         )
 
-        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+        cards, _popup_w, _popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
 
         assert cards[1].label == "doc"
         assert cards[1].label_w < 50
@@ -1639,10 +1850,12 @@ class TestMenuCallbacks:
             kind=FOLDER_KIND,
             target="file:///tmp/docs",
         )
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_list_directory_rows",
             lambda **_kwargs: [
                 {
                     "target": f"file:///tmp/docs/{i}.txt",
@@ -1654,11 +1867,13 @@ class TestMenuCallbacks:
             ],
         )
 
-        cards, popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+        cards, popup_w, _popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
 
         icon_cards = [card for card in cards if card.icon_size > 0]
         assert len(icon_cards) == 4
-        fold_center_x = handler._folder_stack_fold_center_x
+        fold_center_x = handler._folder_stack._folder_stack_fold_center_x
         for card in icon_cards:
             icon_center_x = card.icon_x + card.icon_size / 2
             assert icon_center_x > fold_center_x
@@ -1671,10 +1886,12 @@ class TestMenuCallbacks:
             kind=FOLDER_KIND,
             target="file:///tmp/docs",
         )
-        monkeypatch.setattr(handler, "_folder_target_state", lambda _target: "ok")
         monkeypatch.setattr(
-            handler,
-            "_list_directory",
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_list_directory_rows",
             lambda **_kwargs: [
                 {
                     "target": f"file:///tmp/docs/{i}.txt",
@@ -1686,7 +1903,9 @@ class TestMenuCallbacks:
             ],
         )
 
-        cards, _popup_w, _popup_h = handler._folder_stack_cards_for_item(item)
+        cards, _popup_w, _popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
 
         icon_cards = [card for card in cards if card.icon_size > 0]
         centers = [card.icon_y + card.icon_size / 2 for card in icon_cards]
@@ -1704,18 +1923,43 @@ class TestMenuCallbacks:
             "timeout_add",
             lambda delay, cb, *args: timeout_calls.append((delay, cb, args)) or 77,
         )
-        handler._folder_stack_refresh_source = 12
+        handler._folder_stack._folder_stack_refresh_source = 12
 
-        handler._on_folder_stack_changed(MagicMock(), MagicMock(), None, MagicMock())
+        handler._folder_stack._on_folder_stack_changed(
+            MagicMock(), MagicMock(), None, MagicMock()
+        )
 
         assert removed == [12]
         assert timeout_calls[0][0] == 120
-        assert handler._folder_stack_refresh_source == 77
+        assert handler._folder_stack._folder_stack_refresh_source == 77
+
+    def test_folder_stack_change_invalidates_cached_layout(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        handler._folder_stack._folder_stack_item = item
+        handler._folder_stack._folder_stack_cache.layouts[
+            ("file:///tmp/docs", 0, "name", False, 48, None)
+        ] = folder_stack_mod.FolderStackLayout(
+            cards=(),
+            popup_w=1,
+            popup_h=1,
+            fold_center_x=1,
+        )
+        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 77)
+
+        handler._folder_stack._on_folder_stack_changed(
+            MagicMock(), MagicMock(), None, MagicMock()
+        )
+
+        assert handler._folder_stack._folder_stack_cache.layouts == {}
 
     def test_folder_stack_click_opens_target(self, handler):
         target = "file:///tmp/docs/readme.txt"
-        handler._folder_stack_cards = [
-            menu_mod.FolderStackCard(
+        handler._folder_stack._folder_stack_cards = [
+            folder_stack_mod.FolderStackCard(
                 label="readme.txt",
                 target=target,
                 icon=None,
@@ -1730,15 +1974,24 @@ class TestMenuCallbacks:
             )
         ]
         opened: list[str] = []
-        with patch.object(handler, "_open_folder_stack_target", opened.append):
+        with patch.object(
+            handler._folder_stack,
+            "_open_folder_stack_target",
+            opened.append,
+        ):
             press = SimpleNamespace(x=32.0, y=60.0, button=1)
             release = SimpleNamespace(x=32.0, y=60.0, button=1)
 
             assert (
-                handler._on_folder_stack_button_press(FakeDrawingArea(), press) is True
+                handler._folder_stack._on_folder_stack_button_press(
+                    FakeDrawingArea(), press
+                )
+                is True
             )
             assert (
-                handler._on_folder_stack_button_release(FakeDrawingArea(), release)
+                handler._folder_stack._on_folder_stack_button_release(
+                    FakeDrawingArea(), release
+                )
                 is True
             )
 
@@ -1756,20 +2009,638 @@ class TestMenuCallbacks:
         revealer.add(old_child)
         built: list[object] = []
         monkeypatch.setattr(
-            handler,
+            handler._folder_stack,
             "_replace_folder_stack_content",
             lambda item: built.append(object()),
         )
         monkeypatch.setattr(
-            handler,
+            handler._folder_stack,
             "_position_folder_stack_window",
             lambda: built.append(object()) or built[-1],
         )
-        handler._folder_stack_window = window
-        handler._folder_stack_revealer = revealer
-        handler._folder_stack_item = item
+        handler._folder_stack._folder_stack_window = window
+        handler._folder_stack._folder_stack_revealer = revealer
+        handler._folder_stack._folder_stack_item = item
 
-        result = handler._refresh_folder_stack()
+        result = handler._folder_stack._refresh_folder_stack()
 
         assert result is False
         assert window.visible is True
+
+    def test_schedule_folder_stack_prewarm_deduplicates_target(
+        self, handler, monkeypatch
+    ):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        idle_calls: list[object] = []
+        monkeypatch.setattr(
+            menu_mod.GLib, "idle_add", lambda callback: idle_calls.append(callback) or 9
+        )
+
+        handler.schedule_folder_stack_prewarm(item)
+        handler.schedule_folder_stack_prewarm(item)
+
+        assert len(idle_calls) == 1
+        assert len(handler._folder_stack._folder_stack_cache.prewarm_queue) == 1
+
+    def test_folder_stack_transition_type_matches_position(self, handler):
+        handler._config.pos = "bottom"
+        assert (
+            handler._folder_stack._folder_stack_transition_type()
+            == menu_mod.Gtk.RevealerTransitionType.SLIDE_UP
+        )
+        handler._config.pos = "top"
+        assert (
+            handler._folder_stack._folder_stack_transition_type()
+            == menu_mod.Gtk.RevealerTransitionType.SLIDE_DOWN
+        )
+        handler._config.pos = "left"
+        assert (
+            handler._folder_stack._folder_stack_transition_type()
+            == menu_mod.Gtk.RevealerTransitionType.SLIDE_RIGHT
+        )
+        handler._config.pos = "right"
+        assert (
+            handler._folder_stack._folder_stack_transition_type()
+            == menu_mod.Gtk.RevealerTransitionType.SLIDE_LEFT
+        )
+
+    def test_replace_folder_stack_content_replaces_existing_child(self, handler):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        revealer = FakeRevealer()
+        stale = FakeBox()
+        revealer.add(stale)
+        handler._folder_stack._folder_stack_revealer = revealer
+
+        handler._folder_stack._replace_folder_stack_content(item=item)
+
+        assert revealer.get_child() is not stale
+        assert revealer.get_child().shown is True
+
+    def test_position_folder_stack_window_supports_all_edges(self, handler):
+        child = FakeBox()
+        revealer = FakeRevealer()
+        revealer.add(child)
+        window = FakeWindow()
+        handler._folder_stack._folder_stack_window = window
+        handler._folder_stack._folder_stack_revealer = revealer
+        handler._folder_stack._folder_stack_anchor_x = 120
+        handler._folder_stack._folder_stack_anchor_y = 200
+        handler._folder_stack._folder_stack_icon_w = 48
+        handler._folder_stack._folder_stack_fold_center_x = 40
+
+        handler._folder_stack._folder_stack_position_value = "bottom"
+        handler._folder_stack._position_folder_stack_window()
+        assert window.moved_to == (104, 158)
+
+        handler._folder_stack._folder_stack_position_value = "top"
+        handler._folder_stack._position_folder_stack_window()
+        assert window.moved_to == (104, 208)
+
+        handler._folder_stack._folder_stack_position_value = "left"
+        handler._folder_stack._position_folder_stack_window()
+        assert window.moved_to == (128, 207)
+
+        handler._folder_stack._folder_stack_position_value = "right"
+        handler._folder_stack._position_folder_stack_window()
+        assert window.moved_to == (0, 207)
+
+    def test_track_folder_stack_handles_invalid_target_and_error(
+        self, handler, monkeypatch
+    ):
+        monkeypatch.setattr(
+            menu_mod.launcher_mod, "normalize_file_target", lambda _t: None
+        )
+        handler._folder_stack._track_folder_stack("invalid")
+        assert handler._folder_stack._folder_stack_monitor is None
+
+        warned = MagicMock()
+        monkeypatch.setattr(folder_stack_mod.log, "warning", warned)
+        monkeypatch.setattr(
+            menu_mod.launcher_mod,
+            "normalize_file_target",
+            lambda _t: "file:///tmp/docs",
+        )
+        monkeypatch.setattr(menu_mod.GLib, "Error", RuntimeError)
+
+        class _Folder:
+            def monitor_directory(self, *_args):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder())
+
+        handler._folder_stack._track_folder_stack("file:///tmp/docs")
+
+        warned.assert_called_once()
+
+    def test_track_folder_stack_connects_monitor(self, handler, monkeypatch):
+        monitor = FakeMonitor()
+        monkeypatch.setattr(
+            menu_mod.launcher_mod,
+            "normalize_file_target",
+            lambda _t: "file:///tmp/docs",
+        )
+
+        class _Folder:
+            def monitor_directory(self, *_args):
+                return monitor
+
+        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder())
+
+        handler._folder_stack._track_folder_stack("file:///tmp/docs")
+
+        assert handler._folder_stack._folder_stack_monitor is monitor
+        assert monitor.changed[0] == "changed"
+
+    def test_refresh_folder_stack_returns_false_without_window_or_item(self, handler):
+        handler._folder_stack._folder_stack_window = None
+        handler._folder_stack._folder_stack_item = None
+
+        assert handler._folder_stack._refresh_folder_stack() is False
+
+    def test_folder_stack_cards_for_missing_and_empty_folder(
+        self, handler, monkeypatch
+    ):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(
+            handler._folder_stack._browser, "target_state", lambda _target: "missing"
+        )
+
+        cards, popup_w, popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
+
+        assert cards[0].label == "Folder not found"
+        assert popup_w > 0
+        assert popup_h > 0
+
+        monkeypatch.setattr(
+            handler._folder_stack._browser, "target_state", lambda _target: "ok"
+        )
+        monkeypatch.setattr(
+            handler._folder_stack, "_list_directory_rows", lambda **_kwargs: []
+        )
+
+        cards, popup_w, popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
+
+        assert cards[0].label == "Folder is empty"
+        assert popup_w > 0
+        assert popup_h > 0
+
+    def test_draw_folder_stack_card_returns_when_geometry_missing(
+        self, handler, monkeypatch
+    ):
+        cr = MagicMock()
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_folder_stack_card_geometry",
+            lambda **_kwargs: None,
+        )
+
+        handler._folder_stack._draw_folder_stack_card(
+            cr=cr,
+            card=folder_stack_mod.FolderStackCard(
+                label="x",
+                target=None,
+                icon=None,
+                icon_x=0,
+                icon_y=0,
+                icon_size=0,
+                label_x=0,
+                label_y=0,
+                label_w=10,
+                label_h=10,
+                centered=False,
+            ),
+            sequence_index=0,
+            now_us=0,
+        )
+
+        cr.save.assert_not_called()
+
+    def test_draw_folder_stack_card_scales_icon_and_draws_action_arrow(
+        self, handler, monkeypatch
+    ):
+        geometry = folder_stack_mod.FolderStackCardGeometry(
+            reveal=1.0,
+            hover_value=0.2,
+            rotation_radians=0.1,
+            icon_x=10,
+            icon_y=20,
+            icon_size=24,
+            icon_center_x=22,
+            icon_center_y=32,
+            label_x=30,
+            label_y=40,
+        )
+        scaled = FakePixbuf(24, 24)
+        pixbuf = FakePixbuf(48, 48, scaled=scaled)
+        cr = MagicMock()
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_folder_stack_card_geometry",
+            lambda **_kwargs: geometry,
+        )
+        monkeypatch.setattr(folder_stack_mod, "rounded_rect", MagicMock())
+        monkeypatch.setattr(
+            folder_stack_mod.Gdk,
+            "cairo_set_source_pixbuf",
+            MagicMock(),
+        )
+        monkeypatch.setattr(
+            folder_stack_mod,
+            "GdkPixbuf",
+            SimpleNamespace(InterpType=SimpleNamespace(BILINEAR=1)),
+        )
+
+        handler._folder_stack._draw_folder_stack_card(
+            cr=cr,
+            card=folder_stack_mod.FolderStackCard(
+                label="Open Folder",
+                target="file:///tmp/docs",
+                icon=pixbuf,
+                icon_x=10,
+                icon_y=20,
+                icon_size=48,
+                label_x=30,
+                label_y=40,
+                label_w=100,
+                label_h=24,
+                centered=True,
+            ),
+            sequence_index=0,
+            now_us=0,
+        )
+
+        assert pixbuf.scale_calls == [(24, 24, 1)]
+        assert cr.paint_with_alpha.call_count == 2
+        assert cr.stroke.call_count >= 1
+
+        cr.reset_mock()
+        handler._folder_stack._draw_folder_stack_card(
+            cr=cr,
+            card=folder_stack_mod.FolderStackCard(
+                label="Open Folder",
+                target="file:///tmp/docs",
+                icon=None,
+                icon_x=0,
+                icon_y=0,
+                icon_size=0,
+                label_x=30,
+                label_y=40,
+                label_w=100,
+                label_h=24,
+                centered=True,
+            ),
+            sequence_index=0,
+            now_us=0,
+        )
+
+        assert cr.stroke.call_count >= 2
+
+    def test_folder_stack_card_at_and_button_mismatch_paths(self, handler, monkeypatch):
+        top = folder_stack_mod.FolderStackCard(
+            label="Top",
+            target="file:///tmp/top",
+            icon=None,
+            icon_x=80,
+            icon_y=20,
+            icon_size=20,
+            label_x=0,
+            label_y=0,
+            label_w=100,
+            label_h=24,
+            centered=False,
+        )
+        bottom = folder_stack_mod.FolderStackCard(
+            label="Bottom",
+            target="file:///tmp/bottom",
+            icon=None,
+            icon_x=0,
+            icon_y=0,
+            icon_size=0,
+            label_x=0,
+            label_y=0,
+            label_w=100,
+            label_h=24,
+            centered=False,
+        )
+        handler._folder_stack._folder_stack_cards = [bottom, top]
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_folder_stack_card_geometry",
+            lambda *, card, **_kwargs: folder_stack_mod.FolderStackCardGeometry(
+                reveal=1.0,
+                hover_value=0.0,
+                rotation_radians=0.0,
+                icon_x=card.icon_x,
+                icon_y=card.icon_y,
+                icon_size=card.icon_size,
+                icon_center_x=0.0,
+                icon_center_y=0.0,
+                label_x=card.label_x,
+                label_y=card.label_y,
+            ),
+        )
+
+        assert handler._folder_stack._folder_stack_card_at(10, 10) is top
+        assert (
+            handler._folder_stack._on_folder_stack_button_press(
+                FakeDrawingArea(), SimpleNamespace(x=10.0, y=10.0, button=2)
+            )
+            is False
+        )
+        handler._folder_stack._folder_stack_pressed_target = "file:///tmp/top"
+        assert (
+            handler._folder_stack._on_folder_stack_button_release(
+                FakeDrawingArea(), SimpleNamespace(x=200.0, y=200.0, button=1)
+            )
+            is False
+        )
+
+    def test_folder_stack_motion_leave_and_animation_helpers(
+        self, handler, monkeypatch
+    ):
+        card = folder_stack_mod.FolderStackCard(
+            label="doc",
+            target="file:///tmp/doc",
+            icon=None,
+            icon_x=0,
+            icon_y=0,
+            icon_size=0,
+            label_x=0,
+            label_y=0,
+            label_w=50,
+            label_h=20,
+            centered=False,
+        )
+        monkeypatch.setattr(
+            handler._folder_stack, "_folder_stack_card_at", lambda *_args: card
+        )
+        handler._folder_stack._folder_stack_area = FakeDrawingArea()
+        timeout_calls: list[tuple[int, object]] = []
+        monkeypatch.setattr(
+            menu_mod.GLib,
+            "timeout_add",
+            lambda delay, cb: timeout_calls.append((delay, cb)) or 33,
+        )
+
+        assert (
+            handler._folder_stack._on_folder_stack_motion_notify(
+                FakeDrawingArea(), SimpleNamespace(x=1.0, y=2.0)
+            )
+            is False
+        )
+        assert handler._folder_stack._folder_stack_hover_target == "file:///tmp/doc"
+        assert handler._folder_stack._folder_stack_anim_source == 33
+        assert handler._folder_stack._folder_stack_area.draw_queued is True
+
+        assert (
+            handler._folder_stack._on_folder_stack_leave_notify(
+                FakeDrawingArea(), MagicMock()
+            )
+            is False
+        )
+        assert handler._folder_stack._folder_stack_hover_target is None
+        assert handler._folder_stack._folder_stack_pressed_target is None
+
+    def test_folder_stack_animation_frame_paths(self, handler, monkeypatch):
+        handler._folder_stack._folder_stack_area = FakeDrawingArea()
+        handler._folder_stack._folder_stack_window = FakeWindow()
+        handler._folder_stack._folder_stack_window.hide()
+
+        assert handler._folder_stack._on_folder_stack_animation_frame() is False
+        assert handler._folder_stack._folder_stack_anim_source == 0
+
+        handler._folder_stack._folder_stack_window.show_all()
+        handler._folder_stack._folder_stack_show_started_us = 0
+        handler._folder_stack._folder_stack_cards = [
+            folder_stack_mod.FolderStackCard(
+                label="doc",
+                target="file:///tmp/doc",
+                icon=None,
+                icon_x=0,
+                icon_y=0,
+                icon_size=0,
+                label_x=0,
+                label_y=0,
+                label_w=50,
+                label_h=20,
+                centered=False,
+            )
+        ]
+        handler._folder_stack._folder_stack_hover_target = "file:///tmp/doc"
+        handler._folder_stack._folder_stack_hover_values = {"file:///tmp/doc": 0.99}
+        monkeypatch.setattr(menu_mod.GLib, "get_monotonic_time", lambda: 1_000_000)
+
+        assert handler._folder_stack._on_folder_stack_animation_frame() is False
+        assert (
+            handler._folder_stack._folder_stack_hover_values["file:///tmp/doc"] == 1.0
+        )
+
+        handler._folder_stack._folder_stack_show_started_us = 900_000
+        handler._folder_stack._folder_stack_hover_target = "file:///tmp/doc"
+        handler._folder_stack._folder_stack_hover_values = {"file:///tmp/doc": 0.0}
+
+        assert handler._folder_stack._on_folder_stack_animation_frame() is True
+        assert handler._folder_stack._folder_stack_area.draw_queued is True
+
+    def test_folder_stack_reveal_open_and_target_state_helpers(
+        self, handler, monkeypatch
+    ):
+        handler._folder_stack._folder_stack_show_started_us = 0
+        assert (
+            handler._folder_stack._folder_stack_reveal_progress(
+                sequence_index=1, now_us=100
+            )
+            == 1.0
+        )
+
+        handler._folder_stack._folder_stack_show_started_us = 1_000_000
+        assert (
+            handler._folder_stack._folder_stack_reveal_progress(
+                sequence_index=10, now_us=1_000_000
+            )
+            == 0.0
+        )
+        assert (
+            0.0
+            < handler._folder_stack._folder_stack_reveal_progress(
+                sequence_index=0, now_us=1_100_000
+            )
+            <= 1.0
+        )
+
+        opened: list[str] = []
+        monkeypatch.setattr(menu_mod.launcher_mod, "open_target", opened.append)
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_close_folder_stack",
+            lambda: opened.append("closed"),
+        )
+        handler._folder_stack._open_folder_stack_target("file:///tmp/docs")
+        assert opened == ["file:///tmp/docs", "closed"]
+
+        monkeypatch.setattr(
+            menu_mod.launcher_mod, "normalize_file_target", lambda _t: None
+        )
+        assert handler._folder_stack._browser.target_state("invalid") == "missing"
+
+        monkeypatch.setattr(
+            menu_mod.launcher_mod,
+            "normalize_file_target",
+            lambda _t: "file:///tmp/docs",
+        )
+
+        class _BadFolder:
+            def query_exists(self, _arg):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _BadFolder())
+        assert (
+            handler._folder_stack._browser.target_state("file:///tmp/docs") == "missing"
+        )
+
+    def test_folder_menu_submenu_tracking_cleanup_and_helpers(
+        self, handler, monkeypatch
+    ):
+        folder_item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+            prefs_key="file:///tmp/docs",
+        )
+        menu = FakeMenu()
+        submenu = FakeMenu()
+        row = FakeMenuItem("row")
+        row.set_submenu(submenu)
+        menu.append(row)
+        submenu.append(FakeMenuItem("child"))
+        monitor = FakeMonitor()
+        handler._folder_menu_monitors[id(submenu)] = monitor
+        handler._folder_menu_refresh_sources[id(submenu)] = 9
+        handler._folder_menu_context[id(submenu)] = (
+            submenu,
+            folder_item,
+            folder_item.target,
+            False,
+        )
+        removed: list[int] = []
+        monkeypatch.setattr(
+            menu_mod.GLib, "source_remove", lambda source: removed.append(source)
+        )
+
+        handler._clear_menu_children(menu)
+
+        assert removed == [9]
+        assert monitor.cancelled is True
+        assert menu.get_children() == []
+
+        populate = MagicMock()
+        handler._track_folder_menu = MagicMock()
+        handler._populate_directory_menu = populate
+        handler._on_folder_submenu_show(FakeMenu(), folder_item, folder_item.target)
+        populate.assert_called_once()
+
+        existing_menu = FakeMenu()
+        existing_menu.append(FakeMenuItem("existing"))
+        populate.reset_mock()
+        handler._on_folder_submenu_show(existing_menu, folder_item, folder_item.target)
+        populate.assert_not_called()
+
+        row = {"kind": 1, "name": "B", "size": 2, "created": 3, "modified": 4}
+        assert handler._folder_stack._browser.sort_key(row, "kind") == (1, "b")
+        assert handler._folder_stack._browser.sort_key(row, "size") == (2, "b")
+        assert handler._folder_stack._browser.sort_key(row, "created") == (3, "b")
+        assert handler._folder_stack._browser.sort_key(row, "modified") == (4, "b")
+        assert handler._folder_stack._browser.sort_key(row, "name") == ("b",)
+
+        assert handler._folder_stack.icon_px(folder_item) == 16
+
+    def test_directory_has_visible_children_and_sort_callback_paths(
+        self, handler, monkeypatch
+    ):
+        class _Info:
+            def __init__(self, hidden: bool) -> None:
+                self.hidden = hidden
+
+            def get_is_hidden(self) -> bool:
+                return self.hidden
+
+        class _Enumerator:
+            def __init__(self, infos) -> None:
+                self._infos = list(infos)
+
+            def next_file(self, _arg):
+                return self._infos.pop(0) if self._infos else None
+
+        class _Folder:
+            def __init__(self, infos) -> None:
+                self._infos = infos
+
+            def enumerate_children(self, *_args):
+                return _Enumerator(self._infos)
+
+        monkeypatch.setattr(
+            menu_mod.launcher_mod,
+            "normalize_file_target",
+            lambda _t: "file:///tmp/docs",
+        )
+        monkeypatch.setattr(
+            menu_mod.Gio.File,
+            "new_for_uri",
+            lambda _uri: _Folder([_Info(True), _Info(False)]),
+        )
+        assert (
+            handler._folder_stack._browser.directory_has_visible_children(
+                "file:///tmp/docs", False
+            )
+            is True
+        )
+
+        monkeypatch.setattr(
+            menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder([_Info(True)])
+        )
+        assert (
+            handler._folder_stack._browser.directory_has_visible_children(
+                "file:///tmp/docs", False
+            )
+            is False
+        )
+        assert (
+            handler._folder_stack._browser.directory_has_visible_children(
+                "file:///tmp/docs", True
+            )
+            is True
+        )
+
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+            prefs_key="file:///tmp/docs",
+        )
+        active = FakeCheckMenuItem("Sort")
+        active.set_active(True)
+        inactive = FakeCheckMenuItem("Sort")
+        inactive.set_active(False)
+        update_pref = MagicMock()
+        monkeypatch.setattr(handler, "_update_folder_pref", update_pref)
+
+        handler._on_folder_sort_changed(inactive, item, "created")
+        handler._on_folder_sort_changed(active, item, "modified")
+
+        update_pref.assert_called_once_with(item, "sort", "modified")

@@ -1,11 +1,26 @@
 """Tests for theme loading, scaling unit system, and color parsing."""
 
 import json
+import logging
 from unittest.mock import patch
 
 import pytest
 
-from docking.core.theme import Theme, _rgba
+import docking.core.theme.migration as theme_migration_mod
+from docking.core.theme import (
+    _BUILTIN_THEMES_DIR,
+    _USER_THEME_TEMPLATE_NAME,
+    DEPRECATED_THEME_KEYS,
+    ActiveShape,
+    ActiveTint,
+    IndicatorFill,
+    Theme,
+    _rgba,
+    ensure_user_theme_template,
+    list_theme_names,
+    migrate_theme_dict,
+    user_themes_dir,
+)
 
 
 class TestRgba:
@@ -63,7 +78,7 @@ class TestThemeLoad:
         theme_file = tmp_path / "custom.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("custom", 48)
         # Then
         assert t.roundness == 16.0
@@ -71,17 +86,422 @@ class TestThemeLoad:
         # Defaults for unspecified
         assert t.indicator_radius == 2.5
 
+    def test_loads_user_theme_from_config_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "custom.json").write_text(
+            json.dumps({"roundness": 14, "stroke_width": 3.0}),
+            encoding="utf-8",
+        )
+
+        t = Theme.load("custom", 48)
+
+        assert t.roundness == 14.0
+        assert t.stroke_width == 3.0
+
+    def test_user_theme_overrides_builtin_theme(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "default.json").write_text(
+            json.dumps({"roundness": 22}),
+            encoding="utf-8",
+        )
+
+        t = Theme.load("default", 48)
+
+        assert t.roundness == 22.0
+
+    def test_user_theme_template_is_created_but_not_listed(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+
+        names = list_theme_names()
+
+        template = user_themes_dir() / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        template_data = json.loads(template.read_text(encoding="utf-8"))
+        assert template.exists()
+        assert template_data["layout"]["horizontal_padding"] == 0
+        assert not (set(template_data) & set(DEPRECATED_THEME_KEYS))
+        assert _USER_THEME_TEMPLATE_NAME not in names
+        assert "default" in names
+
+    def test_load_creates_user_theme_template(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+
+        Theme.load("default", 48)
+
+        template = user_themes_dir() / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        assert template.exists()
+
+    def test_existing_user_theme_template_is_migrated(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        template = user_themes_dir() / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        template.parent.mkdir(parents=True)
+        template.write_text('{"roundness": 33}\n', encoding="utf-8")
+
+        ensure_user_theme_template()
+
+        data = json.loads(template.read_text(encoding="utf-8"))
+        backup = theme_migration_mod._theme_migration_backup_path(template)
+        assert data["shelf"]["corner_radius_px"] == 33
+        assert "roundness" not in data
+        assert backup.exists()
+        assert json.loads(backup.read_text(encoding="utf-8")) == {"roundness": 33}
+
     @pytest.mark.parametrize(
         ("theme_name", "expected_roundness"),
-        [("nord", 6.0), ("gruvbox", 6.0), ("solarized", 5.0)],
+        [
+            ("nord", 6.0),
+            ("gruvbox", 6.0),
+            ("solarized", 5.0),
+            ("paper", 16.0),
+            ("candy", 18.0),
+            ("pill", 999.0),
+        ],
     )
     def test_load_new_builtin_themes(self, theme_name, expected_roundness):
         t = Theme.load(theme_name, 48)
         assert t.roundness == expected_roundness
-        assert t.stroke_width == pytest.approx(1.0)
+        if theme_name in {"paper", "candy", "pill"}:
+            assert t.stroke_width == pytest.approx(0.8)
+        else:
+            assert t.stroke_width == pytest.approx(1.0)
         assert all(0 <= c <= 1 for c in t.fill_start)
         assert all(0 <= c <= 1 for c in t.fill_end)
         assert all(0 <= c <= 1 for c in t.stroke)
+
+    def test_pill_theme_is_floating_and_fully_rounded(self):
+        t = Theme.load("pill", 48)
+
+        assert t.round_bottom is True
+        assert t.distance_from_edge == 6
+        assert t.roundness > t.shelf_height / 2
+        assert t.fill_start[3] > 0.9
+
+    def test_builtin_themes_use_current_schema(self):
+        for theme_file in _BUILTIN_THEMES_DIR.glob("*.json"):
+            data = json.loads(theme_file.read_text(encoding="utf-8"))
+            assert not (set(data) & set(DEPRECATED_THEME_KEYS)), theme_file.name
+
+            theme = Theme.load(theme_file.stem, 48)
+            assert all(0 <= c <= 1 for c in theme.fill_start)
+            assert all(0 <= c <= 1 for c in theme.fill_end)
+            assert all(0 <= c <= 1 for c in theme.stroke)
+
+    def test_load_final_nested_theme_schema(self, tmp_path):
+        theme_data = {
+            "shelf": {
+                "fill_start_color": [1, 2, 3, 128],
+                "fill_end_color": [4, 5, 6, 129],
+                "stroke_color": [7, 8, 9, 130],
+                "stroke_width_px": 2.0,
+                "inner_stroke_color": [10, 11, 12, 131],
+                "corner_radius_px": 11,
+                "round_bottom": True,
+            },
+            "layout": {
+                "horizontal_padding": 3,
+                "top_padding": 2,
+                "bottom_padding": 1.5,
+                "item_padding": 2.5,
+                "distance_from_edge_px": 6,
+            },
+            "indicators": {
+                "inactive_color": [13, 14, 15, 132],
+                "active_color": [16, 17, 18, 133],
+                "size_px": 7,
+                "style": "dashes",
+                "max_dots": 9,
+            },
+            "items": {
+                "hover": {
+                    "lighten_amount": 0.33,
+                    "fade_ms": 222,
+                },
+                "bounce": {
+                    "urgent_height_ratio": 1.2,
+                    "launch_height_ratio": 0.4,
+                    "urgent_time_ms": 700,
+                    "launch_time_ms": 800,
+                    "click_time_ms": 250,
+                },
+                "glow": {
+                    "opacity_ratio": 0.44,
+                    "urgent_time_ms": 9000,
+                    "urgent_pulse_ms": 1200,
+                    "urgent_size_ratio": 0.7,
+                },
+            },
+        }
+        theme_file = tmp_path / "nested.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("nested", 48)
+
+        assert t.fill_start == pytest.approx((1 / 255, 2 / 255, 3 / 255, 128 / 255))
+        assert t.fill_end == pytest.approx((4 / 255, 5 / 255, 6 / 255, 129 / 255))
+        assert t.stroke == pytest.approx((7 / 255, 8 / 255, 9 / 255, 130 / 255))
+        assert t.stroke_width == pytest.approx(2.0)
+        assert t.inner_stroke == pytest.approx(
+            (10 / 255, 11 / 255, 12 / 255, 131 / 255)
+        )
+        assert t.roundness == 11.0
+        assert t.round_bottom is True
+        assert t.horizontal_padding == pytest.approx(14.4)
+        assert t.top_padding == pytest.approx(9.6)
+        assert t.bottom_padding == pytest.approx(7.2)
+        assert t.item_padding == pytest.approx(12.0)
+        assert t.distance_from_edge == 6
+        assert t.indicator_color == pytest.approx(
+            (13 / 255, 14 / 255, 15 / 255, 132 / 255)
+        )
+        assert t.active_indicator_color == pytest.approx(
+            (16 / 255, 17 / 255, 18 / 255, 133 / 255)
+        )
+        assert t.indicator_radius == pytest.approx(3.5)
+        assert t.indicator_style.value == "dashes"
+        assert t.max_indicator_dots == 9
+        assert t.hover_lighten == pytest.approx(0.33)
+        assert t.active_time_ms == 222
+        assert t.urgent_bounce_height == pytest.approx(1.2)
+        assert t.launch_bounce_height == pytest.approx(0.4)
+        assert t.urgent_bounce_time_ms == 700
+        assert t.launch_bounce_time_ms == 800
+        assert t.click_time_ms == 250
+        assert t.glow_opacity == pytest.approx(0.44)
+        assert t.urgent_glow_time_ms == 9000
+        assert t.urgent_glow_pulse_ms == 1200
+        assert t.urgent_glow_size == pytest.approx(0.7)
+
+    def test_partial_nested_theme_uses_defaults(self, tmp_path):
+        theme_data = {
+            "shelf": {"fill_start_color": [1, 2, 3, 4]},
+            "layout": {},
+            "items": {"hover": {"fade_ms": 200}},
+        }
+        theme_file = tmp_path / "partial.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("partial", 48)
+
+        assert t.fill_start == pytest.approx((1 / 255, 2 / 255, 3 / 255, 4 / 255))
+        assert t.fill_end == pytest.approx((30 / 255, 30 / 255, 30 / 255, 220 / 255))
+        assert t.horizontal_padding == pytest.approx(2.0)
+        assert t.item_padding == pytest.approx(12.0)
+        assert t.active_time_ms == 200
+        assert t.hover_lighten == pytest.approx(0.2)
+
+
+class TestThemeMigration:
+    def test_migrate_theme_dict_is_idempotent_without_registered_keys(self):
+        data = {"roundness": 5, "meta": {"author": "custom"}}
+
+        result = migrate_theme_dict(data, deprecated_keys={})
+
+        assert result.changed is False
+        assert result.data == data
+        assert result.data is not data
+
+    def test_migrate_theme_dict_moves_legacy_key_and_preserves_unknowns(self):
+        data = {
+            "legacy_padding": 3,
+            "roundness": 5,
+            "metadata": {"author": "custom"},
+        }
+
+        result = migrate_theme_dict(
+            data,
+            deprecated_keys={"legacy_padding": "layout.horizontal_padding"},
+        )
+
+        assert result.changed is True
+        assert "legacy_padding" not in result.data
+        assert result.data["layout"]["horizontal_padding"] == 3
+        assert result.data["roundness"] == 5
+        assert result.data["metadata"] == {"author": "custom"}
+        assert "legacy_padding" in data
+
+    def test_migrate_theme_dict_prefers_new_value_when_both_exist(self):
+        data = {
+            "legacy_padding": 3,
+            "layout": {"horizontal_padding": 7},
+        }
+
+        result = migrate_theme_dict(
+            data,
+            deprecated_keys={"legacy_padding": "layout.horizontal_padding"},
+        )
+
+        assert "legacy_padding" not in result.data
+        assert result.data["layout"]["horizontal_padding"] == 7
+        assert result.changes[0].conflict is True
+        assert "ignored" in result.warnings[0]
+
+    def test_migrate_theme_dict_replaces_malformed_nested_section(self):
+        data = {"legacy_padding": 3, "layout": None}
+
+        result = migrate_theme_dict(
+            data,
+            deprecated_keys={"legacy_padding": "layout.horizontal_padding"},
+        )
+
+        assert result.data["layout"] == {"horizontal_padding": 3}
+        assert "not an object" in result.warnings[0]
+
+    def test_theme_load_rewrites_migrated_user_theme_and_creates_backup(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        monkeypatch.setattr(
+            theme_migration_mod,
+            "DEPRECATED_THEME_KEYS",
+            {
+                "legacy_padding": "layout.horizontal_padding",
+                "roundness": "shelf.corner_radius_px",
+            },
+        )
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        original = {"roundness": 14, "legacy_padding": 3}
+        theme_file.write_text(json.dumps(original), encoding="utf-8")
+
+        theme = Theme.load("custom", 48)
+
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        backup = theme_migration_mod._theme_migration_backup_path(theme_file)
+        assert theme.roundness == 14.0
+        assert migrated["layout"]["horizontal_padding"] == 3
+        assert "legacy_padding" not in migrated
+        assert backup.exists()
+        assert json.loads(backup.read_text(encoding="utf-8")) == original
+
+    def test_theme_migration_backup_is_not_listed_as_theme(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        theme_file.write_text("{}", encoding="utf-8")
+        backup = theme_migration_mod._theme_migration_backup_path(theme_file)
+        backup.write_text("{}", encoding="utf-8")
+
+        names = list_theme_names()
+
+        assert "custom" in names
+        assert backup.name not in names
+
+    def test_theme_load_uses_in_memory_migration_when_rewrite_fails(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        monkeypatch.setattr(
+            theme_migration_mod,
+            "DEPRECATED_THEME_KEYS",
+            {"legacy_roundness": "shelf.corner_radius_px"},
+        )
+
+        def raise_permission(**_kwargs):
+            raise PermissionError("read-only")
+
+        monkeypatch.setattr(
+            theme_migration_mod,
+            "_write_theme_json_atomic",
+            raise_permission,
+        )
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        original = {"legacy_roundness": 19}
+        theme_file.write_text(json.dumps(original), encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING, logger="docking.theme"):
+            theme = Theme.load("custom", 48)
+
+        assert theme.roundness == 19.0
+        assert json.loads(theme_file.read_text(encoding="utf-8")) == original
+        assert "Failed to rewrite migrated user theme" in caplog.text
+
+    def test_flat_user_theme_migrates_to_final_nested_schema(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "flat.json"
+        theme_file.write_text(
+            json.dumps(
+                {
+                    "fill_start": [1, 2, 3, 4],
+                    "stroke_width": 2.0,
+                    "roundness": 10,
+                    "indicator_color": [5, 6, 7, 8],
+                    "indicator_size": 9,
+                    "top_padding": 2,
+                    "urgent_bounce_height": 1.2,
+                    "active_time_ms": 210,
+                    "glow_opacity": 0.5,
+                    "round_bottom": True,
+                    "distance_from_edge": 6,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        t = Theme.load("flat", 48)
+
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.fill_start == pytest.approx((1 / 255, 2 / 255, 3 / 255, 4 / 255))
+        assert t.stroke_width == pytest.approx(2.0)
+        assert t.roundness == 10.0
+        assert t.indicator_color == pytest.approx((5 / 255, 6 / 255, 7 / 255, 8 / 255))
+        assert t.indicator_radius == pytest.approx(4.5)
+        assert t.top_padding == pytest.approx(9.6)
+        assert t.urgent_bounce_height == pytest.approx(1.2)
+        assert t.active_time_ms == 210
+        assert t.glow_opacity == pytest.approx(0.5)
+        assert t.round_bottom is True
+        assert t.distance_from_edge == 6
+        assert "fill_start" not in migrated
+        assert "stroke_width" not in migrated
+        assert "indicator_color" not in migrated
+        assert migrated["shelf"]["fill_start_color"] == [1, 2, 3, 4]
+        assert migrated["shelf"]["stroke_width_px"] == 2.0
+        assert migrated["shelf"]["corner_radius_px"] == 10
+        assert migrated["shelf"]["round_bottom"] is True
+        assert migrated["layout"]["top_padding"] == 2
+        assert migrated["layout"]["distance_from_edge_px"] == 6
+        assert migrated["indicators"]["inactive_color"] == [5, 6, 7, 8]
+        assert migrated["indicators"]["size_px"] == 9
+        assert migrated["items"]["bounce"]["urgent_height_ratio"] == 1.2
+        assert migrated["items"]["hover"]["fade_ms"] == 210
+        assert migrated["items"]["glow"]["active_opacity_ratio"] == 0.5
+
+    def test_final_nested_value_wins_over_legacy_flat_value(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "mixed.json"
+        theme_file.write_text(
+            json.dumps(
+                {
+                    "fill_start": [1, 1, 1, 255],
+                    "shelf": {"fill_start_color": [2, 3, 4, 255]},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        t = Theme.load("mixed", 48)
+
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.fill_start == pytest.approx((2 / 255, 3 / 255, 4 / 255, 1.0))
+        assert "fill_start" not in migrated
+        assert migrated["shelf"]["fill_start_color"] == [2, 3, 4, 255]
 
 
 class TestScalingUnit:
@@ -127,24 +547,66 @@ class TestScalingUnit:
         assert t64.top_padding == pytest.approx(t48.top_padding * ratio, rel=1e-6)
         assert t64.bottom_padding == pytest.approx(t48.bottom_padding * ratio, rel=1e-6)
 
-    def test_h_padding_fallback_when_zero(self):
+    def test_horizontal_padding_fallback_when_zero(self):
         # Given
-        # When h_padding <= 0, fallback = 2 * stroke_width = 2.0
+        # When horizontal_padding <= 0, fallback = 2 * stroke_width = 2.0
         t = Theme.load("default", 48)
         # Then
-        assert t.h_padding == pytest.approx(2.0)
+        assert t.horizontal_padding == pytest.approx(2.0)
 
-    def test_h_padding_positive_uses_scaled(self, tmp_path):
+    def test_legacy_h_padding_migrates_to_nested_horizontal_padding(
+        self, tmp_path, monkeypatch
+    ):
         # Given
         # 3 * 4.8 = 14.4 > 0, so no fallback
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
         theme_data = {"h_padding": 3, "stroke_width": 1.0}
+        theme_file = directory / "pos.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        # When
+        t = Theme.load("pos", 48)
+        # Then
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.horizontal_padding == pytest.approx(14.4)
+        assert migrated["layout"]["horizontal_padding"] == 3
+        assert "h_padding" not in migrated
+
+    def test_nested_horizontal_padding_uses_scaled(self, tmp_path):
+        # Given
+        theme_data = {"layout": {"horizontal_padding": 3}, "stroke_width": 1.0}
         theme_file = tmp_path / "pos.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("pos", 48)
         # Then
-        assert t.h_padding == pytest.approx(14.4)
+        assert t.horizontal_padding == pytest.approx(14.4)
+
+    def test_nested_horizontal_padding_wins_over_legacy(self, tmp_path, monkeypatch):
+        # Given
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        theme_file = directory / "custom.json"
+        theme_file.write_text(
+            json.dumps(
+                {
+                    "h_padding": 1,
+                    "layout": {"horizontal_padding": 3},
+                    "stroke_width": 1.0,
+                }
+            ),
+            encoding="utf-8",
+        )
+        # When
+        t = Theme.load("custom", 48)
+        # Then
+        migrated = json.loads(theme_file.read_text(encoding="utf-8"))
+        assert t.horizontal_padding == pytest.approx(14.4)
+        assert migrated["layout"]["horizontal_padding"] == 3
+        assert "h_padding" not in migrated
 
     def test_indicator_radius_from_size(self):
         # Given
@@ -190,7 +652,7 @@ class TestShelfHeightDerivation:
         theme_file = tmp_path / "neg.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("neg", 48)
         # Then
         assert t.shelf_height >= 0.0
@@ -214,7 +676,7 @@ class TestAnimationParams:
     def test_default_visual_params(self):
         t = Theme.load("default", 48)
         assert t.hover_lighten == pytest.approx(0.2)
-        assert t.max_indicator_dots == 3
+        assert t.max_indicator_dots == 4
         assert t.glow_opacity == pytest.approx(0.6)
 
     def test_animation_params_same_at_different_icon_sizes(self):
@@ -233,12 +695,370 @@ class TestAnimationParams:
         theme_file = tmp_path / "minimal.json"
         theme_file.write_text(json.dumps(theme_data))
         # When
-        with patch("docking.core.theme._BUILTIN_THEMES_DIR", tmp_path):
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
             t = Theme.load("minimal", 48)
         # Then
         assert t.urgent_bounce_height == pytest.approx(1.66)
         assert t.launch_bounce_height == pytest.approx(0.625)
         assert t.click_time_ms == 300
         assert t.hover_lighten == pytest.approx(0.2)
-        assert t.max_indicator_dots == 3
+        assert t.max_indicator_dots == 4
         assert t.glow_opacity == pytest.approx(0.6)
+
+
+class TestThemeOpacity:
+    def test_with_opacity_scales_rgba_alpha_only(self):
+        theme = Theme(
+            fill_start=(0.1, 0.2, 0.3, 0.8),
+            fill_end=(0.4, 0.5, 0.6, 0.7),
+            stroke=(0.2, 0.3, 0.4, 0.6),
+            inner_stroke=(0.7, 0.8, 0.9, 0.5),
+            indicator_color=(0.3, 0.4, 0.5, 0.9),
+            active_indicator_color=(0.6, 0.5, 0.4, 1.0),
+            glow_opacity=0.6,
+        )
+
+        scaled = theme.with_opacity(0.5)
+
+        assert scaled.fill_start == pytest.approx((0.1, 0.2, 0.3, 0.4))
+        assert scaled.fill_end == pytest.approx((0.4, 0.5, 0.6, 0.35))
+        assert scaled.stroke == pytest.approx((0.2, 0.3, 0.4, 0.3))
+        assert scaled.inner_stroke == pytest.approx((0.7, 0.8, 0.9, 0.25))
+        assert scaled.indicator_color == pytest.approx((0.3, 0.4, 0.5, 0.45))
+        assert scaled.active_indicator_color == pytest.approx((0.6, 0.5, 0.4, 0.5))
+        assert scaled.glow_opacity == pytest.approx(theme.glow_opacity)
+        assert scaled.indicator_radius == pytest.approx(theme.indicator_radius)
+
+
+class TestActiveGlowFields:
+    """Active-glow shape/tint/color theme fields and JSON loading."""
+
+    def test_defaults_match_legacy_behaviour(self):
+        t = Theme()
+        assert t.active_shape is ActiveShape.LINEAR
+        assert t.active_tint is ActiveTint.ICON
+        assert t.active_color == pytest.approx((100 / 255, 180 / 255, 1.0, 1.0))
+
+    def test_load_reads_nested_active_glow_keys(self, tmp_path):
+        theme_data = {
+            "items": {
+                "glow": {
+                    "active_shape": "radial",
+                    "active_tint": "theme",
+                    "active_color": [10, 20, 30, 200],
+                    "active_opacity_ratio": 0.7,
+                },
+            },
+        }
+        theme_file = tmp_path / "active.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("active", 48)
+        assert t.active_shape is ActiveShape.RADIAL
+        assert t.active_tint is ActiveTint.THEME
+        assert t.active_color == pytest.approx(
+            (10 / 255, 20 / 255, 30 / 255, 200 / 255)
+        )
+        assert t.glow_opacity == pytest.approx(0.7)
+
+    def test_active_color_falls_back_to_indicators_active_color(self, tmp_path):
+        theme_data = {
+            "indicators": {"active_color": [200, 100, 50, 255]},
+            "items": {"glow": {"active_tint": "theme"}},
+        }
+        theme_file = tmp_path / "fallback.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("fallback", 48)
+        assert t.active_color == pytest.approx((200 / 255, 100 / 255, 50 / 255, 1.0))
+
+    def test_invalid_shape_logs_and_falls_back_to_linear(self, tmp_path, caplog):
+        theme_data = {"items": {"glow": {"active_shape": "bogus"}}}
+        theme_file = tmp_path / "bad-shape.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-shape", 48)
+        assert t.active_shape is ActiveShape.LINEAR
+        assert any("active shape" in r.message.lower() for r in caplog.records)
+
+    def test_invalid_tint_logs_and_falls_back_to_icon(self, tmp_path, caplog):
+        theme_data = {"items": {"glow": {"active_tint": "bogus"}}}
+        theme_file = tmp_path / "bad-tint.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-tint", 48)
+        assert t.active_tint is ActiveTint.ICON
+        assert any("active tint" in r.message.lower() for r in caplog.records)
+
+    def test_with_opacity_scales_active_color_alpha(self):
+        theme = Theme(active_color=(0.3, 0.4, 0.5, 0.8))
+        scaled = theme.with_opacity(0.5)
+        assert scaled.active_color == pytest.approx((0.3, 0.4, 0.5, 0.4))
+
+
+class TestActiveGlowMigration:
+    """Migration of legacy active-glow keys to the active_opacity_ratio path."""
+
+    def test_nested_opacity_ratio_migrates_to_active_opacity_ratio(self):
+        data = {"items": {"glow": {"opacity_ratio": 0.42}}}
+        result = migrate_theme_dict(data)
+        assert result.changed
+        assert result.data["items"]["glow"]["active_opacity_ratio"] == 0.42
+        assert "opacity_ratio" not in result.data["items"]["glow"]
+
+    def test_flat_glow_opacity_migrates_to_nested_active_opacity_ratio(self):
+        data = {"glow_opacity": 0.42}
+        result = migrate_theme_dict(data)
+        assert result.changed
+        assert result.data["items"]["glow"]["active_opacity_ratio"] == 0.42
+        assert "glow_opacity" not in result.data
+
+    def test_existing_active_opacity_ratio_wins_over_legacy(self):
+        data = {
+            "items": {
+                "glow": {
+                    "opacity_ratio": 0.1,
+                    "active_opacity_ratio": 0.9,
+                },
+            },
+        }
+        result = migrate_theme_dict(data)
+        assert result.data["items"]["glow"]["active_opacity_ratio"] == 0.9
+        assert "opacity_ratio" not in result.data["items"]["glow"]
+        conflicts = [c for c in result.changes if c.conflict]
+        assert any(c.old_path == "items.glow.opacity_ratio" for c in conflicts)
+
+
+class TestUserTemplateAdvertisesActiveGlowKeys:
+    """The on-disk template must surface the new keys so users discover them."""
+
+    def test_template_has_new_active_glow_keys(self):
+        from docking.core.theme.theme import _USER_THEME_TEMPLATE
+
+        glow = _USER_THEME_TEMPLATE["items"]["glow"]
+        assert glow["active_shape"] == "linear"
+        assert glow["active_tint"] == "icon"
+        assert isinstance(glow["active_color"], list) and len(glow["active_color"]) == 4
+        assert "active_opacity_ratio" in glow
+
+    def test_template_does_not_leak_legacy_opacity_ratio_key(self):
+        from docking.core.theme.theme import _USER_THEME_TEMPLATE
+
+        glow = _USER_THEME_TEMPLATE["items"]["glow"]
+        assert "opacity_ratio" not in glow
+
+    def test_existing_template_gains_new_keys_on_upgrade(self, tmp_path, monkeypatch):
+        """Pre-existing template files are backfilled with new schema keys."""
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        template_path = directory / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        # Old schema: rename will produce active_opacity_ratio, but the
+        # new active_shape / active_tint / active_color keys are absent.
+        template_path.write_text(
+            json.dumps(
+                {
+                    "items": {
+                        "glow": {"opacity_ratio": 0.7},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ensure_user_theme_template()
+
+        rewritten = json.loads(template_path.read_text(encoding="utf-8"))
+        glow = rewritten["items"]["glow"]
+        # User value preserved through rename + backfill.
+        assert glow["active_opacity_ratio"] == 0.7
+        assert "opacity_ratio" not in glow
+        # New discoverability keys added.
+        assert glow["active_shape"] == "linear"
+        assert glow["active_tint"] == "icon"
+        assert glow["active_color"] == [100, 180, 255, 255]
+        # Other sections backfilled too (e.g. shelf, layout) so the template
+        # remains an exhaustive reference.
+        assert "shelf" in rewritten
+        assert "layout" in rewritten
+        assert "bounce" in rewritten["items"]
+
+    def test_user_values_win_over_template_defaults_on_backfill(
+        self, tmp_path, monkeypatch
+    ):
+        """Backfill must not overwrite values the user already set."""
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        template_path = directory / f"{_USER_THEME_TEMPLATE_NAME}.json"
+        template_path.write_text(
+            json.dumps(
+                {
+                    "items": {
+                        "glow": {
+                            "active_shape": "radial",
+                            "active_opacity_ratio": 0.42,
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ensure_user_theme_template()
+
+        rewritten = json.loads(template_path.read_text(encoding="utf-8"))
+        glow = rewritten["items"]["glow"]
+        assert glow["active_shape"] == "radial"  # user value preserved
+        assert glow["active_opacity_ratio"] == 0.42  # user value preserved
+        assert glow["active_tint"] == "icon"  # backfilled default
+
+
+class TestShippedThemesLoadWithActiveGlow:
+    """All baked-in themes must load cleanly with the new active-glow schema."""
+
+    def test_all_shipped_themes_load_without_warnings(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            for name in list_theme_names():
+                t = Theme.load(name, 48)
+                assert t.active_shape in ActiveShape
+                assert t.active_tint in ActiveTint
+                assert len(t.active_color) == 4
+                assert all(0.0 <= c <= 1.0 for c in t.active_color)
+                assert 0.0 <= t.glow_opacity <= 1.0
+        bad = [r for r in caplog.records if "active " in r.message.lower()]
+        assert not bad, f"shipped themes generated warnings: {bad}"
+
+    def test_shipped_themes_use_new_opacity_key_in_json(self):
+        for path in sorted(_BUILTIN_THEMES_DIR.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            glow = data.get("items", {}).get("glow", {})
+            assert "opacity_ratio" not in glow, (
+                f"{path.name} still has the legacy items.glow.opacity_ratio key"
+            )
+            assert "active_opacity_ratio" in glow, (
+                f"{path.name} missing items.glow.active_opacity_ratio"
+            )
+
+    def test_shipped_themes_omit_active_color_when_tint_is_icon(self):
+        """``active_color`` is unused when tint=icon; carrying it is dead weight."""
+        for path in sorted(_BUILTIN_THEMES_DIR.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            glow = data.get("items", {}).get("glow", {})
+            if glow.get("active_tint", "icon") == "icon":
+                assert "active_color" not in glow, (
+                    f"{path.name} has active_color but tint=icon ignores it"
+                )
+
+
+class TestMigrationEdgeCases:
+    def test_self_mapping_key_is_skipped(self):
+        """A deprecated key that maps to itself produces no changes."""
+        result = migrate_theme_dict(
+            {"roundness": 5},
+            deprecated_keys={"self_key": "self_key"},
+        )
+        assert result.changed is False
+
+    def test_path_value_empty_parts_returns_none(self):
+        from docking.core.theme.migration import _theme_path_value
+
+        found, val = _theme_path_value({}, "")
+        assert found is False
+        assert val is None
+
+    def test_path_pop_empty_parts_is_noop(self):
+        from docking.core.theme.migration import _theme_path_pop
+
+        data = {"key": "value"}
+        _theme_path_pop(data, "")
+        assert data == {"key": "value"}
+
+    def test_path_pop_non_dict_current_is_noop(self):
+        from docking.core.theme.migration import _theme_path_pop
+
+        data = {"outer": "not-a-dict"}
+        _theme_path_pop(data, "outer.missing")
+        assert data == {"outer": "not-a-dict"}
+
+    def test_is_user_theme_path_oserror_fallback(self, tmp_path):
+        from docking.core.theme.migration import _is_user_theme_path
+
+        class BadPath:
+            def resolve(self):
+                raise OSError("broken")
+
+            parent = tmp_path
+
+        assert _is_user_theme_path(path=BadPath(), user_theme_dir=tmp_path) is True
+
+    def test_is_user_theme_path_mismatch(self, tmp_path):
+        from docking.core.theme.migration import _is_user_theme_path
+
+        other_dir = tmp_path / "other"
+        other_dir.mkdir()
+        file_path = tmp_path / "theme.json"
+        file_path.write_text("{}")
+        assert _is_user_theme_path(path=file_path, user_theme_dir=other_dir) is False
+
+    def test_create_migration_backup_no_existing_path(self, tmp_path):
+        from docking.core.theme.migration import _create_theme_migration_backup
+
+        nonexistent = tmp_path / "nonexistent_theme.json"
+        backup = _create_theme_migration_backup(path=nonexistent)
+        assert not backup.exists()  # No backup created when source missing
+
+    def test_write_theme_json_atomic_valid(self, tmp_path):
+        from docking.core.theme.migration import _write_theme_json_atomic
+
+        path = tmp_path / "valid.json"
+        _write_theme_json_atomic(path=path, payload={"key": "value"})
+        import json
+
+        assert json.loads(path.read_text()) == {"key": "value"}
+
+
+class TestIndicatorFill:
+    """Indicator fill (flat vs glow) theme field and JSON loading."""
+
+    def test_default_indicator_fill_is_flat(self):
+        t = Theme()
+        assert t.indicator_fill is IndicatorFill.FLAT
+
+    def test_load_reads_indicators_fill(self, tmp_path):
+        theme_data = {"indicators": {"fill": "glow"}}
+        theme_file = tmp_path / "glow-ind.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path):
+            t = Theme.load("glow-ind", 48)
+        assert t.indicator_fill is IndicatorFill.GLOW
+
+    def test_invalid_fill_logs_and_falls_back_to_flat(self, tmp_path, caplog):
+        theme_data = {"indicators": {"fill": "bogus"}}
+        theme_file = tmp_path / "bad-fill.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-fill", 48)
+        assert t.indicator_fill is IndicatorFill.FLAT
+        assert any("indicator fill" in r.message.lower() for r in caplog.records)
+
+    def test_template_advertises_indicator_fill_key(self):
+        from docking.core.theme.theme import _USER_THEME_TEMPLATE
+
+        assert _USER_THEME_TEMPLATE["indicators"]["fill"] == "flat"
+
+    def test_all_shipped_themes_declare_indicator_fill(self):
+        for path in sorted(_BUILTIN_THEMES_DIR.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            assert "fill" in data.get("indicators", {}), (
+                f"{path.name} missing indicators.fill"
+            )

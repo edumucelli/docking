@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Random Trivia applet behavior and GTK wiring."""
 
 from __future__ import annotations
@@ -14,12 +27,14 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.trivia import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import draw_trivia_icon
 from .state import (
+    DEFAULT_FETCH_LIMIT,
     TriviaEntry,
     answer_entry,
     fallback_trivia,
@@ -66,23 +81,19 @@ class TriviaApplet(Applet):
         self._fetch_async(show_first=True)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = [disabled_menu_item("Open Trivia DB", gtk=Gtk)]
 
-        source_header = Gtk.MenuItem(label="Open Trivia DB")
-        source_header.set_sensitive(False)
-        items.append(source_header)
-
+        primary: list[Gtk.MenuItem] = []
         if self._current is not None:
-            meta = Gtk.MenuItem(
-                label=_("{category} / {difficulty}").format(
-                    category=self._current.category,
-                    difficulty=self._current.difficulty.title(),
+            status.append(
+                disabled_menu_item(
+                    _("{category} / {difficulty}").format(
+                        category=self._current.category,
+                        difficulty=self._current.difficulty.title(),
+                    ),
+                    gtk=Gtk,
                 )
             )
-            meta.set_sensitive(False)
-            items.append(meta)
-
-            items.append(Gtk.SeparatorMenuItem())
 
             if not self._current.selected_answer:
                 for answer in self._current.answers:
@@ -91,35 +102,39 @@ class TriviaApplet(Applet):
                         "activate",
                         lambda _w, a=answer: self._select_answer(a),
                     )
-                    items.append(answer_item)
+                    primary.append(answer_item)
             else:
-                result = Gtk.MenuItem(
-                    label=_("Correct answer: {answer}").format(
-                        answer=self._current.correct_answer
+                status.append(
+                    disabled_menu_item(
+                        _("Correct answer: {answer}").format(
+                            answer=self._current.correct_answer
+                        ),
+                        gtk=Gtk,
                     )
                 )
-                result.set_sensitive(False)
-                items.append(result)
                 if self._current.selected_answer != self._current.correct_answer:
-                    chosen = Gtk.MenuItem(
-                        label=_("Your answer: {answer}").format(
-                            answer=self._current.selected_answer
+                    status.append(
+                        disabled_menu_item(
+                            _("Your answer: {answer}").format(
+                                answer=self._current.selected_answer
+                            ),
+                            gtk=Gtk,
                         )
                     )
-                    chosen.set_sensitive(False)
-                    items.append(chosen)
-
-            items.append(Gtk.SeparatorMenuItem())
 
         next_item = Gtk.MenuItem(label=_("Next Trivia"))
         next_item.connect("activate", lambda _w: self.on_clicked())
-        items.append(next_item)
 
-        refresh_item = Gtk.MenuItem(label=_("Refresh from Web"))
+        refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _w: self._refresh_from_web())
-        items.append(refresh_item)
 
-        return items
+        return menu_sections(
+            status=status,
+            primary=primary,
+            navigation=[next_item],
+            refresh=[refresh_item],
+            gtk=Gtk,
+        )
 
     def _select_answer(self, answer: str) -> None:
         if self._current is None or self._current.selected_answer:
@@ -138,7 +153,7 @@ class TriviaApplet(Applet):
             self.present()
 
         def worker() -> None:
-            entries = fetch_trivia(limit=20)
+            entries = fetch_trivia(limit=DEFAULT_FETCH_LIMIT)
             GLib.idle_add(self._on_fetch_result, entries, show_first)
 
         threading.Thread(target=worker, daemon=True).start()

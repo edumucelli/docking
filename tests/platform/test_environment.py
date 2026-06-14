@@ -3,14 +3,18 @@
 import logging
 from unittest.mock import patch
 
-from gi.repository import GdkX11
-
 from docking.platform.environment import (
     Desktop,
-    _check_compositor,
-    _parse_desktop,
     detect_desktop,
+    is_flatpak,
+    is_gnome_session,
+    is_kde_session,
+    is_mate_session,
+    is_wayland_session,
+    is_x11_backend,
+    is_xwayland_session,
 )
+from docking.platform.environment.environment import _check_compositor, _parse_desktop
 
 
 class TestParseDesktop:
@@ -22,10 +26,10 @@ class TestParseDesktop:
     def test_case_insensitive(self):
         assert _parse_desktop("XFCE") == Desktop.XFCE
 
-    def test_semicolon_separated(self):
+    def test_desktop_list_separators(self):
         result = _parse_desktop("ubuntu:GNOME;ubuntu")
-        # "ubuntu:GNOME" is unknown, "ubuntu" maps to UBUNTU
         assert result & Desktop.UBUNTU
+        assert result & Desktop.GNOME
 
     def test_xdg_current_desktop_multi(self):
         # Real-world: XDG_CURRENT_DESKTOP=MATE;MATE
@@ -50,6 +54,19 @@ class TestParseDesktop:
 
     def test_lxqt_maps_to_lxde(self):
         assert _parse_desktop("lxqt") == Desktop.LXDE
+
+    def test_labwc_wlroots_desktop_list(self):
+        result = _parse_desktop("labwc:wlroots")
+        assert result & Desktop.LABWC
+        assert result & Desktop.WLROOTS
+
+    def test_common_wayland_compositors(self):
+        assert _parse_desktop("sway") == Desktop.SWAY
+        assert _parse_desktop("river") == Desktop.RIVER
+        assert _parse_desktop("wayfire") == Desktop.WAYFIRE
+        assert _parse_desktop("hyprland") == Desktop.HYPRLAND
+        assert _parse_desktop("niri") == Desktop.NIRI
+        assert _parse_desktop("cosmic") == Desktop.COSMIC
 
 
 class TestDetectDesktop:
@@ -81,9 +98,83 @@ class TestDetectDesktop:
         with patch.dict("os.environ", env, clear=True):
             assert detect_desktop() == Desktop.MATE
 
+    def test_detects_labwc_wlroots_session(self):
+        env = {
+            "XDG_SESSION_DESKTOP": "labwc",
+            "XDG_CURRENT_DESKTOP": "labwc:wlroots",
+        }
+        with patch.dict("os.environ", env, clear=True):
+            assert detect_desktop() == Desktop.LABWC
+
     def test_no_env_returns_unknown(self):
         with patch.dict("os.environ", {}, clear=True):
             assert detect_desktop() == Desktop.UNKNOWN
+
+    def test_gnome_session_helper_includes_ubuntu(self):
+        assert is_gnome_session(desktop=Desktop.GNOME) is True
+        assert is_gnome_session(desktop=Desktop.UBUNTU) is True
+        assert is_gnome_session(desktop=Desktop.MATE) is False
+
+    def test_mate_session_helper(self):
+        assert is_mate_session(desktop=Desktop.MATE) is True
+        assert is_mate_session(desktop=Desktop.GNOME) is False
+
+    def test_kde_session_helper(self):
+        assert is_kde_session(desktop=Desktop.KDE) is True
+        assert is_kde_session(desktop=Desktop.GNOME) is False
+
+
+class TestSessionBackendDetection:
+    def test_is_wayland_session_true(self):
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "wayland"}, clear=True):
+            assert is_wayland_session() is True
+
+    def test_is_wayland_session_false(self):
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "x11"}, clear=True):
+            assert is_wayland_session() is False
+
+    def test_is_flatpak_checks_runtime_marker(self):
+        with patch(
+            "docking.platform.environment.environment.Path.exists", return_value=True
+        ):
+            assert is_flatpak() is True
+
+        with patch(
+            "docking.platform.environment.environment.Path.exists", return_value=False
+        ):
+            assert is_flatpak() is False
+
+    def test_is_x11_backend_true_for_x11_display(self):
+        display_cls = type(
+            "X11Display",
+            (),
+            {"__module__": "gi.repository.GdkX11"},
+        )
+
+        assert is_x11_backend(display=display_cls()) is True
+
+    def test_is_x11_backend_false_without_x11_display(self):
+        assert is_x11_backend(display=object()) is False
+
+    def test_is_xwayland_session_true(self):
+        display_cls = type(
+            "X11Display",
+            (),
+            {"__module__": "gi.repository.GdkX11"},
+        )
+
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "wayland"}, clear=True):
+            assert is_xwayland_session(display=display_cls()) is True
+
+    def test_is_xwayland_session_false_in_native_x11_session(self):
+        display_cls = type(
+            "X11Display",
+            (),
+            {"__module__": "gi.repository.GdkX11"},
+        )
+
+        with patch.dict("os.environ", {"XDG_SESSION_TYPE": "x11"}, clear=True):
+            assert is_xwayland_session(display=display_cls()) is False
 
 
 class TestUsesMonitorGeometry:
@@ -113,6 +204,8 @@ class TestUsesMonitorGeometry:
 
 class TestCompositorCheck:
     def test_logs_warning_when_probe_fails(self, caplog):
+        from gi.repository import GdkX11
+
         class _Display:
             def get_default_screen(self):
                 return 0

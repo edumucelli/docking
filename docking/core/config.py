@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Configuration schema, defaults, normalization, loading, and saving.
 
 What configuration means in this project
@@ -108,7 +121,7 @@ behavior of the dock:
 - hide mode none (no hiding)
 - previews on
 - tooltips on
-- no pinned items by default
+- no schema-level pinned items by default (first-run bootstrap may seed a starter dock)
 
 Changing a default here is a user-visible product decision, not just a code
 cleanup.
@@ -132,21 +145,110 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
+import tempfile
+import threading
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import unquote, urlparse
 
-from docking.applets.identity import is_applet_desktop_id
+from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
+from docking.core.paths import ensure_parent_dir
 from docking.core.position import Position
 from docking.log import get_logger
+from docking.platform.environment import docking_config_dir
 
-DEFAULT_CONFIG_DIR = (
-    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
-)
+if TYPE_CHECKING:
+    from docking.core.theme import Theme
+
+DEFAULT_CONFIG_DIR = docking_config_dir()
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
+DEFAULT_CONFIG_BACKUP_FILE = DEFAULT_CONFIG_DIR / "dock.json.bak"
+
+DEFAULT_BROWSER_DESKTOP_IDS: tuple[str, ...] = (
+    "firefox.desktop",
+    "org.mozilla.firefox.desktop",
+    "chromium.desktop",
+    "chromium-browser.desktop",
+    "google-chrome.desktop",
+    "brave-browser.desktop",
+    "org.gnome.Epiphany.desktop",
+    "epiphany.desktop",
+)
+DEFAULT_FILE_MANAGER_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Nautilus.desktop",
+    "nautilus.desktop",
+    "nemo.desktop",
+    "caja.desktop",
+    "thunar.desktop",
+    "org.kde.dolphin.desktop",
+    "dolphin.desktop",
+    "pcmanfm.desktop",
+)
+DEFAULT_TERMINAL_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Terminal.desktop",
+    "gnome-terminal.desktop",
+    "mate-terminal.desktop",
+    "xfce4-terminal.desktop",
+    "org.kde.konsole.desktop",
+    "konsole.desktop",
+    "terminator.desktop",
+    "kitty.desktop",
+    "Alacritty.desktop",
+    "com.mitchellh.ghostty.desktop",
+    "org.codeberg.dnkl.foot.desktop",
+)
+DEFAULT_EDITOR_DESKTOP_IDS: tuple[str, ...] = (
+    "code.desktop",
+    "codium.desktop",
+    "sublime_text.desktop",
+    "gedit.desktop",
+    "org.gnome.gedit.desktop",
+    "xed.desktop",
+    "mousepad.desktop",
+    "kate.desktop",
+    "org.gnome.TextEditor.desktop",
+)
+DEFAULT_MAIL_DESKTOP_IDS: tuple[str, ...] = (
+    "org.mozilla.Thunderbird.desktop",
+    "thunderbird.desktop",
+    "geary.desktop",
+    "org.gnome.Evolution.desktop",
+    "evolution.desktop",
+    "kmail.desktop",
+    "org.kde.kmail2.desktop",
+    "claws-mail.desktop",
+)
+DEFAULT_CALCULATOR_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Calculator.desktop",
+    "gnome-calculator.desktop",
+    "mate-calc.desktop",
+    "galculator.desktop",
+    "kcalc.desktop",
+)
+DEFAULT_SOFTWARE_STORE_DESKTOP_IDS: tuple[str, ...] = (
+    "org.gnome.Software.desktop",
+    "gnome-software.desktop",
+    "snap-store.desktop",
+    "plasma-discover.desktop",
+    "org.kde.discover.desktop",
+    "pamac-manager.desktop",
+    "ubuntu-software-center.desktop",
+    "appcenter.desktop",
+    "synaptic.desktop",
+)
+STARTER_APPLET_IDS: tuple[str, ...] = (
+    "applications",
+    "clock",
+    "calendar",
+    "weather",
+    "systemmonitor",
+    "hydration",
+    "notifications",
+    "session",
+)
 
 DEFAULT_PINNED: list[PinnedEntry] = []
 DEFAULT_ICON_SIZE = 48
@@ -155,7 +257,6 @@ DEFAULT_ZOOM_PERCENT = 1.5
 DEFAULT_ZOOM_RANGE = 3
 DEFAULT_POSITION = Position.BOTTOM.value
 DEFAULT_MONITOR_INDEX = -1
-DEFAULT_HIDE_MODE = "none"
 DEFAULT_HIDE_DELAY_MS = 0
 DEFAULT_UNHIDE_DELAY_MS = 0
 DEFAULT_HIDE_TIME_MS = 250
@@ -166,13 +267,26 @@ DEFAULT_ANCHOR_APPLETS = False
 DEFAULT_ANCHOR_FILES = False
 DEFAULT_TOOLTIPS_ENABLED = True
 DEFAULT_ACTIVE_DISPLAY = False
+DEFAULT_UPDATE_CHECK_ENABLED = True
+DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 24
 DEFAULT_THEME = "default"
+DEFAULT_TRANSPARENCY = 1.0
 MIN_ICON_SIZE = 32
 MAX_ICON_SIZE = 128
 MIN_ZOOM_PERCENT = 1.0
 MAX_ZOOM_PERCENT = 4.0
+MIN_TRANSPARENCY = 0.15
+MAX_TRANSPARENCY = 1.0
+DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MIN_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MAX_ADDITIONAL_DISTANCE_FROM_EDGE = 100
+DEFAULT_PRESSURE_REVEAL_ENABLED = False
+DEFAULT_PRESSURE_THRESHOLD = 50
+MIN_PRESSURE_THRESHOLD = 5
+MAX_PRESSURE_THRESHOLD = 500
 
 logger = get_logger("config")
+_SAVE_LOCK = threading.RLock()
 
 
 class HideMode(str, Enum):
@@ -180,7 +294,10 @@ class HideMode(str, Enum):
 
     Mode            Behavior
     ──────────────  ──────────────────────────────────────────────────────
-    NONE            Never hides, reserves struts for window managers.
+    NONE            Never hides, reserves struts so maximized windows
+                    avoid the dock area.
+    ALWAYS_ON_TOP   Never hides, but does not reserve struts — maximized
+                    windows fill the full screen and the dock floats above.
     AUTOHIDE        Hides when the mouse leaves the dock area.
     INTELLIGENT     Hides when any window from the active app overlaps
                     the dock (matched by WM_CLASS).
@@ -200,6 +317,7 @@ class HideMode(str, Enum):
     """
 
     NONE = "none"
+    ALWAYS_ON_TOP = "always-on-top"
     AUTOHIDE = "autohide"
     INTELLIGENT = "intelligent"
     DODGE_ACTIVE = "dodge-active"
@@ -207,13 +325,214 @@ class HideMode(str, Enum):
     DODGE_MAXIMIZED = "dodge-maximized"
 
 
+DEFAULT_HIDE_MODE = HideMode.NONE.value
+
+
+def _build_initial_pinned() -> list[PinnedEntry]:
+    applications_entry = PinnedEntry(
+        kind=APPLET_KIND,
+        target=applet_desktop_id(applet_id=STARTER_APPLET_IDS[0]),
+    )
+    launcher_entries = _build_initial_launcher_entries()
+    applet_entries = [
+        PinnedEntry(kind=APPLET_KIND, target=applet_desktop_id(applet_id=applet_id))
+        for applet_id in STARTER_APPLET_IDS[1:]
+    ]
+    return [applications_entry, *launcher_entries, *applet_entries]
+
+
+def _build_initial_launcher_entries() -> list[PinnedEntry]:
+    entries: list[PinnedEntry] = []
+    seen_targets: set[str] = set()
+    slots: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+        (DEFAULT_BROWSER_DESKTOP_IDS, ("x-scheme-handler/http",)),
+        (DEFAULT_FILE_MANAGER_DESKTOP_IDS, ("inode/directory",)),
+        (DEFAULT_TERMINAL_DESKTOP_IDS, ()),
+        (DEFAULT_EDITOR_DESKTOP_IDS, ("text/plain",)),
+        (DEFAULT_MAIL_DESKTOP_IDS, ("x-scheme-handler/mailto",)),
+        (DEFAULT_CALCULATOR_DESKTOP_IDS, ()),
+        (DEFAULT_SOFTWARE_STORE_DESKTOP_IDS, ()),
+    )
+    for candidates, fallback_content_types in slots:
+        desktop_id = _resolve_initial_desktop_id(
+            candidates=candidates,
+            fallback_content_types=fallback_content_types,
+        )
+        if desktop_id is None or desktop_id in seen_targets:
+            continue
+        seen_targets.add(desktop_id)
+        entries.append(PinnedEntry(kind=APP_KIND, target=desktop_id))
+    return entries
+
+
+def _resolve_initial_desktop_id(
+    *,
+    candidates: tuple[str, ...],
+    fallback_content_types: tuple[str, ...],
+) -> str | None:
+    for desktop_id in candidates:
+        if _desktop_id_exists(desktop_id):
+            return desktop_id
+    for content_type in fallback_content_types:
+        desktop_id = _default_desktop_id_for(content_type)
+        if desktop_id and _desktop_id_exists(desktop_id):
+            return desktop_id
+    return None
+
+
+def _desktop_id_exists(desktop_id: str) -> bool:
+    from docking.platform.launcher import Launcher
+
+    return Launcher().resolve(desktop_id=desktop_id, log_failures=False) is not None
+
+
+def _default_desktop_id_for(content_type: str) -> str | None:
+    import gi
+
+    gi.require_version("Gio", "2.0")
+    from gi.repository import Gio, GLib
+
+    try:
+        app_info = Gio.AppInfo.get_default_for_type(content_type, False)
+    except GLib.Error as exc:
+        logger.warning(
+            "Failed to resolve default app for %s while seeding first-run pins: %s",
+            content_type,
+            exc,
+        )
+        return None
+    if app_info is None:
+        return None
+    desktop_id = app_info.get_id()
+    return desktop_id if isinstance(desktop_id, str) and desktop_id else None
+
+
 def _normalize_hide_mode(value: object) -> str:
     if isinstance(value, str):
         try:
             return HideMode(value=value).value
-        except ValueError:
-            pass
+        except ValueError as exc:
+            logger.warning(
+                "Invalid hide mode %r; using default %r (%s)",
+                value,
+                HideMode.NONE.value,
+                exc,
+            )
     return HideMode.NONE.value
+
+
+class LeftClickAction(str, Enum):
+    """Primary-click behavior for running applications.
+
+    Action       Behavior
+    ───────────  ─────────────────────────────────────────────────────────
+    TOGGLE       Focuses the app, or minimizes its windows if already focused.
+    CYCLE        Advances focus through the app's open windows.
+    MOST_RECENT  Focuses the app's most recently used window (stacking order).
+                 Minimizes if the app is already active.
+    """
+
+    TOGGLE = "toggle"
+    CYCLE = "cycle"
+    MOST_RECENT = "most-recent"
+
+
+class MiddleClickAction(str, Enum):
+    """Middle-click behavior for application items.
+
+    Action         Behavior
+    ─────────────  ──────────────────────────────────────────────────────
+    NEW_WINDOW     Opens a new window for the application when possible.
+    MINIMIZE       Minimizes the application's open windows.
+    CLOSE_FOCUSED  Closes the app's currently focused window.
+    """
+
+    NEW_WINDOW = "new-window"
+    MINIMIZE = "minimize"
+    CLOSE_FOCUSED = "close-focused"
+
+
+class FolderStackUnfold(str, Enum):
+    """How pinned folder stacks should be opened from the dock."""
+
+    CLICK = "click"
+    HOVER = "hover"
+
+
+class WindowListSort(str, Enum):
+    """Sort order for open windows in the right-click context menu.
+
+    Mode           Behavior
+    ─────────────  ──────────────────────────────────────────────────────
+    DEFAULT        Windows appear in scan order (the order they were discovered).
+    ALPHABETICAL   Windows are sorted alphabetically by title.
+    """
+
+    DEFAULT = "default"
+    ALPHABETICAL = "alphabetical"
+
+
+DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
+DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
+DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.HOVER.value
+DEFAULT_WINDOW_LIST_SORT = WindowListSort.DEFAULT.value
+DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
+
+
+def _normalize_left_click_action(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return LeftClickAction(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid left click action %r; using default %r (%s)",
+                value,
+                LeftClickAction.TOGGLE.value,
+                exc,
+            )
+    return LeftClickAction.TOGGLE.value
+
+
+def _normalize_middle_click_action(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return MiddleClickAction(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid middle click action %r; using default %r (%s)",
+                value,
+                MiddleClickAction.NEW_WINDOW.value,
+                exc,
+            )
+    return MiddleClickAction.NEW_WINDOW.value
+
+
+def _normalize_folder_stack_unfold(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return FolderStackUnfold(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid folder stack unfold mode %r; using default %r (%s)",
+                value,
+                DEFAULT_FOLDER_STACK_UNFOLD,
+                exc,
+            )
+    return DEFAULT_FOLDER_STACK_UNFOLD
+
+
+def _normalize_window_list_sort(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return WindowListSort(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid window list sort %r; using default %r (%s)",
+                value,
+                DEFAULT_WINDOW_LIST_SORT,
+                exc,
+            )
+    return DEFAULT_WINDOW_LIST_SORT
 
 
 @dataclass
@@ -246,6 +565,8 @@ class PinnedEntry:
         if isinstance(raw, str):
             if not raw:
                 return None
+            # Infer ItemKind from string shape: file:// URIs -> FILE/FOLDER,
+            # applet prefix -> APPLET, everything else -> APP.
             if raw.startswith("file://"):
                 return cls(
                     kind=FOLDER_KIND if _uri_is_dir(raw) else FILE_KIND,
@@ -302,7 +623,7 @@ def _normalize_int(
     maximum: int | None = None,
 ) -> int:
     try:
-        if isinstance(value, (bool, int, float)):
+        if isinstance(value, bool | int | float):
             parsed = int(value)
         elif isinstance(value, str):
             parsed = int(value.strip())
@@ -332,7 +653,7 @@ def _normalize_float(
     try:
         if isinstance(value, bool):
             parsed = float(int(value))
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int | float):
             parsed = float(value)
         elif isinstance(value, str):
             parsed = float(value.strip())
@@ -356,13 +677,28 @@ def _normalize_position(value: object) -> str:
     if isinstance(value, str):
         try:
             return Position(value=value).value
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                "Invalid dock position %r; using default %r (%s)",
+                value,
+                Position.BOTTOM.value,
+                exc,
+            )
             return Position.BOTTOM.value
     return Position.BOTTOM.value
 
 
 def _normalize_theme(value: object) -> str:
     return value if isinstance(value, str) and value else "default"
+
+
+def _normalize_transparency(value: object) -> float:
+    return _normalize_float(
+        value,
+        default=DEFAULT_TRANSPARENCY,
+        minimum=MIN_TRANSPARENCY,
+        maximum=MAX_TRANSPARENCY,
+    )
 
 
 def _normalize_pref_map(raw: object) -> dict[str, dict[str, Any]]:
@@ -415,8 +751,34 @@ class Config:
     tooltips_enabled: bool = DEFAULT_TOOLTIPS_ENABLED
     # Whether the dock follows the cursor across monitors
     active_display: bool = DEFAULT_ACTIVE_DISPLAY
+    # Whether Docking checks GitHub for newer releases
+    update_check_enabled: bool = DEFAULT_UPDATE_CHECK_ENABLED
+    # Minimum hours between automatic update checks
+    update_check_interval_hours: int = DEFAULT_UPDATE_CHECK_INTERVAL_HOURS
+    # Left-click behavior for running apps
+    left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
+    # Middle-click behavior for app items
+    middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
+    # How pinned folder stacks open from the dock
+    folder_stack_unfold: str = DEFAULT_FOLDER_STACK_UNFOLD
+    # Sort order for open windows in the right-click context menu
+    window_list_sort: str = DEFAULT_WINDOW_LIST_SORT
+    # Whether running application indicators show a numeric window count
+    show_window_count_numbers: bool = DEFAULT_SHOW_WINDOW_COUNT_NUMBERS
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
+    # Multiplier applied to theme alpha values for the dock shelf
+    transparency: float = DEFAULT_TRANSPARENCY
+    # Extra pixels added to the theme's distance_from_edge_px. The on-screen
+    # gap between the dock and the screen edge is the sum of the two.
+    additional_distance_from_edge: int = DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE
+    # When True, the hidden dock only reveals after the cursor has pushed
+    # against the screen edge enough to accumulate ``pressure_threshold``
+    # pixels of resisted motion (X11 pointer-barrier "pressure"). Prevents
+    # accidental reveals on multi-monitor setups where the dock edge sits
+    # between two screens.
+    pressure_reveal_enabled: bool = DEFAULT_PRESSURE_REVEAL_ENABLED
+    pressure_threshold: int = DEFAULT_PRESSURE_THRESHOLD
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
@@ -428,6 +790,11 @@ class Config:
     def pos(self) -> Position:
         """Position as enum."""
         return Position(value=self.position)
+
+    @property
+    def scaled_icon_size(self) -> int:
+        """Max icon size after applying the zoom multiplier."""
+        return int(self.icon_size * self.zoom_percent)
 
     @property
     def hide_mode_enum(self) -> HideMode:
@@ -510,7 +877,49 @@ class Config:
             self.active_display,
             default=DEFAULT_ACTIVE_DISPLAY,
         )
+        self.update_check_enabled = _normalize_bool(
+            self.update_check_enabled,
+            default=DEFAULT_UPDATE_CHECK_ENABLED,
+        )
+        self.update_check_interval_hours = _normalize_int(
+            self.update_check_interval_hours,
+            default=DEFAULT_UPDATE_CHECK_INTERVAL_HOURS,
+            minimum=1,
+        )
+        self.left_click_action = _normalize_left_click_action(
+            self.left_click_action,
+        )
+        self.middle_click_action = _normalize_middle_click_action(
+            self.middle_click_action,
+        )
+        self.folder_stack_unfold = _normalize_folder_stack_unfold(
+            self.folder_stack_unfold,
+        )
+        self.window_list_sort = _normalize_window_list_sort(
+            self.window_list_sort,
+        )
+        self.show_window_count_numbers = _normalize_bool(
+            self.show_window_count_numbers,
+            default=DEFAULT_SHOW_WINDOW_COUNT_NUMBERS,
+        )
         self.theme = _normalize_theme(self.theme)
+        self.transparency = _normalize_transparency(self.transparency)
+        self.additional_distance_from_edge = _normalize_int(
+            self.additional_distance_from_edge,
+            default=DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE,
+            minimum=MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
+            maximum=MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
+        )
+        self.pressure_reveal_enabled = _normalize_bool(
+            self.pressure_reveal_enabled,
+            default=DEFAULT_PRESSURE_REVEAL_ENABLED,
+        )
+        self.pressure_threshold = _normalize_int(
+            self.pressure_threshold,
+            default=DEFAULT_PRESSURE_THRESHOLD,
+            minimum=MIN_PRESSURE_THRESHOLD,
+            maximum=MAX_PRESSURE_THRESHOLD,
+        )
         self.pinned = normalize_pinned_entries(list(self.pinned))
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
@@ -520,14 +929,83 @@ class Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
         if not path.exists():
-            config = cls()
+            config = cls(pinned=_build_initial_pinned())
             config._path = path
             config.save(path=path)
             return config
 
-        with path.open() as f:
-            data: dict[str, Any] = json.load(fp=f)
+        try:
+            config = cls._load_existing_file(path=path)
+        except Exception as exc:
+            backup_path = _backup_path_for(path)
+            logger.warning("Failed to load config %s: %s", path, exc)
+            if backup_path.exists():
+                try:
+                    config = cls._load_existing_file(path=backup_path)
+                except Exception as backup_exc:
+                    logger.warning(
+                        "Failed to load config backup %s: %s",
+                        backup_path,
+                        backup_exc,
+                    )
+                else:
+                    logger.warning("Loaded config fallback from backup %s", backup_path)
+                    config._path = path
+                    return config
+            logger.warning("Falling back to default config for %s", path)
+            config = cls()
+            config._path = path
+            return config
+        backup_path = _backup_path_for(path)
+        if path.exists() and not backup_path.exists():
+            try:
+                _write_backup_copy(source=path, backup_path=backup_path)
+            except Exception as backup_exc:
+                logger.warning(
+                    "Failed to create initial config backup %s: %s",
+                    backup_path,
+                    backup_exc,
+                )
+        config._path = path
+        return config
 
+    def save(self, path: Path | str | None = None) -> None:
+        """Save config to JSON file."""
+        path = Path(path) if path else self._path
+        ensure_parent_dir(path)
+        # Write to a sibling temp file and replace in one step so Ctrl+C or
+        # process death never leaves the real config half-written.
+        backup_path = _backup_path_for(path)
+        with _SAVE_LOCK:
+            tmp_path = _new_tmp_path(path=path)
+            try:
+                _write_json_atomic_candidate(path=tmp_path, payload=self.to_dict())
+                self._load_existing_file(path=tmp_path)
+                if path.exists():
+                    if _is_valid_config_file(path=path):
+                        _write_backup_copy(source=path, backup_path=backup_path)
+                    else:
+                        logger.warning(
+                            "Skipping config backup refresh because current file %s "
+                            "is invalid",
+                            path,
+                        )
+                tmp_path.replace(path)
+                _fsync_directory(path.parent)
+            except Exception:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except OSError as cleanup_exc:
+                    logger.warning(
+                        "Failed to clean up temporary config file %s: %s",
+                        tmp_path,
+                        cleanup_exc,
+                    )
+                raise
+
+    @classmethod
+    def _load_existing_file(cls, path: Path) -> Config:
+        data = _read_config_data(path=path)
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         if "pinned" in filtered and isinstance(filtered["pinned"], list):
@@ -538,38 +1016,21 @@ class Config:
         config._path = path
         return config
 
-    def save(self, path: Path | str | None = None) -> None:
-        """Save config to JSON file."""
-        path = Path(path) if path else self._path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open(mode="w") as f:
-            json.dump(obj=self.to_dict(), fp=f, indent=2)
-            f.write("\n")
-
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "icon_size": self.icon_size,
-            "zoom_enabled": self.zoom_enabled,
-            "zoom_percent": self.zoom_percent,
-            "zoom_range": self.zoom_range,
-            "position": self.position,
-            "monitor_index": self.monitor_index,
-            "hide_mode": self.hide_mode,
-            "hide_delay_ms": self.hide_delay_ms,
-            "unhide_delay_ms": self.unhide_delay_ms,
-            "hide_time_ms": self.hide_time_ms,
-            "previews_enabled": self.previews_enabled,
-            "lock_icons": self.lock_icons,
-            "current_workspace_only": self.current_workspace_only,
-            "anchor_applets": self.anchor_applets,
-            "anchor_files": self.anchor_files,
-            "tooltips_enabled": self.tooltips_enabled,
-            "active_display": self.active_display,
-            "theme": self.theme,
-            "pinned": [entry.to_dict() for entry in self.pinned],
-            "applet_prefs": self.applet_prefs,
-            "item_prefs": self.item_prefs,
-        }
+        return asdict(self)
+
+
+def effective_edge_gap(theme: Theme, config: Config) -> int:
+    """Total on-screen dock-to-edge gap.
+
+    Sums the theme's baked-in ``distance_from_edge`` (a visual property) and
+    the user's ``additional_distance_from_edge`` config override
+    (a personal preference), clamped to non-negative.
+    """
+    return max(
+        0,
+        int(theme.distance_from_edge) + int(config.additional_distance_from_edge),
+    )
 
 
 def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:
@@ -579,3 +1040,78 @@ def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:
         if entry is not None:
             entries.append(entry)
     return entries
+
+
+def _backup_path_for(path: Path) -> Path:
+    if path == DEFAULT_CONFIG_FILE:
+        return DEFAULT_CONFIG_BACKUP_FILE
+    return path.with_name(f"{path.name}.bak")
+
+
+def _new_tmp_path(*, path: Path) -> Path:
+    fd, tmp_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        text=True,
+    )
+    os.close(fd)
+    return Path(tmp_name)
+
+
+def _write_json_atomic_candidate(*, path: Path, payload: dict[str, Any]) -> None:
+    with path.open(mode="w", encoding="utf-8") as f:
+        json.dump(obj=payload, fp=f, indent=2)
+        f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def _write_backup_copy(*, source: Path, backup_path: Path) -> None:
+    backup_tmp = _new_tmp_path(path=backup_path)
+    try:
+        data = source.read_bytes()
+        with backup_tmp.open(mode="wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        backup_tmp.replace(backup_path)
+        _fsync_directory(backup_path.parent)
+    except Exception:
+        try:
+            backup_tmp.unlink(missing_ok=True)
+        except OSError as cleanup_exc:
+            logger.warning(
+                "Failed to clean up temporary backup file %s: %s",
+                backup_tmp,
+                cleanup_exc,
+            )
+        raise
+
+
+def _read_config_data(*, path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as f:
+        data = json.load(fp=f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Config file {path} does not contain a JSON object")
+    return data
+
+
+def _is_valid_config_file(*, path: Path) -> bool:
+    try:
+        Config._load_existing_file(path=path)
+    except Exception as exc:
+        logger.warning("Config file validation failed for %s: %s", path, exc)
+        return False
+    return True
+
+
+def _fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)

@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for AI usage tracker icon."""
 
 from __future__ import annotations
@@ -13,11 +26,15 @@ from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.aiusage.state import (
     AiUsageState,
+    DisplayMode,
     Provider,
+    _format_tokens,
     _today_entry,
     dominant_provider,
     provider_cost,
+    provider_tokens,
     today_cost,
+    today_tokens,
 )
 from docking.applets.base import draw_icon_label
 
@@ -114,6 +131,7 @@ def render_icon(
     size: int,
     state: AiUsageState,
     selected_provider: Provider | None = None,
+    display_mode: DisplayMode = DisplayMode.COST,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render icon based on selected or dominant provider."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -127,13 +145,21 @@ def render_icon(
     else:
         _draw_claude_logo(cr=cr, size=size)
 
-    if selected_provider:
-        entry = _today_entry(state=state)
-        cost = provider_cost(entry=entry, provider=selected_provider) if entry else 0.0
+    entry = _today_entry(state=state)
+    if display_mode == DisplayMode.TOKENS:
+        if selected_provider and entry:
+            tokens = provider_tokens(entry=entry, provider=selected_provider)
+        else:
+            tokens = today_tokens(state=state)
+        if tokens > 0:
+            draw_icon_label(cr=cr, text=_format_tokens(tokens=tokens), size=size)
     else:
-        cost = today_cost(state=state)
-    if cost > 0:
-        label = f"${cost:.0f}" if cost >= 1.0 else f"${cost:.2f}"
-        draw_icon_label(cr=cr, text=label, size=size)
+        if selected_provider and entry:
+            cost = provider_cost(entry=entry, provider=selected_provider)
+        else:
+            cost = today_cost(state=state)
+        if cost > 0:
+            label = f"${cost:.0f}" if cost >= 1.0 else f"${cost:.2f}"
+            draw_icon_label(cr=cr, text=label, size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

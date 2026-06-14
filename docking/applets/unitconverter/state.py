@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure conversion rules and currency-rate support for the Unit Converter applet.
 
 This module carries the real semantic weight of the unit converter. The popup
@@ -161,7 +174,7 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
         for entry in data:
             code = entry.get("quote", "")
             rate = entry.get("rate")
-            if code and isinstance(rate, (int, float)) and rate > 0:
+            if code and isinstance(rate, int | float) and rate > 0:
                 rates[code] = float(rate)
     elif isinstance(data, dict) and "rates" in data:
         rates = data["rates"]
@@ -176,7 +189,7 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
     # factor = 1/1.08 so that converting 100 EUR->USD = 100 * 1.0 / (1/1.08) = 108.
     units = [Unit("Euro", "EUR", 1.0)]
     for code, rate in sorted(rates.items()):
-        if isinstance(rate, (int, float)) and rate > 0:
+        if isinstance(rate, int | float) and rate > 0:
             units.append(Unit(code, code, 1.0 / float(rate)))
     return tuple(units)
 

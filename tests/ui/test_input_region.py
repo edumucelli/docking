@@ -54,7 +54,7 @@ class TestAutohideVisible:
     """When visible, content rect."""
 
     def test_bottom_content_rect(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.BOTTOM,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -71,7 +71,7 @@ class TestAutohideHiding:
     """During HIDING animation, keep content rect (prevents oscillation)."""
 
     def test_keeps_content_rect(self):
-        x, y, w, h = compute_input_rect(
+        _x, _y, _w, h = compute_input_rect(
             pos=Position.BOTTOM,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -109,7 +109,7 @@ class TestAutohideShowing:
     """During SHOWING animation, keep content rect."""
 
     def test_keeps_content_rect(self):
-        x, y, w, h = compute_input_rect(
+        _x, _y, _w, h = compute_input_rect(
             pos=Position.BOTTOM,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -125,7 +125,7 @@ class TestAutohideHidden:
     """When fully hidden, trigger strip at edge."""
 
     def test_bottom_trigger_strip(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.BOTTOM,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -138,7 +138,7 @@ class TestAutohideHidden:
         assert y == WIN_H - TRIGGER_PX
 
     def test_top_trigger_wider(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.TOP,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -155,7 +155,7 @@ class TestHeadroomExcluded:
     """Headroom above icons must NOT be in the input region."""
 
     def test_bottom_headroom_excluded(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.BOTTOM,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -176,7 +176,7 @@ class TestDistanceFromEdgeHidden:
     """When hidden with distance_from_edge, trigger strip extends through gap."""
 
     def test_bottom_trigger_includes_gap(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.BOTTOM,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -190,7 +190,7 @@ class TestDistanceFromEdgeHidden:
         assert y == WIN_H - h
 
     def test_top_trigger_includes_gap(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.TOP,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -204,7 +204,7 @@ class TestDistanceFromEdgeHidden:
         assert y == 0
 
     def test_left_trigger_includes_gap(self):
-        x, y, w, h = compute_input_rect(
+        x, _y, w, _h = compute_input_rect(
             pos=Position.LEFT,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -218,7 +218,7 @@ class TestDistanceFromEdgeHidden:
         assert x == 0
 
     def test_right_trigger_includes_gap(self):
-        x, y, w, h = compute_input_rect(
+        x, _y, w, _h = compute_input_rect(
             pos=Position.RIGHT,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -236,7 +236,7 @@ class TestDistanceFromEdgeVisible:
     """When visible with distance_from_edge, content rect extends through gap."""
 
     def test_bottom_content_includes_gap(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.BOTTOM,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -250,7 +250,7 @@ class TestDistanceFromEdgeVisible:
         assert y == WIN_H - h
 
     def test_top_content_includes_gap(self):
-        x, y, w, h = compute_input_rect(
+        _x, y, _w, h = compute_input_rect(
             pos=Position.TOP,
             window_w=WIN_W,
             window_h=WIN_H,
@@ -264,7 +264,7 @@ class TestDistanceFromEdgeVisible:
         assert y == 0
 
     def test_left_content_includes_gap(self):
-        x, y, w, h = compute_input_rect(
+        x, _y, w, _h = compute_input_rect(
             pos=Position.LEFT,
             window_w=WIN_W,
             window_h=WIN_H,

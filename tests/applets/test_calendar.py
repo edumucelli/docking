@@ -227,38 +227,32 @@ class _FakePopupWindow:
 
 
 class TestCalendarPopup:
-    def test_show_popup_creates_window_and_clamps_position(self, monkeypatch):
+    def test_show_popup_creates_window_and_uses_shared_surface(self, monkeypatch):
         # Given
         applet = CalendarApplet(48)
         fake_popup = _FakePopupWindow()
-        pointer = MagicMock()
-        pointer.get_position.return_value = (None, 20, 15)
-        seat = MagicMock()
-        seat.get_pointer.return_value = pointer
-        display = MagicMock()
-        display.get_default_seat.return_value = seat
-        wrapped = _FakeFrame()
+        shown: dict[str, object] = {}
+
+        def show_wrapped_popup(*, window, content, gap_px, anchor=None):
+            shown["window"] = window
+            shown["content"] = content
+            shown["gap_px"] = gap_px
+            shown["anchor"] = anchor
+            window.add(content)
+            window.show_all()
 
         monkeypatch.setattr(
             calendar_applet_mod,
             "Gtk",
             SimpleNamespace(
-                Window=lambda **_kwargs: fake_popup,
-                WindowType=SimpleNamespace(POPUP=1),
                 Calendar=_FakeCalendar,
-                Frame=_FakeFrame,
-                ShadowType=SimpleNamespace(NONE=0),
             ),
         )
         monkeypatch.setattr(
-            calendar_applet_mod.Gdk.Display,
-            "get_default",
-            lambda: display,
+            calendar_applet_mod, "create_popup_window", lambda: fake_popup
         )
         monkeypatch.setattr(
-            calendar_applet_mod,
-            "wrap_popup",
-            lambda child: wrapped.add(child) or wrapped,
+            calendar_applet_mod, "show_wrapped_popup", show_wrapped_popup
         )
 
         # When
@@ -266,12 +260,12 @@ class TestCalendarPopup:
 
         # Then
         assert applet._popup is fake_popup
-        fake_popup.remove.assert_called_once()
         fake_popup.add.assert_called_once()
         fake_popup.show_all.assert_called_once()
-        fake_popup.move.assert_called_once_with(0, 0)
-        assert fake_popup.get_child() is wrapped
-        assert wrapped.child is not None
+        assert shown["window"] is fake_popup
+        assert isinstance(shown["content"], _FakeCalendar)
+        assert shown["gap_px"] == calendar_applet_mod.CALENDAR_POPUP_CURSOR_GAP_PX
+        assert shown["anchor"] is None
 
     def test_stop_destroys_popup(self):
         # Given

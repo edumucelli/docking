@@ -1,0 +1,44 @@
+{
+  "shelf": {
+    "fill_start_color": [255, 194, 204, 238],
+    "fill_end_color": [255, 170, 186, 238],
+    "stroke_color": [214, 108, 136, 235],
+    "stroke_width_px": 0.8,
+    "inner_stroke_color": [255, 236, 240, 220],
+    "corner_radius_px": 18,
+    "round_bottom": true
+  },
+  "layout": {
+    "horizontal_padding": 3,
+    "top_padding": 2.5,
+    "bottom_padding": 3,
+    "item_padding": 2.2,
+    "distance_from_edge_px": 6
+  },
+  "indicators": {
+    "inactive_color": [255, 255, 255, 210],
+    "active_color": [123, 214, 196, 255],
+    "size_px": 5,
+    "style": "dots",
+    "fill": "flat",
+    "max_dots": 4
+  },
+  "items": {
+    "hover": {
+      "lighten_amount": 0.18,
+      "fade_ms": 150
+    },
+    "bounce": {
+      "urgent_height_ratio": 1.66,
+      "launch_height_ratio": 0.625,
+      "urgent_time_ms": 600,
+      "launch_time_ms": 600,
+      "click_time_ms": 300
+    },
+    "glow": {
+      "active_shape": "linear",
+      "active_tint": "icon",
+      "active_opacity_ratio": 0.45
+    }
+  }
+}

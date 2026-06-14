@@ -1,4 +1,17 @@
-"""Pure state logic for the pet applet — no GTK/Cairo."""
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""Pure state logic for the pet applet - no GTK/Cairo."""
 
 from __future__ import annotations
 
@@ -108,7 +121,7 @@ def resolve_mood(cpu: float, prev_cpu: float, idle_ticks: int) -> Mood:
         return Mood.FOCUSED
     if cpu >= RELAXED_CPU:
         return Mood.HAPPY
-    # Below idle threshold — drowsy/sleepy/sleeping by duration
+    # Below idle threshold - drowsy/sleepy/sleeping by duration
     if cpu < IDLE_CPU:
         if idle_ticks >= SLEEPING_TICKS:
             return Mood.SLEEPING

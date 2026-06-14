@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-03-29 01:21+0100\n"
+"POT-Creation-Date: 2026-05-15 20:36+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -17,52 +17,64 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: docking/applets/aiusage/applet.py:83
+#: docking/applets/aiusage/applet.py:62
 msgid "AI Usage"
-msgstr "AI Usage"
+msgstr "AI 用量"
 
-#: docking/applets/aiusage/applet.py:146
+#: docking/applets/aiusage/applet.py:126
 msgid "Auto"
-msgstr "Auto"
+msgstr "自动"
 
-#: docking/applets/aiusage/applet.py:147
+#: docking/applets/aiusage/applet.py:127
 msgid "Claude"
 msgstr "Claude"
 
-#: docking/applets/aiusage/applet.py:148
+#: docking/applets/aiusage/applet.py:128
 msgid "Codex"
 msgstr "Codex"
 
-#: docking/applets/aiusage/applet.py:149
+#: docking/applets/aiusage/applet.py:129
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: docking/applets/aiusage/applet.py:161
-msgid "Reset Today"
-msgstr "Reset Today"
+#: docking/applets/aiusage/applet.py:138
+msgid "Show Cost"
+msgstr "Show Cost"
 
-#: docking/applets/aiusage/applet.py:213 docking/applets/aiusage/applet.py:228
-#: docking/applets/aiusage/state.py:413
+#: docking/applets/aiusage/applet.py:139
+msgid "Show Tokens"
+msgstr "Show Tokens"
+
+#: docking/applets/aiusage/applet.py:146
+#: docking/applets/deskpresence/applet.py:103
+msgid "Reset Today"
+msgstr "重置今天"
+
+#: docking/applets/aiusage/applet.py:207 docking/applets/aiusage/applet.py:222
 #, python-brace-format
 msgid "{name}: no usage today"
-msgstr "{name}: no usage today"
+msgstr "{name}: 今日无使用"
 
-#: docking/applets/aiusage/applet.py:237
+#: docking/applets/aiusage/applet.py:239
 #, python-brace-format
-msgid "<b>{name}: {cost}</b>"
-msgstr "<b>{name}: {cost}</b>"
+msgid "<b>{name}: {value}</b>"
+msgstr "<b>{name}: {value}</b>"
 
-#: docking/applets/aiusage/applet.py:266
+#: docking/applets/aiusage/applet.py:283
 #, python-brace-format
-msgid "This week: {cost}"
-msgstr "This week: {cost}"
+msgid "This week: {value}"
+msgstr "This week: {value}"
 
-#: docking/applets/aiusage/state.py:414
+#: docking/applets/aiusage/state.py:459
+msgid "no usage today"
+msgstr "今日无使用"
+
+#: docking/applets/aiusage/state.py:463
 #, python-brace-format
-msgid "{name} today: {cost}"
-msgstr "{name} today: {cost}"
+msgid "Today: {cost}"
+msgstr "今日：{cost}"
 
-#: docking/applets/ambient/applet.py:65 docking/applets/ambient/state.py:87
+#: docking/applets/ambient/applet.py:66 docking/applets/ambient/state.py:87
 msgid "Ambient"
 msgstr "环境音"
 
@@ -107,205 +119,477 @@ msgstr "粉红噪音"
 msgid "Playing: {sound} ({pct}%)"
 msgstr "播放中: {sound} ({pct}%)"
 
-#: docking/applets/applications/applet.py:34
+#: docking/applets/apod/applet.py:55 docking/applets/apod/state.py:101
+#: docking/applets/apod/state.py:119
+msgid "Astronomy Picture of the Day"
+msgstr "Astronomy Picture of the Day"
+
+#: docking/applets/apod/applet.py:95
+#, python-brace-format
+msgid "{date}: {title}"
+msgstr "{date}: {title}"
+
+#: docking/applets/apod/applet.py:97
+msgid "Untitled"
+msgstr "Untitled"
+
+#: docking/applets/apod/applet.py:106 docking/applets/apod/state.py:106
+#: docking/applets/apod/state.py:125 docking/applets/certwatch/applet.py:134
+#: docking/applets/certwatch/state.py:312
+msgid "Checks"
+msgstr "检查"
+
+#: docking/applets/apod/applet.py:118 docking/applets/certwatch/applet.py:128
+#: docking/applets/currencyfx/applet.py:187
+#: docking/applets/hackernews/applet.py:175
+#: docking/applets/speedtest/applet.py:103
+#: docking/applets/thermals/applet.py:134 docking/applets/tooltip.py:33
+#: docking/applets/weather/applet.py:168 docking/applets/weather/applet.py:525
+#, python-brace-format
+msgid "Error: {msg}"
+msgstr "Error: {msg}"
+
+#: docking/applets/apod/applet.py:121
+msgid "Open on apod.nasa.gov"
+msgstr "Open on apod.nasa.gov"
+
+#: docking/applets/apod/applet.py:126
+msgid "Copy Explanation"
+msgstr "Copy Explanation"
+
+#: docking/applets/apod/applet.py:130 docking/applets/bluetooth/applet.py:204
+#: docking/applets/camshield/applet.py:114
+#: docking/applets/capslock/applet.py:84
+#: docking/applets/certwatch/applet.py:145
+#: docking/applets/currencyfx/applet.py:195
+#: docking/applets/hackernews/applet.py:192
+#: docking/applets/micshield/applet.py:118 docking/applets/moon/applet.py:124
+#: docking/applets/quote/applet.py:92 docking/applets/thermals/applet.py:144
+#: docking/applets/todayinhistory/applet.py:99
+#: docking/applets/trivia/applet.py:115 docking/applets/weather/applet.py:175
+msgid "Refresh Now"
+msgstr "立即刷新"
+
+#: docking/applets/apod/state.py:115
+#, python-brace-format
+msgid "(c) {who}"
+msgstr "(c) {who}"
+
+#: docking/applets/applications/applet.py:36
 msgid "Applications"
 msgstr "应用程序"
 
-#: docking/applets/applications/applet.py:74
+#: docking/applets/applications/applet.py:77
 msgid "Search applications..."
-msgstr "Search applications..."
+msgstr "搜索应用程序..."
 
-#: docking/applets/battery/applet.py:27
+#: docking/applets/battery/applet.py:35
 msgid "Battery"
 msgstr "电池"
 
-#: docking/applets/battery/state.py:59
+#: docking/applets/battery/applet.py:72
+msgid "Show Percent"
+msgstr "显示百分比"
+
+#: docking/applets/battery/applet.py:79
+msgid "Power Settings"
+msgstr "Power Settings"
+
+#: docking/applets/battery/state.py:104
 msgid "No battery"
 msgstr "无电池"
 
-#: docking/applets/battery/state.py:60
+#: docking/applets/battery/state.py:105
 #, python-brace-format
 msgid "Battery: {pct}%"
 msgstr "电池：{pct}%"
 
-#: docking/applets/bluetooth/applet.py:58
+#: docking/applets/battery/state.py:118
+#, python-brace-format
+msgid "{time} left"
+msgstr "{time} left"
+
+#: docking/applets/battery/state.py:120
+#, python-brace-format
+msgid "{time} until full"
+msgstr "{time} until full"
+
+#: docking/applets/battery/state.py:130
+#, python-brace-format
+msgid "{hours}h {minutes:02d}m"
+msgstr "{hours}h {minutes:02d}m"
+
+#: docking/applets/battery/state.py:131
+#, python-brace-format
+msgid "{minutes}m"
+msgstr "{minutes}m"
+
+#: docking/applets/bluetooth/applet.py:68
 msgid "Bluetooth"
 msgstr "蓝牙"
 
-#: docking/applets/bluetooth/applet.py:148
+#: docking/applets/bluetooth/applet.py:168
 msgid "Bluetooth unavailable"
 msgstr "蓝牙不可用"
 
-#: docking/applets/bluetooth/applet.py:155
+#: docking/applets/bluetooth/applet.py:172
 msgid "No Bluetooth adapter"
 msgstr "无蓝牙适配器"
 
-#: docking/applets/bluetooth/applet.py:159
-msgid "General"
-msgstr "常规"
-
-#: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:121
+#: docking/applets/bluetooth/applet.py:174
+#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:99
 msgid "On"
 msgstr "开"
 
-#: docking/applets/bluetooth/applet.py:161
-#: docking/applets/bluetooth/state.py:121
+#: docking/applets/bluetooth/applet.py:174
+#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:99
 msgid "Off"
 msgstr "关"
 
-#: docking/applets/bluetooth/applet.py:164
+#: docking/applets/bluetooth/applet.py:183
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - 已连接 {connected}"
 
-#: docking/applets/bluetooth/applet.py:173
-msgid "Bluetooth On"
-msgstr "蓝牙已开启"
-
-#: docking/applets/bluetooth/applet.py:178
+#: docking/applets/bluetooth/applet.py:194
 msgid "Continuous Discovery"
 msgstr "持续发现"
 
-#: docking/applets/bluetooth/applet.py:189
-msgid "Refresh Now"
-msgstr "立即刷新"
+#: docking/applets/bluetooth/applet.py:226
+msgid "Turn Bluetooth Off"
+msgstr "Turn Bluetooth Off"
 
-#: docking/applets/bluetooth/applet.py:196
+#: docking/applets/bluetooth/applet.py:226
+msgid "Turn Bluetooth On"
+msgstr "Turn Bluetooth On"
+
+#: docking/applets/bluetooth/applet.py:242
+#, python-brace-format
+msgid "Disconnect {device}"
+msgstr "Disconnect {device}"
+
+#: docking/applets/bluetooth/applet.py:256
+msgid "Send Files to Device..."
+msgstr "Send Files to Device..."
+
+#: docking/applets/bluetooth/applet.py:264
+msgid "Devices..."
+msgstr "Devices..."
+
+#: docking/applets/bluetooth/applet.py:270
+msgid "Adapters..."
+msgstr "Adapters..."
+
+#: docking/applets/bluetooth/applet.py:276
+msgid "Local Services..."
+msgstr "Local Services..."
+
+#: docking/applets/bluetooth/applet.py:283
+msgid "Recent Connections"
+msgstr "Recent Connections"
+
+#: docking/applets/bluetooth/applet.py:288
+msgid "No recent connections"
+msgstr "No recent connections"
+
+#: docking/applets/bluetooth/applet.py:312
 msgid "Adapter"
 msgstr "适配器"
 
-#: docking/applets/bluetooth/applet.py:222
+#: docking/applets/bluetooth/applet.py:330
 msgid "Connected Devices"
 msgstr "已连接设备"
 
-#: docking/applets/bluetooth/applet.py:223
+#: docking/applets/bluetooth/applet.py:331
 msgid "Paired Devices"
 msgstr "已配对设备"
 
-#: docking/applets/bluetooth/applet.py:224
+#: docking/applets/bluetooth/applet.py:332
 msgid "Discovered Devices"
 msgstr "已发现设备"
 
-#: docking/applets/bluetooth/applet.py:248
+#: docking/applets/bluetooth/applet.py:357
 msgid "Disconnect"
 msgstr "断开连接"
 
-#: docking/applets/bluetooth/applet.py:257
+#: docking/applets/bluetooth/applet.py:366
 msgid "Connect"
 msgstr "连接"
 
-#: docking/applets/bluetooth/applet.py:267
+#: docking/applets/bluetooth/applet.py:376
 msgid "Pair"
 msgstr "配对"
 
-#: docking/applets/bluetooth/applet.py:281
+#: docking/applets/bluetooth/applet.py:390
 msgid "Remove Pairing"
 msgstr "取消配对"
 
-#: docking/applets/bluetooth/applet.py:293
+#: docking/applets/bluetooth/applet.py:402
 msgid "Trusted"
 msgstr "已信任"
 
-#: docking/applets/bluetooth/applet.py:308
+#: docking/applets/bluetooth/applet.py:417
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "电池: {percent}%"
 
-#: docking/applets/bluetooth/state.py:114
+#: docking/applets/bluetooth/state.py:135
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "Bluetooth: {error}"
 
-#: docking/applets/bluetooth/state.py:115
-#: docking/applets/bluetooth/state.py:119
+#: docking/applets/bluetooth/state.py:136
+#: docking/applets/bluetooth/state.py:140
 msgid "Bluetooth: No adapter/service"
 msgstr "蓝牙：无适配器/服务"
 
-#: docking/applets/bluetooth/state.py:126
+#: docking/applets/bluetooth/state.py:147
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "蓝牙：{state}"
 
-#: docking/applets/bluetooth/state.py:127
+#: docking/applets/bluetooth/state.py:148
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "适配器：{name}"
 
-#: docking/applets/bluetooth/state.py:128
+#: docking/applets/bluetooth/state.py:149
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "已连接：{n}"
 
-#: docking/applets/bluetooth/state.py:129
+#: docking/applets/bluetooth/state.py:150
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "已配对：{n}"
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:151
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "发现中：{state}"
 
-#: docking/applets/bluetooth/state.py:131
+#: docking/applets/bluetooth/state.py:152
 msgid "Yes"
 msgstr "是"
 
-#: docking/applets/bluetooth/state.py:131
+#: docking/applets/bluetooth/state.py:152
 msgid "No"
 msgstr "否"
 
-#: docking/applets/bookmarks/applet.py:41
+#: docking/applets/bookmarks/applet.py:42
 msgid "Bookmarks"
-msgstr "Bookmarks"
+msgstr "书签"
 
-#: docking/applets/bookmarks/applet.py:76
+#: docking/applets/bookmarks/applet.py:74
 msgid "Add Bookmark..."
-msgstr "Add Bookmark..."
+msgstr "添加书签..."
 
-#: docking/applets/bookmarks/applet.py:80
+#: docking/applets/bookmarks/applet.py:77
 msgid "Remove All"
-msgstr "Remove All"
+msgstr "全部移除"
 
-#: docking/applets/bookmarks/applet.py:97
+#: docking/applets/bookmarks/applet.py:98
 msgid "Add Bookmark"
-msgstr "Add Bookmark"
+msgstr "添加书签"
 
-#: docking/applets/bookmarks/applet.py:117
+#: docking/applets/bookmarks/applet.py:111
 msgid "Bookmark name"
-msgstr "Bookmark name"
+msgstr "书签名称"
 
-#: docking/applets/bookmarks/applet.py:121
+#: docking/applets/bookmarks/applet.py:116
 msgid "https://..."
 msgstr "https://..."
 
-#: docking/applets/brightness/applet.py:42
+#: docking/applets/brightness/applet.py:43
 msgid "Brightness"
 msgstr "亮度"
 
-#: docking/applets/brightness/applet.py:71
+#: docking/applets/brightness/applet.py:72
 #, python-brace-format
 msgid "Brightness: {pct}%"
 msgstr "亮度：{pct}%"
 
-#: docking/applets/brightness/applet.py:98
+#: docking/applets/brightness/applet.py:96 docking/applets/volume/applet.py:113
 msgid "Show Level"
 msgstr "显示级别"
 
-#: docking/applets/calculator/applet.py:67
-#: docking/applets/calculator/applet.py:84
+#: docking/applets/calculator/applet.py:64
+#: docking/applets/calculator/applet.py:82
 msgid "Calculator"
-msgstr "Calculator"
+msgstr "计算器"
 
-#: docking/applets/calendar/applet.py:35 docking/applets/calendar/applet.py:41
+#: docking/applets/calendar/applet.py:33 docking/applets/calendar/applet.py:39
 msgid "Calendar"
 msgstr "日历"
 
-#: docking/applets/clippy/applet.py:34
+#: docking/applets/camshield/applet.py:49 docking/applets/camshield/state.py:58
+msgid "Cam Shield"
+msgstr "Cam Shield"
+
+#: docking/applets/camshield/applet.py:93 docking/applets/camshield/state.py:60
+msgid "No camera devices found"
+msgstr "No camera devices found"
+
+#: docking/applets/camshield/applet.py:95 docking/applets/camshield/state.py:64
+msgid "Camera idle"
+msgstr "Camera idle"
+
+#: docking/applets/camshield/applet.py:97 docking/applets/camshield/state.py:67
+msgid "Camera active"
+msgstr "Camera active"
+
+#: docking/applets/camshield/applet.py:101
+msgid "Lock Camera"
+msgstr "Lock Camera"
+
+#: docking/applets/camshield/applet.py:105
+msgid "Unlock Camera"
+msgstr "Unlock Camera"
+
+#: docking/applets/camshield/applet.py:111
+msgid "Camera lock helper unavailable"
+msgstr "Camera lock helper unavailable"
+
+#: docking/applets/camshield/state.py:70
+#, python-brace-format
+msgid "{command} (PID {pid}) using {devices}"
+msgstr "{command} (PID {pid}) using {devices}"
+
+#: docking/applets/camshield/state.py:78 docking/applets/micshield/state.py:210
+#: docking/applets/usbwatch/state.py:85
+#, python-brace-format
+msgid "{count} more"
+msgstr "{count} more"
+
+#: docking/applets/camshield/state.py:84
+#, python-brace-format
+msgid "{command} (PID {pid}) - {devices}"
+msgstr "{command} (PID {pid}) - {devices}"
+
+#: docking/applets/camshield/state.py:179
+#: docking/applets/deskpresence/state.py:171
+#: docking/applets/micshield/state.py:180 docking/applets/music/state.py:82
+#: docking/applets/powerprofiles/state.py:137
+msgid "Unknown"
+msgstr "未知"
+
+#: docking/applets/capslock/applet.py:38 docking/applets/capslock/applet.py:75
+#: docking/applets/capslock/state.py:86
+msgid "Caps Lock"
+msgstr "大写锁定"
+
+#: docking/applets/capslock/applet.py:70 docking/applets/capslock/state.py:82
+msgid "Keyboard lock state unavailable"
+msgstr "键盘锁定状态不可用"
+
+#: docking/applets/capslock/applet.py:80
+msgid "Num Lock"
+msgstr "数字锁定"
+
+#: docking/applets/capslock/state.py:87
+#, python-brace-format
+msgid "Caps Lock: {state}"
+msgstr "大写锁定：{state}"
+
+#: docking/applets/capslock/state.py:88
+#, python-brace-format
+msgid "Num Lock: {state}"
+msgstr "数字锁定：{state}"
+
+#: docking/applets/capslock/state.py:95
+#, python-brace-format
+msgid "{name}: {state}"
+msgstr "{name}：{state}"
+
+#: docking/applets/certwatch/applet.py:63
+#: docking/applets/certwatch/state.py:278
+#: docking/applets/certwatch/state.py:306
+msgid "Cert Watch"
+msgstr "Cert Watch"
+
+#: docking/applets/certwatch/applet.py:117
+#: docking/applets/certwatch/state.py:251
+#: docking/applets/certwatch/state.py:299
+#, python-brace-format
+msgid "{host}: loading..."
+msgstr "{host}: loading..."
+
+#: docking/applets/certwatch/applet.py:139
+msgid "Add Domain..."
+msgstr "Add Domain..."
+
+#: docking/applets/certwatch/applet.py:157
+msgid "Remove"
+msgstr "Remove"
+
+#: docking/applets/certwatch/applet.py:293
+msgid "Add Domain"
+msgstr "Add Domain"
+
+#: docking/applets/certwatch/applet.py:306
+msgid "example.com or example.com:8443"
+msgstr "example.com or example.com:8443"
+
+#: docking/applets/certwatch/state.py:233 docking/applets/clock/applet.py:205
+#: docking/applets/quicknote/applet.py:74
+msgid "OK"
+msgstr "OK"
+
+#: docking/applets/certwatch/state.py:234
+msgid "Warn"
+msgstr "Warn"
+
+#: docking/applets/certwatch/state.py:235
+msgid "Critical"
+msgstr "Critical"
+
+#: docking/applets/certwatch/state.py:236
+msgid "Expired"
+msgstr "Expired"
+
+#: docking/applets/certwatch/state.py:237
+msgid "Error"
+msgstr "Error"
+
+#: docking/applets/certwatch/state.py:238
+#: docking/applets/speedtest/applet.py:61
+msgid "..."
+msgstr "..."
+
+#: docking/applets/certwatch/state.py:247
+#, python-brace-format
+msgid "{host}: error ({reason})"
+msgstr "{host}: error ({reason})"
+
+#: docking/applets/certwatch/state.py:254
+#, python-brace-format
+msgid "{host}: unknown"
+msgstr "{host}: unknown"
+
+#: docking/applets/certwatch/state.py:256
+#, python-brace-format
+msgid "{host}: expired {days}d ago"
+msgstr "{host}: expired {days}d ago"
+
+#: docking/applets/certwatch/state.py:257
+#, python-brace-format
+msgid "{host}: {label}, {days}d left"
+msgstr "{host}: {label}, {days}d left"
+
+#: docking/applets/certwatch/state.py:279
+msgid "No domains configured"
+msgstr "未配置任何域名"
+
+#: docking/applets/certwatch/state.py:297
+#, python-brace-format
+msgid "{host}: unavailable"
+msgstr "{host}：不可用"
+
+#: docking/applets/clippy/applet.py:35
 msgid "Clippy"
 msgstr "剪贴板"
 
-#: docking/applets/clippy/applet.py:94
+#: docking/applets/clippy/applet.py:95
 msgid "Clear"
 msgstr "清除"
 
@@ -313,54 +597,407 @@ msgstr "清除"
 msgid "Clippy (empty)"
 msgstr "剪贴板 (空)"
 
-#: docking/applets/clock/applet.py:33
+#: docking/applets/clock/applet.py:40
 msgid "Clock"
 msgstr "时钟"
 
-#: docking/applets/clock/applet.py:69
+#: docking/applets/clock/applet.py:87
 msgid "Digital Clock"
 msgstr "数字时钟"
 
-#: docking/applets/clock/applet.py:74
+#: docking/applets/clock/applet.py:91
 msgid "24-Hour Clock"
 msgstr "24小时制"
 
-#: docking/applets/clock/applet.py:79
+#: docking/applets/clock/applet.py:95
 msgid "Show Date"
 msgstr "显示日期"
 
-#: docking/applets/colorpicker/applet.py:38
-#: docking/applets/colorpicker/applet.py:69
+#: docking/applets/clock/applet.py:100
+msgid "Show Seconds"
+msgstr "Show Seconds"
+
+#: docking/applets/clock/applet.py:104
+msgid "Set Alarm..."
+msgstr "Set Alarm..."
+
+#: docking/applets/clock/applet.py:110
+msgid "Clear Alarm"
+msgstr "Clear Alarm"
+
+#: docking/applets/clock/applet.py:115
+msgid "Acknowledge Alarm"
+msgstr "Acknowledge Alarm"
+
+#: docking/applets/clock/applet.py:202
+msgid "Set Alarm"
+msgstr "Set Alarm"
+
+#: docking/applets/clock/applet.py:205 docking/applets/quicknote/applet.py:73
+#: docking/applets/trash/applet.py:114 docking/applets/weather/applet.py:258
+msgid "Cancel"
+msgstr "Cancel"
+
+#: docking/applets/clock/applet.py:242
+msgid "Hour"
+msgstr "Hour"
+
+#: docking/applets/clock/applet.py:244
+msgid "Minute"
+msgstr "Minute"
+
+#: docking/applets/colorpicker/applet.py:44
+#: docking/applets/colorpicker/applet.py:75
 msgid "Color Picker"
 msgstr "取色器"
 
-#: docking/applets/colorpicker/applet.py:79
+#: docking/applets/colorpicker/applet.py:85
 #, python-brace-format
 msgid "Copy {hex}"
 msgstr "复制 {hex}"
 
-#: docking/applets/colorpicker/applet.py:83
+#: docking/applets/colorpicker/applet.py:89
 msgid "Show Hex"
 msgstr "显示十六进制"
 
-#: docking/applets/desktop/applet.py:27 docking/applets/workspaces/applet.py:81
+#: docking/applets/currencyfx/applet.py:88
+msgid "Currency FX"
+msgstr "货币 FX"
+
+#: docking/applets/currencyfx/applet.py:173
+#: docking/applets/currencyfx/state.py:726
+msgid "Day samples"
+msgstr "每日样本"
+
+#: docking/applets/currencyfx/applet.py:191
+msgid "Swap Pair"
+msgstr "交换货币对"
+
+#: docking/applets/currencyfx/applet.py:201
+msgid "Chart Interval"
+msgstr "图表间隔"
+
+#: docking/applets/currencyfx/applet.py:203
+msgid "Day"
+msgstr "日"
+
+#: docking/applets/currencyfx/applet.py:204
+msgid "Week"
+msgstr "周"
+
+#: docking/applets/currencyfx/applet.py:205
+msgid "Month"
+msgstr "月"
+
+#: docking/applets/currencyfx/applet.py:220
+msgid "Added Pairs"
+msgstr "已添加的货币对"
+
+#: docking/applets/currencyfx/applet.py:230
+msgid "Remove Current Pair"
+msgstr "移除当前货币对"
+
+#: docking/applets/currencyfx/applet.py:237
+msgid "Add Pair..."
+msgstr "添加货币对…"
+
+#: docking/applets/currencyfx/applet.py:350
+msgid "No rate data"
+msgstr "无汇率数据"
+
+#: docking/applets/currencyfx/applet.py:432
+#, python-brace-format
+msgid "{pair}: {rate} ({change})"
+msgstr "{pair}：{rate}（{change}）"
+
+#: docking/applets/currencyfx/applet.py:475
+msgid "Add FX Pair"
+msgstr "添加 FX 货币对"
+
+#: docking/applets/currencyfx/applet.py:489
+msgid "Base"
+msgstr "基准"
+
+#: docking/applets/currencyfx/applet.py:491 docking/applets/quote/applet.py:43
+#: docking/applets/quote/applet.py:83 docking/applets/quote/applet.py:208
+#: docking/applets/quote/applet.py:214
+msgid "Quote"
+msgstr "引用"
+
+#: docking/applets/currencyfx/state.py:730 docking/applets/live_state.py:78
+#: docking/applets/weather/state.py:166
+msgid "Unavailable"
+msgstr "不可用"
+
+#: docking/applets/currencyfx/state.py:751
+#, python-brace-format
+msgid "1 {base} = {rate} {quote}"
+msgstr "1 {base} = {rate} {quote}"
+
+#: docking/applets/currencyfx/state.py:756
+#, python-brace-format
+msgid "Change: {change}"
+msgstr "变化：{change}"
+
+#: docking/applets/deskpresence/applet.py:52
+#: docking/applets/deskpresence/state.py:192
+msgid "Desk Presence"
+msgstr "Desk Presence"
+
+#: docking/applets/deskpresence/applet.py:84
+#, python-brace-format
+msgid "{status}"
+msgstr "{status}"
+
+#: docking/applets/deskpresence/applet.py:92
+msgid "Idle Threshold"
+msgstr "Idle Threshold"
+
+#: docking/applets/deskpresence/applet.py:190
+#: docking/applets/deskpresence/state.py:169
+msgid "At desk"
+msgstr "At desk"
+
+#: docking/applets/deskpresence/applet.py:191
+#: docking/applets/deskpresence/state.py:170
+msgid "Away"
+msgstr "Away"
+
+#: docking/applets/deskpresence/applet.py:192
+msgid "Status unknown"
+msgstr "Status unknown"
+
+#: docking/applets/deskpresence/applet.py:199
+#, python-brace-format
+msgid "{m} min"
+msgstr "{m} min"
+
+#: docking/applets/deskpresence/applet.py:200
+#, python-brace-format
+msgid "{s} sec"
+msgstr "{s} sec"
+
+#: docking/applets/deskpresence/state.py:151
+#, python-brace-format
+msgid "{h}h {m}m"
+msgstr "{h}h {m}m"
+
+#: docking/applets/deskpresence/state.py:152
+#: docking/applets/deskpresence/state.py:164
+#, python-brace-format
+msgid "{m}m"
+msgstr "{m}m"
+
+#: docking/applets/deskpresence/state.py:163
+#, python-brace-format
+msgid "{h}h"
+msgstr "{h}h"
+
+#: docking/applets/deskpresence/state.py:193
+#, python-brace-format
+msgid "Status: {s}"
+msgstr "Status: {s}"
+
+#: docking/applets/deskpresence/state.py:195
+#, python-brace-format
+msgid "Session: {d}"
+msgstr "Session: {d}"
+
+#: docking/applets/deskpresence/state.py:197
+#, python-brace-format
+msgid "Today at desk: {d}"
+msgstr "Today at desk: {d}"
+
+#: docking/applets/deskpresence/state.py:199
+#, python-brace-format
+msgid "Today away: {d}"
+msgstr "Today away: {d}"
+
+#: docking/applets/deskpresence/state.py:203
+msgid "Last 7 days"
+msgstr "Last 7 days"
+
+#: docking/applets/deskpresence/state.py:206
+#: docking/applets/deskpresence/state.py:213
+#, python-brace-format
+msgid "  {day}: {d}"
+msgstr "  {day}: {d}"
+
+#: docking/applets/deskpresence/state.py:220
+#, python-brace-format
+msgid "Week total at desk: {d}"
+msgstr "Week total at desk: {d}"
+
+#: docking/applets/desktop/applet.py:27 docking/applets/workspaces/applet.py:82
 msgid "Desktop"
 msgstr "桌面"
 
-#: docking/applets/hydration/applet.py:39
+#: docking/applets/dragshare/applet.py:40
+#: docking/applets/dragshare/applet.py:60
+#: docking/applets/dragshare/applet.py:66
+#: docking/applets/dragshare/applet.py:72
+#: docking/applets/dragshare/applet.py:79
+#: docking/applets/dragshare/applet.py:84
+msgid "Drag Share"
+msgstr "Drag Share"
+
+#: docking/applets/dragshare/applet.py:61
+#, python-brace-format
+msgid "Uploading {file}..."
+msgstr "Uploading {file}..."
+
+#: docking/applets/dragshare/applet.py:67
+#, python-brace-format
+msgid "Uploaded {file}; URL copied"
+msgstr "Uploaded {file}; URL copied"
+
+#: docking/applets/dragshare/applet.py:73
+#: docking/applets/dragshare/applet.py:140
+msgid "Upload failed"
+msgstr "Upload failed"
+
+#: docking/applets/dragshare/applet.py:80
+msgid "Click to copy last URL"
+msgstr "点击复制最新 URL"
+
+#: docking/applets/dragshare/applet.py:85
+msgid "Drop a file to upload"
+msgstr "拖入文件以上传"
+
+#: docking/applets/dragshare/applet.py:93
+msgid "Upload already in progress"
+msgstr "Upload already in progress"
+
+#: docking/applets/dragshare/applet.py:98
+msgid "Drop a local file to upload"
+msgstr "Drop a local file to upload"
+
+#: docking/applets/dragshare/applet.py:109
+msgid "Copy Last URL"
+msgstr "Copy Last URL"
+
+#: docking/applets/freshness.py:15
+msgid "1 hour"
+msgstr "1 小时"
+
+#: docking/applets/freshness.py:15
+#, python-brace-format
+msgid "{count} hours"
+msgstr "{count} 小时"
+
+#: docking/applets/freshness.py:19
+msgid "1 minute"
+msgstr "1 分钟"
+
+#: docking/applets/freshness.py:21
+#, python-brace-format
+msgid "{count} minutes"
+msgstr "{count} 分钟"
+
+#: docking/applets/freshness.py:23
+msgid "1 second"
+msgstr "1 秒"
+
+#: docking/applets/freshness.py:23
+#, python-brace-format
+msgid "{count} seconds"
+msgstr "{count} 秒"
+
+#: docking/applets/freshness.py:28
+#, python-brace-format
+msgid "{verb} every {interval}"
+msgstr "每 {interval} {verb}"
+
+#: docking/applets/freshness.py:29 docking/applets/freshness.py:36
+#: docking/ui/settings.py:194
+msgid "Updates"
+msgstr "更新"
+
+#: docking/applets/freshness.py:36
+#, python-brace-format
+msgid "{verb} on demand"
+msgstr "按需 {verb}"
+
+#: docking/applets/freshness.py:44
+#, python-brace-format
+msgid "Updated: {time}"
+msgstr "已更新：{time}"
+
+#: docking/applets/hackernews/applet.py:55
+#: docking/applets/hackernews/state.py:150
+msgid "Hacker News"
+msgstr "Hacker News"
+
+#: docking/applets/hackernews/applet.py:147
+#: docking/applets/hackernews/state.py:156
+#: docking/applets/hackernews/state.py:189
+msgid "Refreshes"
+msgstr "刷新"
+
+#: docking/applets/hackernews/applet.py:159
+#: docking/applets/hackernews/state.py:171
+#, python-brace-format
+msgid "{score} points, {comments} comments"
+msgstr "{score} 分，{comments} 条评论"
+
+#: docking/applets/hackernews/applet.py:180
+msgid "Open Story"
+msgstr "打开报道"
+
+#: docking/applets/hackernews/applet.py:184
+msgid "Open Comments"
+msgstr "打开评论"
+
+#: docking/applets/hackernews/applet.py:188
+msgid "Next Headline"
+msgstr "下一条头条"
+
+#: docking/applets/hackernews/applet.py:314
+msgid "No Hacker News stories"
+msgstr "没有 Hacker News 动态"
+
+#: docking/applets/hackernews/state.py:107
+msgid "now"
+msgstr "刚刚"
+
+#: docking/applets/hackernews/state.py:110
+#, python-brace-format
+msgid "{minutes}m ago"
+msgstr "{minutes} 分钟前"
+
+#: docking/applets/hackernews/state.py:113
+#, python-brace-format
+msgid "{hours}h ago"
+msgstr "{hours} 小时前"
+
+#: docking/applets/hackernews/state.py:115
+#, python-brace-format
+msgid "{days}d ago"
+msgstr "{days} 天前"
+
+#: docking/applets/hackernews/state.py:164
+#, python-brace-format
+msgid "{source} {rank}"
+msgstr "{source} {rank}"
+
+#: docking/applets/hackernews/state.py:180
+msgid "Loading next stories..."
+msgstr "正在加载下一批报道..."
+
+#: docking/applets/hydration/applet.py:40
 msgid "Hydration"
 msgstr "饮水提醒"
 
-#: docking/applets/hydration/applet.py:115
-#: docking/applets/pomodoro/applet.py:160
+#: docking/applets/hydration/applet.py:114
+#: docking/applets/pomodoro/applet.py:157
 msgid "Show Timer"
 msgstr "显示计时器"
 
-#: docking/applets/hydration/applet.py:123
-#: docking/applets/pomodoro/applet.py:172
-#: docking/applets/pomodoro/applet.py:185
-#: docking/applets/pomodoro/applet.py:198
-#: docking/applets/stretchcoach/applet.py:97
+#: docking/applets/hydration/applet.py:120
+#: docking/applets/pomodoro/applet.py:166
+#: docking/applets/pomodoro/applet.py:179
+#: docking/applets/pomodoro/applet.py:192
+#: docking/applets/stretchcoach/applet.py:92
 #, python-brace-format
 msgid "{mins} min"
 msgstr "{mins} min"
@@ -374,40 +1011,108 @@ msgstr "喝水！"
 msgid "Next in {time}"
 msgstr "{time}后提醒"
 
-#: docking/applets/keyboardlayout/applet.py:42
+#: docking/applets/keyboardlayout/applet.py:47
 msgid "Keyboard Layout"
-msgstr "Keyboard Layout"
+msgstr "键盘布局"
 
-#: docking/applets/keyboardlayout/applet.py:71
+#: docking/applets/keyboardlayout/applet.py:76
 msgid "No keyboard layout detected"
-msgstr "No keyboard layout detected"
+msgstr "未检测到键盘布局"
 
-#: docking/applets/moon/applet.py:48
+#: docking/applets/keyboardlayout/applet.py:122
+msgid "Keyboard Settings"
+msgstr "Keyboard Settings"
+
+#: docking/applets/keyboardlayout/applet.py:128
+msgid "Show Current Layout"
+msgstr "Show Current Layout"
+
+#: docking/applets/live_state.py:74
+msgid "No data yet"
+msgstr "暂无数据"
+
+#: docking/applets/live_state.py:75
+msgid "Loading..."
+msgstr "Loading..."
+
+#: docking/applets/live_state.py:77 docking/applets/live_state.py:117
+msgid "Stale data"
+msgstr "数据过时"
+
+#: docking/applets/live_state.py:118
+#, python-brace-format
+msgid "Stale: last updated {time}"
+msgstr "过期：上次更新 {time}"
+
+#: docking/applets/live_state.py:128
+msgid "Use Refresh Now from the menu."
+msgstr "从菜单中使用“立即刷新”。"
+
+#: docking/applets/micshield/applet.py:44
+#: docking/applets/micshield/state.py:195
+msgid "Mic Shield"
+msgstr "麦克风护盾"
+
+#: docking/applets/micshield/applet.py:93
+#: docking/applets/micshield/state.py:197
+msgid "No microphone source found"
+msgstr "未找到麦克风源"
+
+#: docking/applets/micshield/applet.py:97
+#: docking/applets/micshield/state.py:200
+msgid "Microphone muted"
+msgstr "麦克风已静音"
+
+#: docking/applets/micshield/applet.py:99
+#: docking/applets/micshield/state.py:200
+msgid "Microphone unmuted"
+msgstr "麦克风已取消静音"
+
+#: docking/applets/micshield/applet.py:105
+#: docking/applets/micshield/state.py:205
+msgid "Microphone active"
+msgstr "麦克风使用中"
+
+#: docking/applets/micshield/applet.py:109
+#: docking/applets/micshield/state.py:202
+msgid "Microphone idle"
+msgstr "麦克风空闲"
+
+#: docking/applets/micshield/applet.py:112
+msgid "Unmute Microphone"
+msgstr "取消麦克风静音"
+
+#: docking/applets/micshield/applet.py:112
+msgid "Mute Microphone"
+msgstr "静音麦克风"
+
+#: docking/applets/micshield/state.py:218
+#, python-brace-format
+msgid "{command} (PID {pid})"
+msgstr "{command} (PID {pid})"
+
+#: docking/applets/moon/applet.py:49
 msgid "Moon"
 msgstr "月相"
 
-#: docking/applets/moon/applet.py:91
+#: docking/applets/moon/applet.py:92
 msgid "Moon (loading...)"
 msgstr "月相（加载中...）"
 
-#: docking/applets/moon/applet.py:98
+#: docking/applets/moon/applet.py:99
 #, python-brace-format
 msgid "Illumination: {pct}%"
 msgstr "照明度：{pct}%"
 
-#: docking/applets/moon/applet.py:121
+#: docking/applets/moon/applet.py:120
 msgid "Show Phase Name"
 msgstr "显示月相"
 
-#: docking/applets/moon/applet.py:126
-msgid "Refresh"
-msgstr "刷新"
-
-#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:120
+#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:130
 msgid "New"
 msgstr "新月"
 
-#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:122
+#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:132
 msgid "Full"
 msgstr "满月"
 
@@ -445,133 +1150,185 @@ msgstr "新月后{days}天"
 msgid "{days} days after full moon"
 msgstr "满月后{days}天"
 
-#: docking/applets/moon/state.py:111
+#: docking/applets/moon/state.py:121
 msgid "Waxing Crescent"
 msgstr "蛾眉月"
 
-#: docking/applets/moon/state.py:113
+#: docking/applets/moon/state.py:123
 msgid "Waxing Gibbous"
 msgstr "盈凸月"
 
-#: docking/applets/moon/state.py:115
+#: docking/applets/moon/state.py:125
 msgid "Waning Gibbous"
 msgstr "亏凸月"
 
-#: docking/applets/moon/state.py:117
+#: docking/applets/moon/state.py:127
 msgid "Waning Crescent"
 msgstr "残月"
 
-#: docking/applets/moon/state.py:124
+#: docking/applets/moon/state.py:134
 msgid "1st Quarter"
 msgstr "上弦月"
 
-#: docking/applets/moon/state.py:126
+#: docking/applets/moon/state.py:136
 msgid "3rd Quarter"
 msgstr "下弦月"
 
-#: docking/applets/music/applet.py:44 docking/applets/music/state.py:138
+#: docking/applets/music/applet.py:45 docking/applets/music/state.py:129
+#: docking/applets/music/state.py:143
 msgid "Music"
 msgstr "音乐"
 
-#: docking/applets/music/applet.py:104
+#: docking/applets/music/applet.py:105 docking/applets/music/state.py:130
 msgid "No active player"
 msgstr "无活动播放器"
 
-#: docking/applets/music/applet.py:108
+#: docking/applets/music/applet.py:107
 msgid "Previous"
 msgstr "上一个"
 
-#: docking/applets/music/applet.py:116
+#: docking/applets/music/applet.py:115
 msgid "Next"
 msgstr "下一个"
 
-#: docking/applets/music/applet.py:120
+#: docking/applets/music/applet.py:119
 msgid "Volume Up"
 msgstr "提高音量"
 
-#: docking/applets/music/applet.py:126
+#: docking/applets/music/applet.py:125
 msgid "Volume Down"
 msgstr "降低音量"
 
-#: docking/applets/music/state.py:68
+#: docking/applets/music/state.py:69
 msgid "Pause"
 msgstr "暂停"
 
-#: docking/applets/music/state.py:68
+#: docking/applets/music/state.py:69
 msgid "Play"
 msgstr "播放"
 
-#: docking/applets/music/state.py:75
+#: docking/applets/music/state.py:76
 msgid "Playing"
 msgstr "播放中"
 
-#: docking/applets/music/state.py:77
+#: docking/applets/music/state.py:78
 msgid "Paused"
 msgstr "已暂停"
 
-#: docking/applets/music/state.py:79
+#: docking/applets/music/state.py:80
 msgid "Stopped"
 msgstr "已停止"
 
-#: docking/applets/music/state.py:81 docking/applets/powerprofiles/state.py:137
-msgid "Unknown"
-msgstr "未知"
-
-#: docking/applets/music/state.py:127
-msgid "Music: No active player"
-msgstr "音乐: 无活动播放器"
-
-#: docking/applets/network/applet.py:53
+#: docking/applets/network/applet.py:64 docking/applets/network/state.py:214
+#: docking/applets/network/state.py:225
 msgid "Network"
 msgstr "网络"
 
-#: docking/applets/network/applet.py:105
+#: docking/applets/network/applet.py:118
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:113
+#: docking/applets/network/applet.py:127
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "以太网：{iface}"
 
-#: docking/applets/network/applet.py:118
+#: docking/applets/network/applet.py:132 docking/applets/network/state.py:215
 msgid "Not connected"
 msgstr "未连接"
 
-#: docking/applets/network/applet.py:123
+#: docking/applets/network/applet.py:136
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP：{ip}"
 
-#: docking/applets/network/state.py:89
-msgid "Network: Not connected"
-msgstr "网络：未连接"
+#: docking/applets/network/applet.py:147
+msgid "Connection Information"
+msgstr "Connection Information"
 
-#: docking/applets/notifications/applet.py:59
+#: docking/applets/network/applet.py:153
+msgid "Edit Connections..."
+msgstr "Edit Connections..."
+
+#: docking/applets/network/applet.py:163
+msgid "Connect to Hidden Wi-Fi Network..."
+msgstr "Connect to Hidden Wi-Fi Network..."
+
+#: docking/applets/network/applet.py:170
+msgid "Create New Wi-Fi Network..."
+msgstr "Create New Wi-Fi Network..."
+
+#: docking/applets/network/applet.py:174
+msgid "Enable Networking"
+msgstr "Enable Networking"
+
+#: docking/applets/network/applet.py:185
+msgid "Enable Wi-Fi"
+msgstr "Enable Wi-Fi"
+
+#: docking/applets/network/applet.py:202
+msgid "Show Download"
+msgstr "显示下载"
+
+#: docking/applets/network/applet.py:203
+msgid "Show Upload"
+msgstr "显示上传"
+
+#: docking/applets/network/applet.py:204
+msgid "Hide Speeds"
+msgstr "隐藏速度"
+
+#: docking/applets/network/applet.py:255
+msgid "Available Networks"
+msgstr "Available Networks"
+
+#: docking/applets/network/applet.py:259
+#, python-brace-format
+msgid "{ssid} ({pct}%)"
+msgstr "{ssid} ({pct}%)"
+
+#: docking/applets/network/applet.py:261
+#, python-brace-format
+msgid "Connected: {label}"
+msgstr "Connected: {label}"
+
+#: docking/applets/network/applet.py:270
+msgid "No networks found"
+msgstr "No networks found"
+
+#: docking/applets/network/applet.py:282
+msgid "VPN Connections"
+msgstr "VPN Connections"
+
+#: docking/applets/network/applet.py:285
+msgid "Unnamed VPN"
+msgstr "Unnamed VPN"
+
+#: docking/applets/notifications/applet.py:64
 #: docking/applets/notifications/state.py:49
 msgid "Notifications"
 msgstr "通知"
 
-#: docking/applets/notifications/applet.py:126
+#: docking/applets/notifications/applet.py:132
 msgid "No notification backend available"
 msgstr "无通知后端"
 
-#: docking/applets/notifications/applet.py:132
+#: docking/applets/notifications/applet.py:134
 msgid "Do Not Disturb"
 msgstr "勿扰模式"
 
-#: docking/applets/notifications/applet.py:139
+#: docking/applets/notifications/applet.py:142
 #: docking/applets/notifications/state.py:47
 #, python-brace-format
 msgid "Pending: {n}"
 msgstr "待处理：{n}"
 
-#: docking/applets/notifications/applet.py:144
+#: docking/applets/notifications/applet.py:147
 msgid "Clear History"
 msgstr "清除历史"
 
-#: docking/applets/notifications/applet.py:149
+#: docking/applets/notifications/applet.py:152
 msgid "Clear Notifications"
 msgstr "清除通知"
 
@@ -581,66 +1338,66 @@ msgstr "通知: 无可用后端"
 
 #: docking/applets/pet/applet.py:41
 msgid "Pet"
-msgstr "Pet"
+msgstr "宠物"
 
 #: docking/applets/pet/state.py:60
 msgid "Sleeping"
-msgstr "Sleeping"
+msgstr "睡眠中"
 
 #: docking/applets/pet/state.py:61
 msgid "Sleepy"
-msgstr "Sleepy"
+msgstr "困倦"
 
 #: docking/applets/pet/state.py:62
 msgid "Drowsy"
-msgstr "Drowsy"
+msgstr "困倦"
 
 #: docking/applets/pet/state.py:63
 msgid "Relaxed"
-msgstr "Relaxed"
+msgstr "放松"
 
 #: docking/applets/pet/state.py:64
 msgid "Happy"
-msgstr "Happy"
+msgstr "开心"
 
 #: docking/applets/pet/state.py:65
 msgid "Focused"
-msgstr "Focused"
+msgstr "专注"
 
 #: docking/applets/pet/state.py:66
 msgid "Busy"
-msgstr "Busy"
+msgstr "忙碌"
 
 #: docking/applets/pet/state.py:67
 msgid "Stressed"
-msgstr "Stressed"
+msgstr "压力"
 
 #: docking/applets/pet/state.py:68
 msgid "Excited!"
-msgstr "Excited!"
+msgstr "兴奋!"
 
 #: docking/applets/pet/state.py:191
 #, python-brace-format
 msgid "{mood} | CPU: {cpu}%"
 msgstr "{mood} | CPU: {cpu}%"
 
-#: docking/applets/pomodoro/applet.py:47 docking/applets/pomodoro/state.py:64
+#: docking/applets/pomodoro/applet.py:48 docking/applets/pomodoro/state.py:64
 msgid "Pomodoro"
 msgstr "番茄钟"
 
-#: docking/applets/pomodoro/applet.py:156
+#: docking/applets/pomodoro/applet.py:154
 msgid "Reset"
 msgstr "重置"
 
-#: docking/applets/pomodoro/applet.py:168 docking/applets/pomodoro/state.py:68
+#: docking/applets/pomodoro/applet.py:162 docking/applets/pomodoro/state.py:68
 msgid "Work"
 msgstr "工作"
 
-#: docking/applets/pomodoro/applet.py:181 docking/applets/pomodoro/state.py:69
+#: docking/applets/pomodoro/applet.py:175 docking/applets/pomodoro/state.py:69
 msgid "Break"
 msgstr "休息"
 
-#: docking/applets/pomodoro/applet.py:194 docking/applets/pomodoro/state.py:70
+#: docking/applets/pomodoro/applet.py:188 docking/applets/pomodoro/state.py:70
 msgid "Long Break"
 msgstr "长休息"
 
@@ -654,21 +1411,21 @@ msgstr "已暂停 - {time}"
 msgid "{label}: {time} remaining"
 msgstr "{label}：剩余 {time}"
 
-#: docking/applets/powerprofiles/applet.py:55
+#: docking/applets/powerprofiles/applet.py:58
 msgid "Power Profiles"
 msgstr "电源配置"
 
-#: docking/applets/powerprofiles/applet.py:115
+#: docking/applets/powerprofiles/applet.py:123
 #: docking/applets/powerprofiles/state.py:170
 #: docking/applets/powerprofiles/state.py:171
 msgid "Power Profiles unavailable"
 msgstr "电源配置不可用"
 
-#: docking/applets/powerprofiles/applet.py:120
+#: docking/applets/powerprofiles/applet.py:126
 msgid "Select Profile"
 msgstr "选择配置"
 
-#: docking/applets/powerprofiles/applet.py:139
+#: docking/applets/powerprofiles/applet.py:145
 #, python-brace-format
 msgid "Limited: {reason}"
 msgstr "受限: {reason}"
@@ -685,641 +1442,925 @@ msgstr "均衡"
 msgid "Performance"
 msgstr "性能"
 
-#: docking/applets/quicknote/applet.py:40
-#: docking/applets/quicknote/applet.py:73
+#: docking/applets/quicknote/applet.py:41
+#: docking/applets/quicknote/applet.py:70
 msgid "Quick Note"
-msgstr "Quick Note"
+msgstr "快捷笔记"
 
-#: docking/applets/quicknote/applet.py:61
+#: docking/applets/quicknote/applet.py:60
 msgid "Edit Note"
-msgstr "Edit Note"
+msgstr "编辑笔记"
 
-#: docking/applets/quicknote/applet.py:65
+#: docking/applets/quicknote/applet.py:63
 msgid "Clear Note"
-msgstr "Clear Note"
-
-#: docking/applets/quicknote/applet.py:78
-msgid "OK"
-msgstr "OK"
-
-#: docking/applets/quote/applet.py:41 docking/applets/quote/applet.py:82
-#: docking/applets/quote/applet.py:206 docking/applets/quote/applet.py:212
-msgid "Quote"
-msgstr "引用"
+msgstr "清除笔记"
 
 #: docking/applets/quote/applet.py:86
 msgid "Next Quote"
 msgstr "下一条引用"
 
-#: docking/applets/quote/applet.py:90
+#: docking/applets/quote/applet.py:89
 msgid "Copy Quote"
 msgstr "复制引用"
 
-#: docking/applets/quote/applet.py:94
-#: docking/applets/todayinhistory/applet.py:96
-#: docking/applets/trivia/applet.py:118
-msgid "Refresh from Web"
-msgstr "从网络刷新"
-
-#: docking/applets/quote/applet.py:100
+#: docking/applets/quote/applet.py:96
 msgid "Source"
 msgstr "来源"
 
-#: docking/applets/quote/applet.py:205
+#: docking/applets/quote/applet.py:207
 #, python-brace-format
 msgid "{source}: loading..."
 msgstr "{source}：加载中..."
 
-#: docking/applets/recentfiles/applet.py:34
+#: docking/applets/recentfiles/applet.py:35
 msgid "Recent Files"
-msgstr "Recent Files"
+msgstr "最近文件"
 
-#: docking/applets/recentfiles/applet.py:84
+#: docking/applets/recentfiles/applet.py:82
 msgid "Clear Recent Files"
-msgstr "Clear Recent Files"
+msgstr "清除最近文件"
 
-#: docking/applets/screenshot/applet.py:39
+#: docking/applets/screenshot/applet.py:40
 msgid "Screenshot"
 msgstr "截图"
 
-#: docking/applets/screenshot/applet.py:75
+#: docking/applets/screenshot/applet.py:77
 #, python-brace-format
 msgid "Full Screen in {delay}s"
 msgstr "{delay}秒后全屏"
 
-#: docking/applets/separator/applet.py:37
+#: docking/applets/separator/applet.py:38
 msgid "Separator"
 msgstr "分隔符"
 
-#: docking/applets/separator/applet.py:118
+#: docking/applets/separator/applet.py:119
 msgid "Increase Gap"
 msgstr "增大间距"
 
-#: docking/applets/separator/applet.py:120
+#: docking/applets/separator/applet.py:121
 msgid "Decrease Gap"
 msgstr "减小间距"
 
-#: docking/applets/separator/applet.py:122
+#: docking/applets/separator/applet.py:124
 msgid "Style"
-msgstr "Style"
+msgstr "样式"
 
 #: docking/applets/separator/applet.py:126
 msgid "Line"
-msgstr "Line"
+msgstr "行"
 
-#: docking/applets/separator/applet.py:135
+#: docking/applets/separator/applet.py:127
 msgid "Space"
-msgstr "Space"
+msgstr "间距"
 
-#: docking/applets/separator/applet.py:144
+#: docking/applets/separator/applet.py:134
 msgid "Invert Color"
-msgstr "Invert Color"
+msgstr "反转颜色"
 
-#: docking/applets/session/applet.py:27
+#: docking/applets/session/applet.py:28
 msgid "Session"
 msgstr "会话"
 
-#: docking/applets/session/state.py:23
-msgid "Lock Screen"
-msgstr "锁定屏幕"
-
-#: docking/applets/session/state.py:24
-msgid "Log Out"
-msgstr "注销"
-
-#: docking/applets/session/state.py:25
+#: docking/applets/session/applet.py:56 docking/applets/session/state.py:29
 msgid "Suspend"
 msgstr "待机"
 
-#: docking/applets/session/state.py:26
+#: docking/applets/session/state.py:25
+msgid "Lock Screen"
+msgstr "锁定屏幕"
+
+#: docking/applets/session/state.py:28
+msgid "Log Out"
+msgstr "注销"
+
+#: docking/applets/session/state.py:30
 msgid "Restart"
 msgstr "重启"
 
-#: docking/applets/session/state.py:27
+#: docking/applets/session/state.py:31
 msgid "Shut Down"
 msgstr "关机"
 
-#: docking/applets/stretchcoach/applet.py:40
+#: docking/applets/speedtest/applet.py:42 docking/applets/speedtest/state.py:76
+#: docking/applets/speedtest/state.py:82 docking/applets/speedtest/state.py:88
+#: docking/applets/speedtest/state.py:108
+msgid "Speedtest"
+msgstr "Speedtest"
+
+#: docking/applets/speedtest/applet.py:80 docking/applets/speedtest/state.py:73
+msgid "Runs"
+msgstr "运行次数"
+
+#: docking/applets/speedtest/applet.py:83
+#: docking/applets/speedtest/applet.py:101
+#: docking/applets/speedtest/state.py:77
+msgid "Running..."
+msgstr "Running..."
+
+#: docking/applets/speedtest/applet.py:83
+msgid "Run Test"
+msgstr "Run Test"
+
+#: docking/applets/speedtest/applet.py:90
+msgid "Copy Last Result"
+msgstr "Copy Last Result"
+
+#: docking/applets/speedtest/applet.py:106
+#, python-brace-format
+msgid "Down {d:.1f} / Up {u:.1f} Mbps"
+msgstr "Down {d:.1f} / Up {u:.1f} Mbps"
+
+#: docking/applets/speedtest/applet.py:163
+#, python-brace-format
+msgid ""
+"Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
+"({when})"
+msgstr ""
+"Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
+"({when})"
+
+#: docking/applets/speedtest/state.py:89
+msgid "Click to run a test"
+msgstr "Click to run a test"
+
+#: docking/applets/speedtest/state.py:92
+#, python-brace-format
+msgid "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
+msgstr "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
+
+#: docking/applets/speedtest/state.py:96
+#, python-brace-format
+msgid "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
+msgstr "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
+
+#: docking/applets/speedtest/state.py:101
+#, python-brace-format
+msgid "Server: {s}"
+msgstr "Server: {s}"
+
+#: docking/applets/speedtest/state.py:105
+#, python-brace-format
+msgid "At: {t}"
+msgstr "At: {t}"
+
+#: docking/applets/stretchcoach/applet.py:41
 msgid "Stretch Coach"
-msgstr "Stretch Coach"
+msgstr "拉伸教练"
 
-#: docking/applets/stretchcoach/applet.py:80
+#: docking/applets/stretchcoach/applet.py:79
 msgid "Acknowledge Break"
-msgstr "Acknowledge Break"
+msgstr "确认休息"
 
-#: docking/applets/stretchcoach/applet.py:80
+#: docking/applets/stretchcoach/applet.py:79
 msgid "Take Break Now"
-msgstr "Take Break Now"
+msgstr "立即休息"
 
-#: docking/applets/stretchcoach/applet.py:85
+#: docking/applets/stretchcoach/applet.py:83
 msgid "Show Random Stretch"
-msgstr "Show Random Stretch"
+msgstr "显示随机拉伸"
 
-#: docking/applets/stretchcoach/applet.py:89
+#: docking/applets/stretchcoach/applet.py:86
 msgid "Random Stretch Cards"
-msgstr "Random Stretch Cards"
+msgstr "随机拉伸卡片"
 
-#: docking/applets/stretchcoach/state.py:151
+#: docking/applets/stretchcoach/state.py:152
 msgid "Time to stretch!"
-msgstr "Time to stretch!"
+msgstr "该拉伸了!"
 
-#: docking/applets/stretchcoach/state.py:155
+#: docking/applets/stretchcoach/state.py:156
 #, python-brace-format
 msgid "Next stretch in {time}"
-msgstr "Next stretch in {time}"
+msgstr "下次拉伸在 {time} 后"
 
-#: docking/applets/systemmonitor/applet.py:45
+#: docking/applets/systemmonitor/applet.py:51
+#: docking/applets/systemmonitor/state.py:168
 msgid "System Monitor"
 msgstr "CPU监控"
 
-#: docking/applets/systemmonitor/state.py:64
+#: docking/applets/systemmonitor/applet.py:85
+msgid "Show Disk Usage"
+msgstr "Show Disk Usage"
+
+#: docking/applets/systemmonitor/applet.py:90
+#: docking/applets/thermals/applet.py:149 docking/applets/weather/applet.py:186
+msgid "Temperature Unit"
+msgstr "温度单位"
+
+#: docking/applets/systemmonitor/state.py:151
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
-msgstr "CPU: {cpu}% | Mem: {mem}%"
+msgstr "CPU: {cpu}% | 内存: {mem}%"
 
-#: docking/applets/systemmonitor/state.py:69
+#: docking/applets/systemmonitor/state.py:155
 #, python-brace-format
-msgid "{text} | Temp: {temp}°C"
-msgstr "{text} | Temp: {temp}°C"
+msgid "{text} | Temp: {temp}"
+msgstr "{text} | 温度：{temp}"
 
-#: docking/applets/todayinhistory/applet.py:43
-#: docking/applets/todayinhistory/applet.py:109
-#: docking/applets/todayinhistory/applet.py:121
+#: docking/applets/systemmonitor/state.py:166
+#, python-brace-format
+msgid "Disk: {usage}"
+msgstr "Disk: {usage}"
+
+#: docking/applets/temperature.py:31
+msgid "Fahrenheit"
+msgstr "华氏度"
+
+#: docking/applets/temperature.py:32
+msgid "Celsius"
+msgstr "摄氏度"
+
+#: docking/applets/thermals/applet.py:53 docking/applets/thermals/state.py:407
+#: docking/applets/thermals/state.py:420 docking/applets/thermals/state.py:432
+#: docking/applets/thermals/state.py:466
+msgid "Thermals"
+msgstr "温度"
+
+#: docking/applets/thermals/applet.py:96 docking/applets/thermals/state.py:114
+#: docking/applets/thermals/state.py:427
+msgid "lm-sensors not installed"
+msgstr "未安装 lm-sensors"
+
+#: docking/applets/thermals/applet.py:105 docking/applets/thermals/state.py:446
+#, python-brace-format
+msgid "Hot: {label} {temp}"
+msgstr "高温：{label} {temp}"
+
+#: docking/applets/thermals/applet.py:119 docking/applets/thermals/state.py:458
+#, python-brace-format
+msgid "Fan: {label} {rpm}"
+msgstr "风扇：{label} {rpm}"
+
+#: docking/applets/thermals/applet.py:139 docking/applets/thermals/state.py:413
+#: docking/applets/thermals/state.py:425 docking/applets/thermals/state.py:437
+#: docking/applets/thermals/state.py:473
+msgid "Samples"
+msgstr "样本"
+
+#: docking/applets/thermals/applet.py:257
+msgid "Thermal readings unavailable"
+msgstr "温度读数不可用"
+
+#: docking/applets/thermals/state.py:135
+msgid "sensors failed"
+msgstr "传感器失败"
+
+#: docking/applets/thermals/state.py:142
+msgid "No thermal readings"
+msgstr "无温度读数"
+
+#: docking/applets/thermals/state.py:454
+msgid "Hot: unavailable"
+msgstr "高温：不可用"
+
+#: docking/applets/thermals/state.py:464
+msgid "Fan: unavailable"
+msgstr "风扇：不可用"
+
+#: docking/applets/todayinhistory/applet.py:47
+#: docking/applets/todayinhistory/applet.py:117
+#: docking/applets/todayinhistory/applet.py:129
 msgid "Today in History"
-msgstr "Today in History"
-
-#: docking/applets/todayinhistory/applet.py:88
-msgid "Open Article"
-msgstr "Open Article"
+msgstr "历史上的今天"
 
 #: docking/applets/todayinhistory/applet.py:92
-msgid "Next Event"
-msgstr "Next Event"
+msgid "Open Article"
+msgstr "打开文章"
 
-#: docking/applets/todayinhistory/applet.py:104
+#: docking/applets/todayinhistory/applet.py:96
+msgid "Next Event"
+msgstr "下一个事件"
+
+#: docking/applets/todayinhistory/applet.py:112
 msgid "Today in History: loading..."
-msgstr "Today in History: loading..."
+msgstr "历史上的今天: 加载中..."
 
 #: docking/applets/todayinhistory/state.py:26
 msgid "Offline fallback"
-msgstr "Offline fallback"
+msgstr "离线模式"
 
-#: docking/applets/todayinhistory/state.py:45
+#: docking/applets/todayinhistory/state.py:46
 #, python-brace-format
 msgid "{year} - {title}"
 msgstr "{year} - {title}"
 
-#: docking/applets/trash/applet.py:34
+#: docking/applets/trash/applet.py:36
 msgid "Trash"
 msgstr "回收站"
 
-#: docking/applets/trash/applet.py:60
+#: docking/applets/trash/applet.py:65
 msgid "Open Trash"
 msgstr "打开回收站"
 
-#: docking/applets/trash/applet.py:64
+#: docking/applets/trash/applet.py:68 docking/applets/trash/applet.py:115
 msgid "Empty Trash"
 msgstr "清空回收站"
 
-#: docking/applets/trash/render.py:22
+#: docking/applets/trash/applet.py:109
+msgid "Empty all items from Trash?"
+msgstr "清空回收站中的所有项目？"
+
+#: docking/applets/trash/applet.py:112
+msgid "All items in the Trash will be permanently deleted."
+msgstr "回收站中的所有项目将被永久删除。"
+
+#: docking/applets/trash/render.py:18
 msgid "No items in Trash"
 msgstr "回收站为空"
 
-#: docking/applets/trash/render.py:24 docking/applets/trash/render.py:25
+#: docking/applets/trash/render.py:20 docking/applets/trash/render.py:21
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
 msgstr[0] "{n} 个项目在回收站中"
 
-#: docking/applets/trivia/applet.py:40 docking/applets/trivia/applet.py:184
+#: docking/applets/trivia/applet.py:42 docking/applets/trivia/applet.py:186
 msgid "Random Trivia"
-msgstr "Random Trivia"
+msgstr "随机问答"
 
-#: docking/applets/trivia/applet.py:77 docking/applets/trivia/state.py:101
+#: docking/applets/trivia/applet.py:77 docking/applets/trivia/state.py:102
 #, python-brace-format
 msgid "{category} / {difficulty}"
 msgstr "{category} / {difficulty}"
 
-#: docking/applets/trivia/applet.py:97 docking/applets/trivia/state.py:112
+#: docking/applets/trivia/applet.py:96 docking/applets/trivia/state.py:113
 #, python-brace-format
 msgid "Correct answer: {answer}"
-msgstr "Correct answer: {answer}"
+msgstr "正确答案: {answer}"
 
-#: docking/applets/trivia/applet.py:105 docking/applets/trivia/state.py:111
+#: docking/applets/trivia/applet.py:105 docking/applets/trivia/state.py:112
 #, python-brace-format
 msgid "Your answer: {answer}"
-msgstr "Your answer: {answer}"
+msgstr "你的回答: {answer}"
 
-#: docking/applets/trivia/applet.py:114
+#: docking/applets/trivia/applet.py:112
 msgid "Next Trivia"
-msgstr "Next Trivia"
+msgstr "下一个问答"
 
-#: docking/applets/trivia/applet.py:179
+#: docking/applets/trivia/applet.py:181
 msgid "Trivia: loading..."
-msgstr "Trivia: loading..."
-
-#: docking/applets/trivia/state.py:87
-msgid "Easy"
-msgstr "Easy"
+msgstr "问答: 加载中..."
 
 #: docking/applets/trivia/state.py:88
-msgid "Medium"
-msgstr "Medium"
+msgid "Easy"
+msgstr "简单"
 
 #: docking/applets/trivia/state.py:89
-msgid "Hard"
-msgstr "Hard"
+msgid "Medium"
+msgstr "中等"
 
-#: docking/applets/trivia/state.py:109
+#: docking/applets/trivia/state.py:90
+msgid "Hard"
+msgstr "困难"
+
+#: docking/applets/trivia/state.py:110
 #, python-brace-format
 msgid "Correct: {answer}"
-msgstr "Correct: {answer}"
+msgstr "正确: {answer}"
 
-#: docking/applets/unitconverter/applet.py:77
-#: docking/applets/unitconverter/applet.py:104
+#: docking/applets/unitconverter/applet.py:102
+#: docking/applets/unitconverter/applet.py:129
+#: docking/applets/unitconverter/applet.py:161
 msgid "Unit Converter"
-msgstr "Unit Converter"
+msgstr "单位转换器"
 
-#: docking/applets/unitconverter/applet.py:197
+#: docking/applets/unitconverter/applet.py:210
 msgid "Swap units"
-msgstr "Swap units"
+msgstr "切换单位"
 
-#: docking/applets/unitconverter/applet.py:214
+#: docking/applets/unitconverter/applet.py:227
 msgid "Value"
-msgstr "Value"
+msgstr "值"
 
-#: docking/applets/urlshortener/applet.py:57
-#: docking/applets/urlshortener/applet.py:78
-#: docking/applets/urlshortener/applet.py:96
+#: docking/applets/urlshortener/applet.py:59
+#: docking/applets/urlshortener/applet.py:80
+#: docking/applets/urlshortener/applet.py:98
 msgid "URL Shortener"
-msgstr "URL Shortener"
+msgstr "URL 缩短器"
 
-#: docking/applets/urlshortener/applet.py:118
+#: docking/applets/urlshortener/applet.py:117
 msgid "Shorten"
-msgstr "Shorten"
+msgstr "缩短"
 
-#: docking/applets/urlshortener/applet.py:144
+#: docking/applets/urlshortener/applet.py:143
 msgid "Shortening..."
-msgstr "Shortening..."
+msgstr "缩短中..."
 
-#: docking/applets/urlshortener/applet.py:178
-#: docking/applets/urlshortener/applet.py:197
+#: docking/applets/urlshortener/applet.py:177
+#: docking/applets/urlshortener/applet.py:196
 msgid "Copy"
-msgstr "Copy"
+msgstr "复制"
 
-#: docking/applets/urlshortener/applet.py:192
+#: docking/applets/urlshortener/applet.py:191
 msgid "Copied!"
-msgstr "Copied!"
+msgstr "已复制!"
 
-#: docking/applets/volume/applet.py:33
+#: docking/applets/usbwatch/applet.py:37 docking/applets/usbwatch/state.py:80
+#: docking/applets/usbwatch/state.py:87
+msgid "USB Watch"
+msgstr "USB 监视"
+
+#: docking/applets/usbwatch/applet.py:61 docking/applets/usbwatch/state.py:81
+msgid "No mounted USB devices"
+msgstr "无已挂载的 USB 设备"
+
+#: docking/applets/usbwatch/applet.py:70
+#, python-brace-format
+msgid "Safely Remove {name}"
+msgstr "安全移除 {name}"
+
+#: docking/applets/usbwatch/state.py:88
+#, python-brace-format
+msgid "{count} mounted device(s)"
+msgstr "{count} 个已挂载设备"
+
+#: docking/applets/usbwatch/state.py:95
+msgid "Removable Drive"
+msgstr "可移动驱动器"
+
+#: docking/applets/volume/applet.py:42
 msgid "Volume"
 msgstr "音量"
 
-#: docking/applets/volume/applet.py:53
+#: docking/applets/volume/applet.py:66
 msgid "Muted"
 msgstr "已静音"
 
-#: docking/applets/volume/applet.py:53
+#: docking/applets/volume/applet.py:66
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "音量：{pct}%"
 
-#: docking/applets/weather/applet.py:58
+#: docking/applets/volume/applet.py:120
+msgid "Volume Settings"
+msgstr "Volume Settings"
+
+#: docking/applets/weather/applet.py:70 docking/applets/weather/state.py:163
 msgid "Weather"
 msgstr "天气"
 
-#: docking/applets/weather/applet.py:128
+#: docking/applets/weather/applet.py:179
 msgid "Show Temperature"
 msgstr "显示温度"
 
-#: docking/applets/weather/applet.py:133
-msgid "Add City..."
-msgstr "Add City..."
-
-#: docking/applets/weather/applet.py:139
+#: docking/applets/weather/applet.py:203
 #, python-brace-format
 msgid "Remove {city}"
-msgstr "Remove {city}"
+msgstr "移除 {city}"
 
-#: docking/applets/weather/applet.py:171
+#: docking/applets/weather/applet.py:255
 msgid "Search for the city"
 msgstr "搜索城市"
 
-#: docking/applets/weather/applet.py:185
+#: docking/applets/weather/applet.py:268
 msgid "Type city name..."
 msgstr "输入城市名称..."
 
-#: docking/applets/weather/applet.py:343
-#, python-brace-format
-msgid "{temp}°C, {desc}"
-msgstr "{temp}°C，{desc}"
+#: docking/applets/weather/applet.py:425
+msgid "No weather data"
+msgstr "无天气数据"
 
-#: docking/applets/weather/applet.py:352 docking/applets/weather/state.py:132
+#: docking/applets/weather/applet.py:481 docking/applets/weather/state.py:198
+#, python-brace-format
+msgid "{temp}, {desc}"
+msgstr "{temp}，{desc}"
+
+#: docking/applets/weather/applet.py:494 docking/applets/weather/state.py:188
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "空气：{label}"
 
-#: docking/applets/weather/applet.py:364
+#: docking/applets/weather/applet.py:506
 #, python-brace-format
-msgid "{date}: {min_temp}/{max_temp}°C"
-msgstr "{date}: {min_temp}/{max_temp}°C"
+msgid "{date}: {temp_range}"
+msgstr "{date}：{temp_range}"
 
-#: docking/applets/weather/state.py:113
+#: docking/applets/weather/state.py:139
 #, python-brace-format
-msgid "{city}: {temp}°C"
-msgstr "{city}: {temp}°C"
+msgid "{city}: {temp}"
+msgstr "{city}：{temp}"
 
-#: docking/applets/weather/state.py:126
-msgid "Weather (no city selected)"
-msgstr "天气（未选择城市）"
+#: docking/applets/weather/state.py:164
+msgid "No city selected"
+msgstr "未选择城市"
 
-#: docking/applets/weather/state.py:128
-#, python-brace-format
-msgid "{city}: loading..."
-msgstr "{city}：加载中..."
-
-#: docking/applets/windowkiller/applet.py:59
+#: docking/applets/windowkiller/applet.py:64
 msgid "Window Killer"
-msgstr "Window Killer"
+msgstr "窗口关闭器"
 
-#: docking/applets/windowkiller/applet.py:71
+#: docking/applets/windowkiller/applet.py:76
 msgid "Click, then select a window to kill"
-msgstr "Click, then select a window to kill"
+msgstr "点击并选择要关闭的窗口"
 
-#: docking/applets/workspaces/applet.py:40
+#: docking/applets/workspaces/applet.py:41
 msgid "Workspaces"
 msgstr "工作区"
 
-#: docking/ui/about.py:50
+#: docking/ui/about.py:55
 msgid "Website"
 msgstr "网站"
 
-#: docking/ui/dock_window.py:337
+#: docking/ui/dock_window.py:379
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/menu.py:187
+#: docking/ui/folder/_browser.py:26
 msgid "Name"
-msgstr "Name"
+msgstr "名称"
 
-#: docking/ui/menu.py:188
+#: docking/ui/folder/_browser.py:27
 msgid "Kind"
-msgstr "Kind"
+msgstr "类型"
 
-#: docking/ui/menu.py:189
+#: docking/ui/folder/_browser.py:28
 msgid "Size"
-msgstr "Size"
+msgstr "大小"
 
-#: docking/ui/menu.py:190
+#: docking/ui/folder/_browser.py:29
 msgid "Created"
-msgstr "Created"
+msgstr "创建时间"
 
-#: docking/ui/menu.py:191
+#: docking/ui/folder/_browser.py:30
 msgid "Modified"
-msgstr "Modified"
+msgstr "修改时间"
 
-#: docking/ui/menu.py:772
+#: docking/ui/folder/stack.py:660
 msgid "Folder not found"
-msgstr "Folder not found"
+msgstr "未找到文件夹"
 
-#: docking/ui/menu.py:806
+#: docking/ui/folder/stack.py:674
 msgid "Folder is empty"
-msgstr "Folder is empty"
+msgstr "文件夹为空"
 
-#: docking/ui/menu.py:1213
+#: docking/ui/folder/stack.py:1131
 #, python-format
 msgid "Open in %s"
-msgstr "Open in %s"
+msgstr "在 %s 中打开"
 
-#: docking/ui/menu.py:1215
+#: docking/ui/folder/stack.py:1133
 #, python-format
 msgid "%d More in %s"
 msgstr "%d More in %s"
 
-#: docking/ui/menu.py:1218
+#: docking/ui/folder/stack.py:1136
 msgid "Open Folder"
-msgstr "Open Folder"
+msgstr "打开文件夹"
 
-#: docking/ui/menu.py:1220
+#: docking/ui/folder/stack.py:1138
 #, python-format
 msgid "%d More in Folder"
-msgstr "%d More in Folder"
+msgstr "文件夹中还有 %d 个"
 
-#: docking/ui/menu.py:1341 docking/ui/menu.py:1361 docking/ui/menu.py:1377
-#: docking/ui/menu.py:1430
+#: docking/ui/menu.py:377
+msgid "Icon"
+msgstr "图标"
+
+#: docking/ui/menu.py:379
+msgid "Docking Icon"
+msgstr "Docking 图标"
+
+#: docking/ui/menu.py:380
+msgid "System Icon"
+msgstr "系统图标"
+
+#: docking/ui/menu.py:423 docking/ui/menu.py:443 docking/ui/menu.py:459
+#: docking/ui/menu.py:507
 msgid "Remove from Dock"
 msgstr "从Dock中移除"
 
-#: docking/ui/menu.py:1354
+#: docking/ui/menu.py:436
 msgid "Open"
-msgstr "Open"
+msgstr "打开"
 
-#: docking/ui/menu.py:1384
+#: docking/ui/menu.py:466
 msgid "Keep in Dock"
 msgstr "保留在Dock中"
 
-#: docking/ui/menu.py:1393
+#: docking/ui/menu.py:475
 msgid "Close All"
 msgstr "全部关闭"
 
-#: docking/ui/menu.py:1393
+#: docking/ui/menu.py:475
 msgid "Close"
 msgstr "关闭"
 
-#: docking/ui/menu.py:1410
+#: docking/ui/menu.py:492
 msgid "Sort By"
-msgstr "Sort By"
+msgstr "排序方式"
 
-#: docking/ui/menu.py:1418
+#: docking/ui/menu.py:500
 msgid "Show Hidden Files"
-msgstr "Show Hidden Files"
+msgstr "显示隐藏文件"
 
-#: docking/ui/menu.py:1423
-msgid "Large Icons"
-msgstr "Large Icons"
-
-#: docking/ui/menu.py:1460
+#: docking/ui/menu.py:537
 msgid "Add Applet"
 msgstr "小程序"
 
-#: docking/ui/menu.py:1498
+#: docking/ui/menu.py:575
 msgid "No Applets Available"
 msgstr "电源配置不可用"
 
-#: docking/ui/menu.py:1505
+#: docking/ui/menu.py:582
 msgid "Add Separator"
 msgstr "添加分隔符"
 
-#: docking/ui/menu.py:1515 docking/ui/settings.py:151
+#: docking/ui/menu.py:592 docking/ui/settings.py:167
 msgid "Preferences"
-msgstr "Preferences"
+msgstr "首选项"
 
-#: docking/ui/menu.py:1520
+#: docking/ui/menu.py:597
 msgid "About"
 msgstr "关于"
 
-#: docking/ui/menu.py:1525
+#: docking/ui/menu.py:602
+msgid "Get Support"
+msgstr "Get Support"
+
+#: docking/ui/menu.py:609
 msgid "Quit"
 msgstr "退出"
 
-#: docking/ui/menu.py:1562
+#: docking/ui/menu.py:646
 msgid "Window"
 msgstr "窗口"
+
+#: docking/ui/new_year.py:163
+#, python-brace-format
+msgid "Happy new year {year} !!!"
+msgstr "Happy new year {year} !!!"
 
 #: docking/ui/placement.py:223
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr "显示器 {display}: {width}x{height}"
 
-#: docking/ui/settings.py:175
+#: docking/ui/settings.py:191
 msgid "Appearance"
-msgstr "Appearance"
+msgstr "外观"
 
-#: docking/ui/settings.py:176
+#: docking/ui/settings.py:192 docking/ui/settings.py:380
+msgid "Behavior"
+msgstr "行为"
+
+#: docking/ui/settings.py:193
 msgid "Applets"
 msgstr "小程序"
 
-#: docking/ui/settings.py:194
+#: docking/ui/settings.py:212
 msgid "Don't Hide"
-msgstr "Don't Hide"
+msgstr "不隐藏"
 
-#: docking/ui/settings.py:195
+#: docking/ui/settings.py:213
+msgid "Always on Top"
+msgstr "始终置顶"
+
+#: docking/ui/settings.py:214
 msgid "Auto-hide"
 msgstr "自动隐藏"
 
-#: docking/ui/settings.py:196
+#: docking/ui/settings.py:215
 msgid "Intelligent"
-msgstr "Intelligent"
+msgstr "智能"
 
-#: docking/ui/settings.py:197
+#: docking/ui/settings.py:216
 msgid "Dodge Active Window"
-msgstr "Dodge Active Window"
+msgstr "避开活动窗口"
 
-#: docking/ui/settings.py:198
+#: docking/ui/settings.py:217
 msgid "Dodge All Windows"
-msgstr "Dodge All Windows"
+msgstr "避开所有窗口"
 
-#: docking/ui/settings.py:199
+#: docking/ui/settings.py:218
 msgid "Dodge Maximized"
-msgstr "Dodge Maximized"
+msgstr "避开最大化窗口"
 
-#: docking/ui/settings.py:255
+#: docking/ui/settings.py:235
+msgid "Toggle Focus"
+msgstr "Toggle Focus"
+
+#: docking/ui/settings.py:236
+msgid "Cycle Windows"
+msgstr "Cycle Windows"
+
+#: docking/ui/settings.py:237
+msgid "Most Recent Window"
+msgstr "Most Recent Window"
+
+#: docking/ui/settings.py:244
+msgid "New Window"
+msgstr "New Window"
+
+#: docking/ui/settings.py:245
+msgid "Minimize Windows"
+msgstr "Minimize Windows"
+
+#: docking/ui/settings.py:246
+msgid "Close Focused Window"
+msgstr "Close Focused Window"
+
+#: docking/ui/settings.py:253
+msgid "Click"
+msgstr "Click"
+
+#: docking/ui/settings.py:254
+msgid "Hover"
+msgstr "Hover"
+
+#: docking/ui/settings.py:270
+msgid "Daily"
+msgstr "每日"
+
+#: docking/ui/settings.py:271
+msgid "Weekly"
+msgstr "每周"
+
+#: docking/ui/settings.py:324
 msgid "Look"
-msgstr "Look"
+msgstr "外观"
 
-#: docking/ui/settings.py:257
+#: docking/ui/settings.py:326
 msgid "Theme"
-msgstr "Theme"
+msgstr "主题"
 
-#: docking/ui/settings.py:258
+#: docking/ui/settings.py:327
 msgid "Icon Size"
 msgstr "图标大小"
 
-#: docking/ui/settings.py:259
+#: docking/ui/settings.py:328
+msgid "Transparency"
+msgstr "Transparency"
+
+#: docking/ui/settings.py:329
 msgid "Zoom"
-msgstr "Zoom"
+msgstr "缩放"
 
-#: docking/ui/settings.py:260
+#: docking/ui/settings.py:330
 msgid "Zoom Percent"
-msgstr "Zoom Percent"
+msgstr "缩放百分比"
 
-#: docking/ui/settings.py:261
+#: docking/ui/settings.py:331
 msgid "Show Tooltips"
-msgstr "Show Tooltips"
+msgstr "显示提示"
 
-#: docking/ui/settings.py:262
+#: docking/ui/settings.py:332
 msgid "Window Previews"
 msgstr "窗口预览"
 
-#: docking/ui/settings.py:274
-msgid "Behavior"
-msgstr "Behavior"
-
-#: docking/ui/settings.py:276
-msgid "Hide Mode"
-msgstr "Hide Mode"
-
-#: docking/ui/settings.py:277
-msgid "Hide Delay"
-msgstr "Hide Delay"
-
-#: docking/ui/settings.py:278
-msgid "Unhide Delay"
-msgstr "Unhide Delay"
-
-#: docking/ui/settings.py:283
+#: docking/ui/settings.py:337
 msgid "Placement"
-msgstr "Placement"
+msgstr "位置"
 
-#: docking/ui/settings.py:285
+#: docking/ui/settings.py:339
 msgid "Position"
 msgstr "位置"
 
-#: docking/ui/settings.py:286
+#: docking/ui/settings.py:340
 msgid "Follow Cursor"
 msgstr "跟随光标"
 
-#: docking/ui/settings.py:287
+#: docking/ui/settings.py:341
 msgid "Current Workspace Only"
 msgstr "仅当前工作区"
 
-#: docking/ui/settings.py:292
+#: docking/ui/settings.py:346
 msgid "Layout"
-msgstr "Layout"
+msgstr "布局"
 
-#: docking/ui/settings.py:294
+#: docking/ui/settings.py:348
 msgid "Lock Positions"
-msgstr "Lock Positions"
+msgstr "锁定位置"
 
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:349
 msgid "Anchor Applets to End"
 msgstr "将小程序锚定到末尾"
 
-#: docking/ui/settings.py:296
+#: docking/ui/settings.py:350
 msgid "Anchor Files to End"
-msgstr "Anchor Files to End"
+msgstr "将文件固定到末尾"
 
-#: docking/ui/settings.py:662
-msgid "The dock is always visible and reserves screen space."
-msgstr "The dock is always visible and reserves screen space."
+#: docking/ui/settings.py:372
+msgid "Mouse"
+msgstr "Mouse"
 
-#: docking/ui/settings.py:663
-msgid "Hides when the mouse cursor leaves the dock."
-msgstr "Hides when the mouse cursor leaves the dock."
+#: docking/ui/settings.py:374
+msgid "Left Click"
+msgstr "Left Click"
 
-#: docking/ui/settings.py:665
-msgid ""
-"Hides when a window from the focused application overlaps the dock area."
-msgstr ""
-"Hides when a window from the focused application overlaps the dock area."
+#: docking/ui/settings.py:375
+msgid "Middle Click"
+msgstr "Middle Click"
 
-#: docking/ui/settings.py:667
-msgid "Hides when the focused window overlaps the dock area."
-msgstr "Hides when the focused window overlaps the dock area."
+#: docking/ui/settings.py:382
+msgid "Hide Mode"
+msgstr "隐藏模式"
 
-#: docking/ui/settings.py:669
-msgid "Hides when any window on the current workspace overlaps the dock area."
-msgstr "Hides when any window on the current workspace overlaps the dock area."
+#: docking/ui/settings.py:383
+msgid "Hide Delay"
+msgstr "隐藏延迟"
 
-#: docking/ui/settings.py:672
-msgid ""
-"Hides when the focused window is maximized or a dialog overlaps the dock."
-msgstr ""
-"Hides when the focused window is maximized or a dialog overlaps the dock."
+#: docking/ui/settings.py:384
+msgid "Unhide Delay"
+msgstr "显示延迟"
 
-#~ msgid "Display"
-#~ msgstr "显示"
+#: docking/ui/settings.py:389
+msgid "Folder Stacks"
+msgstr "Folder Stacks"
 
-#~ msgid "Lock Icons"
-#~ msgstr "锁定图标"
+#: docking/ui/settings.py:391
+msgid "Open On"
+msgstr "Open On"
 
-#~ msgid "Themes"
-#~ msgstr "主题"
+#: docking/ui/settings.py:416
+msgid "Check Now"
+msgstr "立即检查"
 
-#~ msgid "Tooltips"
-#~ msgstr "Tooltips"
+#: docking/ui/settings.py:418
+msgid "View Releases"
+msgstr "查看发行版本"
 
+#: docking/ui/settings.py:430
+msgid "Update Checks"
+msgstr "更新检查"
+
+#: docking/ui/settings.py:432
+msgid "Check Automatically"
+msgstr "自动检查"
+
+#: docking/ui/settings.py:433
+msgid "Frequency"
+msgstr "频率"
+
+#: docking/ui/settings.py:434
+msgid "Status"
+msgstr "状态"
+
+#: docking/ui/settings.py:435
+msgid "Actions"
+msgstr "操作"
+
+#: docking/ui/settings.py:841
 #, python-brace-format
-#~ msgid "WiFi: {ssid}"
-#~ msgstr "WiFi：{ssid}"
+msgid "Last seen version: {version}"
+msgstr "上次看到的版本：{version}"
 
+#: docking/ui/settings.py:845
+msgid "No update found yet"
+msgstr "尚未找到更新"
+
+#: docking/ui/settings.py:847
+msgid "Not checked yet"
+msgstr "尚未检查"
+
+#: docking/ui/settings.py:882
+msgid "The dock is always visible and reserves screen space."
+msgstr "停靠栏始终可见并保留屏幕空间。"
+
+#: docking/ui/settings.py:884
+msgid ""
+"Always visible and floats above all windows without reserving screen space."
+msgstr "始终可见，悬浮在所有窗口之上且不占用屏幕空间。"
+
+#: docking/ui/settings.py:887
+msgid "Hides when the mouse cursor leaves the dock."
+msgstr "鼠标离开停靠栏时隐藏。"
+
+#: docking/ui/settings.py:889
+msgid ""
+"Hides when a window from the focused application overlaps the dock area."
+msgstr ""
+"Hides when a window from the focused application overlaps the dock area."
+
+#: docking/ui/settings.py:891
+msgid "Hides when the focused window overlaps the dock area."
+msgstr "焦点窗口与停靠栏重叠时隐藏。"
+
+#: docking/ui/settings.py:893
+msgid "Hides when any window on the current workspace overlaps the dock area."
+msgstr "当前工作区的任何窗口与停靠栏重叠时隐藏。"
+
+#: docking/ui/settings.py:896
+msgid ""
+"Hides when the focused window is maximized or a dialog overlaps the dock."
+msgstr ""
+"Hides when the focused window is maximized or a dialog overlaps the dock."
+
+#: docking/ui/update_popup.py:173
+#, python-brace-format
+msgid "Docking {version} is available"
+msgstr "Docking {version} 已可用"
+
+#: docking/ui/update_popup.py:179
+#, python-brace-format
+msgid "You are using {version}."
+msgstr "您正在使用 {version}。"
+
+#: docking/ui/update_popup.py:188
+msgid "View Release"
+msgstr "查看发行版本"
+
+#: docking/ui/update_popup.py:189
+msgid "Later"
+msgstr "稍后"
+
+#: docking/ui/update_popup.py:190
+msgid "Ignore"
+msgstr "忽略"

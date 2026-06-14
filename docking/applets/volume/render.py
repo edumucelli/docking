@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo renderer for the volume applet icon set."""
 
 from __future__ import annotations
@@ -10,6 +23,8 @@ import gi
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
+
+from docking.applets.base import draw_icon_label
 
 from .state import _volume_icon_name
 
@@ -95,7 +110,11 @@ def _draw_mute_x(
 
 
 def create_volume_icon(
-    *, size: int, volume: int, muted: bool
+    *,
+    size: int,
+    volume: int,
+    muted: bool,
+    show_level: bool = False,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render speaker icon with waves/mute marker for volume state."""
     icon = _volume_icon_name(volume=volume, muted=muted)
@@ -113,5 +132,8 @@ def create_volume_icon(
         _draw_waves(cr=cr, size=size, arcs=2)
     else:
         _draw_waves(cr=cr, size=size, arcs=3)
+
+    if show_level:
+        draw_icon_label(cr=cr, text=f"{volume}%", size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

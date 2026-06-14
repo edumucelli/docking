@@ -287,11 +287,7 @@ class TestPomodoroInternals:
         assert applet._save.call_count == 4
         applet.present.assert_called_once()
 
-    def test_make_duration_header_and_radio_item(self):
+    def test_make_duration_header(self):
         header = PomodoroApplet._make_duration_header("Work")
         assert header.get_label() == "Work"
         assert header.get_sensitive() is False
-
-        callback = MagicMock()
-        radio = PomodoroApplet._make_radio_item("25 min", True, callback)
-        assert radio.get_active() is True

@@ -1,7 +1,21 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for Notifications applet."""
 
 from __future__ import annotations
 
+import shlex
 import shutil
 import subprocess
 import threading
@@ -16,10 +30,13 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
+from docking.core.math import clamp_index, clamp_int
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.environment import flatpak, is_flatpak
 
 from .render import create_notifications_icon
 from .state import (
@@ -43,6 +60,8 @@ TOOLTIP_BODY_LIMIT = 96
 MAX_HISTORY_BADGE_COUNT = 99
 ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S = 0.4
 ELLIPSIS_RESERVED_CHARS = 3
+NOTIFICATION_MONITOR_RULE = "interface='org.freedesktop.Notifications',member='Notify'"
+HOST_MONITOR_PID_PREFIX = "__DOCKING_HOST_DBUS_MONITOR_PID="
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +86,7 @@ class NotificationsApplet(Applet):
         self._activity_clear_id: int = 0
         self._activity_monitor_proc: subprocess.Popen[str] | None = None
         self._activity_monitor_thread: threading.Thread | None = None
+        self._activity_monitor_host_pid: str | None = None
         self._history: list[NotificationEntry] = []
         self._history_index: int = 0
         self._worker = BackgroundWorker()
@@ -123,34 +143,31 @@ class NotificationsApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            placeholder = Gtk.MenuItem(label=_("No notification backend available"))
-            placeholder.set_sensitive(False)
-            return [placeholder]
-
-        items: list[Gtk.MenuItem] = []
+            return [disabled_menu_item(_("No notification backend available"), gtk=Gtk)]
 
         dnd = Gtk.CheckMenuItem(label=_("Do Not Disturb"))
         dnd.set_active(self._state.paused)
         dnd.connect("toggled", self._on_toggle_dnd)
-        items.append(dnd)
 
+        status: list[Gtk.MenuItem] = []
         if self._state.pending_known:
-            pending = Gtk.MenuItem(
-                label=_("Pending: {n}").format(n=self._state.pending)
+            status.append(
+                disabled_menu_item(
+                    _("Pending: {n}").format(n=self._state.pending),
+                    gtk=Gtk,
+                )
             )
-            pending.set_sensitive(False)
-            items.append(pending)
 
         clear_history = Gtk.MenuItem(label=_("Clear History"))
         clear_history.connect("activate", lambda _w: self._on_clear_history())
-        items.append(clear_history)
+        destructive = [clear_history]
 
         if self._backend.supports_clear:
             clear = Gtk.MenuItem(label=_("Clear Notifications"))
             clear.connect("activate", lambda _w: self._on_clear())
-            items.append(clear)
+            destructive.append(clear)
 
-        return items
+        return menu_sections(status=status, display=[dnd], destructive=destructive)
 
     def _on_toggle_dnd(self, widget: Gtk.CheckMenuItem) -> None:
         target = widget.get_active()
@@ -205,7 +222,7 @@ class NotificationsApplet(Applet):
         )
 
     def _history_badge_count(self) -> int:
-        return max(0, min(MAX_HISTORY_BADGE_COUNT, len(self._history)))
+        return clamp_int(len(self._history), 0, MAX_HISTORY_BADGE_COUNT)
 
     def _on_notification_activity(self, force_refresh: bool = False) -> bool:
         previous = self._show_activity_badge()
@@ -231,18 +248,15 @@ class NotificationsApplet(Applet):
     def _start_activity_monitor(self) -> None:
         if self._activity_monitor_proc is not None:
             return
-        if shutil.which("dbus-monitor") is None:
+        command = self._activity_monitor_command()
+        if command is None:
             log.bind(action="activity_monitor").warning(
                 "dbus-monitor not found; notification activity monitoring is disabled"
             )
             return
         try:
             self._activity_monitor_proc = subprocess.Popen(
-                [
-                    "dbus-monitor",
-                    "--session",
-                    "interface='org.freedesktop.Notifications',member='Notify'",
-                ],
+                command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
@@ -261,18 +275,59 @@ class NotificationsApplet(Applet):
         )
         self._activity_monitor_thread.start()
 
+    def _activity_monitor_command(self) -> list[str] | None:
+        if is_flatpak():
+            # The Flatpak D-Bus proxy does not expose other clients' Notify
+            # method calls to sandbox dbus-monitor, so observe on the host.
+            monitor_rule = shlex.quote(NOTIFICATION_MONITOR_RULE)
+            return flatpak.host_command(
+                [
+                    "sh",
+                    "-c",
+                    "command -v dbus-monitor >/dev/null || exit 127; "
+                    f"echo {HOST_MONITOR_PID_PREFIX}$$; "
+                    f"exec dbus-monitor --session {monitor_rule}",
+                ]
+            )
+
+        dbus_monitor = shutil.which("dbus-monitor")
+        if dbus_monitor is None:
+            return None
+        return [dbus_monitor, "--session", NOTIFICATION_MONITOR_RULE]
+
     def _stop_activity_monitor(self) -> None:
         proc = self._activity_monitor_proc
         self._activity_monitor_proc = None
+        host_pid = self._activity_monitor_host_pid
+        self._activity_monitor_host_pid = None
         if proc is None:
             return
+        if host_pid is not None:
+            self._stop_host_activity_monitor(host_pid)
         try:
             proc.terminate()
             proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
+            log.debug("dbus-monitor did not exit cleanly, forcing kill: %s", exc)
             proc.kill()
-        except OSError:
+        except OSError as exc:
+            log.debug("Failed to stop dbus-monitor cleanly: %s", exc)
             return
+
+    def _stop_host_activity_monitor(self, pid: str) -> None:
+        command = flatpak.host_command(["kill", pid], sanitize_env=False)
+        if command is None:
+            return
+        try:
+            subprocess.run(
+                command,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            log.debug("Failed to stop host dbus-monitor %s: %s", pid, exc)
 
     def _activity_monitor_worker(self) -> None:
         proc = self._activity_monitor_proc
@@ -282,6 +337,13 @@ class NotificationsApplet(Applet):
         notify_strings: list[str] = []
         try:
             for line in proc.stdout:
+                if line.startswith(HOST_MONITOR_PID_PREFIX):
+                    # Store the host-side pid so stop() can kill the actual
+                    # dbus-monitor, not just the flatpak-spawn wrapper.
+                    self._activity_monitor_host_pid = line[
+                        len(HOST_MONITOR_PID_PREFIX) :
+                    ].strip()
+                    continue
                 if "member=Notify" in line:
                     capture_notify = True
                     notify_strings = []
@@ -328,7 +390,7 @@ class NotificationsApplet(Applet):
     def _current_notification_lines(self) -> list[str]:
         if not self._history:
             return []
-        idx = max(0, min(self._history_index, len(self._history) - 1))
+        idx = clamp_index(self._history_index, len(self._history))
         entry = self._history[idx]
         lines = [f"Notification {idx + 1}/{len(self._history)}:"]
         if entry.summary:

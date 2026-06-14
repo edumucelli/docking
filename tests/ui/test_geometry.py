@@ -21,6 +21,7 @@ def _config(pos: Position = Position.BOTTOM) -> SimpleNamespace:
         icon_size=48,
         zoom_percent=1.5,
         zoom_enabled=True,
+        additional_distance_from_edge=0,
     )
 
 
@@ -28,7 +29,7 @@ def _theme(distance_from_edge: int = 0) -> SimpleNamespace:
     return SimpleNamespace(
         distance_from_edge=distance_from_edge,
         item_padding=8,
-        h_padding=12,
+        horizontal_padding=12,
         top_padding=0,
         bottom_padding=4,
         shelf_height=21,
@@ -200,7 +201,7 @@ class TestDockGeometryFrame:
         left, right = content_bounds(
             layout=list(frame.layout),
             icon_size=48,
-            h_padding=12,
+            horizontal_padding=12,
             item_padding=8,
         )
         shelf_width = right - left
@@ -378,6 +379,8 @@ _ALL_THEMES = [
     "onyx",
     "slate",
     "glass",
+    "paper",
+    "candy",
     "transparent",
     "olive",
     "ember",
@@ -410,6 +413,7 @@ class TestShelfHidesCompletely:
                 icon_size=icon_size,
                 zoom_percent=zoom,
                 zoom_enabled=True,
+                additional_distance_from_edge=0,
             ),
             theme=theme,
             window_w=1920,

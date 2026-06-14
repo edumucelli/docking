@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Shared dock layout primitives used by geometry and rendering.
 
 Why this module exists
@@ -143,7 +156,7 @@ def compute_layout(
     config: Config,
     cursor_x: float,
     item_padding: float = 6.0,
-    h_padding: float = 12.0,
+    horizontal_padding: float = 12.0,
     zoom_progress: float = 1.0,
 ) -> list[LayoutItem]:
     """Compute dock item positions and scales for the current pointer state."""
@@ -159,7 +172,7 @@ def compute_layout(
     widths = [int((item.main_size or icon_size) * item.insert_factor) for item in items]
 
     rest_centers: list[float] = []
-    x = h_padding
+    x = horizontal_padding
     for w in widths:
         pad = item_padding if w > 0 else 0
         x += w / 2
@@ -200,12 +213,12 @@ def compute_layout(
 def content_bounds(
     layout: list[LayoutItem],
     icon_size: int,
-    h_padding: float,
+    horizontal_padding: float,
     item_padding: float = 0.0,
 ) -> Bounds:
     """Compute the left and right edges of the content including padding."""
     half_item_pad = item_padding / 2
-    pad = h_padding + half_item_pad
+    pad = horizontal_padding + half_item_pad
     if not layout:
         return Bounds(left=0.0, right=2 * pad)
     first = layout[0]

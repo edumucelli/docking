@@ -1,13 +1,28 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state helpers for Brightness applet -- no GTK dependency."""
 
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
 from docking.log import get_logger
+from docking.platform.environment import is_wayland_session
 
 log = get_logger(name="brightness.state")
 
@@ -19,6 +34,7 @@ class Backend(NamedTuple):
 
     output: str  # xrandr output name (e.g. "eDP-1")
     sysfs: Path | None = None  # e.g. /sys/class/backlight/intel_backlight
+    brightnessctl: str | None = None
 
 
 def _run(cmd: list[str]) -> str | None:
@@ -40,8 +56,8 @@ def _find_sysfs_backlight() -> Path | None:
                 entry / "max_brightness"
             ).is_file():
                 return entry
-    except OSError:
-        pass
+    except OSError as exc:
+        log.debug("Failed to inspect %s: %s", _BACKLIGHT_DIR, exc)
     return None
 
 
@@ -54,18 +70,29 @@ def detect_output() -> Backend | None:
     for line in out.strip().splitlines()[1:]:
         parts = line.split()
         if len(parts) >= 4:
-            return Backend(output=parts[-1], sysfs=_find_sysfs_backlight())
+            return Backend(
+                output=parts[-1],
+                sysfs=_find_sysfs_backlight(),
+                brightnessctl=shutil.which("brightnessctl"),
+            )
     return None
 
 
 def get_brightness(backend: Backend) -> float | None:
     """Read current brightness (0.0-1.0).
 
-    Prefers sysfs (instant, no X11 lock) over xrandr --verbose (slow).
+    Prefer X11 brightness on X11 sessions and backlight state on Wayland.
     """
+    if is_wayland_session():
+        if backend.sysfs:
+            return _get_brightness_sysfs(path=backend.sysfs)
+        return _get_brightness_xrandr(backend=backend)
+    brightness = _get_brightness_xrandr(backend=backend)
+    if brightness is not None:
+        return brightness
     if backend.sysfs:
         return _get_brightness_sysfs(path=backend.sysfs)
-    return _get_brightness_xrandr(backend=backend)
+    return None
 
 
 def _get_brightness_sysfs(path: Path) -> float | None:
@@ -99,9 +126,43 @@ def _get_brightness_xrandr(backend: Backend) -> float | None:
 
 
 def set_brightness(backend: Backend, value: float) -> None:
-    """Set brightness (0.1-1.0) via xrandr."""
+    """Set brightness (0.1-1.0), preferring X11 on X11 and backlight on Wayland."""
     clamped = max(0.1, min(1.0, value))
-    _run(cmd=["xrandr", "--output", backend.output, "--brightness", f"{clamped:.2f}"])
+    xrandr_cmd = [
+        "xrandr",
+        "--output",
+        backend.output,
+        "--brightness",
+        f"{clamped:.2f}",
+    ]
+    if is_wayland_session():
+        if backend.brightnessctl:
+            _run(cmd=[backend.brightnessctl, "set", f"{round(clamped * 100)}%"])
+            return
+        if backend.sysfs:
+            _set_brightness_sysfs(path=backend.sysfs, value=clamped)
+            return
+        _run(cmd=xrandr_cmd)
+        return
+    if _run(cmd=xrandr_cmd) is not None:
+        return
+    if backend.brightnessctl:
+        _run(cmd=[backend.brightnessctl, "set", f"{round(clamped * 100)}%"])
+        return
+    if backend.sysfs:
+        _set_brightness_sysfs(path=backend.sysfs, value=clamped)
+
+
+def _set_brightness_sysfs(path: Path, value: float) -> None:
+    """Write brightness to /sys/class/backlight as an integer level."""
+    try:
+        maximum = int((path / "max_brightness").read_text().strip())
+        if maximum <= 0:
+            return
+        current = max(1, round(maximum * value))
+        (path / "brightness").write_text(f"{current}\n")
+    except (OSError, ValueError) as exc:
+        log.warning("Failed to write sysfs backlight: %s", exc)
 
 
 def brightness_icon_name(brightness: float) -> str:

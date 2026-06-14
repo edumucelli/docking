@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and backend helpers for music control applet."""
 
 from __future__ import annotations
@@ -10,6 +23,7 @@ from typing import Any
 
 import gi
 
+from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 
 gi.require_version("Gio", "2.0")
@@ -124,19 +138,25 @@ def _icon_name_from_bus_name(bus_name: str) -> str:
 def tooltip_text(state: MusicState) -> str:
     """Detailed tooltip text for the music applet."""
     if not state.available:
-        return _("Music: No active player")
+        return structured_tooltip(
+            title=_("Music"),
+            primary=_("No active player"),
+        )
 
-    lines: list[str] = []
     details = " - ".join(part for part in [state.artist, state.title] if part)
+    primary = None
     if details:
-        lines.append(details)
+        primary = details
     elif state.title:
-        lines.append(state.title)
+        primary = state.title
+    secondary = []
     if state.album:
-        lines.append(f"Album: {state.album}")
-    if not lines:
-        return _("Music")
-    return "\n".join(lines)
+        secondary.append(f"Album: {state.album}")
+    return structured_tooltip(
+        title=_("Music"),
+        primary=primary,
+        details=secondary,
+    )
 
 
 def _unpack(value: Any) -> Any:
@@ -174,6 +194,8 @@ def _as_float(value: Any, default: float = 0.0) -> float:
 
 def _normalize_volume_percent(value: float) -> int:
     """Normalize volume reported as ratio (0..1) or percent (0..100)."""
+    # PulseAudio/MPRIS reports 0.0-1.0, ALSA reports 0-100; 1.5 threshold
+    # distinguishes the two (no sane volume is between 1.5% and 150%).
     if value <= 1.5:
         return clamp_percent(round(value * 100))
     return clamp_percent(round(value))
@@ -185,7 +207,7 @@ def _metadata_str(metadata: dict[str, Any], key: str) -> str:
 
 def _metadata_artist(metadata: dict[str, Any]) -> str:
     value = _unpack(metadata.get("xesam:artist", []))
-    if isinstance(value, (list, tuple)) and value:
+    if isinstance(value, list | tuple) and value:
         return str(value[0])
     return _as_str(value)
 
@@ -315,6 +337,8 @@ class MprisBackend:
             return False
 
     def _select_player(self, states: list[MusicState]) -> MusicState:
+        # Currently-playing players take priority; among those, prefer
+        # the last-active one for session continuity.
         playing = [state for state in states if state.playback_status == "Playing"]
         if playing:
             return next(
@@ -325,6 +349,7 @@ class MprisBackend:
                 ),
                 playing[0],
             )
+        # No player is playing - fall back to last-active, then first available.
         return next(
             (
                 state
@@ -447,6 +472,8 @@ class MprisBackend:
         if props is None:
             return None
         try:
+            # "(ss)" = GLib.Variant type string for two strings (interface, property).
+            # 1200ms timeout keeps UI responsive if a player is hung.
             result = props.call_sync(
                 "Get",
                 GLib.Variant("(ss)", (interface_name, property_name)),
@@ -484,12 +511,14 @@ class MprisBackend:
             return False
 
     def _get_player_proxy(self, bus_name: str) -> Gio.DBusProxy | None:
+        # Player interface proxy for transport methods (PlayPause, Next, etc).
         if self._bus is None:
             return None
         proxy = self._player_proxies.get(bus_name)
         if proxy is not None:
             return proxy
         try:
+            # DO_NOT_AUTO_START prevents launching the player process if it exited.
             proxy = Gio.DBusProxy.new_sync(
                 self._bus,
                 Gio.DBusProxyFlags.DO_NOT_AUTO_START,
@@ -506,6 +535,8 @@ class MprisBackend:
             return None
 
     def _get_props_proxy(self, bus_name: str) -> Gio.DBusProxy | None:
+        """Separate Properties interface proxy - needed because Get/Set live on
+        org.freedesktop.DBus.Properties, not on the Player interface."""
         if self._bus is None:
             return None
         proxy = self._props_proxies.get(bus_name)
@@ -648,7 +679,8 @@ class PlayerctlBackend:
         if volume_raw:
             try:
                 volume_percent = _normalize_volume_percent(float(volume_raw.strip()))
-            except ValueError:
+            except ValueError as exc:
+                log.debug("Invalid playerctl volume output %r: %s", volume_raw, exc)
                 volume_percent = 0
 
         return MusicState(
@@ -815,7 +847,7 @@ class RhythmboxClientBackend:
         if has_track_payload:
             playback_status = "Playing"
             parts = [*text.split("\t"), "", "", "", ""][:4]
-            title, artist, album, track_url = [part.strip() for part in parts]
+            title, artist, album, track_url = (part.strip() for part in parts)
 
         volume_percent = self._read_volume_percent()
         return MusicState(
@@ -888,7 +920,8 @@ class RhythmboxClientBackend:
             return 0
         try:
             return _normalize_volume_percent(float(match.group(1)))
-        except ValueError:
+        except ValueError as exc:
+            log.debug("Invalid Rhythmbox volume output %r: %s", out, exc)
             return 0
 
     def _run_action(self, action: str, gtk_action: str) -> bool:

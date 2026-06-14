@@ -1,13 +1,23 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and grouping logic for Applications applet."""
 
 from __future__ import annotations
 
 from collections import defaultdict
 
-import gi
-
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gio
+from docking.applets.apps import ApplicationEntry, all_desktop_app_infos
 
 # FreeDesktop main categories -> display label
 CATEGORY_LABELS: dict[str, str] = {
@@ -52,21 +62,16 @@ def _map_category(categories: str) -> str:
     return display_cat
 
 
-def _build_app_categories() -> dict[str, list[Gio.DesktopAppInfo]]:
+def _build_app_categories() -> dict[str, list[ApplicationEntry]]:
     """Group installed apps by FreeDesktop category.
 
     Returns {display_category: [app_info, ...]} sorted by app name.
     Apps that don't match any known category go into "Other".
     Hidden and no-display apps are excluded.
     """
-    categories: dict[str, list[Gio.DesktopAppInfo]] = defaultdict(list)
+    categories: dict[str, list[ApplicationEntry]] = defaultdict(list)
 
-    for app_info in Gio.AppInfo.get_all():
-        if not isinstance(app_info, Gio.DesktopAppInfo):
-            continue
-        if app_info.get_is_hidden() or app_info.get_nodisplay():
-            continue
-
+    for app_info in all_desktop_app_infos():
         cats = app_info.get_categories() or ""
         categories[_map_category(categories=cats)].append(app_info)
 

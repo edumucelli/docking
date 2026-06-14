@@ -75,7 +75,7 @@ class TestParseMoonHtml:
             def __enter__(self):
                 return self
 
-            def __exit__(self, exc_type, exc, tb):
+            def __exit__(self, _exc_type, exc, _tb):
                 return False
 
         monkeypatch.setattr(moon_state_mod, "urlopen", lambda req, timeout=10: _Resp())
@@ -242,7 +242,7 @@ class TestMoonApplet:
         applet = MoonApplet(48)
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Show Phase Name" in labels
-        assert "Refresh" in labels
+        assert "Refresh Now" in labels
 
     def test_icon_renders_with_data(self):
         applet = MoonApplet(48)

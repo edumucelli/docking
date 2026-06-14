@@ -1,0 +1,92 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""Shared city database for applets -- gzipped CSV loading and search.
+
+Loads ~48K cities from a gzipped SimpleMaps CSV (871KB on disk).
+Provides prefix-based search for autocomplete entries in applet menus.
+"""
+
+from __future__ import annotations
+
+import csv
+import gzip
+from pathlib import Path
+from typing import NamedTuple
+
+from docking.log import get_logger
+
+_CITIES_GZ = Path(__file__).parent.parent / "assets" / "cities.csv.gz"
+log = get_logger("applets.cities")
+
+
+class CityEntry(NamedTuple):
+    """A city with coordinates for applet lookups."""
+
+    name: str  # ASCII city name (e.g. "Berlin")
+    country: str  # Full country name (e.g. "Germany")
+    display: str  # "Berlin, Germany" for UI
+    lat: float
+    lng: float
+
+
+def load_cities(path: Path = _CITIES_GZ) -> list[CityEntry]:
+    """Parse the gzipped cities CSV, sorted by population (largest first).
+
+    Columns used: city_ascii, lat, lng, country, population.
+    Rows with missing coordinates are skipped.
+    """
+    entries: list[tuple[int, CityEntry]] = []
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                lat = float(row["lat"])
+                lng = float(row["lng"])
+            except (ValueError, KeyError) as exc:
+                log.debug("Skipping malformed city row %r: %s", row, exc)
+                continue
+            name = row.get("city_ascii", "").strip()
+            country = row.get("country", "").strip()
+            if not name:
+                continue
+            pop_str = row.get("population", "").strip()
+            pop = int(float(pop_str)) if pop_str else 0
+            entry = CityEntry(
+                name=name,
+                country=country,
+                display=f"{name}, {country}",
+                lat=lat,
+                lng=lng,
+            )
+            entries.append((pop, entry))
+
+    # Sort by population descending so popular cities appear first in search
+    entries.sort(key=lambda t: t[0], reverse=True)
+    return [e for _, e in entries]
+
+
+def search_cities(
+    query: str, cities: list[CityEntry] | tuple[CityEntry, ...], limit: int = 10
+) -> list[CityEntry]:
+    """Case-insensitive prefix search on display name. Returns up to limit matches."""
+    if not query:
+        return []
+    q = query.lower()
+    results: list[CityEntry] = []
+    for city in cities:
+        if city.display.lower().startswith(q):
+            results.append(city)
+            if len(results) >= limit:
+                break
+    return results

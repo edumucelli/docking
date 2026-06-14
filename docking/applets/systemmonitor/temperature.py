@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """CPU temperature detection helpers for System Monitor applet."""
 
 from __future__ import annotations
@@ -9,9 +22,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from docking.log import get_logger
+
 CPU_TEMP_COMMAND_TIMEOUT_S = 0.25
 _THERMAL_ROOT = Path("/sys/class/thermal")
 _HWMON_ROOT = Path("/sys/class/hwmon")
+log = get_logger("systemmonitor.temperature")
 
 
 @dataclass(frozen=True)
@@ -72,7 +88,8 @@ def parse_sysfs_temperature(text: str) -> float | None:
         return None
     try:
         value = float(raw)
-    except ValueError:
+    except ValueError as exc:
+        log.debug("Invalid sysfs temperature value %r: %s", raw, exc)
         return None
     if value >= 1000:
         value /= 1000.0
@@ -288,7 +305,8 @@ def _run_command(cmd: list[str], timeout_s: float) -> str | None:
             timeout=timeout_s,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        log.debug("Failed to run temperature command %s: %s", cmd, exc)
         return None
     if result.returncode != 0:
         return None
@@ -298,7 +316,8 @@ def _run_command(cmd: list[str], timeout_s: float) -> str | None:
 def _safe_read_text(path: Path) -> str | None:
     try:
         return path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+    except (OSError, UnicodeDecodeError) as exc:
+        log.debug("Failed to read temperature file %s: %s", path, exc)
         return None
 
 

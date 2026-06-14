@@ -5,7 +5,7 @@ let
 in
 pyPkgs.buildPythonApplication rec {
   pname = "docking";
-  version = "1.2.4";
+  version = "2.1.0";
   format = "pyproject";
 
   src = ../..;
@@ -14,16 +14,18 @@ pyPkgs.buildPythonApplication rec {
     setuptools
     wheel
     pkgs.gettext
+    pkgs.gobject-introspection
+    pkgs.wrapGAppsHook3
   ];
 
   buildInputs = with pkgs; [
     gtk3
+    gtk-layer-shell
     libwnck
     networkmanager
     gdk-pixbuf
     pango
     cairo
-    gobject-introspection
     gst_all_1.gstreamer
     librsvg
   ];
@@ -31,6 +33,7 @@ pyPkgs.buildPythonApplication rec {
   propagatedBuildInputs = with pyPkgs; [
     pycairo
     pygobject3
+    pywayland
   ];
 
   # Weather client deps are not consistently available in nixpkgs channels.
@@ -48,13 +51,29 @@ pyPkgs.buildPythonApplication rec {
   '';
 
   postInstall = ''
+    mv "$out/bin/docking" "$out/bin/docking-real"
+    cat > "$out/bin/docking" <<EOF
+#!/bin/sh
+set -eu
+exec "$out/bin/docking-real" "\$@"
+EOF
+    chmod 0755 "$out/bin/docking"
+
     install -Dm644 ${../shared/org.docking.Docking.desktop} \
       "$out/share/applications/org.docking.Docking.desktop"
     substituteInPlace "$out/share/applications/org.docking.Docking.desktop" \
       --replace-fail "Exec=docking" "Exec=$out/bin/docking"
 
+    install -Dm644 ${../shared/org.docking.camshield.policy} \
+      "$out/share/polkit-1/actions/org.docking.camshield.policy"
+
     mkdir -p "$out/share/icons/hicolor"
     cp -a ${../deb/icons/hicolor}/. "$out/share/icons/hicolor/"
+
+    install -Dm644 ${../../docking/platform/backends/gnome/extension/metadata.json} \
+      "$out/share/gnome-shell/extensions/docking-bridge@docking.org/metadata.json"
+    install -Dm644 ${../../docking/platform/backends/gnome/extension/extension.js} \
+      "$out/share/gnome-shell/extensions/docking-bridge@docking.org/extension.js"
   '';
 
   meta = with pkgs.lib; {
