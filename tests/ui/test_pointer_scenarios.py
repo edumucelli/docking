@@ -423,6 +423,7 @@ class TestMenuLifecycleScenarios:
             window_tracker=harness.window_tracker,
             preview_service=MagicMock(),
             geometry_builder=cast(Any, _GeometryBuilder()),
+            diagnostics=MagicMock(),
         )
         created: list[_FakePopupMenu] = []
 

@@ -24,6 +24,8 @@ from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandWindowService,
 )
 from docking.platform.backends.wayland.hyprland_session import HyprlandSessionBackend
+from docking.platform.backends.wayland.niri_ipc import NiriWindowService
+from docking.platform.backends.wayland.niri_session import NiriSessionBackend
 from docking.platform.backends.wayland.portals import WaylandPortalColorPickerService
 from docking.platform.backends.wayland.previews import (
     HyprlandPreviewService,
@@ -373,3 +375,56 @@ def test_layer_shell_support_probe_handles_missing_or_failing_probe():
         raise RuntimeError("boom")
 
     assert layer_shell_is_supported(SimpleNamespace(is_supported=broken_probe)) is False
+
+
+def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
+    window_service = NiriWindowService(
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        client=MagicMock(),
+    )
+    backend = NiriSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
+        protocol_runtime=_empty_runtime(),
+        window_service=window_service,
+    )
+
+    assert backend.name == "niri"
+    assert backend.display_server is DisplayServer.WAYLAND
+    assert backend.windows is window_service
+    assert backend.capabilities.tracks_windows is True
+    assert backend.capabilities.tracks_active_window is True
+    assert backend.capabilities.tracks_attention is True
+    assert backend.capabilities.tracks_window_geometry is True
+    assert backend.capabilities.tracks_window_workspace is True
+    assert backend.capabilities.supports_current_workspace_filter is True
+    assert backend.capabilities.supports_activate is True
+    assert backend.capabilities.supports_minimize is False  # tiling compositor
+    assert backend.capabilities.supports_close is True
+    assert backend.capabilities.supports_layer_shell is True
+    assert backend.capabilities.supports_screen_reservation is True
+    assert backend.capabilities.supports_input_region is True
+
+
+def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.niri_session.load_niri_window_service",
+        lambda **_: None,
+    )
+    backend = NiriSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
+        protocol_runtime=_empty_runtime(),
+    )
+
+    assert isinstance(backend.windows, ReducedWindowService)
+    assert backend.capabilities.tracks_windows is False
+    assert backend.capabilities.supports_layer_shell is True

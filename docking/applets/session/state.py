@@ -100,9 +100,17 @@ def lock_screen() -> bool:
 
 def _run(*, cmd: list[str], action: str) -> None:
     """Run a session/power command, logging failures."""
-    resolved_cmd = flatpak.host_command(cmd) or cmd
+    # Resolve session-id placeholder for loginctl commands.
+    resolved_cmd = list(cmd)
+    if resolved_cmd[0:2] == ["loginctl", "terminate-session"] and resolved_cmd[2] == "":
+        session_id = (os.environ.get("XDG_SESSION_ID") or "").strip()
+        resolved_cmd[2] = session_id
+    resolved_cmd = flatpak.host_command(resolved_cmd) or resolved_cmd
+    # Remove empty arguments so loginctl auto-detects the calling session
+    # when XDG_SESSION_ID is not available.
+    resolved_cmd = [a for a in resolved_cmd if a != ""]
     try:
-        subprocess.Popen(resolved_cmd, start_new_session=True)
+        subprocess.Popen(resolved_cmd)
     except OSError as exc:
         log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
 
