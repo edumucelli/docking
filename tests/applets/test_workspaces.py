@@ -12,9 +12,18 @@ from docking.platform.backends.base import WorkspaceSnapshot
 
 
 def _workspace(
-    number: int, *, name: str = "", active: bool = False
+    number: int,
+    *,
+    workspace_id: str | None = None,
+    name: str = "",
+    active: bool = False,
 ) -> WorkspaceSnapshot:
-    return WorkspaceSnapshot(id=str(number), number=number, name=name, active=active)
+    return WorkspaceSnapshot(
+        id=workspace_id or str(number),
+        number=number,
+        name=name,
+        active=active,
+    )
 
 
 class TestRenderGrid:
@@ -105,6 +114,21 @@ class TestWorkspacesBehavior:
         # Then
         service.activate.assert_called_once_with("2")
 
+    def test_on_clicked_activates_next_workspace_by_snapshot_id(self):
+        # Given
+        applet = WorkspacesApplet(48)
+        service = MagicMock()
+        service.list_workspaces.return_value = [
+            _workspace(0, workspace_id="first"),
+            _workspace(1, workspace_id="second", active=True),
+            _workspace(2, workspace_id="target"),
+        ]
+        applet.set_services(AppletServices(workspaces=service))
+        # When
+        applet.on_clicked()
+        # Then
+        service.activate.assert_called_once_with("target")
+
     def test_on_clicked_no_screen_or_active_is_safe(self):
         # Given
         applet = WorkspacesApplet(48)
@@ -135,6 +159,21 @@ class TestWorkspacesBehavior:
         applet.on_scroll(direction_up=False)
         # Then
         service.activate.assert_called_once_with("1")
+
+    def test_on_scroll_activates_workspace_by_snapshot_id(self):
+        # Given
+        applet = WorkspacesApplet(48)
+        service = MagicMock()
+        service.list_workspaces.return_value = [
+            _workspace(0, workspace_id="previous"),
+            _workspace(1, workspace_id="current", active=True),
+            _workspace(2, workspace_id="next"),
+        ]
+        applet.set_services(AppletServices(workspaces=service))
+        # When
+        applet.on_scroll(direction_up=True)
+        # Then
+        service.activate.assert_called_once_with("previous")
 
     def test_get_menu_items_builds_radios_for_workspaces(self):
         # Given

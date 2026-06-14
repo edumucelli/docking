@@ -134,7 +134,8 @@ class WorkspacesApplet(Applet):
             next_num,
             count,
         )
-        service.activate(str(next_num))
+        if 0 <= next_num < len(workspaces):
+            service.activate(workspaces[next_num].id)
 
     def on_scroll(self, direction_up: bool) -> None:
         """Switch workspace on scroll."""
@@ -159,7 +160,8 @@ class WorkspacesApplet(Applet):
             next_num,
             count,
         )
-        service.activate(str(next_num))
+        if 0 <= next_num < len(workspaces):
+            service.activate(workspaces[next_num].id)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         service = self._workspace_service
