@@ -84,12 +84,13 @@ availability, optional helper tools, monitors, and a copyable Markdown report.
 
 **Auto-detection order on native Wayland:**
 
-1. COSMIC (if `XDG_CURRENT_DESKTOP=COSMIC`)
-2. Niri (if `XDG_CURRENT_DESKTOP=niri`)
-3. KWin / KDE Plasma 6 (if `XDG_CURRENT_DESKTOP=KDE`)
-4. Generic layer-shell (if the compositor advertises `zwlr_layer_shell_v1`)
-5. GNOME Shell bridge (if the bridge D-Bus service is available)
-6. Reduced (fallback)
+1. Hyprland (if `XDG_CURRENT_DESKTOP=Hyprland`)
+2. COSMIC (if `XDG_CURRENT_DESKTOP=COSMIC`)
+3. Niri (if `XDG_CURRENT_DESKTOP=niri`)
+4. KWin / KDE Plasma 6 (if `XDG_CURRENT_DESKTOP=KDE`)
+5. Generic layer-shell (if the compositor advertises `zwlr_layer_shell_v1`)
+6. GNOME Shell bridge (if the bridge D-Bus service is available)
+7. Reduced (fallback)
 
 **Manual override** via `DOCKING_BACKEND`:
 
@@ -163,8 +164,8 @@ Launch: `DOCKING_BACKEND=kwin python3 run.py`
 
 ### Hyprland
 
-**Backend:** `wayland/hyprland_ipc.py`
-**Auto-detected:** Via `HYPRLAND_INSTANCE_SIGNATURE`
+**Backend:** `wayland/hyprland_session.py` + `wayland/hyprland_ipc.py`
+**Auto-detected:** Yes, when desktop detection reports Hyprland
 **Status:** IPC-based window tracking, actions, and workspaces
 
 Uses Hyprland's event socket (`.socket2.sock`) for live state and short-lived
@@ -176,9 +177,9 @@ to avoid stalling the compositor.
 | Edge placement / exclusive zone | ✓ | `zwlr_layer_shell_v1` via `gtk-layer-shell` |
 | Running indicators / active state | ✓ | Event socket (`openwindow`, `closewindow`, `activewindowv2`) |
 | Window actions (focus, close) | ✓ | Dispatch commands via command socket |
-| Workspace listing / switching | ✓ | IPC workspace events and commands |
+| Workspace listing / switching | ✓ | Workspace protocol when available; window workspace state via IPC |
 | Overlap-driven autohide | ~ | Geometry available from IPC; not yet wired |
-| Window previews | ✗ | Not available |
+| Window previews | ~ | Hyprland toplevel-export when matching protocol handles are available |
 | Applets | ✓ | Backend-neutral applets work |
 
 Launch: `DOCKING_BACKEND=hyprland python3 run.py`
