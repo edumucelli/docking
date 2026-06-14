@@ -35,7 +35,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 57 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- 58 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, menu behavior, and tooltip controls.
@@ -888,6 +888,21 @@ Notification center applet with a compact status icon, Do Not Disturb toggle, an
 - **Clear Notifications** -- clear notification history (when available)
 
 **Update interval:** 2 seconds
+
+### System Tray
+
+
+StatusNotifier/AppIndicator host for tray applications such as chat clients, sync tools, background utilities, and desktop services.
+
+**Click:** Show registered tray applications
+**Right-click options:**
+- Registered tray app actions
+- Context menus exposed through DBusMenu when available
+- Refresh Now
+
+The applet uses an existing desktop StatusNotifier watcher when one is available. In sessions without a watcher, Docking can provide the watcher service so tray apps started afterward can register with the dock.
+
+**Update interval:** 3 seconds
 
 ### Session
 

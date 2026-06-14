@@ -339,6 +339,7 @@ msgstr ""
 #: docking/applets/hackernews/applet.py:205
 #: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
 #: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
+#: docking/applets/systemtray/applet.py:136
 #: docking/applets/thermals/applet.py:157
 #: docking/applets/todayinhistory/applet.py:112
 #: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:188
@@ -2033,7 +2034,8 @@ msgstr ""
 msgid "Run with file"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:340 docking/ui/menu.py:467
+#: docking/applets/runcommand/applet.py:340
+#: docking/applets/systemtray/applet.py:248 docking/ui/menu.py:467
 msgid "Open"
 msgstr ""
 
@@ -2364,6 +2366,153 @@ msgstr ""
 #: docking/applets/systemmonitor/state.py:184
 #, python-brace-format
 msgid "Disk: {usage}"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:51
+msgid "System Tray"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:80
+#, python-brace-format
+msgid "System Tray: {n} legacy item(s)"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:121
+msgid "Activate"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:126
+msgid "Context Menu"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:184
+msgid "D-Bus unavailable"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:193
+#, python-brace-format
+msgid "Legacy X11 tray is active with {n} item(s)."
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:197
+msgid "Legacy X11 tray is active and waiting for tray apps."
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:205
+#, python-brace-format
+msgid ""
+"No StatusNotifier apps are registered. Legacy tray icons are currently owned "
+"by {owner}. Use Take Over Legacy Tray from the applet menu if you want "
+"Docking to host them."
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:211
+msgid ""
+"No tray applications are registered. Use Start Legacy Tray from the applet "
+"menu for older X11 tray apps."
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:255
+msgid "Menu"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:302
+msgid "Release Legacy Tray"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:306
+#, python-brace-format
+msgid "Legacy X11 tray active: {n} item(s)"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:315
+msgid "Take Over Legacy Tray"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:319
+#, python-brace-format
+msgid "Legacy X11 tray owned by {owner}"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:327
+msgid "Start Legacy Tray"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:337
+msgid "Unknown X11 tray error"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:343
+msgid "Could not start the legacy tray"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:350
+msgid "another tray"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:356
+msgid "Take over the legacy tray?"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:358
+msgid "Take Over"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:361
+#, python-brace-format
+msgid ""
+"Docking will replace {owner} as the X11 system tray host. Existing legacy "
+"tray apps may need to be restarted before they dock into Docking."
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:423
+msgid "Menu Item"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:468
+msgid "System Tray unavailable"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:470
+#, python-brace-format
+msgid "System Tray host: {n} item(s)"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:471
+#: docking/applets/systemtray/state.py:158
+#, python-brace-format
+msgid "System Tray: {n} item(s)"
+msgstr ""
+
+#: docking/applets/systemtray/state.py:148
+#, python-brace-format
+msgid "System Tray: {error}"
+msgstr ""
+
+#: docking/applets/systemtray/state.py:149
+msgid "System Tray: D-Bus unavailable"
+msgstr ""
+
+#: docking/applets/systemtray/state.py:152
+#, python-brace-format
+msgid "System Tray: legacy tray owned by {owner}"
+msgstr ""
+
+#: docking/applets/systemtray/state.py:156
+msgid "System Tray: waiting for tray apps"
+msgstr ""
+
+#: docking/applets/systemtray/state.py:157
+msgid "System Tray: no tray apps"
+msgstr ""
+
+#: docking/applets/systemtray/state.py:162
+#, python-brace-format
+msgid "and {n} more"
+msgstr ""
+
+#: docking/applets/systemtray/state.py:242
+msgid "session bus unavailable"
 msgstr ""
 
 #: docking/applets/temperature.py:44
