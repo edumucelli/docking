@@ -15,14 +15,18 @@ from docking.platform.backends.base import (
     WindowId,
 )
 from docking.platform.backends.wayland.niri_ipc import (
+    NiriDesktopActionService,
     NiriEvent,
     NiriPreviewService,
     NiriWindowService,
+    NiriWorkspaceService,
     _niri_socket_path,
     _parse_event_line,
     _parse_response,
     _wait_for_nonempty_file,
+    load_niri_desktop_action_service,
     load_niri_preview_service,
+    load_niri_workspace_service,
 )
 
 
@@ -162,6 +166,19 @@ class FakeEventStream:
 
     def emit(self, name: str, data: dict) -> None:
         self.callback(NiriEvent(name=name, data=data))
+
+
+class KeyedFakeIpcClient:
+    def __init__(self, data: dict[str, object]) -> None:
+        self.data = data
+        self.actions: list[dict] = []
+
+    def ok_data(self, payload: object, key: str):
+        return self.data.get(key)
+
+    def action(self, action_payload: dict) -> ActionResult:
+        self.actions.append(action_payload)
+        return ActionResult.OK
 
 
 # ---------------------------------------------------------------------------
@@ -487,6 +504,247 @@ def test_niri_window_service_close_all_not_found():
 
 
 # ---------------------------------------------------------------------------
+# Workspace service tests
+# ---------------------------------------------------------------------------
+
+
+def test_niri_workspace_service_lists_and_activates_workspaces():
+    client = KeyedFakeIpcClient(
+        {
+            "Workspaces": [
+                {
+                    "id": 1,
+                    "idx": 1,
+                    "name": None,
+                    "output": "HDMI-A-1",
+                    "is_active": True,
+                    "is_focused": True,
+                },
+                {
+                    "id": 3,
+                    "idx": 2,
+                    "name": None,
+                    "output": "HDMI-A-1",
+                    "is_active": False,
+                    "is_focused": False,
+                },
+                {
+                    "id": 2,
+                    "idx": 1,
+                    "name": None,
+                    "output": "eDP-1",
+                    "is_active": True,
+                    "is_focused": False,
+                },
+            ]
+        }
+    )
+    service = NiriWorkspaceService(client=client)
+
+    service.start()
+
+    workspaces = service.list_workspaces()
+    assert [workspace.id for workspace in workspaces] == ["1", "3", "2"]
+    assert [workspace.number for workspace in workspaces] == [0, 1, 2]
+    assert service.active_workspace() == workspaces[0]
+
+    assert service.activate("3") is ActionResult.OK
+    assert client.actions == [
+        {"FocusMonitor": {"output": "HDMI-A-1"}},
+        {"FocusWorkspace": {"reference": {"Index": 2}}},
+    ]
+
+
+def test_niri_workspace_service_notifies_on_workspace_events():
+    stream: FakeEventStream | None = None
+
+    def stream_factory(callback):
+        nonlocal stream
+        stream = FakeEventStream(callback)
+        return stream
+
+    client = KeyedFakeIpcClient(
+        {
+            "Workspaces": [
+                {
+                    "id": 1,
+                    "idx": 1,
+                    "output": "HDMI-A-1",
+                    "is_focused": True,
+                }
+            ]
+        }
+    )
+    service = NiriWorkspaceService(
+        client=client,
+        event_stream_factory=stream_factory,
+    )
+    changed: list[str] = []
+    watch = service.watch_active_workspace(lambda: changed.append("changed"))
+
+    service.start()
+    assert stream is not None
+    assert changed == ["changed"]
+
+    stream.emit(
+        "WorkspacesChanged",
+        {
+            "workspaces": [
+                {
+                    "id": 1,
+                    "idx": 1,
+                    "output": "HDMI-A-1",
+                    "is_focused": False,
+                },
+                {
+                    "id": 3,
+                    "idx": 2,
+                    "output": "HDMI-A-1",
+                    "is_focused": True,
+                },
+            ]
+        },
+    )
+    assert changed == ["changed", "changed"]
+
+    service.unwatch_active_workspace(watch)
+    stream.emit(
+        "WorkspacesChanged",
+        {
+            "workspaces": [
+                {
+                    "id": 1,
+                    "idx": 1,
+                    "output": "HDMI-A-1",
+                    "is_focused": True,
+                }
+            ]
+        },
+    )
+    assert changed == ["changed", "changed"]
+
+
+# ---------------------------------------------------------------------------
+# Desktop action service tests
+# ---------------------------------------------------------------------------
+
+
+def test_niri_desktop_action_service_focuses_empty_workspace_on_current_output():
+    client = KeyedFakeIpcClient(
+        {
+            "Workspaces": [
+                {
+                    "id": 1,
+                    "idx": 1,
+                    "output": "HDMI-A-1",
+                    "is_focused": True,
+                    "active_window_id": 6,
+                },
+                {
+                    "id": 3,
+                    "idx": 2,
+                    "output": "HDMI-A-1",
+                    "is_focused": False,
+                    "active_window_id": None,
+                },
+                {
+                    "id": 2,
+                    "idx": 1,
+                    "output": "eDP-1",
+                    "is_focused": False,
+                    "active_window_id": None,
+                },
+            ]
+        }
+    )
+    service = NiriDesktopActionService(client=client)
+
+    assert service.show_desktop() is ActionResult.OK
+
+    assert client.actions == [
+        {"FocusMonitor": {"output": "HDMI-A-1"}},
+        {"FocusWorkspace": {"reference": {"Index": 2}}},
+    ]
+
+
+def test_niri_desktop_action_service_restores_previous_workspace_on_toggle():
+    client = KeyedFakeIpcClient(
+        {
+            "Workspaces": [
+                {
+                    "id": 1,
+                    "idx": 1,
+                    "output": "HDMI-A-1",
+                    "is_focused": True,
+                    "active_window_id": 6,
+                },
+                {
+                    "id": 3,
+                    "idx": 2,
+                    "output": "HDMI-A-1",
+                    "is_focused": False,
+                    "active_window_id": None,
+                },
+            ]
+        }
+    )
+    service = NiriDesktopActionService(client=client)
+
+    assert service.show_desktop() is ActionResult.OK
+    client.actions.clear()
+    client.data["Workspaces"] = [
+        {
+            "id": 1,
+            "idx": 1,
+            "output": "HDMI-A-1",
+            "is_focused": False,
+            "active_window_id": 6,
+        },
+        {
+            "id": 3,
+            "idx": 2,
+            "output": "HDMI-A-1",
+            "is_focused": True,
+            "active_window_id": None,
+        },
+    ]
+
+    assert service.show_desktop() is ActionResult.OK
+
+    assert client.actions == [
+        {"FocusMonitor": {"output": "HDMI-A-1"}},
+        {"FocusWorkspace": {"reference": {"Index": 1}}},
+    ]
+
+
+def test_niri_desktop_action_service_ignores_empty_workspaces_on_other_outputs():
+    client = KeyedFakeIpcClient(
+        {
+            "Workspaces": [
+                {
+                    "id": 1,
+                    "idx": 1,
+                    "output": "HDMI-A-1",
+                    "is_focused": True,
+                    "active_window_id": 6,
+                },
+                {
+                    "id": 2,
+                    "idx": 1,
+                    "output": "eDP-1",
+                    "is_focused": False,
+                    "active_window_id": None,
+                },
+            ]
+        }
+    )
+    service = NiriDesktopActionService(client=client)
+
+    assert service.show_desktop() is ActionResult.NOT_FOUND
+    assert client.actions == []
+
+
+# ---------------------------------------------------------------------------
 # Preview service tests
 # ---------------------------------------------------------------------------
 
@@ -608,3 +866,13 @@ def test_wait_for_nonempty_file_times_out_for_missing_file():
 def test_load_niri_preview_service_returns_none_without_env():
     with patch.dict("os.environ", {}, clear=True):
         assert load_niri_preview_service() is None
+
+
+def test_load_niri_workspace_service_returns_none_without_env():
+    with patch.dict("os.environ", {}, clear=True):
+        assert load_niri_workspace_service() is None
+
+
+def test_load_niri_desktop_action_service_returns_none_without_env():
+    with patch.dict("os.environ", {}, clear=True):
+        assert load_niri_desktop_action_service() is None

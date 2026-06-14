@@ -32,12 +32,16 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.niri_ipc import (
+    NiriDesktopActionService,
     NiriScreenCaptureService,
     NiriWindowService,
     _niri_socket_path,
+    load_niri_desktop_action_service,
     load_niri_preview_service,
     load_niri_window_service,
+    load_niri_workspace_service,
 )
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
@@ -62,6 +66,8 @@ class NiriRuntimeServices:
     visibility: ReducedVisibilityService
     workspaces: WorkspaceService | None
     screen_capture: ScreenCaptureService | None
+    desktop_actions: DesktopActionService | None
+    idle: IdleService | None
     protocol_runtime: WaylandProtocolRuntime | None
 
 
@@ -91,15 +97,26 @@ class NiriSessionBackend(SessionBackend):
         if windows is None:
             windows = ReducedWindowService()
 
-        workspace_protocol = runtime.workspace_protocol if runtime is not None else None
-        workspaces = (
-            WaylandWorkspaceService(protocol=workspace_protocol)
-            if workspace_protocol is not None
-            else None
-        )
+        workspaces = load_niri_workspace_service()
+        if workspaces is None:
+            workspace_protocol = (
+                runtime.workspace_protocol if runtime is not None else None
+            )
+            workspaces = (
+                WaylandWorkspaceService(protocol=workspace_protocol)
+                if workspace_protocol is not None
+                else None
+            )
 
         niri_previews = load_niri_preview_service()
         previews: PreviewService = niri_previews or ReducedPreviewService()
+        desktop_actions = load_niri_desktop_action_service()
+        idle_protocol = runtime.idle_protocol if runtime is not None else None
+        idle: IdleService | None = (
+            WaylandIdleService(protocol=idle_protocol)
+            if idle_protocol is not None
+            else None
+        )
 
         # Prefer Niri's native PickColor IPC over the XDG desktop portal.
         if screen_capture is None:
@@ -116,6 +133,8 @@ class NiriSessionBackend(SessionBackend):
             visibility=ReducedVisibilityService(),
             workspaces=workspaces,
             screen_capture=screen_capture,
+            desktop_actions=desktop_actions,
+            idle=idle,
             protocol_runtime=runtime,
         )
 
@@ -149,10 +168,15 @@ class NiriSessionBackend(SessionBackend):
             supports_current_workspace_filter=tracks_windows,
             supports_workspace_list=supports_workspaces,
             supports_workspace_switch=supports_workspaces,
+            supports_show_desktop=isinstance(
+                self._services.desktop_actions,
+                NiriDesktopActionService,
+            ),
             supports_layer_shell=True,
             supports_screen_reservation=True,
             supports_input_region=True,
             supports_screen_color_pick=supports_color_pick,
+            supports_idle_time=isinstance(self._services.idle, WaylandIdleService),
         )
 
     @property
@@ -177,7 +201,7 @@ class NiriSessionBackend(SessionBackend):
 
     @property
     def desktop_actions(self) -> DesktopActionService | None:
-        return None
+        return self._services.desktop_actions
 
     @property
     def screen_capture(self) -> ScreenCaptureService | None:
@@ -185,7 +209,7 @@ class NiriSessionBackend(SessionBackend):
 
     @property
     def idle(self) -> IdleService | None:
-        return None
+        return self._services.idle
 
     @property
     def window_picker(self) -> WindowPickService | None:
@@ -198,12 +222,20 @@ class NiriSessionBackend(SessionBackend):
         self._services.visibility.start()
         if self._services.workspaces is not None:
             self._services.workspaces.start()
+        if self._services.desktop_actions is not None:
+            self._services.desktop_actions.start()
         if self._services.screen_capture is not None:
             self._services.screen_capture.start()
+        if self._services.idle is not None:
+            self._services.idle.start()
 
     def stop(self) -> None:
+        if self._services.idle is not None:
+            self._services.idle.stop()
         if self._services.screen_capture is not None:
             self._services.screen_capture.stop()
+        if self._services.desktop_actions is not None:
+            self._services.desktop_actions.stop()
         if self._services.workspaces is not None:
             self._services.workspaces.stop()
         self._services.visibility.stop()
