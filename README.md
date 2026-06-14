@@ -173,6 +173,7 @@ one with `DOCKING_BACKEND`.
 |---|---|---|
 | **GNOME Shell bridge** | GNOME / Mutter 45+ | Full: dock placement, window tracking, window actions (activate / minimize / close), window previews, workspace switching, Show Desktop, Alt+Tab hiding |
 | **KWin** | KDE Plasma 6 Wayland | Dock placement (layer-shell), window tracking with titles via AT-SPI accessibility bus, workspace switching via KWin D-Bus. No window actions (KWin 6 does not expose a public activate/close/minimize protocol) |
+| **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
 | **Native layer-shell** | wlroots-based (Sway, labwc, river, Wayfire) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
 | **Reduced** | Any Wayland | Dock visible but no window management (no running indicators, no previews, no workspace switching) |
@@ -250,6 +251,7 @@ To force a specific backend for testing:
 ```bash
 DOCKING_BACKEND=gnome-shell docking          # GNOME / Mutter 45+
 DOCKING_BACKEND=kwin docking                  # KDE Plasma 6 Wayland
+DOCKING_BACKEND=hyprland docking              # Hyprland IPC + layer-shell
 DOCKING_BACKEND=niri docking                  # Niri IPC + layer-shell
 DOCKING_BACKEND=wayland-layer-shell docking   # wlroots compositors
 DOCKING_BACKEND=reduced docking               # any Wayland (no WM integration)

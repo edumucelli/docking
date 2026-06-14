@@ -149,6 +149,50 @@ def test_create_session_backend_can_force_gnome_bridge_backend(monkeypatch):
     create_gnome.assert_called_once()
 
 
+def test_create_session_backend_can_force_hyprland_backend(monkeypatch):
+    monkeypatch.setenv("DOCKING_BACKEND", "hyprland")
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
+    backend = MagicMock(name="hyprland")
+    create_hyprland = MagicMock(return_value=backend)
+    monkeypatch.setattr(selection, "_create_hyprland_backend", create_hyprland)
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_hyprland.assert_called_once()
+
+
+def test_create_session_backend_auto_selects_hyprland_before_generic_wayland(
+    monkeypatch,
+):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.HYPRLAND)
+    backend = MagicMock(name="hyprland")
+    create_hyprland = MagicMock(return_value=backend)
+    create_wayland = MagicMock()
+    monkeypatch.setattr(selection, "_create_hyprland_backend", create_hyprland)
+    monkeypatch.setattr(
+        selection,
+        "_create_wayland_layer_shell_backend",
+        create_wayland,
+    )
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_hyprland.assert_called_once()
+    create_wayland.assert_not_called()
+
+
 def test_create_session_backend_can_select_reduced_backend_by_override(monkeypatch):
     monkeypatch.setenv("DOCKING_BACKEND", "reduced")
     monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
