@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from docking.platform.backends.wayland.idle import WaylandIdleService
     from docking.platform.backends.wayland.previews import (
         WaylandPreviewHandleTracker,
     )
@@ -340,6 +341,85 @@ class WorkspaceProtocolAdapter:
         self.available = False
 
 
+class IdleProtocolAdapter:
+    """Adapter for ext-idle-notify-v1 idle state events."""
+
+    def __init__(self) -> None:
+        self._notifier = None
+        self._seat = None
+        self._notification = None
+        self._flush: Callable[[], None] | None = None
+        self._service: WaylandIdleService | None = None
+        self.available = False
+
+    def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
+        self._flush = callback
+
+    def bind(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.ext_idle_notify_v1 import ExtIdleNotifierV1
+
+        bind_version = min(version, ExtIdleNotifierV1.version)
+        self._notifier = registry.bind(name, ExtIdleNotifierV1, bind_version)
+        self.available = True
+        self._maybe_create_notification()
+
+    def bind_seat(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.wayland import WlSeat
+
+        self._seat = registry.bind(name, WlSeat, min(version, WlSeat.version))
+        self._maybe_create_notification()
+
+    def start(self, service: WaylandIdleService) -> None:
+        self._service = service
+        self._maybe_create_notification()
+
+    def stop(self) -> None:
+        notification = self._notification
+        if notification is not None:
+            destroy = getattr(notification, "destroy", None)
+            if callable(destroy):
+                destroy()
+        notifier = self._notifier
+        if notifier is not None:
+            destroy = getattr(notifier, "destroy", None)
+            if callable(destroy):
+                destroy()
+        self._notifier = None
+        self._seat = None
+        self._notification = None
+        self._flush = None
+        self._service = None
+        self.available = False
+
+    def _maybe_create_notification(self) -> None:
+        if (
+            self._notification is not None
+            or self._notifier is None
+            or self._seat is None
+            or self._service is None
+        ):
+            return
+        create = getattr(self._notifier, "get_input_idle_notification", None)
+        if not callable(create):
+            create = getattr(self._notifier, "get_idle_notification", None)
+        if not callable(create):
+            return
+        notification = create(0, self._seat)
+        notification.dispatcher["idled"] = lambda _notification: self._on_idled()
+        notification.dispatcher["resumed"] = lambda _notification: self._on_resumed()
+        self._notification = notification
+        if self._flush is not None:
+            self._flush()
+
+    def _on_idled(self) -> None:
+        if self._service is not None:
+            self._service.idled()
+
+    def _on_resumed(self) -> None:
+        if self._service is not None:
+            self._service.resumed()
+
+
 class PreviewProtocolAdapter:
     """Adapter for generic Wayland toplevel preview capture protocols."""
 
@@ -594,6 +674,7 @@ class WaylandProtocolRuntime:
         workspace_adapter: WorkspaceProtocolAdapter | None = None,
         preview_adapter: PreviewProtocolAdapter | None = None,
         hyprland_preview_adapter: HyprlandPreviewProtocolAdapter | None = None,
+        idle_adapter: IdleProtocolAdapter | None = None,
         cosmic_toplevel_adapter: object | None = None,
         cosmic_workspace_adapter: object | None = None,
         cosmic_overlap_adapter: object | None = None,
@@ -611,6 +692,7 @@ class WaylandProtocolRuntime:
         self.hyprland_previews = (
             hyprland_preview_adapter or HyprlandPreviewProtocolAdapter()
         )
+        self.idle = idle_adapter or IdleProtocolAdapter()
         self.cosmic_toplevel = cosmic_toplevel_adapter or CosmicToplevelAdapter()
         self.cosmic_workspace = cosmic_workspace_adapter or CosmicWorkspaceAdapter()
         self.cosmic_overlap = cosmic_overlap_adapter or CosmicOverlapAdapter()
@@ -636,6 +718,10 @@ class WaylandProtocolRuntime:
         return (
             self.hyprland_previews if self.hyprland_previews.capture_available else None
         )
+
+    @property
+    def idle_protocol(self) -> object | None:
+        return self.idle if self.idle.available else None
 
     @property
     def cosmic_toplevel_protocol(self) -> object | None:
@@ -665,6 +751,7 @@ class WaylandProtocolRuntime:
             self.workspaces.set_flush_callback(display.flush)
             self.previews.set_flush_callback(display.flush)
             self.hyprland_previews.set_flush_callback(display.flush)
+            self.idle.set_flush_callback(display.flush)
             self.cosmic_toplevel.set_flush_callback(display.flush)
             self.cosmic_workspace.set_flush_callback(display.flush)
             self.cosmic_overlap.set_flush_callback(display.flush)
@@ -696,6 +783,7 @@ class WaylandProtocolRuntime:
         self.workspaces.stop()
         self.previews.stop()
         self.hyprland_previews.stop()
+        self.idle.stop()
         self.cosmic_toplevel.stop()
         self.cosmic_workspace.stop()
         self.cosmic_overlap.stop()
@@ -723,6 +811,11 @@ class WaylandProtocolRuntime:
                 version=version,
             )
             self.cosmic_toplevel.bind_seat(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+            self.idle.bind_seat(
                 registry=registry,
                 name=name,
                 version=version,
@@ -789,6 +882,8 @@ class WaylandProtocolRuntime:
                 name=name,
                 version=version,
             )
+        elif interface == "ext_idle_notifier_v1":
+            self.idle.bind(registry=registry, name=name, version=version)
 
     def _install_glib_watch(
         self, *, factories: WaylandProtocolFactories, display

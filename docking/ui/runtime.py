@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.ui.dock_window import DockWindow
+    from docking.ui.placement import MonitorChoice
     from docking.ui.update_popup import UpdateCheckController
 
 
@@ -46,6 +47,9 @@ class DockRuntime:
 
     def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
         return self._window.placement.get_monitor_menu_choices()
+
+    def get_monitor_choices(self) -> list[MonitorChoice]:
+        return self._window.placement.get_monitor_choices()
 
     def current_monitor_choice(self) -> int:
         return self._window.placement.current_monitor_choice()

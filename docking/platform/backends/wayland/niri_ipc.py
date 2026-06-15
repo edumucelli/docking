@@ -39,6 +39,7 @@ from gi.repository import GdkPixbuf
 from docking.log import get_logger
 from docking.platform.backends.base import (
     ActionResult,
+    DesktopActionService,
     DisplayServer,
     PreviewImage,
     PreviewService,
@@ -47,6 +48,8 @@ from docking.platform.backends.base import (
     WindowId,
     WindowService,
     WindowSnapshot,
+    WorkspaceService,
+    WorkspaceSnapshot,
 )
 from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
@@ -63,6 +66,12 @@ _NIRI_WINDOW_EVENTS = {
     "WindowClosed",
     "WindowFocusChanged",
     "WindowUrgencyChanged",
+    "WorkspacesChanged",
+    "WorkspaceActivated",
+    "WorkspaceActiveWindowChanged",
+}
+
+_NIRI_WORKSPACE_EVENTS = {
     "WorkspacesChanged",
     "WorkspaceActivated",
     "WorkspaceActiveWindowChanged",
@@ -99,6 +108,24 @@ class NiriWindowRecord:
     @property
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=str(self.id))
+
+
+@dataclass(frozen=True)
+class NiriWorkspaceRecord:
+    """Backend-neutral projection of one Niri workspace."""
+
+    id: int
+    idx: int
+    name: str
+    output: str
+    active: bool
+    focused: bool
+    number: int
+    active_window_id: int | None = None
+
+    @property
+    def snapshot_id(self) -> str:
+        return str(self.id)
 
 
 # ---------------------------------------------------------------------------
@@ -562,6 +589,191 @@ class NiriWindowService(WindowService):
         return next((r for r in records if r.active), records[0])
 
 
+class NiriWorkspaceService(WorkspaceService):
+    """WorkspaceService backed by Niri IPC workspace snapshots and actions."""
+
+    def __init__(
+        self,
+        *,
+        client: NiriIpcClient,
+        event_stream_factory: Callable[
+            [Callable[[NiriEvent], None]], NiriEventStream | None
+        ]
+        | None = None,
+    ) -> None:
+        self._client = client
+        self._event_stream_factory = event_stream_factory
+        self._event_stream: NiriEventStream | None = None
+        self._records: dict[str, NiriWorkspaceRecord] = {}
+        self._watchers: dict[int, Callable[[], None]] = {}
+        self._next_watch_id = 1
+        self._active_ids: tuple[str, ...] = ()
+
+    def start(self) -> None:
+        self._refresh_workspaces()
+        if self._event_stream_factory is not None:
+            self._event_stream = self._event_stream_factory(self._on_event)
+            if self._event_stream is not None:
+                self._event_stream.start()
+
+    def stop(self) -> None:
+        if self._event_stream is not None:
+            self._event_stream.stop()
+            self._event_stream = None
+        self._records.clear()
+        self._watchers.clear()
+        self._active_ids = ()
+
+    def list_workspaces(self) -> Sequence[WorkspaceSnapshot]:
+        return tuple(
+            WorkspaceSnapshot(
+                id=record.snapshot_id,
+                number=record.number,
+                name=record.name,
+                active=record.focused,
+            )
+            for record in sorted(self._records.values(), key=_workspace_sort_key)
+        )
+
+    def active_workspace(self) -> WorkspaceSnapshot | None:
+        for workspace in self.list_workspaces():
+            if workspace.active:
+                return workspace
+        return None
+
+    def activate(self, workspace_id: str) -> ActionResult:
+        record = self._resolve_workspace(workspace_id)
+        if record is None:
+            return ActionResult.NOT_FOUND
+        return _focus_niri_workspace(client=self._client, record=record)
+
+    def watch_active_workspace(self, on_change: Callable[[], None]) -> object | None:
+        watch_id = self._next_watch_id
+        self._next_watch_id += 1
+        self._watchers[watch_id] = on_change
+        return watch_id
+
+    def unwatch_active_workspace(self, handle: object) -> None:
+        if isinstance(handle, int):
+            self._watchers.pop(handle, None)
+
+    def _on_event(self, event: NiriEvent) -> None:
+        if event.name not in _NIRI_WORKSPACE_EVENTS:
+            return
+        if event.name == "WorkspacesChanged":
+            workspaces_raw = event.data.get("workspaces")
+            if isinstance(workspaces_raw, list):
+                self._replace_workspaces(workspaces_raw)
+            return
+        self._refresh_workspaces()
+
+    def _refresh_workspaces(self) -> None:
+        workspaces_raw = self._client.ok_data({"Workspaces": None}, "Workspaces")
+        if isinstance(workspaces_raw, list):
+            self._replace_workspaces(workspaces_raw)
+
+    def _replace_workspaces(self, items: list[Any]) -> None:
+        records: list[NiriWorkspaceRecord] = []
+        for item in items:
+            if not isinstance(item, Mapping):
+                continue
+            record = _record_from_workspace(item, number=len(records))
+            if record is not None:
+                records.append(record)
+        self._records = {record.snapshot_id: record for record in records}
+        self._notify_if_active_changed()
+
+    def _notify_if_active_changed(self) -> None:
+        active_ids = tuple(
+            record.snapshot_id
+            for record in sorted(self._records.values(), key=_workspace_sort_key)
+            if record.focused
+        )
+        if active_ids == self._active_ids:
+            return
+        self._active_ids = active_ids
+        for callback in tuple(self._watchers.values()):
+            callback()
+
+    def _resolve_workspace(self, workspace_id: str) -> NiriWorkspaceRecord | None:
+        record = self._records.get(workspace_id)
+        if record is not None:
+            return record
+        for candidate in self._records.values():
+            if str(candidate.number) == workspace_id or candidate.name == workspace_id:
+                return candidate
+        return None
+
+
+class NiriDesktopActionService(DesktopActionService):
+    """DesktopActionService that focuses an empty Niri workspace."""
+
+    def __init__(self, *, client: NiriIpcClient) -> None:
+        self._client = client
+        self._restore_by_output: dict[str, str] = {}
+
+    def start(self) -> None:
+        """No persistent runtime resources."""
+
+    def stop(self) -> None:
+        self._restore_by_output.clear()
+
+    def show_desktop(self, show: bool | None = None) -> ActionResult:
+        records = self._list_workspaces()
+        focused = next((record for record in records if record.focused), None)
+        if focused is None:
+            return ActionResult.NOT_FOUND
+
+        wants_show = focused.active_window_id is not None if show is None else show
+        if wants_show:
+            if focused.active_window_id is not None:
+                self._restore_by_output[focused.output] = focused.snapshot_id
+            empty = self._empty_workspace_for_output(
+                records=records,
+                output=focused.output,
+                exclude_id=focused.snapshot_id,
+            )
+            if empty is None:
+                return ActionResult.NOT_FOUND
+            return _focus_niri_workspace(client=self._client, record=empty)
+
+        restore_id = self._restore_by_output.pop(focused.output, "")
+        restore = next(
+            (record for record in records if record.snapshot_id == restore_id),
+            None,
+        )
+        if restore is None:
+            return ActionResult.OK
+        return _focus_niri_workspace(client=self._client, record=restore)
+
+    def _list_workspaces(self) -> tuple[NiriWorkspaceRecord, ...]:
+        workspaces_raw = self._client.ok_data({"Workspaces": None}, "Workspaces")
+        if not isinstance(workspaces_raw, list):
+            return ()
+        records: list[NiriWorkspaceRecord] = []
+        for item in workspaces_raw:
+            if not isinstance(item, Mapping):
+                continue
+            record = _record_from_workspace(item, number=len(records))
+            if record is not None:
+                records.append(record)
+        return tuple(records)
+
+    def _empty_workspace_for_output(
+        self,
+        *,
+        records: Sequence[NiriWorkspaceRecord],
+        output: str,
+        exclude_id: str,
+    ) -> NiriWorkspaceRecord | None:
+        for record in records:
+            if record.output != output or record.snapshot_id == exclude_id:
+                continue
+            if record.active_window_id is None:
+                return record
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Public loaders
 # ---------------------------------------------------------------------------
@@ -582,6 +794,29 @@ def load_niri_window_service(*, model, launcher) -> NiriWindowService | None:
             callback=callback,
         ),
     )
+
+
+def load_niri_workspace_service() -> NiriWorkspaceService | None:
+    """Return a Niri WorkspaceService when the IPC socket is detectable."""
+    socket_path = _niri_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    client = NiriIpcClient(socket_path=socket_path)
+    return NiriWorkspaceService(
+        client=client,
+        event_stream_factory=lambda callback: NiriEventStream(
+            socket_path=socket_path,
+            callback=callback,
+        ),
+    )
+
+
+def load_niri_desktop_action_service() -> NiriDesktopActionService | None:
+    """Return Niri desktop actions when the IPC socket is detectable."""
+    socket_path = _niri_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    return NiriDesktopActionService(client=NiriIpcClient(socket_path=socket_path))
 
 
 def load_niri_preview_service() -> NiriPreviewService | None:
@@ -837,6 +1072,48 @@ def _record_from_window(
         workspace_id=workspace_id,
         geometry=geometry,
     )
+
+
+def _record_from_workspace(
+    item: Mapping[str, Any],
+    *,
+    number: int,
+) -> NiriWorkspaceRecord | None:
+    workspace_id = item.get("id")
+    idx = item.get("idx")
+    if not isinstance(workspace_id, int) or not isinstance(idx, int):
+        return None
+    name = str(item.get("name") or "").strip()
+    output = str(item.get("output") or "").strip()
+    active_window_id = item.get("active_window_id")
+    if not isinstance(active_window_id, int):
+        active_window_id = None
+    return NiriWorkspaceRecord(
+        id=workspace_id,
+        idx=idx,
+        name=name,
+        output=output,
+        active=bool(item.get("is_active", False)),
+        focused=bool(item.get("is_focused", False)),
+        number=number,
+        active_window_id=active_window_id,
+    )
+
+
+def _workspace_sort_key(record: NiriWorkspaceRecord) -> tuple[int, int]:
+    return (record.number, record.id)
+
+
+def _focus_niri_workspace(
+    *,
+    client: NiriIpcClient,
+    record: NiriWorkspaceRecord,
+) -> ActionResult:
+    if record.output:
+        monitor = client.action({"FocusMonitor": {"output": record.output}})
+        if monitor is not ActionResult.OK:
+            return monitor
+    return client.action({"FocusWorkspace": {"reference": {"Index": record.idx}}})
 
 
 def _geometry_from_niri_window(item: Mapping[str, Any]) -> Rect | None:

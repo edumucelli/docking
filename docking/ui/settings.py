@@ -117,6 +117,8 @@ HIDE_DELAY_STEP_MS = 50
 INFO_POPOVER_PADDING_PX = 8
 log = get_logger("settings")
 
+SettingsRow = tuple[str, Gtk.Widget, str | None]
+
 
 @dataclass
 class _ScalarBinding:
@@ -159,6 +161,8 @@ class SettingsWindowController:
         self._lock_icons_switch: Any = None
         self._workspace_only_switch: Any = None
         self._active_display_switch: Any = None
+        self._monitor_combo: Any = None
+        self._monitor_info: Any = None
         self._anchor_applets_switch: Any = None
         self._anchor_files_switch: Any = None
         self._zoom_enabled_switch: Any = None
@@ -320,6 +324,23 @@ class SettingsWindowController:
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
 
+        self._monitor_combo = Gtk.ComboBoxText()
+        self._monitor_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        self._monitor_combo.connect("changed", self._on_monitor_combo_changed)
+        self._monitor_info = self._new_info_icon(
+            _(
+                "When Follow Cursor is enabled, the dock follows the pointer "
+                "across monitors. The selected monitor is kept as the fallback."
+            )
+        )
+        monitor_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        monitor_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        monitor_box.pack_start(self._monitor_combo, False, False, 0)
+        monitor_box.pack_start(self._monitor_info, False, False, 0)
+
         self._icon_size_spin = self._new_numeric_spin_button(
             minimum=MIN_ICON_SIZE,
             maximum=MAX_ICON_SIZE,
@@ -406,33 +427,104 @@ class SettingsWindowController:
             outer=outer,
             title=_("Look"),
             rows=[
-                (_("Theme"), self._theme_combo),
-                (_("Icon Size"), self._icon_size_spin),
-                (_("Transparency"), transparency_box),
-                (_("Zoom"), self._zoom_enabled_switch),
-                (_("Zoom Percent"), self._zoom_percent_spin),
-                (_("Show Tooltips"), self._tooltips_switch),
-                (_("Window Previews"), self._previews_switch),
-                ("Show Window Counts", self._window_count_numbers_switch),
+                (_("Theme"), self._theme_combo, _("Choose the dock color palette.")),
+                (
+                    _("Icon Size"),
+                    self._icon_size_spin,
+                    _("Set the base size of dock icons before zoom is applied."),
+                ),
+                (
+                    _("Transparency"),
+                    transparency_box,
+                    _("Adjust how transparent the dock background is."),
+                ),
+                (
+                    _("Zoom"),
+                    self._zoom_enabled_switch,
+                    _("Enlarge icons when the pointer hovers over the dock."),
+                ),
+                (
+                    _("Zoom Percent"),
+                    self._zoom_percent_spin,
+                    _("Set how much hovered icons grow when zoom is enabled."),
+                ),
+                (
+                    _("Show Tooltips"),
+                    self._tooltips_switch,
+                    _("Show item names and details when hovering over dock items."),
+                ),
+                (
+                    _("Window Previews"),
+                    self._previews_switch,
+                    _("Show window thumbnails when hovering over running apps."),
+                ),
+                (
+                    _("Show Window Counts"),
+                    self._window_count_numbers_switch,
+                    _(
+                        "Show a number on running app indicators when multiple "
+                        "windows are open."
+                    ),
+                ),
             ],
         )
         self._append_section(
             outer=outer,
             title=_("Placement"),
             rows=[
-                (_("Position"), self._position_combo),
-                (_("Extra Distance from Edge"), additional_distance_box),
-                (_("Follow Cursor"), self._active_display_switch),
-                (_("Current Workspace Only"), self._workspace_only_switch),
+                (
+                    _("Position"),
+                    self._position_combo,
+                    _("Choose which screen edge the dock uses."),
+                ),
+                (_("Extra Distance from Edge"), additional_distance_box, None),
+                (
+                    _("Current Workspace Only"),
+                    self._workspace_only_switch,
+                    _(
+                        "Show running windows only from the active workspace "
+                        "when supported."
+                    ),
+                ),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Monitor"),
+            rows=[
+                (
+                    _("Follow Cursor"),
+                    self._active_display_switch,
+                    _(
+                        "Move the dock to the monitor where the pointer is "
+                        "currently located."
+                    ),
+                ),
+                (_("Monitor"), monitor_box, None),
             ],
         )
         self._append_section(
             outer=outer,
             title=_("Layout"),
             rows=[
-                (_("Lock Positions"), self._lock_icons_switch),
-                (_("Anchor Applets to End"), self._anchor_applets_switch),
-                (_("Anchor Files to End"), self._anchor_files_switch),
+                (
+                    _("Lock Positions"),
+                    self._lock_icons_switch,
+                    _(
+                        "Prevent dock items from being reordered or removed by "
+                        "drag and drop."
+                    ),
+                ),
+                (
+                    _("Anchor Applets to End"),
+                    self._anchor_applets_switch,
+                    _("Keep applets grouped at the end of the dock."),
+                ),
+                (
+                    _("Anchor Files to End"),
+                    self._anchor_files_switch,
+                    _("Keep pinned files and folders grouped at the end of the dock."),
+                ),
             ],
         )
 
@@ -469,27 +561,70 @@ class SettingsWindowController:
             outer=outer,
             title=_("Mouse"),
             rows=[
-                (_("Left Click"), self._left_click_combo),
-                (_("Middle Click"), self._middle_click_combo),
-                (_("Window List Sort"), self._window_list_sort_combo),
+                (
+                    _("Left Click"),
+                    self._left_click_combo,
+                    _(
+                        "Choose what happens when clicking a running app with "
+                        "the left mouse button."
+                    ),
+                ),
+                (
+                    _("Middle Click"),
+                    self._middle_click_combo,
+                    _(
+                        "Choose what happens when clicking an app with the "
+                        "middle mouse button."
+                    ),
+                ),
+                (
+                    _("Window List Sort"),
+                    self._window_list_sort_combo,
+                    _("Choose how open windows are ordered in app context menus."),
+                ),
             ],
         )
         self._append_section(
             outer=outer,
             title=_("Behavior"),
             rows=[
-                (_("Hide Mode"), hide_mode_box),
-                (_("Hide Delay"), self._hide_delay_spin),
-                (_("Unhide Delay"), self._unhide_delay_spin),
-                (_("Pressure Reveal"), self._pressure_reveal_switch),
-                (_("Pressure Threshold"), pressure_threshold_box),
+                (_("Hide Mode"), hide_mode_box, None),
+                (
+                    _("Hide Delay"),
+                    self._hide_delay_spin,
+                    _(
+                        "Set how long the dock waits before hiding after the "
+                        "pointer leaves."
+                    ),
+                ),
+                (
+                    _("Unhide Delay"),
+                    self._unhide_delay_spin,
+                    _(
+                        "Set how long the dock waits before showing after the "
+                        "pointer returns."
+                    ),
+                ),
+                (
+                    _("Pressure Reveal"),
+                    self._pressure_reveal_switch,
+                    _(
+                        "Require the pointer to push against the screen edge "
+                        "before revealing a hidden dock."
+                    ),
+                ),
+                (_("Pressure Threshold"), pressure_threshold_box, None),
             ],
         )
         self._append_section(
             outer=outer,
             title=_("Folder Stacks"),
             rows=[
-                (_("Open On"), self._folder_stack_unfold_combo),
+                (
+                    _("Open On"),
+                    self._folder_stack_unfold_combo,
+                    _("Choose whether folder stacks open on click or while hovering."),
+                ),
             ],
         )
 
@@ -579,22 +714,29 @@ class SettingsWindowController:
             outer=outer,
             title=_("Update Checks"),
             rows=[
-                (_("Check Automatically"), self._update_check_switch),
-                (_("Frequency"), self._update_interval_combo),
-                (_("Status"), self._update_status_label),
-                (_("Actions"), actions),
+                (_("Check Automatically"), self._update_check_switch, None),
+                (_("Frequency"), self._update_interval_combo, None),
+                (_("Status"), self._update_status_label, None),
+                (_("Actions"), actions, None),
             ],
         )
         return outer
 
-    def _build_row(self, *, label: str, widget: Gtk.Widget) -> Gtk.Box:
+    def _build_row(
+        self, *, label: str, widget: Gtk.Widget, tooltip: str | None = None
+    ) -> Gtk.Box:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=ROW_SPACING_PX)
         row.set_size_request(APPEARANCE_ROW_WIDTH_PX, -1)
         title = Gtk.Label(label=label)
         title.set_xalign(0.0)
         title.set_hexpand(True)
         row.pack_start(title, True, True, 0)
-        row.pack_end(widget, False, False, 0)
+        row.pack_end(
+            self._with_info_icon(widget=widget, tooltip=tooltip),
+            False,
+            False,
+            0,
+        )
         return row
 
     def _append_section(
@@ -602,7 +744,7 @@ class SettingsWindowController:
         *,
         outer: Gtk.Box,
         title: str,
-        rows: list[tuple[str, Gtk.Widget]],
+        rows: list[SettingsRow],
     ) -> None:
         section = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, spacing=SECTION_SPACING_PX
@@ -614,12 +756,26 @@ class SettingsWindowController:
         )
         content.set_margin_start(SECTION_CONTENT_INSET_PX)
         content.set_margin_end(SECTION_CONTENT_INSET_PX)
-        for label, widget in rows:
+        for label, widget, tooltip in rows:
             content.pack_start(
-                self._build_row(label=label, widget=widget), False, False, 0
+                self._build_row(label=label, widget=widget, tooltip=tooltip),
+                False,
+                False,
+                0,
             )
         section.pack_start(content, False, False, 0)
         outer.pack_start(section, False, False, 0)
+
+    def _with_info_icon(self, *, widget: Gtk.Widget, tooltip: str | None) -> Gtk.Widget:
+        if not tooltip:
+            return widget
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        box.pack_start(widget, False, False, 0)
+        box.pack_start(self._new_info_icon(tooltip), False, False, 0)
+        return box
 
     def _build_section_header(self, *, title: str) -> Gtk.Label:
         header = Gtk.Label()
@@ -887,10 +1043,33 @@ class SettingsWindowController:
             }
             for desktop_id, check in self._applet_checks.items():
                 check.set_active(desktop_id in active_ids)
+            self._sync_monitor_combo()
             self._update_updates_status()
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
+
+    def _sync_monitor_combo(self) -> None:
+        if self._monitor_combo is None:
+            return
+        self._monitor_combo.remove_all()
+        choices = self._monitor_choices()
+        if not choices:
+            self._monitor_combo.append("-1", _("Primary Display"))
+            self._monitor_combo.set_active_id("-1")
+            return
+        for choice in choices:
+            self._monitor_combo.append(str(choice.index), choice.label)
+        self._monitor_combo.set_active_id(str(self._runtime.current_monitor_choice()))
+
+    def _monitor_choices(self) -> list[Any]:
+        try:
+            choices = self._runtime.get_monitor_choices()
+        except Exception:
+            return []
+        if not isinstance(choices, list):
+            return []
+        return choices
 
     def _rebuild_applet_tab(self) -> None:
         box = self._applets_box
@@ -1032,6 +1211,36 @@ class SettingsWindowController:
     def _on_view_releases(self, _button: Gtk.Button) -> None:
         self._runtime.open_releases_page()
 
+    def _on_monitor_combo_changed(self, widget: Gtk.ComboBoxText) -> None:
+        if self._syncing_widgets:
+            return
+        active_id = widget.get_active_id()
+        if active_id is None:
+            return
+        try:
+            monitor_index = int(active_id)
+        except ValueError:
+            return
+        choices = self._monitor_choices()
+        connector = next(
+            (
+                choice.connector
+                for choice in choices
+                if int(getattr(choice, "index", -2)) == monitor_index
+            ),
+            None,
+        )
+        if (
+            self._config.monitor_index == monitor_index
+            and self._config.monitor_connector == connector
+        ):
+            return
+        self._config.monitor_index = monitor_index
+        self._config.monitor_connector = connector
+        self._config.save()
+        if not self._config.active_display:
+            self._runtime.reposition()
+
     def _apply_runtime_theme(self) -> None:
         theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
             self._config.transparency
@@ -1105,6 +1314,8 @@ class SettingsWindowController:
     def _update_dependent_sensitivity(self) -> None:
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
+        if self._monitor_combo is not None:
+            self._monitor_combo.set_sensitive(not bool(self._config.active_display))
         hide_controls_sensitive = self._config.hide_mode not in (
             "none",
             "always-on-top",
