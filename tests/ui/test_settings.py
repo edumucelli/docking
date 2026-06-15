@@ -91,6 +91,7 @@ class FakeBox:
         self.size_request = None
         self.margin_start = 0
         self.margin_end = 0
+        self.tooltip_text = None
 
     def set_border_width(self, value: int) -> None:
         self.border_width = value
@@ -106,6 +107,9 @@ class FakeBox:
 
     def set_size_request(self, width: int, height: int) -> None:
         self.size_request = (width, height)
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
 
     def pack_start(self, child, *_args) -> None:
         self.children.append(child)
@@ -221,6 +225,7 @@ class FakeComboBoxText:
         self._active_id: str | None = None
         self.callbacks: dict[str, object] = {}
         self.sensitive = True
+        self.tooltip_text = None
 
     def append(self, item_id: str, text: str) -> None:
         self.items.append((item_id, text))
@@ -249,6 +254,9 @@ class FakeComboBoxText:
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
 
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
+
 
 class FakeSpinButton:
     def __init__(self) -> None:
@@ -256,6 +264,7 @@ class FakeSpinButton:
         self.callbacks: dict[str, object] = {}
         self.properties: dict[str, object] = {}
         self.sensitive = True
+        self.tooltip_text = None
 
     @classmethod
     def new_with_range(cls, *_args):
@@ -284,6 +293,9 @@ class FakeSpinButton:
     def set_size_request(self, width: int, height: int) -> None:
         self.size_request = (width, height)
 
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
+
 
 class FakeScale(FakeSpinButton):
     @classmethod
@@ -305,6 +317,7 @@ class FakeSwitch:
         self._active = False
         self.callbacks: dict[str, object] = {}
         self.sensitive = True
+        self.tooltip_text = None
 
     def connect(self, signal: str, callback, *args) -> None:
         self.callbacks[signal] = (callback, args)
@@ -321,6 +334,9 @@ class FakeSwitch:
 
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
+
+    def set_tooltip_text(self, value: str) -> None:
+        self.tooltip_text = value
 
 
 class FakeCheckButton(FakeSwitch):
@@ -759,6 +775,91 @@ class TestSettingsWindowController:
         assert "Hide Delay" in behavior_rows
         assert "Unhide Delay" in behavior_rows
         assert "Open On" in behavior_rows
+
+    def test_appearance_and_behavior_rows_have_visible_info_icons(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+
+        controller.show()
+        stack = controller._window.child.children[1]
+        appearance_box = stack.pages[0][0]
+        behavior_box = stack.pages[1][0]
+
+        def rows_by_label(tab_box):
+            rows = {}
+            for section in tab_box.get_children():
+                if not isinstance(section, FakeBox):
+                    continue
+                children = section.get_children()
+                if len(children) < 2 or not isinstance(children[1], FakeBox):
+                    continue
+                for row in children[1].get_children():
+                    if not isinstance(row, FakeBox) or len(row.get_children()) < 2:
+                        continue
+                    title = row.get_children()[0]
+                    if isinstance(title, FakeLabel):
+                        rows[title.get_label()] = row
+            return rows
+
+        appearance_rows = rows_by_label(appearance_box)
+        behavior_rows = rows_by_label(behavior_box)
+        rows = {**appearance_rows, **behavior_rows}
+        existing_info_rows = {
+            "Extra Distance from Edge",
+            "Hide Mode",
+            "Monitor",
+            "Pressure Threshold",
+        }
+        expected_tooltip_rows = {
+            "Theme",
+            "Icon Size",
+            "Transparency",
+            "Zoom",
+            "Zoom Percent",
+            "Show Tooltips",
+            "Window Previews",
+            "Show Window Counts",
+            "Position",
+            "Follow Cursor",
+            "Current Workspace Only",
+            "Lock Positions",
+            "Anchor Applets to End",
+            "Anchor Files to End",
+            "Left Click",
+            "Middle Click",
+            "Window List Sort",
+            "Hide Delay",
+            "Unhide Delay",
+            "Pressure Reveal",
+            "Open On",
+        }
+
+        for label in expected_tooltip_rows:
+            row = rows[label]
+            title, control = row.get_children()[:2]
+            assert title.tooltip_text is None
+            assert isinstance(control, FakeBox)
+            control_children = control.get_children()
+            assert len(control_children) == 2
+            assert isinstance(control_children[1], FakeEventBox)
+            assert control_children[1]._docking_info_label.get_label()
+
+        for label in existing_info_rows:
+            row = rows[label]
+            title, control = row.get_children()[:2]
+            assert row.tooltip_text is None
+            assert title.tooltip_text is None
+            assert getattr(control, "tooltip_text", None) is None
 
     def test_monitor_selector_saves_connector_and_repositions(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
