@@ -159,6 +159,8 @@ class SettingsWindowController:
         self._lock_icons_switch: Any = None
         self._workspace_only_switch: Any = None
         self._active_display_switch: Any = None
+        self._monitor_combo: Any = None
+        self._monitor_info: Any = None
         self._anchor_applets_switch: Any = None
         self._anchor_files_switch: Any = None
         self._zoom_enabled_switch: Any = None
@@ -320,6 +322,23 @@ class SettingsWindowController:
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
 
+        self._monitor_combo = Gtk.ComboBoxText()
+        self._monitor_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        self._monitor_combo.connect("changed", self._on_monitor_combo_changed)
+        self._monitor_info = self._new_info_icon(
+            _(
+                "When Follow Cursor is enabled, the dock follows the pointer "
+                "across monitors. The selected monitor is kept as the fallback."
+            )
+        )
+        monitor_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=HIDE_MODE_BOX_SPACING_PX,
+        )
+        monitor_box.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        monitor_box.pack_start(self._monitor_combo, False, False, 0)
+        monitor_box.pack_start(self._monitor_info, False, False, 0)
+
         self._icon_size_spin = self._new_numeric_spin_button(
             minimum=MIN_ICON_SIZE,
             maximum=MAX_ICON_SIZE,
@@ -422,8 +441,15 @@ class SettingsWindowController:
             rows=[
                 (_("Position"), self._position_combo),
                 (_("Extra Distance from Edge"), additional_distance_box),
-                (_("Follow Cursor"), self._active_display_switch),
                 (_("Current Workspace Only"), self._workspace_only_switch),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Monitor"),
+            rows=[
+                (_("Follow Cursor"), self._active_display_switch),
+                (_("Monitor"), monitor_box),
             ],
         )
         self._append_section(
@@ -887,10 +913,33 @@ class SettingsWindowController:
             }
             for desktop_id, check in self._applet_checks.items():
                 check.set_active(desktop_id in active_ids)
+            self._sync_monitor_combo()
             self._update_updates_status()
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
+
+    def _sync_monitor_combo(self) -> None:
+        if self._monitor_combo is None:
+            return
+        self._monitor_combo.remove_all()
+        choices = self._monitor_choices()
+        if not choices:
+            self._monitor_combo.append("-1", _("Primary Display"))
+            self._monitor_combo.set_active_id("-1")
+            return
+        for choice in choices:
+            self._monitor_combo.append(str(choice.index), choice.label)
+        self._monitor_combo.set_active_id(str(self._runtime.current_monitor_choice()))
+
+    def _monitor_choices(self) -> list[Any]:
+        try:
+            choices = self._runtime.get_monitor_choices()
+        except Exception:
+            return []
+        if not isinstance(choices, list):
+            return []
+        return choices
 
     def _rebuild_applet_tab(self) -> None:
         box = self._applets_box
@@ -1032,6 +1081,36 @@ class SettingsWindowController:
     def _on_view_releases(self, _button: Gtk.Button) -> None:
         self._runtime.open_releases_page()
 
+    def _on_monitor_combo_changed(self, widget: Gtk.ComboBoxText) -> None:
+        if self._syncing_widgets:
+            return
+        active_id = widget.get_active_id()
+        if active_id is None:
+            return
+        try:
+            monitor_index = int(active_id)
+        except ValueError:
+            return
+        choices = self._monitor_choices()
+        connector = next(
+            (
+                choice.connector
+                for choice in choices
+                if int(getattr(choice, "index", -2)) == monitor_index
+            ),
+            None,
+        )
+        if (
+            self._config.monitor_index == monitor_index
+            and self._config.monitor_connector == connector
+        ):
+            return
+        self._config.monitor_index = monitor_index
+        self._config.monitor_connector = connector
+        self._config.save()
+        if not self._config.active_display:
+            self._runtime.reposition()
+
     def _apply_runtime_theme(self) -> None:
         theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
             self._config.transparency
@@ -1105,6 +1184,8 @@ class SettingsWindowController:
     def _update_dependent_sensitivity(self) -> None:
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
+        if self._monitor_combo is not None:
+            self._monitor_combo.set_sensitive(not bool(self._config.active_display))
         hide_controls_sensitive = self._config.hide_mode not in (
             "none",
             "always-on-top",
