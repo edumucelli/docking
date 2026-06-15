@@ -499,6 +499,8 @@ This split keeps runtime behavior in one place while making parsers/rendering hi
 
 ### AI Usage
 
+<details>
+<summary>Details</summary>
 
 Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
@@ -513,8 +515,12 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
 **Preferences stored:** rolling `days` usage history in `applet_prefs.aiusage`
 
+</details>
+
 ### Clock
 
+<details>
+<summary>Details</summary>
 
 Analog or digital clock face. Optional seconds display adds a red seconds hand in analog mode and `HH:MM:SS` in digital mode, and the applet can keep a simple one-shot alarm reminder.
 
@@ -530,8 +536,12 @@ Analog or digital clock face. Optional seconds display adds a red seconds hand i
 
 **Preferences stored:** `show_digital`, `show_military`, `show_date`, `show_seconds`, `alarm_target`
 
+</details>
+
 ### Alarm
 
+<details>
+<summary>Details</summary>
 
 Multiple alarm presets with local-time scheduling, weekday repeats, one-shot alarms, snooze, and dismiss controls. The icon shows a rounded alarm clock with a compact next-alarm countdown, and switches to a ringing label when an alarm fires.
 
@@ -549,8 +559,12 @@ Multiple alarm presets with local-time scheduling, weekday repeats, one-shot ala
 
 **Update interval:** 30 seconds normally, 1 second while ringing
 
+</details>
+
 ### Trash
 
+<details>
+<summary>Details</summary>
 
 Shows the current state of the system trash. Icon switches between empty and full automatically.
 
@@ -559,8 +573,12 @@ Shows the current state of the system trash. Icon switches between empty and ful
 - **Open Trash** -- open in file manager
 - **Empty Trash** -- permanently delete all trashed items
 
+</details>
+
 ### USB Watch
 
+<details>
+<summary>Details</summary>
 
 Shows mounted removable USB storage devices and provides safe-remove actions without opening a file manager.
 
@@ -568,15 +586,23 @@ Shows mounted removable USB storage devices and provides safe-remove actions wit
 **Right-click options:**
 - **Safely Remove _device_** -- unmount and eject a removable USB device when supported
 
+</details>
+
 ### Desktop
 
+<details>
+<summary>Details</summary>
 
 Toggle "show desktop" mode -- minimizes or restores all windows.
 
 **Click:** Toggle show/hide all windows
 
+</details>
+
 ### System Monitor
 
+<details>
+<summary>Details</summary>
 
 Circular gauge showing real-time CPU and memory usage. The fill color shifts from green (idle) to red (busy). A white arc around the edge shows memory usage.
 
@@ -584,8 +610,12 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 **Update interval:** 1 second
 
+</details>
+
 ### Thermals
 
+<details>
+<summary>Details</summary>
 
 Hottest lm-sensors temperature plus fastest fan RPM. The icon is a thermometer with a degree-only bottom label for the current temperature, and the tooltip includes the lm-sensors chip and label for both readings.
 
@@ -598,8 +628,12 @@ Hottest lm-sensors temperature plus fastest fan RPM. The icon is a thermometer w
 
 **Update interval:** 5 seconds
 
+</details>
+
 ### Battery
 
+<details>
+<summary>Details</summary>
 
 Shows battery charge level using standard icons. The icon changes based on charge level and charging state.
 
@@ -610,8 +644,12 @@ Shows battery charge level using standard icons. The icon changes based on charg
 
 **Update interval:** 60 seconds
 
+</details>
+
 ### Brightness
 
+<details>
+<summary>Details</summary>
 
 Screen brightness control with a live level indicator.
 
@@ -624,8 +662,12 @@ Screen brightness control with a live level indicator.
 
 **Update interval:** 5 seconds
 
+</details>
+
 ### Weather
 
+<details>
+<summary>Details</summary>
 
 Shows current weather and air quality for a selected city with a 5-day forecast.
 
@@ -650,8 +692,12 @@ Tue: 28/32°C, Rain
 
 **Update interval:** 5 minutes
 
+</details>
+
 ### Sunrise
 
+<details>
+<summary>Details</summary>
 
 Sunrise, sunset, and twilight countdown applet for a selected city. The icon is a rendered 24-hour solar dial with night, astronomical, nautical, civil, and daylight bands plus a current-time marker.
 
@@ -668,8 +714,12 @@ Sunrise, sunset, and twilight countdown applet for a selected city. The icon is 
 
 **Update interval:** 60 seconds
 
+</details>
+
 ### Moon
 
+<details>
+<summary>Details</summary>
 
 Moon phase applet with a rendered moon disc and illumination shading.
 
@@ -682,8 +732,12 @@ Moon phase applet with a rendered moon disc and illumination shading.
 
 **Update interval:** 6 hours
 
+</details>
+
 ### Clippy
 
+<details>
+<summary>Details</summary>
 
 Clipboard history manager. Monitors the system clipboard and stores the last 15 text entries.
 
@@ -693,8 +747,12 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 
 **Preferences stored:** `max_entries`
 
+</details>
+
 ### Bookmarks
 
+<details>
+<summary>Details</summary>
 
 Bookmarks launcher for pinned URLs.
 
@@ -706,8 +764,12 @@ Bookmarks launcher for pinned URLs.
 
 **Tooltip:** summary of the saved bookmark set
 
+</details>
+
 ### Quick Note
 
+<details>
+<summary>Details</summary>
 
 Sticky note applet for a single quick text note.
 
@@ -718,8 +780,12 @@ Sticky note applet for a single quick text note.
 
 **Tooltip:** note preview or empty-note fallback
 
+</details>
+
 ### Recent Files
 
+<details>
+<summary>Details</summary>
 
 Launcher for the most recently opened files.
 
@@ -730,8 +796,12 @@ Launcher for the most recently opened files.
 
 **Tooltip:** most recent file name or empty-state fallback
 
+</details>
+
 ### Color Picker
 
+<details>
+<summary>Details</summary>
 
 Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel color, copies hex value to clipboard, and updates the icon swatch.
 
@@ -744,15 +814,23 @@ Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel colo
 
 **Preferences stored:** `show_hex`, `r`, `g`, `b`, `hex`
 
+</details>
+
 ### Applications
 
+<details>
+<summary>Details</summary>
 
 Categorized application launcher. Groups all installed `.desktop` applications by FreeDesktop category (Multimedia, Development, Internet, etc.) with icons.
 
 **Click:** Open the categorized launcher menu. The top of the menu includes a search field that filters applications as you type.
 
+</details>
+
 ### Keyboard Layout
 
+<details>
+<summary>Details</summary>
 
 Keyboard layout switcher with a compact keyboard icon and active layout code overlay.
 
@@ -765,8 +843,12 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 
 **Tooltip:** active layout code or no-layout fallback
 
+</details>
+
 ### Caps Lock
 
+<details>
+<summary>Details</summary>
 
 Caps Lock and Num Lock indicators for keyboards without physical lights. The icon shows which locks are currently active.
 
@@ -779,8 +861,12 @@ Caps Lock and Num Lock indicators for keyboards without physical lights. The ico
 
 **Update interval:** 1 second
 
+</details>
+
 ### Network
 
+<details>
+<summary>Details</summary>
 
 Shows WiFi signal strength or wired connection status, with live upload/download speed overlay.
 
@@ -804,8 +890,12 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 
 **Update interval:** 2 seconds
 
+</details>
+
 ### Bluetooth
 
+<details>
+<summary>Details</summary>
 
 Bluetooth manager applet for quick adapter and device control from the dock.
 
@@ -828,8 +918,12 @@ Bluetooth manager applet for quick adapter and device control from the dock.
 
 **Update interval:** 2 seconds
 
+</details>
+
 ### Cam Shield
 
+<details>
+<summary>Details</summary>
 
 Camera privacy indicator. The icon shows a red dot while an app is using a camera.
 
@@ -844,8 +938,12 @@ Locking blocks new camera sessions. Apps that are already using the camera may n
 
 **Update interval:** 2 seconds
 
+</details>
+
 ### Mic Shield
 
+<details>
+<summary>Details</summary>
 
 Microphone privacy indicator and mute toggle. The icon shows a red dot while an app is using microphone input, and clicking the applet quickly mutes or unmutes the microphone.
 
@@ -859,8 +957,12 @@ Microphone privacy indicator and mute toggle. The icon shows a red dot while an 
 
 **Update interval:** 2 seconds
 
+</details>
+
 ### Power Profiles
 
+<details>
+<summary>Details</summary>
 
 Power profile applet for quick laptop/handheld mode switching.
 
@@ -871,15 +973,24 @@ Power profile applet for quick laptop/handheld mode switching.
 
 **Tooltip:** current profile and available profiles
 
+</details>
+
 ### Caffeine
+
+<details>
+<summary>Details</summary>
 
 Keeps the session awake for a selected duration or indefinitely.
 
 **Click:** Toggle inhibit on/off
 **Right-click:** Duration presets and status
 
+</details>
+
 ### Notifications
 
+<details>
+<summary>Details</summary>
 
 Notification center applet with a compact status icon, Do Not Disturb toggle, and pending badge when available.
 
@@ -891,8 +1002,12 @@ Notification center applet with a compact status icon, Do Not Disturb toggle, an
 
 **Update interval:** 2 seconds
 
+</details>
+
 ### System Tray
 
+<details>
+<summary>Details</summary>
 
 StatusNotifier/AppIndicator host for tray applications such as chat clients, sync tools, background utilities, and desktop services.
 
@@ -906,8 +1021,12 @@ The applet uses an existing desktop StatusNotifier watcher when one is available
 
 **Update interval:** 3 seconds
 
+</details>
+
 ### Session
 
+<details>
+<summary>Details</summary>
 
 Lock, log out, suspend, restart, or shut down from the dock.
 
@@ -919,8 +1038,12 @@ Lock, log out, suspend, restart, or shut down from the dock.
 - **Restart**
 - **Shut Down**
 
+</details>
+
 ### Calendar
 
+<details>
+<summary>Details</summary>
 
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
@@ -929,8 +1052,12 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 
 **Update interval:** 30 seconds (refreshes icon at midnight)
 
+</details>
+
 ### Workspaces
 
+<details>
+<summary>Details</summary>
 
 Workspace switcher with a visual grid icon. Active workspace is highlighted in blue.
 
@@ -940,8 +1067,12 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 **Tooltip:** Active workspace name
 
+</details>
+
 ### Screenshot
 
+<details>
+<summary>Details</summary>
 
 Capture screenshots with the available screenshot tool on your system.
 
@@ -952,8 +1083,12 @@ Capture screenshots with the available screenshot tool on your system.
 - **Region** -- interactive area selection
 - **Full Screen in 3s/5s/7s/9s** -- delayed full-screen capture
 
+</details>
+
 ### Volume
 
+<details>
+<summary>Details</summary>
 
 System volume control. The icon switches between muted, low, medium, and high based on level.
 
@@ -965,8 +1100,12 @@ System volume control. The icon switches between muted, low, medium, and high ba
 
 **Update interval:** 1 second (refreshes only on change)
 
+</details>
+
 ### Music
 
+<details>
+<summary>Details</summary>
 
 Media controller applet with album-art icon rendering.
 
@@ -980,15 +1119,24 @@ Media controller applet with album-art icon rendering.
 
 **Tooltip:** multiline summary, e.g. `Artist - Title`, `Album: ...`, `Vol N%`
 
+</details>
+
 ### Last.fm
+
+<details>
+<summary>Details</summary>
 
 Shows recent Last.fm listening activity for a configured user.
 
 **Click:** Configure the applet, or open the current track when available
 **Right-click:** Recent tracks, profile link, refresh, and configuration
 
+</details>
+
 ### Pomodoro
 
+<details>
+<summary>Details</summary>
 
 Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases with configurable durations. Triggers urgent bounce+glow on phase transitions.
 
@@ -1001,16 +1149,24 @@ Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases wi
 
 **Preferences stored:** `work`, `break_`, `long_break`
 
+</details>
+
 ### Pet
 
+<details>
+<summary>Details</summary>
 
 Animated companion applet that reacts to system activity with different moods.
 
 **Click:** reset the pet back to a happy state
 **Tooltip:** current mood and CPU percentage
 
+</details>
 
 ### Separator
+
+<details>
+<summary>Details</summary>
 
 Transparent gap divider between dock items. Supports multiple instances -- each with independent, persistent size.
 
@@ -1021,8 +1177,12 @@ Transparent gap divider between dock items. Supports multiple instances -- each 
 
 Added via right-click on dock background -> **Add Separator** (inserts at click position).
 
+</details>
+
 ### Hydration
 
+<details>
+<summary>Details</summary>
 
 Water drop icon that drains over a configurable interval, reminding you to drink water. Click to refill. Triggers urgent bounce when empty.
 
@@ -1034,8 +1194,12 @@ Water drop icon that drains over a configurable interval, reminding you to drink
 
 **Preferences stored:** `interval`, `show_timer`
 
+</details>
+
 ### Stretch Coach
 
+<details>
+<summary>Details</summary>
 
 Periodic micro-break reminder applet with offline stretch cards. Reminders stay inside the dock: the icon becomes urgent when a break is due, and clicking acknowledges the reminder and restarts the timer.
 
@@ -1049,8 +1213,12 @@ Periodic micro-break reminder applet with offline stretch cards. Reminders stay 
 
 **Preferences stored:** `interval`, `cards_enabled`
 
+</details>
+
 ### Quote
 
+<details>
+<summary>Details</summary>
 
 Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with local fallback quotes and supports online refresh from active sources.
 
@@ -1063,8 +1231,12 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 
 **Preferences stored:** `source`
 
+</details>
+
 ### Random Trivia
 
+<details>
+<summary>Details</summary>
 
 Quick trivia applet with local and online questions. The tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
 
@@ -1075,8 +1247,12 @@ Quick trivia applet with local and online questions. The tooltip shows the curre
 - **Next Trivia**
 - **Refresh from Web**
 
+</details>
+
 ### Today in History
 
+<details>
+<summary>Details</summary>
 
 One-event-at-a-time history applet with online refresh and offline fallback data. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
 
@@ -1087,8 +1263,12 @@ One-event-at-a-time history applet with online refresh and offline fallback data
 - **Refresh from Web**
 - **Open Article** -- open the current event's Wikipedia page when available
 
+</details>
+
 ### Hacker News
 
+<details>
+<summary>Details</summary>
 
 Hacker News headline viewer. It fetches HN top stories, keeps a cached list for startup, lazy-loads more when you land on the last loaded item, and shows the selected title plus points/comments in the tooltip. Paging continues up to 100 loaded headlines.
 
@@ -1104,8 +1284,12 @@ Hacker News headline viewer. It fetches HN top stories, keeps a cached list for 
 
 **Preferences stored:** cached `stories`, `active_index`, `fetched_at`
 
+</details>
+
 ### Ambient
 
+<details>
+<summary>Details</summary>
 
 Looping ambient soundscape player with 7 bundled nature sounds plus white and pink noise.
 
@@ -1115,8 +1299,12 @@ Looping ambient soundscape player with 7 bundled nature sounds plus white and pi
 
 **Preferences stored:** `sound`, `volume`
 
+</details>
+
 ### Calculator
 
+<details>
+<summary>Details</summary>
 
 Basic four-function calculator with a popup interface. Supports +, -, *, /, parentheses, and decimal numbers.
 
@@ -1125,8 +1313,12 @@ Basic four-function calculator with a popup interface. Supports +, -, *, /, pare
 
 **Preferences stored:** `last_expression`
 
+</details>
+
 ### Unit Converter
 
+<details>
+<summary>Details</summary>
 
 Convert between units directly from the dock popup. Supports length, weight, temperature, volume, speed, and data categories.
 
@@ -1134,8 +1326,12 @@ Convert between units directly from the dock popup. Supports length, weight, tem
 
 **Preferences stored:** `last_category`
 
+</details>
+
 ### Currency FX
 
+<details>
+<summary>Details</summary>
 
 Live currency pair monitor with a sparkline icon. Add the pairs you care about, cycle between them from the dock, and choose the chart range that fits your glance.
 
@@ -1147,7 +1343,12 @@ Live currency pair monitor with a sparkline icon. Add the pairs you care about, 
 
 **Preferences stored:** `pairs`, `active_index`, `chart_interval`, `sample_source`, `samples`
 
+</details>
+
 ### Crypto
+
+<details>
+<summary>Details</summary>
 
 Tracks selected cryptocurrency prices with compact dock display and refresh actions.
 
@@ -1155,8 +1356,12 @@ Tracks selected cryptocurrency prices with compact dock display and refresh acti
 **Scroll:** Switch tracked assets
 **Right-click:** Refresh, chart interval, switch, add, or remove assets
 
+</details>
+
 ### URL Shortener
 
+<details>
+<summary>Details</summary>
 
 Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to the clipboard.
 
@@ -1165,8 +1370,12 @@ Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to th
 
 **Preferences stored:** `last_url`
 
+</details>
+
 ### Drag Share
 
+<details>
+<summary>Details</summary>
 
 Drop a local file onto the applet to upload it to tmpfiles.org and copy the returned URL to the clipboard. Files are temporary and expire automatically.
 
@@ -1175,15 +1384,23 @@ Drop a local file onto the applet to upload it to tmpfiles.org and copy the retu
 
 **Preferences stored:** `last_url`
 
+</details>
+
 ### Window Killer
 
+<details>
+<summary>Details</summary>
 
 Click the applet, then click any window to force-close it.
 
 **Click:** Enter kill mode (cursor changes to crosshair)
 
+</details>
+
 ### Cert Watch
 
+<details>
+<summary>Details</summary>
 
 Monitor certificate expiry for a list of domains. The shield color highlights the most urgent domain, and the icon shows the lowest days remaining so expiring certificates are easy to spot.
 
@@ -1199,8 +1416,12 @@ Monitor certificate expiry for a list of domains. The shield color highlights th
 
 **Preferences stored:** `domains` list (host, port)
 
+</details>
+
 ### Speedtest
 
+<details>
+<summary>Details</summary>
 
 One-click internet speed test. The dial is painted as a classic four-band speedometer (red, orange, yellow, green from left to right); the needle points at the last download speed and takes its color from the current tier. The badge shows Mbps (e.g. `250Mb`, `1.2Gb`). Tooltip shows download, upload, ping, jitter, server, and timestamp.
 
@@ -1215,8 +1436,12 @@ One-click internet speed test. The dial is painted as a classic four-band speedo
 
 **Preferences stored:** `last_result` (download_mbps, upload_mbps, ping_ms, jitter_ms, server, timestamp)
 
+</details>
+
 ### Desk Presence
 
+<details>
+<summary>Details</summary>
 
 Tracks time at your desk versus away. The icon shows whether you are currently active or away, the bottom label shows today's at-desk hours, and the tooltip summarizes the recent daily breakdown.
 
@@ -1227,15 +1452,24 @@ Tracks time at your desk versus away. The icon shows whether you are currently a
 
 **Preferences stored:** `today` (ISO date), `at_desk_seconds`, `away_seconds`, `idle_threshold_s`, `history` (last 6 days)
 
+</details>
+
 ### Docker
+
+<details>
+<summary>Details</summary>
 
 Shows Docker availability and container status when Docker is installed.
 
 **Click:** Refresh container state
 **Right-click:** Container actions when available
 
+</details>
+
 ### Astronomy Picture of the Day
 
+<details>
+<summary>Details</summary>
 
 Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip includes the date, title, credit, and a short explanation, and the applet keeps showing a graceful placeholder if the image is unavailable.
 
@@ -1250,6 +1484,8 @@ Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip inclu
 **Update interval:** 1 hour. The applet fetches again when the APOD date changes and retries errors after 10 minutes.
 
 **Preferences stored:** `last_result` (date, title, explanation, media_type, image_url, page_url, copyright, cached_path)
+
+</details>
 
 ## Writing Custom Applets
 
