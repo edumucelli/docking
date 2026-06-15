@@ -713,6 +713,13 @@ def _normalize_pref_map(raw: object) -> dict[str, dict[str, Any]]:
     return result
 
 
+def _normalize_optional_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 @dataclass
 class Config:
     """Dock configuration with sensible defaults."""
@@ -729,6 +736,10 @@ class Config:
     position: str = DEFAULT_POSITION
     # Target monitor index (-1 means "primary monitor")
     monitor_index: int = DEFAULT_MONITOR_INDEX
+    # Stable monitor connector/output name when the backend can expose one.
+    # ``monitor_index`` remains the fallback for older configs and sessions
+    # where GDK cannot report a connector.
+    monitor_connector: str | None = None
     # Dock hide behavior (see HideMode enum)
     hide_mode: str = DEFAULT_HIDE_MODE
     # Delay in ms before the dock starts hiding after cursor leaves (Plank default: 0)
@@ -833,6 +844,7 @@ class Config:
                 minimum=DEFAULT_MONITOR_INDEX,
             ),
         )
+        self.monitor_connector = _normalize_optional_text(self.monitor_connector)
         self.hide_mode = _normalize_hide_mode(self.hide_mode)
         self.hide_delay_ms = _normalize_int(
             self.hide_delay_ms,

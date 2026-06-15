@@ -159,6 +159,7 @@ stack.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import gi
@@ -187,6 +188,15 @@ if TYPE_CHECKING:
 log = get_logger(name="placement")
 
 
+@dataclass(frozen=True)
+class MonitorChoice:
+    """One selectable monitor target for preferences and menus."""
+
+    label: str
+    index: int
+    connector: str | None = None
+
+
 class DockPlacementController:
     """Owns monitor selection, placement, struts, and pointer barriers."""
 
@@ -204,13 +214,19 @@ class DockPlacementController:
         self._geometry_refresh_source: int = 0
 
     def current_monitor_choice(self) -> int:
-        """Current monitor menu selection (-1=primary, >=0 specific monitor)."""
+        """Current configured home monitor (-1=primary, >=0 specific monitor)."""
         display = self._window.get_display()
         if not display:
             return -1
         n_monitors = display.get_n_monitors()
         if n_monitors <= 0:
             return -1
+        configured = self._monitor_for_connector(
+            display=display,
+            connector=getattr(self._window.config, "monitor_connector", None),
+        )
+        if configured is not None:
+            return self._monitor_index(display=display, monitor=configured)
         selected = int(self._window.config.monitor_index)
         if selected == -1:
             return self.primary_monitor_index()
@@ -221,10 +237,18 @@ class DockPlacementController:
     def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
         """Monitor choices for menu display. Empty when only one monitor."""
         display = self._window.get_display()
+        if not display or display.get_n_monitors() <= 1:
+            return []
+        choices = self.get_monitor_choices()
+        return [(choice.label, choice.index) for choice in choices]
+
+    def get_monitor_choices(self) -> list[MonitorChoice]:
+        """Monitor choices with connector identity when GDK exposes it."""
+        display = self._window.get_display()
         if not display:
             return []
         n_monitors = display.get_n_monitors()
-        if n_monitors <= 1:
+        if n_monitors <= 0:
             return []
 
         primary = display.get_primary_monitor() or display.get_monitor(0)
@@ -234,20 +258,26 @@ class DockPlacementController:
                 primary_idx = idx
                 break
 
-        choices: list[tuple[str, int]] = []
+        choices: list[MonitorChoice] = []
         for idx in range(n_monitors):
             monitor = display.get_monitor(idx)
             if monitor is None:
                 continue
             geom = monitor.get_geometry()
+            connector = self._monitor_connector(monitor)
+            model = self._monitor_model(monitor)
             label = _("Display {display}: {width}x{height}").format(
                 display=idx + 1,
                 width=geom.width,
                 height=geom.height,
             )
+            if connector:
+                label += f" - {connector}"
+            elif model:
+                label += f" - {model}"
             if idx == primary_idx:
                 label += f" ({_('Primary')})"
-            choices.append((label, idx))
+            choices.append(MonitorChoice(label=label, index=idx, connector=connector))
         return choices
 
     def primary_monitor_index(self) -> int:
@@ -550,6 +580,13 @@ class DockPlacementController:
         if n_monitors <= 0:
             return None
 
+        configured = self._monitor_for_connector(
+            display=display,
+            connector=getattr(self._window.config, "monitor_connector", None),
+        )
+        if configured is not None:
+            return configured
+
         selected = int(self._window.config.monitor_index)
         if 0 <= selected < n_monitors:
             monitor = display.get_monitor(selected)
@@ -569,6 +606,35 @@ class DockPlacementController:
             if display.get_monitor(idx) is monitor:
                 return idx
         return -1
+
+    @classmethod
+    def _monitor_for_connector(
+        cls, *, display: Gdk.Display, connector: str | None
+    ) -> Gdk.Monitor | None:
+        if not connector:
+            return None
+        try:
+            n_monitors = display.get_n_monitors()
+        except Exception:
+            return None
+        for idx in range(n_monitors):
+            monitor = display.get_monitor(idx)
+            if monitor is not None and cls._monitor_connector(monitor) == connector:
+                return monitor
+        return None
+
+    @staticmethod
+    def _monitor_connector(monitor: Gdk.Monitor) -> str | None:
+        getter = getattr(monitor, "get_connector", None)
+        if not callable(getter):
+            return None
+        text = str(getter() or "").strip()
+        return text or None
+
+    @staticmethod
+    def _monitor_model(monitor: Gdk.Monitor) -> str | None:
+        text = str(monitor.get_model() or "").strip()
+        return text or None
 
     def _monitor_snapshot(
         self,
@@ -599,4 +665,6 @@ class DockPlacementController:
             ),
             scale=self._window.get_scale_factor(),
             primary=primary,
+            name=self._monitor_model(monitor),
+            connector=self._monitor_connector(monitor),
         )

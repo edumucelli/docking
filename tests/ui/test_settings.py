@@ -225,6 +225,10 @@ class FakeComboBoxText:
     def append(self, item_id: str, text: str) -> None:
         self.items.append((item_id, text))
 
+    def remove_all(self) -> None:
+        self.items.clear()
+        self._active_id = None
+
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
 
@@ -590,6 +594,8 @@ def _config():
         lock_icons=False,
         current_workspace_only=False,
         active_display=False,
+        monitor_index=-1,
+        monitor_connector=None,
         anchor_applets=False,
         anchor_files=False,
         zoom_enabled=True,
@@ -652,6 +658,7 @@ class TestSettingsWindowController:
         assert section_labels == [
             "<b>Look</b>",
             "<b>Placement</b>",
+            "<b>Monitor</b>",
             "<b>Layout</b>",
         ]
         behavior_box = stack.pages[1][0]
@@ -746,10 +753,78 @@ class TestSettingsWindowController:
         assert "Hide Delay" not in appearance_rows
         assert "Unhide Delay" not in appearance_rows
         assert "Open On" not in appearance_rows
+        assert "Follow Cursor" in appearance_rows
+        assert "Monitor" in appearance_rows
         assert "Hide Mode" in behavior_rows
         assert "Hide Delay" in behavior_rows
         assert "Unhide Delay" in behavior_rows
         assert "Open On" in behavior_rows
+
+    def test_monitor_selector_saves_connector_and_repositions(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        runtime.get_monitor_choices.return_value = [
+            SimpleNamespace(label="Display 1 - eDP-1", index=0, connector="eDP-1"),
+            SimpleNamespace(label="Display 2 - DP-1", index=1, connector="DP-1"),
+        ]
+        runtime.current_monitor_choice.return_value = 0
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._monitor_combo.set_active_id("1")
+        controller._monitor_combo.emit_changed()
+
+        assert config.monitor_index == 1
+        assert config.monitor_connector == "DP-1"
+        config.save.assert_called_once()
+        runtime.reposition.assert_called_once()
+
+    def test_follow_cursor_disables_monitor_selector_without_clearing_target(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        runtime.get_monitor_choices.return_value = [
+            SimpleNamespace(label="Display 1 - eDP-1", index=0, connector="eDP-1"),
+            SimpleNamespace(label="Display 2 - DP-1", index=1, connector="DP-1"),
+        ]
+        runtime.current_monitor_choice.return_value = 1
+        config = _config()
+        config.monitor_index = 1
+        config.monitor_connector = "DP-1"
+        controller = settings_mod.SettingsWindowController(
+            parent=object(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._active_display_switch.set_active(True)
+        controller._active_display_switch.emit_notify_active()
+
+        assert config.active_display is True
+        assert config.monitor_index == 1
+        assert config.monitor_connector == "DP-1"
+        assert controller._monitor_combo.sensitive is False
+        runtime.set_active_display.assert_called_once_with(True)
+        runtime.reposition.assert_called_once()
 
     def test_pressure_threshold_uses_info_icon_tooltip(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
