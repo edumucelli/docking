@@ -75,6 +75,7 @@ def _empty_runtime() -> SimpleNamespace:
         workspace_protocol=None,
         preview_protocol=None,
         hyprland_preview_protocol=None,
+        idle_protocol=None,
         stop=MagicMock(),
     )
 
@@ -146,6 +147,7 @@ def test_wayland_layer_shell_session_uses_wayland_previews_when_available():
             workspace_protocol=None,
             preview_protocol=preview_protocol,
             hyprland_preview_protocol=None,
+            idle_protocol=None,
             stop=MagicMock(),
         ),
     )
@@ -174,6 +176,7 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
             workspace_protocol=None,
             preview_protocol=None,
             hyprland_preview_protocol=hyprland_preview_protocol,
+            idle_protocol=None,
             stop=MagicMock(),
         ),
     )

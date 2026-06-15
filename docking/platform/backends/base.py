@@ -94,6 +94,7 @@ class MonitorSnapshot:
     scale: int = 1
     primary: bool = False
     name: str | None = None
+    connector: str | None = None
 
 
 @dataclass(frozen=True)

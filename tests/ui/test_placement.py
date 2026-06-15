@@ -22,6 +22,7 @@ def _make_window(**overrides):
             active_display=False,
             hide_mode="none",
             monitor_index=-1,
+            monitor_connector=None,
             additional_distance_from_edge=0,
             pressure_reveal_enabled=False,
             pressure_threshold=50,
@@ -61,6 +62,24 @@ def _make_controller(window):
         window,
         surface_service=window.surface_service,
     )
+
+
+def _fake_monitor(
+    *,
+    geometry,
+    workarea=None,
+    model: str | None = None,
+    connector: str | None = None,
+):
+    kwargs = {
+        "get_geometry": lambda: geometry,
+        "get_model": lambda: model,
+    }
+    if workarea is not None:
+        kwargs["get_workarea"] = lambda: workarea
+    if connector is not None:
+        kwargs["get_connector"] = lambda: connector
+    return SimpleNamespace(**kwargs)
 
 
 class TestPlacementControllerLifecycle:
@@ -151,7 +170,7 @@ class TestPlacementControllerLifecycle:
     def test_apply_scheduled_reposition_uses_latest_monitor_metrics(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
@@ -239,6 +258,28 @@ class TestPlacementControllerGeometry:
 
         assert controller.current_monitor_choice() == 2
 
+    def test_current_monitor_choice_prefers_configured_connector(self):
+        primary = SimpleNamespace(get_connector=lambda: "eDP-1")
+        selected = SimpleNamespace(get_connector=lambda: "DP-1")
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_primary_monitor=lambda: primary,
+            get_monitor=lambda idx: selected if idx == 1 else primary,
+        )
+        window = _make_window(
+            get_display=lambda: display,
+            config=SimpleNamespace(
+                active_display=False,
+                monitor_index=0,
+                monitor_connector="DP-1",
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
+        )
+        controller = _make_controller(window)
+
+        assert controller.current_monitor_choice() == 1
+
     def test_primary_monitor_index_falls_back_to_zero(self):
         controller = _make_controller(_make_window(get_display=lambda: None))
         assert controller.primary_monitor_index() == 0
@@ -269,7 +310,7 @@ class TestPlacementControllerGeometry:
 
     def test_get_monitor_menu_choices_skips_missing_monitors(self):
         geom1 = SimpleNamespace(width=1920, height=1080)
-        mon1 = SimpleNamespace(get_geometry=lambda: geom1)
+        mon1 = _fake_monitor(geometry=geom1)
         display = SimpleNamespace(
             get_n_monitors=lambda: 2,
             get_primary_monitor=lambda: mon1,
@@ -284,7 +325,7 @@ class TestPlacementControllerGeometry:
     def test_position_dock_horizontal_bottom(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
@@ -304,7 +345,7 @@ class TestPlacementControllerGeometry:
     def test_position_dock_bottom_keeps_window_on_screen_edge_with_theme_gap(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
@@ -341,7 +382,7 @@ class TestPlacementControllerGeometry:
     def test_position_dock_right_keeps_window_on_screen_edge_with_theme_gap(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=24, width=1920, height=1000)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
@@ -380,12 +421,8 @@ class TestPlacementControllerGeometry:
         work_primary = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         geom_secondary = SimpleNamespace(x=1920, y=0, width=1280, height=1024)
         work_secondary = SimpleNamespace(x=1920, y=24, width=1280, height=1000)
-        primary = SimpleNamespace(
-            get_geometry=lambda: geom_primary, get_workarea=lambda: work_primary
-        )
-        secondary = SimpleNamespace(
-            get_geometry=lambda: geom_secondary, get_workarea=lambda: work_secondary
-        )
+        primary = _fake_monitor(geometry=geom_primary, workarea=work_primary)
+        secondary = _fake_monitor(geometry=geom_secondary, workarea=work_secondary)
         display = SimpleNamespace(
             get_n_monitors=lambda: 2,
             get_primary_monitor=lambda: primary,
@@ -425,7 +462,7 @@ class TestPlacementControllerGeometry:
 
     def test_get_monitor_menu_choices_only_for_multiple_monitors(self):
         geom = SimpleNamespace(width=1920, height=1080)
-        primary = SimpleNamespace(get_geometry=lambda: geom)
+        primary = _fake_monitor(geometry=geom)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: primary,
@@ -438,8 +475,8 @@ class TestPlacementControllerGeometry:
     def test_get_monitor_menu_choices_does_not_duplicate_primary(self):
         geom1 = SimpleNamespace(width=1920, height=1080)
         geom2 = SimpleNamespace(width=2560, height=1440)
-        mon1 = SimpleNamespace(get_geometry=lambda: geom1)
-        mon2 = SimpleNamespace(get_geometry=lambda: geom2)
+        mon1 = _fake_monitor(geometry=geom1)
+        mon2 = _fake_monitor(geometry=geom2)
         display = SimpleNamespace(
             get_n_monitors=lambda: 2,
             get_primary_monitor=lambda: mon1,
@@ -451,6 +488,33 @@ class TestPlacementControllerGeometry:
 
         labels = [label for label, _ in choices]
         assert labels == ["Display 1: 1920x1080 (Primary)", "Display 2: 2560x1440"]
+
+    def test_get_monitor_choices_includes_connector_when_available(self):
+        geom1 = SimpleNamespace(width=1920, height=1080)
+        geom2 = SimpleNamespace(width=2560, height=1440)
+        mon1 = _fake_monitor(geometry=geom1, model="Built-in", connector="eDP-1")
+        mon2 = _fake_monitor(geometry=geom2, model="Dell", connector="DP-1")
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_primary_monitor=lambda: mon1,
+            get_monitor=lambda idx: mon1 if idx == 0 else mon2,
+        )
+        controller = _make_controller(_make_window(get_display=lambda: display))
+
+        choices = controller.get_monitor_choices()
+
+        assert choices == [
+            placement_mod.MonitorChoice(
+                label="Display 1: 1920x1080 - eDP-1 (Primary)",
+                index=0,
+                connector="eDP-1",
+            ),
+            placement_mod.MonitorChoice(
+                label="Display 2: 2560x1440 - DP-1",
+                index=1,
+                connector="DP-1",
+            ),
+        ]
 
 
 class TestPlacementControllerStruts:
@@ -492,7 +556,7 @@ class TestPlacementControllerStruts:
     def test_set_struts_calls_surface_reservation(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
@@ -531,14 +595,8 @@ class TestPlacementControllerStruts:
         active_geom = SimpleNamespace(x=1920, y=0, width=2560, height=1440)
         primary_work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         active_work = SimpleNamespace(x=1920, y=0, width=2560, height=1440)
-        primary = SimpleNamespace(
-            get_geometry=lambda: primary_geom,
-            get_workarea=lambda: primary_work,
-        )
-        active = SimpleNamespace(
-            get_geometry=lambda: active_geom,
-            get_workarea=lambda: active_work,
-        )
+        primary = _fake_monitor(geometry=primary_geom, workarea=primary_work)
+        active = _fake_monitor(geometry=active_geom, workarea=active_work)
         display = SimpleNamespace(
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: primary,
@@ -621,7 +679,7 @@ class TestPlacementControllerStruts:
     def test_update_barrier_updates_monitor_geometry(self):
         geom = SimpleNamespace(x=100, y=50, width=1280, height=720)
         work = SimpleNamespace(x=100, y=50, width=1280, height=720)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -650,7 +708,7 @@ class TestPlacementControllerStruts:
     def test_update_barrier_delivers_scale_to_surface_service(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -675,7 +733,7 @@ class TestPlacementControllerStruts:
     def test_update_barrier_forwards_display_scale_factor(self, scale):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -696,7 +754,7 @@ class TestPlacementControllerStruts:
     def test_update_barrier_enables_pressure_callback_when_configured(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -720,7 +778,7 @@ class TestPlacementControllerStruts:
     def test_update_barrier_disables_pressure_callback_when_not_configured(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=0, width=1920, height=1080)
-        monitor = SimpleNamespace(get_geometry=lambda: geom, get_workarea=lambda: work)
+        monitor = _fake_monitor(geometry=geom, workarea=work)
         window = _make_window(
             config=SimpleNamespace(
                 hide_mode="autohide",
@@ -899,6 +957,50 @@ class TestPlacementControllerStruts:
             )
         )
         assert controller._resolve_target_monitor(display=display) is fallback
+
+    def test_resolve_target_monitor_prefers_connector_over_index(self):
+        indexed = SimpleNamespace(get_connector=lambda: "eDP-1")
+        connected = SimpleNamespace(get_connector=lambda: "DP-1")
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_monitor=lambda idx: connected if idx == 1 else indexed,
+            get_primary_monitor=lambda: indexed,
+        )
+        controller = _make_controller(
+            _make_window(
+                config=SimpleNamespace(
+                    active_display=False,
+                    monitor_index=0,
+                    monitor_connector="DP-1",
+                    pressure_reveal_enabled=False,
+                    pressure_threshold=50,
+                )
+            )
+        )
+
+        assert controller._resolve_target_monitor(display=display) is connected
+
+    def test_resolve_target_monitor_falls_back_to_index_when_connector_missing(self):
+        primary = SimpleNamespace(get_connector=lambda: "HDMI-A-1")
+        indexed = SimpleNamespace(get_connector=lambda: "eDP-1")
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 2,
+            get_monitor=lambda idx: indexed if idx == 1 else primary,
+            get_primary_monitor=lambda: primary,
+        )
+        controller = _make_controller(
+            _make_window(
+                config=SimpleNamespace(
+                    active_display=False,
+                    monitor_index=1,
+                    monitor_connector="DP-1",
+                    pressure_reveal_enabled=False,
+                    pressure_threshold=50,
+                )
+            )
+        )
+
+        assert controller._resolve_target_monitor(display=display) is indexed
 
     def test_reposition_updates_input_region_and_redraw(self):
         window = _make_window()

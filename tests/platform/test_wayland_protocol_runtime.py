@@ -10,12 +10,14 @@ import pytest
 pytest.importorskip("pywayland")
 
 from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelListV1
+from pywayland.protocol.ext_idle_notify_v1 import ExtIdleNotifierV1
 from pywayland.protocol.ext_image_capture_source_v1 import (
     ExtForeignToplevelImageCaptureSourceManagerV1,
 )
 from pywayland.protocol.ext_image_copy_capture_v1 import ExtImageCopyCaptureManagerV1
 from pywayland.protocol.wayland import WlSeat, WlShm
 
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (
     ExtWorkspaceManagerV1,
 )
@@ -27,6 +29,7 @@ from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management
 )
 from docking.platform.backends.wayland.runtime import (
     ForeignToplevelProtocolAdapter,
+    IdleProtocolAdapter,
     PreviewProtocolAdapter,
     WaylandProtocolFactories,
     WaylandProtocolRuntime,
@@ -43,6 +46,13 @@ class FakeProxy:
         self.dispatcher: dict[str, object] = {}
         self.stop = MagicMock()
         self.commit = MagicMock()
+        self.destroy = MagicMock()
+        self.notifications: list[tuple[int, object, FakeHandle]] = []
+
+    def get_input_idle_notification(self, timeout: int, seat: object) -> FakeHandle:
+        notification = FakeHandle()
+        self.notifications.append((timeout, seat, notification))
+        return notification
 
 
 class FakeRegistry:
@@ -186,6 +196,8 @@ def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
         (10, ZwlrForeignToplevelManagerV1, ZwlrForeignToplevelManagerV1.version),
         (11, ExtWorkspaceManagerV1, ExtWorkspaceManagerV1.version),
         (12, WlSeat, WlSeat.version),
+        (12, WlSeat, WlSeat.version),
+        (12, WlSeat, WlSeat.version),
     ]
     assert glib.watch is not None
 
@@ -213,6 +225,7 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
 
     assert runtime.preview_protocol is runtime.previews
     assert registry.bound == [
+        (20, ExtForeignToplevelListV1, ExtForeignToplevelListV1.version),
         (20, ExtForeignToplevelListV1, ExtForeignToplevelListV1.version),
         (
             21,
@@ -248,6 +261,24 @@ def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
         ),
         (31, WlShm, WlShm.version),
         (31, WlShm, WlShm.version),
+    ]
+
+
+def test_wayland_protocol_runtime_binds_idle_protocol():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](registry, 40, "ext_idle_notifier_v1", 99)
+    registry.dispatcher["global"](registry, 41, "wl_seat", 99)
+
+    assert runtime.idle_protocol is runtime.idle
+    assert registry.bound == [
+        (40, ExtIdleNotifierV1, ExtIdleNotifierV1.version),
+        (41, WlSeat, WlSeat.version),
+        (41, WlSeat, WlSeat.version),
+        (41, WlSeat, WlSeat.version),
     ]
 
 
@@ -319,6 +350,58 @@ def test_workspace_adapter_replays_initial_events_after_service_start():
     assert active.id == "workspace-a"
     assert active.name == "Code"
     assert service.activate("workspace-a") is not None
+
+
+def test_idle_protocol_adapter_creates_notification_and_forwards_events():
+    registry = FakeRegistry()
+    adapter = IdleProtocolAdapter()
+    service = MagicMock()
+    flush = MagicMock()
+    adapter.set_flush_callback(flush)
+
+    adapter.bind(registry=registry, name=10, version=99)
+    adapter.bind_seat(registry=registry, name=11, version=99)
+    adapter.start(service)
+
+    notifier = registry.proxies["ext_idle_notifier_v1"]
+    seat = registry.proxies["wl_seat"]
+    assert len(notifier.notifications) == 1
+    timeout, notification_seat, notification = notifier.notifications[0]
+    assert timeout == 0
+    assert notification_seat is seat
+    flush.assert_called_once_with()
+
+    notification.dispatcher["idled"](notification)
+    notification.dispatcher["resumed"](notification)
+
+    service.idled.assert_called_once_with()
+    service.resumed.assert_called_once_with()
+
+
+def test_wayland_idle_service_estimates_idle_seconds():
+    now = 10.0
+
+    def clock() -> float:
+        return now
+
+    protocol = MagicMock()
+    service = WaylandIdleService(protocol=protocol, clock=clock)
+
+    service.start()
+    assert service.idle_seconds() is None
+
+    service.idled()
+    now = 15.5
+    assert service.idle_seconds() == 5.5
+
+    service.resumed()
+    now = 18.0
+    assert service.idle_seconds() == 2.5
+
+    service.stop()
+    protocol.start.assert_called_once_with(service)
+    protocol.stop.assert_called_once_with()
+    assert service.idle_seconds() is None
 
 
 def test_workspace_adapter_flushes_activation_commit():
