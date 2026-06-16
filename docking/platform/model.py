@@ -254,8 +254,6 @@ class DockModel:
             if item is not None:
                 self.pinned_items.append(item)
 
-    # ── Recent Apps ──────────────────────────────────────────────────────
-
     def rebuild_recent_apps(self) -> None:
         """Clear and rebuild the recent-apps list from config (public entry point)."""
         self._recent_apps.clear()
@@ -394,8 +392,6 @@ class DockModel:
         """Sync recent apps to config and flush to disk."""
         self._sync_recent_apps_to_config()
         self._config.save()
-
-    # ─────────────────────────────────────────────────────────────────────
 
     def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
         icon_size = self._config.scaled_icon_size
