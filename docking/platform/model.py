@@ -386,6 +386,7 @@ class DockModel:
                 ),
             }
             for item in self._recent_apps
+            if not self._is_docking_self(item.desktop_id)
         ]
 
     def _persist_recent_apps(self) -> None:
@@ -1039,6 +1040,12 @@ class DockModel:
             elif item.kind == APP_KIND and self._config.show_recent_apps:
                 # Transition unpinned apps into the recent section so they
                 # remain discoverable without being permanently pinned.
+                if self._is_docking_self(desktop_id):
+                    item.removal_index = visible_index
+                    self._animating_out.append(item)
+                    self._persist_pinned_changes()
+                    self.notify()
+                    return
                 item.is_recent = True
                 item.is_pinned = False
                 item.last_closed = time.time()
