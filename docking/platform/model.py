@@ -325,7 +325,7 @@ class DockModel:
         # Pinned apps don't appear in recents.
         if pinned_item is not None:
             return
-        # Already tracked — update timestamp.
+        # Already tracked: update timestamp.
         for item in self._recent_apps:
             if item.desktop_id == desktop_id:
                 self._recent_apps.remove(item)
@@ -335,7 +335,7 @@ class DockModel:
                 self._prune_recent_apps()
                 self.notify()
                 return
-        # New entry — resolve and add.
+        # New entry: resolve and add.
         resolved = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
         if resolved is None:
             return
