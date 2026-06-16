@@ -284,6 +284,14 @@ DEFAULT_PRESSURE_REVEAL_ENABLED = False
 DEFAULT_PRESSURE_THRESHOLD = 50
 MIN_PRESSURE_THRESHOLD = 5
 MAX_PRESSURE_THRESHOLD = 500
+DEFAULT_SHOW_RECENT_APPS = True
+DEFAULT_RECENT_APPS_MAX = 5
+DEFAULT_RECENT_APPS_RETENTION_DAYS = 14
+DEFAULT_RECENT_APPS_OPACITY = 0.85
+MIN_RECENT_APPS_OPACITY = 0.3
+MAX_RECENT_APPS_OPACITY = 1.0
+MIN_RECENT_APPS_RETENTION_DAYS = 1
+MAX_RECENT_APPS_RETENTION_DAYS = 90
 
 logger = get_logger("config")
 _SAVE_LOCK = threading.RLock()
@@ -720,6 +728,24 @@ def _normalize_optional_text(value: object) -> str | None:
     return text or None
 
 
+def _normalize_recent_apps(raw: object) -> list[dict[str, object]]:
+    """Normalize the persisted recent-apps list, dropping malformed entries."""
+    if not isinstance(raw, list):
+        return []
+    result: list[dict[str, object]] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        desktop_id = entry.get("desktop_id")
+        last_closed = entry.get("last_closed")
+        if not isinstance(desktop_id, str) or not desktop_id:
+            continue
+        if not isinstance(last_closed, (int, float)):
+            continue
+        result.append({"desktop_id": desktop_id, "last_closed": int(last_closed)})
+    return result
+
+
 @dataclass
 class Config:
     """Dock configuration with sensible defaults."""
@@ -796,6 +822,16 @@ class Config:
     applet_prefs: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Per-item preferences keyed by stable target URI/id.
     item_prefs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Whether to show a recently-used apps section between pinned and running apps
+    show_recent_apps: bool = DEFAULT_SHOW_RECENT_APPS
+    # Maximum number of recent app icons to display
+    recent_apps_max: int = DEFAULT_RECENT_APPS_MAX
+    # Days after which unused recent apps are pruned
+    recent_apps_retention_days: int = DEFAULT_RECENT_APPS_RETENTION_DAYS
+    # Opacity multiplier for recent app icons (0.3–1.0)
+    recent_apps_opacity: float = DEFAULT_RECENT_APPS_OPACITY
+    # Persisted recent-app history: [{"desktop_id": "...", "last_closed": epoch}, ...]
+    recent_apps: list[dict[str, object]] = field(default_factory=list)
 
     @property
     def pos(self) -> Position:
@@ -935,6 +971,29 @@ class Config:
         self.pinned = normalize_pinned_entries(list(self.pinned))
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
+        self.show_recent_apps = _normalize_bool(
+            self.show_recent_apps,
+            default=DEFAULT_SHOW_RECENT_APPS,
+        )
+        self.recent_apps_max = _normalize_int(
+            self.recent_apps_max,
+            default=DEFAULT_RECENT_APPS_MAX,
+            minimum=1,
+            maximum=15,
+        )
+        self.recent_apps_retention_days = _normalize_int(
+            self.recent_apps_retention_days,
+            default=DEFAULT_RECENT_APPS_RETENTION_DAYS,
+            minimum=MIN_RECENT_APPS_RETENTION_DAYS,
+            maximum=MAX_RECENT_APPS_RETENTION_DAYS,
+        )
+        self.recent_apps_opacity = _normalize_float(
+            self.recent_apps_opacity,
+            default=DEFAULT_RECENT_APPS_OPACITY,
+            minimum=MIN_RECENT_APPS_OPACITY,
+            maximum=MAX_RECENT_APPS_OPACITY,
+        )
+        self.recent_apps = _normalize_recent_apps(self.recent_apps)
 
     @classmethod
     def load(cls, path: Path | str | None = None) -> Config:
@@ -1024,6 +1083,8 @@ class Config:
             filtered["pinned"] = normalize_pinned_entries(filtered["pinned"])
         filtered["applet_prefs"] = _normalize_pref_map(filtered.get("applet_prefs"))
         filtered["item_prefs"] = _normalize_pref_map(filtered.get("item_prefs"))
+        if "recent_apps" in filtered:
+            filtered["recent_apps"] = _normalize_recent_apps(filtered["recent_apps"])
         config = cls(**filtered)
         config._path = path
         return config
