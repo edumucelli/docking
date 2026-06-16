@@ -205,13 +205,14 @@ class LauncherEntryState:
 class DockModel:
     """Ordered collection of dock items, merging pinned and running apps."""
 
-    # Desktop IDs belonging to Docking itself — never track these as recent apps.
-    _DOCKING_SELF_IDS: frozenset[str] = frozenset(
-        {
-            "org.docking.Docking.desktop",
-            "cc.docking.Docking.desktop",
-        }
-    )
+    @staticmethod
+    def _is_docking_self(desktop_id: str) -> bool:
+        """Return True if *desktop_id* belongs to Docking itself."""
+        lowered = desktop_id.lower()
+        return (
+            "docking" in lowered
+            or "camshield" in lowered
+        )
 
     def __init__(
         self,
@@ -280,7 +281,7 @@ class DockModel:
                 continue
             if desktop_id in pinned_ids or desktop_id in seen:
                 continue
-            if desktop_id in self._DOCKING_SELF_IDS:
+            if self._is_docking_self(desktop_id):
                 continue
             if isinstance(last_closed, (int, float)) and last_closed < cutoff:
                 continue
@@ -315,7 +316,7 @@ class DockModel:
 
     def _record_app_closed(self, desktop_id: str) -> None:
         """Record that an app's last window closed, for the recent-apps list."""
-        if desktop_id in self._DOCKING_SELF_IDS:
+        if self._is_docking_self(desktop_id):
             return
         if not self._config.show_recent_apps:
             return
@@ -798,6 +799,8 @@ class DockModel:
             current_ids = set(running.keys())
             closed_ids = self._prev_running_ids - current_ids
             for closed_id in closed_ids:
+                if self._is_docking_self(closed_id):
+                    continue
                 # Only record if the item isn't a pinned non-app (applet, file, folder).
                 pinned = next(
                     (i for i in self.pinned_items if i.desktop_id == closed_id), None
