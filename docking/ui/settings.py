@@ -424,7 +424,6 @@ class SettingsWindowController:
             )
         )
 
-        # ── Recent Apps ──────────────────────────────────────────────
         self._recent_apps_switch = self._new_switch()
         self._recent_apps_max_spin = self._new_numeric_spin_button(
             minimum=1, maximum=15, step=1
@@ -432,7 +431,6 @@ class SettingsWindowController:
         self._recent_apps_retention_combo = Gtk.ComboBoxText()
         for days in (3, 7, 14, 30):
             self._recent_apps_retention_combo.append(str(days), str(days))
-        # ─────────────────────────────────────────────────────────────
 
         self._register_bindings()
 
