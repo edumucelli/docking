@@ -208,11 +208,7 @@ class DockModel:
     @staticmethod
     def _is_docking_self(desktop_id: str) -> bool:
         """Return True if *desktop_id* belongs to Docking itself."""
-        lowered = desktop_id.lower()
-        return (
-            "docking" in lowered
-            or "camshield" in lowered
-        )
+        return "docking" in desktop_id.lower()
 
     def __init__(
         self,
