@@ -1811,7 +1811,6 @@ sudo pacman -U artifacts/docking-*.pkg.tar.*
 
 ## Additional Docs
 
-- [Architecture Maintainer Map](docs/ARCHITECTURE.md)
 - [Icon Assets and Packaging](docs/ICONS.md)
 
 ## Contributing
