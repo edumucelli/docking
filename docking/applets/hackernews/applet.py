@@ -27,7 +27,8 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.freshness import cadence_label, parse_timestamp
+from docking.applets.freshness import cadence_label
+from docking.ui.tooltip import parse_timestamp
 from docking.applets.hackernews import meta
 from docking.applets.hackernews.render import render_icon
 from docking.applets.hackernews.state import (
