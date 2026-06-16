@@ -175,7 +175,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
-from docking.core.config import effective_edge_gap
+from docking.core.config import RECENT_APPS_ICON_OPACITY, effective_edge_gap
 from docking.core.items import APP_KIND
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import (
@@ -1251,7 +1251,7 @@ class DockRenderer:
 
         # Recent-app icons are drawn at reduced opacity so they read as
         # visually distinct from pinned launchers.
-        recent_opacity = 0.85 if item.is_recent else 1.0
+        recent_opacity = RECENT_APPS_ICON_OPACITY if item.is_recent else 1.0
 
         if lighten <= 0 and darken <= 0 and recent_opacity >= 1.0:
             # Idle icons do not need a temporary effect surface. Paint the
