@@ -175,7 +175,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
-from docking.core.config import RECENT_APPS_ICON_OPACITY, effective_edge_gap
+from docking.core.config import effective_edge_gap
 from docking.core.items import APP_KIND
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import (
@@ -219,6 +219,7 @@ URGENT_GLOW_INNER_STOP = 0.33
 URGENT_GLOW_INNER_ALPHA = 0.66
 URGENT_GLOW_OUTER_STOP = 0.66
 URGENT_GLOW_OUTER_ALPHA = 0.33
+RECENT_APPS_ICON_OPACITY = 0.85
 
 
 @dataclass(frozen=True)
