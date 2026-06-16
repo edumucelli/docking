@@ -732,7 +732,10 @@ class DockModel:
         Recent apps that are currently running are suppressed (they appear
         in either pinned or transient instead).
         """
-        recent = [item for item in self._recent_apps if not item.is_running]
+        if not self._config.show_recent_apps:
+            recent: list[DockItem] = []
+        else:
+            recent = [item for item in self._recent_apps if not item.is_running]
         items = self.pinned_items + recent + self._transient
         anchor_applets = self._config.anchor_applets
         anchor_files = self._config.anchor_files
