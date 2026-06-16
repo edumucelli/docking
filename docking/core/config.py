@@ -287,9 +287,6 @@ MAX_PRESSURE_THRESHOLD = 500
 DEFAULT_SHOW_RECENT_APPS = True
 DEFAULT_RECENT_APPS_MAX = 5
 DEFAULT_RECENT_APPS_RETENTION_DAYS = 14
-DEFAULT_RECENT_APPS_OPACITY = 0.85
-MIN_RECENT_APPS_OPACITY = 0.3
-MAX_RECENT_APPS_OPACITY = 1.0
 MIN_RECENT_APPS_RETENTION_DAYS = 1
 MAX_RECENT_APPS_RETENTION_DAYS = 90
 
@@ -828,8 +825,6 @@ class Config:
     recent_apps_max: int = DEFAULT_RECENT_APPS_MAX
     # Days after which unused recent apps are pruned
     recent_apps_retention_days: int = DEFAULT_RECENT_APPS_RETENTION_DAYS
-    # Opacity multiplier for recent app icons (0.3–1.0)
-    recent_apps_opacity: float = DEFAULT_RECENT_APPS_OPACITY
     # Persisted recent-app history: [{"desktop_id": "...", "last_closed": epoch}, ...]
     recent_apps: list[dict[str, object]] = field(default_factory=list)
 
@@ -986,12 +981,6 @@ class Config:
             default=DEFAULT_RECENT_APPS_RETENTION_DAYS,
             minimum=MIN_RECENT_APPS_RETENTION_DAYS,
             maximum=MAX_RECENT_APPS_RETENTION_DAYS,
-        )
-        self.recent_apps_opacity = _normalize_float(
-            self.recent_apps_opacity,
-            default=DEFAULT_RECENT_APPS_OPACITY,
-            minimum=MIN_RECENT_APPS_OPACITY,
-            maximum=MAX_RECENT_APPS_OPACITY,
         )
         self.recent_apps = _normalize_recent_apps(self.recent_apps)
 

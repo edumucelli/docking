@@ -1251,7 +1251,7 @@ class DockRenderer:
 
         # Recent-app icons are drawn at reduced opacity so they read as
         # visually distinct from pinned launchers.
-        recent_opacity = config.recent_apps_opacity if item.is_recent else 1.0
+        recent_opacity = 0.85 if item.is_recent else 1.0
 
         if lighten <= 0 and darken <= 0 and recent_opacity >= 1.0:
             # Idle icons do not need a temporary effect surface. Paint the
