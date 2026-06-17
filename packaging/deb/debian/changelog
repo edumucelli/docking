@@ -1,3 +1,9 @@
+docking (2.2.0-1) stable; urgency=medium
+
+  * Release 2.2.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 17 Jun 2026 21:27:25 +0200
+
 docking (2.1.0-1) stable; urgency=medium
 
   * Add Niri IPC backend with native window tracking, previews, and color picker

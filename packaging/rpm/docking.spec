@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.1.0}
+Version:        %{?pkg_version}%{!?pkg_version:2.2.0}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
@@ -118,6 +118,9 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Wed Jun 17 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.2.0-1
+- Release 2.2.0.
+
 * Sat Jun 13 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.1.0-1
 - Add Niri IPC backend with native window tracking, previews, and color picker
 - Add runtime diagnostics dialog for backend and session troubleshooting
