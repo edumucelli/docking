@@ -68,6 +68,8 @@ class DockItem:
     last_clicked: int = 0
     last_launched: int = 0
     last_urgent: int = 0
+    # Unix timestamp (wall-clock seconds) of last window close, for tooltip display
+    last_closed: float = 0
     badge_count: int = 0
     badge_visible: bool = False
     progress: float = 0.0
@@ -79,6 +81,9 @@ class DockItem:
     prefs_key: str = ""
     # Some items, like separators, should keep a fixed size under hover.
     allow_zoom: bool = True
+    # Whether this item is in the recent-apps section (not pinned, not running,
+    # but recently used). The renderer reads this to apply reduced opacity.
+    is_recent: bool = False
     # Insert/remove animation factor: 0.0 = fully collapsed, 1.0 = fully visible.
     # Layout scales the item's effective width by this factor.
     insert_factor: float = 1.0

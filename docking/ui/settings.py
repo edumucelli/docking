@@ -181,6 +181,9 @@ class SettingsWindowController:
         self._update_check_switch: Any = None
         self._update_interval_combo: Any = None
         self._update_status_label: Any = None
+        self._recent_apps_switch: Any = None
+        self._recent_apps_max_spin: Any = None
+        self._recent_apps_retention_combo: Any = None
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
         self._bindings: list[_ScalarBinding] = []
@@ -421,6 +424,14 @@ class SettingsWindowController:
             )
         )
 
+        self._recent_apps_switch = self._new_switch()
+        self._recent_apps_max_spin = self._new_numeric_spin_button(
+            minimum=1, maximum=15, step=1
+        )
+        self._recent_apps_retention_combo = Gtk.ComboBoxText()
+        for days in (3, 7, 14, 30):
+            self._recent_apps_retention_combo.append(str(days), str(days))
+
         self._register_bindings()
 
         self._append_section(
@@ -624,6 +635,30 @@ class SettingsWindowController:
                     _("Open On"),
                     self._folder_stack_unfold_combo,
                     _("Choose whether folder stacks open on click or while hovering."),
+                ),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Recent Apps"),
+            rows=[
+                (
+                    _("Show Recently Used Apps"),
+                    self._recent_apps_switch,
+                    _(
+                        "Show recently closed apps between pinned "
+                        "launchers and running apps."
+                    ),
+                ),
+                (
+                    _("Number of Recent Apps"),
+                    self._recent_apps_max_spin,
+                    _("Maximum recently used app icons to display."),
+                ),
+                (
+                    _("Keep Recent Apps For"),
+                    self._recent_apps_retention_combo,
+                    _("Remove recent apps after this many days of inactivity."),
                 ),
             ],
         )
@@ -959,6 +994,29 @@ class SettingsWindowController:
                 widget=self._pressure_threshold_scale,
                 on_change=self._after_pressure_reveal_changed,
             ),
+            # Recent Apps
+            self._register_switch_binding(
+                config_attr="show_recent_apps",
+                widget=self._recent_apps_switch,
+                on_change=self._after_show_recent_apps_changed,
+            ),
+            self._register_int_binding(
+                config_attr="recent_apps_max",
+                widget=self._recent_apps_max_spin,
+                on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            self._register_numeric_binding(
+                config_attr="recent_apps_retention_days",
+                widget=self._recent_apps_retention_combo,
+                read_widget=lambda: int(
+                    self._recent_apps_retention_combo.get_active_id() or 14
+                ),
+                write_widget=lambda value: (
+                    self._recent_apps_retention_combo.set_active_id(str(value))
+                ),
+                signal="changed",
+                on_change=lambda _value: self._runtime.queue_draw(),
+            ),
         ]
 
     def _register_switch_binding(
@@ -1269,6 +1327,14 @@ class SettingsWindowController:
         self._runtime.refresh_pressure_handler()
         self._update_dependent_sensitivity()
 
+    def _after_show_recent_apps_changed(self, _value) -> None:
+        """Rebuild the recent apps section when the toggle changes."""
+        if not self._config.show_recent_apps:
+            self._config.recent_apps.clear()
+            self._config.save()
+        self._runtime.queue_draw()
+        self._update_dependent_sensitivity()
+
     def _after_hide_mode_changed(self, mode: str) -> None:
         self._runtime.on_hide_mode_changed()
         self._update_hide_mode_description()
@@ -1328,6 +1394,11 @@ class SettingsWindowController:
             self._pressure_threshold_scale.set_sensitive(
                 bool(self._config.pressure_reveal_enabled)
             )
+        recent_sensitive = bool(self._config.show_recent_apps)
+        if self._recent_apps_max_spin is not None:
+            self._recent_apps_max_spin.set_sensitive(recent_sensitive)
+        if self._recent_apps_retention_combo is not None:
+            self._recent_apps_retention_combo.set_sensitive(recent_sensitive)
 
     def _on_applet_toggled(
         self,

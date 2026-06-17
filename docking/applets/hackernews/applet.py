@@ -27,7 +27,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.freshness import cadence_label, parse_timestamp
+from docking.applets.freshness import cadence_label
 from docking.applets.hackernews import meta
 from docking.applets.hackernews.render import render_icon
 from docking.applets.hackernews.state import (
@@ -54,6 +54,7 @@ from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.ui.tooltip import parse_timestamp
 
 if TYPE_CHECKING:
     from docking.core.config import Config

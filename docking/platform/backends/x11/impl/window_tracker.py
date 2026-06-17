@@ -157,6 +157,8 @@ import gi
 
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
+import os
+
 from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
@@ -496,6 +498,7 @@ class WindowTracker:
         """Yield windows that should count as application tasklist windows."""
         if self._screen is None:
             return
+        own_pid = os.getpid()
         for window in self._screen.get_windows():
             try:
                 window_type = window.get_window_type()
@@ -517,6 +520,12 @@ class WindowTracker:
                     f"Skipping window: failed to read skip-tasklist state: {exc}"
                 )
                 continue
+            # Never track windows belonging to Docking itself (settings dialog, etc.).
+            try:
+                if window.get_pid() == own_pid:
+                    continue
+            except _RECOVERABLE_ERRORS:
+                pass
             yield window
 
     def _window_snapshot(

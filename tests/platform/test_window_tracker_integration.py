@@ -70,6 +70,9 @@ class FakeWindow:
     def is_minimized(self) -> bool:
         return self._minimized
 
+    def get_pid(self) -> int:
+        return 99999
+
     def activate(self, timestamp: int) -> None:
         self.activated_with.append(timestamp)
 

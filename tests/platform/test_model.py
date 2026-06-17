@@ -38,7 +38,7 @@ def _make_launcher(*desktop_ids: str):
     return launcher
 
 
-def _make_config(pinned: list[str]):
+def _make_config(pinned: list[str], *, show_recent_apps: bool = False):
     config = MagicMock()
     config.pinned = list(pinned)
     config.icon_size = 48
@@ -47,6 +47,10 @@ def _make_config(pinned: list[str]):
     config.anchor_applets = False
     config.anchor_files = False
     config.item_prefs = {}
+    config.show_recent_apps = show_recent_apps
+    config.recent_apps_max = 5
+    config.recent_apps_retention_days = 14
+    config.recent_apps = []
     return config
 
 
