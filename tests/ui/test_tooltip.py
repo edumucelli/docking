@@ -73,6 +73,8 @@ class TestTooltipHide:
         tooltip._tooltip_window = MagicMock()
         item = MagicMock()
         item.name = ""
+        item.is_recent = False
+        item.last_closed = 0
         # When
         tooltip.update(item, None)
         # Then
@@ -89,6 +91,8 @@ class TestTooltipHide:
         tooltip._tooltip_window = MagicMock()
         item = MagicMock()
         item.name = "Firefox"
+        item.is_recent = False
+        item.last_closed = 0
         # When
         tooltip.update(item, _frame_for_item(item))
         # Then
@@ -213,6 +217,8 @@ def _make_tooltip() -> TooltipManager:
 def _make_item(name: str, builder: bool = False) -> MagicMock:
     item = MagicMock()
     item.name = name
+    item.is_recent = False
+    item.last_closed = 0
     item.tooltip_builder = (lambda: MagicMock()) if builder else None
     return item
 
@@ -729,6 +735,8 @@ class TestTooltipIntegrationBranches:
         tooltip.hide = hide  # type: ignore[method-assign]
         item = MagicMock()
         item.name = "Firefox"
+        item.is_recent = False
+        item.last_closed = 0
         item.tooltip_builder = None
         frame = SimpleNamespace(geometry_for_item=MagicMock(return_value=None))
 
@@ -751,6 +759,8 @@ class TestTooltipIntegrationBranches:
         model = MagicMock()
         item = MagicMock()
         item.name = "CPU: 30%"
+        item.is_recent = False
+        item.last_closed = 0
         built_widget = MagicMock()
         item.tooltip_builder = MagicMock(return_value=built_widget)
         model.visible_items.return_value = [item]
