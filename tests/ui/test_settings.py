@@ -627,6 +627,10 @@ def _config():
         additional_distance_from_edge=0,
         pressure_reveal_enabled=False,
         pressure_threshold=50,
+        show_recent_apps=True,
+        recent_apps_max=5,
+        recent_apps_retention_days=14,
+        recent_apps=[],
         save=MagicMock(),
     )
 
@@ -687,6 +691,7 @@ class TestSettingsWindowController:
             "<b>Mouse</b>",
             "<b>Behavior</b>",
             "<b>Folder Stacks</b>",
+            "<b>Recent Apps</b>",
         ]
         updates_box = stack.pages[3][0]
         updates_labels = [

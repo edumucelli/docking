@@ -141,6 +141,7 @@ If these invariants hold, the rest of the dock can remain much simpler.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -220,11 +221,15 @@ class DockModel:
         self._change_listeners: list[Callable[[], None]] = []
         self._launcher_entries: dict[str, LauncherEntryState] = {}
         self._launcher_item_by_sender: dict[str, str] = {}
+        self._recent_apps: list[DockItem] = []
+        self._recent_closed_at: dict[str, int] = {}
+        self._prev_running_ids: set[str] = set()
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
 
         self._load_pinned()
+        self._rebuild_recent_apps()
 
     def add_change_listener(self, callback: Callable[[], None]) -> None:
         """Register a callback fired whenever model-visible state changes.
@@ -248,6 +253,145 @@ class DockModel:
             item = self._build_pinned_item(entry=entry)
             if item is not None:
                 self.pinned_items.append(item)
+
+    def rebuild_recent_apps(self) -> None:
+        """Clear and rebuild the recent-apps list from config (public entry point)."""
+        self._recent_apps.clear()
+        self._recent_closed_at.clear()
+        if self._config.show_recent_apps:
+            self._rebuild_recent_apps()
+        else:
+            self._config.recent_apps.clear()
+            self._config.save()
+        self.notify()
+
+    def _rebuild_recent_apps(self) -> None:
+        """Load recent apps from config, resolve, prune expired, and build items."""
+        self._recent_apps.clear()
+        self._recent_closed_at.clear()
+        if not self._config.show_recent_apps:
+            return
+        pinned_ids = {item.desktop_id for item in self.pinned_items}
+        cutoff = time.time() - (self._config.recent_apps_retention_days * 86400)
+        seen: set[str] = set()
+        for entry in self._config.recent_apps:
+            desktop_id = entry.get("desktop_id")
+            last_closed = entry.get("last_closed")
+            if not isinstance(desktop_id, str) or not desktop_id:
+                continue
+            if desktop_id in pinned_ids or desktop_id in seen:
+                continue
+            if isinstance(last_closed, (int, float)) and last_closed < cutoff:
+                continue
+            resolved = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
+            if resolved is None:
+                continue
+            icon_size = self._config.scaled_icon_size
+            icon = self._launcher.load_desktop_icon(info=resolved, size=icon_size)
+            item = DockItem(
+                desktop_id=desktop_id,
+                kind=APP_KIND,
+                target=desktop_id,
+                name=resolved.name,
+                icon_name=resolved.icon_name,
+                wm_class=resolved.wm_class,
+                is_pinned=False,
+                is_running=False,
+                is_recent=True,
+                last_closed=(
+                    float(last_closed)
+                    if isinstance(last_closed, (int, float))
+                    else time.time()
+                ),
+                icon=icon,
+            )
+            self._recent_apps.append(item)
+            if isinstance(last_closed, (int, float)):
+                self._recent_closed_at[desktop_id] = int(last_closed)
+            seen.add(desktop_id)
+        self._prune_recent_apps()
+        self._sync_recent_apps_to_config()
+
+    def _record_app_closed(self, desktop_id: str) -> None:
+        """Record that an app's last window closed, for the recent-apps list."""
+        if not self._config.show_recent_apps:
+            return
+        # Never track applets or files/folders.
+        pinned_item = next(
+            (i for i in self.pinned_items if i.desktop_id == desktop_id), None
+        )
+        if pinned_item is not None and pinned_item.kind != APP_KIND:
+            return
+        # Pinned apps don't appear in recents.
+        if pinned_item is not None:
+            return
+        # Already tracked: update timestamp.
+        for item in self._recent_apps:
+            if item.desktop_id == desktop_id:
+                self._recent_apps.remove(item)
+                self._recent_apps.insert(0, item)
+                self._recent_closed_at[desktop_id] = int(time.time())
+                self._persist_recent_apps()
+                self._prune_recent_apps()
+                self.notify()
+                return
+        # New entry: resolve and add.
+        resolved = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
+        if resolved is None:
+            return
+        icon_size = self._config.scaled_icon_size
+        icon = self._launcher.load_desktop_icon(info=resolved, size=icon_size)
+        item = DockItem(
+            desktop_id=desktop_id,
+            kind=APP_KIND,
+            target=desktop_id,
+            name=resolved.name,
+            icon_name=resolved.icon_name,
+            wm_class=resolved.wm_class,
+            is_pinned=False,
+            is_running=False,
+            is_recent=True,
+            last_closed=time.time(),
+            icon=icon,
+        )
+        self._recent_apps.insert(0, item)
+        self._recent_closed_at[desktop_id] = int(time.time())
+        self._persist_recent_apps()
+        self._prune_recent_apps()
+        self.notify()
+
+    def _prune_recent_apps(self) -> None:
+        """Enforce cap and retention period on recent apps."""
+        max_count = self._config.recent_apps_max
+        cutoff = time.time() - (self._config.recent_apps_retention_days * 86400)
+        kept: list[DockItem] = []
+        pruned: set[str] = set()
+        for item in self._recent_apps:
+            last_closed = self._recent_closed_at.get(item.desktop_id)
+            if last_closed is not None and last_closed < cutoff:
+                pruned.add(item.desktop_id)
+                continue
+            kept.append(item)
+        for desktop_id in pruned:
+            self._recent_closed_at.pop(desktop_id, None)
+        self._recent_apps = kept[:max_count]
+
+    def _sync_recent_apps_to_config(self) -> None:
+        """Write current _recent_apps order back to config (does not save)."""
+        self._config.recent_apps = [
+            {
+                "desktop_id": item.desktop_id,
+                "last_closed": self._recent_closed_at.get(
+                    item.desktop_id, int(time.time())
+                ),
+            }
+            for item in self._recent_apps
+        ]
+
+    def _persist_recent_apps(self) -> None:
+        """Sync recent apps to config and flush to disk."""
+        self._sync_recent_apps_to_config()
+        self._config.save()
 
     def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
         icon_size = self._config.scaled_icon_size
@@ -577,8 +721,17 @@ class DockModel:
             applet.stop()
 
     def visible_items(self) -> list[DockItem]:
-        """All items to display with optional independent anchoring rules."""
-        items = self.pinned_items + self._transient
+        """All items to display with optional independent anchoring rules.
+
+        Visual order: pinned_items + recent_apps + transient_items.
+        Recent apps that are currently running are suppressed (they appear
+        in either pinned or transient instead).
+        """
+        if not self._config.show_recent_apps:
+            recent: list[DockItem] = []
+        else:
+            recent = [item for item in self._recent_apps if not item.is_running]
+        items = self.pinned_items + recent + self._transient
         anchor_applets = self._config.anchor_applets
         anchor_files = self._config.anchor_files
         if not anchor_applets and not anchor_files:
@@ -622,7 +775,7 @@ class DockModel:
         return result
 
     def find_by_desktop_id(self, desktop_id: str) -> DockItem | None:
-        for item in self.pinned_items + self._transient:
+        for item in self.pinned_items + self._recent_apps + self._transient:
             if item.desktop_id == desktop_id:
                 return item
         return None
@@ -633,6 +786,31 @@ class DockModel:
         Args:
             running: Desktop ID to latest running-app aggregate.
         """
+        # Detect apps whose last window just closed and record them for the
+        # recent-apps section. Only consider APP_KIND IDs that were running in
+        # the previous scan and are no longer running now.
+        if self._config.show_recent_apps:
+            current_ids = set(running.keys())
+            closed_ids = self._prev_running_ids - current_ids
+            for closed_id in closed_ids:
+                # Only record if the item isn't a pinned non-app (applet, file, folder).
+                pinned = next(
+                    (i for i in self.pinned_items if i.desktop_id == closed_id), None
+                )
+                if pinned is not None and pinned.kind != APP_KIND:
+                    continue
+                self._record_app_closed(closed_id)
+            # Remove from recent list any apps that are now running (they appear in
+            # pinned or transient sections instead).
+            for running_id in current_ids:
+                recent = next(
+                    (i for i in self._recent_apps if i.desktop_id == running_id), None
+                )
+                if recent is not None:
+                    self._recent_apps.remove(recent)
+                    self._recent_closed_at.pop(running_id, None)
+                    self._sync_recent_apps_to_config()
+
         # Keep the old transient objects available while rebuilding the list.
         # Reusing them preserves icon pixbufs, LauncherEntry overlays, and any
         # animation fields already attached to the DockItem.
@@ -655,6 +833,7 @@ class DockModel:
         )
 
         self._transient = new_transient
+        self._prev_running_ids = set(running.keys())
         self.notify()
 
     def _reset_pinned_running_state(self) -> None:
@@ -817,17 +996,26 @@ class DockModel:
         return item
 
     def pin_item(self, desktop_id: str) -> None:
-        """Pin a transient item to the dock."""
+        """Pin a transient or recent item to the dock."""
         item = next((t for t in self._transient if t.desktop_id == desktop_id), None)
+        if item is None:
+            item = next(
+                (r for r in self._recent_apps if r.desktop_id == desktop_id), None
+            )
+            if item is not None:
+                self._recent_apps.remove(item)
+                self._sync_recent_apps_to_config()
         if item:
-            self._transient.remove(item)
+            if item in self._transient:
+                self._transient.remove(item)
             item.is_pinned = True
             self.pinned_items.append(item)
             self._persist_pinned_changes()
             self.notify()
 
     def unpin_item(self, desktop_id: str) -> None:
-        """Unpin an item. If running, becomes transient; otherwise animated out.
+        """Unpin an item. If running, becomes transient. If recently used, becomes
+        a recent app. Otherwise animated out.
 
         Applets are fully removed (stop + cleanup) since they can't be transient.
         """
@@ -844,6 +1032,16 @@ class DockModel:
             ):
                 item.removal_index = -1
                 self._transient.append(item)
+            elif item.kind == APP_KIND and self._config.show_recent_apps:
+                # Transition unpinned apps into the recent section so they
+                # remain discoverable without being permanently pinned.
+                item.is_recent = True
+                item.is_pinned = False
+                item.last_closed = time.time()
+                self._recent_apps.insert(0, item)
+                self._recent_closed_at[desktop_id] = int(time.time())
+                self._persist_recent_apps()
+                self._prune_recent_apps()
             else:
                 item.removal_index = visible_index
                 self._animating_out.append(item)
