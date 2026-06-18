@@ -184,6 +184,8 @@ class SettingsWindowController:
         self._recent_apps_switch: Any = None
         self._recent_apps_max_spin: Any = None
         self._recent_apps_retention_combo: Any = None
+        self._recent_docs_switch: Any = None
+        self._recent_docs_max_spin: Any = None
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
         self._bindings: list[_ScalarBinding] = []
@@ -431,6 +433,10 @@ class SettingsWindowController:
         self._recent_apps_retention_combo = Gtk.ComboBoxText()
         for days in (3, 7, 14, 30):
             self._recent_apps_retention_combo.append(str(days), str(days))
+        self._recent_docs_switch = self._new_switch()
+        self._recent_docs_max_spin = self._new_numeric_spin_button(
+            minimum=1, maximum=25, step=1
+        )
 
         self._register_bindings()
 
@@ -659,6 +665,25 @@ class SettingsWindowController:
                     _("Keep Recent Apps For"),
                     self._recent_apps_retention_combo,
                     _("Remove recent apps after this many days of inactivity."),
+                ),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Recent Documents"),
+            rows=[
+                (
+                    _("Show Recent Documents"),
+                    self._recent_docs_switch,
+                    _(
+                        'Show a "Recent Documents" submenu when '
+                        "right-clicking an app icon."
+                    ),
+                ),
+                (
+                    _("Max Documents Per App"),
+                    self._recent_docs_max_spin,
+                    _("Maximum recent document entries shown per app."),
                 ),
             ],
         )
@@ -1016,6 +1041,15 @@ class SettingsWindowController:
                 ),
                 signal="changed",
                 on_change=lambda _value: self._runtime.queue_draw(),
+            ),
+            # Recent Documents
+            self._register_switch_binding(
+                config_attr="show_recent_docs_in_menu",
+                widget=self._recent_docs_switch,
+            ),
+            self._register_int_binding(
+                config_attr="recent_docs_max",
+                widget=self._recent_docs_max_spin,
             ),
         ]
 
@@ -1399,6 +1433,9 @@ class SettingsWindowController:
             self._recent_apps_max_spin.set_sensitive(recent_sensitive)
         if self._recent_apps_retention_combo is not None:
             self._recent_apps_retention_combo.set_sensitive(recent_sensitive)
+        docs_sensitive = bool(self._config.show_recent_docs_in_menu)
+        if self._recent_docs_max_spin is not None:
+            self._recent_docs_max_spin.set_sensitive(docs_sensitive)
 
     def _on_applet_toggled(
         self,
