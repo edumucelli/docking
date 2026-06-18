@@ -709,9 +709,10 @@ class MenuHandler:
 
         submenu.append(Gtk.SeparatorMenuItem())
         clear = Gtk.MenuItem(label=_("Clear Recent Documents"))
+        recents = Gtk.RecentManager.get_default()
         clear.connect(
             "activate",
-            lambda _, rm=Gtk.RecentManager.get_default(), uris=[d.uri for d in docs]: (
+            lambda _, rm=recents, uris=[d.uri for d in docs]: (
                 [rm.remove_item(u) for u in uris]
             ),
         )
