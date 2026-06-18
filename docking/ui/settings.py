@@ -676,7 +676,7 @@ class SettingsWindowController:
                     _("Show Recent Documents"),
                     self._recent_docs_switch,
                     _(
-                        "Show a \"Recent Documents\" submenu when "
+                        'Show a "Recent Documents" submenu when '
                         "right-clicking an app icon."
                     ),
                 ),
