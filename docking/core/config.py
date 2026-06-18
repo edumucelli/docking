@@ -288,6 +288,8 @@ DEFAULT_SHOW_RECENT_APPS = True
 DEFAULT_RECENT_APPS_MAX = 5
 DEFAULT_RECENT_APPS_RETENTION_DAYS = 14
 MIN_RECENT_APPS_RETENTION_DAYS = 1
+DEFAULT_SHOW_RECENT_DOCS_IN_MENU = True
+DEFAULT_RECENT_DOCS_MAX = 10
 MAX_RECENT_APPS_RETENTION_DAYS = 90
 
 logger = get_logger("config")
@@ -827,6 +829,10 @@ class Config:
     recent_apps_retention_days: int = DEFAULT_RECENT_APPS_RETENTION_DAYS
     # Persisted recent-app history: [{"desktop_id": "...", "last_closed": epoch}, ...]
     recent_apps: list[dict[str, object]] = field(default_factory=list)
+    # Whether to show a "Recent Documents" submenu when right-clicking apps
+    show_recent_docs_in_menu: bool = DEFAULT_SHOW_RECENT_DOCS_IN_MENU
+    # Per-app cap for recent document entries in the submenu
+    recent_docs_max: int = DEFAULT_RECENT_DOCS_MAX
 
     @property
     def pos(self) -> Position:
@@ -983,6 +989,16 @@ class Config:
             maximum=MAX_RECENT_APPS_RETENTION_DAYS,
         )
         self.recent_apps = _normalize_recent_apps(self.recent_apps)
+        self.show_recent_docs_in_menu = _normalize_bool(
+            self.show_recent_docs_in_menu,
+            default=DEFAULT_SHOW_RECENT_DOCS_IN_MENU,
+        )
+        self.recent_docs_max = _normalize_int(
+            self.recent_docs_max,
+            default=DEFAULT_RECENT_DOCS_MAX,
+            minimum=1,
+            maximum=25,
+        )
 
     @classmethod
     def load(cls, path: Path | str | None = None) -> Config:

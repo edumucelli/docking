@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-06-17 21:25+0200\n"
+"POT-Creation-Date: 2026-06-18 18:46+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2017,7 +2017,7 @@ msgid "Run with file"
 msgstr ""
 
 #: docking/applets/runcommand/applet.py:340
-#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:462
+#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:464
 msgid "Open"
 msgstr ""
 
@@ -2780,7 +2780,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/diagnostics.py:71 docking/ui/menu.py:617
+#: docking/ui/diagnostics.py:71 docking/ui/menu.py:623
 msgid "Diagnostics"
 msgstr ""
 
@@ -2812,7 +2812,7 @@ msgstr ""
 msgid "Save Report..."
 msgstr ""
 
-#: docking/ui/diagnostics.py:122 docking/ui/menu.py:501
+#: docking/ui/diagnostics.py:122 docking/ui/menu.py:507
 msgid "Close"
 msgstr ""
 
@@ -2951,68 +2951,76 @@ msgstr ""
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:403
+#: docking/ui/menu.py:405
 msgid "Icon"
 msgstr ""
 
-#: docking/ui/menu.py:405
+#: docking/ui/menu.py:407
 msgid "Docking Icon"
 msgstr ""
 
-#: docking/ui/menu.py:406
+#: docking/ui/menu.py:408
 msgid "System Icon"
 msgstr ""
 
-#: docking/ui/menu.py:449 docking/ui/menu.py:469 docking/ui/menu.py:485
-#: docking/ui/menu.py:533
+#: docking/ui/menu.py:451 docking/ui/menu.py:471 docking/ui/menu.py:491
+#: docking/ui/menu.py:539
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:492
+#: docking/ui/menu.py:498
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:501
+#: docking/ui/menu.py:507
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:518
+#: docking/ui/menu.py:524
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:526
+#: docking/ui/menu.py:532
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:563
+#: docking/ui/menu.py:569
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:601
+#: docking/ui/menu.py:607
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:608
+#: docking/ui/menu.py:614
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:622 docking/ui/settings.py:202
+#: docking/ui/menu.py:628 docking/ui/settings.py:202
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:627
+#: docking/ui/menu.py:633
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:632
+#: docking/ui/menu.py:638
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:639
+#: docking/ui/menu.py:645
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:677
+#: docking/ui/menu.py:711
+msgid "Clear Recent Documents"
+msgstr ""
+
+#: docking/ui/menu.py:720
+msgid "Recent Documents"
+msgstr ""
+
+#: docking/ui/menu.py:739
 msgid "Window"
 msgstr ""
 
