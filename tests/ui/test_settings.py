@@ -631,6 +631,8 @@ def _config():
         recent_apps_max=5,
         recent_apps_retention_days=14,
         recent_apps=[],
+        show_recent_docs_in_menu=True,
+        recent_docs_max=10,
         save=MagicMock(),
     )
 
@@ -692,6 +694,7 @@ class TestSettingsWindowController:
             "<b>Behavior</b>",
             "<b>Folder Stacks</b>",
             "<b>Recent Apps</b>",
+            "<b>Recent Documents</b>",
         ]
         updates_box = stack.pages[3][0]
         updates_labels = [
