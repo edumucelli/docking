@@ -14,18 +14,13 @@
 """Recent-document-to-app association for per-app jumplist menus.
 
 Reads the freedesktop.org recent-files store (via Gtk.RecentManager) and
-associates each file with dock apps using a three-tier matching strategy
-prioritised by precision:
+associates each file with dock apps using ``has_application()`` — the only
+reliable signal for "this app actually opened this file".
 
-1. ``has_application()`` with the app's display name — the file was
-   *actually* opened with this app.  Most precise, zero false positives.
-2. MIME-type match against the app's ``get_supported_types()`` — the app
-   *could* open this file.  Capped at 5 items to limit noise.
-3. System default-handler check — this app is the registered default for
-   the file type.  Rarely hit, catches edge cases.
-
-Tier 1 results are shown exclusively when they exist; Tiers 2 and 3 are
-only used when Tier 1 is empty.
+MIME-type matching (``get_supported_types()``) was tested and rejected:
+every image-handling app registers for ``image/png``, so Firefox, Chrome,
+GIMP, and EOM would all show the same PNGs regardless of which app the
+user actually used.  ``has_application()`` records the ground truth.
 """
 
 from __future__ import annotations
@@ -45,10 +40,6 @@ if TYPE_CHECKING:
 
 log = get_logger(name="recent_docs")
 
-# Tier-2 MIME fallback cap to prevent noisy results when every image app
-# registers for image/png and similar broad types.
-_MIME_FALLBACK_CAP = 5
-
 
 @dataclass(frozen=True)
 class RecentDoc:
@@ -67,6 +58,10 @@ def recent_docs_for_app(
 ) -> list[RecentDoc]:
     """Return recent documents associated with *desktop_id*, most-recent first.
 
+    Only returns files where ``has_application()`` confirms the app actually
+    opened them.  No MIME-type fallback — that produces identical noise across
+    all apps sharing the same broad type registrations.
+
     Args:
         desktop_id: The app's desktop-file ID (e.g. ``firefox.desktop``).
         launcher: Resolver for desktop metadata and display names.
@@ -83,7 +78,6 @@ def recent_docs_for_app(
         return []
 
     display_name = app_info.get_display_name()
-    supported = app_info.get_supported_types()
 
     rm = Gtk.RecentManager.get_default()
     all_items = rm.get_items()
@@ -93,13 +87,7 @@ def recent_docs_for_app(
     # get_items() order is undefined — sort by modification time descending.
     sorted_items = sorted(all_items, key=lambda i: i.get_modified(), reverse=True)
 
-    # ── Tier 1: files actually opened with this app ──
-    tier1: list[RecentDoc] = []
-    # ── Tier 2: files this app *could* open (MIME match) ──
-    tier2: list[RecentDoc] = []
-    # ── Tier 3: system default handler ──
-    tier3: list[RecentDoc] = []
-
+    docs: list[RecentDoc] = []
     for item in sorted_items:
         if not item.is_local():
             continue
@@ -108,29 +96,14 @@ def recent_docs_for_app(
         mime = item.get_mime_type()
         if not mime:
             continue
-
-        # Tier 1: has_application — the ground truth
-        if item.has_application(display_name):
-            tier1.append(_doc_from_item(item, mime))
-            if len(tier1) >= limit:
-                return tier1
+        if not item.has_application(display_name):
             continue
 
-        # Tier 2: MIME-type — noisy, only when Tier 1 is empty
-        if supported and mime in supported and len(tier2) < _MIME_FALLBACK_CAP:
-            tier2.append(_doc_from_item(item, mime))
-            continue
+        docs.append(_doc_from_item(item, mime))
+        if len(docs) >= limit:
+            break
 
-        # Tier 3: default handler — edge cases
-        if not supported:
-            default = Gio.AppInfo.get_default_for_type(mime, False)
-            if default and default.get_id() == desktop_id:
-                tier3.append(_doc_from_item(item, mime))
-
-    # Tier 1 results are shown exclusively — no MIME noise mixed in.
-    if tier1:
-        return tier1
-    return (tier2 + tier3)[:limit]
+    return docs
 
 
 def _doc_from_item(item, mime: str) -> RecentDoc:
