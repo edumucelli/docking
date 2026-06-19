@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import cairo
+import pytest
 
 import docking.applets.base as base_mod
 from docking.applets.base import (
@@ -237,3 +238,83 @@ class TestDrawIconLabel:
             fill_rgba=(0.9, 1.0, 0.9, 1.0),
             outline_rgba=(0.0, 0.0, 0.0, 0.75),
         )
+
+    def test_draw_icon_label_empty_text_is_noop(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+        # Should not raise
+        draw_icon_label(cr=cr, text="", size=48)
+
+    def test_fit_icon_label_falls_through_to_min_font_size(self):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        cr = cairo.Context(surface)
+        _layout, logical, font_size = _fit_icon_label_layout(
+            cr=cr,
+            text="a" * 100,
+            max_width=10.0,
+            initial_font_size=24,
+            min_font_size=4,
+        )
+        assert font_size == 4  # Falls through to min font
+        assert logical.width > 0
+
+
+class TestAppletDefaultHooks:
+    def test_create_docking_icon_raises_not_implemented(self):
+        applet = _DeferredInitApplet()
+        with pytest.raises(NotImplementedError):
+            applet.create_docking_icon(48)
+
+    def test_system_icon_name_defaults_to_icon_name(self):
+        applet = _DeferredInitApplet()
+        assert applet.system_icon_name() == applet.icon_name
+
+    def test_icon_source_no_system_support_returns_docking(self):
+        applet = _DeferredInitApplet()
+        applet.supports_system_icon = False
+        assert applet.icon_source() == ICON_SOURCE_DOCKING
+
+    def test_set_icon_source_no_system_support_returns_early(self):
+        applet = _DeferredInitApplet()
+        applet.supports_system_icon = False
+        # Should not raise or save
+        applet.set_icon_source(ICON_SOURCE_SYSTEM)
+
+    def test_set_icon_source_same_value_returns_early(self, monkeypatch):
+        applet = _DeferredInitApplet()
+        applet.supports_system_icon = True
+        monkeypatch.setattr(
+            applet, "load_prefs", lambda: {ICON_SOURCE_PREF_KEY: ICON_SOURCE_DOCKING}
+        )
+        # Should not raise
+        applet.set_icon_source(ICON_SOURCE_DOCKING)
+
+    def test_set_popup_anchor(self):
+        applet = _DeferredInitApplet()
+        anchor = MagicMock()
+        applet.set_popup_anchor(anchor)
+        assert applet._popup_anchor is anchor
+
+    def test_accepts_drop_uris_defaults_false(self):
+        applet = _DeferredInitApplet()
+        assert applet.accepts_drop_uris() is False
+
+    def test_on_drop_uris_default_returns_false(self):
+        applet = _DeferredInitApplet()
+        assert applet.on_drop_uris(["file:///test.txt"]) is False
+
+    def test_set_services_default_is_noop(self):
+        applet = _DeferredInitApplet()
+        services = MagicMock()
+        # Should not raise
+        applet.set_services(services)
+
+    def test_on_scroll_default_is_noop(self):
+        applet = _DeferredInitApplet()
+        # Should not raise
+        applet.on_scroll(direction_up=True)
+
+    def test_refresh_tooltip_default_is_noop(self):
+        applet = _DeferredInitApplet()
+        # Should not raise
+        applet.refresh_tooltip()
