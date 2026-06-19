@@ -15,8 +15,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
+import re
 import shlex
+import subprocess
+import tempfile
+from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote, urlparse
@@ -41,6 +47,9 @@ HOST_XDG_DATA_DIRS = (
     "/run/host/var/lib/flatpak/exports/share",
 )
 HOST_FILESYSTEM_ROOT = Path("/run/host")
+GENERATED_DESKTOP_PREFIX = "docking-generated-"
+GENERATED_SOURCE_KEY = "X-Docking-Source-Path"
+GENERATED_MARKER_KEY = "X-Docking-Generated"
 
 log = with_context(get_logger(name="desktop_entries"))
 
@@ -80,6 +89,16 @@ class ResolvedAppInfo(NamedTuple):
 class ResolvedDesktopLaunch(NamedTuple):
     exec_line: str
     desktop_file: Path | None
+
+
+@dataclass(frozen=True)
+class GeneratedDesktopEntry:
+    """A user-local desktop file generated for a dropped executable."""
+
+    desktop_id: str
+    path: Path
+    name: str
+    icon_name: str
 
 
 def normalized_exec_basename(exec_line: str) -> str:
@@ -214,6 +233,11 @@ def desktop_dirs() -> list[Path]:
         if host_user_apps.is_dir() and host_user_apps not in dirs:
             dirs.insert(0, host_user_apps)
     return dirs
+
+
+def user_applications_dir() -> Path:
+    """Return the user-local applications directory for desktop entries."""
+    return xdg_data_home() / "applications"
 
 
 def is_host_desktop_file(path: Path | None) -> bool:
@@ -452,3 +476,206 @@ def desktop_id_from_uri_or_path(target: str) -> str | None:
     if path.suffix != DESKTOP_SUFFIX:
         return None
     return path.name
+
+
+def local_path_from_uri_or_path(target: str) -> Path | None:
+    """Return a local filesystem path from a file URI or plain local path."""
+    if not target:
+        return None
+    parsed = urlparse(target)
+    if parsed.scheme == "file":
+        return Path(unquote(parsed.path))
+    if parsed.scheme == "":
+        return Path(target).expanduser()
+    return None
+
+
+def appimage_path_needing_executable_permission(target: str | Path) -> Path | None:
+    """Return a local AppImage path when it exists but lacks executable permission."""
+    if isinstance(target, Path):
+        path = target.expanduser()
+    else:
+        path = local_path_from_uri_or_path(target)
+        if path is None:
+            return None
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError:
+        return None
+    if not resolved.is_file():
+        return None
+    if not resolved.name.lower().endswith(".appimage"):
+        return None
+    if os.access(resolved, os.X_OK):
+        return None
+    return resolved
+
+
+def make_user_executable(path: Path) -> bool:
+    """Add the user executable bit to a file, preserving existing permissions."""
+    try:
+        path.chmod(path.stat().st_mode | 0o100)
+    except OSError as exc:
+        log.bind(action="make_user_executable", path=str(path)).warning(
+            "Failed to make file executable: %s",
+            exc,
+        )
+        return False
+    return True
+
+
+def create_desktop_entry_for_executable(
+    target: str | Path,
+) -> GeneratedDesktopEntry | None:
+    """Create or update a generated desktop entry for a launchable local file."""
+    path = _local_executable_path(target)
+    if path is None:
+        return None
+
+    name = _display_name_from_path(path)
+    desktop_id = generated_desktop_id_for_path(path)
+    desktop_file = user_applications_dir() / desktop_id
+    icon_name = _icon_name_for_generated_entry(path)
+    content = _generated_desktop_entry_content(
+        name=name,
+        exec_path=path,
+        icon_name=icon_name,
+    )
+
+    try:
+        _write_desktop_file_atomically(path=desktop_file, content=content)
+    except OSError as exc:
+        log.bind(
+            action="write_generated_desktop_entry", path=str(desktop_file)
+        ).warning(
+            "Failed to write generated desktop entry: %s",
+            exc,
+        )
+        return None
+
+    _refresh_desktop_database(desktop_file.parent)
+    return GeneratedDesktopEntry(
+        desktop_id=desktop_id,
+        path=desktop_file,
+        name=name,
+        icon_name=icon_name,
+    )
+
+
+def generated_desktop_id_for_path(path: Path) -> str:
+    """Return the stable generated desktop ID for a source executable path."""
+    resolved = path.expanduser().resolve()
+    slug = _slugify_desktop_name(_display_name_from_path(resolved))
+    digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:12]
+    return f"{GENERATED_DESKTOP_PREFIX}{slug}-{digest}{DESKTOP_SUFFIX}"
+
+
+def _local_executable_path(target: str | Path) -> Path | None:
+    if isinstance(target, Path):
+        path = target.expanduser()
+    else:
+        path = local_path_from_uri_or_path(target)
+        if path is None:
+            return None
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        log.bind(action="resolve_executable_drop", target=str(target)).debug(
+            "Dropped executable path is not resolvable: %s",
+            exc,
+        )
+        return None
+    if not resolved.is_file():
+        return None
+    if not os.access(resolved, os.X_OK):
+        if resolved.name.lower().endswith(".appimage"):
+            log.bind(path=str(resolved)).info(
+                "Dropped AppImage is not executable; refusing to generate launcher"
+            )
+        return None
+    return resolved
+
+
+def _display_name_from_path(path: Path) -> str:
+    stem = path.name
+    if stem.lower().endswith(".appimage"):
+        stem = stem[: -len(".AppImage")]
+    elif path.suffix:
+        stem = path.stem
+    text = re.sub(r"[_-]+", " ", stem).strip()
+    text = re.sub(r"\s+", " ", text)
+    return text or path.name
+
+
+def _slugify_desktop_name(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug or "launcher"
+
+
+def _icon_name_for_generated_entry(path: Path) -> str:
+    if path.name.lower().endswith(".appimage"):
+        return "application-x-appimage"
+    return FALLBACK_ICON
+
+
+def _generated_desktop_entry_content(
+    *,
+    name: str,
+    exec_path: Path,
+    icon_name: str,
+) -> str:
+    return "\n".join(
+        [
+            "[Desktop Entry]",
+            "Type=Application",
+            f"Name={_escape_desktop_value(name)}",
+            f"Exec={_quote_exec_arg(str(exec_path))}",
+            "Terminal=false",
+            "Categories=Utility;",
+            f"Icon={_escape_desktop_value(icon_name)}",
+            f"{GENERATED_MARKER_KEY}=true",
+            f"{GENERATED_SOURCE_KEY}={_escape_desktop_value(str(exec_path))}",
+            "",
+        ]
+    )
+
+
+def _escape_desktop_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("\n", "\\n")
+
+
+def _quote_exec_arg(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("`", "\\`")
+    escaped = escaped.replace("$", "\\$")
+    return f'"{escaped}"'
+
+
+def _write_desktop_file_atomically(*, path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+        text=True,
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        tmp_path.chmod(0o644)
+        tmp_path.replace(path)
+    except Exception:
+        with suppress(OSError):
+            tmp_path.unlink()
+        raise
+
+
+def _refresh_desktop_database(applications_dir: Path) -> None:
+    with suppress(OSError):
+        subprocess.Popen(
+            ["update-desktop-database", str(applications_dir)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
