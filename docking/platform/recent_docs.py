@@ -31,9 +31,10 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gio, Gtk
+from gi.repository import Gtk
 
 from docking.log import get_logger
+from docking.platform import desktop_entries
 
 if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
@@ -70,14 +71,15 @@ def recent_docs_for_app(
     if not desktop_id:
         return []
 
-    try:
-        app_info = Gio.DesktopAppInfo.new(desktop_id)
-    except TypeError:
-        return []
-    if app_info is None:
+    resolved = desktop_entries.resolve_app_info(
+        desktop_id,
+        action="recent_docs_for_app",
+        log_failures=False,
+    )
+    if resolved is None:
         return []
 
-    display_name = app_info.get_display_name()
+    display_name = resolved.app_info.get_display_name()
 
     rm = Gtk.RecentManager.get_default()
     all_items = rm.get_items()

@@ -17,9 +17,10 @@ except Exception:
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.core.config import MiddleClickAction
+from docking.platform import desktop_entries as desktop_entries_mod
 from docking.platform import launcher as launcher_mod
+from docking.platform.desktop_entries import DesktopInfo
 from docking.platform.launcher import (
-    DesktopInfo,
     Launcher,
     get_actions,
     launch,
@@ -64,7 +65,11 @@ class TestGetDesktopDirs:
         host_share = tmp_path / "run" / "host" / "usr" / "share"
         host_apps = host_share / "applications"
         host_apps.mkdir(parents=True)
-        monkeypatch.setattr(launcher_mod, "HOST_XDG_DATA_DIRS", (str(host_share),))
+        monkeypatch.setattr(
+            desktop_entries_mod,
+            "HOST_XDG_DATA_DIRS",
+            (str(host_share),),
+        )
 
         # When
         with patch.dict(os.environ, {"XDG_DATA_DIRS": "/nonexistent/path"}):
@@ -77,7 +82,11 @@ class TestGetDesktopDirs:
         snap_desktop = tmp_path / "var" / "lib" / "snapd" / "desktop"
         snap_apps = snap_desktop / "applications"
         snap_apps.mkdir(parents=True)
-        monkeypatch.setattr(launcher_mod, "HOST_XDG_DATA_DIRS", (str(snap_desktop),))
+        monkeypatch.setattr(
+            desktop_entries_mod,
+            "HOST_XDG_DATA_DIRS",
+            (str(snap_desktop),),
+        )
 
         with patch.dict(os.environ, {"XDG_DATA_DIRS": "/nonexistent/path"}):
             launcher = Launcher()
@@ -88,7 +97,7 @@ class TestGetDesktopDirs:
         home = tmp_path / "home"
         host_user_apps = home / ".local" / "share" / "applications"
         host_user_apps.mkdir(parents=True)
-        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(desktop_entries_mod, "is_flatpak", lambda: True)
 
         with patch.dict(
             os.environ,
@@ -356,9 +365,9 @@ class TestDesktopActions:
         mock_app = MagicMock()
         mock_app.list_actions.return_value = ["new-window"]
         monkeypatch.setattr(
-            launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
+            desktop_entries_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
         )
-        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(desktop_entries_mod, "desktop_dirs", lambda: [host_apps])
         monkeypatch.setattr(
             launcher_mod.flatpak,
             "spawn_path",
@@ -405,7 +414,7 @@ class TestDesktopActions:
         mock_app = MagicMock()
         mock_app.list_actions.return_value = ["extract-here"]
         mock_app.get_action_name.return_value = "Extract Here"
-        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(desktop_entries_mod, "desktop_dirs", lambda: [host_apps])
         monkeypatch.setattr(
             launcher_mod.Gio.DesktopAppInfo,
             "new",
@@ -445,7 +454,7 @@ class TestDesktopActions:
             )
         )
 
-        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(desktop_entries_mod, "desktop_dirs", lambda: [host_apps])
         monkeypatch.setattr(launcher_mod.Gio.DesktopAppInfo, "new", lambda _id: None)
         monkeypatch.setattr(
             launcher_mod.Gio.DesktopAppInfo,
@@ -1065,14 +1074,14 @@ class TestLaunch:
         mock_app = MagicMock()
         mock_app.get_commandline.return_value = "file-roller %U"
         monkeypatch.setattr(
-            launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
+            desktop_entries_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
         )
         monkeypatch.setattr(
             launcher_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
-        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(desktop_entries_mod, "desktop_dirs", lambda: [host_apps])
         monkeypatch.setattr(
             launcher_mod.Gio.DesktopAppInfo,
             "new",
@@ -1117,7 +1126,7 @@ class TestLaunch:
 
         mock_app = MagicMock()
         mock_app.get_commandline.return_value = "user-app %U"
-        monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(desktop_entries_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
             launcher_mod.flatpak,
             "spawn_path",
@@ -1176,14 +1185,14 @@ class TestLaunch:
         )
 
         monkeypatch.setattr(
-            launcher_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
+            desktop_entries_mod, "HOST_FILESYSTEM_ROOT", tmp_path / "run" / "host"
         )
         monkeypatch.setattr(
             launcher_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
-        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", lambda: [host_apps])
+        monkeypatch.setattr(desktop_entries_mod, "desktop_dirs", lambda: [host_apps])
         monkeypatch.setattr(launcher_mod.Gio.DesktopAppInfo, "new", lambda _id: None)
         monkeypatch.setattr(
             launcher_mod.Gio.DesktopAppInfo,
@@ -1223,7 +1232,7 @@ class TestLaunch:
             "new",
             MagicMock(side_effect=TypeError("constructor returned NULL")),
         )
-        monkeypatch.setattr(launcher_mod, "_get_desktop_dirs", list)
+        monkeypatch.setattr(desktop_entries_mod, "desktop_dirs", list)
 
         launch(desktop_id="missing.desktop")
 
