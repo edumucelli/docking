@@ -152,17 +152,15 @@ instead of assuming the ordinary event path will do it.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import unquote, urlparse
 
 import gi
 
-import docking.platform.launcher as launcher_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
+from docking.platform import desktop_entries
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
@@ -713,7 +711,7 @@ class DnDHandler:
 
     def _item_from_uri(self, uri: str) -> DockItem | None:
         """Build a pinned DockItem from an external URI drop."""
-        desktop_id = self._uri_to_desktop_id(uri)
+        desktop_id = desktop_entries.desktop_id_from_uri_or_path(uri)
         icon_size = self._config.scaled_icon_size
         log.debug("_item_from_uri: uri=%s desktop_id=%s", uri, desktop_id)
         if desktop_id:
@@ -752,17 +750,6 @@ class DnDHandler:
             icon=info.icon,
             prefs_key=info.target,
         )
-
-    @staticmethod
-    def _uri_to_desktop_id(uri: str) -> str | None:
-        """Extract a .desktop ID from a file URI or path."""
-        normalized = launcher_mod.normalize_file_target(uri)
-        if normalized is None:
-            return None
-        path = Path(unquote(urlparse(normalized).path))
-        if not path.name.endswith(".desktop"):
-            return None
-        return path.name
 
     def _begin_drag_autohide(self) -> None:
         if self._window.autohide.enabled:

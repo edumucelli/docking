@@ -11,7 +11,8 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.ui.dnd import DRAG_ICON_SCALE, DnDHandler
+from docking.platform.desktop_entries import desktop_id_from_uri_or_path
+from docking.ui.dnd import DRAG_ICON_SCALE
 
 
 class TestConstants:
@@ -78,13 +79,13 @@ class TestAppletUriRejection:
         # Given
         uri = "applet://clock"
         # When / Then
-        assert DnDHandler._uri_to_desktop_id(uri) is None
+        assert desktop_id_from_uri_or_path(uri) is None
 
     def test_applet_uri_systemmonitor(self):
-        assert DnDHandler._uri_to_desktop_id("applet://systemmonitor") is None
+        assert desktop_id_from_uri_or_path("applet://systemmonitor") is None
 
     def test_applet_uri_trash(self):
-        assert DnDHandler._uri_to_desktop_id("applet://trash") is None
+        assert desktop_id_from_uri_or_path("applet://trash") is None
 
 
 class TestUriToDesktopId:
@@ -92,42 +93,42 @@ class TestUriToDesktopId:
         # Given
         uri = "file:///usr/share/applications/firefox.desktop"
         # When / Then
-        assert DnDHandler._uri_to_desktop_id(uri) == "firefox.desktop"
+        assert desktop_id_from_uri_or_path(uri) == "firefox.desktop"
 
     def test_file_uri_with_spaces(self):
         # Given
         uri = "file:///usr/share/applications/my%20app.desktop"
         # When / Then
-        assert DnDHandler._uri_to_desktop_id(uri) == "my app.desktop"
+        assert desktop_id_from_uri_or_path(uri) == "my app.desktop"
 
     def test_file_uri_snap(self):
         # Given
         uri = "file:///var/lib/snapd/desktop/applications/firefox_firefox.desktop"
         # When / Then
-        assert DnDHandler._uri_to_desktop_id(uri) == "firefox_firefox.desktop"
+        assert desktop_id_from_uri_or_path(uri) == "firefox_firefox.desktop"
 
     def test_plain_path(self):
         # Given
         uri = "firefox.desktop"
         # When / Then
-        assert DnDHandler._uri_to_desktop_id(uri) == "firefox.desktop"
+        assert desktop_id_from_uri_or_path(uri) == "firefox.desktop"
 
     def test_non_desktop_file_returns_none(self):
         # Given
         uri = "file:///home/user/document.pdf"
         # When / Then
-        assert DnDHandler._uri_to_desktop_id(uri) is None
+        assert desktop_id_from_uri_or_path(uri) is None
 
     def test_http_uri_returns_none(self):
         # Given
         uri = "https://example.com/app.desktop"
         # When / Then
-        assert DnDHandler._uri_to_desktop_id(uri) is None
+        assert desktop_id_from_uri_or_path(uri) is None
 
     def test_empty_string_returns_none(self):
         # Given / When / Then
-        assert DnDHandler._uri_to_desktop_id("") is None
+        assert desktop_id_from_uri_or_path("") is None
 
     def test_non_desktop_plain_path(self):
         # Given / When / Then
-        assert DnDHandler._uri_to_desktop_id("readme.txt") is None
+        assert desktop_id_from_uri_or_path("readme.txt") is None
