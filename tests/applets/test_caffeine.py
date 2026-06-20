@@ -416,7 +416,9 @@ class TestScreenSaverInhibitorDBus:
         inh = ScreenSaverInhibitor()
         monkeypatch.setattr(
             "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
-            lambda *a: (_ for _ in ()).throw(GLib.Error("no bus", 0, 0)),
+            lambda *a: (_ for _ in ()).throw(
+                GLib.Error(message="no bus", domain="g-io-error-quark", code=0)
+            ),
         )
         assert inh.acquire() is False
 
@@ -441,7 +443,9 @@ class TestScreenSaverInhibitorDBus:
 
         inh = ScreenSaverInhibitor()
         fake_conn = MagicMock()
-        fake_conn.call_sync.side_effect = GLib.Error("fail", 0, 0)
+        fake_conn.call_sync.side_effect = GLib.Error(
+            message="fail", domain="g-io-error-quark", code=0
+        )
         monkeypatch.setattr(
             "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
             lambda *a: fake_conn,
@@ -471,7 +475,9 @@ class TestScreenSaverInhibitorDBus:
 
         inh = ScreenSaverInhibitor()
         fake_conn = MagicMock()
-        fake_conn.call_sync.side_effect = GLib.Error("uninhibit fail", 0, 0)
+        fake_conn.call_sync.side_effect = GLib.Error(
+            message="uninhibit fail", domain="g-io-error-quark", code=0
+        )
         inh._cookie = 42
         inh._conn = fake_conn
         inh._target = (

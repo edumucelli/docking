@@ -680,7 +680,11 @@ class TestDefaultDesktopIdFor:
                 AppInfo=SimpleNamespace(
                     get_default_for_type=lambda _ct, _must_support_uris: (
                         _ for _ in ()
-                    ).throw(GLib.Error("No app for type", 0, 0))
+                    ).throw(
+                        GLib.Error(
+                            message="No app for type", domain="g-io-error-quark", code=0
+                        )
+                    )
                 )
             ),
         )
