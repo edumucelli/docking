@@ -335,6 +335,11 @@ class Launcher:
             return None
         return self._wm_class_index.get(lookup)
 
+    def refresh_desktop_entries(self) -> None:
+        """Reload desktop-entry search paths and invalidate runtime alias cache."""
+        self._desktop_dirs = desktop_entries.desktop_dirs()
+        self._wm_class_index = None
+
     def load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load an icon by name at the given size, with caching."""
         key = (icon_name, size)

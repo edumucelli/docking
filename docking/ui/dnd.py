@@ -35,7 +35,8 @@ This module intentionally keeps both major drag paths together:
    Move an existing dock item to a new index.
 
 2. External drop
-   Drop a `.desktop` URI onto the dock to pin a launcher.
+   Drop a `.desktop` URI, executable, AppImage, file, or folder onto the dock
+   to pin the matching launcher or target.
 
 Those are not split into separate classes because they share:
 
@@ -103,8 +104,9 @@ External drops use a different visual model:
     drag-drop / drag-data-received
       |
       +--> parse URI list
-      +--> resolve launcher metadata
-      +--> pin launcher at insert index
+      +--> resolve launcher/file metadata
+      +--> create generated desktop entries for executable drops when needed
+      +--> pin target at insert index
       +--> clear insertion gap
       +--> keep dock open if pointer is still on dock
 
@@ -152,6 +154,7 @@ instead of assuming the ordinary event path will do it.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -737,6 +740,37 @@ class DnDHandler:
                 icon=icon,
             )
 
+        if not self._prepare_appimage_for_generation(uri):
+            return None
+
+        generated = desktop_entries.create_desktop_entry_for_executable(uri)
+        if generated is not None:
+            self._launcher.refresh_desktop_entries()
+            resolved = self._launcher.resolve(generated.desktop_id)
+            if resolved is None:
+                log.debug(
+                    "_item_from_uri: generated desktop entry did not resolve: %s",
+                    generated.desktop_id,
+                )
+                return None
+            icon = self._launcher.load_desktop_icon(resolved, icon_size)
+            log.debug(
+                "_item_from_uri: generated desktop_id=%s icon_name=%s icon_loaded=%s",
+                generated.desktop_id,
+                resolved.icon_name,
+                icon is not None,
+            )
+            return DockItem(
+                desktop_id=generated.desktop_id,
+                kind=APP_KIND,
+                target=generated.desktop_id,
+                name=resolved.name,
+                icon_name=resolved.icon_name,
+                wm_class=resolved.wm_class,
+                is_pinned=True,
+                icon=icon,
+            )
+
         info = self._launcher.resolve_file(target=uri, size=icon_size)
         if info is None:
             return None
@@ -750,6 +784,34 @@ class DnDHandler:
             icon=info.icon,
             prefs_key=info.target,
         )
+
+    def _prepare_appimage_for_generation(self, uri: str) -> bool:
+        appimage = desktop_entries.appimage_path_needing_executable_permission(uri)
+        if appimage is None:
+            return True
+        if not self._confirm_make_appimage_executable(appimage):
+            return False
+        return desktop_entries.make_user_executable(appimage)
+
+    def _confirm_make_appimage_executable(self, path: Path) -> bool:
+        dialog = Gtk.MessageDialog(
+            transient_for=self._window,
+            flags=Gtk.DialogFlags.MODAL,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.CANCEL,
+            text="Make AppImage executable and pin it?",
+        )
+        dialog.format_secondary_text(
+            f"{path.name} is an AppImage, but it is not executable yet. "
+            "Docking can mark it executable so it can be pinned and launched."
+        )
+        dialog.add_button("Make Executable and Pin", Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        try:
+            response = dialog.run()
+        finally:
+            dialog.destroy()
+        return response == Gtk.ResponseType.OK
 
     def _begin_drag_autohide(self) -> None:
         if self._window.autohide.enabled:
