@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 import sys
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock
@@ -89,6 +90,29 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: default_frame),
     )
+
+
+class _FakeResponseDialog:
+    def __init__(self, response: int) -> None:
+        self.response = response
+        self.destroyed = False
+        self.secondary_text = ""
+        self.buttons: list[tuple[str, int]] = []
+
+    def format_secondary_text(self, text: str) -> None:
+        self.secondary_text = text
+
+    def add_button(self, label: str, response: int) -> None:
+        self.buttons.append((label, response))
+
+    def set_default_response(self, _response: int) -> None:
+        pass
+
+    def run(self) -> int:
+        return self.response
+
+    def destroy(self) -> None:
+        self.destroyed = True
 
 
 class TestSetupAndToggle:
@@ -534,6 +558,194 @@ class TestDropAndReceive:
         assert item is not None
         assert item.kind == FILE_KIND
         assert item.target == file_uri
+
+    def test_item_from_uri_builds_generated_launcher_for_executable(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        binary = tmp_path / "tool"
+        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
+            desktop_id="docking-generated-tool-123.desktop",
+            path=tmp_path / "docking-generated-tool-123.desktop",
+            name="tool",
+            icon_name="application-x-executable",
+        )
+        resolved = SimpleNamespace(
+            name="tool",
+            icon_name="application-x-executable",
+            wm_class="tool",
+        )
+        monkeypatch.setattr(
+            dnd_mod.desktop_entries,
+            "create_desktop_entry_for_executable",
+            MagicMock(return_value=generated),
+        )
+        handler._launcher.resolve.return_value = resolved
+        icon = object()
+        handler._launcher.load_desktop_icon.return_value = icon
+
+        item = handler._item_from_uri(binary.as_uri())
+
+        assert item is not None
+        assert item.kind == APP_KIND
+        assert item.desktop_id == generated.desktop_id
+        assert item.target == generated.desktop_id
+        assert item.name == "tool"
+        assert item.icon is icon
+        handler._launcher.refresh_desktop_entries.assert_called_once_with()
+        handler._launcher.resolve.assert_called_once_with(generated.desktop_id)
+
+    def test_item_from_uri_confirms_chmod_for_non_executable_appimage(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        appimage = tmp_path / "GIMP-3.2.4-x86_64.AppImage"
+        appimage.write_text("#!/bin/sh\n", encoding="utf-8")
+        appimage.chmod(0o644)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            dnd_mod.desktop_entries, "_refresh_desktop_database", lambda _d: None
+        )
+        dialog = _FakeResponseDialog(dnd_mod.Gtk.ResponseType.OK)
+        monkeypatch.setattr(
+            dnd_mod.Gtk,
+            "MessageDialog",
+            lambda **_kwargs: dialog,
+        )
+        handler._launcher.resolve.return_value = SimpleNamespace(
+            name="GIMP 3.2.4 x86 64",
+            icon_name="application-x-appimage",
+            wm_class="GIMP-3.2.4-x86_64",
+        )
+
+        item = handler._item_from_uri(appimage.as_uri())
+
+        assert item is not None
+        assert item.kind == APP_KIND
+        assert item.desktop_id.startswith("docking-generated-gimp-3-2-4-x86-64-")
+        assert appimage.stat().st_mode & stat.S_IXUSR
+        assert dialog.destroyed
+        handler._launcher.refresh_desktop_entries.assert_called_once_with()
+
+    def test_item_from_uri_cancelled_appimage_permission_does_not_pin_file(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        appimage = tmp_path / "GIMP.AppImage"
+        appimage.write_text("#!/bin/sh\n", encoding="utf-8")
+        appimage.chmod(0o644)
+        dialog = _FakeResponseDialog(dnd_mod.Gtk.ResponseType.CANCEL)
+        monkeypatch.setattr(
+            dnd_mod.Gtk,
+            "MessageDialog",
+            lambda **_kwargs: dialog,
+        )
+
+        item = handler._item_from_uri(appimage.as_uri())
+
+        assert item is None
+        assert not (appimage.stat().st_mode & stat.S_IXUSR)
+        handler._launcher.resolve_file.assert_not_called()
+        handler._launcher.refresh_desktop_entries.assert_not_called()
+
+    def test_drag_data_received_pins_generated_launcher_for_executable(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        handler._drop_committed = True
+        handler.drop_insert_index = 0
+        handler._model.pinned_items = []
+        handler._model.find_by_desktop_id.return_value = None
+        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
+            desktop_id="docking-generated-tool-123.desktop",
+            path=tmp_path / "docking-generated-tool-123.desktop",
+            name="tool",
+            icon_name="application-x-executable",
+        )
+        resolved = SimpleNamespace(
+            name="tool",
+            icon_name="application-x-executable",
+            wm_class="tool",
+        )
+        monkeypatch.setattr(
+            dnd_mod.desktop_entries,
+            "create_desktop_entry_for_executable",
+            MagicMock(return_value=generated),
+        )
+        handler._launcher.resolve.return_value = resolved
+        selection = MagicMock()
+        selection.get_uris.return_value = [(tmp_path / "tool").as_uri()]
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+        handler._on_drag_data_received(
+            handler._drawing_area,
+            MagicMock(),
+            0,
+            0,
+            selection,
+            1,
+            77,
+        )
+
+        assert [entry.kind for entry in handler._config.pinned] == [APP_KIND]
+        assert [entry.target for entry in handler._config.pinned] == [
+            generated.desktop_id
+        ]
+        assert [item.kind for item in handler._model.pinned_items] == [APP_KIND]
+        assert [item.desktop_id for item in handler._model.pinned_items] == [
+            generated.desktop_id
+        ]
+        handler._config.save.assert_called_once()
+        handler._model.sync_pinned_to_config.assert_called_once()
+        handler._model.notify.assert_called_once()
+        finish.assert_called_once_with(ANY, True, False, 77)
+
+    def test_drag_data_received_does_not_duplicate_generated_launcher(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        handler._drop_committed = True
+        handler.drop_insert_index = 0
+        handler._model.pinned_items = []
+        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
+            desktop_id="docking-generated-tool-123.desktop",
+            path=tmp_path / "docking-generated-tool-123.desktop",
+            name="tool",
+            icon_name="application-x-executable",
+        )
+        resolved = SimpleNamespace(
+            name="tool",
+            icon_name="application-x-executable",
+            wm_class="tool",
+        )
+        monkeypatch.setattr(
+            dnd_mod.desktop_entries,
+            "create_desktop_entry_for_executable",
+            MagicMock(return_value=generated),
+        )
+        handler._launcher.resolve.return_value = resolved
+        handler._model.find_by_desktop_id.return_value = DockItem(generated.desktop_id)
+        selection = MagicMock()
+        selection.get_uris.return_value = [(tmp_path / "tool").as_uri()]
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+        handler._on_drag_data_received(
+            handler._drawing_area,
+            MagicMock(),
+            0,
+            0,
+            selection,
+            1,
+            77,
+        )
+
+        assert handler._config.pinned == []
+        assert handler._model.pinned_items == []
+        finish.assert_called_once_with(ANY, False, False, 77)
 
 
 class TestDragLeaveEnd:
