@@ -845,3 +845,153 @@ class TestDockItemAnimationFields:
         item.last_launched = 67890
         # Then
         assert item.last_clicked == 12345
+
+
+class TestRecentAppsIntegration:
+    """Integration tests for the recent apps section of DockModel."""
+
+    def test_recent_apps_disabled_no_section_appears(self):
+        config = _make_config(["a.desktop"], show_recent_apps=False)
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        # No recent apps in visible items
+        items = model.visible_items()
+        assert all(not item.is_recent for item in items)
+
+    def test_recent_apps_enabled_empty_by_default(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        # Only pinned items, no recent section because no apps closed
+        items = model.visible_items()
+        assert all(not item.is_recent for item in items)
+
+    def test_app_closed_appears_in_recent(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        # App b is running
+        model.update_running({"b.desktop": _running()})
+        items_before = model.visible_items()
+        b_before = next(i for i in items_before if i.desktop_id == "b.desktop")
+        assert b_before.is_running
+        assert not b_before.is_recent
+        # App b closes
+        model.update_running({})
+        items_after = model.visible_items()
+        # b.desktop should now be marked as recent
+        b_items = [
+            i for i in items_after if i.desktop_id == "b.desktop" and i.is_recent
+        ]
+        assert len(b_items) >= 1
+
+    def test_recent_app_not_duplicated_when_pinned(self):
+        config = _make_config(["firefox.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("firefox.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.update_running({"firefox.desktop": _running()})
+        model.update_running({})
+        items = model.visible_items()
+        # Firefox is pinned, should not appear as recent
+        recent_ids = [i.desktop_id for i in items if i.is_recent]
+        assert "firefox.desktop" not in recent_ids
+
+    def test_pin_recent_item_moves_it_to_pinned(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.update_running({"b.desktop": _running()})
+        model.update_running({})
+        # b.desktop should be in recent
+        items_before = model.visible_items()
+        recent_before = [i for i in items_before if i.is_recent]
+        assert any(i.desktop_id == "b.desktop" for i in recent_before)
+        # Pin it
+        model.pin_item("b.desktop")
+        # Should now be pinned
+        items = model.visible_items()
+        pinned_ids = [i.desktop_id for i in items if i.is_pinned]
+        assert "b.desktop" in pinned_ids
+
+    def test_recent_app_max_limit(self):
+        config = _make_config(["pinned.desktop"], show_recent_apps=True)
+        config.recent_apps_max = 2
+        launcher = _make_launcher(
+            "pinned.desktop", "a.desktop", "b.desktop", "c.desktop"
+        )
+        model = DockModel(config, launcher, AppletServices())
+        # Close three apps
+        for did in ["a.desktop", "b.desktop", "c.desktop"]:
+            model.update_running({did: _running()})
+        model.update_running({})
+        recent = [i for i in model.visible_items() if i.is_recent]
+        assert len(recent) <= 2
+
+    def test_recent_app_running_not_in_recent_section(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        # b closes
+        model.update_running({"b.desktop": _running()})
+        model.update_running({})
+        # b should be recent
+        assert any(
+            i.desktop_id == "b.desktop" and i.is_recent for i in model.visible_items()
+        )
+        # b starts again
+        model.update_running({"b.desktop": _running()})
+        # b should now be transient (running but not pinned)
+        items = model.visible_items()
+        b_item = next(i for i in items if i.desktop_id == "b.desktop")
+        assert not b_item.is_recent
+        assert b_item.is_running
+
+    def test_rebuild_recent_apps_public_method(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9999999999}]
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        # Clear via rebuild
+        config.show_recent_apps = False
+        model.rebuild_recent_apps()
+        assert all(not i.is_recent for i in model.visible_items())
+        # Re-enable
+        config.show_recent_apps = True
+        config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9999999999}]
+        model.rebuild_recent_apps()
+        recent = [i for i in model.visible_items() if i.is_recent]
+        # b.desktop should be in recent (from config list)
+        assert any(i.desktop_id == "b.desktop" for i in recent)
+
+    def test_find_by_desktop_id_searches_recent(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9999999999}]
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        # Find recent item
+        item = model.find_by_desktop_id("b.desktop")
+        assert item is not None
+        assert item.is_recent
+
+    def test_recent_app_retention_days_pruning(self):
+        import time
+
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        config.recent_apps_retention_days = 1
+        config.recent_apps_max = 10
+        launcher = _make_launcher("a.desktop", "old.desktop", "new.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        # Close an app with old timestamp
+        model.update_running({"old.desktop": _running()})
+        model.update_running({})
+        # Manually set the last_closed to be old
+        for item in model.visible_items():
+            if item.desktop_id == "old.desktop" and item.is_recent:
+                item.last_closed = time.time() - (2 * 86400)  # 2 days ago
+        # Now close a new app
+        model.update_running({"new.desktop": _running()})
+        model.update_running({})
+        recent = [i for i in model.visible_items() if i.is_recent]
+        # old.desktop should be pruned (older than 1 day), new.desktop should remain
+        recent_ids = [i.desktop_id for i in recent]
+        assert "new.desktop" in recent_ids

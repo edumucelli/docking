@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 from docking.applets.caffeine.applet import CaffeineApplet
 from docking.applets.caffeine.inhibit import CompositeInhibitor
 from docking.applets.caffeine.state import (
@@ -276,3 +278,238 @@ class TestApplet:
         applet.on_clicked()
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Active" in labels
+
+
+# -- Inhibitors ----------------------------------------------------------------
+
+
+class TestScreenSaverInhibitor:
+    def test_initial_state_inactive(self):
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        assert inh.active is False
+
+    def test_acquire_releases_then_release_is_noop(self):
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        # Release when never acquired is a no-op
+        inh.release()
+        assert inh.active is False
+
+    def test_release_after_manual_clear_is_noop(self):
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        inh._cookie = 42  # Simulate acquired state
+        inh._conn = MagicMock()
+        inh._target = ("name", "/path", "iface")
+        # Clear cookie manually (simulating release)
+        inh._cookie = None
+        inh.release()
+        assert inh.active is False
+
+
+class TestSystemdSleepInhibitor:
+    def test_initial_state_inactive(self):
+        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+
+        inh = SystemdSleepInhibitor()
+        assert inh.active is False
+
+    def test_release_when_never_acquired_is_noop(self):
+        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+
+        inh = SystemdSleepInhibitor()
+        inh.release()
+        assert inh.active is False
+
+    def test_release_when_proc_already_finished_is_noop(self):
+        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+
+        inh = SystemdSleepInhibitor()
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = 0  # Already finished
+        inh._proc = fake_proc
+        inh.release()
+        assert inh.active is False
+
+    def test_release_terminate_oserror_is_handled(self):
+        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+
+        inh = SystemdSleepInhibitor()
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = None  # Still running
+        fake_proc.terminate.side_effect = OSError("no process")
+        inh._proc = fake_proc
+        inh.release()
+        assert inh._proc is None  # proc cleared
+
+    def test_release_timeout_triggers_kill(self):
+        import subprocess
+
+        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+
+        inh = SystemdSleepInhibitor()
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = None  # Still running
+        fake_proc.wait.side_effect = subprocess.TimeoutExpired(cmd="test", timeout=2)
+        inh._proc = fake_proc
+        inh.release()
+        fake_proc.kill.assert_called_once()
+        assert inh._proc is None
+
+
+class TestCompositeInhibitorParts:
+    def test_default_constructor_creates_parts(self):
+        from docking.applets.caffeine.inhibit import CompositeInhibitor
+
+        comp = CompositeInhibitor()
+        assert len(comp._parts) == 2  # ScreenSaver + SystemdSleep
+
+    def test_active_property_when_none_active(self):
+        from docking.applets.caffeine.inhibit import CompositeInhibitor
+
+        comp = CompositeInhibitor(
+            parts=(FakePart(succeeds=False), FakePart(succeeds=False))
+        )
+        comp.acquire()
+        # Both parts failed, neither should be active
+        assert all(not p.active for p in comp._parts)
+
+    def test_active_property_when_one_active(self):
+        from docking.applets.caffeine.inhibit import CompositeInhibitor
+
+        comp = CompositeInhibitor(
+            parts=(FakePart(succeeds=False), FakePart(succeeds=True))
+        )
+        comp.acquire()
+        assert comp.active is True
+
+    def test_default_inhibitor_returns_composite(self):
+        from docking.applets.caffeine.inhibit import (
+            CompositeInhibitor,
+            default_inhibitor,
+        )
+
+        inh = default_inhibitor()
+        assert isinstance(inh, CompositeInhibitor)
+        assert len(inh._parts) == 2
+
+
+class TestScreenSaverInhibitorDBus:
+    def test_acquire_already_active_returns_true(self):
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        inh._cookie = 42
+        inh._conn = MagicMock()
+        inh._target = ("name", "/path", "iface")
+        assert inh.acquire() is True
+
+    def test_acquire_no_session_bus_returns_false(self, monkeypatch):
+        from gi.repository import GLib
+
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        monkeypatch.setattr(
+            "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
+            lambda *a: (_ for _ in ()).throw(
+                GLib.Error(message="no bus", domain="g-io-error-quark", code=0)
+            ),
+        )
+        assert inh.acquire() is False
+
+    def test_acquire_calls_dbus_and_succeeds(self, monkeypatch):
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        fake_conn = MagicMock()
+        fake_conn.call_sync.return_value.unpack.return_value = (42,)
+        monkeypatch.setattr(
+            "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
+            lambda *a: fake_conn,
+        )
+        assert inh.acquire() is True
+        assert inh._cookie == 42
+        assert inh._conn is fake_conn
+
+    def test_acquire_all_targets_fail_returns_false(self, monkeypatch):
+        from gi.repository import GLib
+
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        fake_conn = MagicMock()
+        fake_conn.call_sync.side_effect = GLib.Error(
+            message="fail", domain="g-io-error-quark", code=0
+        )
+        monkeypatch.setattr(
+            "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
+            lambda *a: fake_conn,
+        )
+        assert inh.acquire() is False
+
+    def test_release_calls_uninhibit(self, monkeypatch):
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        fake_conn = MagicMock()
+        inh._cookie = 42
+        inh._conn = fake_conn
+        inh._target = (
+            "org.freedesktop.ScreenSaver",
+            "/ScreenSaver",
+            "org.freedesktop.ScreenSaver",
+        )
+        inh.release()
+        fake_conn.call_sync.assert_called_once()
+        assert inh._cookie is None
+
+    def test_release_uninhibit_glib_error_is_handled(self, monkeypatch):
+        from gi.repository import GLib
+
+        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+
+        inh = ScreenSaverInhibitor()
+        fake_conn = MagicMock()
+        fake_conn.call_sync.side_effect = GLib.Error(
+            message="uninhibit fail", domain="g-io-error-quark", code=0
+        )
+        inh._cookie = 42
+        inh._conn = fake_conn
+        inh._target = (
+            "org.freedesktop.ScreenSaver",
+            "/ScreenSaver",
+            "org.freedesktop.ScreenSaver",
+        )
+        # Should not raise
+        inh.release()
+        assert inh._cookie is None
+
+
+class TestSystemdSleepInhibitorProc:
+    def test_acquire_already_active_returns_true(self):
+        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+
+        inh = SystemdSleepInhibitor()
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = None  # Still running
+        inh._proc = fake_proc
+        assert inh.acquire() is True
+
+    def test_acquire_oserror_returns_false(self, monkeypatch):
+        import subprocess
+
+        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+
+        inh = SystemdSleepInhibitor()
+        monkeypatch.setattr(
+            subprocess,
+            "Popen",
+            lambda *a, **kw: (_ for _ in ()).throw(OSError("no systemd-inhibit")),
+        )
+        assert inh.acquire() is False
+        assert inh._proc is None

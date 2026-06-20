@@ -1507,3 +1507,222 @@ class TestSettingsWindowController:
             isinstance(child, FakeGrid) for child in controller._applets_box.children
         )
         applets_mod.get_applet_catalog.cache_clear()
+
+
+class TestRecentSettingsBehavior:
+    """Tests for recent apps/docs settings controls."""
+
+    def test_show_recent_apps_changed_disabled_clears_and_redraws(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+
+        config = _config()
+        config.show_recent_apps = True
+        config.recent_apps = [{"desktop_id": "test.desktop", "last_closed": 1000}]
+        runtime = MagicMock()
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+        controller.show()
+
+        # Disable recent apps
+        config.show_recent_apps = False
+        controller._after_show_recent_apps_changed(False)
+
+        assert config.recent_apps == []
+        config.save.assert_called()
+        runtime.queue_draw.assert_called()
+
+
+class TestBindingEdgeCases:
+    """Test edge cases in the binding/sync system."""
+
+    def test_sync_widgets_no_window_is_noop(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+        controller._window = None
+        # Should not raise
+        controller._sync_widgets()
+
+    def test_binding_changed_ignores_none_value(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+        original = config.icon_size
+        binding = MagicMock()
+        binding.config_attr = "icon_size"
+        binding.read_widget.return_value = None
+        binding.on_change = None
+
+        controller._on_binding_changed(binding)
+
+        assert config.icon_size == original
+
+    def test_binding_changed_value_unchanged_skips_save(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        config.save.reset_mock()
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+        binding = MagicMock()
+        binding.config_attr = "icon_size"
+        binding.read_widget.return_value = config.icon_size
+        binding.on_change = None
+
+        controller._on_binding_changed(binding)
+
+        config.save.assert_not_called()
+
+    def test_binding_changed_during_sync_is_noop(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+        controller._syncing_widgets = True
+        binding = MagicMock()
+
+        controller._on_binding_changed(binding)
+
+        binding.read_widget.assert_not_called()
+
+
+class TestSettingsRuntimeCallbacks:
+    def test_after_icon_size_changed_applies_theme_and_repositions(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller._after_icon_size_changed(64)
+
+        runtime.reposition.assert_called()
+        runtime.queue_draw.assert_called()
+
+    def test_after_tooltips_changed_disabled_hides_tooltip(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller._after_tooltips_changed(False)
+
+        runtime.hide_tooltip.assert_called_once()
+
+    def test_after_tooltips_changed_enabled_no_hide(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        runtime = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller._after_tooltips_changed(True)
+
+        runtime.hide_tooltip.assert_not_called()
+
+    def test_update_hide_mode_description_without_combo(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+        controller._hide_mode_combo = None
+        # Should not raise
+        controller._update_hide_mode_description()
+
+    def test_update_updates_status_without_label(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        controller = settings_mod.SettingsWindowController(
+            parent=MagicMock(),
+            runtime=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=_config(),
+        )
+        controller._update_status_label = None
+        # Should not raise
+        controller._update_updates_status()
