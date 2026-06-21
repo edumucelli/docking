@@ -114,6 +114,17 @@ def create_session_backend(
         return _create_reduced_backend(
             reason=f"Niri backend unavailable after DOCKING_BACKEND={requested}"
         )
+    if requested in {"wayfire"}:
+        backend = _create_wayfire_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=f"Wayfire backend unavailable after DOCKING_BACKEND={requested}"
+        )
     if requested in {"kwin", "kde", "plasma", "kwin-script"}:
         backend = _create_kwin_backend(
             launcher=launcher,
@@ -148,6 +159,14 @@ def create_session_backend(
         # Niri has a richer IPC backend than generic layer-shell.
         if detect_desktop() & Desktop.NIRI:
             backend = _create_niri_backend(
+                launcher=launcher,
+                model=model,
+                reason=_non_x11_reason(),
+            )
+            if backend is not None:
+                return backend
+        if detect_desktop() & Desktop.WAYFIRE or _wayfire_ipc_available():
+            backend = _create_wayfire_backend(
                 launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
@@ -367,6 +386,46 @@ def _create_niri_backend(
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
+
+
+def _create_wayfire_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+    from docking.platform.backends.wayland.wayfire_ipc import wayfire_ipc_available
+    from docking.platform.backends.wayland.wayfire_session import WayfireSessionBackend
+
+    if not wayfire_ipc_available():
+        log.info("Wayfire backend unavailable: IPC socket not found")
+        return None
+    layer_shell = load_gtk_layer_shell()
+    if layer_shell is None:
+        log.info("Wayfire backend unavailable: GtkLayerShell not installed")
+        return None
+    if not layer_shell_is_supported(layer_shell):
+        log.info("Wayfire backend unavailable: compositor does not support layer-shell")
+        return None
+    backend = WayfireSessionBackend(
+        layer_shell=layer_shell,
+        launcher=launcher,
+        model=model,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _wayfire_ipc_available() -> bool:
+    try:
+        from docking.platform.backends.wayland.wayfire_ipc import (
+            wayfire_ipc_available,
+        )
+
+        return wayfire_ipc_available()
+    except Exception:
+        return False
 
 
 def _non_x11_reason() -> str:
