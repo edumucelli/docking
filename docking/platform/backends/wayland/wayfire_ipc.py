@@ -851,17 +851,17 @@ class WayfirePreviewService(PreviewService):
     to the window geometry obtained from Wayfire IPC.
 
     Because Wayfire does not expose a per-toplevel capture protocol, each
-    preview request briefly focuses the target window (raising it to the top
-    of the stack) so that the full-screen capture yields the correct content
-    even when the window is occluded.
+    preview request briefly focuses the target window via window-rules/focus-view
+    before capture.  This raises the window (and unminimizes it) so that the
+    full-screen screenshot yields the correct content even when the window
+    is occluded or minimized.
 
     Known limitations:
-    - Minimized windows return nothing (compositor does not render them).
     - Windows on inactive workspaces show the current workspace content.
     """
 
-    # Short settle delay after focus-raise to let the compositor redraw.
-    _FOCUS_SETTLE_SECONDS = 0.05
+    # Settle delay after focus to let the compositor redraw (or unminimize).
+    _FOCUS_SETTLE_SECONDS = 0.08
 
     def __init__(self, *, client: WayfireIpcClient) -> None:
         self._client = client
@@ -937,14 +937,14 @@ class WayfirePreviewService(PreviewService):
         info_block = info.get("info")
         if not isinstance(info_block, Mapping):
             return None
-        minimized = info_block.get("minimized")
-        if isinstance(minimized, bool) and minimized:
-            return None  # compositor does not render minimized windows
+        # Focus-view will unminimize the window when it receives focus,
+        # so we allow minimized windows through and let the focus-raise
+        # + screenshot path handle them.
         return _rect_from_mapping(info_block.get("geometry"))
 
 
-def _focus_view(client: WayfireIpcClient, wayfire_id: int, *, settle: float = 0.05) -> None:
-    """Focus-raise *wayfire_id* and wait *settle* seconds for the compositor."""
+def _focus_view(client: WayfireIpcClient, wayfire_id: int, *, settle: float = 0.08) -> None:
+    """Focus-raise (and unminimize) *wayfire_id*, wait *settle* seconds."""
     try:
         client.request("window-rules/focus-view", {"id": wayfire_id})
         time.sleep(settle)
