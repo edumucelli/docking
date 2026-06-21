@@ -26,6 +26,13 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
     )
     monkeypatch.setattr(wayfire_session, "WaylandProtocolRuntime", MagicMock())
     monkeypatch.setattr(wayfire_session, "load_portal_color_picker", lambda: None)
+    monkeypatch.setattr(
+        wayfire_session, "load_wayfire_desktop_action_service", lambda: None
+    )
+    monkeypatch.setattr(
+        wayfire_session, "load_wayfire_visibility_service", lambda config: None
+    )
+    monkeypatch.setattr(wayfire_session, "load_wayfire_preview_service", lambda: None)
 
     windows = MagicMock(spec=WayfireWindowService)
     workspaces = MagicMock(spec=WayfireWorkspaceService)
@@ -34,11 +41,15 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
         layer_shell=object(),
         model=MagicMock(),
         launcher=MagicMock(),
+        config=MagicMock(),
         protocol_runtime=None,
         screen_capture=None,
         window_service=windows,
         workspace_service=workspaces,
         window_picker=picker,
+        desktop_action_service=None,
+        visibility_service=None,
+        preview_service=None,
     )
 
     capabilities = backend.capabilities
@@ -49,16 +60,16 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
     assert capabilities.tracks_minimized is True
     assert capabilities.tracks_maximized is False
     assert capabilities.tracks_fullscreen is True
-    assert capabilities.tracks_stacking_order is False
+    assert capabilities.tracks_stacking_order is True
     assert capabilities.supports_activate is True
-    assert capabilities.supports_minimize is False
+    assert capabilities.supports_minimize is True
     assert capabilities.supports_close is True
     assert capabilities.supports_window_menu is True
     assert capabilities.tracks_window_geometry is True
     assert capabilities.tracks_window_workspace is True
     assert capabilities.supports_current_workspace_filter is False
     assert capabilities.supports_workspace_list is True
-    assert capabilities.supports_workspace_switch is False
+    assert capabilities.supports_workspace_switch is True
     assert capabilities.supports_show_desktop is False
     assert capabilities.supports_layer_shell is True
     assert capabilities.supports_screen_reservation is True

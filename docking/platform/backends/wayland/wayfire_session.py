@@ -28,7 +28,6 @@ from docking.platform.backends.base import (
     WorkspaceService,
 )
 from docking.platform.backends.reduced.services import (
-    ReducedPreviewService,
     ReducedVisibilityService,
     ReducedWindowService,
 )
@@ -39,8 +38,13 @@ from docking.platform.backends.wayland.portals import (
 from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
 from docking.platform.backends.wayland.wayfire_ipc import (
+    WayfireDesktopActionService,
+    WayfireVisibilityService,
     WayfireWindowPickService,
     WayfireWindowService,
+    load_wayfire_desktop_action_service,
+    load_wayfire_preview_service,
+    load_wayfire_visibility_service,
     load_wayfire_window_pick_service,
     load_wayfire_window_service,
     load_wayfire_workspace_service,
@@ -58,8 +62,9 @@ class WayfireRuntimeServices:
     windows: WindowService
     previews: PreviewService
     surface: WaylandLayerShellSurfaceService
-    visibility: ReducedVisibilityService
+    visibility: VisibilityService
     workspaces: WorkspaceService | None
+    desktop_actions: DesktopActionService | None
     screen_capture: ScreenCaptureService | None
     window_picker: WindowPickService | None
     protocol_runtime: WaylandProtocolRuntime | None
@@ -74,11 +79,15 @@ class WayfireSessionBackend(SessionBackend):
         layer_shell: object,
         model: DockModel,
         launcher: Launcher,
+        config: object | None = None,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
         window_service: WindowService | None = None,
         workspace_service: WorkspaceService | None = None,
         window_picker: WindowPickService | None = None,
+        visibility_service: VisibilityService | None = None,
+        desktop_action_service: DesktopActionService | None = None,
+        preview_service: PreviewService | None = None,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:
@@ -95,13 +104,31 @@ class WayfireSessionBackend(SessionBackend):
 
         workspaces = workspace_service or load_wayfire_workspace_service()
         picker = window_picker or load_wayfire_window_pick_service()
+        desktop_actions = (
+            desktop_action_service or load_wayfire_desktop_action_service()
+        )
+
+        visibility = visibility_service
+        if visibility is None and config is not None:
+            visibility = load_wayfire_visibility_service(config=config)
+        if visibility is None:
+            visibility = ReducedVisibilityService()
+
+        previews = preview_service or load_wayfire_preview_service()
+        if previews is None:
+            from docking.platform.backends.reduced.services import (
+                ReducedPreviewService,
+            )
+
+            previews = ReducedPreviewService()
 
         self._services = WayfireRuntimeServices(
             windows=windows,
-            previews=ReducedPreviewService(),
+            previews=previews,
             surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
-            visibility=ReducedVisibilityService(),
+            visibility=visibility,
             workspaces=workspaces,
+            desktop_actions=desktop_actions,
             screen_capture=screen_capture
             if screen_capture is not None
             else load_portal_color_picker(),
@@ -129,29 +156,44 @@ class WayfireSessionBackend(SessionBackend):
             self._services.window_picker,
             WayfireWindowPickService,
         )
-        # Wayfire ipc-rules gives us view snapshots, focus/close actions, output
-        # workspace grids, geometry, PID, and layer-shell via gtk-layer-shell.
-        # It does not expose urgent/attention state, preview pixels,
-        # EWMH-style maximize state, pointer barriers, blur hints, idle time, or
-        # a workspace-switch action in the method set used here. Overlap/dodge is
-        # also left false until we add a config-aware Wayfire visibility monitor.
+        supports_visibility = isinstance(
+            self._services.visibility,
+            WayfireVisibilityService,
+        )
+        supports_show_desktop = isinstance(
+            self._services.desktop_actions,
+            WayfireDesktopActionService,
+        )
+        # Wayfire list-views returns bottom-to-top stacking order, validated
+        # by focusing different windows and verifying position stability.
+        # wm-actions and vswitch give us minimize, fullscreen, show-desktop,
+        # and workspace switching.  Overlap-maximized is handled by the
+        # visibility monitor checking fullscreen views against the dock rect.
+        # Not yet exposed: urgent/attention state, EWMH maximize state,
+        # pointer barriers, blur hints, idle time, and per-window workspace
+        # coordinates for current-workspace filtering.
         return PlatformCapabilities(
             tracks_windows=tracks_windows,
             tracks_active_window=tracks_windows,
             tracks_minimized=tracks_windows,
             tracks_fullscreen=tracks_windows,
+            tracks_stacking_order=tracks_windows,
             supports_activate=tracks_windows,
-            supports_minimize=False,
+            supports_minimize=tracks_windows,
             supports_close=tracks_windows,
             supports_window_menu=tracks_windows,
             tracks_window_geometry=tracks_windows,
             tracks_window_workspace=tracks_windows,
             supports_current_workspace_filter=False,
             supports_workspace_list=supports_workspaces,
-            supports_workspace_switch=False,
+            supports_workspace_switch=supports_workspaces,
+            supports_show_desktop=supports_show_desktop,
             supports_layer_shell=True,
             supports_screen_reservation=True,
             supports_input_region=True,
+            supports_overlap_active=supports_visibility,
+            supports_overlap_any=supports_visibility,
+            supports_overlap_maximized=supports_visibility,
             supports_screen_color_pick=supports_color_pick,
             supports_window_pick=supports_window_pick,
             supports_window_pid=supports_window_pick,
@@ -180,7 +222,7 @@ class WayfireSessionBackend(SessionBackend):
 
     @property
     def desktop_actions(self) -> DesktopActionService | None:
-        return None
+        return self._services.desktop_actions
 
     @property
     def screen_capture(self) -> ScreenCaptureService | None:
@@ -201,6 +243,8 @@ class WayfireSessionBackend(SessionBackend):
         self._services.visibility.start()
         if self._services.workspaces is not None:
             self._services.workspaces.start()
+        if self._services.desktop_actions is not None:
+            self._services.desktop_actions.start()
         if self._services.screen_capture is not None:
             self._services.screen_capture.start()
         if self._services.window_picker is not None:
@@ -211,6 +255,8 @@ class WayfireSessionBackend(SessionBackend):
             self._services.window_picker.stop()
         if self._services.screen_capture is not None:
             self._services.screen_capture.stop()
+        if self._services.desktop_actions is not None:
+            self._services.desktop_actions.stop()
         if self._services.workspaces is not None:
             self._services.workspaces.stop()
         self._services.visibility.stop()

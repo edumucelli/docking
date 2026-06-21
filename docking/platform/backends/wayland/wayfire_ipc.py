@@ -27,16 +27,24 @@ import json
 import os
 import socket
 import struct
+import threading
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+from queue import Empty, Queue
 from typing import Any
 
 from docking.log import get_logger
 from docking.platform.backends.base import (
     ActionResult,
+    DesktopActionService,
     DisplayServer,
+    PreviewImage,
+    PreviewService,
     Rect,
+    VisibilityMonitor,
+    VisibilityService,
     WindowId,
     WindowPickService,
     WindowService,
@@ -55,6 +63,133 @@ except (ImportError, ValueError):
     GLib = None
 
 WAYFIRE_WINDOW_POLL_SECONDS = 2
+_WAYFIRE_EVENTS = (
+    "view-mapped",
+    "view-unmapped",
+    "view-title-changed",
+    "view-app-id-changed",
+    "view-minimized",
+    "view-fullscreen",
+    "view-focused",
+    "view-workspace-changed",
+    "view-geometry-changed",
+    "view-tiled",
+)
+
+
+class WayfireEventWatcher:
+    """Persistent socket watcher that reads Wayfire IPC events in a background
+    thread and dispatches them to the main loop via ``GLib.idle_add``."""
+
+    def __init__(
+        self,
+        *,
+        socket_path: str,
+        on_event: Callable[[str, Mapping[str, Any]], None],
+        socket_factory: Callable[[int, int], socket.socket] = socket.socket,
+    ) -> None:
+        self._path = socket_path
+        self._on_event = on_event
+        self._socket_factory = socket_factory
+        self._sock: socket.socket | None = None
+        self._thread: threading.Thread | None = None
+        self._running = False
+        self._queue: Queue = Queue()
+        self._glib_source_id = 0
+
+    def start(self) -> bool:
+        """Subscribe to events and start the reader thread.
+
+        Returns True when the subscription succeeded and the thread is running.
+        """
+        if self._running:
+            return True
+        try:
+            sock = self._socket_factory(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.settimeout(30)
+            sock.connect(self._path)
+            payload = json.dumps(
+                {
+                    "method": "window-rules/events/watch",
+                    "data": {"events": list(_WAYFIRE_EVENTS)},
+                },
+                separators=(",", ":"),
+            ).encode("utf-8")
+            sock.sendall(struct.pack("I", len(payload)) + payload)
+            response_len = struct.unpack("I", _read_exact(sock, 4))[0]
+            response = json.loads(_read_exact(sock, response_len).decode("utf-8"))
+            if not isinstance(response, Mapping) or response.get("result") != "ok":
+                log.info("Wayfire event subscription rejected: %s", response)
+                sock.close()
+                return False
+        except (OSError, json.JSONDecodeError, RuntimeError) as exc:
+            log.info("Wayfire event subscription failed: %s", exc)
+            return False
+
+        self._sock = sock
+        self._running = True
+        self._thread = threading.Thread(target=self._read_loop, daemon=True)
+        self._thread.start()
+        if GLib is not None:
+            self._glib_source_id = GLib.idle_add(self._drain_queue)
+        return True
+
+    def stop(self) -> None:
+        self._running = False
+        sock = self._sock
+        if sock is not None:
+            with suppress(OSError):
+                sock.shutdown(socket.SHUT_RDWR)
+            with suppress(OSError):
+                sock.close()
+            self._sock = None
+        thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=1.0)
+        self._thread = None
+        if GLib is not None and self._glib_source_id:
+            GLib.source_remove(self._glib_source_id)
+            self._glib_source_id = 0
+
+    def _read_loop(self) -> None:
+        sock = self._sock
+        while self._running and sock is not None:
+            try:
+                sock.settimeout(1.0)
+                evt_len_raw = sock.recv(4)
+                if not evt_len_raw:
+                    break
+                while len(evt_len_raw) < 4:
+                    extra = sock.recv(4 - len(evt_len_raw))
+                    if not extra:
+                        break
+                    evt_len_raw += extra
+                evt_len = struct.unpack("I", evt_len_raw)[0]
+                evt = _read_exact(sock, evt_len)
+                parsed = json.loads(evt.decode("utf-8"))
+                self._queue.put(parsed)
+            except (TimeoutError, OSError):
+                if not self._running:
+                    break
+            except (json.JSONDecodeError, RuntimeError) as exc:
+                log.debug("Wayfire event parse error: %s", exc)
+                continue
+
+    def _drain_queue(self) -> bool:
+        if not self._running:
+            return False
+        handled = 0
+        while handled < 20:  # bound per idle callback to avoid starving the loop
+            try:
+                event = self._queue.get_nowait()
+            except Empty:
+                break
+            event_name = event.get("event", "")
+            view_data = event.get("view")
+            if isinstance(event_name, str) and isinstance(view_data, Mapping):
+                self._on_event(event_name, view_data)
+            handled += 1
+        return True  # keep the idle source alive
 
 
 @dataclass(frozen=True)
@@ -85,6 +220,9 @@ class WayfireWorkspaceRecord:
     number: int
     name: str
     active: bool
+    output_id: int
+    grid_x: int
+    grid_y: int
 
 
 class WayfireIpcClient:
@@ -133,7 +271,11 @@ class WayfireIpcClient:
 
 
 class WayfireWindowService(WindowService):
-    """WindowService backed by Wayfire ``ipc-rules`` snapshots."""
+    """WindowService backed by Wayfire ``ipc-rules`` snapshots.
+
+    Uses ``window-rules/events/watch`` for near-instant updates when
+    available, falling back to periodic polling otherwise.
+    """
 
     def __init__(
         self,
@@ -141,15 +283,20 @@ class WayfireWindowService(WindowService):
         model,
         launcher,
         client: WayfireIpcClient,
+        watcher: WayfireEventWatcher | None = None,
     ) -> None:
         self._model = model
         self._matcher = WaylandAppIdMatcher(launcher=launcher)
         self._client = client
         self._records: dict[int, WayfireWindowRecord] = {}
         self._poll_source_id = 0
+        self._watcher = watcher
 
     def start(self) -> None:
         self._refresh()
+        if self._watcher is not None and self._watcher.start():
+            return
+        # Fall back to polling
         if GLib is not None and self._poll_source_id == 0:
             self._poll_source_id = GLib.timeout_add_seconds(
                 WAYFIRE_WINDOW_POLL_SECONDS,
@@ -157,6 +304,8 @@ class WayfireWindowService(WindowService):
             )
 
     def stop(self) -> None:
+        if self._watcher is not None:
+            self._watcher.stop()
         if GLib is not None and self._poll_source_id:
             GLib.source_remove(self._poll_source_id)
         self._poll_source_id = 0
@@ -195,7 +344,20 @@ class WayfireWindowService(WindowService):
         return self.activate_most_recent(desktop_id=desktop_id)
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
-        return ActionResult.UNSUPPORTED
+        records = self._records_for_desktop(desktop_id)
+        if not records:
+            return ActionResult.NOT_FOUND
+        result = ActionResult.OK
+        for record in records:
+            action = self._client.action(
+                "wm-actions/set-minimized",
+                {"view_id": record.id, "state": True},
+            )
+            if action is not ActionResult.OK:
+                result = action
+        if result is ActionResult.OK:
+            self._refresh()
+        return result
 
     def close(self, window_id: WindowId) -> ActionResult:
         wayfire_id = _wayfire_window_id(window_id)
@@ -228,7 +390,13 @@ class WayfireWindowService(WindowService):
         if record is None:
             return ActionResult.NOT_FOUND
         if record.active:
-            return ActionResult.OK
+            result = self._client.action(
+                "wm-actions/set-minimized",
+                {"view_id": record.id, "state": True},
+            )
+            if result is ActionResult.OK:
+                self._refresh()
+            return result
         return self.activate(record.window_id)
 
     def _refresh(self) -> None:
@@ -282,6 +450,40 @@ class WayfireWindowService(WindowService):
         self._refresh()
         return True
 
+    def _on_event(self, event_name: str, view: Mapping[str, Any]) -> None:
+        """Handle one Wayfire window event by updating the local record set."""
+        if event_name == "view-unmapped":
+            view_id = _optional_int(view.get("id"))
+            if view_id is not None:
+                self._records.pop(view_id, None)
+            self._publish_running()
+            return
+        self._matcher.sync_visible_items(self._model.visible_items())
+        record = _record_from_view(
+            view,
+            matcher=self._matcher,
+            focused_id=None,
+        )
+        if record is None:
+            return
+        if event_name == "view-focused":
+            self._records = {
+                rid: _replace_record(
+                    existing,
+                    active=rid == record.id,
+                )
+                for rid, existing in self._records.items()
+            }
+            record = _replace_record(record, active=True)
+        elif record.id in self._records:
+            existing = self._records[record.id]
+            record = _replace_record(
+                record,
+                active=existing.active,
+            )
+        self._records[record.id] = record
+        self._publish_running()
+
     def _snapshot_for(self, record: WayfireWindowRecord) -> WindowSnapshot:
         return WindowSnapshot(
             id=record.window_id,
@@ -295,9 +497,9 @@ class WayfireWindowService(WindowService):
             geometry=record.geometry,
             workspace_id=record.workspace_id,
             can_activate=True,
-            can_minimize=False,
+            can_minimize=True,
             can_close=True,
-            can_preview=False,
+            can_preview=True,
         )
 
     def _records_for_desktop(self, desktop_id: str) -> list[WayfireWindowRecord]:
@@ -351,7 +553,20 @@ class WayfireWorkspaceService(WorkspaceService):
         )
 
     def activate(self, workspace_id: str) -> ActionResult:
-        return ActionResult.UNSUPPORTED
+        record = self._records.get(workspace_id)
+        if record is None:
+            return ActionResult.NOT_FOUND
+        result = self._client.action(
+            "vswitch/set-workspace",
+            {
+                "output-id": record.output_id,
+                "x": record.grid_x,
+                "y": record.grid_y,
+            },
+        )
+        if result is ActionResult.OK:
+            self._refresh()
+        return result
 
     def watch_active_workspace(self, on_change: Callable[[], None]) -> object | None:
         watch_id = self._next_watch_id
@@ -397,6 +612,482 @@ class WayfireWorkspaceService(WorkspaceService):
         self._active_ids = active_ids
         for callback in tuple(self._watchers.values()):
             callback()
+
+
+class WayfireDesktopActionService(DesktopActionService):
+    """DesktopActionService backed by Wayfire wm-actions/toggle_showdesktop."""
+
+    def __init__(self, *, client: WayfireIpcClient) -> None:
+        self._client = client
+        self._show_desktop_active = False
+
+    def start(self) -> None:
+        """No persistent runtime resources."""
+
+    def stop(self) -> None:
+        self._show_desktop_active = False
+
+    def show_desktop(self, show: bool | None = None) -> ActionResult:
+        """Toggle or set show-desktop state.
+
+        Wayfire only exposes a toggle method, so for explicit set requests
+        the service tracks the last known state to avoid double-toggling.
+        """
+        wants_toggle = show is None or show != self._show_desktop_active
+        if not wants_toggle:
+            return ActionResult.OK
+        result = self._client.action(
+            "wm-actions/toggle_showdesktop",
+            {"output-id": 1},
+        )
+        if result is ActionResult.OK:
+            self._show_desktop_active = not self._show_desktop_active
+        return result
+
+
+# ---------------------------------------------------------------------------
+# Visibility / overlap detection
+# ---------------------------------------------------------------------------
+
+_VISIBILITY_POLL_MS = 500
+_VISIBILITY_DEBOUNCE_MS = 200
+
+
+class WayfireVisibilityMonitor(VisibilityMonitor):
+    """Polls Wayfire view geometry and reports dock-window overlap."""
+
+    def __init__(
+        self,
+        *,
+        client: WayfireIpcClient,
+        config: object,
+        get_dock_rect: Callable[[], Rect | None],
+        on_change: Callable[[bool], None],
+    ) -> None:
+        self._client = client
+        self._config = config
+        self._get_dock_rect = get_dock_rect
+        self._on_change = on_change
+        self._should_hide = False
+        self._poll_source_id = 0
+        self._debounce_source_id = 0
+
+    def start(self) -> None:
+        if GLib is not None and self._poll_source_id == 0:
+            self._poll_source_id = GLib.timeout_add(
+                _VISIBILITY_POLL_MS,
+                self._poll,
+            )
+
+    def stop(self) -> None:
+        if GLib is not None:
+            if self._poll_source_id:
+                GLib.source_remove(self._poll_source_id)
+            if self._debounce_source_id:
+                GLib.source_remove(self._debounce_source_id)
+        self._poll_source_id = 0
+        self._debounce_source_id = 0
+
+    def evaluate_now(self) -> None:
+        if GLib is not None and self._debounce_source_id:
+            GLib.source_remove(self._debounce_source_id)
+            self._debounce_source_id = 0
+        self._do_evaluate()
+
+    def _poll(self) -> bool:
+        if GLib is not None and self._debounce_source_id:
+            GLib.source_remove(self._debounce_source_id)
+        if GLib is not None:
+            self._debounce_source_id = GLib.timeout_add(
+                _VISIBILITY_DEBOUNCE_MS,
+                self._do_evaluate,
+            )
+        return True
+
+    def _do_evaluate(self) -> bool:
+        self._debounce_source_id = 0
+        should_hide = self._evaluate()
+        if should_hide != self._should_hide:
+            self._should_hide = should_hide
+            self._on_change(should_hide)
+        return False
+
+    def _evaluate(self) -> bool:
+        mode = getattr(self._config, "hide_mode_enum", None)
+        if mode is None:
+            return False
+        # HideMode enum values: NONE=0, AUTOHIDE=1, INTELLIGENT, DODGE_ACTIVE,
+        # WINDOW_DODGE, DODGE_MAXIMIZED
+        mode_value = getattr(mode, "value", mode)
+        if isinstance(mode_value, str):
+            if mode_value in ("none", "autohide"):
+                return False
+        elif isinstance(mode_value, int) and mode_value < 2:
+            return False
+
+        dock_rect = self._get_dock_rect()
+        if dock_rect is None:
+            return False
+
+        try:
+            views = self._client.request("window-rules/list-views")
+            focused = self._client.request("window-rules/get-focused-view")
+        except (OSError, json.JSONDecodeError, RuntimeError):
+            return False
+
+        focused_id = _focused_view_id(focused)
+        windows: list[tuple[Rect | None, bool, bool, bool]] = []
+        for item in views if isinstance(views, list) else []:
+            if not isinstance(item, Mapping):
+                continue
+            if not bool(item.get("mapped", True)):
+                continue
+            view_type = str(item.get("type", "") or "").strip().lower()
+            role = str(item.get("role", "") or "").strip().lower()
+            layer = str(item.get("layer", "") or "").strip().lower()
+            if view_type != "toplevel" and role != "toplevel" and layer != "workspace":
+                continue
+            try:
+                view_id = int(item.get("id"))
+            except (TypeError, ValueError):
+                continue
+            geometry = _rect_from_mapping(item.get("geometry"))
+            is_active = bool(item.get("activated", False)) or view_id == focused_id
+            is_minimized = bool(item.get("minimized", False))
+            is_fullscreen = bool(item.get("fullscreen", False))
+            windows.append((geometry, is_active, is_minimized, is_fullscreen))
+
+        if isinstance(mode_value, str):
+            if mode_value == "intelligent":
+                return self._eval_dodge_active(dock_rect, windows)
+            if mode_value == "dodge-active":
+                return self._eval_dodge_active(dock_rect, windows)
+            if mode_value == "window-dodge":
+                return self._eval_window_dodge(dock_rect, windows)
+            if mode_value == "dodge-maximized":
+                return self._eval_dodge_maximized(dock_rect, windows)
+        return False
+
+    @staticmethod
+    def _eval_dodge_active(
+        dock_rect: Rect,
+        windows: list[tuple[Rect | None, bool, bool, bool]],
+    ) -> bool:
+        for geometry, is_active, is_minimized, _is_fullscreen in windows:
+            if is_minimized:
+                continue
+            if not is_active:
+                continue
+            if geometry is not None and dock_rect.overlaps(geometry):
+                return True
+        return False
+
+    @staticmethod
+    def _eval_window_dodge(
+        dock_rect: Rect,
+        windows: list[tuple[Rect | None, bool, bool, bool]],
+    ) -> bool:
+        for geometry, _is_active, is_minimized, _is_fullscreen in windows:
+            if is_minimized:
+                continue
+            if geometry is not None and dock_rect.overlaps(geometry):
+                return True
+        return False
+
+    @staticmethod
+    def _eval_dodge_maximized(
+        dock_rect: Rect,
+        windows: list[tuple[Rect | None, bool, bool, bool]],
+    ) -> bool:
+        for geometry, is_active, is_minimized, is_fullscreen in windows:
+            if (
+                not is_minimized
+                and is_fullscreen
+                and is_active
+                and geometry is not None
+                and dock_rect.overlaps(geometry)
+            ):
+                return True
+        return False
+
+
+class WayfireVisibilityService(VisibilityService):
+    """VisibilityService that creates Wayfire overlap monitors."""
+
+    def __init__(self, *, client: WayfireIpcClient, config: object) -> None:
+        self._client = client
+        self._config = config
+
+    def start(self) -> None:
+        """No service-level runtime loop is needed."""
+
+    def stop(self) -> None:
+        """No service-level resources are held."""
+
+    def create_monitor(
+        self,
+        *,
+        get_dock_rect: Callable[[], Rect | None],
+        on_change: Callable[[bool], None],
+    ) -> VisibilityMonitor | None:
+        return WayfireVisibilityMonitor(
+            client=self._client,
+            config=self._config,
+            get_dock_rect=get_dock_rect,
+            on_change=on_change,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Preview / thumbnail capture via XDG Desktop Portal Screenshot
+# ---------------------------------------------------------------------------
+
+
+class WayfirePreviewService(PreviewService):
+    """PreviewService using XDG Desktop Portal Screenshot + geometry crop.
+
+    Wayfire does not advertise ext_foreign_toplevel_image_capture_source_v1 or
+    zwlr_screencopy_manager_v1, so Docking's generic Wayland preview path and
+    grim-based capture are unavailable.  Instead this service takes a
+    non-interactive full-screen screenshot via the XDG Desktop Portal and
+    crops to the window geometry obtained from Wayfire IPC.
+
+    Known limitations:
+    - Minimized windows return nothing (compositor does not render them).
+    - Occluded windows show whatever is on screen, not the true buffer.
+    - Windows on inactive workspaces show the current workspace content.
+    """
+
+    def __init__(self, *, client: WayfireIpcClient) -> None:
+        self._client = client
+        self._cache: dict[WindowId, PreviewImage] = {}
+        self._portal_available = False
+
+    def start(self) -> None:
+        self._portal_available = _portal_frontend_available()
+
+    def stop(self) -> None:
+        self._cache.clear()
+
+    def capture(
+        self, window_id: WindowId, *, width: int, height: int
+    ) -> PreviewImage | None:
+        return self._preview(window_id=window_id, width=width, height=height)
+
+    def thumbnail(
+        self, window_id: WindowId, *, width: int, height: int
+    ) -> PreviewImage | None:
+        return self._preview(window_id=window_id, width=width, height=height)
+
+    def _preview(
+        self, *, window_id: WindowId, width: int, height: int
+    ) -> PreviewImage | None:
+        if window_id.backend is not DisplayServer.WAYLAND:
+            return None
+        if not self._portal_available:
+            return None
+        cached = self._cache.get(window_id)
+        if cached is not None:
+            return cached
+        geometry = self._window_geometry(window_id)
+        if geometry is None:
+            return None
+        if geometry.width <= 0 or geometry.height <= 0:
+            return None
+        try:
+            png_bytes = _portal_screenshot()
+            if png_bytes is None:
+                return None
+            image = _pixbuf_from_png_bytes_cropped(
+                png_bytes=png_bytes,
+                crop_x=geometry.x,
+                crop_y=geometry.y,
+                crop_width=geometry.width,
+                crop_height=geometry.height,
+                requested_width=width,
+                requested_height=height,
+            )
+        except Exception:
+            return None
+        if image is None:
+            return None
+        self._cache[window_id] = image
+        return image
+
+    def _window_geometry(self, window_id: WindowId) -> Rect | None:
+        wayfire_id = _wayfire_window_id(window_id)
+        if wayfire_id is None:
+            return None
+        try:
+            info = self._client.request("window-rules/view-info", {"id": wayfire_id})
+        except (OSError, json.JSONDecodeError, RuntimeError):
+            return None
+        if not isinstance(info, Mapping):
+            return None
+        info_block = info.get("info")
+        if not isinstance(info_block, Mapping):
+            return None
+        minimized = info_block.get("minimized")
+        if isinstance(minimized, bool) and minimized:
+            return None  # compositor does not render minimized windows
+        return _rect_from_mapping(info_block.get("geometry"))
+
+
+def _portal_frontend_available(*, timeout_ms: int = 250) -> bool:
+    """Return True when the XDG Desktop Portal service is reachable."""
+    try:
+        from gi.repository import Gio, GLib
+    except (ImportError, ValueError):
+        return False
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        result = bus.call_sync(
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "NameHasOwner",
+            GLib.Variant("(s)", ("org.freedesktop.portal.Desktop",)),
+            GLib.VariantType.new("(b)"),
+            Gio.DBusCallFlags.NO_AUTO_START,
+            timeout_ms,
+            None,
+        )
+    except Exception:
+        return False
+    return bool(result.unpack()[0])
+
+
+def _portal_screenshot(*, timeout_ms: int = 5000) -> bytes | None:
+    """Take a non-interactive full-screen screenshot via the XDG Desktop Portal.
+
+    Returns the raw PNG bytes on success, or None when the portal is
+    unavailable, the request times out, or the compositor denies the capture.
+    """
+    try:
+        from gi.repository import Gio, GLib
+    except (ImportError, ValueError):
+        return None
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        proxy = Gio.DBusProxy.new_sync(
+            bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            "org.freedesktop.portal.Desktop",
+            "/org/freedesktop/portal/desktop",
+            "org.freedesktop.portal.Screenshot",
+            None,
+        )
+        params = GLib.Variant.parse(
+            GLib.VariantType.new("(sa{sv})"),
+            "('', {'interactive': <false>})",
+        )
+        result = proxy.call_sync(
+            "Screenshot",
+            params,
+            Gio.DBusCallFlags.NONE,
+            timeout_ms,
+            None,
+        )
+        handle = result.unpack()[0]
+    except Exception:
+        return None
+
+    screenshot_data: dict[str, bytes | None] = {"png": None}
+    loop = GLib.MainLoop()
+
+    def on_response(
+        _connection, _sender, _path, _interface, _signal, parameters
+    ) -> None:
+        response, results = parameters.unpack()
+        if response == 0 and results and "uri" in results:
+            uri = results["uri"]
+            if uri.startswith("file://"):
+                path = Path(uri[7:])
+                with suppress(OSError):
+                    screenshot_data["png"] = path.read_bytes()
+                with suppress(OSError):
+                    path.unlink()
+        loop.quit()
+
+    signal_id = bus.signal_subscribe(
+        "org.freedesktop.portal.Desktop",
+        "org.freedesktop.portal.Request",
+        "Response",
+        handle,
+        None,
+        Gio.DBusSignalFlags.NONE,
+        on_response,
+    )
+
+    def on_timeout() -> bool:
+        loop.quit()
+        return False
+
+    timeout_id = GLib.timeout_add(timeout_ms + 3000, on_timeout)
+    try:
+        loop.run()
+    finally:
+        if timeout_id:
+            GLib.source_remove(timeout_id)
+        bus.signal_unsubscribe(signal_id)
+
+    return screenshot_data["png"]
+
+
+def _pixbuf_from_png_bytes_cropped(
+    *,
+    png_bytes: bytes,
+    crop_x: int,
+    crop_y: int,
+    crop_width: int,
+    crop_height: int,
+    requested_width: int,
+    requested_height: int,
+) -> PreviewImage | None:
+    """Load a full-screen PNG, crop to a window region, and scale."""
+    try:
+        import gi
+
+        gi.require_version("GdkPixbuf", "2.0")
+        from gi.repository import GdkPixbuf
+    except (ImportError, ValueError):
+        return None
+
+    # Use PixbufLoader — it reliably detects dimensions from PNG data.
+    try:
+        loader = GdkPixbuf.PixbufLoader.new_with_type("png")
+        loader.write(png_bytes)
+        loader.close()
+        pixbuf = loader.get_pixbuf()
+    except Exception:
+        return None
+    if pixbuf is None:
+        return None
+
+    full_w = pixbuf.get_width()
+    full_h = pixbuf.get_height()
+
+    # Clamp crop region to screenshot bounds
+    cx = max(0, crop_x)
+    cy = max(0, crop_y)
+    cw = min(crop_width, full_w - cx)
+    ch = min(crop_height, full_h - cy)
+    if cw <= 0 or ch <= 0:
+        return None
+
+    cropped = pixbuf.new_subpixbuf(cx, cy, cw, ch)
+    scaled = cropped.scale_simple(
+        requested_width,
+        requested_height,
+        GdkPixbuf.InterpType.BILINEAR,
+    )
+    image = scaled if scaled is not None else cropped
+    return PreviewImage(
+        image=image,
+        width=int(image.get_width()),
+        height=int(image.get_height()),
+    )
 
 
 class WayfireWindowPickService(WindowPickService):
@@ -491,11 +1182,20 @@ def load_wayfire_window_service(*, model, launcher) -> WayfireWindowService | No
     socket_path = wayfire_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
-    return WayfireWindowService(
+    client = WayfireIpcClient(socket_path=socket_path)
+    # Create the service first without a watcher, then wire one up that
+    # calls back into the service's _on_event handler.
+    service = WayfireWindowService(
         model=model,
         launcher=launcher,
-        client=WayfireIpcClient(socket_path=socket_path),
+        client=client,
     )
+    watcher = WayfireEventWatcher(
+        socket_path=str(socket_path),
+        on_event=service._on_event,
+    )
+    service._watcher = watcher
+    return service
 
 
 def load_wayfire_workspace_service() -> WayfireWorkspaceService | None:
@@ -512,6 +1212,39 @@ def load_wayfire_window_pick_service() -> WayfireWindowPickService | None:
     if socket_path is None or not socket_path.exists():
         return None
     return WayfireWindowPickService(client=WayfireIpcClient(socket_path=socket_path))
+
+
+def load_wayfire_desktop_action_service() -> WayfireDesktopActionService | None:
+    """Return a Wayfire DesktopActionService when the IPC socket is detectable."""
+    socket_path = wayfire_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    return WayfireDesktopActionService(
+        client=WayfireIpcClient(socket_path=socket_path),
+    )
+
+
+def load_wayfire_visibility_service(
+    *, config: object
+) -> WayfireVisibilityService | None:
+    """Return a Wayfire VisibilityService when the IPC socket is detectable."""
+    socket_path = wayfire_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    return WayfireVisibilityService(
+        client=WayfireIpcClient(socket_path=socket_path),
+        config=config,
+    )
+
+
+def load_wayfire_preview_service() -> WayfirePreviewService | None:
+    """Return a Wayfire PreviewService when the IPC socket is detectable."""
+    socket_path = wayfire_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    return WayfirePreviewService(
+        client=WayfireIpcClient(socket_path=socket_path),
+    )
 
 
 def wayfire_socket_path(environ: Mapping[str, str] | None = None) -> Path | None:
@@ -613,6 +1346,7 @@ def _workspace_records_from_output(
         active_y = int(workspace.get("y", 0))
     except (TypeError, ValueError):
         return []
+    row_output_id = output_id if output_id is not None else 0
     output_name = str(output.get("name", "") or output_id or "output")
     records: list[WayfireWorkspaceRecord] = []
     for y in range(max(1, grid_height)):
@@ -626,6 +1360,9 @@ def _workspace_records_from_output(
                     number=number,
                     name=f"{output_name} {x + 1},{y + 1}",
                     active=active,
+                    output_id=row_output_id,
+                    grid_x=x,
+                    grid_y=y,
                 )
             )
     return records
@@ -678,3 +1415,19 @@ def _optional_int(value: object) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _replace_record(
+    record: WayfireWindowRecord,
+    *,
+    active: bool | None = None,
+) -> WayfireWindowRecord:
+    """Return a copy of *record* with the given fields replaced."""
+    kwargs: dict[str, Any] = {}
+    if active is not None:
+        kwargs["active"] = active
+    if not kwargs:
+        return record
+    from dataclasses import replace
+
+    return replace(record, **kwargs)

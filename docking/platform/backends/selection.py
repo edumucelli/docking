@@ -118,6 +118,7 @@ def create_session_backend(
         backend = _create_wayfire_backend(
             launcher=launcher,
             model=model,
+            config=config,
             reason=f"requested by DOCKING_BACKEND={requested}",
         )
         if backend is not None:
@@ -169,6 +170,7 @@ def create_session_backend(
             backend = _create_wayfire_backend(
                 launcher=launcher,
                 model=model,
+                config=config,
                 reason=_non_x11_reason(),
             )
             if backend is not None:
@@ -389,7 +391,7 @@ def _create_niri_backend(
 
 
 def _create_wayfire_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *, launcher: Launcher, model: DockModel, config: Config, reason: str
 ) -> SessionBackend | None:
     from docking.platform.backends.wayland.services import (
         layer_shell_is_supported,
@@ -412,6 +414,7 @@ def _create_wayfire_backend(
         layer_shell=layer_shell,
         launcher=launcher,
         model=model,
+        config=config,
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend

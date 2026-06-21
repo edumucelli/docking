@@ -176,7 +176,7 @@ def test_wayfire_window_service_publishes_snapshot_and_actions():
     assert windows[0].active is True
     assert windows[0].geometry is not None
     assert windows[0].workspace_id == "1"
-    assert windows[0].can_minimize is False
+    assert windows[0].can_minimize is True
     model.update_running.assert_called()
 
     assert service.activate(windows[0].id) is ActionResult.OK
@@ -267,7 +267,11 @@ def test_wayfire_workspace_service_lists_grid_cells_and_marks_active():
         False,
     ]
     assert service.active_workspace() == workspaces[1]
-    assert service.activate(workspaces[0].id) is ActionResult.UNSUPPORTED
+    result = service.activate(workspaces[0].id)
+    assert result is ActionResult.OK
+    assert ("vswitch/set-workspace", {"output-id": 1, "x": 0, "y": 0}) in [
+        (m, d) for m, d in client.actions
+    ]
 
 
 def test_wayfire_window_picker_uses_geometry_and_pid(monkeypatch):
@@ -313,3 +317,264 @@ def test_wayfire_window_picker_uses_geometry_and_pid(monkeypatch):
     assert service.pid_for(target.id) == 222
     assert service.kill(target.id) is ActionResult.OK
     killed.assert_called_once_with(pid=222)
+
+
+def test_wayfire_window_service_minimize_all_and_toggle_focus():
+    model = _model()
+    client = FakeIpcClient(
+        {
+            "window-rules/list-views": [
+                {
+                    "id": 7,
+                    "type": "toplevel",
+                    "role": "toplevel",
+                    "mapped": True,
+                    "title": "Terminal",
+                    "app-id": "Alacritty",
+                    "activated": True,
+                },
+            ],
+            "window-rules/get-focused-view": {"result": "ok", "info": {"id": 7}},
+        }
+    )
+    service = WayfireWindowService(
+        model=model,
+        launcher=_launcher(),
+        client=client,
+    )
+
+    service.start()
+
+    result = service.minimize_all("Alacritty.desktop")
+    assert result is ActionResult.OK
+    assert ("wm-actions/set-minimized", {"view_id": 7, "state": True}) in [
+        (m, d) for m, d in client.actions
+    ]
+
+    client.actions.clear()
+    result = service.toggle_focus("Alacritty.desktop")
+    assert result is ActionResult.OK
+    assert ("wm-actions/set-minimized", {"view_id": 7, "state": True}) in [
+        (m, d) for m, d in client.actions
+    ]
+
+
+def test_wayfire_desktop_action_service_show_desktop():
+    client = FakeIpcClient({})
+    service = wayfire_ipc.WayfireDesktopActionService(client=client)
+
+    service.start()
+
+    # Toggle None: should call wm-actions/toggle_showdesktop (state → True)
+    result = service.show_desktop(None)
+    assert result is ActionResult.OK
+    assert ("wm-actions/toggle_showdesktop", {"output-id": 1}) in [
+        (m, d) for m, d in client.actions
+    ]
+
+    # Explicit True when already True: no-op (no duplicate toggle)
+    client.actions.clear()
+    result = service.show_desktop(True)
+    assert result is ActionResult.OK
+    assert len(client.actions) == 0
+
+    # Explicit False changes state and toggles (state → False)
+    client.actions.clear()
+    result = service.show_desktop(False)
+    assert result is ActionResult.OK
+    assert ("wm-actions/toggle_showdesktop", {"output-id": 1}) in [
+        (m, d) for m, d in client.actions
+    ]
+
+    # Explicit False when already False: no-op
+    client.actions.clear()
+    result = service.show_desktop(False)
+    assert result is ActionResult.OK
+    assert len(client.actions) == 0
+
+    service.stop()
+
+
+def test_wayfire_visibility_service_creates_monitor():
+    mock_config = MagicMock()
+    type(mock_config).hide_mode_enum = "dodge-active"
+    client = FakeIpcClient(
+        {
+            "window-rules/list-views": [
+                {
+                    "id": 7,
+                    "type": "toplevel",
+                    "role": "toplevel",
+                    "mapped": True,
+                    "title": "Terminal",
+                    "app-id": "Alacritty",
+                    "activated": True,
+                    "minimized": False,
+                    "fullscreen": False,
+                    "geometry": {"x": 0, "y": 0, "width": 800, "height": 600},
+                },
+            ],
+            "window-rules/get-focused-view": {"result": "ok", "info": {"id": 7}},
+        }
+    )
+    service = wayfire_ipc.WayfireVisibilityService(
+        client=client,
+        config=mock_config,
+    )
+
+    dock_rect = wayfire_ipc.Rect(x=0, y=550, width=1920, height=50)
+    changes: list[bool] = []
+
+    monitor = service.create_monitor(
+        get_dock_rect=lambda: dock_rect,
+        on_change=changes.append,
+    )
+
+    assert monitor is not None
+    # Force immediate evaluation — window at y=0,h=600 overlaps dock at y=550,h=50
+    monitor.evaluate_now()
+    assert changes == [True]
+
+    monitor.stop()
+
+
+def test_wayfire_visibility_service_no_overlap_with_no_windows():
+    mock_config = MagicMock()
+    type(mock_config).hide_mode_enum = "window-dodge"
+    client = FakeIpcClient(
+        {
+            "window-rules/list-views": [],
+            "window-rules/get-focused-view": {"result": "ok", "info": {}},
+        }
+    )
+    service = wayfire_ipc.WayfireVisibilityService(
+        client=client,
+        config=mock_config,
+    )
+
+    dock_rect = wayfire_ipc.Rect(x=0, y=550, width=1920, height=50)
+    changes: list[bool] = []
+
+    monitor = service.create_monitor(
+        get_dock_rect=lambda: dock_rect,
+        on_change=changes.append,
+    )
+
+    assert monitor is not None
+    monitor.evaluate_now()
+    # No windows, no overlap
+    assert changes == []
+
+    monitor.stop()
+
+
+def test_wayfire_event_watcher_dispatches_events_to_handler():
+    """Simulate an event stream and verify the handler updates records."""
+    model = _model()
+    service = WayfireWindowService(
+        model=model,
+        launcher=_launcher(),
+        client=FakeIpcClient({}),
+    )
+
+    # Simulate view-mapped event
+    service._on_event(
+        "view-mapped",
+        {
+            "id": 7,
+            "type": "toplevel",
+            "role": "toplevel",
+            "mapped": True,
+            "title": "Terminal",
+            "app-id": "Alacritty",
+            "activated": False,
+        },
+    )
+    assert 7 in service._records
+    assert service._records[7].title == "Terminal"
+    assert service._records[7].active is False
+
+    # view-focused marks only this view active
+    service._on_event(
+        "view-focused",
+        {
+            "id": 7,
+            "type": "toplevel",
+            "role": "toplevel",
+            "mapped": True,
+            "title": "Terminal",
+            "app-id": "Alacritty",
+            "activated": True,
+        },
+    )
+    assert service._records[7].active is True
+
+    # Add a second view
+    service._on_event(
+        "view-mapped",
+        {
+            "id": 8,
+            "type": "toplevel",
+            "role": "toplevel",
+            "mapped": True,
+            "title": "Browser",
+            "app-id": "firefox",
+            "activated": False,
+        },
+    )
+    assert 8 in service._records
+
+    # Focus the second view: first becomes inactive
+    service._on_event(
+        "view-focused",
+        {
+            "id": 8,
+            "type": "toplevel",
+            "role": "toplevel",
+            "mapped": True,
+            "title": "Browser",
+            "app-id": "firefox",
+            "activated": True,
+        },
+    )
+    assert service._records[8].active is True
+    assert service._records[7].active is False
+
+    # view-unmapped removes the view
+    service._on_event("view-unmapped", {"id": 7})
+    assert 7 not in service._records
+    assert 8 in service._records
+
+    service.stop()
+
+
+def test_wayfire_window_service_falls_back_to_polling_without_watcher(monkeypatch):
+    """Without a watcher, the service starts a GLib polling timer."""
+    fake_glib = FakeGLib()
+    monkeypatch.setattr(wayfire_ipc, "GLib", fake_glib)
+    model = _model()
+    client = FakeIpcClient(
+        {
+            "window-rules/list-views": [
+                {
+                    "id": 7,
+                    "type": "toplevel",
+                    "role": "toplevel",
+                    "mapped": True,
+                    "title": "Terminal",
+                    "app-id": "Alacritty",
+                },
+            ],
+            "window-rules/get-focused-view": {"result": "ok", "info": {"id": 7}},
+        }
+    )
+    service = WayfireWindowService(
+        model=model,
+        launcher=_launcher(),
+        client=client,
+        watcher=None,
+    )
+    service.start()
+    assert fake_glib.callbacks
+    assert fake_glib.callbacks[0][0] == wayfire_ipc.WAYFIRE_WINDOW_POLL_SECONDS
+    service.stop()
