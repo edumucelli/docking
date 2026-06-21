@@ -123,6 +123,78 @@ class TestTrashBackendSelection:
         )
 
 
+class TestTrashAppletDrops:
+    def test_accepts_drop_uris(self):
+        applet = TrashApplet.__new__(TrashApplet)
+
+        assert applet.accepts_drop_uris() is True
+
+    def test_file_from_drop_uri_accepts_file_uri(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text("notes")
+
+        file = TrashApplet._file_from_drop_uri(path.as_uri())
+
+        assert file is not None
+        assert file.get_path() == str(path)
+
+    def test_file_from_drop_uri_accepts_absolute_path(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text("notes")
+
+        file = TrashApplet._file_from_drop_uri(str(path))
+
+        assert file is not None
+        assert file.get_path() == str(path)
+
+    def test_file_from_drop_uri_rejects_non_local_uri(self):
+        assert TrashApplet._file_from_drop_uri("https://example.test/file.txt") is None
+        assert TrashApplet._file_from_drop_uri("trash:///") is None
+
+    def test_on_drop_uris_trashes_local_files_and_refreshes_count(self):
+        file = MagicMock()
+        file.trash.return_value = True
+        backend = MagicMock()
+        backend.count_items.return_value = 3
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = backend
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+            assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is True
+
+        file.trash.assert_called_once_with(None)
+        assert applet._item_count == 3
+        applet.present.assert_called_once()
+
+    def test_on_drop_uris_returns_false_when_gio_refuses_trash(self):
+        file = MagicMock()
+        file.trash.return_value = False
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = MagicMock()
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+            assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is False
+
+        applet._backend.count_items.assert_not_called()
+        applet.present.assert_not_called()
+
+    def test_on_drop_uris_returns_false_when_nothing_was_trashed(self):
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = MagicMock()
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=None):
+            assert applet.on_drop_uris(["https://example.test/file.txt"]) is False
+
+        applet._backend.count_items.assert_not_called()
+        applet.present.assert_not_called()
+
+
 class TestGioTrashBackend:
     def test_counts_items(self):
         # Given an enumerator yielding 3 items
