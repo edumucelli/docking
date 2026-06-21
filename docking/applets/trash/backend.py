@@ -93,14 +93,68 @@ def _kde_kiorc_file() -> Path:
     return xdg_config_home() / "kiorc"
 
 
-def _open_trash_uri(uri: str) -> None:
+def _open_trash_uri(
+    uri: str, *, fallback_commands: tuple[tuple[str, ...], ...] = ()
+) -> None:
     if is_flatpak() and _open_host_trash_uri(uri=uri):
         return
 
     try:
         Gio.AppInfo.launch_default_for_uri(uri, None)
+        return
     except GLib.Error as exc:
-        log.bind(action="open_trash").warning("Failed to open trash: %s", exc)
+        gio_error = exc
+
+    if _open_trash_with_commands(uri=uri, commands=fallback_commands):
+        return
+
+    log.bind(action="open_trash").warning("Failed to open trash: %s", gio_error)
+
+
+def _open_trash_with_commands(
+    *, uri: str, commands: tuple[tuple[str, ...], ...]
+) -> bool:
+    for command in (*commands, ("gio", "open", uri), ("xdg-open", uri)):
+        resolved = _available_open_command(command)
+        if resolved is None:
+            continue
+        try:
+            subprocess.Popen(resolved)
+            return True
+        except OSError as exc:
+            log.bind(action="open_trash").debug(
+                "Failed to open trash with %s: %s",
+                resolved[0],
+                exc,
+            )
+
+    files_dir = _visible_trash_files_directory()
+    if not files_dir.exists():
+        return False
+    resolved = _available_open_command(("xdg-open", str(files_dir)))
+    if resolved is None:
+        return False
+    try:
+        subprocess.Popen(resolved)
+        return True
+    except OSError as exc:
+        log.bind(action="open_trash").debug(
+            "Failed to open trash files directory with %s: %s",
+            resolved[0],
+            exc,
+        )
+        return False
+
+
+def _available_open_command(command: tuple[str, ...]) -> tuple[str, ...] | None:
+    if is_flatpak():
+        host_command = flatpak.host_command(list(command))
+        if flatpak.host_command_available(command[0]) and host_command is not None:
+            return tuple(host_command)
+        return None
+    if shutil.which(command[0]):
+        return command
+    return None
 
 
 def _open_host_trash_uri(*, uri: str) -> bool:
@@ -157,6 +211,7 @@ class GioTrashBackend:
         ("org.gnome.Nautilus", "/org/gnome/Nautilus"),
     )
     confirmation_schema: tuple[str, str] | None = None
+    open_commands: tuple[tuple[str, ...], ...] = ()
 
     def count_items(self) -> int:
         if is_flatpak():
@@ -192,7 +247,7 @@ class GioTrashBackend:
         return Gio.File.new_for_uri(self.uri)
 
     def open(self) -> None:
-        _open_trash_uri(self.uri)
+        _open_trash_uri(self.uri, fallback_commands=self.open_commands)
 
     def empty(self, confirm: Callable[[], bool]) -> None:
         _ = confirm
@@ -296,6 +351,7 @@ class GnomeTrashBackend(GioTrashBackend):
 
     name = "gnome"
     dbus_targets = (("org.gnome.Nautilus", "/org/gnome/Nautilus"),)
+    open_commands = (("nautilus", "trash:///"),)
 
 
 class MateTrashBackend(GioTrashBackend):
@@ -303,6 +359,7 @@ class MateTrashBackend(GioTrashBackend):
 
     name = "mate"
     dbus_targets = (("org.mate.Caja", "/org/mate/Caja"),)
+    open_commands = (("caja", "trash:///"),)
     confirmation_schema = (
         "org.mate.caja.preferences",
         "/org/mate/caja/preferences/",
@@ -313,6 +370,7 @@ class CinnamonTrashBackend(GioTrashBackend):
     """Trash backend for Cinnamon/Nemo sessions."""
 
     name = "cinnamon"
+    open_commands = (("nemo", "trash:///"),)
     confirmation_schema = (
         "org.nemo.preferences",
         "/org/nemo/preferences/",
