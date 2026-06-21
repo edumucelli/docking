@@ -857,16 +857,14 @@ class WayfirePreviewService(PreviewService):
 
     def __init__(self, *, client: WayfireIpcClient) -> None:
         self._client = client
-        # Cache the full-screen screenshot PNG bytes so that different
-        # requested thumbnail sizes all crop/scale from the same capture.
-        self._screenshot_cache: bytes | None = None
+        self._cache: dict[WindowId, PreviewImage] = {}
         self._screencopy_available = False
 
     def start(self) -> None:
         self._screencopy_available = _screencopy_available()
 
     def stop(self) -> None:
-        self._screenshot_cache = None
+        self._cache.clear()
 
     def capture(
         self, window_id: WindowId, *, width: int, height: int
@@ -885,15 +883,16 @@ class WayfirePreviewService(PreviewService):
             return None
         if not self._screencopy_available:
             return None
+        cached = self._cache.get(window_id)
+        if cached is not None:
+            return cached
         geometry = self._window_geometry(window_id)
         if geometry is None:
             return None
         if geometry.width <= 0 or geometry.height <= 0:
             return None
         try:
-            if self._screenshot_cache is None:
-                self._screenshot_cache = _screencopy_screenshot()
-            png_bytes = self._screenshot_cache
+            png_bytes = _screencopy_screenshot()
             if png_bytes is None:
                 return None
             image = _pixbuf_from_png_bytes_cropped(
@@ -909,6 +908,7 @@ class WayfirePreviewService(PreviewService):
             return None
         if image is None:
             return None
+        self._cache[window_id] = image
         return image
 
     def _window_geometry(self, window_id: WindowId) -> Rect | None:
