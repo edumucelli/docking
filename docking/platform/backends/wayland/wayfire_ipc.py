@@ -839,18 +839,15 @@ class WayfireVisibilityService(VisibilityService):
 
 
 # ---------------------------------------------------------------------------
-# Preview / thumbnail capture via XDG Desktop Portal Screenshot
+# Preview / thumbnail capture via wlr-screencopy-unstable-v1
 # ---------------------------------------------------------------------------
 
 
 class WayfirePreviewService(PreviewService):
-    """PreviewService using XDG Desktop Portal Screenshot + geometry crop.
+    """PreviewService using zwlr_screencopy_manager_v1 + geometry crop.
 
-    Wayfire does not advertise ext_foreign_toplevel_image_capture_source_v1 or
-    zwlr_screencopy_manager_v1, so Docking's generic Wayland preview path and
-    grim-based capture are unavailable.  Instead this service takes a
-    non-interactive full-screen screenshot via the XDG Desktop Portal and
-    crops to the window geometry obtained from Wayfire IPC.
+    Takes a full-screen screenshot via wlr-screencopy-unstable-v1 and crops
+    to the window geometry obtained from Wayfire IPC.
 
     Known limitations:
     - Minimized windows return nothing (compositor does not render them).
@@ -860,14 +857,16 @@ class WayfirePreviewService(PreviewService):
 
     def __init__(self, *, client: WayfireIpcClient) -> None:
         self._client = client
-        self._cache: dict[WindowId, PreviewImage] = {}
-        self._portal_available = False
+        # Cache the full-screen screenshot PNG bytes so that different
+        # requested thumbnail sizes all crop/scale from the same capture.
+        self._screenshot_cache: bytes | None = None
+        self._screencopy_available = False
 
     def start(self) -> None:
-        self._portal_available = _portal_frontend_available()
+        self._screencopy_available = _screencopy_available()
 
     def stop(self) -> None:
-        self._cache.clear()
+        self._screenshot_cache = None
 
     def capture(
         self, window_id: WindowId, *, width: int, height: int
@@ -884,18 +883,17 @@ class WayfirePreviewService(PreviewService):
     ) -> PreviewImage | None:
         if window_id.backend is not DisplayServer.WAYLAND:
             return None
-        if not self._portal_available:
+        if not self._screencopy_available:
             return None
-        cached = self._cache.get(window_id)
-        if cached is not None:
-            return cached
         geometry = self._window_geometry(window_id)
         if geometry is None:
             return None
         if geometry.width <= 0 or geometry.height <= 0:
             return None
         try:
-            png_bytes = _portal_screenshot()
+            if self._screenshot_cache is None:
+                self._screenshot_cache = _screencopy_screenshot()
+            png_bytes = self._screenshot_cache
             if png_bytes is None:
                 return None
             image = _pixbuf_from_png_bytes_cropped(
@@ -911,7 +909,6 @@ class WayfirePreviewService(PreviewService):
             return None
         if image is None:
             return None
-        self._cache[window_id] = image
         return image
 
     def _window_geometry(self, window_id: WindowId) -> Rect | None:
@@ -933,106 +930,237 @@ class WayfirePreviewService(PreviewService):
         return _rect_from_mapping(info_block.get("geometry"))
 
 
-def _portal_frontend_available(*, timeout_ms: int = 250) -> bool:
-    """Return True when the XDG Desktop Portal service is reachable."""
+def _screencopy_available() -> bool:
+    """Return True when zwlr_screencopy_manager_v1 is available."""
     try:
-        from gi.repository import Gio, GLib
-    except (ImportError, ValueError):
+        from pywayland.client import Display
+    except ImportError:
         return False
     try:
-        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        result = bus.call_sync(
-            "org.freedesktop.DBus",
-            "/org/freedesktop/DBus",
-            "org.freedesktop.DBus",
-            "NameHasOwner",
-            GLib.Variant("(s)", ("org.freedesktop.portal.Desktop",)),
-            GLib.VariantType.new("(b)"),
-            Gio.DBusCallFlags.NO_AUTO_START,
-            timeout_ms,
-            None,
-        )
+        display = Display()
+        display.connect()
+        registry = display.get_registry()
+        found = {"manager": False, "shm": False, "output": False}
+
+        def on_global(_reg, name, interface, version):
+            if interface == "zwlr_screencopy_manager_v1":
+                found["manager"] = True
+            elif interface == "wl_shm":
+                found["shm"] = True
+            elif interface == "wl_output":
+                found["output"] = True
+
+        registry.dispatcher["global"] = on_global
+        display.roundtrip()
+        display.disconnect()
+        return all(found.values())
     except Exception:
         return False
-    return bool(result.unpack()[0])
 
 
-def _portal_screenshot(*, timeout_ms: int = 5000) -> bytes | None:
-    """Take a non-interactive full-screen screenshot via the XDG Desktop Portal.
+def _screencopy_screenshot() -> bytes | None:
+    """Take a full-screen screenshot via zwlr_screencopy_manager_v1.
 
-    Returns the raw PNG bytes on success, or None when the portal is
-    unavailable, the request times out, or the compositor denies the capture.
+    Returns the raw PNG bytes on success, or None when the protocol is
+    unavailable or the compositor denies the capture.
     """
+    import mmap
+
     try:
-        from gi.repository import Gio, GLib
+        from gi.repository import GdkPixbuf, GLib
     except (ImportError, ValueError):
         return None
+
     try:
-        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        proxy = Gio.DBusProxy.new_sync(
-            bus,
-            Gio.DBusProxyFlags.NONE,
-            None,
-            "org.freedesktop.portal.Desktop",
-            "/org/freedesktop/portal/desktop",
-            "org.freedesktop.portal.Screenshot",
-            None,
-        )
-        params = GLib.Variant.parse(
-            GLib.VariantType.new("(sa{sv})"),
-            "('', {'interactive': <false>})",
-        )
-        result = proxy.call_sync(
-            "Screenshot",
-            params,
-            Gio.DBusCallFlags.NONE,
-            timeout_ms,
-            None,
-        )
-        handle = result.unpack()[0]
-    except Exception:
+        from pywayland.client import Display
+        from pywayland.protocol.wayland import WlShm, WlOutput
+    except ImportError:
         return None
 
-    screenshot_data: dict[str, bytes | None] = {"png": None}
-    loop = GLib.MainLoop()
-
-    def on_response(
-        _connection, _sender, _path, _interface, _signal, parameters
-    ) -> None:
-        response, results = parameters.unpack()
-        if response == 0 and results and "uri" in results:
-            uri = results["uri"]
-            if uri.startswith("file://"):
-                path = Path(uri[7:])
-                with suppress(OSError):
-                    screenshot_data["png"] = path.read_bytes()
-                with suppress(OSError):
-                    path.unlink()
-        loop.quit()
-
-    signal_id = bus.signal_subscribe(
-        "org.freedesktop.portal.Desktop",
-        "org.freedesktop.portal.Request",
-        "Response",
-        handle,
-        None,
-        Gio.DBusSignalFlags.NONE,
-        on_response,
+    from docking.platform.backends.wayland.protocols.wlr_screencopy_unstable_v1 import (
+        ZwlrScreencopyManagerV1,
+        ZwlrScreencopyFrameV1,
     )
 
-    def on_timeout() -> bool:
-        loop.quit()
-        return False
+    SHM_ARGB8888 = 0
+    SHM_XRGB8888 = 1
+    # DRM FourCC equivalents used by wl_shm v2+
+    DRM_FORMAT_ARGB8888 = 0x34325241
+    DRM_FORMAT_XRGB8888 = 0x34325258
+    DRM_FORMAT_ABGR8888 = 0x34324241
+    DRM_FORMAT_XBGR8888 = 0x34324258
 
-    timeout_id = GLib.timeout_add(timeout_ms + 3000, on_timeout)
+    _ARGB_FORMATS = {SHM_ARGB8888, DRM_FORMAT_ARGB8888, DRM_FORMAT_ABGR8888}
+    _XRGB_FORMATS = {SHM_XRGB8888, DRM_FORMAT_XRGB8888, DRM_FORMAT_XBGR8888}
+    _SUPPORTED_FORMATS = _ARGB_FORMATS | _XRGB_FORMATS
+
+    capture: dict[str, object | None] = {
+        "shm": None,
+        "outputs": [],
+        "manager": None,
+        "frame_buffer": None,  # (format, width, height, stride)
+        "flags": 0,
+        "ready": False,
+        "failed": False,
+        "buffer_done": False,
+    }
+
+    display = Display()
     try:
-        loop.run()
-    finally:
-        if timeout_id:
-            GLib.source_remove(timeout_id)
-        bus.signal_unsubscribe(signal_id)
+        display.connect()
+    except Exception:
+        return None
+    registry = display.get_registry()
 
-    return screenshot_data["png"]
+    def on_global(_reg, name, interface, version):
+        if interface == "wl_shm":
+            capture["shm"] = _reg.bind(name, WlShm, min(version, WlShm.version))
+        elif interface == "wl_output":
+            output = _reg.bind(name, WlOutput, min(version, WlOutput.version))
+            outputs = capture.setdefault("outputs", [])
+            outputs.append(output)
+        elif interface == "zwlr_screencopy_manager_v1":
+            capture["manager"] = _reg.bind(
+                name, ZwlrScreencopyManagerV1,
+                min(version, ZwlrScreencopyManagerV1.version),
+            )
+
+    registry.dispatcher["global"] = on_global
+    try:
+        display.roundtrip()
+    except Exception:
+        display.disconnect()
+        return None
+
+    manager = capture.get("manager")
+    shm = capture.get("shm")
+    outputs = capture.get("outputs", [])
+    if manager is None or shm is None or not outputs:
+        display.disconnect()
+        return None
+
+    # Create frame with dispatchers before flush
+    frame = manager.capture_output(0, outputs[0])
+
+    def on_buffer(_frame, format, width, height, stride):
+        capture["frame_buffer"] = (int(format), int(width), int(height), int(stride))
+
+    def on_flags(_frame, flags):
+        capture["flags"] = int(flags)
+
+    def on_ready(_frame, _tv_sec_hi, _tv_sec_lo, _tv_nsec):
+        capture["ready"] = True
+
+    def on_failed(_frame):
+        capture["failed"] = True
+
+    def on_buffer_done(_frame):
+        capture["buffer_done"] = True
+
+    frame.dispatcher["buffer"] = on_buffer
+    frame.dispatcher["flags"] = on_flags
+    frame.dispatcher["ready"] = on_ready
+    frame.dispatcher["failed"] = on_failed
+    frame.dispatcher["buffer_done"] = on_buffer_done
+
+    try:
+        display.flush()
+        display.roundtrip()
+    except Exception:
+        display.disconnect()
+        return None
+
+    fb = capture.get("frame_buffer")
+    if fb is None:
+        display.disconnect()
+        return None
+    fmt, width, height, stride = fb
+    if width <= 0 or height <= 0 or stride <= 0:
+        display.disconnect()
+        return None
+    if fmt not in _SUPPORTED_FORMATS:
+        display.disconnect()
+        return None
+
+    # Create SHM buffer
+    size = stride * height
+    fd = os.memfd_create("docking-wayfire-preview")
+    os.ftruncate(fd, size)
+    mmap_obj = mmap.mmap(fd, size)
+
+    shm_pool = shm.create_pool(fd, size)
+    buffer = shm_pool.create_buffer(0, width, height, stride, fmt)
+    shm_pool.destroy()
+
+    frame.copy(buffer)
+
+    try:
+        display.flush()
+        display.roundtrip()
+    except Exception:
+        mmap_obj.close()
+        os.close(fd)
+        display.disconnect()
+        return None
+
+    if not capture["ready"] or capture["failed"]:
+        mmap_obj.close()
+        os.close(fd)
+        display.disconnect()
+        return None
+
+    y_inverted = bool(int(capture.get("flags", 0)) & 1)
+
+    try:
+        raw = mmap_obj[: stride * height]
+        if y_inverted:
+            rows = [raw[i : i + stride] for i in range(0, len(raw), stride)]
+            raw = b"".join(reversed(rows))
+
+        # Determine pixel byte order from DRM FourCC / legacy wl_shm format.
+        # ARGB8888 / XRGB8888: bytes are [B, G, R, A/X] in memory.
+        # ABGR8888 / XBGR8888: bytes are [R, G, B, A/X] in memory.
+        if fmt in (DRM_FORMAT_ABGR8888, DRM_FORMAT_XBGR8888):
+            # Already RGBA byte order — just fill alpha if needed.
+            rgba = bytearray(raw)
+            if fmt == DRM_FORMAT_XBGR8888:
+                for i in range(3, len(rgba), 4):
+                    rgba[i] = 255
+        else:
+            # BGRA → RGBA byte swap (covers legacy 0/1 and DRM ARGB/XRGB).
+            has_alpha = fmt in (SHM_ARGB8888, DRM_FORMAT_ARGB8888)
+            rgba = bytearray(width * height * 4)
+            for i in range(0, len(raw), 4):
+                b = raw[i]
+                g = raw[i + 1]
+                r = raw[i + 2]
+                a = raw[i + 3] if has_alpha else 255
+                out_idx = (i // 4) * 4
+                rgba[out_idx] = r
+                rgba[out_idx + 1] = g
+                rgba[out_idx + 2] = b
+                rgba[out_idx + 3] = a
+
+        pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
+            GLib.Bytes.new(bytes(rgba)),
+            GdkPixbuf.Colorspace.RGB,
+            True,
+            8,
+            width,
+            height,
+            width * 4,
+        )
+        saved = pixbuf.save_to_bufferv("png", [], [])
+        # save_to_bufferv returns (success: bool, buffer: bytes)
+        png_bytes = saved[1] if isinstance(saved, tuple) else saved
+    except Exception:
+        png_bytes = None
+    finally:
+        mmap_obj.close()
+        os.close(fd)
+
+    display.disconnect()
+    return bytes(png_bytes) if png_bytes else None
 
 
 def _pixbuf_from_png_bytes_cropped(
