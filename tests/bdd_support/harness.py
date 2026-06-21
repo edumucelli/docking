@@ -375,6 +375,9 @@ class DockHarness:
         self._drag_handler._model.unpin_item = MagicMock(
             side_effect=self._mark_drag_removed
         )
+        # Simulate GTK drag-leave having fired during the drag so the
+        # _internal_drag_left_dock gate in _on_drag_end passes.
+        self._drag_handler._internal_drag_left_dock = True
         self._drag_pointer.get_position.return_value = (None, 200, 50)
         self._drag_window.get_position.return_value = (100, 200)
         self._drag_window.get_size.return_value = (400, 60)
