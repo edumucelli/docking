@@ -224,6 +224,11 @@ class DnDHandler:
             ""  # launcher desktop_id under cursor during external drag
         )
         self._drop_committed: bool = False  # True after drag-drop fires
+        # True only when GTK reports drag-leave for an internal dock item drag.
+        # This is an input-event fact, separate from screen-coordinate math.
+        # Drag-off removal uses it as the "the drag actually left the dock"
+        # condition before trusting final pointer distance.
+        self._internal_drag_left_dock: bool = False
 
         self._setup_dnd()
 
@@ -287,6 +292,9 @@ class DnDHandler:
         """
         frame = self._geometry_builder.build_frame()
         self._begin_drag_autohide()
+        # Each internal reorder starts inside the dock. The drag-off removal
+        # path must earn this flag through drag-leave during this drag cycle.
+        self._internal_drag_left_dock = False
         items = self._model.visible_items()
         horizontal = is_horizontal(pos=self._config.pos)
         cursor_x, cursor_y = self._window.cursor_x, self._window.cursor_y
@@ -625,11 +633,17 @@ class DnDHandler:
     ) -> None:
         """Handle drag leaving the dock area.
 
-        GTK fires drag-leave before drag-drop, so we can't clear
-        drop_insert_index here (drag-data-received still needs it).
-        Instead we schedule a deferred clear -- if a drop happens,
-        drag-data-received or drag-end will clear it first. If the
-        drag truly left (cancelled), the deferred clear closes the gap.
+        External drops use drop_insert_index for the visual insertion gap.
+        GTK can emit drag-leave before drag-drop, so external drag-leave only
+        schedules a deferred gap clear. The later drop/data/end handler still
+        gets a chance to consume the insert position first.
+
+        Internal drags use drag-leave differently. Reordering is a same-widget
+        operation, while dragging an item away from the dock is a destructive
+        "remove from dock" gesture. A drag-leave signal is therefore recorded
+        as one required condition for drag-off removal. It is not sufficient on
+        its own; _on_drag_end also requires the drop not to have committed and
+        the final distance check to say the pointer ended outside.
         """
         if self._drag_from < 0 and self.drop_insert_index >= 0:
             GLib.timeout_add(
@@ -637,6 +651,8 @@ class DnDHandler:
                 self._deferred_clear_drop_gap,
                 widget,
             )
+        elif self._drag_from >= 0:
+            self._internal_drag_left_dock = True
         self.drop_target_id = ""
         widget.queue_draw()
 
@@ -649,10 +665,24 @@ class DnDHandler:
         return False
 
     def _on_drag_end(self, widget: Gtk.DrawingArea, _context: Gdk.DragContext) -> None:
-        """Clean up drag state and unpin if item was dragged outside the dock.
+        """Clean up drag state and optionally remove a dragged-off dock item.
 
-        Checks if the cursor ended up beyond the icon_size threshold from
-        the dock edge. If so, unpins the item and plays the poof animation.
+        Internal reorder is finalized live during drag-motion. Drag-end is
+        responsible for cleanup and for the separate drag-off removal gesture.
+
+        Removal is intentionally gated by four current-state conditions:
+
+        1. this drag started as an internal dock item drag (_drag_from >= 0),
+        2. GTK reported that the internal drag left the dock destination,
+        3. no valid same-widget drop was committed,
+        4. the final pointer distance check says the pointer ended outside.
+
+        The distance check is kept as the geometric threshold for the existing
+        drag-off gesture, but it is no longer the only signal. Native Wayland
+        sessions do not provide X11-style global pointer/window coordinates in
+        a way this code can always trust, so the coordinate result is treated as
+        evidence only after the drag event sequence also says the drag left the
+        dock.
         """
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position
@@ -688,6 +718,12 @@ class DnDHandler:
                 outside,
             )
 
+            # Conditions 2 and 3 from the docstring. If either fails, this was
+            # a normal same-widget reorder/cleanup path, even when Wayland's
+            # final global coordinate query appears to be outside the dock.
+            if not self._internal_drag_left_dock or self._drop_committed:
+                outside = False
+
             if outside and 0 <= self.drag_index < len(items):
                 item = items[self.drag_index]
                 if item.is_pinned:
@@ -707,6 +743,7 @@ class DnDHandler:
         self.drop_insert_index = -1
         self.drop_target_id = ""
         self._drop_committed = False
+        self._internal_drag_left_dock = False
         self._drag_from = -1
         self._config.save()
         self._reconcile_autohide_after_drag(reason="drag-end")

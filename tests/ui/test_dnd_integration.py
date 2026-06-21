@@ -794,6 +794,7 @@ class TestDragLeaveEnd:
         # Given
         handler = _make_handler(monkeypatch)
         handler._drag_from = 0
+        handler._internal_drag_left_dock = True
         handler.drag_index = 0
         pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
         handler._model.visible_items.return_value = [pinned]
@@ -817,9 +818,47 @@ class TestDragLeaveEnd:
         handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called()
 
+    def test_drag_end_does_not_unpin_reorder_when_global_position_looks_outside(
+        self, monkeypatch
+    ):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = 0
+        handler.drag_index = 0
+        pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
+        handler._model.visible_items.return_value = [pinned]
+        pointer = handler._window.get_display.return_value.get_default_seat.return_value
+        pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
+        handler._window.get_position.return_value = (100, 200)
+        handler._window.get_size.return_value = (400, 60)
+
+        handler._on_drag_end(handler._drawing_area, MagicMock())
+
+        handler._model.unpin_item.assert_not_called()
+        dnd_mod.show_poof.assert_not_called()
+        assert handler._internal_drag_left_dock is False
+
+    def test_drag_end_does_not_unpin_after_committed_internal_drop(self, monkeypatch):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = 0
+        handler._internal_drag_left_dock = True
+        handler._drop_committed = True
+        handler.drag_index = 0
+        pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
+        handler._model.visible_items.return_value = [pinned]
+        pointer = handler._window.get_display.return_value.get_default_seat.return_value
+        pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
+        handler._window.get_position.return_value = (100, 200)
+        handler._window.get_size.return_value = (400, 60)
+
+        handler._on_drag_end(handler._drawing_area, MagicMock())
+
+        handler._model.unpin_item.assert_not_called()
+        dnd_mod.show_poof.assert_not_called()
+
     def test_drag_end_closes_open_folder_stack_when_folder_unpinned(self, monkeypatch):
         handler = _make_handler(monkeypatch)
         handler._drag_from = 0
+        handler._internal_drag_left_dock = True
         handler.drag_index = 0
         folder = DockItem(
             desktop_id="file:///tmp/docs",
