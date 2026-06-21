@@ -23,11 +23,11 @@ class TestBuildAppCategories:
 
         with (
             patch(
-                "docking.applets.apps.Gio.AppInfo.get_all",
+                "docking.platform.desktop_entries.Gio.AppInfo.get_all",
                 return_value=[mock_app],
             ),
             patch(
-                "docking.applets.apps.Launcher._get_desktop_dirs",
+                "docking.platform.desktop_entries.desktop_dirs",
                 return_value=[],
             ),
         ):
@@ -51,11 +51,11 @@ class TestBuildAppCategories:
             encoding="utf-8",
         )
         monkeypatch.setattr(
-            "docking.applets.apps.Gio.AppInfo.get_all",
+            "docking.platform.desktop_entries.Gio.AppInfo.get_all",
             list,
         )
         monkeypatch.setattr(
-            "docking.applets.apps.Launcher._get_desktop_dirs",
+            "docking.platform.desktop_entries.desktop_dirs",
             lambda: [host_apps],
         )
 
@@ -80,11 +80,11 @@ class TestBuildAppCategories:
                 encoding="utf-8",
             )
         monkeypatch.setattr(
-            "docking.applets.apps.Gio.AppInfo.get_all",
+            "docking.platform.desktop_entries.Gio.AppInfo.get_all",
             list,
         )
         monkeypatch.setattr(
-            "docking.applets.apps.Launcher._get_desktop_dirs",
+            "docking.platform.desktop_entries.desktop_dirs",
             lambda: [first_apps, second_apps],
         )
 

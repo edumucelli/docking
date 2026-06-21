@@ -44,6 +44,7 @@ def test_create_session_backend_selects_reduced_for_non_x11_without_x11_import(
     monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.UNKNOWN)
     monkeypatch.setattr(selection, "is_kde_session", lambda: False)
     monkeypatch.setattr(selection, "backend_name", lambda: "GdkWayland.WaylandDisplay")
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
     monkeypatch.setattr(
         selection, "_create_wayland_layer_shell_backend", lambda **_: None
     )
@@ -73,6 +74,7 @@ def test_create_session_backend_selects_layer_shell_for_supported_wayland(monkey
     monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
     monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.UNKNOWN)
     monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
     backend = MagicMock(name="wayland-layer-shell")
     create_wayland = MagicMock(return_value=backend)
     monkeypatch.setattr(
@@ -96,6 +98,7 @@ def test_create_session_backend_selects_gnome_bridge_after_layer_shell_fallback(
     monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
     monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.UNKNOWN)
     monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
     monkeypatch.setattr(
         selection, "_create_wayland_layer_shell_backend", lambda **_: None
     )
@@ -259,6 +262,23 @@ def test_create_session_backend_can_force_niri_backend(monkeypatch):
     create_niri.assert_called_once()
 
 
+def test_create_session_backend_can_force_wayfire_backend(monkeypatch):
+    monkeypatch.setenv("DOCKING_BACKEND", "wayfire")
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
+    backend = MagicMock(name="wayfire")
+    create_wayfire = MagicMock(return_value=backend)
+    monkeypatch.setattr(selection, "_create_wayfire_backend", create_wayfire)
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_wayfire.assert_called_once()
+
+
 def test_create_session_backend_auto_selects_niri_before_generic_wayland(
     monkeypatch,
 ):
@@ -284,4 +304,32 @@ def test_create_session_backend_auto_selects_niri_before_generic_wayland(
 
     assert result is backend
     create_niri.assert_called_once()
+    create_wayland.assert_not_called()
+
+
+def test_create_session_backend_auto_selects_wayfire_before_generic_wayland(
+    monkeypatch,
+):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.WAYFIRE)
+    monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    backend = MagicMock(name="wayfire")
+    create_wayfire = MagicMock(return_value=backend)
+    create_wayland = MagicMock()
+    monkeypatch.setattr(selection, "_create_wayfire_backend", create_wayfire)
+    monkeypatch.setattr(
+        selection,
+        "_create_wayland_layer_shell_backend",
+        create_wayland,
+    )
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_wayfire.assert_called_once()
     create_wayland.assert_not_called()

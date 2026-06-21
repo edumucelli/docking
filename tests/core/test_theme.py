@@ -1023,6 +1023,141 @@ class TestMigrationEdgeCases:
 
         assert json.loads(path.read_text()) == {"key": "value"}
 
+    def test_theme_path_set_empty_parts_returns_empty_tuple(self):
+        from docking.core.theme.migration import _theme_path_set
+
+        result = _theme_path_set({}, "", "value")
+        assert result == ()
+
+    def test_theme_path_set_replaces_non_dict_section(self, monkeypatch):
+        from docking.core.theme.migration import _theme_path_set
+
+        data = {"items": "string_not_dict"}
+        result = _theme_path_set(data, "items.glow.color", "#fff")
+        assert "not an object" in " ".join(result)
+
+    def test_create_migration_backup_cleanup_failure(self, tmp_path, monkeypatch):
+        from docking.core.theme import migration as m
+
+        path = tmp_path / "theme.json"
+        path.write_text("{}", encoding="utf-8")
+
+        # Make the backup write fail, then make unlink also fail
+        def _fail_unlink(_self, **kw):
+            raise OSError("unlink failed")
+
+        monkeypatch.setattr(m.Path, "unlink", _fail_unlink)
+        # Make open in write-binary mode fail
+        original_open = m.Path.open
+
+        def _failing_open(self, mode, **kw):
+            if mode == "wb":
+                raise OSError("write failed")
+            return original_open(self, mode, **kw)
+
+        monkeypatch.setattr(m.Path, "open", _failing_open)
+        monkeypatch.setattr(m.os, "fsync", lambda _fd: None)
+
+        with pytest.raises(OSError):
+            m._create_theme_migration_backup(path=path)
+
+    def test_write_theme_json_atomic_non_dict_payload(self, tmp_path):
+        from docking.core.theme.migration import _write_theme_json_atomic
+
+        path = tmp_path / "theme.json"
+        with pytest.raises(ValueError):
+            _write_theme_json_atomic(path=path, payload=[1, 2, 3])
+
+    def test_write_theme_json_atomic_cleanup_failure(self, tmp_path, monkeypatch):
+        from docking.core.theme import migration as m
+
+        path = tmp_path / "theme.json"
+        # Make replace fail so we enter except block, then make unlink also fail
+        monkeypatch.setattr(
+            m.Path,
+            "replace",
+            lambda _self, _other: (_ for _ in ()).throw(OSError("replace failed")),
+        )
+        monkeypatch.setattr(
+            m.Path,
+            "unlink",
+            lambda _self, **kw: (_ for _ in ()).throw(OSError("unlink cleanup failed")),
+        )
+        monkeypatch.setattr(m.os, "fsync", lambda _fd: None)
+
+        with pytest.raises(OSError):
+            m._write_theme_json_atomic(path=path, payload={"key": "value"})
+
+    def test_migrate_existing_user_theme_template_read_failure(
+        self, tmp_path, monkeypatch
+    ):
+        from docking.core.theme.theme import _migrate_existing_user_theme_template
+
+        path = tmp_path / "bad.json"
+        path.write_text("{}")
+        # Make open fail
+        monkeypatch.setattr(
+            __import__(
+                "docking.core.theme.theme",
+                fromlist=["_migrate_existing_user_theme_template"],
+            ).Path,
+            "open",
+            lambda _self, **kw: (_ for _ in ()).throw(OSError("read failed")),
+        )
+        # Should not raise
+        _migrate_existing_user_theme_template(path=path, directory=tmp_path)
+
+    def test_migrate_existing_user_theme_template_non_dict(self, tmp_path, caplog):
+        from docking.core.theme.theme import _migrate_existing_user_theme_template
+
+        path = tmp_path / "theme.json"
+        path.write_text("[]", encoding="utf-8")
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            _migrate_existing_user_theme_template(path=path, directory=tmp_path)
+        assert any("not a JSON object" in r.message for r in caplog.records)
+
+    def test_migrate_existing_user_theme_template_backfill_oserror(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        from docking.core.theme.theme import _migrate_existing_user_theme_template
+
+        path = tmp_path / "theme.json"
+        # Write just enough that migration succeeds but write_text fails on backfill
+        path.write_text(
+            json.dumps({"indicators": {"style": "dots", "fill": "flat"}}),
+            encoding="utf-8",
+        )
+        # Force write_text to fail
+        monkeypatch.setattr(
+            path.__class__,
+            "write_text",
+            lambda _self, _text, **kw: (_ for _ in ()).throw(OSError("write failed")),
+        )
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            _migrate_existing_user_theme_template(path=path, directory=tmp_path)
+
+    def test_invalid_indicator_style_logs_and_falls_back(self, tmp_path, caplog):
+        from docking.core.theme.theme import Theme
+
+        theme_data = {"indicators": {"style": "bogus", "fill": "flat"}}
+        theme_file = tmp_path / "bad-style.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        import logging
+
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-style", 48)
+        from docking.core.theme.theme import IndicatorStyle
+
+        assert t.indicator_style is IndicatorStyle.DOTS
+        assert any("indicator style" in r.message.lower() for r in caplog.records)
+
 
 class TestIndicatorFill:
     """Indicator fill (flat vs glow) theme field and JSON loading."""

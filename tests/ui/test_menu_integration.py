@@ -747,6 +747,13 @@ def handler(monkeypatch):
         item_prefs={},
         window_list_sort="default",
         save=MagicMock(),
+        show_recent_docs_in_menu=False,
+        recent_docs_max=10,
+        show_recent_apps=False,
+        recent_apps_max=5,
+        recent_apps_retention_days=14,
+        recent_apps=[],
+        recent_apps_opacity=0.85,
     )
     tracker = MagicMock()
     tracker.list_windows.return_value = []

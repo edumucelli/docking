@@ -219,6 +219,7 @@ URGENT_GLOW_INNER_STOP = 0.33
 URGENT_GLOW_INNER_ALPHA = 0.66
 URGENT_GLOW_OUTER_STOP = 0.66
 URGENT_GLOW_OUTER_ALPHA = 0.33
+RECENT_APPS_ICON_OPACITY = 0.85
 
 
 @dataclass(frozen=True)
@@ -1249,7 +1250,11 @@ class DockRenderer:
         icon_width = source_surface.get_width()
         icon_height = source_surface.get_height()
 
-        if lighten <= 0 and darken <= 0:
+        # Recent-app icons are drawn at reduced opacity so they read as
+        # visually distinct from pinned launchers.
+        recent_opacity = RECENT_APPS_ICON_OPACITY if item.is_recent else 1.0
+
+        if lighten <= 0 and darken <= 0 and recent_opacity >= 1.0:
             # Idle icons do not need a temporary effect surface. Paint the
             # cached source surface directly and reserve the extra allocation
             # and copy work for frames that actually apply hover/click effects.
@@ -1279,7 +1284,7 @@ class DockRenderer:
         cr.translate(x, y)
         cr.scale(scaled_size / icon_width, scaled_size / icon_height)
         cr.set_source_surface(icon_surface, 0, 0)
-        cr.paint()
+        cr.paint_with_alpha(recent_opacity)
         cr.restore()
 
     def _draw_separator(

@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.1.0}
+Version:        %{?pkg_version}%{!?pkg_version:2.3.0}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
@@ -118,6 +118,18 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Sun Jun 21 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.3.0-1
+- Release 2.3.0.
+
+* Wed Jun 17 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.2.0-1
+- Add recently used apps section between pinned launchers and running apps
+- Add settings option tooltips across the preferences window
+- Add connector-based monitor targeting in config and preferences
+- Add Run Application and System Tray icons to the applet catalog
+- Make README applet entries collapsible with details/summary tags
+- Fix broken ARCHITECTURE.md link and untrack stale docs from git
+- Prevent Docking's own windows from being tracked as running apps
+
 * Sat Jun 13 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.1.0-1
 - Add Niri IPC backend with native window tracking, previews, and color picker
 - Add runtime diagnostics dialog for backend and session troubleshooting

@@ -73,6 +73,8 @@ class TestTooltipHide:
         tooltip._tooltip_window = MagicMock()
         item = MagicMock()
         item.name = ""
+        item.is_recent = False
+        item.last_closed = 0
         # When
         tooltip.update(item, None)
         # Then
@@ -89,6 +91,8 @@ class TestTooltipHide:
         tooltip._tooltip_window = MagicMock()
         item = MagicMock()
         item.name = "Firefox"
+        item.is_recent = False
+        item.last_closed = 0
         # When
         tooltip.update(item, _frame_for_item(item))
         # Then
@@ -213,6 +217,8 @@ def _make_tooltip() -> TooltipManager:
 def _make_item(name: str, builder: bool = False) -> MagicMock:
     item = MagicMock()
     item.name = name
+    item.is_recent = False
+    item.last_closed = 0
     item.tooltip_builder = (lambda: MagicMock()) if builder else None
     return item
 
@@ -330,6 +336,239 @@ class TestTooltipGapBehavior:
         item = _make_item("")
         tooltip.update(item, None)
         tooltip._tooltip_window.hide.assert_not_called()
+
+
+class TestParseTimestamp:
+    def test_parse_timestamp_none_returns_none(self):
+        assert tooltip_mod.parse_timestamp(None) is None
+
+    def test_parse_timestamp_datetime_naive_gets_utc(self):
+        import datetime as dt
+
+        naive = dt.datetime(2025, 6, 15, 10, 30, 0)
+        result = tooltip_mod.parse_timestamp(naive)
+        assert result.tzinfo is not None
+        assert result.tzinfo == dt.timezone.utc
+
+    def test_parse_timestamp_datetime_aware_preserves_tz(self):
+        import datetime as dt
+
+        aware = dt.datetime(2025, 6, 15, 10, 30, 0, tzinfo=dt.timezone.utc)
+        result = tooltip_mod.parse_timestamp(aware)
+        assert result == aware
+
+    def test_parse_timestamp_empty_string_returns_none(self):
+        assert tooltip_mod.parse_timestamp("") is None
+        assert tooltip_mod.parse_timestamp("   ") is None
+
+    def test_parse_timestamp_valid_iso_string(self):
+        import datetime as dt
+
+        result = tooltip_mod.parse_timestamp("2025-06-15T10:30:00+00:00")
+        assert result == dt.datetime(2025, 6, 15, 10, 30, 0, tzinfo=dt.timezone.utc)
+
+    def test_parse_timestamp_z_suffix(self):
+        import datetime as dt
+
+        result = tooltip_mod.parse_timestamp("2025-06-15T10:30:00Z")
+        assert result == dt.datetime(2025, 6, 15, 10, 30, 0, tzinfo=dt.timezone.utc)
+
+    def test_parse_timestamp_invalid_string_returns_none(self):
+        assert tooltip_mod.parse_timestamp("not-a-date") is None
+
+
+class TestFormatRelativeInterval:
+    def test_format_seconds(self):
+        from docking.ui.tooltip import _format_relative_interval
+
+        assert "1 second" in _format_relative_interval(1)
+        assert "5 seconds" in _format_relative_interval(5)
+
+    def test_format_minutes(self):
+        from docking.ui.tooltip import _format_relative_interval
+
+        assert "1 minute" in _format_relative_interval(60)
+        assert "3 minutes" in _format_relative_interval(180)
+
+    def test_format_hours(self):
+        from docking.ui.tooltip import _format_relative_interval
+
+        assert "1 hour" in _format_relative_interval(3600)
+        assert "2 hours" in _format_relative_interval(7200)
+
+    def test_format_days(self):
+        from docking.ui.tooltip import _format_relative_interval
+
+        assert "1 day" in _format_relative_interval(86400)
+        assert "5 days" in _format_relative_interval(432000)
+
+    def test_negative_seconds_clamped_to_zero(self):
+        from docking.ui.tooltip import _format_relative_interval
+
+        assert "0 seconds" in _format_relative_interval(-100)
+
+
+class TestRelativeTimeLabel:
+    def test_relative_time_label_none_timestamp_returns_empty(self):
+        from docking.ui.tooltip import relative_time_label
+
+        assert relative_time_label(None) == ""
+
+    def test_relative_time_label_parsed_none_returns_empty(self, monkeypatch):
+        from docking.ui.tooltip import relative_time_label
+
+        monkeypatch.setattr(tooltip_mod, "parse_timestamp", lambda ts: None)
+        assert relative_time_label("2025-06-15T10:30:00Z") == ""
+
+    def test_relative_time_label_just_now(self):
+        import datetime as dt
+
+        from docking.ui.tooltip import relative_time_label
+
+        now = dt.datetime(2025, 6, 15, 10, 30, 0, tzinfo=dt.timezone.utc)
+        assert relative_time_label(now, now=now) == "just now"
+
+    def test_relative_time_label_naive_now_gets_utc(self):
+        import datetime as dt
+
+        from docking.ui.tooltip import relative_time_label
+
+        timestamp = dt.datetime(2025, 6, 15, 10, 29, 0, tzinfo=dt.timezone.utc)
+        naive_now = dt.datetime(2025, 6, 15, 10, 30, 0)
+        result = relative_time_label(timestamp, now=naive_now)
+        assert "1 minute" in result
+        assert "ago" in result
+
+    def test_relative_time_label_seconds_ago(self):
+        import datetime as dt
+
+        from docking.ui.tooltip import relative_time_label
+
+        now = dt.datetime(2025, 6, 15, 10, 30, 0, tzinfo=dt.timezone.utc)
+        thirty_sec_ago = dt.datetime(2025, 6, 15, 10, 29, 30, tzinfo=dt.timezone.utc)
+        result = relative_time_label(thirty_sec_ago, now=now)
+        assert "30 seconds" in result
+        assert "ago" in result
+
+
+class TestSetTheme:
+    def test_set_theme_updates_theme_reference(self):
+        tooltip = _make_tooltip()
+        new_theme = SimpleNamespace(launch_bounce_height=0.7)
+        tooltip.set_theme(new_theme)
+        assert tooltip._theme is new_theme
+
+
+class TestRecentItemTooltip:
+    def test_recent_item_display_text_includes_relative_time(self, monkeypatch):
+        import time
+
+        window = MagicMock()
+        window.get_size.return_value = (300, 80)
+        window.get_position.return_value = (10, 10)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            tooltips_enabled=True,
+        )
+        model = MagicMock()
+        model.visible_items = MagicMock(return_value=[])
+        theme = SimpleNamespace(horizontal_padding=8, item_padding=8, bottom_padding=4)
+        tooltip = TooltipManager(window, config, model, theme)
+        show_tooltip = MagicMock()
+        tooltip._show_tooltip = show_tooltip  # type: ignore[method-assign]
+
+        # recent item with a plausible timestamp (5 min ago)
+        item = MagicMock()
+        item.name = "Firefox"
+        item.is_recent = True
+        item.last_closed = time.time() - 300
+        item.tooltip_builder = None
+
+        monkeypatch.setattr(
+            tooltip_mod.GLib, "idle_add", lambda callback: callback() or 1
+        )
+
+        frame = _frame_for_item(item, anchor_x=40.0, anchor_y=10.0)
+        tooltip.update(item=item, geometry=frame)
+
+        show_tooltip.assert_called_once()
+        kwargs = show_tooltip.call_args.kwargs
+        assert "Firefox" in kwargs["text"]
+        # Should contain a relative time line — check for "ago" and a time unit
+        assert "\n" in kwargs["text"]
+        assert "ago" in kwargs["text"]
+
+    def test_recent_item_without_last_closed_no_suffix(self, monkeypatch):
+        window = MagicMock()
+        window.get_size.return_value = (300, 80)
+        window.get_position.return_value = (10, 10)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            tooltips_enabled=True,
+        )
+        model = MagicMock()
+        model.visible_items = MagicMock(return_value=[])
+        theme = SimpleNamespace(horizontal_padding=8, item_padding=8, bottom_padding=4)
+        tooltip = TooltipManager(window, config, model, theme)
+        show_tooltip = MagicMock()
+        tooltip._show_tooltip = show_tooltip  # type: ignore[method-assign]
+
+        item = MagicMock()
+        item.name = "Firefox"
+        item.is_recent = True
+        item.last_closed = 0  # no timestamp
+        item.tooltip_builder = None
+
+        monkeypatch.setattr(
+            tooltip_mod.GLib, "idle_add", lambda callback: callback() or 1
+        )
+
+        frame = _frame_for_item(item, anchor_x=40.0, anchor_y=10.0)
+        tooltip.update(item=item, geometry=frame)
+
+        show_tooltip.assert_called_once()
+        kwargs = show_tooltip.call_args.kwargs
+        assert kwargs["text"] == "Firefox"
+        assert "\n" not in kwargs["text"]
+
+
+class TestShowTooltipTypeError:
+    def test_show_tooltip_swallows_typeerror_from_transient_for(self, monkeypatch):
+        class _BrokenTransientWindow(_FakeTooltipWindow):
+            def set_transient_for(self, _window):
+                raise TypeError("set_transient_for not supported")
+
+            def set_attached_to(self, _window):
+                raise TypeError("set_attached_to not supported")
+
+        class _BrokenGtk:
+            Window = _BrokenTransientWindow
+            Label = _FakeTooltipLabel
+            WindowType = SimpleNamespace(POPUP=1)
+            StateFlags = SimpleNamespace(NORMAL=1)
+
+        monkeypatch.setattr(tooltip_mod, "Gtk", _BrokenGtk)
+        monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
+
+        tooltip = TooltipManager(
+            MagicMock(),
+            SimpleNamespace(icon_size=48),
+            MagicMock(),
+            SimpleNamespace(launch_bounce_height=0.0),
+        )
+
+        # Should not raise
+        tooltip._show_tooltip(
+            text="Firefox",
+            pos=Position.BOTTOM,
+            anchor_x=2.0,
+            anchor_y=4.0,
+            widget=None,
+            content_changed=True,
+        )
+        assert tooltip._tooltip_window is not None
 
 
 class TestTooltipContentCoalescing:
@@ -729,6 +968,8 @@ class TestTooltipIntegrationBranches:
         tooltip.hide = hide  # type: ignore[method-assign]
         item = MagicMock()
         item.name = "Firefox"
+        item.is_recent = False
+        item.last_closed = 0
         item.tooltip_builder = None
         frame = SimpleNamespace(geometry_for_item=MagicMock(return_value=None))
 
@@ -751,6 +992,8 @@ class TestTooltipIntegrationBranches:
         model = MagicMock()
         item = MagicMock()
         item.name = "CPU: 30%"
+        item.is_recent = False
+        item.last_closed = 0
         built_widget = MagicMock()
         item.tooltip_builder = MagicMock(return_value=built_widget)
         model.visible_items.return_value = [item]

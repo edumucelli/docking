@@ -646,6 +646,281 @@ class TestConfigSave:
         assert len(fsynced) >= 2
 
 
+class TestNormalizeHideMode:
+    def test_normalize_hide_mode_returns_default_on_value_error(self, monkeypatch):
+
+        warnings: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                warnings.append(msg % args)
+
+        monkeypatch.setattr(config_mod, "logger", _Capture())
+        result = config_mod._normalize_hide_mode("bogus_mode")
+        assert result == "none"
+        assert any("Invalid hide mode" in w for w in warnings)
+
+    def test_normalize_hide_mode_non_string_returns_default(self):
+        assert config_mod._normalize_hide_mode(42) == "none"
+        assert config_mod._normalize_hide_mode(None) == "none"
+        assert config_mod._normalize_hide_mode(["autohide"]) == "none"
+
+
+class TestDefaultDesktopIdFor:
+    def test_glib_error_returns_none(self, monkeypatch):
+        import gi
+
+        gi.require_version("Gio", "2.0")
+        from gi.repository import GLib
+
+        monkeypatch.setattr(
+            gi.repository,
+            "Gio",
+            SimpleNamespace(
+                AppInfo=SimpleNamespace(
+                    get_default_for_type=lambda _ct, _must_support_uris: (
+                        _ for _ in ()
+                    ).throw(
+                        GLib.Error(
+                            message="No app for type", domain="g-io-error-quark", code=0
+                        )
+                    )
+                )
+            ),
+        )
+        result = config_mod._default_desktop_id_for("application/x-nope")
+        assert result is None
+
+    def test_app_info_none_returns_none(self, monkeypatch):
+        import gi
+
+        gi.require_version("Gio", "2.0")
+        monkeypatch.setattr(
+            gi.repository,
+            "Gio",
+            SimpleNamespace(
+                AppInfo=SimpleNamespace(
+                    get_default_for_type=lambda _ct, _must_support_uris: None
+                )
+            ),
+        )
+        result = config_mod._default_desktop_id_for("application/x-none")
+        assert result is None
+
+    def test_empty_desktop_id_returns_none(self, monkeypatch):
+        import gi
+
+        gi.require_version("Gio", "2.0")
+        monkeypatch.setattr(
+            gi.repository,
+            "Gio",
+            SimpleNamespace(
+                AppInfo=SimpleNamespace(
+                    get_default_for_type=lambda _ct, _must_support_uris: (
+                        SimpleNamespace(get_id=lambda: "")
+                    )
+                )
+            ),
+        )
+        result = config_mod._default_desktop_id_for("application/x-empty")
+        assert result is None
+
+
+class TestUriIsDir:
+    def test_non_file_uri_returns_false(self):
+        assert config_mod._uri_is_dir("http://example.com") is False
+        assert config_mod._uri_is_dir("") is False
+        assert config_mod._uri_is_dir("not-a-uri") is False
+
+    def test_invalid_uri_returns_false_logs_warning(self, monkeypatch):
+        import docking.core.config as config_mod
+
+        warnings: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                warnings.append(msg % args)
+
+        monkeypatch.setattr(config_mod, "logger", _Capture())
+
+        def _raise_valueerror(_path):
+            raise ValueError("unsupported path encoding")
+
+        monkeypatch.setattr(config_mod.Path, "is_dir", _raise_valueerror)
+        # Any file:// URI triggers the code path; Path.is_dir raises
+        result = config_mod._uri_is_dir("file:///bad/path")
+        assert result is False
+        assert any("Invalid file URI" in w for w in warnings)
+
+
+class TestNormalizeBool:
+    def test_normalize_bool_non_matching_string_returns_default(self):
+        assert config_mod._normalize_bool("maybe", default=True) is True
+        assert config_mod._normalize_bool("maybe", default=False) is False
+
+    def test_normalize_bool_non_string_type_returns_default(self):
+        assert config_mod._normalize_bool([True], default=True) is True
+        assert config_mod._normalize_bool(None, default=False) is False
+
+
+class TestNormalizeInt:
+    def test_normalize_int_non_numeric_returns_default(self):
+        assert config_mod._normalize_int([1, 2, 3], default=10) == 10
+        assert config_mod._normalize_int(None, default=5) == 5
+
+    def test_normalize_int_bool_converts(self):
+        assert config_mod._normalize_int(True, default=10) == 1
+        assert config_mod._normalize_int(False, default=10) == 0
+
+    def test_normalize_int_clamps_to_range(self):
+        assert config_mod._normalize_int(50, default=10, minimum=0, maximum=30) == 30
+        assert config_mod._normalize_int(-5, default=10, minimum=0, maximum=30) == 0
+
+    def test_normalize_int_invalid_string_returns_default(self):
+        assert config_mod._normalize_int("abc", default=7) == 7
+
+
+class TestNormalizeFloat:
+    def test_normalize_float_bool_converts(self):
+        assert config_mod._normalize_float(True, default=1.0) == 1.0
+        assert config_mod._normalize_float(False, default=1.0) == 0.0
+
+    def test_normalize_float_non_numeric_returns_default(self):
+        assert config_mod._normalize_float([1.0], default=3.5) == 3.5
+        assert config_mod._normalize_float(None, default=2.0) == 2.0
+
+    def test_normalize_float_clamps_to_range(self):
+        assert (
+            config_mod._normalize_float(10.0, default=5.0, minimum=0.0, maximum=3.0)
+            == 3.0
+        )
+        assert (
+            config_mod._normalize_float(-1.0, default=5.0, minimum=0.0, maximum=3.0)
+            == 0.0
+        )
+
+    def test_normalize_float_invalid_string_returns_default(self):
+        assert config_mod._normalize_float("xyz", default=2.5) == 2.5
+
+
+class TestNormalizeOptionalText:
+    def test_normalize_optional_text_none_returns_none(self):
+        assert config_mod._normalize_optional_text(None) is None
+
+    def test_normalize_optional_text_empty_after_strip_returns_none(self):
+        assert config_mod._normalize_optional_text("   ") is None
+
+    def test_normalize_optional_text_returns_stripped(self):
+        assert config_mod._normalize_optional_text("  hello  ") == "hello"
+
+    def test_normalize_optional_text_converts_non_string(self):
+        assert config_mod._normalize_optional_text(42) == "42"
+
+
+class TestNormalizeRecentApps:
+    def test_normalize_recent_apps_non_list_returns_empty(self):
+        assert config_mod._normalize_recent_apps(None) == []
+        assert config_mod._normalize_recent_apps("not a list") == []
+        assert config_mod._normalize_recent_apps({}) == []
+
+    def test_normalize_recent_apps_drops_non_dict_entries(self):
+        raw = [
+            "string_entry",
+            {"desktop_id": "good.desktop", "last_closed": 1000},
+        ]
+        result = config_mod._normalize_recent_apps(raw)
+        assert result == [{"desktop_id": "good.desktop", "last_closed": 1000}]
+
+    def test_normalize_recent_apps_drops_entries_without_valid_desktop_id(self):
+        raw = [
+            {"desktop_id": "", "last_closed": 1000},
+            {"desktop_id": 123, "last_closed": 1000},
+            {"last_closed": 1000},
+            {"desktop_id": "ok.desktop", "last_closed": 500},
+        ]
+        result = config_mod._normalize_recent_apps(raw)
+        assert result == [{"desktop_id": "ok.desktop", "last_closed": 500}]
+
+    def test_normalize_recent_apps_drops_entries_without_valid_last_closed(self):
+        raw = [
+            {"desktop_id": "a.desktop", "last_closed": "string_time"},
+            {"desktop_id": "b.desktop"},
+            {"desktop_id": "c.desktop", "last_closed": 1.5},
+        ]
+        result = config_mod._normalize_recent_apps(raw)
+        assert result == [{"desktop_id": "c.desktop", "last_closed": 1}]
+
+
+class TestConfigSaveEdgeCases:
+    def test_save_cleanup_oserror_when_unlink_fails(self, tmp_path, monkeypatch):
+        path = tmp_path / "dock.json"
+        config = Config(icon_size=96)
+
+        def _patched_write_json_atomic_candidate(*, path, payload):
+            path.write_text("{}")
+            raise OSError("disk full")
+
+        monkeypatch.setattr(
+            config_mod,
+            "_write_json_atomic_candidate",
+            _patched_write_json_atomic_candidate,
+        )
+        # Also make unlink fail so the cleanup handler fires
+        monkeypatch.setattr(
+            config_mod.Path,
+            "unlink",
+            lambda _self, **kw: (_ for _ in ()).throw(OSError("unlink failed")),
+        )
+        unlink_errors: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                unlink_errors.append(msg % args)
+
+        monkeypatch.setattr(config_mod, "logger", _Capture())
+
+        with pytest.raises(OSError):
+            config.save(path)
+
+        assert any(
+            "Failed to clean up temporary config file" in e for e in unlink_errors
+        )
+
+    def test_backup_cleanup_oserror_when_unlink_fails(self, tmp_path, monkeypatch):
+        source = tmp_path / "source.json"
+        backup = tmp_path / "backup.json"
+        source.write_text("{}", encoding="utf-8")
+        unlink_errors: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                unlink_errors.append(msg % args)
+
+        monkeypatch.setattr(config_mod, "logger", _Capture())
+
+        # Make read_bytes raise so _write_backup_copy enters the except block
+        def _fail_read_bytes(_self):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(config_mod.Path, "read_bytes", _fail_read_bytes)
+        # Make unlink also fail so the cleanup handler fires
+        monkeypatch.setattr(
+            config_mod.Path,
+            "unlink",
+            lambda _self, **kw: (_ for _ in ()).throw(OSError("unlink failed")),
+        )
+
+        with pytest.raises(OSError):
+            config_mod._write_backup_copy(source=source, backup_path=backup)
+
+        assert any(
+            "Failed to clean up temporary backup file" in e for e in unlink_errors
+        )
+
+
+from types import SimpleNamespace
+
+
 class TestConfigHelpers:
     def test_pinned_entry_equality_and_raw_shapes(self, tmp_path):
         folder_uri = tmp_path.as_uri()

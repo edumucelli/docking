@@ -44,9 +44,12 @@ class TestHelperFunctions:
     def test_open_trash_uri_handles_glib_error(self):
         from gi.repository import GLib
 
-        with patch(
-            "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-            side_effect=GLib.Error("no handler"),
+        with (
+            patch(
+                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
+                side_effect=GLib.Error("no handler"),
+            ),
+            patch("docking.applets.trash.backend.shutil.which", return_value=False),
         ):
             _open_trash_uri("trash:///")
 
@@ -118,6 +121,78 @@ class TestTrashBackendSelection:
         assert isinstance(
             select_trash_backend(desktop=Desktop.UNKNOWN), GioTrashBackend
         )
+
+
+class TestTrashAppletDrops:
+    def test_accepts_drop_uris(self):
+        applet = TrashApplet.__new__(TrashApplet)
+
+        assert applet.accepts_drop_uris() is True
+
+    def test_file_from_drop_uri_accepts_file_uri(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text("notes")
+
+        file = TrashApplet._file_from_drop_uri(path.as_uri())
+
+        assert file is not None
+        assert file.get_path() == str(path)
+
+    def test_file_from_drop_uri_accepts_absolute_path(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text("notes")
+
+        file = TrashApplet._file_from_drop_uri(str(path))
+
+        assert file is not None
+        assert file.get_path() == str(path)
+
+    def test_file_from_drop_uri_rejects_non_local_uri(self):
+        assert TrashApplet._file_from_drop_uri("https://example.test/file.txt") is None
+        assert TrashApplet._file_from_drop_uri("trash:///") is None
+
+    def test_on_drop_uris_trashes_local_files_and_refreshes_count(self):
+        file = MagicMock()
+        file.trash.return_value = True
+        backend = MagicMock()
+        backend.count_items.return_value = 3
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = backend
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+            assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is True
+
+        file.trash.assert_called_once_with(None)
+        assert applet._item_count == 3
+        applet.present.assert_called_once()
+
+    def test_on_drop_uris_returns_false_when_gio_refuses_trash(self):
+        file = MagicMock()
+        file.trash.return_value = False
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = MagicMock()
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+            assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is False
+
+        applet._backend.count_items.assert_not_called()
+        applet.present.assert_not_called()
+
+    def test_on_drop_uris_returns_false_when_nothing_was_trashed(self):
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = MagicMock()
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=None):
+            assert applet.on_drop_uris(["https://example.test/file.txt"]) is False
+
+        applet._backend.count_items.assert_not_called()
+        applet.present.assert_not_called()
 
 
 class TestGioTrashBackend:
@@ -265,6 +340,63 @@ class TestGioTrashBackend:
             ]
         )
         launch.assert_called_once_with("trash:///", None)
+
+    def test_mate_open_falls_back_to_caja_when_gio_rejects_trash_uri(self):
+        from gi.repository import GLib
+
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
+                side_effect=GLib.Error("operation not supported"),
+            ) as launch,
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                side_effect=lambda command: (
+                    f"/usr/bin/{command}" if command == "caja" else None
+                ),
+            ),
+            patch("docking.applets.trash.backend.subprocess.Popen") as popen,
+        ):
+            MateTrashBackend().open()
+
+        launch.assert_called_once_with("trash:///", None)
+        popen.assert_called_once_with(("caja", "trash:///"))
+
+    def test_open_falls_back_to_visible_trash_files_directory_when_uri_handlers_fail(
+        self, tmp_path
+    ):
+        from gi.repository import GLib
+
+        files_dir = tmp_path / "Trash" / "files"
+        files_dir.mkdir(parents=True)
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directory",
+                return_value=files_dir,
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
+                side_effect=GLib.Error("operation not supported"),
+            ),
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                side_effect=lambda command: (
+                    f"/usr/bin/{command}" if command == "xdg-open" else None
+                ),
+            ),
+            patch(
+                "docking.applets.trash.backend.subprocess.Popen",
+                side_effect=[OSError("unsupported"), MagicMock()],
+            ) as popen,
+        ):
+            GioTrashBackend().open()
+
+        assert [args[0] for args, _kwargs in popen.call_args_list] == [
+            ("xdg-open", "trash:///"),
+            ("xdg-open", str(files_dir)),
+        ]
 
     def test_empty_trash_uses_dbus_first(self):
         bus = MagicMock()
