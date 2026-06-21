@@ -28,6 +28,7 @@ import os
 import socket
 import struct
 import threading
+import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
@@ -849,11 +850,18 @@ class WayfirePreviewService(PreviewService):
     Takes a full-screen screenshot via wlr-screencopy-unstable-v1 and crops
     to the window geometry obtained from Wayfire IPC.
 
+    Because Wayfire does not expose a per-toplevel capture protocol, each
+    preview request briefly focuses the target window (raising it to the top
+    of the stack) so that the full-screen capture yields the correct content
+    even when the window is occluded.
+
     Known limitations:
     - Minimized windows return nothing (compositor does not render them).
-    - Occluded windows show whatever is on screen, not the true buffer.
     - Windows on inactive workspaces show the current workspace content.
     """
+
+    # Short settle delay after focus-raise to let the compositor redraw.
+    _FOCUS_SETTLE_SECONDS = 0.05
 
     def __init__(self, *, client: WayfireIpcClient) -> None:
         self._client = client
@@ -891,7 +899,12 @@ class WayfirePreviewService(PreviewService):
             return None
         if geometry.width <= 0 or geometry.height <= 0:
             return None
+        wayfire_id = _wayfire_window_id(window_id)
         try:
+            # Focus-raise the target window so it is visible on screen,
+            # even when occluded by fullscreen or overlapping windows.
+            if wayfire_id is not None:
+                _focus_view(self._client, wayfire_id)
             png_bytes = _screencopy_screenshot()
             if png_bytes is None:
                 return None
@@ -928,6 +941,15 @@ class WayfirePreviewService(PreviewService):
         if isinstance(minimized, bool) and minimized:
             return None  # compositor does not render minimized windows
         return _rect_from_mapping(info_block.get("geometry"))
+
+
+def _focus_view(client: WayfireIpcClient, wayfire_id: int, *, settle: float = 0.05) -> None:
+    """Focus-raise *wayfire_id* and wait *settle* seconds for the compositor."""
+    try:
+        client.request("window-rules/focus-view", {"id": wayfire_id})
+        time.sleep(settle)
+    except Exception:
+        pass
 
 
 def _screencopy_available() -> bool:
