@@ -984,8 +984,7 @@ def load_wayfire_visibility_service(
 
 
 def load_wayfire_preview_service() -> None:
-    """Preview is not supported on Wayfire — always returns None."""
-    return None
+    """Preview is not supported on Wayfire."""
 
 
 def wayfire_socket_path(environ: Mapping[str, str] | None = None) -> Path | None:
