@@ -837,9 +837,7 @@ class TestDragLeaveEnd:
         dnd_mod.show_poof.assert_not_called()
         assert handler._internal_drag_left_dock is False
 
-    def test_drag_end_does_not_unpin_after_committed_internal_drop(
-        self, monkeypatch
-    ):
+    def test_drag_end_does_not_unpin_after_committed_internal_drop(self, monkeypatch):
         handler = _make_handler(monkeypatch)
         handler._drag_from = 0
         handler._internal_drag_left_dock = True
