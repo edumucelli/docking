@@ -73,6 +73,40 @@ class TrashApplet(Applet):
         """Open trash folder in the default file manager."""
         self._backend.open()
 
+    def accepts_drop_uris(self) -> bool:
+        """Allow local files/folders to be dropped onto the Trash icon."""
+        return True
+
+    def on_drop_uris(self, uris: list[str]) -> bool:
+        """Move dropped local files/folders to Trash."""
+        moved = False
+        failed = False
+        for uri in uris:
+            file = self._file_from_drop_uri(uri)
+            if file is None:
+                failed = True
+                continue
+            try:
+                if file.trash(None):
+                    moved = True
+                else:
+                    failed = True
+            except GLib.Error as exc:
+                failed = True
+                log.bind(action="drop_to_trash").warning(
+                    "Failed to move dropped item to trash: %s",
+                    exc,
+                )
+
+        if moved:
+            self._item_count = self._backend.count_items()
+            self.present()
+        elif failed:
+            log.bind(action="drop_to_trash").debug(
+                "Drop did not contain a local trashable file"
+            )
+        return moved
+
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Return 'Open Trash' and 'Empty Trash' menu items."""
         open_item = Gtk.MenuItem(label=_("Open Trash"))
@@ -113,6 +147,21 @@ class TrashApplet(Applet):
     def _empty_trash(self) -> None:
         """Empty trash through the selected backend."""
         self._backend.empty(self._confirm_empty_trash)
+
+    @staticmethod
+    def _file_from_drop_uri(uri: str) -> Gio.File | None:
+        text = uri.strip()
+        if not text:
+            return None
+        if text.startswith("file://"):
+            file = Gio.File.new_for_uri(text)
+        elif text.startswith("/"):
+            file = Gio.File.new_for_path(text)
+        else:
+            return None
+        if file.get_path() is None:
+            return None
+        return file
 
     def _confirm_empty_trash(self) -> bool:
         dialog = Gtk.MessageDialog(

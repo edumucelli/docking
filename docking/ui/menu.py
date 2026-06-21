@@ -149,6 +149,7 @@ concerns in practice.
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -181,6 +182,7 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.backends.base import DisplayServer
+from docking.platform.recent_docs import recent_docs_for_app
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
@@ -476,6 +478,10 @@ class MenuHandler:
         # Desktop actions (e.g. "New Window", "New Incognito Window")
         self._append_desktop_actions(menu=menu, desktop_id=item.desktop_id)
 
+        # Recent Documents (per-app jumplist)
+        if self._config.show_recent_docs_in_menu:
+            self._append_recent_docs(menu=menu, desktop_id=item.desktop_id)
+
         # Open windows - click to activate
         self._append_open_windows(menu=menu, desktop_id=item.desktop_id)
 
@@ -658,6 +664,63 @@ class MenuHandler:
                 ),
             )
             menu.append(mi)
+        menu.append(Gtk.SeparatorMenuItem())
+
+    def _append_recent_docs(self, menu: Gtk.Menu, desktop_id: str) -> None:
+        """Append a "Recent Documents" submenu for apps with recent file history."""
+        if not self._launcher:
+            return
+        docs = recent_docs_for_app(
+            desktop_id=desktop_id,
+            launcher=self._launcher,
+            limit=self._config.recent_docs_max,
+        )
+        if not docs:
+            return
+
+        submenu = Gtk.Menu()
+        for doc in docs:
+            row = Gtk.MenuItem()
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            try:
+                recent_item = Gtk.RecentManager.get_default().lookup_item(doc.uri)
+                if recent_item is not None:
+                    gicon = recent_item.get_gicon()
+                    if gicon is not None:
+                        icon = Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.MENU)
+                        box.pack_start(icon, False, False, 0)
+            except Exception:
+                pass
+            name = Gtk.Label(label=doc.name, xalign=0)
+            name.set_ellipsize(Pango.EllipsizeMode.END)
+            name.set_max_width_chars(30)
+            box.pack_start(name, True, True, 0)
+            closed_dt = dt.datetime.fromtimestamp(doc.modified, tz=dt.timezone.utc)
+            from docking.ui.tooltip import relative_time_label
+
+            rel = relative_time_label(closed_dt)
+            ts = Gtk.Label(label=rel, xalign=1)
+            ts.set_sensitive(False)
+            box.pack_start(ts, False, False, 0)
+            row.add(box)
+            uri = doc.uri
+            row.connect("activate", lambda _, u=uri: launcher_mod.open_target(u))
+            submenu.append(row)
+
+        submenu.append(Gtk.SeparatorMenuItem())
+        clear = Gtk.MenuItem(label=_("Clear Recent Documents"))
+        recents = Gtk.RecentManager.get_default()
+        clear.connect(
+            "activate",
+            lambda _, rm=recents, uris=[d.uri for d in docs]: (
+                [rm.remove_item(u) for u in uris]
+            ),
+        )
+        submenu.append(clear)
+
+        item = Gtk.MenuItem(label=_("Recent Documents"))
+        item.set_submenu(submenu)
+        menu.append(item)
         menu.append(Gtk.SeparatorMenuItem())
 
     def _append_open_windows(self, menu: Gtk.Menu, desktop_id: str) -> None:

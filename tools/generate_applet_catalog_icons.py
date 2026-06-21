@@ -98,6 +98,7 @@ from docking.applets.pomodoro.state import PomodoroState
 from docking.applets.powerprofiles.render import create_power_profiles_icon
 from docking.applets.quicknote.render import render_icon as render_quicknote
 from docking.applets.quote.render import draw_bulb_icon
+from docking.applets.runcommand.render import create_icon as render_runcommand
 from docking.applets.recentfiles.render import render_icon as render_recentfiles
 from docking.applets.screenshot.applet import _draw_screenshot_icon
 from docking.applets.session.render import create_session_icon
@@ -108,6 +109,7 @@ from docking.applets.sunrise.render import render_icon as render_sunrise
 from docking.applets.sunrise.state import CityPref as SunriseCityPref
 from docking.applets.sunrise.state import build_snapshot as build_sunrise_snapshot
 from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
+from docking.applets.systemtray.render import create_status_tray_icon
 from docking.applets.thermals.render import render_icon as render_thermals
 from docking.applets.thermals.state import FanReading, ThermalReading, ThermalSnapshot
 from docking.applets.todayinhistory.render import render_icon as render_todayinhistory
@@ -385,6 +387,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.QUICKNOTE: render_quicknote(size=size, has_content=True),
         AppletId.QUOTE: _quote_pixbuf(size=size),
+        AppletId.RUNCOMMAND: render_runcommand(size=size),
         AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),
         AppletId.SESSION: create_session_icon(size=size),
@@ -396,6 +399,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.STRETCHCOACH: render_stretchcoach(
             size=size,
             state=StretchCoachState(),
+        ),
+        AppletId.SYSTEMTRAY: create_status_tray_icon(
+            size=size,
+            available=True,
+            item_count=3,
         ),
         AppletId.SUNRISE: render_sunrise(
             size=size,

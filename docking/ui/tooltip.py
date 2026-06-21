@@ -161,6 +161,7 @@ geometry model.
 
 from __future__ import annotations
 
+import datetime as dt
 import math
 from typing import TYPE_CHECKING
 
@@ -171,11 +172,73 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.position import Position
+from docking.i18n import _
 from docking.log import get_logger
 from docking.ui.display import clamp_popup, window_screen_position
 from docking.ui.geometry import DockGeometryFrame
 
 log = get_logger(name="tooltip")
+
+
+def parse_timestamp(timestamp: dt.datetime | str | None) -> dt.datetime | None:
+    """Parse an aware UTC/local timestamp into a timezone-aware datetime."""
+    if timestamp is None:
+        return None
+    if isinstance(timestamp, dt.datetime):
+        parsed = timestamp
+    else:
+        text = str(timestamp).strip()
+        if not text:
+            return None
+        try:
+            parsed = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed
+
+
+def _format_relative_interval(seconds: int) -> str:
+    seconds = max(0, int(seconds))
+    if seconds < 60:
+        return (
+            _("1 second")
+            if seconds == 1
+            else _("{count} seconds").format(count=seconds)
+        )
+    minutes = seconds // 60
+    if minutes < 60:
+        return (
+            _("1 minute")
+            if minutes == 1
+            else _("{count} minutes").format(count=minutes)
+        )
+    hours = minutes // 60
+    if hours < 24:
+        return _("1 hour") if hours == 1 else _("{count} hours").format(count=hours)
+    days = hours // 24
+    return _("1 day") if days == 1 else _("{count} days").format(count=days)
+
+
+def relative_time_label(
+    timestamp: dt.datetime | str | None,
+    *,
+    now: dt.datetime | None = None,
+) -> str:
+    """Return a human relative age such as "5 minutes ago"."""
+    parsed = parse_timestamp(timestamp)
+    if parsed is None:
+        return ""
+    reference = now or dt.datetime.now(dt.timezone.utc)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=dt.timezone.utc)
+    elapsed = reference.astimezone(dt.timezone.utc) - parsed.astimezone(dt.timezone.utc)
+    elapsed_seconds = max(0, int(elapsed.total_seconds()))
+    if elapsed_seconds == 0:
+        return _("just now")
+    return _("{age} ago").format(age=_format_relative_interval(elapsed_seconds))
+
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -272,11 +335,21 @@ class TooltipManager:
         if geometry is None:
             return
 
+        # Build the display text, including recent-app context when applicable.
+        display_text = item.name
+        if item.is_recent and item.last_closed > 0:
+            closed_dt = dt.datetime.fromtimestamp(item.last_closed, tz=dt.timezone.utc)
+            rel = relative_time_label(closed_dt)
+            if rel:
+                display_text = f"{item.name}\n{rel}"
+
         # Check if content needs rebuilding (expensive: show_all triggers
         # crossing events) vs just repositioning (cheap: move only).
-        content_changed = not (item is self._last_item and item.name == self._last_name)
+        content_changed = not (
+            item is self._last_item and display_text == self._last_name
+        )
         if content_changed:
-            log.debug(f"content changed: {item.name}")
+            log.debug(f"content changed: {display_text}")
 
         item_geometry = geometry.geometry_for_item(item)
         if item_geometry is None:
@@ -290,7 +363,7 @@ class TooltipManager:
         if not content_changed:
             self._cancel_pending_show()
             self._show_tooltip(
-                text=item.name,
+                text=display_text,
                 pos=pos,
                 anchor_x=anchor_x,
                 anchor_y=anchor_y,
@@ -304,7 +377,7 @@ class TooltipManager:
         widget = item.tooltip_builder() if item.tooltip_builder else None
         self._schedule_show(
             item=item,
-            text=item.name,
+            text=display_text,
             pos=pos,
             anchor_x=anchor_x,
             anchor_y=anchor_y,

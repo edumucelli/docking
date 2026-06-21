@@ -1,3 +1,21 @@
+docking (2.3.0-1) stable; urgency=medium
+
+  * Release 2.3.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sun, 21 Jun 2026 13:03:05 +0200
+
+docking (2.2.0-1) stable; urgency=medium
+
+  * Add recently used apps section between pinned launchers and running apps
+  * Add settings option tooltips across the preferences window
+  * Add connector-based monitor targeting in config and preferences
+  * Add Run Application and System Tray icons to the applet catalog
+  * Make README applet entries collapsible with details/summary tags
+  * Fix broken ARCHITECTURE.md link and untrack stale docs from git
+  * Prevent Docking's own windows from being tracked as running apps
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 17 Jun 2026 21:27:25 +0200
+
 docking (2.1.0-1) stable; urgency=medium
 
   * Add Niri IPC backend with native window tracking, previews, and color picker
