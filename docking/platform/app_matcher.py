@@ -219,8 +219,6 @@ class AppIdMatcher:
         self._result_cache: dict[str, str] = {}  # lookup_key → desktop_id
         self._missed_candidates: set[str] = set()
 
-    # -- Public API -------------------------------------------------------
-
     def sync_visible_items(self, items: Iterable[DockItem]) -> None:
         """Rebuild visible-item alias cache from the current dock model.
 
@@ -323,8 +321,6 @@ class AppIdMatcher:
         """
         self._missed_candidates.clear()
 
-    # -- Internal: Wine ---------------------------------------------------
-
     def _match_wine_instance(
         self, *, app_id_lower: str, instance_hint: str
     ) -> str | None:
@@ -351,8 +347,6 @@ class AppIdMatcher:
                 self._result_cache[alias] = info.desktop_id
                 return info.desktop_id
         return None
-
-    # -- Internal: candidate generation -----------------------------------
 
     def _candidates(
         self,

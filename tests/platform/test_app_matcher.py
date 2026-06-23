@@ -21,8 +21,6 @@ from docking.platform.app_matcher import (
 )
 from docking.platform.launcher import GNOME_APP_PREFIX
 
-# -- Test fixtures ------------------------------------------------------------
-
 
 def _launcher(*, resolve_by_wm_class=None, resolve=None):
     """Build a fake Launcher with the given resolve behaviours."""
@@ -55,9 +53,6 @@ class _FakeDesktopInfo:
 
 def _item(desktop_id: str, wm_class: str = "") -> SimpleNamespace:
     return SimpleNamespace(desktop_id=desktop_id, wm_class=wm_class)
-
-
-# -- Helpers ------------------------------------------------------------------
 
 
 class TestNormalizeAlias:
@@ -180,9 +175,6 @@ class TestClassGroupCandidates:
         assert len(result) == len(set(result))
 
 
-# -- Visible aliases ----------------------------------------------------------
-
-
 class TestVisibleAliases:
     def test_direct_wm_class_hit(self):
         launcher = _launcher()
@@ -222,9 +214,6 @@ class TestVisibleAliases:
         matcher.sync_visible_items([_item("chrome.desktop", wm_class="Chrome")])
         assert matcher.match("Firefox") is None
         assert matcher.match("Chrome") == "chrome.desktop"
-
-
-# -- Wine matching ------------------------------------------------------------
 
 
 class TestWineMatching:
@@ -311,9 +300,6 @@ class TestWineMatching:
         )
 
 
-# -- Candidate generation and resolution --------------------------------------
-
-
 class TestCandidateResolution:
     def test_space_to_hyphen_candidate_matches(self):
         launcher = _launcher(
@@ -385,9 +371,6 @@ class TestCandidateResolution:
         assert matcher.match("CompletelyUnknownApp_xyz") is None
 
 
-# -- Caching behaviour --------------------------------------------------------
-
-
 class TestCaching:
     def test_missed_candidate_skips_second_gio_call(self):
         launcher = _launcher()
@@ -442,9 +425,6 @@ class TestCaching:
         assert matcher.match("DemoApp") == "demo.desktop"
 
 
-# -- Edge cases ---------------------------------------------------------------
-
-
 class TestEdgeCases:
     def test_empty_app_id_returns_none(self):
         launcher = _launcher()
@@ -467,9 +447,6 @@ class TestEdgeCases:
         matcher.sync_visible_items([])
 
         assert matcher.match("   ") is None
-
-
-# -- Backend integration scenarios --------------------------------------------
 
 
 class TestBackendIntegration:
