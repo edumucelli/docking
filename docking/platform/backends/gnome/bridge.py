@@ -32,6 +32,7 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
@@ -48,7 +49,6 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
@@ -252,7 +252,7 @@ class GnomeShellBridgeWindowService(WindowService):
         bridge: object,
     ) -> None:
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
         self._bridge = bridge
         self._windows_by_id: dict[int, _BridgeWindow] = {}
         self._changed_handle: object | None = None

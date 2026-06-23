@@ -32,6 +32,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -39,11 +40,9 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.launcher import DESKTOP_SUFFIX
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
-    from docking.core.items import DockItem
     from docking.platform.backends.wayland.previews import WaylandPreviewHandleTracker
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
@@ -80,43 +79,6 @@ class _ToplevelState:
         return WindowId(backend=DisplayServer.WAYLAND, value=self.internal_id)
 
 
-class WaylandAppIdMatcher:
-    """Resolve Wayland compositor app IDs to Docking desktop IDs."""
-
-    def __init__(self, launcher: Launcher) -> None:
-        self._launcher = launcher
-        self._visible_aliases: dict[str, str] = {}
-
-    def sync_visible_items(self, items: Iterable[DockItem]) -> None:
-        """Refresh aliases from current pinned and transient dock items."""
-        self._visible_aliases.clear()
-        for item in items:
-            aliases = {
-                item.desktop_id,
-                item.desktop_id.removesuffix(DESKTOP_SUFFIX),
-                getattr(item, "wm_class", "") or "",
-            }
-            for alias in aliases:
-                normalized = _normalize_app_id(alias)
-                if normalized:
-                    self._visible_aliases[normalized] = item.desktop_id
-
-    def match(self, app_id: str) -> str | None:
-        """Return a Docking desktop ID for a compositor app_id."""
-        for candidate in _app_id_candidates(app_id):
-            visible = self._visible_aliases.get(_normalize_app_id(candidate))
-            if visible:
-                return visible
-            desktop_id = _ensure_desktop_suffix(candidate)
-            resolved = self._launcher.resolve(desktop_id, log_failures=False)
-            if resolved is not None:
-                return resolved.desktop_id
-            by_wm_class = self._launcher.resolve_by_wm_class(candidate)
-            if by_wm_class is not None:
-                return by_wm_class.desktop_id
-        return None
-
-
 class WaylandForeignToplevelWindowService(WindowService):
     """WindowService backed by Wayland foreign-toplevel protocol events."""
 
@@ -130,7 +92,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         can_preview: bool = False,
     ) -> None:
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
         self._protocol = protocol
         self._preview_handles = preview_handles
         self._can_preview = can_preview
@@ -431,43 +393,6 @@ def load_foreign_toplevel_protocol() -> object | None:
     # is vendored, but the service above stays independent from the binding so it
     # can be tested without a live compositor.
     return None
-
-
-def _normalize_app_id(value: str) -> str:
-    return value.strip().removesuffix(DESKTOP_SUFFIX).lower()
-
-
-def _ensure_desktop_suffix(value: str) -> str:
-    stripped = value.strip()
-    if stripped.endswith(DESKTOP_SUFFIX):
-        return stripped
-    return f"{stripped}{DESKTOP_SUFFIX}"
-
-
-def _app_id_candidates(app_id: str) -> list[str]:
-    stripped = app_id.strip()
-    if not stripped:
-        return []
-    candidates = [
-        stripped,
-        stripped.removesuffix(DESKTOP_SUFFIX),
-        stripped.lower(),
-        stripped.lower().removesuffix(DESKTOP_SUFFIX),
-    ]
-    if "." in stripped:
-        candidates.append(stripped.split(".")[-1])
-    # Snap / container app-ids like firefox_firefox.desktop: also try the
-    # leading segment so the launcher can match firefox.desktop.
-    body = stripped.removesuffix(DESKTOP_SUFFIX)
-    if "_" in body:
-        segments = body.split("_")
-        prefixes = ["_".join(segments[: i + 1]) for i in range(len(segments) - 1)]
-        for prefix in prefixes:
-            candidates.append(prefix)
-            candidates.append(f"{prefix}{DESKTOP_SUFFIX}")
-            candidates.append(prefix.lower())
-            candidates.append(f"{prefix.lower()}{DESKTOP_SUFFIX}")
-    return list(dict.fromkeys(candidate for candidate in candidates if candidate))
 
 
 def _normalize_state(value: object) -> str:

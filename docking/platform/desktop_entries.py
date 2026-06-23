@@ -114,15 +114,63 @@ def normalized_exec_basename(exec_line: str) -> str:
     return Path(argv[0]).name.lower()
 
 
+def wine_executable_aliases(exec_line: str) -> list[str]:
+    """Return Wine executable aliases from a desktop Exec line.
+
+    Wine windows often expose ``WM_CLASS`` as ``Wine`` and the executable name
+    as the instance/name part, for example ``notepad.exe``. Index both
+    ``notepad.exe`` and ``notepad`` so running windows can match the launcher.
+    """
+    if not exec_line:
+        return []
+
+    try:
+        tokens = shlex.split(exec_line)
+    except ValueError:
+        tokens = re.findall(r"[^\s\"']+|\"[^\"]*\"|'[^']*'", exec_line)
+
+    has_wine = any(Path(token).name.lower() in {"wine", "wine64"} for token in tokens)
+    if not has_wine:
+        return []
+
+    aliases: list[str] = []
+    for match in re.finditer(
+        r"""(?ix)
+        (?:
+            "([^"]+?\.exe)"
+            |
+            '([^']+?\.exe)'
+            |
+            ([^\s"']+?\.exe)
+        )
+        """,
+        exec_line,
+    ):
+        executable = next((group for group in match.groups() if group), "")
+        executable = executable.strip().strip("\"'")
+        if not executable:
+            continue
+        basename = re.split(r"[\\/]", executable)[-1].lower()
+        if not basename.endswith(".exe"):
+            continue
+        aliases.append(basename)
+        aliases.append(basename[:-4])
+    return list(dict.fromkeys(alias for alias in aliases if alias))
+
+
 def desktop_match_aliases(info: DesktopInfo) -> list[str]:
     """Return stable lookup aliases for matching runtime windows to desktop IDs."""
     aliases = [
         info.wm_class.lower(),
         info.desktop_id.removesuffix(DESKTOP_SUFFIX).lower(),
     ]
-    exec_basename = normalized_exec_basename(info.exec_line)
-    if exec_basename:
-        aliases.append(exec_basename)
+    wine_aliases = wine_executable_aliases(info.exec_line)
+    if wine_aliases:
+        aliases.extend(wine_aliases)
+    else:
+        exec_basename = normalized_exec_basename(info.exec_line)
+        if exec_basename:
+            aliases.append(exec_basename)
     return list(dict.fromkeys(alias for alias in aliases if alias))
 
 
@@ -173,6 +221,9 @@ def desktop_info_from_file(*, desktop_id: str, path: Path) -> DesktopInfo | None
 
     exec_line = desktop_entry_string(key_file, "Exec")
     wm_class = desktop_entry_string(key_file, "StartupWMClass")
+    wine_aliases = wine_executable_aliases(exec_line)
+    if wine_aliases and (not wm_class or wm_class.lower() == "wine"):
+        wm_class = wine_aliases[0]
     if not wm_class:
         exec_basename = normalized_exec_basename(exec_line)
         wm_class = exec_basename or desktop_id.removesuffix(DESKTOP_SUFFIX)
@@ -206,9 +257,12 @@ def desktop_info_from_app_info(
 def wm_class_for_app_info(*, app_info: Gio.DesktopAppInfo, desktop_id: str) -> str:
     """Return explicit StartupWMClass or the existing executable fallback."""
     wm_class = app_info.get_startup_wm_class() or ""
-    if wm_class:
-        return wm_class
     commandline = app_info.get_commandline() or ""
+    wine_aliases = wine_executable_aliases(commandline)
+    if wm_class and wm_class.lower() != "wine":
+        return wm_class
+    if wine_aliases:
+        return wine_aliases[0]
     exe = commandline.split()[0] if commandline else ""
     return Path(exe).name if exe else desktop_id.removesuffix(DESKTOP_SUFFIX)
 

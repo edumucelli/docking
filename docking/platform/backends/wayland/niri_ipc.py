@@ -37,6 +37,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf
 
 from docking.log import get_logger
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
@@ -51,7 +52,6 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 log = get_logger(name="niri_ipc")
@@ -290,7 +290,7 @@ class NiriWindowService(WindowService):
         | None = None,
     ) -> None:
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
         self._client = client
         self._event_stream_factory = event_stream_factory
         self._event_stream: NiriEventStream | None = None
@@ -1051,7 +1051,7 @@ def _parse_event_line(line: str) -> NiriEvent | None:
 def _record_from_window(
     item: Mapping[str, Any],
     *,
-    matcher: WaylandAppIdMatcher,
+    matcher: AppIdMatcher,
 ) -> NiriWindowRecord | None:
     window_id = item.get("id")
     if not isinstance(window_id, int):
