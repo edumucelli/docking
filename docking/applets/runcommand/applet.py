@@ -41,6 +41,7 @@ from docking.applets.runcommand.state import (
     prefs_payload,
     updated_history,
 )
+from docking.core.icons import IconSource
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -61,7 +62,7 @@ class RunCommandApplet(Applet):
     id = meta.id
     name = _("Run Application")
     icon_name = "system-run"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         prefs = config.applet_prefs.get(meta.id, {}) if config else {}

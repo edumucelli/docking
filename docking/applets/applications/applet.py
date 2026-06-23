@@ -28,6 +28,7 @@ from docking.applets.applications import meta
 from docking.applets.applications.render import create_icon, make_menu_item_with_icon
 from docking.applets.applications.state import CATEGORY_ICONS, _build_app_categories
 from docking.applets.base import Applet
+from docking.core.icons import IconSource
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -48,7 +49,7 @@ class ApplicationsApplet(Applet):
     id = meta.id
     name = _("Applications")
     icon_name = "view-app-grid"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size=icon_size, config=config)

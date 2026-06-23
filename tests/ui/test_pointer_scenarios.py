@@ -26,6 +26,7 @@ import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
 import docking.ui.menu as menu_mod
 import docking.ui.placement as placement_mod
+from docking.core.config import PinnedEntry
 from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import AutoHideController, HideState
@@ -97,6 +98,19 @@ class _ScenarioHarness:
         self.model.visible_items.return_value = self.items
         self.model.pinned_items = []
         self.model.find_by_desktop_id.return_value = None
+
+        def insert_pinned_item(*, item: DockItem, index: int) -> bool:
+            item.is_pinned = True
+            self.model.pinned_items.insert(index, item)
+            self.config.pinned.insert(
+                index,
+                PinnedEntry(kind=item.kind, target=item.target),
+            )
+            self.config.save()
+            self.model.notify()
+            return True
+
+        self.model.insert_pinned_item.side_effect = insert_pinned_item
         self.cursor_x = -1.0
         self.cursor_y = -1.0
         self.screen_pointer = (0, 0)

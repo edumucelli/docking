@@ -39,7 +39,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - 58 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
-- Deep customization through 13 built-in themes, transparency, icon sizing, menu behavior, and tooltip controls.
+- Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
 - Broad release packaging: AppImage, Debian package, RPM, Flatpak, Snap, Arch package, and Nix output.
 - Desktop integration details such as Unity LauncherEntry badge/progress support, X11 background blur region export, and 74 locale catalogs plus English fallback.
 - Extensible Python applet system for adding custom dock-resident tools without changing the core runtime.
@@ -279,6 +279,9 @@ The first things to explore are:
   off the dock to remove it.
 - **Drag items in**: drop applications, `.desktop` files, files, folders, and
   AppImages onto the dock to pin them.
+- **Customize icons**: right-click a pinned app, file, or folder -> **Icon** ->
+  **Choose From File...** to use an image from disk, or reset it back to the
+  automatically detected icon.
 - **Folder stacks**: pin a folder and open it from the dock for quick access to
   its contents.
 - **Diagnostics**: open right-click -> **Diagnostics** when checking backend

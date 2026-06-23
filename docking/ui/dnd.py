@@ -159,7 +159,6 @@ from typing import TYPE_CHECKING
 
 import gi
 
-from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
@@ -496,15 +495,7 @@ class DnDHandler:
         added = False
         for uri in uris:
             item = self._item_from_uri(uri=uri)
-            if item and not self._model.find_by_desktop_id(item.desktop_id):
-                insert_at = min(insert_at, len(self._model.pinned_items))
-                self._model.pinned_items.insert(insert_at, item)
-                self._config.pinned.insert(
-                    insert_at,
-                    PinnedEntry(kind=item.kind, target=item.target),
-                )
-                self._model.sync_pinned_to_config()
-                self._config.save()
+            if item and self._model.insert_pinned_item(item=item, index=insert_at):
                 # External insertion should snap to the new final layout.
                 # Slide offsets are useful for internal reorder, but for a
                 # completed drop they make the dock look like it is slowly
@@ -512,7 +503,6 @@ class DnDHandler:
                 # committed the drop.
                 self._renderer.slide_offsets.clear()
                 self._renderer.prev_positions.clear()
-                self._model.notify()
                 insert_at += 1
                 added = True
 

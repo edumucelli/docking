@@ -11,6 +11,7 @@ import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
 import docking.ui.hover as hover_mod
 import docking.ui.preview as preview_mod
+from docking.core.config import PinnedEntry
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.ui.autohide import AutoHideController, HideState
@@ -397,10 +398,22 @@ class DockHarness:
         self._drag_handler.drop_insert_index = target_index
         self._drag_handler._model.pinned_items = []
         self._drag_handler._model.find_by_desktop_id.return_value = None
-        self._drag_handler._model.sync_pinned_to_config = MagicMock()
         self._drag_handler._model.notify = MagicMock()
         self._drag_handler._config.pinned = []
         self._drag_handler._config.save = MagicMock()
+
+        def insert_pinned_item(*, item: DockItem, index: int) -> bool:
+            item.is_pinned = True
+            self._drag_handler._model.pinned_items.insert(index, item)
+            self._drag_handler._config.pinned.insert(
+                index,
+                PinnedEntry(kind=item.kind, target=item.target),
+            )
+            self._drag_handler._config.save()
+            self._drag_handler._model.notify()
+            return True
+
+        self._drag_handler._model.insert_pinned_item.side_effect = insert_pinned_item
         self._drag_handler._launcher.resolve.return_value = SimpleNamespace(
             name="Firefox",
             icon_name="firefox",

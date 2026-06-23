@@ -25,6 +25,7 @@ from gi.repository import Gtk
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections
 from docking.applets.session import meta
+from docking.core.icons import IconSource
 from docking.i18n import _
 
 from .render import create_session_icon
@@ -40,7 +41,7 @@ class SessionApplet(Applet):
     id = meta.id
     name = _("Session")
     icon_name = "system-log-out"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         super().__init__(icon_size, config)

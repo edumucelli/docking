@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-06-18 18:52+0200\n"
+"POT-Creation-Date: 2026-06-23 22:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -111,10 +111,11 @@ msgstr ""
 
 #: docking/applets/alarm/applet.py:163 docking/applets/clock/applet.py:218
 #: docking/applets/lastfm/applet.py:380 docking/applets/quicknote/applet.py:86
-#: docking/applets/runcommand/applet.py:121
-#: docking/applets/runcommand/applet.py:339
-#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:127
+#: docking/applets/runcommand/applet.py:122
+#: docking/applets/runcommand/applet.py:340
+#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:177
 #: docking/applets/weather/applet.py:271 docking/ui/diagnostics.py:342
+#: docking/ui/menu.py:484
 msgid "Cancel"
 msgstr ""
 
@@ -351,11 +352,11 @@ msgstr ""
 msgid "(c) {who}"
 msgstr ""
 
-#: docking/applets/applications/applet.py:49
+#: docking/applets/applications/applet.py:50
 msgid "Applications"
 msgstr ""
 
-#: docking/applets/applications/applet.py:90
+#: docking/applets/applications/applet.py:91
 msgid "Search applications..."
 msgstr ""
 
@@ -725,8 +726,8 @@ msgstr ""
 msgid "Active - {time} left"
 msgstr ""
 
-#: docking/applets/calculator/applet.py:77
-#: docking/applets/calculator/applet.py:95
+#: docking/applets/calculator/applet.py:78
+#: docking/applets/calculator/applet.py:96
 msgid "Calculator"
 msgstr ""
 
@@ -1194,7 +1195,7 @@ msgstr ""
 msgid "Week total at desk: {d}"
 msgstr ""
 
-#: docking/applets/desktop/applet.py:40
+#: docking/applets/desktop/applet.py:41
 #: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:147
 msgid "Desktop"
 msgstr ""
@@ -1233,7 +1234,7 @@ msgstr ""
 msgid "Stop"
 msgstr ""
 
-#: docking/applets/docker/applet.py:146 docking/applets/session/state.py:43
+#: docking/applets/docker/applet.py:146 docking/applets/session/state.py:44
 msgid "Restart"
 msgstr ""
 
@@ -1976,56 +1977,57 @@ msgstr ""
 msgid "Clear Recent Files"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:62
-#: docking/applets/runcommand/applet.py:87
-#: docking/applets/runcommand/applet.py:117
-#: docking/applets/runcommand/applet.py:261
+#: docking/applets/runcommand/applet.py:63
+#: docking/applets/runcommand/applet.py:88
+#: docking/applets/runcommand/applet.py:118
+#: docking/applets/runcommand/applet.py:262
 msgid "Run Application"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:120
+#: docking/applets/runcommand/applet.py:121
 msgid "Help"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:122
+#: docking/applets/runcommand/applet.py:123
 msgid "Run"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:167
+#: docking/applets/runcommand/applet.py:168
 msgid "Run in terminal"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:169
+#: docking/applets/runcommand/applet.py:170
 msgid "Run with file..."
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:174
+#: docking/applets/runcommand/applet.py:175
 msgid "Show list of known applications"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:180
-#: docking/applets/runcommand/applet.py:285
+#: docking/applets/runcommand/applet.py:181
+#: docking/applets/runcommand/applet.py:286
 msgid "Select an application to view its description."
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:264
+#: docking/applets/runcommand/applet.py:265
 msgid "Type a command or select an application to launch it."
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:335
+#: docking/applets/runcommand/applet.py:336
 msgid "Run with file"
 msgstr ""
 
-#: docking/applets/runcommand/applet.py:340
-#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:464
+#: docking/applets/runcommand/applet.py:341
+#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:486
+#: docking/ui/menu.py:571
 msgid "Open"
 msgstr ""
 
-#: docking/applets/screenshot/applet.py:53
+#: docking/applets/screenshot/applet.py:54
 msgid "Screenshot"
 msgstr ""
 
-#: docking/applets/screenshot/applet.py:90
+#: docking/applets/screenshot/applet.py:91
 #, python-brace-format
 msgid "Full Screen in {delay}s"
 msgstr ""
@@ -2058,23 +2060,23 @@ msgstr ""
 msgid "Invert Color"
 msgstr ""
 
-#: docking/applets/session/applet.py:41 docking/ui/diagnostics.py:148
+#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:148
 msgid "Session"
 msgstr ""
 
-#: docking/applets/session/applet.py:69 docking/applets/session/state.py:42
+#: docking/applets/session/applet.py:70 docking/applets/session/state.py:43
 msgid "Suspend"
 msgstr ""
 
-#: docking/applets/session/state.py:38
+#: docking/applets/session/state.py:39
 msgid "Lock Screen"
 msgstr ""
 
-#: docking/applets/session/state.py:41
+#: docking/applets/session/state.py:42
 msgid "Log Out"
 msgstr ""
 
-#: docking/applets/session/state.py:44
+#: docking/applets/session/state.py:45
 msgid "Shut Down"
 msgstr ""
 
@@ -2575,23 +2577,23 @@ msgstr ""
 msgid "{year} - {title}"
 msgstr ""
 
-#: docking/applets/trash/applet.py:49
+#: docking/applets/trash/applet.py:50
 msgid "Trash"
 msgstr ""
 
-#: docking/applets/trash/applet.py:78
+#: docking/applets/trash/applet.py:113
 msgid "Open Trash"
 msgstr ""
 
-#: docking/applets/trash/applet.py:81 docking/applets/trash/applet.py:128
+#: docking/applets/trash/applet.py:116 docking/applets/trash/applet.py:178
 msgid "Empty Trash"
 msgstr ""
 
-#: docking/applets/trash/applet.py:122
+#: docking/applets/trash/applet.py:172
 msgid "Empty all items from Trash?"
 msgstr ""
 
-#: docking/applets/trash/applet.py:125
+#: docking/applets/trash/applet.py:175
 msgid "All items in the Trash will be permanently deleted."
 msgstr ""
 
@@ -2687,16 +2689,16 @@ msgstr ""
 msgid "Copied!"
 msgstr ""
 
-#: docking/applets/usbwatch/applet.py:50 docking/applets/usbwatch/state.py:93
+#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:93
 #: docking/applets/usbwatch/state.py:100
 msgid "USB Watch"
 msgstr ""
 
-#: docking/applets/usbwatch/applet.py:74 docking/applets/usbwatch/state.py:94
+#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:94
 msgid "No mounted USB devices"
 msgstr ""
 
-#: docking/applets/usbwatch/applet.py:83
+#: docking/applets/usbwatch/applet.py:84
 #, python-brace-format
 msgid "Safely Remove {name}"
 msgstr ""
@@ -2780,7 +2782,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/diagnostics.py:71 docking/ui/menu.py:623
+#: docking/ui/diagnostics.py:71 docking/ui/menu.py:738
 msgid "Diagnostics"
 msgstr ""
 
@@ -2812,7 +2814,7 @@ msgstr ""
 msgid "Save Report..."
 msgstr ""
 
-#: docking/ui/diagnostics.py:122 docking/ui/menu.py:507
+#: docking/ui/diagnostics.py:122 docking/ui/menu.py:619
 msgid "Close"
 msgstr ""
 
@@ -2951,76 +2953,100 @@ msgstr ""
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:405
-msgid "Icon"
-msgstr ""
-
-#: docking/ui/menu.py:407
+#: docking/ui/menu.py:431
 msgid "Docking Icon"
 msgstr ""
 
-#: docking/ui/menu.py:408
+#: docking/ui/menu.py:432
 msgid "System Icon"
 msgstr ""
 
-#: docking/ui/menu.py:451 docking/ui/menu.py:471 docking/ui/menu.py:491
-#: docking/ui/menu.py:539
+#: docking/ui/menu.py:440 docking/ui/menu.py:449
+msgid "Icon"
+msgstr ""
+
+#: docking/ui/menu.py:452
+msgid "Default Icon"
+msgstr ""
+
+#: docking/ui/menu.py:456
+msgid "Choose From File..."
+msgstr ""
+
+#: docking/ui/menu.py:460
+msgid "Reset Custom Icon"
+msgstr ""
+
+#: docking/ui/menu.py:479
+msgid "Choose Icon"
+msgstr ""
+
+#: docking/ui/menu.py:502
+msgid "Images"
+msgstr ""
+
+#: docking/ui/menu.py:515
+msgid "Could not use selected icon"
+msgstr ""
+
+#: docking/ui/menu.py:558 docking/ui/menu.py:580 docking/ui/menu.py:603
+#: docking/ui/menu.py:654
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/ui/menu.py:498
+#: docking/ui/menu.py:610
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/ui/menu.py:507
+#: docking/ui/menu.py:619
 msgid "Close All"
 msgstr ""
 
-#: docking/ui/menu.py:524
+#: docking/ui/menu.py:636
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:532
+#: docking/ui/menu.py:644
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:569
+#: docking/ui/menu.py:684
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:607
+#: docking/ui/menu.py:722
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:614
+#: docking/ui/menu.py:729
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:628 docking/ui/settings.py:204
+#: docking/ui/menu.py:743 docking/ui/settings.py:204
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:633
+#: docking/ui/menu.py:748
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:638
+#: docking/ui/menu.py:753
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:645
+#: docking/ui/menu.py:760
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:711
+#: docking/ui/menu.py:826
 msgid "Clear Recent Documents"
 msgstr ""
 
-#: docking/ui/menu.py:720 docking/ui/settings.py:673
+#: docking/ui/menu.py:836 docking/ui/settings.py:673
 msgid "Recent Documents"
 msgstr ""
 
-#: docking/ui/menu.py:739
+#: docking/ui/menu.py:855
 msgid "Window"
 msgstr ""
 

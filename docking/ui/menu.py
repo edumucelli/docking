@@ -151,6 +151,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -178,9 +179,11 @@ from docking.applets.identity import (
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import WindowListSort
+from docking.core.icons import IconSource, icon_source_from_value
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import icon_overrides
 from docking.platform.backends.base import DisplayServer
 from docking.platform.recent_docs import recent_docs_for_app
 from docking.ui.about import AboutDialogController
@@ -408,18 +411,112 @@ class MenuHandler:
         self._cleanup_folder_menu_tree(menu)
         self._runtime.menu_popup_closed()
 
+    @staticmethod
+    def _applet_icon_source_options(applet: Applet) -> tuple[IconSource, ...]:
+        declared = getattr(applet, "icon_source_options", None)
+        if isinstance(declared, tuple | list):
+            options = tuple(
+                source
+                for source in (icon_source_from_value(value) for value in declared)
+                if source is not None
+            )
+            if options:
+                return tuple(dict.fromkeys(options))
+        return (IconSource.DOCKING,)
+
     def _build_applet_icon_source_menu(self, applet: Applet) -> Gtk.MenuItem:
+        labels = {
+            ICON_SOURCE_DOCKING: _("Docking Icon"),
+            ICON_SOURCE_SYSTEM: _("System Icon"),
+        }
+        items = tuple(
+            (labels[source.value], source.value)
+            for source in self._applet_icon_source_options(applet=applet)
+            if source.value in labels
+        )
         return _build_radio_submenu(
             label=_("Icon"),
-            items=(
-                (_("Docking Icon"), ICON_SOURCE_DOCKING),
-                (_("System Icon"), ICON_SOURCE_SYSTEM),
-            ),
+            items=items,
             current=applet.icon_source(),
             on_changed=lambda widget, source: self._on_applet_icon_source_changed(
                 widget, applet, source
             ),
         )
+
+    def _build_icon_menu(self, item: DockItem) -> Gtk.MenuItem:
+        menu_item = Gtk.MenuItem(label=_("Icon"))
+        submenu = Gtk.Menu()
+
+        default_item = Gtk.MenuItem(label=_("Default Icon"))
+        default_item.connect("activate", lambda _: self._model.reset_custom_icon(item))
+        submenu.append(default_item)
+
+        choose_item = Gtk.MenuItem(label=_("Choose From File..."))
+        choose_item.connect("activate", lambda _: self._on_choose_custom_icon(item))
+        submenu.append(choose_item)
+
+        reset_item = Gtk.MenuItem(label=_("Reset Custom Icon"))
+        reset_item.set_sensitive(
+            icon_overrides.custom_icon_path(config=self._config, item=item) is not None
+        )
+        reset_item.connect("activate", lambda _: self._model.reset_custom_icon(item))
+        submenu.append(reset_item)
+
+        menu_item.set_submenu(submenu)
+        return menu_item
+
+    def _on_choose_custom_icon(self, item: DockItem) -> None:
+        path = self._choose_icon_file()
+        if path is None:
+            return
+        if not self._model.set_custom_icon(item=item, path=path):
+            self._show_icon_error(path=path)
+
+    def _choose_icon_file(self) -> Path | None:
+        dialog = Gtk.FileChooserDialog(
+            title=_("Choose Icon"),
+            transient_for=self._dock_window,
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        dialog.add_buttons(
+            _("Cancel"),
+            Gtk.ResponseType.CANCEL,
+            _("Open"),
+            Gtk.ResponseType.OK,
+        )
+        self._add_icon_file_filters(dialog=dialog)
+        try:
+            response = dialog.run()
+            if response != Gtk.ResponseType.OK:
+                return None
+            filename = dialog.get_filename()
+            return Path(filename).expanduser() if filename else None
+        finally:
+            dialog.destroy()
+
+    @staticmethod
+    def _add_icon_file_filters(dialog: Gtk.FileChooserDialog) -> None:
+        image_filter = Gtk.FileFilter()
+        image_filter.set_name(_("Images"))
+        for mime_type in ("image/png", "image/svg+xml", "image/x-xpixmap"):
+            image_filter.add_mime_type(mime_type)
+        for pattern in ("*.png", "*.svg", "*.xpm"):
+            image_filter.add_pattern(pattern)
+        dialog.add_filter(image_filter)
+
+    def _show_icon_error(self, *, path: Path) -> None:
+        dialog = Gtk.MessageDialog(
+            transient_for=self._dock_window,
+            flags=Gtk.DialogFlags.MODAL,
+            message_type=Gtk.MessageType.ERROR,
+            buttons=Gtk.ButtonsType.CLOSE,
+            text=_("Could not use selected icon"),
+        )
+        dialog.format_secondary_text(str(path))
+        try:
+            dialog.run()
+        finally:
+            dialog.destroy()
 
     def _on_applet_icon_source_changed(
         self,
@@ -446,7 +543,7 @@ class MenuHandler:
             has_icon_source = False
             if applet:
                 applet_items = applet.get_menu_items()
-                has_icon_source = applet.supports_system_icon is True
+                has_icon_source = len(self._applet_icon_source_options(applet)) > 1
                 for mi in applet_items:
                     menu.append(mi)
                 if applet_items and has_icon_source:
@@ -474,6 +571,8 @@ class MenuHandler:
                 "activate", lambda _: launcher_mod.open_target(item.target)
             )
             menu.append(open_item)
+            if item.is_pinned:
+                menu.append(self._build_icon_menu(item))
             if not locked:
                 menu.append(Gtk.SeparatorMenuItem())
                 remove = Gtk.MenuItem(label=_("Remove from Dock"))
@@ -492,6 +591,9 @@ class MenuHandler:
 
         # Open windows - click to activate
         self._append_open_windows(menu=menu, desktop_id=item.desktop_id)
+
+        if item.is_pinned:
+            menu.append(self._build_icon_menu(item))
 
         # Pin/Unpin (hidden when icons are locked)
         if not locked:
@@ -541,6 +643,9 @@ class MenuHandler:
         hidden.set_active(bool(prefs["show_hidden"]))
         hidden.connect("toggled", self._on_folder_hidden_toggled, item)
         menu.append(hidden)
+
+        if item.is_pinned:
+            menu.append(self._build_icon_menu(item))
 
         if not self._config.lock_icons:
             menu.append(Gtk.SeparatorMenuItem())
