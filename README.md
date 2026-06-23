@@ -20,6 +20,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Running](#running)
+- [First Use](#first-use)
 - [Configuration](#configuration)
 - [Managing Dock Items](#managing-dock-items)
 - [Applets](#applets)
@@ -257,6 +258,31 @@ DOCKING_BACKEND=wayland-layer-shell docking   # wlroots compositors
 DOCKING_BACKEND=reduced docking               # any Wayland (no WM integration)
 DOCKING_BACKEND=x11 docking                   # X11 (full support)
 ```
+
+## First Use
+
+Start by opening the dock menu: right-click the shelf background between icons.
+If the dock is full or the background is hard to hit, hold **Ctrl** while
+right-clicking anywhere on the shelf to show the same dock menu.
+
+The first things to explore are:
+
+- **Preferences**: open right-click -> **Preferences** to choose position,
+  monitor behavior, icon size, zoom, hiding, click actions, themes, tooltips,
+  previews, and update checks.
+- **Add Applet**: right-click the shelf background -> **Add Applet** to add
+  launchers, system status, media, productivity, and utility applets.
+- **Add Separator**: right-click the shelf background where the separator
+  should appear -> **Add Separator**.
+- **Pin and remove items**: right-click a running app -> **Keep in Dock**,
+  right-click a pinned item -> **Remove from Dock**, or drag an unlocked item
+  off the dock to remove it.
+- **Drag items in**: drop applications, `.desktop` files, files, folders, and
+  AppImages onto the dock to pin them.
+- **Folder stacks**: pin a folder and open it from the dock for quick access to
+  its contents.
+- **Diagnostics**: open right-click -> **Diagnostics** when checking backend
+  support or preparing a support report.
 
 ## Configuration
 

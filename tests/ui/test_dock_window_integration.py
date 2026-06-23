@@ -152,7 +152,33 @@ class TestButtonReleaseFlow:
         )
         # Then
         assert handled is True
-        stub._menu.show.assert_called_once_with(event, 12.0)
+        stub._menu.show.assert_called_once_with(
+            event,
+            12.0,
+            force_background=False,
+        )
+
+    def test_ctrl_right_click_opens_background_context_menu(self):
+        # Given
+        stub, _item = _make_stub()
+        event = SimpleNamespace(
+            x=12.0,
+            y=6.0,
+            button=dock_window_mod.MOUSE_RIGHT,
+            state=dock_window_mod.Gdk.ModifierType.CONTROL_MASK,
+        )
+
+        # When
+        handled = dock_window_mod.DockWindow._on_button_release(
+            stub, MagicMock(), event
+        )
+        # Then
+        assert handled is True
+        stub._menu.show.assert_called_once_with(
+            event,
+            12.0,
+            force_background=True,
+        )
 
     def test_left_click_on_applet_updates_tooltip_immediately(self, monkeypatch):
         # Given
