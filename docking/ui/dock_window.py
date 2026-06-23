@@ -899,7 +899,12 @@ class DockWindow(Gtk.Window):
 
         if event.button == MOUSE_RIGHT:
             cursor_main = event.x if is_horizontal(pos=self.config.pos) else event.y
-            self._menu.show(event, cursor_main)
+            force_background = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
+            self._menu.show(
+                event,
+                cursor_main,
+                force_background=force_background,
+            )
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
