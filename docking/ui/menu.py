@@ -336,15 +336,23 @@ class MenuHandler:
         """Warm visible folder stacks so hover-open can render from cache."""
         self._folder_stack.schedule_visible_prewarm(items)
 
-    def show(self, event: Gdk.EventButton, cursor_main: float) -> None:
+    def show(
+        self,
+        event: Gdk.EventButton,
+        cursor_main: float,
+        *,
+        force_background: bool = False,
+    ) -> None:
         """Build and show the right-click context menu.
 
         Hit-tests the cursor to determine whether to show an item-specific
         menu (desktop actions, pin/unpin, close) or a dock background menu
-        (autohide, theme, position, applets, quit).
+        (autohide, theme, position, applets, quit). When *force_background*
+        is true, the background menu is shown even if the pointer is over an
+        item; this makes the global dock menu reachable from any shelf point.
         """
         frame = self._geometry_builder.build_frame(cursor_x=event.x, cursor_y=event.y)
-        item = frame.item_at_point(event.x, event.y)
+        item = None if force_background else frame.item_at_point(event.x, event.y)
         self._folder_stack.close()
 
         if item:

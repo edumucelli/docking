@@ -1460,6 +1460,30 @@ class TestMenuCallbacks:
         assert built == [("item", item)]
         assert handler._runtime.menu_popup_opened.call_count == 1
 
+    def test_show_can_force_background_menu_over_item(self, handler, monkeypatch):
+        event = SimpleNamespace(x=20.0, y=9.0)
+        item = DockItem(desktop_id="firefox.desktop")
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: _frame(item=item, insert_index=2)
+        )
+        built: list[tuple[str, object]] = []
+
+        monkeypatch.setattr(
+            handler,
+            "_build_item_menu",
+            lambda *, menu, item: built.append(("item", item)),
+        )
+        monkeypatch.setattr(
+            handler,
+            "_build_dock_menu",
+            lambda *, menu, insert_index: built.append(("dock", insert_index)),
+        )
+
+        handler.show(event=event, cursor_main=20.0, force_background=True)
+
+        assert built == [("dock", 2)]
+        assert handler._runtime.menu_popup_opened.call_count == 1
+
     def test_append_desktop_actions_triggers_launch_action(self, handler, monkeypatch):
         # Given
         menu = FakeMenu()
