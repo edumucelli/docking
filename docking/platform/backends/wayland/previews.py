@@ -26,13 +26,13 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
     PreviewService,
     WindowId,
 )
-from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 
 if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
@@ -95,7 +95,7 @@ class WaylandPreviewHandleTracker:
 
     def __init__(self, *, model: DockModel, launcher: Launcher, protocol: object):
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
         self._protocol = protocol
         self._state_by_handle: dict[object, _PreviewToplevelState] = {}
         self._handle_by_window_id: dict[WindowId, object] = {}

@@ -11,6 +11,55 @@ def _make_executable(path) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
+class TestWineDesktopAliases:
+    def test_wine_executable_aliases_extract_windows_path(self):
+        aliases = desktop_entries.wine_executable_aliases(
+            'env WINEPREFIX="/home/user/.wine" wine '
+            '"C:\\Program Files\\Starcraft\\Starcraft.exe"'
+        )
+
+        assert aliases == ["starcraft.exe", "starcraft"]
+
+    def test_wine_executable_aliases_extract_unix_path(self):
+        aliases = desktop_entries.wine_executable_aliases(
+            'wine "/home/user/Games/App/app.exe" --flag'
+        )
+
+        assert aliases == ["app.exe", "app"]
+
+    def test_wine_executable_aliases_ignores_non_wine_exec(self):
+        assert desktop_entries.wine_executable_aliases("mono /tmp/tool.exe") == []
+
+    def test_desktop_info_replaces_generic_wine_startup_class(self, tmp_path):
+        desktop_file = tmp_path / "wine-program.desktop"
+        desktop_file.write_text(
+            "\n".join(
+                [
+                    "[Desktop Entry]",
+                    "Type=Application",
+                    "Name=Wine Program",
+                    'Exec=env WINEPREFIX="/home/user/.wine" wine "C:\\\\App\\\\Tool.exe"',
+                    "StartupWMClass=Wine",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        info = desktop_entries.desktop_info_from_file(
+            desktop_id="wine-program.desktop",
+            path=desktop_file,
+        )
+
+        assert info is not None
+        assert info.wm_class == "tool.exe"
+        assert desktop_entries.desktop_match_aliases(info) == [
+            "tool.exe",
+            "wine-program",
+            "tool",
+        ]
+
+
 class TestGeneratedDesktopEntries:
     def test_appimage_path_creates_stable_desktop_id(self, tmp_path, monkeypatch):
         appimage = tmp_path / "PrusaSlicer.AppImage"

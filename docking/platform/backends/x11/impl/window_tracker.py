@@ -162,6 +162,7 @@ import os
 from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -169,7 +170,6 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 # GLib.Error is not a real exception subclass in some PyGObject builds,
@@ -190,63 +190,33 @@ if TYPE_CHECKING:
 
 
 class WindowMatcher:
-    """Matches live Wnck windows to desktop IDs using WM_CLASS-like hints."""
+    """Matches live Wnck windows to desktop IDs using WM_CLASS-like hints.
+
+    This is a thin X11-specific wrapper around the shared
+    :class:`~docking.platform.app_matcher.AppIdMatcher`.  The wrapping
+    handles Wnck-specific window property extraction (class group,
+    class instance) and defensive error handling; all matching
+    heuristics live in the shared matcher so they apply uniformly
+    across X11 and Wayland backends.
+    """
 
     def __init__(self, launcher: Launcher) -> None:
         self._launcher = launcher
-        self._wm_class_to_desktop: dict[str, str] = {}
-        self._missed_desktop_candidates: set[str] = set()
+        self._app_matcher = AppIdMatcher(launcher=launcher)
 
     def sync_visible_items(self, items: Iterable[DockItem]) -> None:
-        """Refresh pinned/transient WM_CLASS hints from current dock items."""
-        # This cache is intentionally rebuilt from the current model on every
-        # running-window scan. Pinned items can be reordered, pinned, unpinned,
-        # or replaced by transient items at runtime, and using stale WM_CLASS
-        # hints would make running indicators disappear until restart.
-        self._wm_class_to_desktop.clear()
-        for item in items:
-            if item.wm_class:
-                self._wm_class_to_desktop[item.wm_class.lower()] = item.desktop_id
+        """Refresh pinned/transient alias hints from current dock items."""
+        self._app_matcher.sync_visible_items(items)
 
     def match(self, window: Wnck.Window) -> str | None:
         """Return the desktop ID for a window, or None when no match is known."""
         class_group = self._class_group_for(window=window)
         if not class_group:
             return None
-
-        class_lower = class_group.lower()
-        # The fastest and most reliable path is the explicit StartupWMClass (or
-        # previously learned alias) from visible dock items. Check it before
-        # doing any desktop-file probing.
-        mapped = self._wm_class_to_desktop.get(class_lower)
-        if mapped:
-            return mapped
-
-        # Some apps expose a useful class instance even when the class-group name
-        # is generic or localized. When it matches, cache the class-group too so
-        # future scans avoid this extra Wnck read.
         class_instance = self._class_instance_for(window=window)
-        if class_instance:
-            mapped = self._match_class_instance(
-                class_lower=class_lower,
-                class_instance=class_instance,
-            )
-            if mapped:
-                return mapped
-
-        mapped = self._resolve_desktop_candidates(
-            class_lower=class_lower,
-            class_group=class_group,
-        )
-        if mapped:
-            return mapped
-
-        # Last resort: build or consult the install-wide WM_CLASS alias index.
-        # This is more expensive because it can scan installed desktop files, so
-        # keep it after the direct and candidate-specific paths.
-        return self._resolve_runtime_names(
-            class_lower=class_lower,
-            class_instance=class_instance,
+        return self._app_matcher.match(
+            app_id=class_group,
+            instance_hint=class_instance,
         )
 
     def _class_group_for(self, *, window: Wnck.Window) -> str | None:
@@ -266,102 +236,6 @@ class WindowMatcher:
                 f"Failed to read class instance name: {exc}"
             )
             return None
-
-    def _match_class_instance(
-        self, *, class_lower: str, class_instance: str
-    ) -> str | None:
-        desktop_id = self._wm_class_to_desktop.get(class_instance.lower())
-        if desktop_id:
-            self._wm_class_to_desktop[class_lower] = desktop_id
-        return desktop_id
-
-    def _resolve_desktop_candidates(
-        self, *, class_lower: str, class_group: str
-    ) -> str | None:
-        # Try the candidate desktop IDs in a stable order. Failed candidates are
-        # remembered because many Wnck signals arrive in bursts, and repeatedly
-        # asking Gio for the same missing desktop file is avoidable noise.
-        candidate_ids = [
-            f"{candidate}{DESKTOP_SUFFIX}"
-            for candidate in self._desktop_candidates(
-                class_lower=class_lower, class_group=class_group
-            )
-        ]
-        for index, desktop_id in enumerate(candidate_ids):
-            next_candidate = (
-                candidate_ids[index + 1] if index + 1 < len(candidate_ids) else None
-            )
-            if desktop_id in self._missed_desktop_candidates:
-                continue
-            info = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
-            if info:
-                self._wm_class_to_desktop[class_lower] = info.desktop_id
-                return info.desktop_id
-            self._missed_desktop_candidates.add(desktop_id)
-            self._log_candidate_miss(
-                desktop_id=desktop_id,
-                class_group=class_group,
-                class_lower=class_lower,
-                next_candidate=next_candidate,
-            )
-        return None
-
-    @staticmethod
-    def _desktop_candidates(*, class_lower: str, class_group: str) -> list[str]:
-        """Generate desktop ID candidates from a WM_CLASS.
-
-        A running app can report spaces in WM_CLASS while the desktop file uses
-        hyphens or no separators. GNOME apps also commonly use an
-        org.gnome.Name.desktop file while the runtime class group is just Name.
-        Keep the candidates broad but deterministic, then dedupe while
-        preserving order so the first successful match stays stable.
-        """
-        candidates = [class_lower]
-        if " " in class_lower:
-            candidates.append(class_lower.replace(" ", "-"))
-            candidates.append(class_lower.replace(" ", ""))
-        candidates.append(f"{GNOME_APP_PREFIX}{class_group}")
-        return list(dict.fromkeys(candidates))
-
-    def _resolve_runtime_names(
-        self, *, class_lower: str, class_instance: str | None
-    ) -> str | None:
-        runtime_names = [
-            class_lower,
-            class_instance.lower() if class_instance else "",
-        ]
-        for runtime_name in dict.fromkeys(name for name in runtime_names if name):
-            info = self._launcher.resolve_by_wm_class(runtime_name)
-            if info:
-                self._wm_class_to_desktop[class_lower] = info.desktop_id
-                if class_instance:
-                    self._wm_class_to_desktop[class_instance.lower()] = info.desktop_id
-                return info.desktop_id
-        return None
-
-    @staticmethod
-    def _log_candidate_miss(
-        *,
-        desktop_id: str,
-        class_group: str,
-        class_lower: str,
-        next_candidate: str | None,
-    ) -> None:
-        if next_candidate:
-            log.bind(action="match_window", desktop_id=desktop_id).debug(
-                "Desktop candidate miss for class_group=%s (class_lower=%s); "
-                "next candidate: %s",
-                class_group,
-                class_lower,
-                next_candidate,
-            )
-        else:
-            log.bind(action="match_window", desktop_id=desktop_id).debug(
-                "Desktop candidate miss for class_group=%s (class_lower=%s); "
-                "no more candidates",
-                class_group,
-                class_lower,
-            )
 
 
 class WindowTracker:

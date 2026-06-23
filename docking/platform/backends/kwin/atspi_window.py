@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -44,7 +45,6 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
@@ -145,9 +145,9 @@ class AtspiWindowService(WindowService):
         self._lock = Lock()
         self._refresh_running = False
         self._model = model
-        self._matcher: WaylandAppIdMatcher | None = None
+        self._matcher: AppIdMatcher | None = None
         if launcher is not None:
-            self._matcher = WaylandAppIdMatcher(launcher=launcher)
+            self._matcher = AppIdMatcher(launcher=launcher)
 
     # ------------------------------------------------------------------
     # Lifecycle

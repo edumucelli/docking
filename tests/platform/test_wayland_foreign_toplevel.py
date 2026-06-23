@@ -6,12 +6,12 @@ import struct
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import ActionResult, DisplayServer
 from docking.platform.backends.wayland.toplevels import (
     STATE_ACTIVATED,
     STATE_MAXIMIZED,
     STATE_MINIMIZED,
-    WaylandAppIdMatcher,
     WaylandForeignToplevelWindowService,
 )
 
@@ -59,7 +59,7 @@ def _protocol() -> SimpleNamespace:
 
 def test_wayland_app_id_matcher_prefers_visible_items():
     launcher = _launcher()
-    matcher = WaylandAppIdMatcher(launcher=launcher)
+    matcher = AppIdMatcher(launcher=launcher)
     matcher.sync_visible_items([_item("org.gnome.Nautilus.desktop")])
 
     assert matcher.match("org.gnome.Nautilus") == "org.gnome.Nautilus.desktop"
@@ -68,7 +68,7 @@ def test_wayland_app_id_matcher_prefers_visible_items():
 
 def test_wayland_app_id_matcher_falls_back_to_launcher_aliases():
     launcher = _launcher()
-    matcher = WaylandAppIdMatcher(launcher=launcher)
+    matcher = AppIdMatcher(launcher=launcher)
     matcher.sync_visible_items([])
 
     assert matcher.match("firefox") == "firefox.desktop"
@@ -77,7 +77,7 @@ def test_wayland_app_id_matcher_falls_back_to_launcher_aliases():
 
 def test_wayland_app_id_matcher_handles_snap_container_app_ids():
     launcher = _launcher()
-    matcher = WaylandAppIdMatcher(launcher=launcher)
+    matcher = AppIdMatcher(launcher=launcher)
     matcher.sync_visible_items([])
 
     assert matcher.match("firefox_firefox.desktop") == "firefox.desktop"

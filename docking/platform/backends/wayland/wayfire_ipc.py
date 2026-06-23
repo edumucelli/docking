@@ -36,6 +36,7 @@ from queue import Empty, Queue
 from typing import Any
 
 from docking.log import get_logger
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
@@ -50,7 +51,6 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 log = get_logger(name="wayfire_ipc")
@@ -284,7 +284,7 @@ class WayfireWindowService(WindowService):
         watcher: WayfireEventWatcher | None = None,
     ) -> None:
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
         self._client = client
         self._records: dict[int, WayfireWindowRecord] = {}
         self._poll_source_id = 0

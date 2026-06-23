@@ -145,10 +145,11 @@ class TestWindowTrackerInit:
         tracker, _model, _launcher = tracker_env
         # When
         # Then
-        assert tracker._matcher._wm_class_to_desktop == {
-            "firefox": "firefox.desktop",
-            "code": "code.desktop",
-        }
+        assert (
+            tracker._matcher._app_matcher._visible_aliases["firefox"]
+            == "firefox.desktop"
+        )
+        assert tracker._matcher._app_matcher._visible_aliases["code"] == "code.desktop"
 
     def test_init_screen_returns_false_when_screen_missing(
         self, tracker_env, monkeypatch
@@ -422,11 +423,41 @@ class TestWindowMatching:
     def test_match_uses_class_instance_map(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env
-        tracker._matcher._wm_class_to_desktop = {"firefox-bin": "firefox.desktop"}
+        tracker._matcher._app_matcher._visible_aliases = {
+            "firefox-bin": "firefox.desktop"
+        }
         win = FakeWindow(11, class_group="Unknown", class_instance="Firefox-Bin")
         # When
         # Then
         assert tracker._matcher.match(win) == "firefox.desktop"
+
+    def test_match_prefers_wine_exe_instance_over_generic_wine(self, tracker_env):
+        tracker, _model, launcher = tracker_env
+        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
+            SimpleNamespace(desktop_id="wine.desktop")
+            if desktop_id == "wine.desktop"
+            else None
+        )
+        launcher.resolve_by_wm_class.side_effect = lambda wm_class: (
+            DesktopInfo(
+                desktop_id="wine-program.desktop",
+                name="Wine Program",
+                icon_name="wine-program",
+                wm_class="tool.exe",
+                exec_line='wine "C:\\App\\Tool.exe"',
+            )
+            if wm_class.lower() in {"tool.exe", "tool"}
+            else None
+        )
+        win = FakeWindow(17, class_group="Wine", class_instance="C:\\App\\Tool.exe")
+
+        assert tracker._matcher.match(win) == "wine-program.desktop"
+        launcher.resolve.assert_not_called()
+        assert (
+            tracker._matcher._app_matcher._result_cache["tool.exe"]
+            == "wine-program.desktop"
+        )
+        assert "wine" not in tracker._matcher._app_matcher._result_cache
 
     def test_match_uses_launcher_candidates_and_caches_result(self, tracker_env):
         # Given

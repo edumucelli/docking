@@ -32,6 +32,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -43,7 +44,6 @@ from docking.platform.launcher import DESKTOP_SUFFIX
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
-    from docking.core.items import DockItem
     from docking.platform.backends.wayland.previews import WaylandPreviewHandleTracker
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
@@ -80,43 +80,6 @@ class _ToplevelState:
         return WindowId(backend=DisplayServer.WAYLAND, value=self.internal_id)
 
 
-class WaylandAppIdMatcher:
-    """Resolve Wayland compositor app IDs to Docking desktop IDs."""
-
-    def __init__(self, launcher: Launcher) -> None:
-        self._launcher = launcher
-        self._visible_aliases: dict[str, str] = {}
-
-    def sync_visible_items(self, items: Iterable[DockItem]) -> None:
-        """Refresh aliases from current pinned and transient dock items."""
-        self._visible_aliases.clear()
-        for item in items:
-            aliases = {
-                item.desktop_id,
-                item.desktop_id.removesuffix(DESKTOP_SUFFIX),
-                getattr(item, "wm_class", "") or "",
-            }
-            for alias in aliases:
-                normalized = _normalize_app_id(alias)
-                if normalized:
-                    self._visible_aliases[normalized] = item.desktop_id
-
-    def match(self, app_id: str) -> str | None:
-        """Return a Docking desktop ID for a compositor app_id."""
-        for candidate in _app_id_candidates(app_id):
-            visible = self._visible_aliases.get(_normalize_app_id(candidate))
-            if visible:
-                return visible
-            desktop_id = _ensure_desktop_suffix(candidate)
-            resolved = self._launcher.resolve(desktop_id, log_failures=False)
-            if resolved is not None:
-                return resolved.desktop_id
-            by_wm_class = self._launcher.resolve_by_wm_class(candidate)
-            if by_wm_class is not None:
-                return by_wm_class.desktop_id
-        return None
-
-
 class WaylandForeignToplevelWindowService(WindowService):
     """WindowService backed by Wayland foreign-toplevel protocol events."""
 
@@ -130,7 +93,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         can_preview: bool = False,
     ) -> None:
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
         self._protocol = protocol
         self._preview_handles = preview_handles
         self._can_preview = can_preview

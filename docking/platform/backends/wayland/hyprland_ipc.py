@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from docking.log import get_logger
+from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -35,7 +36,6 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.backends.wayland.toplevels import WaylandAppIdMatcher
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 log = get_logger(name="hyprland_ipc")
@@ -222,7 +222,7 @@ class HyprlandWindowService(WindowService):
         preview_handle_source: object | None = None,
     ) -> None:
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
         self._client = client
         self._event_stream_factory = event_stream_factory
         self._event_stream: HyprlandEventStream | None = None
@@ -506,7 +506,7 @@ def parse_hyprland_event(line: str) -> HyprlandEvent | None:
 def _record_from_client(
     item: Mapping[str, Any],
     *,
-    matcher: WaylandAppIdMatcher,
+    matcher: AppIdMatcher,
     active_address: str,
 ) -> HyprlandWindowRecord | None:
     address = _normalize_address(_mapping_value(item, "address", ""))
