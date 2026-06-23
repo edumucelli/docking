@@ -77,10 +77,10 @@ Matching strategy
 
 The tracker applies layered matching, strongest first:
 
-1. direct cache lookup from previous successful matches
-2. class-group / WM_CLASS lookup against known dock entries
+1. visible dock item aliases from pinned and transient entries
+2. Wine class-instance disambiguation for generic `Wine` windows
 3. synthesized desktop-id candidates from runtime names
-4. GNOME-style prefixed candidates
+4. install-wide WM_CLASS / executable alias index
 
 This is deliberately heuristic because the runtime desktop is heuristic.
 
@@ -201,8 +201,10 @@ class WindowMatcher:
     """
 
     def __init__(self, launcher: Launcher) -> None:
-        self._launcher = launcher
-        self._app_matcher = AppIdMatcher(launcher=launcher)
+        self._app_matcher = AppIdMatcher(
+            launcher=launcher,
+            cache_missed_desktop_ids=True,
+        )
 
     def sync_visible_items(self, items: Iterable[DockItem]) -> None:
         """Refresh pinned/transient alias hints from current dock items."""
@@ -217,6 +219,8 @@ class WindowMatcher:
         return self._app_matcher.match(
             app_id=class_group,
             instance_hint=class_instance,
+            prefer_raw_app_id=False,
+            defer_wm_class_lookup=True,
         )
 
     def _class_group_for(self, *, window: Wnck.Window) -> str | None:

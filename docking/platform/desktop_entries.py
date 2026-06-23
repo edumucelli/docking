@@ -222,7 +222,7 @@ def desktop_info_from_file(*, desktop_id: str, path: Path) -> DesktopInfo | None
     exec_line = desktop_entry_string(key_file, "Exec")
     wm_class = desktop_entry_string(key_file, "StartupWMClass")
     wine_aliases = wine_executable_aliases(exec_line)
-    if wine_aliases and (not wm_class or wm_class == "Wine"):
+    if wine_aliases and (not wm_class or wm_class.lower() == "wine"):
         wm_class = wine_aliases[0]
     if not wm_class:
         exec_basename = normalized_exec_basename(exec_line)
@@ -259,7 +259,7 @@ def wm_class_for_app_info(*, app_info: Gio.DesktopAppInfo, desktop_id: str) -> s
     wm_class = app_info.get_startup_wm_class() or ""
     commandline = app_info.get_commandline() or ""
     wine_aliases = wine_executable_aliases(commandline)
-    if wm_class and wm_class != "Wine":
+    if wm_class and wm_class.lower() != "wine":
         return wm_class
     if wine_aliases:
         return wine_aliases[0]

@@ -1,6 +1,6 @@
 """Tests for the shared AppIdMatcher.
 
-Covers Wine matching, candidate generation, caching, visible aliases,
+Covers Wine matching, candidate generation, missed-lookups, visible aliases,
 instance-hint matching, and backend-integration scenarios that were
 previously split across X11 and Wayland test files.
 """
@@ -59,6 +59,9 @@ class TestNormalizeAlias:
     def test_strips_desktop_suffix_and_lowercases(self):
         assert _normalize_alias("Firefox.desktop") == "firefox"
 
+    def test_strips_mixed_case_desktop_suffix(self):
+        assert _normalize_alias("Firefox.Desktop") == "firefox"
+
     def test_handles_already_clean_input(self):
         assert _normalize_alias("Firefox") == "firefox"
 
@@ -72,6 +75,9 @@ class TestEnsureDesktopSuffix:
 
     def test_keeps_existing_suffix(self):
         assert _ensure_desktop_suffix("firefox.desktop") == "firefox.desktop"
+
+    def test_keeps_mixed_case_existing_suffix(self):
+        assert _ensure_desktop_suffix("Firefox.Desktop") == "Firefox.Desktop"
 
     def test_strips_whitespace(self):
         assert _ensure_desktop_suffix("  firefox  ") == "firefox.desktop"
@@ -147,7 +153,7 @@ class TestAppIdCandidates:
         assert "someapp" in candidates  # lower, .exe stripped
         assert "SomeApp.exe" in candidates  # original
         assert "someapp.exe" in candidates  # lower
-        assert "exe" in candidates  # dot-split: "exe" from SomeApp.exe
+        assert "exe" not in candidates  # avoid matching a generic exe.desktop
 
 
 class TestClassGroupCandidates:
@@ -353,6 +359,76 @@ class TestCandidateResolution:
 
         assert matcher.match("org.gnome.Nautilus") == "Nautilus.desktop"
 
+    def test_raw_desktop_id_is_preferred_before_lowercase_variant(self):
+        launcher = _launcher(
+            resolve=lambda desktop_id, **_: (
+                _FakeDesktopInfo(desktop_id=desktop_id)
+                if desktop_id
+                in {
+                    "org.gnome.Nautilus.desktop",
+                    "org.gnome.nautilus.desktop",
+                }
+                else None
+            )
+        )
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+
+        assert matcher.match("org.gnome.Nautilus") == "org.gnome.Nautilus.desktop"
+
+    def test_x11_order_prefers_lowercase_before_raw_class_group(self):
+        launcher = _launcher(
+            resolve=lambda desktop_id, **_: (
+                _FakeDesktopInfo(desktop_id=desktop_id)
+                if desktop_id in {"Terminal.desktop", "terminal.desktop"}
+                else None
+            )
+        )
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+
+        assert matcher.match("Terminal", prefer_raw_app_id=False) == "terminal.desktop"
+
+    def test_x11_order_defers_wm_class_until_after_direct_candidates(self):
+        launcher = _launcher(
+            resolve=lambda desktop_id, **_: (
+                _FakeDesktopInfo(desktop_id=desktop_id)
+                if desktop_id == "org.gnome.Terminal.desktop"
+                else None
+            ),
+            resolve_by_wm_class=lambda wm_class: (
+                _FakeDesktopInfo(desktop_id="terminal-wm-class.desktop")
+                if wm_class == "terminal"
+                else None
+            ),
+        )
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+
+        assert (
+            matcher.match(
+                "Terminal",
+                prefer_raw_app_id=False,
+                defer_wm_class_lookup=True,
+            )
+            == "org.gnome.Terminal.desktop"
+        )
+
+    def test_exe_candidate_does_not_resolve_generic_exe_desktop_first(self):
+        launcher = _launcher(
+            resolve=lambda desktop_id, **_: (
+                _FakeDesktopInfo(desktop_id=desktop_id)
+                if desktop_id in {"exe.desktop", "notepad.desktop"}
+                else None
+            )
+        )
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+
+        assert matcher.match("notepad.exe") == "notepad.desktop"
+        resolved_ids = [call.args[0] for call in launcher.resolve.call_args_list]
+        assert "exe.desktop" not in resolved_ids
+
     def test_candidate_order_is_stable(self):
         launcher = _launcher()
         matcher = AppIdMatcher(launcher=launcher)
@@ -371,10 +447,10 @@ class TestCandidateResolution:
         assert matcher.match("CompletelyUnknownApp_xyz") is None
 
 
-class TestCaching:
-    def test_missed_candidate_skips_second_gio_call(self):
+class TestMissedCandidates:
+    def test_x11_style_missed_candidate_skips_second_gio_call(self):
         launcher = _launcher()
-        matcher = AppIdMatcher(launcher=launcher)
+        matcher = AppIdMatcher(launcher=launcher, cache_missed_desktop_ids=True)
         matcher.sync_visible_items([])
 
         # First call — launcher.resolve returns None, candidate is memoized
@@ -392,20 +468,26 @@ class TestCaching:
         # loop hits "nosuchapp.desktop" again and skips it.
         assert launcher.resolve.call_count == first_call_count
 
-    def test_clear_missed_cache_allows_retry(self):
-        launcher = _launcher()
+    def test_wayland_style_misses_are_retried(self):
+        ready = False
+
+        def resolve(desktop_id, **_):
+            if ready and desktop_id == "FutureApp.desktop":
+                return _FakeDesktopInfo(desktop_id=desktop_id)
+            return None
+
+        launcher = _launcher(resolve=resolve)
         matcher = AppIdMatcher(launcher=launcher)
         matcher.sync_visible_items([])
 
-        matcher.match("FutureApp")
+        assert matcher.match("FutureApp") is None
         first_count = launcher.resolve.call_count
 
-        # Clear cache and retry — should call resolve again
-        matcher.clear_missed_cache()
-        matcher.match("FutureApp")
+        ready = True
+        assert matcher.match("FutureApp") == "FutureApp.desktop"
         assert launcher.resolve.call_count > first_count
 
-    def test_successful_match_is_cached(self):
+    def test_successful_wm_class_match_uses_launcher_index(self):
         launcher = _launcher(
             resolve_by_wm_class=lambda wm_class: (
                 _FakeDesktopInfo(desktop_id="demo.desktop")
@@ -416,12 +498,6 @@ class TestCaching:
         matcher = AppIdMatcher(launcher=launcher)
         matcher.sync_visible_items([])
 
-        # First match — populates _result_cache via step 4c
-        assert matcher.match("DemoApp") == "demo.desktop"
-
-        # Second match — the result cache lookup at step 4a or 4b/4c
-        # should find it (cached under app_id_lower).
-        launcher.resolve.reset_mock()
         assert matcher.match("DemoApp") == "demo.desktop"
 
 

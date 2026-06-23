@@ -27,7 +27,7 @@ different feature sets:
 
 * ``WindowMatcher`` in the X11 backend — Wine ``.exe`` extraction,
   space→hyphen→joined candidate generation, GNOME prefix synthesis,
-  missed-candidate memoization, result caching.
+  and missed-candidate memoization.
 * ``WaylandAppIdMatcher`` in the Wayland backend — Snap ``_`` prefix
   expansion, dot-suffix split, broad visible-item aliasing.
 
@@ -45,13 +45,19 @@ extract identity strings from their display server and pass them here
 as plain strings.  The matcher owns the heuristics; backends own only
 the display-server extraction.
 
-The public API has two methods:
+The public interface has one constructor flag plus two methods:
 
 ``sync_visible_items(items)``
     Rebuild the fast-path alias cache from the current dock model.
     Called at the start of every running-window scan.
 
-``match(app_id, *, instance_hint=None)``
+``cache_missed_desktop_ids``
+    Constructor flag used by X11 to preserve its historical missed
+    desktop-file memoization. Wayland-style backends leave it disabled
+    so newly installed/generated desktop files can be matched without a
+    Docking restart.
+
+``match(...)``
     Map a runtime window identity to a Docking desktop ID.
 
     ``app_id`` is the primary identity from the display server:
@@ -65,6 +71,17 @@ The public API has two methods:
     only X11 provides this (WM_CLASS instance part).  It enables Wine
     disambiguation: when ``app_id == "wine"`` the matcher extracts the
     ``.exe`` name from ``instance_hint`` instead.
+
+    ``prefer_raw_app_id`` controls candidate order. Wayland-style
+    backends keep compositor-provided app IDs first; X11 passes
+    ``False`` to preserve the historical WM_CLASS lowercase-first order.
+
+    ``defer_wm_class_lookup`` controls when the install-wide WM_CLASS
+    index is consulted. X11 passes ``True`` to preserve its historical
+    priority of trying all generated desktop IDs before the expensive
+    reverse alias lookup. Wayland-style backends keep it ``False`` so
+    each increasingly broad candidate can still check its exact alias
+    before falling back to the next broader direct desktop ID.
 
 Matching priority (strongest first)
 ------------------------------------
@@ -88,9 +105,9 @@ Matching priority (strongest first)
    b. Try ``launcher.resolve(f"{candidate}.desktop")``.
    c. Try ``launcher.resolve_by_wm_class(candidate)``.
 
-   Failed desktop IDs are memoized so signal bursts don't hammer Gio
-   with repeated failing lookups.  Successful matches are cached so
-   subsequent scans hit the fast path.
+   Failed desktop IDs can be memoized for X11 so signal bursts don't
+   hammer Gio with repeated failing lookups. Successful WM_CLASS
+   matches use the launcher's indexed lookup.
 
 Candidate generation (merged from both legacy matchers)
 --------------------------------------------------------
@@ -98,13 +115,14 @@ Candidate generation (merged from both legacy matchers)
 Candidates are generated in a stable, deterministic order:
 
 * Raw ``app_id``
+* Raw ``app_id`` without ``.desktop``
+* Lowercase variants of the above
 * Space→hyphen (``"mongodb compass"`` → ``"mongodb-compass"``)
 * Space→joined  (``"mongodb compass"`` → ``"mongodbcompass"``)
 * GNOME prefix + original class-group (``"Files"`` → ``"org.gnome.Files"``)
 * Dot-suffix split (``"org.gnome.Nautilus"`` → ``"Nautilus"``)
 * Snap/container ``_`` prefix expansion
   (``"firefox_firefox"`` → ``"firefox"``)
-* Lowercase variants of the above
 
 Duplicates are removed while preserving first-occurrence order so
 the first successful match is always the same for a given input.
@@ -125,14 +143,16 @@ if TYPE_CHECKING:
 
 def _normalize_alias(value: str) -> str:
     """Normalize an alias for cache-key comparison (lowercase, no .desktop suffix)."""
-    return value.strip().removesuffix(DESKTOP_SUFFIX).lower()
+    return value.strip().lower().removesuffix(DESKTOP_SUFFIX)
 
 
 def _ensure_desktop_suffix(value: str) -> str:
     """Append ``.desktop`` to *value* when it is not already suffixed."""
     stripped = value.strip()
     return (
-        stripped if stripped.endswith(DESKTOP_SUFFIX) else f"{stripped}{DESKTOP_SUFFIX}"
+        stripped
+        if stripped.lower().endswith(DESKTOP_SUFFIX)
+        else f"{stripped}{DESKTOP_SUFFIX}"
     )
 
 
@@ -152,14 +172,15 @@ def _app_id_candidates(app_id: str) -> list[str]:
         stripped.lower(),
         stripped.lower().removesuffix(DESKTOP_SUFFIX),
     ]
-    if "." in stripped:
-        candidates.append(stripped.split(".")[-1])
     # Wine / Windows executable reported as the sole app_id by a Wayland
     # compositor (e.g. Hyprland `class` = "notepad.exe").  Strip the .exe
     # suffix so the launcher can match "notepad" → "wine-notepad.desktop".
-    if stripped.lower().endswith(".exe"):
+    is_windows_executable = stripped.lower().endswith(".exe")
+    if is_windows_executable:
         candidates.append(stripped[:-4])  # preserve original case
         candidates.append(stripped[:-4].lower())
+    elif "." in stripped:
+        candidates.append(stripped.split(".")[-1])
     # Snap / container app-ids like firefox_firefox.desktop: also try the
     # leading segment so the launcher can match firefox.desktop.
     body = stripped.removesuffix(DESKTOP_SUFFIX)
@@ -213,10 +234,15 @@ class AppIdMatcher:
     Docking desktop IDs.
     """
 
-    def __init__(self, launcher: Launcher) -> None:
+    def __init__(
+        self,
+        launcher: Launcher,
+        *,
+        cache_missed_desktop_ids: bool = False,
+    ) -> None:
         self._launcher = launcher
+        self._cache_missed_desktop_ids = cache_missed_desktop_ids
         self._visible_aliases: dict[str, str] = {}  # normalized → desktop_id
-        self._result_cache: dict[str, str] = {}  # lookup_key → desktop_id
         self._missed_candidates: set[str] = set()
 
     def sync_visible_items(self, items: Iterable[DockItem]) -> None:
@@ -240,18 +266,30 @@ class AppIdMatcher:
                 if normalized:
                     self._visible_aliases[normalized] = item.desktop_id
 
-    def match(self, app_id: str, *, instance_hint: str | None = None) -> str | None:
+    def match(
+        self,
+        app_id: str,
+        *,
+        instance_hint: str | None = None,
+        prefer_raw_app_id: bool = True,
+        defer_wm_class_lookup: bool = False,
+    ) -> str | None:
         """Map a runtime window identity to a Docking desktop ID.
 
         Args:
             app_id: Primary identity from the display server.
             instance_hint: Secondary identity when the display server
                 provides a split identity model (currently only X11).
+            prefer_raw_app_id: Whether raw compositor-style IDs should
+                be tried before lowercase/X11-derived candidates.
+            defer_wm_class_lookup: Whether to try all direct desktop ID
+                candidates before consulting the launcher WM_CLASS index.
 
         Returns:
             The matching desktop ID (e.g. ``"firefox.desktop"``), or
             ``None`` when no match could be found.
         """
+        app_id = app_id.strip()
         if not app_id:
             return None
 
@@ -280,46 +318,48 @@ class AppIdMatcher:
                 _normalize_alias(instance_hint.lower().strip())
             )
             if result:
-                self._result_cache[app_id_lower] = result
                 return result
 
         # 4. Candidate generation + resolution.
-        for candidate in self._candidates(
+        candidates = self._candidates(
             app_id=app_id,
             app_id_lower=app_id_lower,
             instance_hint=instance_hint,
-        ):
+            prefer_raw_app_id=prefer_raw_app_id,
+        )
+        for candidate in candidates:
             # 4a. Visible aliases (normalized).
             result = self._visible_aliases.get(_normalize_alias(candidate))
             if result:
-                self._result_cache[app_id_lower] = result
                 return result
 
             # 4b. Direct desktop ID resolution (with missed-candidate
             #     memoization so signal bursts don't hammer Gio).
             desktop_id = _ensure_desktop_suffix(candidate)
-            if desktop_id not in self._missed_candidates:
+            if not (
+                self._cache_missed_desktop_ids and desktop_id in self._missed_candidates
+            ):
                 info = self._launcher.resolve(desktop_id, log_failures=False)
                 if info is not None:
-                    self._result_cache[app_id_lower] = info.desktop_id
                     return info.desktop_id
-                self._missed_candidates.add(desktop_id)
+                if self._cache_missed_desktop_ids:
+                    self._missed_candidates.add(desktop_id)
+
+            if defer_wm_class_lookup:
+                continue
 
             # 4c. WM_CLASS index lookup (lazy-built once, then dict).
             info = self._launcher.resolve_by_wm_class(candidate)
             if info is not None:
-                self._result_cache[app_id_lower] = info.desktop_id
                 return info.desktop_id
 
+        if defer_wm_class_lookup:
+            for candidate in candidates:
+                info = self._launcher.resolve_by_wm_class(candidate)
+                if info is not None:
+                    return info.desktop_id
+
         return None
-
-    def clear_missed_cache(self) -> None:
-        """Clear the missed-candidate memoization set.
-
-        Called when desktop entries are refreshed so previously missing
-        desktop files can be retried.
-        """
-        self._missed_candidates.clear()
 
     def _match_wine_instance(
         self, *, app_id_lower: str, instance_hint: str
@@ -339,12 +379,10 @@ class AppIdMatcher:
             # Visible aliases (covers pinned Wine launcher items).
             desktop_id = self._visible_aliases.get(_normalize_alias(alias))
             if desktop_id:
-                self._result_cache[alias] = desktop_id
                 return desktop_id
             # Launcher WM_CLASS index.
             info = self._launcher.resolve_by_wm_class(alias)
             if info is not None:
-                self._result_cache[alias] = info.desktop_id
                 return info.desktop_id
         return None
 
@@ -354,13 +392,14 @@ class AppIdMatcher:
         app_id: str,
         app_id_lower: str,
         instance_hint: str | None,
+        prefer_raw_app_id: bool,
     ) -> list[str]:
         """Generate lookup candidates merged from both legacy matchers.
 
-        Order is stable and deterministic.  X11-originated candidates
-        come first (preserving existing X11 matching priority), then
-        Wayland-specific candidates.  Duplicates are removed while
-        preserving first-occurrence order.
+        Order is stable and deterministic. Wayland-style callers keep
+        compositor-provided desktop IDs authoritative; X11 callers keep
+        the old lowercase-first WM_CLASS order. Duplicates are removed
+        while preserving first-occurrence order.
         """
         # X11-style candidates from class_group.
         x11_candidates = _class_group_candidates(
@@ -371,10 +410,22 @@ class AppIdMatcher:
         # Wayland-style candidates (dot-split, Snap prefixes, lowercase).
         wl_candidates = _app_id_candidates(app_id)
 
-        # Merge: X11 first, then Wayland.  Dedupe preserving order.
+        # Keep raw compositor IDs first, then add X11 transforms and
+        # Wayland/container fallbacks. Dedupe preserving order.
         seen: set[str] = set()
         merged: list[str] = []
-        for candidate in x11_candidates + wl_candidates:
+        raw_candidates = [
+            app_id,
+            app_id.removesuffix(DESKTOP_SUFFIX),
+            app_id_lower,
+            app_id_lower.removesuffix(DESKTOP_SUFFIX),
+        ]
+        source_candidates = (
+            raw_candidates + x11_candidates + wl_candidates
+            if prefer_raw_app_id
+            else x11_candidates + wl_candidates
+        )
+        for candidate in source_candidates:
             if candidate not in seen:
                 seen.add(candidate)
                 merged.append(candidate)
@@ -394,7 +445,7 @@ class AppIdMatcher:
 def _instance_candidates(instance_hint: str) -> list[str]:
     """Generate lookup candidates from a WM_CLASS instance string."""
     instance_lower = instance_hint.lower().strip()
-    if not instance_lower or instance_lower == instance_hint.lower().strip() == "":
+    if not instance_lower:
         return []
     candidates = [instance_lower]
     # Also handle the case where the instance itself contains spaces

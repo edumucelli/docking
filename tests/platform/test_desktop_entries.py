@@ -59,6 +59,30 @@ class TestWineDesktopAliases:
             "tool",
         ]
 
+    def test_desktop_info_replaces_lowercase_generic_wine_startup_class(self, tmp_path):
+        desktop_file = tmp_path / "wine-program.desktop"
+        desktop_file.write_text(
+            "\n".join(
+                [
+                    "[Desktop Entry]",
+                    "Type=Application",
+                    "Name=Wine Program",
+                    'Exec=wine "C:\\\\App\\\\Tool.exe"',
+                    "StartupWMClass=wine",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        info = desktop_entries.desktop_info_from_file(
+            desktop_id="wine-program.desktop",
+            path=desktop_file,
+        )
+
+        assert info is not None
+        assert info.wm_class == "tool.exe"
+
 
 class TestGeneratedDesktopEntries:
     def test_appimage_path_creates_stable_desktop_id(self, tmp_path, monkeypatch):

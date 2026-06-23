@@ -40,7 +40,6 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.launcher import DESKTOP_SUFFIX
 from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
@@ -394,43 +393,6 @@ def load_foreign_toplevel_protocol() -> object | None:
     # is vendored, but the service above stays independent from the binding so it
     # can be tested without a live compositor.
     return None
-
-
-def _normalize_app_id(value: str) -> str:
-    return value.strip().removesuffix(DESKTOP_SUFFIX).lower()
-
-
-def _ensure_desktop_suffix(value: str) -> str:
-    stripped = value.strip()
-    if stripped.endswith(DESKTOP_SUFFIX):
-        return stripped
-    return f"{stripped}{DESKTOP_SUFFIX}"
-
-
-def _app_id_candidates(app_id: str) -> list[str]:
-    stripped = app_id.strip()
-    if not stripped:
-        return []
-    candidates = [
-        stripped,
-        stripped.removesuffix(DESKTOP_SUFFIX),
-        stripped.lower(),
-        stripped.lower().removesuffix(DESKTOP_SUFFIX),
-    ]
-    if "." in stripped:
-        candidates.append(stripped.split(".")[-1])
-    # Snap / container app-ids like firefox_firefox.desktop: also try the
-    # leading segment so the launcher can match firefox.desktop.
-    body = stripped.removesuffix(DESKTOP_SUFFIX)
-    if "_" in body:
-        segments = body.split("_")
-        prefixes = ["_".join(segments[: i + 1]) for i in range(len(segments) - 1)]
-        for prefix in prefixes:
-            candidates.append(prefix)
-            candidates.append(f"{prefix}{DESKTOP_SUFFIX}")
-            candidates.append(prefix.lower())
-            candidates.append(f"{prefix.lower()}{DESKTOP_SUFFIX}")
-    return list(dict.fromkeys(candidate for candidate in candidates if candidate))
 
 
 def _normalize_state(value: object) -> str:
