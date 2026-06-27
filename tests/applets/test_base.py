@@ -17,6 +17,7 @@ from docking.applets.base import (
     _icon_label_outline_width,
     draw_icon_label,
 )
+from docking.core.icons import IconSource
 
 
 class _DeferredInitApplet(Applet):
@@ -71,7 +72,7 @@ class _SystemIconApplet(Applet):
     id = "session"
     name = "System Icon"
     icon_name = "system-log-out"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
     def __init__(self, config=None) -> None:
         self.docking_icon = object()
@@ -271,18 +272,15 @@ class TestAppletDefaultHooks:
 
     def test_icon_source_no_system_support_returns_docking(self):
         applet = _DeferredInitApplet()
-        applet.supports_system_icon = False
         assert applet.icon_source() == ICON_SOURCE_DOCKING
 
     def test_set_icon_source_no_system_support_returns_early(self):
         applet = _DeferredInitApplet()
-        applet.supports_system_icon = False
         # Should not raise or save
         applet.set_icon_source(ICON_SOURCE_SYSTEM)
 
     def test_set_icon_source_same_value_returns_early(self, monkeypatch):
-        applet = _DeferredInitApplet()
-        applet.supports_system_icon = True
+        applet = _SystemIconApplet()
         monkeypatch.setattr(
             applet, "load_prefs", lambda: {ICON_SOURCE_PREF_KEY: ICON_SOURCE_DOCKING}
         )

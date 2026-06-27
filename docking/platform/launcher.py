@@ -189,6 +189,11 @@ class FileTargetInfo(NamedTuple):
     is_dir: bool
 
 
+def fallback_file_icon_name(*, is_dir: bool) -> str:
+    """Return the theme icon name for file targets without richer metadata."""
+    return "folder" if is_dir else "text-x-generic"
+
+
 def _host_icon_file_candidates(icon_name: str) -> list[Path]:
     icon_path = Path(icon_name)
     if not icon_path.is_absolute():
@@ -350,6 +355,19 @@ class Launcher:
         self._icon_cache[key] = pixbuf
         return pixbuf
 
+    def load_icon_file(self, path: Path, size: int) -> GdkPixbuf.Pixbuf | None:
+        """Load an absolute image path as an icon without a generic fallback."""
+        if not path.is_absolute() or not path.is_file():
+            return None
+        try:
+            return self._load_cached_file_icon(path=path, size=size)
+        except (OSError, GLib.Error) as exc:
+            log.bind(action="load_icon_file", path=str(path), size=size).debug(
+                "Failed to load custom icon file: %s",
+                exc,
+            )
+            return None
+
     def load_desktop_icon(
         self, info: desktop_entries.DesktopInfo, size: int
     ) -> GdkPixbuf.Pixbuf | None:
@@ -418,11 +436,8 @@ class Launcher:
             return None
 
         icon = info.get_icon()
-        icon_name = (
-            "folder"
-            if info.get_file_type() == Gio.FileType.DIRECTORY
-            else "text-x-generic"
-        )
+        is_dir = info.get_file_type() == Gio.FileType.DIRECTORY
+        icon_name = fallback_file_icon_name(is_dir=is_dir)
         return FileTargetInfo(
             target=uri,
             name=info.get_display_name()
@@ -434,9 +449,9 @@ class Launcher:
                 gicon=icon,
                 content_type=info.get_content_type() or "",
                 size=size,
-                is_dir=info.get_file_type() == Gio.FileType.DIRECTORY,
+                is_dir=is_dir,
             ),
-            is_dir=info.get_file_type() == Gio.FileType.DIRECTORY,
+            is_dir=is_dir,
         )
 
     def resolve_file_icon(
@@ -463,7 +478,7 @@ class Launcher:
                             exc,
                         )
 
-        icon_name = "folder" if is_dir else "text-x-generic"
+        icon_name = fallback_file_icon_name(is_dir=is_dir)
         return self.load_gicon(gicon=gicon, size=size) or self.load_icon(
             icon_name=icon_name,
             size=size,

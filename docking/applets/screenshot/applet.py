@@ -28,6 +28,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections
 from docking.applets.screenshot import meta
+from docking.core.icons import IconSource
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -52,7 +53,7 @@ class ScreenshotApplet(Applet):
     id = meta.id
     name = _("Screenshot")
     icon_name = "applets-screenshooter"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._tool = _detect_tool()

@@ -80,6 +80,7 @@ from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from docking.applets.identity import applet_desktop_id
 from docking.applets.popup import PopupAnchor
+from docking.core.icons import ICON_SOURCE_PREF_KEY, IconSource, icon_source_from_value
 from docking.core.items import APPLET_KIND, DockItem
 from docking.log import get_logger
 
@@ -123,10 +124,9 @@ _BUNDLED_FALLBACK_ICON_PREFIXES = (
 
 CATALOG_ICON_DIR = "icons/applets"
 
-ICON_SOURCE_PREF_KEY = "icon_source"
-ICON_SOURCE_DOCKING = "docking"
-ICON_SOURCE_SYSTEM = "system"
-ICON_SOURCE_VALUES = frozenset({ICON_SOURCE_DOCKING, ICON_SOURCE_SYSTEM})
+ICON_SOURCE_DOCKING = IconSource.DOCKING.value
+ICON_SOURCE_SYSTEM = IconSource.SYSTEM.value
+ICON_SOURCE_VALUES = frozenset(source.value for source in IconSource)
 
 
 def _icon_name_candidates(name: str) -> tuple[str, ...]:
@@ -338,7 +338,7 @@ class Applet(ABC):
     id: str
     name: str
     icon_name: str
-    supports_system_icon = False
+    icon_source_options: tuple[IconSource, ...] = (IconSource.DOCKING,)
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._config = config
@@ -396,28 +396,47 @@ class Applet(ABC):
         """Theme icon name used when the applet is set to System Icon."""
         return self.icon_name
 
+    def _declared_icon_source_options(self) -> tuple[IconSource, ...]:
+        declared = getattr(
+            type(self),
+            "icon_source_options",
+            Applet.icon_source_options,
+        )
+        if declared is not Applet.icon_source_options:
+            options: list[IconSource] = []
+            for source in declared:
+                parsed = icon_source_from_value(source)
+                if parsed is not None and parsed not in options:
+                    options.append(parsed)
+            return tuple(options) or (IconSource.DOCKING,)
+        return Applet.icon_source_options
+
+    def supports_icon_source(self, source: IconSource | str) -> bool:
+        """Whether this applet exposes the requested icon source."""
+        parsed = icon_source_from_value(source)
+        return parsed is not None and parsed in self._declared_icon_source_options()
+
     def icon_source(self) -> str:
         """Return the selected icon source, defaulting to the Docking icon."""
-        if not self.supports_system_icon:
-            return ICON_SOURCE_DOCKING
-        source = self.load_prefs().get(ICON_SOURCE_PREF_KEY)
-        if source == ICON_SOURCE_SYSTEM:
-            return ICON_SOURCE_SYSTEM
-        return ICON_SOURCE_DOCKING
+        source = icon_source_from_value(self.load_prefs().get(ICON_SOURCE_PREF_KEY))
+        if source is not None and self.supports_icon_source(source):
+            return source.value
+        return IconSource.DOCKING.value
 
     def uses_system_icon(self) -> bool:
         """Whether this applet currently requests a theme icon."""
-        return self.icon_source() == ICON_SOURCE_SYSTEM
+        return self.icon_source() == IconSource.SYSTEM.value
 
-    def set_icon_source(self, source: str) -> None:
+    def set_icon_source(self, source: IconSource | str) -> None:
         """Persist and present the selected icon source."""
-        if not self.supports_system_icon or source not in ICON_SOURCE_VALUES:
+        parsed = icon_source_from_value(source)
+        if parsed is None or not self.supports_icon_source(parsed):
             return
-        if source == self.icon_source():
+        if parsed.value == self.icon_source():
             return
 
         prefs = self.load_prefs()
-        prefs[ICON_SOURCE_PREF_KEY] = source
+        prefs[ICON_SOURCE_PREF_KEY] = parsed.value
         self.save_prefs(prefs)
         self.present()
 

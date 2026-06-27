@@ -807,12 +807,79 @@ class TestItemMenus:
         next(mi for mi in menu.children if mi.get_label() == "Close All").activate()
         handler._tracker.close_all.assert_called_once_with("firefox.desktop")
 
+    def test_pinned_app_item_menu_includes_icon_submenu(self, handler):
+        menu = FakeMenu()
+        item = DockItem(desktop_id="firefox.desktop", is_pinned=True)
+
+        handler._build_item_menu(menu=menu, item=item)
+
+        icon_menu = next(mi for mi in menu.children if mi.get_label() == "Icon")
+        assert [mi.get_label() for mi in icon_menu.get_submenu().get_children()] == [
+            "Default Icon",
+            "Choose From File...",
+            "Reset Custom Icon",
+        ]
+
+    def test_unpinned_app_item_menu_does_not_expose_icon_editing(self, handler):
+        menu = FakeMenu()
+        item = DockItem(desktop_id="firefox.desktop", is_pinned=False)
+
+        handler._build_item_menu(menu=menu, item=item)
+
+        assert "Icon" not in _labels(menu)
+
+    def test_locked_icons_still_allow_pinned_icon_submenu(self, handler):
+        handler._config.lock_icons = True
+        menu = FakeMenu()
+        item = DockItem(desktop_id="firefox.desktop", is_pinned=True)
+
+        handler._build_item_menu(menu=menu, item=item)
+
+        labels = _labels(menu)
+        assert "Icon" in labels
+        assert "Remove from Dock" not in labels
+
+    def test_choose_custom_icon_calls_model_api(self, handler, monkeypatch, tmp_path):
+        menu = FakeMenu()
+        item = DockItem(desktop_id="firefox.desktop", is_pinned=True)
+        selected = tmp_path / "icon.png"
+        monkeypatch.setattr(handler, "_choose_icon_file", lambda: selected)
+
+        handler._build_item_menu(menu=menu, item=item)
+        icon_menu = next(mi for mi in menu.children if mi.get_label() == "Icon")
+        choose = next(
+            mi
+            for mi in icon_menu.get_submenu().get_children()
+            if mi.get_label() == "Choose From File..."
+        )
+        choose.activate()
+
+        handler._model.set_custom_icon.assert_called_once_with(item=item, path=selected)
+
+    def test_reset_custom_icon_calls_model_api(self, handler):
+        menu = FakeMenu()
+        item = DockItem(desktop_id="firefox.desktop", is_pinned=True)
+
+        handler._build_item_menu(menu=menu, item=item)
+        icon_menu = next(mi for mi in menu.children if mi.get_label() == "Icon")
+        reset = next(
+            mi
+            for mi in icon_menu.get_submenu().get_children()
+            if mi.get_label() == "Reset Custom Icon"
+        )
+        reset.activate()
+
+        handler._model.reset_custom_icon.assert_called_once_with(item)
+
     def test_applet_item_menu_includes_icon_source_when_supported(self, handler):
         # Given
         menu = FakeMenu()
         applet_item = DockItem(desktop_id="applet://session")
         applet = SimpleNamespace(
-            supports_system_icon=True,
+            icon_source_options=(
+                menu_mod.IconSource.DOCKING,
+                menu_mod.IconSource.SYSTEM,
+            ),
             get_menu_items=MagicMock(return_value=[FakeMenuItem(label="Lock Screen")]),
             icon_source=MagicMock(return_value=menu_mod.ICON_SOURCE_DOCKING),
             set_icon_source=MagicMock(),

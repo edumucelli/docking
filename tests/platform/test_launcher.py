@@ -132,6 +132,37 @@ class TestIconCache:
         assert ("application-x-executable", 48) in launcher._icon_cache
         assert ("application-x-executable", 96) in launcher._icon_cache
 
+    def test_load_icon_file_loads_absolute_file_without_fallback(
+        self, tmp_path, monkeypatch
+    ):
+        launcher = Launcher()
+        icon_path = tmp_path / "icon.png"
+        icon_path.write_bytes(b"fake")
+        pixbuf = object()
+        pixbuf_cls = MagicMock()
+        pixbuf_cls.new_from_file_at_scale.return_value = pixbuf
+        monkeypatch.setattr(
+            launcher_mod.GdkPixbuf,
+            "Pixbuf",
+            pixbuf_cls,
+            raising=False,
+        )
+
+        out = launcher.load_icon_file(icon_path, 48)
+
+        assert out is pixbuf
+        pixbuf_cls.new_from_file_at_scale.assert_called_once_with(
+            str(icon_path),
+            48,
+            48,
+            True,
+        )
+
+    def test_load_icon_file_returns_none_for_missing_file(self):
+        launcher = Launcher()
+
+        assert launcher.load_icon_file(Path("/missing/icon.png"), 48) is None
+
     def test_default_directory_app_name_returns_display_name(self):
         launcher = Launcher()
         app_info = MagicMock()

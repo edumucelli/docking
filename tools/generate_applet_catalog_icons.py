@@ -98,8 +98,8 @@ from docking.applets.pomodoro.state import PomodoroState
 from docking.applets.powerprofiles.render import create_power_profiles_icon
 from docking.applets.quicknote.render import render_icon as render_quicknote
 from docking.applets.quote.render import draw_bulb_icon
-from docking.applets.runcommand.render import create_icon as render_runcommand
 from docking.applets.recentfiles.render import render_icon as render_recentfiles
+from docking.applets.runcommand.render import create_icon as render_runcommand
 from docking.applets.screenshot.applet import _draw_screenshot_icon
 from docking.applets.session.render import create_session_icon
 from docking.applets.speedtest.render import render_icon as render_speedtest

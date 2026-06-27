@@ -1,6 +1,7 @@
 """Tests for the dock data model."""
 
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 try:
@@ -13,6 +14,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry
+from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
 from docking.platform.running import RunningAppInfo
@@ -35,6 +37,8 @@ def _make_launcher(*desktop_ids: str):
 
     launcher.resolve.side_effect = resolve
     launcher.load_icon.return_value = MagicMock()  # fake pixbuf
+    launcher.load_desktop_icon.return_value = MagicMock()
+    launcher.load_icon_file.return_value = None
     return launcher
 
 
@@ -195,6 +199,118 @@ class TestPinUnpin:
         while model.tick_animations():
             pass
         assert len(model.visible_items()) == 1
+        config.save.assert_called_once()
+
+
+class TestCustomIcons:
+    def test_pinned_app_applies_custom_icon_on_load(self):
+        config = _make_config(["a.desktop"])
+        config.item_prefs = {
+            "a.desktop": {
+                ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
+                CUSTOM_ICON_PATH_KEY: "/home/user/a.png",
+            }
+        }
+        launcher = _make_launcher("a.desktop")
+        custom_icon = object()
+        launcher.load_icon_file.return_value = custom_icon
+
+        model = DockModel(config, launcher, AppletServices())
+
+        item = model.visible_items()[0]
+        assert item.icon is custom_icon
+        assert item.icon_name == "a.png"
+        launcher.load_icon_file.assert_called_once_with(
+            path=Path("/home/user/a.png"),
+            size=48,
+        )
+
+    def test_set_custom_icon_persists_and_refreshes_matching_items(self, tmp_path):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        pinned = model.visible_items()[0]
+        recent = DockItem(
+            desktop_id="a.desktop",
+            kind=APP_KIND,
+            target="a.desktop",
+            is_recent=True,
+            icon=object(),
+        )
+        model._recent_apps.append(recent)
+        custom_path = tmp_path / "custom.png"
+        custom_path.write_bytes(b"not actually decoded in this unit test")
+        custom_icon = object()
+        launcher.load_icon_file.return_value = custom_icon
+        callback = MagicMock()
+        model.add_change_listener(callback)
+
+        assert model.set_custom_icon(pinned, custom_path)
+
+        assert config.item_prefs["a.desktop"] == {
+            ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
+            CUSTOM_ICON_PATH_KEY: str(custom_path),
+        }
+        assert pinned.icon is custom_icon
+        assert recent.icon is custom_icon
+        config.save.assert_called_once()
+        callback.assert_called_once()
+
+    def test_refresh_item_icons_preserves_runtime_state(self, tmp_path):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        item = model.visible_items()[0]
+        item.is_running = True
+        item.instance_count = 2
+        item.badge_count = 7
+        item.progress_visible = True
+        item.window_urgent = True
+        item.insert_factor = 0.5
+        config.item_prefs = {
+            "a.desktop": {
+                ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
+                CUSTOM_ICON_PATH_KEY: str(tmp_path / "custom.png"),
+            }
+        }
+        custom_icon = object()
+        launcher.load_icon_file.return_value = custom_icon
+
+        model.refresh_item_icons(item)
+
+        assert item.icon is custom_icon
+        assert item.is_running is True
+        assert item.instance_count == 2
+        assert item.badge_count == 7
+        assert item.progress_visible is True
+        assert item.window_urgent is True
+        assert item.insert_factor == 0.5
+
+    def test_insert_pinned_item_applies_override_and_persists(self):
+        config = _make_config([])
+        config.item_prefs = {
+            "tool.desktop": {
+                ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
+                CUSTOM_ICON_PATH_KEY: "/home/user/tool.png",
+            }
+        }
+        launcher = _make_launcher("tool.desktop")
+        custom_icon = object()
+        launcher.load_icon_file.return_value = custom_icon
+        model = DockModel(config, launcher, AppletServices())
+        item = DockItem(
+            desktop_id="tool.desktop",
+            kind=APP_KIND,
+            target="tool.desktop",
+            is_pinned=True,
+            icon=object(),
+        )
+
+        assert model.insert_pinned_item(item=item, index=0)
+
+        assert model.pinned_items == [item]
+        assert item.icon is custom_icon
+        assert config.pinned == [PinnedEntry(kind=APP_KIND, target="tool.desktop")]
         config.save.assert_called_once()
 
 

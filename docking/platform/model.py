@@ -144,6 +144,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -167,6 +168,8 @@ from docking.core.items import (
 )
 from docking.core.math import clamp
 from docking.log import get_logger, with_context
+from docking.platform import icon_overrides
+from docking.platform.launcher import fallback_file_icon_name
 from docking.platform.running import RunningAppInfo
 
 gi.require_version("Gtk", "3.0")
@@ -305,6 +308,7 @@ class DockModel:
                 ),
                 icon=icon,
             )
+            self._apply_icon_override(item=item)
             self._recent_apps.append(item)
             if isinstance(last_closed, (int, float)):
                 self._recent_closed_at[desktop_id] = int(last_closed)
@@ -354,6 +358,7 @@ class DockModel:
             last_closed=time.time(),
             icon=icon,
         )
+        self._apply_icon_override(item=item)
         self._recent_apps.insert(0, item)
         self._recent_closed_at[desktop_id] = int(time.time())
         self._persist_recent_apps()
@@ -427,7 +432,7 @@ class DockModel:
             if info is None:
                 return None
             icon = self._launcher.load_desktop_icon(info=info, size=icon_size)
-            return DockItem(
+            item = DockItem(
                 desktop_id=entry.id,
                 kind=APP_KIND,
                 target=entry.target,
@@ -437,11 +442,23 @@ class DockModel:
                 is_pinned=True,
                 icon=icon,
             )
+            return self._apply_icon_override(item=item)
 
         info = self._launcher.resolve_file(target=entry.target, size=icon_size)
         if info is None:
-            return None
-        return DockItem(
+            icon_name = fallback_file_icon_name(is_dir=entry.kind == FOLDER_KIND)
+            item = DockItem(
+                desktop_id=entry.id,
+                kind=entry.kind,
+                target=entry.target,
+                name=entry.target,
+                icon_name=icon_name,
+                is_pinned=True,
+                icon=self._launcher.load_icon(icon_name=icon_name, size=icon_size),
+                prefs_key=entry.target,
+            )
+            return self._apply_icon_override(item=item)
+        item = DockItem(
             desktop_id=entry.id,
             kind=entry.kind,
             target=entry.target,
@@ -451,6 +468,7 @@ class DockModel:
             icon=info.icon,
             prefs_key=entry.target,
         )
+        return self._apply_icon_override(item=item)
 
     def _make_app_item(
         self, *, desktop_id: str, is_pinned: bool, running_info: RunningAppInfo | None
@@ -481,6 +499,59 @@ class DockModel:
         )
         item.window_urgent = running_info.urgent if running_info is not None else False
         self._recompute_urgent(item=item)
+        return self._apply_icon_override(item=item)
+
+    def _default_icon_for_item(self, item: DockItem) -> None:
+        """Reload an item's default icon fields without replacing the item."""
+        icon_size = self._config.scaled_icon_size
+        if item.kind == APP_KIND:
+            resolved = self._launcher.resolve(
+                desktop_id=item.target or item.desktop_id,
+                log_failures=False,
+            )
+            if resolved is None:
+                item.icon_name = item.icon_name or "application-x-executable"
+                item.icon = self._launcher.load_icon(
+                    icon_name=item.icon_name,
+                    size=icon_size,
+                )
+                return
+            item.name = resolved.name
+            item.icon_name = resolved.icon_name
+            item.wm_class = resolved.wm_class
+            item.icon = self._launcher.load_desktop_icon(info=resolved, size=icon_size)
+            return
+
+        if item.kind in {FILE_KIND, FOLDER_KIND}:
+            info = self._launcher.resolve_file(target=item.target, size=icon_size)
+            if info is None:
+                item.icon_name = fallback_file_icon_name(
+                    is_dir=item.kind == FOLDER_KIND,
+                )
+                item.icon = self._launcher.load_icon(
+                    icon_name=item.icon_name,
+                    size=icon_size,
+                )
+                return
+            item.target = info.target
+            item.name = info.name
+            item.icon_name = info.icon_name
+            item.icon = info.icon
+
+    def _apply_icon_override(self, item: DockItem) -> DockItem:
+        """Apply a persisted custom icon to a normal dock item when available."""
+        if item.kind not in {APP_KIND, FILE_KIND, FOLDER_KIND}:
+            return item
+        path = icon_overrides.custom_icon_path(config=self._config, item=item)
+        if path is None:
+            return item
+        icon = self._launcher.load_icon_file(
+            path=path,
+            size=self._config.scaled_icon_size,
+        )
+        if icon is not None:
+            item.icon = icon
+            item.icon_name = path.name
         return item
 
     @staticmethod
@@ -780,6 +851,58 @@ class DockModel:
                 return item
         return None
 
+    def matching_icon_items(self, item: DockItem) -> list[DockItem]:
+        """Return visible model-owned items sharing an icon preference key."""
+        key = icon_overrides.item_icon_key(item=item)
+        return [
+            candidate
+            for candidate in self.pinned_items + self._recent_apps + self._transient
+            if candidate.kind in {APP_KIND, FILE_KIND, FOLDER_KIND}
+            and icon_overrides.item_icon_key(item=candidate) == key
+        ]
+
+    def set_custom_icon(self, item: DockItem, path: Path) -> bool:
+        """Persist a custom icon for a pinned normal item and refresh matches."""
+        if not self._can_edit_custom_icon(item=item):
+            return False
+        selected = path.expanduser()
+        if (
+            not selected.is_absolute()
+            or not selected.is_file()
+            or self._launcher.load_icon_file(
+                path=selected,
+                size=self._config.scaled_icon_size,
+            )
+            is None
+        ):
+            return False
+        icon_overrides.set_custom_icon(config=self._config, item=item, path=selected)
+        self._config.save()
+        self.refresh_item_icons(item=item)
+        return True
+
+    def reset_custom_icon(self, item: DockItem) -> None:
+        """Remove a custom icon override for a pinned normal item."""
+        if not self._can_edit_custom_icon(item=item):
+            return
+        icon_overrides.reset_custom_icon(config=self._config, item=item)
+        self._config.save()
+        self.refresh_item_icons(item=item)
+
+    def refresh_item_icons(self, item: DockItem) -> None:
+        """Refresh icon fields for all model items sharing the same preference key."""
+        refreshed = False
+        for candidate in self.matching_icon_items(item=item):
+            self._default_icon_for_item(item=candidate)
+            self._apply_icon_override(item=candidate)
+            refreshed = True
+        if refreshed:
+            self.notify()
+
+    @staticmethod
+    def _can_edit_custom_icon(item: DockItem) -> bool:
+        return item.is_pinned and item.kind in {APP_KIND, FILE_KIND, FOLDER_KIND}
+
     def update_running(self, running: dict[str, RunningAppInfo]) -> None:
         """Update running state from WindowTracker data.
 
@@ -1012,6 +1135,20 @@ class DockModel:
             self.pinned_items.append(item)
             self._persist_pinned_changes()
             self.notify()
+
+    def insert_pinned_item(self, item: DockItem, index: int) -> bool:
+        """Insert a resolved pinned item, applying final model-owned persistence."""
+        if item.kind not in {APP_KIND, FILE_KIND, FOLDER_KIND}:
+            return False
+        if self.find_by_desktop_id(item.desktop_id) is not None:
+            return False
+        item.is_pinned = True
+        self._apply_icon_override(item=item)
+        insert_at = max(0, min(index, len(self.pinned_items)))
+        self.pinned_items.insert(insert_at, item)
+        self._persist_pinned_changes()
+        self.notify()
+        return True
 
     def unpin_item(self, desktop_id: str) -> None:
         """Unpin an item. If running, becomes transient. If recently used, becomes
