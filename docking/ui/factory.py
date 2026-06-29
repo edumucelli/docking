@@ -43,9 +43,12 @@ from docking.ui.dock_window import DockWindow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.input_controller import DockInputController
 from docking.ui.menu import MenuHandler
+from docking.ui.new_year import NewYearGreetingController
 from docking.ui.renderer import DockRenderer
 from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsActions, SettingsWindowController
+from docking.ui.startup_popups import StartupPopupCoordinator
+from docking.ui.startup_tips import StartupTipsController
 from docking.ui.update_popup import UpdateCheckController
 
 
@@ -54,17 +57,17 @@ class DockUi:
     """Handle for the composed dock UI graph."""
 
     window: DockWindow
-    update_checker: UpdateCheckController
+    startup_popups: StartupPopupCoordinator
     input_controller: DockInputController
 
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
         self.input_controller.start()
-        self.update_checker.start()
+        self.startup_popups.start()
 
     def stop(self) -> None:
         """Stop the composed dock UI lifecycle."""
-        self.update_checker.stop()
+        self.startup_popups.stop()
         self.input_controller.stop()
 
 
@@ -148,6 +151,15 @@ def build_dock_window(
         interactions=interactions,
         dnd=dnd,
     )
+    startup_popups = StartupPopupCoordinator()
+    new_year = NewYearGreetingController(window=window)
+    startup_tips = StartupTipsController(
+        window=window,
+        config=config,
+    )
+    startup_popups.register(new_year)
+    startup_popups.register(update_checker)
+    startup_popups.register(startup_tips)
 
     def _get_dock_rect() -> Rect | None:
         if not window.get_realized():
@@ -171,6 +183,6 @@ def build_dock_window(
         dodge_monitor.start()
     return DockUi(
         window=window,
-        update_checker=update_checker,
+        startup_popups=startup_popups,
         input_controller=input_controller,
     )

@@ -235,6 +235,7 @@ class SettingsWindowController:
         self._hide_delay_spin: Any = None
         self._unhide_delay_spin: Any = None
         self._update_check_switch: Any = None
+        self._startup_tips_switch: Any = None
         self._update_interval_combo: Any = None
         self._update_status_label: Any = None
         self._recent_apps_switch: Any = None
@@ -365,6 +366,7 @@ class SettingsWindowController:
         self._anchor_files_switch = self._new_switch()
         self._zoom_enabled_switch = self._new_switch()
         self._update_check_switch = self._new_switch()
+        self._startup_tips_switch = self._new_switch()
 
         self._update_interval_combo = Gtk.ComboBoxText()
         for value, label in [
@@ -687,6 +689,14 @@ class SettingsWindowController:
                     ),
                 ),
                 (_("Pressure Threshold"), pressure_threshold_box, None),
+                (
+                    _("Show Startup Tips"),
+                    self._startup_tips_switch,
+                    _(
+                        "Show one Docking usage tip after startup, unless a "
+                        "higher-priority startup notification is visible."
+                    ),
+                ),
             ],
         )
         self._append_section(
@@ -1063,6 +1073,10 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="update_check_enabled",
                 widget=self._update_check_switch,
+            ),
+            self._register_switch_binding(
+                config_attr="startup_tips_enabled",
+                widget=self._startup_tips_switch,
             ),
             self._register_numeric_binding(
                 config_attr="update_check_interval_hours",

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
@@ -48,6 +49,8 @@ if TYPE_CHECKING:
 
 log = get_logger("updates")
 
+UPDATE_POPUP_ID = "updates"
+UPDATE_POPUP_PRIORITY = 20
 UPDATE_CHECK_DELAY_S = 8
 UPDATE_POPUP_GAP_PX = 16
 UPDATE_POPUP_SPACING_PX = 10
@@ -58,22 +61,39 @@ REMIND_LATER_HOURS = 24
 class UpdateCheckController:
     """Schedules release checks and presents update notifications."""
 
+    source_id = UPDATE_POPUP_ID
+    priority = UPDATE_POPUP_PRIORITY
+    max_wait_seconds: int | None = None
+
     def __init__(
         self,
         *,
-        window: Gtk.Window,
         config: Config,
+        window: Gtk.Window | None = None,
     ) -> None:
         self._window = window
         self._config = config
         self._start_source_id: int = 0
         self._popup: Gtk.Window | None = None
         self._latest_release: ReleaseInfo | None = None
+        self._pending_release: ReleaseInfo | None = None
+        self._request_show: Callable[[str], None] | None = None
+        self._visibility_changed: Callable[[str, bool], None] | None = None
 
-    def start(self) -> None:
+    def set_window(self, window: Gtk.Window) -> None:
+        """Attach the dock window used as popup parent and anchor."""
+        self._window = window
+
+    def start(
+        self,
+        request_show: Callable[[str], None] | None = None,
+        visibility_changed: Callable[[str, bool], None] | None = None,
+    ) -> None:
         """Schedule an automatic update check if user preferences allow it."""
         if self._start_source_id or not self._config.update_check_enabled:
             return
+        self._request_show = request_show
+        self._visibility_changed = visibility_changed
         state = load_state()
         if not should_check_for_updates(
             enabled=self._config.update_check_enabled,
@@ -95,10 +115,11 @@ class UpdateCheckController:
         if self._popup is not None:
             self._popup.destroy()
             self._popup = None
+        self._notify_visible(False)
 
     def check_now(self) -> None:
         """Run a manual update check immediately."""
-        self._run_check_in_thread()
+        self._run_check_in_thread(automatic=False)
 
     def open_releases_page(self) -> None:
         """Open the project releases page."""
@@ -106,14 +127,18 @@ class UpdateCheckController:
 
     def _on_startup_delay_elapsed(self) -> bool:
         self._start_source_id = 0
-        self._run_check_in_thread()
+        self._run_check_in_thread(automatic=True)
         return False
 
-    def _run_check_in_thread(self) -> None:
-        thread = threading.Thread(target=self._check_worker, daemon=True)
+    def _run_check_in_thread(self, *, automatic: bool) -> None:
+        thread = threading.Thread(
+            target=self._check_worker,
+            kwargs={"automatic": automatic},
+            daemon=True,
+        )
         thread.start()
 
-    def _check_worker(self) -> None:
+    def _check_worker(self, *, automatic: bool) -> None:
         release: ReleaseInfo | None = None
         error = ""
         try:
@@ -121,12 +146,13 @@ class UpdateCheckController:
         except Exception as exc:
             error = str(exc)
             log.debug("Update check failed: %s", exc)
-        GLib.idle_add(self._on_check_finished, release, error)
+        GLib.idle_add(self._on_check_finished, release, error, automatic)
 
     def _on_check_finished(
         self,
         release: ReleaseInfo | None,
         error: str,
+        automatic: bool = True,
     ) -> bool:
         now = datetime.now(timezone.utc)
         current_state = load_state()
@@ -148,13 +174,28 @@ class UpdateCheckController:
         )
         save_state(state)
         if decision.should_show and decision.release is not None:
-            self._show_popup(release=decision.release)
+            if automatic and self._request_show is not None:
+                self._pending_release = decision.release
+                self._request_show(self.source_id)
+            else:
+                self._show_popup(release=decision.release)
         return False
 
-    def _show_popup(self, *, release: ReleaseInfo) -> None:
+    def show_pending(self) -> bool:
+        """Show a pending automatic update popup if one exists."""
+        if self._pending_release is None:
+            return False
+        release = self._pending_release
+        self._pending_release = None
+        return self._show_popup(release=release)
+
+    def _show_popup(self, *, release: ReleaseInfo) -> bool:
+        if self._window is None:
+            log.debug("Skipping update popup because dock window is unavailable")
+            return False
         if not self._window.get_realized():
             log.debug("Skipping update popup because dock window is not realized")
-            return
+            return False
         self._latest_release = release
         if self._popup is None:
             popup = Gtk.Window(type=Gtk.WindowType.POPUP)
@@ -163,6 +204,7 @@ class UpdateCheckController:
             popup.set_resizable(False)
             popup.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
             popup.set_transient_for(self._window)
+            popup.connect("destroy", self._on_popup_destroy)
             self._popup = popup
         else:
             child = self._popup.get_child()
@@ -171,7 +213,9 @@ class UpdateCheckController:
 
         self._popup.add(self._build_popup_content(release=release))
         self._popup.show_all()
+        self._notify_visible(True)
         self._position_popup()
+        return True
 
     def _build_popup_content(self, *, release: ReleaseInfo) -> Gtk.Widget:
         frame = Gtk.Frame()
@@ -212,7 +256,7 @@ class UpdateCheckController:
         return frame
 
     def _position_popup(self) -> None:
-        if self._popup is None:
+        if self._popup is None or self._window is None:
             return
         window_pos = window_screen_position(self._window)
         win_x, win_y = window_pos.x, window_pos.y
@@ -281,9 +325,17 @@ class UpdateCheckController:
     def _hide_popup(self) -> None:
         if self._popup is not None:
             self._popup.hide()
+        self._notify_visible(False)
+
+    def _on_popup_destroy(self, _popup: Gtk.Window) -> None:
+        self._notify_visible(False)
 
     def _open_url(self, url: str) -> None:
         try:
             Gio.AppInfo.launch_default_for_uri(url, None)
         except Exception as exc:
             log.warning("Failed to open release URL: %s", exc)
+
+    def _notify_visible(self, visible: bool) -> None:
+        if self._visibility_changed is not None:
+            self._visibility_changed(self.source_id, visible)

@@ -684,6 +684,7 @@ def _config():
         unhide_delay_ms=0,
         update_check_enabled=True,
         update_check_interval_hours=24,
+        startup_tips_enabled=True,
         additional_distance_from_edge=0,
         pressure_reveal_enabled=False,
         pressure_threshold=50,
@@ -951,6 +952,7 @@ class TestSettingsWindowController:
             "Hide Delay",
             "Unhide Delay",
             "Pressure Reveal",
+            "Show Startup Tips",
             "Open On",
         }
 

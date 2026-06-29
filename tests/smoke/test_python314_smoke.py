@@ -83,6 +83,15 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.ui.new_year": {
             "NewYearGreetingController": type("NewYearGreetingController", (), {}),
         },
+        "docking.ui.startup_popups": {
+            "StartupPopupCoordinator": type("StartupPopupCoordinator", (), {}),
+        },
+        "docking.ui.startup_tips": {
+            "StartupTipsController": type("StartupTipsController", (), {}),
+        },
+        "docking.ui.update_popup": {
+            "UpdateCheckController": type("UpdateCheckController", (), {}),
+        },
         "docking.ui.renderer": {
             "DockRenderer": type("DockRenderer", (), {}),
         },
@@ -236,7 +245,12 @@ def test_about_dialog_controller_smoke(monkeypatch):
 def test_app_main_smoke(monkeypatch):
     app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
 
-    config = SimpleNamespace(theme="default", icon_size=48, transparency=1.0)
+    config = SimpleNamespace(
+        theme="default",
+        icon_size=48,
+        transparency=1.0,
+        startup_tips_enabled=True,
+    )
     theme = MagicMock()
     theme.with_opacity.return_value = object()
     launcher = MagicMock()
@@ -250,8 +264,12 @@ def test_app_main_smoke(monkeypatch):
     backend.previews = preview_service
     backend.visibility = visibility_service
     unity = MagicMock()
-    new_year = MagicMock()
     window = MagicMock()
+    ui = SimpleNamespace(
+        window=window,
+        start=MagicMock(),
+        stop=MagicMock(),
+    )
     items_service = MagicMock()
 
     config_cls = MagicMock()
@@ -271,16 +289,6 @@ def test_app_main_smoke(monkeypatch):
         MagicMock(return_value=backend),
     )
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
-    monkeypatch.setattr(
-        app_mod,
-        "NewYearGreetingController",
-        MagicMock(return_value=new_year),
-    )
-    ui = SimpleNamespace(
-        window=window,
-        start=MagicMock(),
-        stop=MagicMock(),
-    )
     monkeypatch.setattr(app_mod, "build_dock_window", MagicMock(return_value=ui))
     monkeypatch.setattr(
         app_mod, "DockItemsService", MagicMock(return_value=items_service)
@@ -293,8 +301,6 @@ def test_app_main_smoke(monkeypatch):
 
     app_mod.main()
 
-    new_year.start.assert_called_once()
-    new_year.stop.assert_called_once()
     ui.start.assert_called_once()
     ui.stop.assert_called_once()
 
