@@ -199,6 +199,9 @@ def _attach_runtime_methods(harness: _Harness) -> None:
     harness._invalidate_current_geometry_frame = MethodType(
         dock_window_mod.DockWindow._invalidate_current_geometry_frame, harness
     )
+    harness._require_menu = MethodType(
+        dock_window_mod.DockWindow._require_menu, harness
+    )
 
 
 def _motion_event(x: float, y: float) -> SimpleNamespace:

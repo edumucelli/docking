@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 import gi
 
@@ -26,6 +25,7 @@ from gi.repository import Gdk, Gtk
 
 from docking.core.position import Position
 from docking.ui.display import clamp_popup, clamp_to_screen, get_pointer_position
+from docking.ui.popup import PopupAnchor
 
 _POPUP_CLASS = "applet-popup-surface"
 _POPUP_CSS = f"""
@@ -42,16 +42,6 @@ _popup_css_provider: Gtk.CssProvider | None = None
 DEFAULT_POPUP_CURSOR_GAP_PX = 20
 DEFAULT_DIALOG_CONTENT_SPACING_PX = 8
 DEFAULT_DIALOG_MARGIN_PX = 12
-
-
-@dataclass(frozen=True, slots=True)
-class PopupAnchor:
-    """Screen-space applet popup anchor."""
-
-    x: int
-    y: int
-    position: Position
-    parent: Gtk.Window | None = None
 
 
 def entry_completion_combo(

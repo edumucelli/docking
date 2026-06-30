@@ -637,6 +637,13 @@ def _config():
     )
 
 
+def _updates():
+    return SimpleNamespace(
+        check_now=MagicMock(),
+        open_releases_page=MagicMock(),
+    )
+
+
 class TestSettingsWindowController:
     def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -650,6 +657,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -717,6 +725,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -747,6 +756,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -796,6 +806,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -888,6 +899,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -922,6 +934,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -947,6 +960,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -1015,6 +1029,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1046,6 +1061,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1072,6 +1088,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1098,6 +1115,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1121,6 +1139,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1147,6 +1166,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1172,6 +1192,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1196,6 +1217,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1220,6 +1242,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1241,6 +1264,7 @@ class TestSettingsWindowController:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller.show()
@@ -1265,12 +1289,14 @@ class TestSettingsWindowController:
             lambda: SimpleNamespace(last_seen_version="", last_checked_at=""),
         )
         runtime = MagicMock()
+        updates = _updates()
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=object(),
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=updates,
         )
 
         controller.show()
@@ -1291,8 +1317,8 @@ class TestSettingsWindowController:
         check_now.click()
         view_releases.click()
 
-        runtime.check_for_updates_now.assert_called_once()
-        runtime.open_releases_page.assert_called_once()
+        updates.check_now.assert_called_once()
+        updates.open_releases_page.assert_called_once()
 
     def test_applet_toggle_adds_and_removes_items(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -1317,6 +1343,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=model,
             config=_config(),
+            updates=_updates(),
         )
 
         on_widget = FakeCheckButton(label="Clock")
@@ -1357,6 +1384,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -1424,6 +1452,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=model,
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -1461,6 +1490,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         controller.show()
@@ -1493,6 +1523,7 @@ class TestSettingsWindowController:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
 
         with patch.object(
@@ -1529,6 +1560,7 @@ class TestRecentSettingsBehavior:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
         controller.show()
 
@@ -1556,6 +1588,7 @@ class TestBindingEdgeCases:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
         controller._window = None
         # Should not raise
@@ -1574,6 +1607,7 @@ class TestBindingEdgeCases:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
         original = config.icon_size
         binding = MagicMock()
@@ -1599,6 +1633,7 @@ class TestBindingEdgeCases:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
         binding = MagicMock()
         binding.config_attr = "icon_size"
@@ -1622,6 +1657,7 @@ class TestBindingEdgeCases:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
         controller._syncing_widgets = True
         binding = MagicMock()
@@ -1646,6 +1682,7 @@ class TestSettingsRuntimeCallbacks:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller._after_icon_size_changed(64)
@@ -1667,6 +1704,7 @@ class TestSettingsRuntimeCallbacks:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller._after_tooltips_changed(False)
@@ -1687,6 +1725,7 @@ class TestSettingsRuntimeCallbacks:
             runtime=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            updates=_updates(),
         )
 
         controller._after_tooltips_changed(True)
@@ -1705,6 +1744,7 @@ class TestSettingsRuntimeCallbacks:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
         controller._hide_mode_combo = None
         # Should not raise
@@ -1722,6 +1762,7 @@ class TestSettingsRuntimeCallbacks:
             runtime=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            updates=_updates(),
         )
         controller._update_status_label = None
         # Should not raise

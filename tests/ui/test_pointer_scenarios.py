@@ -195,6 +195,7 @@ class _ScenarioHarness:
         self._invalidate_current_geometry_frame = MethodType(
             dock_window_mod.DockWindow._invalidate_current_geometry_frame, self
         )
+        self._require_menu = MethodType(dock_window_mod.DockWindow._require_menu, self)
 
     def get_size(self) -> tuple[int, int]:
         if self.config.pos in (Position.LEFT, Position.RIGHT):
@@ -424,10 +425,7 @@ class TestMenuLifecycleScenarios:
                     insertion_index_for_main=lambda *_args, **_kwargs: 0,
                 )
 
-        runtime = DockRuntime(
-            cast(Any, harness),
-            update_checker=MagicMock(),
-        )
+        runtime = DockRuntime(cast(Any, harness))
         handler = MenuHandler(
             about=MagicMock(),
             settings=MagicMock(),

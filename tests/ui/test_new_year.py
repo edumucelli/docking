@@ -8,6 +8,7 @@ import pytest
 import docking.ui.new_year as new_year_mod
 from docking.core.position import Position
 from docking.ui.new_year import NewYearGreetingController
+from docking.ui.popup import PopupAnchor
 
 
 class _FakeGLib:
@@ -173,6 +174,18 @@ class _FakeWindow:
     def get_size(self):
         return (300, 48)
 
+    def popup_anchor(self):
+        if not self.realized:
+            return None
+        x = 250 if self.config.pos in (Position.BOTTOM, Position.TOP) else 100
+        y = 200 if self.config.pos in (Position.BOTTOM, Position.RIGHT) else 248
+        return PopupAnchor(
+            x=x,
+            y=y,
+            position=self.config.pos,
+            parent=self,
+        )
+
 
 class _FakeCr:
     def __init__(self) -> None:
@@ -216,7 +229,7 @@ def fake_gtk(monkeypatch):
 
 
 def test_start_is_idempotent_and_stop_cleans_sources(fake_gtk):
-    controller = NewYearGreetingController(window=_FakeWindow())
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow())
     controller._popup = _FakePopup()
 
     controller.start()
@@ -236,7 +249,7 @@ def test_start_is_idempotent_and_stop_cleans_sources(fake_gtk):
 
 def test_startup_complete_consumes_greeting_and_shows_popup(monkeypatch):
     controller = NewYearGreetingController(
-        window=_FakeWindow(),
+        anchor_provider=_FakeWindow(),
         state_path="/tmp/state.json",
         now_fn=lambda: datetime(2026, 1, 2),
     )
@@ -256,7 +269,7 @@ def test_startup_complete_consumes_greeting_and_shows_popup(monkeypatch):
 
 
 def test_startup_complete_noops_when_not_due(monkeypatch):
-    controller = NewYearGreetingController(window=_FakeWindow())
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow())
     monkeypatch.setattr(new_year_mod, "consume_new_year_greeting", lambda **_k: None)
     monkeypatch.setattr(
         controller,
@@ -268,7 +281,7 @@ def test_startup_complete_noops_when_not_due(monkeypatch):
 
 
 def test_show_popup_skips_unrealized_window(fake_gtk):
-    controller = NewYearGreetingController(window=_FakeWindow(realized=False))
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow(realized=False))
 
     controller._show_popup(year=2026)
 
@@ -277,7 +290,9 @@ def test_show_popup_skips_unrealized_window(fake_gtk):
 
 
 def test_show_popup_builds_positions_and_reuses_popup(fake_gtk):
-    controller = NewYearGreetingController(window=_FakeWindow(pos=Position.BOTTOM))
+    controller = NewYearGreetingController(
+        anchor_provider=_FakeWindow(pos=Position.BOTTOM)
+    )
 
     controller._show_popup(year=2026)
     popup = controller._popup
@@ -306,9 +321,9 @@ def test_show_popup_builds_positions_and_reuses_popup(fake_gtk):
     ],
 )
 def test_build_popup_content_margins_by_position(fake_gtk, pos, margin_key):
-    controller = NewYearGreetingController(window=_FakeWindow(pos=pos))
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow(pos=pos))
 
-    box = controller._build_popup_content(year=2026)
+    box = controller._build_popup_content(year=2026, position=pos)
 
     assert isinstance(box, _FakeBox)
     assert box.margins[margin_key] == (
@@ -319,25 +334,25 @@ def test_build_popup_content_margins_by_position(fake_gtk, pos, margin_key):
 
 @pytest.mark.parametrize("pos", list(Position))
 def test_position_popup_handles_all_edges(fake_gtk, pos):
-    controller = NewYearGreetingController(window=_FakeWindow(pos=pos))
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow(pos=pos))
     controller._popup = _FakePopup()
 
-    controller._position_popup()
+    controller._position_popup(anchor=_FakeWindow(pos=pos).popup_anchor())
 
     assert controller._popup.moved_to is not None
 
 
 def test_position_popup_noops_without_popup(fake_gtk):
-    controller = NewYearGreetingController(window=_FakeWindow())
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow())
 
-    controller._position_popup()
+    controller._position_popup(anchor=_FakeWindow().popup_anchor())
 
     assert controller._popup is None
 
 
 @pytest.mark.parametrize("pos", list(Position))
 def test_draw_popup_handles_all_tips(fake_gtk, pos):
-    controller = NewYearGreetingController(window=_FakeWindow(pos=pos))
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow(pos=pos))
     cr = _FakeCr()
     widget = SimpleNamespace(
         get_allocation=lambda: SimpleNamespace(width=180, height=64)
@@ -351,7 +366,7 @@ def test_draw_popup_handles_all_tips(fake_gtk, pos):
 
 
 def test_hide_and_button_press_remove_timer(fake_gtk):
-    controller = NewYearGreetingController(window=_FakeWindow())
+    controller = NewYearGreetingController(anchor_provider=_FakeWindow())
     controller._popup = _FakePopup()
     controller._hide_source_id = 99
 

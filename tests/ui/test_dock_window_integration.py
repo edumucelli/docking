@@ -76,6 +76,7 @@ def _bind_geometry_signature(stub):
     stub._popup_anchor_for_item = MethodType(
         dock_window_mod.DockWindow._popup_anchor_for_item, stub
     )
+    stub._require_menu = MethodType(dock_window_mod.DockWindow._require_menu, stub)
     return stub
 
 

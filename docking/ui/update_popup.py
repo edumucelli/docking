@@ -26,7 +26,6 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk
 
 from docking import __version__
-from docking.core.position import is_horizontal
 from docking.core.updates import (
     PROJECT_RELEASES_URL,
     ReleaseInfo,
@@ -40,8 +39,11 @@ from docking.core.updates import (
 )
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup, window_screen_position
-from docking.ui.tooltip import compute_tooltip_position
+from docking.ui.popup import (
+    PopupAnchor,
+    PopupAnchorProvider,
+    position_popup_near_anchor,
+)
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -61,11 +63,11 @@ class UpdateCheckController:
     def __init__(
         self,
         *,
-        window: Gtk.Window,
         config: Config,
+        anchor_provider: PopupAnchorProvider,
     ) -> None:
-        self._window = window
         self._config = config
+        self._anchor_provider = anchor_provider
         self._start_source_id: int = 0
         self._popup: Gtk.Window | None = None
         self._latest_release: ReleaseInfo | None = None
@@ -152,8 +154,9 @@ class UpdateCheckController:
         return False
 
     def _show_popup(self, *, release: ReleaseInfo) -> None:
-        if not self._window.get_realized():
-            log.debug("Skipping update popup because dock window is not realized")
+        anchor = self._anchor_provider.popup_anchor()
+        if anchor is None:
+            log.debug("Skipping update popup because dock anchor is unavailable")
             return
         self._latest_release = release
         if self._popup is None:
@@ -162,16 +165,17 @@ class UpdateCheckController:
             popup.set_skip_taskbar_hint(True)
             popup.set_resizable(False)
             popup.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
-            popup.set_transient_for(self._window)
             self._popup = popup
         else:
             child = self._popup.get_child()
             if child is not None:
                 self._popup.remove(child)
 
+        if anchor.parent is not None:
+            self._popup.set_transient_for(anchor.parent)
         self._popup.add(self._build_popup_content(release=release))
         self._popup.show_all()
-        self._position_popup()
+        self._position_popup(anchor=anchor)
 
     def _build_popup_content(self, *, release: ReleaseInfo) -> Gtk.Widget:
         frame = Gtk.Frame()
@@ -211,32 +215,14 @@ class UpdateCheckController:
         frame.add(box)
         return frame
 
-    def _position_popup(self) -> None:
+    def _position_popup(self, *, anchor: PopupAnchor) -> None:
         if self._popup is None:
             return
-        window_pos = window_screen_position(self._window)
-        win_x, win_y = window_pos.x, window_pos.y
-        win_w, win_h = self._window.get_size()
-        pref = self._popup.get_preferred_size()[1]
-        popup_w = max(pref.width, 1)
-        popup_h = max(pref.height, 1)
-        pos = self._window.config.pos
-        if is_horizontal(pos):
-            anchor_x = win_x + win_w / 2
-            anchor_y = win_y if pos.value == "bottom" else win_y + win_h
-        else:
-            anchor_x = win_x + win_w if pos.value == "left" else win_x
-            anchor_y = win_y + win_h / 2
-        popup_x, popup_y = compute_tooltip_position(
-            pos=pos,
-            anchor_x=anchor_x,
-            anchor_y=anchor_y,
-            tooltip_w=popup_w,
-            tooltip_h=popup_h,
-            gap=UPDATE_POPUP_GAP_PX,
+        position_popup_near_anchor(
+            window=self._popup,
+            anchor=anchor,
+            gap_px=UPDATE_POPUP_GAP_PX,
         )
-        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
-        self._popup.move(clamped.x, clamped.y)
 
     def _on_view_release(self, _button: Gtk.Button) -> None:
         if self._latest_release is not None:

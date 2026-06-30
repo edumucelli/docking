@@ -199,7 +199,6 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
-from docking.applets.popup import PopupAnchor
 from docking.core.config import FolderStackUnfold, LeftClickAction, MiddleClickAction
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
@@ -215,9 +214,7 @@ from docking.platform.backends.base import (
 from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.ui import geometry
-from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
-from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
 from docking.ui.effects import ZoomAnimator
@@ -230,12 +227,11 @@ from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.menu import MenuHandler
 from docking.ui.placement import DockPlacementController
+from docking.ui.popup import PopupAnchor
 from docking.ui.preview import PreviewPopup
 from docking.ui.renderer import RenderState
 from docking.ui.runtime import DockRuntime
-from docking.ui.settings import SettingsWindowController
 from docking.ui.tooltip import TooltipManager
-from docking.ui.update_popup import UpdateCheckController
 
 log = get_logger(name="dock_window")
 
@@ -363,10 +359,9 @@ class DockWindow(Gtk.Window):
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController
         self.dnd: DnDHandler
-        self._menu: MenuHandler
+        self._menu: MenuHandler | None = None
         self.preview: PreviewPopup
         self._menu_popup_visible: bool = False
-        self._update_checker: UpdateCheckController
         self.tooltip = TooltipManager(self, config, model, theme)
         self.geometry = DockGeometryBuilder(self)
 
@@ -381,6 +376,7 @@ class DockWindow(Gtk.Window):
 
         self.placement = DockPlacementController(self, surface_service=surface_service)
         self.interaction = DockInteractionCoordinator(self)
+        self.runtime = DockRuntime(self)
         self._cache = _DockWindowCache.create()
         self._redraw_source_id: int | None = None
         self.dock_hovered: bool = False
@@ -474,14 +470,6 @@ class DockWindow(Gtk.Window):
             self.dodge_monitor = None
         self._disconnect_model()
 
-    def start_update_checks(self) -> None:
-        """Start update-check scheduling owned by the dock shell."""
-        self._update_checker.start()
-
-    def stop_update_checks(self) -> None:
-        """Stop update-check scheduling owned by the dock shell."""
-        self._update_checker.stop()
-
     def set_theme(self, theme: Theme) -> None:
         """Replace the runtime theme and notify collaborators that cache it."""
         self.theme = theme
@@ -492,19 +480,6 @@ class DockWindow(Gtk.Window):
 
     def _build_components(self, *, launcher: Launcher) -> None:
         """Build long-lived UI collaborators that depend on the live window."""
-        self._update_checker = UpdateCheckController(window=self, config=self.config)
-        runtime = DockRuntime(self, update_checker=self._update_checker)
-        about = AboutDialogController(parent=self)
-        settings = SettingsWindowController(
-            parent=self,
-            runtime=runtime,
-            model=self.model,
-            config=self.config,
-        )
-        diagnostics = DiagnosticsDialogController(
-            parent=self,
-            backend=self.session_backend,
-        )
         self.autohide = AutoHideController(self, self.config)
         self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
@@ -516,20 +491,6 @@ class DockWindow(Gtk.Window):
             launcher=launcher,
             geometry_builder=self.geometry,
         )
-        self._menu = MenuHandler(
-            about=about,
-            settings=settings,
-            diagnostics=diagnostics,
-            runtime=runtime,
-            model=self.model,
-            config=self.config,
-            window_tracker=self.window_tracker,
-            preview_service=self.preview_service,
-            geometry_builder=self.geometry,
-            launcher=launcher,
-            dock_window=self,
-        )
-        self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
         self.preview = PreviewPopup(
             window_tracker=self.window_tracker,
             preview_service=self.preview_service,
@@ -538,6 +499,37 @@ class DockWindow(Gtk.Window):
         self.preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
         self.preview.set_autohide(controller=self.autohide)
         self.hover.set_preview(preview=self.preview)
+
+    def set_menu_handler(self, menu: MenuHandler) -> None:
+        """Install the externally composed dock menu handler."""
+        self._menu = menu
+        self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
+
+    def _require_menu(self) -> MenuHandler:
+        if self._menu is None:
+            raise RuntimeError("Dock menu handler has not been installed")
+        return self._menu
+
+    def popup_anchor(self) -> PopupAnchor | None:
+        """Return the current dock-level popup anchor in screen coordinates."""
+        if not self.get_realized():
+            return None
+        window_pos = window_screen_position(self)
+        win_x, win_y = window_pos.x, window_pos.y
+        win_w, win_h = self.get_size()
+        pos = self.config.pos
+        if is_horizontal(pos):
+            anchor_x = int(win_x + win_w / 2)
+            anchor_y = int(win_y if pos.value == "bottom" else win_y + win_h)
+        else:
+            anchor_x = int(win_x + win_w if pos.value == "left" else win_x)
+            anchor_y = int(win_y + win_h / 2)
+        return PopupAnchor(
+            x=anchor_x,
+            y=anchor_y,
+            position=pos,
+            parent=self,
+        )
 
     def is_pointer_inside_dock(self) -> bool:
         """Return True when the current pointer is inside the dock input area."""
@@ -798,12 +790,13 @@ class DockWindow(Gtk.Window):
         frame = self._build_and_store_geometry_frame()
         self.update_input_region(frame=frame)
         self._schedule_redraw()
-        stack_item_id = self._menu.open_folder_stack_item_id()
+        menu = self._require_menu()
+        stack_item_id = menu.open_folder_stack_item_id()
         hovered_item = frame.item_at_point(event.x, event.y)
         if stack_item_id is not None and (
             hovered_item is None or hovered_item.desktop_id != stack_item_id
         ):
-            self._menu.close_folder_stack()
+            menu.close_folder_stack()
         if frame.cursor_rect.contains(event.x, event.y):
             self.interaction.on_effective_enter()
             cursor_main = (
@@ -811,7 +804,7 @@ class DockWindow(Gtk.Window):
             )
             self.hover.update(cursor_main, frame=frame)
             if hovered_item is not None and hovered_item.kind == FOLDER_KIND:
-                self._menu.schedule_folder_stack_prewarm(hovered_item)
+                menu.schedule_folder_stack_prewarm(hovered_item)
             if (
                 self.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
                 and hovered_item is not None
@@ -834,8 +827,9 @@ class DockWindow(Gtk.Window):
 
     def close_open_folder_stack_for_item(self, desktop_id: str) -> None:
         """Close the folder stack if it currently belongs to the given item."""
-        if self._menu.open_folder_stack_item_id() == desktop_id:
-            self._menu.close_folder_stack()
+        menu = self._require_menu()
+        if menu.open_folder_stack_item_id() == desktop_id:
+            menu.close_folder_stack()
 
     def _show_folder_stack_for_item(
         self,
@@ -862,7 +856,7 @@ class DockWindow(Gtk.Window):
             anchor_x = win_x + int(fallback_x)
             anchor_y = win_y + int(fallback_y)
             icon_w = int(self.config.icon_size)
-        self._menu.show_folder_stack(
+        self._require_menu().show_folder_stack(
             item=item,
             anchor_x=anchor_x,
             anchor_y=anchor_y,
@@ -900,7 +894,7 @@ class DockWindow(Gtk.Window):
         if event.button == MOUSE_RIGHT:
             cursor_main = event.x if is_horizontal(pos=self.config.pos) else event.y
             force_background = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
-            self._menu.show(
+            self._require_menu().show(
                 event,
                 cursor_main,
                 force_background=force_background,
@@ -1123,7 +1117,9 @@ class DockWindow(Gtk.Window):
         self._invalidate_current_geometry_frame()
         self.update_input_region()
         self.hover.on_model_changed()
-        self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
+        self._require_menu().schedule_visible_folder_stack_prewarm(
+            self.model.visible_items()
+        )
         # Refresh hover/tooltip state even without mouse motion so applets
         # that update item.name asynchronously (e.g. workspace switcher)
         # show the new tooltip text immediately.

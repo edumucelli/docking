@@ -152,7 +152,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import gi
 
@@ -186,12 +186,9 @@ from docking.log import get_logger
 from docking.platform import icon_overrides
 from docking.platform.backends.base import DisplayServer
 from docking.platform.recent_docs import recent_docs_for_app
-from docking.ui.about import AboutDialogController
-from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.runtime import DockRuntime
-from docking.ui.settings import SettingsWindowController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -216,6 +213,14 @@ WINDOW_MENU_CLOSE_LABEL_XALIGN = 0.5
 WINDOW_MENU_CLOSE_MARGIN_END_PX = 12
 FOLDER_MENU_REFRESH_DEBOUNCE_MS = 120
 log = get_logger("menu")
+
+
+class DialogPresenter(Protocol):
+    """Simple presenter for dock-owned dialogs."""
+
+    def show(self) -> None:
+        """Show the dialog."""
+
 
 SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
 
@@ -297,15 +302,15 @@ class MenuHandler:
 
     def __init__(
         self,
-        about: AboutDialogController,
-        settings: SettingsWindowController,
+        about: DialogPresenter,
+        settings: DialogPresenter,
         runtime: DockRuntime,
         model: DockModel,
         config: Config,
         window_tracker: WindowService,
         preview_service: PreviewService,
         geometry_builder: DockGeometryBuilder,
-        diagnostics: DiagnosticsDialogController,
+        diagnostics: DialogPresenter,
         launcher: Launcher | None = None,
         dock_window: Gtk.Window | None = None,
     ) -> None:
@@ -756,7 +761,7 @@ class MenuHandler:
 
         # Quit
         quit_item = Gtk.MenuItem(label=_("Quit"))
-        quit_item.connect("activate", lambda _: self._runtime._window.destroy())
+        quit_item.connect("activate", lambda _: self._runtime.quit())
         menu.append(quit_item)
 
     def _append_desktop_actions(self, menu: Gtk.Menu, desktop_id: str) -> None:

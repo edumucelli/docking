@@ -37,11 +37,14 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.greeting import consume_new_year_greeting
-from docking.core.position import Position, is_horizontal
+from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup, window_screen_position
-from docking.ui.tooltip import compute_tooltip_position
+from docking.ui.popup import (
+    PopupAnchor,
+    PopupAnchorProvider,
+    position_popup_near_anchor,
+)
 
 log = get_logger("new_year")
 
@@ -63,16 +66,17 @@ class NewYearGreetingController:
     def __init__(
         self,
         *,
-        window: Gtk.Window,
+        anchor_provider: PopupAnchorProvider,
         state_path: Path | str | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
-        self._window = window
+        self._anchor_provider = anchor_provider
         self._state_path = Path(state_path) if state_path else None
         self._now_fn = now_fn or datetime.now
         self._start_source_id: int = 0
         self._hide_source_id: int = 0
         self._popup: Gtk.Window | None = None
+        self._popup_position = Position.BOTTOM
 
     def start(self) -> None:
         """Start the delayed startup greeting check once per process."""
@@ -112,9 +116,11 @@ class NewYearGreetingController:
         return False
 
     def _show_popup(self, *, year: int) -> None:
-        if not self._window.get_realized():
-            log.debug("Skipping New Year greeting because dock window is not realized")
+        anchor = self._anchor_provider.popup_anchor()
+        if anchor is None:
+            log.debug("Skipping New Year greeting because dock anchor is unavailable")
             return
+        self._popup_position = anchor.position
 
         if self._popup is None:
             popup = Gtk.Window(type=Gtk.WindowType.POPUP)
@@ -123,7 +129,6 @@ class NewYearGreetingController:
             popup.set_resizable(False)
             popup.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
             popup.set_app_paintable(True)
-            popup.set_transient_for(self._window)
             popup.connect("button-press-event", self._on_popup_button_press)
             screen = popup.get_screen()
             visual = screen.get_rgba_visual()
@@ -136,10 +141,12 @@ class NewYearGreetingController:
             if child is not None:
                 self._popup.remove(child)
 
+        if anchor.parent is not None:
+            self._popup.set_transient_for(anchor.parent)
         log.debug("Showing New Year greeting popup for year %s", year)
-        self._popup.add(self._build_popup_content(year=year))
+        self._popup.add(self._build_popup_content(year=year, position=anchor.position))
         self._popup.show_all()
-        self._position_popup()
+        self._position_popup(anchor=anchor)
 
         if self._hide_source_id:
             GLib.source_remove(self._hide_source_id)
@@ -148,8 +155,8 @@ class NewYearGreetingController:
             self._hide_popup,
         )
 
-    def _build_popup_content(self, *, year: int) -> Gtk.Widget:
-        pos = self._window.config.pos
+    def _build_popup_content(self, *, year: int, position: Position) -> Gtk.Widget:
+        pos = position
         box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=GREETING_CONTENT_SPACING_PX,
@@ -180,53 +187,24 @@ class NewYearGreetingController:
         box.pack_start(label, False, False, 0)
         return box
 
-    def _position_popup(self) -> None:
+    def _position_popup(self, *, anchor: PopupAnchor) -> None:
         if self._popup is None:
             return
-
-        window_pos = window_screen_position(self._window)
-        win_x, win_y = window_pos.x, window_pos.y
-        win_w, win_h = self._window.get_size()
-        pref = self._popup.get_preferred_size()[1]
-        popup_w = max(pref.width, 1)
-        popup_h = max(pref.height, 1)
-        pos = self._window.config.pos
-
-        if is_horizontal(pos):
-            anchor_x = win_x + win_w / 2
-            anchor_y = win_y if pos.value == "bottom" else win_y + win_h
-        else:
-            anchor_x = win_x + win_w if pos.value == "left" else win_x
-            anchor_y = win_y + win_h / 2
-
-        popup_x, popup_y = compute_tooltip_position(
-            pos=pos,
-            anchor_x=anchor_x,
-            anchor_y=anchor_y,
-            tooltip_w=popup_w,
-            tooltip_h=popup_h,
-            gap=GREETING_GAP_PX,
+        position_popup_near_anchor(
+            window=self._popup,
+            anchor=anchor,
+            gap_px=GREETING_GAP_PX,
         )
-
-        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
         log.debug(
-            "Positioned New Year greeting popup at (%s, %s) "
-            "size=%sx%s dock=(%s,%s %sx%s pos=%s)",
-            clamped.x,
-            clamped.y,
-            popup_w,
-            popup_h,
-            win_x,
-            win_y,
-            win_w,
-            win_h,
-            pos.value,
+            "Positioned New Year greeting popup at anchor=(%s,%s pos=%s)",
+            anchor.x,
+            anchor.y,
+            anchor.position.value,
         )
-        self._popup.move(clamped.x, clamped.y)
 
     def _on_popup_draw(self, widget: Gtk.Widget, cr) -> bool:
         alloc = widget.get_allocation()
-        pos = self._window.config.pos
+        pos = self._popup_position
         width = alloc.width
         height = alloc.height
         radius = GREETING_CORNER_RADIUS_PX

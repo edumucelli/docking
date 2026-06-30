@@ -78,10 +78,7 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },
         "docking.ui.factory": {
-            "build_dock_window": lambda **_kwargs: None,
-        },
-        "docking.ui.new_year": {
-            "NewYearGreetingController": type("NewYearGreetingController", (), {}),
+            "build_dock_ui": lambda **_kwargs: None,
         },
         "docking.ui.renderer": {
             "DockRenderer": type("DockRenderer", (), {}),
@@ -250,8 +247,12 @@ def test_app_main_smoke(monkeypatch):
     backend.previews = preview_service
     backend.visibility = visibility_service
     unity = MagicMock()
-    new_year = MagicMock()
     window = MagicMock()
+    ui = SimpleNamespace(
+        window=window,
+        start_startup_ui=MagicMock(),
+        stop_startup_ui=MagicMock(),
+    )
     items_service = MagicMock()
 
     config_cls = MagicMock()
@@ -271,12 +272,7 @@ def test_app_main_smoke(monkeypatch):
         MagicMock(return_value=backend),
     )
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
-    monkeypatch.setattr(
-        app_mod,
-        "NewYearGreetingController",
-        MagicMock(return_value=new_year),
-    )
-    monkeypatch.setattr(app_mod, "build_dock_window", MagicMock(return_value=window))
+    monkeypatch.setattr(app_mod, "build_dock_ui", MagicMock(return_value=ui))
     monkeypatch.setattr(
         app_mod, "DockItemsService", MagicMock(return_value=items_service)
     )
@@ -288,10 +284,8 @@ def test_app_main_smoke(monkeypatch):
 
     app_mod.main()
 
-    new_year.start.assert_called_once()
-    new_year.stop.assert_called_once()
-    window.start_update_checks.assert_called_once()
-    window.stop_update_checks.assert_called_once()
+    ui.start_startup_ui.assert_called_once()
+    ui.stop_startup_ui.assert_called_once()
 
     fake_gtk.main.assert_called_once()
     assert fake_glib.unix_signal_add.call_count == 2

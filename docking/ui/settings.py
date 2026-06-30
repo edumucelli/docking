@@ -37,7 +37,7 @@ settings a persistent, easier-to-scan home.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
 import gi
 
@@ -82,6 +82,16 @@ if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.model import DockModel
     from docking.ui.runtime import DockRuntime
+
+
+class UpdateActions(Protocol):
+    """Update commands exposed to the preferences window."""
+
+    def check_now(self) -> None:
+        """Run an update check immediately."""
+
+    def open_releases_page(self) -> None:
+        """Open the project releases page."""
 
 
 APPLET_LIST_ICON_PX = 32
@@ -141,11 +151,13 @@ class SettingsWindowController:
         runtime: DockRuntime,
         model: DockModel,
         config: Config,
+        updates: UpdateActions,
     ) -> None:
         self._parent = parent
         self._runtime = runtime
         self._model = model
         self._config = config
+        self._updates = updates
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
 
@@ -1298,10 +1310,10 @@ class SettingsWindowController:
         self._update_status_label.set_label(text)
 
     def _on_check_updates_now(self, _button: Gtk.Button) -> None:
-        self._runtime.check_for_updates_now()
+        self._updates.check_now()
 
     def _on_view_releases(self, _button: Gtk.Button) -> None:
-        self._runtime.open_releases_page()
+        self._updates.open_releases_page()
 
     def _on_monitor_combo_changed(self, widget: Gtk.ComboBoxText) -> None:
         if self._syncing_widgets:

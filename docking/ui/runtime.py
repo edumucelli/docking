@@ -21,20 +21,13 @@ if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.ui.dock_window import DockWindow
     from docking.ui.placement import MonitorChoice
-    from docking.ui.update_popup import UpdateCheckController
 
 
 class DockRuntime:
     """Narrow imperative API for subsystems that should not own DockWindow."""
 
-    def __init__(
-        self,
-        window: DockWindow,
-        *,
-        update_checker: UpdateCheckController,
-    ) -> None:
+    def __init__(self, window: DockWindow) -> None:
         self._window = window
-        self._update_checker = update_checker
 
     def menu_popup_opened(self) -> None:
         self._window.interaction.menu_popup_opened()
@@ -89,8 +82,5 @@ class DockRuntime:
     def set_theme(self, theme: Theme) -> None:
         self._window.set_theme(theme)
 
-    def check_for_updates_now(self) -> None:
-        self._update_checker.check_now()
-
-    def open_releases_page(self) -> None:
-        self._update_checker.open_releases_page()
+    def quit(self) -> None:
+        self._window.destroy()
