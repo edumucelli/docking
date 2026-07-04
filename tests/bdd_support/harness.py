@@ -10,6 +10,7 @@ import docking.ui.autohide as autohide_mod
 import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
 import docking.ui.hover as hover_mod
+import docking.ui.input_controller as input_controller_mod
 import docking.ui.preview as preview_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import FOLDER_KIND, DockItem
@@ -131,10 +132,27 @@ def _bind_dock_window_helpers(stub) -> SimpleNamespace:
     stub._invalidate_current_geometry_frame = MethodType(
         dock_window_mod.DockWindow._invalidate_current_geometry_frame, stub
     )
-    stub._show_folder_stack_for_item = MethodType(
-        dock_window_mod.DockWindow._show_folder_stack_for_item, stub
-    )
     return stub
+
+
+def _controller(stub) -> SimpleNamespace:
+    controller = SimpleNamespace(
+        _window=stub,
+        _interactions=stub._interactions,
+        _click_x=getattr(stub, "_click_x", -1.0),
+        _click_y=getattr(stub, "_click_y", -1.0),
+        _click_button=getattr(stub, "_click_button", 0),
+        dnd=getattr(
+            stub,
+            "dnd",
+            SimpleNamespace(drag_index=-1, drop_insert_index=-1, drop_target_id=""),
+        ),
+    )
+    controller._show_folder_stack_for_item = MethodType(
+        input_controller_mod.DockInputController._show_folder_stack_for_item,
+        controller,
+    )
+    return controller
 
 
 class DockHarness:
@@ -162,9 +180,12 @@ class DockHarness:
         self._other_item = DockItem(desktop_id="firefox.desktop")
         self._folder_stack_open_for: str | None = None
         self._folder_menu = MagicMock()
-        self._folder_menu.open_folder_stack_item_id.return_value = None
-        self._folder_menu.close_folder_stack = MagicMock(
-            side_effect=self._close_folder_stack
+        self._folder_menu.folder_stack_item_id.return_value = None
+        self._folder_menu.close_folder_stack_for_item = MagicMock(
+            side_effect=lambda _desktop_id: self._close_folder_stack()
+        )
+        self._folder_menu.close_folder_stack_unless_target = MagicMock(
+            side_effect=self._close_folder_stack_unless_target
         )
         self._folder_menu.show_folder_stack = MagicMock(
             side_effect=self._open_folder_stack
@@ -187,7 +208,7 @@ class DockHarness:
                 update_input_region=MagicMock(),
                 drawing_area=MagicMock(),
                 hover=SimpleNamespace(update=MagicMock(), start_anim_pump=MagicMock()),
-                _menu=self._folder_menu,
+                _interactions=self._folder_menu,
                 autohide=SimpleNamespace(
                     enabled=False,
                     state=HideState.VISIBLE,
@@ -289,8 +310,8 @@ class DockHarness:
             button=dock_window_mod.MOUSE_LEFT,
             state=0,
         )
-        dock_window_mod.DockWindow._on_button_release(
-            self._folder_stub,
+        input_controller_mod.DockInputController._on_button_release(
+            _controller(self._folder_stub),
             MagicMock(),
             event,
         )
@@ -303,7 +324,9 @@ class DockHarness:
         )
         self._folder_frame.item_at_point.return_value = target
         event = SimpleNamespace(x=12.0, y=9.0)
-        dock_window_mod.DockWindow._on_motion(self._folder_stub, MagicMock(), event)
+        input_controller_mod.DockInputController._on_motion(
+            _controller(self._folder_stub), MagicMock(), event
+        )
 
     @property
     def folder_stack_open_for(self) -> str | None:
@@ -379,6 +402,7 @@ class DockHarness:
         # Simulate GTK drag-leave having fired during the drag so the
         # _internal_drag_left_dock gate in _on_drag_end passes.
         self._drag_handler._internal_drag_left_dock = True
+        self._drag_folder_stack.open_item_id.return_value = desktop_id
         self._drag_pointer.get_position.return_value = (None, 200, 50)
         self._drag_window.get_position.return_value = (100, 200)
         self._drag_window.get_size.return_value = (400, 60)
@@ -488,13 +512,15 @@ class DockHarness:
             cursor_y=8.0,
             autohide=autohide,
             is_pointer_inside_dock=MagicMock(return_value=False),
-            close_open_folder_stack_for_item=MagicMock(),
             get_display=MagicMock(return_value=display),
             get_position=MagicMock(return_value=(0, 0)),
             get_size=MagicMock(return_value=(400, 60)),
         )
+        folder_stack = MagicMock()
+        folder_stack.open_item_id.return_value = None
         self._drag_pointer = pointer
         self._drag_window = window
+        self._drag_folder_stack = folder_stack
         self._drag_handler = dnd_mod.DnDHandler(
             drawing_area,
             window,
@@ -506,6 +532,7 @@ class DockHarness:
             geometry_builder=SimpleNamespace(
                 build_frame=lambda **_kwargs: self._dnd_frame
             ),
+            folder_stack=folder_stack,
         )
 
     def _mark_drag_reorder(self, *_args, **_kwargs) -> None:
@@ -516,11 +543,19 @@ class DockHarness:
 
     def _open_folder_stack(self, *, item: DockItem, **_kwargs) -> None:
         self._folder_stack_open_for = item.desktop_id
-        self._folder_menu.open_folder_stack_item_id.return_value = item.desktop_id
+        self._folder_menu.folder_stack_item_id.return_value = item.desktop_id
 
     def _close_folder_stack(self) -> None:
         self._folder_stack_open_for = None
-        self._folder_menu.open_folder_stack_item_id.return_value = None
+        self._folder_menu.folder_stack_item_id.return_value = None
+
+    def _close_folder_stack_unless_target(self, hovered_item: DockItem | None) -> None:
+        if (
+            hovered_item is not None
+            and hovered_item.desktop_id == self._folder_stack_open_for
+        ):
+            return
+        self._close_folder_stack()
 
     def _build_hover_harness(self) -> None:
         self._tooltip_updated = False

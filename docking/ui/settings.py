@@ -81,6 +81,8 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.model import DockModel
+    from docking.ui.dnd import DnDHandler
+    from docking.ui.placement import MonitorChoice
     from docking.ui.runtime import DockRuntime
 
 
@@ -133,6 +135,58 @@ class _ScalarBinding:
     on_change: Any = None
 
 
+class SettingsActions:
+    """Facade for preferences-triggered side effects."""
+
+    def __init__(
+        self,
+        *,
+        runtime: DockRuntime,
+        dnd: DnDHandler,
+    ) -> None:
+        self._runtime = runtime
+        self._dnd = dnd
+
+    def on_hide_mode_changed(self) -> None:
+        self._runtime.on_hide_mode_changed()
+
+    def get_monitor_choices(self) -> list[MonitorChoice]:
+        return self._runtime.get_monitor_choices()
+
+    def current_monitor_choice(self) -> int:
+        return self._runtime.current_monitor_choice()
+
+    def reposition(self) -> None:
+        self._runtime.reposition()
+
+    def set_active_display(self, enabled: bool) -> None:
+        self._runtime.set_active_display(enabled)
+
+    def refresh_pressure_handler(self) -> None:
+        self._runtime.refresh_pressure_handler()
+
+    def set_icons_locked(self, locked: bool) -> None:
+        self._dnd.set_locked(locked)
+
+    def queue_draw(self) -> None:
+        self._runtime.queue_draw()
+
+    def set_current_workspace_only(self, enabled: bool) -> None:
+        self._runtime.set_current_workspace_only(enabled)
+
+    def hide_tooltip(self) -> None:
+        self._runtime.hide_tooltip()
+
+    def set_theme(self, theme: Theme) -> None:
+        self._runtime.set_theme(theme)
+
+    def check_for_updates_now(self) -> None:
+        self._runtime.check_for_updates_now()
+
+    def open_releases_page(self) -> None:
+        self._runtime.open_releases_page()
+
+
 class SettingsWindowController:
     """Owns the dock preferences window lifecycle and widget synchronization."""
 
@@ -140,12 +194,12 @@ class SettingsWindowController:
         self,
         *,
         parent: Gtk.Window,
-        runtime: DockRuntime,
+        actions: SettingsActions,
         model: DockModel,
         config: Config,
     ) -> None:
         self._parent = parent
-        self._runtime = runtime
+        self._actions = actions
         self._model = model
         self._config = config
         self._window: Gtk.Window | None = None
@@ -965,7 +1019,7 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="show_window_count_numbers",
                 widget=self._window_count_numbers_switch,
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=lambda _value: self._actions.queue_draw(),
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",
@@ -979,12 +1033,12 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="lock_icons",
                 widget=self._lock_icons_switch,
-                on_change=self._runtime.set_icons_locked,
+                on_change=self._actions.set_icons_locked,
             ),
             self._register_switch_binding(
                 config_attr="current_workspace_only",
                 widget=self._workspace_only_switch,
-                on_change=self._runtime.set_current_workspace_only,
+                on_change=self._actions.set_current_workspace_only,
             ),
             self._register_switch_binding(
                 config_attr="active_display",
@@ -994,17 +1048,17 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="anchor_applets",
                 widget=self._anchor_applets_switch,
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=lambda _value: self._actions.queue_draw(),
             ),
             self._register_switch_binding(
                 config_attr="anchor_files",
                 widget=self._anchor_files_switch,
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=lambda _value: self._actions.queue_draw(),
             ),
             self._register_switch_binding(
                 config_attr="zoom_enabled",
                 widget=self._zoom_enabled_switch,
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=lambda _value: self._actions.queue_draw(),
             ),
             self._register_switch_binding(
                 config_attr="update_check_enabled",
@@ -1027,7 +1081,7 @@ class SettingsWindowController:
             self._register_choice_binding(
                 config_attr="position",
                 widget=self._position_combo,
-                on_change=lambda _value: self._runtime.reposition(),
+                on_change=lambda _value: self._actions.reposition(),
             ),
             self._register_int_binding(
                 config_attr="icon_size",
@@ -1067,7 +1121,7 @@ class SettingsWindowController:
                     float(value) * ZOOM_PERCENT_SCALE
                 ),
                 signal="value-changed",
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=lambda _value: self._actions.queue_draw(),
             ),
             self._register_int_binding(
                 config_attr="hide_delay_ms",
@@ -1096,7 +1150,7 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="recent_apps_max",
                 widget=self._recent_apps_max_spin,
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=lambda _value: self._actions.queue_draw(),
             ),
             self._register_numeric_binding(
                 config_attr="recent_apps_retention_days",
@@ -1108,7 +1162,7 @@ class SettingsWindowController:
                     self._recent_apps_retention_combo.set_active_id(str(value))
                 ),
                 signal="changed",
-                on_change=lambda _value: self._runtime.queue_draw(),
+                on_change=lambda _value: self._actions.queue_draw(),
             ),
             # Recent Documents
             self._register_switch_binding(
@@ -1220,11 +1274,11 @@ class SettingsWindowController:
             return
         for choice in choices:
             self._monitor_combo.append(str(choice.index), choice.label)
-        self._monitor_combo.set_active_id(str(self._runtime.current_monitor_choice()))
+        self._monitor_combo.set_active_id(str(self._actions.current_monitor_choice()))
 
     def _monitor_choices(self) -> list[Any]:
         try:
-            choices = self._runtime.get_monitor_choices()
+            choices = self._actions.get_monitor_choices()
         except Exception:
             return []
         if not isinstance(choices, list):
@@ -1366,10 +1420,10 @@ class SettingsWindowController:
         self._update_status_label.set_label(text)
 
     def _on_check_updates_now(self, _button: Gtk.Button) -> None:
-        self._runtime.check_for_updates_now()
+        self._actions.check_for_updates_now()
 
     def _on_view_releases(self, _button: Gtk.Button) -> None:
-        self._runtime.open_releases_page()
+        self._actions.open_releases_page()
 
     def _on_monitor_combo_changed(self, widget: Gtk.ComboBoxText) -> None:
         if self._syncing_widgets:
@@ -1399,34 +1453,34 @@ class SettingsWindowController:
         self._config.monitor_connector = connector
         self._config.save()
         if not self._config.active_display:
-            self._runtime.reposition()
+            self._actions.reposition()
 
     def _apply_runtime_theme(self) -> None:
         theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
             self._config.transparency
         )
-        self._runtime.set_theme(theme)
+        self._actions.set_theme(theme)
 
     def _after_theme_changed(self, _name: str) -> None:
         self._apply_runtime_theme()
-        self._runtime.reposition()
-        self._runtime.queue_draw()
+        self._actions.reposition()
+        self._actions.queue_draw()
 
     def _after_icon_size_changed(self, _value: int) -> None:
         self._apply_runtime_theme()
-        self._runtime.reposition()
-        self._runtime.queue_draw()
+        self._actions.reposition()
+        self._actions.queue_draw()
 
     def _after_transparency_changed(self, _value: float) -> None:
         self._apply_runtime_theme()
-        self._runtime.queue_draw()
+        self._actions.queue_draw()
 
     def _after_additional_distance_changed(self, _value: int) -> None:
-        self._runtime.reposition()
-        self._runtime.queue_draw()
+        self._actions.reposition()
+        self._actions.queue_draw()
 
     def _after_pressure_reveal_changed(self, _value) -> None:
-        self._runtime.refresh_pressure_handler()
+        self._actions.refresh_pressure_handler()
         self._update_dependent_sensitivity()
 
     def _after_show_recent_apps_changed(self, _value) -> None:
@@ -1434,11 +1488,11 @@ class SettingsWindowController:
         if not self._config.show_recent_apps:
             self._config.recent_apps.clear()
             self._config.save()
-        self._runtime.queue_draw()
+        self._actions.queue_draw()
         self._update_dependent_sensitivity()
 
     def _after_hide_mode_changed(self, mode: str) -> None:
-        self._runtime.on_hide_mode_changed()
+        self._actions.on_hide_mode_changed()
         self._update_hide_mode_description()
         self._update_dependent_sensitivity()
 
@@ -1473,11 +1527,11 @@ class SettingsWindowController:
 
     def _after_tooltips_changed(self, active: bool) -> None:
         if not active:
-            self._runtime.hide_tooltip()
+            self._actions.hide_tooltip()
 
     def _after_active_display_changed(self, active: bool) -> None:
-        self._runtime.set_active_display(active)
-        self._runtime.reposition()
+        self._actions.set_active_display(active)
+        self._actions.reposition()
 
     def _update_dependent_sensitivity(self) -> None:
         if self._zoom_percent_spin is not None:

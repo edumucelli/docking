@@ -24,6 +24,7 @@ import pytest
 import docking.ui.autohide as autohide_mod
 import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
+import docking.ui.input_controller as input_controller_mod
 import docking.ui.menu as menu_mod
 import docking.ui.placement as placement_mod
 from docking.core.config import PinnedEntry
@@ -31,6 +32,7 @@ from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.dnd import DnDHandler
+from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
@@ -117,9 +119,7 @@ class _ScenarioHarness:
         self.dock_hovered = False
         self._cache = dock_window_mod._DockWindowCache.create()
         self._redraw_source_id = None
-        self._menu = MagicMock()
-        self._menu.open_folder_stack_item_id.return_value = None
-        self._menu.close_folder_stack = MagicMock()
+        self._interactions = MagicMock()
         self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
@@ -164,6 +164,7 @@ class _ScenarioHarness:
             theme=cast(Any, self.theme),
             launcher=self.launcher,
             geometry_builder=self.geometry,
+            folder_stack=self._interactions,
         )
         self.update_input_region = MethodType(
             dock_window_mod.DockWindow.update_input_region, self
@@ -258,20 +259,20 @@ class _ScenarioHarness:
 
     def move_to(self, x: float, y: float):
         self.local_to_screen(x, y)
-        return dock_window_mod.DockWindow._on_motion(
-            cast(Any, self), self.drawing_area, SimpleNamespace(x=x, y=y)
+        return input_controller_mod.DockInputController._on_motion(
+            _controller(self), self.drawing_area, SimpleNamespace(x=x, y=y)
         )
 
     def enter_at(self, x: float, y: float):
         self.local_to_screen(x, y)
-        return dock_window_mod.DockWindow._on_enter(
-            cast(Any, self), self.drawing_area, SimpleNamespace(x=x, y=y)
+        return input_controller_mod.DockInputController._on_enter(
+            _controller(self), self.drawing_area, SimpleNamespace(x=x, y=y)
         )
 
     def leave_at(self, x: float, y: float):
         self.local_to_screen(x, y)
-        return dock_window_mod.DockWindow._on_leave(
-            cast(Any, self),
+        return input_controller_mod.DockInputController._on_leave(
+            _controller(self),
             self.drawing_area,
             SimpleNamespace(
                 x=x,
@@ -280,6 +281,17 @@ class _ScenarioHarness:
                 mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
             ),
         )
+
+
+def _controller(harness: _ScenarioHarness):
+    return SimpleNamespace(
+        _window=harness,
+        _interactions=harness._interactions,
+        _click_x=getattr(harness, "_click_x", -1.0),
+        _click_y=getattr(harness, "_click_y", -1.0),
+        _click_button=getattr(harness, "_click_button", 0),
+        dnd=harness.dnd,
+    )
 
 
 class TestPointerScenarios:
@@ -417,16 +429,14 @@ class TestMenuLifecycleScenarios:
             set_hovered=MagicMock(),
         )
 
-        class _GeometryBuilder:
-            def build_frame(self, **_kwargs: object) -> SimpleNamespace:
-                return SimpleNamespace(
-                    item_at_point=lambda *_args: None,
-                    insertion_index_for_main=lambda *_args, **_kwargs: 0,
-                )
-
         runtime = DockRuntime(
             cast(Any, harness),
             update_checker=MagicMock(),
+        )
+        folder_stack = FolderStackController(
+            config=cast(Any, harness.config),
+            runtime=runtime,
+            launcher=harness.launcher,
         )
         handler = MenuHandler(
             about=MagicMock(),
@@ -436,8 +446,10 @@ class TestMenuLifecycleScenarios:
             config=cast(Any, harness.config),
             window_tracker=harness.window_tracker,
             preview_service=MagicMock(),
-            geometry_builder=cast(Any, _GeometryBuilder()),
+            folder_stack=folder_stack,
             diagnostics=MagicMock(),
+            launcher=harness.launcher,
+            dock_window=cast(Any, harness),
         )
         created: list[_FakePopupMenu] = []
 
@@ -451,7 +463,11 @@ class TestMenuLifecycleScenarios:
         )
 
         event = SimpleNamespace(x=10.0, y=5.0)
-        handler.show(event=event, cursor_main=10.0)
+        frame = SimpleNamespace(
+            item_at_point=lambda *_args: None,
+            insertion_index_for_main=lambda *_args, **_kwargs: 0,
+        )
+        handler.show(event=event, cursor_main=10.0, frame=frame)
         menu = created[0]
 
         assert harness._menu_popup_visible is True

@@ -189,7 +189,7 @@ from docking.platform.recent_docs import recent_docs_for_app
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
-from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
+from docking.ui.geometry import DockGeometryFrame
 from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsWindowController
 
@@ -304,10 +304,10 @@ class MenuHandler:
         config: Config,
         window_tracker: WindowService,
         preview_service: PreviewService,
-        geometry_builder: DockGeometryBuilder,
+        folder_stack: FolderStackController,
         diagnostics: DiagnosticsDialogController,
-        launcher: Launcher | None = None,
-        dock_window: Gtk.Window | None = None,
+        launcher: Launcher,
+        dock_window: Gtk.Window,
     ) -> None:
         self._about = about
         self._settings = settings
@@ -318,32 +318,19 @@ class MenuHandler:
         self._tracker = window_tracker
         self._preview_service = preview_service
         self._launcher = launcher
-        self._geometry_builder = geometry_builder
         self._dock_window = dock_window
-        self._folder_stack = FolderStackController(
-            config=config,
-            runtime=runtime,
-            launcher=launcher,
-            dock_window=dock_window,
-        )
+        self._folder_stack = folder_stack
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
         self._folder_menu_refresh_sources: dict[int, int] = {}
         self._folder_menu_signal_connected: set[int] = set()
-
-    def schedule_folder_stack_prewarm(self, item: DockItem) -> None:
-        """Queue a folder stack warm-up during idle time."""
-        self._folder_stack.schedule_prewarm(item)
-
-    def schedule_visible_folder_stack_prewarm(self, items: Sequence[DockItem]) -> None:
-        """Warm visible folder stacks so hover-open can render from cache."""
-        self._folder_stack.schedule_visible_prewarm(items)
 
     def show(
         self,
         event: Gdk.EventButton,
         cursor_main: float,
         *,
+        frame: DockGeometryFrame,
         force_background: bool = False,
     ) -> None:
         """Build and show the right-click context menu.
@@ -354,9 +341,7 @@ class MenuHandler:
         is true, the background menu is shown even if the pointer is over an
         item; this makes the global dock menu reachable from any shelf point.
         """
-        frame = self._geometry_builder.build_frame(cursor_x=event.x, cursor_y=event.y)
         item = None if force_background else frame.item_at_point(event.x, event.y)
-        self._folder_stack.close()
 
         if item:
             menu = self._new_popup_menu()
@@ -368,34 +353,6 @@ class MenuHandler:
 
         menu.show_all()
         menu.popup_at_pointer(event)
-
-    def show_folder_stack(
-        self,
-        *,
-        item: DockItem,
-        anchor_x: int,
-        anchor_y: int,
-        icon_w: int,
-        position: Any,
-        toggle_if_same_item: bool = True,
-    ) -> None:
-        """Show a folder stack popup, or optionally toggle it closed."""
-        self._folder_stack.show(
-            item=item,
-            anchor_x=anchor_x,
-            anchor_y=anchor_y,
-            icon_w=icon_w,
-            position=position,
-            toggle_if_same_item=toggle_if_same_item,
-        )
-
-    def close_folder_stack(self) -> None:
-        """Close the left-click folder stack if it is currently visible."""
-        self._folder_stack.close()
-
-    def open_folder_stack_item_id(self) -> str | None:
-        """Return the folder item id that currently owns the visible stack."""
-        return self._folder_stack.open_item_id()
 
     def _invalidate_folder_target_cache(self, target: str) -> None:
         self._folder_stack.invalidate_target(target)

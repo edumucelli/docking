@@ -14,6 +14,7 @@ from types import MethodType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.ui.dock_window as dock_window_mod
+import docking.ui.input_controller as input_controller_mod
 from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
@@ -125,9 +126,7 @@ class _Harness:
         self._cache = dock_window_mod._DockWindowCache.create()
         self._redraw_source_id = None
         self.preview = None
-        self._menu = MagicMock()
-        self._menu.open_folder_stack_item_id.return_value = None
-        self._menu.close_folder_stack = MagicMock()
+        self._interactions = MagicMock()
         self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
@@ -201,6 +200,17 @@ def _attach_runtime_methods(harness: _Harness) -> None:
     )
 
 
+def _controller(harness: _Harness):
+    return SimpleNamespace(
+        _window=harness,
+        _interactions=harness._interactions,
+        _click_x=getattr(harness, "_click_x", -1.0),
+        _click_y=getattr(harness, "_click_y", -1.0),
+        _click_button=getattr(harness, "_click_button", 0),
+        dnd=SimpleNamespace(drag_index=-1, drop_insert_index=-1, drop_target_id=""),
+    )
+
+
 def _motion_event(x: float, y: float) -> SimpleNamespace:
     return SimpleNamespace(x=x, y=y)
 
@@ -219,7 +229,9 @@ def hover_first_item(harness: _Harness, widget: MagicMock) -> tuple[float, float
     first = frame.item_geometries[0]
     x = float(first.draw_rect.x + first.draw_rect.w // 2)
     y = float(first.draw_rect.y + first.draw_rect.h - 1)
-    dock_window_mod.DockWindow._on_motion(harness, widget, _motion_event(x=x, y=y))
+    input_controller_mod.DockInputController._on_motion(
+        _controller(harness), widget, _motion_event(x=x, y=y)
+    )
     assert harness.hover.hovered_item is first.item
     return x, y
 
@@ -229,7 +241,9 @@ def hover_last_item(harness: _Harness, widget: MagicMock) -> tuple[float, float]
     last = frame.item_geometries[-1]
     x = float(last.draw_rect.x + last.draw_rect.w // 2)
     y = float(last.draw_rect.y + last.draw_rect.h - 1)
-    dock_window_mod.DockWindow._on_motion(harness, widget, _motion_event(x=x, y=y))
+    input_controller_mod.DockInputController._on_motion(
+        _controller(harness), widget, _motion_event(x=x, y=y)
+    )
     assert harness.hover.hovered_item is last.item
     return x, y
 
@@ -295,8 +309,8 @@ class TestDockOuterEdgeBehavior:
             - 1
         )
 
-        dock_window_mod.DockWindow._on_motion(
-            harness,
+        input_controller_mod.DockInputController._on_motion(
+            _controller(harness),
             widget,
             _motion_event(x=float(exit_x), y=float(y)),
         )
@@ -319,16 +333,16 @@ class TestDockOuterEdgeBehavior:
             - 1
         )
 
-        dock_window_mod.DockWindow._on_motion(
-            harness,
+        input_controller_mod.DockInputController._on_motion(
+            _controller(harness),
             widget,
             _motion_event(x=float(exit_x), y=float(y)),
         )
 
         assert harness.autohide.on_mouse_leave.call_count == 1
 
-        handled = dock_window_mod.DockWindow._on_leave(
-            harness,
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(harness),
             widget,
             _leave_event(x=float(exit_x), y=float(y)),
         )
@@ -351,16 +365,16 @@ class TestDockOuterEdgeBehavior:
             - 1
         )
 
-        dock_window_mod.DockWindow._on_motion(
-            harness,
+        input_controller_mod.DockInputController._on_motion(
+            _controller(harness),
             widget,
             _motion_event(x=float(exit_x), y=float(y)),
         )
 
         assert harness.autohide.on_mouse_leave.call_count == 1
 
-        handled = dock_window_mod.DockWindow._on_leave(
-            harness,
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(harness),
             widget,
             _leave_event(x=float(exit_x), y=float(y)),
         )

@@ -18,6 +18,7 @@ from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
 from docking.ui.autohide import HideState
+from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import build_geometry_frame
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
@@ -222,17 +223,24 @@ def _folder_stack_handler() -> MenuHandler:
     )
     launcher = MagicMock()
     launcher.default_directory_app_name.return_value = "Caja"
+    runtime = MagicMock()
+    folder_stack = FolderStackController(
+        config=config,
+        runtime=runtime,
+        launcher=launcher,
+    )
     handler = MenuHandler(
         about=MagicMock(),
         settings=MagicMock(),
-        runtime=MagicMock(),
+        runtime=runtime,
         model=MagicMock(),
         config=config,
         window_tracker=MagicMock(),
         preview_service=MagicMock(),
-        geometry_builder=MagicMock(),
+        folder_stack=folder_stack,
         diagnostics=MagicMock(),
         launcher=launcher,
+        dock_window=MagicMock(),
     )
     handler._folder_stack._folder_stack_position_value = "bottom"
     handler._folder_stack._browser.target_state = lambda _target: "ok"

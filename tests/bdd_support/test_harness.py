@@ -94,8 +94,6 @@ class TestDockHarnessDnDContracts:
             harness.drag_outside_and_release("a.desktop")
 
             assert harness.drag_removed_desktop_id == "a.desktop"
-            harness._drag_window.close_open_folder_stack_for_item.assert_called_once_with(
-                "a.desktop"
-            )
+            harness._drag_folder_stack.close.assert_called_once_with()
         finally:
             harness.stop()
