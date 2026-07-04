@@ -57,7 +57,9 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         _("Open the dock menu from anywhere"),
         _(
             "Hold Ctrl and right-click anywhere on the shelf to open the dock "
-            "menu with Preferences, Applets, Diagnostics, and Quit."
+            "menu. This is the quickest path to Preferences, Applets, "
+            "Diagnostics, and Quit when there is no empty space near the "
+            "icons."
         ),
     ),
     StartupTip(
@@ -65,7 +67,8 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         _("Start with Preferences"),
         _(
             "Use Preferences to adjust position, monitor behavior, icon size, "
-            "zoom, hiding, themes, previews, tooltips, and click actions."
+            "zoom, hiding, themes, previews, tooltips, and click actions. It "
+            "is the best first stop when the dock does not feel quite right."
         ),
     ),
     StartupTip(
@@ -73,25 +76,35 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         _("Add applets from the dock menu"),
         _(
             "Right-click the shelf background and choose Add Applet to add "
-            "launchers, system status, media, productivity, and utility tools."
+            "launchers, system status, media controls, productivity helpers, "
+            "and small utility tools directly to the dock."
         ),
     ),
     StartupTip(
         "use-separators",
         _("Use separators for organization"),
-        _("Right-click where a divider should go and choose Add Separator."),
+        _(
+            "Right-click where a divider should go and choose Add Separator. "
+            "Separators make it easier to keep pinned apps, folders, and "
+            "applets in clear groups."
+        ),
     ),
     StartupTip(
         "pin-running-apps",
         _("Pin running apps"),
-        _("Right-click a running app and choose Keep in Dock."),
+        _(
+            "Right-click a running app and choose Keep in Dock. The launcher "
+            "will stay available after the app closes, so you can start it "
+            "again with one click."
+        ),
     ),
     StartupTip(
         "remove-pinned-items",
         _("Remove pinned items quickly"),
         _(
             "Right-click a pinned item and choose Remove from Dock, or drag "
-            "unlocked items off the dock."
+            "unlocked items off the dock. Removing a launcher does not "
+            "uninstall the application or delete your files."
         ),
     ),
     StartupTip(
@@ -99,20 +112,26 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         _("Drop items onto the dock"),
         _(
             "Drag applications, .desktop files, files, folders, and AppImages "
-            "onto Docking to pin them."
+            "onto Docking to pin them. Dropped folders become folder stacks, "
+            "and dropped AppImages can get their own launcher."
         ),
     ),
     StartupTip(
         "open-files-with-apps",
         _("Open files with dock apps"),
-        _("Drag a file onto an application icon to open it with that app."),
+        _(
+            "Drag a file onto an application icon to open it with that app. "
+            "This is useful when the file manager would otherwise choose the "
+            "wrong default application."
+        ),
     ),
     StartupTip(
         "folder-stacks",
         _("Use folder stacks"),
         _(
             "Pin a folder and click it from the dock to browse its contents "
-            "without opening a file manager first."
+            "without opening a file manager first. It works well for common "
+            "places like Downloads, Projects, and screenshots."
         ),
     ),
     StartupTip(
@@ -120,7 +139,8 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         _("Tune folder stack behavior"),
         _(
             "Right-click a pinned folder to sort contents, show hidden files, "
-            "or customize its icon."
+            "or customize its icon. These options let each stack behave like "
+            "the folder it represents."
         ),
     ),
     StartupTip(
@@ -128,59 +148,80 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         _("Customize pinned icons"),
         _(
             "Right-click a pinned app, file, or folder and use Icon -> Choose "
-            "From File."
+            "From File. Custom icons are stored in Docking's config, so the "
+            "original desktop file or file on disk is left untouched."
         ),
     ),
     StartupTip(
         "applications-search",
         _("Use the Applications applet search"),
-        _("Add the Applications applet, open it, and type to filter installed apps."),
+        _(
+            "Add the Applications applet, open it, and type to filter "
+            "installed apps. It gives you a compact launcher menu without "
+            "leaving the dock."
+        ),
     ),
     StartupTip(
         "run-application",
         _("Use Run Application like Alt+F2"),
         _(
             "Add Run Application to launch commands, apps, and terminal "
-            "commands from the dock."
+            "commands from the dock. As you type, matching applications are "
+            "shown so you can launch by name or run a standalone command."
         ),
     ),
     StartupTip(
         "window-previews",
         _("Use window previews"),
-        _("Hover running apps to inspect open windows before switching."),
+        _(
+            "Hover running apps to inspect open windows before switching. "
+            "Previews help when one application has several windows open."
+        ),
     ),
     StartupTip(
         "click-behavior",
         _("Choose your click behavior"),
         _(
             "Preferences -> Behavior lets left click toggle, cycle, or focus "
-            "the most recent window."
+            "the most recent window. Pick the behavior that matches how you "
+            "switch between running applications."
         ),
     ),
     StartupTip(
         "ctrl-click-new-window",
         _("Ctrl-click opens a new window"),
-        _("Hold Ctrl while clicking an app icon to launch another window."),
+        _(
+            "Hold Ctrl while clicking an app icon to launch another window. "
+            "This works even when the app is already running and a normal "
+            "click would focus it."
+        ),
     ),
     StartupTip(
         "app-context-menus",
         _("Use app right-click menus"),
         _(
             "Right-click apps for desktop actions, open windows, recent "
-            "documents, pinning, and close actions."
+            "documents, pinning, and close actions. Many apps expose useful "
+            "shortcuts there, such as opening a private window or composing a "
+            "new message."
         ),
     ),
     StartupTip(
         "recent-files",
         _("Use Recent Files"),
-        _("Add the Recent Files applet to jump back into recently used documents."),
+        _(
+            "Add the Recent Files applet to jump back into documents you used "
+            "recently. It is a faster path when you remember the file, not the "
+            "folder."
+        ),
     ),
     StartupTip(
         "system-tray",
         _("Use System Tray when needed"),
         _(
             "Add System Tray for tray/status apps and use its menu to manage "
-            "tray ownership when supported."
+            "tray ownership when supported. This helps with legacy apps that "
+            "still rely on a classic notification area."
         ),
     ),
     StartupTip(
@@ -188,7 +229,9 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         _("Use Diagnostics for support"),
         _(
             "Open Diagnostics before filing an issue to copy backend, session, "
-            "and feature details."
+            "and feature details. Including that report makes it much easier "
+            "to understand compositor, monitor, and environment-specific "
+            "problems."
         ),
     ),
 )
