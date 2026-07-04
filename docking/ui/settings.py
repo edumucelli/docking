@@ -89,7 +89,9 @@ APPLET_GRID_COLUMNS = 3
 APPLET_CELL_WIDTH_PX = 168
 APPEARANCE_ROW_WIDTH_PX = 428
 PREFERENCES_WINDOW_WIDTH_PX = 460
-PREFERENCES_WINDOW_HEIGHT_PX = 420
+PREFERENCES_WINDOW_HEIGHT_PX = 620
+PREFERENCES_WINDOW_MIN_HEIGHT_PX = 240
+PREFERENCES_WINDOW_SCREEN_MARGIN_PX = 72
 WINDOW_OUTER_SPACING_PX = 8
 WINDOW_OUTER_BORDER_PX = 12
 APPEARANCE_TAB_SPACING_PX = 12
@@ -207,7 +209,7 @@ class SettingsWindowController:
         )
         window.set_default_size(
             PREFERENCES_WINDOW_WIDTH_PX,
-            PREFERENCES_WINDOW_HEIGHT_PX,
+            self._preferences_default_height(),
         )
         window.set_modal(False)
         window.set_resizable(True)
@@ -545,7 +547,7 @@ class SettingsWindowController:
             ],
         )
 
-        return outer
+        return self._new_tab_scroller(outer, propagate_natural_width=True)
 
     def _build_behavior_tab(self) -> Gtk.Widget:
         outer = Gtk.Box(
@@ -688,7 +690,7 @@ class SettingsWindowController:
             ],
         )
 
-        return outer
+        return self._new_tab_scroller(outer, propagate_natural_width=True)
 
     def _new_info_icon(self, tooltip: str = "") -> Gtk.EventBox:
         icon = Gtk.EventBox()
@@ -740,16 +742,13 @@ class SettingsWindowController:
         return False
 
     def _build_applets_tab(self) -> Gtk.Widget:
-        scroller = Gtk.ScrolledWindow()
-        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self._applets_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
             spacing=APPLET_TAB_SPACING_PX,
         )
         self._applets_box.set_border_width(APPLET_TAB_BORDER_PX)
-        scroller.add(self._applets_box)
         self._rebuild_applet_tab()
-        return scroller
+        return self._new_tab_scroller(self._applets_box)
 
     def _build_updates_tab(self) -> Gtk.Widget:
         outer = Gtk.Box(
@@ -780,7 +779,76 @@ class SettingsWindowController:
                 (_("Actions"), actions, None),
             ],
         )
-        return outer
+        return self._new_tab_scroller(outer, propagate_natural_width=True)
+
+    def _new_tab_scroller(
+        self,
+        child: Gtk.Widget,
+        *,
+        propagate_natural_width: bool = False,
+    ) -> Gtk.ScrolledWindow:
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_vexpand(True)
+        if hasattr(scroller, "set_propagate_natural_height"):
+            scroller.set_propagate_natural_height(False)
+        if hasattr(scroller, "set_propagate_natural_width"):
+            scroller.set_propagate_natural_width(propagate_natural_width)
+        scroller.add(child)
+        return scroller
+
+    def _preferences_default_height(self) -> int:
+        workarea_height = self._monitor_workarea_height()
+        if workarea_height is None:
+            return PREFERENCES_WINDOW_HEIGHT_PX
+        available_height = max(1, workarea_height - PREFERENCES_WINDOW_SCREEN_MARGIN_PX)
+        if available_height < PREFERENCES_WINDOW_MIN_HEIGHT_PX:
+            return available_height
+        return min(PREFERENCES_WINDOW_HEIGHT_PX, available_height)
+
+    def _monitor_workarea_height(self) -> int | None:
+        display = self._parent_display()
+        if display is None:
+            display = Gdk.Display.get_default()
+        if display is None:
+            return None
+
+        monitor = self._parent_monitor(display)
+        if monitor is None:
+            monitor = display.get_primary_monitor()
+        if monitor is None:
+            monitor = display.get_monitor(0)
+        if monitor is None:
+            return None
+
+        rect = monitor.get_workarea()
+        if rect is None:
+            rect = monitor.get_geometry()
+        if rect is None:
+            return None
+        height = rect.height
+        return height if isinstance(height, int) and height > 0 else None
+
+    def _parent_display(self) -> Any:
+        try:
+            return self._parent.get_display()
+        except Exception:
+            log.debug("could not read parent display", exc_info=True)
+            return None
+
+    def _parent_monitor(self, display: Any) -> Any:
+        try:
+            parent_window = self._parent.get_window()
+        except Exception:
+            log.debug("could not read parent GDK window", exc_info=True)
+            return None
+        if parent_window is None:
+            return None
+        try:
+            return display.get_monitor_at_window(parent_window)
+        except Exception:
+            log.debug("could not read parent monitor", exc_info=True)
+            return None
 
     def _build_row(
         self, *, label: str, widget: Gtk.Widget, tooltip: str | None = None
