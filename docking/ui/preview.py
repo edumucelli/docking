@@ -13,58 +13,24 @@
 
 """Window preview popup for running applications hovered in the dock.
 
-What a preview is supposed to do
+The preview popup is the continuation of the user's interaction with a running
+application icon, not just a tooltip with thumbnails. The dock and preview
+behave like one temporary interaction region: hover a running app, the popup
+appears with window thumbnails, the user moves from dock to preview, then
+activates a window from the preview.
 
-The preview popup is not just a tooltip with thumbnails. It is the continuation
-of the user's interaction with a running application icon.
+This module owns preview popup creation and widget structure, delayed hide of
+the popup, preview enter/leave tracking, window activation from thumbnail
+clicks, and releasing autohide only when the preview truly stops being relevant.
 
-Typical user flow:
+It does not own hover detection, the decision to arm preview show, dock-wide
+effective hover state, autohide animation math, or platform-specific preview
+capture. Those belong to HoverManager and the interaction/autohide layers.
 
-    pointer hovers running app
-       |
-       +--> preview delay expires
-       |
-       +--> popup with window thumbnails appears
-       |
-       +--> user moves from dock to preview
-       |
-       +--> user activates a window from the preview
+Preview leave vs normal leave
 
-That flow has one major consequence:
-
-    dock + preview behave like one temporary interaction region
-
-If the dock hid the moment the pointer left the icon, the preview would become
-unusable. This is why preview behavior is intentionally different from tooltip
-behavior.
-
-What this module owns
-
-This module owns:
-
-- preview popup creation and widget structure,
-- delayed hide of the preview popup,
-- preview enter/leave tracking,
-- window activation from thumbnail clicks,
-- releasing autohide only when the preview truly stops being relevant.
-
-It does not own:
-
-- hover detection,
-- the decision to arm preview show,
-- dock-wide effective hover state,
-- autohide animation math.
-- platform-specific preview capture.
-
-Those belong to HoverManager and the interaction/autohide layers.
-
-Why preview leave is not normal leave
-
-The important policy is:
-
-    preview visible => leaving the dock does not immediately mean hide
-
-ASCII view:
+The important policy: when a preview is visible, leaving the dock does not
+immediately mean hide.
 
     +-----------+        gap        +----------------------+
     |   dock    |  ------------->   | preview popup        |
@@ -72,40 +38,28 @@ ASCII view:
     +-----------+                   +----------------------+
 
 The gap exists because the preview is a separate popup window. The pointer must
-physically cross that space. If the dock hid instantly on dock leave, the user
-would see a hide/show flicker or lose the target before reaching it.
+cross that space. If the dock hid instantly on dock leave, the user would see a
+hide/show flicker or lose the target before reaching it.
 
-So the practical policy is:
-
-- leave dock while preview visible -> schedule preview hide, do not autohide yet
-- enter preview -> keep interaction alive
-- leave preview and do not return -> preview hides, then autohide may proceed
-
-That policy is one of the key behavioral differences between preview and
-tooltip.
+So the practical policy: leave dock while preview visible schedules preview hide
+without autohide; enter preview keeps the interaction alive; leave preview and
+do not return allows preview hide and then autohide may proceed. This is one
+of the key behavioral differences between preview and tooltip.
 
 Thumbnail capture model
 
-Preview thumbnails try to show real window contents, but the way that happens
-is platform-owned. The popup asks a PreviewService for an image using a
-backend-neutral WindowId. On X11 that service can still do foreign-window
-capture internally; on a future native Wayland backend it should return an
-image only when compositor support exists. If capture is unavailable, this UI
+Preview thumbnails try to show real window contents via a platform-owned
+PreviewService using backend-neutral WindowId. On X11 that service can do
+foreign-window capture internally; on a native Wayland backend it returns an
+image only when compositor support exists. If capture is unavailable this UI
 falls back to the app icon resolved through WindowService.
 
-Why CSS and widget structure live here
+CSS and widget structure
 
-The preview popup is a fairly self-contained UI surface:
-
-- popup window
-- thumbnail widgets
-- labels
-- hover styling
-- click behavior
-
-Unlike the dock itself, it does not need to participate in the full draw/input
-shape model. So it is reasonable for this module to own its CSS and widget tree
-instead of pushing those concerns into the main renderer.
+The preview popup is a self-contained UI surface: popup window, thumbnail
+widgets, labels, hover styling, click behavior. Unlike the dock itself, it
+does not participate in the full draw/input shape model. So this module owns
+its CSS and widget tree instead of pushing those into the main renderer.
 """
 
 from __future__ import annotations

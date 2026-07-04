@@ -13,119 +13,94 @@
 
 """Shared window-identity to desktop-ID matching for all display-server backends.
 
-Why this module exists
------------------------
-
 Every backend (X11/Wnck, Wayland/wlr-foreign-toplevel, Hyprland IPC,
 Wayfire IPC, Niri IPC, GNOME Shell Bridge, KWin/AT-SPI) needs to answer
 the same question:
 
     "Which Docking desktop ID does this running window belong to?"
 
-Before this module the answer lived in two independent matchers with
-different feature sets:
+The matcher handles Wine .exe disambiguation, space-to-hyphen-to-joined
+candidate synthesis, GNOME prefix expansion, dot-suffix splitting, Snap
+underscore-prefix handling, and missed-candidate memoization. All seven
+backends (X11/Wnck, wlr-foreign-toplevel, Hyprland IPC, Wayfire IPC, Niri IPC,
+GNOME Shell Bridge, KWin/AT-SPI) share the same matching engine, so a fix or
+improvement applies everywhere at once.
 
-* ``WindowMatcher`` in the X11 backend — Wine ``.exe`` extraction,
-  space→hyphen→joined candidate generation, GNOME prefix synthesis,
-  and missed-candidate memoization.
-* ``WaylandAppIdMatcher`` in the Wayland backend — Snap ``_`` prefix
-  expansion, dot-suffix split, broad visible-item aliasing.
+``AppIdMatcher`` is a backend-agnostic matching engine. Backends extract
+identity strings from their display server and pass them here as plain
+strings. The matcher owns the heuristics; backends own only the display-server
+extraction.
 
-Neither matcher had the union of both feature sets, so every
-backend-specific improvement (e.g. PR #206 Wine matching) had to be
-implemented twice, and the growing set of Wayland consumers
-(Hyprland, Wayfire, Niri, GNOME Bridge, AT-SPI) all inherited the
-limitations of ``WaylandAppIdMatcher``.
+``sync_visible_items(items)`` rebuilds the fast-path alias cache from the
+current dock model at the start of every running-window scan.
 
-Design
--------
+``cache_missed_desktop_ids`` is a constructor flag used by X11 so signal
+bursts from Wnck do not hammer Gio with repeated failing lookups.
+Wayland-style backends leave it disabled so newly installed or generated
+desktop files can be matched without a Docking restart.
 
-``AppIdMatcher`` is a backend-agnostic matching engine.  Backends
-extract identity strings from their display server and pass them here
-as plain strings.  The matcher owns the heuristics; backends own only
-the display-server extraction.
-
-The public interface has one constructor flag plus two methods:
-
-``sync_visible_items(items)``
-    Rebuild the fast-path alias cache from the current dock model.
-    Called at the start of every running-window scan.
-
-``cache_missed_desktop_ids``
-    Constructor flag used by X11 to preserve its historical missed
-    desktop-file memoization. Wayland-style backends leave it disabled
-    so newly installed/generated desktop files can be matched without a
-    Docking restart.
-
-``match(...)``
-    Map a runtime window identity to a Docking desktop ID.
+``match(app_id, *, instance_hint=None, prefer_raw_app_id=True,
+defer_wm_class_lookup=False)`` maps a runtime window identity to a Docking
+desktop ID:
 
     ``app_id`` is the primary identity from the display server:
+    X11 uses ``class_group`` (WM_CLASS class part); Wayland compositors
+    (Hyprland, Wayfire, Niri, GNOME) provide a single ``app_id`` or
+    ``class`` string; AT-SPI uses ``app_name`` from the accessibility tree.
 
-    * X11: ``class_group`` (WM_CLASS class part)
-    * Wayland/Hyprland/Wayfire/Niri/GNOME: the single ``app_id`` /
-      ``class`` string the compositor provides
-    * AT-SPI: ``app_name`` from the accessibility tree
+    ``instance_hint`` is an optional secondary identity. Only X11 provides
+    this (WM_CLASS instance part). It enables Wine disambiguation: when
+    ``app_id == "wine"`` the matcher extracts the ``.exe`` name from
+    ``instance_hint`` instead.
 
-    ``instance_hint`` is an optional secondary identity.  Currently
-    only X11 provides this (WM_CLASS instance part).  It enables Wine
-    disambiguation: when ``app_id == "wine"`` the matcher extracts the
-    ``.exe`` name from ``instance_hint`` instead.
+    ``prefer_raw_app_id`` controls candidate order. Wayland-style backends
+    keep compositor-provided app IDs first; X11 passes ``False`` to preserve
+    the historical WM_CLASS lowercase-first order.
 
-    ``prefer_raw_app_id`` controls candidate order. Wayland-style
-    backends keep compositor-provided app IDs first; X11 passes
-    ``False`` to preserve the historical WM_CLASS lowercase-first order.
+    ``defer_wm_class_lookup`` controls when the install-wide WM_CLASS index
+    is consulted. X11 passes ``True`` to try all generated desktop IDs before
+    the reverse alias lookup. Wayland-style backends keep it ``False`` so
+    each increasingly broad candidate can check its exact alias before falling
+    back to the next broader direct desktop ID.
 
-    ``defer_wm_class_lookup`` controls when the install-wide WM_CLASS
-    index is consulted. X11 passes ``True`` to preserve its historical
-    priority of trying all generated desktop IDs before the expensive
-    reverse alias lookup. Wayland-style backends keep it ``False`` so
-    each increasingly broad candidate can still check its exact alias
-    before falling back to the next broader direct desktop ID.
+Matching is strongest-first:
 
-Matching priority (strongest first)
-------------------------------------
+    1. Wine detection — when ``app_id`` is the generic ``"wine"`` class
+       group and ``instance_hint`` contains a ``.exe`` path, extract the
+       executable name and match against visible aliases and the launcher
+       WM_CLASS index.
 
-1. **Wine detection** — when ``app_id`` is the generic ``"wine"``
-   class group and ``instance_hint`` contains a ``.exe`` path, extract
-   the executable name and match against visible aliases and the
-   launcher WM_CLASS index.
+    2. Visible-item alias cache — fast-path lookup against currently pinned
+       and transient dock items (no Gio or filesystem calls).
 
-2. **Visible-item alias cache** — fast-path lookup against currently
-   pinned and transient dock items (no Gio or filesystem calls).
+    3. Instance-hint match — when ``app_id`` is generic but
+       ``instance_hint`` is specific and matches a visible item.
 
-3. **Instance-hint match** — when ``app_id`` is generic but
-   ``instance_hint`` is specific and matches a visible item
-   (X11 optimization).
+    4. Candidate generation and resolution — for each generated candidate
+       string, in order:
 
-4. **Candidate generation + resolution** — for each generated
-   candidate string:
+       a. Check visible aliases (normalized).
+       b. Try ``launcher.resolve(f"{candidate}.desktop")``.
+       c. Try ``launcher.resolve_by_wm_class(candidate)``.
 
-   a. Check visible aliases (normalized).
-   b. Try ``launcher.resolve(f"{candidate}.desktop")``.
-   c. Try ``launcher.resolve_by_wm_class(candidate)``.
-
-   Failed desktop IDs can be memoized for X11 so signal bursts don't
-   hammer Gio with repeated failing lookups. Successful WM_CLASS
-   matches use the launcher's indexed lookup.
-
-Candidate generation (merged from both legacy matchers)
---------------------------------------------------------
+       Failed desktop IDs can be memoized for X11 so signal bursts do not
+       hammer Gio. Successful WM_CLASS matches use the launcher's indexed
+       lookup.
 
 Candidates are generated in a stable, deterministic order:
 
-* Raw ``app_id``
-* Raw ``app_id`` without ``.desktop``
-* Lowercase variants of the above
-* Space→hyphen (``"mongodb compass"`` → ``"mongodb-compass"``)
-* Space→joined  (``"mongodb compass"`` → ``"mongodbcompass"``)
-* GNOME prefix + original class-group (``"Files"`` → ``"org.gnome.Files"``)
-* Dot-suffix split (``"org.gnome.Nautilus"`` → ``"Nautilus"``)
-* Snap/container ``_`` prefix expansion
-  (``"firefox_firefox"`` → ``"firefox"``)
+    * Raw ``app_id``
+    * Raw ``app_id`` without ``.desktop``
+    * Lowercase variants of the above
+    * Space to hyphen (``"mongodb compass"`` to ``"mongodb-compass"``)
+    * Space to joined (``"mongodb compass"`` to ``"mongodbcompass"``)
+    * GNOME prefix + original class-group (``"Files"`` to ``"org.gnome.Files"``)
+    * Dot-suffix split (``"org.gnome.Nautilus"`` to ``"Nautilus"``)
+    * Snap/container ``_`` prefix expansion (``"firefox_firefox"`` to
+      ``"firefox"``)
 
-Duplicates are removed while preserving first-occurrence order so
-the first successful match is always the same for a given input.
+Duplicates are removed while preserving first-occurrence order so the first
+successful match is always the same for a given input.
 """
 
 from __future__ import annotations
@@ -173,7 +148,7 @@ def _app_id_candidates(app_id: str) -> list[str]:
         stripped.lower().removesuffix(DESKTOP_SUFFIX),
     ]
     # Wine / Windows executable reported as the sole app_id by a Wayland
-    # compositor (e.g. Hyprland `class` = "notepad.exe").  Strip the .exe
+    # compositor (e.g. Hyprland `class` = "notepad.exe"). Strip the .exe
     # suffix so the launcher can match "notepad" → "wine-notepad.desktop".
     is_windows_executable = stripped.lower().endswith(".exe")
     if is_windows_executable:
@@ -212,7 +187,7 @@ def _wine_aliases_from_instance(instance: str) -> list[str]:
     """Extract lookup aliases from a Wine ``class_instance`` path.
 
     For ``C:\\\\Program Files\\\\App\\\\Tool.exe`` this returns
-    ``["tool.exe", "tool"]``.  The full raw instance is also included
+    ``["tool.exe", "tool"]``. The full raw instance is also included
     so direct cache hits on the unfiltered string still work.
     """
     instance_lower = instance.lower().strip()
@@ -249,7 +224,7 @@ class AppIdMatcher:
         """Rebuild visible-item alias cache from the current dock model.
 
         Called at the start of every running-window scan so the cache
-        reflects the current pinned / transient item set.  Pinned items
+        reflects the current pinned / transient item set. Pinned items
         can be reordered, pinned, unpinned, or replaced at runtime, and
         using stale aliases would make running indicators disappear
         until restart.
@@ -368,7 +343,7 @@ class AppIdMatcher:
 
         Only triggers when *app_id_lower* is the generic ``"wine"``
         class group **and** the instance looks like a Windows executable
-        path.  Non-``.exe`` instances fall through to normal matching.
+        path. Non-``.exe`` instances fall through to normal matching.
         """
         if app_id_lower != "wine":
             return None

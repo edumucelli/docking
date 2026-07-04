@@ -13,45 +13,23 @@
 
 """Tooltip management for dock items, anchored from shared geometry.
 
-What a tooltip means in this dock
+The dock tooltip is visual only, anchored to one hovered item. It must never
+become a second interactive surface that competes with the dock, and it must
+follow shared geometry instead of inventing its own icon positions.
 
-The dock tooltip is intentionally simple:
+Dock tooltips have failure modes that ordinary GTK widgets do not: showing too
+early while the dock itself is still animating, rebuilding too aggressively
+while the pointer churns across adjacent items, staying visible after the dock
+has hidden, and attaching to the wrong icon because the hover changed faster
+than the popup content could rebuild. This module manages those problems.
 
-- it is visual only,
-- it is anchored to one hovered item,
-- it must never become a second interactive surface that competes with the dock,
-- it must follow shared geometry instead of inventing its own icon positions.
+TooltipManager owns delayed and coalesced tooltip popup rebuilds, tooltip
+window creation and reuse, tooltip text and widget content replacement, tooltip
+positioning from item anchor points, screen clamping, and hide/cancel logic.
 
-That sounds straightforward, but dock tooltips have a few failure modes that
-ordinary GTK widgets do not:
-
-- showing too early while the dock itself is still animating,
-- rebuilding too aggressively while the pointer churns across adjacent items,
-- staying visible after the dock has already hidden,
-- looking attached to the wrong icon because the hover changed faster than the
-  popup content could be rebuilt.
-
-This module exists to manage those problems explicitly.
-
-What this module owns
-
-TooltipManager owns:
-
-- delayed/coalesced tooltip popup rebuilds,
-- tooltip window creation and reuse,
-- tooltip text/widget content replacement,
-- tooltip positioning from item anchor points,
-- screen clamping,
-- hide/cancel logic.
-
-It does not own:
-
-- hover decisions,
-- whether the dock should remain visible,
-- autohide policy,
-- item geometry itself.
-
-Those come from HoverManager, interaction policy, and shared geometry.
+It does not own hover decisions, dock visibility policy, autohide policy, or
+item geometry. Those come from HoverManager, interaction policy, and shared
+geometry.
 
 Anchor model
 
@@ -108,7 +86,7 @@ That coalescing matters when the pointer moves quickly across adjacent icons.
 Without it, the tooltip can briefly show the last item the hover touched even
 though the pointer already moved on.
 
-Why this module reuses one popup window
+Single popup window
 
 Creating and destroying popup windows repeatedly is expensive and noisy.
 Reusing a single popup window gives:
@@ -142,7 +120,7 @@ So the intended behavior is:
 That means this module must cooperate with hover/interaction policy rather than
 attempting to own dock visibility.
 
-Why screen clamping belongs here
+Screen clamping
 
 The geometry frame gives the ideal anchor. But the tooltip is a real popup
 window that can run off-screen on small displays or near monitor edges.

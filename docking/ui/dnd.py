@@ -13,19 +13,13 @@
 
 """Drag-and-drop controller for internal reorder and external application drops.
 
-Why drag-and-drop needs its own controller
-
 GTK drag-and-drop is not just "pointer motion with extra data". During a drag,
-normal pointer event assumptions break:
-
-- regular hover enter/leave flow is not authoritative,
-- the dock can receive drag-motion without ordinary motion,
-- drag-leave can occur before drop,
-- external drags and internal drags have different semantics.
-
-If the dock treated drag-over like normal pointer movement, autohide and hover
-would become inconsistent very quickly. This module exists to keep drag state,
-visual insertion state, and autohide policy coherent during those operations.
+normal pointer event assumptions break: regular hover enter/leave flow is not
+authoritative, the dock can receive drag-motion without ordinary motion,
+drag-leave can occur before drop, and external drags and internal drags have
+different semantics. Treating drag-over like normal pointer movement would
+make autohide and hover inconsistent. This module keeps drag state, visual
+insertion state, and autohide policy coherent during those operations.
 
 Two drag scenarios handled here
 

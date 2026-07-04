@@ -13,44 +13,25 @@
 
 """Hover coordination for items, tooltips, previews, and short animation pumps.
 
-Why hover needs its own module
-
 "Hovered item" sounds simple until you list everything that depends on it:
-
-- icon zoom/displacement,
-- tooltip text and position,
-- preview show delay,
-- preview hide policy,
-- redraw pumping for short-lived visual effects,
-- the distinction between "pointer is on the dock" and "pointer is on this item".
+icon zoom and displacement, tooltip text and position, preview show delay,
+preview hide policy, redraw pumping for short-lived visual effects, and the
+distinction between "pointer is on the dock" and "pointer is on this item".
 
 If each of those features ran its own local hover state, they would drift.
-The classic failure modes are:
+The classic failure modes: tooltip for item A while preview is opening for item
+B, preview timer firing after the pointer moved away, repeated micro-timers
+trying to pump redraws independently, hover clearing too early while autohide
+is still smoothing the dock out. This module centralizes that state.
 
-- tooltip for item A while preview is opening for item B,
-- preview timer firing after the pointer already moved away,
-- repeated micro-timers trying to pump redraws independently,
-- hover clearing too early while autohide is still smoothing the dock out.
+HoverManager owns the currently hovered item, preview show timer lifecycle,
+cancellation of stale preview requests, tooltip update decisions tied to
+hovered item changes, and a shared short-lived redraw pump for click and urgent
+animations.
 
-This module centralizes that state.
-
-What this module owns
-
-HoverManager owns:
-
-- the currently hovered item,
-- preview show timer lifecycle,
-- cancellation of stale preview requests,
-- tooltip update decisions tied to hovered item changes,
-- a shared short-lived redraw pump for click/urgent animations.
-
-It does not own:
-
-- dock-wide hover (`dock_hovered` belongs to interaction policy),
-- geometry building (it consumes a frame),
-- autohide state,
-- preview rendering,
-- tooltip rendering.
+It does not own dock-wide hover (``dock_hovered`` belongs to interaction
+policy), geometry building (it consumes a frame), autohide state, preview
+rendering, or tooltip rendering.
 
 The distinction between dock hover and item hover
 
@@ -107,7 +88,7 @@ That delay matters because previews are heavier and more disruptive than a
 simple tooltip. The user should be able to glide across icons without opening a
 full preview popup for each one.
 
-Why preview show recomputes from fresh geometry
+Preview show recomputes from fresh geometry
 
 The preview timer stores intent, not stale positions.
 

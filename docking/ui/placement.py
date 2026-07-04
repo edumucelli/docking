@@ -13,39 +13,20 @@
 
 """Dock placement, monitor choice, struts, barriers, and edge integration.
 
-Why placement is its own module
+The dock must answer platform-facing questions that sit outside internal
+geometry: which monitor to attach to, where to position the top-level window,
+what screen space to reserve for maximized windows, when to update pointer
+barriers, and how active-display mode follows the pointer between monitors.
+These are not interaction policy and they are not rendering. This module owns
+that platform and placement layer.
 
-The dock's visible behavior depends on more than its internal geometry. It also
-has to answer platform-facing questions:
+DockPlacementController owns monitor selection and monitor menu choices,
+realization-time positioning, monitor and screen signal tracking, deferred
+reposition scheduling, X11 strut application and clearing, pointer barrier
+updates, and active-display polling.
 
-- which monitor should the dock attach to,
-- where should the top-level window actually be moved,
-- what screen space should be reserved for maximized windows,
-- when should pointer barriers be updated,
-- how should active-display mode follow the pointer between monitors.
-
-Those concerns are related, but they are not interaction policy and they are
-not rendering. This module owns that platform/placement layer.
-
-What this module owns
-
-DockPlacementController owns:
-
-- monitor selection and monitor menu choices,
-- realization-time positioning,
-- monitor/screen signal tracking,
-- deferred reposition scheduling,
-- X11 strut application and clearing,
-- pointer barrier updates,
-- active-display polling.
-
-It does not own:
-
-- hover policy,
-- tooltip/preview behavior,
-- drag/drop behavior,
-- item geometry,
-- Cairo rendering.
+It does not own hover policy, tooltip or preview behavior, drag and drop
+behavior, item geometry, or Cairo rendering.
 
 Logical screen vs monitor geometry
 
@@ -71,12 +52,9 @@ coordinated carefully.
 
 Workarea vs monitor bounds
 
-Placement does not always use the same rectangle for both axes.
-
-Why:
-- along the dock edge, the monitor edge matters,
-- along the perpendicular axis, workarea may matter more so the dock avoids
-  conflicting with reserved desktop areas.
+Placement does not always use the same rectangle for both axes. Along the dock
+edge the monitor edge matters; along the perpendicular axis workarea may matter
+more so the dock avoids conflicting with reserved desktop areas.
 
 For example:
 

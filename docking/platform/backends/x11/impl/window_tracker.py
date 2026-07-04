@@ -33,25 +33,19 @@ That translation layer is split between:
 - `WindowTracker`, which scans and orders live Wnck windows.
 - `WindowMatcher`, which maps each window's runtime identity to a desktop ID.
 
-Why this is harder than it sounds
-
 Desktop file names, WM_CLASS values, and window-manager class-group names are
-related but not the same naming system.
-
-Example:
+related but not the same naming system:
 
     desktop file:   mongodb-compass.desktop
     WM_CLASS:       "mongodb compass"
     class-group:    "mongodb compass"
 
-Another application may look like:
-
     desktop file:   org.gnome.Nautilus.desktop
     WM_CLASS:       "nautilus"
     class-group:    "Files"
 
-So exact string equality is not enough. Matching has to be heuristic and
-practical rather than theoretically perfect.
+Exact string equality is not enough. Matching has to be heuristic and practical
+rather than theoretically perfect.
 
 Identity sources used here
 
@@ -109,43 +103,23 @@ That aggregate is what the model actually needs. From it, the dock can derive:
 - preview sources,
 - click/toggle behavior.
 
-Why full rescans are acceptable
+Full rescans
 
-Wnck emits:
+Wnck emits window-opened, window-closed, and active-window-changed. On each
+relevant signal this module rescans the current window list and rebuilds the
+aggregate. Full rescans are simpler than maintaining incremental partial
+updates, resilient to window-manager state changing underneath us, and easy to
+reconcile back into the model. This is a convergence-oriented module, not a
+fragile event-delta tracker.
 
-- window-opened
-- window-closed
-- active-window-changed
+Defensive exception handling
 
-On each relevant signal, this module rescans the current window list and
-rebuilds the aggregate. That is a pragmatic design:
-
-- simpler than maintaining many incremental partial updates,
-- resilient to window-manager state changing underneath us,
-- easy to reconcile back into the model.
-
-This is a convergence-oriented module, not a fragile event-delta tracker.
-
-Why defensive exception handling is required
-
-Wnck objects are live wrappers around X11 state. A window can disappear between:
-
-- getting the window list,
-- reading the window type,
-- reading WM_CLASS,
-- reading active/urgent state,
-- reading XID.
-
-So this module intentionally treats many read failures as recoverable:
-
-    log problem
-      |
-      +--> skip unstable window read
-      |
-      +--> continue rebuilding the aggregate
-
-The dock cares more about quickly converging back to correct state than about
-pretending the X11 world is stable during every scan.
+Wnck objects are live wrappers around X11 state. A window can disappear between
+getting the window list, reading the window type, reading WM_CLASS, reading
+active/urgent state, and reading the XID. This module treats many read failures
+as recoverable: log the problem, skip the unstable read, and continue rebuilding
+the aggregate. The dock cares more about quickly converging back to correct
+state than about pretending the X11 world is stable during every scan.
 """
 
 from __future__ import annotations
@@ -193,7 +167,7 @@ class WindowMatcher:
     """Matches live Wnck windows to desktop IDs using WM_CLASS-like hints.
 
     This is a thin X11-specific wrapper around the shared
-    :class:`~docking.platform.app_matcher.AppIdMatcher`.  The wrapping
+    :class:`~docking.platform.app_matcher.AppIdMatcher`. The wrapping
     handles Wnck-specific window property extraction (class group,
     class instance) and defensive error handling; all matching
     heuristics live in the shared matcher so they apply uniformly

@@ -13,55 +13,29 @@
 
 """Autohide controller for the dock's visible/hidden state and motion.
 
-Autohide from first principles
-
-An edge dock has two conflicting jobs:
-
-1. stay out of the way when the user is not using it,
-2. appear quickly and predictably when the user approaches it.
-
+An edge dock has two conflicting jobs: stay out of the way when the user is
+not using it, and appear quickly and predictably when the user approaches it.
 If the dock hides too aggressively, it flickers when the pointer briefly arcs
-out and back in. If it shows too aggressively, it fights menus, drags, previews,
-or other temporary UI that should keep it present. If animation reversals are
-not continuous, the dock appears to jump instead of glide.
+out and back in. If it shows too aggressively, it fights menus, drags,
+previews, or other temporary UI that should keep it present. If animation
+reversals are not continuous, the dock appears to jump instead of glide.
+This module keeps those concerns in one state machine.
 
-This module exists to keep those concerns in one state machine.
+The controller owns whether the dock is logically visible, hiding, hidden, or
+showing; hide and show delays; animation progress for transitions; the current
+hide offset used by the renderer and geometry; and the current zoom progress
+while hidden or showing.
 
-What this module owns
+Policy inputs are ``set_hovered``, ``set_disabled``, and ``window_should_hide``
+(from WindowDodgeMonitor for dodge modes). Six modes are supported (see
+HideMode in config.py): AUTOHIDE hides whenever not hovered; the dodge modes
+(INTELLIGENT, DODGE_ACTIVE, WINDOW_DODGE, DODGE_MAXIMIZED) hide only when
+``window_should_hide`` is True. Hover or disabled always override to show.
 
-This controller owns:
-
-- whether the dock is logically visible, hiding, hidden, or showing,
-- hide/show delays,
-- the animation progress for transitions,
-- the current hide offset used by the renderer and geometry,
-- the current zoom progress while hidden or showing,
-- policy inputs for:
-  - pointer hovered/not hovered,
-  - temporarily disabled/not disabled,
-  - window_should_hide (from WindowDodgeMonitor for dodge modes).
-
-Hide modes
-----------
-The controller supports six modes (see HideMode in config.py). Two inputs
-drive the decision:
-
-- AUTOHIDE: hide whenever not hovered (mouse-only).
-- Dodge modes (INTELLIGENT, DODGE_ACTIVE, WINDOW_DODGE, DODGE_MAXIMIZED):
-  hide only when ``window_should_hide`` is True (set by WindowDodgeMonitor).
-  Hover or disabled always override to show.
-
-This module does not own:
-
-- the geometry of the dock,
-- how hover is determined,
-- menu logic,
-- preview logic,
-- tooltip logic,
-- GTK event handling.
-
-Those systems tell autohide whether the dock should currently be considered
-"held open" or not. Autohide translates that into smooth state transitions.
+The controller does not own geometry, hover decisions, menu logic, preview
+logic, tooltip logic, or GTK event handling. Those systems tell autohide
+whether the dock should be "held open"; autohide translates that into smooth
+state transitions.
 
 The four states
 
@@ -107,7 +81,7 @@ The renderer and geometry read these values to decide:
 - whether the active input region is the full dock band or the thin trigger,
 - how much hover zoom should still be visible during transitions.
 
-Why disabled exists
+The disabled flag
 
 Hovered alone is not enough. There are periods where the pointer may not be
 strictly "on the dock", but the dock still must not hide:

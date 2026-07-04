@@ -13,41 +13,16 @@
 
 """Cairo renderer for the dock's visible output and micro-animations.
 
-What this renderer is responsible for
+This module answers one question: "Given the current dock frame and visual
+state, what pixels should be drawn?"  It is intentionally view-only. It does
+not decide hover policy, autohide policy, mutate the model, launch applications,
+or resolve item targeting. Those decisions happen elsewhere; the renderer
+consumes their results.
 
-This module answers one question:
-
-    "Given the current dock frame and visual state, what pixels should be drawn?"
-
-It is intentionally view-only. It should not:
-
-- decide hover policy,
-- decide autohide policy,
-- mutate the model,
-- launch applications,
-- resolve item targeting.
-
-Those decisions happen elsewhere. The renderer consumes their results.
-
-Why renderer and geometry are separate
-
-The renderer used to be a tempting place to re-derive visual bounds and item
-positions. That leads to drift:
-
-- renderer says icon is here,
-- hover says icon is slightly elsewhere,
-- menus use another targeting model,
-- tooltips anchor from yet another guess.
-
-The current model is:
-
-    DockGeometryFrame
-      |
-      +--> renderer draws from it
-      +--> hover/mouse/menu/dnd also consume it
-
-That means the renderer is no longer the owner of item placement. It is the
-consumer of an authoritative frame.
+The renderer consumes the authoritative ``DockGeometryFrame``. Rendering,
+hover, menus, tooltips, and drag-and-drop all work from the same frame so they
+stay aligned without drift. The renderer is a consumer of item placement, not
+the owner of it.
 
 Rendering layers
 
@@ -115,7 +90,7 @@ Visually:
 
 The renderer does not decide those values; it simply makes them visible.
 
-Why offscreen composition is required
+Offscreen composition
 
 The dock window is transparent and compositor-managed. Painting directly to the
 target surface in several incremental steps can produce transient clear/repaint

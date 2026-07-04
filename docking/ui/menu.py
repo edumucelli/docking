@@ -13,60 +13,29 @@
 
 """Context menu construction for dock items, applets, folders, and background.
 
-Why the dock menu logic is centralized
-
 Right-click behavior in a dock is deceptively broad. Depending on where the
-pointer is, the same action can mean:
+pointer is, the same action can mean an application launcher menu, an applet
+menu, a folder item menu, the dock background menu, or a live window menu for
+currently open applications. If each item type built its own menus
+independently, the dock would lose consistency in popup lifecycle, autohide
+interaction, item targeting, icon and title formatting, and shared commands.
 
-- item menu for an application launcher,
-- applet menu with applet-specific actions,
-- folder item menu,
-- dock background menu,
-- live menu for currently open application windows.
+MenuHandler is the centralized menu builder. It decides whether a right-click
+targets an item or the dock background, constructs GTK menu trees, builds
+item-specific and dock-specific actions, organizes applet submenus and folder
+item menus, builds live window entries from backend-neutral window snapshots,
+and handles popup creation and lifecycle hookup.
 
-If each item type built its own menus independently, the dock would lose
-consistency in:
+It does not own dock geometry, autohide policy, tooltip/preview lifecycle, or
+dock shell side effects. Those imperative side effects are routed through
+``DockRuntime``.
 
-- popup lifecycle,
-- autohide/menu interaction,
-- item targeting,
-- icon/title formatting,
-- shared commands like pin/unpin, lock positions, theme changes, and position.
+Geometry and menus
+------------------
 
-This module is the centralized menu builder for those cases.
-
-What this module owns
-
-MenuHandler owns:
-
-- deciding whether a right-click targets an item or the dock background,
-- constructing GTK menu trees,
-- building item-specific and dock-specific actions,
-- applet submenu organization,
-- folder item menus,
-- live window menu entries with backend-neutral window actions,
-- popup creation and lifecycle hookup.
-
-It does not own:
-
-- dock geometry,
-- autohide policy directly,
-- tooltip/preview lifecycle directly,
-- actual runtime side effects on the dock shell.
-
-Those imperative side effects are routed through `DockRuntime`.
-
-Why geometry matters for menus
-
-The dock must support this state:
-
-    pointer inside dock
-      but
-    pointer not on any item
-
-That is what makes the dock background menu reachable.
-
-So menu targeting follows shared geometry:
+The dock must support the state "pointer inside dock but not on any item" —
+that is what makes the background menu reachable. Menu targeting follows shared
+geometry:
 
     event point
       |
@@ -74,28 +43,17 @@ So menu targeting follows shared geometry:
       |
       +--> no -----------------------> build dock background menu
 
-This is one of the reasons click/hit geometry is intentionally narrower than
-hover geometry. The background needs to remain a real target.
+This is why click/hit geometry is intentionally narrower than hover geometry:
+the background needs to remain a real target.
 
 Runtime command boundary
+------------------------
 
 This module is intentionally not allowed to mutate DockWindow internals freely.
-The important split is:
-
-- MenuHandler
-  decides what commands exist and when they are offered
-
-- DockRuntime
-  performs dock-wide side effects such as:
-    - menu popup open/close hooks,
-    - reposition,
-    - strut updates,
-    - redraws,
-    - active-display toggles,
-    - hover UI cleanup
-
-That boundary matters because menu code is broad enough already; it should not
-also become the place where raw window internals are orchestrated directly.
+MenuHandler decides what commands exist and when they are offered. DockRuntime
+performs dock-wide side effects: menu popup open/close hooks, reposition, strut
+updates, redraws, active-display toggles, hover UI cleanup. That boundary
+keeps menu code focused on menu construction instead of raw window orchestration.
 
 Kinds of menus built here
 

@@ -13,52 +13,21 @@
 
 """Dock interaction policy shared across raw events, menus, previews, and hover.
 
-Why this module exists
+Raw GTK events are lower-level than the behavior users expect. A dock should
+react to "the pointer effectively entered", "the pointer effectively left", "a
+menu is open so the dock must stay alive", and "a preview is visible, so
+leaving the icon does not immediately mean hide". These concepts cannot live in
+raw ``enter-notify``, ``leave-notify``, and ``motion-notify`` handlers because
+the event stream alone is not enough. The dock must reconcile events with
+geometry, autohide policy, previews, and transient UI state.
 
-The raw GTK events that hit the dock are lower-level than the behavior users
-actually expect. A dock should react to concepts such as:
+This coordinator owns the public notion of ``dock_hovered``, effective enter and
+leave handling, menu popup open/close policy, pointer-inside-input-region
+checks, preview-aware leave behavior, and keep-cursor-identity rules for smooth
+hide animations.
 
-- "the pointer effectively entered the dock",
-- "the pointer effectively left the dock",
-- "a menu is open so the dock must stay alive",
-- "a preview is visible, so leaving the icon does not immediately mean hide".
-
-Those concepts cannot live comfortably in raw `enter-notify`, `leave-notify`,
-and `motion-notify` handlers because the event stream alone is not enough.
-The dock must reconcile events with geometry, autohide policy, previews, and
-temporary UI state.
-
-This module is that policy layer.
-
-What this module owns
-
-This coordinator owns:
-
-- the public notion of `dock_hovered`,
-- effective enter handling,
-- effective leave handling,
-- menu popup open/close policy,
-- "is the pointer inside the current dock input region?" checks,
-- leave behavior when previews are visible,
-- "keep cursor identity" rules used for smooth hide animations.
-
-This module does not own:
-
-- raw GTK signal registration,
-- geometry building,
-- autohide animation math,
-- tooltip rendering,
-- preview rendering.
-
-Think of it as the translation layer between:
-
-    raw event stream
-          +
-    current dock frame
-          +
-    transient UI state
-          =
-    interaction decisions
+It does not own raw GTK signal registration, geometry building, autohide
+animation math, tooltip rendering, or preview rendering.
 
 The distinction between raw and effective enter/leave
 
