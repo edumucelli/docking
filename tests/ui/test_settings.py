@@ -707,7 +707,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -794,7 +794,7 @@ class TestSettingsWindowController:
         )
         controller = settings_mod.SettingsWindowController(
             parent=parent,
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -816,7 +816,7 @@ class TestSettingsWindowController:
         FakeGtkSettings.current = None
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -846,7 +846,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -895,7 +895,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -987,7 +987,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1021,7 +1021,7 @@ class TestSettingsWindowController:
         config.monitor_connector = "DP-1"
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1046,7 +1046,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -1114,7 +1114,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1145,7 +1145,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1171,7 +1171,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1197,7 +1197,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1220,7 +1220,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1246,7 +1246,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1271,7 +1271,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1295,7 +1295,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1319,7 +1319,7 @@ class TestSettingsWindowController:
         config.zoom_enabled = False
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1340,7 +1340,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1370,7 +1370,7 @@ class TestSettingsWindowController:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1416,7 +1416,7 @@ class TestSettingsWindowController:
         model.get_applet.return_value = None
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=model,
             config=_config(),
         )
@@ -1456,7 +1456,7 @@ class TestSettingsWindowController:
         )
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -1523,7 +1523,7 @@ class TestSettingsWindowController:
         )
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=model,
             config=_config(),
         )
@@ -1560,7 +1560,7 @@ class TestSettingsWindowController:
         )
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -1592,7 +1592,7 @@ class TestSettingsWindowController:
         )
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -1628,7 +1628,7 @@ class TestRecentSettingsBehavior:
         runtime = MagicMock()
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1655,7 +1655,7 @@ class TestBindingEdgeCases:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -1673,7 +1673,7 @@ class TestBindingEdgeCases:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1698,7 +1698,7 @@ class TestBindingEdgeCases:
         config.save.reset_mock()
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1721,7 +1721,7 @@ class TestBindingEdgeCases:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1745,7 +1745,7 @@ class TestSettingsRuntimeCallbacks:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1766,7 +1766,7 @@ class TestSettingsRuntimeCallbacks:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1786,7 +1786,7 @@ class TestSettingsRuntimeCallbacks:
         config = _config()
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=runtime,
+            actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
         )
@@ -1804,7 +1804,7 @@ class TestSettingsRuntimeCallbacks:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )
@@ -1821,7 +1821,7 @@ class TestSettingsRuntimeCallbacks:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         controller = settings_mod.SettingsWindowController(
             parent=MagicMock(),
-            runtime=MagicMock(),
+            actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
         )

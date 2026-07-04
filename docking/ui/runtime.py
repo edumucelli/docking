@@ -69,9 +69,6 @@ class DockRuntime:
     def refresh_pressure_handler(self) -> None:
         self._window.placement.refresh_pressure_handler()
 
-    def set_icons_locked(self, locked: bool) -> None:
-        self._window.dnd.set_locked(locked)
-
     def queue_draw(self) -> None:
         self._window.queue_redraw()
 

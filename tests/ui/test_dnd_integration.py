@@ -87,14 +87,15 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         cursor_x=20.0,
         cursor_y=8.0,
         autohide=autohide,
-        close_open_folder_stack_for_item=MagicMock(),
         is_pointer_inside_dock=MagicMock(return_value=False),
         get_display=MagicMock(return_value=display),
         get_position=MagicMock(return_value=(0, 0)),
         get_size=MagicMock(return_value=(400, 60)),
     )
+    folder_stack = MagicMock()
+    folder_stack.open_item_id.return_value = None
     monkeypatch.setattr(dnd_mod, "show_poof", MagicMock())
-    return dnd_mod.DnDHandler(
+    handler = dnd_mod.DnDHandler(
         drawing_area,
         window,
         model,
@@ -103,7 +104,10 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         theme,
         launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: default_frame),
+        folder_stack=folder_stack,
     )
+    handler._test_folder_stack = folder_stack
+    return handler
 
 
 class _FakeResponseDialog:
@@ -885,10 +889,9 @@ class TestDragLeaveEnd:
         pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
         handler._window.get_position.return_value = (100, 200)
         handler._window.get_size.return_value = (400, 60)
+        handler._test_folder_stack.open_item_id.return_value = folder.desktop_id
 
         handler._on_drag_end(handler._drawing_area, MagicMock())
 
-        handler._window.close_open_folder_stack_for_item.assert_called_once_with(
-            folder.desktop_id
-        )
+        handler._test_folder_stack.close.assert_called_once_with()
         handler._model.unpin_item.assert_called_once_with(folder.desktop_id)

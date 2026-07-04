@@ -726,7 +726,6 @@ def handler(monkeypatch):
     settings = MagicMock()
     runtime = MagicMock()
     runtime.cursor_position.return_value = (20.0, 8.0)
-    frame = _frame()
 
     model = MagicMock()
     model.pinned_items = []
@@ -761,6 +760,11 @@ def handler(monkeypatch):
     preview_service.thumbnail.return_value = None
     launcher = MagicMock()
     launcher.default_directory_app_name.return_value = None
+    folder_stack = folder_stack_mod.FolderStackController(
+        config=config,
+        runtime=runtime,
+        launcher=launcher,
+    )
     return menu_mod.MenuHandler(
         about=about,
         settings=settings,
@@ -769,9 +773,10 @@ def handler(monkeypatch):
         config=config,
         window_tracker=tracker,
         preview_service=preview_service,
+        folder_stack=folder_stack,
         diagnostics=MagicMock(),
         launcher=launcher,
-        geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: frame),
+        dock_window=MagicMock(),
     )
 
 
@@ -1433,7 +1438,6 @@ class TestDockMenu:
         # Given
         event = SimpleNamespace(x=10.0, y=5.0)
         frame = _frame(item=None, insert_index=1)
-        handler._geometry_builder = SimpleNamespace(build_frame=lambda **_kwargs: frame)
         captured_menu = None
 
         class CaptureMenu(FakeMenu):
@@ -1459,7 +1463,7 @@ class TestDockMenu:
         )
 
         # When
-        handler.show(event=event, cursor_main=10.0)
+        handler.show(event=event, cursor_main=10.0, frame=frame)
         # Then
         assert captured_menu is not None
         assert captured_menu.shown is True
@@ -1512,9 +1516,7 @@ class TestMenuCallbacks:
     def test_show_builds_item_menu(self, handler, monkeypatch):
         event = SimpleNamespace(x=20.0, y=9.0)
         item = DockItem(desktop_id="firefox.desktop")
-        handler._geometry_builder = SimpleNamespace(
-            build_frame=lambda **_kwargs: _frame(item=item)
-        )
+        frame = _frame(item=item)
         built: list[tuple[str, object]] = []
 
         def capture_build(*, menu, item):
@@ -1522,7 +1524,7 @@ class TestMenuCallbacks:
 
         monkeypatch.setattr(handler, "_build_item_menu", capture_build)
 
-        handler.show(event=event, cursor_main=20.0)
+        handler.show(event=event, cursor_main=20.0, frame=frame)
 
         assert built == [("item", item)]
         assert handler._runtime.menu_popup_opened.call_count == 1
@@ -1530,9 +1532,7 @@ class TestMenuCallbacks:
     def test_show_can_force_background_menu_over_item(self, handler, monkeypatch):
         event = SimpleNamespace(x=20.0, y=9.0)
         item = DockItem(desktop_id="firefox.desktop")
-        handler._geometry_builder = SimpleNamespace(
-            build_frame=lambda **_kwargs: _frame(item=item, insert_index=2)
-        )
+        frame = _frame(item=item, insert_index=2)
         built: list[tuple[str, object]] = []
 
         monkeypatch.setattr(
@@ -1546,7 +1546,12 @@ class TestMenuCallbacks:
             lambda *, menu, insert_index: built.append(("dock", insert_index)),
         )
 
-        handler.show(event=event, cursor_main=20.0, force_background=True)
+        handler.show(
+            event=event,
+            cursor_main=20.0,
+            frame=frame,
+            force_background=True,
+        )
 
         assert built == [("dock", 2)]
         assert handler._runtime.menu_popup_opened.call_count == 1
@@ -1642,130 +1647,6 @@ class TestMenuCallbacks:
         assert result is False
         assert called == ["file:///tmp/docs"]
         assert menu.shown is True
-
-    def test_show_folder_stack_builds_popup_window(self, handler, monkeypatch):
-        item = DockItem(
-            desktop_id="file:///tmp/docs",
-            kind=FOLDER_KIND,
-            target="file:///tmp/docs",
-        )
-        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
-        monkeypatch.setattr(
-            handler._folder_stack._browser, "target_state", lambda _target: "ok"
-        )
-        monkeypatch.setattr(
-            handler._folder_stack,
-            "_list_directory_rows",
-            lambda **_kwargs: [
-                {
-                    "target": "file:///tmp/docs/readme.txt",
-                    "name": "readme.txt",
-                    "is_dir": False,
-                    "icon": None,
-                }
-            ],
-        )
-        tracked: list[str] = []
-        monkeypatch.setattr(
-            handler._folder_stack,
-            "_track_folder_stack",
-            lambda target: tracked.append(target),
-        )
-
-        handler.show_folder_stack(
-            item=item,
-            anchor_x=120,
-            anchor_y=800,
-            icon_w=48,
-            position="bottom",
-        )
-
-        window = FakeWindow.last_created
-        assert window is not None
-        assert window.visible is True
-        assert window.moved_to is not None
-        assert tracked == ["file:///tmp/docs"]
-        handler._runtime.menu_popup_opened.assert_called_once()
-        handler._runtime.hide_hover_ui.assert_called_once()
-
-    def test_show_folder_stack_second_click_toggles_closed(self, handler, monkeypatch):
-        item = DockItem(
-            desktop_id="file:///tmp/docs",
-            kind=FOLDER_KIND,
-            target="file:///tmp/docs",
-        )
-        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
-        monkeypatch.setattr(
-            handler._folder_stack._browser, "target_state", lambda _target: "ok"
-        )
-        monkeypatch.setattr(
-            handler._folder_stack, "_list_directory_rows", lambda **_kwargs: []
-        )
-        monkeypatch.setattr(
-            handler._folder_stack, "_track_folder_stack", lambda target: None
-        )
-
-        handler.show_folder_stack(
-            item=item,
-            anchor_x=120,
-            anchor_y=800,
-            icon_w=48,
-            position="bottom",
-        )
-        window = FakeWindow.last_created
-
-        handler.show_folder_stack(
-            item=item,
-            anchor_x=120,
-            anchor_y=800,
-            icon_w=48,
-            position="bottom",
-        )
-
-        assert window is not None
-        assert window.visible is False
-        assert handler._runtime.menu_popup_opened.call_count == 1
-
-    def test_show_folder_stack_same_item_can_stay_open(self, handler, monkeypatch):
-        item = DockItem(
-            desktop_id="file:///tmp/docs",
-            kind=FOLDER_KIND,
-            target="file:///tmp/docs",
-        )
-        monkeypatch.setattr(menu_mod.GLib, "timeout_add", lambda *_args: 1)
-        monkeypatch.setattr(
-            handler._folder_stack._browser, "target_state", lambda _target: "ok"
-        )
-        monkeypatch.setattr(
-            handler._folder_stack, "_list_directory_rows", lambda **_kwargs: []
-        )
-        monkeypatch.setattr(
-            handler._folder_stack, "_track_folder_stack", lambda target: None
-        )
-
-        handler.show_folder_stack(
-            item=item,
-            anchor_x=120,
-            anchor_y=800,
-            icon_w=48,
-            position="bottom",
-            toggle_if_same_item=False,
-        )
-        window = FakeWindow.last_created
-
-        handler.show_folder_stack(
-            item=item,
-            anchor_x=120,
-            anchor_y=800,
-            icon_w=48,
-            position="bottom",
-            toggle_if_same_item=False,
-        )
-
-        assert window is not None
-        assert window.visible is True
-        assert handler._runtime.menu_popup_opened.call_count == 1
-        handler._runtime.menu_popup_closed.assert_not_called()
 
     def test_folder_stack_cards_reuse_cached_layout(self, handler, monkeypatch):
         item = DockItem(
@@ -2138,8 +2019,8 @@ class TestMenuCallbacks:
             menu_mod.GLib, "idle_add", lambda callback: idle_calls.append(callback) or 9
         )
 
-        handler.schedule_folder_stack_prewarm(item)
-        handler.schedule_folder_stack_prewarm(item)
+        handler._folder_stack.schedule_prewarm(item)
+        handler._folder_stack.schedule_prewarm(item)
 
         assert len(idle_calls) == 1
         assert len(handler._folder_stack._folder_stack_cache.prewarm_queue) == 1

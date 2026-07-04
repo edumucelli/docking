@@ -126,7 +126,7 @@ def main() -> None:
     )
     unity = UnityLauncherListener(model=model)
 
-    window = build_dock_window(
+    ui = build_dock_window(
         config=config,
         model=model,
         renderer=renderer,
@@ -138,6 +138,7 @@ def main() -> None:
         session_backend=backend,
         launcher=launcher,
     )
+    window = ui.window
     items_service = DockItemsService(model=model, window=window)
     new_year = NewYearGreetingController(window=window)
 
@@ -149,12 +150,12 @@ def main() -> None:
         unity.start()
         window.show_all()
         new_year.start()
-        window.start_update_checks()
+        ui.start()
         GLib.idle_add(_start_runtime, items_service, model, backend)
         Gtk.main()
     finally:
         items_service.stop()
-        window.stop_update_checks()
+        ui.stop()
         new_year.stop()
         unity.stop()
         model.stop_applets()

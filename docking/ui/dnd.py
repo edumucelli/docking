@@ -177,6 +177,7 @@ if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
     from docking.ui.dock_window import DockWindow
+    from docking.ui.folder.stack import FolderStackController
     from docking.ui.renderer import DockRenderer
 
 log = get_logger(name="dnd")
@@ -206,6 +207,7 @@ class DnDHandler:
         theme: Theme,
         launcher: Launcher,
         geometry_builder: DockGeometryBuilder,
+        folder_stack: FolderStackController,
     ) -> None:
         self._drawing_area = drawing_area
         self._window = window
@@ -215,6 +217,7 @@ class DnDHandler:
         self._theme = theme
         self._launcher = launcher
         self._geometry_builder = geometry_builder
+        self._folder_stack = folder_stack
 
         self.drag_index: int = -1
         self._drag_from: int = -1
@@ -722,7 +725,8 @@ class DnDHandler:
                         item.name,
                         item.is_running,
                     )
-                    self._window.close_open_folder_stack_for_item(item.desktop_id)
+                    if self._folder_stack.open_item_id() == item.desktop_id:
+                        self._folder_stack.close()
                     show_poof(x=int(screen_x), y=int(screen_y))
                     # Clear slide state to avoid stale offsets
                     self._renderer.slide_offsets.clear()
