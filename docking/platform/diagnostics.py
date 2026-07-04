@@ -337,7 +337,7 @@ def _diagnostic_checks(
                     detail="No active X11 compositor was detected.",
                     fix_hint=(
                         "Enable desktop compositing or run a compositor such as picom "
-                        "for transparency and stacking behavior."
+                        "so the dock renders with transparency instead of opaque."
                     ),
                 )
             )
