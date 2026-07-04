@@ -90,7 +90,6 @@ from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.platform.unity import UnityLauncherListener
 from docking.ui.factory import build_dock_window
-from docking.ui.new_year import NewYearGreetingController
 from docking.ui.renderer import DockRenderer
 
 if TYPE_CHECKING:
@@ -140,7 +139,6 @@ def main() -> None:
     )
     window = ui.window
     items_service = DockItemsService(model=model, window=window)
-    new_year = NewYearGreetingController(window=window)
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
@@ -149,14 +147,12 @@ def main() -> None:
     try:
         unity.start()
         window.show_all()
-        new_year.start()
         ui.start()
         GLib.idle_add(_start_runtime, items_service, model, backend)
         Gtk.main()
     finally:
         items_service.stop()
         ui.stop()
-        new_year.stop()
         unity.stop()
         model.stop_applets()
         backend.stop()

@@ -269,6 +269,7 @@ DEFAULT_TOOLTIPS_ENABLED = True
 DEFAULT_ACTIVE_DISPLAY = False
 DEFAULT_UPDATE_CHECK_ENABLED = True
 DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 24
+DEFAULT_STARTUP_TIPS_ENABLED = True
 DEFAULT_THEME = "default"
 DEFAULT_TRANSPARENCY = 1.0
 MIN_ICON_SIZE = 32
@@ -791,6 +792,8 @@ class Config:
     update_check_enabled: bool = DEFAULT_UPDATE_CHECK_ENABLED
     # Minimum hours between automatic update checks
     update_check_interval_hours: int = DEFAULT_UPDATE_CHECK_INTERVAL_HOURS
+    # Whether Docking shows one usage tip on startup
+    startup_tips_enabled: bool = DEFAULT_STARTUP_TIPS_ENABLED
     # Left-click behavior for running apps
     left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
     # Middle-click behavior for app items
@@ -934,6 +937,10 @@ class Config:
             self.update_check_interval_hours,
             default=DEFAULT_UPDATE_CHECK_INTERVAL_HOURS,
             minimum=1,
+        )
+        self.startup_tips_enabled = _normalize_bool(
+            self.startup_tips_enabled,
+            default=DEFAULT_STARTUP_TIPS_ENABLED,
         )
         self.left_click_action = _normalize_left_click_action(
             self.left_click_action,

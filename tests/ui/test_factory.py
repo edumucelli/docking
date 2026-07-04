@@ -23,6 +23,9 @@ def _patch_ui_components(monkeypatch):
         settings=MagicMock(),
         diagnostics=MagicMock(),
         update_checker=MagicMock(),
+        startup_popups=MagicMock(),
+        new_year=MagicMock(),
+        startup_tips=MagicMock(),
         runtime=MagicMock(),
         folder_stack=MagicMock(),
         dnd=MagicMock(),
@@ -40,6 +43,21 @@ def _patch_ui_components(monkeypatch):
         factory_mod,
         "UpdateCheckController",
         MagicMock(return_value=components.update_checker),
+    )
+    monkeypatch.setattr(
+        factory_mod,
+        "StartupPopupCoordinator",
+        MagicMock(return_value=components.startup_popups),
+    )
+    monkeypatch.setattr(
+        factory_mod,
+        "NewYearGreetingController",
+        MagicMock(return_value=components.new_year),
+    )
+    monkeypatch.setattr(
+        factory_mod,
+        "StartupTipsController",
+        MagicMock(return_value=components.startup_tips),
     )
     monkeypatch.setattr(
         factory_mod,
@@ -103,7 +121,6 @@ class TestBuildDockWindow:
         surface_service = MagicMock()
         visibility_service = MagicMock()
         session_backend = MagicMock()
-
         window = _window()
         dodge_monitor = MagicMock()
 
@@ -125,7 +142,7 @@ class TestBuildDockWindow:
         )
 
         assert result.window is window
-        assert result.update_checker is components.update_checker
+        assert result.startup_popups is components.startup_popups
         assert result.input_controller is components.input_controller
         factory_mod.DockWindow.assert_called_once_with(
             config=config,
@@ -199,15 +216,27 @@ class TestBuildDockWindow:
             interactions=components.interactions,
             dnd=components.dnd,
         )
+        factory_mod.StartupPopupCoordinator.assert_called_once_with()
+        factory_mod.NewYearGreetingController.assert_called_once_with(window=window)
+        factory_mod.StartupTipsController.assert_called_once_with(
+            window=window,
+            config=config,
+        )
+        components.startup_popups.register.assert_any_call(components.new_year)
+        components.startup_popups.register.assert_any_call(components.update_checker)
+        components.startup_popups.register.assert_any_call(components.startup_tips)
         components.input_controller.start.assert_not_called()
         components.update_checker.start.assert_not_called()
+        components.startup_popups.start.assert_not_called()
 
         result.start()
         components.input_controller.start.assert_called_once_with()
-        components.update_checker.start.assert_called_once_with()
+        components.startup_popups.start.assert_called_once_with()
+        components.update_checker.start.assert_not_called()
 
         result.stop()
-        components.update_checker.stop.assert_called_once_with()
+        components.startup_popups.stop.assert_called_once_with()
+        components.update_checker.stop.assert_not_called()
         components.input_controller.stop.assert_called_once_with()
 
     def test_build_dock_window_allows_unsupported_visibility_service(self, monkeypatch):
@@ -222,7 +251,6 @@ class TestBuildDockWindow:
         visibility_service = MagicMock()
         visibility_service.create_monitor.return_value = None
         session_backend = MagicMock()
-
         window = _window()
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
         _patch_ui_components(monkeypatch)
@@ -256,7 +284,6 @@ class TestBuildDockWindow:
         surface_service = MagicMock()
         visibility_service = MagicMock()
         session_backend = MagicMock()
-
         window = _window()
         window.get_realized.return_value = True
         window.get_position.return_value = (10, 20)
@@ -306,7 +333,6 @@ class TestBuildDockWindow:
         surface_service = MagicMock()
         visibility_service = MagicMock()
         session_backend = MagicMock()
-
         window = _window()
         window.get_realized.return_value = False
         captured: dict[str, object] = {}

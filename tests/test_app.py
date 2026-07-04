@@ -135,7 +135,6 @@ class TestAppMain:
         backend.idle = None
         backend.screen_capture = None
         unity = MagicMock()
-        new_year = MagicMock()
         window = MagicMock()
         ui = SimpleNamespace(
             window=window,
@@ -148,7 +147,6 @@ class TestAppMain:
         window.show_all.side_effect = lambda: call_order.append("show_all")
         ui.start.side_effect = lambda: call_order.append("ui_start")
         unity.start.side_effect = lambda: call_order.append("unity_start")
-        new_year.start.side_effect = lambda: call_order.append("new_year_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
@@ -178,11 +176,6 @@ class TestAppMain:
             app_mod,
             "UnityLauncherListener",
             MagicMock(return_value=unity),
-        )
-        monkeypatch.setattr(
-            app_mod,
-            "NewYearGreetingController",
-            MagicMock(return_value=new_year),
         )
         factory = MagicMock(return_value=ui)
         monkeypatch.setattr(app_mod, "build_dock_window", factory)
@@ -222,8 +215,6 @@ class TestAppMain:
         items_service.stop.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
-        new_year.start.assert_called_once()
-        new_year.stop.assert_called_once()
         ui.start.assert_called_once()
         ui.stop.assert_called_once()
         fake_glib.idle_add.assert_called_once_with(
@@ -236,7 +227,6 @@ class TestAppMain:
         assert call_order == [
             "unity_start",
             "show_all",
-            "new_year_start",
             "ui_start",
             "idle_add",
             "items_start",
@@ -271,7 +261,6 @@ class TestAppMain:
         backend.surface = surface_service
         backend.visibility = visibility_service
         unity = MagicMock()
-        new_year = MagicMock()
         window = MagicMock()
         ui = SimpleNamespace(
             window=window,
@@ -284,7 +273,6 @@ class TestAppMain:
         window.show_all.side_effect = lambda: call_order.append("show_all")
         ui.start.side_effect = lambda: call_order.append("ui_start")
         unity.start.side_effect = lambda: call_order.append("unity_start")
-        new_year.start.side_effect = lambda: call_order.append("new_year_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
@@ -303,7 +291,6 @@ class TestAppMain:
         renderer_cls = MagicMock(return_value=renderer)
         backend_cls = MagicMock(return_value=backend)
         unity_cls = MagicMock(return_value=unity)
-        new_year_cls = MagicMock(return_value=new_year)
         factory = MagicMock(return_value=ui)
         items_service_cls = MagicMock(return_value=items_service)
 
@@ -325,11 +312,6 @@ class TestAppMain:
         )
         monkeypatch.setattr(
             sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
-        )
-        monkeypatch.setattr(
-            sys.modules["docking.ui.new_year"],
-            "NewYearGreetingController",
-            new_year_cls,
         )
         monkeypatch.setattr(
             sys.modules["docking.ui.factory"], "build_dock_window", factory
@@ -354,14 +336,11 @@ class TestAppMain:
         backend.stop.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
-        new_year.start.assert_called_once()
-        new_year.stop.assert_called_once()
         ui.start.assert_called_once()
         ui.stop.assert_called_once()
         assert call_order == [
             "unity_start",
             "show_all",
-            "new_year_start",
             "ui_start",
             "idle_add",
             "items_start",
