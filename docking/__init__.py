@@ -38,4 +38,4 @@ In other words, this module is a package marker and metadata boundary, not an
 alternate application entrypoint.
 """
 
-__version__ = "2.4.0"
+__version__ = "2.4.1"
