@@ -300,8 +300,9 @@ def _check_compositor() -> None:
 
     log.warning(
         "no compositing manager detected (it may have crashed) -- "
-        "dock may appear behind maximized windows and transparency may not work; "
-        "enable compositing in your desktop settings or install a compositor "
+        "dock transparency and opacity settings will not render "
+        "(the dock will appear opaque); enable compositing in your "
+        "desktop settings or install a compositor "
         "(picom, compton, xcompmgr)"
     )
 
