@@ -22,11 +22,12 @@ The UI shape is inspired by Plank's preferences window:
     +----------------------------------------------+
     | Preferences                                  |
     |                                              |
-    |  [ Appearance ] [ Applets ]                  |
+    |  [ Appearance ] [ Behavior ] [ Applets ]     |
+    |  [ Updates ]                                 |
     |                                              |
-    |  appearance controls...                      |
+    |  controls for the active tab...              |
     |  or                                          |
-    |  applet enable/disable controls...           |
+    |  applet enable/disable cards...              |
     +----------------------------------------------+
 
 The dock already exposed many of these actions via the context menu. This
@@ -136,7 +137,13 @@ class _ScalarBinding:
 
 
 class SettingsActions:
-    """Facade for preferences-triggered side effects."""
+    """Facade for side effects triggered by the preferences window.
+
+    The settings controller owns widgets and config synchronization, not the
+    dock shell. This object keeps those concerns separate while avoiding a bag
+    of callbacks: every method is a named action the preferences UI is allowed
+    to request from runtime collaborators.
+    """
 
     def __init__(
         self,

@@ -11,7 +11,21 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Startup popup arbitration."""
+"""Startup popup arbitration.
+
+Docking can have several startup-time popup sources active in the same run:
+seasonal greetings, release update notices, and usage tips. They should not
+race each other or build direct dependencies between feature controllers.
+
+The coordinator gives each source two simple hooks:
+
+* `request_show(source_id)` when the source has content ready.
+* `visibility_changed(source_id, visible)` when the popup opens or closes.
+
+Sources stay independent and the coordinator owns the product policy:
+lower numeric priority wins, only one popup is visible at a time, and lower
+priority sources can expire rather than appearing long after startup.
+"""
 
 from __future__ import annotations
 
@@ -26,7 +40,7 @@ from gi.repository import GLib
 
 
 class StartupPopupSource(Protocol):
-    """Source that can request a startup popup without knowing the coordinator."""
+    """Source that can request a startup popup without knowing its peers."""
 
     source_id: str
     priority: int
@@ -49,7 +63,7 @@ class _PendingRequest:
 
 
 class StartupPopupCoordinator:
-    """Own startup popup priority and source lifecycle."""
+    """Own startup popup priority, queueing, and source lifecycle."""
 
     def __init__(self, *, clock=time.monotonic) -> None:
         self._clock = clock
@@ -74,6 +88,7 @@ class StartupPopupCoordinator:
             source.stop()
 
     def request_show(self, source_id: str) -> None:
+        """Queue a source and show it immediately when policy allows."""
         source = self._sources.get(source_id)
         if source is None:
             return
@@ -83,6 +98,7 @@ class StartupPopupCoordinator:
         self._try_show_next()
 
     def visibility_changed(self, source_id: str, visible: bool) -> None:
+        """Track the active popup and release the next queued source on close."""
         if visible:
             self._active_source_id = source_id
             self._clear_pending(source_id)

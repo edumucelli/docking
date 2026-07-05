@@ -216,11 +216,12 @@ def tray_item_from_properties(
 
 
 class StatusNotifierBackend:
-    """StatusNotifier watcher/client backend.
+    """StatusNotifier/AppIndicator D-Bus watcher/client backend.
 
     The backend consumes an existing watcher when the desktop provides one. In
     minimal sessions it owns the watcher name and accepts registrations from
-    tray apps started after Docking.
+    tray apps started after Docking. Legacy XEmbed tray icons are not handled
+    here; `XEmbedTrayHost` owns that X11-only selection and embedding path.
     """
 
     def __init__(self) -> None:
