@@ -215,22 +215,24 @@ def compositor_active(*, display: object | None = None) -> bool | None:
     try:
         import ctypes
 
-        from gi.repository import GdkX11
-
         if display is None:
+            from gi.repository import GdkX11
+
             display = GdkX11.X11Display.get_default()
         if display is None or not is_x11_backend(display=display):
             return None
-        screen_num = display.get_default_screen()
 
         xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
         xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
 
+        xlib.XDefaultScreen.restype = ctypes.c_int
+        xlib.XDefaultScreen.argtypes = [ctypes.c_void_p]
         xlib.XInternAtom.restype = ctypes.c_ulong
         xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
         xlib.XGetSelectionOwner.restype = ctypes.c_ulong
         xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
 
+        screen_num = xlib.XDefaultScreen(xdisplay)
         atom = xlib.XInternAtom(xdisplay, f"_NET_WM_CM_S{screen_num}".encode(), 0)
         owner = xlib.XGetSelectionOwner(xdisplay, atom)
         return owner != 0
