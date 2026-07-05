@@ -171,6 +171,9 @@ def _start_runtime(
 def _quit() -> bool:
     global _FORCE_QUIT_SOURCE_ID
 
+    # Shutdown is intentionally two-stage.  Give GTK, applets, IPC services,
+    # and backend adapters a normal main-loop exit first; if something wedges
+    # during teardown, force the process out after a short grace period.
     Gtk.main_quit()
     if _FORCE_QUIT_SOURCE_ID == 0:
         _FORCE_QUIT_SOURCE_ID = GLib.timeout_add_seconds(3, _force_quit)

@@ -23,15 +23,15 @@ Applets split their work into two explicit paths:
 
 1. ``create_icon(size)``: pure visual rendering to pixbuf,
 2. ``refresh_tooltip()``: update user-facing metadata (name/tooltip builder),
-3. ``present()``: perform both and notify the dock model/UI,
-4. ``present()``: explicit first presentation sync after subclass init completes.
+3. ``present()``: perform both paths and notify the dock model/UI.
 
 Why this split matters
 
 The current applet contract keeps rendering and metadata updates explicit.
 ``create_icon()`` is for pixels, ``refresh_tooltip()`` is for user-facing text,
 ``present()`` is the coordinated update path for later state
-changes, and ``present()`` marks the first sync once subclass state is ready.
+changes, and subclasses call ``present()`` once their own initialization state
+is ready.
 This keeps applet behavior predictable and testable:
 
 - icon tests can assert drawing behavior independently,
@@ -55,7 +55,6 @@ This module also centralizes reusable rendering helpers and icon-theme loading:
 
 - theme icon lookup with fallback candidate names,
 - bundled fallback icon for applet identity consistency across distros,
-- canvas-centering helper for non-square icon assets,
 - shared outlined text drawing used by multiple applets.
 
 Keeping these helpers in one place avoids per-applet duplication and ensures
@@ -175,7 +174,13 @@ def _load_bundled_fallback_icon(size: int) -> GdkPixbuf.Pixbuf | None:
 
 
 def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
-    """Load an icon by name from the default GTK icon theme."""
+    """Load an icon by name from GTK icon themes with Docking fallbacks.
+
+    Lookup expands known aliases and symbolic variants, then tries the default
+    theme plus Adwaita/hicolor fallbacks for CI and sparse desktop sessions.
+    For built-in applet names that Docking guarantees visually, missing theme
+    icons fall back to the bundled applet placeholder asset.
+    """
     flags = Gtk.IconLookupFlags.FORCE_SIZE
     for icon_name in _icon_name_candidates(name=name):
         for theme in _icon_theme_candidates():
@@ -331,6 +336,7 @@ class Applet(ABC):
     Lifecycle:
       __init__  -> create item
       present() -> initial presentation sync once subclass state is ready
+      present() -> later icon/tooltip redraws after applet state changes
       start()   -> begin timers/monitors (called after dock is ready)
       stop()    -> cleanup (called on removal or shutdown)
     """

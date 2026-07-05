@@ -128,7 +128,12 @@ class DBusMenuClient:
 
 
 def parse_menu_node(raw: object) -> DBusMenuItem | None:
-    """Parse one DBusMenu ``(ia{sv}av)`` node after GLib unpacking."""
+    """Parse one DBusMenu ``(ia{sv}av)`` node after GLib unpacking.
+
+    Children are parsed recursively and malformed child nodes are dropped.
+    Real tray apps vary in how strictly they follow DBusMenu, so callers get a
+    usable partial menu instead of losing the whole tree.
+    """
     raw = _unpack_variant(raw)
     if not isinstance(raw, (tuple, list)) or len(raw) != 3:
         return None

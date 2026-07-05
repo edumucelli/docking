@@ -46,8 +46,11 @@ def create_session_backend(
 ) -> SessionBackend:
     """Create the production session backend for the current runtime.
 
-    X11 remains the default on X11 displays. Native Wayland first tries the
-    optional layer-shell backend and falls back to reduced mode when unavailable.
+    Explicit ``DOCKING_BACKEND`` values win first. Without an override, X11
+    remains the default on X11 displays. Native Wayland prefers richer
+    compositor-specific backends before the generic layer-shell path:
+    Hyprland, COSMIC, Niri, Wayfire, KWin, then layer-shell, then the GNOME
+    Shell bridge, then reduced mode.
     """
     requested = os.environ.get("DOCKING_BACKEND", "").strip().lower()
     if requested == "reduced":

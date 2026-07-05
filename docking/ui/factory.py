@@ -11,11 +11,25 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Composition root for building a dock window plus edge-dodge integration.
+"""Composition root for wiring the dock UI object graph.
 
-`DockWindow` now leaves construction already owning its UI collaborators. This
-module stays as the thin bootstrap layer for the extra platform piece that does
-not belong inside the GTK shell itself: the dodge monitor.
+This module is the hand-off point between process startup (`app.py`) and the
+interactive GTK shell. It deliberately owns the wiring that crosses UI
+subsystem boundaries:
+
+* `DockWindow` owns the drawing area and low-level shell services.
+* `DockRuntime` exposes a narrow command surface for broad controllers such as
+  settings and menus, so they do not reach into raw `DockWindow` internals.
+* `MenuHandler`, `SettingsWindowController`, drag-and-drop, folder stacks, and
+  input handling are composed here because they depend on each other but should
+  not construct each other.
+* Startup popup sources are registered with one coordinator here so New Year,
+  update, and tip popups can share priority rules without knowing about each
+  other.
+
+Keeping that graph in one place makes later refactors easier: `app.py` remains
+process bootstrap, `DockWindow` remains the dock surface, and feature
+controllers receive the smallest collaborator set they need.
 """
 
 from __future__ import annotations
@@ -54,7 +68,13 @@ from docking.ui.update_popup import UpdateCheckController
 
 @dataclass(slots=True)
 class DockUi:
-    """Handle for the composed dock UI graph."""
+    """Lifecycle handle for UI pieces that live beside `DockWindow`.
+
+    `DockWindow` is still the GTK window callers need for show/present calls,
+    but it intentionally does not own every controller anymore. This wrapper
+    gives `app.py` a single start/stop surface for the controllers assembled in
+    this module.
+    """
 
     window: DockWindow
     startup_popups: StartupPopupCoordinator
@@ -84,7 +104,11 @@ def build_dock_window(
     launcher: Launcher,
     session_backend: SessionBackend,
 ) -> DockUi:
-    """Build a fully wired dock window and its UI collaborators."""
+    """Build a fully wired dock window and its UI collaborators.
+
+    The function name is kept for existing callers/tests, but the returned
+    object is the composed dock UI handle rather than a bare `DockWindow`.
+    """
     window = DockWindow(
         config=config,
         model=model,
@@ -162,6 +186,9 @@ def build_dock_window(
     startup_popups.register(startup_tips)
 
     def _get_dock_rect() -> Rect | None:
+        # Dodge monitors are backend-owned, but the visible shelf rectangle is
+        # a renderer/geometry concern. Query it lazily so monitor callbacks
+        # always see the current theme, position, zoom, and scale state.
         if not window.get_realized():
             return None
         window_pos = window_screen_position(window)

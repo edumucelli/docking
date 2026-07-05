@@ -117,7 +117,14 @@ GdkFilterFunc = ctypes.CFUNCTYPE(
 
 
 class XEmbedTrayHost:
-    """Persistent legacy tray manager, modelled after Cairo-Dock's NaTray."""
+    """X11-only legacy tray selection owner and XEmbed icon host.
+
+    This is separate from the StatusNotifier/AppIndicator D-Bus backend. It
+    claims the classic ``_NET_SYSTEM_TRAY`` manager selection, accepts foreign
+    XEmbed icon windows, and embeds them with `Gtk.Socket`. When requested by
+    the user it may forcibly take over an existing tray owner, matching the
+    behavior used by older docks such as Cairo-Dock.
+    """
 
     def __init__(self, *, icon_size: int, on_changed: Callable[[], None]) -> None:
         self._icon_size = max(16, icon_size)

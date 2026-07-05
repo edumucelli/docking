@@ -11,7 +11,24 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Shared XDG desktop-entry discovery and parsing helpers."""
+"""Shared XDG desktop-entry discovery, parsing, and generation helpers.
+
+Desktop entries are used by several layers: launch resolution, running-window
+matching, Applications/Run Application applets, desktop action menus, and
+drag-to-pin for standalone executables. Keeping the parsing and generated entry
+rules here prevents each caller from inventing a slightly different view of
+`.desktop` files.
+
+Two environments matter:
+
+* normal host sessions, where Gio usually resolves installed desktop IDs;
+* sandboxed/host-mounted sessions, where we may need to walk host desktop
+  directories and parse files directly.
+
+The helpers below prefer Gio when it has the data, then fall back to explicit
+file parsing so features keep working across classic installs, Flatpak-like
+host mounts, Snap desktop exports, and user-generated launchers.
+"""
 
 from __future__ import annotations
 
@@ -159,7 +176,14 @@ def wine_executable_aliases(exec_line: str) -> list[str]:
 
 
 def desktop_match_aliases(info: DesktopInfo) -> list[str]:
-    """Return stable lookup aliases for matching runtime windows to desktop IDs."""
+    """Return stable aliases for matching runtime windows to desktop IDs.
+
+    The order mirrors the strongest identities first: explicit or synthesized
+    ``StartupWMClass``, desktop ID stem, Wine executable aliases when the Exec
+    line launches through Wine, otherwise the normal Exec basename. The
+    launcher and `AppIdMatcher` both rely on this order when resolving running
+    windows back to pinned desktop files.
+    """
     aliases = [
         info.wm_class.lower(),
         info.desktop_id.removesuffix(DESKTOP_SUFFIX).lower(),
@@ -255,7 +279,13 @@ def desktop_info_from_app_info(
 
 
 def wm_class_for_app_info(*, app_info: Gio.DesktopAppInfo, desktop_id: str) -> str:
-    """Return explicit StartupWMClass or the existing executable fallback."""
+    """Return the best runtime matching class for a Gio desktop app.
+
+    A specific ``StartupWMClass`` wins. Missing or generic ``Wine`` classes can
+    be replaced by a Wine ``.exe`` alias extracted from the command line;
+    otherwise fall back to the command basename and finally the desktop ID
+    stem.
+    """
     wm_class = app_info.get_startup_wm_class() or ""
     commandline = app_info.get_commandline() or ""
     wine_aliases = wine_executable_aliases(commandline)
@@ -469,7 +499,13 @@ def desktop_listing_from_app_info(
 
 
 def all_desktop_app_listings() -> list[DesktopAppListing]:
-    """Return launchable desktop applications visible to applet UIs."""
+    """Return launchable desktop applications visible to applet UIs.
+
+    Gio gives the best integration for normal desktop files, but it may miss
+    host-mounted or recently generated entries. Walk desktop directories after
+    Gio and dedupe by desktop ID so applet launchers see both sources without
+    duplicating applications.
+    """
     apps: list[DesktopAppListing] = []
     seen: set[str] = set()
 
@@ -581,7 +617,14 @@ def make_user_executable(path: Path) -> bool:
 def create_desktop_entry_for_executable(
     target: str | Path,
 ) -> GeneratedDesktopEntry | None:
-    """Create or update a generated desktop entry for a launchable local file."""
+    """Create or update a generated desktop entry for a launchable local file.
+
+    Drag-to-pin needs standalone binaries and AppImages to become normal dock
+    launchers. Instead of storing an ad-hoc command in dock config, generate a
+    user-local `.desktop` file with a stable ID derived from the source path.
+    That keeps launching, matching, pinning, and later menu behavior on the
+    same desktop-entry path as installed applications.
+    """
     path = _local_executable_path(target)
     if path is None:
         return None
