@@ -42,6 +42,10 @@ from docking.core.updates import (
 from docking.i18n import _
 from docking.log import get_logger
 from docking.ui.display import clamp_popup, window_screen_position
+from docking.ui.popup_surface import (
+    configure_transparent_startup_popup_window,
+    wrap_startup_popup_content,
+)
 from docking.ui.tooltip import compute_tooltip_position
 
 if TYPE_CHECKING:
@@ -203,6 +207,7 @@ class UpdateCheckController:
             popup.set_skip_taskbar_hint(True)
             popup.set_resizable(False)
             popup.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
+            configure_transparent_startup_popup_window(popup)
             popup.set_transient_for(self._window)
             popup.connect("destroy", self._on_popup_destroy)
             self._popup = popup
@@ -218,8 +223,6 @@ class UpdateCheckController:
         return True
 
     def _build_popup_content(self, *, release: ReleaseInfo) -> Gtk.Widget:
-        frame = Gtk.Frame()
-        frame.set_shadow_type(Gtk.ShadowType.OUT)
         box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
             spacing=UPDATE_POPUP_SPACING_PX,
@@ -252,8 +255,7 @@ class UpdateCheckController:
         buttons.pack_start(later, False, False, 0)
         buttons.pack_start(ignore, False, False, 0)
         box.pack_start(buttons, False, False, 0)
-        frame.add(box)
-        return frame
+        return wrap_startup_popup_content(box)
 
     def _position_popup(self) -> None:
         if self._popup is None or self._window is None:

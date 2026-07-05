@@ -99,26 +99,53 @@ class _FakeBox:
         self.kwargs = kwargs
         self.children = []
         self.border_width = 0
+        self.hexpand = False
+        self.style_context = _FakeStyleContext()
 
     def set_border_width(self, value):
         self.border_width = value
 
+    def set_hexpand(self, value):
+        self.hexpand = value
+
     def pack_start(self, child, *args):
         self.children.append(child)
+
+    def get_style_context(self):
+        return self.style_context
+
+
+class _FakeStyleContext:
+    def __init__(self) -> None:
+        self.classes = []
+
+    def add_class(self, class_name):
+        self.classes.append(class_name)
 
 
 class _FakeLabel:
     def __init__(self, *, label="") -> None:
         self.label = label
+        self.markup = ""
+        self.style_context = _FakeStyleContext()
 
     def set_xalign(self, value):
         self.xalign = value
+
+    def set_yalign(self, value):
+        self.yalign = value
 
     def set_line_wrap(self, value):
         self.line_wrap = value
 
     def set_max_width_chars(self, value):
         self.max_width_chars = value
+
+    def set_markup(self, value):
+        self.markup = value
+
+    def get_style_context(self):
+        return self.style_context
 
 
 class _FakeButton:
@@ -131,6 +158,40 @@ class _FakeButton:
 
     def click(self):
         self.handlers["clicked"](self)
+
+
+class _FakeCheckButton(_FakeButton):
+    def __init__(self, *, label="") -> None:
+        super().__init__(label=label)
+        self.active = False
+
+    def set_active(self, value):
+        self.active = value
+
+    def get_active(self):
+        return self.active
+
+
+class _FakeImage:
+    def __init__(self, icon_name, icon_size) -> None:
+        self.icon_name = icon_name
+        self.icon_size = icon_size
+
+    @classmethod
+    def new_from_icon_name(cls, icon_name, icon_size):
+        return cls(icon_name, icon_size)
+
+    def set_valign(self, value):
+        self.valign = value
+
+
+class _FakeIconTheme:
+    @staticmethod
+    def get_default():
+        return _FakeIconTheme()
+
+    def has_icon(self, icon_name):
+        return icon_name == tips_ui.STARTUP_TIP_ICON_NAME
 
 
 class _FakeWindow:
@@ -165,8 +226,13 @@ def fake_gtk(monkeypatch):
             ShadowType=SimpleNamespace(OUT="out"),
             Box=_FakeBox,
             Orientation=SimpleNamespace(VERTICAL="vertical", HORIZONTAL="horizontal"),
+            Align=SimpleNamespace(START="start"),
+            IconSize=SimpleNamespace(DIALOG="dialog"),
+            IconTheme=_FakeIconTheme,
+            Image=_FakeImage,
             Label=_FakeLabel,
             Button=_FakeButton,
+            CheckButton=_FakeCheckButton,
         ),
     )
     monkeypatch.setattr(
@@ -174,7 +240,19 @@ def fake_gtk(monkeypatch):
         "Gdk",
         SimpleNamespace(WindowTypeHint=SimpleNamespace(NOTIFICATION="notification")),
     )
+    monkeypatch.setattr(
+        tips_ui,
+        "configure_transparent_startup_popup_window",
+        lambda _popup: None,
+    )
+    monkeypatch.setattr(tips_ui, "wrap_startup_popup_content", _wrap_fake_popup)
     return glib
+
+
+def _wrap_fake_popup(content):
+    frame = _FakeFrame()
+    frame.add(content)
+    return frame
 
 
 def _config(*, enabled=True):
@@ -279,6 +357,25 @@ def test_close_hides_and_deactivates(fake_gtk):
 
     assert controller._popup.hidden
     assert visible[-1] == (tips_ui.STARTUP_TIP_POPUP_ID, False)
+
+
+def test_close_with_startup_checkbox_disabled_saves_preference(fake_gtk):
+    saved = []
+    config = SimpleNamespace(
+        startup_tips_enabled=True,
+        save=lambda: saved.append(True),
+    )
+    controller = StartupTipsController(
+        window=_FakeWindow(),
+        config=config,
+    )
+    controller._show_popup(tip=StartupTip(FIRST_TIP_ID, "Title", "Body"))
+    controller._show_on_startup_check.set_active(False)
+
+    controller._on_close(_FakeButton(label="Close"))
+
+    assert config.startup_tips_enabled is False
+    assert saved == [True]
 
 
 def test_never_show_disables_saves_and_destroys(fake_gtk):

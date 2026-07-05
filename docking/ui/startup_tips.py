@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from html import escape
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -30,6 +31,10 @@ from docking.core.tips import StartupTip, select_startup_tip
 from docking.i18n import _
 from docking.log import get_logger
 from docking.ui.display import clamp_popup, window_screen_position
+from docking.ui.popup_surface import (
+    configure_transparent_startup_popup_window,
+    wrap_startup_popup_content,
+)
 from docking.ui.tooltip import compute_tooltip_position
 
 if TYPE_CHECKING:
@@ -43,8 +48,10 @@ STARTUP_TIP_DELAY_S = 12
 STARTUP_TIP_MAX_PRIORITY_WAIT_S = 30
 STARTUP_TIP_POPUP_GAP_PX = 16
 STARTUP_TIP_SPACING_PX = 10
-STARTUP_TIP_MARGIN_PX = 12
+STARTUP_TIP_MARGIN_PX = 14
 STARTUP_TIP_WIDTH_CHARS = 48
+STARTUP_TIP_ICON_NAME = "help-hint"
+STARTUP_TIP_ICON_FALLBACK = "dialog-information"
 
 
 class StartupTipsController:
@@ -69,6 +76,7 @@ class StartupTipsController:
         self._start_source_id = 0
         self._popup: Gtk.Window | None = None
         self._current_tip: StartupTip | None = None
+        self._show_on_startup_check: Gtk.CheckButton | None = None
         self._request_show: Callable[[str], None] | None = None
         self._visibility_changed: Callable[[str, bool], None] | None = None
 
@@ -129,6 +137,7 @@ class StartupTipsController:
             popup.set_skip_taskbar_hint(True)
             popup.set_resizable(False)
             popup.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
+            configure_transparent_startup_popup_window(popup)
             popup.set_transient_for(self._window)
             popup.connect("destroy", self._on_popup_destroy)
             self._popup = popup
@@ -144,43 +153,76 @@ class StartupTipsController:
         return True
 
     def _build_popup_content(self, *, tip: StartupTip) -> Gtk.Widget:
-        frame = Gtk.Frame()
-        frame.set_shadow_type(Gtk.ShadowType.OUT)
         box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
-            spacing=STARTUP_TIP_SPACING_PX,
+            spacing=STARTUP_TIP_SPACING_PX + 2,
         )
         box.set_border_width(STARTUP_TIP_MARGIN_PX)
+        self._add_style_class(box, "startup-tip-content")
 
-        title = Gtk.Label(label=_("Tip: {title}").format(title=tip.title))
+        header = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=STARTUP_TIP_SPACING_PX + 2,
+        )
+        icon = self._build_tip_icon()
+        icon.set_valign(Gtk.Align.START)
+        header.pack_start(icon, False, False, 0)
+
+        text = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=max(4, STARTUP_TIP_SPACING_PX // 2),
+        )
+        text.set_hexpand(True)
+
+        eyebrow = Gtk.Label(label=_("Tip of the day"))
+        eyebrow.set_xalign(0.0)
+        self._add_style_class(eyebrow, "dim-label")
+        text.pack_start(eyebrow, False, False, 0)
+
+        title = Gtk.Label()
         title.set_xalign(0.0)
         title.set_line_wrap(True)
         title.set_max_width_chars(STARTUP_TIP_WIDTH_CHARS)
-        box.pack_start(title, False, False, 0)
+        title.set_markup(f"<b>{escape(tip.title)}</b>")
+        text.pack_start(title, False, False, 0)
 
         body = Gtk.Label(label=tip.body)
         body.set_xalign(0.0)
         body.set_line_wrap(True)
         body.set_max_width_chars(STARTUP_TIP_WIDTH_CHARS)
-        box.pack_start(body, False, False, 0)
+        text.pack_start(body, False, False, 0)
+
+        header.pack_start(text, True, True, 0)
+        box.pack_start(header, False, False, 0)
 
         buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=STARTUP_TIP_SPACING_PX,
         )
-        never = Gtk.Button(label=_("Never Show Tips"))
+        show_on_startup = Gtk.CheckButton(label=_("Show tips on startup"))
+        show_on_startup.set_active(True)
+        self._show_on_startup_check = show_on_startup
         next_tip = Gtk.Button(label=_("Next Tip"))
         close = Gtk.Button(label=_("Close"))
-        never.connect("clicked", self._on_never_show)
         next_tip.connect("clicked", self._on_next_tip)
         close.connect("clicked", self._on_close)
-        buttons.pack_start(never, False, False, 0)
+        buttons.pack_start(show_on_startup, True, True, 0)
         buttons.pack_start(next_tip, False, False, 0)
         buttons.pack_start(close, False, False, 0)
         box.pack_start(buttons, False, False, 0)
 
-        frame.add(box)
-        return frame
+        return wrap_startup_popup_content(box)
+
+    def _build_tip_icon(self) -> Gtk.Image:
+        icon_theme = Gtk.IconTheme.get_default()
+        icon_name = STARTUP_TIP_ICON_NAME
+        if icon_theme is not None and not icon_theme.has_icon(icon_name):
+            icon_name = STARTUP_TIP_ICON_FALLBACK
+        return Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
+
+    @staticmethod
+    def _add_style_class(widget: Gtk.Widget, class_name: str) -> None:
+        widget.get_style_context().add_class(class_name)
 
     def _position_popup(self) -> None:
         if self._popup is None:
@@ -218,6 +260,7 @@ class StartupTipsController:
         self.show_pending()
 
     def _on_close(self, _button: Gtk.Button) -> None:
+        self._save_startup_tip_visibility_choice()
         if self._popup is not None:
             self._popup.hide()
         self._notify_visible(False)
@@ -232,6 +275,14 @@ class StartupTipsController:
             self._popup = None
             popup.destroy()
         self._notify_visible(False)
+
+    def _save_startup_tip_visibility_choice(self) -> None:
+        if self._show_on_startup_check is None:
+            return
+        if self._show_on_startup_check.get_active():
+            return
+        self._config.startup_tips_enabled = False
+        self._config.save()
 
     def _notify_visible(self, visible: bool) -> None:
         if self._visibility_changed is not None:
