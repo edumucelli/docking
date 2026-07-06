@@ -14,7 +14,10 @@ from docking.platform.environment import (
     is_x11_backend,
     is_xwayland_session,
 )
-from docking.platform.environment.environment import _check_compositor, _parse_desktop
+from docking.platform.environment.environment import (
+    _parse_desktop,
+    compositor_active,
+)
 
 
 class TestParseDesktop:
@@ -203,9 +206,37 @@ class TestUsesMonitorGeometry:
 
 
 class TestCompositorCheck:
-    def test_logs_warning_when_probe_fails(self, caplog):
-        from gi.repository import GdkX11
+    def test_uses_xlib_default_screen_for_compositor_selection(self):
+        class _Display:
+            def get_xdisplay(self):
+                return object()
 
+        class _Callable:
+            def __init__(self, func):
+                self._func = func
+
+            def __call__(self, *args):
+                return self._func(*args)
+
+        class _Xlib:
+            def __init__(self):
+                self.atom_names = []
+                self.XDefaultScreen = _Callable(lambda *_args: 0)
+                self.XInternAtom = _Callable(self._intern_atom)
+                self.XGetSelectionOwner = _Callable(lambda *_args: 42)
+
+            def _intern_atom(self, _display, name, _only_if_exists):
+                self.atom_names.append(name)
+                return 7
+
+        xlib = _Xlib()
+
+        with patch("ctypes.cdll.LoadLibrary", return_value=xlib):
+            assert compositor_active(display=_Display()) is True
+
+        assert xlib.atom_names == [b"_NET_WM_CM_S0"]
+
+    def test_logs_warning_when_probe_fails(self, caplog):
         class _Display:
             def get_default_screen(self):
                 return 0
@@ -214,10 +245,9 @@ class TestCompositorCheck:
                 return object()
 
         with (
-            patch.object(GdkX11.X11Display, "get_default", return_value=_Display()),
             patch("ctypes.cdll.LoadLibrary", side_effect=RuntimeError("boom")),
             caplog.at_level(logging.WARNING, logger="docking.environment"),
         ):
-            _check_compositor()
+            compositor_active(display=_Display())
 
         assert "failed to check compositor status" in caplog.text
