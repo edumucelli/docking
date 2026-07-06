@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-04 23:25+0200\n"
+"POT-Creation-Date: 2026-07-05 14:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3029,7 +3029,7 @@ msgid "Save Report..."
 msgstr ""
 
 #: docking/ui/diagnostics.py:122 docking/ui/menu.py:574
-#: docking/ui/startup_tips.py:173
+#: docking/ui/startup_tips.py:207
 msgid "Close"
 msgstr ""
 
@@ -3712,16 +3712,15 @@ msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 
-#: docking/ui/startup_tips.py:155
-#, python-brace-format
-msgid "Tip: {title}"
+#: docking/ui/startup_tips.py:178
+msgid "Tip of the day"
 msgstr ""
 
-#: docking/ui/startup_tips.py:171
-msgid "Never Show Tips"
+#: docking/ui/startup_tips.py:203
+msgid "Show tips on startup"
 msgstr ""
 
-#: docking/ui/startup_tips.py:172
+#: docking/ui/startup_tips.py:206
 msgid "Next Tip"
 msgstr ""
 
@@ -3743,24 +3742,24 @@ msgstr ""
 msgid "{age} ago"
 msgstr ""
 
-#: docking/ui/update_popup.py:230
+#: docking/ui/update_popup.py:233
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr ""
 
-#: docking/ui/update_popup.py:236
+#: docking/ui/update_popup.py:239
 #, python-brace-format
 msgid "You are using {version}."
 msgstr ""
 
-#: docking/ui/update_popup.py:245
+#: docking/ui/update_popup.py:248
 msgid "View Release"
 msgstr ""
 
-#: docking/ui/update_popup.py:246
+#: docking/ui/update_popup.py:249
 msgid "Later"
 msgstr ""
 
-#: docking/ui/update_popup.py:247
+#: docking/ui/update_popup.py:250
 msgid "Ignore"
 msgstr ""
