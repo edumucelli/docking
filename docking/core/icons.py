@@ -6,7 +6,13 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-"""Shared icon preference values."""
+"""Shared icon preference values.
+
+Docking has several icon-selection surfaces: applet menus, file/folder item
+menus, config persistence, and renderer decisions. Keep the persisted source
+values in core so those layers agree without importing UI or applet modules
+from each other.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +20,11 @@ from enum import Enum
 
 
 class IconSource(str, Enum):
-    """Supported user-selectable icon sources."""
+    """Supported user-selectable icon sources.
+
+    There is no separate "default" value. Callers should omit the preference
+    or fall back to `DOCKING` when a persisted value is missing/invalid.
+    """
 
     DOCKING = "docking"
     SYSTEM = "system"

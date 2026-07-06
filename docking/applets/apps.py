@@ -11,7 +11,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Shared desktop application discovery helpers for applets."""
+"""Shared desktop application discovery helpers for applets.
+
+The Applications and Run Application applets need the same launchable desktop
+entry list but present it differently. This module keeps that discovery logic
+out of individual applets and adapts host-parsed desktop files to the small
+`Gio.DesktopAppInfo`-like surface those applets already use.
+"""
 
 from __future__ import annotations
 
@@ -28,7 +34,13 @@ from docking.platform.launcher import launch as launch_desktop_id
 
 
 class ApplicationEntry(NamedTuple):
-    """Small app-info adapter for Gio and host-parsed desktop files."""
+    """Small app-info adapter for Gio and host-parsed desktop files.
+
+    Entries discovered through `Gio.AppInfo.get_all()` keep their original
+    `Gio.DesktopAppInfo`. Entries found only by walking desktop directories
+    still expose the same methods so applet filtering, icon loading, and launch
+    code do not need separate branches.
+    """
 
     desktop_id: str
     name: str

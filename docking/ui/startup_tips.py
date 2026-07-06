@@ -11,7 +11,17 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Startup usage tip popup UI."""
+"""Startup usage tip popup UI.
+
+This controller is only one source in the startup popup system. It owns tip
+selection and its GTK surface, while `StartupPopupCoordinator` owns whether the
+tip is allowed to appear now or must wait behind higher-priority startup
+popups.
+
+Tip state is consumed only when the popup is actually shown. That matters when
+updates or seasonal popups win startup arbitration: a skipped or expired tip
+should not be marked as seen.
+"""
 
 from __future__ import annotations
 
@@ -55,7 +65,7 @@ STARTUP_TIP_ICON_FALLBACK = "dialog-information"
 
 
 class StartupTipsController:
-    """Schedules and shows one startup usage tip."""
+    """Schedule and show one startup usage tip when the coordinator allows it."""
 
     source_id = STARTUP_TIP_POPUP_ID
     priority = STARTUP_TIP_POPUP_PRIORITY
@@ -113,7 +123,7 @@ class StartupTipsController:
         return False
 
     def show_pending(self) -> bool:
-        """Select and show the next startup tip."""
+        """Select, consume, and show the next startup tip."""
         if not self._window.get_realized():
             log.debug("Skipping startup tip because dock window is not realized")
             return False

@@ -11,7 +11,18 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Runtime command surfaces exposed by the dock UI shell to handlers."""
+"""Runtime command surface exposed by the dock UI shell to broad controllers.
+
+Menus, settings, folder stacks, and applet helpers often need to trigger
+dock-wide effects, but letting each of them keep a `DockWindow` reference would
+make those modules depend on the full GTK shell. `DockRuntime` is the small
+imperative facade they share instead.
+
+The boundary is intentionally practical rather than abstract: methods are added
+when a controller needs a real dock-level action. It should stay thinner than
+`DockWindow`, but it should not force callers into generic callbacks when a
+named runtime command is clearer and easier to test.
+"""
 
 from __future__ import annotations
 
@@ -25,7 +36,7 @@ if TYPE_CHECKING:
 
 
 class DockRuntime:
-    """Narrow imperative API for subsystems that should not own DockWindow."""
+    """Narrow imperative API for subsystems that should not own `DockWindow`."""
 
     def __init__(
         self,
