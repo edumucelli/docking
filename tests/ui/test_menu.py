@@ -46,6 +46,9 @@ class _FakeMenuItem:
     def add(self, child) -> None:
         self._child = child
 
+    def set_sensitive(self, sensitive: bool) -> None:
+        self._sensitive = sensitive
+
 
 class _FakeRadioMenuItem(_FakeMenuItem):
     def __init__(self, label: str = "") -> None:
@@ -264,3 +267,33 @@ class TestMenuIcons:
         assert len(row.children) == 2
         assert row.children[0].pixbuf is scaled
         assert row.children[0].pixel_size == 24
+
+    def test_set_menu_item_icon_no_existing_child(self, monkeypatch):
+        """Should still work when there is no child to remove."""
+        monkeypatch.setattr(menu_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(menu_mod, "Pango", _FakePango)
+        monkeypatch.setattr(menu_mod, "GdkPixbuf", _FakeGdkPixbuf)
+        item = _FakeMenuItem()
+        # No child added
+        scaled = object()
+        pixbuf = _FakePixbuf(32, 32, scaled=scaled)
+
+        menu_mod._set_menu_item_icon(
+            item=item,
+            label="App",
+            pixbuf=pixbuf,
+            icon_px=16,
+        )
+
+        assert item.get_label() == "App"
+        row = item.get_child()
+        assert len(row.children) == 2
+
+
+class TestMakeMenuHeader:
+    def test_make_menu_header_creates_label(self, monkeypatch):
+        monkeypatch.setattr(menu_mod, "Gtk", _FakeGtk)
+        monkeypatch.setattr(menu_mod, "Pango", _FakePango)
+        item = menu_mod._make_menu_header("Test Header")
+        assert isinstance(item, _FakeMenuItem)
+        assert item.get_label() == "Test Header"
