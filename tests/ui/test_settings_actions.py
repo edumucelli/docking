@@ -32,3 +32,47 @@ def test_settings_actions_delegate_shell_actions_to_runtime():
     runtime.queue_draw.assert_called_once_with()
     runtime.set_theme.assert_called_once_with("theme")
     runtime.check_for_updates_now.assert_called_once_with()
+
+
+def test_settings_actions_delegate_all_remaining_to_runtime():
+    runtime = MagicMock()
+    dnd = MagicMock()
+    actions = SettingsActions(runtime=runtime, dnd=dnd)
+
+    actions.on_hide_mode_changed()
+    actions.set_active_display(True)
+    actions.refresh_pressure_handler()
+    actions.set_current_workspace_only(False)
+    actions.hide_tooltip()
+    actions.open_releases_page()
+
+    runtime.on_hide_mode_changed.assert_called_once_with()
+    runtime.set_active_display.assert_called_once_with(True)
+    runtime.refresh_pressure_handler.assert_called_once_with()
+    runtime.set_current_workspace_only.assert_called_once_with(False)
+    runtime.hide_tooltip.assert_called_once_with()
+    runtime.open_releases_page.assert_called_once_with()
+
+
+def test_settings_actions_get_monitor_choices():
+    runtime = MagicMock()
+    runtime.get_monitor_choices.return_value = ["mon1", "mon2"]
+    dnd = MagicMock()
+    actions = SettingsActions(runtime=runtime, dnd=dnd)
+
+    result = actions.get_monitor_choices()
+
+    assert result == ["mon1", "mon2"]
+    runtime.get_monitor_choices.assert_called_once_with()
+
+
+def test_settings_actions_current_monitor_choice():
+    runtime = MagicMock()
+    runtime.current_monitor_choice.return_value = 2
+    dnd = MagicMock()
+    actions = SettingsActions(runtime=runtime, dnd=dnd)
+
+    result = actions.current_monitor_choice()
+
+    assert result == 2
+    runtime.current_monitor_choice.assert_called_once_with()

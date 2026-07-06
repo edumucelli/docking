@@ -366,6 +366,44 @@ def test_position_popup_near_anchor_uses_bottom_edge():
     assert window.moved_to == (10, 10)
 
 
+def test_position_popup_near_anchor_uses_top_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=60, y=20, position=Position.TOP)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=8)
+
+    # popup_x = int(60 - 80/2) = 20, popup_y = int(20 + 8) = 28
+    # clamp: y=28 fits within screen (0..40)
+    assert window.moved_to == (20, 28)
+
+
+def test_position_popup_near_anchor_uses_left_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=10, y=50, position=Position.LEFT)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=12)
+
+    # popup_x = int(10 + 12) = 22 → clamped to 20 (max for screen 100 with w=80)
+    # popup_y = int(50 - 40/2) = 30
+    assert window.moved_to == (20, 30)
+
+
+def test_position_popup_near_anchor_uses_right_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=200, y=50, position=Position.RIGHT)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=6)
+
+    # popup_x = int(200 - 80 - 6) = 114 → clamped to 20 (max for screen 100 with w=80)
+    # popup_y = int(50 - 40/2) = 30
+    assert window.moved_to == (20, 30)
+
+
+def test_dismiss_capture_overlay_handles_none():
+    # Should not raise
+    popup.dismiss_capture_overlay(None)
+
+
 def test_prepare_dialog_content_applies_standard_layout():
     dialog = _FakeDialog()
 
