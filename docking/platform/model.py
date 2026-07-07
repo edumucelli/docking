@@ -1286,7 +1286,13 @@ class DockModel:
         safely while notifications are in flight.
         """
         for callback in list(self._change_listeners):
-            callback()
+            try:
+                callback()
+            except Exception:
+                log.bind(
+                    action="notify_listener",
+                    listener=repr(callback),
+                ).exception("Model change listener failed")
 
     def tick_animations(self) -> bool:
         """Advance insert/remove animations. Returns True if any are active."""
