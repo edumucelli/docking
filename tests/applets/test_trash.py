@@ -15,11 +15,15 @@ from docking.applets.trash.backend import (
     GnomeTrashBackend,
     KdeTrashBackend,
     MateTrashBackend,
+    _decode_mountinfo_path,
     _empty_host_trash,
     _host_user_data_home,
     _kde_kiorc_file,
     _open_trash_uri,
+    _visible_trash_files_directories,
     _visible_trash_files_directory,
+    _visible_trash_info_directories,
+    _visible_trash_info_directory,
     select_trash_backend,
 )
 from docking.platform.environment import Desktop
@@ -34,6 +38,81 @@ class TestHelperFunctions:
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
         result = _visible_trash_files_directory()
         assert result == Path("/tmp/test-xdg/data") / "Trash" / "files"
+
+    def test_visible_trash_info_directory_not_flatpak(self, monkeypatch):
+        monkeypatch.setenv("XDG_DATA_HOME", "/tmp/test-xdg/data")
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        result = _visible_trash_info_directory()
+        assert result == Path("/tmp/test-xdg/data") / "Trash" / "info"
+
+    def test_decode_mountinfo_path(self):
+        assert _decode_mountinfo_path("/media/User\\040Disk") == "/media/User Disk"
+        assert (
+            _decode_mountinfo_path("/tmp/backslash\\134path") == "/tmp/backslash\\path"
+        )
+
+    def test_visible_trash_directories_include_mounted_volume_trash(
+        self, tmp_path, monkeypatch
+    ):
+        home = tmp_path / "home"
+        mount = tmp_path / "media" / "ARCHIVES"
+        volume_trash = mount / ".Trash-1000"
+        volume_trash.mkdir(parents=True)
+        monkeypatch.setenv("XDG_DATA_HOME", str(home))
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend._mount_points",
+            lambda: (mount,),
+        )
+
+        assert _visible_trash_files_directories() == (
+            home / "Trash" / "files",
+            volume_trash / "files",
+        )
+        assert _visible_trash_info_directories() == (
+            home / "Trash" / "info",
+            volume_trash / "info",
+        )
+
+    def test_visible_trash_directories_include_shared_volume_trash(
+        self, tmp_path, monkeypatch
+    ):
+        home = tmp_path / "home"
+        mount = tmp_path / "media" / "SHARED"
+        volume_trash = mount / ".Trash" / "1000"
+        volume_trash.mkdir(parents=True)
+        monkeypatch.setenv("XDG_DATA_HOME", str(home))
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend._mount_points",
+            lambda: (mount,),
+        )
+
+        assert _visible_trash_files_directories() == (
+            home / "Trash" / "files",
+            volume_trash / "files",
+        )
+
+    def test_visible_trash_directories_ignore_unstatable_mounts(
+        self, tmp_path, monkeypatch
+    ):
+        home = tmp_path / "home"
+        bad_mount = tmp_path / "media" / "bad"
+        monkeypatch.setenv("XDG_DATA_HOME", str(home))
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend._mount_points",
+            lambda: (bad_mount,),
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.backend.Path.exists",
+            lambda self: (_ for _ in ()).throw(OSError("stale mount")),
+        )
+
+        assert _visible_trash_files_directories() == (home / "Trash" / "files",)
 
     def test_kde_kiorc_file_not_flatpak(self, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", "/tmp/test-xdg/config")
@@ -212,17 +291,70 @@ class TestGioTrashBackend:
         # Then
         assert count == 3
 
-    def test_returns_zero_on_count_error(self):
+    def test_returns_zero_on_count_error(self, tmp_path):
         # Given enumerate_children raises
         from gi.repository import GLib
 
+        missing_files_dir = tmp_path / "missing" / "Trash" / "files"
         mock_file = MagicMock()
         mock_file.enumerate_children.side_effect = GLib.Error("fail")
 
-        with patch(
-            "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=mock_file
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(missing_files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=mock_file,
+            ),
         ):
             assert GioTrashBackend().count_items() == 0
+
+    def test_falls_back_to_visible_trash_files_on_count_error(self, tmp_path):
+        from gi.repository import GLib
+
+        files_dir = tmp_path / "Trash" / "files"
+        files_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        (files_dir / "b.txt").write_text("b")
+        mock_file = MagicMock()
+        mock_file.enumerate_children.side_effect = GLib.Error("unsupported")
+
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=mock_file,
+            ),
+        ):
+            assert GioTrashBackend().count_items() == 2
+
+    def test_mate_counts_visible_trash_files_directly(self, tmp_path):
+        files_dir = tmp_path / "Trash" / "files"
+        volume_files_dir = tmp_path / "Volume" / ".Trash-1000" / "files"
+        files_dir.mkdir(parents=True)
+        volume_files_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        (files_dir / "b.txt").write_text("b")
+        (volume_files_dir / "c.txt").write_text("c")
+
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir, volume_files_dir),
+            ),
+            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+        ):
+            assert MateTrashBackend().count_items() == 3
+
+        new_for_uri.assert_not_called()
 
     def test_counts_visible_trash_files_in_flatpak(self, tmp_path):
         files_dir = tmp_path / "Trash" / "files"
@@ -233,8 +365,8 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directory",
-                return_value=files_dir,
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
             ),
             patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
         ):
@@ -246,15 +378,32 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directory",
-                return_value=tmp_path,
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(tmp_path,),
             ),
             patch(
                 "docking.applets.trash.backend.Gio.File.new_for_path"
             ) as new_for_path,
             patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
         ):
-            GioTrashBackend().monitor_file()
+            GioTrashBackend().monitor_files()
+
+        new_for_path.assert_called_once_with(str(tmp_path))
+        new_for_uri.assert_not_called()
+
+    def test_mate_monitor_uses_visible_trash_files(self, tmp_path):
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(tmp_path,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_path"
+            ) as new_for_path,
+            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+        ):
+            MateTrashBackend().monitor_files()
 
         new_for_path.assert_called_once_with(str(tmp_path))
         new_for_uri.assert_not_called()
@@ -530,16 +679,62 @@ class TestGioTrashBackend:
         child_b.delete.assert_called_once()
         enumerator.close.assert_called_once()
 
-    def test_delete_contents_handles_enumerate_error(self):
+    def test_delete_contents_handles_enumerate_error(self, tmp_path):
         from gi.repository import GLib
 
         trash = MagicMock()
         trash.enumerate_children.side_effect = GLib.Error("enumerate fail")
+        files_dir = tmp_path / "Trash" / "files"
+        info_dir = tmp_path / "Trash" / "info"
 
-        with patch(
-            "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=trash
+        with (
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend._visible_trash_info_directories",
+                return_value=(info_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=trash,
+            ),
         ):
             GioTrashBackend()._delete_contents()
+
+    def test_delete_contents_falls_back_to_visible_trash_directories(self, tmp_path):
+        from gi.repository import GLib
+
+        files_dir = tmp_path / "Trash" / "files"
+        info_dir = tmp_path / "Trash" / "info"
+        nested_dir = files_dir / "nested"
+        nested_dir.mkdir(parents=True)
+        info_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        (nested_dir / "b.txt").write_text("b")
+        (info_dir / "a.txt.trashinfo").write_text("[Trash Info]")
+        trash = MagicMock()
+        trash.enumerate_children.side_effect = GLib.Error("enumerate fail")
+
+        with (
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend._visible_trash_info_directories",
+                return_value=(info_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=trash,
+            ),
+        ):
+            GioTrashBackend()._delete_contents()
+
+        assert list(files_dir.iterdir()) == []
+        assert list(info_dir.iterdir()) == []
 
     def test_delete_contents_child_error(self):
         from gi.repository import GLib
@@ -565,8 +760,8 @@ class TestGioTrashBackend:
 
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._visible_trash_files_directory",
-            lambda: Path("/nonexistent/path"),
+            "docking.applets.trash.backend._visible_trash_files_directories",
+            lambda: (Path("/nonexistent/path"),),
         )
         assert GioTrashBackend().count_items() == 0
 
@@ -678,6 +873,7 @@ class TestKdeTrashBackend:
         (files_dir / "a.txt").write_text("a")
         (files_dir / "b.txt").write_text("b")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
 
         assert KdeTrashBackend().count_items() == 2
 
@@ -714,14 +910,14 @@ class TestKdeTrashBackend:
     def test_monitor_uses_kde_trash_files(self, tmp_path):
         with (
             patch(
-                "docking.applets.trash.backend._kde_trash_files_directory",
-                return_value=tmp_path,
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(tmp_path,),
             ),
             patch(
                 "docking.applets.trash.backend.Gio.File.new_for_path",
             ) as new_for_path,
         ):
-            KdeTrashBackend().monitor_file()
+            KdeTrashBackend().monitor_files()
 
         new_for_path.assert_called_once_with(str(tmp_path))
 
@@ -733,8 +929,8 @@ class TestKdeTrashBackend:
         (files_dir / "a.txt").write_text("a")
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._visible_trash_files_directory",
-            lambda: files_dir,
+            "docking.applets.trash.backend._visible_trash_files_directories",
+            lambda: (files_dir,),
         )
 
         assert KdeTrashBackend().count_items() == 1
@@ -824,6 +1020,7 @@ class TestKdeTrashBackend:
 
     def test_kde_count_items_handles_oserror(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/nonexistent/path")
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
         assert KdeTrashBackend().count_items() == 0
 
     def test_kde_open_falls_back_to_gio_on_oserror(self, monkeypatch):
@@ -896,7 +1093,7 @@ class TestKdeTrashBackend:
             result = _open_host_trash_uri(uri="trash:///")
             assert result is False
 
-    def test_monitor_file_not_flatpak_uses_uri(self):
+    def test_monitor_files_not_flatpak_uses_uri(self):
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
@@ -904,7 +1101,7 @@ class TestKdeTrashBackend:
                 "docking.applets.trash.backend.Gio.File.new_for_path"
             ) as new_for_path,
         ):
-            GioTrashBackend().monitor_file()
+            GioTrashBackend().monitor_files()
         new_for_uri.assert_called_once_with("trash:///")
         new_for_path.assert_not_called()
 
@@ -924,15 +1121,16 @@ class TestKdeTrashBackend:
             new_for_uri.return_value = trash
             backend.empty(lambda: False)
 
-    def test_kde_monitor_file_not_flatpak(self, tmp_path, monkeypatch):
+    def test_kde_monitor_files_not_flatpak(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
                 "docking.applets.trash.backend.Gio.File.new_for_path"
             ) as new_for_path,
         ):
-            KdeTrashBackend().monitor_file()
+            KdeTrashBackend().monitor_files()
         new_for_path.assert_called_once()
 
     def test_kde_delete_directory_contents_file_not_found(self, tmp_path):
@@ -998,14 +1196,15 @@ class _StubBackend:
         self.monitor = MagicMock()
         self.monitor_file_mock = MagicMock()
         self.monitor_file_mock.monitor.return_value = self.monitor
+        self.monitor_files_mock = (self.monitor_file_mock,)
         self.open_calls = 0
         self.empty_confirm: Callable[[], bool] | None = None
 
     def count_items(self) -> int:
         return self.item_count
 
-    def monitor_file(self):
-        return self.monitor_file_mock
+    def monitor_files(self):
+        return self.monitor_files_mock
 
     def open(self) -> None:
         self.open_calls += 1
@@ -1081,16 +1280,25 @@ class TestTrashAppletLifecycle:
     def test_start_sets_monitor_and_stop_cancels(self, monkeypatch):
         backend = _StubBackend()
         applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
 
-        applet.start(lambda: None)
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
 
-        assert applet._monitor is backend.monitor
+        assert applet._monitors == [backend.monitor]
         backend.monitor.connect.assert_called_once()
+        assert volume_monitor.connect.call_count == 2
 
         applet.stop()
 
         backend.monitor.cancel.assert_called_once()
-        assert applet._monitor is None
+        volume_monitor.disconnect.assert_any_call(10)
+        volume_monitor.disconnect.assert_any_call(11)
+        assert applet._monitors == []
 
     def test_start_handles_monitor_error(self, monkeypatch):
         from gi.repository import GLib
@@ -1098,10 +1306,72 @@ class TestTrashAppletLifecycle:
         backend = _StubBackend()
         backend.monitor_file_mock.monitor.side_effect = GLib.Error("monitor error")
         applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
 
-        applet.start(lambda: None)
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
 
-        assert applet._monitor is None
+        assert applet._monitors == []
+        applet.stop()
+
+    def test_start_monitors_all_backend_files_and_continues_after_error(
+        self, monkeypatch
+    ):
+        from gi.repository import GLib
+
+        backend = _StubBackend()
+        good_file = MagicMock()
+        bad_file = MagicMock()
+        good_monitor = MagicMock()
+        good_file.monitor.return_value = good_monitor
+        bad_file.monitor.side_effect = GLib.Error("monitor error")
+        backend.monitor_files_mock = (bad_file, good_file)
+        applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
+
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
+
+        assert applet._monitors == [good_monitor]
+        good_monitor.connect.assert_called_once()
+        applet.stop()
+
+    def test_mount_change_rebuilds_monitors_and_recounts(self, monkeypatch):
+        backend = _StubBackend(item_count=1)
+        old_monitor = MagicMock()
+        old_file = MagicMock()
+        old_file.monitor.return_value = old_monitor
+        new_monitor = MagicMock()
+        new_file = MagicMock()
+        new_file.monitor.return_value = new_monitor
+        backend.monitor_files_mock = (old_file,)
+        applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
+
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
+
+        backend.monitor_files_mock = (new_file,)
+        backend.item_count = 4
+
+        applet._on_mounts_changed()
+
+        old_monitor.cancel.assert_called_once()
+        assert applet._monitors == [new_monitor]
+        assert applet._item_count == 4
+        applet.stop()
 
     def test_on_clicked_delegates_to_backend(self, monkeypatch):
         backend = _StubBackend()

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import configparser
+import os
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -53,7 +54,7 @@ class TrashBackend(Protocol):
 
     def count_items(self) -> int: ...
 
-    def monitor_file(self) -> Gio.File: ...
+    def monitor_files(self) -> tuple[Gio.File, ...]: ...
 
     def open(self) -> None: ...
 
@@ -69,6 +70,12 @@ def _host_user_data_home() -> Path:
     return Path.home() / ".local" / "share"
 
 
+def _visible_trash_directory() -> Path:
+    if is_flatpak():
+        return _host_user_data_home() / "Trash"
+    return xdg_data_home() / "Trash"
+
+
 def _kde_trash_directory() -> Path:
     return xdg_data_home() / "Trash"
 
@@ -82,9 +89,100 @@ def _kde_trash_info_directory() -> Path:
 
 
 def _visible_trash_files_directory() -> Path:
-    if is_flatpak():
-        return _host_user_data_home() / "Trash" / "files"
-    return xdg_data_home() / "Trash" / "files"
+    return _visible_trash_directory() / "files"
+
+
+def _visible_trash_info_directory() -> Path:
+    return _visible_trash_directory() / "info"
+
+
+def _decode_mountinfo_path(value: str) -> str:
+    decoded = ""
+    index = 0
+    while index < len(value):
+        if (
+            value[index] == "\\"
+            and index + 3 < len(value)
+            and all(char in "01234567" for char in value[index + 1 : index + 4])
+        ):
+            decoded += chr(int(value[index + 1 : index + 4], 8))
+            index += 4
+            continue
+        decoded += value[index]
+        index += 1
+    return decoded
+
+
+def _mount_points() -> tuple[Path, ...]:
+    try:
+        lines = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        log.bind(action="discover_trash_roots").debug(
+            "Could not read mountinfo: %s",
+            exc,
+        )
+        return ()
+
+    mount_points: list[Path] = []
+    for line in lines:
+        fields = line.split()
+        if len(fields) < 5:
+            continue
+        mount_point = Path(_decode_mountinfo_path(fields[4]))
+        if mount_point not in mount_points:
+            mount_points.append(mount_point)
+    return tuple(mount_points)
+
+
+def _path_exists(path: Path) -> bool:
+    try:
+        return path.exists()
+    except OSError as exc:
+        log.bind(action="discover_trash_roots").debug(
+            "Could not stat trash path %s: %s",
+            path,
+            exc,
+        )
+        return False
+
+
+def _volume_trash_directories() -> tuple[Path, ...]:
+    uid = os.getuid()
+    directories: list[Path] = []
+    for mount_point in _mount_points():
+        for directory in (
+            mount_point / f".Trash-{uid}",
+            mount_point / ".Trash" / str(uid),
+        ):
+            if _path_exists(directory) and directory not in directories:
+                directories.append(directory)
+    return tuple(directories)
+
+
+def _visible_trash_directories() -> tuple[Path, ...]:
+    directories = [_visible_trash_directory()]
+    for directory in _volume_trash_directories():
+        if directory not in directories:
+            directories.append(directory)
+    return tuple(directories)
+
+
+def _visible_trash_files_directories() -> tuple[Path, ...]:
+    return tuple(directory / "files" for directory in _visible_trash_directories())
+
+
+def _visible_trash_info_directories() -> tuple[Path, ...]:
+    return tuple(directory / "info" for directory in _visible_trash_directories())
+
+
+def _count_visible_trash_files(*, action: str) -> int:
+    count = 0
+    for files_dir in _visible_trash_files_directories():
+        try:
+            count += sum(1 for _child in files_dir.iterdir())
+        except OSError as exc:
+            log.bind(action=action).debug("Could not enumerate trash files: %s", exc)
+    return count
 
 
 def _kde_kiorc_file() -> Path:
@@ -205,6 +303,7 @@ class GioTrashBackend:
 
     name = "gio"
     uri = "trash:///"
+    use_visible_trash_files = False
     confirm_trash_key = "confirm-trash"
     dbus_targets: tuple[tuple[str, str], ...] = (
         ("org.mate.Caja", "/org/mate/Caja"),
@@ -214,15 +313,8 @@ class GioTrashBackend:
     open_commands: tuple[tuple[str, ...], ...] = ()
 
     def count_items(self) -> int:
-        if is_flatpak():
-            files_dir = _visible_trash_files_directory()
-            try:
-                return sum(1 for _child in files_dir.iterdir())
-            except OSError as exc:
-                log.bind(action="count_items").debug(
-                    "Could not enumerate visible trash files: %s", exc
-                )
-                return 0
+        if is_flatpak() or self.use_visible_trash_files:
+            return _count_visible_trash_files(action="count_items")
 
         trash = Gio.File.new_for_uri(self.uri)
         try:
@@ -233,7 +325,7 @@ class GioTrashBackend:
             log.bind(action="count_items").debug(
                 "Could not enumerate trash items: %s", exc
             )
-            return 0
+            return _count_visible_trash_files(action="count_items_fallback")
 
         count = 0
         while enumerator.next_file(None) is not None:
@@ -241,10 +333,13 @@ class GioTrashBackend:
         enumerator.close(None)
         return count
 
-    def monitor_file(self) -> Gio.File:
-        if is_flatpak():
-            return Gio.File.new_for_path(str(_visible_trash_files_directory()))
-        return Gio.File.new_for_uri(self.uri)
+    def monitor_files(self) -> tuple[Gio.File, ...]:
+        if is_flatpak() or self.use_visible_trash_files:
+            return tuple(
+                Gio.File.new_for_path(str(path))
+                for path in _visible_trash_files_directories()
+            )
+        return (Gio.File.new_for_uri(self.uri),)
 
     def open(self) -> None:
         _open_trash_uri(self.uri, fallback_commands=self.open_commands)
@@ -318,6 +413,10 @@ class GioTrashBackend:
         return False
 
     def _delete_contents(self) -> None:
+        if self.use_visible_trash_files:
+            self._delete_visible_trash_contents()
+            return
+
         trash = Gio.File.new_for_uri(self.uri)
         try:
             enumerator = trash.enumerate_children(
@@ -328,6 +427,7 @@ class GioTrashBackend:
                 "Could not enumerate trash for deletion: %s",
                 exc,
             )
+            self._delete_visible_trash_contents()
             return
 
         while True:
@@ -345,6 +445,43 @@ class GioTrashBackend:
                 )
         enumerator.close(None)
 
+    def _delete_visible_trash_contents(self) -> None:
+        for directory in _visible_trash_files_directories():
+            self._delete_directory_contents(directory)
+        for directory in _visible_trash_info_directories():
+            self._delete_directory_contents(directory)
+
+    def _delete_directory_contents(self, directory: Path) -> None:
+        try:
+            children = list(directory.iterdir())
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            log.bind(action="empty_trash_delete").debug(
+                "Could not enumerate trash directory %s: %s",
+                directory,
+                exc,
+            )
+            return
+
+        for child in children:
+            self._delete_path(child)
+
+    def _delete_path(self, path: Path) -> None:
+        try:
+            if path.is_dir() and not path.is_symlink():
+                for child in path.iterdir():
+                    self._delete_path(child)
+                path.rmdir()
+            else:
+                path.unlink()
+        except OSError as exc:
+            log.bind(action="empty_trash_delete").debug(
+                "Could not delete trash item %s: %s",
+                path,
+                exc,
+            )
+
 
 class GnomeTrashBackend(GioTrashBackend):
     """Trash backend for GNOME/Nautilus sessions."""
@@ -358,6 +495,7 @@ class MateTrashBackend(GioTrashBackend):
     """Trash backend for MATE/Caja sessions."""
 
     name = "mate"
+    use_visible_trash_files = True
     dbus_targets = (("org.mate.Caja", "/org/mate/Caja"),)
     open_commands = (("caja", "trash:///"),)
     confirmation_schema = (
@@ -394,26 +532,13 @@ class KdeTrashBackend:
     )
 
     def count_items(self) -> int:
-        # Inside Flatpak, trash:/// enumeration can report the sandbox trash.
-        # The host trash files are visible through home access, so count them.
-        files_dir = (
-            _visible_trash_files_directory()
-            if is_flatpak()
-            else _kde_trash_files_directory()
-        )
-        try:
-            return sum(1 for _child in files_dir.iterdir())
-        except OSError as exc:
-            log.bind(action="count_kde_items").debug(
-                "Could not enumerate KDE trash items: %s",
-                exc,
-            )
-            return 0
+        return _count_visible_trash_files(action="count_kde_items")
 
-    def monitor_file(self) -> Gio.File:
-        if is_flatpak():
-            return Gio.File.new_for_path(str(_visible_trash_files_directory()))
-        return Gio.File.new_for_path(str(_kde_trash_files_directory()))
+    def monitor_files(self) -> tuple[Gio.File, ...]:
+        return tuple(
+            Gio.File.new_for_path(str(path))
+            for path in _visible_trash_files_directories()
+        )
 
     def open(self) -> None:
         command = self._available_open_command()
@@ -480,8 +605,10 @@ class KdeTrashBackend:
         return None
 
     def _delete_contents(self) -> None:
-        self._delete_directory_contents(_kde_trash_files_directory())
-        self._delete_directory_contents(_kde_trash_info_directory())
+        for directory in _visible_trash_files_directories():
+            self._delete_directory_contents(directory)
+        for directory in _visible_trash_info_directories():
+            self._delete_directory_contents(directory)
 
     def _delete_directory_contents(self, directory: Path) -> None:
         try:
