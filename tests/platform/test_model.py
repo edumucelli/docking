@@ -644,6 +644,125 @@ class TestAppletLifecycleIntegration:
         applet.stop.assert_called_once()
         assert found is applet
 
+    def test_start_applets_continues_after_failure(self):
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher, AppletServices())
+        failing = MagicMock()
+        failing.item = DockItem(desktop_id="applet://bad", name="Bad")
+        failing.start.side_effect = RuntimeError("boom")
+        working = MagicMock()
+        working.item = DockItem(desktop_id="applet://good", name="Good")
+        model._applets["applet://bad"] = failing
+        model._applets["applet://good"] = working
+
+        model.start_applets()
+
+        failing.start.assert_called_once()
+        working.start.assert_called_once()
+
+    def test_stop_applets_continues_after_failure(self):
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher, AppletServices())
+        failing = MagicMock()
+        failing.item = DockItem(desktop_id="applet://bad", name="Bad")
+        failing.stop.side_effect = RuntimeError("boom")
+        working = MagicMock()
+        working.item = DockItem(desktop_id="applet://good", name="Good")
+        model._applets["applet://bad"] = failing
+        model._applets["applet://good"] = working
+
+        model.stop_applets()
+
+        failing.stop.assert_called_once()
+        working.stop.assert_called_once()
+
+    def test_add_applet_start_failure_rolls_back_without_persisting(self, monkeypatch):
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher, AppletServices())
+        fake_item = DockItem(desktop_id="applet://session", name="Session")
+        fake_applet = MagicMock()
+        fake_applet.item = fake_item
+        fake_applet.start.side_effect = RuntimeError("boom")
+
+        class FakeAppletClass:
+            def __new__(cls, icon_size, config):
+                return fake_applet
+
+        import docking.applets as applets_mod
+
+        monkeypatch.setattr(
+            applets_mod,
+            "get_applet_catalog",
+            lambda: {"session": object()},
+        )
+        monkeypatch.setattr(
+            applets_mod,
+            "load_applet_class",
+            lambda applet_id: FakeAppletClass if applet_id == "session" else None,
+        )
+
+        model.add_applet("session")
+
+        fake_applet.start.assert_called_once()
+        fake_applet.stop.assert_called_once()
+        assert model.get_applet("applet://session") is None
+        assert model.pinned_items == []
+        config.save.assert_not_called()
+
+    def test_add_separator_start_failure_rolls_back_without_persisting(
+        self, monkeypatch
+    ):
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher, AppletServices())
+        fake_item = DockItem(desktop_id="applet://separator", name="Separator")
+        fake_applet = MagicMock()
+        fake_applet.item = fake_item
+        fake_applet.start.side_effect = RuntimeError("boom")
+
+        class FakeSeparatorClass:
+            def __new__(cls, icon_size, config):
+                return fake_applet
+
+        import docking.applets as applets_mod
+
+        monkeypatch.setattr(
+            applets_mod,
+            "load_applet_class",
+            lambda applet_id: FakeSeparatorClass if applet_id == "separator" else None,
+        )
+
+        model.add_separator(index=0)
+
+        fake_applet.start.assert_called_once()
+        fake_applet.stop.assert_called_once()
+        assert model.pinned_items == []
+        assert model._applets == {}
+        config.save.assert_not_called()
+
+    def test_remove_applet_continues_when_stop_fails(self):
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher, AppletServices())
+        callback = MagicMock()
+        model.add_change_listener(callback)
+        applet = MagicMock()
+        applet.item = DockItem(desktop_id="applet://bad", name="Bad")
+        applet.stop.side_effect = RuntimeError("boom")
+        model._applets["applet://bad"] = applet
+        model.pinned_items.append(applet.item)
+
+        model.remove_applet("applet://bad")
+
+        applet.stop.assert_called_once()
+        assert model.get_applet("applet://bad") is None
+        assert applet.item not in model.pinned_items
+        config.save.assert_called_once()
+        callback.assert_called_once()
+
     def test_start_applets_passes_notify_callback(self):
         # Given
         config = _make_config([])

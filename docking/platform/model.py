@@ -726,7 +726,12 @@ class DockModel:
         applet.item.prefs_key = desktop_id
         applet.item.insert_factor = 0.0
         self.pinned_items.append(applet.item)
-        applet.start(notify=self.notify)
+        if not self._start_applet(desktop_id=desktop_id, applet=applet):
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
+            self._applets.pop(desktop_id, None)
+            if applet.item in self.pinned_items:
+                self.pinned_items.remove(applet.item)
+            return
         self.sync_pinned_to_config()
         self._config.save()
         self.notify()
@@ -763,7 +768,12 @@ class DockModel:
             self.pinned_items.append(applet.item)
         else:
             self.pinned_items.insert(index, applet.item)
-        applet.start(notify=self.notify)
+        if not self._start_applet(desktop_id=desktop_id, applet=applet):
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
+            self._applets.pop(desktop_id, None)
+            if applet.item in self.pinned_items:
+                self.pinned_items.remove(applet.item)
+            return
         self.sync_pinned_to_config()
         self._config.save()
         self.notify()
@@ -772,7 +782,7 @@ class DockModel:
         """Stop and remove a applet from the dock (animated)."""
         applet = self._applets.pop(desktop_id, None)
         if applet:
-            applet.stop()
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
             if applet.item in self.pinned_items:
                 applet.item.removal_index = self.visible_items().index(applet.item)
                 self.pinned_items.remove(applet.item)
@@ -783,13 +793,35 @@ class DockModel:
 
     def start_applets(self) -> None:
         """Start all active applets (call after dock is ready)."""
-        for applet in self._applets.values():
-            applet.start(notify=self.notify)
+        for desktop_id, applet in list(self._applets.items()):
+            self._start_applet(desktop_id=desktop_id, applet=applet)
 
     def stop_applets(self) -> None:
         """Stop all active applets (call on shutdown)."""
-        for applet in self._applets.values():
+        for desktop_id, applet in list(self._applets.items()):
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
+
+    def _start_applet(self, *, desktop_id: str, applet: Applet) -> bool:
+        """Start one applet without letting it break the dock lifecycle."""
+        try:
+            applet.start(notify=self.notify)
+        except Exception:
+            log.bind(applet_id=desktop_id, action="start_applet").exception(
+                "Failed to start applet",
+            )
+            return False
+        return True
+
+    def _stop_applet(self, *, desktop_id: str, applet: Applet) -> bool:
+        """Stop one applet without blocking removal or process shutdown."""
+        try:
             applet.stop()
+        except Exception:
+            log.bind(applet_id=desktop_id, action="stop_applet").exception(
+                "Failed to stop applet",
+            )
+            return False
+        return True
 
     def visible_items(self) -> list[DockItem]:
         """All items to display with optional independent anchoring rules.
