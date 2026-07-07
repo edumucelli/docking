@@ -474,6 +474,42 @@ class TestCallbacks:
 
         assert calls == ["first", "second"]
 
+    def test_failing_change_listener_does_not_block_later_listener(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        good = MagicMock()
+
+        def bad() -> None:
+            raise RuntimeError("listener failed")
+
+        model.add_change_listener(bad)
+        model.add_change_listener(good)
+
+        model.notify()
+
+        good.assert_called_once()
+
+    def test_multiple_failing_change_listeners_do_not_block_later_listener(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        good = MagicMock()
+
+        def first_bad() -> None:
+            raise RuntimeError("first failed")
+
+        def second_bad() -> None:
+            raise RuntimeError("second failed")
+
+        model.add_change_listener(first_bad)
+        model.add_change_listener(second_bad)
+        model.add_change_listener(good)
+
+        model.notify()
+
+        good.assert_called_once()
+
     def test_listener_can_remove_itself_during_notify(self):
         config = _make_config(["a.desktop"])
         launcher = _make_launcher("a.desktop")
