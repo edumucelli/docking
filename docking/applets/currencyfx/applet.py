@@ -88,6 +88,7 @@ DIALOG_SPACING_PX = 8
 DIALOG_MARGIN_PX = 12
 _PULSE_INTERVAL_MS = 60
 _PULSE_PERIOD_MS = 1800
+_PULSE_DURATION_MS = 6000
 
 
 class CurrencyFxApplet(Applet):
@@ -113,6 +114,7 @@ class CurrencyFxApplet(Applet):
         self._startup_fetch_timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
+        self._pulse_started_us: int = 0
         self._fetch_request_id: int = 0
         self._snapshot: FxSnapshot | None = None
         self._loading = False
@@ -544,6 +546,7 @@ class CurrencyFxApplet(Applet):
         """Run the endpoint pulse only while the chart dot is visible."""
         should_pulse = self._notify is not None and self._has_chart_dot()
         if should_pulse and not self._pulse_timer_id:
+            self._pulse_started_us = GLib.get_monotonic_time()
             self._pulse_timer_id = GLib.timeout_add(
                 _PULSE_INTERVAL_MS,
                 self._pulse_tick,
@@ -552,9 +555,21 @@ class CurrencyFxApplet(Applet):
             GLib.source_remove(self._pulse_timer_id)
             self._pulse_timer_id = 0
             self._pulse_phase = 0.0
+            self._pulse_started_us = 0
 
     def _pulse_tick(self) -> bool:
         """Advance pulse phase and repaint only the icon."""
+        now_us = GLib.get_monotonic_time()
+        if self._pulse_started_us and (
+            now_us - self._pulse_started_us >= _PULSE_DURATION_MS * 1000
+        ):
+            self._pulse_timer_id = 0
+            self._pulse_phase = 0.0
+            self._pulse_started_us = 0
+            self.item.icon = self.create_icon(size=self._icon_size)
+            if self._notify:
+                self._notify()
+            return False
         self._pulse_phase = (
             self._pulse_phase + _PULSE_INTERVAL_MS / _PULSE_PERIOD_MS
         ) % 1.0

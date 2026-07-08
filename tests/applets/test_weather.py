@@ -61,6 +61,19 @@ class _ImmediateWorker:
         if on_result is not None:
             on_result(result)
 
+    def run_guarded(self, **kwargs) -> bool:
+        self.run(**kwargs)
+        return True
+
+
+class _PendingWorker:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def run_guarded(self, **kwargs) -> bool:
+        self.calls.append(kwargs)
+        return True
+
 
 def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> WeatherApplet:
     with patch("docking.applets.weather.applet.BackgroundWorker", _ImmediateWorker):
@@ -562,6 +575,58 @@ class TestWeatherAsyncFetch:
         applet._fetch_async()
         assert captured["lat"] == _TOKYO.lat
         assert captured["lng"] == _TOKYO.lng
+
+    def test_fetch_async_skips_air_quality_when_weather_fails(self, monkeypatch):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        fetch_air_quality = MagicMock(return_value=_SAMPLE_AQI)
+        monkeypatch.setattr(weather_applet_mod, "fetch_weather", lambda **_kw: None)
+        monkeypatch.setattr(
+            weather_applet_mod,
+            "fetch_air_quality",
+            fetch_air_quality,
+        )
+
+        applet._fetch_async()
+
+        fetch_air_quality.assert_not_called()
+        assert applet._fetch_failed is True
+
+    def test_fetch_async_queues_refresh_while_loading(self):
+        applet = _make_applet()
+        worker = _PendingWorker()
+        applet._worker = worker
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._loading = True
+
+        applet._fetch_async()
+
+        assert worker.calls == []
+        assert applet._fetch_pending is True
+
+    def test_fetch_result_runs_pending_refresh(self):
+        applet = _make_applet()
+        worker = _PendingWorker()
+        applet._worker = worker
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._fetch_request_id = 7
+        applet._loading = True
+        applet._fetch_pending = True
+
+        result = applet._on_fetch_result(
+            request_id=7,
+            weather=_SAMPLE_WEATHER,
+            aqi=_SAMPLE_AQI,
+        )
+
+        assert result is False
+        assert applet._fetch_request_id == 8
+        assert applet._loading is True
+        assert applet._fetch_pending is False
+        assert worker.calls[0]["name"] == "weather-fetch"
 
 
 class TestWeatherLifecycleAndInteractions:

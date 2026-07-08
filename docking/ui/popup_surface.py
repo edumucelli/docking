@@ -23,6 +23,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
+from docking.platform.environment import compositor_active
+
 STARTUP_POPUP_WINDOW_CLASS = "dock-startup-popup-window"
 STARTUP_POPUP_SURFACE_CLASS = "dock-startup-popup-surface"
 STARTUP_POPUP_CSS = f"""
@@ -59,6 +61,9 @@ def ensure_startup_popup_css() -> Gtk.CssProvider | None:
 def configure_transparent_startup_popup_window(window: Gtk.Window) -> None:
     """Make an undecorated popup window transparent behind rounded content."""
     ensure_startup_popup_css()
+
+    if compositor_active() is False:
+        return
 
     window.set_app_paintable(True)
 
