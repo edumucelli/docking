@@ -55,7 +55,9 @@ class TrashApplet(Applet):
         self._desktop = detect_desktop()
         self._backend: TrashBackend = select_trash_backend(desktop=self._desktop)
         self._item_count = self._backend.count_items()
-        self._monitor: Gio.FileMonitor | None = None
+        self._monitors: list[Gio.FileMonitor] = []
+        self._volume_monitor: Gio.VolumeMonitor | None = None
+        self._volume_monitor_handlers: list[int] = []
         super().__init__(icon_size, config)
         self.present()
 
@@ -122,28 +124,51 @@ class TrashApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         """Start trash monitoring for real-time icon updates."""
         super().start(notify)
-        try:
-            self._monitor = self._backend.monitor_file().monitor(
-                Gio.FileMonitorFlags.NONE, None
-            )
-            self._monitor.connect("changed", self._on_trash_changed)
-        except GLib.Error as exc:
-            log.bind(action="monitor_trash").warning(
-                "Could not start file monitor for trash: %s",
-                exc,
-            )
+        self._start_trash_monitors()
+        self._volume_monitor = Gio.VolumeMonitor.get()
+        self._volume_monitor_handlers = [
+            self._volume_monitor.connect("mount-added", self._on_mounts_changed),
+            self._volume_monitor.connect("mount-removed", self._on_mounts_changed),
+        ]
 
     def stop(self) -> None:
         """Cancel the trash file monitor."""
-        if self._monitor:
-            self._monitor.cancel()
-            self._monitor = None
+        self._cancel_trash_monitors()
+        if self._volume_monitor is not None:
+            for handler_id in self._volume_monitor_handlers:
+                self._volume_monitor.disconnect(handler_id)
+            self._volume_monitor = None
+            self._volume_monitor_handlers = []
         super().stop()
+
+    def _start_trash_monitors(self) -> None:
+        for file in self._backend.monitor_files():
+            try:
+                monitor = file.monitor(Gio.FileMonitorFlags.NONE, None)
+            except GLib.Error as exc:
+                log.bind(action="monitor_trash").warning(
+                    "Could not start file monitor for trash: %s",
+                    exc,
+                )
+                continue
+            monitor.connect("changed", self._on_trash_changed)
+            self._monitors.append(monitor)
+
+    def _cancel_trash_monitors(self) -> None:
+        for monitor in self._monitors:
+            monitor.cancel()
+        self._monitors = []
 
     def _on_trash_changed(self, *_args: object) -> None:
         """File monitor callback: re-count items and update icon."""
         self._item_count = self._backend.count_items()
         self.present()
+
+    def _on_mounts_changed(self, *_args: object) -> None:
+        """Mount changes can add or remove per-volume trash directories."""
+        self._cancel_trash_monitors()
+        self._start_trash_monitors()
+        self._on_trash_changed()
 
     def _empty_trash(self) -> None:
         """Empty trash through the selected backend."""
