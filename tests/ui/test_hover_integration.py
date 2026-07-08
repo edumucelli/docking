@@ -277,6 +277,29 @@ class TestHoverTimers:
         # Then
         hover.start_anim_pump.assert_called_once_with(duration_ms=700)
 
+    def test_on_model_changed_does_not_restart_same_urgent_pump(self):
+        hover, _window, model, _config, _tooltip, _frame = _make_hover()
+        urgent = DockItem(desktop_id="u.desktop", is_urgent=True, last_urgent=123)
+        model.visible_items.return_value = [urgent]
+        hover.start_anim_pump = MagicMock()
+
+        hover.on_model_changed()
+        hover.on_model_changed()
+
+        hover.start_anim_pump.assert_called_once_with(duration_ms=700)
+
+    def test_on_model_changed_starts_pump_for_newer_urgent_timestamp(self):
+        hover, _window, model, _config, _tooltip, _frame = _make_hover()
+        urgent = DockItem(desktop_id="u.desktop", is_urgent=True, last_urgent=123)
+        model.visible_items.return_value = [urgent]
+        hover.start_anim_pump = MagicMock()
+
+        hover.on_model_changed()
+        urgent.last_urgent = 456
+        hover.on_model_changed()
+
+        assert hover.start_anim_pump.call_count == 2
+
 
 class TestShowPreview:
     @pytest.mark.parametrize(

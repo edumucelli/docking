@@ -225,6 +225,7 @@ class HoverManager:
         self.hovered_item: DockItem | None = None
         self._preview_timer_id: int = 0
         self._anim_timer_id: int = 0
+        self._last_animated_urgent_us: int = 0
 
     def set_preview(self, preview: PreviewPopup) -> None:
         self._preview = preview
@@ -327,11 +328,19 @@ class HoverManager:
 
     def on_model_changed(self) -> None:
         """Start anim pump if any item became urgent (needs bounce animation)."""
-        if any(
-            item.is_urgent and item.last_urgent > 0
-            for item in self._model.visible_items()
-        ):
+        urgent_us = max(
+            (
+                item.last_urgent
+                for item in self._model.visible_items()
+                if item.is_urgent and item.last_urgent > 0
+            ),
+            default=0,
+        )
+        if urgent_us > self._last_animated_urgent_us:
+            self._last_animated_urgent_us = urgent_us
             self.start_anim_pump(duration_ms=ANIM_PUMP_DEFAULT_DURATION_MS)
+        elif urgent_us == 0:
+            self._last_animated_urgent_us = 0
 
     def _show_preview(self, item: DockItem, _layout: object) -> bool:
         """Show the preview popup near the hovered icon.
