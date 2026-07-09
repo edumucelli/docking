@@ -280,6 +280,9 @@ class TestProvider:
 
 
 class TestClaudeCost:
+    def test_match_fable_5(self):
+        assert match_model_tier(model="claude-fable-5") == "fable-5"
+
     def test_match_opus_4_6(self):
         assert match_model_tier(model="claude-opus-4-6") == "opus-4-6"
 
@@ -289,6 +292,10 @@ class TestClaudeCost:
     def test_cost_for_opus_4_6(self):
         usage = ModelUsage(input_tokens=1_000_000)
         assert cost_for_usage(model="claude-opus-4-6", usage=usage) == 5.0
+
+    def test_cost_for_fable_5(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="claude-fable-5", usage=usage) == 60.0
 
     def test_cost_for_opus_4_legacy(self):
         usage = ModelUsage(input_tokens=1_000_000)
@@ -314,27 +321,38 @@ class TestClaudeCost:
 
 
 class TestCodexCost:
-    def test_match_gpt_5(self):
-        assert match_model_tier(model="gpt-5.4") == "gpt-5"
+    def test_match_gpt_5_6_terra(self):
+        assert match_model_tier(model="gpt-5.6-terra") == "gpt-5.6-terra"
+
+    def test_match_gpt_5_4(self):
+        assert match_model_tier(model="gpt-5.4") == "gpt-5.4"
 
     def test_match_gpt_4o(self):
         assert match_model_tier(model="gpt-4o") == "gpt-4o"
 
-    def test_cost_gpt5_no_cache(self):
+    def test_cost_gpt5_4_no_cache(self):
         # 1M input, no cache -> $2.50
         usage = ModelUsage(input_tokens=1_000_000, output_tokens=0)
         assert cost_for_usage(model="gpt-5.4", usage=usage) == 2.50
 
-    def test_cost_gpt5_with_cache(self):
-        # 1M input, 500K cached -> 500K * $2.50 + 500K * $0.62 + 0 output
+    def test_cost_gpt5_4_with_cache(self):
+        # 1M input, 500K cached -> 500K * $2.50 + 500K * $0.25 + 0 output
         usage = ModelUsage(input_tokens=1_000_000, cache_read_tokens=500_000)
         cost = cost_for_usage(model="gpt-5.4", usage=usage)
-        expected = (500_000 * 2.50 + 500_000 * 0.62) / 1_000_000
+        expected = (500_000 * 2.50 + 500_000 * 0.25) / 1_000_000
         assert abs(cost - expected) < 0.001
 
-    def test_cost_gpt5_output(self):
+    def test_cost_gpt5_4_output(self):
         usage = ModelUsage(output_tokens=1_000_000)
-        assert cost_for_usage(model="gpt-5.4", usage=usage) == 10.0
+        assert cost_for_usage(model="gpt-5.4", usage=usage) == 15.0
+
+    def test_cost_gpt5_6_luna(self):
+        usage = ModelUsage(
+            input_tokens=1_000_000,
+            cache_read_tokens=500_000,
+            output_tokens=1_000_000,
+        )
+        assert cost_for_usage(model="gpt-5.6-luna", usage=usage) == 6.55
 
     def test_day_cost_mixed_providers(self):
         entry = DayEntry(
@@ -349,7 +367,7 @@ class TestCodexCost:
 
     def test_cached_tokens_do_not_make_negative_input_cost(self):
         usage = ModelUsage(input_tokens=100, cache_read_tokens=200, output_tokens=100)
-        expected = (200 * 0.62 + 100 * 10.0) / 1_000_000
+        expected = (200 * 0.125 + 100 * 10.0) / 1_000_000
         assert cost_for_usage(model="gpt-5", usage=usage) == expected
 
 
@@ -985,7 +1003,7 @@ class TestAiUsageApplet:
 
         labels = [child.label for child in box.children]
         assert "<b>Codex: $2.50</b>" in labels[0]
-        assert "Gpt-5: $2.50" in labels[1]
+        assert "Gpt-5.4: $2.50" in labels[1]
 
     def test_on_scroll_cycles_providers_and_presents(self, monkeypatch):
         applet = AiUsageApplet(48)
