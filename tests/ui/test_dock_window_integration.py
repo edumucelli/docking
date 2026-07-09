@@ -130,7 +130,6 @@ def _make_stub(item: DockItem | None = None):
     stub.hover.hovered_item = item
     stub.hover.cancel = MagicMock()
     stub.preview = None
-    stub._menu_popup_visible = False
     stub.autohide = _autohide(enabled=False)
     stub.cursor_x = 12.0
     stub.cursor_y = 6.0
