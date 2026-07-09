@@ -15,6 +15,7 @@ from docking.applets.trash.backend import (
     GnomeTrashBackend,
     KdeTrashBackend,
     MateTrashBackend,
+    TrashEmptyResult,
     _decode_mountinfo_path,
     _empty_host_trash,
     _host_user_data_home,
@@ -550,9 +551,11 @@ class TestGioTrashBackend:
     def test_empty_trash_uses_dbus_first(self):
         bus = MagicMock()
         with patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus):
-            GioTrashBackend().empty(lambda: False)
+            result = GioTrashBackend().empty(lambda: False)
 
         bus.call_sync.assert_called_once()
+        assert result.delegated is True
+        assert result.attempted is False
 
     def test_empty_trash_bypasses_dbus_when_file_manager_disables_confirmation(self):
         backend = MateTrashBackend()
@@ -752,12 +755,23 @@ class TestGioTrashBackend:
         with patch(
             "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=trash
         ):
-            GioTrashBackend()._delete_contents()
+            stats = GioTrashBackend()._delete_contents()
 
         enumerator.close.assert_called_once()
+        assert stats.failures == 1
+
+    def test_delete_path_reports_permission_error(self):
+        mock_path = MagicMock(spec=Path)
+        mock_path.is_dir.return_value = False
+        mock_path.is_symlink.return_value = False
+        mock_path.unlink.side_effect = PermissionError("permission denied")
+
+        stats = GioTrashBackend()._delete_path(mock_path)
+
+        assert stats.failures == 1
+        assert stats.permission_denied is True
 
     def test_count_items_handles_flatpak_oserror(self, monkeypatch):
-
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
             "docking.applets.trash.backend._visible_trash_files_directories",
@@ -888,11 +902,14 @@ class TestKdeTrashBackend:
         (nested_dir / "b.txt").write_text("b")
         (info_dir / "a.txt.trashinfo").write_text("[Trash Info]")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
 
-        KdeTrashBackend().empty(lambda: True)
+        result = KdeTrashBackend().empty(lambda: True)
 
         assert list(files_dir.iterdir()) == []
         assert list(info_dir.iterdir()) == []
+        assert result.attempted is True
+        assert result.remaining_count == 0
 
     def test_open_uses_kde_open_command(self):
         backend = KdeTrashBackend()
@@ -984,6 +1001,18 @@ class TestKdeTrashBackend:
             backend.empty(lambda: True)
 
         delete.assert_called_once()
+
+    def test_kde_empty_returns_not_attempted_when_cancelled(
+        self, tmp_path, monkeypatch
+    ):
+        (tmp_path / "kiorc").write_text("[Confirmations]\nConfirmEmptyTrash=true\n")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        backend = KdeTrashBackend()
+
+        result = backend.empty(lambda: False)
+
+        assert result.attempted is False
+        assert result.delegated is False
 
     def test_confirmation_preference_handles_parser_error(self, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", "/tmp/test-xdg/config")
@@ -1199,6 +1228,11 @@ class _StubBackend:
         self.monitor_files_mock = (self.monitor_file_mock,)
         self.open_calls = 0
         self.empty_confirm: Callable[[], bool] | None = None
+        self.empty_result = TrashEmptyResult(
+            attempted=True,
+            before_count=item_count,
+            remaining_count=0,
+        )
 
     def count_items(self) -> int:
         return self.item_count
@@ -1209,8 +1243,9 @@ class _StubBackend:
     def open(self) -> None:
         self.open_calls += 1
 
-    def empty(self, confirm: Callable[[], bool]) -> None:
+    def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult:
         self.empty_confirm = confirm
+        return self.empty_result
 
 
 def _make_applet(monkeypatch, backend: _StubBackend) -> TrashApplet:
@@ -1238,6 +1273,24 @@ class TestTrashAppletIcon:
 
         assert pixbuf is not None
         assert "5 items" in applet.item.name
+
+    def test_warning_attention_overlays_final_icon(self, monkeypatch):
+        applet = _make_applet(monkeypatch, _StubBackend(item_count=5))
+        applet._empty_attention = True
+        base_icon = MagicMock()
+        badged_icon = MagicMock()
+
+        with (
+            patch("docking.applets.base.Applet.create_icon", return_value=base_icon),
+            patch(
+                "docking.applets.trash.applet.add_trash_warning_badge",
+                return_value=badged_icon,
+            ) as badge,
+        ):
+            icon = applet.create_icon(48)
+
+        badge.assert_called_once_with(base_icon)
+        assert icon == badged_icon
 
     def test_single_item_singular(self, monkeypatch):
         applet = _make_applet(monkeypatch, _StubBackend(item_count=1))
@@ -1274,6 +1327,15 @@ class TestTrashAppletMenu:
         applet = _make_applet(monkeypatch, _StubBackend(item_count=3))
         items = applet.get_menu_items()
         assert items[2].get_sensitive()
+
+    def test_menu_shows_empty_trash_attention_status(self, monkeypatch):
+        applet = _make_applet(monkeypatch, _StubBackend(item_count=3))
+        applet._action_error = "Could not empty Trash."
+
+        items = applet.get_menu_items()
+
+        assert items[0].get_label() == "Could not empty Trash."
+        assert items[0].get_sensitive() is False
 
 
 class TestTrashAppletLifecycle:
@@ -1391,6 +1453,19 @@ class TestTrashAppletLifecycle:
         assert applet._item_count == 4
         assert "4 items" in applet.item.name
 
+    def test_on_trash_changed_clears_attention_when_empty(self, monkeypatch):
+        backend = _StubBackend(item_count=3)
+        applet = _make_applet(monkeypatch, backend)
+        applet._action_error = "Could not empty Trash."
+        applet._empty_attention = True
+        backend.item_count = 0
+
+        applet._on_trash_changed()
+
+        assert applet._item_count == 0
+        assert applet._action_error == ""
+        assert applet._empty_attention is False
+
     def test_empty_trash_delegates_confirmation_callback(self, monkeypatch):
         backend = _StubBackend(item_count=1)
         applet = _make_applet(monkeypatch, backend)
@@ -1398,6 +1473,65 @@ class TestTrashAppletLifecycle:
         applet._empty_trash()
 
         assert backend.empty_confirm == applet._confirm_empty_trash
+
+    def test_empty_trash_partial_failure_sets_attention(self, monkeypatch):
+        backend = _StubBackend(item_count=5)
+        backend.empty_result = TrashEmptyResult(
+            attempted=True,
+            before_count=5,
+            remaining_count=2,
+            failures=1,
+            permission_denied=True,
+        )
+        applet = _make_applet(monkeypatch, backend)
+        applet.present = MagicMock()
+
+        applet._empty_trash()
+
+        assert applet._item_count == 2
+        assert applet._empty_attention is True
+        assert "2 items remain" not in applet._action_error
+        assert "administrator permissions" in applet._action_error
+        applet.present.assert_called_once()
+        applet.refresh_tooltip()
+        assert "2 items in Trash" in applet.item.name
+        assert applet._action_error in applet.item.name
+
+    def test_empty_trash_success_clears_stale_attention(self, monkeypatch):
+        backend = _StubBackend(item_count=5)
+        backend.empty_result = TrashEmptyResult(
+            attempted=True,
+            before_count=5,
+            remaining_count=0,
+        )
+        applet = _make_applet(monkeypatch, backend)
+        applet._action_error = "Could not empty Trash."
+        applet._empty_attention = True
+        applet.present = MagicMock()
+
+        applet._empty_trash()
+
+        assert applet._item_count == 0
+        assert applet._action_error == ""
+        assert applet._empty_attention is False
+        applet.present.assert_called_once()
+
+    def test_empty_trash_delegated_result_does_not_warn(self, monkeypatch):
+        backend = _StubBackend(item_count=5)
+        backend.empty_result = TrashEmptyResult(
+            attempted=False,
+            delegated=True,
+            before_count=5,
+            remaining_count=5,
+        )
+        applet = _make_applet(monkeypatch, backend)
+        applet.present = MagicMock()
+
+        applet._empty_trash()
+
+        assert applet._action_error == ""
+        assert applet._empty_attention is False
+        applet.present.assert_called_once()
 
     def test_confirm_empty_trash_dialog(self, monkeypatch):
         applet = _make_applet(monkeypatch, _StubBackend(item_count=1))

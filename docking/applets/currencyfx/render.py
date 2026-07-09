@@ -42,6 +42,7 @@ from docking.applets.base import draw_icon_label
 from docking.applets.currencyfx.state import FxPoint, FxSnapshot, percent_change
 from docking.applets.draw import rounded_rect
 from docking.core.math import clamp
+from docking.ui.overlays import draw_warning_badge
 
 _BG_TOP = (0.08, 0.11, 0.15)
 _BG_BOTTOM = (0.12, 0.16, 0.22)
@@ -83,7 +84,7 @@ def render_icon(
             pulse_phase=pulse_phase,
         )
         if fetch_failed:
-            _draw_warning_badge(cr=cr, size=size)
+            draw_warning_badge(cr=cr, size=size)
     else:
         _draw_empty_state(cr=cr, size=size, failed=fetch_failed)
 
@@ -263,20 +264,5 @@ def _draw_empty_state(*, cr: cairo.Context, size: int, failed: bool) -> None:
     y = size * 0.48
     cr.move_to(size * 0.24, y)
     cr.line_to(size * 0.76, y)
-    cr.stroke()
-    cr.restore()
-
-
-def _draw_warning_badge(*, cr: cairo.Context, size: int) -> None:
-    """Draw a small warning marker while stale chart data is still visible."""
-    cr.save()
-    radius = max(2.0, size * 0.075)
-    cx = size * 0.79
-    cy = size * 0.22
-    cr.arc(cx, cy, radius, 0, math.tau)
-    cr.set_source_rgba(_WARN[0], _WARN[1], _WARN[2], 0.95)
-    cr.fill_preserve()
-    cr.set_line_width(max(0.8, size * 0.018))
-    cr.set_source_rgba(0, 0, 0, 0.42)
     cr.stroke()
     cr.restore()
