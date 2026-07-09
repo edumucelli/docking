@@ -42,18 +42,29 @@ class DisplayMode(str, Enum):
 # Pricing tables
 # ---------------------------------------------------------------------------
 
-# Claude: input, output, cache_write (1.25x), cache_read (0.1x).
+# Standard API rates in USD per million tokens. Claude cache_write represents
+# the five-minute write rate; the transcript format does not identify one-hour
+# writes. Cache reads are billed at 10% of the base input rate for both APIs.
 # Ordered most-specific first so versioned matches win.
+#
+# Sources verified 2026-07-09:
+# https://platform.claude.com/docs/en/about-claude/pricing
+# https://openai.com/index/previewing-gpt-5-6-sol/
 _OPUS46 = {"input": 5.0, "output": 25.0, "cache_write": 6.25, "cache_read": 0.50}
 _OPUS4 = {"input": 15.0, "output": 75.0, "cache_write": 18.75, "cache_read": 1.50}
+_FABLE5 = {"input": 10.0, "output": 50.0, "cache_write": 12.50, "cache_read": 1.0}
 
 CLAUDE_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
+    ("fable-5", _FABLE5),
+    ("mythos-5", _FABLE5),
     ("opus-4-8", _OPUS46),
     ("opus-4-7", _OPUS46),
     ("opus-4-6", _OPUS46),
     ("opus-4-5", _OPUS46),
     ("opus-4-1", _OPUS4),
     ("opus-4", _OPUS4),
+    # Anthropic's introductory Sonnet 5 rate is published through 2026-08-31.
+    ("sonnet-5", {"input": 2, "output": 10, "cache_write": 2.50, "cache_read": 0.20}),
     ("sonnet-4-6", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("sonnet-4-5", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("sonnet", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
@@ -61,11 +72,23 @@ CLAUDE_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
     ("haiku", {"input": 0.80, "output": 4, "cache_write": 1.0, "cache_read": 0.08}),
 )
 
-# Codex/OpenAI: input, cached (subtracted from input), output.
+# Codex/OpenAI: input, cached input (subtracted from input), output.
+# Models without a cached-input price use their regular input rate as a
+# defensive fallback; their usage records should not contain cached tokens.
 CODEX_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
-    ("gpt-5-pro", {"input": 5.00, "cached": 1.25, "output": 20.00}),
-    ("gpt-5-codex", {"input": 2.50, "cached": 0.62, "output": 10.00}),
-    ("gpt-5", {"input": 2.50, "cached": 0.62, "output": 10.00}),
+    ("gpt-5.6-sol", {"input": 5.00, "cached": 0.50, "output": 30.00}),
+    ("gpt-5.6-terra", {"input": 2.50, "cached": 0.25, "output": 15.00}),
+    ("gpt-5.6-luna", {"input": 1.00, "cached": 0.10, "output": 6.00}),
+    ("gpt-5.5-pro", {"input": 30.00, "cached": 30.00, "output": 180.00}),
+    ("gpt-5.5", {"input": 5.00, "cached": 0.50, "output": 30.00}),
+    ("gpt-5.4-pro", {"input": 30.00, "cached": 30.00, "output": 180.00}),
+    ("gpt-5.4-mini", {"input": 0.75, "cached": 0.075, "output": 4.50}),
+    ("gpt-5.4-nano", {"input": 0.20, "cached": 0.02, "output": 1.25}),
+    ("gpt-5.4", {"input": 2.50, "cached": 0.25, "output": 15.00}),
+    ("gpt-5.3-codex", {"input": 1.75, "cached": 0.175, "output": 14.00}),
+    ("gpt-5.2", {"input": 1.75, "cached": 0.175, "output": 14.00}),
+    ("gpt-5-codex", {"input": 1.25, "cached": 0.125, "output": 10.00}),
+    ("gpt-5", {"input": 1.25, "cached": 0.125, "output": 10.00}),
     ("gpt-4.1", {"input": 2.00, "cached": 0.50, "output": 8.00}),
     ("gpt-4o", {"input": 2.50, "cached": 1.25, "output": 10.00}),
 )
