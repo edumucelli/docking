@@ -52,6 +52,7 @@ import faulthandler
 import os
 import signal
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -68,6 +69,7 @@ if Path(_VENDOR_DIR).is_dir():
 
 # i18n must init before any module with translatable strings is imported.
 from docking.i18n import init as _init_i18n
+from docking.log import get_logger, with_context
 
 _init_i18n()
 
@@ -96,6 +98,9 @@ if TYPE_CHECKING:
     from docking.platform.backends.base import SessionBackend
 
 _FORCE_QUIT_SOURCE_ID = 0
+
+
+log = with_context(get_logger(name="app"), action="start_runtime")
 
 
 def main() -> None:
@@ -159,13 +164,22 @@ def main() -> None:
 
 
 def _start_runtime(
-    items_service: DockItemsService, model: DockModel, backend: SessionBackend
+    items_service: DockItemsService,
+    model: DockModel,
+    backend: SessionBackend,
 ) -> bool:
     """Start background runtime pieces after the window has been shown."""
-    backend.start()
-    items_service.start()
-    model.start_applets()
+    _start_runtime_stage(name="backend", start=backend.start)
+    _start_runtime_stage(name="items_service", start=items_service.start)
+    _start_runtime_stage(name="applets", start=model.start_applets)
     return False
+
+
+def _start_runtime_stage(*, name: str, start: Callable[[], object]) -> None:
+    try:
+        start()
+    except Exception:
+        log.exception("Failed to start runtime stage: %s", name)
 
 
 def _quit() -> bool:

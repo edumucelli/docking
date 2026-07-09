@@ -11,6 +11,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 
 def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     fake_glib = SimpleNamespace(
@@ -109,7 +111,12 @@ class TestAppImport:
 
 
 class TestAppMain:
-    def test_main_builds_runtime_graph_and_starts_loop(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "failed_stage",
+        (None, "backend", "items_service", "applets"),
+        ids=("success", "backend-failure", "items-service-failure", "applets-failure"),
+    )
+    def test_main_builds_runtime_graph_and_starts_loop(self, monkeypatch, failed_stage):
         # Given
         app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
 
@@ -149,6 +156,12 @@ class TestAppMain:
         unity.start.side_effect = lambda: call_order.append("unity_start")
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
+        if failed_stage is not None:
+            {
+                "backend": backend.start,
+                "items_service": items_service.start,
+                "applets": model.start_applets,
+            }[failed_stage].side_effect = RuntimeError(f"{failed_stage} failed")
 
         def idle_add(callback, *args):
             call_order.append("idle_add")
@@ -217,21 +230,23 @@ class TestAppMain:
         unity.stop.assert_called_once()
         ui.start.assert_called_once()
         ui.stop.assert_called_once()
-        fake_glib.idle_add.assert_called_once_with(
+        fake_glib.idle_add.assert_called_once()
+        assert fake_glib.idle_add.call_args.args == (
             app_mod._start_runtime,
             items_service,
             model,
             backend,
         )
         fake_gtk.main.assert_called_once()
-        assert call_order == [
-            "unity_start",
-            "show_all",
-            "ui_start",
-            "idle_add",
-            "items_start",
-            "applets_start",
-        ]
+        if failed_stage is None:
+            assert call_order == [
+                "unity_start",
+                "show_all",
+                "ui_start",
+                "idle_add",
+                "items_start",
+                "applets_start",
+            ]
 
         assert fake_glib.unix_signal_add.call_count == 2
         sig_calls = [c.args[1] for c in fake_glib.unix_signal_add.call_args_list]
