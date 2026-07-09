@@ -1353,7 +1353,7 @@ class TestDockMenu:
     ):
         # Given
         menu = FakeMenu()
-        handler._runtime._window.destroy.reset_mock()
+        handler._runtime.quit.reset_mock()
         handler._model.pinned_items = [DockItem(desktop_id="applet://clock")]
         monkeypatch.setattr(
             menu_mod,
@@ -1417,7 +1417,7 @@ class TestDockMenu:
         open_target.assert_called_once_with(menu_mod.SUPPORT_URL)
 
         next(mi for mi in menu.children if mi.get_label() == "Quit").activate()
-        handler._runtime._window.destroy.assert_called_once()
+        handler._runtime.quit.assert_called_once()
 
         applets_item = next(
             mi for mi in menu.children if mi.get_label() == menu_mod._("Add Applet")
