@@ -252,7 +252,8 @@ class TrashApplet(Applet):
 
     def _confirm_empty_trash(self) -> bool:
         dialog = Gtk.MessageDialog(
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.NONE,
             text=_("Empty all items from Trash?"),

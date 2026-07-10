@@ -128,7 +128,7 @@ class _FakeDialog:
 
 class _FakeRow:
     def __init__(self, app: _FakeApp) -> None:
-        self.app_entry = app
+        self.app = app
         self.visible = True
 
     def show(self) -> None:

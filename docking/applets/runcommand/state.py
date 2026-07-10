@@ -25,7 +25,7 @@ from enum import Enum
 from functools import cache
 from typing import Any, NamedTuple, Protocol
 
-from gi.repository import GLib
+from gi.repository import Gio, GLib
 
 from docking.applets.runcommand import meta
 from docking.log import get_logger, with_context
@@ -88,9 +88,13 @@ class ApplicationLike(Protocol):
 
     def get_display_name(self) -> str: ...
 
-    def get_icon(self) -> object | None: ...
+    def get_icon(self) -> Gio.Icon | None: ...
 
-    def launch(self, files: list[object], context: object | None) -> None: ...
+    def launch(
+        self,
+        files: list[Gio.File] | None,
+        context: Gio.AppLaunchContext | None,
+    ) -> None: ...
 
 
 def normalize_history(raw_history: object) -> list[str]:

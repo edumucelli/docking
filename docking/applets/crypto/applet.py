@@ -399,7 +399,8 @@ class CryptoApplet(Applet):
     def _show_asset_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Add Crypto Asset"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog)
         box = prepare_dialog_content(

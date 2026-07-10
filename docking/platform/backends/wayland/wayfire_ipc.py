@@ -33,7 +33,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, cast
 
 from docking.log import get_logger
 from docking.platform.app_matcher import AppIdMatcher
@@ -58,7 +58,7 @@ log = get_logger(name="wayfire_ipc")
 try:
     from gi.repository import GLib
 except (ImportError, ValueError):
-    GLib = None
+    GLib = cast(Any, None)
 
 WAYFIRE_WINDOW_POLL_SECONDS = 2
 _WAYFIRE_EVENTS = (
@@ -1033,9 +1033,8 @@ def _record_from_view(
     layer = str(view.get("layer", "") or "").strip().lower()
     if view_type != "toplevel" and role != "toplevel" and layer != "workspace":
         return None
-    try:
-        view_id = int(view.get("id"))
-    except (TypeError, ValueError):
+    view_id = _optional_int(view.get("id"))
+    if view_id is None:
         return None
     app_id = str(view.get("app-id", "") or "").strip()
     desktop_id = matcher.match(app_id) if app_id else None
@@ -1058,15 +1057,13 @@ def _record_from_view(
 def _rect_from_mapping(value: object) -> Rect | None:
     if not isinstance(value, Mapping):
         return None
-    try:
-        return Rect(
-            x=int(value.get("x", 0)),
-            y=int(value.get("y", 0)),
-            width=int(value.get("width", 0)),
-            height=int(value.get("height", 0)),
-        )
-    except (TypeError, ValueError):
+    x = _optional_int(value.get("x", 0))
+    y = _optional_int(value.get("y", 0))
+    width = _optional_int(value.get("width", 0))
+    height = _optional_int(value.get("height", 0))
+    if x is None or y is None or width is None or height is None:
         return None
+    return Rect(x=x, y=y, width=width, height=height)
 
 
 def _workspace_records_from_output(
@@ -1151,6 +1148,8 @@ def _optional_bool(value: object) -> bool | None:
 
 
 def _optional_int(value: object) -> int | None:
+    if not isinstance(value, (int, float, str)):
+        return None
     try:
         return int(value)
     except (TypeError, ValueError):

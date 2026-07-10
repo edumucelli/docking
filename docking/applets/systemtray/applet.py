@@ -349,7 +349,7 @@ class SystemTrayApplet(Applet):
         message = self._legacy_host.unavailable_reason or _("Unknown X11 tray error")
         dialog = Gtk.MessageDialog(
             transient_for=self.popup_anchor.parent if self.popup_anchor else None,
-            flags=Gtk.DialogFlags.MODAL,
+            modal=True,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.OK,
             text=_("Could not start the legacy tray"),
@@ -362,7 +362,7 @@ class SystemTrayApplet(Applet):
         owner = self._state.legacy_tray_owner or _("another tray")
         dialog = Gtk.MessageDialog(
             transient_for=self.popup_anchor.parent if self.popup_anchor else None,
-            flags=Gtk.DialogFlags.MODAL,
+            modal=True,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.CANCEL,
             text=_("Take over the legacy tray?"),

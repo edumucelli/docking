@@ -18,7 +18,7 @@ echo "Running ruff format..."
 echo "Running ruff check..."
 .venv/bin/ruff check docking/ tests/
 echo "Running ty..."
-.venv/bin/ty check docking/
+.venv/bin/ty check --error-on-warning docking/
 echo "Checking i18n template sync..."
 bash tools/i18n.sh --check-pot-sync
 echo "Checking i18n catalogs..."

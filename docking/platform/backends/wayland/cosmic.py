@@ -33,7 +33,7 @@ COSMIC protocol composition:
 from __future__ import annotations
 
 import struct
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
@@ -45,6 +45,18 @@ if TYPE_CHECKING:
     from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
 
 log = get_logger(name="cosmic_protocols")
+
+
+def _workspace_flags(value: object) -> Iterable[object] | int | None:
+    """Return a workspace flag payload accepted by the service contract."""
+    if isinstance(value, int):
+        return value
+    if isinstance(value, (str, bytes, bytearray)):
+        return None
+    if isinstance(value, Iterable):
+        return value
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Toplevel state constants (matching xdg-toplevel states)
@@ -439,9 +451,13 @@ class CosmicWorkspaceAdapter:
             if "name" in data:
                 service.name_changed(workspace, str(data["name"]))
             if "state" in data:
-                service.state_changed(workspace, data["state"])
+                states = _workspace_flags(data["state"])
+                if states is not None:
+                    service.state_changed(workspace, states)
             if "capabilities" in data:
-                service.capabilities_changed(workspace, data["capabilities"])
+                capabilities = _workspace_flags(data["capabilities"])
+                if capabilities is not None:
+                    service.capabilities_changed(workspace, capabilities)
         if self._pending_done:
             service.done()
 
@@ -505,12 +521,16 @@ class CosmicWorkspaceAdapter:
         if self._service is not None:
             self._service.name_changed(workspace, name)
 
-    def _on_workspace_state(self, workspace: object, states) -> None:
+    def _on_workspace_state(
+        self, workspace: object, states: Iterable[object] | int
+    ) -> None:
         self._pending_data.setdefault(workspace, {})["state"] = states
         if self._service is not None:
             self._service.state_changed(workspace, states)
 
-    def _on_workspace_capabilities(self, workspace: object, caps) -> None:
+    def _on_workspace_capabilities(
+        self, workspace: object, caps: Iterable[object] | int
+    ) -> None:
         self._pending_data.setdefault(workspace, {})["capabilities"] = caps
         if self._service is not None:
             self._service.capabilities_changed(workspace, caps)

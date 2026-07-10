@@ -152,7 +152,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import gi
 
@@ -464,7 +464,7 @@ class MenuHandler:
     def _show_icon_error(self, *, path: Path) -> None:
         dialog = Gtk.MessageDialog(
             transient_for=self._dock_window,
-            flags=Gtk.DialogFlags.MODAL,
+            modal=True,
             message_type=Gtk.MessageType.ERROR,
             buttons=Gtk.ButtonsType.CLOSE,
             text=_("Could not use selected icon"),
@@ -821,7 +821,7 @@ class MenuHandler:
             height=WINDOW_MENU_THUMB_H,
         )
         image = (
-            Gtk.Image.new_from_pixbuf(thumbnail.image)
+            Gtk.Image.new_from_pixbuf(cast(GdkPixbuf.Pixbuf, thumbnail.image))
             if thumbnail is not None
             else Gtk.Image()
         )
@@ -1042,14 +1042,14 @@ class MenuHandler:
     def _clear_menu_children(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
             submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
-            if submenu is not None:
+            if isinstance(submenu, Gtk.Menu):
                 self._cleanup_folder_menu_tree(submenu)
             menu.remove(child)
 
     def _cleanup_folder_menu_tree(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
             submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
-            if submenu is not None:
+            if isinstance(submenu, Gtk.Menu):
                 self._cleanup_folder_menu_tree(submenu)
         self._cleanup_folder_menu(menu)
 

@@ -173,7 +173,7 @@ class UnitConverterApplet(Applet):
         if self._popup is None:
             self._popup = Gtk.Dialog(
                 title=_("Unit Converter"),
-                flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
+                destroy_with_parent=True,
             )
             self._popup.connect("delete-event", self._on_popup_delete)
 

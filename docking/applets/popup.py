@@ -297,13 +297,20 @@ def create_capture_overlay(
     overlay.connect("key-press-event", key_handler)
 
     display = Gdk.Display.get_default()
+    if display is None:
+        overlay.destroy()
+        raise RuntimeError("Could not create pointer-capture overlay")
     cursor = Gdk.Cursor.new_for_display(display, cursor_type)
     overlay.show_all()
-    overlay.get_window().set_cursor(cursor)
+    window = overlay.get_window()
+    if window is None:
+        overlay.destroy()
+        raise RuntimeError("Could not create pointer-capture overlay")
+    window.set_cursor(cursor)
 
     seat = display.get_default_seat()
     seat.grab(
-        overlay.get_window(),
+        window,
         Gdk.SeatCapabilities.ALL_POINTING | Gdk.SeatCapabilities.KEYBOARD,
         True,
         cursor,
@@ -319,7 +326,13 @@ def dismiss_capture_overlay(overlay: Gtk.Window | None) -> None:
     if overlay is None:
         return
     display = Gdk.Display.get_default()
+    if display is None:
+        overlay.destroy()
+        return
     seat = display.get_default_seat()
+    if seat is None:
+        overlay.destroy()
+        return
     seat.ungrab()
     overlay.destroy()
 

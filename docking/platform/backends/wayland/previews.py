@@ -497,7 +497,9 @@ class HyprlandPreviewService(PreviewService):
             os.close(request.fd)
 
 
-def _pixbuf_from_request(request: _CaptureRequest) -> PreviewImage:
+def _pixbuf_from_request(
+    request: _CaptureRequest | _HyprlandCaptureRequest,
+) -> PreviewImage:
     assert request.mmap_obj is not None
     source = request.mmap_obj[: request.stride * request.height]
     if getattr(request, "y_inverted", False):
