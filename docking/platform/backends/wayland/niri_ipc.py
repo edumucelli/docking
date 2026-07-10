@@ -29,13 +29,14 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf
 
+from docking.core.json_types import JsonObject, JsonValue, as_json_object
 from docking.log import get_logger
 from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
@@ -147,7 +148,7 @@ class NiriIpcClient:
         self._socket_factory = socket_factory
         self._timeout = timeout
 
-    def request(self, payload: object) -> dict[str, Any]:
+    def request(self, payload: JsonValue) -> JsonObject:
         """Send one JSON request and return the parsed reply dict.
 
         Returns an empty dict on any error so callers can safely chain
@@ -177,15 +178,16 @@ class NiriIpcClient:
             log.info("Niri IPC response parse error: %s", exc)
             return {}
 
-    def ok_data(self, payload: object, key: str) -> Any | None:
+    def ok_data(self, payload: JsonValue, key: str) -> JsonValue | None:
         """Send a request and return ``Ok.<key>`` from the reply, or None."""
         reply = self.request(payload)
         ok = reply.get("Ok")
-        if isinstance(ok, Mapping):
-            return ok.get(key)
+        ok_object = as_json_object(ok)
+        if ok_object is not None:
+            return ok_object.get(key)
         return None
 
-    def action(self, action_payload: Mapping[str, Any]) -> ActionResult:
+    def action(self, action_payload: Mapping[str, JsonValue]) -> ActionResult:
         """Send an ``Action`` request.  Returns OK when the server accepts it."""
         try:
             reply = self.request({"Action": action_payload})
@@ -206,7 +208,7 @@ class NiriEvent:
     """One parsed event from the Niri event stream."""
 
     name: str
-    data: dict[str, Any]
+    data: JsonObject
 
 
 class NiriEventStream:
@@ -295,7 +297,7 @@ class NiriWindowService(WindowService):
         self._event_stream_factory = event_stream_factory
         self._event_stream: NiriEventStream | None = None
         self._records: dict[int, NiriWindowRecord] = {}
-        self._workspaces: dict[int, dict[str, Any]] = {}
+        self._workspaces: dict[int, JsonObject] = {}
         self._overview_open = False
         self._on_overview_changed: Callable[[bool], None] | None = None
 
@@ -433,17 +435,14 @@ class NiriWindowService(WindowService):
             if event.name == "WorkspacesChanged":
                 workspaces_raw = event.data.get("workspaces")
                 if isinstance(workspaces_raw, list):
-                    self._workspaces = {
-                        ws["id"]: ws
-                        for ws in workspaces_raw
-                        if isinstance(ws, Mapping) and "id" in ws
-                    }
+                    self._workspaces = _workspaces_by_id(workspaces_raw)
                 return
             # Incremental updates.
             if event.name == "WindowOpenedOrChanged":
                 window_raw = event.data.get("window")
-                if isinstance(window_raw, Mapping):
-                    self._upsert_window(window_raw)
+                window = as_json_object(window_raw)
+                if window is not None:
+                    self._upsert_window(window)
             elif event.name == "WindowClosed":
                 window_id = event.data.get("id")
                 if isinstance(window_id, int):
@@ -474,24 +473,21 @@ class NiriWindowService(WindowService):
     def _refresh_workspaces(self) -> None:
         workspaces_raw = self._client.ok_data({"Workspaces": None}, "Workspaces")
         if isinstance(workspaces_raw, list):
-            self._workspaces = {
-                ws["id"]: ws
-                for ws in workspaces_raw
-                if isinstance(ws, Mapping) and "id" in ws
-            }
+            self._workspaces = _workspaces_by_id(workspaces_raw)
 
-    def _replace_windows(self, items: list[Any]) -> None:
+    def _replace_windows(self, items: list[JsonValue]) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
         records: dict[int, NiriWindowRecord] = {}
         for item in items:
-            if not isinstance(item, Mapping):
+            item_object = as_json_object(item)
+            if item_object is None:
                 continue
-            record = _record_from_window(item, matcher=self._matcher)
+            record = _record_from_window(item_object, matcher=self._matcher)
             if record is not None:
                 records[record.id] = record
         self._records = records
 
-    def _upsert_window(self, item: Mapping[str, Any]) -> None:
+    def _upsert_window(self, item: Mapping[str, JsonValue]) -> None:
         record = _record_from_window(item, matcher=self._matcher)
         if record is not None:
             self._records[record.id] = record
@@ -514,7 +510,7 @@ class NiriWindowService(WindowService):
                     geometry=record.geometry,
                 )
 
-    def _apply_urgency_change(self, data: Mapping[str, Any]) -> None:
+    def _apply_urgency_change(self, data: Mapping[str, JsonValue]) -> None:
         window_id = data.get("id")
         urgent = data.get("urgent")
         if not isinstance(window_id, int) or not isinstance(urgent, bool):
@@ -672,12 +668,13 @@ class NiriWorkspaceService(WorkspaceService):
         if isinstance(workspaces_raw, list):
             self._replace_workspaces(workspaces_raw)
 
-    def _replace_workspaces(self, items: list[Any]) -> None:
+    def _replace_workspaces(self, items: list[JsonValue]) -> None:
         records: list[NiriWorkspaceRecord] = []
         for item in items:
-            if not isinstance(item, Mapping):
+            item_object = as_json_object(item)
+            if item_object is None:
                 continue
-            record = _record_from_workspace(item, number=len(records))
+            record = _record_from_workspace(item_object, number=len(records))
             if record is not None:
                 records.append(record)
         self._records = {record.snapshot_id: record for record in records}
@@ -853,16 +850,21 @@ def niri_pick_color(
                 chunks.append(chunk)
         reply = _parse_response(b"".join(chunks))
         ok = reply.get("Ok")
-        if isinstance(ok, Mapping):
-            picked = ok.get("PickedColor")
-            if isinstance(picked, Mapping):
+        ok_object = as_json_object(ok)
+        if ok_object is not None:
+            picked = as_json_object(ok_object.get("PickedColor"))
+            if picked is not None:
                 rgb = picked.get("rgb")
                 if isinstance(rgb, list) and len(rgb) == 3:
-                    return (
-                        max(0, min(255, round(float(rgb[0]) * 255))),
-                        max(0, min(255, round(float(rgb[1]) * 255))),
-                        max(0, min(255, round(float(rgb[2]) * 255))),
-                    )
+                    red = _float_value(rgb[0])
+                    green = _float_value(rgb[1])
+                    blue = _float_value(rgb[2])
+                    if red is not None and green is not None and blue is not None:
+                        return (
+                            max(0, min(255, round(red * 255))),
+                            max(0, min(255, round(green * 255))),
+                            max(0, min(255, round(blue * 255))),
+                        )
         return None
     except OSError as exc:
         log.info("Niri PickColor failed: %s", exc)
@@ -1019,12 +1021,25 @@ def _wait_for_nonempty_file(path: str, *, timeout: float = 2.0) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _parse_response(raw: bytes) -> dict[str, Any]:
+def _workspaces_by_id(items: list[JsonValue]) -> dict[int, JsonObject]:
+    """Index valid workspace objects by their Niri numeric identifier."""
+    workspaces: dict[int, JsonObject] = {}
+    for item in items:
+        workspace = as_json_object(item)
+        if workspace is None:
+            continue
+        workspace_id = workspace.get("id")
+        if isinstance(workspace_id, int):
+            workspaces[workspace_id] = workspace
+    return workspaces
+
+
+def _parse_response(raw: bytes) -> JsonObject:
     """Parse one reply line from Niri IPC into a dict."""
     text = raw.decode("utf-8", errors="replace").strip()
     if not text:
         return {}
-    return json.loads(text)  # type: ignore[no-any-return]
+    return as_json_object(cast(JsonValue, json.loads(text))) or {}
 
 
 def _parse_event_line(line: str) -> NiriEvent | None:
@@ -1036,7 +1051,8 @@ def _parse_event_line(line: str) -> NiriEvent | None:
         obj = json.loads(stripped)
     except json.JSONDecodeError:
         return None
-    if not isinstance(obj, Mapping) or len(obj) != 1:
+    obj = as_json_object(cast(JsonValue, obj))
+    if obj is None or len(obj) != 1:
         return None
     # The first ``{"Ok":"Handled"}`` acknowledgement is not a real event.
     if "Ok" in obj:
@@ -1044,12 +1060,12 @@ def _parse_event_line(line: str) -> NiriEvent | None:
     (name, data_raw) = next(iter(obj.items()))
     if not isinstance(name, str):
         return None
-    data = dict(data_raw) if isinstance(data_raw, Mapping) else {}
+    data = as_json_object(data_raw) or {}
     return NiriEvent(name=name, data=data)
 
 
 def _record_from_window(
-    item: Mapping[str, Any],
+    item: Mapping[str, JsonValue],
     *,
     matcher: AppIdMatcher,
 ) -> NiriWindowRecord | None:
@@ -1075,7 +1091,7 @@ def _record_from_window(
 
 
 def _record_from_workspace(
-    item: Mapping[str, Any],
+    item: Mapping[str, JsonValue],
     *,
     number: int,
 ) -> NiriWorkspaceRecord | None:
@@ -1116,34 +1132,52 @@ def _focus_niri_workspace(
     return client.action({"FocusWorkspace": {"reference": {"Index": record.idx}}})
 
 
-def _geometry_from_niri_window(item: Mapping[str, Any]) -> Rect | None:
+def _geometry_from_niri_window(item: Mapping[str, JsonValue]) -> Rect | None:
     """Extract window geometry from Niri's layout fields.
 
     Niri windows don't have a single global ``(x, y, w, h)`` since they're
     tiled.  We derive an approximate geometry from the tiling layout:
     ``tile_pos_in_workspace_view`` + ``window_size`` when available.
     """
-    layout = item.get("layout")
-    if not isinstance(layout, Mapping):
+    layout = as_json_object(item.get("layout"))
+    if layout is None:
         return None
     size = layout.get("window_size")
-    if not isinstance(size, Sequence) or isinstance(size, str | bytes) or len(size) < 2:
+    if not isinstance(size, list) or len(size) < 2:
         return None
-    try:
-        w = int(size[0])
-        h = int(size[1])
-    except (TypeError, ValueError):
+    w = _int_value(size[0])
+    h = _int_value(size[1])
+    if w is None or h is None:
         return None
     pos = layout.get("tile_pos_in_workspace_view")
-    if isinstance(pos, Sequence) and not isinstance(pos, str | bytes) and len(pos) >= 2:
-        try:
-            x = int(pos[0])
-            y = int(pos[1])
-        except (TypeError, ValueError):
+    if isinstance(pos, list) and len(pos) >= 2:
+        x = _int_value(pos[0])
+        y = _int_value(pos[1])
+        if x is None or y is None:
             x, y = 0, 0
     else:
         x, y = 0, 0
     return Rect(x=x, y=y, width=w, height=h)
+
+
+def _int_value(value: JsonValue) -> int | None:
+    """Convert a scalar JSON value to an integer without accepting containers."""
+    if not isinstance(value, int | float | str):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _float_value(value: JsonValue) -> float | None:
+    """Convert a scalar JSON value to a float without accepting containers."""
+    if not isinstance(value, int | float | str):
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
 def _niri_window_id(window_id: WindowId) -> int | None:

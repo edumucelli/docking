@@ -16,9 +16,9 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import cairo
 import gi
@@ -56,6 +56,8 @@ FOLDER_STACK_MAX_VISIBLE_ROWS = 9
 FOLDER_STACK_GAP_PX = 8
 FOLDER_STACK_POPUP_SIDE_PADDING_PX = 14
 FOLDER_STACK_TOP_PADDING_PX = 6
+K = TypeVar("K", bound=Hashable)
+V = TypeVar("V")
 FOLDER_STACK_ACTION_GAP_PX = 18
 FOLDER_STACK_ICON_GAP_PX = 10
 FOLDER_STACK_LABEL_HEIGHT_PX = 24
@@ -134,16 +136,14 @@ class FolderStackCache:
         self.prewarm_source: int = 0
 
     @staticmethod
-    def _get_lru(cache: dict[Any, Any], key: Any) -> Any | None:
+    def _get_lru(cache: dict[K, V], key: K) -> V | None:
         cached = cache.pop(key, None)
         if cached is not None:
             cache[key] = cached
         return cached
 
     @staticmethod
-    def _put_lru(
-        cache: dict[Any, Any], key: Any, value: Any, *, max_entries: int
-    ) -> None:
+    def _put_lru(cache: dict[K, V], key: K, value: V, *, max_entries: int) -> None:
         cache[key] = value
         while len(cache) > max_entries:
             cache.pop(next(iter(cache)))

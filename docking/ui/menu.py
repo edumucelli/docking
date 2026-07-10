@@ -150,9 +150,9 @@ concerns in practice.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import gi
 
@@ -217,6 +217,8 @@ WINDOW_MENU_CLOSE_MARGIN_END_PX = 12
 FOLDER_MENU_REFRESH_DEBOUNCE_MS = 120
 log = get_logger("menu")
 
+T = TypeVar("T")
+
 SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
 
 
@@ -228,9 +230,9 @@ def _make_menu_header(label: str) -> Gtk.MenuItem:
 
 def _build_radio_submenu(
     label: str,
-    items: Sequence[tuple[str, Any]],
-    current: Any,
-    on_changed: Any,
+    items: Sequence[tuple[str, T]],
+    current: T,
+    on_changed: Callable[[Gtk.RadioMenuItem, T], None],
 ) -> Gtk.MenuItem:
     """Build a MenuItem with a radio-group submenu.
 

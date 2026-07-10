@@ -37,8 +37,9 @@ settings a persistent, easier-to-scan home.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import gi
 
@@ -123,6 +124,7 @@ INFO_POPOVER_PADDING_PX = 8
 log = get_logger("settings")
 
 SettingsRow = tuple[str, Gtk.Widget, str | None]
+ConfigScalar = bool | int | float | str
 
 
 @dataclass
@@ -131,9 +133,9 @@ class _ScalarBinding:
 
     config_attr: str
     widget: Gtk.Widget
-    read_widget: Any
-    write_widget: Any
-    on_change: Any = None
+    read_widget: Callable[[], ConfigScalar | None]
+    write_widget: Callable[[ConfigScalar], None]
+    on_change: Callable[[], None] | None = None
 
 
 class SettingsActions:
@@ -1036,7 +1038,7 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="show_window_count_numbers",
                 widget=self._window_count_numbers_switch,
-                on_change=lambda _value: self._actions.queue_draw(),
+                on_change=self._actions.queue_draw,
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",
@@ -1050,12 +1052,16 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="lock_icons",
                 widget=self._lock_icons_switch,
-                on_change=self._actions.set_icons_locked,
+                on_change=lambda: self._actions.set_icons_locked(
+                    self._config.lock_icons
+                ),
             ),
             self._register_switch_binding(
                 config_attr="current_workspace_only",
                 widget=self._workspace_only_switch,
-                on_change=self._actions.set_current_workspace_only,
+                on_change=lambda: self._actions.set_current_workspace_only(
+                    self._config.current_workspace_only
+                ),
             ),
             self._register_switch_binding(
                 config_attr="active_display",
@@ -1065,17 +1071,17 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="anchor_applets",
                 widget=self._anchor_applets_switch,
-                on_change=lambda _value: self._actions.queue_draw(),
+                on_change=self._actions.queue_draw,
             ),
             self._register_switch_binding(
                 config_attr="anchor_files",
                 widget=self._anchor_files_switch,
-                on_change=lambda _value: self._actions.queue_draw(),
+                on_change=self._actions.queue_draw,
             ),
             self._register_switch_binding(
                 config_attr="zoom_enabled",
                 widget=self._zoom_enabled_switch,
-                on_change=lambda _value: self._actions.queue_draw(),
+                on_change=self._actions.queue_draw,
             ),
             self._register_switch_binding(
                 config_attr="update_check_enabled",
@@ -1102,7 +1108,7 @@ class SettingsWindowController:
             self._register_choice_binding(
                 config_attr="position",
                 widget=self._position_combo,
-                on_change=lambda _value: self._actions.reposition(),
+                on_change=self._actions.reposition,
             ),
             self._register_int_binding(
                 config_attr="icon_size",
@@ -1114,7 +1120,7 @@ class SettingsWindowController:
                 widget=self._additional_distance_scale,
                 read_widget=lambda: int(self._additional_distance_scale.get_value()),
                 write_widget=lambda value: self._additional_distance_scale.set_value(
-                    float(value)
+                    cast(float, value)
                 ),
                 signal="value-changed",
                 on_change=self._after_additional_distance_changed,
@@ -1127,7 +1133,7 @@ class SettingsWindowController:
                     / TRANSPARENCY_PERCENT_SCALE
                 ),
                 write_widget=lambda value: self._transparency_scale.set_value(
-                    float(value) * TRANSPARENCY_PERCENT_SCALE
+                    cast(float, value) * TRANSPARENCY_PERCENT_SCALE
                 ),
                 signal="value-changed",
                 on_change=self._after_transparency_changed,
@@ -1139,10 +1145,10 @@ class SettingsWindowController:
                     float(self._zoom_percent_spin.get_value()) / ZOOM_PERCENT_SCALE
                 ),
                 write_widget=lambda value: self._zoom_percent_spin.set_value(
-                    float(value) * ZOOM_PERCENT_SCALE
+                    cast(float, value) * ZOOM_PERCENT_SCALE
                 ),
                 signal="value-changed",
-                on_change=lambda _value: self._actions.queue_draw(),
+                on_change=self._actions.queue_draw,
             ),
             self._register_int_binding(
                 config_attr="hide_delay_ms",
@@ -1171,7 +1177,7 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="recent_apps_max",
                 widget=self._recent_apps_max_spin,
-                on_change=lambda _value: self._actions.queue_draw(),
+                on_change=self._actions.queue_draw,
             ),
             self._register_numeric_binding(
                 config_attr="recent_apps_retention_days",
@@ -1183,7 +1189,7 @@ class SettingsWindowController:
                     self._recent_apps_retention_combo.set_active_id(str(value))
                 ),
                 signal="changed",
-                on_change=lambda _value: self._actions.queue_draw(),
+                on_change=self._actions.queue_draw,
             ),
             # Recent Documents
             self._register_switch_binding(
@@ -1201,7 +1207,7 @@ class SettingsWindowController:
         *,
         config_attr: str,
         widget: Gtk.Switch,
-        on_change: Any = None,
+        on_change: Callable[[], None] | None = None,
     ) -> _ScalarBinding:
         return self._register_numeric_binding(
             config_attr=config_attr,
@@ -1217,13 +1223,13 @@ class SettingsWindowController:
         *,
         config_attr: str,
         widget: Gtk.ComboBoxText,
-        on_change: Any = None,
+        on_change: Callable[[], None] | None = None,
     ) -> _ScalarBinding:
         return self._register_numeric_binding(
             config_attr=config_attr,
             widget=widget,
             read_widget=widget.get_active_id,
-            write_widget=lambda value: widget.set_active_id(str(value)),
+            write_widget=lambda value: self._set_active_id(widget, value),
             signal="changed",
             on_change=on_change,
         )
@@ -1233,13 +1239,13 @@ class SettingsWindowController:
         *,
         config_attr: str,
         widget: Gtk.SpinButton,
-        on_change: Any = None,
+        on_change: Callable[[], None] | None = None,
     ) -> _ScalarBinding:
         return self._register_numeric_binding(
             config_attr=config_attr,
             widget=widget,
             read_widget=lambda: int(widget.get_value()),
-            write_widget=lambda value: widget.set_value(float(value)),
+            write_widget=lambda value: widget.set_value(cast(float, value)),
             signal="value-changed",
             on_change=on_change,
         )
@@ -1249,10 +1255,10 @@ class SettingsWindowController:
         *,
         config_attr: str,
         widget: Gtk.Widget,
-        read_widget: Any,
-        write_widget: Any,
+        read_widget: Callable[[], ConfigScalar | None],
+        write_widget: Callable[[ConfigScalar], None],
         signal: str,
-        on_change: Any = None,
+        on_change: Callable[[], None] | None = None,
     ) -> _ScalarBinding:
         binding = _ScalarBinding(
             config_attr=config_attr,
@@ -1263,6 +1269,10 @@ class SettingsWindowController:
         )
         widget.connect(signal, lambda *_args, b=binding: self._on_binding_changed(b))
         return binding
+
+    @staticmethod
+    def _set_active_id(widget: Gtk.ComboBoxText, value: ConfigScalar) -> None:
+        widget.set_active_id(str(value))
 
     def _sync_widgets(self) -> None:
         if self._window is None:
@@ -1417,7 +1427,7 @@ class SettingsWindowController:
         setattr(self._config, binding.config_attr, value)
         self._config.save()
         if binding.on_change is not None:
-            binding.on_change(value)
+            binding.on_change()
         self._update_dependent_sensitivity()
 
     def _read_update_interval_hours(self) -> int | None:
@@ -1482,29 +1492,29 @@ class SettingsWindowController:
         )
         self._actions.set_theme(theme)
 
-    def _after_theme_changed(self, _name: str) -> None:
+    def _after_theme_changed(self) -> None:
         self._apply_runtime_theme()
         self._actions.reposition()
         self._actions.queue_draw()
 
-    def _after_icon_size_changed(self, _value: int) -> None:
+    def _after_icon_size_changed(self) -> None:
         self._apply_runtime_theme()
         self._actions.reposition()
         self._actions.queue_draw()
 
-    def _after_transparency_changed(self, _value: float) -> None:
+    def _after_transparency_changed(self) -> None:
         self._apply_runtime_theme()
         self._actions.queue_draw()
 
-    def _after_additional_distance_changed(self, _value: int) -> None:
+    def _after_additional_distance_changed(self) -> None:
         self._actions.reposition()
         self._actions.queue_draw()
 
-    def _after_pressure_reveal_changed(self, _value) -> None:
+    def _after_pressure_reveal_changed(self) -> None:
         self._actions.refresh_pressure_handler()
         self._update_dependent_sensitivity()
 
-    def _after_show_recent_apps_changed(self, _value) -> None:
+    def _after_show_recent_apps_changed(self) -> None:
         """Rebuild the recent apps section when the toggle changes."""
         if not self._config.show_recent_apps:
             self._config.recent_apps.clear()
@@ -1512,7 +1522,7 @@ class SettingsWindowController:
         self._actions.queue_draw()
         self._update_dependent_sensitivity()
 
-    def _after_hide_mode_changed(self, mode: str) -> None:
+    def _after_hide_mode_changed(self) -> None:
         self._actions.on_hide_mode_changed()
         self._update_hide_mode_description()
         self._update_dependent_sensitivity()
@@ -1546,12 +1556,12 @@ class SettingsWindowController:
         desc = self._HIDE_MODE_DESCRIPTIONS.get(mode, "")
         self._set_info_icon_text(self._hide_mode_info, desc)
 
-    def _after_tooltips_changed(self, active: bool) -> None:
-        if not active:
+    def _after_tooltips_changed(self) -> None:
+        if not self._config.tooltips_enabled:
             self._actions.hide_tooltip()
 
-    def _after_active_display_changed(self, active: bool) -> None:
-        self._actions.set_active_display(active)
+    def _after_active_display_changed(self) -> None:
+        self._actions.set_active_display(self._config.active_display)
         self._actions.reposition()
 
     def _update_dependent_sensitivity(self) -> None:

@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -167,13 +167,10 @@ class RunCommandApplet(Applet):
         self._entry_combo = Gtk.ComboBoxText.new_with_entry()
         self._entry_combo.set_entry_text_column(0)
         self._entry_combo.set_hexpand(True)
-        entry = self._entry_combo.get_child()
-        if not isinstance(entry, Gtk.Entry):
-            raise RuntimeError("Gtk.ComboBoxText did not create an entry")
-        self._entry = entry
-        entry.set_width_chars(COMMAND_WIDTH_CHARS)
-        entry.set_activates_default(True)
-        entry.connect("changed", self._on_entry_changed)
+        self._entry = cast(Gtk.Entry, self._entry_combo.get_child())
+        self._entry.set_width_chars(COMMAND_WIDTH_CHARS)
+        self._entry.set_activates_default(True)
+        self._entry.connect("changed", self._on_entry_changed)
         body.pack_start(self._entry_combo, False, False, 0)
 
         options_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -342,9 +339,12 @@ class RunCommandApplet(Applet):
         self._run_button.set_sensitive(bool(self._entry.get_text().strip()))
 
     def _on_run_with_file(self, _button: Gtk.Button) -> None:
+        parent = self._dialog
+        if parent is None:
+            return
         dialog = Gtk.FileChooserDialog(
             title=_("Run with file"),
-            transient_for=self._dialog,
+            parent=parent,
             action=Gtk.FileChooserAction.OPEN,
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)

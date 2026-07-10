@@ -23,7 +23,7 @@ import subprocess
 from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cache
-from typing import Any, NamedTuple, Protocol
+from typing import NamedTuple, Protocol
 
 from gi.repository import Gio, GLib
 
@@ -82,9 +82,10 @@ DESKTOP_EXEC_FIELD_CODES_RE = re.compile(r"%[uUfFdDnNickvm]")
 
 
 class ApplicationLike(Protocol):
-    """Protocol shared by Gio app infos and the Applications applet adapter."""
+    """Application entry consumed by the Run Application dialog."""
 
-    app_info: Any
+    @property
+    def app_info(self) -> Gio.DesktopAppInfo | None: ...
 
     def get_display_name(self) -> str: ...
 
@@ -285,25 +286,39 @@ def app_display_name(app: ApplicationLike) -> str:
 
 def app_command_text(app: ApplicationLike) -> str:
     """Return command text suitable for the dialog entry."""
-    app_info = getattr(app, "app_info", None)
+    app_info = app.app_info
     commandline = ""
-    get_commandline = getattr(app_info, "get_commandline", None)
-    if callable(get_commandline):
-        commandline = clean_desktop_exec(str(get_commandline() or ""))
+    if app_info is not None:
+        commandline = clean_desktop_exec(str(app_info.get_commandline() or ""))
     return commandline or app_display_name(app)
 
 
 def app_description(app: ApplicationLike) -> str:
     """Return the best available app description/comment."""
-    app_info = getattr(app, "app_info", None)
-    for attr in ("get_description", "get_comment", "get_generic_name"):
-        getter = getattr(app_info, attr, None)
-        if not callable(getter):
-            continue
-        text = str(getter() or "").strip()
+    app_info = app.app_info
+    if app_info is None:
+        return app_display_name(app)
+    for text in (
+        str(app_info.get_description() or "").strip(),
+        _optional_app_info_text(app_info, "get_comment"),
+        _optional_app_info_text(app_info, "get_generic_name"),
+    ):
         if text:
             return text
     return app_display_name(app)
+
+
+def _optional_app_info_text(app_info: Gio.DesktopAppInfo, getter_name: str) -> str:
+    """Read metadata that is not exposed by every PyGObject runtime.
+
+    ``Gio.DesktopAppInfo`` consistently provides a description, while comment
+    and generic-name accessors vary across the available bindings. Keep those
+    two fields as best-effort metadata rather than requiring them at runtime.
+    """
+    getter = getattr(app_info, getter_name, None)
+    if not callable(getter):
+        return ""
+    return str(getter() or "").strip()
 
 
 def match_application(
