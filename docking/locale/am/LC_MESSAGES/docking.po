@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-15 20:36+0200\n"
+"POT-Creation-Date: 2026-07-10 22:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,1560 +17,2080 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: docking/applets/aiusage/applet.py:62
+#: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
 msgstr "AI አጠቃቀም"
 
-#: docking/applets/aiusage/applet.py:126
+#: docking/applets/aiusage/applet.py:139
 msgid "Auto"
 msgstr "ራስ-ሰር"
 
-#: docking/applets/aiusage/applet.py:127
+#: docking/applets/aiusage/applet.py:140
 msgid "Claude"
 msgstr "Claude"
 
-#: docking/applets/aiusage/applet.py:128
+#: docking/applets/aiusage/applet.py:141
 msgid "Codex"
 msgstr "Codex"
 
-#: docking/applets/aiusage/applet.py:129
+#: docking/applets/aiusage/applet.py:142
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: docking/applets/aiusage/applet.py:138
+#: docking/applets/aiusage/applet.py:151
 msgid "Show Cost"
 msgstr "ዋጋ አሳይ"
 
-#: docking/applets/aiusage/applet.py:139
+#: docking/applets/aiusage/applet.py:152
 msgid "Show Tokens"
 msgstr "ቶከኖች አሳይ"
 
-#: docking/applets/aiusage/applet.py:146
-#: docking/applets/deskpresence/applet.py:103
+#: docking/applets/aiusage/applet.py:159
+#: docking/applets/deskpresence/applet.py:121
 msgid "Reset Today"
 msgstr "ዛሬን ዳግም አስጀምር"
 
-#: docking/applets/aiusage/applet.py:207 docking/applets/aiusage/applet.py:222
+#: docking/applets/aiusage/applet.py:220 docking/applets/aiusage/applet.py:235
 #, python-brace-format
 msgid "{name}: no usage today"
 msgstr "{name}: ዛሬ አጠቃቀም የለም"
 
-#: docking/applets/aiusage/applet.py:239
+#: docking/applets/aiusage/applet.py:252
 #, python-brace-format
 msgid "<b>{name}: {value}</b>"
 msgstr "<b>{name}: {value}</b>"
 
-#: docking/applets/aiusage/applet.py:283
+#: docking/applets/aiusage/applet.py:296
 #, python-brace-format
 msgid "This week: {value}"
 msgstr "በዚህ ሳምንት: {value}"
 
-#: docking/applets/aiusage/state.py:459
+#: docking/applets/aiusage/state.py:499
 msgid "no usage today"
 msgstr "ዛሬ አጠቃቀም የለም"
 
-#: docking/applets/aiusage/state.py:463
+#: docking/applets/aiusage/state.py:503
 #, python-brace-format
 msgid "Today: {cost}"
 msgstr "ዛሬ: {cost}"
 
-#: docking/applets/ambient/applet.py:66 docking/applets/ambient/state.py:87
-msgid "Ambient"
-msgstr "ድባብ"
+#: docking/applets/alarm/applet.py:67
+msgid "Alarm"
+msgstr "ማንቂያ"
 
-#: docking/applets/ambient/state.py:24
-msgid "Birds"
-msgstr "ወፎች"
+#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:208
+msgid "Snooze"
+msgstr "አሸልብ"
 
-#: docking/applets/ambient/state.py:25
-msgid "Boat"
-msgstr "ጀልባ"
+#: docking/applets/alarm/applet.py:106
+msgid "Dismiss"
+msgstr "አሰናብት"
 
-#: docking/applets/ambient/state.py:26
-msgid "Coffee Shop"
-msgstr "ቡና ቤት"
+#: docking/applets/alarm/applet.py:110
+msgid "Add Alarm..."
+msgstr "ማንቂያ ያክሉ..."
 
-#: docking/applets/ambient/state.py:27
-msgid "Fireplace"
-msgstr "ምድጃ"
+#: docking/applets/alarm/applet.py:132
+msgid "Edit {label}..."
+msgstr "አርትዕ {label}..."
 
-#: docking/applets/ambient/state.py:28
-msgid "Stream"
-msgstr "ፏፏቴ"
+#: docking/applets/alarm/applet.py:160
+msgid "Edit Alarm"
+msgstr "ማንቂያውን ያርትዑ"
 
-#: docking/applets/ambient/state.py:29
-msgid "Summer Night"
-msgstr "የበጋ ሌሊት"
+#: docking/applets/alarm/applet.py:160
+msgid "Add Alarm"
+msgstr "ማንቂያ ያክሉ"
 
-#: docking/applets/ambient/state.py:30
-msgid "Wind"
-msgstr "ነፋስ"
+#: docking/applets/alarm/applet.py:163 docking/applets/certwatch/state.py:246
+#: docking/applets/clock/applet.py:218 docking/applets/quicknote/applet.py:87
+msgid "OK"
+msgstr "OK"
 
-#: docking/applets/ambient/state.py:35
-msgid "White Noise"
-msgstr "ነጭ ድምጽ"
+#: docking/applets/alarm/applet.py:163 docking/applets/clock/applet.py:218
+#: docking/applets/lastfm/applet.py:380 docking/applets/quicknote/applet.py:86
+#: docking/applets/runcommand/applet.py:122
+#: docking/applets/runcommand/applet.py:340
+#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:263
+#: docking/applets/weather/applet.py:273 docking/ui/diagnostics.py:342
+#: docking/ui/menu.py:439
+msgid "Cancel"
+msgstr "Cancel"
 
-#: docking/applets/ambient/state.py:36
-msgid "Pink Noise"
-msgstr "ሮዝ ድምጽ"
+#: docking/applets/alarm/applet.py:165 docking/applets/certwatch/applet.py:170
+msgid "Remove"
+msgstr "Remove"
 
-#: docking/applets/ambient/state.py:84
-#, python-brace-format
-msgid "Playing: {sound} ({pct}%)"
-msgstr "በማጫወት ላይ: {sound} ({pct}%)"
+#: docking/applets/alarm/applet.py:189
+msgid "Enabled"
+msgstr "ነቅቷል"
 
-#: docking/applets/apod/applet.py:55 docking/applets/apod/state.py:101
-#: docking/applets/apod/state.py:119
-msgid "Astronomy Picture of the Day"
-msgstr "Astronomy Picture of the Day"
+#: docking/applets/alarm/applet.py:202
+msgid "Label"
+msgstr "መለያ"
 
-#: docking/applets/apod/applet.py:95
-#, python-brace-format
-msgid "{date}: {title}"
-msgstr "{date}: {title}"
+#: docking/applets/alarm/applet.py:204 docking/applets/clock/applet.py:255
+msgid "Hour"
+msgstr "Hour"
 
-#: docking/applets/apod/applet.py:97
-msgid "Untitled"
-msgstr "Untitled"
+#: docking/applets/alarm/applet.py:206 docking/applets/clock/applet.py:257
+msgid "Minute"
+msgstr "Minute"
 
-#: docking/applets/apod/applet.py:106 docking/applets/apod/state.py:106
-#: docking/applets/apod/state.py:125 docking/applets/certwatch/applet.py:134
-#: docking/applets/certwatch/state.py:312
-msgid "Checks"
-msgstr "ምርመራዎች"
+#: docking/applets/alarm/applet.py:211
+msgid "Repeat"
+msgstr "ይድገሙ"
 
-#: docking/applets/apod/applet.py:118 docking/applets/certwatch/applet.py:128
-#: docking/applets/currencyfx/applet.py:187
-#: docking/applets/hackernews/applet.py:175
-#: docking/applets/speedtest/applet.py:103
-#: docking/applets/thermals/applet.py:134 docking/applets/tooltip.py:33
-#: docking/applets/weather/applet.py:168 docking/applets/weather/applet.py:525
-#, python-brace-format
-msgid "Error: {msg}"
-msgstr "Error: {msg}"
+#: docking/applets/alarm/state.py:31
+msgid "Mon"
+msgstr "ሰኞ"
 
-#: docking/applets/apod/applet.py:121
-msgid "Open on apod.nasa.gov"
-msgstr "Open on apod.nasa.gov"
+#: docking/applets/alarm/state.py:32
+msgid "Tue"
+msgstr "ማክሰኞ"
 
-#: docking/applets/apod/applet.py:126
-msgid "Copy Explanation"
-msgstr "Copy Explanation"
+#: docking/applets/alarm/state.py:33
+msgid "Wed"
+msgstr "ረቡዕ"
 
-#: docking/applets/apod/applet.py:130 docking/applets/bluetooth/applet.py:204
-#: docking/applets/camshield/applet.py:114
-#: docking/applets/capslock/applet.py:84
-#: docking/applets/certwatch/applet.py:145
-#: docking/applets/currencyfx/applet.py:195
-#: docking/applets/hackernews/applet.py:192
-#: docking/applets/micshield/applet.py:118 docking/applets/moon/applet.py:124
-#: docking/applets/quote/applet.py:92 docking/applets/thermals/applet.py:144
-#: docking/applets/todayinhistory/applet.py:99
-#: docking/applets/trivia/applet.py:115 docking/applets/weather/applet.py:175
-msgid "Refresh Now"
-msgstr "አሁን አድስ"
+#: docking/applets/alarm/state.py:34
+msgid "Thu"
+msgstr "ቱ"
 
-#: docking/applets/apod/state.py:115
-#, python-brace-format
-msgid "(c) {who}"
-msgstr "(c) {who}"
+#: docking/applets/alarm/state.py:35
+msgid "Fri"
+msgstr "ዓርብ"
 
-#: docking/applets/applications/applet.py:36
-msgid "Applications"
-msgstr "መተግበሪያዎች"
+#: docking/applets/alarm/state.py:36
+msgid "Sat"
+msgstr "ሳት"
 
-#: docking/applets/applications/applet.py:77
-msgid "Search applications..."
-msgstr "መተግበሪያዎችን ፈልግ..."
+#: docking/applets/alarm/state.py:37
+msgid "Sun"
+msgstr "ፀሐይ"
 
-#: docking/applets/battery/applet.py:35
-msgid "Battery"
-msgstr "ባትሪ"
+#: docking/applets/alarm/state.py:218
+msgid "Ring"
+msgstr "ደውል"
 
-#: docking/applets/battery/applet.py:72
-msgid "Show Percent"
-msgstr "በመቶኛ አሳይ"
+#: docking/applets/alarm/state.py:227
+msgid "{hours}h"
+msgstr "{hours}ሰ"
 
-#: docking/applets/battery/applet.py:79
-msgid "Power Settings"
-msgstr "Power Settings"
-
-#: docking/applets/battery/state.py:104
-msgid "No battery"
-msgstr "ባትሪ የለም"
-
-#: docking/applets/battery/state.py:105
-#, python-brace-format
-msgid "Battery: {pct}%"
-msgstr "ባትሪ: {pct}%"
-
-#: docking/applets/battery/state.py:118
-#, python-brace-format
-msgid "{time} left"
-msgstr "{time} left"
-
-#: docking/applets/battery/state.py:120
-#, python-brace-format
-msgid "{time} until full"
-msgstr "{time} until full"
-
-#: docking/applets/battery/state.py:130
-#, python-brace-format
-msgid "{hours}h {minutes:02d}m"
-msgstr "{hours}h {minutes:02d}m"
-
-#: docking/applets/battery/state.py:131
+#: docking/applets/alarm/state.py:228 docking/applets/alarm/state.py:307
+#: docking/applets/battery/state.py:206 docking/applets/sunrise/state.py:418
 #, python-brace-format
 msgid "{minutes}m"
 msgstr "{minutes}m"
 
-#: docking/applets/bluetooth/applet.py:68
+#: docking/applets/alarm/state.py:236
+msgid "Alarm ringing: {label}"
+msgstr "የማንቂያ ደውል፡ {label}"
+
+#: docking/applets/alarm/state.py:239
+msgid "Alarm: no enabled alarms"
+msgstr "ማንቂያ፡ ምንም የነቁ ማንቂያዎች የሉም"
+
+#: docking/applets/alarm/state.py:240
+msgid "Next alarm: {label} at {time}"
+msgstr "ቀጣይ ማንቂያ፡ {label} በ{time}"
+
+#: docking/applets/alarm/state.py:252
+msgid "No enabled alarms"
+msgstr "ምንም የነቁ ማንቂያዎች የሉም"
+
+#: docking/applets/alarm/state.py:253
+msgid "{label}: {time} ({duration})"
+msgstr "{label}: {time} ({duration})"
+
+#: docking/applets/alarm/state.py:263
+msgid "on"
+msgstr "ላይ"
+
+#: docking/applets/alarm/state.py:263
+msgid "off"
+msgstr "ጠፍቷል"
+
+#: docking/applets/alarm/state.py:264
+#, python-brace-format
+msgid "{time} {label} - {repeat}, {state}"
+msgstr "{time} {label} - {repeat}፣ {state}"
+
+#: docking/applets/alarm/state.py:276
+msgid "once"
+msgstr "አንድ ጊዜ"
+
+#: docking/applets/alarm/state.py:278
+msgid "weekdays"
+msgstr "የስራ ቀናት"
+
+#: docking/applets/alarm/state.py:280
+msgid "weekends"
+msgstr "ቅዳሜና እሁድ"
+
+#: docking/applets/alarm/state.py:282
+msgid "daily"
+msgstr "በየቀኑ"
+
+#: docking/applets/alarm/state.py:304
+msgid "{days}d {hours}h"
+msgstr "{days}d {hours}ሰ"
+
+#: docking/applets/alarm/state.py:306 docking/applets/sunrise/state.py:417
+msgid "{hours}h {minutes}m"
+msgstr "{hours}ሰ {minutes}ሚ"
+
+#: docking/applets/ambient/applet.py:80 docking/applets/ambient/state.py:100
+msgid "Ambient"
+msgstr "ድባብ"
+
+#: docking/applets/ambient/state.py:37
+msgid "Birds"
+msgstr "ወፎች"
+
+#: docking/applets/ambient/state.py:38
+msgid "Boat"
+msgstr "ጀልባ"
+
+#: docking/applets/ambient/state.py:39
+msgid "Coffee Shop"
+msgstr "ቡና ቤት"
+
+#: docking/applets/ambient/state.py:40
+msgid "Fireplace"
+msgstr "ምድጃ"
+
+#: docking/applets/ambient/state.py:41
+msgid "Stream"
+msgstr "ፏፏቴ"
+
+#: docking/applets/ambient/state.py:42
+msgid "Summer Night"
+msgstr "የበጋ ሌሊት"
+
+#: docking/applets/ambient/state.py:43
+msgid "Wind"
+msgstr "ነፋስ"
+
+#: docking/applets/ambient/state.py:48
+msgid "White Noise"
+msgstr "ነጭ ድምጽ"
+
+#: docking/applets/ambient/state.py:49
+msgid "Pink Noise"
+msgstr "ሮዝ ድምጽ"
+
+#: docking/applets/ambient/state.py:97
+#, python-brace-format
+msgid "Playing: {sound} ({pct}%)"
+msgstr "በማጫወት ላይ: {sound} ({pct}%)"
+
+#: docking/applets/apod/applet.py:68 docking/applets/apod/state.py:114
+#: docking/applets/apod/state.py:132
+msgid "Astronomy Picture of the Day"
+msgstr "Astronomy Picture of the Day"
+
+#: docking/applets/apod/applet.py:108
+#, python-brace-format
+msgid "{date}: {title}"
+msgstr "{date}: {title}"
+
+#: docking/applets/apod/applet.py:110
+msgid "Untitled"
+msgstr "Untitled"
+
+#: docking/applets/apod/applet.py:119 docking/applets/apod/state.py:119
+#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:147
+#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:101
+msgid "Checks"
+msgstr "ምርመራዎች"
+
+#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:141
+#: docking/applets/crypto/applet.py:153
+#: docking/applets/currencyfx/applet.py:203
+#: docking/applets/hackernews/applet.py:189
+#: docking/applets/lastfm/applet.py:174 docking/applets/speedtest/applet.py:116
+#: docking/applets/thermals/applet.py:147 docking/applets/tooltip.py:46
+#: docking/applets/weather/applet.py:183 docking/applets/weather/applet.py:567
+#, python-brace-format
+msgid "Error: {msg}"
+msgstr "Error: {msg}"
+
+#: docking/applets/apod/applet.py:134
+msgid "Open on apod.nasa.gov"
+msgstr "Open on apod.nasa.gov"
+
+#: docking/applets/apod/applet.py:139
+msgid "Copy Explanation"
+msgstr "Copy Explanation"
+
+#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:217
+#: docking/applets/camshield/applet.py:127
+#: docking/applets/capslock/applet.py:97
+#: docking/applets/certwatch/applet.py:158 docking/applets/crypto/applet.py:156
+#: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
+#: docking/applets/hackernews/applet.py:206
+#: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
+#: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
+#: docking/applets/systemtray/applet.py:142
+#: docking/applets/thermals/applet.py:157
+#: docking/applets/todayinhistory/applet.py:112
+#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:190
+msgid "Refresh Now"
+msgstr "አሁን አድስ"
+
+#: docking/applets/apod/state.py:128
+#, python-brace-format
+msgid "(c) {who}"
+msgstr "(c) {who}"
+
+#: docking/applets/applications/applet.py:50
+msgid "Applications"
+msgstr "መተግበሪያዎች"
+
+#: docking/applets/applications/applet.py:91
+msgid "Search applications..."
+msgstr "መተግበሪያዎችን ፈልግ..."
+
+#: docking/applets/battery/applet.py:63
+msgid "Battery"
+msgstr "ባትሪ"
+
+#: docking/applets/battery/applet.py:109
+msgid "No overlay"
+msgstr "ምንም ተደራቢ የለም።"
+
+#: docking/applets/battery/applet.py:110
+msgid "Percentage"
+msgstr "መቶኛ"
+
+#: docking/applets/battery/applet.py:111
+msgid "Power (W)"
+msgstr "ኃይል (ወ)"
+
+#: docking/applets/battery/applet.py:121
+msgid "Power Settings"
+msgstr "Power Settings"
+
+#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:644
+msgid "Mouse"
+msgstr "Mouse"
+
+#: docking/applets/battery/peripherals.py:47
+msgid "Keyboard"
+msgstr "የቁልፍ ሰሌዳ"
+
+#: docking/applets/battery/peripherals.py:48
+msgid "Phone"
+msgstr "ስልክ"
+
+#: docking/applets/battery/peripherals.py:49
+msgid "Media Player"
+msgstr "የሚዲያ ማጫወቻ"
+
+#: docking/applets/battery/peripherals.py:50
+msgid "Tablet"
+msgstr "ጡባዊ"
+
+#: docking/applets/battery/peripherals.py:51
+msgid "Controller"
+msgstr "ተቆጣጣሪ"
+
+#: docking/applets/battery/peripherals.py:52
+msgid "Pen"
+msgstr "ብዕር"
+
+#: docking/applets/battery/peripherals.py:53
+msgid "Touchpad"
+msgstr "የመዳሰሻ ሰሌዳ"
+
+#: docking/applets/battery/peripherals.py:54
+msgid "Headset"
+msgstr "የጆሮ ማዳመጫ"
+
+#: docking/applets/battery/peripherals.py:55
+msgid "Speakers"
+msgstr "ተናጋሪዎች"
+
+#: docking/applets/battery/peripherals.py:56
+msgid "Headphones"
+msgstr "የጆሮ ማዳመጫዎች"
+
+#: docking/applets/battery/peripherals.py:57
+msgid "Audio"
+msgstr "ኦዲዮ"
+
+#: docking/applets/battery/peripherals.py:58
+msgid "Remote"
+msgstr "የርቀት"
+
+#: docking/applets/battery/peripherals.py:59
+msgid "Wearable"
+msgstr "የሚለበስ"
+
+#: docking/applets/battery/peripherals.py:69
+msgid "Low"
+msgstr "ዝቅተኛ"
+
+#: docking/applets/battery/peripherals.py:70
+#: docking/applets/certwatch/state.py:248
+msgid "Critical"
+msgstr "Critical"
+
+#: docking/applets/battery/peripherals.py:71
+msgid "Normal"
+msgstr "መደበኛ"
+
+#: docking/applets/battery/peripherals.py:72
+msgid "High"
+msgstr "ከፍተኛ"
+
+#: docking/applets/battery/peripherals.py:73
+#: docking/applets/moon/offline.py:231 docking/applets/moon/state.py:145
+msgid "Full"
+msgstr "ሙሉ"
+
+#: docking/applets/battery/peripherals.py:99
+msgid "Device"
+msgstr "መሳሪያ"
+
+#: docking/applets/battery/peripherals.py:130
+#, python-brace-format
+msgid "{charge} (charging)"
+msgstr "{charge} (በመሙላት ላይ)"
+
+#: docking/applets/battery/state.py:170
+msgid "No battery"
+msgstr "ባትሪ የለም"
+
+#: docking/applets/battery/state.py:171
+#, python-brace-format
+msgid "Battery: {pct}%"
+msgstr "ባትሪ: {pct}%"
+
+#: docking/applets/battery/state.py:193
+#, python-brace-format
+msgid "{time} left"
+msgstr "{time} left"
+
+#: docking/applets/battery/state.py:195
+#, python-brace-format
+msgid "{time} until full"
+msgstr "{time} until full"
+
+#: docking/applets/battery/state.py:205
+#, python-brace-format
+msgid "{hours}h {minutes:02d}m"
+msgstr "{hours}h {minutes:02d}m"
+
+#: docking/applets/bluetooth/applet.py:81
 msgid "Bluetooth"
 msgstr "ብሉቱዝ"
 
-#: docking/applets/bluetooth/applet.py:168
+#: docking/applets/bluetooth/applet.py:181
 msgid "Bluetooth unavailable"
 msgstr "ብሉቱዝ አይገኝም"
 
-#: docking/applets/bluetooth/applet.py:172
+#: docking/applets/bluetooth/applet.py:185
 msgid "No Bluetooth adapter"
 msgstr "ብሉቱዝ አስማሚ የለም"
 
-#: docking/applets/bluetooth/applet.py:174
-#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:99
+#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/state.py:155 docking/applets/capslock/state.py:112
 msgid "On"
 msgstr "በርቷል"
 
-#: docking/applets/bluetooth/applet.py:174
-#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:99
+#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/state.py:155 docking/applets/caffeine/state.py:128
+#: docking/applets/capslock/state.py:112
 msgid "Off"
 msgstr "ጠፍቷል"
 
-#: docking/applets/bluetooth/applet.py:183
+#: docking/applets/bluetooth/applet.py:196
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - ተገናኝቷል {connected}"
 
-#: docking/applets/bluetooth/applet.py:194
+#: docking/applets/bluetooth/applet.py:207
 msgid "Continuous Discovery"
 msgstr "ቀጣይ ፍለጋ"
 
-#: docking/applets/bluetooth/applet.py:226
+#: docking/applets/bluetooth/applet.py:239
 msgid "Turn Bluetooth Off"
 msgstr "Turn Bluetooth Off"
 
-#: docking/applets/bluetooth/applet.py:226
+#: docking/applets/bluetooth/applet.py:239
 msgid "Turn Bluetooth On"
 msgstr "Turn Bluetooth On"
 
-#: docking/applets/bluetooth/applet.py:242
+#: docking/applets/bluetooth/applet.py:255
 #, python-brace-format
 msgid "Disconnect {device}"
 msgstr "Disconnect {device}"
 
-#: docking/applets/bluetooth/applet.py:256
+#: docking/applets/bluetooth/applet.py:269
 msgid "Send Files to Device..."
 msgstr "Send Files to Device..."
 
-#: docking/applets/bluetooth/applet.py:264
+#: docking/applets/bluetooth/applet.py:277
 msgid "Devices..."
 msgstr "Devices..."
 
-#: docking/applets/bluetooth/applet.py:270
+#: docking/applets/bluetooth/applet.py:283
 msgid "Adapters..."
 msgstr "Adapters..."
 
-#: docking/applets/bluetooth/applet.py:276
+#: docking/applets/bluetooth/applet.py:289
 msgid "Local Services..."
 msgstr "Local Services..."
 
-#: docking/applets/bluetooth/applet.py:283
+#: docking/applets/bluetooth/applet.py:296
 msgid "Recent Connections"
 msgstr "Recent Connections"
 
-#: docking/applets/bluetooth/applet.py:288
+#: docking/applets/bluetooth/applet.py:301
 msgid "No recent connections"
 msgstr "No recent connections"
 
-#: docking/applets/bluetooth/applet.py:312
+#: docking/applets/bluetooth/applet.py:325
 msgid "Adapter"
 msgstr "አስማሚ"
 
-#: docking/applets/bluetooth/applet.py:330
+#: docking/applets/bluetooth/applet.py:343
 msgid "Connected Devices"
 msgstr "የተገናኙ መሣሪያዎች"
 
-#: docking/applets/bluetooth/applet.py:331
+#: docking/applets/bluetooth/applet.py:344
 msgid "Paired Devices"
 msgstr "የተጣመሩ መሣሪያዎች"
 
-#: docking/applets/bluetooth/applet.py:332
+#: docking/applets/bluetooth/applet.py:345
 msgid "Discovered Devices"
 msgstr "የተገኙ መሣሪያዎች"
 
-#: docking/applets/bluetooth/applet.py:357
+#: docking/applets/bluetooth/applet.py:370
 msgid "Disconnect"
 msgstr "ግንኙነት ያቋርጡ"
 
-#: docking/applets/bluetooth/applet.py:366
+#: docking/applets/bluetooth/applet.py:379
 msgid "Connect"
 msgstr "ያገናኙ"
 
-#: docking/applets/bluetooth/applet.py:376
+#: docking/applets/bluetooth/applet.py:389
 msgid "Pair"
 msgstr "አጣምር"
 
-#: docking/applets/bluetooth/applet.py:390
+#: docking/applets/bluetooth/applet.py:403
 msgid "Remove Pairing"
 msgstr "ጥምረት አስወግድ"
 
-#: docking/applets/bluetooth/applet.py:402
+#: docking/applets/bluetooth/applet.py:415
 msgid "Trusted"
 msgstr "የታመነ"
 
-#: docking/applets/bluetooth/applet.py:417
+#: docking/applets/bluetooth/applet.py:430
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "ባትሪ: {percent}%"
 
-#: docking/applets/bluetooth/state.py:135
+#: docking/applets/bluetooth/state.py:148
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "ብሉቱዝ: {error}"
 
-#: docking/applets/bluetooth/state.py:136
-#: docking/applets/bluetooth/state.py:140
+#: docking/applets/bluetooth/state.py:149
+#: docking/applets/bluetooth/state.py:153
 msgid "Bluetooth: No adapter/service"
 msgstr "ብሉቱዝ: አስማሚ/አገልግሎት የለም"
 
-#: docking/applets/bluetooth/state.py:147
+#: docking/applets/bluetooth/state.py:160
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "ብሉቱዝ: {state}"
 
-#: docking/applets/bluetooth/state.py:148
+#: docking/applets/bluetooth/state.py:161
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "አስማሚ: {name}"
 
-#: docking/applets/bluetooth/state.py:149
+#: docking/applets/bluetooth/state.py:162
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "የተገናኙ: {n}"
 
-#: docking/applets/bluetooth/state.py:150
+#: docking/applets/bluetooth/state.py:163
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "የተጣመሩ: {n}"
 
-#: docking/applets/bluetooth/state.py:151
+#: docking/applets/bluetooth/state.py:164
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "በመፈለግ ላይ: {state}"
 
-#: docking/applets/bluetooth/state.py:152
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
 msgid "Yes"
 msgstr "አዎ"
 
-#: docking/applets/bluetooth/state.py:152
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
 msgid "No"
 msgstr "አይ"
 
-#: docking/applets/bookmarks/applet.py:42
+#: docking/applets/bookmarks/applet.py:55
 msgid "Bookmarks"
 msgstr "ዕልባቶች"
 
-#: docking/applets/bookmarks/applet.py:74
+#: docking/applets/bookmarks/applet.py:87
 msgid "Add Bookmark..."
 msgstr "ዕልባት ጨምር..."
 
-#: docking/applets/bookmarks/applet.py:77
+#: docking/applets/bookmarks/applet.py:90
 msgid "Remove All"
 msgstr "ሁሉንም አስወግድ"
 
-#: docking/applets/bookmarks/applet.py:98
+#: docking/applets/bookmarks/applet.py:111
 msgid "Add Bookmark"
 msgstr "ዕልባት ጨምር"
 
-#: docking/applets/bookmarks/applet.py:111
+#: docking/applets/bookmarks/applet.py:124
 msgid "Bookmark name"
 msgstr "የዕልባት ስም"
 
-#: docking/applets/bookmarks/applet.py:116
+#: docking/applets/bookmarks/applet.py:129
 msgid "https://..."
 msgstr "https://..."
 
-#: docking/applets/brightness/applet.py:43
+#: docking/applets/brightness/applet.py:56
 msgid "Brightness"
 msgstr "ብሩህነት"
 
-#: docking/applets/brightness/applet.py:72
+#: docking/applets/brightness/applet.py:85
 #, python-brace-format
 msgid "Brightness: {pct}%"
 msgstr "ብሩህነት: {pct}%"
 
-#: docking/applets/brightness/applet.py:96 docking/applets/volume/applet.py:113
+#: docking/applets/brightness/applet.py:109
+#: docking/applets/volume/applet.py:126
 msgid "Show Level"
 msgstr "ደረጃ አሳይ"
 
-#: docking/applets/calculator/applet.py:64
-#: docking/applets/calculator/applet.py:82
-msgid "Calculator"
-msgstr "ካልኩሌተር"
-
-#: docking/applets/calendar/applet.py:33 docking/applets/calendar/applet.py:39
-msgid "Calendar"
-msgstr "ቀን መቁጠሪያ"
-
-#: docking/applets/camshield/applet.py:49 docking/applets/camshield/state.py:58
-msgid "Cam Shield"
-msgstr "Cam Shield"
-
-#: docking/applets/camshield/applet.py:93 docking/applets/camshield/state.py:60
-msgid "No camera devices found"
-msgstr "No camera devices found"
-
-#: docking/applets/camshield/applet.py:95 docking/applets/camshield/state.py:64
-msgid "Camera idle"
-msgstr "Camera idle"
-
-#: docking/applets/camshield/applet.py:97 docking/applets/camshield/state.py:67
-msgid "Camera active"
-msgstr "Camera active"
-
-#: docking/applets/camshield/applet.py:101
-msgid "Lock Camera"
-msgstr "Lock Camera"
-
-#: docking/applets/camshield/applet.py:105
-msgid "Unlock Camera"
-msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:111
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
-
-#: docking/applets/camshield/state.py:70
-#, python-brace-format
-msgid "{command} (PID {pid}) using {devices}"
-msgstr "{command} (PID {pid}) using {devices}"
-
-#: docking/applets/camshield/state.py:78 docking/applets/micshield/state.py:210
-#: docking/applets/usbwatch/state.py:85
-#, python-brace-format
-msgid "{count} more"
-msgstr "{count} more"
-
-#: docking/applets/camshield/state.py:84
-#, python-brace-format
-msgid "{command} (PID {pid}) - {devices}"
-msgstr "{command} (PID {pid}) - {devices}"
-
-#: docking/applets/camshield/state.py:179
-#: docking/applets/deskpresence/state.py:171
-#: docking/applets/micshield/state.py:180 docking/applets/music/state.py:82
-#: docking/applets/powerprofiles/state.py:137
-msgid "Unknown"
-msgstr "ያልታወቀ"
-
-#: docking/applets/capslock/applet.py:38 docking/applets/capslock/applet.py:75
-#: docking/applets/capslock/state.py:86
-msgid "Caps Lock"
-msgstr "ካፒታል"
-
-#: docking/applets/capslock/applet.py:70 docking/applets/capslock/state.py:82
-msgid "Keyboard lock state unavailable"
-msgstr "የቁልፍ ሰሌዳ ቆልፍ ሁኔታ የለም"
-
-#: docking/applets/capslock/applet.py:80
-msgid "Num Lock"
-msgstr "ቁጥር"
-
-#: docking/applets/capslock/state.py:87
-#, python-brace-format
-msgid "Caps Lock: {state}"
-msgstr "ካፒታል: {state}"
-
-#: docking/applets/capslock/state.py:88
-#, python-brace-format
-msgid "Num Lock: {state}"
-msgstr "ቁጥር: {state}"
-
-#: docking/applets/capslock/state.py:95
-#, python-brace-format
-msgid "{name}: {state}"
-msgstr "{name}: {state}"
-
-#: docking/applets/certwatch/applet.py:63
-#: docking/applets/certwatch/state.py:278
-#: docking/applets/certwatch/state.py:306
-msgid "Cert Watch"
-msgstr "Cert Watch"
-
-#: docking/applets/certwatch/applet.py:117
-#: docking/applets/certwatch/state.py:251
-#: docking/applets/certwatch/state.py:299
-#, python-brace-format
-msgid "{host}: loading..."
-msgstr "{host}: loading..."
-
-#: docking/applets/certwatch/applet.py:139
-msgid "Add Domain..."
-msgstr "Add Domain..."
-
-#: docking/applets/certwatch/applet.py:157
-msgid "Remove"
-msgstr "Remove"
-
-#: docking/applets/certwatch/applet.py:293
-msgid "Add Domain"
-msgstr "Add Domain"
-
-#: docking/applets/certwatch/applet.py:306
-msgid "example.com or example.com:8443"
-msgstr "example.com or example.com:8443"
-
-#: docking/applets/certwatch/state.py:233 docking/applets/clock/applet.py:205
-#: docking/applets/quicknote/applet.py:74
-msgid "OK"
-msgstr "OK"
-
-#: docking/applets/certwatch/state.py:234
-msgid "Warn"
-msgstr "Warn"
-
-#: docking/applets/certwatch/state.py:235
-msgid "Critical"
-msgstr "Critical"
-
-#: docking/applets/certwatch/state.py:236
-msgid "Expired"
-msgstr "Expired"
-
-#: docking/applets/certwatch/state.py:237
-msgid "Error"
-msgstr "Error"
-
-#: docking/applets/certwatch/state.py:238
-#: docking/applets/speedtest/applet.py:61
-msgid "..."
-msgstr "..."
-
-#: docking/applets/certwatch/state.py:247
-#, python-brace-format
-msgid "{host}: error ({reason})"
-msgstr "{host}: error ({reason})"
-
-#: docking/applets/certwatch/state.py:254
-#, python-brace-format
-msgid "{host}: unknown"
-msgstr "{host}: unknown"
-
-#: docking/applets/certwatch/state.py:256
-#, python-brace-format
-msgid "{host}: expired {days}d ago"
-msgstr "{host}: expired {days}d ago"
-
-#: docking/applets/certwatch/state.py:257
-#, python-brace-format
-msgid "{host}: {label}, {days}d left"
-msgstr "{host}: {label}, {days}d left"
-
-#: docking/applets/certwatch/state.py:279
-msgid "No domains configured"
-msgstr "ምንም ጎራዎች አልተዋቀሩም"
-
-#: docking/applets/certwatch/state.py:297
-#, python-brace-format
-msgid "{host}: unavailable"
-msgstr "{host}: የለም"
-
-#: docking/applets/clippy/applet.py:35
-msgid "Clippy"
-msgstr "ቅንጥብ ሰሌዳ"
-
-#: docking/applets/clippy/applet.py:95
-msgid "Clear"
-msgstr "አጽዳ"
-
-#: docking/applets/clippy/state.py:22
-msgid "Clippy (empty)"
-msgstr "ቅንጥብ ሰሌዳ (ባዶ)"
-
-#: docking/applets/clock/applet.py:40
-msgid "Clock"
-msgstr "ሰዓት"
-
-#: docking/applets/clock/applet.py:87
-msgid "Digital Clock"
-msgstr "ዲጂታል ሰዓት"
-
-#: docking/applets/clock/applet.py:91
-msgid "24-Hour Clock"
-msgstr "24-ሰዓት ሰዓት"
-
-#: docking/applets/clock/applet.py:95
-msgid "Show Date"
-msgstr "ቀን አሳይ"
-
-#: docking/applets/clock/applet.py:100
-msgid "Show Seconds"
-msgstr "Show Seconds"
-
-#: docking/applets/clock/applet.py:104
-msgid "Set Alarm..."
-msgstr "Set Alarm..."
-
-#: docking/applets/clock/applet.py:110
-msgid "Clear Alarm"
-msgstr "Clear Alarm"
-
-#: docking/applets/clock/applet.py:115
-msgid "Acknowledge Alarm"
-msgstr "Acknowledge Alarm"
-
-#: docking/applets/clock/applet.py:202
-msgid "Set Alarm"
-msgstr "Set Alarm"
-
-#: docking/applets/clock/applet.py:205 docking/applets/quicknote/applet.py:73
-#: docking/applets/trash/applet.py:114 docking/applets/weather/applet.py:258
-msgid "Cancel"
-msgstr "Cancel"
-
-#: docking/applets/clock/applet.py:242
-msgid "Hour"
-msgstr "Hour"
-
-#: docking/applets/clock/applet.py:244
-msgid "Minute"
-msgstr "Minute"
-
-#: docking/applets/colorpicker/applet.py:44
-#: docking/applets/colorpicker/applet.py:75
-msgid "Color Picker"
-msgstr "ቀለም መራጭ"
-
-#: docking/applets/colorpicker/applet.py:85
-#, python-brace-format
-msgid "Copy {hex}"
-msgstr "ቅዳ {hex}"
-
-#: docking/applets/colorpicker/applet.py:89
-msgid "Show Hex"
-msgstr "Hex አሳይ"
-
-#: docking/applets/currencyfx/applet.py:88
-msgid "Currency FX"
-msgstr "Currency FX"
-
-#: docking/applets/currencyfx/applet.py:173
-#: docking/applets/currencyfx/state.py:726
-msgid "Day samples"
-msgstr "የቀን ናሙናዎች"
-
-#: docking/applets/currencyfx/applet.py:191
-msgid "Swap Pair"
-msgstr "ጥንዶችን ቀይር"
-
-#: docking/applets/currencyfx/applet.py:201
-msgid "Chart Interval"
-msgstr "የቻርት ጊዜ"
-
-#: docking/applets/currencyfx/applet.py:203
-msgid "Day"
-msgstr "ቀን"
-
-#: docking/applets/currencyfx/applet.py:204
-msgid "Week"
-msgstr "ሳምንት"
-
-#: docking/applets/currencyfx/applet.py:205
-msgid "Month"
-msgstr "ወር"
-
-#: docking/applets/currencyfx/applet.py:220
-msgid "Added Pairs"
-msgstr "የተጨመሩ ጥንዶች"
-
-#: docking/applets/currencyfx/applet.py:230
-msgid "Remove Current Pair"
-msgstr "ይህንን ጥንድ አስወግድ"
-
-#: docking/applets/currencyfx/applet.py:237
-msgid "Add Pair..."
-msgstr "ጥንድ ጨምር..."
-
-#: docking/applets/currencyfx/applet.py:350
-msgid "No rate data"
-msgstr "የጥራዝ ውሂብ የለም"
-
-#: docking/applets/currencyfx/applet.py:432
-#, python-brace-format
-msgid "{pair}: {rate} ({change})"
-msgstr "{pair}: {rate} ({change})"
-
-#: docking/applets/currencyfx/applet.py:475
-msgid "Add FX Pair"
-msgstr "FX ጥንድ ጨምር"
-
-#: docking/applets/currencyfx/applet.py:489
-msgid "Base"
-msgstr "መሰረት"
-
-#: docking/applets/currencyfx/applet.py:491 docking/applets/quote/applet.py:43
-#: docking/applets/quote/applet.py:83 docking/applets/quote/applet.py:208
-#: docking/applets/quote/applet.py:214
-msgid "Quote"
-msgstr "ጥቅስ"
-
-#: docking/applets/currencyfx/state.py:730 docking/applets/live_state.py:78
-#: docking/applets/weather/state.py:166
-msgid "Unavailable"
-msgstr "የለም"
-
-#: docking/applets/currencyfx/state.py:751
-#, python-brace-format
-msgid "1 {base} = {rate} {quote}"
-msgstr "1 {base} = {rate} {quote}"
-
-#: docking/applets/currencyfx/state.py:756
-#, python-brace-format
-msgid "Change: {change}"
-msgstr "ለውጥ: {change}"
-
-#: docking/applets/deskpresence/applet.py:52
-#: docking/applets/deskpresence/state.py:192
-msgid "Desk Presence"
-msgstr "Desk Presence"
-
-#: docking/applets/deskpresence/applet.py:84
-#, python-brace-format
-msgid "{status}"
-msgstr "{status}"
-
-#: docking/applets/deskpresence/applet.py:92
-msgid "Idle Threshold"
-msgstr "Idle Threshold"
-
-#: docking/applets/deskpresence/applet.py:190
-#: docking/applets/deskpresence/state.py:169
-msgid "At desk"
-msgstr "At desk"
-
-#: docking/applets/deskpresence/applet.py:191
-#: docking/applets/deskpresence/state.py:170
-msgid "Away"
-msgstr "Away"
-
-#: docking/applets/deskpresence/applet.py:192
-msgid "Status unknown"
-msgstr "Status unknown"
-
-#: docking/applets/deskpresence/applet.py:199
-#, python-brace-format
-msgid "{m} min"
-msgstr "{m} min"
-
-#: docking/applets/deskpresence/applet.py:200
-#, python-brace-format
-msgid "{s} sec"
-msgstr "{s} sec"
-
-#: docking/applets/deskpresence/state.py:151
-#, python-brace-format
-msgid "{h}h {m}m"
-msgstr "{h}h {m}m"
-
-#: docking/applets/deskpresence/state.py:152
-#: docking/applets/deskpresence/state.py:164
-#, python-brace-format
-msgid "{m}m"
-msgstr "{m}m"
-
-#: docking/applets/deskpresence/state.py:163
-#, python-brace-format
-msgid "{h}h"
-msgstr "{h}h"
-
-#: docking/applets/deskpresence/state.py:193
-#, python-brace-format
-msgid "Status: {s}"
-msgstr "Status: {s}"
-
-#: docking/applets/deskpresence/state.py:195
-#, python-brace-format
-msgid "Session: {d}"
-msgstr "Session: {d}"
-
-#: docking/applets/deskpresence/state.py:197
-#, python-brace-format
-msgid "Today at desk: {d}"
-msgstr "Today at desk: {d}"
-
-#: docking/applets/deskpresence/state.py:199
-#, python-brace-format
-msgid "Today away: {d}"
-msgstr "Today away: {d}"
-
-#: docking/applets/deskpresence/state.py:203
-msgid "Last 7 days"
-msgstr "Last 7 days"
-
-#: docking/applets/deskpresence/state.py:206
-#: docking/applets/deskpresence/state.py:213
-#, python-brace-format
-msgid "  {day}: {d}"
-msgstr "  {day}: {d}"
-
-#: docking/applets/deskpresence/state.py:220
-#, python-brace-format
-msgid "Week total at desk: {d}"
-msgstr "Week total at desk: {d}"
-
-#: docking/applets/desktop/applet.py:27 docking/applets/workspaces/applet.py:82
-msgid "Desktop"
-msgstr "ዴስክቶፕ"
-
-#: docking/applets/dragshare/applet.py:40
-#: docking/applets/dragshare/applet.py:60
-#: docking/applets/dragshare/applet.py:66
-#: docking/applets/dragshare/applet.py:72
-#: docking/applets/dragshare/applet.py:79
-#: docking/applets/dragshare/applet.py:84
-msgid "Drag Share"
-msgstr "Drag Share"
-
-#: docking/applets/dragshare/applet.py:61
-#, python-brace-format
-msgid "Uploading {file}..."
-msgstr "Uploading {file}..."
-
-#: docking/applets/dragshare/applet.py:67
-#, python-brace-format
-msgid "Uploaded {file}; URL copied"
-msgstr "Uploaded {file}; URL copied"
-
-#: docking/applets/dragshare/applet.py:73
-#: docking/applets/dragshare/applet.py:140
-msgid "Upload failed"
-msgstr "Upload failed"
-
-#: docking/applets/dragshare/applet.py:80
-msgid "Click to copy last URL"
-msgstr "የመጨረሻውን URL ለመቅዳት ጫን"
-
-#: docking/applets/dragshare/applet.py:85
-msgid "Drop a file to upload"
-msgstr "ለመጫን ፋይል ይጥሉ"
-
-#: docking/applets/dragshare/applet.py:93
-msgid "Upload already in progress"
-msgstr "Upload already in progress"
-
-#: docking/applets/dragshare/applet.py:98
-msgid "Drop a local file to upload"
-msgstr "Drop a local file to upload"
-
-#: docking/applets/dragshare/applet.py:109
-msgid "Copy Last URL"
-msgstr "Copy Last URL"
-
-#: docking/applets/freshness.py:15
-msgid "1 hour"
-msgstr "1 ሰዓት"
-
-#: docking/applets/freshness.py:15
-#, python-brace-format
-msgid "{count} hours"
-msgstr "{count} ሰዓታት"
-
-#: docking/applets/freshness.py:19
-msgid "1 minute"
-msgstr "1 ደቂቃ"
-
-#: docking/applets/freshness.py:21
-#, python-brace-format
-msgid "{count} minutes"
-msgstr "{count} ደቂቃዎች"
-
-#: docking/applets/freshness.py:23
-msgid "1 second"
-msgstr "1 ሰኮንድ"
-
-#: docking/applets/freshness.py:23
-#, python-brace-format
-msgid "{count} seconds"
-msgstr "{count} ሰኮንዶች"
-
-#: docking/applets/freshness.py:28
-#, python-brace-format
-msgid "{verb} every {interval}"
-msgstr "በየ {interval} {verb}"
-
-#: docking/applets/freshness.py:29 docking/applets/freshness.py:36
-#: docking/ui/settings.py:194
-msgid "Updates"
-msgstr "ማዘመኛዎች"
-
-#: docking/applets/freshness.py:36
-#, python-brace-format
-msgid "{verb} on demand"
-msgstr "በፍላጎት {verb}"
-
-#: docking/applets/freshness.py:44
-#, python-brace-format
-msgid "Updated: {time}"
-msgstr "ተዘምኗል: {time}"
-
-#: docking/applets/hackernews/applet.py:55
-#: docking/applets/hackernews/state.py:150
-msgid "Hacker News"
-msgstr "Hacker News"
-
-#: docking/applets/hackernews/applet.py:147
-#: docking/applets/hackernews/state.py:156
-#: docking/applets/hackernews/state.py:189
-msgid "Refreshes"
-msgstr "ማደስ"
-
-#: docking/applets/hackernews/applet.py:159
-#: docking/applets/hackernews/state.py:171
-#, python-brace-format
-msgid "{score} points, {comments} comments"
-msgstr "{score} ነጥቦች፣ {comments} አስተያየቶች"
-
-#: docking/applets/hackernews/applet.py:180
-msgid "Open Story"
-msgstr "ታሪክ ክፈት"
-
-#: docking/applets/hackernews/applet.py:184
-msgid "Open Comments"
-msgstr "አስተያየቶችን ክፈት"
-
-#: docking/applets/hackernews/applet.py:188
-msgid "Next Headline"
-msgstr "ቀጣይ ርዕስ"
-
-#: docking/applets/hackernews/applet.py:314
-msgid "No Hacker News stories"
-msgstr "Hacker News ዜናዎች የለም"
-
-#: docking/applets/hackernews/state.py:107
-msgid "now"
-msgstr "አሁን"
-
-#: docking/applets/hackernews/state.py:110
-#, python-brace-format
-msgid "{minutes}m ago"
-msgstr "ከ {minutes}ደ በፊት"
-
-#: docking/applets/hackernews/state.py:113
-#, python-brace-format
-msgid "{hours}h ago"
-msgstr "ከ {hours}ሰ በፊት"
-
-#: docking/applets/hackernews/state.py:115
-#, python-brace-format
-msgid "{days}d ago"
-msgstr "ከ {days} ቀን በፊት"
-
-#: docking/applets/hackernews/state.py:164
-#, python-brace-format
-msgid "{source} {rank}"
-msgstr "{source} {rank}"
-
-#: docking/applets/hackernews/state.py:180
-msgid "Loading next stories..."
-msgstr "ቀጣይ ታሪኮችን በመጫን..."
-
-#: docking/applets/hydration/applet.py:40
-msgid "Hydration"
-msgstr "ውሃ ጠጣ"
-
-#: docking/applets/hydration/applet.py:114
-#: docking/applets/pomodoro/applet.py:157
-msgid "Show Timer"
-msgstr "ሰዓት ቆጣሪ አሳይ"
-
-#: docking/applets/hydration/applet.py:120
-#: docking/applets/pomodoro/applet.py:166
+#: docking/applets/caffeine/applet.py:56
+msgid "Caffeine"
+msgstr "ካፌይን"
+
+#: docking/applets/caffeine/applet.py:92
+msgid "Turn off after"
+msgstr "በኋላ አጥፋ"
+
+#: docking/applets/caffeine/state.py:110
+msgid "Until turned off"
+msgstr "እስኪጠፋ ድረስ"
+
+#: docking/applets/caffeine/state.py:111
+#: docking/applets/hydration/applet.py:133
 #: docking/applets/pomodoro/applet.py:179
 #: docking/applets/pomodoro/applet.py:192
-#: docking/applets/stretchcoach/applet.py:92
+#: docking/applets/pomodoro/applet.py:205
+#: docking/applets/stretchcoach/applet.py:105
 #, python-brace-format
 msgid "{mins} min"
 msgstr "{mins} ደቂቃ"
 
-#: docking/applets/hydration/state.py:56
+#: docking/applets/caffeine/state.py:117
+msgid "Caffeine: off"
+msgstr "ካፌይን: ጠፍቷል"
+
+#: docking/applets/caffeine/state.py:119
+msgid "Caffeine: keeping awake"
+msgstr "ካፌይን: ነቅቶ መጠበቅ"
+
+#: docking/applets/caffeine/state.py:120
+msgid "Caffeine: {time} remaining"
+msgstr "ካፌይን፡ {time} ይቀራል"
+
+#: docking/applets/caffeine/state.py:130
+msgid "Active"
+msgstr "ንቁ"
+
+#: docking/applets/caffeine/state.py:131
+msgid "Active - {time} left"
+msgstr "ገቢር - {time} ይቀራል"
+
+#: docking/applets/calculator/applet.py:78
+#: docking/applets/calculator/applet.py:96
+msgid "Calculator"
+msgstr "ካልኩሌተር"
+
+#: docking/applets/calendar/applet.py:46 docking/applets/calendar/applet.py:52
+msgid "Calendar"
+msgstr "ቀን መቁጠሪያ"
+
+#: docking/applets/camshield/applet.py:62 docking/applets/camshield/state.py:71
+msgid "Cam Shield"
+msgstr "Cam Shield"
+
+#: docking/applets/camshield/applet.py:106
+#: docking/applets/camshield/state.py:73
+msgid "No camera devices found"
+msgstr "No camera devices found"
+
+#: docking/applets/camshield/applet.py:108
+#: docking/applets/camshield/state.py:77
+msgid "Camera idle"
+msgstr "Camera idle"
+
+#: docking/applets/camshield/applet.py:110
+#: docking/applets/camshield/state.py:80
+msgid "Camera active"
+msgstr "Camera active"
+
+#: docking/applets/camshield/applet.py:114
+msgid "Lock Camera"
+msgstr "Lock Camera"
+
+#: docking/applets/camshield/applet.py:118
+msgid "Unlock Camera"
+msgstr "Unlock Camera"
+
+#: docking/applets/camshield/applet.py:124
+msgid "Camera lock helper unavailable"
+msgstr "Camera lock helper unavailable"
+
+#: docking/applets/camshield/state.py:83
+#, python-brace-format
+msgid "{command} (PID {pid}) using {devices}"
+msgstr "{command} (PID {pid}) using {devices}"
+
+#: docking/applets/camshield/state.py:91 docking/applets/micshield/state.py:223
+#: docking/applets/usbwatch/state.py:98
+#, python-brace-format
+msgid "{count} more"
+msgstr "{count} more"
+
+#: docking/applets/camshield/state.py:97
+#, python-brace-format
+msgid "{command} (PID {pid}) - {devices}"
+msgstr "{command} (PID {pid}) - {devices}"
+
+#: docking/applets/camshield/state.py:192
+#: docking/applets/deskpresence/state.py:185
+#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:95
+#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:396
+msgid "Unknown"
+msgstr "ያልታወቀ"
+
+#: docking/applets/capslock/applet.py:51 docking/applets/capslock/applet.py:88
+#: docking/applets/capslock/state.py:99
+msgid "Caps Lock"
+msgstr "ካፒታል"
+
+#: docking/applets/capslock/applet.py:83 docking/applets/capslock/state.py:95
+msgid "Keyboard lock state unavailable"
+msgstr "የቁልፍ ሰሌዳ ቆልፍ ሁኔታ የለም"
+
+#: docking/applets/capslock/applet.py:93
+msgid "Num Lock"
+msgstr "ቁጥር"
+
+#: docking/applets/capslock/state.py:100
+#, python-brace-format
+msgid "Caps Lock: {state}"
+msgstr "ካፒታል: {state}"
+
+#: docking/applets/capslock/state.py:101
+#, python-brace-format
+msgid "Num Lock: {state}"
+msgstr "ቁጥር: {state}"
+
+#: docking/applets/capslock/state.py:108
+#, python-brace-format
+msgid "{name}: {state}"
+msgstr "{name}: {state}"
+
+#: docking/applets/certwatch/applet.py:76
+#: docking/applets/certwatch/state.py:291
+#: docking/applets/certwatch/state.py:319
+msgid "Cert Watch"
+msgstr "Cert Watch"
+
+#: docking/applets/certwatch/applet.py:130
+#: docking/applets/certwatch/state.py:264
+#: docking/applets/certwatch/state.py:312
+#, python-brace-format
+msgid "{host}: loading..."
+msgstr "{host}: loading..."
+
+#: docking/applets/certwatch/applet.py:152
+msgid "Add Domain..."
+msgstr "Add Domain..."
+
+#: docking/applets/certwatch/applet.py:306
+msgid "Add Domain"
+msgstr "Add Domain"
+
+#: docking/applets/certwatch/applet.py:319
+msgid "example.com or example.com:8443"
+msgstr "example.com or example.com:8443"
+
+#: docking/applets/certwatch/state.py:247
+msgid "Warn"
+msgstr "Warn"
+
+#: docking/applets/certwatch/state.py:249
+msgid "Expired"
+msgstr "Expired"
+
+#: docking/applets/certwatch/state.py:250
+msgid "Error"
+msgstr "Error"
+
+#: docking/applets/certwatch/state.py:251
+#: docking/applets/speedtest/applet.py:74
+msgid "..."
+msgstr "..."
+
+#: docking/applets/certwatch/state.py:260
+#, python-brace-format
+msgid "{host}: error ({reason})"
+msgstr "{host}: error ({reason})"
+
+#: docking/applets/certwatch/state.py:267
+#, python-brace-format
+msgid "{host}: unknown"
+msgstr "{host}: unknown"
+
+#: docking/applets/certwatch/state.py:269
+#, python-brace-format
+msgid "{host}: expired {days}d ago"
+msgstr "{host}: expired {days}d ago"
+
+#: docking/applets/certwatch/state.py:270
+#, python-brace-format
+msgid "{host}: {label}, {days}d left"
+msgstr "{host}: {label}, {days}d left"
+
+#: docking/applets/certwatch/state.py:292
+msgid "No domains configured"
+msgstr "ምንም ጎራዎች አልተዋቀሩም"
+
+#: docking/applets/certwatch/state.py:310
+#, python-brace-format
+msgid "{host}: unavailable"
+msgstr "{host}: የለም"
+
+#: docking/applets/clippy/applet.py:48
+msgid "Clippy"
+msgstr "ቅንጥብ ሰሌዳ"
+
+#: docking/applets/clippy/applet.py:108
+msgid "Clear"
+msgstr "አጽዳ"
+
+#: docking/applets/clippy/state.py:35
+msgid "Clippy (empty)"
+msgstr "ቅንጥብ ሰሌዳ (ባዶ)"
+
+#: docking/applets/clock/applet.py:53
+msgid "Clock"
+msgstr "ሰዓት"
+
+#: docking/applets/clock/applet.py:100
+msgid "Digital Clock"
+msgstr "ዲጂታል ሰዓት"
+
+#: docking/applets/clock/applet.py:104
+msgid "24-Hour Clock"
+msgstr "24-ሰዓት ሰዓት"
+
+#: docking/applets/clock/applet.py:108
+msgid "Show Date"
+msgstr "ቀን አሳይ"
+
+#: docking/applets/clock/applet.py:113
+msgid "Show Seconds"
+msgstr "Show Seconds"
+
+#: docking/applets/clock/applet.py:117
+msgid "Set Alarm..."
+msgstr "Set Alarm..."
+
+#: docking/applets/clock/applet.py:123
+msgid "Clear Alarm"
+msgstr "Clear Alarm"
+
+#: docking/applets/clock/applet.py:128
+msgid "Acknowledge Alarm"
+msgstr "Acknowledge Alarm"
+
+#: docking/applets/clock/applet.py:215
+msgid "Set Alarm"
+msgstr "Set Alarm"
+
+#: docking/applets/colorpicker/applet.py:59
+#: docking/applets/colorpicker/applet.py:94
+msgid "Color Picker"
+msgstr "ቀለም መራጭ"
+
+#: docking/applets/colorpicker/applet.py:108
+#, python-brace-format
+msgid "Copy {hex}"
+msgstr "ቅዳ {hex}"
+
+#: docking/applets/colorpicker/applet.py:112
+msgid "Show Hex"
+msgstr "Hex አሳይ"
+
+#: docking/applets/crypto/applet.py:79
+msgid "Crypto"
+msgstr "ክሪፕቶ"
+
+#: docking/applets/crypto/applet.py:161
+#: docking/applets/currencyfx/applet.py:217
+msgid "Chart Interval"
+msgstr "የቻርት ጊዜ"
+
+#: docking/applets/crypto/applet.py:163
+#: docking/applets/currencyfx/applet.py:219
+#: docking/applets/sunrise/state.py:383
+msgid "Day"
+msgstr "ቀን"
+
+#: docking/applets/crypto/applet.py:164
+#: docking/applets/currencyfx/applet.py:220
+msgid "Week"
+msgstr "ሳምንት"
+
+#: docking/applets/crypto/applet.py:165
+#: docking/applets/currencyfx/applet.py:221
+msgid "Month"
+msgstr "ወር"
+
+#: docking/applets/crypto/applet.py:178
+msgid "Selected Assets"
+msgstr "የተመረጡ ንብረቶች"
+
+#: docking/applets/crypto/applet.py:191
+msgid "Add Asset..."
+msgstr "ንብረት አክል..."
+
+#: docking/applets/crypto/applet.py:196
+msgid "Remove Current Asset"
+msgstr "የአሁኑን ንብረት አስወግድ"
+
+#: docking/applets/crypto/applet.py:289
+msgid "No price data"
+msgstr "ምንም የዋጋ ውሂብ የለም።"
+
+#: docking/applets/crypto/applet.py:381
+msgid "{asset}: {price} ({change})"
+msgstr "{asset}: {price} ({change})"
+
+#: docking/applets/crypto/applet.py:401
+msgid "Add Crypto Asset"
+msgstr "የ Crypto ንብረትን ያክሉ"
+
+#: docking/applets/crypto/applet.py:418
+msgid "bitcoin or cryptopunks"
+msgstr "bitcoin ወይም cryptopunks"
+
+#: docking/applets/crypto/applet.py:420
+msgid "BTC"
+msgstr "ቢቲሲ"
+
+#: docking/applets/crypto/applet.py:422
+msgid "Bitcoin"
+msgstr "Bitcoin"
+
+#: docking/applets/crypto/applet.py:425
+msgid "Type"
+msgstr "ዓይነት"
+
+#: docking/applets/crypto/applet.py:426
+msgid "CoinGecko ID"
+msgstr "CoinGecko መታወቂያ"
+
+#: docking/applets/crypto/applet.py:427
+msgid "Symbol"
+msgstr "ምልክት"
+
+#: docking/applets/crypto/applet.py:428 docking/ui/folder/_browser.py:39
+msgid "Name"
+msgstr "ስም"
+
+#: docking/applets/crypto/state.py:559 docking/applets/currencyfx/state.py:741
+#: docking/applets/live_state.py:93 docking/applets/weather/state.py:180
+msgid "Unavailable"
+msgstr "የለም"
+
+#: docking/applets/crypto/state.py:579 docking/applets/currencyfx/state.py:768
+msgid "Interval: {interval}"
+msgstr "የጊዜ ክፍተት፡ {interval}"
+
+#: docking/applets/crypto/state.py:582 docking/applets/currencyfx/state.py:769
+#, python-brace-format
+msgid "Change: {change}"
+msgstr "ለውጥ: {change}"
+
+#: docking/applets/crypto/state.py:586
+#, python-brace-format
+msgid "{price}"
+msgstr "{price}"
+
+#: docking/applets/crypto/state.py:602
+#, python-brace-format
+msgid "{name} NFT"
+msgstr "{name} NFT"
+
+#: docking/applets/currencyfx/applet.py:103
+msgid "Currency FX"
+msgstr "Currency FX"
+
+#: docking/applets/currencyfx/applet.py:189
+#: docking/applets/currencyfx/state.py:740
+msgid "Day samples"
+msgstr "የቀን ናሙናዎች"
+
+#: docking/applets/currencyfx/applet.py:207
+msgid "Swap Pair"
+msgstr "ጥንዶችን ቀይር"
+
+#: docking/applets/currencyfx/applet.py:236
+msgid "Added Pairs"
+msgstr "የተጨመሩ ጥንዶች"
+
+#: docking/applets/currencyfx/applet.py:246
+msgid "Remove Current Pair"
+msgstr "ይህንን ጥንድ አስወግድ"
+
+#: docking/applets/currencyfx/applet.py:253
+msgid "Add Pair..."
+msgstr "ጥንድ ጨምር..."
+
+#: docking/applets/currencyfx/applet.py:366
+msgid "No rate data"
+msgstr "የጥራዝ ውሂብ የለም"
+
+#: docking/applets/currencyfx/applet.py:448
+#, python-brace-format
+msgid "{pair}: {rate} ({change})"
+msgstr "{pair}: {rate} ({change})"
+
+#: docking/applets/currencyfx/applet.py:491
+msgid "Add FX Pair"
+msgstr "FX ጥንድ ጨምር"
+
+#: docking/applets/currencyfx/applet.py:505
+msgid "Base"
+msgstr "መሰረት"
+
+#: docking/applets/currencyfx/applet.py:507 docking/applets/quote/applet.py:56
+#: docking/applets/quote/applet.py:96 docking/applets/quote/applet.py:221
+#: docking/applets/quote/applet.py:227
+msgid "Quote"
+msgstr "ጥቅስ"
+
+#: docking/applets/currencyfx/state.py:762
+#, python-brace-format
+msgid "1 {base} = {rate} {quote}"
+msgstr "1 {base} = {rate} {quote}"
+
+#: docking/applets/deskpresence/applet.py:67
+#: docking/applets/deskpresence/state.py:206
+msgid "Desk Presence"
+msgstr "Desk Presence"
+
+#: docking/applets/deskpresence/applet.py:102
+#, python-brace-format
+msgid "{status}"
+msgstr "{status}"
+
+#: docking/applets/deskpresence/applet.py:110
+msgid "Idle Threshold"
+msgstr "Idle Threshold"
+
+#: docking/applets/deskpresence/applet.py:213
+#: docking/applets/deskpresence/state.py:183
+msgid "At desk"
+msgstr "At desk"
+
+#: docking/applets/deskpresence/applet.py:214
+#: docking/applets/deskpresence/state.py:184
+msgid "Away"
+msgstr "Away"
+
+#: docking/applets/deskpresence/applet.py:215
+msgid "Status unknown"
+msgstr "Status unknown"
+
+#: docking/applets/deskpresence/applet.py:222
+#, python-brace-format
+msgid "{m} min"
+msgstr "{m} min"
+
+#: docking/applets/deskpresence/applet.py:223
+#, python-brace-format
+msgid "{s} sec"
+msgstr "{s} sec"
+
+#: docking/applets/deskpresence/state.py:165
+#, python-brace-format
+msgid "{h}h {m}m"
+msgstr "{h}h {m}m"
+
+#: docking/applets/deskpresence/state.py:166
+#: docking/applets/deskpresence/state.py:178
+#, python-brace-format
+msgid "{m}m"
+msgstr "{m}m"
+
+#: docking/applets/deskpresence/state.py:177
+#, python-brace-format
+msgid "{h}h"
+msgstr "{h}h"
+
+#: docking/applets/deskpresence/state.py:207
+#, python-brace-format
+msgid "Status: {s}"
+msgstr "Status: {s}"
+
+#: docking/applets/deskpresence/state.py:209
+#, python-brace-format
+msgid "Session: {d}"
+msgstr "Session: {d}"
+
+#: docking/applets/deskpresence/state.py:211
+#, python-brace-format
+msgid "Today at desk: {d}"
+msgstr "Today at desk: {d}"
+
+#: docking/applets/deskpresence/state.py:213
+#, python-brace-format
+msgid "Today away: {d}"
+msgstr "Today away: {d}"
+
+#: docking/applets/deskpresence/state.py:217
+msgid "Last 7 days"
+msgstr "Last 7 days"
+
+#: docking/applets/deskpresence/state.py:220
+#: docking/applets/deskpresence/state.py:227
+#, python-brace-format
+msgid "  {day}: {d}"
+msgstr "  {day}: {d}"
+
+#: docking/applets/deskpresence/state.py:234
+#, python-brace-format
+msgid "Week total at desk: {d}"
+msgstr "Week total at desk: {d}"
+
+#: docking/applets/desktop/applet.py:41
+#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:147
+msgid "Desktop"
+msgstr "ዴስክቶፕ"
+
+#: docking/applets/docker/applet.py:54
+msgid "Docker"
+msgstr "ዶከር"
+
+#: docking/applets/docker/applet.py:109
+msgid "Docker unavailable: {error}"
+msgstr "ዶከር የለም፡ {error}"
+
+#: docking/applets/docker/applet.py:110
+msgid "unknown error"
+msgstr "ያልታወቀ ስህተት"
+
+#: docking/applets/docker/applet.py:116
+msgid "No running containers"
+msgstr "የሩጫ መያዣዎች የሉም"
+
+#: docking/applets/docker/applet.py:119
+msgid "{count} running containers"
+msgstr "{count} የሩጫ መያዣዎች"
+
+#: docking/applets/docker/applet.py:130
+msgid "unknown image"
+msgstr "ያልታወቀ ምስል"
+
+#: docking/applets/docker/applet.py:131 docking/applets/docker/state.py:125
+msgid "running"
+msgstr "መሮጥ"
+
+#: docking/applets/docker/applet.py:136
+msgid "Stop"
+msgstr "ተወ"
+
+#: docking/applets/docker/applet.py:146 docking/applets/session/state.py:44
+msgid "Restart"
+msgstr "እንደገና አስጀምር"
+
+#: docking/applets/docker/applet.py:204
+msgid "{name} ({image})"
+msgstr "{name} ({image})"
+
+#: docking/applets/docker/state.py:56
+msgid "Docker command not found"
+msgstr "የዶከር ትዕዛዝ አልተገኘም።"
+
+#: docking/applets/docker/state.py:60
+msgid "Docker is unavailable"
+msgstr "ዶከር አይገኝም"
+
+#: docking/applets/docker/state.py:80
+msgid "Docker: {error}"
+msgstr "ዶከር፡ {error}"
+
+#: docking/applets/docker/state.py:80
+msgid "unavailable"
+msgstr "አይገኝም"
+
+#: docking/applets/docker/state.py:83
+msgid "Docker: no running containers"
+msgstr "ዶከር፡- የሚሄዱ መያዣዎች የሉም"
+
+#: docking/applets/docker/state.py:85
+msgid "Docker: 1 running container"
+msgstr "Docker: 1 የሩጫ መያዣ"
+
+#: docking/applets/docker/state.py:86
+#, python-brace-format
+msgid "Docker: {count} running containers"
+msgstr "Docker: {count} የሩጫ ኮንቴይነሮች"
+
+#: docking/applets/dragshare/applet.py:53
+#: docking/applets/dragshare/applet.py:73
+#: docking/applets/dragshare/applet.py:79
+#: docking/applets/dragshare/applet.py:85
+#: docking/applets/dragshare/applet.py:92
+#: docking/applets/dragshare/applet.py:97
+msgid "Drag Share"
+msgstr "Drag Share"
+
+#: docking/applets/dragshare/applet.py:74
+#, python-brace-format
+msgid "Uploading {file}..."
+msgstr "Uploading {file}..."
+
+#: docking/applets/dragshare/applet.py:80
+#, python-brace-format
+msgid "Uploaded {file}; URL copied"
+msgstr "Uploaded {file}; URL copied"
+
+#: docking/applets/dragshare/applet.py:86
+#: docking/applets/dragshare/applet.py:153
+msgid "Upload failed"
+msgstr "Upload failed"
+
+#: docking/applets/dragshare/applet.py:93
+msgid "Click to copy last URL"
+msgstr "የመጨረሻውን URL ለመቅዳት ጫን"
+
+#: docking/applets/dragshare/applet.py:98
+msgid "Drop a file to upload"
+msgstr "ለመጫን ፋይል ይጥሉ"
+
+#: docking/applets/dragshare/applet.py:106
+msgid "Upload already in progress"
+msgstr "Upload already in progress"
+
+#: docking/applets/dragshare/applet.py:111
+msgid "Drop a local file to upload"
+msgstr "Drop a local file to upload"
+
+#: docking/applets/dragshare/applet.py:122
+msgid "Copy Last URL"
+msgstr "Copy Last URL"
+
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+msgid "1 hour"
+msgstr "1 ሰዓት"
+
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#, python-brace-format
+msgid "{count} hours"
+msgstr "{count} ሰዓታት"
+
+#: docking/applets/freshness.py:33 docking/ui/tooltip.py:213
+msgid "1 minute"
+msgstr "1 ደቂቃ"
+
+#: docking/applets/freshness.py:35 docking/ui/tooltip.py:215
+#, python-brace-format
+msgid "{count} minutes"
+msgstr "{count} ደቂቃዎች"
+
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:206
+msgid "1 second"
+msgstr "1 ሰኮንድ"
+
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:208
+#, python-brace-format
+msgid "{count} seconds"
+msgstr "{count} ሰኮንዶች"
+
+#: docking/applets/freshness.py:42
+#, python-brace-format
+msgid "{verb} every {interval}"
+msgstr "በየ {interval} {verb}"
+
+#: docking/applets/freshness.py:43 docking/applets/freshness.py:50
+#: docking/ui/settings.py:295
+msgid "Updates"
+msgstr "ማዘመኛዎች"
+
+#: docking/applets/freshness.py:50
+#, python-brace-format
+msgid "{verb} on demand"
+msgstr "በፍላጎት {verb}"
+
+#: docking/applets/freshness.py:62
+msgid "Updated: {age}"
+msgstr "ተዘምኗል፡ {age}"
+
+#: docking/applets/hackernews/applet.py:69
+#: docking/applets/hackernews/state.py:157
+msgid "Hacker News"
+msgstr "Hacker News"
+
+#: docking/applets/hackernews/applet.py:161
+#: docking/applets/hackernews/state.py:163
+#: docking/applets/hackernews/state.py:196
+msgid "Refreshes"
+msgstr "ማደስ"
+
+#: docking/applets/hackernews/applet.py:173
+#: docking/applets/hackernews/state.py:178
+#, python-brace-format
+msgid "{score} points, {comments} comments"
+msgstr "{score} ነጥቦች፣ {comments} አስተያየቶች"
+
+#: docking/applets/hackernews/applet.py:194
+msgid "Open Story"
+msgstr "ታሪክ ክፈት"
+
+#: docking/applets/hackernews/applet.py:198
+msgid "Open Comments"
+msgstr "አስተያየቶችን ክፈት"
+
+#: docking/applets/hackernews/applet.py:202
+msgid "Next Headline"
+msgstr "ቀጣይ ርዕስ"
+
+#: docking/applets/hackernews/applet.py:328
+msgid "No Hacker News stories"
+msgstr "Hacker News ዜናዎች የለም"
+
+#: docking/applets/hackernews/state.py:114
+msgid "now"
+msgstr "አሁን"
+
+#: docking/applets/hackernews/state.py:117
+#, python-brace-format
+msgid "{minutes}m ago"
+msgstr "ከ {minutes}ደ በፊት"
+
+#: docking/applets/hackernews/state.py:120
+#, python-brace-format
+msgid "{hours}h ago"
+msgstr "ከ {hours}ሰ በፊት"
+
+#: docking/applets/hackernews/state.py:122
+#, python-brace-format
+msgid "{days}d ago"
+msgstr "ከ {days} ቀን በፊት"
+
+#: docking/applets/hackernews/state.py:171
+#, python-brace-format
+msgid "{source} {rank}"
+msgstr "{source} {rank}"
+
+#: docking/applets/hackernews/state.py:187
+msgid "Loading next stories..."
+msgstr "ቀጣይ ታሪኮችን በመጫን..."
+
+#: docking/applets/hydration/applet.py:53
+msgid "Hydration"
+msgstr "ውሃ ጠጣ"
+
+#: docking/applets/hydration/applet.py:127
+#: docking/applets/pomodoro/applet.py:170
+msgid "Show Timer"
+msgstr "ሰዓት ቆጣሪ አሳይ"
+
+#: docking/applets/hydration/state.py:69
 msgid "Drink water!"
 msgstr "ውሃ ጠጣ!"
 
-#: docking/applets/hydration/state.py:57
+#: docking/applets/hydration/state.py:70
 #, python-brace-format
 msgid "Next in {time}"
 msgstr "ቀጣይ በ{time}"
 
-#: docking/applets/keyboardlayout/applet.py:47
+#: docking/applets/keyboardlayout/applet.py:60
 msgid "Keyboard Layout"
 msgstr "የቁልፍ ሰሌዳ አቀማመጥ"
 
-#: docking/applets/keyboardlayout/applet.py:76
+#: docking/applets/keyboardlayout/applet.py:89
 msgid "No keyboard layout detected"
 msgstr "የቁልፍ ሰሌዳ አቀማመጥ አልተገኘም"
 
-#: docking/applets/keyboardlayout/applet.py:122
+#: docking/applets/keyboardlayout/applet.py:135
 msgid "Keyboard Settings"
 msgstr "Keyboard Settings"
 
-#: docking/applets/keyboardlayout/applet.py:128
+#: docking/applets/keyboardlayout/applet.py:141
 msgid "Show Current Layout"
 msgstr "Show Current Layout"
 
-#: docking/applets/live_state.py:74
+#: docking/applets/lastfm/applet.py:80
+msgid "Last.fm"
+msgstr "የመጨረሻው.ኤፍ.ኤም"
+
+#: docking/applets/lastfm/applet.py:157
+msgid "Set username..."
+msgstr "የተጠቃሚ ስም አዘጋጅ..."
+
+#: docking/applets/lastfm/applet.py:159
+msgid "Set API key and username..."
+msgstr "የኤፒአይ ቁልፍ እና የተጠቃሚ ስም አዘጋጅ..."
+
+#: docking/applets/lastfm/applet.py:165
+#, python-brace-format
+msgid "Recent tracks for {user} ({count})"
+msgstr "ለ{user} ({count}) የቅርብ ጊዜ ትራኮች"
+
+#: docking/applets/lastfm/applet.py:182
+msgid "Configure..."
+msgstr "አዋቅር..."
+
+#: docking/applets/lastfm/applet.py:188
+msgid "Open {service} Profile"
+msgstr "{service} መገለጫ ይክፈቱ"
+
+#: docking/applets/lastfm/applet.py:377
+msgid "Scrobbler Settings"
+msgstr "Scrobbler ቅንብሮች"
+
+#: docking/applets/lastfm/applet.py:381 docking/ui/diagnostics.py:341
+msgid "Save"
+msgstr "አስቀምጥ"
+
+#: docking/applets/lastfm/applet.py:391
+msgid "Service:"
+msgstr "አገልግሎት፡"
+
+#: docking/applets/lastfm/applet.py:397
+msgid "API Key:"
+msgstr "የኤፒአይ ቁልፍ፡-"
+
+#: docking/applets/lastfm/applet.py:402
+msgid "Username:"
+msgstr "የተጠቃሚ ስም፡"
+
+#: docking/applets/lastfm/applet.py:410
+#, python-brace-format
+msgid "{service} API key (optional)"
+msgstr "{service} ኤፒአይ ቁልፍ (አማራጭ)"
+
+#: docking/applets/lastfm/applet.py:412
+#, python-brace-format
+msgid "{service} API key"
+msgstr "{service} ኤፒአይ ቁልፍ"
+
+#: docking/applets/lastfm/applet.py:415
+#, python-brace-format
+msgid "{service} username"
+msgstr "{service} የተጠቃሚ ስም"
+
+#: docking/applets/lastfm/applet.py:423
+msgid "Max entries:"
+msgstr "ከፍተኛ ግቤቶች፡"
+
+#: docking/applets/lastfm/applet.py:432
+msgid "Rounded album-art corners"
+msgstr "ክብ የአልበም-ጥበብ ማዕዘኖች"
+
+#: docking/applets/live_state.py:89
 msgid "No data yet"
 msgstr "ገና ውሂብ የለም"
 
-#: docking/applets/live_state.py:75
+#: docking/applets/live_state.py:90
 msgid "Loading..."
 msgstr "Loading..."
 
-#: docking/applets/live_state.py:77 docking/applets/live_state.py:117
+#: docking/applets/live_state.py:92 docking/applets/live_state.py:137
 msgid "Stale data"
 msgstr "የቆየ ውሂብ"
 
-#: docking/applets/live_state.py:118
-#, python-brace-format
-msgid "Stale: last updated {time}"
-msgstr "ቆዩ: በመጨረሻ የተዘመነው {time}"
+#: docking/applets/live_state.py:138
+msgid "Stale: last updated {age}"
+msgstr "የቆየ፡ ለመጨረሻ ጊዜ የዘመነው {age}"
 
-#: docking/applets/live_state.py:128
+#: docking/applets/live_state.py:148
 msgid "Use Refresh Now from the menu."
 msgstr "ከምናሌ አሁን አድስ ይጠቀሙ።"
 
-#: docking/applets/micshield/applet.py:44
-#: docking/applets/micshield/state.py:195
+#: docking/applets/micshield/applet.py:57
+#: docking/applets/micshield/state.py:208
 msgid "Mic Shield"
 msgstr "Mic Shield"
 
-#: docking/applets/micshield/applet.py:93
-#: docking/applets/micshield/state.py:197
+#: docking/applets/micshield/applet.py:106
+#: docking/applets/micshield/state.py:210
 msgid "No microphone source found"
 msgstr "የማይክሮፎን ምንጭ አልተገኘም"
 
-#: docking/applets/micshield/applet.py:97
-#: docking/applets/micshield/state.py:200
+#: docking/applets/micshield/applet.py:110
+#: docking/applets/micshield/state.py:213
 msgid "Microphone muted"
 msgstr "ማይክሮፎን ዝምታ"
 
-#: docking/applets/micshield/applet.py:99
-#: docking/applets/micshield/state.py:200
+#: docking/applets/micshield/applet.py:112
+#: docking/applets/micshield/state.py:213
 msgid "Microphone unmuted"
 msgstr "ማይክሮፎን ተከፍቷል"
 
-#: docking/applets/micshield/applet.py:105
-#: docking/applets/micshield/state.py:205
+#: docking/applets/micshield/applet.py:118
+#: docking/applets/micshield/state.py:218
 msgid "Microphone active"
 msgstr "ማይክሮፎን ንቁ"
 
-#: docking/applets/micshield/applet.py:109
-#: docking/applets/micshield/state.py:202
+#: docking/applets/micshield/applet.py:122
+#: docking/applets/micshield/state.py:215
 msgid "Microphone idle"
 msgstr "ማይክሮፎን አልሰራም"
 
-#: docking/applets/micshield/applet.py:112
+#: docking/applets/micshield/applet.py:125
 msgid "Unmute Microphone"
 msgstr "ማይክሮፎን ክፈት"
 
-#: docking/applets/micshield/applet.py:112
+#: docking/applets/micshield/applet.py:125
 msgid "Mute Microphone"
 msgstr "ማይክሮፎን ዝምታ"
 
-#: docking/applets/micshield/state.py:218
+#: docking/applets/micshield/state.py:231
 #, python-brace-format
 msgid "{command} (PID {pid})"
 msgstr "{command} (PID {pid})"
 
-#: docking/applets/moon/applet.py:49
+#: docking/applets/moon/applet.py:62
 msgid "Moon"
 msgstr "ጨረቃ"
 
-#: docking/applets/moon/applet.py:92
+#: docking/applets/moon/applet.py:105
 msgid "Moon (loading...)"
 msgstr "ጨረቃ (በመጫን ላይ...)"
 
-#: docking/applets/moon/applet.py:99
+#: docking/applets/moon/applet.py:112
 #, python-brace-format
 msgid "Illumination: {pct}%"
 msgstr "ብርሃን: {pct}%"
 
-#: docking/applets/moon/applet.py:120
+#: docking/applets/moon/applet.py:133
 msgid "Show Phase Name"
 msgstr "የደረጃ ስም አሳይ"
 
-#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:130
+#: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
 msgid "New"
 msgstr "አዲስ"
 
-#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:132
-msgid "Full"
-msgstr "ሙሉ"
-
-#: docking/applets/moon/offline.py:220
+#: docking/applets/moon/offline.py:233
 msgid "Crescent"
 msgstr "ግማሽ ጨረቃ"
 
-#: docking/applets/moon/offline.py:221
+#: docking/applets/moon/offline.py:234
 msgid "Gibbous"
 msgstr "ሰፊ ጨረቃ"
 
-#: docking/applets/moon/offline.py:234
+#: docking/applets/moon/offline.py:247
 msgid "new moon"
 msgstr "አዲስ ጨረቃ"
 
-#: docking/applets/moon/offline.py:236
+#: docking/applets/moon/offline.py:249
 msgid "first quarter"
 msgstr "የመጀመሪያ ሩብ"
 
-#: docking/applets/moon/offline.py:238
+#: docking/applets/moon/offline.py:251
 msgid "full moon"
 msgstr "ሙሉ ጨረቃ"
 
-#: docking/applets/moon/offline.py:240
+#: docking/applets/moon/offline.py:253
 msgid "last quarter"
 msgstr "የመጨረሻ ሩብ"
 
-#: docking/applets/moon/offline.py:242
+#: docking/applets/moon/offline.py:255
 #, python-brace-format
 msgid "{days} days after new moon"
 msgstr "ከአዲስ ጨረቃ በኋላ {days} ቀናት"
 
-#: docking/applets/moon/offline.py:247
+#: docking/applets/moon/offline.py:260
 #, python-brace-format
 msgid "{days} days after full moon"
 msgstr "ከሙሉ ጨረቃ በኋላ {days} ቀናት"
 
-#: docking/applets/moon/state.py:121
+#: docking/applets/moon/state.py:134
 msgid "Waxing Crescent"
 msgstr "እያደገ ግማሽ ጨረቃ"
 
-#: docking/applets/moon/state.py:123
+#: docking/applets/moon/state.py:136
 msgid "Waxing Gibbous"
 msgstr "እያደገ ሰፊ ጨረቃ"
 
-#: docking/applets/moon/state.py:125
+#: docking/applets/moon/state.py:138
 msgid "Waning Gibbous"
 msgstr "እየቀነሰ ሰፊ ጨረቃ"
 
-#: docking/applets/moon/state.py:127
+#: docking/applets/moon/state.py:140
 msgid "Waning Crescent"
 msgstr "እየቀነሰ ግማሽ ጨረቃ"
 
-#: docking/applets/moon/state.py:134
+#: docking/applets/moon/state.py:147
 msgid "1st Quarter"
 msgstr "1ኛ ሩብ"
 
-#: docking/applets/moon/state.py:136
+#: docking/applets/moon/state.py:149
 msgid "3rd Quarter"
 msgstr "3ኛ ሩብ"
 
-#: docking/applets/music/applet.py:45 docking/applets/music/state.py:129
-#: docking/applets/music/state.py:143
+#: docking/applets/music/applet.py:58 docking/applets/music/state.py:142
+#: docking/applets/music/state.py:156
 msgid "Music"
 msgstr "ሙዚቃ"
 
-#: docking/applets/music/applet.py:105 docking/applets/music/state.py:130
+#: docking/applets/music/applet.py:118 docking/applets/music/state.py:143
 msgid "No active player"
 msgstr "ንቁ ማጫወቻ የለም"
 
-#: docking/applets/music/applet.py:107
+#: docking/applets/music/applet.py:120
 msgid "Previous"
 msgstr "ቀዳሚ"
 
-#: docking/applets/music/applet.py:115
+#: docking/applets/music/applet.py:128
 msgid "Next"
 msgstr "ቀጣይ"
 
-#: docking/applets/music/applet.py:119
+#: docking/applets/music/applet.py:132
 msgid "Volume Up"
 msgstr "ድምጽ ጨምር"
 
-#: docking/applets/music/applet.py:125
+#: docking/applets/music/applet.py:138
 msgid "Volume Down"
 msgstr "ድምጽ ቀንስ"
 
-#: docking/applets/music/state.py:69
+#: docking/applets/music/state.py:82
 msgid "Pause"
 msgstr "ላፍታ አቁም"
 
-#: docking/applets/music/state.py:69
+#: docking/applets/music/state.py:82
 msgid "Play"
 msgstr "አጫውት"
 
-#: docking/applets/music/state.py:76
+#: docking/applets/music/state.py:89
 msgid "Playing"
 msgstr "በማጫወት ላይ"
 
-#: docking/applets/music/state.py:78
+#: docking/applets/music/state.py:91
 msgid "Paused"
 msgstr "ላፍታ ቆሟል"
 
-#: docking/applets/music/state.py:80
+#: docking/applets/music/state.py:93
 msgid "Stopped"
 msgstr "ቆሟል"
 
-#: docking/applets/network/applet.py:64 docking/applets/network/state.py:214
-#: docking/applets/network/state.py:225
+#: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
+#: docking/applets/network/state.py:257
 msgid "Network"
 msgstr "ኔትወርክ"
 
-#: docking/applets/network/applet.py:118
+#: docking/applets/network/applet.py:127
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:127
+#: docking/applets/network/applet.py:136
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "ኤተርኔት: {iface}"
 
-#: docking/applets/network/applet.py:132 docking/applets/network/state.py:215
+#: docking/applets/network/applet.py:141 docking/applets/network/state.py:247
 msgid "Not connected"
 msgstr "አልተገናኘም"
 
-#: docking/applets/network/applet.py:136
+#: docking/applets/network/applet.py:145
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/applet.py:147
+#: docking/applets/network/applet.py:156
 msgid "Connection Information"
 msgstr "Connection Information"
 
-#: docking/applets/network/applet.py:153
+#: docking/applets/network/applet.py:162
 msgid "Edit Connections..."
 msgstr "Edit Connections..."
 
-#: docking/applets/network/applet.py:163
+#: docking/applets/network/applet.py:172
 msgid "Connect to Hidden Wi-Fi Network..."
 msgstr "Connect to Hidden Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:170
+#: docking/applets/network/applet.py:179
 msgid "Create New Wi-Fi Network..."
 msgstr "Create New Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:174
+#: docking/applets/network/applet.py:183
 msgid "Enable Networking"
 msgstr "Enable Networking"
 
-#: docking/applets/network/applet.py:185
+#: docking/applets/network/applet.py:194
 msgid "Enable Wi-Fi"
 msgstr "Enable Wi-Fi"
 
-#: docking/applets/network/applet.py:202
+#: docking/applets/network/applet.py:211
 msgid "Show Download"
 msgstr "ማውረድ አሳይ"
 
-#: docking/applets/network/applet.py:203
+#: docking/applets/network/applet.py:212
 msgid "Show Upload"
 msgstr "መጫን አሳይ"
 
-#: docking/applets/network/applet.py:204
+#: docking/applets/network/applet.py:213
 msgid "Hide Speeds"
 msgstr "ፍጥነቶችን ደብቅ"
 
-#: docking/applets/network/applet.py:255
+#: docking/applets/network/applet.py:262
 msgid "Available Networks"
 msgstr "Available Networks"
 
-#: docking/applets/network/applet.py:259
+#: docking/applets/network/applet.py:266
 #, python-brace-format
 msgid "{ssid} ({pct}%)"
 msgstr "{ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:261
+#: docking/applets/network/applet.py:268
 #, python-brace-format
 msgid "Connected: {label}"
 msgstr "Connected: {label}"
 
-#: docking/applets/network/applet.py:270
+#: docking/applets/network/applet.py:277
 msgid "No networks found"
 msgstr "No networks found"
 
-#: docking/applets/network/applet.py:282
+#: docking/applets/network/applet.py:289
 msgid "VPN Connections"
 msgstr "VPN Connections"
 
-#: docking/applets/network/applet.py:285
+#: docking/applets/network/applet.py:292
 msgid "Unnamed VPN"
 msgstr "Unnamed VPN"
 
-#: docking/applets/notifications/applet.py:64
-#: docking/applets/notifications/state.py:49
+#: docking/applets/notifications/applet.py:78
+#: docking/applets/notifications/state.py:62
 msgid "Notifications"
 msgstr "ማሳወቂያዎች"
 
-#: docking/applets/notifications/applet.py:132
+#: docking/applets/notifications/applet.py:146
 msgid "No notification backend available"
 msgstr "ምንም የማሳወቂያ ባክኤንድ አይገኝም"
 
-#: docking/applets/notifications/applet.py:134
+#: docking/applets/notifications/applet.py:148
 msgid "Do Not Disturb"
 msgstr "አትረብሽ"
 
-#: docking/applets/notifications/applet.py:142
-#: docking/applets/notifications/state.py:47
+#: docking/applets/notifications/applet.py:156
+#: docking/applets/notifications/state.py:60
 #, python-brace-format
 msgid "Pending: {n}"
 msgstr "በመጠባበቅ ላይ: {n}"
 
-#: docking/applets/notifications/applet.py:147
+#: docking/applets/notifications/applet.py:161
 msgid "Clear History"
 msgstr "ታሪክ አጽዳ"
 
-#: docking/applets/notifications/applet.py:152
+#: docking/applets/notifications/applet.py:166
 msgid "Clear Notifications"
 msgstr "ማሳወቂያዎችን አጽዳ"
 
-#: docking/applets/notifications/state.py:43
+#: docking/applets/notifications/state.py:56
 msgid "Notifications: No backend available"
 msgstr "ማሳወቂያዎች: ምንም ባክኤንድ አይገኝም"
 
-#: docking/applets/pet/applet.py:41
+#: docking/applets/pet/applet.py:54
 msgid "Pet"
 msgstr "የቤት እንስሳ"
 
-#: docking/applets/pet/state.py:60
+#: docking/applets/pet/state.py:73
 msgid "Sleeping"
 msgstr "እየተኛ"
 
-#: docking/applets/pet/state.py:61
+#: docking/applets/pet/state.py:74
 msgid "Sleepy"
 msgstr "እንቅልፍ"
 
-#: docking/applets/pet/state.py:62
+#: docking/applets/pet/state.py:75
 msgid "Drowsy"
 msgstr "እንቅልፍ አዝል"
 
-#: docking/applets/pet/state.py:63
+#: docking/applets/pet/state.py:76
 msgid "Relaxed"
 msgstr "ዘና ያለ"
 
-#: docking/applets/pet/state.py:64
+#: docking/applets/pet/state.py:77
 msgid "Happy"
 msgstr "ደስተኛ"
 
-#: docking/applets/pet/state.py:65
+#: docking/applets/pet/state.py:78
 msgid "Focused"
 msgstr "ትኩረት"
 
-#: docking/applets/pet/state.py:66
+#: docking/applets/pet/state.py:79
 msgid "Busy"
 msgstr "ስራ ላይ"
 
-#: docking/applets/pet/state.py:67
+#: docking/applets/pet/state.py:80
 msgid "Stressed"
 msgstr "የተጨነቀ"
 
-#: docking/applets/pet/state.py:68
+#: docking/applets/pet/state.py:81
 msgid "Excited!"
 msgstr "ደስተኛ!"
 
-#: docking/applets/pet/state.py:191
+#: docking/applets/pet/state.py:204
 #, python-brace-format
 msgid "{mood} | CPU: {cpu}%"
 msgstr "{mood} | CPU: {cpu}%"
 
-#: docking/applets/pomodoro/applet.py:48 docking/applets/pomodoro/state.py:64
+#: docking/applets/pomodoro/applet.py:61 docking/applets/pomodoro/state.py:77
 msgid "Pomodoro"
 msgstr "ፖሞዶሮ"
 
-#: docking/applets/pomodoro/applet.py:154
+#: docking/applets/pomodoro/applet.py:167
 msgid "Reset"
 msgstr "ዳግም አስጀምር"
 
-#: docking/applets/pomodoro/applet.py:162 docking/applets/pomodoro/state.py:68
+#: docking/applets/pomodoro/applet.py:175 docking/applets/pomodoro/state.py:81
 msgid "Work"
 msgstr "ሥራ"
 
-#: docking/applets/pomodoro/applet.py:175 docking/applets/pomodoro/state.py:69
+#: docking/applets/pomodoro/applet.py:188 docking/applets/pomodoro/state.py:82
 msgid "Break"
 msgstr "ዕረፍት"
 
-#: docking/applets/pomodoro/applet.py:188 docking/applets/pomodoro/state.py:70
+#: docking/applets/pomodoro/applet.py:201 docking/applets/pomodoro/state.py:83
 msgid "Long Break"
 msgstr "ረጅም ዕረፍት"
 
-#: docking/applets/pomodoro/state.py:66
+#: docking/applets/pomodoro/state.py:79
 #, python-brace-format
 msgid "Paused - {time}"
 msgstr "ላፍታ ቆሟል - {time}"
 
-#: docking/applets/pomodoro/state.py:72
+#: docking/applets/pomodoro/state.py:85
 #, python-brace-format
 msgid "{label}: {time} remaining"
 msgstr "{label}: {time} ቀሪ"
 
-#: docking/applets/powerprofiles/applet.py:58
+#: docking/applets/powerprofiles/applet.py:71
 msgid "Power Profiles"
 msgstr "የኃይል መገለጫዎች"
 
-#: docking/applets/powerprofiles/applet.py:123
-#: docking/applets/powerprofiles/state.py:170
-#: docking/applets/powerprofiles/state.py:171
+#: docking/applets/powerprofiles/applet.py:136
+#: docking/applets/powerprofiles/state.py:183
+#: docking/applets/powerprofiles/state.py:184
 msgid "Power Profiles unavailable"
 msgstr "የኃይል መገለጫዎች አይገኙም"
 
-#: docking/applets/powerprofiles/applet.py:126
+#: docking/applets/powerprofiles/applet.py:139
 msgid "Select Profile"
 msgstr "መገለጫ ምረጥ"
 
-#: docking/applets/powerprofiles/applet.py:145
+#: docking/applets/powerprofiles/applet.py:158
 #, python-brace-format
 msgid "Limited: {reason}"
 msgstr "ውስን: {reason}"
 
-#: docking/applets/powerprofiles/state.py:131
+#: docking/applets/powerprofiles/state.py:144
 msgid "Power Saver"
 msgstr "ኃይል ቆጣቢ"
 
-#: docking/applets/powerprofiles/state.py:133
+#: docking/applets/powerprofiles/state.py:146
 msgid "Balanced"
 msgstr "ሚዛናዊ"
 
-#: docking/applets/powerprofiles/state.py:135
+#: docking/applets/powerprofiles/state.py:148
 msgid "Performance"
 msgstr "አፈጻጸም"
 
-#: docking/applets/quicknote/applet.py:41
-#: docking/applets/quicknote/applet.py:70
+#: docking/applets/quicknote/applet.py:54
+#: docking/applets/quicknote/applet.py:83
 msgid "Quick Note"
 msgstr "ፈጣን ማስታወሻ"
 
-#: docking/applets/quicknote/applet.py:60
+#: docking/applets/quicknote/applet.py:73
 msgid "Edit Note"
 msgstr "ማስታወሻ አርትዕ"
 
-#: docking/applets/quicknote/applet.py:63
+#: docking/applets/quicknote/applet.py:76
 msgid "Clear Note"
 msgstr "ማስታወሻ አጽዳ"
 
-#: docking/applets/quote/applet.py:86
+#: docking/applets/quote/applet.py:99
 msgid "Next Quote"
 msgstr "ቀጣይ ጥቅስ"
 
-#: docking/applets/quote/applet.py:89
+#: docking/applets/quote/applet.py:102
 msgid "Copy Quote"
 msgstr "ጥቅስ ቅዳ"
 
-#: docking/applets/quote/applet.py:96
+#: docking/applets/quote/applet.py:109
 msgid "Source"
 msgstr "ምንጭ"
 
-#: docking/applets/quote/applet.py:207
+#: docking/applets/quote/applet.py:220
 #, python-brace-format
 msgid "{source}: loading..."
 msgstr "{source}: በመጫን ላይ..."
 
-#: docking/applets/recentfiles/applet.py:35
+#: docking/applets/recentfiles/applet.py:48
 msgid "Recent Files"
 msgstr "የቅርብ ጊዜ ፋይሎች"
 
-#: docking/applets/recentfiles/applet.py:82
+#: docking/applets/recentfiles/applet.py:95
 msgid "Clear Recent Files"
 msgstr "የቅርብ ጊዜ ፋይሎችን አጽዳ"
 
-#: docking/applets/screenshot/applet.py:40
+#: docking/applets/runcommand/applet.py:63
+#: docking/applets/runcommand/applet.py:88
+#: docking/applets/runcommand/applet.py:118
+#: docking/applets/runcommand/applet.py:262
+msgid "Run Application"
+msgstr "መተግበሪያን አሂድ"
+
+#: docking/applets/runcommand/applet.py:121
+msgid "Help"
+msgstr "እገዛ"
+
+#: docking/applets/runcommand/applet.py:123
+msgid "Run"
+msgstr "ሩጡ"
+
+#: docking/applets/runcommand/applet.py:168
+msgid "Run in terminal"
+msgstr "ተርሚናል ላይ አሂድ"
+
+#: docking/applets/runcommand/applet.py:170
+msgid "Run with file..."
+msgstr "በፋይል አሂድ..."
+
+#: docking/applets/runcommand/applet.py:175
+msgid "Show list of known applications"
+msgstr "የታወቁ መተግበሪያዎችን ዝርዝር አሳይ"
+
+#: docking/applets/runcommand/applet.py:181
+#: docking/applets/runcommand/applet.py:286
+msgid "Select an application to view its description."
+msgstr "መግለጫውን ለማየት መተግበሪያ ይምረጡ።"
+
+#: docking/applets/runcommand/applet.py:265
+msgid "Type a command or select an application to launch it."
+msgstr "እሱን ለማስጀመር ትእዛዝ ይተይቡ ወይም መተግበሪያ ይምረጡ።"
+
+#: docking/applets/runcommand/applet.py:336
+msgid "Run with file"
+msgstr "በፋይል አሂድ"
+
+#: docking/applets/runcommand/applet.py:341
+#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:441
+#: docking/ui/menu.py:526
+msgid "Open"
+msgstr "ክፈት"
+
+#: docking/applets/screenshot/applet.py:54
 msgid "Screenshot"
 msgstr "ቅጽበታዊ ገጽ እይታ"
 
-#: docking/applets/screenshot/applet.py:77
+#: docking/applets/screenshot/applet.py:91
 #, python-brace-format
 msgid "Full Screen in {delay}s"
 msgstr "ሙሉ ገጽ በ{delay}ሰ"
 
-#: docking/applets/separator/applet.py:38
+#: docking/applets/separator/applet.py:51
 msgid "Separator"
 msgstr "መለያ"
 
-#: docking/applets/separator/applet.py:119
+#: docking/applets/separator/applet.py:132
 msgid "Increase Gap"
 msgstr "ክፍተት ጨምር"
 
-#: docking/applets/separator/applet.py:121
+#: docking/applets/separator/applet.py:134
 msgid "Decrease Gap"
 msgstr "ክፍተት ቀንስ"
 
-#: docking/applets/separator/applet.py:124
+#: docking/applets/separator/applet.py:137
 msgid "Style"
 msgstr "ቅጥ"
 
-#: docking/applets/separator/applet.py:126
+#: docking/applets/separator/applet.py:139
 msgid "Line"
 msgstr "መስመር"
 
-#: docking/applets/separator/applet.py:127
+#: docking/applets/separator/applet.py:140
 msgid "Space"
 msgstr "ክፍተት"
 
-#: docking/applets/separator/applet.py:134
+#: docking/applets/separator/applet.py:147
 msgid "Invert Color"
 msgstr "ቀለም ገልብጥ"
 
-#: docking/applets/session/applet.py:28
+#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:148
 msgid "Session"
 msgstr "ክፍለ ጊዜ"
 
-#: docking/applets/session/applet.py:56 docking/applets/session/state.py:29
+#: docking/applets/session/applet.py:70 docking/applets/session/state.py:43
 msgid "Suspend"
 msgstr "አቋርጥ"
 
-#: docking/applets/session/state.py:25
+#: docking/applets/session/state.py:39
 msgid "Lock Screen"
 msgstr "ማያ ገጽ ቆልፍ"
 
-#: docking/applets/session/state.py:28
+#: docking/applets/session/state.py:42
 msgid "Log Out"
 msgstr "ውጣ"
 
-#: docking/applets/session/state.py:30
-msgid "Restart"
-msgstr "እንደገና አስጀምር"
-
-#: docking/applets/session/state.py:31
+#: docking/applets/session/state.py:45
 msgid "Shut Down"
 msgstr "አጥፋ"
 
-#: docking/applets/speedtest/applet.py:42 docking/applets/speedtest/state.py:76
-#: docking/applets/speedtest/state.py:82 docking/applets/speedtest/state.py:88
-#: docking/applets/speedtest/state.py:108
+#: docking/applets/speedtest/applet.py:55 docking/applets/speedtest/state.py:89
+#: docking/applets/speedtest/state.py:95 docking/applets/speedtest/state.py:101
+#: docking/applets/speedtest/state.py:121
 msgid "Speedtest"
 msgstr "Speedtest"
 
-#: docking/applets/speedtest/applet.py:80 docking/applets/speedtest/state.py:73
+#: docking/applets/speedtest/applet.py:93 docking/applets/speedtest/state.py:86
 msgid "Runs"
 msgstr "ሥራዎች"
 
-#: docking/applets/speedtest/applet.py:83
-#: docking/applets/speedtest/applet.py:101
-#: docking/applets/speedtest/state.py:77
+#: docking/applets/speedtest/applet.py:96
+#: docking/applets/speedtest/applet.py:114
+#: docking/applets/speedtest/state.py:90
 msgid "Running..."
 msgstr "Running..."
 
-#: docking/applets/speedtest/applet.py:83
+#: docking/applets/speedtest/applet.py:96
 msgid "Run Test"
 msgstr "Run Test"
 
-#: docking/applets/speedtest/applet.py:90
+#: docking/applets/speedtest/applet.py:103
 msgid "Copy Last Result"
 msgstr "Copy Last Result"
 
-#: docking/applets/speedtest/applet.py:106
+#: docking/applets/speedtest/applet.py:119
 #, python-brace-format
 msgid "Down {d:.1f} / Up {u:.1f} Mbps"
 msgstr "Down {d:.1f} / Up {u:.1f} Mbps"
 
-#: docking/applets/speedtest/applet.py:163
+#: docking/applets/speedtest/applet.py:176
 #, python-brace-format
 msgid ""
 "Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
@@ -1579,789 +2099,1707 @@ msgstr ""
 "Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
 "({when})"
 
-#: docking/applets/speedtest/state.py:89
+#: docking/applets/speedtest/state.py:102
 msgid "Click to run a test"
 msgstr "Click to run a test"
 
-#: docking/applets/speedtest/state.py:92
+#: docking/applets/speedtest/state.py:105
 #, python-brace-format
 msgid "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
 msgstr "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
 
-#: docking/applets/speedtest/state.py:96
+#: docking/applets/speedtest/state.py:109
 #, python-brace-format
 msgid "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
 msgstr "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
 
-#: docking/applets/speedtest/state.py:101
+#: docking/applets/speedtest/state.py:114
 #, python-brace-format
 msgid "Server: {s}"
 msgstr "Server: {s}"
 
-#: docking/applets/speedtest/state.py:105
+#: docking/applets/speedtest/state.py:118
 #, python-brace-format
 msgid "At: {t}"
 msgstr "At: {t}"
 
-#: docking/applets/stretchcoach/applet.py:41
+#: docking/applets/stretchcoach/applet.py:54
 msgid "Stretch Coach"
 msgstr "የመለጠጥ አሰልጣኝ"
 
-#: docking/applets/stretchcoach/applet.py:79
+#: docking/applets/stretchcoach/applet.py:92
 msgid "Acknowledge Break"
 msgstr "እረፍት አረጋግጥ"
 
-#: docking/applets/stretchcoach/applet.py:79
+#: docking/applets/stretchcoach/applet.py:92
 msgid "Take Break Now"
 msgstr "አሁን እረፍት ውሰድ"
 
-#: docking/applets/stretchcoach/applet.py:83
+#: docking/applets/stretchcoach/applet.py:96
 msgid "Show Random Stretch"
 msgstr "የዘፈቀደ መለጠጥ አሳይ"
 
-#: docking/applets/stretchcoach/applet.py:86
+#: docking/applets/stretchcoach/applet.py:99
 msgid "Random Stretch Cards"
 msgstr "የዘፈቀደ መለጠጥ ካርዶች"
 
-#: docking/applets/stretchcoach/state.py:152
+#: docking/applets/stretchcoach/state.py:165
 msgid "Time to stretch!"
 msgstr "የመለጠጥ ጊዜ!"
 
-#: docking/applets/stretchcoach/state.py:156
+#: docking/applets/stretchcoach/state.py:169
 #, python-brace-format
 msgid "Next stretch in {time}"
 msgstr "ቀጣይ መለጠጥ በ{time}"
 
-#: docking/applets/systemmonitor/applet.py:51
-#: docking/applets/systemmonitor/state.py:168
+#: docking/applets/sunrise/applet.py:64 docking/applets/sunrise/state.py:490
+msgid "Sunrise"
+msgstr "የፀሐይ መውጣት"
+
+#: docking/applets/sunrise/applet.py:116
+msgid "Times shown in system timezone"
+msgstr "በስርዓት የሰዓት ሰቅ ውስጥ የሚታዩ ጊዜያት"
+
+#: docking/applets/sunrise/applet.py:121
+msgid "Change City..."
+msgstr "ከተማን ቀይር..."
+
+#: docking/applets/sunrise/applet.py:126
+msgid "Label Mode"
+msgstr "መለያ ሁነታ"
+
+#: docking/applets/sunrise/applet.py:148 docking/applets/weather/applet.py:218
+#, python-brace-format
+msgid "Remove {city}"
+msgstr "{city}ን አስወግድ"
+
+#: docking/applets/sunrise/applet.py:185 docking/applets/weather/applet.py:270
+msgid "Search for the city"
+msgstr "ከተማ ፈልግ"
+
+#: docking/applets/sunrise/applet.py:198 docking/applets/weather/applet.py:283
+msgid "Type city name..."
+msgstr "የከተማ ስም ይተይቡ..."
+
+#: docking/applets/sunrise/state.py:329
+msgid "Sunrise: no city selected"
+msgstr "የፀሐይ መውጣት፡ ምንም ከተማ አልተመረጠም።"
+
+#: docking/applets/sunrise/state.py:332
+#, python-brace-format
+msgid "{phase} now"
+msgstr "{phase} አሁን"
+
+#: docking/applets/sunrise/state.py:336
+#, python-brace-format
+msgid "{event} in {duration}"
+msgstr "{event} በ{duration} ውስጥ"
+
+#: docking/applets/sunrise/state.py:368 docking/applets/sunrise/state.py:379
+msgid "Night"
+msgstr "ለሊት"
+
+#: docking/applets/sunrise/state.py:369
+msgid "Astronomical twilight"
+msgstr "የስነ ፈለክ ድንግዝግዝታ"
+
+#: docking/applets/sunrise/state.py:370
+msgid "Nautical twilight"
+msgstr "የባህር ድንግዝግዝታ"
+
+#: docking/applets/sunrise/state.py:371
+msgid "Civil twilight"
+msgstr "ሲቪል ድንግዝግዝታ"
+
+#: docking/applets/sunrise/state.py:372
+msgid "Daylight"
+msgstr "የቀን ብርሃን"
+
+#: docking/applets/sunrise/state.py:380
+msgid "Astro"
+msgstr "አስትሮ"
+
+#: docking/applets/sunrise/state.py:381
+msgid "Naut"
+msgstr "ናውት።"
+
+#: docking/applets/sunrise/state.py:382
+msgid "Civil"
+msgstr "ሲቪል"
+
+#: docking/applets/sunrise/state.py:390
+#: docking/applets/todayinhistory/applet.py:109
+msgid "Next Event"
+msgstr "ቀጣይ ክስተት"
+
+#: docking/applets/sunrise/state.py:391
+msgid "Current Phase"
+msgstr "የአሁኑ ደረጃ"
+
+#: docking/applets/sunrise/state.py:392
+msgid "Sunrise/Sunset"
+msgstr "የፀሀይ መውጣት/የፀሐይ መጥለቅ"
+
+#: docking/applets/sunrise/state.py:399 docking/applets/weather/state.py:178
+msgid "No city selected"
+msgstr "ከተማ አልተመረጠም"
+
+#: docking/applets/sunrise/state.py:401
+msgid "{city}: {phase}"
+msgstr "{city}: {phase}"
+
+#: docking/applets/sunrise/state.py:405
+#, python-brace-format
+msgid "{city}: {event} in {duration}"
+msgstr "{city}: {event} በ{duration} ውስጥ"
+
+#: docking/applets/sunrise/state.py:472
+msgid "Astronomical dawn"
+msgstr "የስነ ፈለክ ንጋት"
+
+#: docking/applets/sunrise/state.py:478
+msgid "Nautical dawn"
+msgstr "የባህር ንጋት"
+
+#: docking/applets/sunrise/state.py:484
+msgid "Civil dawn"
+msgstr "ሲቪል ንጋት"
+
+#: docking/applets/sunrise/state.py:496
+msgid "Solar noon"
+msgstr "የፀሐይ እኩለ ቀን"
+
+#: docking/applets/sunrise/state.py:502
+msgid "Sunset"
+msgstr "ጀንበር ስትጠልቅ"
+
+#: docking/applets/sunrise/state.py:508
+msgid "Civil dusk"
+msgstr "የሲቪል ምሽት"
+
+#: docking/applets/sunrise/state.py:514
+msgid "Nautical dusk"
+msgstr "የባህር ምሽት"
+
+#: docking/applets/sunrise/state.py:520
+msgid "Astronomical dusk"
+msgstr "የስነ ፈለክ ምሽት"
+
+#: docking/applets/systemmonitor/applet.py:65
+#: docking/applets/systemmonitor/state.py:186
 msgid "System Monitor"
 msgstr "ሲፒዩ ቁጥጥር"
 
-#: docking/applets/systemmonitor/applet.py:85
+#: docking/applets/systemmonitor/applet.py:102
 msgid "Show Disk Usage"
 msgstr "Show Disk Usage"
 
-#: docking/applets/systemmonitor/applet.py:90
-#: docking/applets/thermals/applet.py:149 docking/applets/weather/applet.py:186
+#: docking/applets/systemmonitor/applet.py:107
+#: docking/applets/thermals/applet.py:162 docking/applets/weather/applet.py:201
 msgid "Temperature Unit"
 msgstr "የሙቀት ክፍል"
 
-#: docking/applets/systemmonitor/state.py:151
+#: docking/applets/systemmonitor/gpu.py:145
+msgid "GPU: {pct}%"
+msgstr "ጂፒዩ፡ {pct}%"
+
+#: docking/applets/systemmonitor/gpu.py:147
+msgid "GPU: {name}"
+msgstr "ጂፒዩ፡ {name}"
+
+#: docking/applets/systemmonitor/gpu.py:151
+#, python-brace-format
+msgid "Mem: {used}/{total} MiB"
+msgstr "ሜም፡ {used}/{total} ሚቢ"
+
+#: docking/applets/systemmonitor/gpu.py:157
+#, python-brace-format
+msgid "Mem: {used} MiB"
+msgstr "ሜም፡ {used} ሚቢ"
+
+#: docking/applets/systemmonitor/state.py:166
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr "ሲፒዩ: {cpu}% | ማህ: {mem}%"
 
-#: docking/applets/systemmonitor/state.py:155
+#: docking/applets/systemmonitor/state.py:170
 #, python-brace-format
 msgid "{text} | Temp: {temp}"
 msgstr "{text} | Temp: {temp}"
 
-#: docking/applets/systemmonitor/state.py:166
+#: docking/applets/systemmonitor/state.py:184
 #, python-brace-format
 msgid "Disk: {usage}"
 msgstr "Disk: {usage}"
 
-#: docking/applets/temperature.py:31
+#: docking/applets/systemtray/applet.py:52
+msgid "System Tray"
+msgstr "የስርዓት ትሪ"
+
+#: docking/applets/systemtray/applet.py:81
+#, python-brace-format
+msgid "System Tray: {n} legacy item(s)"
+msgstr "የስርዓት ትሪው፡{n}የቆየ ንጥል(ዎች)"
+
+#: docking/applets/systemtray/applet.py:127
+msgid "Activate"
+msgstr "አግብር"
+
+#: docking/applets/systemtray/applet.py:132
+msgid "Context Menu"
+msgstr "የአውድ ምናሌ"
+
+#: docking/applets/systemtray/applet.py:190
+msgid "D-Bus unavailable"
+msgstr "D-Bus የለም።"
+
+#: docking/applets/systemtray/applet.py:199
+#, python-brace-format
+msgid "Legacy X11 tray is active with {n} item(s)."
+msgstr "Legacy X11 ትሪ ከ{n} ንጥል(ዎች) ጋር ገቢር ነው።"
+
+#: docking/applets/systemtray/applet.py:203
+msgid "Legacy X11 tray is active and waiting for tray apps."
+msgstr "Legacy X11 ትሪ ገባሪ ነው እና ትሪ መተግበሪያዎችን በመጠባበቅ ላይ ነው።"
+
+#: docking/applets/systemtray/applet.py:211
+#, python-brace-format
+msgid ""
+"No StatusNotifier apps are registered. Legacy tray icons are currently owned "
+"by {owner}. Use Take Over Legacy Tray from the applet menu if you want "
+"Docking to host them."
+msgstr ""
+"ምንም የ StatusNotifier መተግበሪያዎች አልተመዘገቡም። የቆዩ ትሪ አዶዎች በአሁኑ ጊዜ በ{owner} የተያዙ "
+"ናቸው። መትከያ እንዲያስተናግዳቸው ከፈለጉ ከአፕሌት ሜኑ የወሰደው በላይ የቆየ ትሪን ይጠቀሙ።"
+
+#: docking/applets/systemtray/applet.py:217
+msgid ""
+"No tray applications are registered. Use Start Legacy Tray from the applet "
+"menu for older X11 tray apps."
+msgstr ""
+"ምንም የትሪ ማመልከቻዎች አልተመዘገቡም። የቆዩ የX11 ትሪ መተግበሪያዎችን ከአፕል ሜኑ ጀምር Legacy Trayን "
+"ይጠቀሙ።"
+
+#: docking/applets/systemtray/applet.py:261
+msgid "Menu"
+msgstr "ምናሌ"
+
+#: docking/applets/systemtray/applet.py:308
+msgid "Release Legacy Tray"
+msgstr "የቆየ ትሬይ ልቀቅ"
+
+#: docking/applets/systemtray/applet.py:312
+#, python-brace-format
+msgid "Legacy X11 tray active: {n} item(s)"
+msgstr "Legacy X11 ትሪ ገባሪ፡ {n} ንጥል(ዎች)"
+
+#: docking/applets/systemtray/applet.py:321
+msgid "Take Over Legacy Tray"
+msgstr "የቅርስ ትሪን ይውሰዱ"
+
+#: docking/applets/systemtray/applet.py:325
+#, python-brace-format
+msgid "Legacy X11 tray owned by {owner}"
+msgstr "Legacy X11 ትሪ በ{owner} ባለቤትነት የተያዘ"
+
+#: docking/applets/systemtray/applet.py:333
+msgid "Start Legacy Tray"
+msgstr "Legacy Tray ጀምር"
+
+#: docking/applets/systemtray/applet.py:349
+msgid "Unknown X11 tray error"
+msgstr "ያልታወቀ የX11 ትሪ ስህተት"
+
+#: docking/applets/systemtray/applet.py:355
+msgid "Could not start the legacy tray"
+msgstr "የቅርስ ትሪው መጀመር አልተቻለም"
+
+#: docking/applets/systemtray/applet.py:362
+msgid "another tray"
+msgstr "ሌላ ትሪ"
+
+#: docking/applets/systemtray/applet.py:368
+msgid "Take over the legacy tray?"
+msgstr "የቅርስ ትሪውን ተረክቡ?"
+
+#: docking/applets/systemtray/applet.py:370
+msgid "Take Over"
+msgstr "ተረክቡ"
+
+#: docking/applets/systemtray/applet.py:373
+#, python-brace-format
+msgid ""
+"Docking will replace {owner} as the X11 system tray host. Existing legacy "
+"tray apps may need to be restarted before they dock into Docking."
+msgstr ""
+"መትከያ {owner}ን እንደ X11 ሲስተም ትሪ አስተናጋጅ ይተካዋል። ነባር የቆዩ ትሪ መተግበሪያዎች ወደ Docking "
+"ከመደረጋቸው በፊት እንደገና መጀመር ሊኖርባቸው ይችላል።"
+
+#: docking/applets/systemtray/applet.py:436
+msgid "Menu Item"
+msgstr "የምናሌ ንጥል ነገር"
+
+#: docking/applets/systemtray/applet.py:481
+msgid "System Tray unavailable"
+msgstr "የስርዓት ትሪ አይገኝም"
+
+#: docking/applets/systemtray/applet.py:483
+#, python-brace-format
+msgid "System Tray host: {n} item(s)"
+msgstr "የስርዓት ትሪ አስተናጋጅ፡ {n} ንጥል(ዎች)"
+
+#: docking/applets/systemtray/applet.py:484
+#: docking/applets/systemtray/state.py:158
+#, python-brace-format
+msgid "System Tray: {n} item(s)"
+msgstr "የስርዓት ትሪ፡ {n} ንጥል(ዎች)"
+
+#: docking/applets/systemtray/state.py:148
+#, python-brace-format
+msgid "System Tray: {error}"
+msgstr "የስርዓት ትሪ፡ {error}"
+
+#: docking/applets/systemtray/state.py:149
+msgid "System Tray: D-Bus unavailable"
+msgstr "የስርዓት ትሪ፡ ዲ-አውቶብስ የለም።"
+
+#: docking/applets/systemtray/state.py:152
+#, python-brace-format
+msgid "System Tray: legacy tray owned by {owner}"
+msgstr "የስርዓት ትሪ፡ በ{owner} ባለቤትነት የተያዘ የቆየ ትሪ"
+
+#: docking/applets/systemtray/state.py:156
+msgid "System Tray: waiting for tray apps"
+msgstr "የስርዓት መሣቢያ፡ የመሣቢያ መተግበሪያዎችን በመጠበቅ ላይ"
+
+#: docking/applets/systemtray/state.py:157
+msgid "System Tray: no tray apps"
+msgstr "የስርዓት ትሪ፡ ምንም መተግበሪያዎች የሉም"
+
+#: docking/applets/systemtray/state.py:162
+msgid "and {n} more"
+msgstr "እና {n} ተጨማሪ"
+
+#: docking/applets/systemtray/state.py:243
+msgid "session bus unavailable"
+msgstr "ክፍለ አውቶቡስ አይገኝም"
+
+#: docking/applets/temperature.py:44
 msgid "Fahrenheit"
 msgstr "Fahrenheit"
 
-#: docking/applets/temperature.py:32
+#: docking/applets/temperature.py:45
 msgid "Celsius"
 msgstr "Celsius"
 
-#: docking/applets/thermals/applet.py:53 docking/applets/thermals/state.py:407
-#: docking/applets/thermals/state.py:420 docking/applets/thermals/state.py:432
-#: docking/applets/thermals/state.py:466
+#: docking/applets/thermals/applet.py:66 docking/applets/thermals/state.py:421
+#: docking/applets/thermals/state.py:434 docking/applets/thermals/state.py:446
+#: docking/applets/thermals/state.py:480
 msgid "Thermals"
 msgstr "ሙቀቶች"
 
-#: docking/applets/thermals/applet.py:96 docking/applets/thermals/state.py:114
-#: docking/applets/thermals/state.py:427
+#: docking/applets/thermals/applet.py:109 docking/applets/thermals/state.py:128
+#: docking/applets/thermals/state.py:441
 msgid "lm-sensors not installed"
 msgstr "lm-sensors አልተጫነም"
 
-#: docking/applets/thermals/applet.py:105 docking/applets/thermals/state.py:446
+#: docking/applets/thermals/applet.py:118 docking/applets/thermals/state.py:460
 #, python-brace-format
 msgid "Hot: {label} {temp}"
 msgstr "ሙቅ: {label} {temp}"
 
-#: docking/applets/thermals/applet.py:119 docking/applets/thermals/state.py:458
+#: docking/applets/thermals/applet.py:132 docking/applets/thermals/state.py:472
 #, python-brace-format
 msgid "Fan: {label} {rpm}"
 msgstr "ማራገቢያ: {label} {rpm}"
 
-#: docking/applets/thermals/applet.py:139 docking/applets/thermals/state.py:413
-#: docking/applets/thermals/state.py:425 docking/applets/thermals/state.py:437
-#: docking/applets/thermals/state.py:473
+#: docking/applets/thermals/applet.py:152 docking/applets/thermals/state.py:427
+#: docking/applets/thermals/state.py:439 docking/applets/thermals/state.py:451
+#: docking/applets/thermals/state.py:487
 msgid "Samples"
 msgstr "ናሙናዎች"
 
-#: docking/applets/thermals/applet.py:257
+#: docking/applets/thermals/applet.py:270
 msgid "Thermal readings unavailable"
 msgstr "የሙቀት ንባብ የለም"
 
-#: docking/applets/thermals/state.py:135
+#: docking/applets/thermals/state.py:149
 msgid "sensors failed"
 msgstr "ሴንሰሮች አልተሳኩም"
 
-#: docking/applets/thermals/state.py:142
+#: docking/applets/thermals/state.py:156
 msgid "No thermal readings"
 msgstr "የሙቀት ንባብ የለም"
 
-#: docking/applets/thermals/state.py:454
+#: docking/applets/thermals/state.py:468
 msgid "Hot: unavailable"
 msgstr "ሙቅ: የለም"
 
-#: docking/applets/thermals/state.py:464
+#: docking/applets/thermals/state.py:478
 msgid "Fan: unavailable"
 msgstr "ማራገቢያ: የለም"
 
-#: docking/applets/todayinhistory/applet.py:47
-#: docking/applets/todayinhistory/applet.py:117
-#: docking/applets/todayinhistory/applet.py:129
+#: docking/applets/todayinhistory/applet.py:60
+#: docking/applets/todayinhistory/applet.py:130
+#: docking/applets/todayinhistory/applet.py:142
 msgid "Today in History"
 msgstr "ዛሬ በታሪክ"
 
-#: docking/applets/todayinhistory/applet.py:92
+#: docking/applets/todayinhistory/applet.py:105
 msgid "Open Article"
 msgstr "ጽሑፍ ክፈት"
 
-#: docking/applets/todayinhistory/applet.py:96
-msgid "Next Event"
-msgstr "ቀጣይ ክስተት"
-
-#: docking/applets/todayinhistory/applet.py:112
+#: docking/applets/todayinhistory/applet.py:125
 msgid "Today in History: loading..."
 msgstr "ዛሬ በታሪክ: በመጫን ላይ..."
 
-#: docking/applets/todayinhistory/state.py:26
+#: docking/applets/todayinhistory/state.py:39
 msgid "Offline fallback"
 msgstr "ከመስመር ውጪ መተኪያ"
 
-#: docking/applets/todayinhistory/state.py:46
+#: docking/applets/todayinhistory/state.py:54
 #, python-brace-format
 msgid "{year} - {title}"
 msgstr "{year} - {title}"
 
-#: docking/applets/trash/applet.py:36
+#: docking/applets/trash/applet.py:50
 msgid "Trash"
 msgstr "ቆሻሻ"
 
-#: docking/applets/trash/applet.py:65
+#: docking/applets/trash/applet.py:130
 msgid "Open Trash"
 msgstr "ቆሻሻ ክፈት"
 
-#: docking/applets/trash/applet.py:68 docking/applets/trash/applet.py:115
+#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:264
 msgid "Empty Trash"
 msgstr "ቆሻሻ ባዶ አድርግ"
 
-#: docking/applets/trash/applet.py:109
+#: docking/applets/trash/applet.py:233
+msgid ""
+"Could not empty Trash. Some items may require administrator permissions."
+msgstr "መጣያውን ባዶ ማድረግ አልተቻለም። አንዳንድ ንጥሎች የአስተዳዳሪ ፈቃዶችን ሊፈልጉ ይችላሉ።"
+
+#: docking/applets/trash/applet.py:236
+msgid "Could not empty Trash."
+msgstr "መጣያውን ባዶ ማድረግ አልተቻለም።"
+
+#: docking/applets/trash/applet.py:258
 msgid "Empty all items from Trash?"
 msgstr "ሁሉንም ከመጣያ ባዶ ያድርጉ?"
 
-#: docking/applets/trash/applet.py:112
+#: docking/applets/trash/applet.py:261
 msgid "All items in the Trash will be permanently deleted."
 msgstr "በመጣያ ያሉ ሁሉም እቃዎች በቋሚነት ይሰረዛሉ።"
 
-#: docking/applets/trash/render.py:18
+#: docking/applets/trash/render.py:32
 msgid "No items in Trash"
 msgstr "በቆሻሻ ውስጥ ምንም ነገር የለም"
 
-#: docking/applets/trash/render.py:20 docking/applets/trash/render.py:21
+#: docking/applets/trash/render.py:34 docking/applets/trash/render.py:35
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
 msgstr[0] "በቆሻሻ ውስጥ {n} ንጥል"
 msgstr[1] "በቆሻሻ ውስጥ {n} ንጥሎች"
 
-#: docking/applets/trivia/applet.py:42 docking/applets/trivia/applet.py:186
+#: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
 msgstr "የዘፈቀደ ጥያቄ"
 
-#: docking/applets/trivia/applet.py:77 docking/applets/trivia/state.py:102
+#: docking/applets/trivia/applet.py:90 docking/applets/trivia/state.py:109
 #, python-brace-format
 msgid "{category} / {difficulty}"
 msgstr "{category} / {difficulty}"
 
-#: docking/applets/trivia/applet.py:96 docking/applets/trivia/state.py:113
+#: docking/applets/trivia/applet.py:109 docking/applets/trivia/state.py:120
 #, python-brace-format
 msgid "Correct answer: {answer}"
 msgstr "ትክክለኛ መልስ: {answer}"
 
-#: docking/applets/trivia/applet.py:105 docking/applets/trivia/state.py:112
+#: docking/applets/trivia/applet.py:118 docking/applets/trivia/state.py:119
 #, python-brace-format
 msgid "Your answer: {answer}"
 msgstr "የእርስዎ መልስ: {answer}"
 
-#: docking/applets/trivia/applet.py:112
+#: docking/applets/trivia/applet.py:125
 msgid "Next Trivia"
 msgstr "ቀጣይ ጥያቄ"
 
-#: docking/applets/trivia/applet.py:181
+#: docking/applets/trivia/applet.py:194
 msgid "Trivia: loading..."
 msgstr "ጥያቄ: በመጫን ላይ..."
 
-#: docking/applets/trivia/state.py:88
+#: docking/applets/trivia/state.py:95
 msgid "Easy"
 msgstr "ቀላል"
 
-#: docking/applets/trivia/state.py:89
+#: docking/applets/trivia/state.py:96
 msgid "Medium"
 msgstr "መካከለኛ"
 
-#: docking/applets/trivia/state.py:90
+#: docking/applets/trivia/state.py:97
 msgid "Hard"
 msgstr "ከባድ"
 
-#: docking/applets/trivia/state.py:110
+#: docking/applets/trivia/state.py:117
 #, python-brace-format
 msgid "Correct: {answer}"
 msgstr "ትክክል: {answer}"
 
-#: docking/applets/unitconverter/applet.py:102
-#: docking/applets/unitconverter/applet.py:129
-#: docking/applets/unitconverter/applet.py:161
+#: docking/applets/unitconverter/applet.py:116
+#: docking/applets/unitconverter/applet.py:143
+#: docking/applets/unitconverter/applet.py:175
 msgid "Unit Converter"
 msgstr "የክፍል ቀያሪ"
 
-#: docking/applets/unitconverter/applet.py:210
+#: docking/applets/unitconverter/applet.py:224
 msgid "Swap units"
 msgstr "ክፍሎችን ቀያይር"
 
-#: docking/applets/unitconverter/applet.py:227
+#: docking/applets/unitconverter/applet.py:241
 msgid "Value"
 msgstr "ዋጋ"
 
-#: docking/applets/urlshortener/applet.py:59
-#: docking/applets/urlshortener/applet.py:80
-#: docking/applets/urlshortener/applet.py:98
+#: docking/applets/urlshortener/applet.py:72
+#: docking/applets/urlshortener/applet.py:93
+#: docking/applets/urlshortener/applet.py:111
 msgid "URL Shortener"
 msgstr "URL አሳጣሪ"
 
-#: docking/applets/urlshortener/applet.py:117
+#: docking/applets/urlshortener/applet.py:130
 msgid "Shorten"
 msgstr "አሳጥር"
 
-#: docking/applets/urlshortener/applet.py:143
+#: docking/applets/urlshortener/applet.py:156
 msgid "Shortening..."
 msgstr "በማሳጠር ላይ..."
 
-#: docking/applets/urlshortener/applet.py:177
-#: docking/applets/urlshortener/applet.py:196
+#: docking/applets/urlshortener/applet.py:190
+#: docking/applets/urlshortener/applet.py:209
 msgid "Copy"
 msgstr "ቅዳ"
 
-#: docking/applets/urlshortener/applet.py:191
+#: docking/applets/urlshortener/applet.py:204
 msgid "Copied!"
 msgstr "ተቀድቷል!"
 
-#: docking/applets/usbwatch/applet.py:37 docking/applets/usbwatch/state.py:80
-#: docking/applets/usbwatch/state.py:87
+#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:93
+#: docking/applets/usbwatch/state.py:100
 msgid "USB Watch"
 msgstr "USB Watch"
 
-#: docking/applets/usbwatch/applet.py:61 docking/applets/usbwatch/state.py:81
+#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:94
 msgid "No mounted USB devices"
 msgstr "የተጫነ USB መሣሪያ የለም"
 
-#: docking/applets/usbwatch/applet.py:70
+#: docking/applets/usbwatch/applet.py:84
 #, python-brace-format
 msgid "Safely Remove {name}"
 msgstr "{name} በደህና አስወግድ"
 
-#: docking/applets/usbwatch/state.py:88
+#: docking/applets/usbwatch/state.py:101
 #, python-brace-format
 msgid "{count} mounted device(s)"
 msgstr "{count} የተጫኑ መሣሪያዎች"
 
-#: docking/applets/usbwatch/state.py:95
+#: docking/applets/usbwatch/state.py:108
 msgid "Removable Drive"
 msgstr "ሊወገድ የሚችል ድራይቭ"
 
-#: docking/applets/volume/applet.py:42
+#: docking/applets/volume/applet.py:55
 msgid "Volume"
 msgstr "ድምጽ"
 
-#: docking/applets/volume/applet.py:66
+#: docking/applets/volume/applet.py:79
 msgid "Muted"
 msgstr "ድምጽ ተዘግቷል"
 
-#: docking/applets/volume/applet.py:66
+#: docking/applets/volume/applet.py:79
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "ድምጽ: {pct}%"
 
-#: docking/applets/volume/applet.py:120
+#: docking/applets/volume/applet.py:133
 msgid "Volume Settings"
 msgstr "Volume Settings"
 
-#: docking/applets/weather/applet.py:70 docking/applets/weather/state.py:163
+#: docking/applets/weather/applet.py:83 docking/applets/weather/state.py:177
 msgid "Weather"
 msgstr "የአየር ሁኔታ"
 
-#: docking/applets/weather/applet.py:179
+#: docking/applets/weather/applet.py:194
 msgid "Show Temperature"
 msgstr "ሙቀት አሳይ"
 
-#: docking/applets/weather/applet.py:203
-#, python-brace-format
-msgid "Remove {city}"
-msgstr "{city}ን አስወግድ"
-
-#: docking/applets/weather/applet.py:255
-msgid "Search for the city"
-msgstr "ከተማ ፈልግ"
-
-#: docking/applets/weather/applet.py:268
-msgid "Type city name..."
-msgstr "የከተማ ስም ይተይቡ..."
-
-#: docking/applets/weather/applet.py:425
+#: docking/applets/weather/applet.py:452
 msgid "No weather data"
 msgstr "የአየር ሁኔታ ውሂብ የለም"
 
-#: docking/applets/weather/applet.py:481 docking/applets/weather/state.py:198
+#: docking/applets/weather/applet.py:515 docking/applets/weather/state.py:216
 #, python-brace-format
 msgid "{temp}, {desc}"
 msgstr "{temp}, {desc}"
 
-#: docking/applets/weather/applet.py:494 docking/applets/weather/state.py:188
+#: docking/applets/weather/applet.py:528 docking/applets/weather/state.py:202
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "አየር: {label}"
 
-#: docking/applets/weather/applet.py:506
+#: docking/applets/weather/applet.py:534 docking/applets/weather/state.py:205
+msgid "UV Index: {value}"
+msgstr "UV መረጃ ጠቋሚ፡ {value}"
+
+#: docking/applets/weather/applet.py:548
 #, python-brace-format
 msgid "{date}: {temp_range}"
 msgstr "{date}: {temp_range}"
 
-#: docking/applets/weather/state.py:139
+#: docking/applets/weather/state.py:153
 #, python-brace-format
 msgid "{city}: {temp}"
 msgstr "{city}: {temp}"
 
-#: docking/applets/weather/state.py:164
-msgid "No city selected"
-msgstr "ከተማ አልተመረጠም"
-
-#: docking/applets/windowkiller/applet.py:64
+#: docking/applets/windowkiller/applet.py:78
 msgid "Window Killer"
 msgstr "መስኮት ገዳይ"
 
-#: docking/applets/windowkiller/applet.py:76
+#: docking/applets/windowkiller/applet.py:94
 msgid "Click, then select a window to kill"
 msgstr "ጠቅ ያድርጉ፣ ከዚያ የሚዘጉትን መስኮት ይምረጡ"
 
-#: docking/applets/workspaces/applet.py:41
+#: docking/applets/workspaces/applet.py:54
 msgid "Workspaces"
 msgstr "የሥራ ቦታዎች"
 
-#: docking/ui/about.py:55
+#: docking/core/tips.py:57
+msgid "Open the dock menu from anywhere"
+msgstr "የመትከያ ምናሌውን ከየትኛውም ቦታ ይክፈቱ"
+
+#: docking/core/tips.py:59
+msgid ""
+"Hold Ctrl and right-click anywhere on the shelf to open the dock menu. This "
+"is the quickest path to Preferences, Applets, Diagnostics, and Quit when "
+"there is no empty space near the icons."
+msgstr ""
+"የመትከያ ምናሌውን ለመክፈት Ctrl ን ይያዙ እና በመደርደሪያው ላይ በማንኛውም ቦታ ላይ በቀኝ ጠቅ ያድርጉ። ይህ ወደ "
+"ምርጫዎች፣ አፕልቶች፣ ዲያግኖስቲክስ እና ከአዶዎቹ አጠገብ ባዶ ቦታ ከሌለ ወደ ማቋረጥ ፈጣኑ መንገድ ነው።"
+
+#: docking/core/tips.py:67
+msgid "Start with Preferences"
+msgstr "በምርጫዎች ይጀምሩ"
+
+#: docking/core/tips.py:69
+msgid ""
+"Use Preferences to adjust position, monitor behavior, icon size, zoom, "
+"hiding, themes, previews, tooltips, and click actions. It is the best first "
+"stop when the dock does not feel quite right."
+msgstr ""
+"አቀማመጥን ለማስተካከል፣ ባህሪን ለመከታተል፣ የአዶ መጠንን፣ ለማጉላት፣ ለመደበቅ፣ ገጽታዎች፣ ቅድመ እይታዎች፣ የመሳሪያ "
+"ምክሮች እና ድርጊቶችን ጠቅ ለማድረግ ምርጫዎችን ይጠቀሙ። የመትከያው ትክክለኛ ስሜት በማይሰማበት ጊዜ በጣም ጥሩው "
+"የመጀመሪያ ማቆሚያ ነው።"
+
+#: docking/core/tips.py:76
+msgid "Add applets from the dock menu"
+msgstr "ከመትከያ ምናሌው ውስጥ አፕልቶችን ያክሉ"
+
+#: docking/core/tips.py:78
+msgid ""
+"Right-click the shelf background and choose Add Applet to add launchers, "
+"system status, media controls, productivity helpers, and small utility tools "
+"directly to the dock."
+msgstr ""
+"የመደርደሪያውን ዳራ በቀኝ ጠቅ ያድርጉ እና አስጀማሪዎችን ፣ የስርዓት ሁኔታን ፣ የሚዲያ መቆጣጠሪያዎችን ፣ ምርታማነትን "
+"ረዳቶችን እና ትናንሽ መገልገያ መሳሪያዎችን በቀጥታ ወደ መትከያው ለመጨመር አፕልትን ጨምር የሚለውን ይምረጡ።"
+
+#: docking/core/tips.py:85
+msgid "Use separators for organization"
+msgstr "ለድርጅት መለያያዎችን ይጠቀሙ"
+
+#: docking/core/tips.py:87
+msgid ""
+"Right-click where a divider should go and choose Add Separator. Separators "
+"make it easier to keep pinned apps, folders, and applets in clear groups."
+msgstr ""
+"አከፋፋይ መሄድ ያለበትን በቀኝ ጠቅ ያድርጉ እና መለያ አክል የሚለውን ይምረጡ። መለያዎች የተሰኩ መተግበሪያዎችን፣ "
+"አቃፊዎችን እና አፕሌቶችን በግልፅ ቡድኖች ውስጥ ማቆየት ቀላል ያደርጉታል።"
+
+#: docking/core/tips.py:94
+msgid "Pin running apps"
+msgstr "አሂድ መተግበሪያዎችን ሰካ"
+
+#: docking/core/tips.py:96
+msgid ""
+"Right-click a running app and choose Keep in Dock. The launcher will stay "
+"available after the app closes, so you can start it again with one click."
+msgstr ""
+"አሂድ መተግበሪያን በቀኝ ጠቅ ያድርጉ እና Keep in Dock ን ይምረጡ። አፕሊኬሽኑ ከተዘጋ በኋላ አስጀማሪው እንዳለ "
+"ይቆያል፣ ስለዚህ በአንድ ጠቅታ እንደገና መጀመር ይችላሉ።"
+
+#: docking/core/tips.py:103
+msgid "Remove pinned items quickly"
+msgstr "የተጣበቁ ነገሮችን በፍጥነት ያስወግዱ"
+
+#: docking/core/tips.py:105
+msgid ""
+"Right-click a pinned item and choose Remove from Dock, or drag unlocked "
+"items off the dock. Removing a launcher does not uninstall the application "
+"or delete your files."
+msgstr ""
+"በተሰካው ንጥል ላይ በቀኝ ጠቅ ያድርጉ እና ከ Dock አስወግድ የሚለውን ይምረጡ ወይም ያልተቆለፉትን ነገሮች ከመትከያው "
+"ላይ ይጎትቱ። አስጀማሪን ማስወገድ አፕሊኬሽኑን አያራግፈውም ወይም ፋይሎችዎን አይሰርዝም።"
+
+#: docking/core/tips.py:112
+msgid "Drop items onto the dock"
+msgstr "እቃዎችን ወደ መትከያው ጣል ያድርጉ"
+
+#: docking/core/tips.py:114
+msgid ""
+"Drag applications, .desktop files, files, folders, and AppImages onto "
+"Docking to pin them. Dropped folders become folder stacks, and dropped "
+"AppImages can get their own launcher."
+msgstr ""
+"አፕሊኬሽኖችን፣ .ዴስክቶፕ ፋይሎችን፣ ፋይሎችን፣ ማህደሮችን እና AppImagesን ለመሰካት ወደ Docking ጎትት። "
+"የተጣሉ አቃፊዎች የአቃፊ ቁልል ይሆናሉ፣ እና የተጣሉ AppImages የራሳቸውን አስጀማሪ ማግኘት ይችላሉ።"
+
+#: docking/core/tips.py:121
+msgid "Open files with dock apps"
+msgstr "ፋይሎችን በዶክ መተግበሪያዎች ይክፈቱ"
+
+#: docking/core/tips.py:123
+msgid ""
+"Drag a file onto an application icon to open it with that app. This is "
+"useful when the file manager would otherwise choose the wrong default "
+"application."
+msgstr ""
+"አንድ ፋይል በዚያ መተግበሪያ ለመክፈት ወደ መተግበሪያ አዶ ይጎትቱት። ይህ ጠቃሚ የሚሆነው የፋይል አቀናባሪው የተሳሳተ "
+"ነባሪ መተግበሪያ ሲመርጥ ነው።"
+
+#: docking/core/tips.py:130
+msgid "Use folder stacks"
+msgstr "የአቃፊ ቁልል ተጠቀም"
+
+#: docking/core/tips.py:132
+msgid ""
+"Pin a folder and click it from the dock to browse its contents without "
+"opening a file manager first. It works well for common places like "
+"Downloads, Projects, and screenshots."
+msgstr ""
+"መጀመሪያ የፋይል አስተዳዳሪን ሳይከፍቱ ይዘቱን ለማሰስ ማህደርን ይሰኩት እና ከትከያው ላይ ጠቅ ያድርጉት። እንደ "
+"ውርዶች፣ ፕሮጀክቶች እና ቅጽበታዊ ገጽ እይታዎች ላሉ የጋራ ቦታዎች በደንብ ይሰራል።"
+
+#: docking/core/tips.py:139
+msgid "Tune folder stack behavior"
+msgstr "የአቃፊ ቁልል ባህሪን ያስተካክሉ"
+
+#: docking/core/tips.py:141
+msgid ""
+"Right-click a pinned folder to sort contents, show hidden files, or "
+"customize its icon. These options let each stack behave like the folder it "
+"represents."
+msgstr ""
+"ይዘቶችን ለመደርደር፣ የተደበቁ ፋይሎችን ለማሳየት ወይም አዶውን ለማበጀት የተሰካውን አቃፊ በቀኝ ጠቅ ያድርጉ። እነዚህ "
+"አማራጮች እያንዳንዱ ቁልል የሚወክለው አቃፊ እንዲመስል ያስችለዋል።"
+
+#: docking/core/tips.py:148
+msgid "Customize pinned icons"
+msgstr "የተሰኩ አዶዎችን አብጅ"
+
+#: docking/core/tips.py:150
+msgid ""
+"Right-click a pinned app, file, or folder and use Icon -> Choose From File. "
+"Custom icons are stored in Docking's config, so the original desktop file or "
+"file on disk is left untouched."
+msgstr ""
+"በተሰካ መተግበሪያ ፣ ፋይል ወይም አቃፊ በቀኝ ጠቅ ያድርጉ እና አዶን ይጠቀሙ -> ከፋይል ይምረጡ። ብጁ አዶዎች በ "
+"Docking's config ውስጥ ይቀመጣሉ፣ ስለዚህ ዋናው የዴስክቶፕ ፋይል ወይም በዲስክ ላይ ያለው ፋይል ሳይነካ "
+"ይቀራል።"
+
+#: docking/core/tips.py:157
+msgid "Use the Applications applet search"
+msgstr "የመተግበሪያዎች አፕል ፍለጋን ይጠቀሙ"
+
+#: docking/core/tips.py:159
+msgid ""
+"Add the Applications applet, open it, and type to filter installed apps. It "
+"gives you a compact launcher menu without leaving the dock."
+msgstr ""
+"የአፕሊኬሽኖችን አፕሌት ያክሉ፣ ይክፈቱት፣ እና የተጫኑ መተግበሪያዎችን ለማጣራት ይተይቡ። ከመርከቧ ሳይወጡ የታመቀ "
+"የማስጀመሪያ ምናሌ ይሰጥዎታል።"
+
+#: docking/core/tips.py:166
+msgid "Use Run Application like Alt+F2"
+msgstr "እንደ Alt+F2 ያለ አሂድ መተግበሪያን ይጠቀሙ"
+
+#: docking/core/tips.py:168
+msgid ""
+"Add Run Application to launch commands, apps, and terminal commands from the "
+"dock. As you type, matching applications are shown so you can launch by name "
+"or run a standalone command."
+msgstr ""
+"ትእዛዞችን፣ መተግበሪያዎችን እና ተርሚናል ትዕዛዞችን ከመትከያው ለማስጀመር አሂድ መተግበሪያን ያክሉ። በሚተይቡበት ጊዜ "
+"ተዛማጅ አፕሊኬሽኖች ይታያሉ ስለዚህ በስም ማስጀመር ወይም ራሱን የቻለ ትእዛዝ ማስኬድ ይችላሉ።"
+
+#: docking/core/tips.py:175
+msgid "Use window previews"
+msgstr "የመስኮት ቅድመ እይታዎችን ተጠቀም"
+
+#: docking/core/tips.py:177
+msgid ""
+"Hover running apps to inspect open windows before switching. Previews help "
+"when one application has several windows open."
+msgstr ""
+"ከመቀየርዎ በፊት ክፍት መስኮቶችን ለመመርመር አሂድ መተግበሪያዎችን አንዣብቡ። አንድ መተግበሪያ ብዙ መስኮቶች ሲከፈቱ "
+"ቅድመ-እይታ ይረዳል።"
+
+#: docking/core/tips.py:183
+msgid "Choose your click behavior"
+msgstr "የጠቅታ ባህሪዎን ይምረጡ"
+
+#: docking/core/tips.py:185
+msgid ""
+"Preferences -> Behavior lets left click toggle, cycle, or focus the most "
+"recent window. Pick the behavior that matches how you switch between running "
+"applications."
+msgstr ""
+"ምርጫዎች -> ባህሪ በግራ ጠቅታ እንዲቀያየር፣ሳይክል ወይም የቅርብ ጊዜውን መስኮት እንዲያተኩር ያስችለዋል። በማሄድ "
+"መተግበሪያዎች መካከል እንዴት እንደሚቀያየሩ የሚዛመደውን ባህሪ ይምረጡ።"
+
+#: docking/core/tips.py:192
+msgid "Ctrl-click opens a new window"
+msgstr "Ctrl-click አዲስ መስኮት ይከፍታል"
+
+#: docking/core/tips.py:194
+msgid ""
+"Hold Ctrl while clicking an app icon to launch another window. This works "
+"even when the app is already running and a normal click would focus it."
+msgstr ""
+"ሌላ መስኮት ለመክፈት የመተግበሪያ አዶን ጠቅ በማድረግ Ctrl ን ይያዙ። ይሄ የሚሰራው መተግበሪያው አስቀድሞ እየሰራ "
+"ሲሆን እና የተለመደው ጠቅታ ያተኩረው ነበር።"
+
+#: docking/core/tips.py:201
+msgid "Use app right-click menus"
+msgstr "የመተግበሪያ ቀኝ-ጠቅታ ምናሌዎችን ይጠቀሙ"
+
+#: docking/core/tips.py:203
+msgid ""
+"Right-click apps for desktop actions, open windows, recent documents, "
+"pinning, and close actions. Many apps expose useful shortcuts there, such as "
+"opening a private window or composing a new message."
+msgstr ""
+"መተግበሪያዎችን ለዴስክቶፕ ድርጊቶች፣ ክፍት መስኮቶችን፣ የቅርብ ጊዜ ሰነዶችን፣ መሰካትን እና እርምጃዎችን ለመዝጋት "
+"በቀኝ ጠቅ ያድርጉ። ብዙ መተግበሪያዎች እንደ የግል መስኮት መክፈት ወይም አዲስ መልእክት መፃፍ ያሉ ጠቃሚ አቋራጮችን "
+"ያጋልጣሉ።"
+
+#: docking/core/tips.py:211
+msgid "Use Recent Files"
+msgstr "የቅርብ ጊዜ ፋይሎችን ተጠቀም"
+
+#: docking/core/tips.py:213
+msgid ""
+"Add the Recent Files applet to jump back into documents you used recently. "
+"It is a faster path when you remember the file, not the folder."
+msgstr ""
+"በቅርቡ ወደ ተጠቀሙባቸው ሰነዶች ለመመለስ የቅርብ ጊዜ ፋይሎችን አፕል ያክሉ። ፋይሉን በሚያስታውሱበት ጊዜ ፈጣን መንገድ "
+"ነው, ማህደሩን አይደለም."
+
+#: docking/core/tips.py:220
+msgid "Use System Tray when needed"
+msgstr "ሲያስፈልግ የስርዓት ትሪን ተጠቀም"
+
+#: docking/core/tips.py:222
+msgid ""
+"Add System Tray for tray/status apps and use its menu to manage tray "
+"ownership when supported. This helps with legacy apps that still rely on a "
+"classic notification area."
+msgstr ""
+"ለትሪ/ሁኔታ መተግበሪያዎች የስርዓት ትሪ አክል እና በሚደገፍበት ጊዜ የባለቤትነት መብትን ለመቆጣጠር ምናሌውን ተጠቀም። "
+"ይህ አሁንም በሚታወቀው የማሳወቂያ ቦታ ላይ ለሚተማመኑ የቆዩ መተግበሪያዎች ያግዛል።"
+
+#: docking/core/tips.py:229
+msgid "Use Diagnostics for support"
+msgstr "ለድጋፍ ዲያግኖስቲክስን ይጠቀሙ"
+
+#: docking/core/tips.py:231
+msgid ""
+"Open Diagnostics before filing an issue to copy backend, session, and "
+"feature details. Including that report makes it much easier to understand "
+"compositor, monitor, and environment-specific problems."
+msgstr ""
+"የድጋፍ፣ የክፍለ-ጊዜ እና የባህሪ ዝርዝሮችን ለመቅዳት ችግር ከማቅረቡ በፊት ዲያግኖስቲክስን ይክፈቱ። ያንን ሪፖርት "
+"ማካተት አቀናባሪን፣ ክትትልን እና አካባቢን-ተኮር ችግሮችን ለመረዳት ቀላል ያደርገዋል።"
+
+#: docking/ui/about.py:68
 msgid "Website"
 msgstr "ድረ-ገጽ"
 
-#: docking/ui/dock_window.py:379
+#: docking/ui/diagnostics.py:71 docking/ui/menu.py:693
+msgid "Diagnostics"
+msgstr "ምርመራዎች"
+
+#: docking/ui/diagnostics.py:93
+msgid "Overview"
+msgstr "አጠቃላይ እይታ"
+
+#: docking/ui/diagnostics.py:97
+msgid "Features"
+msgstr "ባህሪያት"
+
+#: docking/ui/diagnostics.py:105 docking/ui/diagnostics.py:223
+msgid "Environment"
+msgstr "አካባቢ"
+
+#: docking/ui/diagnostics.py:109
+msgid "Report"
+msgstr "ሪፖርት አድርግ"
+
+#: docking/ui/diagnostics.py:116
+msgid "Refresh"
+msgstr "አድስ"
+
+#: docking/ui/diagnostics.py:118
+msgid "Copy Report"
+msgstr "ሪፖርት ቅዳ"
+
+#: docking/ui/diagnostics.py:120
+msgid "Save Report..."
+msgstr "ሪፖርት አስቀምጥ..."
+
+#: docking/ui/diagnostics.py:122 docking/ui/menu.py:574
+#: docking/ui/startup_tips.py:216
+msgid "Close"
+msgstr "ዝጋ"
+
+#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/folder/_browser.py:26
-msgid "Name"
-msgstr "ስም"
+#: docking/ui/diagnostics.py:146
+msgid "OS"
+msgstr "ስርዓተ ክወና"
 
-#: docking/ui/folder/_browser.py:27
+#: docking/ui/diagnostics.py:149
+msgid "Selected Backend"
+msgstr "የተመረጠ ጀርባ"
+
+#: docking/ui/diagnostics.py:150
+msgid "Display Server"
+msgstr "የማሳያ አገልጋይ"
+
+#: docking/ui/diagnostics.py:151
+msgid "GTK Backend"
+msgstr "GTK ጀርባ"
+
+#: docking/ui/diagnostics.py:152
+msgid "Forced Backend"
+msgstr "የግዳጅ ጀርባ"
+
+#: docking/ui/diagnostics.py:152
+msgid "None"
+msgstr "ምንም"
+
+#: docking/ui/diagnostics.py:153
+msgid "XWayland"
+msgstr "XWayland"
+
+#: docking/ui/diagnostics.py:154
+msgid "X11 Compositor"
+msgstr "X11 አቀናባሪ"
+
+#: docking/ui/diagnostics.py:161
+msgid "Warnings"
+msgstr "ማስጠንቀቂያዎች"
+
+#: docking/ui/diagnostics.py:165
+msgid "No compatibility warnings detected."
+msgstr "ምንም የተኳኋኝነት ማስጠንቀቂያዎች አልተገኙም።"
+
+#: docking/ui/diagnostics.py:191
+msgid "Runtime"
+msgstr "የሩጫ ጊዜ"
+
+#: docking/ui/diagnostics.py:195
+msgid "Python"
+msgstr "ፒዘን"
+
+#: docking/ui/diagnostics.py:196
+msgid "GTK"
+msgstr "GTK"
+
+#: docking/ui/diagnostics.py:197
+msgid "Backend Class"
+msgstr "የኋላ ክፍል"
+
+#: docking/ui/diagnostics.py:198
+msgid "Wayland Session"
+msgstr "የዌይላንድ ክፍለ ጊዜ"
+
+#: docking/ui/diagnostics.py:199
+msgid "X11 GTK Backend"
+msgstr "X11 GTK ጀርባ"
+
+#: docking/ui/diagnostics.py:205
+msgid "Monitors"
+msgstr "ተቆጣጣሪዎች"
+
+#: docking/ui/diagnostics.py:209
+msgid "primary"
+msgstr "የመጀመሪያ ደረጃ"
+
+#: docking/ui/diagnostics.py:209
+msgid "secondary"
+msgstr "ሁለተኛ ደረጃ"
+
+#: docking/ui/diagnostics.py:219
+msgid "Monitor details unavailable."
+msgstr "የክትትል ዝርዝሮች አይገኙም።"
+
+#: docking/ui/diagnostics.py:338
+msgid "Save Diagnostics Report"
+msgstr "የምርመራ ሪፖርት አስቀምጥ"
+
+#: docking/ui/diagnostics.py:358
+msgid "Failed to save diagnostics report."
+msgstr "የምርመራ ሪፖርት ማስቀመጥ አልተሳካም።"
+
+#: docking/ui/folder/_browser.py:40
 msgid "Kind"
 msgstr "ዓይነት"
 
-#: docking/ui/folder/_browser.py:28
+#: docking/ui/folder/_browser.py:41
 msgid "Size"
 msgstr "መጠን"
 
-#: docking/ui/folder/_browser.py:29
+#: docking/ui/folder/_browser.py:42
 msgid "Created"
 msgstr "የተፈጠረ"
 
-#: docking/ui/folder/_browser.py:30
+#: docking/ui/folder/_browser.py:43
 msgid "Modified"
 msgstr "የተቀየረ"
 
-#: docking/ui/folder/stack.py:660
+#: docking/ui/folder/stack.py:678
 msgid "Folder not found"
 msgstr "አቃፊ አልተገኘም"
 
-#: docking/ui/folder/stack.py:674
+#: docking/ui/folder/stack.py:692
 msgid "Folder is empty"
 msgstr "አቃፊው ባዶ ነው"
 
-#: docking/ui/folder/stack.py:1131
+#: docking/ui/folder/stack.py:1149
 #, python-format
 msgid "Open in %s"
 msgstr "በ%s ክፈት"
 
-#: docking/ui/folder/stack.py:1133
+#: docking/ui/folder/stack.py:1151
 #, python-format
 msgid "%d More in %s"
 msgstr "%d ተጨማሪ በ%s"
 
-#: docking/ui/folder/stack.py:1136
+#: docking/ui/folder/stack.py:1154
 msgid "Open Folder"
 msgstr "አቃፊ ክፈት"
 
-#: docking/ui/folder/stack.py:1138
+#: docking/ui/folder/stack.py:1156
 #, python-format
 msgid "%d More in Folder"
 msgstr "%d ተጨማሪ በአቃፊ"
 
-#: docking/ui/menu.py:377
-msgid "Icon"
-msgstr "ምልክት"
-
-#: docking/ui/menu.py:379
+#: docking/ui/menu.py:386
 msgid "Docking Icon"
 msgstr "Docking ምልክት"
 
-#: docking/ui/menu.py:380
+#: docking/ui/menu.py:387
 msgid "System Icon"
 msgstr "የስርዓት ምልክት"
 
-#: docking/ui/menu.py:423 docking/ui/menu.py:443 docking/ui/menu.py:459
-#: docking/ui/menu.py:507
+#: docking/ui/menu.py:395 docking/ui/menu.py:404
+msgid "Icon"
+msgstr "ምልክት"
+
+#: docking/ui/menu.py:407
+msgid "Default Icon"
+msgstr "ነባሪ አዶ"
+
+#: docking/ui/menu.py:411
+msgid "Choose From File..."
+msgstr "ከፋይል ይምረጡ..."
+
+#: docking/ui/menu.py:415
+msgid "Reset Custom Icon"
+msgstr "ብጁ አዶን ዳግም አስጀምር"
+
+#: docking/ui/menu.py:434
+msgid "Choose Icon"
+msgstr "አዶ ይምረጡ"
+
+#: docking/ui/menu.py:457
+msgid "Images"
+msgstr "ምስሎች"
+
+#: docking/ui/menu.py:470
+msgid "Could not use selected icon"
+msgstr "የተመረጠውን አዶ መጠቀም አልተቻለም"
+
+#: docking/ui/menu.py:513 docking/ui/menu.py:535 docking/ui/menu.py:558
+#: docking/ui/menu.py:609
 msgid "Remove from Dock"
 msgstr "ከዶክ አስወግድ"
 
-#: docking/ui/menu.py:436
-msgid "Open"
-msgstr "ክፈት"
-
-#: docking/ui/menu.py:466
+#: docking/ui/menu.py:565
 msgid "Keep in Dock"
 msgstr "በዶክ ውስጥ አቆይ"
 
-#: docking/ui/menu.py:475
+#: docking/ui/menu.py:574
 msgid "Close All"
 msgstr "ሁሉንም ዝጋ"
 
-#: docking/ui/menu.py:475
-msgid "Close"
-msgstr "ዝጋ"
-
-#: docking/ui/menu.py:492
+#: docking/ui/menu.py:591
 msgid "Sort By"
 msgstr "ደርድር በ"
 
-#: docking/ui/menu.py:500
+#: docking/ui/menu.py:599
 msgid "Show Hidden Files"
 msgstr "የተደበቁ ፋይሎችን አሳይ"
 
-#: docking/ui/menu.py:537
+#: docking/ui/menu.py:639
 msgid "Add Applet"
 msgstr "አፕሌቶች"
 
-#: docking/ui/menu.py:575
+#: docking/ui/menu.py:677
 msgid "No Applets Available"
 msgstr "የኃይል መገለጫዎች አይገኙም"
 
-#: docking/ui/menu.py:582
+#: docking/ui/menu.py:684
 msgid "Add Separator"
 msgstr "መለያ ጨምር"
 
-#: docking/ui/menu.py:592 docking/ui/settings.py:167
+#: docking/ui/menu.py:698 docking/ui/settings.py:268
 msgid "Preferences"
 msgstr "ምርጫዎች"
 
-#: docking/ui/menu.py:597
+#: docking/ui/menu.py:703
 msgid "About"
 msgstr "ስለ"
 
-#: docking/ui/menu.py:602
+#: docking/ui/menu.py:708
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:609
+#: docking/ui/menu.py:715
 msgid "Quit"
 msgstr "ውጣ"
 
-#: docking/ui/menu.py:646
+#: docking/ui/menu.py:781
+msgid "Clear Recent Documents"
+msgstr "የቅርብ ጊዜ ሰነዶችን አጽዳ"
+
+#: docking/ui/menu.py:791 docking/ui/settings.py:746
+msgid "Recent Documents"
+msgstr "የቅርብ ጊዜ ሰነዶች"
+
+#: docking/ui/menu.py:810
 msgid "Window"
 msgstr "መስኮት"
 
-#: docking/ui/new_year.py:163
+#: docking/ui/new_year.py:207
 #, python-brace-format
 msgid "Happy new year {year} !!!"
 msgstr "Happy new year {year} !!!"
 
-#: docking/ui/placement.py:223
+#: docking/ui/placement.py:269
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr "ማሳያ {display}: {width}x{height}"
 
-#: docking/ui/settings.py:191
+#: docking/ui/settings.py:292
 msgid "Appearance"
 msgstr "መልክ"
 
-#: docking/ui/settings.py:192 docking/ui/settings.py:380
+#: docking/ui/settings.py:293 docking/ui/settings.py:671
 msgid "Behavior"
 msgstr "ባህሪ"
 
-#: docking/ui/settings.py:193
+#: docking/ui/settings.py:294
 msgid "Applets"
 msgstr "አፕሌቶች"
 
-#: docking/ui/settings.py:212
+#: docking/ui/settings.py:318
 msgid "Don't Hide"
 msgstr "አትደብቅ"
 
-#: docking/ui/settings.py:213
+#: docking/ui/settings.py:319
 msgid "Always on Top"
 msgstr "ሁልጊዜ ከላይ"
 
-#: docking/ui/settings.py:214
+#: docking/ui/settings.py:320
 msgid "Auto-hide"
 msgstr "በራስ-ደበቅ"
 
-#: docking/ui/settings.py:215
+#: docking/ui/settings.py:321
 msgid "Intelligent"
 msgstr "ብልህ"
 
-#: docking/ui/settings.py:216
-msgid "Dodge Active Window"
-msgstr "ንቁ መስኮትን አስወግድ"
+#: docking/ui/settings.py:322
+msgid "Dodge Active"
+msgstr "ዶጅ ንቁ"
 
-#: docking/ui/settings.py:217
-msgid "Dodge All Windows"
-msgstr "ሁሉንም መስኮቶች አስወግድ"
+#: docking/ui/settings.py:323
+msgid "Dodge Windows"
+msgstr "ዊንዶውስ ዶጅ"
 
-#: docking/ui/settings.py:218
+#: docking/ui/settings.py:324
 msgid "Dodge Maximized"
 msgstr "ከፍተኛውን አስወግድ"
 
-#: docking/ui/settings.py:235
+#: docking/ui/settings.py:335
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:236
+#: docking/ui/settings.py:336
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:237
+#: docking/ui/settings.py:337
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:244
+#: docking/ui/settings.py:344
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:245
+#: docking/ui/settings.py:345
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:246
+#: docking/ui/settings.py:346
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:253
+#: docking/ui/settings.py:353
 msgid "Click"
 msgstr "Click"
 
-#: docking/ui/settings.py:254
+#: docking/ui/settings.py:354
 msgid "Hover"
 msgstr "Hover"
 
-#: docking/ui/settings.py:270
+#: docking/ui/settings.py:361
+msgid "Default"
+msgstr "ነባሪ"
+
+#: docking/ui/settings.py:362
+msgid "Alphabetical"
+msgstr "ፊደል"
+
+#: docking/ui/settings.py:380
 msgid "Daily"
 msgstr "በየቀኑ"
 
-#: docking/ui/settings.py:271
+#: docking/ui/settings.py:381
 msgid "Weekly"
 msgstr "በየሳምንቱ"
 
-#: docking/ui/settings.py:324
+#: docking/ui/settings.py:402
+msgid ""
+"When Follow Cursor is enabled, the dock follows the pointer across monitors. "
+"The selected monitor is kept as the fallback."
+msgstr ""
+"የክትትል ጠቋሚ ሲነቃ መትከያው ጠቋሚውን በተቆጣጣሪዎች ላይ ይከተላል። የተመረጠው ሞኒተሪ እንደ መመለሻ ሆኖ ተቀምጧል።"
+
+#: docking/ui/settings.py:448
+msgid "Added on top of the theme's own distance from the edge."
+msgstr "ከጭብጡ በራሱ ርቀት ላይ ተጨምሯል."
+
+#: docking/ui/settings.py:488
+msgid ""
+"Pixels of cursor pressure against the edge required to reveal a hidden dock. "
+"Higher values mean the dock will not reveal as easily."
+msgstr ""
+"የተደበቀ መትከያ ለመግለጥ የጠቋሚ ግፊቶች ፒክሰሎች። ከፍ ያለ ዋጋ ማለት መትከያው በቀላሉ አይገለጥም ማለት ነው።"
+
+#: docking/ui/settings.py:510
 msgid "Look"
 msgstr "መልክ"
 
-#: docking/ui/settings.py:326
+#: docking/ui/settings.py:512
 msgid "Theme"
 msgstr "ገጽታ"
 
-#: docking/ui/settings.py:327
+#: docking/ui/settings.py:512
+msgid "Choose the dock color palette."
+msgstr "የመትከያውን የቀለም ቤተ-ስዕል ይምረጡ።"
+
+#: docking/ui/settings.py:514
 msgid "Icon Size"
 msgstr "የአዶ መጠን"
 
-#: docking/ui/settings.py:328
+#: docking/ui/settings.py:516
+msgid "Set the base size of dock icons before zoom is applied."
+msgstr "ማጉላት ከመተግበሩ በፊት የመትከያ አዶዎችን መሠረት መጠን ያዘጋጁ።"
+
+#: docking/ui/settings.py:519
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:329
+#: docking/ui/settings.py:521
+msgid "Adjust how transparent the dock background is."
+msgstr "የመትከያው ዳራ ምን ያህል ግልፅ እንደሆነ ያስተካክሉ።"
+
+#: docking/ui/settings.py:524
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:330
+#: docking/ui/settings.py:526
+msgid "Enlarge icons when the pointer hovers over the dock."
+msgstr "ጠቋሚው በመትከያው ላይ ሲያንዣብብ አዶዎችን ያሳድጉ።"
+
+#: docking/ui/settings.py:529
 msgid "Zoom Percent"
 msgstr "የማጉያ መቶኛ"
 
-#: docking/ui/settings.py:331
+#: docking/ui/settings.py:531
+msgid "Set how much hovered icons grow when zoom is enabled."
+msgstr "ማጉላት ሲነቃ ምን ያህል የተንጠለጠሉ አዶዎች እንደሚያድጉ ያዘጋጁ።"
+
+#: docking/ui/settings.py:534
 msgid "Show Tooltips"
 msgstr "ጠቃሚ ምክሮችን አሳይ"
 
-#: docking/ui/settings.py:332
+#: docking/ui/settings.py:536
+msgid "Show item names and details when hovering over dock items."
+msgstr "በመትከያ ዕቃዎች ላይ ሲያንዣብቡ የንጥል ስሞችን እና ዝርዝሮችን ያሳዩ።"
+
+#: docking/ui/settings.py:539
 msgid "Window Previews"
 msgstr "የመስኮት ቅድመ-እይታ"
 
-#: docking/ui/settings.py:337
+#: docking/ui/settings.py:541
+msgid "Show window thumbnails when hovering over running apps."
+msgstr "በሚሄዱ መተግበሪያዎች ላይ ሲያንዣብቡ የመስኮት ድንክዬዎችን አሳይ።"
+
+#: docking/ui/settings.py:544
+msgid "Show Window Counts"
+msgstr "የመስኮት ብዛት አሳይ"
+
+#: docking/ui/settings.py:547
+msgid "Show a number on running app indicators when multiple windows are open."
+msgstr "ብዙ መስኮቶች ሲከፈቱ የመተግበሪያ አመልካቾችን በማስኬድ ላይ ቁጥር አሳይ።"
+
+#: docking/ui/settings.py:555
 msgid "Placement"
 msgstr "አቀማመጥ"
 
-#: docking/ui/settings.py:339
+#: docking/ui/settings.py:558
 msgid "Position"
 msgstr "ቦታ"
 
-#: docking/ui/settings.py:340
-msgid "Follow Cursor"
-msgstr "ጠቋሚን ተከተል"
+#: docking/ui/settings.py:560
+msgid "Choose which screen edge the dock uses."
+msgstr "መትከያው የትኛውን የስክሪን ጠርዝ እንደሚጠቀም ይምረጡ።"
 
-#: docking/ui/settings.py:341
+#: docking/ui/settings.py:562
+msgid "Extra Distance from Edge"
+msgstr "ከ Edge ተጨማሪ ርቀት"
+
+#: docking/ui/settings.py:564
 msgid "Current Workspace Only"
 msgstr "የአሁኑ የሥራ ቦታ ብቻ"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:567
+msgid "Show running windows only from the active workspace when supported."
+msgstr "በሚደገፉበት ጊዜ የሚሄዱ መስኮቶችን ከንቁ የስራ ቦታ ብቻ አሳይ።"
+
+#: docking/ui/settings.py:575 docking/ui/settings.py:585
+msgid "Monitor"
+msgstr "ተቆጣጠር"
+
+#: docking/ui/settings.py:578
+msgid "Follow Cursor"
+msgstr "ጠቋሚን ተከተል"
+
+#: docking/ui/settings.py:581
+msgid "Move the dock to the monitor where the pointer is currently located."
+msgstr "መትከያውን አሁን ጠቋሚው ወደሚገኝበት ማሳያ ያንቀሳቅሱት።"
+
+#: docking/ui/settings.py:590
 msgid "Layout"
 msgstr "አቀማመጥ"
 
-#: docking/ui/settings.py:348
+#: docking/ui/settings.py:593
 msgid "Lock Positions"
 msgstr "ቦታዎችን ቆልፍ"
 
-#: docking/ui/settings.py:349
+#: docking/ui/settings.py:596
+msgid "Prevent dock items from being reordered or removed by drag and drop."
+msgstr "የመትከያ እቃዎች እንደገና እንዳይታዘዙ ወይም እንዳይወገዱ በመጎተት እና በመጣል ይከላከሉ።"
+
+#: docking/ui/settings.py:601
 msgid "Anchor Applets to End"
 msgstr "አፕሌቶችን ወደ መጨረሻ ሰካ"
 
-#: docking/ui/settings.py:350
+#: docking/ui/settings.py:603
+msgid "Keep applets grouped at the end of the dock."
+msgstr "በመትከያው መጨረሻ ላይ አፕልቶችን በቡድን ያቆዩ።"
+
+#: docking/ui/settings.py:606
 msgid "Anchor Files to End"
 msgstr "ፋይሎችን ወደ መጨረሻ ሰካ"
 
-#: docking/ui/settings.py:372
-msgid "Mouse"
-msgstr "Mouse"
+#: docking/ui/settings.py:608
+msgid "Keep pinned files and folders grouped at the end of the dock."
+msgstr "በመትከያው መጨረሻ ላይ የተሰኩ ፋይሎችን እና አቃፊዎችን በቡድን ያቆዩ።"
 
-#: docking/ui/settings.py:374
+#: docking/ui/settings.py:647
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:375
+#: docking/ui/settings.py:650
+msgid ""
+"Choose what happens when clicking a running app with the left mouse button."
+msgstr "በግራ መዳፊት አዘራር የሚሄድ መተግበሪያን ጠቅ ሲያደርጉ ምን እንደሚፈጠር ይምረጡ።"
+
+#: docking/ui/settings.py:655
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:382
+#: docking/ui/settings.py:658
+msgid "Choose what happens when clicking an app with the middle mouse button."
+msgstr "አንድ መተግበሪያ በመሃል መዳፊት አዘራር ሲጫኑ ምን እንደሚፈጠር ይምረጡ።"
+
+#: docking/ui/settings.py:663
+msgid "Window List Sort"
+msgstr "የመስኮት ዝርዝር ደርድር"
+
+#: docking/ui/settings.py:665
+msgid "Choose how open windows are ordered in app context menus."
+msgstr "በመተግበሪያ አውድ ምናሌዎች ውስጥ ክፍት መስኮቶች እንዴት እንደሚታዘዙ ይምረጡ።"
+
+#: docking/ui/settings.py:673
 msgid "Hide Mode"
 msgstr "የመደበቂያ ሁኔታ"
 
-#: docking/ui/settings.py:383
+#: docking/ui/settings.py:675
 msgid "Hide Delay"
 msgstr "የመደበቂያ ዘግይት"
 
-#: docking/ui/settings.py:384
+#: docking/ui/settings.py:678
+msgid "Set how long the dock waits before hiding after the pointer leaves."
+msgstr "ጠቋሚው ከወጣ በኋላ ከመደበቅዎ በፊት መትከያው ለምን ያህል ጊዜ እንደሚቆይ ያዘጋጁ።"
+
+#: docking/ui/settings.py:683
 msgid "Unhide Delay"
 msgstr "የማሳያ ዘግይት"
 
-#: docking/ui/settings.py:389
+#: docking/ui/settings.py:686
+msgid "Set how long the dock waits before showing after the pointer returns."
+msgstr "ጠቋሚው ከተመለሰ በኋላ ከማሳየቱ በፊት መትከያው ለምን ያህል ጊዜ እንደሚቆይ ያዘጋጁ።"
+
+#: docking/ui/settings.py:691
+msgid "Pressure Reveal"
+msgstr "የግፊት መገለጥ"
+
+#: docking/ui/settings.py:694
+msgid ""
+"Require the pointer to push against the screen edge before revealing a "
+"hidden dock."
+msgstr "የተደበቀ መትከያ ከመግለጥዎ በፊት ጠቋሚው በማያ ገጹ ጠርዝ ላይ እንዲገፋ ይጠይቁ።"
+
+#: docking/ui/settings.py:698
+msgid "Pressure Threshold"
+msgstr "የግፊት ገደብ"
+
+#: docking/ui/settings.py:700
+msgid "Show Startup Tips"
+msgstr "የማስነሻ ምክሮችን አሳይ"
+
+#: docking/ui/settings.py:703
+msgid ""
+"Show one Docking usage tip after startup, unless a higher-priority startup "
+"notification is visible."
+msgstr ""
+"ከፍተኛ ቅድሚያ የሚሰጠው የማስጀመሪያ ማስታወቂያ ካልታየ በስተቀር ከጅምር በኋላ አንድ የመትከያ አጠቃቀም ጠቃሚ ምክር "
+"አሳይ።"
+
+#: docking/ui/settings.py:711
 msgid "Folder Stacks"
 msgstr "Folder Stacks"
 
-#: docking/ui/settings.py:391
+#: docking/ui/settings.py:714
 msgid "Open On"
 msgstr "Open On"
 
-#: docking/ui/settings.py:416
+#: docking/ui/settings.py:716
+msgid "Choose whether folder stacks open on click or while hovering."
+msgstr "በጠቅታ ወይም በማንዣበብ ላይ የአቃፊ ቁልል መከፈቱን ይምረጡ።"
+
+#: docking/ui/settings.py:722
+msgid "Recent Apps"
+msgstr "የቅርብ ጊዜ መተግበሪያዎች"
+
+#: docking/ui/settings.py:725
+msgid "Show Recently Used Apps"
+msgstr "በቅርብ ጊዜ ያገለገሉ መተግበሪያዎችን አሳይ"
+
+#: docking/ui/settings.py:728
+msgid "Show recently closed apps between pinned launchers and running apps."
+msgstr "በቅርብ ጊዜ የተዘጉ መተግበሪያዎችን በተሰኩ አስጀማሪዎች እና አሂድ መተግበሪያዎች መካከል አሳይ።"
+
+#: docking/ui/settings.py:733
+msgid "Number of Recent Apps"
+msgstr "የቅርብ ጊዜ መተግበሪያዎች ብዛት"
+
+#: docking/ui/settings.py:735
+msgid "Maximum recently used app icons to display."
+msgstr "ለመታየት ከፍተኛው በቅርብ ጊዜ ጥቅም ላይ የዋሉ የመተግበሪያ አዶዎች።"
+
+#: docking/ui/settings.py:738
+msgid "Keep Recent Apps For"
+msgstr "የቅርብ ጊዜ መተግበሪያዎችን ለ"
+
+#: docking/ui/settings.py:740
+msgid "Remove recent apps after this many days of inactivity."
+msgstr "ከብዙ ቀናት እንቅስቃሴ-አልባነት በኋላ የቅርብ ጊዜ መተግበሪያዎችን ያስወግዱ።"
+
+#: docking/ui/settings.py:749
+msgid "Show Recent Documents"
+msgstr "የቅርብ ጊዜ ሰነዶችን አሳይ"
+
+#: docking/ui/settings.py:752
+msgid "Show a \"Recent Documents\" submenu when right-clicking an app icon."
+msgstr "የመተግበሪያ አዶን በቀኝ ጠቅ ሲያደርጉ \"የቅርብ ጊዜ ሰነዶች\" ንዑስ ምናሌን አሳይ።"
+
+#: docking/ui/settings.py:757
+msgid "Max Documents Per App"
+msgstr "ከፍተኛ ሰነዶች በመተግበሪያ"
+
+#: docking/ui/settings.py:759
+msgid "Maximum recent document entries shown per app."
+msgstr "ከፍተኛው የቅርብ ጊዜ የሰነድ ግቤቶች በአንድ መተግበሪያ ይታያሉ።"
+
+#: docking/ui/settings.py:831
 msgid "Check Now"
 msgstr "አሁን ፈትሽ"
 
-#: docking/ui/settings.py:418
+#: docking/ui/settings.py:833
 msgid "View Releases"
 msgstr "ስርጭቶችን ይመልከቱ"
 
-#: docking/ui/settings.py:430
+#: docking/ui/settings.py:845
 msgid "Update Checks"
 msgstr "የማዘመኛ ምርመራዎች"
 
-#: docking/ui/settings.py:432
+#: docking/ui/settings.py:847
 msgid "Check Automatically"
 msgstr "ራስ-ሰር ፈትሽ"
 
-#: docking/ui/settings.py:433
+#: docking/ui/settings.py:848
 msgid "Frequency"
 msgstr "ድግግሞሽ"
 
-#: docking/ui/settings.py:434
+#: docking/ui/settings.py:849
 msgid "Status"
 msgstr "ሁኔታ"
 
-#: docking/ui/settings.py:435
+#: docking/ui/settings.py:850
 msgid "Actions"
 msgstr "ድርጊቶች"
 
-#: docking/ui/settings.py:841
+#: docking/ui/settings.py:1293
+msgid "Primary Display"
+msgstr "ዋና ማሳያ"
+
+#: docking/ui/settings.py:1434
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr "በመጨረሻ የታየ ስሪት: {version}"
 
-#: docking/ui/settings.py:845
+#: docking/ui/settings.py:1438
 msgid "No update found yet"
 msgstr "ገና ማዘመኛ አልተገኘም"
 
-#: docking/ui/settings.py:847
+#: docking/ui/settings.py:1440
 msgid "Not checked yet"
 msgstr "ገና አልተፈተሸም"
 
-#: docking/ui/settings.py:882
+#: docking/ui/settings.py:1521
 msgid "The dock is always visible and reserves screen space."
 msgstr "The dock is always visible and reserves screen space."
 
-#: docking/ui/settings.py:884
+#: docking/ui/settings.py:1523
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
 msgstr "ሁልጊዜ የሚታይ እና ሁሉም መስኮቶች ላይ ይተኛል ያለ የስክሪን ቦታ ማስያዝ።"
 
-#: docking/ui/settings.py:887
+#: docking/ui/settings.py:1526
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:889
+#: docking/ui/settings.py:1528
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:891
+#: docking/ui/settings.py:1530
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:893
+#: docking/ui/settings.py:1532
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:896
+#: docking/ui/settings.py:1535
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 
-#: docking/ui/update_popup.py:173
+#: docking/ui/startup_tips.py:187
+msgid "Tip of the day"
+msgstr "የቀኑ ጠቃሚ ምክር"
+
+#: docking/ui/startup_tips.py:212
+msgid "Show tips on startup"
+msgstr "ጅምር ላይ ጠቃሚ ምክሮችን አሳይ"
+
+#: docking/ui/startup_tips.py:215
+msgid "Next Tip"
+msgstr "ቀጣይ ጠቃሚ ምክር"
+
+#: docking/ui/tooltip.py:221
+msgid "1 day"
+msgstr "1 ቀን"
+
+#: docking/ui/tooltip.py:221
+msgid "{count} days"
+msgstr "{count} ቀናት"
+
+#: docking/ui/tooltip.py:239
+msgid "just now"
+msgstr "ልክ አሁን"
+
+#: docking/ui/tooltip.py:240
+msgid "{age} ago"
+msgstr "{age} በፊት"
+
+#: docking/ui/update_popup.py:233
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr "Docking {version} ይገኛል"
 
-#: docking/ui/update_popup.py:179
+#: docking/ui/update_popup.py:239
 #, python-brace-format
 msgid "You are using {version}."
 msgstr "{version} እየተጠቀምክ ነው።"
 
-#: docking/ui/update_popup.py:188
+#: docking/ui/update_popup.py:248
 msgid "View Release"
 msgstr "ስርጭት ይመልከቱ"
 
-#: docking/ui/update_popup.py:189
+#: docking/ui/update_popup.py:249
 msgid "Later"
 msgstr "በኋላ"
 
-#: docking/ui/update_popup.py:190
+#: docking/ui/update_popup.py:250
 msgid "Ignore"
 msgstr "አትፈርጅ"
