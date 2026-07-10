@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-09 19:37+0200\n"
+"POT-Creation-Date: 2026-07-10 22:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -66,11 +66,11 @@ msgstr ""
 msgid "This week: {value}"
 msgstr ""
 
-#: docking/applets/aiusage/state.py:476
+#: docking/applets/aiusage/state.py:499
 msgid "no usage today"
 msgstr ""
 
-#: docking/applets/aiusage/state.py:480
+#: docking/applets/aiusage/state.py:503
 #, python-brace-format
 msgid "Today: {cost}"
 msgstr ""
@@ -3042,7 +3042,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:375
+#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
 msgid "Docking"
 msgstr ""
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-05-15 20:36+0200\n"
+"POT-Creation-Date: 2026-07-10 22:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,1560 +17,2080 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: docking/applets/aiusage/applet.py:62
+#: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
 msgstr "Usaid IS"
 
-#: docking/applets/aiusage/applet.py:126
+#: docking/applets/aiusage/applet.py:139
 msgid "Auto"
 msgstr "Uathu"
 
-#: docking/applets/aiusage/applet.py:127
+#: docking/applets/aiusage/applet.py:140
 msgid "Claude"
 msgstr "Claude"
 
-#: docking/applets/aiusage/applet.py:128
+#: docking/applets/aiusage/applet.py:141
 msgid "Codex"
 msgstr "Codex"
 
-#: docking/applets/aiusage/applet.py:129
+#: docking/applets/aiusage/applet.py:142
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: docking/applets/aiusage/applet.py:138
+#: docking/applets/aiusage/applet.py:151
 msgid "Show Cost"
 msgstr "Taispeain costas"
 
-#: docking/applets/aiusage/applet.py:139
+#: docking/applets/aiusage/applet.py:152
 msgid "Show Tokens"
 msgstr "Taispeain comharthai"
 
-#: docking/applets/aiusage/applet.py:146
-#: docking/applets/deskpresence/applet.py:103
+#: docking/applets/aiusage/applet.py:159
+#: docking/applets/deskpresence/applet.py:121
 msgid "Reset Today"
 msgstr "Athshocraigh inniu"
 
-#: docking/applets/aiusage/applet.py:207 docking/applets/aiusage/applet.py:222
+#: docking/applets/aiusage/applet.py:220 docking/applets/aiusage/applet.py:235
 #, python-brace-format
 msgid "{name}: no usage today"
 msgstr "{name}: gan úsáid inniu"
 
-#: docking/applets/aiusage/applet.py:239
+#: docking/applets/aiusage/applet.py:252
 #, python-brace-format
 msgid "<b>{name}: {value}</b>"
 msgstr "<b>{name}: {value}</b>"
 
-#: docking/applets/aiusage/applet.py:283
+#: docking/applets/aiusage/applet.py:296
 #, python-brace-format
 msgid "This week: {value}"
 msgstr "An tseachtain seo: {value}"
 
-#: docking/applets/aiusage/state.py:459
+#: docking/applets/aiusage/state.py:499
 msgid "no usage today"
 msgstr "gan úsáid inniu"
 
-#: docking/applets/aiusage/state.py:463
+#: docking/applets/aiusage/state.py:503
 #, python-brace-format
 msgid "Today: {cost}"
 msgstr "Inniu: {cost}"
 
-#: docking/applets/ambient/applet.py:66 docking/applets/ambient/state.py:87
-msgid "Ambient"
-msgstr "Ambient"
+#: docking/applets/alarm/applet.py:67
+msgid "Alarm"
+msgstr "Aláram"
 
-#: docking/applets/ambient/state.py:24
-msgid "Birds"
-msgstr "Birds"
+#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:208
+msgid "Snooze"
+msgstr "Cur ar suan"
 
-#: docking/applets/ambient/state.py:25
-msgid "Boat"
-msgstr "Boat"
+#: docking/applets/alarm/applet.py:106
+msgid "Dismiss"
+msgstr "Díbhe"
 
-#: docking/applets/ambient/state.py:26
-msgid "Coffee Shop"
-msgstr "Coffee Shop"
+#: docking/applets/alarm/applet.py:110
+msgid "Add Alarm..."
+msgstr "Cuir Aláram leis..."
 
-#: docking/applets/ambient/state.py:27
-msgid "Fireplace"
-msgstr "Fireplace"
+#: docking/applets/alarm/applet.py:132
+msgid "Edit {label}..."
+msgstr "Cuir {label} in eagar..."
 
-#: docking/applets/ambient/state.py:28
-msgid "Stream"
-msgstr "Stream"
+#: docking/applets/alarm/applet.py:160
+msgid "Edit Alarm"
+msgstr "Cuir Aláram in Eagar"
 
-#: docking/applets/ambient/state.py:29
-msgid "Summer Night"
-msgstr "Summer Night"
+#: docking/applets/alarm/applet.py:160
+msgid "Add Alarm"
+msgstr "Cuir Aláram leis"
 
-#: docking/applets/ambient/state.py:30
-msgid "Wind"
-msgstr "Wind"
+#: docking/applets/alarm/applet.py:163 docking/applets/certwatch/state.py:246
+#: docking/applets/clock/applet.py:218 docking/applets/quicknote/applet.py:87
+msgid "OK"
+msgstr "OK"
 
-#: docking/applets/ambient/state.py:35
-msgid "White Noise"
-msgstr "White Noise"
+#: docking/applets/alarm/applet.py:163 docking/applets/clock/applet.py:218
+#: docking/applets/lastfm/applet.py:380 docking/applets/quicknote/applet.py:86
+#: docking/applets/runcommand/applet.py:122
+#: docking/applets/runcommand/applet.py:340
+#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:263
+#: docking/applets/weather/applet.py:273 docking/ui/diagnostics.py:342
+#: docking/ui/menu.py:439
+msgid "Cancel"
+msgstr "Cancel"
 
-#: docking/applets/ambient/state.py:36
-msgid "Pink Noise"
-msgstr "Pink Noise"
+#: docking/applets/alarm/applet.py:165 docking/applets/certwatch/applet.py:170
+msgid "Remove"
+msgstr "Remove"
 
-#: docking/applets/ambient/state.py:84
-#, python-brace-format
-msgid "Playing: {sound} ({pct}%)"
-msgstr "Ag seinm: {sound} ({pct}%)"
+#: docking/applets/alarm/applet.py:189
+msgid "Enabled"
+msgstr "Cumasaithe"
 
-#: docking/applets/apod/applet.py:55 docking/applets/apod/state.py:101
-#: docking/applets/apod/state.py:119
-msgid "Astronomy Picture of the Day"
-msgstr "Astronomy Picture of the Day"
+#: docking/applets/alarm/applet.py:202
+msgid "Label"
+msgstr "Lipéad"
 
-#: docking/applets/apod/applet.py:95
-#, python-brace-format
-msgid "{date}: {title}"
-msgstr "{date}: {title}"
+#: docking/applets/alarm/applet.py:204 docking/applets/clock/applet.py:255
+msgid "Hour"
+msgstr "Hour"
 
-#: docking/applets/apod/applet.py:97
-msgid "Untitled"
-msgstr "Untitled"
+#: docking/applets/alarm/applet.py:206 docking/applets/clock/applet.py:257
+msgid "Minute"
+msgstr "Minute"
 
-#: docking/applets/apod/applet.py:106 docking/applets/apod/state.py:106
-#: docking/applets/apod/state.py:125 docking/applets/certwatch/applet.py:134
-#: docking/applets/certwatch/state.py:312
-msgid "Checks"
-msgstr "Seiceálacha"
+#: docking/applets/alarm/applet.py:211
+msgid "Repeat"
+msgstr "Déan arís"
 
-#: docking/applets/apod/applet.py:118 docking/applets/certwatch/applet.py:128
-#: docking/applets/currencyfx/applet.py:187
-#: docking/applets/hackernews/applet.py:175
-#: docking/applets/speedtest/applet.py:103
-#: docking/applets/thermals/applet.py:134 docking/applets/tooltip.py:33
-#: docking/applets/weather/applet.py:168 docking/applets/weather/applet.py:525
-#, python-brace-format
-msgid "Error: {msg}"
-msgstr "Error: {msg}"
+#: docking/applets/alarm/state.py:31
+msgid "Mon"
+msgstr "Mon"
 
-#: docking/applets/apod/applet.py:121
-msgid "Open on apod.nasa.gov"
-msgstr "Open on apod.nasa.gov"
+#: docking/applets/alarm/state.py:32
+msgid "Tue"
+msgstr "Dé Máirt"
 
-#: docking/applets/apod/applet.py:126
-msgid "Copy Explanation"
-msgstr "Copy Explanation"
+#: docking/applets/alarm/state.py:33
+msgid "Wed"
+msgstr "Céad"
 
-#: docking/applets/apod/applet.py:130 docking/applets/bluetooth/applet.py:204
-#: docking/applets/camshield/applet.py:114
-#: docking/applets/capslock/applet.py:84
-#: docking/applets/certwatch/applet.py:145
-#: docking/applets/currencyfx/applet.py:195
-#: docking/applets/hackernews/applet.py:192
-#: docking/applets/micshield/applet.py:118 docking/applets/moon/applet.py:124
-#: docking/applets/quote/applet.py:92 docking/applets/thermals/applet.py:144
-#: docking/applets/todayinhistory/applet.py:99
-#: docking/applets/trivia/applet.py:115 docking/applets/weather/applet.py:175
-msgid "Refresh Now"
-msgstr "Refresh Now"
+#: docking/applets/alarm/state.py:34
+msgid "Thu"
+msgstr "Thu"
 
-#: docking/applets/apod/state.py:115
-#, python-brace-format
-msgid "(c) {who}"
-msgstr "(c) {who}"
+#: docking/applets/alarm/state.py:35
+msgid "Fri"
+msgstr "Aoine"
 
-#: docking/applets/applications/applet.py:36
-msgid "Applications"
-msgstr "Applications"
+#: docking/applets/alarm/state.py:36
+msgid "Sat"
+msgstr "Sath"
 
-#: docking/applets/applications/applet.py:77
-msgid "Search applications..."
-msgstr "Cuardaigh feidhmchláir..."
+#: docking/applets/alarm/state.py:37
+msgid "Sun"
+msgstr "Ghrian"
 
-#: docking/applets/battery/applet.py:35
-msgid "Battery"
-msgstr "Battery"
+#: docking/applets/alarm/state.py:218
+msgid "Ring"
+msgstr "Fáinne"
 
-#: docking/applets/battery/applet.py:72
-msgid "Show Percent"
-msgstr "Taispeáin céatadán"
+#: docking/applets/alarm/state.py:227
+msgid "{hours}h"
+msgstr "{hours}h"
 
-#: docking/applets/battery/applet.py:79
-msgid "Power Settings"
-msgstr "Power Settings"
-
-#: docking/applets/battery/state.py:104
-msgid "No battery"
-msgstr "No battery"
-
-#: docking/applets/battery/state.py:105
-#, python-brace-format
-msgid "Battery: {pct}%"
-msgstr "Battery: {pct}%"
-
-#: docking/applets/battery/state.py:118
-#, python-brace-format
-msgid "{time} left"
-msgstr "{time} left"
-
-#: docking/applets/battery/state.py:120
-#, python-brace-format
-msgid "{time} until full"
-msgstr "{time} until full"
-
-#: docking/applets/battery/state.py:130
-#, python-brace-format
-msgid "{hours}h {minutes:02d}m"
-msgstr "{hours}h {minutes:02d}m"
-
-#: docking/applets/battery/state.py:131
+#: docking/applets/alarm/state.py:228 docking/applets/alarm/state.py:307
+#: docking/applets/battery/state.py:206 docking/applets/sunrise/state.py:418
 #, python-brace-format
 msgid "{minutes}m"
 msgstr "{minutes}m"
 
-#: docking/applets/bluetooth/applet.py:68
+#: docking/applets/alarm/state.py:236
+msgid "Alarm ringing: {label}"
+msgstr "Fáinne aláraim: {label}"
+
+#: docking/applets/alarm/state.py:239
+msgid "Alarm: no enabled alarms"
+msgstr "Aláram: níl aon aláraim cumasaithe"
+
+#: docking/applets/alarm/state.py:240
+msgid "Next alarm: {label} at {time}"
+msgstr "An chéad aláram eile: {label} ag {time}"
+
+#: docking/applets/alarm/state.py:252
+msgid "No enabled alarms"
+msgstr "Gan aláram cumasaithe"
+
+#: docking/applets/alarm/state.py:253
+msgid "{label}: {time} ({duration})"
+msgstr "{label}: {time} ({duration})"
+
+#: docking/applets/alarm/state.py:263
+msgid "on"
+msgstr "ar"
+
+#: docking/applets/alarm/state.py:263
+msgid "off"
+msgstr "as"
+
+#: docking/applets/alarm/state.py:264
+#, python-brace-format
+msgid "{time} {label} - {repeat}, {state}"
+msgstr "{time} {label} - {repeat}, {state}"
+
+#: docking/applets/alarm/state.py:276
+msgid "once"
+msgstr "uair amháin"
+
+#: docking/applets/alarm/state.py:278
+msgid "weekdays"
+msgstr "laethanta na seachtaine"
+
+#: docking/applets/alarm/state.py:280
+msgid "weekends"
+msgstr "deireadh seachtaine"
+
+#: docking/applets/alarm/state.py:282
+msgid "daily"
+msgstr "laethúil"
+
+#: docking/applets/alarm/state.py:304
+msgid "{days}d {hours}h"
+msgstr "{days}d {hours}h"
+
+#: docking/applets/alarm/state.py:306 docking/applets/sunrise/state.py:417
+msgid "{hours}h {minutes}m"
+msgstr "{hours}h {minutes}m"
+
+#: docking/applets/ambient/applet.py:80 docking/applets/ambient/state.py:100
+msgid "Ambient"
+msgstr "Ambient"
+
+#: docking/applets/ambient/state.py:37
+msgid "Birds"
+msgstr "Birds"
+
+#: docking/applets/ambient/state.py:38
+msgid "Boat"
+msgstr "Boat"
+
+#: docking/applets/ambient/state.py:39
+msgid "Coffee Shop"
+msgstr "Coffee Shop"
+
+#: docking/applets/ambient/state.py:40
+msgid "Fireplace"
+msgstr "Fireplace"
+
+#: docking/applets/ambient/state.py:41
+msgid "Stream"
+msgstr "Stream"
+
+#: docking/applets/ambient/state.py:42
+msgid "Summer Night"
+msgstr "Summer Night"
+
+#: docking/applets/ambient/state.py:43
+msgid "Wind"
+msgstr "Wind"
+
+#: docking/applets/ambient/state.py:48
+msgid "White Noise"
+msgstr "White Noise"
+
+#: docking/applets/ambient/state.py:49
+msgid "Pink Noise"
+msgstr "Pink Noise"
+
+#: docking/applets/ambient/state.py:97
+#, python-brace-format
+msgid "Playing: {sound} ({pct}%)"
+msgstr "Ag seinm: {sound} ({pct}%)"
+
+#: docking/applets/apod/applet.py:68 docking/applets/apod/state.py:114
+#: docking/applets/apod/state.py:132
+msgid "Astronomy Picture of the Day"
+msgstr "Astronomy Picture of the Day"
+
+#: docking/applets/apod/applet.py:108
+#, python-brace-format
+msgid "{date}: {title}"
+msgstr "{date}: {title}"
+
+#: docking/applets/apod/applet.py:110
+msgid "Untitled"
+msgstr "Untitled"
+
+#: docking/applets/apod/applet.py:119 docking/applets/apod/state.py:119
+#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:147
+#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:101
+msgid "Checks"
+msgstr "Seiceálacha"
+
+#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:141
+#: docking/applets/crypto/applet.py:153
+#: docking/applets/currencyfx/applet.py:203
+#: docking/applets/hackernews/applet.py:189
+#: docking/applets/lastfm/applet.py:174 docking/applets/speedtest/applet.py:116
+#: docking/applets/thermals/applet.py:147 docking/applets/tooltip.py:46
+#: docking/applets/weather/applet.py:183 docking/applets/weather/applet.py:567
+#, python-brace-format
+msgid "Error: {msg}"
+msgstr "Error: {msg}"
+
+#: docking/applets/apod/applet.py:134
+msgid "Open on apod.nasa.gov"
+msgstr "Open on apod.nasa.gov"
+
+#: docking/applets/apod/applet.py:139
+msgid "Copy Explanation"
+msgstr "Copy Explanation"
+
+#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:217
+#: docking/applets/camshield/applet.py:127
+#: docking/applets/capslock/applet.py:97
+#: docking/applets/certwatch/applet.py:158 docking/applets/crypto/applet.py:156
+#: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
+#: docking/applets/hackernews/applet.py:206
+#: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
+#: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
+#: docking/applets/systemtray/applet.py:142
+#: docking/applets/thermals/applet.py:157
+#: docking/applets/todayinhistory/applet.py:112
+#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:190
+msgid "Refresh Now"
+msgstr "Refresh Now"
+
+#: docking/applets/apod/state.py:128
+#, python-brace-format
+msgid "(c) {who}"
+msgstr "(c) {who}"
+
+#: docking/applets/applications/applet.py:50
+msgid "Applications"
+msgstr "Applications"
+
+#: docking/applets/applications/applet.py:91
+msgid "Search applications..."
+msgstr "Cuardaigh feidhmchláir..."
+
+#: docking/applets/battery/applet.py:63
+msgid "Battery"
+msgstr "Battery"
+
+#: docking/applets/battery/applet.py:109
+msgid "No overlay"
+msgstr "Gan forleagan"
+
+#: docking/applets/battery/applet.py:110
+msgid "Percentage"
+msgstr "Céatadán"
+
+#: docking/applets/battery/applet.py:111
+msgid "Power (W)"
+msgstr "Cumhacht (W)"
+
+#: docking/applets/battery/applet.py:121
+msgid "Power Settings"
+msgstr "Power Settings"
+
+#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:644
+msgid "Mouse"
+msgstr "Mouse"
+
+#: docking/applets/battery/peripherals.py:47
+msgid "Keyboard"
+msgstr "Méarchlár"
+
+#: docking/applets/battery/peripherals.py:48
+msgid "Phone"
+msgstr "Fón"
+
+#: docking/applets/battery/peripherals.py:49
+msgid "Media Player"
+msgstr "Seinnteoir meáin"
+
+#: docking/applets/battery/peripherals.py:50
+msgid "Tablet"
+msgstr "Táibléad"
+
+#: docking/applets/battery/peripherals.py:51
+msgid "Controller"
+msgstr "Rialaitheoir"
+
+#: docking/applets/battery/peripherals.py:52
+msgid "Pen"
+msgstr "Peann"
+
+#: docking/applets/battery/peripherals.py:53
+msgid "Touchpad"
+msgstr "touchpad"
+
+#: docking/applets/battery/peripherals.py:54
+msgid "Headset"
+msgstr "Cluasán"
+
+#: docking/applets/battery/peripherals.py:55
+msgid "Speakers"
+msgstr "Cainteoirí"
+
+#: docking/applets/battery/peripherals.py:56
+msgid "Headphones"
+msgstr "Cluasáin"
+
+#: docking/applets/battery/peripherals.py:57
+msgid "Audio"
+msgstr "Fuaime"
+
+#: docking/applets/battery/peripherals.py:58
+msgid "Remote"
+msgstr "cianda"
+
+#: docking/applets/battery/peripherals.py:59
+msgid "Wearable"
+msgstr "inchaite"
+
+#: docking/applets/battery/peripherals.py:69
+msgid "Low"
+msgstr "Íseal"
+
+#: docking/applets/battery/peripherals.py:70
+#: docking/applets/certwatch/state.py:248
+msgid "Critical"
+msgstr "Critical"
+
+#: docking/applets/battery/peripherals.py:71
+msgid "Normal"
+msgstr "Gnáth"
+
+#: docking/applets/battery/peripherals.py:72
+msgid "High"
+msgstr "Ard"
+
+#: docking/applets/battery/peripherals.py:73
+#: docking/applets/moon/offline.py:231 docking/applets/moon/state.py:145
+msgid "Full"
+msgstr "Full"
+
+#: docking/applets/battery/peripherals.py:99
+msgid "Device"
+msgstr "Gléas"
+
+#: docking/applets/battery/peripherals.py:130
+#, python-brace-format
+msgid "{charge} (charging)"
+msgstr "{charge} (luchtú)"
+
+#: docking/applets/battery/state.py:170
+msgid "No battery"
+msgstr "No battery"
+
+#: docking/applets/battery/state.py:171
+#, python-brace-format
+msgid "Battery: {pct}%"
+msgstr "Battery: {pct}%"
+
+#: docking/applets/battery/state.py:193
+#, python-brace-format
+msgid "{time} left"
+msgstr "{time} left"
+
+#: docking/applets/battery/state.py:195
+#, python-brace-format
+msgid "{time} until full"
+msgstr "{time} until full"
+
+#: docking/applets/battery/state.py:205
+#, python-brace-format
+msgid "{hours}h {minutes:02d}m"
+msgstr "{hours}h {minutes:02d}m"
+
+#: docking/applets/bluetooth/applet.py:81
 msgid "Bluetooth"
 msgstr "Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:168
+#: docking/applets/bluetooth/applet.py:181
 msgid "Bluetooth unavailable"
 msgstr "Bluetooth unavailable"
 
-#: docking/applets/bluetooth/applet.py:172
+#: docking/applets/bluetooth/applet.py:185
 msgid "No Bluetooth adapter"
 msgstr "No Bluetooth adapter"
 
-#: docking/applets/bluetooth/applet.py:174
-#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:99
+#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/state.py:155 docking/applets/capslock/state.py:112
 msgid "On"
 msgstr "On"
 
-#: docking/applets/bluetooth/applet.py:174
-#: docking/applets/bluetooth/state.py:142 docking/applets/capslock/state.py:99
+#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/state.py:155 docking/applets/caffeine/state.py:128
+#: docking/applets/capslock/state.py:112
 msgid "Off"
 msgstr "Off"
 
-#: docking/applets/bluetooth/applet.py:183
+#: docking/applets/bluetooth/applet.py:196
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - Ceangailte {connected}"
 
-#: docking/applets/bluetooth/applet.py:194
+#: docking/applets/bluetooth/applet.py:207
 msgid "Continuous Discovery"
 msgstr "Continuous Discovery"
 
-#: docking/applets/bluetooth/applet.py:226
+#: docking/applets/bluetooth/applet.py:239
 msgid "Turn Bluetooth Off"
 msgstr "Turn Bluetooth Off"
 
-#: docking/applets/bluetooth/applet.py:226
+#: docking/applets/bluetooth/applet.py:239
 msgid "Turn Bluetooth On"
 msgstr "Turn Bluetooth On"
 
-#: docking/applets/bluetooth/applet.py:242
+#: docking/applets/bluetooth/applet.py:255
 #, python-brace-format
 msgid "Disconnect {device}"
 msgstr "Disconnect {device}"
 
-#: docking/applets/bluetooth/applet.py:256
+#: docking/applets/bluetooth/applet.py:269
 msgid "Send Files to Device..."
 msgstr "Send Files to Device..."
 
-#: docking/applets/bluetooth/applet.py:264
+#: docking/applets/bluetooth/applet.py:277
 msgid "Devices..."
 msgstr "Devices..."
 
-#: docking/applets/bluetooth/applet.py:270
+#: docking/applets/bluetooth/applet.py:283
 msgid "Adapters..."
 msgstr "Adapters..."
 
-#: docking/applets/bluetooth/applet.py:276
+#: docking/applets/bluetooth/applet.py:289
 msgid "Local Services..."
 msgstr "Local Services..."
 
-#: docking/applets/bluetooth/applet.py:283
+#: docking/applets/bluetooth/applet.py:296
 msgid "Recent Connections"
 msgstr "Recent Connections"
 
-#: docking/applets/bluetooth/applet.py:288
+#: docking/applets/bluetooth/applet.py:301
 msgid "No recent connections"
 msgstr "No recent connections"
 
-#: docking/applets/bluetooth/applet.py:312
+#: docking/applets/bluetooth/applet.py:325
 msgid "Adapter"
 msgstr "Adapter"
 
-#: docking/applets/bluetooth/applet.py:330
+#: docking/applets/bluetooth/applet.py:343
 msgid "Connected Devices"
 msgstr "Gléasanna Ceangailte"
 
-#: docking/applets/bluetooth/applet.py:331
+#: docking/applets/bluetooth/applet.py:344
 msgid "Paired Devices"
 msgstr "Gléasanna Péireáilte"
 
-#: docking/applets/bluetooth/applet.py:332
+#: docking/applets/bluetooth/applet.py:345
 msgid "Discovered Devices"
 msgstr "Gléasanna Aimsithe"
 
-#: docking/applets/bluetooth/applet.py:357
+#: docking/applets/bluetooth/applet.py:370
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: docking/applets/bluetooth/applet.py:366
+#: docking/applets/bluetooth/applet.py:379
 msgid "Connect"
 msgstr "Connect"
 
-#: docking/applets/bluetooth/applet.py:376
+#: docking/applets/bluetooth/applet.py:389
 msgid "Pair"
 msgstr "Pair"
 
-#: docking/applets/bluetooth/applet.py:390
+#: docking/applets/bluetooth/applet.py:403
 msgid "Remove Pairing"
 msgstr "Remove Pairing"
 
-#: docking/applets/bluetooth/applet.py:402
+#: docking/applets/bluetooth/applet.py:415
 msgid "Trusted"
 msgstr "Trusted"
 
-#: docking/applets/bluetooth/applet.py:417
+#: docking/applets/bluetooth/applet.py:430
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "Ceallra: {percent}%"
 
-#: docking/applets/bluetooth/state.py:135
+#: docking/applets/bluetooth/state.py:148
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr "Bluetooth: {error}"
 
-#: docking/applets/bluetooth/state.py:136
-#: docking/applets/bluetooth/state.py:140
+#: docking/applets/bluetooth/state.py:149
+#: docking/applets/bluetooth/state.py:153
 msgid "Bluetooth: No adapter/service"
 msgstr "Bluetooth: No adapter/service"
 
-#: docking/applets/bluetooth/state.py:147
+#: docking/applets/bluetooth/state.py:160
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr "Bluetooth: {state}"
 
-#: docking/applets/bluetooth/state.py:148
+#: docking/applets/bluetooth/state.py:161
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr "Adapter: {name}"
 
-#: docking/applets/bluetooth/state.py:149
+#: docking/applets/bluetooth/state.py:162
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr "Connected: {n}"
 
-#: docking/applets/bluetooth/state.py:150
+#: docking/applets/bluetooth/state.py:163
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr "Paired: {n}"
 
-#: docking/applets/bluetooth/state.py:151
+#: docking/applets/bluetooth/state.py:164
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr "Discovering: {state}"
 
-#: docking/applets/bluetooth/state.py:152
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
 msgid "Yes"
 msgstr "Yes"
 
-#: docking/applets/bluetooth/state.py:152
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
 msgid "No"
 msgstr "No"
 
-#: docking/applets/bookmarks/applet.py:42
+#: docking/applets/bookmarks/applet.py:55
 msgid "Bookmarks"
 msgstr "Leabharmharcanna"
 
-#: docking/applets/bookmarks/applet.py:74
+#: docking/applets/bookmarks/applet.py:87
 msgid "Add Bookmark..."
 msgstr "Cuir leabharmharc leis..."
 
-#: docking/applets/bookmarks/applet.py:77
+#: docking/applets/bookmarks/applet.py:90
 msgid "Remove All"
 msgstr "Bain gach ceann"
 
-#: docking/applets/bookmarks/applet.py:98
+#: docking/applets/bookmarks/applet.py:111
 msgid "Add Bookmark"
 msgstr "Cuir leabharmharc leis"
 
-#: docking/applets/bookmarks/applet.py:111
+#: docking/applets/bookmarks/applet.py:124
 msgid "Bookmark name"
 msgstr "Ainm leabharmhairc"
 
-#: docking/applets/bookmarks/applet.py:116
+#: docking/applets/bookmarks/applet.py:129
 msgid "https://..."
 msgstr "https://..."
 
-#: docking/applets/brightness/applet.py:43
+#: docking/applets/brightness/applet.py:56
 msgid "Brightness"
 msgstr "Brightness"
 
-#: docking/applets/brightness/applet.py:72
+#: docking/applets/brightness/applet.py:85
 #, python-brace-format
 msgid "Brightness: {pct}%"
 msgstr "Brightness: {pct}%"
 
-#: docking/applets/brightness/applet.py:96 docking/applets/volume/applet.py:113
+#: docking/applets/brightness/applet.py:109
+#: docking/applets/volume/applet.py:126
 msgid "Show Level"
 msgstr "Show Level"
 
-#: docking/applets/calculator/applet.py:64
-#: docking/applets/calculator/applet.py:82
-msgid "Calculator"
-msgstr "Airitheoir"
-
-#: docking/applets/calendar/applet.py:33 docking/applets/calendar/applet.py:39
-msgid "Calendar"
-msgstr "Calendar"
-
-#: docking/applets/camshield/applet.py:49 docking/applets/camshield/state.py:58
-msgid "Cam Shield"
-msgstr "Cam Shield"
-
-#: docking/applets/camshield/applet.py:93 docking/applets/camshield/state.py:60
-msgid "No camera devices found"
-msgstr "No camera devices found"
-
-#: docking/applets/camshield/applet.py:95 docking/applets/camshield/state.py:64
-msgid "Camera idle"
-msgstr "Camera idle"
-
-#: docking/applets/camshield/applet.py:97 docking/applets/camshield/state.py:67
-msgid "Camera active"
-msgstr "Camera active"
-
-#: docking/applets/camshield/applet.py:101
-msgid "Lock Camera"
-msgstr "Lock Camera"
-
-#: docking/applets/camshield/applet.py:105
-msgid "Unlock Camera"
-msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:111
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
-
-#: docking/applets/camshield/state.py:70
-#, python-brace-format
-msgid "{command} (PID {pid}) using {devices}"
-msgstr "{command} (PID {pid}) using {devices}"
-
-#: docking/applets/camshield/state.py:78 docking/applets/micshield/state.py:210
-#: docking/applets/usbwatch/state.py:85
-#, python-brace-format
-msgid "{count} more"
-msgstr "{count} more"
-
-#: docking/applets/camshield/state.py:84
-#, python-brace-format
-msgid "{command} (PID {pid}) - {devices}"
-msgstr "{command} (PID {pid}) - {devices}"
-
-#: docking/applets/camshield/state.py:179
-#: docking/applets/deskpresence/state.py:171
-#: docking/applets/micshield/state.py:180 docking/applets/music/state.py:82
-#: docking/applets/powerprofiles/state.py:137
-msgid "Unknown"
-msgstr "Unknown"
-
-#: docking/applets/capslock/applet.py:38 docking/applets/capslock/applet.py:75
-#: docking/applets/capslock/state.py:86
-msgid "Caps Lock"
-msgstr "Glas Litreacha"
-
-#: docking/applets/capslock/applet.py:70 docking/applets/capslock/state.py:82
-msgid "Keyboard lock state unavailable"
-msgstr "Stádas glas méarchláir gan fáil"
-
-#: docking/applets/capslock/applet.py:80
-msgid "Num Lock"
-msgstr "Glas Uimhreacha"
-
-#: docking/applets/capslock/state.py:87
-#, python-brace-format
-msgid "Caps Lock: {state}"
-msgstr "Glas Litreacha: {state}"
-
-#: docking/applets/capslock/state.py:88
-#, python-brace-format
-msgid "Num Lock: {state}"
-msgstr "Glas Uimhreacha: {state}"
-
-#: docking/applets/capslock/state.py:95
-#, python-brace-format
-msgid "{name}: {state}"
-msgstr "{name}: {state}"
-
-#: docking/applets/certwatch/applet.py:63
-#: docking/applets/certwatch/state.py:278
-#: docking/applets/certwatch/state.py:306
-msgid "Cert Watch"
-msgstr "Cert Watch"
-
-#: docking/applets/certwatch/applet.py:117
-#: docking/applets/certwatch/state.py:251
-#: docking/applets/certwatch/state.py:299
-#, python-brace-format
-msgid "{host}: loading..."
-msgstr "{host}: loading..."
-
-#: docking/applets/certwatch/applet.py:139
-msgid "Add Domain..."
-msgstr "Add Domain..."
-
-#: docking/applets/certwatch/applet.py:157
-msgid "Remove"
-msgstr "Remove"
-
-#: docking/applets/certwatch/applet.py:293
-msgid "Add Domain"
-msgstr "Add Domain"
-
-#: docking/applets/certwatch/applet.py:306
-msgid "example.com or example.com:8443"
-msgstr "example.com or example.com:8443"
-
-#: docking/applets/certwatch/state.py:233 docking/applets/clock/applet.py:205
-#: docking/applets/quicknote/applet.py:74
-msgid "OK"
-msgstr "OK"
-
-#: docking/applets/certwatch/state.py:234
-msgid "Warn"
-msgstr "Warn"
-
-#: docking/applets/certwatch/state.py:235
-msgid "Critical"
-msgstr "Critical"
-
-#: docking/applets/certwatch/state.py:236
-msgid "Expired"
-msgstr "Expired"
-
-#: docking/applets/certwatch/state.py:237
-msgid "Error"
-msgstr "Error"
-
-#: docking/applets/certwatch/state.py:238
-#: docking/applets/speedtest/applet.py:61
-msgid "..."
-msgstr "..."
-
-#: docking/applets/certwatch/state.py:247
-#, python-brace-format
-msgid "{host}: error ({reason})"
-msgstr "{host}: error ({reason})"
-
-#: docking/applets/certwatch/state.py:254
-#, python-brace-format
-msgid "{host}: unknown"
-msgstr "{host}: unknown"
-
-#: docking/applets/certwatch/state.py:256
-#, python-brace-format
-msgid "{host}: expired {days}d ago"
-msgstr "{host}: expired {days}d ago"
-
-#: docking/applets/certwatch/state.py:257
-#, python-brace-format
-msgid "{host}: {label}, {days}d left"
-msgstr "{host}: {label}, {days}d left"
-
-#: docking/applets/certwatch/state.py:279
-msgid "No domains configured"
-msgstr "Níor cumraíodh fearainn"
-
-#: docking/applets/certwatch/state.py:297
-#, python-brace-format
-msgid "{host}: unavailable"
-msgstr "{host}: gan fáil"
-
-#: docking/applets/clippy/applet.py:35
-msgid "Clippy"
-msgstr "Clippy"
-
-#: docking/applets/clippy/applet.py:95
-msgid "Clear"
-msgstr "Clear"
-
-#: docking/applets/clippy/state.py:22
-msgid "Clippy (empty)"
-msgstr "Gearrthaisce (folamh)"
-
-#: docking/applets/clock/applet.py:40
-msgid "Clock"
-msgstr "Clock"
-
-#: docking/applets/clock/applet.py:87
-msgid "Digital Clock"
-msgstr "Digital Clock"
-
-#: docking/applets/clock/applet.py:91
-msgid "24-Hour Clock"
-msgstr "24-Hour Clock"
-
-#: docking/applets/clock/applet.py:95
-msgid "Show Date"
-msgstr "Show Date"
-
-#: docking/applets/clock/applet.py:100
-msgid "Show Seconds"
-msgstr "Show Seconds"
-
-#: docking/applets/clock/applet.py:104
-msgid "Set Alarm..."
-msgstr "Set Alarm..."
-
-#: docking/applets/clock/applet.py:110
-msgid "Clear Alarm"
-msgstr "Clear Alarm"
-
-#: docking/applets/clock/applet.py:115
-msgid "Acknowledge Alarm"
-msgstr "Acknowledge Alarm"
-
-#: docking/applets/clock/applet.py:202
-msgid "Set Alarm"
-msgstr "Set Alarm"
-
-#: docking/applets/clock/applet.py:205 docking/applets/quicknote/applet.py:73
-#: docking/applets/trash/applet.py:114 docking/applets/weather/applet.py:258
-msgid "Cancel"
-msgstr "Cancel"
-
-#: docking/applets/clock/applet.py:242
-msgid "Hour"
-msgstr "Hour"
-
-#: docking/applets/clock/applet.py:244
-msgid "Minute"
-msgstr "Minute"
-
-#: docking/applets/colorpicker/applet.py:44
-#: docking/applets/colorpicker/applet.py:75
-msgid "Color Picker"
-msgstr "Color Picker"
-
-#: docking/applets/colorpicker/applet.py:85
-#, python-brace-format
-msgid "Copy {hex}"
-msgstr "Cóipeáil {hex}"
-
-#: docking/applets/colorpicker/applet.py:89
-msgid "Show Hex"
-msgstr "Show Hex"
-
-#: docking/applets/currencyfx/applet.py:88
-msgid "Currency FX"
-msgstr "Currency FX"
-
-#: docking/applets/currencyfx/applet.py:173
-#: docking/applets/currencyfx/state.py:726
-msgid "Day samples"
-msgstr "Samplaí lae"
-
-#: docking/applets/currencyfx/applet.py:191
-msgid "Swap Pair"
-msgstr "Malartaigh péire"
-
-#: docking/applets/currencyfx/applet.py:201
-msgid "Chart Interval"
-msgstr "Eatramh cairte"
-
-#: docking/applets/currencyfx/applet.py:203
-msgid "Day"
-msgstr "Lá"
-
-#: docking/applets/currencyfx/applet.py:204
-msgid "Week"
-msgstr "Seachtain"
-
-#: docking/applets/currencyfx/applet.py:205
-msgid "Month"
-msgstr "Mí"
-
-#: docking/applets/currencyfx/applet.py:220
-msgid "Added Pairs"
-msgstr "Péirí curtha leis"
-
-#: docking/applets/currencyfx/applet.py:230
-msgid "Remove Current Pair"
-msgstr "Bain an péire reatha"
-
-#: docking/applets/currencyfx/applet.py:237
-msgid "Add Pair..."
-msgstr "Cuir péire leis..."
-
-#: docking/applets/currencyfx/applet.py:350
-msgid "No rate data"
-msgstr "Gan sonraí ráta"
-
-#: docking/applets/currencyfx/applet.py:432
-#, python-brace-format
-msgid "{pair}: {rate} ({change})"
-msgstr "{pair}: {rate} ({change})"
-
-#: docking/applets/currencyfx/applet.py:475
-msgid "Add FX Pair"
-msgstr "Cuir péire FX leis"
-
-#: docking/applets/currencyfx/applet.py:489
-msgid "Base"
-msgstr "Bonn"
-
-#: docking/applets/currencyfx/applet.py:491 docking/applets/quote/applet.py:43
-#: docking/applets/quote/applet.py:83 docking/applets/quote/applet.py:208
-#: docking/applets/quote/applet.py:214
-msgid "Quote"
-msgstr "Quote"
-
-#: docking/applets/currencyfx/state.py:730 docking/applets/live_state.py:78
-#: docking/applets/weather/state.py:166
-msgid "Unavailable"
-msgstr "Gan fáil"
-
-#: docking/applets/currencyfx/state.py:751
-#, python-brace-format
-msgid "1 {base} = {rate} {quote}"
-msgstr "1 {base} = {rate} {quote}"
-
-#: docking/applets/currencyfx/state.py:756
-#, python-brace-format
-msgid "Change: {change}"
-msgstr "Athrú: {change}"
-
-#: docking/applets/deskpresence/applet.py:52
-#: docking/applets/deskpresence/state.py:192
-msgid "Desk Presence"
-msgstr "Desk Presence"
-
-#: docking/applets/deskpresence/applet.py:84
-#, python-brace-format
-msgid "{status}"
-msgstr "{status}"
-
-#: docking/applets/deskpresence/applet.py:92
-msgid "Idle Threshold"
-msgstr "Idle Threshold"
-
-#: docking/applets/deskpresence/applet.py:190
-#: docking/applets/deskpresence/state.py:169
-msgid "At desk"
-msgstr "At desk"
-
-#: docking/applets/deskpresence/applet.py:191
-#: docking/applets/deskpresence/state.py:170
-msgid "Away"
-msgstr "Away"
-
-#: docking/applets/deskpresence/applet.py:192
-msgid "Status unknown"
-msgstr "Status unknown"
-
-#: docking/applets/deskpresence/applet.py:199
-#, python-brace-format
-msgid "{m} min"
-msgstr "{m} min"
-
-#: docking/applets/deskpresence/applet.py:200
-#, python-brace-format
-msgid "{s} sec"
-msgstr "{s} sec"
-
-#: docking/applets/deskpresence/state.py:151
-#, python-brace-format
-msgid "{h}h {m}m"
-msgstr "{h}h {m}m"
-
-#: docking/applets/deskpresence/state.py:152
-#: docking/applets/deskpresence/state.py:164
-#, python-brace-format
-msgid "{m}m"
-msgstr "{m}m"
-
-#: docking/applets/deskpresence/state.py:163
-#, python-brace-format
-msgid "{h}h"
-msgstr "{h}h"
-
-#: docking/applets/deskpresence/state.py:193
-#, python-brace-format
-msgid "Status: {s}"
-msgstr "Status: {s}"
-
-#: docking/applets/deskpresence/state.py:195
-#, python-brace-format
-msgid "Session: {d}"
-msgstr "Session: {d}"
-
-#: docking/applets/deskpresence/state.py:197
-#, python-brace-format
-msgid "Today at desk: {d}"
-msgstr "Today at desk: {d}"
-
-#: docking/applets/deskpresence/state.py:199
-#, python-brace-format
-msgid "Today away: {d}"
-msgstr "Today away: {d}"
-
-#: docking/applets/deskpresence/state.py:203
-msgid "Last 7 days"
-msgstr "Last 7 days"
-
-#: docking/applets/deskpresence/state.py:206
-#: docking/applets/deskpresence/state.py:213
-#, python-brace-format
-msgid "  {day}: {d}"
-msgstr "  {day}: {d}"
-
-#: docking/applets/deskpresence/state.py:220
-#, python-brace-format
-msgid "Week total at desk: {d}"
-msgstr "Week total at desk: {d}"
-
-#: docking/applets/desktop/applet.py:27 docking/applets/workspaces/applet.py:82
-msgid "Desktop"
-msgstr "Desktop"
-
-#: docking/applets/dragshare/applet.py:40
-#: docking/applets/dragshare/applet.py:60
-#: docking/applets/dragshare/applet.py:66
-#: docking/applets/dragshare/applet.py:72
-#: docking/applets/dragshare/applet.py:79
-#: docking/applets/dragshare/applet.py:84
-msgid "Drag Share"
-msgstr "Drag Share"
-
-#: docking/applets/dragshare/applet.py:61
-#, python-brace-format
-msgid "Uploading {file}..."
-msgstr "Uploading {file}..."
-
-#: docking/applets/dragshare/applet.py:67
-#, python-brace-format
-msgid "Uploaded {file}; URL copied"
-msgstr "Uploaded {file}; URL copied"
-
-#: docking/applets/dragshare/applet.py:73
-#: docking/applets/dragshare/applet.py:140
-msgid "Upload failed"
-msgstr "Upload failed"
-
-#: docking/applets/dragshare/applet.py:80
-msgid "Click to copy last URL"
-msgstr "Cliceáil chun an URL deireanach a chóipeáil"
-
-#: docking/applets/dragshare/applet.py:85
-msgid "Drop a file to upload"
-msgstr "Scaoil comhad chun uaslódáil"
-
-#: docking/applets/dragshare/applet.py:93
-msgid "Upload already in progress"
-msgstr "Upload already in progress"
-
-#: docking/applets/dragshare/applet.py:98
-msgid "Drop a local file to upload"
-msgstr "Drop a local file to upload"
-
-#: docking/applets/dragshare/applet.py:109
-msgid "Copy Last URL"
-msgstr "Copy Last URL"
-
-#: docking/applets/freshness.py:15
-msgid "1 hour"
-msgstr "1 uair"
-
-#: docking/applets/freshness.py:15
-#, python-brace-format
-msgid "{count} hours"
-msgstr "{count} uair"
-
-#: docking/applets/freshness.py:19
-msgid "1 minute"
-msgstr "1 nóiméad"
-
-#: docking/applets/freshness.py:21
-#, python-brace-format
-msgid "{count} minutes"
-msgstr "{count} nóiméad"
-
-#: docking/applets/freshness.py:23
-msgid "1 second"
-msgstr "1 soicind"
-
-#: docking/applets/freshness.py:23
-#, python-brace-format
-msgid "{count} seconds"
-msgstr "{count} soicind"
-
-#: docking/applets/freshness.py:28
-#, python-brace-format
-msgid "{verb} every {interval}"
-msgstr "{verb} gach {interval}"
-
-#: docking/applets/freshness.py:29 docking/applets/freshness.py:36
-#: docking/ui/settings.py:194
-msgid "Updates"
-msgstr "Nuashonruithe"
-
-#: docking/applets/freshness.py:36
-#, python-brace-format
-msgid "{verb} on demand"
-msgstr "{verb} ar éileamh"
-
-#: docking/applets/freshness.py:44
-#, python-brace-format
-msgid "Updated: {time}"
-msgstr "Nuashonraithe: {time}"
-
-#: docking/applets/hackernews/applet.py:55
-#: docking/applets/hackernews/state.py:150
-msgid "Hacker News"
-msgstr "Hacker News"
-
-#: docking/applets/hackernews/applet.py:147
-#: docking/applets/hackernews/state.py:156
-#: docking/applets/hackernews/state.py:189
-msgid "Refreshes"
-msgstr "Athnuachana"
-
-#: docking/applets/hackernews/applet.py:159
-#: docking/applets/hackernews/state.py:171
-#, python-brace-format
-msgid "{score} points, {comments} comments"
-msgstr "{score} pointe, {comments} trácht"
-
-#: docking/applets/hackernews/applet.py:180
-msgid "Open Story"
-msgstr "Oscail scéal"
-
-#: docking/applets/hackernews/applet.py:184
-msgid "Open Comments"
-msgstr "Oscail tráchtanna"
-
-#: docking/applets/hackernews/applet.py:188
-msgid "Next Headline"
-msgstr "Ceannlíne eile"
-
-#: docking/applets/hackernews/applet.py:314
-msgid "No Hacker News stories"
-msgstr "Gan scéalta Hacker News"
-
-#: docking/applets/hackernews/state.py:107
-msgid "now"
-msgstr "anois"
-
-#: docking/applets/hackernews/state.py:110
-#, python-brace-format
-msgid "{minutes}m ago"
-msgstr "{minutes} n ó shin"
-
-#: docking/applets/hackernews/state.py:113
-#, python-brace-format
-msgid "{hours}h ago"
-msgstr "{hours} u ó shin"
-
-#: docking/applets/hackernews/state.py:115
-#, python-brace-format
-msgid "{days}d ago"
-msgstr "{days} l ó shin"
-
-#: docking/applets/hackernews/state.py:164
-#, python-brace-format
-msgid "{source} {rank}"
-msgstr "{source} {rank}"
-
-#: docking/applets/hackernews/state.py:180
-msgid "Loading next stories..."
-msgstr "Scéalta eile á lódáil..."
-
-#: docking/applets/hydration/applet.py:40
-msgid "Hydration"
-msgstr "Hydration"
-
-#: docking/applets/hydration/applet.py:114
-#: docking/applets/pomodoro/applet.py:157
-msgid "Show Timer"
-msgstr "Show Timer"
-
-#: docking/applets/hydration/applet.py:120
-#: docking/applets/pomodoro/applet.py:166
+#: docking/applets/caffeine/applet.py:56
+msgid "Caffeine"
+msgstr "Caiféin"
+
+#: docking/applets/caffeine/applet.py:92
+msgid "Turn off after"
+msgstr "Múch tar éis"
+
+#: docking/applets/caffeine/state.py:110
+msgid "Until turned off"
+msgstr "Go dtí múchta"
+
+#: docking/applets/caffeine/state.py:111
+#: docking/applets/hydration/applet.py:133
 #: docking/applets/pomodoro/applet.py:179
 #: docking/applets/pomodoro/applet.py:192
-#: docking/applets/stretchcoach/applet.py:92
+#: docking/applets/pomodoro/applet.py:205
+#: docking/applets/stretchcoach/applet.py:105
 #, python-brace-format
 msgid "{mins} min"
 msgstr "{mins} min"
 
-#: docking/applets/hydration/state.py:56
+#: docking/applets/caffeine/state.py:117
+msgid "Caffeine: off"
+msgstr "Caiféin: as"
+
+#: docking/applets/caffeine/state.py:119
+msgid "Caffeine: keeping awake"
+msgstr "Caiféin: a choinneáil awake"
+
+#: docking/applets/caffeine/state.py:120
+msgid "Caffeine: {time} remaining"
+msgstr "Caiféin: {time} fágtha"
+
+#: docking/applets/caffeine/state.py:130
+msgid "Active"
+msgstr "Gníomhach"
+
+#: docking/applets/caffeine/state.py:131
+msgid "Active - {time} left"
+msgstr "Gníomhach - {time} fágtha"
+
+#: docking/applets/calculator/applet.py:78
+#: docking/applets/calculator/applet.py:96
+msgid "Calculator"
+msgstr "Airitheoir"
+
+#: docking/applets/calendar/applet.py:46 docking/applets/calendar/applet.py:52
+msgid "Calendar"
+msgstr "Calendar"
+
+#: docking/applets/camshield/applet.py:62 docking/applets/camshield/state.py:71
+msgid "Cam Shield"
+msgstr "Cam Shield"
+
+#: docking/applets/camshield/applet.py:106
+#: docking/applets/camshield/state.py:73
+msgid "No camera devices found"
+msgstr "No camera devices found"
+
+#: docking/applets/camshield/applet.py:108
+#: docking/applets/camshield/state.py:77
+msgid "Camera idle"
+msgstr "Camera idle"
+
+#: docking/applets/camshield/applet.py:110
+#: docking/applets/camshield/state.py:80
+msgid "Camera active"
+msgstr "Camera active"
+
+#: docking/applets/camshield/applet.py:114
+msgid "Lock Camera"
+msgstr "Lock Camera"
+
+#: docking/applets/camshield/applet.py:118
+msgid "Unlock Camera"
+msgstr "Unlock Camera"
+
+#: docking/applets/camshield/applet.py:124
+msgid "Camera lock helper unavailable"
+msgstr "Camera lock helper unavailable"
+
+#: docking/applets/camshield/state.py:83
+#, python-brace-format
+msgid "{command} (PID {pid}) using {devices}"
+msgstr "{command} (PID {pid}) using {devices}"
+
+#: docking/applets/camshield/state.py:91 docking/applets/micshield/state.py:223
+#: docking/applets/usbwatch/state.py:98
+#, python-brace-format
+msgid "{count} more"
+msgstr "{count} more"
+
+#: docking/applets/camshield/state.py:97
+#, python-brace-format
+msgid "{command} (PID {pid}) - {devices}"
+msgstr "{command} (PID {pid}) - {devices}"
+
+#: docking/applets/camshield/state.py:192
+#: docking/applets/deskpresence/state.py:185
+#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:95
+#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:396
+msgid "Unknown"
+msgstr "Unknown"
+
+#: docking/applets/capslock/applet.py:51 docking/applets/capslock/applet.py:88
+#: docking/applets/capslock/state.py:99
+msgid "Caps Lock"
+msgstr "Glas Litreacha"
+
+#: docking/applets/capslock/applet.py:83 docking/applets/capslock/state.py:95
+msgid "Keyboard lock state unavailable"
+msgstr "Stádas glas méarchláir gan fáil"
+
+#: docking/applets/capslock/applet.py:93
+msgid "Num Lock"
+msgstr "Glas Uimhreacha"
+
+#: docking/applets/capslock/state.py:100
+#, python-brace-format
+msgid "Caps Lock: {state}"
+msgstr "Glas Litreacha: {state}"
+
+#: docking/applets/capslock/state.py:101
+#, python-brace-format
+msgid "Num Lock: {state}"
+msgstr "Glas Uimhreacha: {state}"
+
+#: docking/applets/capslock/state.py:108
+#, python-brace-format
+msgid "{name}: {state}"
+msgstr "{name}: {state}"
+
+#: docking/applets/certwatch/applet.py:76
+#: docking/applets/certwatch/state.py:291
+#: docking/applets/certwatch/state.py:319
+msgid "Cert Watch"
+msgstr "Cert Watch"
+
+#: docking/applets/certwatch/applet.py:130
+#: docking/applets/certwatch/state.py:264
+#: docking/applets/certwatch/state.py:312
+#, python-brace-format
+msgid "{host}: loading..."
+msgstr "{host}: loading..."
+
+#: docking/applets/certwatch/applet.py:152
+msgid "Add Domain..."
+msgstr "Add Domain..."
+
+#: docking/applets/certwatch/applet.py:306
+msgid "Add Domain"
+msgstr "Add Domain"
+
+#: docking/applets/certwatch/applet.py:319
+msgid "example.com or example.com:8443"
+msgstr "example.com or example.com:8443"
+
+#: docking/applets/certwatch/state.py:247
+msgid "Warn"
+msgstr "Warn"
+
+#: docking/applets/certwatch/state.py:249
+msgid "Expired"
+msgstr "Expired"
+
+#: docking/applets/certwatch/state.py:250
+msgid "Error"
+msgstr "Error"
+
+#: docking/applets/certwatch/state.py:251
+#: docking/applets/speedtest/applet.py:74
+msgid "..."
+msgstr "..."
+
+#: docking/applets/certwatch/state.py:260
+#, python-brace-format
+msgid "{host}: error ({reason})"
+msgstr "{host}: error ({reason})"
+
+#: docking/applets/certwatch/state.py:267
+#, python-brace-format
+msgid "{host}: unknown"
+msgstr "{host}: unknown"
+
+#: docking/applets/certwatch/state.py:269
+#, python-brace-format
+msgid "{host}: expired {days}d ago"
+msgstr "{host}: expired {days}d ago"
+
+#: docking/applets/certwatch/state.py:270
+#, python-brace-format
+msgid "{host}: {label}, {days}d left"
+msgstr "{host}: {label}, {days}d left"
+
+#: docking/applets/certwatch/state.py:292
+msgid "No domains configured"
+msgstr "Níor cumraíodh fearainn"
+
+#: docking/applets/certwatch/state.py:310
+#, python-brace-format
+msgid "{host}: unavailable"
+msgstr "{host}: gan fáil"
+
+#: docking/applets/clippy/applet.py:48
+msgid "Clippy"
+msgstr "Clippy"
+
+#: docking/applets/clippy/applet.py:108
+msgid "Clear"
+msgstr "Clear"
+
+#: docking/applets/clippy/state.py:35
+msgid "Clippy (empty)"
+msgstr "Gearrthaisce (folamh)"
+
+#: docking/applets/clock/applet.py:53
+msgid "Clock"
+msgstr "Clock"
+
+#: docking/applets/clock/applet.py:100
+msgid "Digital Clock"
+msgstr "Digital Clock"
+
+#: docking/applets/clock/applet.py:104
+msgid "24-Hour Clock"
+msgstr "24-Hour Clock"
+
+#: docking/applets/clock/applet.py:108
+msgid "Show Date"
+msgstr "Show Date"
+
+#: docking/applets/clock/applet.py:113
+msgid "Show Seconds"
+msgstr "Show Seconds"
+
+#: docking/applets/clock/applet.py:117
+msgid "Set Alarm..."
+msgstr "Set Alarm..."
+
+#: docking/applets/clock/applet.py:123
+msgid "Clear Alarm"
+msgstr "Clear Alarm"
+
+#: docking/applets/clock/applet.py:128
+msgid "Acknowledge Alarm"
+msgstr "Acknowledge Alarm"
+
+#: docking/applets/clock/applet.py:215
+msgid "Set Alarm"
+msgstr "Set Alarm"
+
+#: docking/applets/colorpicker/applet.py:59
+#: docking/applets/colorpicker/applet.py:94
+msgid "Color Picker"
+msgstr "Color Picker"
+
+#: docking/applets/colorpicker/applet.py:108
+#, python-brace-format
+msgid "Copy {hex}"
+msgstr "Cóipeáil {hex}"
+
+#: docking/applets/colorpicker/applet.py:112
+msgid "Show Hex"
+msgstr "Show Hex"
+
+#: docking/applets/crypto/applet.py:79
+msgid "Crypto"
+msgstr "Criptithe"
+
+#: docking/applets/crypto/applet.py:161
+#: docking/applets/currencyfx/applet.py:217
+msgid "Chart Interval"
+msgstr "Eatramh cairte"
+
+#: docking/applets/crypto/applet.py:163
+#: docking/applets/currencyfx/applet.py:219
+#: docking/applets/sunrise/state.py:383
+msgid "Day"
+msgstr "Lá"
+
+#: docking/applets/crypto/applet.py:164
+#: docking/applets/currencyfx/applet.py:220
+msgid "Week"
+msgstr "Seachtain"
+
+#: docking/applets/crypto/applet.py:165
+#: docking/applets/currencyfx/applet.py:221
+msgid "Month"
+msgstr "Mí"
+
+#: docking/applets/crypto/applet.py:178
+msgid "Selected Assets"
+msgstr "Sócmhainní Roghnaithe"
+
+#: docking/applets/crypto/applet.py:191
+msgid "Add Asset..."
+msgstr "Cuir Sócmhainn leis..."
+
+#: docking/applets/crypto/applet.py:196
+msgid "Remove Current Asset"
+msgstr "Bain Sócmhainn Reatha"
+
+#: docking/applets/crypto/applet.py:289
+msgid "No price data"
+msgstr "Gan sonraí praghais"
+
+#: docking/applets/crypto/applet.py:381
+msgid "{asset}: {price} ({change})"
+msgstr "{asset}: {price} ({change})"
+
+#: docking/applets/crypto/applet.py:401
+msgid "Add Crypto Asset"
+msgstr "Cuir Sócmhainn Crypto leis"
+
+#: docking/applets/crypto/applet.py:418
+msgid "bitcoin or cryptopunks"
+msgstr "bitcoin nó cryptopunks"
+
+#: docking/applets/crypto/applet.py:420
+msgid "BTC"
+msgstr "BTC"
+
+#: docking/applets/crypto/applet.py:422
+msgid "Bitcoin"
+msgstr "Bitcoin"
+
+#: docking/applets/crypto/applet.py:425
+msgid "Type"
+msgstr "Cineál"
+
+#: docking/applets/crypto/applet.py:426
+msgid "CoinGecko ID"
+msgstr "ID CoinGecko"
+
+#: docking/applets/crypto/applet.py:427
+msgid "Symbol"
+msgstr "Siombail"
+
+#: docking/applets/crypto/applet.py:428 docking/ui/folder/_browser.py:39
+msgid "Name"
+msgstr "Ainm"
+
+#: docking/applets/crypto/state.py:559 docking/applets/currencyfx/state.py:741
+#: docking/applets/live_state.py:93 docking/applets/weather/state.py:180
+msgid "Unavailable"
+msgstr "Gan fáil"
+
+#: docking/applets/crypto/state.py:579 docking/applets/currencyfx/state.py:768
+msgid "Interval: {interval}"
+msgstr "Eatramh: {interval}"
+
+#: docking/applets/crypto/state.py:582 docking/applets/currencyfx/state.py:769
+#, python-brace-format
+msgid "Change: {change}"
+msgstr "Athrú: {change}"
+
+#: docking/applets/crypto/state.py:586
+#, python-brace-format
+msgid "{price}"
+msgstr "{price}"
+
+#: docking/applets/crypto/state.py:602
+#, python-brace-format
+msgid "{name} NFT"
+msgstr "{name} NFT"
+
+#: docking/applets/currencyfx/applet.py:103
+msgid "Currency FX"
+msgstr "Currency FX"
+
+#: docking/applets/currencyfx/applet.py:189
+#: docking/applets/currencyfx/state.py:740
+msgid "Day samples"
+msgstr "Samplaí lae"
+
+#: docking/applets/currencyfx/applet.py:207
+msgid "Swap Pair"
+msgstr "Malartaigh péire"
+
+#: docking/applets/currencyfx/applet.py:236
+msgid "Added Pairs"
+msgstr "Péirí curtha leis"
+
+#: docking/applets/currencyfx/applet.py:246
+msgid "Remove Current Pair"
+msgstr "Bain an péire reatha"
+
+#: docking/applets/currencyfx/applet.py:253
+msgid "Add Pair..."
+msgstr "Cuir péire leis..."
+
+#: docking/applets/currencyfx/applet.py:366
+msgid "No rate data"
+msgstr "Gan sonraí ráta"
+
+#: docking/applets/currencyfx/applet.py:448
+#, python-brace-format
+msgid "{pair}: {rate} ({change})"
+msgstr "{pair}: {rate} ({change})"
+
+#: docking/applets/currencyfx/applet.py:491
+msgid "Add FX Pair"
+msgstr "Cuir péire FX leis"
+
+#: docking/applets/currencyfx/applet.py:505
+msgid "Base"
+msgstr "Bonn"
+
+#: docking/applets/currencyfx/applet.py:507 docking/applets/quote/applet.py:56
+#: docking/applets/quote/applet.py:96 docking/applets/quote/applet.py:221
+#: docking/applets/quote/applet.py:227
+msgid "Quote"
+msgstr "Quote"
+
+#: docking/applets/currencyfx/state.py:762
+#, python-brace-format
+msgid "1 {base} = {rate} {quote}"
+msgstr "1 {base} = {rate} {quote}"
+
+#: docking/applets/deskpresence/applet.py:67
+#: docking/applets/deskpresence/state.py:206
+msgid "Desk Presence"
+msgstr "Desk Presence"
+
+#: docking/applets/deskpresence/applet.py:102
+#, python-brace-format
+msgid "{status}"
+msgstr "{status}"
+
+#: docking/applets/deskpresence/applet.py:110
+msgid "Idle Threshold"
+msgstr "Idle Threshold"
+
+#: docking/applets/deskpresence/applet.py:213
+#: docking/applets/deskpresence/state.py:183
+msgid "At desk"
+msgstr "At desk"
+
+#: docking/applets/deskpresence/applet.py:214
+#: docking/applets/deskpresence/state.py:184
+msgid "Away"
+msgstr "Away"
+
+#: docking/applets/deskpresence/applet.py:215
+msgid "Status unknown"
+msgstr "Status unknown"
+
+#: docking/applets/deskpresence/applet.py:222
+#, python-brace-format
+msgid "{m} min"
+msgstr "{m} min"
+
+#: docking/applets/deskpresence/applet.py:223
+#, python-brace-format
+msgid "{s} sec"
+msgstr "{s} sec"
+
+#: docking/applets/deskpresence/state.py:165
+#, python-brace-format
+msgid "{h}h {m}m"
+msgstr "{h}h {m}m"
+
+#: docking/applets/deskpresence/state.py:166
+#: docking/applets/deskpresence/state.py:178
+#, python-brace-format
+msgid "{m}m"
+msgstr "{m}m"
+
+#: docking/applets/deskpresence/state.py:177
+#, python-brace-format
+msgid "{h}h"
+msgstr "{h}h"
+
+#: docking/applets/deskpresence/state.py:207
+#, python-brace-format
+msgid "Status: {s}"
+msgstr "Status: {s}"
+
+#: docking/applets/deskpresence/state.py:209
+#, python-brace-format
+msgid "Session: {d}"
+msgstr "Session: {d}"
+
+#: docking/applets/deskpresence/state.py:211
+#, python-brace-format
+msgid "Today at desk: {d}"
+msgstr "Today at desk: {d}"
+
+#: docking/applets/deskpresence/state.py:213
+#, python-brace-format
+msgid "Today away: {d}"
+msgstr "Today away: {d}"
+
+#: docking/applets/deskpresence/state.py:217
+msgid "Last 7 days"
+msgstr "Last 7 days"
+
+#: docking/applets/deskpresence/state.py:220
+#: docking/applets/deskpresence/state.py:227
+#, python-brace-format
+msgid "  {day}: {d}"
+msgstr "  {day}: {d}"
+
+#: docking/applets/deskpresence/state.py:234
+#, python-brace-format
+msgid "Week total at desk: {d}"
+msgstr "Week total at desk: {d}"
+
+#: docking/applets/desktop/applet.py:41
+#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:147
+msgid "Desktop"
+msgstr "Desktop"
+
+#: docking/applets/docker/applet.py:54
+msgid "Docker"
+msgstr "Docker"
+
+#: docking/applets/docker/applet.py:109
+msgid "Docker unavailable: {error}"
+msgstr "Níl an docker ar fáil: {error}"
+
+#: docking/applets/docker/applet.py:110
+msgid "unknown error"
+msgstr "earráid anaithnid"
+
+#: docking/applets/docker/applet.py:116
+msgid "No running containers"
+msgstr "Uimh coimeádáin reatha"
+
+#: docking/applets/docker/applet.py:119
+msgid "{count} running containers"
+msgstr "{count} coimeádáin reatha"
+
+#: docking/applets/docker/applet.py:130
+msgid "unknown image"
+msgstr "íomhá anaithnid"
+
+#: docking/applets/docker/applet.py:131 docking/applets/docker/state.py:125
+msgid "running"
+msgstr "ag rith"
+
+#: docking/applets/docker/applet.py:136
+msgid "Stop"
+msgstr "Stop"
+
+#: docking/applets/docker/applet.py:146 docking/applets/session/state.py:44
+msgid "Restart"
+msgstr "Restart"
+
+#: docking/applets/docker/applet.py:204
+msgid "{name} ({image})"
+msgstr "{name} ({image})"
+
+#: docking/applets/docker/state.py:56
+msgid "Docker command not found"
+msgstr "Níor aimsíodh an t-ordú docker"
+
+#: docking/applets/docker/state.py:60
+msgid "Docker is unavailable"
+msgstr "Níl docker ar fáil"
+
+#: docking/applets/docker/state.py:80
+msgid "Docker: {error}"
+msgstr "Dugadóir: {error}"
+
+#: docking/applets/docker/state.py:80
+msgid "unavailable"
+msgstr "ar fáil"
+
+#: docking/applets/docker/state.py:83
+msgid "Docker: no running containers"
+msgstr "Docker: gan aon choimeádáin reatha"
+
+#: docking/applets/docker/state.py:85
+msgid "Docker: 1 running container"
+msgstr "Docker: 1 coimeádán ag rith"
+
+#: docking/applets/docker/state.py:86
+#, python-brace-format
+msgid "Docker: {count} running containers"
+msgstr "Docker: {count} coimeádáin reatha"
+
+#: docking/applets/dragshare/applet.py:53
+#: docking/applets/dragshare/applet.py:73
+#: docking/applets/dragshare/applet.py:79
+#: docking/applets/dragshare/applet.py:85
+#: docking/applets/dragshare/applet.py:92
+#: docking/applets/dragshare/applet.py:97
+msgid "Drag Share"
+msgstr "Drag Share"
+
+#: docking/applets/dragshare/applet.py:74
+#, python-brace-format
+msgid "Uploading {file}..."
+msgstr "Uploading {file}..."
+
+#: docking/applets/dragshare/applet.py:80
+#, python-brace-format
+msgid "Uploaded {file}; URL copied"
+msgstr "Uploaded {file}; URL copied"
+
+#: docking/applets/dragshare/applet.py:86
+#: docking/applets/dragshare/applet.py:153
+msgid "Upload failed"
+msgstr "Upload failed"
+
+#: docking/applets/dragshare/applet.py:93
+msgid "Click to copy last URL"
+msgstr "Cliceáil chun an URL deireanach a chóipeáil"
+
+#: docking/applets/dragshare/applet.py:98
+msgid "Drop a file to upload"
+msgstr "Scaoil comhad chun uaslódáil"
+
+#: docking/applets/dragshare/applet.py:106
+msgid "Upload already in progress"
+msgstr "Upload already in progress"
+
+#: docking/applets/dragshare/applet.py:111
+msgid "Drop a local file to upload"
+msgstr "Drop a local file to upload"
+
+#: docking/applets/dragshare/applet.py:122
+msgid "Copy Last URL"
+msgstr "Copy Last URL"
+
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+msgid "1 hour"
+msgstr "1 uair"
+
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#, python-brace-format
+msgid "{count} hours"
+msgstr "{count} uair"
+
+#: docking/applets/freshness.py:33 docking/ui/tooltip.py:213
+msgid "1 minute"
+msgstr "1 nóiméad"
+
+#: docking/applets/freshness.py:35 docking/ui/tooltip.py:215
+#, python-brace-format
+msgid "{count} minutes"
+msgstr "{count} nóiméad"
+
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:206
+msgid "1 second"
+msgstr "1 soicind"
+
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:208
+#, python-brace-format
+msgid "{count} seconds"
+msgstr "{count} soicind"
+
+#: docking/applets/freshness.py:42
+#, python-brace-format
+msgid "{verb} every {interval}"
+msgstr "{verb} gach {interval}"
+
+#: docking/applets/freshness.py:43 docking/applets/freshness.py:50
+#: docking/ui/settings.py:295
+msgid "Updates"
+msgstr "Nuashonruithe"
+
+#: docking/applets/freshness.py:50
+#, python-brace-format
+msgid "{verb} on demand"
+msgstr "{verb} ar éileamh"
+
+#: docking/applets/freshness.py:62
+msgid "Updated: {age}"
+msgstr "Nuashonraithe: {age}"
+
+#: docking/applets/hackernews/applet.py:69
+#: docking/applets/hackernews/state.py:157
+msgid "Hacker News"
+msgstr "Hacker News"
+
+#: docking/applets/hackernews/applet.py:161
+#: docking/applets/hackernews/state.py:163
+#: docking/applets/hackernews/state.py:196
+msgid "Refreshes"
+msgstr "Athnuachana"
+
+#: docking/applets/hackernews/applet.py:173
+#: docking/applets/hackernews/state.py:178
+#, python-brace-format
+msgid "{score} points, {comments} comments"
+msgstr "{score} pointe, {comments} trácht"
+
+#: docking/applets/hackernews/applet.py:194
+msgid "Open Story"
+msgstr "Oscail scéal"
+
+#: docking/applets/hackernews/applet.py:198
+msgid "Open Comments"
+msgstr "Oscail tráchtanna"
+
+#: docking/applets/hackernews/applet.py:202
+msgid "Next Headline"
+msgstr "Ceannlíne eile"
+
+#: docking/applets/hackernews/applet.py:328
+msgid "No Hacker News stories"
+msgstr "Gan scéalta Hacker News"
+
+#: docking/applets/hackernews/state.py:114
+msgid "now"
+msgstr "anois"
+
+#: docking/applets/hackernews/state.py:117
+#, python-brace-format
+msgid "{minutes}m ago"
+msgstr "{minutes} n ó shin"
+
+#: docking/applets/hackernews/state.py:120
+#, python-brace-format
+msgid "{hours}h ago"
+msgstr "{hours} u ó shin"
+
+#: docking/applets/hackernews/state.py:122
+#, python-brace-format
+msgid "{days}d ago"
+msgstr "{days} l ó shin"
+
+#: docking/applets/hackernews/state.py:171
+#, python-brace-format
+msgid "{source} {rank}"
+msgstr "{source} {rank}"
+
+#: docking/applets/hackernews/state.py:187
+msgid "Loading next stories..."
+msgstr "Scéalta eile á lódáil..."
+
+#: docking/applets/hydration/applet.py:53
+msgid "Hydration"
+msgstr "Hydration"
+
+#: docking/applets/hydration/applet.py:127
+#: docking/applets/pomodoro/applet.py:170
+msgid "Show Timer"
+msgstr "Show Timer"
+
+#: docking/applets/hydration/state.py:69
 msgid "Drink water!"
 msgstr "Drink water!"
 
-#: docking/applets/hydration/state.py:57
+#: docking/applets/hydration/state.py:70
 #, python-brace-format
 msgid "Next in {time}"
 msgstr "Next in {time}"
 
-#: docking/applets/keyboardlayout/applet.py:47
+#: docking/applets/keyboardlayout/applet.py:60
 msgid "Keyboard Layout"
 msgstr "Leagan amach méarchláir"
 
-#: docking/applets/keyboardlayout/applet.py:76
+#: docking/applets/keyboardlayout/applet.py:89
 msgid "No keyboard layout detected"
 msgstr "Níor braitheadh leagan amach méarchláir"
 
-#: docking/applets/keyboardlayout/applet.py:122
+#: docking/applets/keyboardlayout/applet.py:135
 msgid "Keyboard Settings"
 msgstr "Keyboard Settings"
 
-#: docking/applets/keyboardlayout/applet.py:128
+#: docking/applets/keyboardlayout/applet.py:141
 msgid "Show Current Layout"
 msgstr "Show Current Layout"
 
-#: docking/applets/live_state.py:74
+#: docking/applets/lastfm/applet.py:80
+msgid "Last.fm"
+msgstr "Last.fm"
+
+#: docking/applets/lastfm/applet.py:157
+msgid "Set username..."
+msgstr "Socraigh ainm úsáideora..."
+
+#: docking/applets/lastfm/applet.py:159
+msgid "Set API key and username..."
+msgstr "Socraigh eochair API agus ainm úsáideora..."
+
+#: docking/applets/lastfm/applet.py:165
+#, python-brace-format
+msgid "Recent tracks for {user} ({count})"
+msgstr "Rianta le déanaí do {user} ({count})"
+
+#: docking/applets/lastfm/applet.py:182
+msgid "Configure..."
+msgstr "Cumraigh..."
+
+#: docking/applets/lastfm/applet.py:188
+msgid "Open {service} Profile"
+msgstr "Oscail Próifíl {service}"
+
+#: docking/applets/lastfm/applet.py:377
+msgid "Scrobbler Settings"
+msgstr "Socruithe Scrobbler"
+
+#: docking/applets/lastfm/applet.py:381 docking/ui/diagnostics.py:341
+msgid "Save"
+msgstr "Sábháil"
+
+#: docking/applets/lastfm/applet.py:391
+msgid "Service:"
+msgstr "Seirbhís:"
+
+#: docking/applets/lastfm/applet.py:397
+msgid "API Key:"
+msgstr "Eochair API:"
+
+#: docking/applets/lastfm/applet.py:402
+msgid "Username:"
+msgstr "Ainm Úsáideora:"
+
+#: docking/applets/lastfm/applet.py:410
+#, python-brace-format
+msgid "{service} API key (optional)"
+msgstr "{service} eochair API (roghnach)"
+
+#: docking/applets/lastfm/applet.py:412
+#, python-brace-format
+msgid "{service} API key"
+msgstr "{service} eochair API"
+
+#: docking/applets/lastfm/applet.py:415
+#, python-brace-format
+msgid "{service} username"
+msgstr "{service} ainm úsáideora"
+
+#: docking/applets/lastfm/applet.py:423
+msgid "Max entries:"
+msgstr "Uasmhéid iontrálacha:"
+
+#: docking/applets/lastfm/applet.py:432
+msgid "Rounded album-art corners"
+msgstr "Coirnéil chothromú-ealaín albam"
+
+#: docking/applets/live_state.py:89
 msgid "No data yet"
 msgstr "Gan sonraí fós"
 
-#: docking/applets/live_state.py:75
+#: docking/applets/live_state.py:90
 msgid "Loading..."
 msgstr "Loading..."
 
-#: docking/applets/live_state.py:77 docking/applets/live_state.py:117
+#: docking/applets/live_state.py:92 docking/applets/live_state.py:137
 msgid "Stale data"
 msgstr "Sonraí seanchaite"
 
-#: docking/applets/live_state.py:118
-#, python-brace-format
-msgid "Stale: last updated {time}"
-msgstr "Seanchaite: nuashonrú deireanach {time}"
+#: docking/applets/live_state.py:138
+msgid "Stale: last updated {age}"
+msgstr "Stale: nuashonraithe is déanaí {age}"
 
-#: docking/applets/live_state.py:128
+#: docking/applets/live_state.py:148
 msgid "Use Refresh Now from the menu."
 msgstr "Bain úsáid as Athnuaigh Anois ón roghchlár."
 
-#: docking/applets/micshield/applet.py:44
-#: docking/applets/micshield/state.py:195
+#: docking/applets/micshield/applet.py:57
+#: docking/applets/micshield/state.py:208
 msgid "Mic Shield"
 msgstr "Mic Shield"
 
-#: docking/applets/micshield/applet.py:93
-#: docking/applets/micshield/state.py:197
+#: docking/applets/micshield/applet.py:106
+#: docking/applets/micshield/state.py:210
 msgid "No microphone source found"
 msgstr "Níor aimsíodh foinse micreafóin"
 
-#: docking/applets/micshield/applet.py:97
-#: docking/applets/micshield/state.py:200
+#: docking/applets/micshield/applet.py:110
+#: docking/applets/micshield/state.py:213
 msgid "Microphone muted"
 msgstr "Micreafón ciúin"
 
-#: docking/applets/micshield/applet.py:99
-#: docking/applets/micshield/state.py:200
+#: docking/applets/micshield/applet.py:112
+#: docking/applets/micshield/state.py:213
 msgid "Microphone unmuted"
 msgstr "Micreafón ar siúl"
 
-#: docking/applets/micshield/applet.py:105
-#: docking/applets/micshield/state.py:205
+#: docking/applets/micshield/applet.py:118
+#: docking/applets/micshield/state.py:218
 msgid "Microphone active"
 msgstr "Micreafón gníomhach"
 
-#: docking/applets/micshield/applet.py:109
-#: docking/applets/micshield/state.py:202
+#: docking/applets/micshield/applet.py:122
+#: docking/applets/micshield/state.py:215
 msgid "Microphone idle"
 msgstr "Micreafón díomhaoin"
 
-#: docking/applets/micshield/applet.py:112
+#: docking/applets/micshield/applet.py:125
 msgid "Unmute Microphone"
 msgstr "Cas an micreafón ar siúl"
 
-#: docking/applets/micshield/applet.py:112
+#: docking/applets/micshield/applet.py:125
 msgid "Mute Microphone"
 msgstr "Cuir an micreafón ina thost"
 
-#: docking/applets/micshield/state.py:218
+#: docking/applets/micshield/state.py:231
 #, python-brace-format
 msgid "{command} (PID {pid})"
 msgstr "{command} (PID {pid})"
 
-#: docking/applets/moon/applet.py:49
+#: docking/applets/moon/applet.py:62
 msgid "Moon"
 msgstr "Moon"
 
-#: docking/applets/moon/applet.py:92
+#: docking/applets/moon/applet.py:105
 msgid "Moon (loading...)"
 msgstr "Moon (loading...)"
 
-#: docking/applets/moon/applet.py:99
+#: docking/applets/moon/applet.py:112
 #, python-brace-format
 msgid "Illumination: {pct}%"
 msgstr "Illumination: {pct}%"
 
-#: docking/applets/moon/applet.py:120
+#: docking/applets/moon/applet.py:133
 msgid "Show Phase Name"
 msgstr "Show Phase Name"
 
-#: docking/applets/moon/offline.py:216 docking/applets/moon/state.py:130
+#: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
 msgid "New"
 msgstr "New"
 
-#: docking/applets/moon/offline.py:218 docking/applets/moon/state.py:132
-msgid "Full"
-msgstr "Full"
-
-#: docking/applets/moon/offline.py:220
+#: docking/applets/moon/offline.py:233
 msgid "Crescent"
 msgstr "Crescent"
 
-#: docking/applets/moon/offline.py:221
+#: docking/applets/moon/offline.py:234
 msgid "Gibbous"
 msgstr "Gibbous"
 
-#: docking/applets/moon/offline.py:234
+#: docking/applets/moon/offline.py:247
 msgid "new moon"
 msgstr "new moon"
 
-#: docking/applets/moon/offline.py:236
+#: docking/applets/moon/offline.py:249
 msgid "first quarter"
 msgstr "first quarter"
 
-#: docking/applets/moon/offline.py:238
+#: docking/applets/moon/offline.py:251
 msgid "full moon"
 msgstr "full moon"
 
-#: docking/applets/moon/offline.py:240
+#: docking/applets/moon/offline.py:253
 msgid "last quarter"
 msgstr "last quarter"
 
-#: docking/applets/moon/offline.py:242
+#: docking/applets/moon/offline.py:255
 #, python-brace-format
 msgid "{days} days after new moon"
 msgstr "{days} days after new moon"
 
-#: docking/applets/moon/offline.py:247
+#: docking/applets/moon/offline.py:260
 #, python-brace-format
 msgid "{days} days after full moon"
 msgstr "{days} days after full moon"
 
-#: docking/applets/moon/state.py:121
+#: docking/applets/moon/state.py:134
 msgid "Waxing Crescent"
 msgstr "Waxing Crescent"
 
-#: docking/applets/moon/state.py:123
+#: docking/applets/moon/state.py:136
 msgid "Waxing Gibbous"
 msgstr "Waxing Gibbous"
 
-#: docking/applets/moon/state.py:125
+#: docking/applets/moon/state.py:138
 msgid "Waning Gibbous"
 msgstr "Waning Gibbous"
 
-#: docking/applets/moon/state.py:127
+#: docking/applets/moon/state.py:140
 msgid "Waning Crescent"
 msgstr "Waning Crescent"
 
-#: docking/applets/moon/state.py:134
+#: docking/applets/moon/state.py:147
 msgid "1st Quarter"
 msgstr "1st Quarter"
 
-#: docking/applets/moon/state.py:136
+#: docking/applets/moon/state.py:149
 msgid "3rd Quarter"
 msgstr "3rd Quarter"
 
-#: docking/applets/music/applet.py:45 docking/applets/music/state.py:129
-#: docking/applets/music/state.py:143
+#: docking/applets/music/applet.py:58 docking/applets/music/state.py:142
+#: docking/applets/music/state.py:156
 msgid "Music"
 msgstr "Music"
 
-#: docking/applets/music/applet.py:105 docking/applets/music/state.py:130
+#: docking/applets/music/applet.py:118 docking/applets/music/state.py:143
 msgid "No active player"
 msgstr "No active player"
 
-#: docking/applets/music/applet.py:107
+#: docking/applets/music/applet.py:120
 msgid "Previous"
 msgstr "Previous"
 
-#: docking/applets/music/applet.py:115
+#: docking/applets/music/applet.py:128
 msgid "Next"
 msgstr "Next"
 
-#: docking/applets/music/applet.py:119
+#: docking/applets/music/applet.py:132
 msgid "Volume Up"
 msgstr "Volume Up"
 
-#: docking/applets/music/applet.py:125
+#: docking/applets/music/applet.py:138
 msgid "Volume Down"
 msgstr "Volume Down"
 
-#: docking/applets/music/state.py:69
+#: docking/applets/music/state.py:82
 msgid "Pause"
 msgstr "Pause"
 
-#: docking/applets/music/state.py:69
+#: docking/applets/music/state.py:82
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:76
+#: docking/applets/music/state.py:89
 msgid "Playing"
 msgstr "Playing"
 
-#: docking/applets/music/state.py:78
+#: docking/applets/music/state.py:91
 msgid "Paused"
 msgstr "Paused"
 
-#: docking/applets/music/state.py:80
+#: docking/applets/music/state.py:93
 msgid "Stopped"
 msgstr "Stopped"
 
-#: docking/applets/network/applet.py:64 docking/applets/network/state.py:214
-#: docking/applets/network/state.py:225
+#: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
+#: docking/applets/network/state.py:257
 msgid "Network"
 msgstr "Network"
 
-#: docking/applets/network/applet.py:118
+#: docking/applets/network/applet.py:127
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:127
+#: docking/applets/network/applet.py:136
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "Ethernet: {iface}"
 
-#: docking/applets/network/applet.py:132 docking/applets/network/state.py:215
+#: docking/applets/network/applet.py:141 docking/applets/network/state.py:247
 msgid "Not connected"
 msgstr "Not connected"
 
-#: docking/applets/network/applet.py:136
+#: docking/applets/network/applet.py:145
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/applet.py:147
+#: docking/applets/network/applet.py:156
 msgid "Connection Information"
 msgstr "Connection Information"
 
-#: docking/applets/network/applet.py:153
+#: docking/applets/network/applet.py:162
 msgid "Edit Connections..."
 msgstr "Edit Connections..."
 
-#: docking/applets/network/applet.py:163
+#: docking/applets/network/applet.py:172
 msgid "Connect to Hidden Wi-Fi Network..."
 msgstr "Connect to Hidden Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:170
+#: docking/applets/network/applet.py:179
 msgid "Create New Wi-Fi Network..."
 msgstr "Create New Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:174
+#: docking/applets/network/applet.py:183
 msgid "Enable Networking"
 msgstr "Enable Networking"
 
-#: docking/applets/network/applet.py:185
+#: docking/applets/network/applet.py:194
 msgid "Enable Wi-Fi"
 msgstr "Enable Wi-Fi"
 
-#: docking/applets/network/applet.py:202
+#: docking/applets/network/applet.py:211
 msgid "Show Download"
 msgstr "Taispeáin íoslódáil"
 
-#: docking/applets/network/applet.py:203
+#: docking/applets/network/applet.py:212
 msgid "Show Upload"
 msgstr "Taispeáin uaslódáil"
 
-#: docking/applets/network/applet.py:204
+#: docking/applets/network/applet.py:213
 msgid "Hide Speeds"
 msgstr "Cuir luasanna i bhfolach"
 
-#: docking/applets/network/applet.py:255
+#: docking/applets/network/applet.py:262
 msgid "Available Networks"
 msgstr "Available Networks"
 
-#: docking/applets/network/applet.py:259
+#: docking/applets/network/applet.py:266
 #, python-brace-format
 msgid "{ssid} ({pct}%)"
 msgstr "{ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:261
+#: docking/applets/network/applet.py:268
 #, python-brace-format
 msgid "Connected: {label}"
 msgstr "Connected: {label}"
 
-#: docking/applets/network/applet.py:270
+#: docking/applets/network/applet.py:277
 msgid "No networks found"
 msgstr "No networks found"
 
-#: docking/applets/network/applet.py:282
+#: docking/applets/network/applet.py:289
 msgid "VPN Connections"
 msgstr "VPN Connections"
 
-#: docking/applets/network/applet.py:285
+#: docking/applets/network/applet.py:292
 msgid "Unnamed VPN"
 msgstr "Unnamed VPN"
 
-#: docking/applets/notifications/applet.py:64
-#: docking/applets/notifications/state.py:49
+#: docking/applets/notifications/applet.py:78
+#: docking/applets/notifications/state.py:62
 msgid "Notifications"
 msgstr "Notifications"
 
-#: docking/applets/notifications/applet.py:132
+#: docking/applets/notifications/applet.py:146
 msgid "No notification backend available"
 msgstr "No notification backend available"
 
-#: docking/applets/notifications/applet.py:134
+#: docking/applets/notifications/applet.py:148
 msgid "Do Not Disturb"
 msgstr "Do Not Disturb"
 
-#: docking/applets/notifications/applet.py:142
-#: docking/applets/notifications/state.py:47
+#: docking/applets/notifications/applet.py:156
+#: docking/applets/notifications/state.py:60
 #, python-brace-format
 msgid "Pending: {n}"
 msgstr "Pending: {n}"
 
-#: docking/applets/notifications/applet.py:147
+#: docking/applets/notifications/applet.py:161
 msgid "Clear History"
 msgstr "Clear History"
 
-#: docking/applets/notifications/applet.py:152
+#: docking/applets/notifications/applet.py:166
 msgid "Clear Notifications"
 msgstr "Clear Notifications"
 
-#: docking/applets/notifications/state.py:43
+#: docking/applets/notifications/state.py:56
 msgid "Notifications: No backend available"
 msgstr "Fógraí: Níl aon chúltaca ar fáil"
 
-#: docking/applets/pet/applet.py:41
+#: docking/applets/pet/applet.py:54
 msgid "Pet"
 msgstr "Peata"
 
-#: docking/applets/pet/state.py:60
+#: docking/applets/pet/state.py:73
 msgid "Sleeping"
 msgstr "Ag codladh"
 
-#: docking/applets/pet/state.py:61
+#: docking/applets/pet/state.py:74
 msgid "Sleepy"
 msgstr "Codlatach"
 
-#: docking/applets/pet/state.py:62
+#: docking/applets/pet/state.py:75
 msgid "Drowsy"
 msgstr "Codlatach"
 
-#: docking/applets/pet/state.py:63
+#: docking/applets/pet/state.py:76
 msgid "Relaxed"
 msgstr "Suaimhneach"
 
-#: docking/applets/pet/state.py:64
+#: docking/applets/pet/state.py:77
 msgid "Happy"
 msgstr "Sona"
 
-#: docking/applets/pet/state.py:65
+#: docking/applets/pet/state.py:78
 msgid "Focused"
 msgstr "Dírithe"
 
-#: docking/applets/pet/state.py:66
+#: docking/applets/pet/state.py:79
 msgid "Busy"
 msgstr "Gnothach"
 
-#: docking/applets/pet/state.py:67
+#: docking/applets/pet/state.py:80
 msgid "Stressed"
 msgstr "Faoi strus"
 
-#: docking/applets/pet/state.py:68
+#: docking/applets/pet/state.py:81
 msgid "Excited!"
 msgstr "Ar bís!"
 
-#: docking/applets/pet/state.py:191
+#: docking/applets/pet/state.py:204
 #, python-brace-format
 msgid "{mood} | CPU: {cpu}%"
 msgstr "{mood} | CPU: {cpu}%"
 
-#: docking/applets/pomodoro/applet.py:48 docking/applets/pomodoro/state.py:64
+#: docking/applets/pomodoro/applet.py:61 docking/applets/pomodoro/state.py:77
 msgid "Pomodoro"
 msgstr "Pomodoro"
 
-#: docking/applets/pomodoro/applet.py:154
+#: docking/applets/pomodoro/applet.py:167
 msgid "Reset"
 msgstr "Reset"
 
-#: docking/applets/pomodoro/applet.py:162 docking/applets/pomodoro/state.py:68
+#: docking/applets/pomodoro/applet.py:175 docking/applets/pomodoro/state.py:81
 msgid "Work"
 msgstr "Work"
 
-#: docking/applets/pomodoro/applet.py:175 docking/applets/pomodoro/state.py:69
+#: docking/applets/pomodoro/applet.py:188 docking/applets/pomodoro/state.py:82
 msgid "Break"
 msgstr "Break"
 
-#: docking/applets/pomodoro/applet.py:188 docking/applets/pomodoro/state.py:70
+#: docking/applets/pomodoro/applet.py:201 docking/applets/pomodoro/state.py:83
 msgid "Long Break"
 msgstr "Long Break"
 
-#: docking/applets/pomodoro/state.py:66
+#: docking/applets/pomodoro/state.py:79
 #, python-brace-format
 msgid "Paused - {time}"
 msgstr "Paused - {time}"
 
-#: docking/applets/pomodoro/state.py:72
+#: docking/applets/pomodoro/state.py:85
 #, python-brace-format
 msgid "{label}: {time} remaining"
 msgstr "{label}: {time} remaining"
 
-#: docking/applets/powerprofiles/applet.py:58
+#: docking/applets/powerprofiles/applet.py:71
 msgid "Power Profiles"
 msgstr "Power Profiles"
 
-#: docking/applets/powerprofiles/applet.py:123
-#: docking/applets/powerprofiles/state.py:170
-#: docking/applets/powerprofiles/state.py:171
+#: docking/applets/powerprofiles/applet.py:136
+#: docking/applets/powerprofiles/state.py:183
+#: docking/applets/powerprofiles/state.py:184
 msgid "Power Profiles unavailable"
 msgstr "Power Profiles unavailable"
 
-#: docking/applets/powerprofiles/applet.py:126
+#: docking/applets/powerprofiles/applet.py:139
 msgid "Select Profile"
 msgstr "Select Profile"
 
-#: docking/applets/powerprofiles/applet.py:145
+#: docking/applets/powerprofiles/applet.py:158
 #, python-brace-format
 msgid "Limited: {reason}"
 msgstr "Teoranta: {reason}"
 
-#: docking/applets/powerprofiles/state.py:131
+#: docking/applets/powerprofiles/state.py:144
 msgid "Power Saver"
 msgstr "Coigilt Fuinnimh"
 
-#: docking/applets/powerprofiles/state.py:133
+#: docking/applets/powerprofiles/state.py:146
 msgid "Balanced"
 msgstr "Cothromaithe"
 
-#: docking/applets/powerprofiles/state.py:135
+#: docking/applets/powerprofiles/state.py:148
 msgid "Performance"
 msgstr "Feidhmíocht"
 
-#: docking/applets/quicknote/applet.py:41
-#: docking/applets/quicknote/applet.py:70
+#: docking/applets/quicknote/applet.py:54
+#: docking/applets/quicknote/applet.py:83
 msgid "Quick Note"
 msgstr "Nóta tapa"
 
-#: docking/applets/quicknote/applet.py:60
+#: docking/applets/quicknote/applet.py:73
 msgid "Edit Note"
 msgstr "Cuir nóta in eagar"
 
-#: docking/applets/quicknote/applet.py:63
+#: docking/applets/quicknote/applet.py:76
 msgid "Clear Note"
 msgstr "Glan nota"
 
-#: docking/applets/quote/applet.py:86
+#: docking/applets/quote/applet.py:99
 msgid "Next Quote"
 msgstr "Next Quote"
 
-#: docking/applets/quote/applet.py:89
+#: docking/applets/quote/applet.py:102
 msgid "Copy Quote"
 msgstr "Copy Quote"
 
-#: docking/applets/quote/applet.py:96
+#: docking/applets/quote/applet.py:109
 msgid "Source"
 msgstr "Source"
 
-#: docking/applets/quote/applet.py:207
+#: docking/applets/quote/applet.py:220
 #, python-brace-format
 msgid "{source}: loading..."
 msgstr "{source}: loading..."
 
-#: docking/applets/recentfiles/applet.py:35
+#: docking/applets/recentfiles/applet.py:48
 msgid "Recent Files"
 msgstr "Comhaid le déanaí"
 
-#: docking/applets/recentfiles/applet.py:82
+#: docking/applets/recentfiles/applet.py:95
 msgid "Clear Recent Files"
 msgstr "Glan comhaid le deanaí"
 
-#: docking/applets/screenshot/applet.py:40
+#: docking/applets/runcommand/applet.py:63
+#: docking/applets/runcommand/applet.py:88
+#: docking/applets/runcommand/applet.py:118
+#: docking/applets/runcommand/applet.py:262
+msgid "Run Application"
+msgstr "Rith Iarratas"
+
+#: docking/applets/runcommand/applet.py:121
+msgid "Help"
+msgstr "Cabhrú"
+
+#: docking/applets/runcommand/applet.py:123
+msgid "Run"
+msgstr "Rith"
+
+#: docking/applets/runcommand/applet.py:168
+msgid "Run in terminal"
+msgstr "Rith i teirminéal"
+
+#: docking/applets/runcommand/applet.py:170
+msgid "Run with file..."
+msgstr "Rith le comhad..."
+
+#: docking/applets/runcommand/applet.py:175
+msgid "Show list of known applications"
+msgstr "Taispeáin liosta d'fheidhmchláir aitheanta"
+
+#: docking/applets/runcommand/applet.py:181
+#: docking/applets/runcommand/applet.py:286
+msgid "Select an application to view its description."
+msgstr "Roghnaigh feidhmchlár chun a chur síos a fheiceáil."
+
+#: docking/applets/runcommand/applet.py:265
+msgid "Type a command or select an application to launch it."
+msgstr "Clóscríobh ordú nó roghnaigh feidhmchlár chun é a sheoladh."
+
+#: docking/applets/runcommand/applet.py:336
+msgid "Run with file"
+msgstr "Rith le comhad"
+
+#: docking/applets/runcommand/applet.py:341
+#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:441
+#: docking/ui/menu.py:526
+msgid "Open"
+msgstr "Oscail"
+
+#: docking/applets/screenshot/applet.py:54
 msgid "Screenshot"
 msgstr "Screenshot"
 
-#: docking/applets/screenshot/applet.py:77
+#: docking/applets/screenshot/applet.py:91
 #, python-brace-format
 msgid "Full Screen in {delay}s"
 msgstr "Full Screen in {delay}s"
 
-#: docking/applets/separator/applet.py:38
+#: docking/applets/separator/applet.py:51
 msgid "Separator"
 msgstr "Separator"
 
-#: docking/applets/separator/applet.py:119
+#: docking/applets/separator/applet.py:132
 msgid "Increase Gap"
 msgstr "Increase Gap"
 
-#: docking/applets/separator/applet.py:121
+#: docking/applets/separator/applet.py:134
 msgid "Decrease Gap"
 msgstr "Decrease Gap"
 
-#: docking/applets/separator/applet.py:124
+#: docking/applets/separator/applet.py:137
 msgid "Style"
 msgstr "Stíl"
 
-#: docking/applets/separator/applet.py:126
+#: docking/applets/separator/applet.py:139
 msgid "Line"
 msgstr "Líne"
 
-#: docking/applets/separator/applet.py:127
+#: docking/applets/separator/applet.py:140
 msgid "Space"
 msgstr "Spás"
 
-#: docking/applets/separator/applet.py:134
+#: docking/applets/separator/applet.py:147
 msgid "Invert Color"
 msgstr "Inbhéartaigh dath"
 
-#: docking/applets/session/applet.py:28
+#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:148
 msgid "Session"
 msgstr "Session"
 
-#: docking/applets/session/applet.py:56 docking/applets/session/state.py:29
+#: docking/applets/session/applet.py:70 docking/applets/session/state.py:43
 msgid "Suspend"
 msgstr "Suspend"
 
-#: docking/applets/session/state.py:25
+#: docking/applets/session/state.py:39
 msgid "Lock Screen"
 msgstr "Lock Screen"
 
-#: docking/applets/session/state.py:28
+#: docking/applets/session/state.py:42
 msgid "Log Out"
 msgstr "Log Out"
 
-#: docking/applets/session/state.py:30
-msgid "Restart"
-msgstr "Restart"
-
-#: docking/applets/session/state.py:31
+#: docking/applets/session/state.py:45
 msgid "Shut Down"
 msgstr "Shut Down"
 
-#: docking/applets/speedtest/applet.py:42 docking/applets/speedtest/state.py:76
-#: docking/applets/speedtest/state.py:82 docking/applets/speedtest/state.py:88
-#: docking/applets/speedtest/state.py:108
+#: docking/applets/speedtest/applet.py:55 docking/applets/speedtest/state.py:89
+#: docking/applets/speedtest/state.py:95 docking/applets/speedtest/state.py:101
+#: docking/applets/speedtest/state.py:121
 msgid "Speedtest"
 msgstr "Speedtest"
 
-#: docking/applets/speedtest/applet.py:80 docking/applets/speedtest/state.py:73
+#: docking/applets/speedtest/applet.py:93 docking/applets/speedtest/state.py:86
 msgid "Runs"
 msgstr "Reathaí"
 
-#: docking/applets/speedtest/applet.py:83
-#: docking/applets/speedtest/applet.py:101
-#: docking/applets/speedtest/state.py:77
+#: docking/applets/speedtest/applet.py:96
+#: docking/applets/speedtest/applet.py:114
+#: docking/applets/speedtest/state.py:90
 msgid "Running..."
 msgstr "Running..."
 
-#: docking/applets/speedtest/applet.py:83
+#: docking/applets/speedtest/applet.py:96
 msgid "Run Test"
 msgstr "Run Test"
 
-#: docking/applets/speedtest/applet.py:90
+#: docking/applets/speedtest/applet.py:103
 msgid "Copy Last Result"
 msgstr "Copy Last Result"
 
-#: docking/applets/speedtest/applet.py:106
+#: docking/applets/speedtest/applet.py:119
 #, python-brace-format
 msgid "Down {d:.1f} / Up {u:.1f} Mbps"
 msgstr "Down {d:.1f} / Up {u:.1f} Mbps"
 
-#: docking/applets/speedtest/applet.py:163
+#: docking/applets/speedtest/applet.py:176
 #, python-brace-format
 msgid ""
 "Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
@@ -1579,789 +2099,1773 @@ msgstr ""
 "Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
 "({when})"
 
-#: docking/applets/speedtest/state.py:89
+#: docking/applets/speedtest/state.py:102
 msgid "Click to run a test"
 msgstr "Click to run a test"
 
-#: docking/applets/speedtest/state.py:92
+#: docking/applets/speedtest/state.py:105
 #, python-brace-format
 msgid "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
 msgstr "Down: {d:.1f} Mbps   Up: {u:.1f} Mbps"
 
-#: docking/applets/speedtest/state.py:96
+#: docking/applets/speedtest/state.py:109
 #, python-brace-format
 msgid "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
 msgstr "Ping: {p:.1f} ms   Jitter: {j:.1f} ms"
 
-#: docking/applets/speedtest/state.py:101
+#: docking/applets/speedtest/state.py:114
 #, python-brace-format
 msgid "Server: {s}"
 msgstr "Server: {s}"
 
-#: docking/applets/speedtest/state.py:105
+#: docking/applets/speedtest/state.py:118
 #, python-brace-format
 msgid "At: {t}"
 msgstr "At: {t}"
 
-#: docking/applets/stretchcoach/applet.py:41
+#: docking/applets/stretchcoach/applet.py:54
 msgid "Stretch Coach"
 msgstr "Cóitseálaí sínte"
 
-#: docking/applets/stretchcoach/applet.py:79
+#: docking/applets/stretchcoach/applet.py:92
 msgid "Acknowledge Break"
 msgstr "Admhaigh sos"
 
-#: docking/applets/stretchcoach/applet.py:79
+#: docking/applets/stretchcoach/applet.py:92
 msgid "Take Break Now"
 msgstr "Glac sos anois"
 
-#: docking/applets/stretchcoach/applet.py:83
+#: docking/applets/stretchcoach/applet.py:96
 msgid "Show Random Stretch"
 msgstr "Taispeáin síneadh randamach"
 
-#: docking/applets/stretchcoach/applet.py:86
+#: docking/applets/stretchcoach/applet.py:99
 msgid "Random Stretch Cards"
 msgstr "Cártaí sineadh randamacha"
 
-#: docking/applets/stretchcoach/state.py:152
+#: docking/applets/stretchcoach/state.py:165
 msgid "Time to stretch!"
 msgstr "Am chun síneadh!"
 
-#: docking/applets/stretchcoach/state.py:156
+#: docking/applets/stretchcoach/state.py:169
 #, python-brace-format
 msgid "Next stretch in {time}"
 msgstr "An chéad sineadh eile i {time}"
 
-#: docking/applets/systemmonitor/applet.py:51
-#: docking/applets/systemmonitor/state.py:168
+#: docking/applets/sunrise/applet.py:64 docking/applets/sunrise/state.py:490
+msgid "Sunrise"
+msgstr "Éirí na gréine"
+
+#: docking/applets/sunrise/applet.py:116
+msgid "Times shown in system timezone"
+msgstr "Amanna léirithe i gcrios ama an chórais"
+
+#: docking/applets/sunrise/applet.py:121
+msgid "Change City..."
+msgstr "Athrú na Cathrach..."
+
+#: docking/applets/sunrise/applet.py:126
+msgid "Label Mode"
+msgstr "Mód Lipéad"
+
+#: docking/applets/sunrise/applet.py:148 docking/applets/weather/applet.py:218
+#, python-brace-format
+msgid "Remove {city}"
+msgstr "Bain {city}"
+
+#: docking/applets/sunrise/applet.py:185 docking/applets/weather/applet.py:270
+msgid "Search for the city"
+msgstr "Cuardaigh cathair"
+
+#: docking/applets/sunrise/applet.py:198 docking/applets/weather/applet.py:283
+msgid "Type city name..."
+msgstr "Clóscríobh ainm cathrach..."
+
+#: docking/applets/sunrise/state.py:329
+msgid "Sunrise: no city selected"
+msgstr "Éirí na gréine: níor roghnaíodh aon chathair"
+
+#: docking/applets/sunrise/state.py:332
+#, python-brace-format
+msgid "{phase} now"
+msgstr "{phase} anois"
+
+#: docking/applets/sunrise/state.py:336
+#, python-brace-format
+msgid "{event} in {duration}"
+msgstr "{event} in {duration}"
+
+#: docking/applets/sunrise/state.py:368 docking/applets/sunrise/state.py:379
+msgid "Night"
+msgstr "Oíche"
+
+#: docking/applets/sunrise/state.py:369
+msgid "Astronomical twilight"
+msgstr "Twilight réalteolaíoch"
+
+#: docking/applets/sunrise/state.py:370
+msgid "Nautical twilight"
+msgstr "Twilight farraige"
+
+#: docking/applets/sunrise/state.py:371
+msgid "Civil twilight"
+msgstr "Twilight sibhialta"
+
+#: docking/applets/sunrise/state.py:372
+msgid "Daylight"
+msgstr "Solas lae"
+
+#: docking/applets/sunrise/state.py:380
+msgid "Astro"
+msgstr "Astro"
+
+#: docking/applets/sunrise/state.py:381
+msgid "Naut"
+msgstr "Naut"
+
+#: docking/applets/sunrise/state.py:382
+msgid "Civil"
+msgstr "sibhialta"
+
+#: docking/applets/sunrise/state.py:390
+#: docking/applets/todayinhistory/applet.py:109
+msgid "Next Event"
+msgstr "An chéad imeacht eile"
+
+#: docking/applets/sunrise/state.py:391
+msgid "Current Phase"
+msgstr "An Chéim Reatha"
+
+#: docking/applets/sunrise/state.py:392
+msgid "Sunrise/Sunset"
+msgstr "Éirí na Gréine / Luí na Gréine"
+
+#: docking/applets/sunrise/state.py:399 docking/applets/weather/state.py:178
+msgid "No city selected"
+msgstr "Níor roghnaíodh cathair"
+
+#: docking/applets/sunrise/state.py:401
+msgid "{city}: {phase}"
+msgstr "{city}: {phase}"
+
+#: docking/applets/sunrise/state.py:405
+#, python-brace-format
+msgid "{city}: {event} in {duration}"
+msgstr "{city}: {event} in {duration}"
+
+#: docking/applets/sunrise/state.py:472
+msgid "Astronomical dawn"
+msgstr "breacadh an lae réalteolaíoch"
+
+#: docking/applets/sunrise/state.py:478
+msgid "Nautical dawn"
+msgstr "Nós mara"
+
+#: docking/applets/sunrise/state.py:484
+msgid "Civil dawn"
+msgstr "breacadh an lae sibhialta"
+
+#: docking/applets/sunrise/state.py:496
+msgid "Solar noon"
+msgstr "Gréine meán lae"
+
+#: docking/applets/sunrise/state.py:502
+msgid "Sunset"
+msgstr "Luí na gréine"
+
+#: docking/applets/sunrise/state.py:508
+msgid "Civil dusk"
+msgstr "Dusk sibhialta"
+
+#: docking/applets/sunrise/state.py:514
+msgid "Nautical dusk"
+msgstr "Dusk farraige"
+
+#: docking/applets/sunrise/state.py:520
+msgid "Astronomical dusk"
+msgstr "Dusk réalteolaíoch"
+
+#: docking/applets/systemmonitor/applet.py:65
+#: docking/applets/systemmonitor/state.py:186
 msgid "System Monitor"
 msgstr "System Monitor"
 
-#: docking/applets/systemmonitor/applet.py:85
+#: docking/applets/systemmonitor/applet.py:102
 msgid "Show Disk Usage"
 msgstr "Show Disk Usage"
 
-#: docking/applets/systemmonitor/applet.py:90
-#: docking/applets/thermals/applet.py:149 docking/applets/weather/applet.py:186
+#: docking/applets/systemmonitor/applet.py:107
+#: docking/applets/thermals/applet.py:162 docking/applets/weather/applet.py:201
 msgid "Temperature Unit"
 msgstr "Aonad teochta"
 
-#: docking/applets/systemmonitor/state.py:151
+#: docking/applets/systemmonitor/gpu.py:145
+msgid "GPU: {pct}%"
+msgstr "GPU: {pct}%"
+
+#: docking/applets/systemmonitor/gpu.py:147
+msgid "GPU: {name}"
+msgstr "GPU: {name}"
+
+#: docking/applets/systemmonitor/gpu.py:151
+#, python-brace-format
+msgid "Mem: {used}/{total} MiB"
+msgstr "Mem: {used}/{total} MiB"
+
+#: docking/applets/systemmonitor/gpu.py:157
+#, python-brace-format
+msgid "Mem: {used} MiB"
+msgstr "Mem: {used} MiB"
+
+#: docking/applets/systemmonitor/state.py:166
 #, python-brace-format
 msgid "CPU: {cpu}% | Mem: {mem}%"
 msgstr "CPU: {cpu}% | Mem: {mem}%"
 
-#: docking/applets/systemmonitor/state.py:155
+#: docking/applets/systemmonitor/state.py:170
 #, python-brace-format
 msgid "{text} | Temp: {temp}"
 msgstr "{text} | Temp: {temp}"
 
-#: docking/applets/systemmonitor/state.py:166
+#: docking/applets/systemmonitor/state.py:184
 #, python-brace-format
 msgid "Disk: {usage}"
 msgstr "Disk: {usage}"
 
-#: docking/applets/temperature.py:31
+#: docking/applets/systemtray/applet.py:52
+msgid "System Tray"
+msgstr "Tráidire Córais"
+
+#: docking/applets/systemtray/applet.py:81
+#, python-brace-format
+msgid "System Tray: {n} legacy item(s)"
+msgstr "Tráidire Córais: {n} mír(í) oidhreachta"
+
+#: docking/applets/systemtray/applet.py:127
+msgid "Activate"
+msgstr "Gníomhachtaigh"
+
+#: docking/applets/systemtray/applet.py:132
+msgid "Context Menu"
+msgstr "Roghchlár Comhthéacs"
+
+#: docking/applets/systemtray/applet.py:190
+msgid "D-Bus unavailable"
+msgstr "Níl D-Bus ar fáil"
+
+#: docking/applets/systemtray/applet.py:199
+#, python-brace-format
+msgid "Legacy X11 tray is active with {n} item(s)."
+msgstr "Tá tráidire oidhreachta X11 gníomhach le mír(í) {n}."
+
+#: docking/applets/systemtray/applet.py:203
+msgid "Legacy X11 tray is active and waiting for tray apps."
+msgstr ""
+"Tá tráidire Legacy X11 gníomhach agus ag fanacht le haipeanna tráidire."
+
+#: docking/applets/systemtray/applet.py:211
+#, python-brace-format
+msgid ""
+"No StatusNotifier apps are registered. Legacy tray icons are currently owned "
+"by {owner}. Use Take Over Legacy Tray from the applet menu if you want "
+"Docking to host them."
+msgstr ""
+"Níl aon aipeanna StatusNotifier cláraithe. Tá deilbhíní tráidire oidhreachta "
+"faoi úinéireacht {owner} faoi láthair. Úsáid Tráidire Legacy Take Over ón "
+"roghchlár feidhmchláirín más mian leat Docking a óstáil."
+
+#: docking/applets/systemtray/applet.py:217
+msgid ""
+"No tray applications are registered. Use Start Legacy Tray from the applet "
+"menu for older X11 tray apps."
+msgstr ""
+"Ní chláraítear aon iarratais ar thráidire. Úsáid Tráidire Tosaigh Legacy ón "
+"roghchlár feidhmchláirín le haghaidh aipeanna tráidire X11 níos sine."
+
+#: docking/applets/systemtray/applet.py:261
+msgid "Menu"
+msgstr "Roghchlár"
+
+#: docking/applets/systemtray/applet.py:308
+msgid "Release Legacy Tray"
+msgstr "Tráidire Oidhreacht Scaoileadh"
+
+#: docking/applets/systemtray/applet.py:312
+#, python-brace-format
+msgid "Legacy X11 tray active: {n} item(s)"
+msgstr "Tráidire oidhreacht X11 gníomhach: {n} mír(í)"
+
+#: docking/applets/systemtray/applet.py:321
+msgid "Take Over Legacy Tray"
+msgstr "Tóg Thar Leag Tráidire"
+
+#: docking/applets/systemtray/applet.py:325
+#, python-brace-format
+msgid "Legacy X11 tray owned by {owner}"
+msgstr "Tráidire oidhreacht X11 ar le {owner}"
+
+#: docking/applets/systemtray/applet.py:333
+msgid "Start Legacy Tray"
+msgstr "Tosaigh Tráidire Oidhreacht"
+
+#: docking/applets/systemtray/applet.py:349
+msgid "Unknown X11 tray error"
+msgstr "Earráid tráidire X11 anaithnid"
+
+#: docking/applets/systemtray/applet.py:355
+msgid "Could not start the legacy tray"
+msgstr "Níorbh fhéidir an tráidire oidhreachta a thosú"
+
+#: docking/applets/systemtray/applet.py:362
+msgid "another tray"
+msgstr "tráidire eile"
+
+#: docking/applets/systemtray/applet.py:368
+msgid "Take over the legacy tray?"
+msgstr "Tóg thar an tráidire oidhreachta?"
+
+#: docking/applets/systemtray/applet.py:370
+msgid "Take Over"
+msgstr "Tóg Thar"
+
+#: docking/applets/systemtray/applet.py:373
+#, python-brace-format
+msgid ""
+"Docking will replace {owner} as the X11 system tray host. Existing legacy "
+"tray apps may need to be restarted before they dock into Docking."
+msgstr ""
+"Tiocfaidh Á Chur in ionad {owner} mar óstach tráidire an chórais X11. Seans "
+"go mbeidh gá aipeanna tráidire oidhreachta atá ann cheana a atosú sula nduga "
+"siad isteach sa Chur Chuige."
+
+#: docking/applets/systemtray/applet.py:436
+msgid "Menu Item"
+msgstr "Mír Roghchláir"
+
+#: docking/applets/systemtray/applet.py:481
+msgid "System Tray unavailable"
+msgstr "Tráidire an Chórais ar fáil"
+
+#: docking/applets/systemtray/applet.py:483
+#, python-brace-format
+msgid "System Tray host: {n} item(s)"
+msgstr "Óstach Tráidire an Chórais: {n} mír(í)"
+
+#: docking/applets/systemtray/applet.py:484
+#: docking/applets/systemtray/state.py:158
+#, python-brace-format
+msgid "System Tray: {n} item(s)"
+msgstr "Tráidire Córais: {n} mír(í)"
+
+#: docking/applets/systemtray/state.py:148
+#, python-brace-format
+msgid "System Tray: {error}"
+msgstr "Tráidire Córais: {error}"
+
+#: docking/applets/systemtray/state.py:149
+msgid "System Tray: D-Bus unavailable"
+msgstr "Tráidire Córais: Níl D-Bus ar fáil"
+
+#: docking/applets/systemtray/state.py:152
+#, python-brace-format
+msgid "System Tray: legacy tray owned by {owner}"
+msgstr "Tráidire Córais: tráidire oidhreachta faoi úinéireacht {owner}"
+
+#: docking/applets/systemtray/state.py:156
+msgid "System Tray: waiting for tray apps"
+msgstr "Tráidire an Chórais: ag fanacht le apps tráidire"
+
+#: docking/applets/systemtray/state.py:157
+msgid "System Tray: no tray apps"
+msgstr "Tráidire an Chórais: gan aon aipeanna tráidire"
+
+#: docking/applets/systemtray/state.py:162
+msgid "and {n} more"
+msgstr "agus {n} níos mó"
+
+#: docking/applets/systemtray/state.py:243
+msgid "session bus unavailable"
+msgstr "bus seisiún ar fáil"
+
+#: docking/applets/temperature.py:44
 msgid "Fahrenheit"
 msgstr "Fahrenheit"
 
-#: docking/applets/temperature.py:32
+#: docking/applets/temperature.py:45
 msgid "Celsius"
 msgstr "Celsius"
 
-#: docking/applets/thermals/applet.py:53 docking/applets/thermals/state.py:407
-#: docking/applets/thermals/state.py:420 docking/applets/thermals/state.py:432
-#: docking/applets/thermals/state.py:466
+#: docking/applets/thermals/applet.py:66 docking/applets/thermals/state.py:421
+#: docking/applets/thermals/state.py:434 docking/applets/thermals/state.py:446
+#: docking/applets/thermals/state.py:480
 msgid "Thermals"
 msgstr "Teirmí"
 
-#: docking/applets/thermals/applet.py:96 docking/applets/thermals/state.py:114
-#: docking/applets/thermals/state.py:427
+#: docking/applets/thermals/applet.py:109 docking/applets/thermals/state.py:128
+#: docking/applets/thermals/state.py:441
 msgid "lm-sensors not installed"
 msgstr "lm-sensors gan suiteáil"
 
-#: docking/applets/thermals/applet.py:105 docking/applets/thermals/state.py:446
+#: docking/applets/thermals/applet.py:118 docking/applets/thermals/state.py:460
 #, python-brace-format
 msgid "Hot: {label} {temp}"
 msgstr "Te: {label} {temp}"
 
-#: docking/applets/thermals/applet.py:119 docking/applets/thermals/state.py:458
+#: docking/applets/thermals/applet.py:132 docking/applets/thermals/state.py:472
 #, python-brace-format
 msgid "Fan: {label} {rpm}"
 msgstr "Gaothrán: {label} {rpm}"
 
-#: docking/applets/thermals/applet.py:139 docking/applets/thermals/state.py:413
-#: docking/applets/thermals/state.py:425 docking/applets/thermals/state.py:437
-#: docking/applets/thermals/state.py:473
+#: docking/applets/thermals/applet.py:152 docking/applets/thermals/state.py:427
+#: docking/applets/thermals/state.py:439 docking/applets/thermals/state.py:451
+#: docking/applets/thermals/state.py:487
 msgid "Samples"
 msgstr "Samplaí"
 
-#: docking/applets/thermals/applet.py:257
+#: docking/applets/thermals/applet.py:270
 msgid "Thermal readings unavailable"
 msgstr "Léamha teirmeacha gan fáil"
 
-#: docking/applets/thermals/state.py:135
+#: docking/applets/thermals/state.py:149
 msgid "sensors failed"
 msgstr "theip ar bhraiteoirí"
 
-#: docking/applets/thermals/state.py:142
+#: docking/applets/thermals/state.py:156
 msgid "No thermal readings"
 msgstr "Gan léamha teirmeacha"
 
-#: docking/applets/thermals/state.py:454
+#: docking/applets/thermals/state.py:468
 msgid "Hot: unavailable"
 msgstr "Te: gan fáil"
 
-#: docking/applets/thermals/state.py:464
+#: docking/applets/thermals/state.py:478
 msgid "Fan: unavailable"
 msgstr "Gaothrán: gan fáil"
 
-#: docking/applets/todayinhistory/applet.py:47
-#: docking/applets/todayinhistory/applet.py:117
-#: docking/applets/todayinhistory/applet.py:129
+#: docking/applets/todayinhistory/applet.py:60
+#: docking/applets/todayinhistory/applet.py:130
+#: docking/applets/todayinhistory/applet.py:142
 msgid "Today in History"
 msgstr "Inniu sa stair"
 
-#: docking/applets/todayinhistory/applet.py:92
+#: docking/applets/todayinhistory/applet.py:105
 msgid "Open Article"
 msgstr "Oscail alt"
 
-#: docking/applets/todayinhistory/applet.py:96
-msgid "Next Event"
-msgstr "An chéad imeacht eile"
-
-#: docking/applets/todayinhistory/applet.py:112
+#: docking/applets/todayinhistory/applet.py:125
 msgid "Today in History: loading..."
 msgstr "Inniu sa stair: ag lódáil..."
 
-#: docking/applets/todayinhistory/state.py:26
+#: docking/applets/todayinhistory/state.py:39
 msgid "Offline fallback"
 msgstr "Cúltaca as líne"
 
-#: docking/applets/todayinhistory/state.py:46
+#: docking/applets/todayinhistory/state.py:54
 #, python-brace-format
 msgid "{year} - {title}"
 msgstr "{year} - {title}"
 
-#: docking/applets/trash/applet.py:36
+#: docking/applets/trash/applet.py:50
 msgid "Trash"
 msgstr "Trash"
 
-#: docking/applets/trash/applet.py:65
+#: docking/applets/trash/applet.py:130
 msgid "Open Trash"
 msgstr "Open Trash"
 
-#: docking/applets/trash/applet.py:68 docking/applets/trash/applet.py:115
+#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:264
 msgid "Empty Trash"
 msgstr "Empty Trash"
 
-#: docking/applets/trash/applet.py:109
+#: docking/applets/trash/applet.py:233
+msgid ""
+"Could not empty Trash. Some items may require administrator permissions."
+msgstr ""
+"Níorbh fhéidir an Bruscar a fholmhú. Seans go mbeidh ceadanna riarthóra ag "
+"teastáil ó roinnt míreanna."
+
+#: docking/applets/trash/applet.py:236
+msgid "Could not empty Trash."
+msgstr "Níorbh fhéidir an Bruscar a fholmhú."
+
+#: docking/applets/trash/applet.py:258
 msgid "Empty all items from Trash?"
 msgstr "Folmhaigh gach mír ón mBruscar?"
 
-#: docking/applets/trash/applet.py:112
+#: docking/applets/trash/applet.py:261
 msgid "All items in the Trash will be permanently deleted."
 msgstr "Scriosfar gach mír sa Bhruscar go buan."
 
-#: docking/applets/trash/render.py:18
+#: docking/applets/trash/render.py:32
 msgid "No items in Trash"
 msgstr "No items in Trash"
 
-#: docking/applets/trash/render.py:20 docking/applets/trash/render.py:21
+#: docking/applets/trash/render.py:34 docking/applets/trash/render.py:35
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
 msgstr[0] "{n} mír sa Bhosca Bruscair"
 msgstr[1] "{n} míreanna sa Bhosca Bruscair"
 
-#: docking/applets/trivia/applet.py:42 docking/applets/trivia/applet.py:186
+#: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
 msgstr "Trivia randamach"
 
-#: docking/applets/trivia/applet.py:77 docking/applets/trivia/state.py:102
+#: docking/applets/trivia/applet.py:90 docking/applets/trivia/state.py:109
 #, python-brace-format
 msgid "{category} / {difficulty}"
 msgstr "{category} / {difficulty}"
 
-#: docking/applets/trivia/applet.py:96 docking/applets/trivia/state.py:113
+#: docking/applets/trivia/applet.py:109 docking/applets/trivia/state.py:120
 #, python-brace-format
 msgid "Correct answer: {answer}"
 msgstr "Freagra ceart: {answer}"
 
-#: docking/applets/trivia/applet.py:105 docking/applets/trivia/state.py:112
+#: docking/applets/trivia/applet.py:118 docking/applets/trivia/state.py:119
 #, python-brace-format
 msgid "Your answer: {answer}"
 msgstr "Do fhreagra: {answer}"
 
-#: docking/applets/trivia/applet.py:112
+#: docking/applets/trivia/applet.py:125
 msgid "Next Trivia"
 msgstr "An chéad trivia eile"
 
-#: docking/applets/trivia/applet.py:181
+#: docking/applets/trivia/applet.py:194
 msgid "Trivia: loading..."
 msgstr "Trivia: ag lódáil..."
 
-#: docking/applets/trivia/state.py:88
+#: docking/applets/trivia/state.py:95
 msgid "Easy"
 msgstr "Éasca"
 
-#: docking/applets/trivia/state.py:89
+#: docking/applets/trivia/state.py:96
 msgid "Medium"
 msgstr "Meánach"
 
-#: docking/applets/trivia/state.py:90
+#: docking/applets/trivia/state.py:97
 msgid "Hard"
 msgstr "Deacair"
 
-#: docking/applets/trivia/state.py:110
+#: docking/applets/trivia/state.py:117
 #, python-brace-format
 msgid "Correct: {answer}"
 msgstr "Ceart: {answer}"
 
-#: docking/applets/unitconverter/applet.py:102
-#: docking/applets/unitconverter/applet.py:129
-#: docking/applets/unitconverter/applet.py:161
+#: docking/applets/unitconverter/applet.py:116
+#: docking/applets/unitconverter/applet.py:143
+#: docking/applets/unitconverter/applet.py:175
 msgid "Unit Converter"
 msgstr "Tiontaire aonad"
 
-#: docking/applets/unitconverter/applet.py:210
+#: docking/applets/unitconverter/applet.py:224
 msgid "Swap units"
 msgstr "Malartaigh aonaid"
 
-#: docking/applets/unitconverter/applet.py:227
+#: docking/applets/unitconverter/applet.py:241
 msgid "Value"
 msgstr "Luach"
 
-#: docking/applets/urlshortener/applet.py:59
-#: docking/applets/urlshortener/applet.py:80
-#: docking/applets/urlshortener/applet.py:98
+#: docking/applets/urlshortener/applet.py:72
+#: docking/applets/urlshortener/applet.py:93
+#: docking/applets/urlshortener/applet.py:111
 msgid "URL Shortener"
 msgstr "Giorraitheoir URL"
 
-#: docking/applets/urlshortener/applet.py:117
+#: docking/applets/urlshortener/applet.py:130
 msgid "Shorten"
 msgstr "Giorraigh"
 
-#: docking/applets/urlshortener/applet.py:143
+#: docking/applets/urlshortener/applet.py:156
 msgid "Shortening..."
 msgstr "Ag giorrú..."
 
-#: docking/applets/urlshortener/applet.py:177
-#: docking/applets/urlshortener/applet.py:196
+#: docking/applets/urlshortener/applet.py:190
+#: docking/applets/urlshortener/applet.py:209
 msgid "Copy"
 msgstr "Coipeail"
 
-#: docking/applets/urlshortener/applet.py:191
+#: docking/applets/urlshortener/applet.py:204
 msgid "Copied!"
 msgstr "Coipeailte!"
 
-#: docking/applets/usbwatch/applet.py:37 docking/applets/usbwatch/state.py:80
-#: docking/applets/usbwatch/state.py:87
+#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:93
+#: docking/applets/usbwatch/state.py:100
 msgid "USB Watch"
 msgstr "USB Watch"
 
-#: docking/applets/usbwatch/applet.py:61 docking/applets/usbwatch/state.py:81
+#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:94
 msgid "No mounted USB devices"
 msgstr "Gan gléasanna USB feistithe"
 
-#: docking/applets/usbwatch/applet.py:70
+#: docking/applets/usbwatch/applet.py:84
 #, python-brace-format
 msgid "Safely Remove {name}"
 msgstr "Bain {name} go sábháilte"
 
-#: docking/applets/usbwatch/state.py:88
+#: docking/applets/usbwatch/state.py:101
 #, python-brace-format
 msgid "{count} mounted device(s)"
 msgstr "{count} gléas feistithe"
 
-#: docking/applets/usbwatch/state.py:95
+#: docking/applets/usbwatch/state.py:108
 msgid "Removable Drive"
 msgstr "Tiomántán inbhainte"
 
-#: docking/applets/volume/applet.py:42
+#: docking/applets/volume/applet.py:55
 msgid "Volume"
 msgstr "Airde fuaime"
 
-#: docking/applets/volume/applet.py:66
+#: docking/applets/volume/applet.py:79
 msgid "Muted"
 msgstr "Muted"
 
-#: docking/applets/volume/applet.py:66
+#: docking/applets/volume/applet.py:79
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "Airde fuaime: {pct}%"
 
-#: docking/applets/volume/applet.py:120
+#: docking/applets/volume/applet.py:133
 msgid "Volume Settings"
 msgstr "Volume Settings"
 
-#: docking/applets/weather/applet.py:70 docking/applets/weather/state.py:163
+#: docking/applets/weather/applet.py:83 docking/applets/weather/state.py:177
 msgid "Weather"
 msgstr "Weather"
 
-#: docking/applets/weather/applet.py:179
+#: docking/applets/weather/applet.py:194
 msgid "Show Temperature"
 msgstr "Show Temperature"
 
-#: docking/applets/weather/applet.py:203
-#, python-brace-format
-msgid "Remove {city}"
-msgstr "Bain {city}"
-
-#: docking/applets/weather/applet.py:255
-msgid "Search for the city"
-msgstr "Cuardaigh cathair"
-
-#: docking/applets/weather/applet.py:268
-msgid "Type city name..."
-msgstr "Clóscríobh ainm cathrach..."
-
-#: docking/applets/weather/applet.py:425
+#: docking/applets/weather/applet.py:452
 msgid "No weather data"
 msgstr "Gan sonraí aimsire"
 
-#: docking/applets/weather/applet.py:481 docking/applets/weather/state.py:198
+#: docking/applets/weather/applet.py:515 docking/applets/weather/state.py:216
 #, python-brace-format
 msgid "{temp}, {desc}"
 msgstr "{temp}, {desc}"
 
-#: docking/applets/weather/applet.py:494 docking/applets/weather/state.py:188
+#: docking/applets/weather/applet.py:528 docking/applets/weather/state.py:202
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "Air: {label}"
 
-#: docking/applets/weather/applet.py:506
+#: docking/applets/weather/applet.py:534 docking/applets/weather/state.py:205
+msgid "UV Index: {value}"
+msgstr "Innéacs UV: {value}"
+
+#: docking/applets/weather/applet.py:548
 #, python-brace-format
 msgid "{date}: {temp_range}"
 msgstr "{date}: {temp_range}"
 
-#: docking/applets/weather/state.py:139
+#: docking/applets/weather/state.py:153
 #, python-brace-format
 msgid "{city}: {temp}"
 msgstr "{city}: {temp}"
 
-#: docking/applets/weather/state.py:164
-msgid "No city selected"
-msgstr "Níor roghnaíodh cathair"
-
-#: docking/applets/windowkiller/applet.py:64
+#: docking/applets/windowkiller/applet.py:78
 msgid "Window Killer"
 msgstr "Maraitheoir fuinneog"
 
-#: docking/applets/windowkiller/applet.py:76
+#: docking/applets/windowkiller/applet.py:94
 msgid "Click, then select a window to kill"
 msgstr "Clic, ansin roghnaigh fuinneog le dunádh"
 
-#: docking/applets/workspaces/applet.py:41
+#: docking/applets/workspaces/applet.py:54
 msgid "Workspaces"
 msgstr "Workspaces"
 
-#: docking/ui/about.py:55
+#: docking/core/tips.py:57
+msgid "Open the dock menu from anywhere"
+msgstr "Oscail an roghchlár duga ó áit ar bith"
+
+#: docking/core/tips.py:59
+msgid ""
+"Hold Ctrl and right-click anywhere on the shelf to open the dock menu. This "
+"is the quickest path to Preferences, Applets, Diagnostics, and Quit when "
+"there is no empty space near the icons."
+msgstr ""
+"Coinnigh Ctrl agus deaschliceáil áit ar bith ar an tseilf chun an roghchlár "
+"duga a oscailt. Is é seo an cosán is tapúla chun Roghanna, Feidhmchláiríní, "
+"Diagnóisic, agus Scoir nuair nach bhfuil aon spás folamh in aice leis na "
+"deilbhíní."
+
+#: docking/core/tips.py:67
+msgid "Start with Preferences"
+msgstr "Tosaigh le Roghanna"
+
+#: docking/core/tips.py:69
+msgid ""
+"Use Preferences to adjust position, monitor behavior, icon size, zoom, "
+"hiding, themes, previews, tooltips, and click actions. It is the best first "
+"stop when the dock does not feel quite right."
+msgstr ""
+"Úsáid Roghanna chun suíomh a choigeartú, monatóireacht a dhéanamh ar iompar, "
+"méid deilbhíní, súmáil isteach, dul i bhfolach, téamaí, réamhamhairc, "
+"leideanna uirlisí, agus gníomhartha cliceáil. Is é an chéad stad is fearr "
+"nuair nach mbraitheann an duga ceart go leor."
+
+#: docking/core/tips.py:76
+msgid "Add applets from the dock menu"
+msgstr "Cuir feidhmchláiríní ón roghchlár duga"
+
+#: docking/core/tips.py:78
+msgid ""
+"Right-click the shelf background and choose Add Applet to add launchers, "
+"system status, media controls, productivity helpers, and small utility tools "
+"directly to the dock."
+msgstr ""
+"Deaschliceáil ar chúlra na seilfe agus roghnaigh Cuir Feidhmchláirín leis "
+"chun lainseálaithe, stádas córais, rialuithe meán, cúntóirí táirgiúlachta, "
+"agus uirlisí beaga fóntais a chur leis go díreach chuig an duga."
+
+#: docking/core/tips.py:85
+msgid "Use separators for organization"
+msgstr "Úsáid deighilteoirí don eagraíocht"
+
+#: docking/core/tips.py:87
+msgid ""
+"Right-click where a divider should go and choose Add Separator. Separators "
+"make it easier to keep pinned apps, folders, and applets in clear groups."
+msgstr ""
+"Cliceáil ar dheis ar an áit ar cheart do roinnteoir dul agus roghnaigh Add "
+"Deighilteoir. Déanann deighilteoirí é níos éasca aipeanna, fillteáin agus "
+"feidhmchláiríní pinned a choinneáil i ngrúpaí soiléire."
+
+#: docking/core/tips.py:94
+msgid "Pin running apps"
+msgstr "Pin apps reatha"
+
+#: docking/core/tips.py:96
+msgid ""
+"Right-click a running app and choose Keep in Dock. The launcher will stay "
+"available after the app closes, so you can start it again with one click."
+msgstr ""
+"Deaschliceáil ar aip reatha agus roghnaigh Coinnigh sa Duga. Fanfaidh an "
+"tosaitheoir ar fáil tar éis don aip a bheith dúnta, ionas gur féidir leat é "
+"a thosú arís le cliceáil amháin."
+
+#: docking/core/tips.py:103
+msgid "Remove pinned items quickly"
+msgstr "Bain míreanna pinn go tapa"
+
+#: docking/core/tips.py:105
+msgid ""
+"Right-click a pinned item and choose Remove from Dock, or drag unlocked "
+"items off the dock. Removing a launcher does not uninstall the application "
+"or delete your files."
+msgstr ""
+"Deaschliceáil ar mhír phionnáilte agus roghnaigh Bain as an Duga, nó "
+"tarraing míreanna neamhghlasáilte den duga. Má bhaintear tosaitheoir, ní "
+"dhíshuiteáiltear an feidhmchlár ná ní scriosfar do chomhaid."
+
+#: docking/core/tips.py:112
+msgid "Drop items onto the dock"
+msgstr "Buail míreanna isteach sa duga"
+
+#: docking/core/tips.py:114
+msgid ""
+"Drag applications, .desktop files, files, folders, and AppImages onto "
+"Docking to pin them. Dropped folders become folder stacks, and dropped "
+"AppImages can get their own launcher."
+msgstr ""
+"Tarraing feidhmchláir, comhaid deisce, comhaid, fillteáin, agus AppImages ar "
+"Á Chur chun iad a phionnáil. Déantar fillteáin titithe ina gcruacha "
+"fillteán, agus is féidir le AppImages a thit amach a dtosaitheoir féin a "
+"fháil."
+
+#: docking/core/tips.py:121
+msgid "Open files with dock apps"
+msgstr "Oscail comhaid le apps duga"
+
+#: docking/core/tips.py:123
+msgid ""
+"Drag a file onto an application icon to open it with that app. This is "
+"useful when the file manager would otherwise choose the wrong default "
+"application."
+msgstr ""
+"Tarraing comhad ar dheilbhín feidhmchláir chun é a oscailt leis an aip sin. "
+"Tá sé seo úsáideach nuair a roghnaíonn an bainisteoir comhad an feidhmchlár "
+"réamhshocraithe mícheart."
+
+#: docking/core/tips.py:130
+msgid "Use folder stacks"
+msgstr "Úsáid cruacha fillteán"
+
+#: docking/core/tips.py:132
+msgid ""
+"Pin a folder and click it from the dock to browse its contents without "
+"opening a file manager first. It works well for common places like "
+"Downloads, Projects, and screenshots."
+msgstr ""
+"Pin fillteán agus cliceáil é ón duga chun a bhfuil ann a bhrabhsáil gan "
+"bainisteoir comhad a oscailt ar dtús. Oibríonn sé go maith le haghaidh "
+"áiteanna coitianta ar nós Íoslódálacha, Tionscadail, agus screenshots."
+
+#: docking/core/tips.py:139
+msgid "Tune folder stack behavior"
+msgstr "Tune iompar chairn fillteán"
+
+#: docking/core/tips.py:141
+msgid ""
+"Right-click a pinned folder to sort contents, show hidden files, or "
+"customize its icon. These options let each stack behave like the folder it "
+"represents."
+msgstr ""
+"Deaschliceáil ar fhillteán pinned chun ábhar a shórtáil, comhaid fholaithe a "
+"thaispeáint, nó a dheilbhín a shaincheapadh. Ligeann na roghanna seo do gach "
+"stack iad féin a iompar mar an fillteán a léiríonn sé."
+
+#: docking/core/tips.py:148
+msgid "Customize pinned icons"
+msgstr "Saincheap deilbhíní pinn"
+
+#: docking/core/tips.py:150
+msgid ""
+"Right-click a pinned app, file, or folder and use Icon -> Choose From File. "
+"Custom icons are stored in Docking's config, so the original desktop file or "
+"file on disk is left untouched."
+msgstr ""
+"Deaschliceáil ar aip, comhad, nó fillteán pinned agus úsáid Icon -> "
+"Roghnaigh Ó Chomhad. Stóráiltear deilbhíní saincheaptha i gcumraíocht "
+"Docking, mar sin fágtar an comhad deisce bunaidh nó an comhad ar diosca gan "
+"teagmháil."
+
+#: docking/core/tips.py:157
+msgid "Use the Applications applet search"
+msgstr "Úsáid an cuardach feidhmchláirín Feidhmchláir"
+
+#: docking/core/tips.py:159
+msgid ""
+"Add the Applications applet, open it, and type to filter installed apps. It "
+"gives you a compact launcher menu without leaving the dock."
+msgstr ""
+"Cuir feidhmchláirín Feidhmchláir leis, oscail é, agus clóscríobh chun "
+"aipeanna suiteáilte a scagadh. Tugann sé roghchlár tosaitheoir dlúth duit "
+"gan an duga a fhágáil."
+
+#: docking/core/tips.py:166
+msgid "Use Run Application like Alt+F2"
+msgstr "Úsáid Feidhmchlár Rith mar Alt+F2"
+
+#: docking/core/tips.py:168
+msgid ""
+"Add Run Application to launch commands, apps, and terminal commands from the "
+"dock. As you type, matching applications are shown so you can launch by name "
+"or run a standalone command."
+msgstr ""
+"Cuir Feidhmchlár Rith leis chun orduithe, aipeanna agus orduithe teirminéil "
+"a sheoladh ón duga. Agus tú ag clóscríobh, taispeántar feidhmchláir "
+"mheaitseála ionas gur féidir leat ordú neamhspleách a sheoladh de réir ainm "
+"nó a rith."
+
+#: docking/core/tips.py:175
+msgid "Use window previews"
+msgstr "Úsáid réamhamhairc fuinneoige"
+
+#: docking/core/tips.py:177
+msgid ""
+"Hover running apps to inspect open windows before switching. Previews help "
+"when one application has several windows open."
+msgstr ""
+"Déan aipeanna atá á rith chun fuinneoga oscailte a iniúchadh roimh athrú. "
+"Cuidíonn réamhamhairc nuair a bhíonn roinnt fuinneoga oscailte ag "
+"feidhmchlár amháin."
+
+#: docking/core/tips.py:183
+msgid "Choose your click behavior"
+msgstr "Roghnaigh do iompraíocht cliceáil"
+
+#: docking/core/tips.py:185
+msgid ""
+"Preferences -> Behavior lets left click toggle, cycle, or focus the most "
+"recent window. Pick the behavior that matches how you switch between running "
+"applications."
+msgstr ""
+"Roghanna -> Ligeann iompar cliceáil ar chlé scoránaigh, timthriall, nó "
+"dírigh an fhuinneog is déanaí. Roghnaigh an t-iompar a mheaitseálann an "
+"chaoi a n-aistríonn tú idir feidhmchláir reatha."
+
+#: docking/core/tips.py:192
+msgid "Ctrl-click opens a new window"
+msgstr "Osclaíonn Ctrl-cliceáil fuinneog nua"
+
+#: docking/core/tips.py:194
+msgid ""
+"Hold Ctrl while clicking an app icon to launch another window. This works "
+"even when the app is already running and a normal click would focus it."
+msgstr ""
+"Coinnigh Ctrl agus cliceáil ar dheilbhín app chun fuinneog eile a sheoladh. "
+"Oibríonn sé seo fiú nuair a bhíonn an app ag rith cheana féin agus go "
+"ndíreodh gnáthchliceáil air."
+
+#: docking/core/tips.py:201
+msgid "Use app right-click menus"
+msgstr "Bain úsáid as roghchláir deaschliceáil app"
+
+#: docking/core/tips.py:203
+msgid ""
+"Right-click apps for desktop actions, open windows, recent documents, "
+"pinning, and close actions. Many apps expose useful shortcuts there, such as "
+"opening a private window or composing a new message."
+msgstr ""
+"Aipeanna cliceáil ar dheis le haghaidh gníomhartha deisce, fuinneoga a "
+"oscailt, doiciméid le déanaí, feannadh, agus gníomhartha dúnta. Nochtann go "
+"leor apps aicearraí úsáideacha ann, mar fhuinneog phríobháideach a oscailt "
+"nó teachtaireacht nua a chumadh."
+
+#: docking/core/tips.py:211
+msgid "Use Recent Files"
+msgstr "Úsáid Comhaid Déanaí"
+
+#: docking/core/tips.py:213
+msgid ""
+"Add the Recent Files applet to jump back into documents you used recently. "
+"It is a faster path when you remember the file, not the folder."
+msgstr ""
+"Cuir feidhmchláirín Comhaid Déanaí leis chun léim isteach arís i ndoiciméid "
+"a d’úsáid tú le déanaí. Is cosán níos tapúla é nuair a chuimhníonn tú ar an "
+"gcomhad, ní ar an bhfillteán."
+
+#: docking/core/tips.py:220
+msgid "Use System Tray when needed"
+msgstr "Úsáid Tráidire Córais nuair is gá"
+
+#: docking/core/tips.py:222
+msgid ""
+"Add System Tray for tray/status apps and use its menu to manage tray "
+"ownership when supported. This helps with legacy apps that still rely on a "
+"classic notification area."
+msgstr ""
+"Cuir Tráidire Córais leis le haghaidh aipeanna tráidire/stádais agus úsáid a "
+"roghchlár chun úinéireacht tráidire a bhainistiú nuair a thacaítear leis. "
+"Cuidíonn sé seo le apps oidhreachta atá fós ag brath ar limistéar fógra "
+"clasaiceach."
+
+#: docking/core/tips.py:229
+msgid "Use Diagnostics for support"
+msgstr "Bain úsáid as Diagnóisic le haghaidh tacaíochta"
+
+#: docking/core/tips.py:231
+msgid ""
+"Open Diagnostics before filing an issue to copy backend, session, and "
+"feature details. Including that report makes it much easier to understand "
+"compositor, monitor, and environment-specific problems."
+msgstr ""
+"Oscail Diagnóisic roimh shaincheist a chomhdú chun inneall, seisiún agus "
+"sonraí gné a chóipeáil. Má chuirtear an tuarascáil sin san áireamh, is fusa "
+"i bhfad fadhbanna a bhaineann le cumadóirí, monatóireacht agus timpeallacht "
+"a thuiscint."
+
+#: docking/ui/about.py:68
 msgid "Website"
 msgstr "Suíomh gréasáin"
 
-#: docking/ui/dock_window.py:379
+#: docking/ui/diagnostics.py:71 docking/ui/menu.py:693
+msgid "Diagnostics"
+msgstr "Diagnóisic"
+
+#: docking/ui/diagnostics.py:93
+msgid "Overview"
+msgstr "Forbhreathnú"
+
+#: docking/ui/diagnostics.py:97
+msgid "Features"
+msgstr "Gnéithe"
+
+#: docking/ui/diagnostics.py:105 docking/ui/diagnostics.py:223
+msgid "Environment"
+msgstr "Timpeallacht"
+
+#: docking/ui/diagnostics.py:109
+msgid "Report"
+msgstr "Tuairisc"
+
+#: docking/ui/diagnostics.py:116
+msgid "Refresh"
+msgstr "Athnuaigh"
+
+#: docking/ui/diagnostics.py:118
+msgid "Copy Report"
+msgstr "Cóipeáil Tuairisc"
+
+#: docking/ui/diagnostics.py:120
+msgid "Save Report..."
+msgstr "Sábháil Tuairisc..."
+
+#: docking/ui/diagnostics.py:122 docking/ui/menu.py:574
+#: docking/ui/startup_tips.py:216
+msgid "Close"
+msgstr "Close"
+
+#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/folder/_browser.py:26
-msgid "Name"
-msgstr "Ainm"
+#: docking/ui/diagnostics.py:146
+msgid "OS"
+msgstr "OS"
 
-#: docking/ui/folder/_browser.py:27
+#: docking/ui/diagnostics.py:149
+msgid "Selected Backend"
+msgstr "Inneall Roghnaithe"
+
+#: docking/ui/diagnostics.py:150
+msgid "Display Server"
+msgstr "Freastalaí Taispeána"
+
+#: docking/ui/diagnostics.py:151
+msgid "GTK Backend"
+msgstr "Inneall GTK"
+
+#: docking/ui/diagnostics.py:152
+msgid "Forced Backend"
+msgstr "Inneall Éigeantach"
+
+#: docking/ui/diagnostics.py:152
+msgid "None"
+msgstr "Dada"
+
+#: docking/ui/diagnostics.py:153
+msgid "XWayland"
+msgstr "Tír Chonaill"
+
+#: docking/ui/diagnostics.py:154
+msgid "X11 Compositor"
+msgstr "Comhdhéanta X11"
+
+#: docking/ui/diagnostics.py:161
+msgid "Warnings"
+msgstr "Rabhaidh"
+
+#: docking/ui/diagnostics.py:165
+msgid "No compatibility warnings detected."
+msgstr "Níor aimsíodh aon rabhadh comhoiriúnachta."
+
+#: docking/ui/diagnostics.py:191
+msgid "Runtime"
+msgstr "Am rite"
+
+#: docking/ui/diagnostics.py:195
+msgid "Python"
+msgstr "Python"
+
+#: docking/ui/diagnostics.py:196
+msgid "GTK"
+msgstr "GTK"
+
+#: docking/ui/diagnostics.py:197
+msgid "Backend Class"
+msgstr "Aicme Cúl"
+
+#: docking/ui/diagnostics.py:198
+msgid "Wayland Session"
+msgstr "Seisiún Wayland"
+
+#: docking/ui/diagnostics.py:199
+msgid "X11 GTK Backend"
+msgstr "Inneall X11 GTK"
+
+#: docking/ui/diagnostics.py:205
+msgid "Monitors"
+msgstr "Monatóirí"
+
+#: docking/ui/diagnostics.py:209
+msgid "primary"
+msgstr "bunscoile"
+
+#: docking/ui/diagnostics.py:209
+msgid "secondary"
+msgstr "tánaisteach"
+
+#: docking/ui/diagnostics.py:219
+msgid "Monitor details unavailable."
+msgstr "Níl sonraí an mhonatóra ar fáil."
+
+#: docking/ui/diagnostics.py:338
+msgid "Save Diagnostics Report"
+msgstr "Sábháil Tuairisc Diagnóisice"
+
+#: docking/ui/diagnostics.py:358
+msgid "Failed to save diagnostics report."
+msgstr "Theip ar shábháil an tuairisc diagnóisice."
+
+#: docking/ui/folder/_browser.py:40
 msgid "Kind"
 msgstr "Cineál"
 
-#: docking/ui/folder/_browser.py:28
+#: docking/ui/folder/_browser.py:41
 msgid "Size"
 msgstr "Méid"
 
-#: docking/ui/folder/_browser.py:29
+#: docking/ui/folder/_browser.py:42
 msgid "Created"
 msgstr "Cruthaithe"
 
-#: docking/ui/folder/_browser.py:30
+#: docking/ui/folder/_browser.py:43
 msgid "Modified"
 msgstr "Athraithe"
 
-#: docking/ui/folder/stack.py:660
+#: docking/ui/folder/stack.py:678
 msgid "Folder not found"
 msgstr "Fillteán gan aimsiú"
 
-#: docking/ui/folder/stack.py:674
+#: docking/ui/folder/stack.py:692
 msgid "Folder is empty"
 msgstr "Tá an fillteán folamh"
 
-#: docking/ui/folder/stack.py:1131
+#: docking/ui/folder/stack.py:1149
 #, python-format
 msgid "Open in %s"
 msgstr "Oscail i %s"
 
-#: docking/ui/folder/stack.py:1133
+#: docking/ui/folder/stack.py:1151
 #, python-format
 msgid "%d More in %s"
 msgstr "%d Nios mo i %s"
 
-#: docking/ui/folder/stack.py:1136
+#: docking/ui/folder/stack.py:1154
 msgid "Open Folder"
 msgstr "Oscail fillteán"
 
-#: docking/ui/folder/stack.py:1138
+#: docking/ui/folder/stack.py:1156
 #, python-format
 msgid "%d More in Folder"
 msgstr "%d Nios mo san fhillteán"
 
-#: docking/ui/menu.py:377
-msgid "Icon"
-msgstr "Deilbhín"
-
-#: docking/ui/menu.py:379
+#: docking/ui/menu.py:386
 msgid "Docking Icon"
 msgstr "Deilbhín Docking"
 
-#: docking/ui/menu.py:380
+#: docking/ui/menu.py:387
 msgid "System Icon"
 msgstr "Deilbhín córais"
 
-#: docking/ui/menu.py:423 docking/ui/menu.py:443 docking/ui/menu.py:459
-#: docking/ui/menu.py:507
+#: docking/ui/menu.py:395 docking/ui/menu.py:404
+msgid "Icon"
+msgstr "Deilbhín"
+
+#: docking/ui/menu.py:407
+msgid "Default Icon"
+msgstr "Deilbhín Réamhshocraithe"
+
+#: docking/ui/menu.py:411
+msgid "Choose From File..."
+msgstr "Roghnaigh Ó Chomhad..."
+
+#: docking/ui/menu.py:415
+msgid "Reset Custom Icon"
+msgstr "Athshocraigh Deilbhín Saincheaptha"
+
+#: docking/ui/menu.py:434
+msgid "Choose Icon"
+msgstr "Roghnaigh Deilbhín"
+
+#: docking/ui/menu.py:457
+msgid "Images"
+msgstr "Íomhánna"
+
+#: docking/ui/menu.py:470
+msgid "Could not use selected icon"
+msgstr "Níorbh fhéidir an deilbhín roghnaithe a úsáid"
+
+#: docking/ui/menu.py:513 docking/ui/menu.py:535 docking/ui/menu.py:558
+#: docking/ui/menu.py:609
 msgid "Remove from Dock"
 msgstr "Remove from Dock"
 
-#: docking/ui/menu.py:436
-msgid "Open"
-msgstr "Oscail"
-
-#: docking/ui/menu.py:466
+#: docking/ui/menu.py:565
 msgid "Keep in Dock"
 msgstr "Keep in Dock"
 
-#: docking/ui/menu.py:475
+#: docking/ui/menu.py:574
 msgid "Close All"
 msgstr "Close All"
 
-#: docking/ui/menu.py:475
-msgid "Close"
-msgstr "Close"
-
-#: docking/ui/menu.py:492
+#: docking/ui/menu.py:591
 msgid "Sort By"
 msgstr "Sórtáil de réir"
 
-#: docking/ui/menu.py:500
+#: docking/ui/menu.py:599
 msgid "Show Hidden Files"
 msgstr "Taispeáin comhaid folaithe"
 
-#: docking/ui/menu.py:537
+#: docking/ui/menu.py:639
 msgid "Add Applet"
 msgstr "Applets"
 
-#: docking/ui/menu.py:575
+#: docking/ui/menu.py:677
 msgid "No Applets Available"
 msgstr "Power Profiles unavailable"
 
-#: docking/ui/menu.py:582
+#: docking/ui/menu.py:684
 msgid "Add Separator"
 msgstr "Add Separator"
 
-#: docking/ui/menu.py:592 docking/ui/settings.py:167
+#: docking/ui/menu.py:698 docking/ui/settings.py:268
 msgid "Preferences"
 msgstr "Sainroghanna"
 
-#: docking/ui/menu.py:597
+#: docking/ui/menu.py:703
 msgid "About"
 msgstr "About"
 
-#: docking/ui/menu.py:602
+#: docking/ui/menu.py:708
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:609
+#: docking/ui/menu.py:715
 msgid "Quit"
 msgstr "Quit"
 
-#: docking/ui/menu.py:646
+#: docking/ui/menu.py:781
+msgid "Clear Recent Documents"
+msgstr "Glan Doiciméid is Déanaí"
+
+#: docking/ui/menu.py:791 docking/ui/settings.py:746
+msgid "Recent Documents"
+msgstr "Doiciméid le Déanaí"
+
+#: docking/ui/menu.py:810
 msgid "Window"
 msgstr "Window"
 
-#: docking/ui/new_year.py:163
+#: docking/ui/new_year.py:207
 #, python-brace-format
 msgid "Happy new year {year} !!!"
 msgstr "Happy new year {year} !!!"
 
-#: docking/ui/placement.py:223
+#: docking/ui/placement.py:269
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr "Scáileán {display}: {width}x{height}"
 
-#: docking/ui/settings.py:191
+#: docking/ui/settings.py:292
 msgid "Appearance"
 msgstr "Cuma"
 
-#: docking/ui/settings.py:192 docking/ui/settings.py:380
+#: docking/ui/settings.py:293 docking/ui/settings.py:671
 msgid "Behavior"
 msgstr "Iompar"
 
-#: docking/ui/settings.py:193
+#: docking/ui/settings.py:294
 msgid "Applets"
 msgstr "Feidhmchlarin"
 
-#: docking/ui/settings.py:212
+#: docking/ui/settings.py:318
 msgid "Don't Hide"
 msgstr "Ná folaigh"
 
-#: docking/ui/settings.py:213
+#: docking/ui/settings.py:319
 msgid "Always on Top"
 msgstr "I gcónaí ar bharr"
 
-#: docking/ui/settings.py:214
+#: docking/ui/settings.py:320
 msgid "Auto-hide"
 msgstr "Auto-hide"
 
-#: docking/ui/settings.py:215
+#: docking/ui/settings.py:321
 msgid "Intelligent"
 msgstr "Cliste"
 
-#: docking/ui/settings.py:216
-msgid "Dodge Active Window"
-msgstr "Seachain fuinneog ghníomhach"
+#: docking/ui/settings.py:322
+msgid "Dodge Active"
+msgstr "Dodge Gníomhach"
 
-#: docking/ui/settings.py:217
-msgid "Dodge All Windows"
-msgstr "Seachain gach fuinneog"
+#: docking/ui/settings.py:323
+msgid "Dodge Windows"
+msgstr "Dodge Windows"
 
-#: docking/ui/settings.py:218
+#: docking/ui/settings.py:324
 msgid "Dodge Maximized"
 msgstr "Seachain uasmhéadaithe"
 
-#: docking/ui/settings.py:235
+#: docking/ui/settings.py:335
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:236
+#: docking/ui/settings.py:336
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:237
+#: docking/ui/settings.py:337
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:244
+#: docking/ui/settings.py:344
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:245
+#: docking/ui/settings.py:345
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:246
+#: docking/ui/settings.py:346
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:253
+#: docking/ui/settings.py:353
 msgid "Click"
 msgstr "Click"
 
-#: docking/ui/settings.py:254
+#: docking/ui/settings.py:354
 msgid "Hover"
 msgstr "Hover"
 
-#: docking/ui/settings.py:270
+#: docking/ui/settings.py:361
+msgid "Default"
+msgstr "Réamhshocrú"
+
+#: docking/ui/settings.py:362
+msgid "Alphabetical"
+msgstr "Aibítre"
+
+#: docking/ui/settings.py:380
 msgid "Daily"
 msgstr "Laethúil"
 
-#: docking/ui/settings.py:271
+#: docking/ui/settings.py:381
 msgid "Weekly"
 msgstr "Seachtainiúil"
 
-#: docking/ui/settings.py:324
+#: docking/ui/settings.py:402
+msgid ""
+"When Follow Cursor is enabled, the dock follows the pointer across monitors. "
+"The selected monitor is kept as the fallback."
+msgstr ""
+"Nuair atá Follow Cursor cumasaithe, leanann an duga an pointeoir trasna na "
+"monatóirí. Coinnítear an monatóir roghnaithe mar chúltaca."
+
+#: docking/ui/settings.py:448
+msgid "Added on top of the theme's own distance from the edge."
+msgstr "Curtha leis ar bharr achar an téama féin ón imeall."
+
+#: docking/ui/settings.py:488
+msgid ""
+"Pixels of cursor pressure against the edge required to reveal a hidden dock. "
+"Higher values mean the dock will not reveal as easily."
+msgstr ""
+"Picteilíní de bhrú cúrsóra i gcoinne an chiumhais a theastaíonn chun duga "
+"folaithe a nochtadh. Ciallaíonn luachanna níos airde nach nochtfaidh an duga "
+"chomh héasca."
+
+#: docking/ui/settings.py:510
 msgid "Look"
 msgstr "Cuma"
 
-#: docking/ui/settings.py:326
+#: docking/ui/settings.py:512
 msgid "Theme"
 msgstr "Téama"
 
-#: docking/ui/settings.py:327
+#: docking/ui/settings.py:512
+msgid "Choose the dock color palette."
+msgstr "Roghnaigh an pailéad dathanna duga."
+
+#: docking/ui/settings.py:514
 msgid "Icon Size"
 msgstr "Icon Size"
 
-#: docking/ui/settings.py:328
+#: docking/ui/settings.py:516
+msgid "Set the base size of dock icons before zoom is applied."
+msgstr "Socraigh méid bonn na deilbhíní duga sula gcuirfear súmáil i bhfeidhm."
+
+#: docking/ui/settings.py:519
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:329
+#: docking/ui/settings.py:521
+msgid "Adjust how transparent the dock background is."
+msgstr "Coigeartaigh cé chomh trédhearcach agus atá cúlra an duga."
+
+#: docking/ui/settings.py:524
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:330
+#: docking/ui/settings.py:526
+msgid "Enlarge icons when the pointer hovers over the dock."
+msgstr "Méadaigh deilbhíní nuair a aistríonn an pointeoir thar an duga."
+
+#: docking/ui/settings.py:529
 msgid "Zoom Percent"
 msgstr "Céatadán zúmála"
 
-#: docking/ui/settings.py:331
+#: docking/ui/settings.py:531
+msgid "Set how much hovered icons grow when zoom is enabled."
+msgstr ""
+"Socraigh cé mhéad a fhásann deilbhíní hovered nuair a bhíonn súmáil "
+"cumasaithe."
+
+#: docking/ui/settings.py:534
 msgid "Show Tooltips"
 msgstr "Taispeáin leideanna"
 
-#: docking/ui/settings.py:332
+#: docking/ui/settings.py:536
+msgid "Show item names and details when hovering over dock items."
+msgstr ""
+"Taispeáin ainmneacha na n-ítimí agus sonraí agus tú ar foluain os cionn "
+"míreanna duga."
+
+#: docking/ui/settings.py:539
 msgid "Window Previews"
 msgstr "Window Previews"
 
-#: docking/ui/settings.py:337
+#: docking/ui/settings.py:541
+msgid "Show window thumbnails when hovering over running apps."
+msgstr ""
+"Taispeáin mionsamhlacha fuinneoige agus tú ag hovering thar aipeanna reatha."
+
+#: docking/ui/settings.py:544
+msgid "Show Window Counts"
+msgstr "Taispeáin Comhaireamh Fuinneog"
+
+#: docking/ui/settings.py:547
+msgid "Show a number on running app indicators when multiple windows are open."
+msgstr ""
+"Taispeáin uimhir ar tháscairí app a rith nuair a bhíonn fuinneoga iolracha "
+"oscailte."
+
+#: docking/ui/settings.py:555
 msgid "Placement"
 msgstr "Suíomh"
 
-#: docking/ui/settings.py:339
+#: docking/ui/settings.py:558
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/settings.py:340
-msgid "Follow Cursor"
-msgstr "Follow Cursor"
+#: docking/ui/settings.py:560
+msgid "Choose which screen edge the dock uses."
+msgstr "Roghnaigh an imeall scáileáin a úsáideann an duga."
 
-#: docking/ui/settings.py:341
+#: docking/ui/settings.py:562
+msgid "Extra Distance from Edge"
+msgstr "Fad Breise ó Imeall"
+
+#: docking/ui/settings.py:564
 msgid "Current Workspace Only"
 msgstr "Current Workspace Only"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:567
+msgid "Show running windows only from the active workspace when supported."
+msgstr ""
+"Taispeáin fuinneoga reatha ón spás oibre gníomhach amháin nuair a thacaítear "
+"leo."
+
+#: docking/ui/settings.py:575 docking/ui/settings.py:585
+msgid "Monitor"
+msgstr "Monatóir"
+
+#: docking/ui/settings.py:578
+msgid "Follow Cursor"
+msgstr "Follow Cursor"
+
+#: docking/ui/settings.py:581
+msgid "Move the dock to the monitor where the pointer is currently located."
+msgstr ""
+"Bog an duga go dtí an monatóir ina bhfuil an pointeoir suite faoi láthair."
+
+#: docking/ui/settings.py:590
 msgid "Layout"
 msgstr "Leagan amach"
 
-#: docking/ui/settings.py:348
+#: docking/ui/settings.py:593
 msgid "Lock Positions"
 msgstr "Glasáil suíomhanna"
 
-#: docking/ui/settings.py:349
+#: docking/ui/settings.py:596
+msgid "Prevent dock items from being reordered or removed by drag and drop."
+msgstr ""
+"Cuir cosc ​​ar mhíreanna duga a athordú nó a bhaint de trí tharraingt agus "
+"scaoil."
+
+#: docking/ui/settings.py:601
 msgid "Anchor Applets to End"
 msgstr "Anchor Applets to End"
 
-#: docking/ui/settings.py:350
+#: docking/ui/settings.py:603
+msgid "Keep applets grouped at the end of the dock."
+msgstr "Coinnigh feidhmchláiríní grúpáilte ag deireadh an duga."
+
+#: docking/ui/settings.py:606
 msgid "Anchor Files to End"
 msgstr "Ancairi comhaid go dti an deireadh"
 
-#: docking/ui/settings.py:372
-msgid "Mouse"
-msgstr "Mouse"
+#: docking/ui/settings.py:608
+msgid "Keep pinned files and folders grouped at the end of the dock."
+msgstr "Coinnigh comhaid pinned agus fillteáin grúpáilte ag deireadh an duga."
 
-#: docking/ui/settings.py:374
+#: docking/ui/settings.py:647
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:375
+#: docking/ui/settings.py:650
+msgid ""
+"Choose what happens when clicking a running app with the left mouse button."
+msgstr ""
+"Roghnaigh cad a tharlaíonn nuair a chliceáil ar app reatha leis an cnaipe "
+"luiche ar chlé."
+
+#: docking/ui/settings.py:655
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:382
+#: docking/ui/settings.py:658
+msgid "Choose what happens when clicking an app with the middle mouse button."
+msgstr ""
+"Roghnaigh cad a tharlaíonn nuair a chliceáiltear app leis an gcnaipe luiche "
+"lár."
+
+#: docking/ui/settings.py:663
+msgid "Window List Sort"
+msgstr "Sórtáil Liosta Fuinneog"
+
+#: docking/ui/settings.py:665
+msgid "Choose how open windows are ordered in app context menus."
+msgstr ""
+"Roghnaigh conas a ordaítear fuinneoga oscailte i roghchláir chomhthéacs an "
+"aip."
+
+#: docking/ui/settings.py:673
 msgid "Hide Mode"
 msgstr "Mód folaithe"
 
-#: docking/ui/settings.py:383
+#: docking/ui/settings.py:675
 msgid "Hide Delay"
 msgstr "Moill folaithe"
 
-#: docking/ui/settings.py:384
+#: docking/ui/settings.py:678
+msgid "Set how long the dock waits before hiding after the pointer leaves."
+msgstr ""
+"Socraigh cé chomh fada agus a fhanann an duga roimh dul i bhfolach tar éis "
+"don pointeoir imeacht."
+
+#: docking/ui/settings.py:683
 msgid "Unhide Delay"
 msgstr "Moill nochta"
 
-#: docking/ui/settings.py:389
+#: docking/ui/settings.py:686
+msgid "Set how long the dock waits before showing after the pointer returns."
+msgstr ""
+"Socraigh cé chomh fada agus a fhanann an duga sula dtaispeánfar é tar éis "
+"don phointeoir filleadh."
+
+#: docking/ui/settings.py:691
+msgid "Pressure Reveal"
+msgstr "Nocht Brú"
+
+#: docking/ui/settings.py:694
+msgid ""
+"Require the pointer to push against the screen edge before revealing a "
+"hidden dock."
+msgstr ""
+"Iarr ar an bpointe brú in aghaidh imeall an scáileáin sula nochtfar duga "
+"folaithe."
+
+#: docking/ui/settings.py:698
+msgid "Pressure Threshold"
+msgstr "Tairseach Brú"
+
+#: docking/ui/settings.py:700
+msgid "Show Startup Tips"
+msgstr "Taispeáin Leideanna Tosaithe"
+
+#: docking/ui/settings.py:703
+msgid ""
+"Show one Docking usage tip after startup, unless a higher-priority startup "
+"notification is visible."
+msgstr ""
+"Taispeáin leid úsáide amháin don Chur i ndiaidh tosaithe, ach amháin má tá "
+"fógra tosaithe níos airde tosaíochta le feiceáil."
+
+#: docking/ui/settings.py:711
 msgid "Folder Stacks"
 msgstr "Folder Stacks"
 
-#: docking/ui/settings.py:391
+#: docking/ui/settings.py:714
 msgid "Open On"
 msgstr "Open On"
 
-#: docking/ui/settings.py:416
+#: docking/ui/settings.py:716
+msgid "Choose whether folder stacks open on click or while hovering."
+msgstr ""
+"Roghnaigh cé acu an osclaíonn stoic fillteán ar chliceáil nó agus tú ag "
+"hover."
+
+#: docking/ui/settings.py:722
+msgid "Recent Apps"
+msgstr "Feidhmchláir le déanaí"
+
+#: docking/ui/settings.py:725
+msgid "Show Recently Used Apps"
+msgstr "Taispeáin Aipeanna a Úsáideadh Le Déanaí"
+
+#: docking/ui/settings.py:728
+msgid "Show recently closed apps between pinned launchers and running apps."
+msgstr ""
+"Taispeáin aipeanna dúnta le déanaí idir lainseálaithe pinn agus aipeanna "
+"reatha."
+
+#: docking/ui/settings.py:733
+msgid "Number of Recent Apps"
+msgstr "Líon na bhFeidhmchlár is Déanaí"
+
+#: docking/ui/settings.py:735
+msgid "Maximum recently used app icons to display."
+msgstr "Uasmhéid deilbhíní aipe a úsáideadh le déanaí le taispeáint."
+
+#: docking/ui/settings.py:738
+msgid "Keep Recent Apps For"
+msgstr "Coinnigh Apps Déanaí Le haghaidh"
+
+#: docking/ui/settings.py:740
+msgid "Remove recent apps after this many days of inactivity."
+msgstr ""
+"Bain aipeanna le déanaí tar éis na laethanta neamhghníomhaíochta seo go leor."
+
+#: docking/ui/settings.py:749
+msgid "Show Recent Documents"
+msgstr "Taispeáin Doiciméid is Déanaí"
+
+#: docking/ui/settings.py:752
+msgid "Show a \"Recent Documents\" submenu when right-clicking an app icon."
+msgstr ""
+"Taispeáin fo-roghchlár \\\"Doiciméid le Déanaí\\\" nuair a chliceáiltear ar "
+"dheis ar dheilbhín aipe."
+
+#: docking/ui/settings.py:757
+msgid "Max Documents Per App"
+msgstr "Doiciméid uasta In aghaidh na hAipe"
+
+#: docking/ui/settings.py:759
+msgid "Maximum recent document entries shown per app."
+msgstr "Uasmhéid iontrálacha doiciméad le déanaí léirithe in aghaidh na haipe."
+
+#: docking/ui/settings.py:831
 msgid "Check Now"
 msgstr "Seiceáil anois"
 
-#: docking/ui/settings.py:418
+#: docking/ui/settings.py:833
 msgid "View Releases"
 msgstr "Féach na heisiúintí"
 
-#: docking/ui/settings.py:430
+#: docking/ui/settings.py:845
 msgid "Update Checks"
 msgstr "Seiceálacha nuashonraithe"
 
-#: docking/ui/settings.py:432
+#: docking/ui/settings.py:847
 msgid "Check Automatically"
 msgstr "Seiceáil go huathoibríoch"
 
-#: docking/ui/settings.py:433
+#: docking/ui/settings.py:848
 msgid "Frequency"
 msgstr "Minicíocht"
 
-#: docking/ui/settings.py:434
+#: docking/ui/settings.py:849
 msgid "Status"
 msgstr "Stádas"
 
-#: docking/ui/settings.py:435
+#: docking/ui/settings.py:850
 msgid "Actions"
 msgstr "Gníomhartha"
 
-#: docking/ui/settings.py:841
+#: docking/ui/settings.py:1293
+msgid "Primary Display"
+msgstr "Taispeáint Príomhúil"
+
+#: docking/ui/settings.py:1434
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr "Leagan deireanach a chonacthas: {version}"
 
-#: docking/ui/settings.py:845
+#: docking/ui/settings.py:1438
 msgid "No update found yet"
 msgstr "Níor aimsíodh nuashonrú fós"
 
-#: docking/ui/settings.py:847
+#: docking/ui/settings.py:1440
 msgid "Not checked yet"
 msgstr "Gan seiceáil fós"
 
-#: docking/ui/settings.py:882
+#: docking/ui/settings.py:1521
 msgid "The dock is always visible and reserves screen space."
 msgstr "The dock is always visible and reserves screen space."
 
-#: docking/ui/settings.py:884
+#: docking/ui/settings.py:1523
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
-msgstr "Le feiceáil i gcónaí agus ar snámh os cionn na bhfuinneog gan spás scáileáin a fhorchoimeád."
+msgstr ""
+"Le feiceáil i gcónaí agus ar snámh os cionn na bhfuinneog gan spás scáileáin "
+"a fhorchoimeád."
 
-#: docking/ui/settings.py:887
+#: docking/ui/settings.py:1526
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:889
+#: docking/ui/settings.py:1528
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:891
+#: docking/ui/settings.py:1530
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:893
+#: docking/ui/settings.py:1532
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:896
+#: docking/ui/settings.py:1535
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 
-#: docking/ui/update_popup.py:173
+#: docking/ui/startup_tips.py:187
+msgid "Tip of the day"
+msgstr "Leid an lae"
+
+#: docking/ui/startup_tips.py:212
+msgid "Show tips on startup"
+msgstr "Taispeáin leideanna maidir le tosaithe"
+
+#: docking/ui/startup_tips.py:215
+msgid "Next Tip"
+msgstr "An Chéad Leid Eile"
+
+#: docking/ui/tooltip.py:221
+msgid "1 day"
+msgstr "1 lá"
+
+#: docking/ui/tooltip.py:221
+msgid "{count} days"
+msgstr "{count} lá"
+
+#: docking/ui/tooltip.py:239
+msgid "just now"
+msgstr "díreach anois"
+
+#: docking/ui/tooltip.py:240
+msgid "{age} ago"
+msgstr "{age} ó shin"
+
+#: docking/ui/update_popup.py:233
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr "Docking {version} ar fáil"
 
-#: docking/ui/update_popup.py:179
+#: docking/ui/update_popup.py:239
 #, python-brace-format
 msgid "You are using {version}."
 msgstr "Tá tú ag úsáid {version}."
 
-#: docking/ui/update_popup.py:188
+#: docking/ui/update_popup.py:248
 msgid "View Release"
 msgstr "Féach an eisiúint"
 
-#: docking/ui/update_popup.py:189
+#: docking/ui/update_popup.py:249
 msgid "Later"
 msgstr "Níos déanaí"
 
-#: docking/ui/update_popup.py:190
+#: docking/ui/update_popup.py:250
 msgid "Ignore"
 msgstr "Déan neamhshuim"
