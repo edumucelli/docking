@@ -340,7 +340,6 @@ class DockWindow(Gtk.Window):
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController
         self.preview: PreviewPopup
-        self._menu_popup_visible: bool = False
         self.tooltip = TooltipManager(self, config, model, theme)
         self.geometry = DockGeometryBuilder(self)
 

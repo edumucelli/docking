@@ -127,7 +127,6 @@ class _Harness:
         self._redraw_source_id = None
         self.preview = None
         self._interactions = MagicMock()
-        self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
         self._click_button = 0

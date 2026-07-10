@@ -206,6 +206,7 @@ class DockInteractionCoordinator:
 
     def __init__(self, window: DockWindow) -> None:
         self._window = window
+        self._menu_popup_visible = False
 
     @property
     def dock_hovered(self) -> bool:
@@ -217,15 +218,15 @@ class DockInteractionCoordinator:
 
     def menu_popup_opened(self) -> None:
         """Track that a dock context menu popup is currently active."""
-        self._window._menu_popup_visible = True
+        self._menu_popup_visible = True
         if self._window.autohide.enabled:
             self._window.autohide.set_disabled(True, reason="menu-open")
 
     def menu_popup_closed(self) -> None:
         """Reconcile autohide state when the context menu closes."""
-        if not self._window._menu_popup_visible:
+        if not self._menu_popup_visible:
             return
-        self._window._menu_popup_visible = False
+        self._menu_popup_visible = False
 
         if not self._window.autohide.enabled:
             return
