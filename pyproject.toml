@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docking"
-version = "2.5.1"
+version = "2.6.0"
 description = "A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
