@@ -109,7 +109,7 @@ class UrlShortenerApplet(Applet):
     def _show_dialog(self) -> None:
         self._dialog = Gtk.Dialog(
             title=_("URL Shortener"),
-            flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            destroy_with_parent=True,
         )
         box = prepare_dialog_content(
             dialog=self._dialog,

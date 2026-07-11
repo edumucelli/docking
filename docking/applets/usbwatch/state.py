@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -46,7 +47,7 @@ class MountLike(Protocol):
 
 
 class VolumeMonitorLike(Protocol):
-    def get_mounts(self) -> list[MountLike]: ...
+    def get_mounts(self) -> Sequence[MountLike]: ...
 
 
 @dataclass(frozen=True, slots=True)

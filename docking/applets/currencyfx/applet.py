@@ -489,7 +489,8 @@ class CurrencyFxApplet(Applet):
         """Show the Add FX Pair dialog using the currently known codes."""
         dialog = Gtk.Dialog(
             title=_("Add FX Pair"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog)
         box = prepare_dialog_content(

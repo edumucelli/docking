@@ -485,6 +485,60 @@ def test_create_capture_overlay_configures_fullscreen_grab(monkeypatch):
     seat.grab.assert_called_once()
 
 
+def test_create_capture_overlay_returns_none_without_a_display(monkeypatch):
+    overlay = _FakeCaptureOverlay()
+    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: overlay)
+    monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: None)
+
+    created = popup.create_capture_overlay(
+        draw_handler=MagicMock(),
+        click_handler=MagicMock(),
+        key_handler=MagicMock(),
+        cursor_type=MagicMock(),
+    )
+
+    assert created is None
+    assert overlay.destroyed is True
+
+
+def test_create_capture_overlay_returns_none_without_a_gdk_window(monkeypatch):
+    overlay = _FakeCaptureOverlay()
+    overlay.gdk_window = None
+    display = MagicMock()
+    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: overlay)
+    monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: display)
+    monkeypatch.setattr(popup.Gdk.Cursor, "new_for_display", lambda *_args: "cursor")
+
+    created = popup.create_capture_overlay(
+        draw_handler=MagicMock(),
+        click_handler=MagicMock(),
+        key_handler=MagicMock(),
+        cursor_type=MagicMock(),
+    )
+
+    assert created is None
+    assert overlay.destroyed is True
+
+
+def test_create_capture_overlay_returns_none_without_an_input_seat(monkeypatch):
+    overlay = _FakeCaptureOverlay()
+    display = MagicMock()
+    display.get_default_seat.return_value = None
+    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: overlay)
+    monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: display)
+    monkeypatch.setattr(popup.Gdk.Cursor, "new_for_display", lambda *_args: "cursor")
+
+    created = popup.create_capture_overlay(
+        draw_handler=MagicMock(),
+        click_handler=MagicMock(),
+        key_handler=MagicMock(),
+        cursor_type=MagicMock(),
+    )
+
+    assert created is None
+    assert overlay.destroyed is True
+
+
 def test_dismiss_capture_overlay_ungrabs_and_destroys(monkeypatch):
     overlay = _FakeCaptureOverlay()
     seat = MagicMock()

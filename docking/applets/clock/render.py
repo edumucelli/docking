@@ -51,6 +51,8 @@ _TOP_LAYERS = [
 def _paint_svg(cr: cairo.Context, path: Path, size: int) -> None:
     """Load an SVG at the given size and paint it onto the Cairo context."""
     pbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(str(path), size, size)
+    if pbuf is None:
+        return
     Gdk.cairo_set_source_pixbuf(cr, pbuf, 0, 0)
     cr.paint()
 
@@ -196,14 +198,14 @@ def render_digital(
             else time.strftime("%l:%M", now).strip()
         )
     time_font_size = max(1, int(size / (4.8 if show_seconds else 4)))
-    time_font = Pango.FontDescription(f"Sans Bold {time_font_size}px")
+    time_font = Pango.FontDescription.from_string(f"Sans Bold {time_font_size}px")
     rows.append((time_str, time_font, 3.0, (1, 1, 1, 1)))
 
     # Date text (digital mode only)
     if show_date:
         date_str = time.strftime("%b %-d", now)
         date_font_size = max(1, int(size / 5))
-        date_font = Pango.FontDescription(f"Sans Bold {date_font_size}px")
+        date_font = Pango.FontDescription.from_string(f"Sans Bold {date_font_size}px")
         rows.append((date_str, date_font, 2.5, (1, 1, 1, 1)))
 
     # Measure all rows to compute vertical layout
@@ -221,7 +223,7 @@ def render_digital(
     # AM/PM indicator (12h mode only, below time)
     am_pm_height = 0
     am_pm_font_size = max(1, int(size / 5))
-    am_pm_font = Pango.FontDescription(f"Sans Bold {am_pm_font_size}px")
+    am_pm_font = Pango.FontDescription.from_string(f"Sans Bold {am_pm_font_size}px")
     if not is_24h:
         tmp_layout = PangoCairo.create_layout(cr)
         tmp_layout.set_font_description(am_pm_font)

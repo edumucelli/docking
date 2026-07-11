@@ -140,8 +140,8 @@ cd docking
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 
-# Install with dependencies
-pip install -e ".[dev]"
+# Install with development dependencies and GTK 3 type stubs
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 pip install -e ".[dev]"
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):

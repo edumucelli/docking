@@ -155,7 +155,9 @@ def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
 
     icon_size = min(ICON_FALLBACK_SIZE, thumb_w, thumb_h)
     try:
-        icon = icon_theme.load_icon("application-x-executable", icon_size, 0)
+        icon = icon_theme.load_icon(
+            "application-x-executable", icon_size, Gtk.IconLookupFlags(0)
+        )
     except GLib.Error as exc:
         log.warning(f"Failed to load fallback preview icon: {exc}")
         icon = None
@@ -167,7 +169,7 @@ def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
     else:
         scaled_icon = None
 
-    if scaled_icon is not None:
+    if scaled_icon is not None and bg is not None:
         x = (thumb_w - icon_size) // 2
         y = (thumb_h - icon_size) // 2
         scaled_icon.composite(

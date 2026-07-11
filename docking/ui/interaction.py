@@ -190,6 +190,7 @@ if TYPE_CHECKING:
     from gi.repository import Gtk
 
     from docking.ui.dock_window import DockWindow
+    from docking.ui.geometry import DockGeometryFrame
 
 log = get_logger(name="interaction")
 
@@ -375,7 +376,7 @@ class DockInteractionCoordinator:
 
 def _point_inside_frame_at_window_position(
     *,
-    frame: object,
+    frame: DockGeometryFrame | None,
     screen_x: int,
     screen_y: int,
     window_x: int,

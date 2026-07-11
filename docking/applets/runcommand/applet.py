@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -56,6 +56,14 @@ APP_LIST_HEIGHT_PX = 140
 COMMAND_WIDTH_CHARS = 48
 
 
+class _ApplicationRow(Gtk.ListBoxRow):
+    """List row that retains the application represented by its child widgets."""
+
+    def __init__(self, app: ApplicationLike) -> None:
+        super().__init__()
+        self.app = app
+
+
 class RunCommandApplet(Applet):
     """Alt+F2-style command/application launcher."""
 
@@ -75,7 +83,8 @@ class RunCommandApplet(Applet):
         self._left_icon: Gtk.Image | None = None
         self._description_label: Gtk.Label | None = None
         self._apps: list[ApplicationLike] = []
-        self._app_rows: list[Any] = []
+        self._app_list: Gtk.ListBox | None = None
+        self._app_rows: list[_ApplicationRow] = []
         self._selected_app: ApplicationLike | None = None
         self._selected_entry_text = ""
         super().__init__(icon_size=icon_size, config=config)
@@ -116,7 +125,7 @@ class RunCommandApplet(Applet):
     def _create_dialog(self) -> Gtk.Dialog:
         dialog = Gtk.Dialog(
             title=_("Run Application"),
-            flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            destroy_with_parent=True,
         )
         dialog.add_button(_("Help"), Gtk.ResponseType.HELP)
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
@@ -158,7 +167,7 @@ class RunCommandApplet(Applet):
         self._entry_combo = Gtk.ComboBoxText.new_with_entry()
         self._entry_combo.set_entry_text_column(0)
         self._entry_combo.set_hexpand(True)
-        self._entry = self._entry_combo.get_child()
+        self._entry = cast(Gtk.Entry, self._entry_combo.get_child())
         self._entry.set_width_chars(COMMAND_WIDTH_CHARS)
         self._entry.set_activates_default(True)
         self._entry.connect("changed", self._on_entry_changed)
@@ -198,17 +207,16 @@ class RunCommandApplet(Applet):
         return scroll
 
     def _refresh_app_list(self) -> None:
-        if not hasattr(self, "_app_list"):
-            return
         app_list = self._app_list
+        if app_list is None:
+            return
         for child in list(app_list.get_children()):
             app_list.remove(child)
 
         self._apps = list(all_desktop_app_infos())
         self._app_rows = []
         for app in self._apps:
-            row = Gtk.ListBoxRow()
-            row.app_entry = app  # type: ignore[attr-defined]
+            row = _ApplicationRow(app)
             row.add(self._build_app_row(app))
             app_list.add(row)
             self._app_rows.append(row)
@@ -256,7 +264,8 @@ class RunCommandApplet(Applet):
         parent = self._dialog
         help_dialog = Gtk.MessageDialog(
             transient_for=parent,
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
             message_type=Gtk.MessageType.INFO,
             buttons=Gtk.ButtonsType.OK,
             text=_("Run Application"),
@@ -290,20 +299,18 @@ class RunCommandApplet(Applet):
     def _apply_app_filter(self, text: str) -> None:
         query = text.strip().casefold()
         for row in self._app_rows:
-            app = getattr(row, "app_entry", None)
-            visible = app is not None and _app_matches_filter(app=app, query=query)
+            visible = _app_matches_filter(app=row.app, query=query)
             if visible:
                 row.show()
             else:
                 row.hide()
 
-    def _on_app_row_selected(self, _listbox: Gtk.ListBox, row: Any) -> None:
-        if row is None:
+    def _on_app_row_selected(
+        self, _listbox: Gtk.ListBox, row: Gtk.ListBoxRow | None
+    ) -> None:
+        if not isinstance(row, _ApplicationRow):
             return
-        app = getattr(row, "app_entry", None)
-        if app is None:
-            return
-        self._select_application(app)
+        self._select_application(row.app)
 
     def _select_application(self, app: ApplicationLike) -> None:
         self._selected_app = app
@@ -332,9 +339,12 @@ class RunCommandApplet(Applet):
         self._run_button.set_sensitive(bool(self._entry.get_text().strip()))
 
     def _on_run_with_file(self, _button: Gtk.Button) -> None:
+        parent = self._dialog
+        if parent is None:
+            return
         dialog = Gtk.FileChooserDialog(
             title=_("Run with file"),
-            parent=self._dialog,
+            parent=parent,
             action=Gtk.FileChooserAction.OPEN,
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
