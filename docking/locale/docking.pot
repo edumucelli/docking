@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-13 14:38+0200\n"
+"POT-Creation-Date: 2026-07-15 23:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -80,6 +80,7 @@ msgid "Alarm"
 msgstr ""
 
 #: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:209
+#: docking/applets/plantcare/applet.py:378
 msgid "Snooze"
 msgstr ""
 
@@ -110,8 +111,8 @@ msgid "OK"
 msgstr ""
 
 #: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:219
-#: docking/applets/lastfm/applet.py:381 docking/applets/quicknote/applet.py:87
-#: docking/applets/reddit/applet.py:439
+#: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:477
+#: docking/applets/quicknote/applet.py:87 docking/applets/reddit/applet.py:435
 #: docking/applets/runcommand/applet.py:131
 #: docking/applets/runcommand/applet.py:350
 #: docking/applets/sunrise/applet.py:189 docking/applets/trash/applet.py:264
@@ -121,6 +122,7 @@ msgid "Cancel"
 msgstr ""
 
 #: docking/applets/alarm/applet.py:166 docking/applets/certwatch/applet.py:170
+#: docking/applets/plantcare/applet.py:480
 msgid "Remove"
 msgstr ""
 
@@ -341,8 +343,8 @@ msgstr ""
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:206
 #: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
-#: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
-#: docking/applets/reddit/applet.py:217
+#: docking/applets/moon/applet.py:137 docking/applets/plantcare/applet.py:129
+#: docking/applets/quote/applet.py:105 docking/applets/reddit/applet.py:217
 #: docking/applets/systemtray/applet.py:142
 #: docking/applets/thermals/applet.py:157
 #: docking/applets/todayinhistory/applet.py:112
@@ -1027,7 +1029,8 @@ msgstr ""
 msgid "Symbol"
 msgstr ""
 
-#: docking/applets/crypto/applet.py:429 docking/ui/folder/_browser.py:39
+#: docking/applets/crypto/applet.py:429 docking/applets/plantcare/applet.py:496
+#: docking/ui/folder/_browser.py:39
 msgid "Name"
 msgstr ""
 
@@ -1375,7 +1378,7 @@ msgstr ""
 #: docking/applets/hackernews/applet.py:161
 #: docking/applets/hackernews/state.py:163
 #: docking/applets/hackernews/state.py:196 docking/applets/reddit/applet.py:170
-#: docking/applets/reddit/state.py:344 docking/applets/reddit/state.py:364
+#: docking/applets/reddit/state.py:348 docking/applets/reddit/state.py:368
 msgid "Refreshes"
 msgstr ""
 
@@ -1402,21 +1405,21 @@ msgstr ""
 msgid "No Hacker News stories"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:114 docking/applets/reddit/state.py:304
+#: docking/applets/hackernews/state.py:114 docking/applets/reddit/state.py:308
 msgid "now"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:117 docking/applets/reddit/state.py:307
+#: docking/applets/hackernews/state.py:117 docking/applets/reddit/state.py:311
 #, python-brace-format
 msgid "{minutes}m ago"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:120 docking/applets/reddit/state.py:310
+#: docking/applets/hackernews/state.py:120 docking/applets/reddit/state.py:314
 #, python-brace-format
 msgid "{hours}h ago"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:122 docking/applets/reddit/state.py:311
+#: docking/applets/hackernews/state.py:122 docking/applets/reddit/state.py:315
 #, python-brace-format
 msgid "{days}d ago"
 msgstr ""
@@ -1494,7 +1497,8 @@ msgstr ""
 msgid "Scrobbler Settings"
 msgstr ""
 
-#: docking/applets/lastfm/applet.py:382 docking/ui/diagnostics.py:341
+#: docking/applets/lastfm/applet.py:382 docking/applets/plantcare/applet.py:476
+#: docking/ui/diagnostics.py:341
 msgid "Save"
 msgstr ""
 
@@ -1615,7 +1619,7 @@ msgid "Show Phase Name"
 msgstr ""
 
 #: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
-#: docking/applets/reddit/state.py:155
+#: docking/applets/reddit/state.py:159
 msgid "New"
 msgstr ""
 
@@ -1884,6 +1888,229 @@ msgstr ""
 msgid "{mood} | CPU: {cpu}%"
 msgstr ""
 
+#: docking/applets/plantcare/applet.py:62
+#: docking/applets/plantcare/applet.py:241
+#: docking/applets/plantcare/state.py:438
+msgid "Plant Care"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:124
+#: docking/applets/plantcare/applet.py:306
+#: docking/applets/plantcare/applet.py:391
+msgid "Add Plant..."
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:126
+msgid "Manage Plants..."
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:148
+#, python-brace-format
+msgid "{action} {plant}"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:155
+#: docking/applets/plantcare/applet.py:376
+msgid "Done"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:160
+msgid "Snooze 1 Day"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:175
+#, python-brace-format
+msgid "{count} more due task"
+msgid_plural "{count} more due tasks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/plantcare/applet.py:244 docking/ui/diagnostics.py:122
+#: docking/ui/menu.py:576 docking/ui/startup_tips.py:216
+msgid "Close"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:284
+msgid "Care"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:288
+msgid "Plants"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:301
+msgid "Add a plant to start tracking care."
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:312
+msgid "No care schedules are enabled."
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:328
+msgid "Due"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:337
+msgid "Upcoming"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:362
+#, python-brace-format
+msgid "{plant} - {care}"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:397
+msgid "No plants configured."
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:423
+msgid "Edit"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:470
+msgid "Edit Plant"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:470
+msgid "Add Plant"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:498
+msgid "Species"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:500
+msgid "Care Schedule"
+msgstr ""
+
+#: docking/applets/plantcare/applet.py:501
+msgid "Days"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:108
+msgid "Watering"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:109
+msgid "Fertilizing"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:110
+msgid "Misting"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:111
+msgid "Rotating"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:112
+msgid "Pruning"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:113
+msgid "Repotting"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:114
+msgid "Pest check"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:122
+msgid "Water"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:123
+msgid "Fertilize"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:124
+msgid "Mist"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:125
+msgid "Rotate"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:126
+msgid "Prune"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:127
+msgid "Repot"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:128
+msgid "Check for pests"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:186
+#: docking/applets/plantcare/state.py:545
+msgid "Plant"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:416
+#, python-brace-format
+msgid "overdue by {count} day"
+msgid_plural "overdue by {count} days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/plantcare/state.py:421
+msgid "due today"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:424
+#, python-brace-format
+msgid "in {count} day"
+msgid_plural "in {count} days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/plantcare/state.py:428
+#, python-brace-format
+msgid "{plant}: {care} {duration}"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:440
+#: docking/applets/plantcare/state.py:476
+msgid "No plants configured"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:443
+#: docking/applets/plantcare/state.py:478
+msgid "No care schedules enabled"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:449
+#: docking/applets/plantcare/state.py:481
+#: docking/applets/plantcare/state.py:496
+#, python-brace-format
+msgid "{count} task due"
+msgid_plural "{count} tasks due"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/plantcare/state.py:455
+msgid "All plants are on schedule"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:464
+#, python-brace-format
+msgid "{count} more task"
+msgid_plural "{count} more tasks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/plantcare/state.py:493
+#, python-brace-format
+msgid "{plant} - no schedules"
+msgstr ""
+
+#: docking/applets/plantcare/state.py:500
+#, python-brace-format
+msgid "{plant} - {due}"
+msgstr ""
+
 #: docking/applets/pomodoro/applet.py:61 docking/applets/pomodoro/state.py:77
 msgid "Pomodoro"
 msgstr ""
@@ -1987,7 +2214,7 @@ msgstr ""
 msgid "Reddit"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:181 docking/applets/reddit/state.py:352
+#: docking/applets/reddit/applet.py:181 docking/applets/reddit/state.py:356
 #, python-brace-format
 msgid "Posted by u/{author}"
 msgstr ""
@@ -2008,86 +2235,86 @@ msgstr ""
 msgid "Sort"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:244
+#: docking/applets/reddit/applet.py:242
 msgid "Top Period"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:257
+#: docking/applets/reddit/applet.py:254
 msgid "Add Subreddit..."
 msgstr ""
 
-#: docking/applets/reddit/applet.py:263
+#: docking/applets/reddit/applet.py:260
 #, python-brace-format
 msgid "Remove r/{subreddit}"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:381
+#: docking/applets/reddit/applet.py:376
 msgid "No Reddit posts returned"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:433
+#: docking/applets/reddit/applet.py:428
 msgid "Add Subreddit"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:438
+#: docking/applets/reddit/applet.py:434
 msgid "Add"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:448
+#: docking/applets/reddit/applet.py:444
 msgid "Subreddit name or URL"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:466
+#: docking/applets/reddit/applet.py:462
 msgid "Enter a valid subreddit name."
 msgstr ""
 
-#: docking/applets/reddit/state.py:154
+#: docking/applets/reddit/state.py:158
 msgid "Hot"
 msgstr ""
 
-#: docking/applets/reddit/state.py:156
+#: docking/applets/reddit/state.py:160
 msgid "Top"
 msgstr ""
 
-#: docking/applets/reddit/state.py:157
+#: docking/applets/reddit/state.py:161
 msgid "Rising"
 msgstr ""
 
-#: docking/applets/reddit/state.py:165
+#: docking/applets/reddit/state.py:169
 msgid "Today"
 msgstr ""
 
-#: docking/applets/reddit/state.py:166
+#: docking/applets/reddit/state.py:170
 msgid "This Week"
 msgstr ""
 
-#: docking/applets/reddit/state.py:167
+#: docking/applets/reddit/state.py:171
 msgid "This Month"
 msgstr ""
 
-#: docking/applets/reddit/state.py:168
+#: docking/applets/reddit/state.py:172
 msgid "This Year"
 msgstr ""
 
-#: docking/applets/reddit/state.py:169
+#: docking/applets/reddit/state.py:173
 msgid "All Time"
 msgstr ""
 
-#: docking/applets/reddit/state.py:183
+#: docking/applets/reddit/state.py:187
 msgid "Invalid subreddit name"
-msgstr ""
-
-#: docking/applets/reddit/state.py:199
-#, python-brace-format
-msgid "{sort}, {period}"
 msgstr ""
 
 #: docking/applets/reddit/state.py:203
 #, python-brace-format
+msgid "{sort}, {period}"
+msgstr ""
+
+#: docking/applets/reddit/state.py:207
+#, python-brace-format
 msgid "r/{subreddit} - {listing}"
 msgstr ""
 
-#: docking/applets/reddit/state.py:221
+#: docking/applets/reddit/state.py:225
 msgid "Invalid Reddit RSS response"
 msgstr ""
 
@@ -3149,11 +3376,6 @@ msgstr ""
 
 #: docking/ui/diagnostics.py:120
 msgid "Save Report..."
-msgstr ""
-
-#: docking/ui/diagnostics.py:122 docking/ui/menu.py:576
-#: docking/ui/startup_tips.py:216
-msgid "Close"
 msgstr ""
 
 #: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
