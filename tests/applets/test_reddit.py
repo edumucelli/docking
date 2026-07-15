@@ -483,8 +483,7 @@ class TestRedditApplet:
 
         applet.on_clicked()
 
-        launch.assert_called_once_with(apply_uri := _post().url, None)
-        assert "reddit.com" in apply_uri
+        launch.assert_called_once_with(_post().url, None)
 
     def test_menu_contains_navigation_source_and_management(self):
         applet = _make_applet()
