@@ -6,6 +6,7 @@ import logging
 import subprocess
 from dataclasses import replace
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
 import docking.applets.bluetooth.state as bluetooth_state_mod
@@ -1085,7 +1086,7 @@ class TestBluetoothApplet:
     def test_tick_and_discovery_tick(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         ticked: list[str] = []
-        applet._worker.run = lambda **kwargs: ticked.append("poll")  # type: ignore[assignment]
+        applet._worker.run_guarded = lambda **kwargs: ticked.append("poll") or True  # type: ignore[method-assign]
         applet._ensure_discovery = lambda: ticked.append("discover")  # type: ignore[assignment]
 
         assert applet._tick() is True
@@ -1114,6 +1115,18 @@ class TestBluetoothApplet:
         assert applet._on_poll_result(state) is False
         assert applet._local_discovery_active is False
 
+    def test_on_poll_result_skips_present_when_state_is_unchanged(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        state = applet._state
+        applet._local_discovery_active = False
+        applet._ensure_discovery = lambda: None  # type: ignore[assignment]
+        present = MagicMock()
+        applet.present = present  # type: ignore[method-assign]
+
+        assert applet._on_poll_result(state) is False
+
+        present.assert_not_called()
+
     def test_sync_selected_adapter_active_adapter_and_discovery_flow(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
         monkeypatch.setattr(
@@ -1127,6 +1140,10 @@ class TestBluetoothApplet:
         applet._sync_selected_adapter()
         assert applet._active_adapter_path == "/org/bluez/hci0"
         assert saved
+
+        saved.clear()
+        applet._sync_selected_adapter()
+        assert saved == []
 
         applet._state = _state(adapters=())
         assert applet._active_adapter() is None

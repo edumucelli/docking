@@ -446,7 +446,8 @@ class BluetoothApplet(Applet):
         return menu_item
 
     def _tick(self) -> bool:
-        self._worker.run(
+        self._worker.run_guarded(
+            key="poll",
             name="bluetooth-poll",
             fn=lambda: self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
@@ -460,6 +461,9 @@ class BluetoothApplet(Applet):
         return True
 
     def _on_poll_result(self, state: BluetoothState) -> bool:
+        previous_state = self._state
+        previous_adapter_path = self._active_adapter_path
+        previous_local_discovery_active = self._local_discovery_active
         self._state = state
         self._sync_selected_adapter()
         self._record_recent_connections(state)
@@ -469,7 +473,12 @@ class BluetoothApplet(Applet):
             # still be active.
             self._local_discovery_active = False
         self._ensure_discovery()
-        self.present()
+        if (
+            state != previous_state
+            or self._active_adapter_path != previous_adapter_path
+            or self._local_discovery_active != previous_local_discovery_active
+        ):
+            self.present()
         return False
 
     def _refresh_now(self) -> None:
@@ -488,6 +497,8 @@ class BluetoothApplet(Applet):
             preferred_path=self._active_adapter_path,
         )
         if selected is not None:
+            if selected == self._active_adapter_path:
+                return
             self._active_adapter_path = selected
             if persist:
                 self._save_prefs()

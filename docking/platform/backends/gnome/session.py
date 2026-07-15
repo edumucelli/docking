@@ -32,6 +32,7 @@ from docking.platform.backends.base import (
     WorkspaceService,
 )
 from docking.platform.backends.gnome.bridge import (
+    GnomeShellBridgeClient,
     GnomeShellBridgeDesktopActionService,
     GnomeShellBridgePreviewService,
     GnomeShellBridgeSurfaceService,
@@ -58,7 +59,7 @@ class GnomeShellBridgeRuntimeServices:
 class GnomeShellBridgeSessionBackend(SessionBackend):
     """GNOME Shell bridge backend with reduced GTK surface integration."""
 
-    def __init__(self, *, model, launcher, bridge: object) -> None:
+    def __init__(self, *, model, launcher, bridge: GnomeShellBridgeClient) -> None:
         self._services = GnomeShellBridgeRuntimeServices(
             windows=GnomeShellBridgeWindowService(
                 model=model,

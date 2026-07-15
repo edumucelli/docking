@@ -120,3 +120,12 @@ class TestDockRuntime:
         update_checker.check_now.assert_called_once()
         update_checker.open_releases_page.assert_called_once()
         window.set_theme.assert_called_once_with("new-theme")
+
+    def test_quit_closes_the_dock_window(self):
+        window = _make_window()
+        window.destroy = MagicMock()
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
+
+        runtime.quit()
+
+        window.destroy.assert_called_once()

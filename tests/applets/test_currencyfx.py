@@ -761,6 +761,11 @@ class TestCurrencyFxApplet:
         pulse_add = MagicMock(return_value=42)
         monkeypatch.setattr(
             currencyfx_applet_mod.GLib,
+            "get_monotonic_time",
+            lambda: 123_000,
+        )
+        monkeypatch.setattr(
+            currencyfx_applet_mod.GLib,
             "timeout_add_seconds",
             add_seconds,
         )
@@ -771,6 +776,7 @@ class TestCurrencyFxApplet:
         applet.start(lambda: None)
 
         assert applet._pulse_timer_id == 42
+        assert applet._pulse_started_us == 123_000
         pulse_add.assert_called_once()
 
     def test_pulse_timer_stops_without_chart_dot(self, monkeypatch):
@@ -787,15 +793,42 @@ class TestCurrencyFxApplet:
         remove.assert_called_once_with(42)
         assert applet._pulse_timer_id == 0
         assert applet._pulse_phase == 0.0
+        assert applet._pulse_started_us == 0
 
-    def test_pulse_tick_advances_phase_and_repaints(self):
+    def test_pulse_tick_advances_phase_and_repaints(self, monkeypatch):
+        monkeypatch.setattr(
+            currencyfx_applet_mod.GLib,
+            "get_monotonic_time",
+            lambda: 1_000_000,
+        )
         applet = _make_applet()
         applet._snapshot = _snapshot()
         applet._notify = MagicMock()
+        applet._pulse_started_us = 1_000_000
 
         assert applet._pulse_tick() is True
 
         assert applet._pulse_phase > 0.0
+        applet._notify.assert_called_once()
+
+    def test_pulse_tick_stops_after_duration(self, monkeypatch):
+        monkeypatch.setattr(
+            currencyfx_applet_mod.GLib,
+            "get_monotonic_time",
+            lambda: 7_100_000,
+        )
+        applet = _make_applet()
+        applet._snapshot = _snapshot()
+        applet._notify = MagicMock()
+        applet._pulse_timer_id = 42
+        applet._pulse_phase = 0.5
+        applet._pulse_started_us = 1_000_000
+
+        assert applet._pulse_tick() is False
+
+        assert applet._pulse_timer_id == 0
+        assert applet._pulse_phase == 0.0
+        assert applet._pulse_started_us == 0
         applet._notify.assert_called_once()
 
     def test_fetch_async_queues_worker(self, monkeypatch):

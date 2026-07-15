@@ -112,13 +112,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
@@ -171,11 +172,13 @@ def _install_css() -> None:
     """Install CSS for preview popup (once)."""
     provider = Gtk.CssProvider()
     provider.load_from_data(_CSS)
-    Gtk.StyleContext.add_provider_for_screen(
-        Gdk.Screen.get_default(),
-        provider,
-        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-    )
+    screen = Gdk.Screen.get_default()
+    if screen is not None:
+        Gtk.StyleContext.add_provider_for_screen(
+            screen,
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
 
 
 @lru_cache(maxsize=1)
@@ -314,7 +317,7 @@ class PreviewPopup(Gtk.Window):
             window.id, width=THUMB_W, height=THUMB_H
         )
         if preview is not None:
-            image = Gtk.Image.new_from_pixbuf(preview.image)
+            image = Gtk.Image.new_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
         else:
             image = Gtk.Image.new_from_icon_name(
                 fallback_icon_name, Gtk.IconSize.DIALOG

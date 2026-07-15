@@ -91,6 +91,7 @@ class WeatherApplet(Applet):
         self._air_quality: AirQualityData | None = None
         self._last_updated: dt.datetime | None = None
         self._loading = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
@@ -140,6 +141,7 @@ class WeatherApplet(Applet):
         self._air_quality = None
         self._last_updated = None
         self._loading = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._save_prefs()
@@ -266,7 +268,8 @@ class WeatherApplet(Applet):
     def _show_city_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Search for the city"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.connect("response", lambda dlg, _response: dlg.destroy())
@@ -342,6 +345,7 @@ class WeatherApplet(Applet):
                 self._air_quality = None
                 self._last_updated = None
                 self._loading = False
+                self._fetch_pending = False
                 self._fetch_failed = False
                 self._fetch_error = ""
                 self._save_prefs()
@@ -354,6 +358,7 @@ class WeatherApplet(Applet):
         self._air_quality = None
         self._last_updated = None
         self._loading = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._save_prefs()
@@ -369,6 +374,7 @@ class WeatherApplet(Applet):
         self._air_quality = None
         self._last_updated = None
         self._loading = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._save_prefs()
@@ -393,22 +399,29 @@ class WeatherApplet(Applet):
         if self._startup_fetch_timer_id:
             GLib.source_remove(self._startup_fetch_timer_id)
             self._startup_fetch_timer_id = 0
+        if self._loading:
+            self._fetch_pending = True
+            return
 
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
         lat = active.lat
         lng = active.lng
         self._loading = True
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self.present()
 
         def fetch() -> tuple[WeatherData | None, AirQualityData | None]:
             weather = fetch_weather(lat=lat, lng=lng)
+            if weather is None:
+                return None, None
             aqi = fetch_air_quality(lat=lat, lng=lng)
             return weather, aqi
 
-        self._worker.run(
+        started = self._worker.run_guarded(
+            key="weather-fetch",
             name="weather-fetch",
             fn=fetch,
             on_result=lambda result: self._on_fetch_result(
@@ -418,6 +431,8 @@ class WeatherApplet(Applet):
             ),
             on_error=lambda exc: self._on_fetch_error(request_id=request_id, exc=exc),
         )
+        if not started:
+            self._fetch_pending = True
 
     def _on_fetch_result(
         self,
@@ -436,7 +451,7 @@ class WeatherApplet(Applet):
             self._last_updated = dt.datetime.now(dt.timezone.utc)
         else:
             self._fetch_error = _("No weather data")
-        self.present()
+        self._present_or_run_pending_fetch()
         return False
 
     def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
@@ -446,8 +461,15 @@ class WeatherApplet(Applet):
         self._loading = False
         self._fetch_failed = True
         self._fetch_error = str(exc) or exc.__class__.__name__
-        self.present()
+        self._present_or_run_pending_fetch()
         return False
+
+    def _present_or_run_pending_fetch(self) -> None:
+        if self._fetch_pending and self._active_city:
+            self._fetch_pending = False
+            self._fetch_async()
+            return
+        self.present()
 
     def _build_tooltip(self) -> str:
         active = self._active_city

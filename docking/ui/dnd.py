@@ -267,7 +267,7 @@ class DnDHandler:
             Gdk.DragAction.MOVE,
         )
         da.drag_dest_set(
-            0,
+            Gtk.DestDefaults(0),
             [_DOCK_ITEM_TARGET, _URI_TARGET],
             Gdk.DragAction.MOVE | Gdk.DragAction.COPY,
         )
@@ -827,7 +827,7 @@ class DnDHandler:
     def _confirm_make_appimage_executable(self, path: Path) -> bool:
         dialog = Gtk.MessageDialog(
             transient_for=self._window,
-            flags=Gtk.DialogFlags.MODAL,
+            modal=True,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.CANCEL,
             text="Make AppImage executable and pin it?",

@@ -57,7 +57,7 @@ class ApplicationEntry(NamedTuple):
     def get_categories(self) -> str:
         return self.categories
 
-    def get_icon(self) -> object | None:
+    def get_icon(self) -> Gio.Icon | None:
         if self.app_info is not None:
             return self.app_info.get_icon()
         if not self.icon_name:
@@ -68,7 +68,11 @@ class ApplicationEntry(NamedTuple):
             return Gio.FileIcon.new(Gio.File.new_for_path(str(icon_path)))
         return Gio.ThemedIcon.new(self.icon_name)
 
-    def launch(self, files: list[object], context: object | None) -> None:
+    def launch(
+        self,
+        files: list[Gio.File] | None,
+        context: Gio.AppLaunchContext | None,
+    ) -> None:
         if self.desktop_id:
             launch_desktop_id(desktop_id=self.desktop_id)
             return

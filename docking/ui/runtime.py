@@ -102,3 +102,7 @@ class DockRuntime:
 
     def open_releases_page(self) -> None:
         self._update_checker.open_releases_page()
+
+    def quit(self) -> None:
+        """Close the dock window and let normal process shutdown run."""
+        self._window.destroy()

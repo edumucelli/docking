@@ -306,7 +306,9 @@ def _icon_label_layout(
     font_size: int,
 ) -> Pango.Layout:
     layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
+    layout.set_font_description(
+        Pango.FontDescription.from_string(f"Sans Bold {font_size}px")
+    )
     layout.set_text(text, -1)
     return layout
 

@@ -560,7 +560,10 @@ class Launcher:
                         "Theme gicon not found (%s): %s", gicon.to_string(), exc
                     )
 
-        return self.load_icon(icon_name=gicon.to_string(), size=size)
+        icon_name = gicon.to_string()
+        if icon_name:
+            return self.load_icon(icon_name=icon_name, size=size)
+        return None
 
     def _try_load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Attempt to load icon from theme or file path."""

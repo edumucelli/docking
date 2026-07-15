@@ -43,7 +43,6 @@ def _make_window(item: DockItem | None = None):
         tooltip=MagicMock(),
         hover=MagicMock(),
         preview=None,
-        _menu_popup_visible=False,
         autohide=_autohide(enabled=False),
         cursor_x=12.0,
         cursor_y=6.0,
@@ -141,21 +140,20 @@ class TestMenuPopupPolicy:
         coordinator.menu_popup_opened()
 
         assert coordinator.dock_hovered is True
-        assert window._menu_popup_visible is True
         window.autohide.set_disabled.assert_called_once_with(True, reason="menu-open")
 
     def test_menu_close_triggers_autohide_when_pointer_outside(self):
         window, _item = _make_window()
-        window._menu_popup_visible = True
         window.autohide = _autohide()
         window.preview = MagicMock()
         window.preview.get_visible.return_value = False
         coordinator = DockInteractionCoordinator(window)
         coordinator.pointer_inside_input_rect = MagicMock(return_value=False)
+        coordinator.menu_popup_opened()
+        window.autohide.set_disabled.reset_mock()
 
         coordinator.menu_popup_closed()
 
-        assert window._menu_popup_visible is False
         window.hover.cancel.assert_called_once()
         window.tooltip.hide.assert_called_once()
         window.preview.schedule_hide.assert_not_called()
@@ -169,16 +167,16 @@ class TestMenuPopupPolicy:
 
     def test_menu_close_with_visible_preview_defers_autohide(self):
         window, _item = _make_window()
-        window._menu_popup_visible = True
         window.autohide = _autohide()
         window.preview = MagicMock()
         window.preview.get_visible.return_value = True
         coordinator = DockInteractionCoordinator(window)
         coordinator.pointer_inside_input_rect = MagicMock(return_value=False)
+        coordinator.menu_popup_opened()
+        window.autohide.set_disabled.reset_mock()
 
         coordinator.menu_popup_closed()
 
-        assert window._menu_popup_visible is False
         window.preview.schedule_hide.assert_called_once()
         window.autohide.set_hovered.assert_called_once_with(False)
         window.autohide.set_disabled.assert_called_once_with(
@@ -188,14 +186,14 @@ class TestMenuPopupPolicy:
 
     def test_menu_close_does_not_hide_when_pointer_is_back_on_dock(self):
         window, _item = _make_window()
-        window._menu_popup_visible = True
         window.autohide = _autohide()
         coordinator = DockInteractionCoordinator(window)
         coordinator.pointer_inside_input_rect = MagicMock(return_value=True)
+        coordinator.menu_popup_opened()
+        window.autohide.set_disabled.reset_mock()
 
         coordinator.menu_popup_closed()
 
-        assert window._menu_popup_visible is False
         window.autohide.set_hovered.assert_called_once_with(True)
         window.autohide.set_disabled.assert_called_once_with(
             False, reason="menu-close-pointer-inside"
@@ -214,15 +212,30 @@ class TestMenuPopupPolicy:
 
     def test_menu_close_returns_early_when_autohide_is_disabled(self):
         window, _item = _make_window()
-        window._menu_popup_visible = True
         window.autohide = _autohide(enabled=False)
         coordinator = DockInteractionCoordinator(window)
+        coordinator.menu_popup_opened()
 
         coordinator.menu_popup_closed()
 
-        assert window._menu_popup_visible is False
         window.hover.cancel.assert_not_called()
         window.autohide.on_mouse_leave.assert_not_called()
+
+    def test_duplicate_menu_close_does_not_repeat_close_policy(self):
+        window, _item = _make_window()
+        window.autohide = _autohide()
+        coordinator = DockInteractionCoordinator(window)
+        coordinator.pointer_inside_input_rect = MagicMock(return_value=True)
+        coordinator.menu_popup_opened()
+        window.autohide.set_disabled.reset_mock()
+
+        coordinator.menu_popup_closed()
+        coordinator.menu_popup_closed()
+
+        window.autohide.set_hovered.assert_called_once_with(True)
+        window.autohide.set_disabled.assert_called_once_with(
+            False, reason="menu-close-pointer-inside"
+        )
 
 
 class TestPointerContainment:

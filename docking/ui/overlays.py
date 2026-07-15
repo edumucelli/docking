@@ -113,6 +113,25 @@ def draw_count_badge(
     cr.restore()
 
 
+def draw_warning_badge(
+    *,
+    cr: cairo.Context,
+    size: int,
+) -> None:
+    """Draw the standard amber attention chip used by applet icons."""
+    cr.save()
+    draw_circle_badge(
+        cr=cr,
+        cx=size * 0.80,
+        cy=size * 0.20,
+        radius=max(2.0, size * 0.08),
+        background_rgba=(0.95, 0.60, 0.22, 0.96),
+        outline_rgba=(0.0, 0.0, 0.0, 0.42),
+        outline_width=max(0.8, size * 0.018),
+    )
+    cr.restore()
+
+
 def draw_progress_bar(
     *,
     cr: cairo.Context,

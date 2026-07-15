@@ -36,7 +36,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 58 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- 59 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -140,8 +140,8 @@ cd docking
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 
-# Install with dependencies
-pip install -e ".[dev]"
+# Install with development dependencies and GTK 3 type stubs
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 pip install -e ".[dev]"
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
@@ -1312,6 +1312,33 @@ Hacker News headline viewer. It fetches HN top stories, keeps a cached list for 
 **Update interval:** 10 minutes. Additional pages load on demand when you reach the last loaded headline, up to 100 stories.
 
 **Preferences stored:** cached `stories`, `active_index`, `fetched_at`
+
+</details>
+
+### Reddit
+
+<details>
+<summary>Details</summary>
+
+Browse posts from your favorite subreddits. Choose one or more subreddits,
+switch between Hot/New/Top/Rising feeds, and open the selected Reddit thread in
+the default browser.
+
+**Click:** Open the current Reddit post, or add a subreddit when no post is loaded
+**Scroll:** Cycle through fetched posts
+**Right-click options:**
+- **Open Post**
+- **Previous Headline** / **Next Headline**
+- **Subreddit** -- switch between configured sources
+- **Sort** -- Hot, New, Top, or Rising
+- **Top Period** -- day, week, month, year, or all time
+- **Add Subreddit...** / **Remove r/{subreddit}**
+- **Refresh Now**
+
+**Update interval:** 10 minutes
+
+**Preferences stored:** subreddits, active source and post, sort settings,
+cached posts, and last successful fetch time
 
 </details>
 

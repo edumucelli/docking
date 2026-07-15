@@ -166,13 +166,14 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
 from docking.core.config import effective_edge_gap
@@ -1348,14 +1349,14 @@ class DockRenderer:
         cached = self._cache.cached_icon_surface_for(item=item)
         if cached is not None:
             return cached
-        surface = self._pixbuf_surface(pixbuf=item.icon)
+        surface = self._pixbuf_surface(pixbuf=cast(GdkPixbuf.Pixbuf, item.icon))
         if surface is None:
             self._cache.icon_surfaces.pop(item.desktop_id, None)
             return None
         return self._cache.store_icon_surface(item=item, surface=surface)
 
     @staticmethod
-    def _pixbuf_surface(pixbuf: object) -> cairo.ImageSurface | None:
+    def _pixbuf_surface(pixbuf: GdkPixbuf.Pixbuf | None) -> cairo.ImageSurface | None:
         if pixbuf is None:
             return None
         width = pixbuf.get_width()

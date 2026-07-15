@@ -144,6 +144,7 @@ def fake_gtk(monkeypatch):
     gtk_ns = _build_gtk_namespace()
     monkeypatch.setattr(ps, "Gtk", gtk_ns)
     monkeypatch.setattr(ps, "Gdk", _build_gdk_namespace())
+    monkeypatch.setattr(ps, "compositor_active", lambda: True)
     return gtk_ns
 
 
@@ -214,6 +215,19 @@ class TestConfigureTransparentStartupPopupWindow:
         assert window.app_paintable is True
         assert window.bg_override is not None
         assert STARTUP_POPUP_WINDOW_CLASS in window.get_style_context().classes
+
+    def test_keeps_window_opaque_without_compositor(self, fake_gtk, monkeypatch):
+        global _default_screen
+        _default_screen = _FakeScreen(rgba_visual=object())
+        monkeypatch.setattr(ps, "compositor_active", lambda: False)
+
+        window = _FakeWindow(screen=_default_screen)
+        configure_transparent_startup_popup_window(window)
+
+        assert window.app_paintable is False
+        assert window.visual is None
+        assert window.bg_override is None
+        assert STARTUP_POPUP_WINDOW_CLASS not in window.get_style_context().classes
 
 
 class TestWrapStartupPopupContent:

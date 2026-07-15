@@ -20,6 +20,7 @@ import gi
 
 from docking.applets.draw import rounded_rect
 from docking.i18n import _, ngettext
+from docking.ui.overlays import draw_warning_badge
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -102,10 +103,26 @@ def _draw_trash_can(*, cr: cairo.Context, size: int, item_count: int) -> None:
     cr.stroke()
 
 
-def create_trash_icon(*, size: int, item_count: int) -> GdkPixbuf.Pixbuf | None:
+def create_trash_icon(
+    *,
+    size: int,
+    item_count: int,
+) -> GdkPixbuf.Pixbuf | None:
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     cr = cairo.Context(surface)
     cr.set_source_rgba(0, 0, 0, 0)
     cr.paint()
     _draw_trash_can(cr=cr, size=size, item_count=item_count)
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
+
+
+def add_trash_warning_badge(icon: GdkPixbuf.Pixbuf) -> GdkPixbuf.Pixbuf | None:
+    """Overlay the standard warning chip on an already-rendered Trash icon."""
+    width = icon.get_width()
+    height = icon.get_height()
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+    cr = cairo.Context(surface)
+    Gdk.cairo_set_source_pixbuf(cr, icon, 0, 0)
+    cr.paint()
+    draw_warning_badge(cr=cr, size=min(width, height))
+    return Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)

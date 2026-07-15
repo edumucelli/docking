@@ -213,7 +213,8 @@ class ClockApplet(Applet):
     def _show_alarm_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Set Alarm"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog, ok_label=_("OK"), cancel_label=_("Cancel"))
         content = prepare_dialog_content(

@@ -1638,7 +1638,7 @@ class TestRecentSettingsBehavior:
 
         # Disable recent apps
         config.show_recent_apps = False
-        controller._after_show_recent_apps_changed(False)
+        controller._after_show_recent_apps_changed()
 
         assert config.recent_apps == []
         config.save.assert_called()
@@ -1752,7 +1752,7 @@ class TestSettingsRuntimeCallbacks:
             config=config,
         )
 
-        controller._after_icon_size_changed(64)
+        controller._after_icon_size_changed()
 
         runtime.reposition.assert_called()
         runtime.queue_draw.assert_called()
@@ -1773,7 +1773,8 @@ class TestSettingsRuntimeCallbacks:
             config=config,
         )
 
-        controller._after_tooltips_changed(False)
+        config.tooltips_enabled = False
+        controller._after_tooltips_changed()
 
         runtime.hide_tooltip.assert_called_once()
 
@@ -1793,7 +1794,8 @@ class TestSettingsRuntimeCallbacks:
             config=config,
         )
 
-        controller._after_tooltips_changed(True)
+        config.tooltips_enabled = True
+        controller._after_tooltips_changed()
 
         runtime.hide_tooltip.assert_not_called()
 
