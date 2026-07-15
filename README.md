@@ -1320,9 +1320,9 @@ Hacker News headline viewer. It fetches HN top stories, keeps a cached list for 
 <details>
 <summary>Details</summary>
 
-Public Reddit RSS reader with no API credentials. Choose one or more
-subreddits, switch between Hot/New/Top/Rising feeds, retain cached posts during
-temporary failures, and open the selected Reddit thread in the default browser.
+Browse posts from your favorite subreddits. Choose one or more subreddits,
+switch between Hot/New/Top/Rising feeds, and open the selected Reddit thread in
+the default browser.
 
 **Click:** Open the current Reddit post, or add a subreddit when no post is loaded
 **Scroll:** Cycle through fetched posts
