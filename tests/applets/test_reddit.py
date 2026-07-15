@@ -121,12 +121,15 @@ class TestRedditSources:
         assert normalize_subreddit("r/Python") == "python"
         assert normalize_subreddit("/r/GNOME/") == "gnome"
         assert normalize_subreddit("https://www.reddit.com/r/linux/new/") == "linux"
+        assert normalize_subreddit("https://old.reddit.com/r/linux/") == "linux"
 
     def test_normalize_subreddit_rejects_unsafe_values(self):
         assert normalize_subreddit("") is None
         assert normalize_subreddit("r/a") is None
         assert normalize_subreddit("linux/news") is None
         assert normalize_subreddit("https://example.com/r/linux") is None
+        assert normalize_subreddit("https://example.com/reddit.com/r/linux") is None
+        assert normalize_subreddit("https://reddit.com.example/r/linux") is None
 
     def test_subreddit_list_is_unique_bounded_and_has_default(self):
         assert normalize_subreddits("linux") == DEFAULT_SUBREDDITS

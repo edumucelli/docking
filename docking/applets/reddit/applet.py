@@ -426,7 +426,8 @@ class RedditApplet(Applet):
     def _show_add_subreddit_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Add Subreddit"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(
             dialog=dialog,

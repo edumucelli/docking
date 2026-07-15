@@ -93,8 +93,13 @@ def normalize_subreddit(value: object) -> str | None:
     text = normalize_text(value).strip()
     if not text:
         return None
-    if "reddit.com/" in text:
-        path = urlsplit(text).path
+    parsed = urlsplit(text)
+    if parsed.scheme in {"http", "https"} and parsed.hostname in {
+        "reddit.com",
+        "www.reddit.com",
+        "old.reddit.com",
+    }:
+        path = parsed.path
         parts = [part for part in path.split("/") if part]
         if len(parts) >= 2 and parts[0].casefold() == "r":
             text = parts[1]
