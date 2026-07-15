@@ -388,6 +388,43 @@ class TestApplicationsApplet:
         callback(menu_item, None, selection, 0, 0, *args)
         selection.set_uris.assert_called_once_with([desktop_file.as_uri()])
 
+    def test_application_drag_shows_entry_icon(self, tmp_path, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        desktop_file = tmp_path / "org.example.Tool.desktop"
+        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
+        icon = MagicMock()
+        gio_app_info = MagicMock()
+        gio_app_info.get_filename.return_value = str(desktop_file)
+        gio_app_info.get_icon.return_value = icon
+        app = ApplicationEntry(
+            desktop_id="org.example.Tool.desktop",
+            name="Example Tool",
+            categories="Utility;",
+            icon_name="",
+            app_info=gio_app_info,
+        )
+        submenu = applications_applet_mod.Gtk.Menu()
+        set_drag_icon = MagicMock()
+        monkeypatch.setattr(
+            applications_applet_mod.Gtk,
+            "drag_set_icon_gicon",
+            set_drag_icon,
+            raising=False,
+        )
+
+        applications_applet_mod._populate_app_submenu(
+            submenu=submenu,
+            apps=[app],
+            config=None,
+        )
+
+        menu_item = submenu.get_children()[0]
+        callback, args = menu_item._signals["drag-begin"][0]
+        context = MagicMock()
+        callback(menu_item, context, *args)
+
+        set_drag_icon.assert_called_once_with(context, icon, 0, 0)
+
     def test_application_rows_are_not_draggable_when_icons_are_locked(
         self, tmp_path, monkeypatch
     ):

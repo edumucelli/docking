@@ -195,7 +195,19 @@ def _configure_drag_source(
         [_URI_TARGET],
         Gdk.DragAction.COPY,
     )
+    menu_item.connect("drag-begin", _on_drag_begin, app_info)
     menu_item.connect("drag-data-get", _on_drag_data_get, uri)
+
+
+def _on_drag_begin(
+    _menu_item: Gtk.MenuItem,
+    context: Gdk.DragContext,
+    app_info: ApplicationEntry,
+) -> None:
+    """Show the application's icon beside the pointer while it is dragged."""
+    icon = app_info.get_icon()
+    if icon is not None:
+        Gtk.drag_set_icon_gicon(context, icon, 0, 0)
 
 
 def _on_drag_data_get(
