@@ -110,6 +110,40 @@ class TestBuildAppCategories:
 
         assert launched == ["org.example.Tool.desktop"]
 
+    def test_application_entry_desktop_file_uri_uses_app_info_filename(self, tmp_path):
+        desktop_file = tmp_path / "org.example.Tool.desktop"
+        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
+        app_info = MagicMock()
+        app_info.get_filename.return_value = str(desktop_file)
+        entry = ApplicationEntry(
+            desktop_id="org.example.Tool.desktop",
+            name="Example Tool",
+            categories="Utility;",
+            icon_name="",
+            app_info=app_info,
+        )
+
+        assert entry.desktop_file_uri() == desktop_file.as_uri()
+
+    def test_application_entry_desktop_file_uri_falls_back_to_lookup(
+        self, tmp_path, monkeypatch
+    ):
+        desktop_file = tmp_path / "org.example.Tool.desktop"
+        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
+        monkeypatch.setattr(
+            apps_shared.desktop_entries,
+            "find_desktop_file",
+            lambda _desktop_id: desktop_file,
+        )
+        entry = ApplicationEntry(
+            desktop_id="org.example.Tool.desktop",
+            name="Example Tool",
+            categories="Utility;",
+            icon_name="",
+        )
+
+        assert entry.desktop_file_uri() == desktop_file.as_uri()
+
 
 class TestApplicationsApplet:
     def _fake_gtk(self, monkeypatch):
@@ -147,12 +181,16 @@ class TestApplicationsApplet:
                 self._child = None
                 self.visible = True
                 self.parent = None
+                self.drag_source_args = None
 
             def get_label(self) -> str:
                 return self._label
 
-            def connect(self, signal: str, callback) -> None:
-                self._signals.setdefault(signal, []).append(callback)
+            def connect(self, signal: str, callback, *args) -> None:
+                self._signals.setdefault(signal, []).append((callback, args))
+
+            def drag_source_set(self, *args) -> None:
+                self.drag_source_args = args
 
             def set_submenu(self, submenu) -> None:
                 self._submenu = submenu
@@ -319,6 +357,63 @@ class TestApplicationsApplet:
         assert internet_item.visible is True
         assert office_item.visible is True
         assert len(internet_item.get_submenu().get_children()) == 2
+
+    def test_application_rows_drag_desktop_uri_to_dock(self, tmp_path, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        desktop_file = tmp_path / "org.example.Tool.desktop"
+        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
+        app = ApplicationEntry(
+            desktop_id="org.example.Tool.desktop",
+            name="Example Tool",
+            categories="Utility;",
+            icon_name="",
+        )
+        monkeypatch.setattr(
+            apps_shared.desktop_entries,
+            "find_desktop_file",
+            lambda _desktop_id: desktop_file,
+        )
+        submenu = applications_applet_mod.Gtk.Menu()
+
+        applications_applet_mod._populate_app_submenu(
+            submenu=submenu,
+            apps=[app],
+            config=None,
+        )
+
+        menu_item = submenu.get_children()[0]
+        assert menu_item.drag_source_args is not None
+        callback, args = menu_item._signals["drag-data-get"][0]
+        selection = MagicMock()
+        callback(menu_item, None, selection, 0, 0, *args)
+        selection.set_uris.assert_called_once_with([desktop_file.as_uri()])
+
+    def test_application_rows_are_not_draggable_when_icons_are_locked(
+        self, tmp_path, monkeypatch
+    ):
+        self._fake_gtk(monkeypatch)
+        desktop_file = tmp_path / "org.example.Tool.desktop"
+        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
+        app = ApplicationEntry(
+            desktop_id="org.example.Tool.desktop",
+            name="Example Tool",
+            categories="Utility;",
+            icon_name="",
+        )
+        monkeypatch.setattr(
+            apps_shared.desktop_entries,
+            "find_desktop_file",
+            lambda _desktop_id: desktop_file,
+        )
+        submenu = applications_applet_mod.Gtk.Menu()
+
+        applications_applet_mod._populate_app_submenu(
+            submenu=submenu,
+            apps=[app],
+            config=SimpleNamespace(lock_icons=True),
+        )
+
+        assert submenu.get_children()[0].drag_source_args is None
 
 
 class TestApplicationsRenderHelpers:

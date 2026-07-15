@@ -22,12 +22,15 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.applications import meta
 from docking.applets.applications.render import create_icon, make_menu_item_with_icon
-from docking.applets.applications.state import CATEGORY_ICONS, _build_app_categories
-from docking.applets.apps import ApplicationEntry
+from docking.applets.applications.state import (
+    CATEGORY_ICONS,
+    ApplicationEntry,
+    _build_app_categories,
+)
 from docking.applets.base import Applet
 from docking.core.icons import IconSource
 from docking.i18n import _
@@ -42,6 +45,7 @@ log = with_context(
 )
 
 SEARCH_ENTRY_WIDTH_CHARS = 24
+_URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 0)
 
 
 class ApplicationsApplet(Applet):
@@ -107,7 +111,7 @@ class ApplicationsApplet(Applet):
             )
             submenu = Gtk.Menu()
 
-            _populate_app_submenu(submenu=submenu, apps=apps)
+            _populate_app_submenu(submenu=submenu, apps=apps, config=self._config)
 
             cat_item.set_submenu(submenu)
             menu.append(cat_item)
@@ -117,7 +121,11 @@ class ApplicationsApplet(Applet):
             lowered = query.strip().lower()
             for cat_item, submenu, apps in category_rows:
                 matched = list(_filter_apps(apps=apps, query=lowered))
-                _populate_app_submenu(submenu=submenu, apps=matched)
+                _populate_app_submenu(
+                    submenu=submenu,
+                    apps=matched,
+                    config=self._config,
+                )
                 if matched:
                     cat_item.show()
                 else:
@@ -149,6 +157,7 @@ def _populate_app_submenu(
     *,
     submenu: Gtk.Menu,
     apps: Iterable[ApplicationEntry],
+    config: Config | None,
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
@@ -160,8 +169,45 @@ def _populate_app_submenu(
             "activate",
             lambda _, info=app_info: _launch_app(app_info=info),
         )
+        _configure_drag_source(
+            menu_item=menu_item,
+            app_info=app_info,
+            config=config,
+        )
         submenu.append(menu_item)
     submenu.show_all()
+
+
+def _configure_drag_source(
+    *,
+    menu_item: Gtk.MenuItem,
+    app_info: ApplicationEntry,
+    config: Config | None,
+) -> None:
+    """Make a launchable menu row draggable to the dock as a desktop URI."""
+    if config is not None and config.lock_icons:
+        return
+    uri = app_info.desktop_file_uri()
+    if uri is None:
+        return
+    menu_item.drag_source_set(
+        Gdk.ModifierType.BUTTON1_MASK,
+        [_URI_TARGET],
+        Gdk.DragAction.COPY,
+    )
+    menu_item.connect("drag-data-get", _on_drag_data_get, uri)
+
+
+def _on_drag_data_get(
+    _menu_item: Gtk.MenuItem,
+    _context: Gdk.DragContext,
+    selection: Gtk.SelectionData,
+    _info: int,
+    _time: int,
+    uri: str,
+) -> None:
+    """Provide the selected application's desktop-entry URI to the dock."""
+    selection.set_uris([uri])
 
 
 def _filter_apps(
