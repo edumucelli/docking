@@ -22,11 +22,12 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.applications import meta
 from docking.applets.applications.render import create_icon, make_menu_item_with_icon
 from docking.applets.applications.state import CATEGORY_ICONS, _build_app_categories
+from docking.applets.apps import ApplicationEntry
 from docking.applets.base import Applet
 from docking.core.icons import IconSource
 from docking.i18n import _
@@ -83,9 +84,7 @@ class ApplicationsApplet(Applet):
         """Build the categorized launcher menu lazily on each open."""
         menu = Gtk.Menu()
         categories = _build_app_categories()
-        category_rows: list[
-            tuple[Gtk.MenuItem, Gtk.Menu, list[Gio.DesktopAppInfo]]
-        ] = []
+        category_rows: list[tuple[Gtk.MenuItem, Gtk.Menu, list[ApplicationEntry]]] = []
 
         search_entry = Gtk.Entry()
         search_entry.set_placeholder_text(_("Search applications..."))
@@ -137,7 +136,7 @@ class ApplicationsApplet(Applet):
         return menu
 
 
-def _app_name(app_info: Gio.DesktopAppInfo) -> str:
+def _app_name(app_info: ApplicationEntry) -> str:
     return app_info.get_display_name() or "Unknown"
 
 
@@ -149,7 +148,7 @@ def _clear_menu(*, menu: Gtk.Menu) -> None:
 def _populate_app_submenu(
     *,
     submenu: Gtk.Menu,
-    apps: Iterable[Gio.DesktopAppInfo],
+    apps: Iterable[ApplicationEntry],
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
@@ -167,15 +166,15 @@ def _populate_app_submenu(
 
 def _filter_apps(
     *,
-    apps: Iterable[Gio.DesktopAppInfo],
+    apps: Iterable[ApplicationEntry],
     query: str,
-) -> Iterable[Gio.DesktopAppInfo]:
+) -> Iterable[ApplicationEntry]:
     if not query:
         return apps
     return [app for app in apps if query in _app_name(app).lower()]
 
 
-def _launch_app(app_info: Gio.DesktopAppInfo) -> None:
+def _launch_app(app_info: ApplicationEntry) -> None:
     """Launch an application from its DesktopAppInfo."""
     desktop_id = app_info.get_id() if app_info else None
     try:

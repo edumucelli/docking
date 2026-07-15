@@ -150,9 +150,9 @@ concerns in practice.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import gi
 
@@ -217,6 +217,8 @@ WINDOW_MENU_CLOSE_MARGIN_END_PX = 12
 FOLDER_MENU_REFRESH_DEBOUNCE_MS = 120
 log = get_logger("menu")
 
+T = TypeVar("T")
+
 SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
 
 
@@ -228,9 +230,9 @@ def _make_menu_header(label: str) -> Gtk.MenuItem:
 
 def _build_radio_submenu(
     label: str,
-    items: Sequence[tuple[str, Any]],
-    current: Any,
-    on_changed: Any,
+    items: Sequence[tuple[str, T]],
+    current: T,
+    on_changed: Callable[[Gtk.RadioMenuItem, T], None],
 ) -> Gtk.MenuItem:
     """Build a MenuItem with a radio-group submenu.
 
@@ -464,7 +466,7 @@ class MenuHandler:
     def _show_icon_error(self, *, path: Path) -> None:
         dialog = Gtk.MessageDialog(
             transient_for=self._dock_window,
-            flags=Gtk.DialogFlags.MODAL,
+            modal=True,
             message_type=Gtk.MessageType.ERROR,
             buttons=Gtk.ButtonsType.CLOSE,
             text=_("Could not use selected icon"),
@@ -713,7 +715,7 @@ class MenuHandler:
 
         # Quit
         quit_item = Gtk.MenuItem(label=_("Quit"))
-        quit_item.connect("activate", lambda _: self._runtime._window.destroy())
+        quit_item.connect("activate", lambda _: self._runtime.quit())
         menu.append(quit_item)
 
     def _append_desktop_actions(self, menu: Gtk.Menu, desktop_id: str) -> None:
@@ -821,7 +823,7 @@ class MenuHandler:
             height=WINDOW_MENU_THUMB_H,
         )
         image = (
-            Gtk.Image.new_from_pixbuf(thumbnail.image)
+            Gtk.Image.new_from_pixbuf(cast(GdkPixbuf.Pixbuf, thumbnail.image))
             if thumbnail is not None
             else Gtk.Image()
         )
@@ -1042,14 +1044,14 @@ class MenuHandler:
     def _clear_menu_children(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
             submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
-            if submenu is not None:
+            if isinstance(submenu, Gtk.Menu):
                 self._cleanup_folder_menu_tree(submenu)
             menu.remove(child)
 
     def _cleanup_folder_menu_tree(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
             submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
-            if submenu is not None:
+            if isinstance(submenu, Gtk.Menu):
                 self._cleanup_folder_menu_tree(submenu)
         self._cleanup_folder_menu(menu)
 

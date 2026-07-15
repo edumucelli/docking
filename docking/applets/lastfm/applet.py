@@ -375,7 +375,8 @@ class LastfmApplet(Applet):
     def _show_prefs_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Scrobbler Settings"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("Save"), Gtk.ResponseType.OK)

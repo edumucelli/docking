@@ -13,6 +13,7 @@ from docking.applets.runcommand.state import (
     TERMINAL_CANDIDATES,
     _flatpak_host_terminal_name,
     app_command_text,
+    app_description,
     append_file_argument,
     build_shell_argv,
     build_terminal_argv,
@@ -128,7 +129,7 @@ class _FakeDialog:
 
 class _FakeRow:
     def __init__(self, app: _FakeApp) -> None:
-        self.app_entry = app
+        self.app = app
         self.visible = True
 
     def show(self) -> None:
@@ -143,6 +144,11 @@ def _make_applet() -> RunCommandApplet:
 
 
 class TestRunCommandState:
+    def test_app_description_handles_missing_optional_gio_metadata_methods(self):
+        app = _FakeApp("Fallback application")
+
+        assert app_description(app) == "Fallback application"
+
     def test_normalize_history_filters_deduplicates_and_caps(self):
         raw = [" firefox ", "", "calc", "firefox", 1, *[f"cmd{i}" for i in range(30)]]
 
@@ -311,6 +317,17 @@ class TestRunCommandApplet:
         applet = _make_applet()
         for size in [32, 48, 64]:
             assert applet.create_icon(size) is not None
+
+    def test_run_with_file_ignores_late_click_after_dialog_is_destroyed(
+        self, monkeypatch
+    ):
+        applet = _make_applet()
+        chooser = MagicMock()
+        monkeypatch.setattr(runcommand_applet_mod.Gtk, "FileChooserDialog", chooser)
+
+        applet._on_run_with_file(MagicMock())
+
+        chooser.assert_not_called()
 
     def test_select_application_updates_entry_description_and_icon(self):
         applet = _make_applet()

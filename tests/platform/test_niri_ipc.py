@@ -99,6 +99,11 @@ def test_parse_empty_response():
     assert _parse_response(b"   ") == {}
 
 
+def test_parse_response_ignores_non_object_json():
+    assert _parse_response(b"[]") == {}
+    assert _parse_response(b'"unexpected"') == {}
+
+
 # ---------------------------------------------------------------------------
 # Event parsing
 # ---------------------------------------------------------------------------

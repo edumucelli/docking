@@ -43,7 +43,7 @@ def _draw_centered_text(
     alpha: float = 1.0,
 ) -> None:
     layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(Pango.FontDescription(font))
+    layout.set_font_description(Pango.FontDescription.from_string(font))
     layout.set_text(text, -1)
     _, logical = layout.get_pixel_extents()
     tx = x + (width - logical.width) / 2 - logical.x

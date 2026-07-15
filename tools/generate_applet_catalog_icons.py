@@ -99,6 +99,7 @@ from docking.applets.powerprofiles.render import create_power_profiles_icon
 from docking.applets.quicknote.render import render_icon as render_quicknote
 from docking.applets.quote.render import draw_bulb_icon
 from docking.applets.recentfiles.render import render_icon as render_recentfiles
+from docking.applets.reddit.render import render_icon as render_reddit
 from docking.applets.runcommand.render import create_icon as render_runcommand
 from docking.applets.screenshot.applet import _draw_screenshot_icon
 from docking.applets.session.render import create_session_icon
@@ -387,6 +388,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.QUICKNOTE: render_quicknote(size=size, has_content=True),
         AppletId.QUOTE: _quote_pixbuf(size=size),
+        AppletId.REDDIT: render_reddit(
+            size=size,
+            index=0,
+            count=12,
+        ),
         AppletId.RUNCOMMAND: render_runcommand(size=size),
         AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),

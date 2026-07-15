@@ -120,7 +120,6 @@ class _ScenarioHarness:
         self._cache = dock_window_mod._DockWindowCache.create()
         self._redraw_source_id = None
         self._interactions = MagicMock()
-        self._menu_popup_visible = False
         self._click_x = 0.0
         self._click_y = 0.0
         self._click_button = 0
@@ -470,14 +469,13 @@ class TestMenuLifecycleScenarios:
         handler.show(event=event, cursor_main=10.0, frame=frame)
         menu = created[0]
 
-        assert harness._menu_popup_visible is True
         harness.autohide.set_disabled.assert_called_once_with(True, reason="menu-open")
         assert menu.shown is True
         assert menu.popup_event is event
 
         menu.emit("hide")
 
-        assert harness._menu_popup_visible is False
+        assert harness.autohide.set_disabled.call_count == 2
 
 
 class TestAutohideAnimationScenarios:

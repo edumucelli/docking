@@ -22,7 +22,7 @@ repos:
         always_run: true
       - id: ty
         name: ty
-        entry: .venv/bin/python -m ty check docking/
+        entry: .venv/bin/python -m ty check --error-on-warning docking/
         language: system
         pass_filenames: false
         always_run: true

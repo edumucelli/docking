@@ -167,7 +167,7 @@ class GnomeShellBridgeClient:
         result = self._call("ActivateWorkspace", GLib.Variant("(u)", (bridge_id,)))
         return bool(result.unpack()[0]) if result is not None else False
 
-    def subscribe_changed(self, callback: Callable[[], None]) -> object | None:
+    def subscribe_changed(self, callback: Callable[[], None]) -> int | None:
         """Subscribe to extension state changes."""
         connection = self._proxy.get_connection()
         if connection is None:
@@ -195,12 +195,9 @@ class GnomeShellBridgeClient:
 
     def unsubscribe_changed(self, handle: object) -> None:
         connection = self._proxy.get_connection()
-        if connection is None:
+        if connection is None or not isinstance(handle, int):
             return
-        try:
-            connection.signal_unsubscribe(int(handle))
-        except (TypeError, ValueError):
-            return
+        connection.signal_unsubscribe(handle)
 
     def _call(
         self, method: str, parameters: GLib.Variant | None = None
@@ -521,10 +518,8 @@ class GnomeShellBridgeWorkspaceService(WorkspaceService):
         return handle
 
     def unwatch_active_workspace(self, handle: object) -> None:
-        try:
-            self._watchers.pop(int(handle), None)
-        except (TypeError, ValueError):
-            return
+        if isinstance(handle, int):
+            self._watchers.pop(handle, None)
 
     def _poll(self) -> bool:
         self.refresh()

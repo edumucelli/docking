@@ -33,8 +33,9 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, cast
 
+from docking.core.json_types import JsonObject, JsonValue, as_json_object
 from docking.log import get_logger
 from docking.platform.app_matcher import AppIdMatcher
 from docking.platform.backends.base import (
@@ -58,7 +59,7 @@ log = get_logger(name="wayfire_ipc")
 try:
     from gi.repository import GLib
 except (ImportError, ValueError):
-    GLib = None
+    GLib = cast(Any, None)
 
 WAYFIRE_WINDOW_POLL_SECONDS = 2
 _WAYFIRE_EVENTS = (
@@ -83,7 +84,7 @@ class WayfireEventWatcher:
         self,
         *,
         socket_path: str,
-        on_event: Callable[[str, Mapping[str, Any]], None],
+        on_event: Callable[[str, Mapping[str, JsonValue]], None],
         socket_factory: Callable[[int, int], socket.socket] = socket.socket,
     ) -> None:
         self._path = socket_path
@@ -92,7 +93,7 @@ class WayfireEventWatcher:
         self._sock: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._running = False
-        self._queue: Queue = Queue()
+        self._queue: Queue[JsonObject] = Queue()
         self._glib_source_id = 0
 
     def start(self) -> bool:
@@ -115,7 +116,8 @@ class WayfireEventWatcher:
             ).encode("utf-8")
             sock.sendall(struct.pack("I", len(payload)) + payload)
             response_len = struct.unpack("I", _read_exact(sock, 4))[0]
-            response = json.loads(_read_exact(sock, response_len).decode("utf-8"))
+            response_text = _read_exact(sock, response_len).decode("utf-8")
+            response = as_json_object(cast(JsonValue, json.loads(response_text)))
             if not isinstance(response, Mapping) or response.get("result") != "ok":
                 log.info("Wayfire event subscription rejected: %s", response)
                 sock.close()
@@ -164,8 +166,11 @@ class WayfireEventWatcher:
                     evt_len_raw += extra
                 evt_len = struct.unpack("I", evt_len_raw)[0]
                 evt = _read_exact(sock, evt_len)
-                parsed = json.loads(evt.decode("utf-8"))
-                self._queue.put(parsed)
+                parsed = as_json_object(
+                    cast(JsonValue, json.loads(evt.decode("utf-8")))
+                )
+                if parsed is not None:
+                    self._queue.put(parsed)
             except (TimeoutError, OSError):
                 if not self._running:
                     break
@@ -184,8 +189,9 @@ class WayfireEventWatcher:
                 break
             event_name = event.get("event", "")
             view_data = event.get("view")
-            if isinstance(event_name, str) and isinstance(view_data, Mapping):
-                self._on_event(event_name, view_data)
+            view = as_json_object(view_data)
+            if isinstance(event_name, str) and view is not None:
+                self._on_event(event_name, view)
             handled += 1
         return True  # keep the idle source alive
 
@@ -237,7 +243,9 @@ class WayfireIpcClient:
         self._socket_factory = socket_factory
         self._timeout = timeout
 
-    def request(self, method: str, data: Mapping[str, Any] | None = None) -> Any:
+    def request(
+        self, method: str, data: Mapping[str, JsonValue] | None = None
+    ) -> JsonValue:
         """Call one Wayfire IPC method and return the decoded JSON response."""
         payload = json.dumps(
             {
@@ -252,9 +260,9 @@ class WayfireIpcClient:
             sock.sendall(struct.pack("I", len(payload)) + payload)
             response_len = struct.unpack("I", _read_exact(sock, 4))[0]
             response = _read_exact(sock, response_len)
-        return json.loads(response.decode("utf-8"))
+        return cast(JsonValue, json.loads(response.decode("utf-8")))
 
-    def action(self, method: str, data: Mapping[str, Any]) -> ActionResult:
+    def action(self, method: str, data: Mapping[str, JsonValue]) -> ActionResult:
         """Call an action method and map Wayfire's result/error to ActionResult."""
         try:
             response = self.request(method, data)
@@ -448,7 +456,7 @@ class WayfireWindowService(WindowService):
         self._refresh()
         return True
 
-    def _on_event(self, event_name: str, view: Mapping[str, Any]) -> None:
+    def _on_event(self, event_name: str, view: Mapping[str, JsonValue]) -> None:
         """Handle one Wayfire window event by updating the local record set."""
         if event_name == "view-unmapped":
             view_id = _optional_int(view.get("id"))
@@ -1021,7 +1029,7 @@ def _read_exact(sock: socket.socket, size: int) -> bytes:
 
 
 def _record_from_view(
-    view: Mapping[str, Any],
+    view: Mapping[str, JsonValue],
     *,
     matcher: object,
     focused_id: int | None,
@@ -1033,9 +1041,8 @@ def _record_from_view(
     layer = str(view.get("layer", "") or "").strip().lower()
     if view_type != "toplevel" and role != "toplevel" and layer != "workspace":
         return None
-    try:
-        view_id = int(view.get("id"))
-    except (TypeError, ValueError):
+    view_id = _optional_int(view.get("id"))
+    if view_id is None:
         return None
     app_id = str(view.get("app-id", "") or "").strip()
     desktop_id = matcher.match(app_id) if app_id else None
@@ -1058,33 +1065,35 @@ def _record_from_view(
 def _rect_from_mapping(value: object) -> Rect | None:
     if not isinstance(value, Mapping):
         return None
-    try:
-        return Rect(
-            x=int(value.get("x", 0)),
-            y=int(value.get("y", 0)),
-            width=int(value.get("width", 0)),
-            height=int(value.get("height", 0)),
-        )
-    except (TypeError, ValueError):
+    x = _optional_int(value.get("x", 0))
+    y = _optional_int(value.get("y", 0))
+    width = _optional_int(value.get("width", 0))
+    height = _optional_int(value.get("height", 0))
+    if x is None or y is None or width is None or height is None:
         return None
+    return Rect(x=x, y=y, width=width, height=height)
 
 
 def _workspace_records_from_output(
-    output: Mapping[str, Any],
+    output: Mapping[str, JsonValue],
     *,
     number_offset: int,
     focused_output_id: int | None,
 ) -> list[WayfireWorkspaceRecord]:
     output_id = _optional_int(output.get("id"))
-    workspace = output.get("workspace")
-    if not isinstance(workspace, Mapping):
+    workspace = as_json_object(output.get("workspace"))
+    if workspace is None:
         return []
-    try:
-        grid_width = int(workspace.get("grid_width", 1))
-        grid_height = int(workspace.get("grid_height", 1))
-        active_x = int(workspace.get("x", 0))
-        active_y = int(workspace.get("y", 0))
-    except (TypeError, ValueError):
+    grid_width = _optional_int(workspace.get("grid_width", 1))
+    grid_height = _optional_int(workspace.get("grid_height", 1))
+    active_x = _optional_int(workspace.get("x", 0))
+    active_y = _optional_int(workspace.get("y", 0))
+    if (
+        grid_width is None
+        or grid_height is None
+        or active_x is None
+        or active_y is None
+    ):
         return []
     row_output_id = output_id if output_id is not None else 0
     output_name = str(output.get("name", "") or output_id or "output")
@@ -1151,6 +1160,8 @@ def _optional_bool(value: object) -> bool | None:
 
 
 def _optional_int(value: object) -> int | None:
+    if not isinstance(value, (int, float, str)):
+        return None
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -1163,11 +1174,8 @@ def _replace_record(
     active: bool | None = None,
 ) -> WayfireWindowRecord:
     """Return a copy of *record* with the given fields replaced."""
-    kwargs: dict[str, Any] = {}
-    if active is not None:
-        kwargs["active"] = active
-    if not kwargs:
+    if active is None:
         return record
     from dataclasses import replace
 
-    return replace(record, **kwargs)
+    return replace(record, active=active)

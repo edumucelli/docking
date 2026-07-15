@@ -278,8 +278,8 @@ def create_capture_overlay(
     click_handler: Callable[[Gtk.Window, Gdk.EventButton], bool],
     key_handler: Callable[[Gtk.Window, Gdk.EventKey], bool],
     cursor_type: Gdk.CursorType,
-) -> Gtk.Window:
-    """Create a fullscreen pointer-capture overlay with Escape handled by caller."""
+) -> Gtk.Window | None:
+    """Create a fullscreen pointer-capture overlay, or return None when unavailable."""
     overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
     overlay.set_decorated(False)
     overlay.set_app_paintable(True)
@@ -297,13 +297,23 @@ def create_capture_overlay(
     overlay.connect("key-press-event", key_handler)
 
     display = Gdk.Display.get_default()
+    if display is None:
+        overlay.destroy()
+        return None
     cursor = Gdk.Cursor.new_for_display(display, cursor_type)
     overlay.show_all()
-    overlay.get_window().set_cursor(cursor)
+    window = overlay.get_window()
+    if window is None:
+        overlay.destroy()
+        return None
+    window.set_cursor(cursor)
 
     seat = display.get_default_seat()
+    if seat is None:
+        overlay.destroy()
+        return None
     seat.grab(
-        overlay.get_window(),
+        window,
         Gdk.SeatCapabilities.ALL_POINTING | Gdk.SeatCapabilities.KEYBOARD,
         True,
         cursor,
@@ -319,7 +329,13 @@ def dismiss_capture_overlay(overlay: Gtk.Window | None) -> None:
     if overlay is None:
         return
     display = Gdk.Display.get_default()
+    if display is None:
+        overlay.destroy()
+        return
     seat = display.get_default_seat()
+    if seat is None:
+        overlay.destroy()
+        return
     seat.ungrab()
     overlay.destroy()
 

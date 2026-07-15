@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import gi
@@ -162,7 +163,7 @@ class DockInputController:
             window._schedule_redraw()
 
         frame = window._current_or_build_geometry_frame(drop_insert_index=drop_insert)
-        if current_autohide_state is not None:
+        if current_autohide_state is not None and log.isEnabledFor(logging.DEBUG):
             item_positions = [
                 (
                     f"{geometry.item.desktop_id}@"

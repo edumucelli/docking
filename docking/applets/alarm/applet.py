@@ -158,7 +158,8 @@ class AlarmApplet(Applet):
         )
         dialog = Gtk.Dialog(
             title=_("Edit Alarm") if index is not None else _("Add Alarm"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog, ok_label=_("OK"), cancel_label=_("Cancel"))
         if index is not None:

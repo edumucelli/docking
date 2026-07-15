@@ -15,9 +15,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import gi
 
@@ -44,6 +44,9 @@ FOLDER_SORT_OPTIONS = (
 )
 
 log = get_logger("folder.browser")
+
+K = TypeVar("K", bound=Hashable)
+V = TypeVar("V")
 
 
 @dataclass(frozen=True)
@@ -109,16 +112,14 @@ class FolderBrowser:
         self._directory_rows: dict[tuple[str, int, bool, int], list[FolderRow]] = {}
 
     @staticmethod
-    def _get_lru(cache: dict[Any, Any], key: Any) -> Any | None:
+    def _get_lru(cache: dict[K, V], key: K) -> V | None:
         cached = cache.pop(key, None)
         if cached is not None:
             cache[key] = cached
         return cached
 
     @staticmethod
-    def _put_lru(
-        cache: dict[Any, Any], key: Any, value: Any, *, max_entries: int
-    ) -> None:
+    def _put_lru(cache: dict[K, V], key: K, value: V, *, max_entries: int) -> None:
         cache[key] = value
         while len(cache) > max_entries:
             cache.pop(next(iter(cache)))

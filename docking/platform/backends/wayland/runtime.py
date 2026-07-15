@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -32,6 +32,20 @@ if TYPE_CHECKING:
     from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
 
 log = get_logger(name="wayland_protocol_runtime")
+
+
+def _iterable_state(value: object) -> Iterable[object] | None:
+    """Narrow raw protocol state payloads before publishing them to services."""
+    if isinstance(value, (str, bytes, bytearray)):
+        return None
+    return value if isinstance(value, Iterable) else None
+
+
+def _workspace_flags(value: object) -> Iterable[object] | int | None:
+    """Narrow raw workspace state/capability payloads to their service contract."""
+    if isinstance(value, int):
+        return value
+    return _iterable_state(value)
 
 
 @dataclass(frozen=True)
@@ -89,7 +103,9 @@ class ForeignToplevelProtocolAdapter:
             if "app_id" in data:
                 service.app_id_changed(toplevel, str(data["app_id"]))
             if "state" in data:
-                service.state_changed(toplevel, data["state"])  # type: ignore[arg-type]
+                states = _iterable_state(data["state"])
+                if states is not None:
+                    service.state_changed(toplevel, states)
             if data.get("done"):
                 service.done(toplevel)
 
@@ -183,10 +199,10 @@ class ForeignToplevelProtocolAdapter:
         if self._service is not None:
             self._service.app_id_changed(toplevel, app_id)
 
-    def _on_toplevel_state(self, toplevel: object, states: object) -> None:
+    def _on_toplevel_state(self, toplevel: object, states: Iterable[object]) -> None:
         self._pending_data.setdefault(toplevel, {})["state"] = states
         if self._service is not None:
-            self._service.state_changed(toplevel, states)  # type: ignore[arg-type]
+            self._service.state_changed(toplevel, states)
 
     def _on_toplevel_done(self, toplevel: object) -> None:
         self._pending_data.setdefault(toplevel, {})["done"] = True
@@ -241,12 +257,13 @@ class WorkspaceProtocolAdapter:
             if "name" in data:
                 service.name_changed(workspace, str(data["name"]))
             if "capabilities" in data:
-                service.capabilities_changed(
-                    workspace,
-                    data["capabilities"],  # type: ignore[arg-type]
-                )
+                capabilities = _workspace_flags(data["capabilities"])
+                if capabilities is not None:
+                    service.capabilities_changed(workspace, capabilities)
             if "state" in data:
-                service.state_changed(workspace, data["state"])  # type: ignore[arg-type]
+                states = _workspace_flags(data["state"])
+                if states is not None:
+                    service.state_changed(workspace, states)
         if self._pending_done:
             service.done()
 
@@ -313,13 +330,15 @@ class WorkspaceProtocolAdapter:
         if self._service is not None:
             self._service.name_changed(workspace, value)
 
-    def _on_workspace_state(self, workspace: object, states: object) -> None:
+    def _on_workspace_state(
+        self, workspace: object, states: Iterable[object] | int
+    ) -> None:
         self._pending_data.setdefault(workspace, {})["state"] = states
         if self._service is not None:
             self._service.state_changed(workspace, states)
 
     def _on_workspace_capabilities(
-        self, workspace: object, capabilities: object
+        self, workspace: object, capabilities: Iterable[object] | int
     ) -> None:
         self._pending_data.setdefault(workspace, {})["capabilities"] = capabilities
         if self._service is not None:

@@ -266,13 +266,13 @@ def desktop_info_from_app_info(
 ) -> DesktopInfo:
     """Build dock metadata from resolved Gio desktop app info."""
     icon = app_info.get_icon()
-    icon_name = icon.to_string() if icon else FALLBACK_ICON
+    icon_name = icon.to_string() if icon else None
     wm_class = wm_class_for_app_info(app_info=app_info, desktop_id=desktop_id)
 
     return DesktopInfo(
         desktop_id=desktop_id,
         name=app_info.get_display_name() or desktop_id,
-        icon_name=icon_name,
+        icon_name=icon_name or FALLBACK_ICON,
         wm_class=wm_class,
         exec_line=app_info.get_commandline() or "",
     )
@@ -493,7 +493,7 @@ def desktop_listing_from_app_info(
         desktop_id=desktop_id,
         name=app_info.get_display_name() or desktop_id or "Unknown",
         categories=app_info.get_categories() or "",
-        icon_name=icon.to_string() if icon else "",
+        icon_name=(icon.to_string() if icon else None) or "",
         app_info=app_info,
     )
 

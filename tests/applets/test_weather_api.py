@@ -4,6 +4,7 @@ import pytest
 
 import docking.applets.weather.api as weather_api_mod
 from docking.applets.weather.api import (
+    API_TIMEOUT_S,
     AirQualityData,
     DailyForecast,
     WeatherData,
@@ -134,9 +135,12 @@ class _AqiResp:
 
 class TestWeatherApiFetch:
     def test_fetch_weather_success(self, monkeypatch):
+        calls: list[dict[str, object]] = []
+
         class _Client:
-            def weather_api(self, url, params):
-                _ = (url, params)
+            def weather_api(self, url, params, **kwargs):
+                _ = url
+                calls.append({"params": params, "kwargs": kwargs})
                 return [_WeatherResp()]
 
         monkeypatch.setattr(weather_api_mod, "_get_client", lambda: _Client())
@@ -146,10 +150,12 @@ class TestWeatherApiFetch:
         assert data.weather_code == 61
         assert len(data.daily) == 2
         assert data.daily[0].description == "Clear sky"
+        assert calls[0]["kwargs"] == {"timeout": API_TIMEOUT_S}
 
     def test_fetch_weather_error_returns_none(self, monkeypatch):
         class _Client:
-            def weather_api(self, url, params):
+            def weather_api(self, url, params, **kwargs):
+                _ = (url, params, kwargs)
                 raise OSError("offline")
 
         monkeypatch.setattr(weather_api_mod, "_get_client", lambda: _Client())
@@ -167,9 +173,9 @@ class TestWeatherApiFetch:
         calls: list[dict[str, object]] = []
 
         class _Client:
-            def weather_api(self, url, params):
+            def weather_api(self, url, params, **kwargs):
                 _ = url
-                calls.append(params)
+                calls.append({"params": params, "kwargs": kwargs})
                 return [_AqiResp()]
 
         monkeypatch.setattr(weather_api_mod, "_get_client", lambda: _Client())
@@ -182,15 +188,19 @@ class TestWeatherApiFetch:
         assert data.label == "Fair"
         assert calls == [
             {
-                "latitude": 1.0,
-                "longitude": 2.0,
-                "current": ["european_aqi", "pm10", "pm2_5", "uv_index"],
+                "params": {
+                    "latitude": 1.0,
+                    "longitude": 2.0,
+                    "current": ["european_aqi", "pm10", "pm2_5", "uv_index"],
+                },
+                "kwargs": {"timeout": API_TIMEOUT_S},
             }
         ]
 
     def test_fetch_air_quality_error_returns_none(self, monkeypatch):
         class _Client:
-            def weather_api(self, url, params):
+            def weather_api(self, url, params, **kwargs):
+                _ = (url, params, kwargs)
                 raise ValueError("bad payload")
 
         monkeypatch.setattr(weather_api_mod, "_get_client", lambda: _Client())
