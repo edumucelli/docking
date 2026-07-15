@@ -28,7 +28,7 @@ dev = [
     "PyGObject-stubs==2.16.0",
     "pytest>=7.0",
     "pytest-cov",
-    "ruff==0.15.17",
+    "ruff==0.15.20",
     "scikit-image>=0.25",
     "ty==0.0.56",
     "vulture>=2.16",
