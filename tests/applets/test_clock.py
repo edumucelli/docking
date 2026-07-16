@@ -384,11 +384,38 @@ class TestClockInteractions:
         clock = ClockApplet(48)
         clock.item.is_urgent = True
         clock.present = MagicMock()
+        clock._calendar_popup = MagicMock()
+        clock._calendar_popup.get_visible.return_value = True
 
         clock.on_clicked()
 
         assert clock.item.is_urgent is False
         assert clock.present.call_count == 1
+        clock._calendar_popup.hide.assert_called_once()
+
+    def test_click_shows_shared_calendar_popup(self, monkeypatch):
+        clock = ClockApplet(48)
+        popup = MagicMock()
+        show_calendar_popup = MagicMock(return_value=popup)
+        monkeypatch.setattr(clock_mod, "show_calendar_popup", show_calendar_popup)
+
+        clock.on_clicked()
+
+        assert clock._calendar_popup is popup
+        show_calendar_popup.assert_called_once_with(
+            popup=None, anchor=clock.popup_anchor
+        )
+
+    def test_stop_destroys_calendar_popup(self):
+        clock = ClockApplet(48)
+        clock._timer = MagicMock()
+        popup = MagicMock()
+        clock._calendar_popup = popup
+
+        clock.stop()
+
+        popup.destroy.assert_called_once()
+        assert clock._calendar_popup is None
 
     def test_clear_alarm_clears_target_and_urgency(self):
         clock = ClockApplet(48)
