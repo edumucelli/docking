@@ -68,6 +68,23 @@ class ApplicationEntry(NamedTuple):
             return Gio.FileIcon.new(Gio.File.new_for_path(str(icon_path)))
         return Gio.ThemedIcon.new(self.icon_name)
 
+    def desktop_file_uri(self) -> str | None:
+        """Return the ``.desktop`` file URI used for drag-to-pin operations."""
+        filename: str | None = None
+        if self.app_info is not None:
+            try:
+                filename = self.app_info.get_filename()
+            except (AttributeError, TypeError):
+                filename = None
+
+        if not filename:
+            path = desktop_entries.find_desktop_file(self.desktop_id)
+            if path is None:
+                return None
+            filename = str(path)
+
+        return Path(filename).expanduser().resolve().as_uri()
+
     def launch(
         self,
         files: list[Gio.File] | None,
