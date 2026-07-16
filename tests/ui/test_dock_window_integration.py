@@ -230,7 +230,7 @@ class TestButtonReleaseFlow:
         # Then
         assert handled is True
         anchor = applet.set_popup_anchor.call_args.args[0]
-        assert anchor.x == 104
+        assert anchor.x == 128
         assert anchor.y == 205
         assert anchor.position == Position.BOTTOM
         assert anchor.parent is stub

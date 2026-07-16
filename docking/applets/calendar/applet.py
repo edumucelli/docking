@@ -28,7 +28,7 @@ from docking.applets.base import Applet
 from docking.applets.calendar import meta
 from docking.applets.calendar.render import render_icon
 from docking.applets.calendar.state import snapshot_from
-from docking.applets.popup import create_popup_window, show_wrapped_popup
+from docking.applets.popup import PopupAnchor, create_popup_window, show_wrapped_popup
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -37,6 +37,29 @@ if TYPE_CHECKING:
 CALENDAR_TICK_INTERVAL_S = 30
 CALENDAR_POPUP_PADDING_PX = 8
 CALENDAR_POPUP_CURSOR_GAP_PX = 20
+
+
+def show_calendar_popup(
+    *,
+    popup: Gtk.Window | None,
+    anchor: PopupAnchor | None,
+) -> Gtk.Window:
+    """Show the shared calendar popup and return its window."""
+    if popup is None:
+        popup = create_popup_window()
+
+    calendar = Gtk.Calendar()
+    calendar.set_margin_start(CALENDAR_POPUP_PADDING_PX)
+    calendar.set_margin_end(CALENDAR_POPUP_PADDING_PX)
+    calendar.set_margin_top(CALENDAR_POPUP_PADDING_PX)
+    calendar.set_margin_bottom(CALENDAR_POPUP_PADDING_PX)
+    show_wrapped_popup(
+        window=popup,
+        content=calendar,
+        gap_px=CALENDAR_POPUP_CURSOR_GAP_PX,
+        anchor=anchor,
+    )
+    return popup
 
 
 class CalendarApplet(Applet):
@@ -92,17 +115,7 @@ class CalendarApplet(Applet):
         return True
 
     def _show_popup(self) -> None:
-        if self._popup is None:
-            self._popup = create_popup_window()
-
-        calendar = Gtk.Calendar()
-        calendar.set_margin_start(CALENDAR_POPUP_PADDING_PX)
-        calendar.set_margin_end(CALENDAR_POPUP_PADDING_PX)
-        calendar.set_margin_top(CALENDAR_POPUP_PADDING_PX)
-        calendar.set_margin_bottom(CALENDAR_POPUP_PADDING_PX)
-        show_wrapped_popup(
-            window=self._popup,
-            content=calendar,
-            gap_px=CALENDAR_POPUP_CURSOR_GAP_PX,
+        self._popup = show_calendar_popup(
+            popup=self._popup,
             anchor=self.popup_anchor,
         )
