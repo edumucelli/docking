@@ -48,6 +48,9 @@ class TestAppletCatalog:
     def test_contains_desktop(self):
         assert "desktop" in get_applet_catalog()
 
+    def test_contains_devices(self):
+        assert "devices" in get_applet_catalog()
+
     def test_contains_systemmonitor(self):
         assert "systemmonitor" in get_applet_catalog()
 

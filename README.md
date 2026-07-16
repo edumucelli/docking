@@ -617,6 +617,21 @@ Shows mounted removable USB storage devices and provides safe-remove actions wit
 
 </details>
 
+### Devices
+
+<details>
+<summary>Details</summary>
+
+Shows every mounted device exposed by the desktop volume monitor in a live stack.
+Selecting a device opens its mounted location. The stack updates automatically
+when devices are mounted or unmounted.
+
+**Click:** Open the mounted-devices stack
+**Right-click option:**
+- **Refresh Devices** -- reload the current mounted-device list
+
+</details>
+
 ### Desktop
 
 <details>
