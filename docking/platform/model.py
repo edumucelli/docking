@@ -222,6 +222,7 @@ class DockModel:
         self._applets: dict[str, Applet] = {}
         self._animating_out: list[DockItem] = []
         self._change_listeners: list[Callable[[], None]] = []
+        self._applet_change_listeners: list[Callable[[str], None]] = []
         self._launcher_entries: dict[str, LauncherEntryState] = {}
         self._launcher_item_by_sender: dict[str, str] = {}
         self._recent_apps: list[DockItem] = []
@@ -248,7 +249,18 @@ class DockModel:
             self._change_listeners.remove(callback)
         except ValueError as exc:
             log.debug("Tried to remove unknown change listener: %s", exc)
-            return
+
+    def add_applet_change_listener(self, callback: Callable[[str], None]) -> None:
+        """Register a callback receiving the applet whose presentation changed."""
+        if callback not in self._applet_change_listeners:
+            self._applet_change_listeners.append(callback)
+
+    def remove_applet_change_listener(self, callback: Callable[[str], None]) -> None:
+        """Remove a previously registered applet-change callback."""
+        try:
+            self._applet_change_listeners.remove(callback)
+        except ValueError as exc:
+            log.debug("Tried to remove unknown applet change listener: %s", exc)
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
@@ -804,7 +816,9 @@ class DockModel:
     def _start_applet(self, *, desktop_id: str, applet: Applet) -> bool:
         """Start one applet without letting it break the dock lifecycle."""
         try:
-            applet.start(notify=self.notify)
+            applet.start(
+                notify=lambda: self._notify_applet_changed(desktop_id=desktop_id)
+            )
         except Exception:
             log.bind(applet_id=desktop_id, action="start_applet").exception(
                 "Failed to start applet",
@@ -1293,6 +1307,19 @@ class DockModel:
                     action="notify_listener",
                     listener=repr(callback),
                 ).exception("Model change listener failed")
+
+    def _notify_applet_changed(self, *, desktop_id: str) -> None:
+        """Notify general redraw listeners and applet-specific consumers."""
+        self.notify()
+        for callback in list(self._applet_change_listeners):
+            try:
+                callback(desktop_id)
+            except Exception:
+                log.bind(
+                    action="notify_applet_listener",
+                    listener=repr(callback),
+                    applet_id=desktop_id,
+                ).exception("Applet change listener failed")
 
     def tick_animations(self) -> bool:
         """Advance insert/remove animations. Returns True if any are active."""

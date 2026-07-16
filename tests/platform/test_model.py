@@ -806,6 +806,8 @@ class TestAppletLifecycleIntegration:
         model = DockModel(config, launcher, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
+        applet_callback = MagicMock()
+        model.add_applet_change_listener(applet_callback)
 
         class StrictApplet:
             def __init__(self):
@@ -829,6 +831,7 @@ class TestAppletLifecycleIntegration:
         # Then
         assert applet.start_calls == 1
         callback.assert_called_once()
+        applet_callback.assert_called_once_with("applet://strict")
 
     def test_find_by_desktop_id_and_unpin_applet_route(self, monkeypatch):
         # Given

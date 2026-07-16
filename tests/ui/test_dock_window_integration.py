@@ -281,6 +281,30 @@ class TestButtonReleaseFlow:
         )
         applet.on_clicked.assert_not_called()
 
+    def test_middle_click_on_applet_skips_declarative_stack(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
+        )
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+        controller._interactions.show_applet_stack.return_value = True
+
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        assert handled is True
+        controller._interactions.show_applet_stack.assert_not_called()
+        applet.on_clicked.assert_called_once()
+
     def test_left_click_running_app_toggles_focus(self, monkeypatch):
         # Given
         item = DockItem(desktop_id="firefox.desktop", is_running=True)

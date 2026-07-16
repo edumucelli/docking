@@ -122,3 +122,52 @@ def test_refresh_reloads_visible_provider_content():
     controller._replace_stack_content.assert_called_once_with(content=second)
     controller._position_stack_window.assert_called_once()
     window.show_all.assert_called_once()
+
+
+def test_refresh_updates_callbacks_without_rebuilding_unchanged_content():
+    controller = _controller()
+    old_activate = MagicMock()
+    new_activate = MagicMock()
+    first = StackContent(
+        entries=(
+            StackEntry(
+                key="usb",
+                label="USB Drive",
+                icon=None,
+                activate=old_activate,
+            ),
+        )
+    )
+    second = StackContent(
+        entries=(
+            StackEntry(
+                key="usb",
+                label="USB Drive",
+                icon=None,
+                activate=new_activate,
+            ),
+        )
+    )
+    provider = MagicMock(return_value=second)
+    window = MagicMock()
+    window.get_visible.return_value = True
+    controller._folder_stack_window = window
+    controller._stack_owner_id = "applet://devices"
+    controller._stack_provider = provider
+    controller._stack_content = first
+    controller._replace_stack_content = MagicMock()
+    controller._restart_stack_animation = MagicMock()
+    controller._position_stack_window = MagicMock()
+
+    assert controller.refresh(owner_id="applet://devices") is True
+
+    assert controller._stack_content is second
+    controller._replace_stack_content.assert_not_called()
+    controller._restart_stack_animation.assert_not_called()
+    controller._position_stack_window.assert_not_called()
+    window.show_all.assert_not_called()
+
+    controller._close_stack = MagicMock()
+    controller._activate_stack_key("usb")
+    new_activate.assert_called_once()
+    old_activate.assert_not_called()

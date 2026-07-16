@@ -350,6 +350,11 @@ class StackPopupController:
         if content is None:
             self.close()
             return False
+        if self._stack_content is not None and self._stack_content_signature(
+            content
+        ) == self._stack_content_signature(self._stack_content):
+            self._stack_content = content
+            return True
         if self._stack_owner_id is not None:
             self.invalidate_owner(self._stack_owner_id)
         self._stack_content = content
@@ -358,6 +363,20 @@ class StackPopupController:
         self._position_stack_window()
         window.show_all()
         return True
+
+    @staticmethod
+    def _stack_content_signature(content: StackContent) -> tuple[object, ...]:
+        """Return the visible structure while excluding replaceable callbacks."""
+        entries = content.entries[:FOLDER_STACK_MAX_VISIBLE_ROWS]
+        return (
+            tuple((entry.key, entry.label, id(entry.icon)) for entry in entries),
+            (
+                (content.action.key, content.action.label)
+                if content.action is not None
+                else None
+            ),
+            content.empty_label,
+        )
 
     def _close_stack(self) -> None:
         window = self._folder_stack_window
@@ -523,13 +542,7 @@ class StackPopupController:
         cache_key = (
             owner_id,
             icon_px,
-            tuple((entry.key, entry.label, id(entry.icon)) for entry in entries),
-            (
-                (content.action.key, content.action.label)
-                if content.action is not None
-                else None
-            ),
-            content.empty_label,
+            *self._stack_content_signature(content),
         )
         cached = self._folder_stack_cache.get_layout(cache_key)
         if cached is not None:

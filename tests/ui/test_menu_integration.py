@@ -2140,6 +2140,90 @@ class TestMenuCallbacks:
         assert handler._folder_stack._folder_stack_monitor is monitor
         assert monitor.changed[0] == "changed"
 
+    def test_track_folder_stack_cancels_previous_monitor(self, handler, monkeypatch):
+        previous = FakeMonitor()
+        replacement = FakeMonitor()
+        handler._folder_stack._folder_stack_monitor = previous
+        monkeypatch.setattr(
+            menu_mod.launcher_mod,
+            "normalize_file_target",
+            lambda _t: "file:///tmp/docs",
+        )
+
+        class _Folder:
+            def monitor_directory(self, *_args):
+                return replacement
+
+        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder())
+
+        handler._folder_stack._track_folder_stack("file:///tmp/docs")
+
+        assert previous.cancelled is True
+        assert handler._folder_stack._folder_stack_monitor is replacement
+
+    def test_repeated_hover_show_does_not_retrack_folder(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        window = FakeWindow()
+        window.visible = True
+        handler._folder_stack._folder_stack_window = window
+        handler._folder_stack._stack_owner_id = item.desktop_id
+        tracked = MagicMock()
+        monkeypatch.setattr(handler._folder_stack, "_track_folder_stack", tracked)
+
+        handler._folder_stack.show(
+            item=item,
+            anchor_x=100,
+            anchor_y=200,
+            icon_w=48,
+            position="bottom",
+            toggle_if_same_item=False,
+        )
+
+        tracked.assert_not_called()
+
+    def test_folder_content_cache_is_bounded(self, handler, monkeypatch):
+        item = DockItem(
+            desktop_id="file:///tmp/docs",
+            kind=FOLDER_KIND,
+            target="file:///tmp/docs",
+        )
+        monkeypatch.setattr(
+            handler._folder_stack._browser,
+            "target_state",
+            lambda _target: "ok",
+        )
+        stamps = iter(
+            range(folder_stack_mod.FOLDER_STACK_CONTENT_CACHE_MAX_ENTRIES + 1)
+        )
+        monkeypatch.setattr(
+            handler._folder_stack._browser,
+            "cache_stamp",
+            lambda _target: next(stamps),
+        )
+        monkeypatch.setattr(
+            handler._folder_stack,
+            "_list_directory_rows",
+            lambda **_kwargs: [
+                {
+                    "target": "file:///tmp/docs/file",
+                    "name": "file",
+                    "icon": None,
+                }
+            ],
+        )
+
+        for _ in range(folder_stack_mod.FOLDER_STACK_CONTENT_CACHE_MAX_ENTRIES + 1):
+            handler._folder_stack._stack_content_for_item(item=item, icon_px=48)
+
+        assert (
+            len(handler._folder_stack._folder_content_cache)
+            == folder_stack_mod.FOLDER_STACK_CONTENT_CACHE_MAX_ENTRIES
+        )
+
     def test_refresh_folder_stack_returns_false_without_window_or_item(self, handler):
         handler._folder_stack._folder_stack_window = None
         handler._folder_stack._folder_stack_item = None

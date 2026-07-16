@@ -121,9 +121,11 @@ class DockInputController:
 
     def _connect_model(self) -> None:
         self._window.model.add_change_listener(self._on_model_changed)
+        self._window.model.add_applet_change_listener(self._on_applet_changed)
 
     def _disconnect_model(self) -> None:
         self._window.model.remove_change_listener(self._on_model_changed)
+        self._window.model.remove_applet_change_listener(self._on_applet_changed)
 
     def _on_destroy(self, _window: Gtk.Window) -> None:
         self.stop()
@@ -381,20 +383,21 @@ class DockInputController:
                 if applet:
                     anchor = window.popup_anchor_for_item(item, frame)
                     applet.set_popup_anchor(anchor)
-                    stack_anchor = self._stack_anchor_for_item(
-                        item=item,
-                        frame=frame,
-                        fallback_x=event.x,
-                        fallback_y=event.y,
-                    )
-                    if self._interactions.show_applet_stack(
-                        applet=applet,
-                        anchor=stack_anchor,
-                        parent=anchor.parent if anchor is not None else window,
-                    ):
-                        window.tooltip.update(item, frame)
-                        window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                        return True
+                    if event.button == MOUSE_LEFT:
+                        stack_anchor = self._stack_anchor_for_item(
+                            item=item,
+                            frame=frame,
+                            fallback_x=event.x,
+                            fallback_y=event.y,
+                        )
+                        if self._interactions.show_applet_stack(
+                            applet=applet,
+                            anchor=stack_anchor,
+                            parent=anchor.parent if anchor is not None else window,
+                        ):
+                            window.tooltip.update(item, frame)
+                            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                            return True
                     applet.on_clicked()
                     window.tooltip.update(item, frame)
                     window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
@@ -518,10 +521,11 @@ class DockInputController:
         window.hover.on_model_changed()
         self._interactions.prewarm_visible_folder_stacks(window.model.visible_items())
         stack_owner_id = self._interactions.open_stack_owner_id()
-        if stack_owner_id is not None:
-            self._interactions.refresh_open_applet_stack(
-                window.model.get_applet(stack_owner_id)
-            )
+        if (
+            stack_owner_id is not None
+            and window.model.get_applet(stack_owner_id) is None
+        ):
+            self._interactions.refresh_open_applet_stack(None)
         if window.hover.hovered_item is not None:
             cursor_main = (
                 window.cursor_x
@@ -530,6 +534,14 @@ class DockInputController:
             )
             window.hover.update(cursor_main)
         window._schedule_redraw()
+
+    def _on_applet_changed(self, desktop_id: str) -> None:
+        """Refresh an open stack only when its owning applet changed."""
+        if self._interactions.open_stack_owner_id() != desktop_id:
+            return
+        self._interactions.refresh_open_applet_stack(
+            self._window.model.get_applet(desktop_id)
+        )
 
 
 def _scroll_direction_up(*, event: Gdk.EventScroll) -> bool | None:

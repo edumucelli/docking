@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 
 
 FOLDER_STACK_REFRESH_DEBOUNCE_MS = 120
-FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES = 32
+FOLDER_STACK_CONTENT_CACHE_MAX_ENTRIES = 32
 
 FolderStackCard = StackCard
 FolderStackCardGeometry = StackCardGeometry
@@ -159,6 +159,7 @@ class FolderStackController(StackPopupController):
         toggle_if_same_item: bool = True,
     ) -> None:
         """Show the selected folder through the reusable stack controller."""
+        was_open_for_item = self.open_owner_id() == item.desktop_id
         pos = Position(position)
         centered_anchor = PopupAnchor(
             x=(
@@ -185,7 +186,8 @@ class FolderStackController(StackPopupController):
         )
         if shown and self.open_owner_id() == item.desktop_id:
             self._folder_stack_item = item
-            self._track_folder_stack(target=item.target)
+            if not was_open_for_item:
+                self._track_folder_stack(target=item.target)
 
     def show_applet_stack(
         self,
@@ -332,7 +334,10 @@ class FolderStackController(StackPopupController):
             icon_px,
             app_name,
         )
-        cached = self._folder_content_cache.get(cache_key)
+        cached = self._folder_stack_cache._get_lru(
+            self._folder_content_cache,
+            cache_key,
+        )
         if cached is not None:
             return cached
 
@@ -370,7 +375,12 @@ class FolderStackController(StackPopupController):
             ),
             empty_label=_("Folder is empty"),
         )
-        self._folder_content_cache[cache_key] = content
+        self._folder_stack_cache._put_lru(
+            self._folder_content_cache,
+            cache_key,
+            content,
+            max_entries=FOLDER_STACK_CONTENT_CACHE_MAX_ENTRIES,
+        )
         return content
 
     def _folder_stack_action_label(
@@ -442,6 +452,9 @@ class FolderStackController(StackPopupController):
         uri = launcher_mod.normalize_file_target(target)
         if uri is None:
             return
+        if self._folder_stack_monitor is not None:
+            self._folder_stack_monitor.cancel()
+            self._folder_stack_monitor = None
         try:
             folder = Gio.File.new_for_uri(uri)
             monitor = folder.monitor_directory(Gio.FileMonitorFlags.NONE, None)
