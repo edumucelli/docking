@@ -83,6 +83,48 @@ def test_folder_stack_stays_open_while_hovering_source_item():
     folder_stack.close.assert_not_called()
 
 
+def test_declarative_applet_stack_uses_shared_controller():
+    folder_stack = MagicMock()
+    folder_stack.show_applet_stack.return_value = True
+    interactions = DockInteractions(menu=MagicMock(), folder_stack=folder_stack)
+    applet = MagicMock()
+    applet.item.desktop_id = "applet://devices"
+    anchor = FolderStackAnchor(x=100, y=200, icon_w=48, position=Position.BOTTOM)
+    parent = MagicMock()
+
+    assert (
+        interactions.show_applet_stack(
+            applet=applet,
+            anchor=anchor,
+            parent=parent,
+        )
+        is True
+    )
+
+    folder_stack.show_applet_stack.assert_called_once_with(
+        owner_id="applet://devices",
+        provider=applet.stack_content,
+        anchor_x=100,
+        anchor_y=200,
+        icon_w=48,
+        position=Position.BOTTOM,
+        parent=parent,
+    )
+
+
+def test_open_applet_stack_refreshes_from_latest_content():
+    folder_stack = MagicMock()
+    folder_stack.open_owner_id.return_value = "applet://devices"
+    folder_stack.open_item_id.return_value = None
+    interactions = DockInteractions(menu=MagicMock(), folder_stack=folder_stack)
+    applet = MagicMock()
+    applet.item.desktop_id = "applet://devices"
+
+    interactions.refresh_open_applet_stack(applet)
+
+    folder_stack.refresh.assert_called_once_with(owner_id="applet://devices")
+
+
 def test_dock_window_does_not_import_menu_handler():
     source = inspect.getsource(dock_window_mod)
 

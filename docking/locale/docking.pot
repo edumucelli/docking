@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-13 14:38+0200\n"
+"POT-Creation-Date: 2026-07-16 19:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -111,7 +111,7 @@ msgstr ""
 
 #: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:219
 #: docking/applets/lastfm/applet.py:381 docking/applets/quicknote/applet.py:87
-#: docking/applets/reddit/applet.py:439
+#: docking/applets/reddit/applet.py:435
 #: docking/applets/runcommand/applet.py:131
 #: docking/applets/runcommand/applet.py:350
 #: docking/applets/sunrise/applet.py:189 docking/applets/trash/applet.py:264
@@ -355,11 +355,11 @@ msgstr ""
 msgid "(c) {who}"
 msgstr ""
 
-#: docking/applets/applications/applet.py:51
+#: docking/applets/applications/applet.py:55
 msgid "Applications"
 msgstr ""
 
-#: docking/applets/applications/applet.py:90
+#: docking/applets/applications/applet.py:94
 msgid "Search applications..."
 msgstr ""
 
@@ -1375,7 +1375,7 @@ msgstr ""
 #: docking/applets/hackernews/applet.py:161
 #: docking/applets/hackernews/state.py:163
 #: docking/applets/hackernews/state.py:196 docking/applets/reddit/applet.py:170
-#: docking/applets/reddit/state.py:344 docking/applets/reddit/state.py:364
+#: docking/applets/reddit/state.py:348 docking/applets/reddit/state.py:368
 msgid "Refreshes"
 msgstr ""
 
@@ -1402,21 +1402,21 @@ msgstr ""
 msgid "No Hacker News stories"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:114 docking/applets/reddit/state.py:304
+#: docking/applets/hackernews/state.py:114 docking/applets/reddit/state.py:308
 msgid "now"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:117 docking/applets/reddit/state.py:307
+#: docking/applets/hackernews/state.py:117 docking/applets/reddit/state.py:311
 #, python-brace-format
 msgid "{minutes}m ago"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:120 docking/applets/reddit/state.py:310
+#: docking/applets/hackernews/state.py:120 docking/applets/reddit/state.py:314
 #, python-brace-format
 msgid "{hours}h ago"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:122 docking/applets/reddit/state.py:311
+#: docking/applets/hackernews/state.py:122 docking/applets/reddit/state.py:315
 #, python-brace-format
 msgid "{days}d ago"
 msgstr ""
@@ -1615,7 +1615,7 @@ msgid "Show Phase Name"
 msgstr ""
 
 #: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
-#: docking/applets/reddit/state.py:155
+#: docking/applets/reddit/state.py:159
 msgid "New"
 msgstr ""
 
@@ -1987,7 +1987,7 @@ msgstr ""
 msgid "Reddit"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:181 docking/applets/reddit/state.py:352
+#: docking/applets/reddit/applet.py:181 docking/applets/reddit/state.py:356
 #, python-brace-format
 msgid "Posted by u/{author}"
 msgstr ""
@@ -2008,86 +2008,86 @@ msgstr ""
 msgid "Sort"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:244
+#: docking/applets/reddit/applet.py:242
 msgid "Top Period"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:257
+#: docking/applets/reddit/applet.py:254
 msgid "Add Subreddit..."
 msgstr ""
 
-#: docking/applets/reddit/applet.py:263
+#: docking/applets/reddit/applet.py:260
 #, python-brace-format
 msgid "Remove r/{subreddit}"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:381
+#: docking/applets/reddit/applet.py:376
 msgid "No Reddit posts returned"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:433
+#: docking/applets/reddit/applet.py:428
 msgid "Add Subreddit"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:438
+#: docking/applets/reddit/applet.py:434
 msgid "Add"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:448
+#: docking/applets/reddit/applet.py:444
 msgid "Subreddit name or URL"
 msgstr ""
 
-#: docking/applets/reddit/applet.py:466
+#: docking/applets/reddit/applet.py:462
 msgid "Enter a valid subreddit name."
 msgstr ""
 
-#: docking/applets/reddit/state.py:154
+#: docking/applets/reddit/state.py:158
 msgid "Hot"
 msgstr ""
 
-#: docking/applets/reddit/state.py:156
+#: docking/applets/reddit/state.py:160
 msgid "Top"
 msgstr ""
 
-#: docking/applets/reddit/state.py:157
+#: docking/applets/reddit/state.py:161
 msgid "Rising"
 msgstr ""
 
-#: docking/applets/reddit/state.py:165
+#: docking/applets/reddit/state.py:169
 msgid "Today"
 msgstr ""
 
-#: docking/applets/reddit/state.py:166
+#: docking/applets/reddit/state.py:170
 msgid "This Week"
 msgstr ""
 
-#: docking/applets/reddit/state.py:167
+#: docking/applets/reddit/state.py:171
 msgid "This Month"
 msgstr ""
 
-#: docking/applets/reddit/state.py:168
+#: docking/applets/reddit/state.py:172
 msgid "This Year"
 msgstr ""
 
-#: docking/applets/reddit/state.py:169
+#: docking/applets/reddit/state.py:173
 msgid "All Time"
 msgstr ""
 
-#: docking/applets/reddit/state.py:183
+#: docking/applets/reddit/state.py:187
 msgid "Invalid subreddit name"
-msgstr ""
-
-#: docking/applets/reddit/state.py:199
-#, python-brace-format
-msgid "{sort}, {period}"
 msgstr ""
 
 #: docking/applets/reddit/state.py:203
 #, python-brace-format
+msgid "{sort}, {period}"
+msgstr ""
+
+#: docking/applets/reddit/state.py:207
+#, python-brace-format
 msgid "r/{subreddit} - {listing}"
 msgstr ""
 
-#: docking/applets/reddit/state.py:221
+#: docking/applets/reddit/state.py:225
 msgid "Invalid Reddit RSS response"
 msgstr ""
 
@@ -3264,29 +3264,29 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: docking/ui/folder/stack.py:678
+#: docking/ui/folder/stack.py:315
 msgid "Folder not found"
 msgstr ""
 
-#: docking/ui/folder/stack.py:692
+#: docking/ui/folder/stack.py:342 docking/ui/folder/stack.py:368
 msgid "Folder is empty"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1149
+#: docking/ui/folder/stack.py:380
 #, python-format
 msgid "Open in %s"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1151
+#: docking/ui/folder/stack.py:382
 #, python-format
 msgid "%d More in %s"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1154
+#: docking/ui/folder/stack.py:385
 msgid "Open Folder"
 msgstr ""
 
-#: docking/ui/folder/stack.py:1156
+#: docking/ui/folder/stack.py:387
 #, python-format
 msgid "%d More in Folder"
 msgstr ""
@@ -3833,6 +3833,10 @@ msgstr ""
 #: docking/ui/settings.py:1545
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
+msgstr ""
+
+#: docking/ui/stack.py:102
+msgid "No items"
 msgstr ""
 
 #: docking/ui/startup_tips.py:187

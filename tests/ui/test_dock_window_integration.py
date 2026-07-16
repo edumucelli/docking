@@ -78,9 +78,11 @@ def _bind_geometry_signature(stub):
 
 
 def _controller(stub):
+    interactions = getattr(stub, "_interactions", MagicMock())
+    interactions.show_applet_stack.return_value = False
     controller = SimpleNamespace(
         _window=stub,
-        _interactions=getattr(stub, "_interactions", MagicMock()),
+        _interactions=interactions,
         _click_x=getattr(stub, "_click_x", -1.0),
         _click_y=getattr(stub, "_click_y", -1.0),
         _click_button=getattr(stub, "_click_button", 0),
@@ -96,6 +98,10 @@ def _controller(stub):
     )
     controller._show_folder_stack_for_item = MethodType(
         input_controller_mod.DockInputController._show_folder_stack_for_item,
+        controller,
+    )
+    controller._stack_anchor_for_item = MethodType(
+        input_controller_mod.DockInputController._stack_anchor_for_item,
         controller,
     )
     return controller
@@ -237,6 +243,43 @@ class TestButtonReleaseFlow:
         applet.on_clicked.assert_called_once()
         stub.tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
         stub.hover.start_anim_pump.assert_called_once_with(350)
+
+    def test_left_click_opens_declarative_applet_stack(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        stub._test_geometry_frame.geometry_for_item.return_value = SimpleNamespace(
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48),
+            anchor_point=lambda *, win_x, win_y, position: (win_x + 4, win_y + 5),
+        )
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+        controller._interactions.show_applet_stack.return_value = True
+
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        assert handled is True
+        controller._interactions.show_applet_stack.assert_called_once_with(
+            applet=applet,
+            anchor=input_controller_mod.FolderStackAnchor(
+                x=104,
+                y=205,
+                icon_w=48,
+                position=Position.BOTTOM,
+            ),
+            parent=stub,
+        )
+        applet.on_clicked.assert_not_called()
 
     def test_left_click_running_app_toggles_focus(self, monkeypatch):
         # Given

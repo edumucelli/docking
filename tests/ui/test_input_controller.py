@@ -81,3 +81,33 @@ def test_stop_disconnects_signals_and_model_listener_once():
     window.model.remove_change_listener.assert_called_once_with(
         controller._on_model_changed
     )
+
+
+def test_model_change_refreshes_open_applet_stack():
+    applet = MagicMock()
+    window = SimpleNamespace(
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            get_applet=MagicMock(return_value=applet),
+        ),
+        hover=SimpleNamespace(
+            hovered_item=None,
+            on_model_changed=MagicMock(),
+        ),
+        config=SimpleNamespace(pos="bottom"),
+        _invalidate_current_geometry_frame=MagicMock(),
+        update_input_region=MagicMock(),
+        _schedule_redraw=MagicMock(),
+    )
+    interactions = MagicMock()
+    interactions.open_stack_owner_id.return_value = "applet://devices"
+    controller = DockInputController(
+        window=window,
+        interactions=interactions,
+        dnd=MagicMock(),
+    )
+
+    controller._on_model_changed()
+
+    window.model.get_applet.assert_called_once_with("applet://devices")
+    interactions.refresh_open_applet_stack.assert_called_once_with(applet)

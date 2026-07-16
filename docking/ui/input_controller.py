@@ -285,6 +285,27 @@ class DockInputController:
         fallback_y: float,
         toggle_if_same_item: bool,
     ) -> None:
+        anchor = self._stack_anchor_for_item(
+            item=item,
+            frame=frame,
+            fallback_x=fallback_x,
+            fallback_y=fallback_y,
+        )
+        self._interactions.show_folder_stack(
+            item=item,
+            anchor=anchor,
+            toggle_if_same_item=toggle_if_same_item,
+        )
+
+    def _stack_anchor_for_item(
+        self,
+        *,
+        item: DockItem,
+        frame: DockGeometryFrame,
+        fallback_x: float,
+        fallback_y: float,
+    ) -> FolderStackAnchor:
+        """Build the stack-specific edge anchor independently of PopupAnchor."""
         window = self._window
         item_geometry = frame.geometry_for_item(item)
         if item_geometry is not None:
@@ -302,15 +323,11 @@ class DockInputController:
             anchor_x = win_x + int(fallback_x)
             anchor_y = win_y + int(fallback_y)
             icon_w = int(window.config.icon_size)
-        self._interactions.show_folder_stack(
-            item=item,
-            anchor=FolderStackAnchor(
-                x=anchor_x,
-                y=anchor_y,
-                icon_w=icon_w,
-                position=window.config.pos,
-            ),
-            toggle_if_same_item=toggle_if_same_item,
+        return FolderStackAnchor(
+            x=anchor_x,
+            y=anchor_y,
+            icon_w=icon_w,
+            position=window.config.pos,
         )
 
     def _on_button_press(
@@ -362,7 +379,22 @@ class DockInputController:
             if is_applet(desktop_id=item.desktop_id):
                 applet = window.model.get_applet(item.desktop_id)
                 if applet:
-                    applet.set_popup_anchor(window.popup_anchor_for_item(item, frame))
+                    anchor = window.popup_anchor_for_item(item, frame)
+                    applet.set_popup_anchor(anchor)
+                    stack_anchor = self._stack_anchor_for_item(
+                        item=item,
+                        frame=frame,
+                        fallback_x=event.x,
+                        fallback_y=event.y,
+                    )
+                    if self._interactions.show_applet_stack(
+                        applet=applet,
+                        anchor=stack_anchor,
+                        parent=anchor.parent if anchor is not None else window,
+                    ):
+                        window.tooltip.update(item, frame)
+                        window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                        return True
                     applet.on_clicked()
                     window.tooltip.update(item, frame)
                     window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
@@ -485,6 +517,11 @@ class DockInputController:
         window.update_input_region()
         window.hover.on_model_changed()
         self._interactions.prewarm_visible_folder_stacks(window.model.visible_items())
+        stack_owner_id = self._interactions.open_stack_owner_id()
+        if stack_owner_id is not None:
+            self._interactions.refresh_open_applet_stack(
+                window.model.get_applet(stack_owner_id)
+            )
         if window.hover.hovered_item is not None:
             cursor_main = (
                 window.cursor_x

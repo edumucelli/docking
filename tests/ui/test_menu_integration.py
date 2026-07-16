@@ -19,6 +19,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 
 import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
+import docking.ui.stack as stack_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.platform.backends.base import (
     DisplayServer,
@@ -721,6 +722,9 @@ def handler(monkeypatch):
     monkeypatch.setattr(folder_stack_mod, "Gtk", FakeGtk)
     monkeypatch.setattr(folder_stack_mod, "Pango", FakePango)
     monkeypatch.setattr(folder_stack_mod, "PangoCairo", FakePangoCairo)
+    monkeypatch.setattr(stack_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(stack_mod, "Pango", FakePango)
+    monkeypatch.setattr(stack_mod, "PangoCairo", FakePangoCairo)
     monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
     about = MagicMock()
     settings = MagicMock()
@@ -2233,14 +2237,14 @@ class TestMenuCallbacks:
             "_folder_stack_card_geometry",
             lambda **_kwargs: geometry,
         )
-        monkeypatch.setattr(folder_stack_mod, "rounded_rect", MagicMock())
+        monkeypatch.setattr(stack_mod, "rounded_rect", MagicMock())
         monkeypatch.setattr(
-            folder_stack_mod.Gdk,
+            stack_mod.Gdk,
             "cairo_set_source_pixbuf",
             MagicMock(),
         )
         monkeypatch.setattr(
-            folder_stack_mod,
+            stack_mod,
             "GdkPixbuf",
             SimpleNamespace(InterpType=SimpleNamespace(BILINEAR=1)),
         )
