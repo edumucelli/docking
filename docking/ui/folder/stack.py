@@ -400,7 +400,7 @@ class FolderStackController(StackPopupController):
         previous_owner = self._stack_owner_id
         self._stack_owner_id = item.desktop_id
         try:
-            return self._folder_stack_cards_for_content(content)
+            return self._stack_cards_for_content(content)
         finally:
             self._stack_owner_id = previous_owner
 
@@ -409,7 +409,7 @@ class FolderStackController(StackPopupController):
             item=item,
             icon_px=max(int(self._config.icon_size), 1),
         )
-        return self._folder_stack_layout(owner_id=item.desktop_id, content=content)
+        return self._stack_layout(owner_id=item.desktop_id, content=content)
 
     def _replace_folder_stack_content(
         self,
@@ -476,8 +476,8 @@ class FolderStackController(StackPopupController):
             if window is None:
                 return False
             self._replace_folder_stack_content(item)
-            self._restart_folder_stack_animation()
-            self._position_folder_stack_window()
+            self._restart_stack_animation()
+            self._position_stack_window()
             window.show_all()
             return False
         self.refresh(owner_id=item.desktop_id)
@@ -494,11 +494,11 @@ class FolderStackController(StackPopupController):
 
     def _open_folder_stack_target(self, target: str) -> None:
         launcher_mod.open_target(target)
-        self._close_folder_stack()
+        self._close_stack()
 
     def _activate_stack_key(self, key: str) -> None:
         if self._stack_content is None:
             self._open_folder_stack_target(key)
-            self._close_folder_stack()
+            self._close_stack()
             return
         super()._activate_stack_key(key)

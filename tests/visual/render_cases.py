@@ -306,7 +306,7 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
     now_us = 500_000
     total_cards = len(cards)
     for draw_index, card in enumerate(cards):
-        handler._folder_stack._draw_folder_stack_card(
+        handler._folder_stack._draw_stack_card(
             cr=cr,
             card=card,
             sequence_index=total_cards - 1 - draw_index,

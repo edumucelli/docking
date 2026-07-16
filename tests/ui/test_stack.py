@@ -33,7 +33,7 @@ def _entry(key: str, label: str | None = None) -> StackEntry:
 def test_empty_content_builds_centered_message():
     controller = _controller()
 
-    layout = controller._folder_stack_layout(
+    layout = controller._stack_layout(
         owner_id="applet://devices",
         content=StackContent(empty_label="No devices"),
     )
@@ -55,7 +55,7 @@ def test_entries_and_optional_action_build_clickable_cards():
         ),
     )
 
-    layout = controller._folder_stack_layout(
+    layout = controller._stack_layout(
         owner_id="applet://devices",
         content=content,
     )
@@ -71,7 +71,7 @@ def test_layout_limits_provider_entries(caplog):
         _entry(f"device-{index}") for index in range(FOLDER_STACK_MAX_VISIBLE_ROWS + 2)
     )
 
-    layout = controller._folder_stack_layout(
+    layout = controller._stack_layout(
         owner_id="applet://devices",
         content=StackContent(entries=entries),
     )
@@ -93,12 +93,12 @@ def test_activation_uses_latest_callback_and_closes_popup():
             ),
         )
     )
-    controller._close_folder_stack = MagicMock()
+    controller._close_stack = MagicMock()
 
     controller._activate_stack_key("usb")
 
     activate.assert_called_once()
-    controller._close_folder_stack.assert_called_once()
+    controller._close_stack.assert_called_once()
 
 
 def test_refresh_reloads_visible_provider_content():
@@ -113,12 +113,12 @@ def test_refresh_reloads_visible_provider_content():
     controller._stack_provider = provider
     controller._stack_content = first
     controller._replace_stack_content = MagicMock()
-    controller._restart_folder_stack_animation = MagicMock()
-    controller._position_folder_stack_window = MagicMock()
+    controller._restart_stack_animation = MagicMock()
+    controller._position_stack_window = MagicMock()
 
     assert controller.refresh(owner_id="applet://devices") is True
 
     assert controller._stack_content is second
     controller._replace_stack_content.assert_called_once_with(content=second)
-    controller._position_folder_stack_window.assert_called_once()
+    controller._position_stack_window.assert_called_once()
     window.show_all.assert_called_once()

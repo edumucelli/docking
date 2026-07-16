@@ -189,7 +189,7 @@ class StackLayoutCache:
             self.layouts.pop(key, None)
 
 
-def _is_folder_stack_action_card(card: StackCard) -> bool:
+def _is_stack_action_card(card: StackCard) -> bool:
     return card.action or (
         card.centered and card.target is not None and card.icon is None
     )
@@ -200,7 +200,7 @@ def _ease_out_cubic(value: float) -> float:
     return 1.0 - (1.0 - value) ** 3
 
 
-def _folder_stack_arc_offset(progress: float, span: float) -> float:
+def _stack_arc_offset(progress: float, span: float) -> float:
     progress = min(max(progress, 0.0), 1.0)
     max_offset = max(FOLDER_STACK_CURVE_X_PX, span * 0.08)
     linear = max_offset * progress
@@ -219,7 +219,7 @@ def _folder_stack_arc_offset(progress: float, span: float) -> float:
     return FOLDER_STACK_ARC_BASE_SHIFT_PX + offset
 
 
-def _folder_stack_rotation(progress: float, position: Any, span: float) -> float:
+def _stack_rotation(progress: float, position: Any, span: float) -> float:
     progress = min(max(progress, 0.0), 1.0)
     direction = 1.0 if position in {"bottom", "left"} else -1.0
     degrees = min(
@@ -291,18 +291,18 @@ class StackPopupController:
             and self._stack_owner_id == owner_id
         ):
             if toggle_if_same_owner:
-                self._close_folder_stack()
+                self._close_stack()
             return True
 
         content = provider(max(int(self._config.icon_size), 1))
         if content is None:
             return False
 
-        self._close_folder_stack()
+        self._close_stack()
         self._runtime.hide_hover_ui()
         self._runtime.menu_popup_opened()
 
-        window = self._ensure_folder_stack_window()
+        window = self._ensure_stack_window()
         revealer = self._folder_stack_revealer
         assert revealer is not None
 
@@ -316,14 +316,14 @@ class StackPopupController:
         self._folder_stack_anchor_y = int(anchor.y)
         self._folder_stack_icon_w = 0
         self._folder_stack_position_value = anchor.position
-        self._restart_folder_stack_animation()
-        self._position_folder_stack_window()
+        self._restart_stack_animation()
+        self._position_stack_window()
         revealer.set_reveal_child(True)
         window.show_all()
         return True
 
     def close(self) -> None:
-        self._close_folder_stack()
+        self._close_stack()
 
     def open_owner_id(self) -> str | None:
         window = self._folder_stack_window
@@ -337,7 +337,7 @@ class StackPopupController:
     def prewarm(self, *, owner_id: str, provider: StackContentProvider) -> None:
         content = provider(max(int(self._config.icon_size), 1))
         if content is not None:
-            self._folder_stack_layout(owner_id=owner_id, content=content)
+            self._stack_layout(owner_id=owner_id, content=content)
 
     def refresh(self, owner_id: str | None = None) -> bool:
         if owner_id is not None and owner_id != self._stack_owner_id:
@@ -354,12 +354,12 @@ class StackPopupController:
             self.invalidate_owner(self._stack_owner_id)
         self._stack_content = content
         self._replace_stack_content(content=content)
-        self._restart_folder_stack_animation()
-        self._position_folder_stack_window()
+        self._restart_stack_animation()
+        self._position_stack_window()
         window.show_all()
         return True
 
-    def _close_folder_stack(self) -> None:
+    def _close_stack(self) -> None:
         window = self._folder_stack_window
         if window is None or not window.get_visible():
             return
@@ -367,10 +367,10 @@ class StackPopupController:
         if revealer is not None:
             revealer.set_reveal_child(False)
         window.hide()
-        self._cleanup_folder_stack()
+        self._cleanup_stack()
         self._runtime.menu_popup_closed()
 
-    def _cleanup_folder_stack(self) -> None:
+    def _cleanup_stack(self) -> None:
         if self._folder_stack_anim_source:
             GLib.source_remove(self._folder_stack_anim_source)
             self._folder_stack_anim_source = 0
@@ -391,7 +391,7 @@ class StackPopupController:
         if on_closed is not None:
             on_closed()
 
-    def _ensure_folder_stack_window(self) -> Gtk.Window:
+    def _ensure_stack_window(self) -> Gtk.Window:
         if self._folder_stack_window is not None:
             return self._folder_stack_window
 
@@ -413,7 +413,7 @@ class StackPopupController:
             window.set_visual(visual)
 
         revealer = Gtk.Revealer()
-        revealer.set_transition_type(self._folder_stack_transition_type())
+        revealer.set_transition_type(self._stack_transition_type())
         revealer.set_transition_duration(140)
         revealer.set_reveal_child(False)
         window.add(revealer)
@@ -422,7 +422,7 @@ class StackPopupController:
         self._folder_stack_revealer = revealer
         return window
 
-    def _folder_stack_transition_type(self):
+    def _stack_transition_type(self):
         # Resolved lazily so test stubs of ``Gtk`` (monkeypatched at module
         # scope) are visible. A class-level dict would freeze the real
         # ``Gtk`` reference at import time.
@@ -441,11 +441,11 @@ class StackPopupController:
         child = revealer.get_child()
         if child is not None:
             revealer.remove(child)
-        widget = self._build_folder_stack_content(content=content)
+        widget = self._build_stack_content(content=content)
         revealer.add(widget)
         widget.show_all()
 
-    def _position_folder_stack_window(self) -> None:
+    def _position_stack_window(self) -> None:
         window = self._folder_stack_window
         revealer = self._folder_stack_revealer
         if window is None or revealer is None:
@@ -482,8 +482,8 @@ class StackPopupController:
         popup_pos = clamp_popup(window, popup_x, popup_y, popup_w, popup_h)
         window.move(popup_pos.x, popup_pos.y)
 
-    def _build_folder_stack_content(self, content: StackContent) -> Gtk.Widget:
-        cards, popup_w, popup_h = self._folder_stack_cards_for_content(content)
+    def _build_stack_content(self, content: StackContent) -> Gtk.Widget:
+        cards, popup_w, popup_h = self._stack_cards_for_content(content)
         self._folder_stack_cards = cards
 
         area = Gtk.DrawingArea()
@@ -494,25 +494,23 @@ class StackPopupController:
             | Gdk.EventMask.POINTER_MOTION_MASK
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
-        area.connect("draw", self._on_folder_stack_draw)
-        area.connect("button-press-event", self._on_folder_stack_button_press)
-        area.connect("button-release-event", self._on_folder_stack_button_release)
-        area.connect("motion-notify-event", self._on_folder_stack_motion_notify)
-        area.connect("leave-notify-event", self._on_folder_stack_leave_notify)
+        area.connect("draw", self._on_stack_draw)
+        area.connect("button-press-event", self._on_stack_button_press)
+        area.connect("button-release-event", self._on_stack_button_release)
+        area.connect("motion-notify-event", self._on_stack_motion_notify)
+        area.connect("leave-notify-event", self._on_stack_leave_notify)
         self._folder_stack_area = area
         return area
 
-    def _folder_stack_cards_for_content(
+    def _stack_cards_for_content(
         self, content: StackContent
     ) -> tuple[list[StackCard], int, int]:
         owner_id = self._stack_owner_id or ""
-        layout = self._folder_stack_layout(owner_id=owner_id, content=content)
+        layout = self._stack_layout(owner_id=owner_id, content=content)
         self._folder_stack_fold_center_x = layout.fold_center_x
         return list(layout.cards), layout.popup_w, layout.popup_h
 
-    def _folder_stack_layout(
-        self, *, owner_id: str, content: StackContent
-    ) -> StackLayout:
+    def _stack_layout(self, *, owner_id: str, content: StackContent) -> StackLayout:
         icon_px = max(int(self._config.icon_size), 1)
         entries = tuple(content.entries[:FOLDER_STACK_MAX_VISIBLE_ROWS])
         if len(content.entries) > FOLDER_STACK_MAX_VISIBLE_ROWS:
@@ -537,7 +535,7 @@ class StackPopupController:
         if cached is not None:
             return cached
 
-        layout = self._compute_folder_stack_layout(
+        layout = self._compute_stack_layout(
             entries=entries,
             action=content.action,
             empty_label=content.empty_label,
@@ -546,7 +544,7 @@ class StackPopupController:
         self._folder_stack_cache.put_layout(cache_key, layout)
         return layout
 
-    def _compute_folder_stack_layout(
+    def _compute_stack_layout(
         self,
         *,
         entries: Sequence[StackEntry],
@@ -584,9 +582,9 @@ class StackPopupController:
         stack_top = FOLDER_STACK_TOP_PADDING_PX
         max_right = fold_center_x
         if action is not None:
-            chip_w = self._folder_stack_action_width(label=action.label)
+            chip_w = self._stack_action_width(label=action.label)
             top_center_x = round(
-                fold_center_x + _folder_stack_arc_offset(top_progress, total_span)
+                fold_center_x + _stack_arc_offset(top_progress, total_span)
             )
             chip_x = max(
                 FOLDER_STACK_POPUP_SIDE_PADDING_PX,
@@ -624,7 +622,7 @@ class StackPopupController:
                 else 1.0
             )
             arc_progress = raw_progress
-            icon_center_x = fold_center_x + _folder_stack_arc_offset(
+            icon_center_x = fold_center_x + _stack_arc_offset(
                 arc_progress,
                 total_span,
             )
@@ -632,7 +630,7 @@ class StackPopupController:
             icon_x = round(icon_center_x - icon_px / 2)
             icon_y = round(icon_center_y - icon_px / 2)
             name = entry.label
-            label_w = self._folder_stack_label_width(label=name)
+            label_w = self._stack_label_width(label=name)
             label_pull = round(arc_progress * 10)
             label_x = max(
                 FOLDER_STACK_POPUP_SIDE_PADDING_PX,
@@ -661,7 +659,7 @@ class StackPopupController:
             max(
                 max_right + right_bleed,
                 fold_center_x
-                + _folder_stack_arc_offset(1.0, total_span)
+                + _stack_arc_offset(1.0, total_span)
                 + icon_px / 2
                 + right_bleed,
             )
@@ -719,14 +717,14 @@ class StackPopupController:
             fold_center_x=fold_center_x,
         )
 
-    def _on_folder_stack_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
+    def _on_stack_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         cr.set_operator(cairo.OPERATOR_CLEAR)
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
         now_us = GLib.get_monotonic_time()
         total_cards = len(self._folder_stack_cards)
         for draw_index, card in enumerate(self._folder_stack_cards):
-            self._draw_folder_stack_card(
+            self._draw_stack_card(
                 cr=cr,
                 card=card,
                 sequence_index=total_cards - 1 - draw_index,
@@ -734,14 +732,14 @@ class StackPopupController:
             )
         return False
 
-    def _folder_stack_card_geometry(
+    def _stack_card_geometry(
         self,
         *,
         card: StackCard,
         sequence_index: int,
         now_us: int,
     ) -> StackCardGeometry | None:
-        reveal = self._folder_stack_reveal_progress(
+        reveal = self._stack_reveal_progress(
             sequence_index=sequence_index,
             now_us=now_us,
         )
@@ -755,7 +753,7 @@ class StackPopupController:
         )
         y_offset = (1.0 - reveal) * 18.0
         rotation_radians = (
-            _folder_stack_rotation(
+            _stack_rotation(
                 card.stack_progress,
                 self._folder_stack_position_value,
                 card.arc_span,
@@ -808,7 +806,7 @@ class StackPopupController:
             label_y=label_y,
         )
 
-    def _draw_folder_stack_card(
+    def _draw_stack_card(
         self,
         *,
         cr: cairo.Context,
@@ -816,14 +814,14 @@ class StackPopupController:
         sequence_index: int,
         now_us: int,
     ) -> None:
-        geometry = self._folder_stack_card_geometry(
+        geometry = self._stack_card_geometry(
             card=card,
             sequence_index=sequence_index,
             now_us=now_us,
         )
         if geometry is None:
             return
-        is_action_card = _is_folder_stack_action_card(card)
+        is_action_card = _is_stack_action_card(card)
 
         if card.icon is not None and card.icon_size > 0:
             pixbuf = card.icon
@@ -943,12 +941,12 @@ class StackPopupController:
             cr.stroke()
         cr.restore()
 
-    def _folder_stack_card_at(self, x: float, y: float) -> StackCard | None:
+    def _stack_card_at(self, x: float, y: float) -> StackCard | None:
         now_us = GLib.get_monotonic_time()
         total_cards = len(self._folder_stack_cards)
         for index in range(total_cards - 1, -1, -1):
             card = self._folder_stack_cards[index]
-            geometry = self._folder_stack_card_geometry(
+            geometry = self._stack_card_geometry(
                 card=card,
                 sequence_index=total_cards - 1 - index,
                 now_us=now_us,
@@ -968,25 +966,25 @@ class StackPopupController:
                 return card
         return None
 
-    def _on_folder_stack_button_press(
+    def _on_stack_button_press(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
     ) -> bool:
         if int(event.button) != 1:
             self._folder_stack_pressed_target = None
             return False
-        card = self._folder_stack_card_at(event.x, event.y)
+        card = self._stack_card_at(event.x, event.y)
         self._folder_stack_pressed_target = (
             card.key if card is not None and card.key is not None else None
         )
         return self._folder_stack_pressed_target is not None
 
-    def _on_folder_stack_button_release(
+    def _on_stack_button_release(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
     ) -> bool:
         if int(event.button) != 1:
             self._folder_stack_pressed_target = None
             return False
-        card = self._folder_stack_card_at(event.x, event.y)
+        card = self._stack_card_at(event.x, event.y)
         target = card.key if card is not None and card.key is not None else None
         pressed_target = self._folder_stack_pressed_target
         self._folder_stack_pressed_target = None
@@ -995,10 +993,10 @@ class StackPopupController:
             return True
         return False
 
-    def _on_folder_stack_motion_notify(
+    def _on_stack_motion_notify(
         self, _widget: Gtk.DrawingArea, event: Gdk.EventMotion
     ) -> bool:
-        card = self._folder_stack_card_at(event.x, event.y)
+        card = self._stack_card_at(event.x, event.y)
         target = (
             card.key
             if card is not None and card.key is not None and not card.centered
@@ -1006,19 +1004,19 @@ class StackPopupController:
         )
         if target != self._folder_stack_hover_target:
             self._folder_stack_hover_target = target
-            self._ensure_folder_stack_animating()
+            self._ensure_stack_animating()
         return False
 
-    def _on_folder_stack_leave_notify(
+    def _on_stack_leave_notify(
         self, _widget: Gtk.DrawingArea, _event: Gdk.EventCrossing
     ) -> bool:
         if self._folder_stack_hover_target is not None:
             self._folder_stack_hover_target = None
-            self._ensure_folder_stack_animating()
+            self._ensure_stack_animating()
         self._folder_stack_pressed_target = None
         return False
 
-    def _folder_stack_action_width(self, *, label: str) -> int:
+    def _stack_action_width(self, *, label: str) -> int:
         return min(
             FOLDER_STACK_ACTION_MAX_WIDTH_PX,
             _measure_stack_text_px(label)
@@ -1028,7 +1026,7 @@ class StackPopupController:
             + 10,
         )
 
-    def _folder_stack_label_width(self, *, label: str) -> int:
+    def _stack_label_width(self, *, label: str) -> int:
         return min(
             FOLDER_STACK_LABEL_MAX_WIDTH_PX,
             max(
@@ -1039,13 +1037,13 @@ class StackPopupController:
             ),
         )
 
-    def _restart_folder_stack_animation(self) -> None:
+    def _restart_stack_animation(self) -> None:
         self._folder_stack_show_started_us = GLib.get_monotonic_time()
         self._folder_stack_hover_target = None
         self._folder_stack_hover_values.clear()
-        self._ensure_folder_stack_animating()
+        self._ensure_stack_animating()
 
-    def _ensure_folder_stack_animating(self) -> None:
+    def _ensure_stack_animating(self) -> None:
         area = self._folder_stack_area
         if area is None:
             return
@@ -1053,10 +1051,10 @@ class StackPopupController:
         if self._folder_stack_anim_source == 0:
             self._folder_stack_anim_source = GLib.timeout_add(
                 FOLDER_STACK_ANIM_FRAME_MS,
-                self._on_folder_stack_animation_frame,
+                self._on_stack_animation_frame,
             )
 
-    def _on_folder_stack_animation_frame(self) -> bool:
+    def _on_stack_animation_frame(self) -> bool:
         area = self._folder_stack_area
         window = self._folder_stack_window
         if area is None or window is None or not window.get_visible():
@@ -1098,9 +1096,7 @@ class StackPopupController:
             return False
         return True
 
-    def _folder_stack_reveal_progress(
-        self, *, sequence_index: int, now_us: int
-    ) -> float:
+    def _stack_reveal_progress(self, *, sequence_index: int, now_us: int) -> float:
         if self._folder_stack_show_started_us <= 0:
             return 1.0
         elapsed_ms = max((now_us - self._folder_stack_show_started_us) / 1000.0, 0.0)
@@ -1127,4 +1123,4 @@ class StackPopupController:
         except Exception:
             log.exception("Failed to activate stack entry %s", key)
         finally:
-            self._close_folder_stack()
+            self._close_stack()
