@@ -217,10 +217,10 @@ switching.
 - Workspace-aware filtering
 
 **Not available through public KWin 6 APIs:**
-- Window actions (activate, minimize, close) — KWin 6 has no public
+- Window actions (activate, minimize, close): KWin 6 has no public
   protocol for third-party window management
-- Window previews — no capture protocol available
-- Active-window highlighting — KWin does not expose the focused window
+- Window previews: no capture protocol available
+- Active-window highlighting: KWin does not expose the focused window
   through a public API
 
 No extra configuration is needed. The backend auto-detects a KDE Plasma
@@ -381,7 +381,13 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can toggle, cycle, or focus the most recently used window of the running app, and middle click can open a new window, minimize the app windows, or close the app's focused window. Pick the left-click mode under right-click -> **Preferences** -> **Behavior** -> **Mouse**. Update checks live under right-click -> **Preferences** -> **Updates**, where you can disable automatic checks, choose daily or weekly checks, check immediately, or open the releases page. Runtime support details live under right-click -> **Diagnostics**, which shows the selected backend, session environment, available platform features, optional helpers, and a copyable report for support requests.
+The dock's right-click menu also provides quick access to:
+
+- **Display** to move the dock between monitors.
+- **Preferences** -> **Behavior** -> **Mouse** to choose left- and
+  middle-click actions.
+- **Preferences** -> **Updates** to configure or run update checks.
+- **Diagnostics** to inspect runtime support and copy a support report.
 
 Docking stores update-check preferences in `dock.json`. Runtime update state,
 such as the last checked timestamp, ignored release version, and remind-later
