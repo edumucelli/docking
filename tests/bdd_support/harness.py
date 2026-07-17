@@ -152,6 +152,10 @@ def _controller(stub) -> SimpleNamespace:
         input_controller_mod.DockInputController._show_folder_stack_for_item,
         controller,
     )
+    controller._stack_anchor_for_item = MethodType(
+        input_controller_mod.DockInputController._stack_anchor_for_item,
+        controller,
+    )
     return controller
 
 
