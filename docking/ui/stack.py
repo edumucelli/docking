@@ -300,6 +300,7 @@ class StackPopupController:
 
         self._close_stack()
         self._runtime.hide_hover_ui()
+        self._runtime.suppress_tooltip()
         self._runtime.menu_popup_opened()
 
         window = self._ensure_stack_window()
@@ -387,6 +388,7 @@ class StackPopupController:
             revealer.set_reveal_child(False)
         window.hide()
         self._cleanup_stack()
+        self._runtime.resume_tooltip()
         self._runtime.menu_popup_closed()
 
     def _cleanup_stack(self) -> None:
