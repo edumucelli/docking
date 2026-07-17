@@ -23,6 +23,7 @@ from docking.ui.geometry import build_geometry_frame
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer, RenderState
+from docking.ui.stack import StackContent, StackEntry
 from docking.ui.tooltip import TooltipManager
 
 DOCK_CASES = (
@@ -39,11 +40,15 @@ FOLDER_STACK_CASES = (
     "folder-stack-open-bottom",
     "folder-stack-hover-item-bottom",
 )
+SHORT_STACK_CASES = (
+    "item-stack-two-items-bottom",
+    "item-stack-three-items-bottom",
+)
 POPUP_CASES = (
     "tooltip-open-bottom",
     "preview-popup-open-bottom",
 )
-VISUAL_CASES = DOCK_CASES + FOLDER_STACK_CASES + POPUP_CASES
+VISUAL_CASES = DOCK_CASES + FOLDER_STACK_CASES + SHORT_STACK_CASES + POPUP_CASES
 
 DOCK_WIDTH = 420
 DOCK_HEIGHT = 90
@@ -281,23 +286,41 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
         kind=FOLDER_KIND,
         target="file:///tmp/docs",
     )
-    handler._folder_stack._list_directory_rows = lambda **_kwargs: _folder_stack_rows()
-    cards, popup_w, popup_h = handler._folder_stack._folder_stack_cards_for_item(
-        folder_item
-    )
+    rows = _folder_stack_rows()
+    if case_name in SHORT_STACK_CASES:
+        count = 2 if case_name == "item-stack-two-items-bottom" else 3
+        content = StackContent(
+            entries=tuple(
+                StackEntry(
+                    key=str(row["target"]),
+                    label=str(row["name"]),
+                    icon=row["icon"],
+                    activate=lambda: None,
+                )
+                for row in rows[:count]
+            )
+        )
+        cards, popup_w, popup_h = handler._folder_stack._stack_cards_for_content(
+            content
+        )
+    else:
+        handler._folder_stack._list_directory_rows = lambda **_kwargs: rows
+        cards, popup_w, popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            folder_item
+        )
     handler._folder_stack._folder_stack_cards = cards
     if case_name == "folder-stack-hover-item-bottom":
         hover_target = next(
             card.target for card in cards if card.target and card.label == "Notes"
         )
         handler._folder_stack._folder_stack_hover_values[hover_target] = 1.0
-    elif case_name != "folder-stack-open-bottom":
+    elif case_name not in ("folder-stack-open-bottom", *SHORT_STACK_CASES):
         raise AssertionError(f"Unknown folder stack case {case_name}")
 
     surface = cairo.ImageSurface(
         cairo.FORMAT_ARGB32,
         max(popup_w, STACK_WIDTH),
-        max(popup_h, STACK_HEIGHT),
+        max(popup_h, 180 if case_name in SHORT_STACK_CASES else STACK_HEIGHT),
     )
     cr = cairo.Context(surface)
     cr.set_operator(cairo.OPERATOR_CLEAR)
@@ -421,7 +444,7 @@ def render_case(case_name: str) -> cairo.ImageSurface:
     """Render one deterministic visual regression case."""
     if case_name in DOCK_CASES:
         return _draw_renderer_case(case_name=case_name)
-    if case_name in FOLDER_STACK_CASES:
+    if case_name in (*FOLDER_STACK_CASES, *SHORT_STACK_CASES):
         return _draw_folder_stack_case(case_name=case_name)
     if case_name == "tooltip-open-bottom":
         return _draw_tooltip_case()
