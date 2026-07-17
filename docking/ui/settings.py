@@ -69,9 +69,9 @@ from docking.core.config import (
     MIN_PRESSURE_THRESHOLD,
     MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
-    FolderStackUnfold,
     LeftClickAction,
     MiddleClickAction,
+    StackUnfold,
     WindowListSort,
 )
 from docking.core.position import Position
@@ -218,7 +218,7 @@ class SettingsWindowController:
         self._hide_mode_info: Any = None
         self._left_click_combo: Any = None
         self._middle_click_combo: Any = None
-        self._folder_stack_unfold_combo: Any = None
+        self._stack_unfold_combo: Any = None
         self._window_list_sort_combo: Any = None
         self._window_count_numbers_switch: Any = None
         self._previews_switch: Any = None
@@ -349,13 +349,13 @@ class SettingsWindowController:
         ]:
             self._middle_click_combo.append(action_value, action_label)
 
-        self._folder_stack_unfold_combo = Gtk.ComboBoxText()
-        self._folder_stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
+        self._stack_unfold_combo = Gtk.ComboBoxText()
+        self._stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
         for mode_value, mode_label in [
-            (FolderStackUnfold.CLICK.value, _("Click")),
-            (FolderStackUnfold.HOVER.value, _("Hover")),
+            (StackUnfold.CLICK.value, _("Click")),
+            (StackUnfold.HOVER.value, _("Hover")),
         ]:
-            self._folder_stack_unfold_combo.append(mode_value, mode_label)
+            self._stack_unfold_combo.append(mode_value, mode_label)
 
         self._window_list_sort_combo = Gtk.ComboBoxText()
         self._window_list_sort_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
@@ -710,12 +710,12 @@ class SettingsWindowController:
         )
         self._append_section(
             outer=outer,
-            title=_("Folder Stacks"),
+            title=_("Stacks"),
             rows=[
                 (
                     _("Open On"),
-                    self._folder_stack_unfold_combo,
-                    _("Choose whether folder stacks open on click or while hovering."),
+                    self._stack_unfold_combo,
+                    _("Choose whether stacks open on click or while hovering."),
                 ),
             ],
         )
@@ -1028,8 +1028,8 @@ class SettingsWindowController:
                 widget=self._middle_click_combo,
             ),
             self._register_choice_binding(
-                config_attr="folder_stack_unfold",
-                widget=self._folder_stack_unfold_combo,
+                config_attr="stack_unfold",
+                widget=self._stack_unfold_combo,
             ),
             self._register_choice_binding(
                 config_attr="window_list_sort",

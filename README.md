@@ -312,7 +312,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
   "active_display": false,
   "left_click_action": "toggle",
   "middle_click_action": "new-window",
-  "folder_stack_unfold": "hover",
+  "stack_unfold": "hover",
   "window_list_sort": "default",
   "show_window_count_numbers": false,
   "theme": "default",
@@ -354,7 +354,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `update_check_interval_hours` | 24 | Minimum hours between automatic update checks |
 | `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
-| `folder_stack_unfold` | hover | Folder stack open behavior: `hover` or `click` |
+| `stack_unfold` | hover | Stack open behavior: `hover` or `click` |
 | `window_list_sort` | default | Open-window menu order: `default` or `alphabetical` |
 | `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
 | `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |

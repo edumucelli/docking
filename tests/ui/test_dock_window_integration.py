@@ -100,6 +100,10 @@ def _controller(stub):
         input_controller_mod.DockInputController._show_folder_stack_for_item,
         controller,
     )
+    controller._show_hover_stack_for_item = MethodType(
+        input_controller_mod.DockInputController._show_hover_stack_for_item,
+        controller,
+    )
     controller._stack_anchor_for_item = MethodType(
         input_controller_mod.DockInputController._stack_anchor_for_item,
         controller,
@@ -119,7 +123,7 @@ def _make_stub(item: DockItem | None = None):
         pos=Position.BOTTOM,
         left_click_action="toggle",
         middle_click_action="new-window",
-        folder_stack_unfold="click",
+        stack_unfold="click",
         icon_size=48,
         additional_distance_from_edge=0,
     )
@@ -271,7 +275,7 @@ class TestButtonReleaseFlow:
         assert handled is True
         controller._interactions.show_applet_stack.assert_called_once_with(
             applet=applet,
-            anchor=input_controller_mod.FolderStackAnchor(
+            anchor=input_controller_mod.StackAnchor(
                 x=104,
                 y=205,
                 icon_w=48,
@@ -280,6 +284,8 @@ class TestButtonReleaseFlow:
             parent=stub,
         )
         applet.on_clicked.assert_not_called()
+        stub.tooltip.hide.assert_called_once()
+        stub.tooltip.update.assert_not_called()
 
     def test_middle_click_on_applet_skips_declarative_stack(self, monkeypatch):
         item = DockItem(desktop_id="applet://devices")
@@ -523,7 +529,7 @@ class TestButtonReleaseFlow:
         stub._interactions.show_folder_stack.assert_called_once()
         kwargs = stub._interactions.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is item
-        assert kwargs["anchor"] == input_controller_mod.FolderStackAnchor(
+        assert kwargs["anchor"] == input_controller_mod.StackAnchor(
             x=104,
             y=205,
             icon_w=48,
@@ -538,7 +544,7 @@ class TestButtonReleaseFlow:
             target="file:///tmp/docs",
         )
         stub, _ = _make_stub(item=item)
-        stub.config.folder_stack_unfold = "hover"
+        stub.config.stack_unfold = "hover"
         widget = MagicMock()
         event = SimpleNamespace(x=12.0, y=9.0)
 
@@ -560,7 +566,7 @@ class TestButtonReleaseFlow:
             target="file:///tmp/docs",
         )
         stub, _ = _make_stub(item=item)
-        stub.config.folder_stack_unfold = "hover"
+        stub.config.stack_unfold = "hover"
         stub.autohide = _autohide(enabled=True, state=HideState.SHOWING)
         widget = MagicMock()
         event = SimpleNamespace(x=12.0, y=9.0)
@@ -572,6 +578,57 @@ class TestButtonReleaseFlow:
         assert handled is False
         stub._interactions.prewarm_folder_stack.assert_called_once_with(item)
         stub._interactions.show_folder_stack.assert_not_called()
+
+    def test_hover_devices_applet_opens_shared_stack_when_enabled(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        stub.config.stack_unfold = "hover"
+        stub._test_geometry_frame.geometry_for_item.return_value = SimpleNamespace(
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48),
+            anchor_point=lambda *, win_x, win_y, position: (win_x + 4, win_y + 5),
+        )
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+
+        handled = input_controller_mod.DockInputController._on_motion(
+            controller, MagicMock(), SimpleNamespace(x=12.0, y=9.0)
+        )
+
+        assert handled is False
+        controller._interactions.show_applet_stack.assert_called_once_with(
+            applet=applet,
+            anchor=input_controller_mod.StackAnchor(
+                x=104,
+                y=205,
+                icon_w=48,
+                position=Position.BOTTOM,
+            ),
+            parent=stub,
+            toggle_if_same_owner=False,
+        )
+
+    def test_click_mode_does_not_open_devices_stack_on_hover(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+
+        handled = input_controller_mod.DockInputController._on_motion(
+            controller, MagicMock(), SimpleNamespace(x=12.0, y=9.0)
+        )
+
+        assert handled is False
+        controller._interactions.show_applet_stack.assert_not_called()
 
     def test_motion_prewarms_hovered_folder_item_in_click_mode(self):
         item = DockItem(
@@ -1244,9 +1301,7 @@ class TestDockWindowDrawAndHelpers:
                 ),
                 hover=SimpleNamespace(hovered_item=None),
                 model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
@@ -1306,9 +1361,7 @@ class TestDockWindowDrawAndHelpers:
                 ),
                 hover=SimpleNamespace(hovered_item=None),
                 model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 update_input_region=MagicMock(),
@@ -1410,9 +1463,7 @@ class TestDockWindowDrawAndHelpers:
                 ),
                 hover=SimpleNamespace(hovered_item=None),
                 model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=SimpleNamespace(urgent_glow_time_ms=500),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(
@@ -1457,9 +1508,7 @@ class TestDockWindowDrawAndHelpers:
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
                 model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(
@@ -1507,9 +1556,7 @@ class TestDockWindowDrawAndHelpers:
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
                 model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=frame,
@@ -1562,7 +1609,7 @@ class TestDockWindowDrawAndHelpers:
                 model=SimpleNamespace(tick_animations=MagicMock(return_value=False)),
                 config=SimpleNamespace(
                     pos=Position.BOTTOM,
-                    folder_stack_unfold="hover",
+                    stack_unfold="hover",
                     icon_size=48,
                 ),
                 theme=MagicMock(),
@@ -1589,7 +1636,7 @@ class TestDockWindowDrawAndHelpers:
         stub._interactions.show_folder_stack.assert_called_once()
         kwargs = stub._interactions.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is hovered
-        assert kwargs["anchor"] == input_controller_mod.FolderStackAnchor(
+        assert kwargs["anchor"] == input_controller_mod.StackAnchor(
             x=104,
             y=205,
             icon_w=48,
@@ -1609,9 +1656,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_y=-1.0,
                 get_size=MagicMock(return_value=(1920, 122)),
                 dock_hovered=False,
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 _test_geometry_frame=SimpleNamespace(
                     cursor_rect=Rect(0, 0, 100, 100),
                     item_at_point=MagicMock(return_value=None),
@@ -1646,7 +1691,7 @@ class TestDockWindowDrawAndHelpers:
         assert stub._redraw_source_id == 77
         widget.queue_draw.assert_not_called()
         timeout_add.assert_called_once()
-        interactions.close_folder_stack_unless_target.assert_called_once_with(None)
+        interactions.close_stack_unless_target.assert_called_once_with(None)
 
     def test_on_motion_closes_folder_stack_after_leaving_source_folder(self):
         other_item = DockItem(desktop_id="firefox.desktop")
@@ -1662,9 +1707,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_y=-1.0,
                 get_size=MagicMock(return_value=(1920, 122)),
                 dock_hovered=True,
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 _test_geometry_frame=frame,
                 update_input_region=MagicMock(),
                 hover=SimpleNamespace(update=MagicMock()),
@@ -1684,9 +1727,7 @@ class TestDockWindowDrawAndHelpers:
         )
 
         assert handled is False
-        interactions.close_folder_stack_unless_target.assert_called_once_with(
-            other_item
-        )
+        interactions.close_stack_unless_target.assert_called_once_with(other_item)
 
     def test_on_button_press_records_click_state(self):
         # Given
@@ -1743,7 +1784,7 @@ class TestBlurHintSync:
             get_scale_factor=lambda: 2,
             autohide=_autohide(enabled=False),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
-            config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
+            config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
             _cache=_window_cache(),
             surface_service=surface_service,
         )
@@ -1770,7 +1811,7 @@ class TestBlurHintSync:
         stub = SimpleNamespace(
             autohide=_autohide(enabled=True, state=HideState.HIDDEN),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
-            config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
+            config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
             _cache=_window_cache(last_blur_region=(1, 2, 3, 4, 5, 6, 7, 8)),
             surface_service=surface_service,
         )
