@@ -80,6 +80,54 @@ def test_layout_limits_provider_entries(caplog):
     assert "displaying the first" in caplog.text
 
 
+def test_documented_curve_samples_for_48px_icons():
+    controller = _controller()
+    samples: dict[int, list[tuple[int, float]]] = {}
+    for count in range(1, 6):
+        layout = controller._stack_layout(
+            owner_id=f"stack-{count}",
+            content=StackContent(
+                entries=tuple(_entry(str(index)) for index in range(count))
+            ),
+        )
+        icons = [card for card in layout.cards if card.icon_size > 0]
+        samples[count] = [
+            (card.icon_x, round(card.stack_progress, 3)) for card in icons
+        ]
+
+    assert samples == {
+        1: [(180, 0.0)],
+        2: [(187, 0.333), (180, 0.0)],
+        3: [(201, 0.667), (187, 0.333), (180, 0.0)],
+        4: [(220, 1.0), (201, 0.667), (187, 0.333), (180, 0.0)],
+        5: [
+            (220, 1.0),
+            (205, 0.75),
+            (193, 0.5),
+            (185, 0.25),
+            (180, 0.0),
+        ],
+    }
+
+
+def test_short_stack_action_aligns_with_top_entry_curve_position():
+    controller = _controller()
+    layout = controller._stack_layout(
+        owner_id="short-with-action",
+        content=StackContent(
+            entries=(_entry("one"), _entry("two")),
+            action=StackAction(
+                key="open",
+                label="Open Folder",
+                activate=MagicMock(),
+            ),
+        ),
+    )
+
+    assert layout.cards[0].action is True
+    assert layout.cards[0].stack_progress == layout.cards[1].stack_progress
+
+
 def test_activation_uses_latest_callback_and_closes_popup():
     controller = _controller()
     activate = MagicMock()
