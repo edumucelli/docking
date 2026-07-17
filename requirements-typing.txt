@@ -1,0 +1,2 @@
+# Install with --no-deps so development uses the distribution's GI bindings.
+PyGObject-stubs==2.17.0

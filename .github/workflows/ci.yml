@@ -89,7 +89,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-quality-pip-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-quality-pip-${{ hashFiles('pyproject.toml', 'requirements-typing.txt') }}
           restore-keys: |
             ${{ runner.os }}-quality-pip-
 
@@ -99,7 +99,9 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
+          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+            python -m pip install --no-deps -r requirements-typing.txt
 
       - name: Verify POT is up to date
         run: bash tools/i18n.sh --check-pot-sync
@@ -164,7 +166,7 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Screenshot regression tests
         env:
@@ -247,7 +249,7 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Install project without GI bindings
         if: matrix.python == '3.14'
@@ -257,7 +259,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Full tests
         if: matrix.python != '3.14'
@@ -343,7 +345,7 @@ jobs:
           python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo "PyGObject==3.42.2"
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Install project without GI bindings
         if: matrix.python == '3.14'
@@ -351,7 +353,7 @@ jobs:
           python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Full tests
         if: matrix.python != '3.14'
@@ -407,7 +409,7 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Full tests
         env:
@@ -442,7 +444,7 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Smoke tests
         env:
@@ -507,7 +509,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo PyGObject
-          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev]"
 
       - name: Smoke tests
         env:
