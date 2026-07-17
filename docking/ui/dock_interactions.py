@@ -43,8 +43,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
-class FolderStackAnchor:
-    """Screen-space anchor for a folder-stack popup."""
+class StackAnchor:
+    """Screen-space anchor for a reusable stack popup."""
 
     x: int
     y: int
@@ -85,7 +85,7 @@ class DockInteractions:
         self,
         *,
         item: DockItem,
-        anchor: FolderStackAnchor,
+        anchor: StackAnchor,
         toggle_if_same_item: bool = True,
     ) -> None:
         """Show a folder stack popup for the provided dock item."""
@@ -103,12 +103,12 @@ class DockInteractions:
         if self._folder_stack.open_item_id() == desktop_id:
             self._folder_stack.close()
 
-    def close_folder_stack_unless_target(self, hovered_item: DockItem | None) -> None:
-        """Close the visible stack when the pointer leaves its source folder."""
-        open_item_id = self._folder_stack.open_item_id()
-        if open_item_id is None:
+    def close_stack_unless_target(self, hovered_item: DockItem | None) -> None:
+        """Close the visible stack when the pointer leaves its source item."""
+        owner_id = self._folder_stack.open_owner_id()
+        if owner_id is None:
             return
-        if hovered_item is not None and hovered_item.desktop_id == open_item_id:
+        if hovered_item is not None and hovered_item.desktop_id == owner_id:
             return
         self._folder_stack.close()
 
@@ -128,8 +128,9 @@ class DockInteractions:
         self,
         *,
         applet: Applet,
-        anchor: FolderStackAnchor,
+        anchor: StackAnchor,
         parent: Gtk.Window | None,
+        toggle_if_same_owner: bool = True,
     ) -> bool:
         """Show declarative stack content supplied by an applet."""
         return self._folder_stack.show_applet_stack(
@@ -140,6 +141,7 @@ class DockInteractions:
             icon_w=anchor.icon_w,
             position=anchor.position,
             parent=parent,
+            toggle_if_same_owner=toggle_if_same_owner,
         )
 
     def refresh_open_applet_stack(self, applet: Applet | None) -> None:

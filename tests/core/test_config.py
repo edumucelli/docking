@@ -38,7 +38,7 @@ class TestConfigDefaults:
         assert c.startup_tips_enabled is True
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
-        assert c.folder_stack_unfold == "hover"
+        assert c.stack_unfold == "hover"
         assert c.window_list_sort == "default"
         assert c.show_window_count_numbers is False
         assert c.theme == "default"
@@ -279,7 +279,7 @@ class TestConfigLoad:
         assert config.zoom_enabled is False
         assert config.left_click_action == "cycle"
         assert config.middle_click_action == "minimize"
-        assert config.folder_stack_unfold == "hover"
+        assert config.stack_unfold == "hover"
         assert config.window_list_sort == "alphabetical"
         assert config.show_window_count_numbers is True
 
@@ -308,7 +308,7 @@ class TestConfigLoad:
 
         assert config.left_click_action == "toggle"
         assert config.middle_click_action == "new-window"
-        assert config.folder_stack_unfold == "hover"
+        assert config.stack_unfold == "hover"
         assert config.window_list_sort == "default"
 
     def test_load_ignores_legacy_autohide_key(self, tmp_path):
@@ -494,14 +494,25 @@ class TestConfigSave:
         assert saved["left_click_action"] == "cycle"
         assert saved["middle_click_action"] == "close-focused"
 
-    def test_save_persists_folder_stack_unfold(self, tmp_path):
+    def test_save_persists_stack_unfold(self, tmp_path):
         path = tmp_path / "dock.json"
-        config = Config(folder_stack_unfold="hover")
+        config = Config(stack_unfold="hover")
 
         config.save(path)
 
         saved = json.loads(path.read_text())
-        assert saved["folder_stack_unfold"] == "hover"
+        assert saved["stack_unfold"] == "hover"
+        assert "folder_stack_unfold" not in saved
+
+    def test_new_stack_unfold_takes_precedence_over_legacy_key(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps({"stack_unfold": "click", "folder_stack_unfold": "hover"})
+        )
+
+        config = Config.load(path)
+
+        assert config.stack_unfold == "click"
 
     def test_save_persists_window_list_sort(self, tmp_path):
         path = tmp_path / "dock.json"

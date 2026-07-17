@@ -664,7 +664,7 @@ def _config():
         tooltips_enabled=True,
         left_click_action="toggle",
         middle_click_action="new-window",
-        folder_stack_unfold="click",
+        stack_unfold="click",
         window_list_sort="default",
         show_window_count_numbers=False,
         lock_icons=False,
@@ -767,7 +767,7 @@ class TestSettingsWindowController:
         assert behavior_labels == [
             "<b>Mouse</b>",
             "<b>Behavior</b>",
-            "<b>Folder Stacks</b>",
+            "<b>Stacks</b>",
             "<b>Recent Apps</b>",
             "<b>Recent Documents</b>",
         ]
@@ -1189,7 +1189,7 @@ class TestSettingsWindowController:
         assert config.save.call_count == 2
         runtime.assert_not_called()
 
-    def test_folder_stack_unfold_binding_updates_config(self, monkeypatch):
+    def test_stack_unfold_binding_updates_config(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
@@ -1205,10 +1205,10 @@ class TestSettingsWindowController:
         )
 
         controller.show()
-        controller._folder_stack_unfold_combo.set_active_id("hover")
-        controller._folder_stack_unfold_combo.emit_changed()
+        controller._stack_unfold_combo.set_active_id("hover")
+        controller._stack_unfold_combo.emit_changed()
 
-        assert config.folder_stack_unfold == "hover"
+        assert config.stack_unfold == "hover"
         config.save.assert_called_once()
         runtime.assert_not_called()
 

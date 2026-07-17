@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import docking.ui.dock_window as dock_window_mod
 from docking.core.position import Position
-from docking.ui.dock_interactions import DockInteractions, FolderStackAnchor
+from docking.ui.dock_interactions import DockInteractions, StackAnchor
 
 
 def test_context_menu_uses_current_frame_and_closes_folder_stack():
@@ -39,7 +39,7 @@ def test_folder_stack_uses_anchor_value_object():
     folder_stack = MagicMock()
     interactions = DockInteractions(menu=menu, folder_stack=folder_stack)
     item = MagicMock()
-    anchor = FolderStackAnchor(x=100, y=200, icon_w=48, position=Position.BOTTOM)
+    anchor = StackAnchor(x=100, y=200, icon_w=48, position=Position.BOTTOM)
 
     interactions.show_folder_stack(
         item=item,
@@ -60,10 +60,10 @@ def test_folder_stack_uses_anchor_value_object():
 def test_folder_stack_closes_when_hover_leaves_source_item():
     menu = MagicMock()
     folder_stack = MagicMock()
-    folder_stack.open_item_id.return_value = "file:///tmp/docs"
+    folder_stack.open_owner_id.return_value = "file:///tmp/docs"
     interactions = DockInteractions(menu=menu, folder_stack=folder_stack)
 
-    interactions.close_folder_stack_unless_target(
+    interactions.close_stack_unless_target(
         SimpleNamespace(desktop_id="firefox.desktop")
     )
 
@@ -73,10 +73,10 @@ def test_folder_stack_closes_when_hover_leaves_source_item():
 def test_folder_stack_stays_open_while_hovering_source_item():
     menu = MagicMock()
     folder_stack = MagicMock()
-    folder_stack.open_item_id.return_value = "file:///tmp/docs"
+    folder_stack.open_owner_id.return_value = "file:///tmp/docs"
     interactions = DockInteractions(menu=menu, folder_stack=folder_stack)
 
-    interactions.close_folder_stack_unless_target(
+    interactions.close_stack_unless_target(
         SimpleNamespace(desktop_id="file:///tmp/docs")
     )
 
@@ -89,7 +89,7 @@ def test_declarative_applet_stack_uses_shared_controller():
     interactions = DockInteractions(menu=MagicMock(), folder_stack=folder_stack)
     applet = MagicMock()
     applet.item.desktop_id = "applet://devices"
-    anchor = FolderStackAnchor(x=100, y=200, icon_w=48, position=Position.BOTTOM)
+    anchor = StackAnchor(x=100, y=200, icon_w=48, position=Position.BOTTOM)
     parent = MagicMock()
 
     assert (
@@ -109,6 +109,7 @@ def test_declarative_applet_stack_uses_shared_controller():
         icon_w=48,
         position=Position.BOTTOM,
         parent=parent,
+        toggle_if_same_owner=True,
     )
 
 

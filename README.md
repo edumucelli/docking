@@ -317,7 +317,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
   "active_display": false,
   "left_click_action": "toggle",
   "middle_click_action": "new-window",
-  "folder_stack_unfold": "hover",
+  "stack_unfold": "hover",
   "window_list_sort": "default",
   "show_window_count_numbers": false,
   "theme": "default",
@@ -359,7 +359,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `update_check_interval_hours` | 24 | Minimum hours between automatic update checks |
 | `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
-| `folder_stack_unfold` | hover | Folder stack open behavior: `hover` or `click` |
+| `stack_unfold` | hover | Stack open behavior: `hover` or `click` |
 | `window_list_sort` | default | Open-window menu order: `default` or `alphabetical` |
 | `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
 | `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
@@ -619,6 +619,21 @@ Shows mounted removable USB storage devices and provides safe-remove actions wit
 **Tooltip:** mounted device count and mount paths
 **Right-click options:**
 - **Safely Remove _device_** -- unmount and eject a removable USB device when supported
+
+</details>
+
+### Devices
+
+<details>
+<summary>Details</summary>
+
+Shows every mounted device exposed by the desktop volume monitor in a live stack.
+Selecting a device opens its mounted location. The stack updates automatically
+when devices are mounted or unmounted.
+
+**Click:** Open the mounted-devices stack
+**Right-click option:**
+- **Refresh Devices** -- reload the current mounted-device list
 
 </details>
 

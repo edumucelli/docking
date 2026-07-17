@@ -460,8 +460,8 @@ class MiddleClickAction(str, Enum):
     CLOSE_FOCUSED = "close-focused"
 
 
-class FolderStackUnfold(str, Enum):
-    """How pinned folder stacks should be opened from the dock."""
+class StackUnfold(str, Enum):
+    """How reusable stacks should be opened from the dock."""
 
     CLICK = "click"
     HOVER = "hover"
@@ -482,7 +482,7 @@ class WindowListSort(str, Enum):
 
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
-DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.HOVER.value
+DEFAULT_STACK_UNFOLD = StackUnfold.HOVER.value
 DEFAULT_WINDOW_LIST_SORT = WindowListSort.DEFAULT.value
 DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
 
@@ -515,18 +515,18 @@ def _normalize_middle_click_action(value: object) -> str:
     return MiddleClickAction.NEW_WINDOW.value
 
 
-def _normalize_folder_stack_unfold(value: object) -> str:
+def _normalize_stack_unfold(value: object) -> str:
     if isinstance(value, str):
         try:
-            return FolderStackUnfold(value=value).value
+            return StackUnfold(value=value).value
         except ValueError as exc:
             logger.warning(
-                "Invalid folder stack unfold mode %r; using default %r (%s)",
+                "Invalid stack unfold mode %r; using default %r (%s)",
                 value,
-                DEFAULT_FOLDER_STACK_UNFOLD,
+                DEFAULT_STACK_UNFOLD,
                 exc,
             )
-    return DEFAULT_FOLDER_STACK_UNFOLD
+    return DEFAULT_STACK_UNFOLD
 
 
 def _normalize_window_list_sort(value: object) -> str:
@@ -798,8 +798,8 @@ class Config:
     left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
     # Middle-click behavior for app items
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
-    # How pinned folder stacks open from the dock
-    folder_stack_unfold: str = DEFAULT_FOLDER_STACK_UNFOLD
+    # How reusable stacks open from the dock
+    stack_unfold: str = DEFAULT_STACK_UNFOLD
     # Sort order for open windows in the right-click context menu
     window_list_sort: str = DEFAULT_WINDOW_LIST_SORT
     # Whether running application indicators show a numeric window count
@@ -948,8 +948,8 @@ class Config:
         self.middle_click_action = _normalize_middle_click_action(
             self.middle_click_action,
         )
-        self.folder_stack_unfold = _normalize_folder_stack_unfold(
-            self.folder_stack_unfold,
+        self.stack_unfold = _normalize_stack_unfold(
+            self.stack_unfold,
         )
         self.window_list_sort = _normalize_window_list_sort(
             self.window_list_sort,
@@ -1089,6 +1089,8 @@ class Config:
     @classmethod
     def _load_existing_file(cls, path: Path) -> Config:
         data = _read_config_data(path=path)
+        if "stack_unfold" not in data and "folder_stack_unfold" in data:
+            data["stack_unfold"] = data["folder_stack_unfold"]
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         if "pinned" in filtered and isinstance(filtered["pinned"], list):

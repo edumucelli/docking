@@ -188,8 +188,8 @@ class DockHarness:
         self._folder_menu.close_folder_stack_for_item = MagicMock(
             side_effect=lambda _desktop_id: self._close_folder_stack()
         )
-        self._folder_menu.close_folder_stack_unless_target = MagicMock(
-            side_effect=self._close_folder_stack_unless_target
+        self._folder_menu.close_stack_unless_target = MagicMock(
+            side_effect=self._close_stack_unless_target
         )
         self._folder_menu.show_folder_stack = MagicMock(
             side_effect=self._open_folder_stack
@@ -206,7 +206,7 @@ class DockHarness:
                 dock_hovered=True,
                 config=SimpleNamespace(
                     pos=Position.BOTTOM,
-                    folder_stack_unfold="click",
+                    stack_unfold="click",
                 ),
                 _test_geometry_frame=self._folder_frame,
                 update_input_region=MagicMock(),
@@ -553,7 +553,7 @@ class DockHarness:
         self._folder_stack_open_for = None
         self._folder_menu.folder_stack_item_id.return_value = None
 
-    def _close_folder_stack_unless_target(self, hovered_item: DockItem | None) -> None:
+    def _close_stack_unless_target(self, hovered_item: DockItem | None) -> None:
         if (
             hovered_item is not None
             and hovered_item.desktop_id == self._folder_stack_open_for

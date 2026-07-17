@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-16 19:32+0200\n"
+"POT-Creation-Date: 2026-07-17 19:14+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,11 +105,11 @@ msgid "Add Alarm"
 msgstr ""
 
 #: docking/applets/alarm/applet.py:164 docking/applets/certwatch/state.py:246
-#: docking/applets/clock/applet.py:219 docking/applets/quicknote/applet.py:88
+#: docking/applets/clock/applet.py:231 docking/applets/quicknote/applet.py:88
 msgid "OK"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:219
+#: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:231
 #: docking/applets/lastfm/applet.py:381 docking/applets/quicknote/applet.py:87
 #: docking/applets/reddit/applet.py:435
 #: docking/applets/runcommand/applet.py:131
@@ -132,11 +132,11 @@ msgstr ""
 msgid "Label"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:205 docking/applets/clock/applet.py:256
+#: docking/applets/alarm/applet.py:205 docking/applets/clock/applet.py:268
 msgid "Hour"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:207 docking/applets/clock/applet.py:258
+#: docking/applets/alarm/applet.py:207 docking/applets/clock/applet.py:270
 msgid "Minute"
 msgstr ""
 
@@ -734,7 +734,7 @@ msgstr ""
 msgid "Calculator"
 msgstr ""
 
-#: docking/applets/calendar/applet.py:46 docking/applets/calendar/applet.py:52
+#: docking/applets/calendar/applet.py:69 docking/applets/calendar/applet.py:75
 msgid "Calendar"
 msgstr ""
 
@@ -774,8 +774,8 @@ msgstr ""
 msgid "{command} (PID {pid}) using {devices}"
 msgstr ""
 
-#: docking/applets/camshield/state.py:91 docking/applets/micshield/state.py:223
-#: docking/applets/usbwatch/state.py:99
+#: docking/applets/camshield/state.py:91 docking/applets/devices/state.py:92
+#: docking/applets/micshield/state.py:223 docking/applets/usbwatch/state.py:99
 #, python-brace-format
 msgid "{count} more"
 msgstr ""
@@ -903,39 +903,39 @@ msgstr ""
 msgid "Clippy (empty)"
 msgstr ""
 
-#: docking/applets/clock/applet.py:53
+#: docking/applets/clock/applet.py:54
 msgid "Clock"
 msgstr ""
 
-#: docking/applets/clock/applet.py:100
+#: docking/applets/clock/applet.py:109
 msgid "Digital Clock"
 msgstr ""
 
-#: docking/applets/clock/applet.py:104
+#: docking/applets/clock/applet.py:113
 msgid "24-Hour Clock"
 msgstr ""
 
-#: docking/applets/clock/applet.py:108
+#: docking/applets/clock/applet.py:117
 msgid "Show Date"
 msgstr ""
 
-#: docking/applets/clock/applet.py:113
+#: docking/applets/clock/applet.py:122
 msgid "Show Seconds"
 msgstr ""
 
-#: docking/applets/clock/applet.py:117
+#: docking/applets/clock/applet.py:126
 msgid "Set Alarm..."
 msgstr ""
 
-#: docking/applets/clock/applet.py:123
+#: docking/applets/clock/applet.py:132
 msgid "Clear Alarm"
 msgstr ""
 
-#: docking/applets/clock/applet.py:128
+#: docking/applets/clock/applet.py:137
 msgid "Acknowledge Alarm"
 msgstr ""
 
-#: docking/applets/clock/applet.py:215
+#: docking/applets/clock/applet.py:227
 msgid "Set Alarm"
 msgstr ""
 
@@ -1201,6 +1201,28 @@ msgstr ""
 #: docking/applets/desktop/applet.py:41
 #: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:147
 msgid "Desktop"
+msgstr ""
+
+#: docking/applets/devices/applet.py:66 docking/applets/devices/state.py:87
+#: docking/applets/devices/state.py:94
+msgid "Devices"
+msgstr ""
+
+#: docking/applets/devices/applet.py:98 docking/applets/devices/state.py:88
+msgid "No mounted devices"
+msgstr ""
+
+#: docking/applets/devices/applet.py:102
+msgid "Refresh Devices"
+msgstr ""
+
+#: docking/applets/devices/state.py:95 docking/applets/usbwatch/state.py:102
+#, python-brace-format
+msgid "{count} mounted device(s)"
+msgstr ""
+
+#: docking/applets/devices/state.py:118
+msgid "Mounted Device"
 msgstr ""
 
 #: docking/applets/docker/applet.py:54
@@ -2826,11 +2848,6 @@ msgstr ""
 msgid "Safely Remove {name}"
 msgstr ""
 
-#: docking/applets/usbwatch/state.py:102
-#, python-brace-format
-msgid "{count} mounted device(s)"
-msgstr ""
-
 #: docking/applets/usbwatch/state.py:109
 msgid "Removable Drive"
 msgstr ""
@@ -3156,7 +3173,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
+#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:375
 msgid "Docking"
 msgstr ""
 
@@ -3264,29 +3281,29 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: docking/ui/folder/stack.py:315
+#: docking/ui/folder/stack.py:320
 msgid "Folder not found"
 msgstr ""
 
-#: docking/ui/folder/stack.py:342 docking/ui/folder/stack.py:368
+#: docking/ui/folder/stack.py:350 docking/ui/folder/stack.py:376
 msgid "Folder is empty"
 msgstr ""
 
-#: docking/ui/folder/stack.py:380
+#: docking/ui/folder/stack.py:393
 #, python-format
 msgid "Open in %s"
 msgstr ""
 
-#: docking/ui/folder/stack.py:382
+#: docking/ui/folder/stack.py:395
 #, python-format
 msgid "%d More in %s"
 msgstr ""
 
-#: docking/ui/folder/stack.py:385
+#: docking/ui/folder/stack.py:398
 msgid "Open Folder"
 msgstr ""
 
-#: docking/ui/folder/stack.py:387
+#: docking/ui/folder/stack.py:400
 #, python-format
 msgid "%d More in Folder"
 msgstr ""
@@ -3704,7 +3721,7 @@ msgid ""
 msgstr ""
 
 #: docking/ui/settings.py:713
-msgid "Folder Stacks"
+msgid "Stacks"
 msgstr ""
 
 #: docking/ui/settings.py:716
@@ -3712,7 +3729,7 @@ msgid "Open On"
 msgstr ""
 
 #: docking/ui/settings.py:718
-msgid "Choose whether folder stacks open on click or while hovering."
+msgid "Choose whether stacks open on click or while hovering."
 msgstr ""
 
 #: docking/ui/settings.py:724

@@ -54,6 +54,7 @@ FOLDER_STACK_LABEL_MAX_WIDTH_PX = 148
 FOLDER_STACK_ACTION_MAX_WIDTH_PX = 240
 FOLDER_STACK_ROW_STEP_PX = 54
 FOLDER_STACK_CURVE_X_PX = 40
+FOLDER_STACK_CURVE_MIN_ROWS = 4
 FOLDER_STACK_ARC_BASE_SHIFT_PX = 8
 FOLDER_STACK_ARC_RADIUS_FACTOR = 2.45
 FOLDER_STACK_ARC_LINEAR_BLEND = 0.34
@@ -201,6 +202,49 @@ def _ease_out_cubic(value: float) -> float:
 
 
 def _stack_arc_offset(progress: float, span: float) -> float:
+    """Return the horizontal distance from the stack's fold center.
+
+    The stack is laid out vertically, but its rows drift to the right as they
+    rise away from the dock icon. A purely linear drift would look like a
+    diagonal list, while an unmodified circular arc would stay almost vertical
+    near the fold and turn too sharply near the top. This function blends the
+    two shapes so the stack reads as a smooth fan:
+
+    1. ``progress`` is the row's normalized vertical position on the arc.
+       ``0`` is the bottom row next to the fold and ``1`` is the top of a full
+       arc. Values are clamped because reveal and hover animation code may
+       briefly produce values outside that range.
+    2. ``span`` is the vertical height represented by the complete curve. It
+       is deliberately not always the visible content height; short stacks use
+       the span of a four-row reference curve so adjacent rows remain adjacent
+       samples of the same shape.
+    3. ``max_offset`` is the horizontal travel of a complete arc. It is at
+       least :data:`FOLDER_STACK_CURVE_X_PX`, but grows slightly for unusually
+       tall stacks so their upper rows do not look almost vertical.
+    4. The linear candidate is simply ``max_offset * progress``.
+    5. The curved candidate is taken from the right-hand displacement of a
+       circle. For radius ``r`` and vertical coordinate ``y``::
+
+           y = progress * span
+           circular_x = r - sqrt(r**2 - y**2)
+
+       ``circular_x`` is divided by its value at ``y == span`` and multiplied
+       by ``max_offset``. Normalization is important: changing the radius then
+       changes the *shape* of the curve without changing its final horizontal
+       extent.
+    6. The final shape mixes the linear and circular candidates. The linear
+       contribution prevents the lower rows from collapsing onto one another;
+       the circular contribution supplies the visibly increasing bend toward
+       the top.
+    7. :data:`FOLDER_STACK_ARC_BASE_SHIFT_PX` is added last. Even the bottom
+       row therefore sits slightly to the right of the source icon's fold
+       center instead of being drawn directly on top of it.
+
+    The radius is proportional to ``span``, so the normalized curve has the
+    same character at different row counts and icon sizes. Layout decides
+    which progress samples are visible; this function only converts one such
+    sample into an x offset.
+    """
     progress = min(max(progress, 0.0), 1.0)
     max_offset = max(FOLDER_STACK_CURVE_X_PX, span * 0.08)
     linear = max_offset * progress
@@ -300,6 +344,7 @@ class StackPopupController:
 
         self._close_stack()
         self._runtime.hide_hover_ui()
+        self._runtime.suppress_tooltip()
         self._runtime.menu_popup_opened()
 
         window = self._ensure_stack_window()
@@ -387,6 +432,7 @@ class StackPopupController:
             revealer.set_reveal_child(False)
         window.hide()
         self._cleanup_stack()
+        self._runtime.resume_tooltip()
         self._runtime.menu_popup_closed()
 
     def _cleanup_stack(self) -> None:
@@ -565,6 +611,68 @@ class StackPopupController:
         empty_label: str,
         icon_px: int,
     ) -> StackLayout:
+        """Lay out stack cards along a stable, bottom-anchored curve.
+
+        The important detail is that a short stack must not normalize its own
+        top row to ``progress == 1``. Doing that makes a two-row stack sample
+        only the two endpoints of the curve: the bottom row receives the base
+        offset and the top row immediately receives the full horizontal
+        offset. The result is a large diagonal jump rather than two neighboring
+        points on a continuous arc.
+
+        Four rows are the visual reference because that is the smallest stack
+        for which the full curve reads clearly. For one, two, or three rows we
+        therefore retain a four-row ``arc_span`` and show only its bottom-most
+        samples. Vertical spacing is not padded and no invisible rows are
+        created; only the progress denominator uses the reference span.
+
+        With the normal 48px icon size and 54px row step, the fold center is at
+        x=196. The 8px base shift places the bottom icon at x=180 after
+        subtracting half its width. The resulting top-to-bottom
+        ``(icon_x, stack_progress)`` values are::
+
+            {
+                1: [(180, 0.0)],
+                2: [(187, 0.333), (180, 0.0)],
+                3: [(201, 0.667), (187, 0.333), (180, 0.0)],
+                4: [
+                    (220, 1.0),
+                    (201, 0.667),
+                    (187, 0.333),
+                    (180, 0.0),
+                ],
+                5: [
+                    (220, 1.0),
+                    (205, 0.75),
+                    (193, 0.5),
+                    (185, 0.25),
+                    (180, 0.0),
+                ],
+            }
+
+        This table demonstrates two related invariants:
+
+        * A two-row stack is exactly the last two samples of the four-row
+          reference, and a three-row stack is exactly its last three samples.
+          Adding an item extends the existing curve instead of repositioning
+          the lower items.
+        * Four or more rows span their real content height. Five rows therefore
+          use progress quarters rather than thirds, still reaching the same
+          bottom and top endpoints while gaining a new intermediate sample.
+
+        ``content_span`` remains the actual distance between the first and last
+        visible entries and controls their y coordinates. ``arc_span`` is the
+        possibly extended reference distance used only for curve progress and
+        rotation. ``top_progress`` records how much of that reference curve is
+        occupied by visible content. The optional action chip uses the same
+        progress as the top entry, and popup width is calculated from that same
+        endpoint, so neither introduces an artificial jump or reserves space
+        for the unused upper portion of a short curve.
+
+        The numeric x positions above document the current 48px regression
+        case, not a fixed public geometry contract. Larger icon sizes may move
+        the fold center and row step, but they retain the sampling invariants.
+        """
         cards: list[StackCard] = []
         label_h = FOLDER_STACK_LABEL_HEIGHT_PX
         row_step = max(FOLDER_STACK_ROW_STEP_PX, round(icon_px * 1.08))
@@ -590,14 +698,15 @@ class StackPopupController:
             )
 
         total_rows = len(entries)
-        top_progress = 1.0 if total_rows > 0 else 0.0
-        total_span = (total_rows - 1) * row_step
+        content_span = (total_rows - 1) * row_step
+        arc_span = (max(total_rows, FOLDER_STACK_CURVE_MIN_ROWS) - 1) * row_step
+        top_progress = content_span / arc_span if arc_span > 0 else 0.0
         stack_top = FOLDER_STACK_TOP_PADDING_PX
         max_right = fold_center_x
         if action is not None:
             chip_w = self._stack_action_width(label=action.label)
             top_center_x = round(
-                fold_center_x + _stack_arc_offset(top_progress, total_span)
+                fold_center_x + _stack_arc_offset(top_progress, arc_span)
             )
             chip_x = max(
                 FOLDER_STACK_POPUP_SIDE_PADDING_PX,
@@ -618,8 +727,8 @@ class StackPopupController:
                     label_h=label_h,
                     centered=True,
                     action=True,
-                    stack_progress=1.0,
-                    arc_span=float(total_span),
+                    stack_progress=top_progress,
+                    arc_span=float(arc_span),
                 )
             )
             stack_top = chip_y + label_h + FOLDER_STACK_ACTION_GAP_PX
@@ -629,17 +738,13 @@ class StackPopupController:
             stack_top + (total_rows - 1) * row_step + icon_px / 2 if total_rows else 0
         )
         for index, entry in enumerate(entries):
-            raw_progress = (
-                (total_rows - 1 - index) / max(total_rows - 1, 1)
-                if total_rows > 1
-                else 1.0
-            )
-            arc_progress = raw_progress
+            distance_from_bottom = (total_rows - 1 - index) * row_step
+            arc_progress = distance_from_bottom / arc_span if arc_span > 0 else 0.0
             icon_center_x = fold_center_x + _stack_arc_offset(
                 arc_progress,
-                total_span,
+                arc_span,
             )
-            icon_center_y = bottom_center_y - total_span * raw_progress
+            icon_center_y = bottom_center_y - distance_from_bottom
             icon_x = round(icon_center_x - icon_px / 2)
             icon_y = round(icon_center_y - icon_px / 2)
             name = entry.label
@@ -663,7 +768,7 @@ class StackPopupController:
                     label_h=label_h,
                     centered=False,
                     stack_progress=arc_progress,
-                    arc_span=float(total_span),
+                    arc_span=float(arc_span),
                 )
             )
             max_right = max(max_right, icon_x + icon_px)
@@ -672,7 +777,7 @@ class StackPopupController:
             max(
                 max_right + right_bleed,
                 fold_center_x
-                + _stack_arc_offset(1.0, total_span)
+                + _stack_arc_offset(top_progress, arc_span)
                 + icon_px / 2
                 + right_bleed,
             )
