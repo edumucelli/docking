@@ -140,8 +140,11 @@ cd docking
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 
-# Install with development dependencies and GTK 3 type stubs
-PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 pip install -e ".[dev]"
+# Install development dependencies, then GTK 3 type stubs without replacing
+# the distribution-provided PyGObject runtime
+pip install -e ".[dev]"
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+  pip install --no-deps -r requirements-typing.txt
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
@@ -150,6 +153,8 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv venv --python /usr/bin/python3 --system-site-packages .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+  uv pip install --no-deps -r requirements-typing.txt
 ```
 
 ## Running
