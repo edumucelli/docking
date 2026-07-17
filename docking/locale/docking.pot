@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-17 19:14+0200\n"
+"POT-Creation-Date: 2026-07-17 21:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3027,105 +3027,136 @@ msgid ""
 msgstr ""
 
 #: docking/core/tips.py:148
-msgid "Customize pinned icons"
+msgid "Keep mounted devices within reach"
 msgstr ""
 
 #: docking/core/tips.py:150
+msgid ""
+"Add the Devices applet to browse every mounted device in a live stack. "
+"Mounts appear and disappear automatically, and Preferences -> Behavior "
+"controls whether stacks open on hover or click."
+msgstr ""
+
+#: docking/core/tips.py:158
+msgid "Customize pinned icons"
+msgstr ""
+
+#: docking/core/tips.py:160
 msgid ""
 "Right-click a pinned app, file, or folder and use Icon -> Choose From File. "
 "Custom icons are stored in Docking's config, so the original desktop file or "
 "file on disk is left untouched."
 msgstr ""
 
-#: docking/core/tips.py:157
+#: docking/core/tips.py:167
 msgid "Use the Applications applet search"
 msgstr ""
 
-#: docking/core/tips.py:159
+#: docking/core/tips.py:169
 msgid ""
 "Add the Applications applet, open it, and type to filter installed apps. It "
 "gives you a compact launcher menu without leaving the dock."
 msgstr ""
 
-#: docking/core/tips.py:166
+#: docking/core/tips.py:176
+msgid "Drag apps straight to the dock"
+msgstr ""
+
+#: docking/core/tips.py:178
+msgid ""
+"Open the Applications applet and drag any application from its menu onto the "
+"shelf. Drop it where you want its launcher to stay in the dock."
+msgstr ""
+
+#: docking/core/tips.py:185
 msgid "Use Run Application like Alt+F2"
 msgstr ""
 
-#: docking/core/tips.py:168
+#: docking/core/tips.py:187
 msgid ""
 "Add Run Application to launch commands, apps, and terminal commands from the "
 "dock. As you type, matching applications are shown so you can launch by name "
 "or run a standalone command."
 msgstr ""
 
-#: docking/core/tips.py:175
+#: docking/core/tips.py:194
 msgid "Use window previews"
 msgstr ""
 
-#: docking/core/tips.py:177
+#: docking/core/tips.py:196
 msgid ""
 "Hover running apps to inspect open windows before switching. Previews help "
 "when one application has several windows open."
 msgstr ""
 
-#: docking/core/tips.py:183
+#: docking/core/tips.py:202
 msgid "Choose your click behavior"
 msgstr ""
 
-#: docking/core/tips.py:185
+#: docking/core/tips.py:204
 msgid ""
 "Preferences -> Behavior lets left click toggle, cycle, or focus the most "
 "recent window. Pick the behavior that matches how you switch between running "
 "applications."
 msgstr ""
 
-#: docking/core/tips.py:192
+#: docking/core/tips.py:211
 msgid "Ctrl-click opens a new window"
 msgstr ""
 
-#: docking/core/tips.py:194
+#: docking/core/tips.py:213
 msgid ""
 "Hold Ctrl while clicking an app icon to launch another window. This works "
 "even when the app is already running and a normal click would focus it."
 msgstr ""
 
-#: docking/core/tips.py:201
+#: docking/core/tips.py:220
+msgid "Use Clock as a calendar"
+msgstr ""
+
+#: docking/core/tips.py:222
+msgid ""
+"Left-click the Clock applet to open the same calendar popup as the Calendar "
+"applet. Use Clock when you want the time and calendar in one dock item."
+msgstr ""
+
+#: docking/core/tips.py:229
 msgid "Use app right-click menus"
 msgstr ""
 
-#: docking/core/tips.py:203
+#: docking/core/tips.py:231
 msgid ""
 "Right-click apps for desktop actions, open windows, recent documents, "
 "pinning, and close actions. Many apps expose useful shortcuts there, such as "
 "opening a private window or composing a new message."
 msgstr ""
 
-#: docking/core/tips.py:211
+#: docking/core/tips.py:239
 msgid "Use Recent Files"
 msgstr ""
 
-#: docking/core/tips.py:213
+#: docking/core/tips.py:241
 msgid ""
 "Add the Recent Files applet to jump back into documents you used recently. "
 "It is a faster path when you remember the file, not the folder."
 msgstr ""
 
-#: docking/core/tips.py:220
+#: docking/core/tips.py:248
 msgid "Use System Tray when needed"
 msgstr ""
 
-#: docking/core/tips.py:222
+#: docking/core/tips.py:250
 msgid ""
 "Add System Tray for tray/status apps and use its menu to manage tray "
 "ownership when supported. This helps with legacy apps that still rely on a "
 "classic notification area."
 msgstr ""
 
-#: docking/core/tips.py:229
+#: docking/core/tips.py:257
 msgid "Use Diagnostics for support"
 msgstr ""
 
-#: docking/core/tips.py:231
+#: docking/core/tips.py:259
 msgid ""
 "Open Diagnostics before filing an issue to copy backend, session, and "
 "feature details. Including that report makes it much easier to understand "
@@ -3852,7 +3883,7 @@ msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 
-#: docking/ui/stack.py:102
+#: docking/ui/stack.py:103
 msgid "No items"
 msgstr ""
 

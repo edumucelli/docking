@@ -144,6 +144,16 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         ),
     ),
     StartupTip(
+        "devices-stack",
+        _("Keep mounted devices within reach"),
+        _(
+            "Add the Devices applet to browse every mounted device in a live "
+            "stack. Mounts appear and disappear automatically, and "
+            "Preferences -> Behavior controls whether stacks open on hover "
+            "or click."
+        ),
+    ),
+    StartupTip(
         "custom-icons",
         _("Customize pinned icons"),
         _(
@@ -159,6 +169,15 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
             "Add the Applications applet, open it, and type to filter "
             "installed apps. It gives you a compact launcher menu without "
             "leaving the dock."
+        ),
+    ),
+    StartupTip(
+        "applications-drag-to-dock",
+        _("Drag apps straight to the dock"),
+        _(
+            "Open the Applications applet and drag any application from its "
+            "menu onto the shelf. Drop it where you want its launcher to "
+            "stay in the dock."
         ),
     ),
     StartupTip(
@@ -194,6 +213,15 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
             "Hold Ctrl while clicking an app icon to launch another window. "
             "This works even when the app is already running and a normal "
             "click would focus it."
+        ),
+    ),
+    StartupTip(
+        "clock-calendar",
+        _("Use Clock as a calendar"),
+        _(
+            "Left-click the Clock applet to open the same calendar popup as "
+            "the Calendar applet. Use Clock when you want the time and "
+            "calendar in one dock item."
         ),
     ),
     StartupTip(
