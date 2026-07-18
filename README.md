@@ -22,7 +22,6 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - [Running](#running)
 - [First Use](#first-use)
 - [Configuration](#configuration)
-- [Managing Dock Items](#managing-dock-items)
 - [Applets](#applets)
 - [Theming](#theming)
 - [Writing Custom Applets](#writing-custom-applets)
@@ -46,10 +45,9 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 ## Requirements
 
-- Linux desktop with X11 or Wayland
+- Linux desktop with X11 (full support) or Wayland (backend-specific support)
 - Python 3.10+
-- X11 remains fully supported.
-- Wayland support is backend-specific:
+- Wayland backends:
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension
   - KDE Plasma 6 through the native KWin backend
   - wlroots-style compositors through layer-shell and advertised Wayland protocols
@@ -93,7 +91,9 @@ pip install -e ".[wayland]"
 
 ## Installation
 
-Prebuilt latest release packages are also available on [GitHub Releases](https://github.com/edumucelli/docking/releases), you can download them directly below.
+The latest prebuilt packages are available on
+[GitHub Releases](https://github.com/edumucelli/docking/releases) and linked
+directly below.
 - `AppImage`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage)
 - `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb)
 - `RPM`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm)
@@ -105,29 +105,25 @@ Prebuilt latest release packages are also available on [GitHub Releases](https:/
 Typical local install/run commands after downloading a release asset:
 
 ```bash
+# Choose the suffix matching the downloaded asset.
+ARCH=x86_64  # Use aarch64 for ARM64.
+
 # AppImage
-chmod +x docking-latest-linux-x86_64.AppImage
-./docking-latest-linux-x86_64.AppImage
-chmod +x docking-latest-linux-aarch64.AppImage
-./docking-latest-linux-aarch64.AppImage
+chmod +x "docking-latest-linux-${ARCH}.AppImage"
+./docking-latest-linux-${ARCH}.AppImage
 
 # Debian / RPM / Arch
-sudo apt install ./docking-latest-linux-x86_64.deb
-sudo apt install ./docking-latest-linux-aarch64.deb
-sudo dnf install ./docking-latest-linux-x86_64.rpm
-sudo dnf install ./docking-latest-linux-aarch64.rpm
-sudo pacman -U ./docking-latest-linux-x86_64.pkg.tar.zst
-sudo pacman -U ./docking-latest-linux-aarch64.pkg.tar.zst
+sudo apt install "./docking-latest-linux-${ARCH}.deb"
+sudo dnf install "./docking-latest-linux-${ARCH}.rpm"
+sudo pacman -U "./docking-latest-linux-${ARCH}.pkg.tar.zst"
 
 # Flatpak / Snap
-flatpak install --user ./docking-latest-linux-x86_64.flatpak
-flatpak install --user ./docking-latest-linux-aarch64.flatpak
-sudo snap install --dangerous ./docking-latest-linux-x86_64.snap
-sudo snap install --dangerous ./docking-latest-linux-aarch64.snap
+flatpak install --user "./docking-latest-linux-${ARCH}.flatpak"
+sudo snap install --dangerous "./docking-latest-linux-${ARCH}.snap"
 
 # Nix output tarball
 mkdir docking-nix-output
-tar -C docking-nix-output -xf docking-latest-linux-x86_64-nix-output.tar.gz
+tar -C docking-nix-output -xf "docking-latest-linux-${ARCH}-nix-output.tar.gz"
 ./docking-nix-output/bin/docking
 ```
 
@@ -206,47 +202,16 @@ extensions directory.
 
 #### KWin / KDE Plasma 6
 
-On KDE Plasma 6 Wayland, Docking uses a native KWin backend with Wayland
-layer-shell dock placement, running-window indicators, and workspace
-switching.
-
-**What works:**
-- Proper layer-shell anchored dock positioning
-- Running window indicators with titles
-- Workspace list and switching
-- Workspace-aware filtering
-
-**Not available through public KWin 6 APIs:**
-- Window actions (activate, minimize, close): KWin 6 has no public
-  protocol for third-party window management
-- Window previews: no capture protocol available
-- Active-window highlighting: KWin does not expose the focused window
-  through a public API
-
-No extra configuration is needed. The backend auto-detects a KDE Plasma
-session and is also selectable with `DOCKING_BACKEND=kwin`.
+Docking auto-detects KDE Plasma 6 and uses the KWin backend without extra
+configuration. The support table above summarizes the capabilities that KWin's
+public interfaces make available. You can also select it explicitly with
+`DOCKING_BACKEND=kwin`.
 
 #### Native layer-shell
 
 Native layer-shell mode needs a compositor with `zwlr_layer_shell_v1`.
-Source installs also need the system `gtk-layer-shell` GIR package:
-
-```bash
-# Debian / Ubuntu
-sudo apt install gir1.2-gtklayershell-0.1
-
-# Fedora
-sudo dnf install gtk-layer-shell
-
-# Arch
-sudo pacman -S gtk-layer-shell
-```
-
-Source installs that use live protocol clients also need the `[wayland]` extra:
-```bash
-sudo apt install libwayland-dev wayland-protocols
-pip install -e ".[wayland]"
-```
+See [Requirements](#requirements) for the `gtk-layer-shell` GIR and optional
+live-protocol dependencies needed by source installs.
 
 Check capabilities:
 ```bash
@@ -294,37 +259,18 @@ The first things to explore are:
 
 ## Configuration
 
-Config is stored at `~/.config/docking/dock.json` (auto-created on first run). New installs are seeded with a starter dock: Applications, a set of common launchers detected from what is installed, then Clock, Calendar, Weather, System Monitor, Hydration, Notifications, and Session.
+Config is stored at `~/.config/docking/dock.json` and is created automatically
+on first run. New installs are seeded with Applications, common launchers found
+on the system, Clock, Calendar, Weather, System Monitor, Hydration,
+Notifications, and Session. The example below shows the file's basic shape;
+the full setting reference follows it.
 
 ```json
 {
   "icon_size": 48,
-  "zoom_enabled": true,
-  "zoom_percent": 1.5,
-  "zoom_range": 3,
   "position": "bottom",
-  "monitor_index": -1,
   "hide_mode": "none",
-  "hide_delay_ms": 0,
-  "unhide_delay_ms": 0,
-  "hide_time_ms": 250,
-  "previews_enabled": true,
-  "tooltips_enabled": true,
-  "lock_icons": false,
-  "current_workspace_only": false,
-  "anchor_applets": false,
-  "anchor_files": false,
-  "active_display": false,
-  "left_click_action": "toggle",
-  "middle_click_action": "new-window",
-  "stack_unfold": "hover",
-  "window_list_sort": "default",
-  "show_window_count_numbers": false,
   "theme": "default",
-  "transparency": 1.0,
-  "additional_distance_from_edge": 0,
-  "pressure_reveal_enabled": false,
-  "pressure_threshold": 50,
   "pinned": [
     { "kind": "applet", "target": "applet://applications" },
     { "kind": "app", "target": "firefox.desktop" },
@@ -381,26 +327,11 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-The dock's right-click menu also provides quick access to:
-
-- **Display** to move the dock between monitors.
-- **Preferences** -> **Behavior** -> **Mouse** to choose left- and
-  middle-click actions.
-- **Preferences** -> **Updates** to configure or run update checks.
-- **Diagnostics** to inspect runtime support and copy a support report.
-
-Docking stores update-check preferences in `dock.json`. Runtime update state,
-such as the last checked timestamp, ignored release version, and remind-later
-timestamp, is stored separately under XDG state storage in
+The dock menu provides **Display**, **Preferences**, and **Diagnostics** for
+changing these settings and inspecting runtime support. Advanced users can also
+edit `pinned` directly. Update preferences live in `dock.json`;
+timestamps, ignored releases, and reminder state live in
 `~/.local/state/docking/updates.json`.
-
-## Managing Dock Items
-
-- **Drag and drop**: Drag a `.desktop` file, and application, a folder or a file from your file manager onto the dock
-- **Right-click running app**: "Keep in Dock" to pin
-- **Drag off**: Drag an icon upward off the dock to remove (poof animation)
-- **Right-click pinned app**: "Remove from Dock" to unpin
-- **Edit config**: Add desktop IDs to `"pinned"` in `dock.json`
 
 ## Theming
 
@@ -411,21 +342,9 @@ Themes are JSON files. Docking loads user themes from:
 ```
 
 and then falls back to the built-in themes bundled in `docking/assets/themes/`.
-Thirteen built-in themes are included:
-
-- `default` -- light theme
-- `onyx` -- dark variant
-- `slate` -- flat appearance
-- `transparent` -- minimal, see-through
-- `olive` -- rounded olive-green theme
-- `ember` -- warm dark theme
-- `nord` -- cool, desaturated dark
-- `glass` -- translucent macOS-style floating pill
-- `pill` -- dark floating pill with fully rounded borders
-- `paper` -- matte warm floating pill
-- `candy` -- playful pastel floating pill
-- `gruvbox` -- warm earthy dark
-- `solarized` -- soft light Solarized variant
+The thirteen included themes are `default` (light), `onyx` (dark), `slate`
+(flat), `transparent`, `olive`, `ember`, `nord`, `glass`, `pill`, `paper`,
+`candy`, `gruvbox`, and `solarized`.
 
 All layout values use a **scaling unit** (tenths of a percent of `icon_size`). This means themes adapt automatically to any icon size.
 
@@ -515,27 +434,6 @@ Older flat theme fields such as `h_padding` are migrated automatically when a us
 ## Applets
 
 Applets are custom widgets that live in the dock alongside application icons. Enable them via right-click on the dock background -> **Applets**.
-
-### Applet Architecture
-
-Docking applets follow a small, testable architecture:
-
-- `docking/applets/base.py` defines the common applet lifecycle and UI hooks:
-  - `create_icon(size)`
-  - `on_clicked()`
-  - `on_scroll(direction_up)`
-  - `get_menu_items()`
-  - optional `start(notify=...)` / `stop()`
-- Most applets are organized as a package with three modules:
-  - `state.py`: pure logic, parsing, command/state helpers (easy to unit test)
-  - `render.py`: Cairo/icon rendering helpers (no applet lifecycle logic)
-  - `applet.py`: GTK/Wnck/Gio wiring, timers, click/scroll/menu behavior
-- Package `__init__.py` stays metadata-only: declare `meta = AppletMeta(...)` there and keep imports cheap for startup discovery.
-- Applet metadata is auto-discovered through `docking/applets/__init__.py:get_applet_catalog()`.
-- Concrete applet classes are loaded on demand through `docking/applets/__init__.py:load_applet_class()`.
-- Each applet package declares a stable identity via `AppletMeta` in `__init__.py`.
-
-This split keeps runtime behavior in one place while making parsers/rendering highly testable without a live desktop session.
 
 ### AI Usage
 
@@ -1598,7 +1496,12 @@ Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip inclu
 
 ## Writing Custom Applets
 
-Applets are discovered from metadata and loaded lazily when enabled.
+Applets are discovered from `AppletMeta` metadata and loaded lazily when
+enabled. They inherit the common lifecycle and UI hooks from
+`docking/applets/base.py`, including `create_icon()`, click, scroll, and menu
+handling, plus optional `start()` and `stop()` methods. Keep package imports
+cheap and separate GTK wiring from pure state and rendering helpers so most
+logic remains testable without a live desktop session.
 
 ```text
 docking/applets/myapplet/
@@ -1674,79 +1577,39 @@ LANGUAGE=pt_BR python run.py
 
 ### Adding a new translation
 
-1. Create a new `.po` file from the template:
-   ```bash
-   msginit --input=docking/locale/docking.pot --locale=XX --output=docking/locale/XX/LC_MESSAGES/docking.po
-   ```
-2. Edit the `.po` file with a PO editor (e.g. Poedit, Lokalize, or any text editor)
-3. Compile: `./tools/i18n.sh --compile`
-4. Submit a pull request
+Create a catalog from the template, edit it with a PO editor such as Poedit or
+Lokalize, run the validation workflow below, and submit the `.po` file in a pull
+request.
 
-### Updating the string template
+```bash
+msginit --input=docking/locale/docking.pot \
+  --locale=XX \
+  --output=docking/locale/XX/LC_MESSAGES/docking.po
+```
 
-After adding or modifying translatable strings in the source code:
+### Changing translatable strings
+
+After adding or modifying a user-visible `_("...")` string, regenerate the
+template and run the same checks as CI:
 
 ```bash
 ./tools/i18n.sh --extract
-```
-
-This regenerates `docking/locale/docking.pot`. Existing `.po` files are updated separately in translation-refresh pull requests.
-
-### When CI fails after adding `_()` strings
-
-If you add a new user-visible translatable string such as `_("...")`, CI can fail in two common ways:
-
-- `--check-pot-sync` fails because `docking/locale/docking.pot` is stale
-- `--check-catalogs --allow-incomplete` fails because an existing locale catalog has format errors
-
-Regenerate the template:
-
-```bash
-./tools/i18n.sh --extract
-```
-
-You do not need to update every `docking.po` catalog or fill in every new `msgstr` on regular feature commits. That creates large translation diffs that obscure the code review. Translation catalogs are refreshed periodically in translation-only pull requests:
-
-```bash
-./tools/i18n.sh --update-translations
-```
-
-To verify locally with the same i18n gates CI uses:
-
-```bash
 ./tools/i18n.sh --check-pot-sync
 ./tools/i18n.sh --check-catalogs --allow-incomplete
 ./tools/i18n.sh --compile
 ```
 
-Practical sequence:
+Regular feature commits only update `docking/locale/docking.pot`; they do not
+need to refresh every catalog or fill every new `msgstr`.
 
-1. `./tools/i18n.sh --extract`
-2. Rerun the three checks above
-3. Leave `.po` refreshes for a translation-only PR unless this branch is specifically about translations
+### Translation maintenance
 
-### Unified i18n command
-
-`./tools/i18n.sh` is the single translation utility. Common commands:
+Translation-only updates merge the current template into every catalog and can
+apply the stricter completeness check:
 
 ```bash
-# Extract/update docking.pot
-./tools/i18n.sh --extract
-
-# Verify docking.pot is in sync with source strings
-./tools/i18n.sh --check-pot-sync
-
-# Update docking.pot, merge every locale catalog, and strip obsolete entries
 ./tools/i18n.sh --update-translations
-
-# Validate locale catalogs while allowing incomplete translation backlog
-./tools/i18n.sh --check-catalogs --allow-incomplete
-
-# Strict translation-maintenance validation, fails on untranslated/fuzzy
 ./tools/i18n.sh --check-catalogs --require-complete
-
-# Compile all .po catalogs to .mo
-./tools/i18n.sh --compile
 ```
 
 ## Developer Workflow
@@ -1774,34 +1637,6 @@ Requirements for that mode:
 - `xvfb-run`
 - `dbus-run-session`
 
-### D-Bus Remote Control
-
-Docking exposes a small session-bus API for item inspection and control.
-
-- Bus name: `org.docking.Docking`
-- Object path: `/org/docking/Docking`
-- Interface: `org.docking.Docking.Items1`
-
-Current methods:
-- `GetCount`
-- `ListPinnedIds`
-- `ListTransientIds`
-- `Pin`
-- `Unpin`
-- `Remove`
-- `GetHoverAnchor`
-
-Example:
-
-```bash
-gdbus call --session \
-  --dest org.docking.Docking \
-  --object-path /org/docking/Docking \
-  --method org.docking.Docking.Items1.ListPinnedIds
-```
-
-For full examples and expected responses, see [docs/DBUS.md](docs/DBUS.md).
-
 By default it runs the dock interaction/UI slice:
 - pointer scenarios
 - edges
@@ -1818,109 +1653,22 @@ You can also pass explicit pytest targets:
 bash tools/test_gui_headless.sh tests/ui/test_pointer_scenarios.py
 ```
 
+### D-Bus Remote Control
+
+Docking exposes the `org.docking.Docking.Items1` session-bus interface for item
+inspection and control. See [D-Bus Remote Control](docs/DBUS.md) for the method
+reference, examples, and expected responses.
+
 ### Building Packages
 
-#### Building a .deb package
-
-```bash
-# Install build dependencies
-sudo apt install python3-all python3-dev python3-setuptools python3-wheel \
-  python3-pip debhelper dh-python pybuild-plugin-pyproject \
-  libwayland-dev wayland-protocols gettext
-
-# Build
-./packaging/deb/build.sh
-
-# Install generated package
-sudo apt install ../docking_*_*.deb
-
-# If you used dpkg -i and dependencies were left unconfigured:
-sudo apt-get -f install
-```
-
-#### Building an RPM package
-
-```bash
-# Install tooling
-sudo apt install rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
-
-# Build package
-./packaging/rpm/build.sh
-
-# Install locally on an RPM-based distro
-sudo dnf install ./artifacts/docking-*.rpm
-```
-
-#### Building a Flatpak bundle
-
-```bash
-# Install tooling
-sudo apt install flatpak flatpak-builder
-
-# Build bundle
-./packaging/flatpak/build.sh
-
-# Install and run locally
-flatpak install --user ./artifacts/cc.docking.Docking.flatpak
-flatpak run cc.docking.Docking
-```
-
-#### Building a Snap package
-
-```bash
-# Install tooling
-sudo apt install snapcraft
-
-# Build snap package
-mkdir -p artifacts
-(
-  cd packaging/snap
-  sudo snapcraft pack --destructive-mode --output ../../artifacts/docking.snap
-)
-
-# Install locally
-sudo snap install --dangerous artifacts/docking.snap
-```
-
-#### Building an AppImage
-
-```bash
-# Install tooling
-sudo apt install python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin \
-  libglib2.0-bin libgtk-3-bin squashfs-tools gettext
-python3 -m pip install --upgrade pip
-python3 -m pip install appimage-builder
-
-# Build AppImage
-./packaging/appimage/build.sh
-```
-
-#### Building an Arch package
-
-```bash
-# Arch Linux tooling
-sudo pacman -S --needed base-devel git python python-pip gettext
-
-# Build package
-./packaging/arch/build.sh
-
-# Install locally
-sudo pacman -U artifacts/docking-*.pkg.tar.*
-```
-
-#### Building with Nix
-
-```bash
-# Build package output
-./packaging/nix/build.sh
-
-# Run from build output
-./result-nix/bin/docking
-```
+Build dependencies, commands, output paths, and local installation steps for
+every package format live in the [packaging guide](packaging/README.md).
 
 ## Additional Docs
 
+- [D-Bus Remote Control](docs/DBUS.md)
 - [Icon Assets and Packaging](docs/ICONS.md)
+- [Packaging](packaging/README.md)
 
 ## Contributing
 
