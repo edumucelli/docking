@@ -655,8 +655,9 @@ class MenuHandler:
             key for key in APPLET_CATEGORY_ORDER if grouped.get(key)
         ]
         if non_empty_categories:
-            for i, category in enumerate(non_empty_categories):
-                add_applet_menu.append(_make_menu_header(label=_(category.value)))
+            for category in non_empty_categories:
+                category_item = Gtk.MenuItem(label=_(category.value))
+                category_menu = Gtk.Menu()
                 for did, entry in sorted(
                     grouped[category], key=lambda item: item[1].name.lower()
                 ):
@@ -672,9 +673,9 @@ class MenuHandler:
                         icon_px=APPLET_MENU_ICON_PX,
                     )
                     item.connect("activate", self._on_add_applet_activate, str(did))
-                    add_applet_menu.append(item)
-                if i < len(non_empty_categories) - 1:
-                    add_applet_menu.append(Gtk.SeparatorMenuItem())
+                    category_menu.append(item)
+                category_item.set_submenu(category_menu)
+                add_applet_menu.append(category_item)
         else:
             empty = Gtk.MenuItem(label=_("No Applets Available"))
             empty.set_sensitive(False)
