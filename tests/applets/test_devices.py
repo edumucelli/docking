@@ -10,6 +10,7 @@ from docking.applets.base import load_catalog_icon
 from docking.applets.devices.applet import DevicesApplet
 from docking.applets.devices.render import create_devices_icon
 from docking.applets.devices.state import devices_tooltip, mounted_devices
+from docking.applets.devices.unix_mounts import NativeNetworkMount
 
 
 class _FakeRoot:
@@ -93,11 +94,45 @@ def _mount(
     return _FakeMount(name=name, path=path, uri=uri, uuid=uuid, icon=icon)
 
 
-def _applet(monkeypatch, monitor: _FakeMonitor) -> DevicesApplet:
+def _native_mount(
+    *,
+    path: str = "/mnt/team",
+    source: str = "//fileserver/team",
+    fs_type: str = "cifs",
+    name: str = "Team Share",
+    icon: object | None = None,
+) -> NativeNetworkMount:
+    return NativeNetworkMount(
+        mount_path=path,
+        source=source,
+        fs_type=fs_type,
+        name=name,
+        icon=icon,
+    )
+
+
+def _applet(
+    monkeypatch,
+    monitor: _FakeMonitor,
+    *,
+    native_mounts: list[NativeNetworkMount] | None = None,
+    unix_monitor: _FakeMonitor | None = None,
+) -> DevicesApplet:
+    current_native_mounts = native_mounts if native_mounts is not None else []
     monkeypatch.setattr(
         devices_applet_mod.Gio.VolumeMonitor,
         "get",
         lambda: monitor,
+    )
+    monkeypatch.setattr(
+        devices_applet_mod,
+        "read_network_mounts",
+        lambda: list(current_native_mounts),
+    )
+    monkeypatch.setattr(
+        devices_applet_mod,
+        "get_mount_monitor",
+        lambda: unix_monitor,
     )
     return DevicesApplet(48)
 
@@ -142,6 +177,45 @@ def test_mounted_devices_deduplicates_root_uri_and_uses_name_fallback():
 
     assert len(devices) == 1
     assert devices[0].name == "Backup"
+
+
+def test_mounted_devices_merges_native_network_mounts_and_prefers_gio_entry():
+    gio_mount = _mount(
+        "Team Share",
+        path="/mnt/team",
+        uri="file:///mnt/team",
+        icon="gio-icon",
+    )
+    native_mounts = [
+        _native_mount(name="Duplicate", icon="native-icon"),
+        _native_mount(
+            path="/mnt/Cloud Team",
+            source="cloud:",
+            fs_type="fuse.rclone",
+            name="",
+        ),
+    ]
+
+    devices = mounted_devices(_FakeMonitor([gio_mount]), native_mounts)
+
+    assert [device.name for device in devices] == ["Cloud Team", "Team Share"]
+    assert devices[0].uri == "file:///mnt/Cloud%20Team"
+    assert devices[0].key == "unix:path:/mnt/Cloud Team"
+    assert devices[0].is_network is True
+    assert devices[1].icon == "gio-icon"
+    assert devices[1].is_network is True
+
+
+def test_native_network_mount_uses_remote_icon_fallback(monkeypatch):
+    device = mounted_devices(_FakeMonitor(), [_native_mount()])[0]
+    fallback = object()
+    load_theme_icon = MagicMock(return_value=fallback)
+    monkeypatch.setattr(devices_applet_mod, "load_theme_icon", load_theme_icon)
+
+    icon = devices_applet_mod._load_mount_icon(device=device, size=32)
+
+    assert icon is fallback
+    load_theme_icon.assert_called_once_with(name="folder-remote", size=32)
 
 
 def test_devices_tooltip_empty_and_populated():
@@ -248,9 +322,40 @@ class TestDevicesApplet:
         assert applet.stack_content(32).entries == ()
         notify.assert_called_once()
 
+    def test_native_network_mount_signal_refreshes_and_opens_stack_entry(
+        self, monkeypatch
+    ):
+        monitor = _FakeMonitor()
+        unix_monitor = _FakeMonitor()
+        native_mounts: list[NativeNetworkMount] = []
+        applet = _applet(
+            monkeypatch,
+            monitor,
+            native_mounts=native_mounts,
+            unix_monitor=unix_monitor,
+        )
+        notify = MagicMock()
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            devices_applet_mod.launcher_mod,
+            "open_target",
+            open_target,
+        )
+        applet.start(notify)
+
+        native_mounts.append(_native_mount())
+        unix_monitor.emit("mounts-changed")
+
+        content = applet.stack_content(32)
+        assert [entry.label for entry in content.entries] == ["Team Share"]
+        content.entries[0].activate()
+        open_target.assert_called_once_with("file:///mnt/team")
+        notify.assert_called_once()
+
     def test_start_is_idempotent_and_stop_disconnects_handlers(self, monkeypatch):
         monitor = _FakeMonitor()
-        applet = _applet(monkeypatch, monitor)
+        unix_monitor = _FakeMonitor()
+        applet = _applet(monkeypatch, monitor, unix_monitor=unix_monitor)
 
         applet.start(MagicMock())
         applet.start(MagicMock())
@@ -260,6 +365,8 @@ class TestDevicesApplet:
         assert monitor.disconnected == list(
             range(1, len(devices_applet_mod._MONITOR_SIGNALS) + 1)
         )
+        assert list(unix_monitor.callbacks) == ["mounts-changed"]
+        assert unix_monitor.disconnected == [1]
 
     def test_unchanged_monitor_signal_does_not_notify(self, monkeypatch):
         monitor = _FakeMonitor([_mount("Data")])

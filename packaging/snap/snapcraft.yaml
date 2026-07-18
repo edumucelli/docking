@@ -27,6 +27,7 @@ apps:
       - desktop-legacy
       - network
       - network-manager
+      - mount-observe
       - audio-playback
       - home
 
