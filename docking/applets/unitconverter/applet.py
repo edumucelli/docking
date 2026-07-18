@@ -175,6 +175,7 @@ class UnitConverterApplet(Applet):
                 title=_("Unit Converter"),
                 destroy_with_parent=True,
             )
+            self.register_popup_surface(self._popup)
             self._popup.connect("delete-event", self._on_popup_delete)
 
         content = prepare_dialog_content(

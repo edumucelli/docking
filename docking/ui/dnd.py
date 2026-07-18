@@ -832,6 +832,7 @@ class DnDHandler:
             buttons=Gtk.ButtonsType.CANCEL,
             text="Make AppImage executable and pin it?",
         )
+        self._window.tooltip.register_blocking_surface(dialog)
         dialog.format_secondary_text(
             f"{path.name} is an AppImage, but it is not executable yet. "
             "Docking can mark it executable so it can be pinned and launched."

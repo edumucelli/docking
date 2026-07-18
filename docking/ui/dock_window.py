@@ -599,6 +599,7 @@ class DockWindow(Gtk.Window):
             y=anchor_y,
             position=self.config.pos,
             parent=self,
+            register_tooltip_blocker=self.tooltip.register_blocking_surface,
         )
 
     def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:

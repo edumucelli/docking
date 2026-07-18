@@ -293,6 +293,21 @@ class TestAppletDefaultHooks:
         applet.set_popup_anchor(anchor)
         assert applet._popup_anchor is anchor
 
+    def test_register_popup_surface_uses_anchor_callback(self):
+        applet = _DeferredInitApplet()
+        register = MagicMock()
+        applet.set_popup_anchor(SimpleNamespace(register_tooltip_blocker=register))
+        surface = MagicMock()
+
+        applet.register_popup_surface(surface)
+
+        register.assert_called_once_with(surface)
+
+    def test_register_popup_surface_without_anchor_is_noop(self):
+        applet = _DeferredInitApplet()
+
+        applet.register_popup_surface(MagicMock())
+
     def test_accepts_drop_uris_defaults_false(self):
         applet = _DeferredInitApplet()
         assert applet.accepts_drop_uris() is False

@@ -87,6 +87,7 @@ class ApplicationsApplet(Applet):
     def _build_launcher_menu(self) -> Gtk.Menu:
         """Build the categorized launcher menu lazily on each open."""
         menu = Gtk.Menu()
+        self.register_popup_surface(menu)
         categories = _build_app_categories()
         category_rows: list[tuple[Gtk.MenuItem, Gtk.Menu, list[ApplicationEntry]]] = []
 

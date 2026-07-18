@@ -111,6 +111,7 @@ class UrlShortenerApplet(Applet):
             title=_("URL Shortener"),
             destroy_with_parent=True,
         )
+        self.register_popup_surface(self._dialog)
         box = prepare_dialog_content(
             dialog=self._dialog,
             width=DIALOG_WIDTH_PX,

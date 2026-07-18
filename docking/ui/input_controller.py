@@ -394,6 +394,11 @@ class DockInputController:
                 cursor_x=event.x,
                 cursor_y=event.y,
             )
+            item = None if force_background else frame.item_at_point(event.x, event.y)
+            if item is not None and is_applet(desktop_id=item.desktop_id):
+                applet = window.model.get_applet(item.desktop_id)
+                if applet is not None:
+                    applet.set_popup_anchor(window.popup_anchor_for_item(item, frame))
             self._interactions.show_context_menu(
                 event=event,
                 cursor_main=cursor_main,

@@ -318,11 +318,13 @@ def test_show_wrapped_popup_positions_from_anchor(monkeypatch):
     window = _FakePopupWindow()
     wrapped = object()
     parent = object()
+    register_tooltip_blocker = MagicMock()
     anchor = popup.PopupAnchor(
         x=40,
         y=50,
         position=Position.BOTTOM,
         parent=parent,
+        register_tooltip_blocker=register_tooltip_blocker,
     )
     position_anchor = MagicMock()
     position_pointer = MagicMock()
@@ -339,6 +341,7 @@ def test_show_wrapped_popup_positions_from_anchor(monkeypatch):
 
     assert window.transient_for is parent
     assert window.attached_to is parent
+    register_tooltip_blocker.assert_called_once_with(window)
     position_anchor.assert_called_once_with(window=window, anchor=anchor, gap_px=12)
     position_pointer.assert_not_called()
 

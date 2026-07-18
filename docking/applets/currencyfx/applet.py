@@ -492,6 +492,7 @@ class CurrencyFxApplet(Applet):
             modal=True,
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         add_cancel_ok_buttons(dialog=dialog)
         box = prepare_dialog_content(
             dialog=dialog,

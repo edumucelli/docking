@@ -72,10 +72,12 @@ class NewYearGreetingController:
         window: Gtk.Window,
         state_path: Path | str | None = None,
         now_fn: Callable[[], datetime] | None = None,
+        register_tooltip_blocker: Callable[[Gtk.Widget], None] | None = None,
     ) -> None:
         self._window = window
         self._state_path = Path(state_path) if state_path else None
         self._now_fn = now_fn or datetime.now
+        self._register_tooltip_blocker = register_tooltip_blocker
         self._start_source_id: int = 0
         self._hide_source_id: int = 0
         self._popup: Gtk.Window | None = None
@@ -146,6 +148,8 @@ class NewYearGreetingController:
 
         if self._popup is None:
             popup = Gtk.Window(type=Gtk.WindowType.POPUP)
+            if self._register_tooltip_blocker is not None:
+                self._register_tooltip_blocker(popup)
             popup.set_decorated(False)
             popup.set_skip_taskbar_hint(True)
             popup.set_resizable(False)

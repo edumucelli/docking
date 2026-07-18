@@ -429,6 +429,7 @@ class RedditApplet(Applet):
             modal=True,
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         add_cancel_ok_buttons(
             dialog=dialog,
             ok_label=_("Add"),

@@ -161,6 +161,7 @@ class AlarmApplet(Applet):
             modal=True,
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         add_cancel_ok_buttons(dialog=dialog, ok_label=_("OK"), cancel_label=_("Cancel"))
         if index is not None:
             dialog.add_button(_("Remove"), Gtk.ResponseType.REJECT)

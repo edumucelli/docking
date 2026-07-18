@@ -211,11 +211,13 @@ class SettingsWindowController:
         actions: SettingsActions,
         model: DockModel,
         config: Config,
+        register_tooltip_blocker: Callable[[Gtk.Widget], None] | None = None,
     ) -> None:
         self._parent = parent
         self._actions = actions
         self._model = model
         self._config = config
+        self._register_tooltip_blocker = register_tooltip_blocker
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
 
@@ -278,6 +280,8 @@ class SettingsWindowController:
             transient_for=self._parent,
             destroy_with_parent=True,
         )
+        if self._register_tooltip_blocker is not None:
+            self._register_tooltip_blocker(window)
         window.set_default_size(
             PREFERENCES_WINDOW_WIDTH_PX,
             self._preferences_default_height(),

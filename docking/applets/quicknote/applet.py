@@ -84,6 +84,7 @@ class QuickNoteApplet(Applet):
             modal=True,
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("OK"), Gtk.ResponseType.OK)
         box = prepare_dialog_content(

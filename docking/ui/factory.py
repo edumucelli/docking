@@ -119,12 +119,20 @@ def build_dock_window(
         surface_service=surface_service,
         session_backend=session_backend,
     )
-    update_checker = UpdateCheckController(window=window, config=config)
+    update_checker = UpdateCheckController(
+        window=window,
+        config=config,
+        register_tooltip_blocker=window.tooltip.register_blocking_surface,
+    )
     runtime = DockRuntime(window, update_checker=update_checker)
-    about = AboutDialogController(parent=window)
+    about = AboutDialogController(
+        parent=window,
+        register_tooltip_blocker=runtime.register_tooltip_blocker,
+    )
     diagnostics = DiagnosticsDialogController(
         parent=window,
         backend=session_backend,
+        register_tooltip_blocker=runtime.register_tooltip_blocker,
     )
     folder_stack = FolderStackController(
         config=config,
@@ -153,6 +161,7 @@ def build_dock_window(
         actions=settings_actions,
         model=model,
         config=config,
+        register_tooltip_blocker=runtime.register_tooltip_blocker,
     )
     menu = MenuHandler(
         about=about,
@@ -177,10 +186,14 @@ def build_dock_window(
         dnd=dnd,
     )
     startup_popups = StartupPopupCoordinator()
-    new_year = NewYearGreetingController(window=window)
+    new_year = NewYearGreetingController(
+        window=window,
+        register_tooltip_blocker=runtime.register_tooltip_blocker,
+    )
     startup_tips = StartupTipsController(
         window=window,
         config=config,
+        register_tooltip_blocker=runtime.register_tooltip_blocker,
     )
     startup_popups.register(new_year)
     startup_popups.register(update_checker)

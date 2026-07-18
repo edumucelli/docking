@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import gi
@@ -48,9 +49,16 @@ log = get_logger("diagnostics")
 class DiagnosticsDialogController:
     """Owns the runtime diagnostics window lifecycle."""
 
-    def __init__(self, *, parent: Gtk.Window, backend: object) -> None:
+    def __init__(
+        self,
+        *,
+        parent: Gtk.Window,
+        backend: object,
+        register_tooltip_blocker: Callable[[Gtk.Widget], None] | None = None,
+    ) -> None:
         self._parent = parent
         self._backend = backend
+        self._register_tooltip_blocker = register_tooltip_blocker
         self._window: Gtk.Window | None = None
         self._snapshot: DiagnosticsSnapshot | None = None
 
@@ -72,6 +80,8 @@ class DiagnosticsDialogController:
             transient_for=self._parent,
             destroy_with_parent=True,
         )
+        if self._register_tooltip_blocker is not None:
+            self._register_tooltip_blocker(window)
         window.set_default_size(
             DIAGNOSTICS_WINDOW_WIDTH_PX,
             DIAGNOSTICS_WINDOW_HEIGHT_PX,
@@ -369,6 +379,8 @@ class DiagnosticsDialogController:
             buttons=Gtk.ButtonsType.CLOSE,
             text=text,
         )
+        if self._register_tooltip_blocker is not None:
+            self._register_tooltip_blocker(dialog)
         dialog.run()
         dialog.destroy()
 

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
@@ -43,8 +44,14 @@ log = get_logger("about")
 class AboutDialogController:
     """Owns About dialog lifecycle and single-instance behavior."""
 
-    def __init__(self, parent: Gtk.Window) -> None:
+    def __init__(
+        self,
+        parent: Gtk.Window,
+        *,
+        register_tooltip_blocker: Callable[[Gtk.Widget], None] | None = None,
+    ) -> None:
         self._parent = parent
+        self._register_tooltip_blocker = register_tooltip_blocker
         self._dialog: Gtk.AboutDialog | None = None
 
     def show(self) -> None:
@@ -58,6 +65,8 @@ class AboutDialogController:
             modal=True,
             destroy_with_parent=True,
         )
+        if self._register_tooltip_blocker is not None:
+            self._register_tooltip_blocker(dialog)
         dialog.set_program_name("Docking")
         dialog.set_version(self._project_version())
         dialog.set_comments(

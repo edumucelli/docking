@@ -87,6 +87,7 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         cursor_x=20.0,
         cursor_y=8.0,
         autohide=autohide,
+        tooltip=SimpleNamespace(register_blocking_surface=MagicMock()),
         is_pointer_inside_dock=MagicMock(return_value=False),
         get_display=MagicMock(return_value=display),
         get_position=MagicMock(return_value=(0, 0)),

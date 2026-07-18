@@ -131,7 +131,11 @@ class TestAboutDialogController:
             _fake_gtk(),
         )
         monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
-        controller = about_mod.AboutDialogController(parent=object())
+        register_tooltip_blocker = MagicMock()
+        controller = about_mod.AboutDialogController(
+            parent=object(),
+            register_tooltip_blocker=register_tooltip_blocker,
+        )
 
         # When
         controller.show()
@@ -142,6 +146,7 @@ class TestAboutDialogController:
         assert first is not None
         assert controller._dialog is first
         assert first.show_count == 2
+        register_tooltip_blocker.assert_called_once_with(first)
 
     def test_response_and_hide_destroy_dialog(self, monkeypatch):
         # Given

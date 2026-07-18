@@ -471,6 +471,12 @@ class Applet(ABC):
         """Update the dock icon anchor used by applet-owned popup surfaces."""
         self._popup_anchor = anchor
 
+    def register_popup_surface(self, surface: Gtk.Widget) -> None:
+        """Give an applet-owned dialog or menu priority over dock tooltips."""
+        anchor = self._popup_anchor
+        if anchor is not None and anchor.register_tooltip_blocker is not None:
+            anchor.register_tooltip_blocker(surface)
+
     def on_scroll(self, direction_up: bool) -> None:
         """Handle scroll wheel on applet icon (default: no-op)."""
         _ = direction_up

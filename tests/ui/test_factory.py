@@ -159,9 +159,19 @@ class TestBuildDockWindow:
         assert kwargs["on_change"] is window.autohide.set_window_should_hide
         dodge_monitor.start.assert_called_once_with()
         assert window.dodge_monitor is dodge_monitor
+        factory_mod.AboutDialogController.assert_called_once_with(
+            parent=window,
+            register_tooltip_blocker=components.runtime.register_tooltip_blocker,
+        )
+        factory_mod.DiagnosticsDialogController.assert_called_once_with(
+            parent=window,
+            backend=session_backend,
+            register_tooltip_blocker=components.runtime.register_tooltip_blocker,
+        )
         factory_mod.UpdateCheckController.assert_called_once_with(
             window=window,
             config=config,
+            register_tooltip_blocker=window.tooltip.register_blocking_surface,
         )
         factory_mod.DockRuntime.assert_called_once_with(
             window,
@@ -194,6 +204,7 @@ class TestBuildDockWindow:
             actions=components.settings_actions,
             model=model,
             config=config,
+            register_tooltip_blocker=components.runtime.register_tooltip_blocker,
         )
         factory_mod.MenuHandler.assert_called_once_with(
             about=components.about,
@@ -218,10 +229,14 @@ class TestBuildDockWindow:
             dnd=components.dnd,
         )
         factory_mod.StartupPopupCoordinator.assert_called_once_with()
-        factory_mod.NewYearGreetingController.assert_called_once_with(window=window)
+        factory_mod.NewYearGreetingController.assert_called_once_with(
+            window=window,
+            register_tooltip_blocker=components.runtime.register_tooltip_blocker,
+        )
         factory_mod.StartupTipsController.assert_called_once_with(
             window=window,
             config=config,
+            register_tooltip_blocker=components.runtime.register_tooltip_blocker,
         )
         components.startup_popups.register.assert_any_call(components.new_year)
         components.startup_popups.register.assert_any_call(components.update_checker)

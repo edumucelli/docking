@@ -4,9 +4,11 @@ Covers positioning math, content caching (flicker prevention), and
 the hide/show lifecycle that prevents spurious crossing events.
 """
 
+import gc
 from collections.abc import Callable
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from weakref import ref
 
 import docking.ui.tooltip as tooltip_mod
 from docking.core.layout import LayoutItem
@@ -17,6 +19,36 @@ from docking.ui.tooltip import (
     TooltipManager,
     compute_tooltip_position,
 )
+
+
+class _BlockingSurface:
+    def __init__(self) -> None:
+        self._mapped = False
+        self._signals: dict[str, list[Callable[[object], None]]] = {}
+        self.connect_count = 0
+
+    def connect(self, signal: str, callback: Callable[[object], None]) -> None:
+        self.connect_count += 1
+        self._signals.setdefault(signal, []).append(callback)
+
+    def get_mapped(self) -> bool:
+        return self._mapped
+
+    def show(self) -> None:
+        self._mapped = True
+        self._emit("map")
+
+    def hide(self) -> None:
+        self._mapped = False
+        self._emit("unmap")
+
+    def destroy(self) -> None:
+        self._mapped = False
+        self._emit("destroy")
+
+    def _emit(self, signal: str) -> None:
+        for callback in self._signals.get(signal, []):
+            callback(self)
 
 
 class TestTooltipManagerInit:
@@ -98,20 +130,77 @@ class TestTooltipHide:
         # Then
         tooltip._tooltip_window.hide.assert_called_once()
 
-    def test_suppressed_tooltip_ignores_updates_until_resumed(self):
+    def test_registered_surface_blocks_updates_until_hidden(self):
         tooltip = _make_tooltip()
-        tooltip._show_tooltip = MagicMock()  # type: ignore[method-assign]
+        tooltip._schedule_show = MagicMock()  # type: ignore[method-assign]
         item = _make_item("Devices")
+        surface = _BlockingSurface()
 
-        tooltip.set_suppressed(True)
+        tooltip.register_blocking_surface(surface)
+        surface.show()
+        tooltip.update(item, _frame_for_item(item))
+        item.name = "Devices (updated)"
         tooltip.update(item, _frame_for_item(item))
 
-        assert tooltip._suppressed is True
-        tooltip._show_tooltip.assert_not_called()
+        tooltip._schedule_show.assert_not_called()
 
-        tooltip.set_suppressed(False)
+        surface.hide()
+        tooltip.update(item, _frame_for_item(item))
 
-        assert tooltip._suppressed is False
+        tooltip._schedule_show.assert_called_once()
+
+    def test_nested_surfaces_keep_tooltip_blocked_until_both_close(self):
+        tooltip = _make_tooltip()
+        tooltip._schedule_show = MagicMock()  # type: ignore[method-assign]
+        item = _make_item("Devices")
+        first = _BlockingSurface()
+        second = _BlockingSurface()
+
+        tooltip.register_blocking_surface(first)
+        tooltip.register_blocking_surface(second)
+        first.show()
+        second.show()
+        first.hide()
+        tooltip.update(item, _frame_for_item(item))
+
+        tooltip._schedule_show.assert_not_called()
+
+        second.destroy()
+        tooltip.update(item, _frame_for_item(item))
+
+        tooltip._schedule_show.assert_called_once()
+
+    def test_duplicate_surface_registration_connects_lifecycle_once(self):
+        tooltip = _make_tooltip()
+        surface = _BlockingSurface()
+
+        tooltip.register_blocking_surface(surface)
+        tooltip.register_blocking_surface(surface)
+
+        assert surface.connect_count == 3
+
+    def test_mapped_surface_is_retained_until_it_unmaps(self):
+        tooltip = _make_tooltip()
+        tooltip._schedule_show = MagicMock()  # type: ignore[method-assign]
+        item = _make_item("Network")
+        surface = _BlockingSurface()
+        surface_ref = ref(surface)
+        tooltip.register_blocking_surface(surface)
+        surface.show()
+
+        del surface
+        gc.collect()
+
+        mapped_surface = surface_ref()
+        assert mapped_surface is not None
+        tooltip.update(item, _frame_for_item(item))
+        tooltip._schedule_show.assert_not_called()
+
+        mapped_surface.hide()
+        del mapped_surface
+        gc.collect()
+
+        assert surface_ref() is None
 
     def test_update_with_missing_geometry_returns_without_showing(self):
         tooltip = _make_tooltip()

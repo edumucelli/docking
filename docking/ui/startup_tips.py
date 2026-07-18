@@ -78,11 +78,13 @@ class StartupTipsController:
         config: Config,
         state_path: Path | str | None = None,
         chooser: Callable[[Sequence[StartupTip]], StartupTip] | None = None,
+        register_tooltip_blocker: Callable[[Gtk.Widget], None] | None = None,
     ) -> None:
         self._window = window
         self._config = config
         self._state_path = Path(state_path) if state_path is not None else None
         self._chooser = chooser
+        self._register_tooltip_blocker = register_tooltip_blocker
         self._start_source_id = 0
         self._popup: Gtk.Window | None = None
         self._current_tip: StartupTip | None = None
@@ -143,6 +145,8 @@ class StartupTipsController:
         self._current_tip = tip
         if self._popup is None:
             popup = Gtk.Window(type=Gtk.WindowType.POPUP)
+            if self._register_tooltip_blocker is not None:
+                self._register_tooltip_blocker(popup)
             popup.set_decorated(False)
             popup.set_skip_taskbar_hint(True)
             popup.set_resizable(False)

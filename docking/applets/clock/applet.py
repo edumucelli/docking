@@ -228,6 +228,7 @@ class ClockApplet(Applet):
             modal=True,
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         add_cancel_ok_buttons(dialog=dialog, ok_label=_("OK"), cancel_label=_("Cancel"))
         content = prepare_dialog_content(
             dialog=dialog,

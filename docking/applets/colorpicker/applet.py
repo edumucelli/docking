@@ -131,6 +131,8 @@ class ColorPickerApplet(Applet):
             key_handler=self._on_overlay_key,
             cursor_type=Gdk.CursorType.CROSSHAIR,
         )
+        if self._overlay is not None:
+            self.register_popup_surface(self._overlay)
 
     @staticmethod
     def _on_overlay_draw(widget: Gtk.Window, cr) -> bool:

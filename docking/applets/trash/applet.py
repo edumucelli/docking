@@ -258,6 +258,7 @@ class TrashApplet(Applet):
             buttons=Gtk.ButtonsType.NONE,
             text=_("Empty all items from Trash?"),
         )
+        self.register_popup_surface(dialog)
         dialog.format_secondary_text(
             _("All items in the Trash will be permanently deleted."),
         )

@@ -62,6 +62,7 @@ class SystemTrayApplet(Applet):
         self._legacy_host = XEmbedTrayHost(
             icon_size=min(32, max(22, icon_size)),
             on_changed=self._on_legacy_changed,
+            register_tooltip_blocker=self.register_popup_surface,
         )
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -290,6 +291,7 @@ class SystemTrayApplet(Applet):
             self._on_context_menu(identifier)
             return
 
+        self.register_popup_surface(menu)
         if self._popup is not None:
             self._popup.hide()
         self._item_menu = menu
@@ -354,6 +356,7 @@ class SystemTrayApplet(Applet):
             buttons=Gtk.ButtonsType.OK,
             text=_("Could not start the legacy tray"),
         )
+        self.register_popup_surface(dialog)
         dialog.format_secondary_text(message)
         dialog.run()
         dialog.destroy()
@@ -367,6 +370,7 @@ class SystemTrayApplet(Applet):
             buttons=Gtk.ButtonsType.CANCEL,
             text=_("Take over the legacy tray?"),
         )
+        self.register_popup_surface(dialog)
         dialog.add_button(_("Take Over"), Gtk.ResponseType.OK)
         dialog.format_secondary_text(
             _(

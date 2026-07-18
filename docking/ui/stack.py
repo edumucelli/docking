@@ -344,7 +344,6 @@ class StackPopupController:
 
         self._close_stack()
         self._runtime.hide_hover_ui()
-        self._runtime.suppress_tooltip()
         self._runtime.menu_popup_opened()
 
         window = self._ensure_stack_window()
@@ -432,7 +431,6 @@ class StackPopupController:
             revealer.set_reveal_child(False)
         window.hide()
         self._cleanup_stack()
-        self._runtime.resume_tooltip()
         self._runtime.menu_popup_closed()
 
     def _cleanup_stack(self) -> None:
@@ -461,6 +459,7 @@ class StackPopupController:
             return self._folder_stack_window
 
         window = Gtk.Window(type=Gtk.WindowType.POPUP)
+        self._runtime.register_tooltip_blocker(window)
         window.set_decorated(False)
         window.set_skip_taskbar_hint(True)
         window.set_resizable(False)

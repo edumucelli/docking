@@ -127,6 +127,7 @@ class RunCommandApplet(Applet):
             title=_("Run Application"),
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         dialog.add_button(_("Help"), Gtk.ResponseType.HELP)
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("Run"), Gtk.ResponseType.OK)
@@ -270,6 +271,7 @@ class RunCommandApplet(Applet):
             buttons=Gtk.ButtonsType.OK,
             text=_("Run Application"),
         )
+        self.register_popup_surface(help_dialog)
         help_dialog.format_secondary_text(
             _("Type a command or select an application to launch it."),
         )
@@ -347,6 +349,7 @@ class RunCommandApplet(Applet):
             parent=parent,
             action=Gtk.FileChooserAction.OPEN,
         )
+        self.register_popup_surface(dialog)
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("Open"), Gtk.ResponseType.OK)
         response = dialog.run()

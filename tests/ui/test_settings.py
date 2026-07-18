@@ -708,11 +708,13 @@ class TestSettingsWindowController:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        register_tooltip_blocker = MagicMock()
         controller = settings_mod.SettingsWindowController(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            register_tooltip_blocker=register_tooltip_blocker,
         )
 
         controller.show()
@@ -723,6 +725,7 @@ class TestSettingsWindowController:
         assert controller._window is window
         assert window.show_count == 2
         assert window.present_count == 2
+        register_tooltip_blocker.assert_called_once_with(window)
         assert window.position == FakeWindowPosition.CENTER
         switcher, stack = window.child.children
         assert isinstance(switcher, FakeStackSwitcher)

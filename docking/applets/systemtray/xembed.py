@@ -126,9 +126,16 @@ class XEmbedTrayHost:
     behavior used by older docks such as Cairo-Dock.
     """
 
-    def __init__(self, *, icon_size: int, on_changed: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        *,
+        icon_size: int,
+        on_changed: Callable[[], None],
+        register_tooltip_blocker: Callable[[Gtk.Widget], None] | None = None,
+    ) -> None:
         self._icon_size = max(16, icon_size)
         self._on_changed = on_changed
+        self._register_tooltip_blocker = register_tooltip_blocker
         self._xlib = _load_x11()
         self._gdk_lib = _load_gdk()
         self._display: int = 0
@@ -214,6 +221,8 @@ class XEmbedTrayHost:
             return False
 
         self._window = Gtk.Window(type=Gtk.WindowType.POPUP)
+        if self._register_tooltip_blocker is not None:
+            self._register_tooltip_blocker(self._window)
         self._window.set_decorated(False)
         self._window.set_resizable(False)
         self._window.set_skip_taskbar_hint(True)

@@ -29,6 +29,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from gi.repository import Gtk
+
     from docking.core.theme import Theme
     from docking.ui.dock_window import DockWindow
     from docking.ui.placement import MonitorChoice
@@ -90,11 +92,8 @@ class DockRuntime:
     def hide_tooltip(self) -> None:
         self._window.tooltip.hide()
 
-    def suppress_tooltip(self) -> None:
-        self._window.tooltip.set_suppressed(True)
-
-    def resume_tooltip(self) -> None:
-        self._window.tooltip.set_suppressed(False)
+    def register_tooltip_blocker(self, surface: Gtk.Widget) -> None:
+        self._window.tooltip.register_blocking_surface(surface)
 
     def hide_hover_ui(self) -> None:
         self._window.tooltip.hide()

@@ -28,6 +28,7 @@ ordinary GTK widgets do not:
 - showing too early while the dock itself is still animating,
 - rebuilding too aggressively while the pointer churns across adjacent items,
 - staying visible after the dock has already hidden,
+- being remapped above a menu, stack, or dialog after dynamic content changes,
 - looking attached to the wrong icon because the hover changed faster than the
   popup content could be rebuilt.
 
@@ -42,7 +43,8 @@ TooltipManager owns:
 - tooltip text/widget content replacement,
 - tooltip positioning from item anchor points,
 - screen clamping,
-- hide/cancel logic.
+- hide/cancel logic,
+- the visible lifecycle of surfaces that take priority over tooltips.
 
 It does not own:
 
@@ -142,6 +144,18 @@ So the intended behavior is:
 That means this module must cooperate with hover/interaction policy rather than
 attempting to own dock visibility.
 
+Tooltip priority surfaces
+
+Menus, dialogs, stacks, and applet popups must always win over tooltips. Merely
+hiding the tooltip when one opens is insufficient: an applet such as Network
+can change its tooltip text later, causing the normal update path to map the
+tooltip again. Registered priority surfaces therefore remain in a mapped set
+from their GTK ``map`` signal through ``unmap`` or ``destroy``. Every tooltip
+update checks that set, and nested surfaces keep the tooltip blocked until the
+last one closes. Using the mapped lifecycle is important for ``Gtk.Menu``
+because ``show_all()`` prepares its widgets but ``popup_at_pointer()`` maps the
+actual menu surface.
+
 Why screen clamping belongs here
 
 The geometry frame gives the ideal anchor. But the tooltip is a real popup
@@ -164,6 +178,7 @@ from __future__ import annotations
 import datetime as dt
 import math
 from typing import TYPE_CHECKING
+from weakref import WeakSet
 
 import gi
 
@@ -309,17 +324,40 @@ class TooltipManager:
         self._last_item: DockItem | None = None
         self._last_name: str = ""
         self._pending_show_source: int = 0
-        self._suppressed = False
+        self._registered_blocking_surfaces: WeakSet[Gtk.Widget] = WeakSet()
+        self._mapped_blocking_surfaces: set[Gtk.Widget] = set()
 
     def set_theme(self, theme: Theme) -> None:
         """Update the theme used for tooltip spacing."""
         self._theme = theme
 
-    def set_suppressed(self, suppressed: bool) -> None:
-        """Prevent tooltip display while a higher-priority popup is visible."""
-        self._suppressed = suppressed
-        if suppressed:
-            self.hide()
+    def register_blocking_surface(self, surface: Gtk.Widget) -> None:
+        """Keep tooltips hidden for the mapped lifetime of ``surface``.
+
+        Dialogs, menus, stacks, and applet popups are interaction surfaces,
+        while tooltips are only decoration. Tracking the GTK lifecycle here
+        gives those surfaces priority without relying on window-manager
+        stacking hints, and the mapped-surface set makes nested popups safe.
+        """
+        if surface in self._registered_blocking_surfaces:
+            return
+        self._registered_blocking_surfaces.add(surface)
+        surface.connect("map", self._on_blocking_surface_mapped)
+        surface.connect("unmap", self._on_blocking_surface_unmapped)
+        surface.connect("destroy", self._on_blocking_surface_destroyed)
+        if surface.get_mapped() is True:
+            self._on_blocking_surface_mapped(surface)
+
+    def _on_blocking_surface_mapped(self, surface: Gtk.Widget) -> None:
+        self._mapped_blocking_surfaces.add(surface)
+        self.hide()
+
+    def _on_blocking_surface_unmapped(self, surface: Gtk.Widget) -> None:
+        self._mapped_blocking_surfaces.discard(surface)
+
+    def _on_blocking_surface_destroyed(self, surface: Gtk.Widget) -> None:
+        self._mapped_blocking_surfaces.discard(surface)
+        self._registered_blocking_surfaces.discard(surface)
 
     def update(
         self,
@@ -332,7 +370,7 @@ class TooltipManager:
         tooltip visible to avoid flicker. The dock's _on_leave hides it
         when the mouse actually exits the dock.
         """
-        if self._suppressed or not self._config.tooltips_enabled:
+        if self._mapped_blocking_surfaces or not self._config.tooltips_enabled:
             self.hide()
             return
 

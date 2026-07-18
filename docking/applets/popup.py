@@ -52,6 +52,7 @@ class PopupAnchor:
     y: int
     position: Position
     parent: Gtk.Window | None = None
+    register_tooltip_blocker: Callable[[Gtk.Widget], None] | None = None
 
 
 def entry_completion_combo(
@@ -149,6 +150,8 @@ def show_wrapped_popup(
     anchor: PopupAnchor | None = None,
 ) -> None:
     """Replace popup content, show it, and place it near the applet anchor."""
+    if anchor is not None and anchor.register_tooltip_blocker is not None:
+        anchor.register_tooltip_blocker(window)
     child = window.get_child()
     if child:
         window.remove(child)

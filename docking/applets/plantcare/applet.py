@@ -241,6 +241,7 @@ class PlantCareApplet(Applet):
             title=_("Plant Care"),
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
         content = prepare_dialog_content(
             dialog=dialog,
@@ -468,6 +469,7 @@ class PlantCareApplet(Applet):
             modal=True,
             destroy_with_parent=True,
         )
+        self.register_popup_surface(dialog)
         add_cancel_ok_buttons(
             dialog=dialog,
             ok_label=_("Save"),

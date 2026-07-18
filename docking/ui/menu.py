@@ -361,6 +361,7 @@ class MenuHandler:
 
     def _new_popup_menu(self) -> Gtk.Menu:
         menu = Gtk.Menu()
+        self._runtime.register_tooltip_blocker(menu)
         self._runtime.menu_popup_opened()
         menu.connect("hide", self._on_menu_popup_closed)
         menu.connect("deactivate", self._on_menu_popup_closed)
@@ -437,6 +438,7 @@ class MenuHandler:
             transient_for=self._dock_window,
             action=Gtk.FileChooserAction.OPEN,
         )
+        self._runtime.register_tooltip_blocker(dialog)
         dialog.add_buttons(
             _("Cancel"),
             Gtk.ResponseType.CANCEL,
@@ -471,6 +473,7 @@ class MenuHandler:
             buttons=Gtk.ButtonsType.CLOSE,
             text=_("Could not use selected icon"),
         )
+        self._runtime.register_tooltip_blocker(dialog)
         dialog.format_secondary_text(str(path))
         try:
             dialog.run()

@@ -149,7 +149,7 @@ def test_activation_uses_latest_callback_and_closes_popup():
     controller._close_stack.assert_called_once()
 
 
-def test_visible_stack_suppresses_tooltips_until_closed():
+def test_visible_stack_uses_popup_lifecycle_until_closed():
     controller = _controller()
     runtime = controller._runtime
     window = MagicMock()
@@ -167,10 +167,10 @@ def test_visible_stack_suppresses_tooltips_until_closed():
         anchor=SimpleNamespace(x=100, y=200, position="bottom"),
     )
 
-    runtime.suppress_tooltip.assert_called_once()
-    runtime.resume_tooltip.reset_mock()
+    runtime.menu_popup_opened.assert_called_once()
+    runtime.menu_popup_closed.reset_mock()
     controller.close()
-    runtime.resume_tooltip.assert_called_once()
+    runtime.menu_popup_closed.assert_called_once()
 
 
 def test_refresh_reloads_visible_provider_content():

@@ -211,6 +211,31 @@ class TestButtonReleaseFlow:
             force_background=True,
         )
 
+    def test_right_click_sets_applet_popup_anchor_before_building_menu(self):
+        item = DockItem(desktop_id="applet://clock")
+        stub, _item = _make_stub(item=item)
+        applet = MagicMock()
+        anchor = MagicMock()
+        stub.model.get_applet.return_value = applet
+        stub.popup_anchor_for_item = MagicMock(return_value=anchor)
+        event = SimpleNamespace(
+            x=12.0,
+            y=6.0,
+            button=dock_window_mod.MOUSE_RIGHT,
+            state=0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
+        )
+
+        assert handled is True
+        stub.popup_anchor_for_item.assert_called_once_with(
+            item,
+            stub._test_geometry_frame,
+        )
+        applet.set_popup_anchor.assert_called_once_with(anchor)
+
     def test_left_click_on_applet_updates_tooltip_immediately(self, monkeypatch):
         # Given
         item = DockItem(desktop_id="applet://quote")
