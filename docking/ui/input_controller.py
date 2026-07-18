@@ -25,7 +25,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
-from docking.core.config import FolderStackUnfold, LeftClickAction, MiddleClickAction
+from docking.core.config import LeftClickAction, MiddleClickAction, StackUnfold
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
 from docking.log import get_logger
@@ -33,7 +33,7 @@ from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.ui.autohide import HideState
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
-from docking.ui.dock_interactions import DockInteractions, FolderStackAnchor
+from docking.ui.dock_interactions import DockInteractions, StackAnchor
 from docking.ui.geometry import current_input_rect
 from docking.ui.renderer import RenderState
 
@@ -121,9 +121,11 @@ class DockInputController:
 
     def _connect_model(self) -> None:
         self._window.model.add_change_listener(self._on_model_changed)
+        self._window.model.add_applet_change_listener(self._on_applet_changed)
 
     def _disconnect_model(self) -> None:
         self._window.model.remove_change_listener(self._on_model_changed)
+        self._window.model.remove_applet_change_listener(self._on_applet_changed)
 
     def _on_destroy(self, _window: Gtk.Window) -> None:
         self.stop()
@@ -214,16 +216,14 @@ class DockInputController:
             )
             window.hover.update(cursor_main, frame=frame)
             if (
-                window.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
+                window.config.stack_unfold == StackUnfold.HOVER.value
                 and window.hover.hovered_item is not None
-                and window.hover.hovered_item.kind == FOLDER_KIND
             ):
-                self._show_folder_stack_for_item(
+                self._show_hover_stack_for_item(
                     item=window.hover.hovered_item,
                     frame=frame,
                     fallback_x=window.cursor_x,
                     fallback_y=window.cursor_y,
-                    toggle_if_same_item=False,
                 )
 
         if window.renderer.has_active_urgent_glow(
@@ -245,7 +245,7 @@ class DockInputController:
         window.update_input_region(frame=frame)
         window._schedule_redraw()
         hovered_item = frame.item_at_point(event.x, event.y)
-        self._interactions.close_folder_stack_unless_target(hovered_item)
+        self._interactions.close_stack_unless_target(hovered_item)
         if frame.cursor_rect.contains(event.x, event.y):
             window.interaction.on_effective_enter()
             cursor_main = (
@@ -257,20 +257,18 @@ class DockInputController:
             if hovered_item is not None and hovered_item.kind == FOLDER_KIND:
                 self._interactions.prewarm_folder_stack(hovered_item)
             if (
-                window.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
+                window.config.stack_unfold == StackUnfold.HOVER.value
                 and hovered_item is not None
-                and hovered_item.kind == FOLDER_KIND
                 and (
                     not window.autohide.enabled
                     or window.autohide.state == HideState.VISIBLE
                 )
             ):
-                self._show_folder_stack_for_item(
+                self._show_hover_stack_for_item(
                     item=hovered_item,
                     frame=frame,
                     fallback_x=event.x,
                     fallback_y=event.y,
-                    toggle_if_same_item=False,
                 )
         elif window.dock_hovered:
             window.interaction.on_effective_leave(widget)
@@ -285,6 +283,67 @@ class DockInputController:
         fallback_y: float,
         toggle_if_same_item: bool,
     ) -> None:
+        anchor = self._stack_anchor_for_item(
+            item=item,
+            frame=frame,
+            fallback_x=fallback_x,
+            fallback_y=fallback_y,
+        )
+        self._interactions.show_folder_stack(
+            item=item,
+            anchor=anchor,
+            toggle_if_same_item=toggle_if_same_item,
+        )
+
+    def _show_hover_stack_for_item(
+        self,
+        *,
+        item: DockItem,
+        frame: DockGeometryFrame,
+        fallback_x: float,
+        fallback_y: float,
+    ) -> bool:
+        """Open folder or applet stack content without toggling it closed."""
+        if item.kind == FOLDER_KIND:
+            self._show_folder_stack_for_item(
+                item=item,
+                frame=frame,
+                fallback_x=fallback_x,
+                fallback_y=fallback_y,
+                toggle_if_same_item=False,
+            )
+            return True
+        if not is_applet(desktop_id=item.desktop_id):
+            return False
+
+        window = self._window
+        applet = window.model.get_applet(item.desktop_id)
+        if applet is None:
+            return False
+        popup_anchor = window.popup_anchor_for_item(item, frame)
+        applet.set_popup_anchor(popup_anchor)
+        stack_anchor = self._stack_anchor_for_item(
+            item=item,
+            frame=frame,
+            fallback_x=fallback_x,
+            fallback_y=fallback_y,
+        )
+        return self._interactions.show_applet_stack(
+            applet=applet,
+            anchor=stack_anchor,
+            parent=(popup_anchor.parent if popup_anchor is not None else window),
+            toggle_if_same_owner=False,
+        )
+
+    def _stack_anchor_for_item(
+        self,
+        *,
+        item: DockItem,
+        frame: DockGeometryFrame,
+        fallback_x: float,
+        fallback_y: float,
+    ) -> StackAnchor:
+        """Build the stack-specific edge anchor independently of PopupAnchor."""
         window = self._window
         item_geometry = frame.geometry_for_item(item)
         if item_geometry is not None:
@@ -302,15 +361,11 @@ class DockInputController:
             anchor_x = win_x + int(fallback_x)
             anchor_y = win_y + int(fallback_y)
             icon_w = int(window.config.icon_size)
-        self._interactions.show_folder_stack(
-            item=item,
-            anchor=FolderStackAnchor(
-                x=anchor_x,
-                y=anchor_y,
-                icon_w=icon_w,
-                position=window.config.pos,
-            ),
-            toggle_if_same_item=toggle_if_same_item,
+        return StackAnchor(
+            x=anchor_x,
+            y=anchor_y,
+            icon_w=icon_w,
+            position=window.config.pos,
         )
 
     def _on_button_press(
@@ -362,7 +417,23 @@ class DockInputController:
             if is_applet(desktop_id=item.desktop_id):
                 applet = window.model.get_applet(item.desktop_id)
                 if applet:
-                    applet.set_popup_anchor(window.popup_anchor_for_item(item, frame))
+                    anchor = window.popup_anchor_for_item(item, frame)
+                    applet.set_popup_anchor(anchor)
+                    if event.button == MOUSE_LEFT:
+                        stack_anchor = self._stack_anchor_for_item(
+                            item=item,
+                            frame=frame,
+                            fallback_x=event.x,
+                            fallback_y=event.y,
+                        )
+                        if self._interactions.show_applet_stack(
+                            applet=applet,
+                            anchor=stack_anchor,
+                            parent=anchor.parent if anchor is not None else window,
+                        ):
+                            window.tooltip.hide()
+                            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                            return True
                     applet.on_clicked()
                     window.tooltip.update(item, frame)
                     window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
@@ -375,8 +446,7 @@ class DockInputController:
                     fallback_x=event.x,
                     fallback_y=event.y,
                     toggle_if_same_item=(
-                        window.config.folder_stack_unfold
-                        != FolderStackUnfold.HOVER.value
+                        window.config.stack_unfold != StackUnfold.HOVER.value
                     ),
                 )
                 window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
@@ -485,6 +555,12 @@ class DockInputController:
         window.update_input_region()
         window.hover.on_model_changed()
         self._interactions.prewarm_visible_folder_stacks(window.model.visible_items())
+        stack_owner_id = self._interactions.open_stack_owner_id()
+        if (
+            stack_owner_id is not None
+            and window.model.get_applet(stack_owner_id) is None
+        ):
+            self._interactions.refresh_open_applet_stack(None)
         if window.hover.hovered_item is not None:
             cursor_main = (
                 window.cursor_x
@@ -493,6 +569,14 @@ class DockInputController:
             )
             window.hover.update(cursor_main)
         window._schedule_redraw()
+
+    def _on_applet_changed(self, desktop_id: str) -> None:
+        """Refresh an open stack only when its owning applet changed."""
+        if self._interactions.open_stack_owner_id() != desktop_id:
+            return
+        self._interactions.refresh_open_applet_stack(
+            self._window.model.get_applet(desktop_id)
+        )
 
 
 def _scroll_direction_up(*, event: Gdk.EventScroll) -> bool | None:

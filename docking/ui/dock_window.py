@@ -198,6 +198,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.popup import PopupAnchor
+from docking.core.position import Position
 from docking.i18n import _
 from docking.platform.backends.base import (
     PreviewService,
@@ -579,7 +580,7 @@ class DockWindow(Gtk.Window):
         item: DockItem,
         frame: DockGeometryFrame,
     ) -> PopupAnchor | None:
-        """Build the current screen-space popup anchor for one dock item."""
+        """Build the current outer-center popup anchor for one dock item."""
         item_geometry = frame.geometry_for_item(item)
         if item_geometry is None:
             return None
@@ -589,6 +590,10 @@ class DockWindow(Gtk.Window):
             win_y=window_pos.y,
             position=self.config.pos,
         )
+        if self.config.pos in (Position.BOTTOM, Position.TOP):
+            anchor_x += int(item_geometry.draw_rect.w / 2)
+        else:
+            anchor_y += int(item_geometry.draw_rect.h / 2)
         return PopupAnchor(
             x=anchor_x,
             y=anchor_y,

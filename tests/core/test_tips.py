@@ -115,9 +115,14 @@ class TestSelectStartupTip:
         assert tip.id != FIRST_TIP_ID
         assert load_state(path=path).shown_tip_ids == (FIRST_TIP_ID, tip.id)
 
-    def test_catalog_has_exactly_twenty_unique_tips(self):
+    def test_catalog_has_exactly_twenty_three_unique_tips(self):
         ids = [tip.id for tip in STARTUP_TIPS]
 
-        assert len(STARTUP_TIPS) == 20
+        assert len(STARTUP_TIPS) == 23
         assert len(ids) == len(set(ids))
         assert ids[0] == tips_mod.FIRST_TIP_ID
+        assert {
+            "applications-drag-to-dock",
+            "clock-calendar",
+            "devices-stack",
+        } <= set(ids)

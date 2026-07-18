@@ -38,7 +38,7 @@ Recommends:
 Description: A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
  Inspired by Plank and Cairo-Dock.
  Features parabolic zoom, window previews, autohide, drag-and-drop,
- and an extensible applet system with 60 built-in applets for launchers,
+ and an extensible applet system with 61 built-in applets for launchers,
  productivity, system controls, wellness, media, and information.
  .
  Supports X11 and native Wayland backends where compositor protocols are available.

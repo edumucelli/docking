@@ -32,6 +32,9 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk
 
 if TYPE_CHECKING:
+    from gi.repository import Gtk
+
+    from docking.applets.base import Applet
     from docking.core.items import DockItem
     from docking.core.position import Position
     from docking.ui.folder.stack import FolderStackController
@@ -40,8 +43,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
-class FolderStackAnchor:
-    """Screen-space anchor for a folder-stack popup."""
+class StackAnchor:
+    """Screen-space anchor for a reusable stack popup."""
 
     x: int
     y: int
@@ -82,7 +85,7 @@ class DockInteractions:
         self,
         *,
         item: DockItem,
-        anchor: FolderStackAnchor,
+        anchor: StackAnchor,
         toggle_if_same_item: bool = True,
     ) -> None:
         """Show a folder stack popup for the provided dock item."""
@@ -100,12 +103,12 @@ class DockInteractions:
         if self._folder_stack.open_item_id() == desktop_id:
             self._folder_stack.close()
 
-    def close_folder_stack_unless_target(self, hovered_item: DockItem | None) -> None:
-        """Close the visible stack when the pointer leaves its source folder."""
-        open_item_id = self._folder_stack.open_item_id()
-        if open_item_id is None:
+    def close_stack_unless_target(self, hovered_item: DockItem | None) -> None:
+        """Close the visible stack when the pointer leaves its source item."""
+        owner_id = self._folder_stack.open_owner_id()
+        if owner_id is None:
             return
-        if hovered_item is not None and hovered_item.desktop_id == open_item_id:
+        if hovered_item is not None and hovered_item.desktop_id == owner_id:
             return
         self._folder_stack.close()
 
@@ -120,3 +123,37 @@ class DockInteractions:
     def folder_stack_item_id(self) -> str | None:
         """Return the desktop id that owns the currently visible folder stack."""
         return self._folder_stack.open_item_id()
+
+    def show_applet_stack(
+        self,
+        *,
+        applet: Applet,
+        anchor: StackAnchor,
+        parent: Gtk.Window | None,
+        toggle_if_same_owner: bool = True,
+    ) -> bool:
+        """Show declarative stack content supplied by an applet."""
+        return self._folder_stack.show_applet_stack(
+            owner_id=applet.item.desktop_id,
+            provider=applet.stack_content,
+            anchor_x=anchor.x,
+            anchor_y=anchor.y,
+            icon_w=anchor.icon_w,
+            position=anchor.position,
+            parent=parent,
+            toggle_if_same_owner=toggle_if_same_owner,
+        )
+
+    def refresh_open_applet_stack(self, applet: Applet | None) -> None:
+        """Refresh or close the currently open declarative applet stack."""
+        owner_id = self._folder_stack.open_owner_id()
+        if owner_id is None or self._folder_stack.open_item_id() is not None:
+            return
+        if applet is None or applet.item.desktop_id != owner_id:
+            self._folder_stack.close()
+            return
+        self._folder_stack.refresh(owner_id=owner_id)
+
+    def open_stack_owner_id(self) -> str | None:
+        """Return the owner of any currently visible reusable stack."""
+        return self._folder_stack.open_owner_id()

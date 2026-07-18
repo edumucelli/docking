@@ -301,6 +301,11 @@ class TestAppletDefaultHooks:
         applet = _DeferredInitApplet()
         assert applet.on_drop_uris(["file:///test.txt"]) is False
 
+    def test_stack_content_defaults_to_none(self):
+        applet = _DeferredInitApplet()
+
+        assert applet.stack_content(48) is None
+
     def test_set_services_default_is_noop(self):
         applet = _DeferredInitApplet()
         services = MagicMock()

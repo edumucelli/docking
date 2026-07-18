@@ -86,6 +86,7 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.ui.stack import StackContent
 
 log = get_logger("applets.base")
 
@@ -455,6 +456,11 @@ class Applet(ABC):
     def on_clicked(self) -> None:
         """Handle left-click (default: no-op)."""
         return
+
+    def stack_content(self, icon_size: int) -> StackContent | None:
+        """Return reusable stack content, or None for normal click handling."""
+        _ = icon_size
+        return None
 
     @property
     def popup_anchor(self) -> PopupAnchor | None:

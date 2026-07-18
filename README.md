@@ -36,7 +36,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 60 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- 61 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -140,8 +140,11 @@ cd docking
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 
-# Install with development dependencies and GTK 3 type stubs
-PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 pip install -e ".[dev]"
+# Install development dependencies, then GTK 3 type stubs without replacing
+# the distribution-provided PyGObject runtime
+pip install -e ".[dev]"
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+  pip install --no-deps -r requirements-typing.txt
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
@@ -150,6 +153,8 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv venv --python /usr/bin/python3 --system-site-packages .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+  uv pip install --no-deps -r requirements-typing.txt
 ```
 
 ## Running
@@ -212,10 +217,10 @@ switching.
 - Workspace-aware filtering
 
 **Not available through public KWin 6 APIs:**
-- Window actions (activate, minimize, close) — KWin 6 has no public
+- Window actions (activate, minimize, close): KWin 6 has no public
   protocol for third-party window management
-- Window previews — no capture protocol available
-- Active-window highlighting — KWin does not expose the focused window
+- Window previews: no capture protocol available
+- Active-window highlighting: KWin does not expose the focused window
   through a public API
 
 No extra configuration is needed. The backend auto-detects a KDE Plasma
@@ -312,7 +317,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
   "active_display": false,
   "left_click_action": "toggle",
   "middle_click_action": "new-window",
-  "folder_stack_unfold": "hover",
+  "stack_unfold": "hover",
   "window_list_sort": "default",
   "show_window_count_numbers": false,
   "theme": "default",
@@ -354,7 +359,7 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 | `update_check_interval_hours` | 24 | Minimum hours between automatic update checks |
 | `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
 | `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
-| `folder_stack_unfold` | hover | Folder stack open behavior: `hover` or `click` |
+| `stack_unfold` | hover | Stack open behavior: `hover` or `click` |
 | `window_list_sort` | default | Open-window menu order: `default` or `alphabetical` |
 | `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
 | `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
@@ -376,7 +381,13 @@ Config is stored at `~/.config/docking/dock.json` (auto-created on first run). N
 - `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
 - `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
 
-All settings are also configurable via the dock's right-click menu. On multi-monitor setups, use **Display** to move the dock to another monitor. The preferences window also exposes **Mouse** actions so left click can toggle, cycle, or focus the most recently used window of the running app, and middle click can open a new window, minimize the app windows, or close the app's focused window. Pick the left-click mode under right-click -> **Preferences** -> **Behavior** -> **Mouse**. Update checks live under right-click -> **Preferences** -> **Updates**, where you can disable automatic checks, choose daily or weekly checks, check immediately, or open the releases page. Runtime support details live under right-click -> **Diagnostics**, which shows the selected backend, session environment, available platform features, optional helpers, and a copyable report for support requests.
+The dock's right-click menu also provides quick access to:
+
+- **Display** to move the dock between monitors.
+- **Preferences** -> **Behavior** -> **Mouse** to choose left- and
+  middle-click actions.
+- **Preferences** -> **Updates** to configure or run update checks.
+- **Diagnostics** to inspect runtime support and copy a support report.
 
 Docking stores update-check preferences in `dock.json`. Runtime update state,
 such as the last checked timestamp, ignored release version, and remind-later
@@ -614,6 +625,21 @@ Shows mounted removable USB storage devices and provides safe-remove actions wit
 **Tooltip:** mounted device count and mount paths
 **Right-click options:**
 - **Safely Remove _device_** -- unmount and eject a removable USB device when supported
+
+</details>
+
+### Devices
+
+<details>
+<summary>Details</summary>
+
+Shows every mounted device exposed by the desktop volume monitor in a live stack.
+Selecting a device opens its mounted location. The stack updates automatically
+when devices are mounted or unmounted.
+
+**Click:** Open the mounted-devices stack
+**Right-click option:**
+- **Refresh Devices** -- reload the current mounted-device list
 
 </details>
 

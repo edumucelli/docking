@@ -26,6 +26,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.calendar.applet import show_calendar_popup
 from docking.applets.clock import meta
 from docking.applets.clock.render import render_icon
 from docking.applets.clock.state import (
@@ -55,6 +56,7 @@ class ClockApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._timer = _ClockTimer()
+        self._calendar_popup: Gtk.Window | None = None
 
         prefs = config.applet_prefs.get("clock", {}) if config else None
         self._raw_alarm_target = self._prefs_alarm_target(prefs)
@@ -94,6 +96,13 @@ class ClockApplet(Applet):
     def on_clicked(self) -> None:
         if self.item.is_urgent:
             self._acknowledge_alarm()
+        if self._calendar_popup and self._calendar_popup.get_visible():
+            self._calendar_popup.hide()
+            return
+        self._calendar_popup = show_calendar_popup(
+            popup=self._calendar_popup,
+            anchor=self.popup_anchor,
+        )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Clock display, seconds, and one-shot alarm controls."""
@@ -174,6 +183,9 @@ class ClockApplet(Applet):
 
     def stop(self) -> None:
         self._timer.stop()
+        if self._calendar_popup:
+            self._calendar_popup.destroy()
+            self._calendar_popup = None
         super().stop()
 
     def _on_tick(self) -> None:

@@ -75,6 +75,7 @@ from docking.applets.currencyfx.state import FxPoint, FxSnapshot
 from docking.applets.deskpresence.render import render_icon as render_deskpresence
 from docking.applets.deskpresence.state import Presence as DeskpresencePresence
 from docking.applets.desktop.render import create_icon as render_desktop
+from docking.applets.devices.render import create_devices_icon
 from docking.applets.docker.render import render_icon as render_docker
 from docking.applets.dragshare.render import render_icon as render_dragshare
 from docking.applets.dragshare.state import DragshareStatus
@@ -328,6 +329,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             at_desk_seconds=3 * 3600 + 24 * 60,
         ),
         AppletId.DESKTOP: render_desktop(size=size),
+        AppletId.DEVICES: create_devices_icon(size=size, device_count=2),
         AppletId.DOCKER: render_docker(size=size, running_count=3, available=True),
         AppletId.DRAGSHARE: render_dragshare(
             size=size,
