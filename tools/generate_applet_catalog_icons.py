@@ -94,6 +94,8 @@ from docking.applets.network.render import create_icon as render_network
 from docking.applets.notifications.render import create_notifications_icon
 from docking.applets.pet.render import render_icon as render_pet
 from docking.applets.pet.state import PetState
+from docking.applets.plantcare.render import render_icon as render_plantcare
+from docking.applets.plantcare.state import CareStatus, PlantCareSnapshot
 from docking.applets.pomodoro.render import render_icon as render_pomodoro
 from docking.applets.pomodoro.state import PomodoroState
 from docking.applets.powerprofiles.render import create_power_profiles_icon
@@ -382,6 +384,15 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             activity=False,
         ),
         AppletId.PET: render_pet(size=size, state=PetState()),
+        AppletId.PLANTCARE: render_plantcare(
+            size=size,
+            snapshot=PlantCareSnapshot(
+                status=CareStatus.HEALTHY,
+                due_count=0,
+                overdue_count=0,
+                scheduled=(),
+            ),
+        ),
         AppletId.POMODORO: render_pomodoro(size=size, state=PomodoroState()),
         AppletId.POWERPROFILES: create_power_profiles_icon(
             size=size,

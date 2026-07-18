@@ -36,7 +36,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 59 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- 61 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -1248,6 +1248,33 @@ Water drop icon that drains over a configurable interval, reminding you to drink
 - **Interval presets** -- 15/30/45/60/90 min
 
 **Preferences stored:** `interval`, `show_timer`
+
+</details>
+
+### Plant Care
+
+<details>
+<summary>Details</summary>
+
+Offline care reminders for multiple plants. The sprout icon shows whether care
+is on schedule, due today, or overdue, with a compact count when tasks need
+attention.
+
+**Click:** Open the care manager with due and upcoming tasks
+**Right-click options:**
+- due task actions -- mark done or snooze for one day
+- **Add Plant...** -- configure a plant and its recurring schedules
+- **Manage Plants...** -- review, edit, or remove configured plants
+- **Refresh Now**
+
+Supported schedules include watering, fertilizing, misting, rotating, pruning,
+repotting, and pest checks. Schedules use local calendar dates and act as
+reminders rather than measurements of actual plant or soil conditions.
+
+**Preferences stored:** plant names, optional species labels, enabled care
+tasks, intervals, last-completed dates, and snooze dates
+
+**Update interval:** 15 minutes
 
 </details>
 
