@@ -51,6 +51,8 @@ def _make_config(pinned: list[str], *, show_recent_apps: bool = False):
     config.anchor_applets = False
     config.anchor_files = False
     config.item_prefs = {}
+    config.show_launcher_badges = True
+    config.show_launcher_progress = True
     config.show_recent_apps = show_recent_apps
     config.recent_apps_max = 5
     config.recent_apps_retention_days = 14
@@ -878,6 +880,212 @@ class TestLauncherEntryState:
         assert item.badge_visible is True
         assert item.progress == 0.6
         assert item.progress_visible is True
+        assert item.launcher_entry_urgent is True
+        assert item.is_urgent is True
+
+    def test_hidden_badge_retains_count_on_existing_item(self):
+        config = _make_config(["a.desktop"])
+        config.show_launcher_badges = False
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://a.desktop",
+                desktop_id="a.desktop",
+                badge_count=4,
+                badge_visible=True,
+            ),
+        )
+
+        item = model.visible_items()[0]
+        assert item.badge_count == 4
+        assert item.badge_visible is False
+
+    def test_hidden_progress_retains_value_on_existing_item(self):
+        config = _make_config(["a.desktop"])
+        config.show_launcher_progress = False
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://a.desktop",
+                desktop_id="a.desktop",
+                progress=0.6,
+                progress_visible=True,
+            ),
+        )
+
+        item = model.visible_items()[0]
+        assert item.progress == 0.6
+        assert item.progress_visible is False
+
+    def test_hidden_overlay_does_not_create_launcher_only_transient(self):
+        config = _make_config([])
+        config.show_launcher_badges = False
+        config.show_launcher_progress = False
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=7,
+            badge_visible=True,
+            progress=0.5,
+            progress_visible=True,
+        )
+
+        applied = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        assert applied is False
+        assert model.visible_items() == []
+
+        config.show_launcher_badges = True
+        model.refresh_launcher_overlay_visibility()
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].badge_count == 7
+        assert items[0].badge_visible is True
+        assert items[0].progress == 0.5
+        assert items[0].progress_visible is False
+
+    def test_zero_count_badge_does_not_create_launcher_only_transient(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=0,
+            badge_visible=True,
+        )
+
+        applied = model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        assert applied is False
+        assert model.visible_items() == []
+
+    def test_refresh_hides_transient_and_reenabling_restores_cached_state(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=7,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        config.show_launcher_badges = False
+        model.refresh_launcher_overlay_visibility()
+
+        assert model.visible_items() == []
+
+        config.show_launcher_badges = True
+        model.refresh_launcher_overlay_visibility()
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].desktop_id == "mail.desktop"
+        assert items[0].badge_count == 7
+        assert items[0].badge_visible is True
+
+    def test_refresh_keeps_urgent_transient_when_visual_overlays_are_hidden(self):
+        config = _make_config([])
+        launcher = _make_launcher("mail.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        state = LauncherEntryState(
+            sender_name=":1.9",
+            app_uri="application://mail.desktop",
+            desktop_id="mail.desktop",
+            badge_count=7,
+            badge_visible=True,
+            urgent=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.9",
+            app_uri=state.app_uri,
+            state=state,
+            create_transient=True,
+        )
+
+        config.show_launcher_badges = False
+        config.show_launcher_progress = False
+        model.refresh_launcher_overlay_visibility()
+
+        items = model.visible_items()
+        assert len(items) == 1
+        assert items[0].badge_visible is False
+        assert items[0].launcher_entry_urgent is True
+        assert items[0].is_urgent is True
+
+    def test_refresh_preserves_latest_sender_urgency(self):
+        config = _make_config(["a.desktop"])
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        urgent_state = LauncherEntryState(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            desktop_id="a.desktop",
+            urgent=True,
+        )
+        badge_state = LauncherEntryState(
+            sender_name=":1.8",
+            app_uri="application://a.desktop",
+            desktop_id="a.desktop",
+            badge_count=4,
+            badge_visible=True,
+        )
+        model.apply_launcher_entry(
+            sender_name=urgent_state.sender_name,
+            app_uri=urgent_state.app_uri,
+            state=urgent_state,
+        )
+        model.apply_launcher_entry(
+            sender_name=badge_state.sender_name,
+            app_uri=badge_state.app_uri,
+            state=badge_state,
+        )
+        model.apply_launcher_entry(
+            sender_name=urgent_state.sender_name,
+            app_uri=urgent_state.app_uri,
+            state=urgent_state,
+        )
+        assert model.visible_items()[0].launcher_entry_urgent is True
+
+        config.show_launcher_badges = False
+        model.refresh_launcher_overlay_visibility()
+
+        item = model.visible_items()[0]
+        assert item.badge_visible is False
         assert item.launcher_entry_urgent is True
         assert item.is_urgent is True
 

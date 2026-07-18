@@ -91,6 +91,8 @@ def _renderer_config() -> SimpleNamespace:
         zoom_enabled=True,
         additional_distance_from_edge=0,
         show_window_count_numbers=False,
+        show_launcher_badges=True,
+        show_launcher_progress=True,
         applet_prefs={},
     )
 

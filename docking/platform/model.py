@@ -205,6 +205,23 @@ class LauncherEntryState:
         )
 
 
+def launcher_state_shows_effective_overlay(
+    *,
+    state: LauncherEntryState,
+    config: Config,
+) -> bool:
+    """Whether publisher state should currently create a visible dock item."""
+    return (
+        state.urgent
+        or (config.show_launcher_progress and state.progress_visible)
+        or (
+            config.show_launcher_badges
+            and state.badge_visible
+            and state.badge_count > 0
+        )
+    )
+
+
 class DockModel:
     """Ordered collection of dock items, merging pinned and running apps."""
 
@@ -578,9 +595,15 @@ class DockModel:
         self, *, item: DockItem, state: LauncherEntryState
     ) -> None:
         item.badge_count = state.badge_count
-        item.badge_visible = state.badge_visible
+        item.badge_visible = (
+            self._config.show_launcher_badges
+            and state.badge_visible
+            and state.badge_count > 0
+        )
         item.progress = clamp(state.progress, 0.0, 1.0)
-        item.progress_visible = state.progress_visible
+        item.progress_visible = (
+            self._config.show_launcher_progress and state.progress_visible
+        )
         item.launcher_entry_urgent = state.urgent
         self._recompute_urgent(item=item)
 
@@ -628,6 +651,7 @@ class DockModel:
         create_transient: bool = False,
     ) -> bool:
         """Apply LauncherEntry state to a visible item or create a transient one."""
+        self._launcher_entries.pop(sender_name, None)
         self._launcher_entries[sender_name] = state
         item = self._find_launcher_target(
             sender_name=sender_name,
@@ -637,7 +661,10 @@ class DockModel:
             item is None
             and create_transient
             and state.desktop_id
-            and state.shows_overlay
+            and launcher_state_shows_effective_overlay(
+                state=state,
+                config=self._config,
+            )
         ):
             item = self.find_by_desktop_id(desktop_id=state.desktop_id)
             if item is None:
@@ -657,10 +684,81 @@ class DockModel:
 
         self._launcher_item_by_sender[sender_name] = item.desktop_id
         self._apply_launcher_state(item=item, state=state)
-        if item in self._transient and not item.is_running and not state.shows_overlay:
+        if (
+            item in self._transient
+            and not item.is_running
+            and not launcher_state_shows_effective_overlay(
+                state=state,
+                config=self._config,
+            )
+        ):
             self._drop_transient(item=item)
         self.notify()
         return True
+
+    def refresh_launcher_overlay_visibility(self) -> None:
+        """Reapply cached publisher state after an overlay preference changes.
+
+        LauncherEntry state is retained even while hidden so re-enabling a
+        preference restores an active overlay without waiting for another
+        D-Bus signal. Rebuilding launcher-only transients here also prevents
+        hidden badge/progress state from leaving unexplained icons in the dock.
+        """
+        existing_transient = {
+            item.desktop_id: item for item in self._transient if item.kind == APP_KIND
+        }
+        self._transient = [item for item in self._transient if item.is_running]
+
+        stable_items = self.pinned_items + self._recent_apps + self._transient
+        items_by_desktop_id = {
+            item.desktop_id: item for item in stable_items if item.kind == APP_KIND
+        }
+        for item in items_by_desktop_id.values():
+            self._clear_launcher_state(item)
+            self._recompute_urgent(item=item)
+
+        for sender_name, state in self._launcher_entries.items():
+            desktop_id = state.desktop_id or self._launcher_item_by_sender.get(
+                sender_name
+            )
+            item = items_by_desktop_id.get(desktop_id) if desktop_id else None
+            if (
+                item is None
+                and desktop_id
+                and launcher_state_shows_effective_overlay(
+                    state=state,
+                    config=self._config,
+                )
+            ):
+                item = existing_transient.get(desktop_id)
+                if item is None:
+                    resolved = self._launcher.resolve(
+                        desktop_id=desktop_id,
+                        log_failures=False,
+                    )
+                    if resolved is not None:
+                        item = self._make_app_item(
+                            desktop_id=desktop_id,
+                            is_pinned=False,
+                            running_info=None,
+                        )
+                if item is not None:
+                    item.is_pinned = False
+                    item.is_running = False
+                    item.is_active = False
+                    item.instance_count = 0
+                    item.window_urgent = False
+                    self._transient.append(item)
+                    items_by_desktop_id[desktop_id] = item
+
+            if item is None:
+                if desktop_id is None:
+                    self._launcher_item_by_sender.pop(sender_name, None)
+                continue
+            self._launcher_item_by_sender[sender_name] = item.desktop_id
+            self._apply_launcher_state(item=item, state=state)
+
+        self.notify()
 
     def remove_launcher_entry(self, *, sender_name: str) -> None:
         """Clear LauncherEntry state for a vanished sender."""
@@ -1134,7 +1232,10 @@ class DockModel:
         items_by_desktop_id: dict[str, DockItem],
     ) -> DockItem | None:
         """Return or create a transient item that only has launcher overlay state."""
-        if not state.desktop_id or not state.shows_overlay:
+        if not state.desktop_id or not launcher_state_shows_effective_overlay(
+            state=state,
+            config=self._config,
+        ):
             return None
         if state.desktop_id in items_by_desktop_id:
             return items_by_desktop_id[state.desktop_id]

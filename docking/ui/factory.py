@@ -146,6 +146,7 @@ def build_dock_window(
     settings_actions = SettingsActions(
         runtime=runtime,
         dnd=dnd,
+        model=model,
     )
     settings = SettingsWindowController(
         parent=window,

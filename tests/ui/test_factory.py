@@ -187,6 +187,7 @@ class TestBuildDockWindow:
         factory_mod.SettingsActions.assert_called_once_with(
             runtime=components.runtime,
             dnd=components.dnd,
+            model=model,
         )
         factory_mod.SettingsWindowController.assert_called_once_with(
             parent=window,

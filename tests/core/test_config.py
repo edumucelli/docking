@@ -41,6 +41,8 @@ class TestConfigDefaults:
         assert c.stack_unfold == "hover"
         assert c.window_list_sort == "default"
         assert c.show_window_count_numbers is False
+        assert c.show_launcher_badges is True
+        assert c.show_launcher_progress is True
         assert c.theme == "default"
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
@@ -85,6 +87,8 @@ class TestConfigDefaults:
             update_check_interval_hours="bad",
             startup_tips_enabled="off",
             show_window_count_numbers="on",
+            show_launcher_badges="off",
+            show_launcher_progress=0,
             theme="",
         )
 
@@ -104,6 +108,8 @@ class TestConfigDefaults:
         assert c.update_check_interval_hours == 24
         assert c.startup_tips_enabled is False
         assert c.show_window_count_numbers is True
+        assert c.show_launcher_badges is False
+        assert c.show_launcher_progress is False
         assert c.theme == "default"
 
 
@@ -267,6 +273,8 @@ class TestConfigLoad:
                     "folder_stack_unfold": "hover",
                     "window_list_sort": "alphabetical",
                     "show_window_count_numbers": "true",
+                    "show_launcher_badges": "false",
+                    "show_launcher_progress": "no",
                 }
             )
         )
@@ -282,6 +290,8 @@ class TestConfigLoad:
         assert config.stack_unfold == "hover"
         assert config.window_list_sort == "alphabetical"
         assert config.show_window_count_numbers is True
+        assert config.show_launcher_badges is False
+        assert config.show_launcher_progress is False
 
     def test_load_clamps_transparency_to_minimum(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -531,6 +541,19 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["show_window_count_numbers"] is True
+
+    def test_save_persists_launcher_overlay_preferences(self, tmp_path):
+        path = tmp_path / "dock.json"
+        config = Config(
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+        )
+
+        config.save(path)
+
+        saved = json.loads(path.read_text())
+        assert saved["show_launcher_badges"] is False
+        assert saved["show_launcher_progress"] is False
 
     def test_save_persists_transparency(self, tmp_path):
         path = tmp_path / "dock.json"

@@ -667,6 +667,8 @@ def _config():
         stack_unfold="click",
         window_list_sort="default",
         show_window_count_numbers=False,
+        show_launcher_badges=True,
+        show_launcher_progress=True,
         lock_icons=False,
         current_workspace_only=False,
         active_display=False,
@@ -940,6 +942,8 @@ class TestSettingsWindowController:
             "Show Tooltips",
             "Window Previews",
             "Show Window Counts",
+            "Application Badges",
+            "Application Progress",
             "Position",
             "Follow Cursor",
             "Current Workspace Only",
@@ -1260,6 +1264,36 @@ class TestSettingsWindowController:
         assert config.show_window_count_numbers is True
         config.save.assert_called_once()
         runtime.queue_draw.assert_called_once()
+
+    def test_launcher_overlay_bindings_update_config_and_reconcile_model(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod,
+            "load_catalog_icon",
+            lambda applet_id, size: None,
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        actions = MagicMock()
+        config = _config()
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+
+        controller.show()
+        controller._launcher_badges_switch.set_active(False)
+        controller._launcher_badges_switch.emit_notify_active()
+        controller._launcher_progress_switch.set_active(False)
+        controller._launcher_progress_switch.emit_notify_active()
+
+        assert config.show_launcher_badges is False
+        assert config.show_launcher_progress is False
+        assert config.save.call_count == 2
+        assert actions.refresh_launcher_overlay_visibility.call_count == 2
 
     def test_current_workspace_only_updates_surface_scope(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

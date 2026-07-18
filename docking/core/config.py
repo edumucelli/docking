@@ -485,6 +485,8 @@ DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
 DEFAULT_STACK_UNFOLD = StackUnfold.HOVER.value
 DEFAULT_WINDOW_LIST_SORT = WindowListSort.DEFAULT.value
 DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
+DEFAULT_SHOW_LAUNCHER_BADGES = True
+DEFAULT_SHOW_LAUNCHER_PROGRESS = True
 
 
 def _normalize_left_click_action(value: object) -> str:
@@ -804,6 +806,10 @@ class Config:
     window_list_sort: str = DEFAULT_WINDOW_LIST_SORT
     # Whether running application indicators show a numeric window count
     show_window_count_numbers: bool = DEFAULT_SHOW_WINDOW_COUNT_NUMBERS
+    # Whether numeric badges reported by applications are visible
+    show_launcher_badges: bool = DEFAULT_SHOW_LAUNCHER_BADGES
+    # Whether progress bars reported by applications are visible
+    show_launcher_progress: bool = DEFAULT_SHOW_LAUNCHER_PROGRESS
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
     # Multiplier applied to theme alpha values for the dock shelf
@@ -957,6 +963,14 @@ class Config:
         self.show_window_count_numbers = _normalize_bool(
             self.show_window_count_numbers,
             default=DEFAULT_SHOW_WINDOW_COUNT_NUMBERS,
+        )
+        self.show_launcher_badges = _normalize_bool(
+            self.show_launcher_badges,
+            default=DEFAULT_SHOW_LAUNCHER_BADGES,
+        )
+        self.show_launcher_progress = _normalize_bool(
+            self.show_launcher_progress,
+            default=DEFAULT_SHOW_LAUNCHER_PROGRESS,
         )
         self.theme = _normalize_theme(self.theme)
         self.transparency = _normalize_transparency(self.transparency)
