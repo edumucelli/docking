@@ -36,7 +36,7 @@
     "license": "https://www.gnu.org/licenses/gpl-3.0.html",
     "programmingLanguage": "Python",
     "image": "https://docking.cc/social-preview.png",
-    "screenshot": "https://docking.cc/hero.png",
+    "screenshot": "https://docking.cc/hero.gif",
     "sameAs": [
       "https://github.com/edumucelli/docking"
     ],
@@ -303,8 +303,11 @@
             <div class="absolute inset-x-24 -bottom-4 h-28 rounded-full bg-ember/16 blur-[80px]"></div>
             <div class="absolute -left-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-accent/10 blur-[70px]"></div>
             <div class="absolute -right-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
-            <div class="relative w-full transition duration-500 hover:scale-[1.008]">
-              <img src="hero.png" alt="Docking dock preview with applets" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+            <div class="relative w-full max-w-[960px] transition duration-500 hover:scale-[1.008]">
+              <picture>
+                <source srcset="hero.png" media="(prefers-reduced-motion: reduce)">
+                <img src="hero.gif" alt="Docking dock demonstration with applets and menus" width="960" height="315" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+              </picture>
             </div>
           </div>
         </div>
