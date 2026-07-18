@@ -216,7 +216,7 @@ Output artifact:
 Install locally (RPM-based distros):
 
 ```bash
-sudo rpm -Uvh artifacts/docking-*.rpm
+sudo dnf install ./artifacts/docking-*.rpm
 ```
 
 Notes:
@@ -226,3 +226,26 @@ Notes:
 - The RPM is architecture-specific because the packaged vendored Python wheels can include native binaries.
 - CI builds the RPM on both x86_64 and ARM64 runners and publishes both variants.
 - Python API dependencies used by weather are vendored under `/usr/lib/docking/vendor`.
+
+## Arch
+
+```bash
+# Install tooling
+sudo pacman -S --needed base-devel git python python-pip gettext
+
+# Build package
+./packaging/arch/build.sh
+
+# Install locally
+sudo pacman -U artifacts/docking-*.pkg.tar.*
+```
+
+## Nix
+
+```bash
+# Build package output
+./packaging/nix/build.sh
+
+# Run from the build output
+./result-nix/bin/docking
+```
