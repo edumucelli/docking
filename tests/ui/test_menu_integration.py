@@ -1427,14 +1427,75 @@ class TestDockMenu:
             mi for mi in menu.children if mi.get_label() == menu_mod._("Add Applet")
         )
         submenu_labels = _labels(applets_item.get_submenu())
-        assert "Time & Productivity" in submenu_labels
+        assert submenu_labels == ["Time & Productivity"]
+        category_item = applets_item.get_submenu().get_children()[0]
         item = next(
             mi
-            for mi in applets_item.get_submenu().get_children()
+            for mi in category_item.get_submenu().get_children()
             if mi.get_label() == "Calendar"
         )
         item.activate()
         handler._model.add_applet.assert_called_once_with("calendar")
+
+    def test_build_dock_menu_groups_available_applets_into_ordered_submenus(
+        self, handler, monkeypatch
+    ):
+        menu = FakeMenu()
+        handler._model.pinned_items = [DockItem(desktop_id="applet://clock")]
+        monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
+        monkeypatch.setattr(
+            menu_mod,
+            "get_applet_catalog",
+            lambda: {
+                "devices": _catalog_entry(
+                    applet_id="devices",
+                    name="Devices",
+                    category=menu_mod.AppletCategory.SYSTEM,
+                ),
+                "calendar": _catalog_entry(
+                    applet_id="calendar",
+                    name="Calendar",
+                    category=menu_mod.AppletCategory.PRODUCTIVITY,
+                ),
+                "applications": _catalog_entry(
+                    applet_id="applications",
+                    name="Applications",
+                    category=menu_mod.AppletCategory.LAUNCHER,
+                ),
+                "alarm": _catalog_entry(
+                    applet_id="alarm",
+                    name="Alarm",
+                    category=menu_mod.AppletCategory.PRODUCTIVITY,
+                ),
+                "clock": _catalog_entry(
+                    applet_id="clock",
+                    name="Clock",
+                    category=menu_mod.AppletCategory.PRODUCTIVITY,
+                ),
+                "separator": _catalog_entry(
+                    applet_id="separator",
+                    name="Separator",
+                    category=menu_mod.AppletCategory.OTHER,
+                ),
+            },
+        )
+
+        handler._build_dock_menu(menu=menu, insert_index=0)
+
+        add_applet = next(
+            item
+            for item in menu.children
+            if item.get_label() == menu_mod._("Add Applet")
+        )
+        category_items = add_applet.get_submenu().get_children()
+        assert _labels(add_applet.get_submenu()) == [
+            "Launcher & Navigation",
+            "Time & Productivity",
+            "System & Power",
+        ]
+        assert _labels(category_items[0].get_submenu()) == ["Applications"]
+        assert _labels(category_items[1].get_submenu()) == ["Alarm", "Calendar"]
+        assert _labels(category_items[2].get_submenu()) == ["Devices"]
 
     def test_show_builds_background_menu_and_pops_at_pointer(
         self, handler, monkeypatch
