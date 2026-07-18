@@ -36,6 +36,10 @@ from docking.applets.devices.state import (
     devices_tooltip,
     mounted_devices,
 )
+from docking.applets.devices.unix_mounts import (
+    get_mount_monitor,
+    read_network_mounts,
+)
 from docking.core.icons import IconSource
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -60,7 +64,7 @@ _MONITOR_SIGNALS = (
 
 
 class DevicesApplet(Applet):
-    """Show every desktop-visible mounted device in a live stack."""
+    """Show desktop-visible devices and native network mounts in a live stack."""
 
     id = meta.id
     name = _("Devices")
@@ -69,8 +73,12 @@ class DevicesApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config | None = None) -> None:
         self._monitor = Gio.VolumeMonitor.get()
-        self._devices: list[MountedDevice] = mounted_devices(self._monitor)
-        self._handler_ids: list[int] = []
+        self._unix_mount_monitor = get_mount_monitor()
+        self._devices: list[MountedDevice] = mounted_devices(
+            self._monitor,
+            read_network_mounts(),
+        )
+        self._handler_ids: list[tuple[object, int]] = []
         self._stack_icons: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -110,13 +118,26 @@ class DevicesApplet(Applet):
             return
         for signal_name in _MONITOR_SIGNALS:
             self._handler_ids.append(
-                self._monitor.connect(signal_name, self._on_changed)
+                (
+                    self._monitor,
+                    self._monitor.connect(signal_name, self._on_changed),
+                )
+            )
+        if self._unix_mount_monitor is not None:
+            self._handler_ids.append(
+                (
+                    self._unix_mount_monitor,
+                    self._unix_mount_monitor.connect(
+                        "mounts-changed",
+                        self._on_changed,
+                    ),
+                )
             )
 
     def stop(self) -> None:
-        """Disconnect volume-monitor signal handlers."""
-        for handler_id in self._handler_ids:
-            self._monitor.disconnect(handler_id)
+        """Disconnect volume and Unix mount-monitor signal handlers."""
+        for monitor, handler_id in self._handler_ids:
+            monitor.disconnect(handler_id)
         self._handler_ids = []
         super().stop()
 
@@ -124,7 +145,7 @@ class DevicesApplet(Applet):
         self._refresh_devices()
 
     def _refresh_devices(self) -> None:
-        devices = mounted_devices(self._monitor)
+        devices = mounted_devices(self._monitor, read_network_mounts())
         changed = _device_signature(devices) != _device_signature(self._devices)
         self._devices = devices
         if not changed:
@@ -176,15 +197,18 @@ def _load_mount_icon(
                     return icon_info.load_icon()
         except (AttributeError, GLib.Error):
             pass
-    fallback = (
-        "folder-remote"
-        if urlparse(device.uri).scheme not in {"", "file"}
-        else "drive-harddisk"
-    )
+    fallback = "folder-remote" if device.is_network else "drive-harddisk"
     return load_theme_icon(name=fallback, size=size)
 
 
 def _device_signature(devices: list[MountedDevice]) -> tuple[tuple[str, ...], ...]:
     return tuple(
-        (device.key, device.name, device.uri, device.mount_path) for device in devices
+        (
+            device.key,
+            device.name,
+            device.uri,
+            device.mount_path,
+            str(device.is_network),
+        )
+        for device in devices
     )
