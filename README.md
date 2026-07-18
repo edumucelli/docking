@@ -309,6 +309,8 @@ the full setting reference follows it.
 | `stack_unfold` | hover | Stack open behavior: `hover` or `click` |
 | `window_list_sort` | default | Open-window menu order: `default` or `alphabetical` |
 | `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
+| `show_launcher_badges` | true | Show numeric counts reported by applications on their dock icons |
+| `show_launcher_progress` | true | Show task progress reported by applications on their dock icons |
 | `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
 | `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
 | `additional_distance_from_edge` | 0 | Extra pixels added to the theme's edge gap |

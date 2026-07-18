@@ -152,9 +152,11 @@ class SettingsActions:
         *,
         runtime: DockRuntime,
         dnd: DnDHandler,
+        model: DockModel,
     ) -> None:
         self._runtime = runtime
         self._dnd = dnd
+        self._model = model
 
     def on_hide_mode_changed(self) -> None:
         self._runtime.on_hide_mode_changed()
@@ -179,6 +181,9 @@ class SettingsActions:
 
     def queue_draw(self) -> None:
         self._runtime.queue_draw()
+
+    def refresh_launcher_overlay_visibility(self) -> None:
+        self._model.refresh_launcher_overlay_visibility()
 
     def set_current_workspace_only(self, enabled: bool) -> None:
         self._runtime.set_current_workspace_only(enabled)
@@ -221,6 +226,8 @@ class SettingsWindowController:
         self._stack_unfold_combo: Any = None
         self._window_list_sort_combo: Any = None
         self._window_count_numbers_switch: Any = None
+        self._launcher_badges_switch: Any = None
+        self._launcher_progress_switch: Any = None
         self._previews_switch: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -368,6 +375,8 @@ class SettingsWindowController:
         self._previews_switch = self._new_switch()
         self._tooltips_switch = self._new_switch()
         self._window_count_numbers_switch = self._new_switch()
+        self._launcher_badges_switch = self._new_switch()
+        self._launcher_progress_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
         self._workspace_only_switch = self._new_switch()
         self._active_display_switch = self._new_switch()
@@ -548,6 +557,22 @@ class SettingsWindowController:
                     _(
                         "Show a number on running app indicators when multiple "
                         "windows are open."
+                    ),
+                ),
+                (
+                    _("Application Badges"),
+                    self._launcher_badges_switch,
+                    _(
+                        "Show numeric counts reported by applications on their "
+                        "dock icons."
+                    ),
+                ),
+                (
+                    _("Application Progress"),
+                    self._launcher_progress_switch,
+                    _(
+                        "Show task progress reported by applications on their "
+                        "dock icons."
                     ),
                 ),
             ],
@@ -1039,6 +1064,16 @@ class SettingsWindowController:
                 config_attr="show_window_count_numbers",
                 widget=self._window_count_numbers_switch,
                 on_change=self._actions.queue_draw,
+            ),
+            self._register_switch_binding(
+                config_attr="show_launcher_badges",
+                widget=self._launcher_badges_switch,
+                on_change=self._actions.refresh_launcher_overlay_visibility,
+            ),
+            self._register_switch_binding(
+                config_attr="show_launcher_progress",
+                widget=self._launcher_progress_switch,
+                on_change=self._actions.refresh_launcher_overlay_visibility,
             ),
             self._register_switch_binding(
                 config_attr="previews_enabled",

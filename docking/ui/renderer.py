@@ -1083,7 +1083,11 @@ class DockRenderer:
                 bounce=bounce,
             )
 
-            if item.badge_visible and item.badge_count > 0:
+            if (
+                config.show_launcher_badges
+                and item.badge_visible
+                and item.badge_count > 0
+            ):
                 self._draw_badge(
                     cr=cr,
                     x=ix,
@@ -1091,7 +1095,7 @@ class DockRenderer:
                     size=scaled_size,
                     badge_count=item.badge_count,
                 )
-            if item.progress_visible:
+            if config.show_launcher_progress and item.progress_visible:
                 self._draw_progress(
                     cr=cr,
                     x=ix,

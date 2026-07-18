@@ -169,6 +169,8 @@ class TestRendererContentFlow:
             pos=Position.BOTTOM,
             icon_size=48,
             show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
             additional_distance_from_edge=0,
         )
         i1 = DockItem(
@@ -235,6 +237,8 @@ class TestRendererContentFlow:
             pos=Position.BOTTOM,
             icon_size=48,
             show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
             additional_distance_from_edge=0,
         )
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
@@ -297,6 +301,8 @@ class TestRendererContentFlow:
             pos=Position.BOTTOM,
             icon_size=48,
             show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
             additional_distance_from_edge=0,
         )
         item = DockItem(
@@ -334,6 +340,67 @@ class TestRendererContentFlow:
         renderer._draw_badge.assert_called_once()
         renderer._draw_progress.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("show_badges", "show_progress", "badge_calls", "progress_calls"),
+        [
+            (False, True, 0, 1),
+            (True, False, 1, 0),
+            (False, False, 0, 0),
+        ],
+    )
+    def test_draw_content_respects_launcher_overlay_preferences(
+        self,
+        monkeypatch,
+        show_badges,
+        show_progress,
+        badge_calls,
+        progress_calls,
+    ):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=show_badges,
+            show_launcher_progress=show_progress,
+            additional_distance_from_edge=0,
+        )
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            is_running=True,
+            badge_count=5,
+            badge_visible=True,
+            progress=0.4,
+            progress_visible=True,
+        )
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            frame=_frame([item], layout),
+            config=config,
+            theme=theme,
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
+        )
+
+        assert renderer._draw_badge.call_count == badge_calls
+        assert renderer._draw_progress.call_count == progress_calls
+
     def test_draw_content_hides_shelf_when_dock_is_hidden_with_gap(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = replace(Theme.load("default", 48), distance_from_edge=6)
@@ -341,6 +408,8 @@ class TestRendererContentFlow:
             pos=Position.BOTTOM,
             icon_size=48,
             show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
             additional_distance_from_edge=0,
         )
         frame = build_geometry_frame(
