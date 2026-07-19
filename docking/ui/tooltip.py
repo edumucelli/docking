@@ -533,6 +533,15 @@ class TooltipManager:
         self._tooltip_window.move(tx, ty)
         self._tooltip_window.show_all()
 
+        # Rebuilding dynamic tooltip content remaps this popup and raises it
+        # above an already-open menu. Keep it immediately below the dock: the
+        # dock remains above normal windows, while its menus and dialogs retain
+        # their higher stacking position.
+        tooltip_surface = self._tooltip_window.get_window()
+        dock_surface = self._window.get_window()
+        if tooltip_surface is not None and dock_surface is not None:
+            tooltip_surface.restack(dock_surface, False)
+
     def hide(self) -> None:
         """Hide the tooltip window and clear tracking state."""
         self._cancel_pending_show()
