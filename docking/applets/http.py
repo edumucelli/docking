@@ -27,11 +27,19 @@ def http_get_bytes(
     *,
     timeout: float = 8.0,
     user_agent: str = DEFAULT_USER_AGENT,
+    max_bytes: int | None = None,
 ) -> bytes:
     """Fetch a URL and return the raw response body."""
     request = Request(url, headers={"User-Agent": user_agent})
     with urlopen(request, timeout=timeout) as response:
-        return response.read()
+        if max_bytes is None:
+            return response.read()
+        if max_bytes <= 0:
+            raise ValueError("max_bytes must be greater than zero")
+        payload = response.read(max_bytes + 1)
+        if len(payload) > max_bytes:
+            raise ValueError(f"Response exceeds {max_bytes} bytes")
+        return payload
 
 
 def http_get_text(

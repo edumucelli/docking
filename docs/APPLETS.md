@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 62 built-in applets that live alongside
+Docking includes 63 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, control desktop services, or provide small tools
 without opening a full application.
@@ -47,9 +47,9 @@ the applet keeps a safe unavailable state or hides unsupported actions.
   [Stretch Coach](#stretch-coach)
 - **Information and Environment:** [Astronomy Picture of the Day](#astronomy-picture-of-the-day),
   [Crypto](#crypto), [Currency FX](#currency-fx), [Hacker News](#hacker-news),
-  [Last.fm](#lastfm), [Moon](#moon), [Quote](#quote), [Random Trivia](#random-trivia),
-  [Reddit](#reddit), [Sunrise](#sunrise), [Today in History](#today-in-history),
-  [Weather](#weather)
+  [Last.fm](#lastfm), [Moon](#moon), [News](#news), [Quote](#quote),
+  [Random Trivia](#random-trivia), [Reddit](#reddit), [Sunrise](#sunrise),
+  [Today in History](#today-in-history), [Weather](#weather)
 - **Other:** [Separator](#separator)
 
 ## Launcher & Navigation
@@ -770,6 +770,39 @@ Moon phase applet with a rendered moon disc and illumination shading.
 **Tooltip:** Multi-line phase summary with illumination percentage and description
 
 **Update interval:** 6 hours
+
+### News
+
+Country-based RSS news reader. Choose a country and publication from a
+searchable source catalog, add up to 20 sources, and switch between their
+headline feeds. Publications with several editions or sections appear as
+separate choices with language and feed details.
+
+The source catalog is downloaded when the picker opens and cached for seven
+days. Existing configured feeds continue to work without the catalog, and a
+failed catalog update leaves the last valid list available.
+
+**Click:** Choose a source, refresh an empty configured feed, or open the
+current headline
+
+**Scroll:** Move through headlines from the active publication
+
+**Right-click options:**
+
+- **Open Headline** / **Open Publication**
+- **Previous Headline** / **Next Headline**
+- **Source** -- switch between configured publications
+- **Add News Source...** / **Remove Current News Source**
+- **Refresh Now**
+
+**Update interval:** 10 minutes
+
+**Preferences stored:** configured sources, active source and headline,
+cached headlines, and last successful fetch time
+
+The publication list comes from the
+[News feed list of countries](https://github.com/yavuz/news-feed-list-of-countries)
+project and is cached locally rather than included with Docking.
 
 ### Quote
 

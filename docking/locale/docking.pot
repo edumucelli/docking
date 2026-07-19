@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-18 18:10+0200\n"
+"POT-Creation-Date: 2026-07-19 14:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
@@ -111,7 +111,8 @@ msgid "OK"
 msgstr ""
 
 #: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:231
-#: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:474
+#: docking/applets/lastfm/applet.py:381 docking/applets/news/applet.py:517
+#: docking/applets/plantcare/applet.py:474
 #: docking/applets/quicknote/applet.py:87 docking/applets/reddit/applet.py:435
 #: docking/applets/runcommand/applet.py:131
 #: docking/applets/runcommand/applet.py:350
@@ -320,8 +321,8 @@ msgstr ""
 #: docking/applets/crypto/applet.py:153
 #: docking/applets/currencyfx/applet.py:203
 #: docking/applets/hackernews/applet.py:189
-#: docking/applets/lastfm/applet.py:174 docking/applets/reddit/applet.py:197
-#: docking/applets/speedtest/applet.py:116
+#: docking/applets/lastfm/applet.py:174 docking/applets/news/applet.py:275
+#: docking/applets/reddit/applet.py:197 docking/applets/speedtest/applet.py:116
 #: docking/applets/thermals/applet.py:147 docking/applets/tooltip.py:46
 #: docking/applets/weather/applet.py:183 docking/applets/weather/applet.py:568
 #, python-brace-format
@@ -343,8 +344,9 @@ msgstr ""
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:206
 #: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
-#: docking/applets/moon/applet.py:137 docking/applets/plantcare/applet.py:129
-#: docking/applets/quote/applet.py:105 docking/applets/reddit/applet.py:217
+#: docking/applets/moon/applet.py:137 docking/applets/news/applet.py:303
+#: docking/applets/plantcare/applet.py:129 docking/applets/quote/applet.py:105
+#: docking/applets/reddit/applet.py:217
 #: docking/applets/systemtray/applet.py:142
 #: docking/applets/thermals/applet.py:157
 #: docking/applets/todayinhistory/applet.py:112
@@ -1399,8 +1401,10 @@ msgstr ""
 
 #: docking/applets/hackernews/applet.py:161
 #: docking/applets/hackernews/state.py:163
-#: docking/applets/hackernews/state.py:196 docking/applets/reddit/applet.py:170
-#: docking/applets/reddit/state.py:348 docking/applets/reddit/state.py:368
+#: docking/applets/hackernews/state.py:196 docking/applets/news/applet.py:240
+#: docking/applets/news/state.py:331 docking/applets/news/state.py:351
+#: docking/applets/reddit/applet.py:170 docking/applets/reddit/state.py:348
+#: docking/applets/reddit/state.py:368
 msgid "Refreshes"
 msgstr ""
 
@@ -1418,7 +1422,7 @@ msgstr ""
 msgid "Open Comments"
 msgstr ""
 
-#: docking/applets/hackernews/applet.py:202
+#: docking/applets/hackernews/applet.py:202 docking/applets/news/applet.py:290
 #: docking/applets/reddit/applet.py:208
 msgid "Next Headline"
 msgstr ""
@@ -1427,21 +1431,25 @@ msgstr ""
 msgid "No Hacker News stories"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:114 docking/applets/reddit/state.py:308
+#: docking/applets/hackernews/state.py:114 docking/applets/news/state.py:285
+#: docking/applets/reddit/state.py:308
 msgid "now"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:117 docking/applets/reddit/state.py:311
+#: docking/applets/hackernews/state.py:117 docking/applets/news/state.py:288
+#: docking/applets/reddit/state.py:311
 #, python-brace-format
 msgid "{minutes}m ago"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:120 docking/applets/reddit/state.py:314
+#: docking/applets/hackernews/state.py:120 docking/applets/news/state.py:291
+#: docking/applets/reddit/state.py:314
 #, python-brace-format
 msgid "{hours}h ago"
 msgstr ""
 
-#: docking/applets/hackernews/state.py:122 docking/applets/reddit/state.py:315
+#: docking/applets/hackernews/state.py:122 docking/applets/news/state.py:292
+#: docking/applets/reddit/state.py:315
 #, python-brace-format
 msgid "{days}d ago"
 msgstr ""
@@ -1834,6 +1842,684 @@ msgstr ""
 msgid "Unnamed VPN"
 msgstr ""
 
+#: docking/applets/news/applet.py:110
+msgid "News"
+msgstr ""
+
+#: docking/applets/news/applet.py:231
+msgid "No news source selected"
+msgstr ""
+
+#: docking/applets/news/applet.py:252
+msgid "Open Headline"
+msgstr ""
+
+#: docking/applets/news/applet.py:260
+msgid "Open Publication"
+msgstr ""
+
+#: docking/applets/news/applet.py:280 docking/applets/reddit/applet.py:202
+msgid "Previous Headline"
+msgstr ""
+
+#: docking/applets/news/applet.py:310 docking/applets/quote/applet.py:109
+msgid "Source"
+msgstr ""
+
+#: docking/applets/news/applet.py:321
+msgid "Remove Current News Source"
+msgstr ""
+
+#: docking/applets/news/applet.py:325
+msgid "Add News Source..."
+msgstr ""
+
+#: docking/applets/news/applet.py:428
+msgid "No news articles returned"
+msgstr ""
+
+#: docking/applets/news/applet.py:511
+msgid "Choose News Source"
+msgstr ""
+
+#: docking/applets/news/applet.py:516
+msgid "Update List"
+msgstr ""
+
+#: docking/applets/news/applet.py:518 docking/applets/reddit/applet.py:434
+msgid "Add"
+msgstr ""
+
+#: docking/applets/news/applet.py:531
+msgid "Choose a country, then select a publication or edition."
+msgstr ""
+
+#: docking/applets/news/applet.py:553
+msgid "Loading news sources..."
+msgstr ""
+
+#: docking/applets/news/applet.py:561
+msgid "Country"
+msgstr ""
+
+#: docking/applets/news/applet.py:565
+msgid "Search countries"
+msgstr ""
+
+#: docking/applets/news/applet.py:583
+msgid "Publication or Edition"
+msgstr ""
+
+#: docking/applets/news/applet.py:587
+msgid "Search publications"
+msgstr ""
+
+#: docking/applets/news/applet.py:627
+msgid "Updating news sources..."
+msgstr ""
+
+#: docking/applets/news/applet.py:642
+#, python-brace-format
+msgid "Could not load news sources: {error}"
+msgstr ""
+
+#: docking/applets/news/applet.py:645
+#, python-brace-format
+msgid "Could not update news sources; using cached list: {error}"
+msgstr ""
+
+#: docking/applets/news/applet.py:659
+#, python-brace-format
+msgid "{count} sources - updated {time}"
+msgstr ""
+
+#: docking/applets/news/applet.py:811
+#, python-brace-format
+msgid "{source} - {feed}"
+msgstr ""
+
+#: docking/applets/news/countries.py:13
+msgid "Afghanistan"
+msgstr ""
+
+#: docking/applets/news/countries.py:14
+msgid "Albania"
+msgstr ""
+
+#: docking/applets/news/countries.py:15
+msgid "Andorra"
+msgstr ""
+
+#: docking/applets/news/countries.py:16
+msgid "Argentina"
+msgstr ""
+
+#: docking/applets/news/countries.py:17
+msgid "Armenia"
+msgstr ""
+
+#: docking/applets/news/countries.py:18
+msgid "Australia"
+msgstr ""
+
+#: docking/applets/news/countries.py:19
+msgid "Austria"
+msgstr ""
+
+#: docking/applets/news/countries.py:20
+msgid "Azerbaijan"
+msgstr ""
+
+#: docking/applets/news/countries.py:21
+msgid "Burundi"
+msgstr ""
+
+#: docking/applets/news/countries.py:22
+msgid "Belgium"
+msgstr ""
+
+#: docking/applets/news/countries.py:23
+msgid "Benin"
+msgstr ""
+
+#: docking/applets/news/countries.py:24
+msgid "Bangladesh"
+msgstr ""
+
+#: docking/applets/news/countries.py:25
+msgid "Bulgaria"
+msgstr ""
+
+#: docking/applets/news/countries.py:26
+msgid "Bahamas"
+msgstr ""
+
+#: docking/applets/news/countries.py:27
+msgid "Bosnia and Herzegovina"
+msgstr ""
+
+#: docking/applets/news/countries.py:28
+msgid "Belarus"
+msgstr ""
+
+#: docking/applets/news/countries.py:29
+msgid "Belize"
+msgstr ""
+
+#: docking/applets/news/countries.py:30
+msgid "Bermuda"
+msgstr ""
+
+#: docking/applets/news/countries.py:31
+msgid "Bolivia"
+msgstr ""
+
+#: docking/applets/news/countries.py:32
+msgid "Brazil"
+msgstr ""
+
+#: docking/applets/news/countries.py:33
+msgid "Barbados"
+msgstr ""
+
+#: docking/applets/news/countries.py:34
+msgid "Canada"
+msgstr ""
+
+#: docking/applets/news/countries.py:35
+msgid "Switzerland"
+msgstr ""
+
+#: docking/applets/news/countries.py:36
+msgid "Chile"
+msgstr ""
+
+#: docking/applets/news/countries.py:37
+msgid "China"
+msgstr ""
+
+#: docking/applets/news/countries.py:38
+msgid "Cameroon"
+msgstr ""
+
+#: docking/applets/news/countries.py:39
+msgid "Democratic Republic of the Congo"
+msgstr ""
+
+#: docking/applets/news/countries.py:40
+msgid "Colombia"
+msgstr ""
+
+#: docking/applets/news/countries.py:41
+msgid "Costa Rica"
+msgstr ""
+
+#: docking/applets/news/countries.py:42
+msgid "Cuba"
+msgstr ""
+
+#: docking/applets/news/countries.py:43
+msgid "Cayman Islands"
+msgstr ""
+
+#: docking/applets/news/countries.py:44
+msgid "Cyprus"
+msgstr ""
+
+#: docking/applets/news/countries.py:45
+msgid "Czechia"
+msgstr ""
+
+#: docking/applets/news/countries.py:46
+msgid "Germany"
+msgstr ""
+
+#: docking/applets/news/countries.py:47
+msgid "Djibouti"
+msgstr ""
+
+#: docking/applets/news/countries.py:48
+msgid "Dominica"
+msgstr ""
+
+#: docking/applets/news/countries.py:49
+msgid "Denmark"
+msgstr ""
+
+#: docking/applets/news/countries.py:50
+msgid "Dominican Republic"
+msgstr ""
+
+#: docking/applets/news/countries.py:51
+msgid "Algeria"
+msgstr ""
+
+#: docking/applets/news/countries.py:52
+msgid "Ecuador"
+msgstr ""
+
+#: docking/applets/news/countries.py:53
+msgid "Egypt"
+msgstr ""
+
+#: docking/applets/news/countries.py:54
+msgid "Eritrea"
+msgstr ""
+
+#: docking/applets/news/countries.py:55
+msgid "Spain"
+msgstr ""
+
+#: docking/applets/news/countries.py:56
+msgid "Estonia"
+msgstr ""
+
+#: docking/applets/news/countries.py:57
+msgid "Ethiopia"
+msgstr ""
+
+#: docking/applets/news/countries.py:58
+msgid "Finland"
+msgstr ""
+
+#: docking/applets/news/countries.py:59
+msgid "France"
+msgstr ""
+
+#: docking/applets/news/countries.py:60
+msgid "Gabon"
+msgstr ""
+
+#: docking/applets/news/countries.py:61
+msgid "United Kingdom"
+msgstr ""
+
+#: docking/applets/news/countries.py:62
+msgid "Ghana"
+msgstr ""
+
+#: docking/applets/news/countries.py:63
+msgid "Gibraltar"
+msgstr ""
+
+#: docking/applets/news/countries.py:64
+msgid "Guinea"
+msgstr ""
+
+#: docking/applets/news/countries.py:65
+msgid "Greece"
+msgstr ""
+
+#: docking/applets/news/countries.py:66
+msgid "Guatemala"
+msgstr ""
+
+#: docking/applets/news/countries.py:67
+msgid "French Guiana"
+msgstr ""
+
+#: docking/applets/news/countries.py:68
+msgid "Guyana"
+msgstr ""
+
+#: docking/applets/news/countries.py:69
+msgid "Hong Kong"
+msgstr ""
+
+#: docking/applets/news/countries.py:70
+msgid "Croatia"
+msgstr ""
+
+#: docking/applets/news/countries.py:71
+msgid "Haiti"
+msgstr ""
+
+#: docking/applets/news/countries.py:72
+msgid "Hungary"
+msgstr ""
+
+#: docking/applets/news/countries.py:73
+msgid "Indonesia"
+msgstr ""
+
+#: docking/applets/news/countries.py:74
+msgid "Isle of Man"
+msgstr ""
+
+#: docking/applets/news/countries.py:75
+msgid "India"
+msgstr ""
+
+#: docking/applets/news/countries.py:76
+msgid "Ireland"
+msgstr ""
+
+#: docking/applets/news/countries.py:77
+msgid "Iran"
+msgstr ""
+
+#: docking/applets/news/countries.py:78
+msgid "Iceland"
+msgstr ""
+
+#: docking/applets/news/countries.py:79
+msgid "Israel"
+msgstr ""
+
+#: docking/applets/news/countries.py:80
+msgid "Italy"
+msgstr ""
+
+#: docking/applets/news/countries.py:81
+msgid "Jamaica"
+msgstr ""
+
+#: docking/applets/news/countries.py:82
+msgid "Japan"
+msgstr ""
+
+#: docking/applets/news/countries.py:83
+msgid "Kazakhstan"
+msgstr ""
+
+#: docking/applets/news/countries.py:84
+msgid "Kenya"
+msgstr ""
+
+#: docking/applets/news/countries.py:85
+msgid "Kyrgyzstan"
+msgstr ""
+
+#: docking/applets/news/countries.py:86
+msgid "Cambodia"
+msgstr ""
+
+#: docking/applets/news/countries.py:87
+msgid "Liberia"
+msgstr ""
+
+#: docking/applets/news/countries.py:88
+msgid "Sri Lanka"
+msgstr ""
+
+#: docking/applets/news/countries.py:89
+msgid "Lithuania"
+msgstr ""
+
+#: docking/applets/news/countries.py:90
+msgid "Luxembourg"
+msgstr ""
+
+#: docking/applets/news/countries.py:91
+msgid "Latvia"
+msgstr ""
+
+#: docking/applets/news/countries.py:92
+msgid "Morocco"
+msgstr ""
+
+#: docking/applets/news/countries.py:93
+msgid "Monaco"
+msgstr ""
+
+#: docking/applets/news/countries.py:94
+msgid "Moldova"
+msgstr ""
+
+#: docking/applets/news/countries.py:95
+msgid "Madagascar"
+msgstr ""
+
+#: docking/applets/news/countries.py:96
+msgid "Maldives"
+msgstr ""
+
+#: docking/applets/news/countries.py:97
+msgid "Mexico"
+msgstr ""
+
+#: docking/applets/news/countries.py:98
+msgid "North Macedonia"
+msgstr ""
+
+#: docking/applets/news/countries.py:99
+msgid "Mali"
+msgstr ""
+
+#: docking/applets/news/countries.py:100
+msgid "Malta"
+msgstr ""
+
+#: docking/applets/news/countries.py:101
+msgid "Montenegro"
+msgstr ""
+
+#: docking/applets/news/countries.py:102
+msgid "Martinique"
+msgstr ""
+
+#: docking/applets/news/countries.py:103
+msgid "Malawi"
+msgstr ""
+
+#: docking/applets/news/countries.py:104
+msgid "Malaysia"
+msgstr ""
+
+#: docking/applets/news/countries.py:105
+msgid "Namibia"
+msgstr ""
+
+#: docking/applets/news/countries.py:106
+msgid "Niger"
+msgstr ""
+
+#: docking/applets/news/countries.py:107
+msgid "Nigeria"
+msgstr ""
+
+#: docking/applets/news/countries.py:108
+msgid "Nicaragua"
+msgstr ""
+
+#: docking/applets/news/countries.py:109
+msgid "Netherlands"
+msgstr ""
+
+#: docking/applets/news/countries.py:110
+msgid "Norway"
+msgstr ""
+
+#: docking/applets/news/countries.py:111
+msgid "Nepal"
+msgstr ""
+
+#: docking/applets/news/countries.py:112
+msgid "New Zealand"
+msgstr ""
+
+#: docking/applets/news/countries.py:113
+msgid "Pakistan"
+msgstr ""
+
+#: docking/applets/news/countries.py:114
+msgid "Panama"
+msgstr ""
+
+#: docking/applets/news/countries.py:115
+msgid "Peru"
+msgstr ""
+
+#: docking/applets/news/countries.py:116
+msgid "Philippines"
+msgstr ""
+
+#: docking/applets/news/countries.py:117
+msgid "Poland"
+msgstr ""
+
+#: docking/applets/news/countries.py:118
+msgid "Puerto Rico"
+msgstr ""
+
+#: docking/applets/news/countries.py:119
+msgid "Portugal"
+msgstr ""
+
+#: docking/applets/news/countries.py:120
+msgid "Palestine"
+msgstr ""
+
+#: docking/applets/news/countries.py:121
+msgid "French Polynesia"
+msgstr ""
+
+#: docking/applets/news/countries.py:122
+msgid "Romania"
+msgstr ""
+
+#: docking/applets/news/countries.py:123
+msgid "Russia"
+msgstr ""
+
+#: docking/applets/news/countries.py:124
+msgid "Senegal"
+msgstr ""
+
+#: docking/applets/news/countries.py:125
+msgid "Singapore"
+msgstr ""
+
+#: docking/applets/news/countries.py:126
+msgid "Solomon Islands"
+msgstr ""
+
+#: docking/applets/news/countries.py:127
+msgid "Sierra Leone"
+msgstr ""
+
+#: docking/applets/news/countries.py:128
+msgid "San Marino"
+msgstr ""
+
+#: docking/applets/news/countries.py:129
+msgid "Somalia"
+msgstr ""
+
+#: docking/applets/news/countries.py:130
+msgid "Serbia"
+msgstr ""
+
+#: docking/applets/news/countries.py:131
+msgid "Suriname"
+msgstr ""
+
+#: docking/applets/news/countries.py:132
+msgid "Slovakia"
+msgstr ""
+
+#: docking/applets/news/countries.py:133
+msgid "Slovenia"
+msgstr ""
+
+#: docking/applets/news/countries.py:134
+msgid "Sweden"
+msgstr ""
+
+#: docking/applets/news/countries.py:135
+msgid "Togo"
+msgstr ""
+
+#: docking/applets/news/countries.py:136
+msgid "Thailand"
+msgstr ""
+
+#: docking/applets/news/countries.py:137
+msgid "Tunisia"
+msgstr ""
+
+#: docking/applets/news/countries.py:138
+msgid "Türkiye"
+msgstr ""
+
+#: docking/applets/news/countries.py:139
+msgid "Uganda"
+msgstr ""
+
+#: docking/applets/news/countries.py:140
+msgid "Ukraine"
+msgstr ""
+
+#: docking/applets/news/countries.py:141
+msgid "Uruguay"
+msgstr ""
+
+#: docking/applets/news/countries.py:142
+msgid "United States"
+msgstr ""
+
+#: docking/applets/news/countries.py:143
+msgid "Uzbekistan"
+msgstr ""
+
+#: docking/applets/news/countries.py:144
+msgid "Venezuela"
+msgstr ""
+
+#: docking/applets/news/countries.py:145
+msgid "U.S. Virgin Islands"
+msgstr ""
+
+#: docking/applets/news/countries.py:146
+msgid "Vietnam"
+msgstr ""
+
+#: docking/applets/news/countries.py:147
+msgid "Kosovo"
+msgstr ""
+
+#: docking/applets/news/countries.py:148
+msgid "Yemen"
+msgstr ""
+
+#: docking/applets/news/countries.py:149
+msgid "South Africa"
+msgstr ""
+
+#: docking/applets/news/countries.py:150
+msgid "Zambia"
+msgstr ""
+
+#: docking/applets/news/countries.py:151
+msgid "Zimbabwe"
+msgstr ""
+
+#: docking/applets/news/countries.py:159
+msgid "Global"
+msgstr ""
+
+#: docking/applets/news/state.py:187
+#, python-brace-format
+msgid "{publication} - {category}"
+msgstr ""
+
+#: docking/applets/news/state.py:213
+msgid "Unsafe RSS response"
+msgstr ""
+
+#: docking/applets/news/state.py:217
+msgid "Invalid RSS response"
+msgstr ""
+
+#: docking/applets/news/state.py:310
+msgid "Click to choose a country and news source"
+msgstr ""
+
+#: docking/applets/news/state.py:339
+#, python-brace-format
+msgid "By {author}"
+msgstr ""
+
 #: docking/applets/notifications/applet.py:78
 #: docking/applets/notifications/state.py:62
 msgid "Notifications"
@@ -2215,10 +2901,6 @@ msgstr ""
 msgid "Copy Quote"
 msgstr ""
 
-#: docking/applets/quote/applet.py:109
-msgid "Source"
-msgstr ""
-
 #: docking/applets/quote/applet.py:220
 #, python-brace-format
 msgid "{source}: loading..."
@@ -2243,10 +2925,6 @@ msgstr ""
 
 #: docking/applets/reddit/applet.py:185
 msgid "Open Post"
-msgstr ""
-
-#: docking/applets/reddit/applet.py:202
-msgid "Previous Headline"
 msgstr ""
 
 #: docking/applets/reddit/applet.py:222
@@ -2276,10 +2954,6 @@ msgstr ""
 
 #: docking/applets/reddit/applet.py:428
 msgid "Add Subreddit"
-msgstr ""
-
-#: docking/applets/reddit/applet.py:434
-msgid "Add"
 msgstr ""
 
 #: docking/applets/reddit/applet.py:444
@@ -3265,125 +3939,136 @@ msgid ""
 msgstr ""
 
 #: docking/core/tips.py:158
-msgid "Customize pinned icons"
+msgid "Follow news sources by country"
 msgstr ""
 
 #: docking/core/tips.py:160
+msgid ""
+"Add the News applet, choose a country, and select a publication or edition. "
+"Scroll through its latest headlines, or add more sources and switch between "
+"them from the applet menu."
+msgstr ""
+
+#: docking/core/tips.py:167
+msgid "Customize pinned icons"
+msgstr ""
+
+#: docking/core/tips.py:169
 msgid ""
 "Right-click a pinned app, file, or folder and use Icon -> Choose From File. "
 "Custom icons are stored in Docking's config, so the original desktop file or "
 "file on disk is left untouched."
 msgstr ""
 
-#: docking/core/tips.py:167
+#: docking/core/tips.py:176
 msgid "Use the Applications applet search"
 msgstr ""
 
-#: docking/core/tips.py:169
+#: docking/core/tips.py:178
 msgid ""
 "Add the Applications applet, open it, and type to filter installed apps. It "
 "gives you a compact launcher menu without leaving the dock."
 msgstr ""
 
-#: docking/core/tips.py:176
+#: docking/core/tips.py:185
 msgid "Drag apps straight to the dock"
 msgstr ""
 
-#: docking/core/tips.py:178
+#: docking/core/tips.py:187
 msgid ""
 "Open the Applications applet and drag any application from its menu onto the "
 "shelf. Drop it where you want its launcher to stay in the dock."
 msgstr ""
 
-#: docking/core/tips.py:185
+#: docking/core/tips.py:194
 msgid "Use Run Application like Alt+F2"
 msgstr ""
 
-#: docking/core/tips.py:187
+#: docking/core/tips.py:196
 msgid ""
 "Add Run Application to launch commands, apps, and terminal commands from the "
 "dock. As you type, matching applications are shown so you can launch by name "
 "or run a standalone command."
 msgstr ""
 
-#: docking/core/tips.py:194
+#: docking/core/tips.py:203
 msgid "Use window previews"
 msgstr ""
 
-#: docking/core/tips.py:196
+#: docking/core/tips.py:205
 msgid ""
 "Hover running apps to inspect open windows before switching. Previews help "
 "when one application has several windows open."
 msgstr ""
 
-#: docking/core/tips.py:202
+#: docking/core/tips.py:211
 msgid "Choose your click behavior"
 msgstr ""
 
-#: docking/core/tips.py:204
+#: docking/core/tips.py:213
 msgid ""
 "Preferences -> Behavior lets left click toggle, cycle, or focus the most "
 "recent window. Pick the behavior that matches how you switch between running "
 "applications."
 msgstr ""
 
-#: docking/core/tips.py:211
+#: docking/core/tips.py:220
 msgid "Ctrl-click opens a new window"
 msgstr ""
 
-#: docking/core/tips.py:213
+#: docking/core/tips.py:222
 msgid ""
 "Hold Ctrl while clicking an app icon to launch another window. This works "
 "even when the app is already running and a normal click would focus it."
 msgstr ""
 
-#: docking/core/tips.py:220
+#: docking/core/tips.py:229
 msgid "Use Clock as a calendar"
 msgstr ""
 
-#: docking/core/tips.py:222
+#: docking/core/tips.py:231
 msgid ""
 "Left-click the Clock applet to open the same calendar popup as the Calendar "
 "applet. Use Clock when you want the time and calendar in one dock item."
 msgstr ""
 
-#: docking/core/tips.py:229
+#: docking/core/tips.py:238
 msgid "Use app right-click menus"
 msgstr ""
 
-#: docking/core/tips.py:231
+#: docking/core/tips.py:240
 msgid ""
 "Right-click apps for desktop actions, open windows, recent documents, "
 "pinning, and close actions. Many apps expose useful shortcuts there, such as "
 "opening a private window or composing a new message."
 msgstr ""
 
-#: docking/core/tips.py:239
+#: docking/core/tips.py:248
 msgid "Use Recent Files"
 msgstr ""
 
-#: docking/core/tips.py:241
+#: docking/core/tips.py:250
 msgid ""
 "Add the Recent Files applet to jump back into documents you used recently. "
 "It is a faster path when you remember the file, not the folder."
 msgstr ""
 
-#: docking/core/tips.py:248
+#: docking/core/tips.py:257
 msgid "Use System Tray when needed"
 msgstr ""
 
-#: docking/core/tips.py:250
+#: docking/core/tips.py:259
 msgid ""
 "Add System Tray for tray/status apps and use its menu to manage tray "
 "ownership when supported. This helps with legacy apps that still rely on a "
 "classic notification area."
 msgstr ""
 
-#: docking/core/tips.py:257
+#: docking/core/tips.py:266
 msgid "Use Diagnostics for support"
 msgstr ""
 
-#: docking/core/tips.py:259
+#: docking/core/tips.py:268
 msgid ""
 "Open Diagnostics before filing an issue to copy backend, session, and "
 "feature details. Including that report makes it much easier to understand "
