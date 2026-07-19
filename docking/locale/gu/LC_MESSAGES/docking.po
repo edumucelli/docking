@@ -1382,7 +1382,7 @@ msgstr "કોઈ હેકર સમાચાર વાર્તાઓ નથ�
 
 #: docking/applets/hackernews/state.py:114
 msgid "now"
-msgstr "—"
+msgstr "-"
 
 #: docking/applets/hackernews/state.py:117
 #, python-brace-format

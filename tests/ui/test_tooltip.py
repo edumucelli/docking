@@ -495,7 +495,7 @@ class TestRecentItemTooltip:
         show_tooltip.assert_called_once()
         kwargs = show_tooltip.call_args.kwargs
         assert "Firefox" in kwargs["text"]
-        # Should contain a relative time line — check for "ago" and a time unit
+        # Should contain a relative time line - check for "ago" and a time unit
         assert "\n" in kwargs["text"]
         assert "ago" in kwargs["text"]
 

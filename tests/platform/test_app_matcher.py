@@ -434,7 +434,7 @@ class TestCandidateResolution:
         matcher = AppIdMatcher(launcher=launcher)
         matcher.sync_visible_items([])
 
-        # Run multiple times — order should be identical each time.
+        # Run multiple times - order should be identical each time.
         first_run = matcher.match("MongoDB Compass")
         second_run = matcher.match("MongoDB Compass")
         assert first_run == second_run
@@ -453,11 +453,11 @@ class TestMissedCandidates:
         matcher = AppIdMatcher(launcher=launcher, cache_missed_desktop_ids=True)
         matcher.sync_visible_items([])
 
-        # First call — launcher.resolve returns None, candidate is memoized
+        # First call - launcher.resolve returns None, candidate is memoized
         matcher.match("NoSuchApp")
         first_call_count = launcher.resolve.call_count
 
-        # Second call with same app_id — missed candidates are skipped
+        # Second call with same app_id - missed candidates are skipped
         matcher.match("NoSuchApp")
         # resolve is still called for the same number because the raw
         # candidate is tried each time (missed cache is per-desktop_id,

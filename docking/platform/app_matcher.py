@@ -25,10 +25,10 @@ the same question:
 Before this module the answer lived in two independent matchers with
 different feature sets:
 
-* ``WindowMatcher`` in the X11 backend — Wine ``.exe`` extraction,
+* ``WindowMatcher`` in the X11 backend - Wine ``.exe`` extraction,
   space→hyphen→joined candidate generation, GNOME prefix synthesis,
   and missed-candidate memoization.
-* ``WaylandAppIdMatcher`` in the Wayland backend — Snap ``_`` prefix
+* ``WaylandAppIdMatcher`` in the Wayland backend - Snap ``_`` prefix
   expansion, dot-suffix split, broad visible-item aliasing.
 
 Neither matcher had the union of both feature sets, so every
@@ -86,19 +86,19 @@ The public interface has one constructor flag plus two methods:
 Matching priority (strongest first)
 ------------------------------------
 
-1. **Wine detection** — when ``app_id`` is the generic ``"wine"``
+1. **Wine detection** - when ``app_id`` is the generic ``"wine"``
    class group and ``instance_hint`` contains a ``.exe`` path, extract
    the executable name and match against visible aliases and the
    launcher WM_CLASS index.
 
-2. **Visible-item alias cache** — fast-path lookup against currently
+2. **Visible-item alias cache** - fast-path lookup against currently
    pinned and transient dock items (no Gio or filesystem calls).
 
-3. **Instance-hint match** — when ``app_id`` is generic but
+3. **Instance-hint match** - when ``app_id`` is generic but
    ``instance_hint`` is specific and matches a visible item
    (X11 optimization).
 
-4. **Candidate generation + resolution** — for each generated
+4. **Candidate generation + resolution** - for each generated
    candidate string:
 
    a. Check visible aliases (normalized).
@@ -295,7 +295,7 @@ class AppIdMatcher:
 
         app_id_lower = app_id.lower().strip()
 
-        # 1. Wine detection — when the primary identity is the generic
+        # 1. Wine detection - when the primary identity is the generic
         #    "wine" class group, use the instance (exe path) instead.
         if instance_hint:
             result = self._match_wine_instance(
@@ -430,7 +430,7 @@ class AppIdMatcher:
                 seen.add(candidate)
                 merged.append(candidate)
 
-        # Instance hint aliases (when available) — appended after
+        # Instance hint aliases (when available) - appended after
         # the main candidates so they don't shadow a more specific match
         # from the class-group candidates.
         if instance_hint:

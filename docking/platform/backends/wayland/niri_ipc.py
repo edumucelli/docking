@@ -12,7 +12,7 @@ Niri exposes a single JSON Unix socket at ``$NIRI_SOCKET``.  Requests are
 single-line JSON objects; replies are also single-line JSON.  The event
 stream is started with an ``{"EventStream":null}`` request, acknowledged
 with ``{"Ok":"Handled"}``, and then delivers full current state up-front
-followed by incremental events — no polling needed.
+followed by incremental events - no polling needed.
 
 The IPC is simpler than Hyprland's two-socket model and requires no
 external tools.
@@ -1017,7 +1017,7 @@ def _wait_for_nonempty_file(path: str, *, timeout: float = 2.0) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Parse helpers — internal
+# Parse helpers - internal
 # ---------------------------------------------------------------------------
 
 

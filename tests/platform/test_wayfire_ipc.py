@@ -431,7 +431,7 @@ def test_wayfire_visibility_service_creates_monitor():
     )
 
     assert monitor is not None
-    # Force immediate evaluation — window at y=0,h=600 overlaps dock at y=550,h=50
+    # Force immediate evaluation - window at y=0,h=600 overlaps dock at y=550,h=50
     monitor.evaluate_now()
     assert changes == [True]
 

@@ -83,7 +83,7 @@ export default class DockingBridgeExtension extends Extension {
 
     // Proactively hide the dock window from Alt+Tab after a GNOME
     // Shell restart (when PositionDock is not re-called).  We must
-    // NOT call set_type(DOCK) here — Mutter may re-centre the window
+    // NOT call set_type(DOCK) here - Mutter may re-centre the window
     // when its type changes, and PositionDock has not run yet.
     // The full configuration happens in PositionDock.
     this._dockConfigureRetries = 10;
@@ -96,7 +96,7 @@ export default class DockingBridgeExtension extends Extension {
         const win = this._findDockWindow();
         if (win) {
           this._hideDockFromSwitcher(win);
-          // Don't set _dockConfigured — PositionDock will do the
+          // Don't set _dockConfigured - PositionDock will do the
           // full config when it arrives.
           this._dockConfigureTimerId = 0;
           return GLib.SOURCE_REMOVE;
@@ -236,7 +236,7 @@ export default class DockingBridgeExtension extends Extension {
 
   _hideDockFromSwitcher(win) {
     // Hide from Alt+Tab *without* changing the window type.
-    // Safe to call before the window is positioned — set_type(DOCK)
+    // Safe to call before the window is positioned - set_type(DOCK)
     // must wait until PositionDock arrives, otherwise Mutter may
     // re-centre the window.
     if (typeof win.set_skip_taskbar === "function")
@@ -248,7 +248,7 @@ export default class DockingBridgeExtension extends Extension {
   }
 
   _configureDockWindow(win) {
-    // Full dock configuration — called from PositionDock after the
+    // Full dock configuration - called from PositionDock after the
     // window has been positioned.  Safe to set the type now.
     this._hideDockFromSwitcher(win);
     if (typeof win.set_type === "function")
@@ -407,7 +407,7 @@ export default class DockingBridgeExtension extends Extension {
   _shouldExportWindow(window) {
     if (!window || window.skip_taskbar)
       return false;
-    // Never export the docking surface itself — it is a panel, not a
+    // Never export the docking surface itself - it is a panel, not a
     // managed application window.
     if (window.get_wm_class() === "Docking" || window.get_title() === "Docking")
       return false;
