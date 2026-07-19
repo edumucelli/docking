@@ -260,81 +260,15 @@ The first things to explore are:
 
 ## Configuration
 
-Config is stored at `~/.config/docking/dock.json` and is created automatically
-on first run. New installs are seeded with Applications, common launchers found
-on the system, Clock, Calendar, Weather, System Monitor, Hydration,
-Notifications, and Session. The example below shows the file's basic shape;
-the full setting reference follows it.
+Open right-click -> **Preferences** to configure the dock's appearance,
+placement, behavior, applets, and update checks. **Display** moves the dock
+between monitors, while **Diagnostics** reports the capabilities available in
+the current desktop session.
 
-```json
-{
-  "icon_size": 48,
-  "position": "bottom",
-  "hide_mode": "none",
-  "theme": "default",
-  "pinned": [
-    { "kind": "applet", "target": "applet://applications" },
-    { "kind": "app", "target": "firefox.desktop" },
-    { "kind": "app", "target": "org.gnome.Nautilus.desktop" },
-    { "kind": "applet", "target": "applet://clock" }
-  ],
-  "applet_prefs": {},
-  "item_prefs": {}
-}
-```
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `icon_size` | 48 | Base icon size in pixels (all theme proportions scale with this) |
-| `zoom_enabled` | true | Enable or disable parabolic zoom on hover |
-| `zoom_percent` | 1.5 | Zoom multiplier from `1.0` to `4.0` (`1.5` = 150%, `4.0` = 400%) |
-| `zoom_range` | 3 | Icon widths over which zoom tapers off |
-| `position` | bottom | Dock edge: bottom, top, left, right |
-| `monitor_index` | -1 | Target monitor index (`-1` = primary monitor, `0..N` = specific monitor) |
-| `hide_mode` | none | Dock hide behavior: `none`, `always-on-top`, `autohide`, `intelligent`, `dodge-active`, `window-dodge`, `dodge-maximized` |
-| `hide_delay_ms` | 0 | Delay before hiding starts (0 = instant) |
-| `unhide_delay_ms` | 0 | Delay before showing the dock again |
-| `hide_time_ms` | 250 | Duration of hide/show slide animation |
-| `previews_enabled` | true | Show window preview thumbnails on hover |
-| `lock_icons` | false | Prevent reordering, drag-in, and drag-off removal |
-| `current_workspace_only` | false | Only show running apps from the active workspace |
-| `anchor_applets` | false | Keep applets anchored at the end of the dock |
-| `anchor_files` | false | Keep file and folder entries anchored at the end independently |
-| `tooltips_enabled` | true | Show hover tooltips for dock items |
-| `active_display` | false | Follow the active monitor instead of staying on one display |
-| `update_check_enabled` | true | Check GitHub for newer Docking releases |
-| `update_check_interval_hours` | 24 | Minimum hours between automatic update checks |
-| `left_click_action` | toggle | Running-app left click: `toggle`, `cycle`, or `most-recent` |
-| `middle_click_action` | new-window | Application middle click: `new-window`, `minimize`, or `close-focused` |
-| `stack_unfold` | hover | Stack open behavior: `hover` or `click` |
-| `window_list_sort` | default | Open-window menu order: `default` or `alphabetical` |
-| `show_window_count_numbers` | false | Show numeric window counts inside running indicators |
-| `show_launcher_badges` | true | Show numeric counts reported by applications on their dock icons |
-| `show_launcher_progress` | true | Show task progress reported by applications on their dock icons |
-| `theme` | default | Theme name (loads from `~/.config/docking/themes/{name}.json` first, then built-in themes) |
-| `transparency` | 1.0 | Multiplier applied to theme alpha from `0.15` to `1.0` (`1.0` = full theme opacity) |
-| `additional_distance_from_edge` | 0 | Extra pixels added to the theme's edge gap |
-| `pressure_reveal_enabled` | false | Require pointer-barrier pressure before revealing a hidden X11 dock |
-| `pressure_threshold` | 50 | Pointer pressure threshold in pixels, from `5` to `500` |
-| `pinned` | [] | Ordered pinned entries for apps, applets, files, and folders. First run seeds a starter set. |
-| `applet_prefs` | `{}` | Per-applet preference storage |
-| `item_prefs` | `{}` | Per-item preference storage for files and folders |
-
-`hide_mode` meanings:
-
-- `none`: Dock stays visible and reserves screen space.
-- `always-on-top`: Dock stays visible above all windows without reserving screen space.
-- `autohide`: Dock hides when the cursor leaves.
-- `intelligent`: Dock hides when a window from the focused app overlaps the dock.
-- `dodge-active`: Dock hides when the focused window overlaps the dock.
-- `window-dodge`: Dock hides when any window on the current workspace overlaps the dock.
-- `dodge-maximized`: Dock hides when the focused window is maximized or a dialog overlaps the dock.
-
-The dock menu provides **Display**, **Preferences**, and **Diagnostics** for
-changing these settings and inspecting runtime support. Advanced users can also
-edit `pinned` directly. Update preferences live in `dock.json`;
-timestamps, ignored releases, and reminder state live in
-`~/.local/state/docking/updates.json`.
+Settings are saved automatically in `~/.config/docking/dock.json`. See the
+[Configuration guide](docs/CONFIGURATION.md) for every setting, hide-mode and
+mouse-action behavior, pinned entry formats, per-applet preferences, backups,
+and safe manual editing.
 
 ## Theming
 
@@ -1583,6 +1517,7 @@ every package format live in the [packaging guide](packaging/README.md).
 
 ## Additional Docs
 
+- [Configuration](docs/CONFIGURATION.md)
 - [Themes](docs/THEMES.md)
 - [D-Bus Remote Control](docs/DBUS.md)
 - [Icon Assets and Packaging](docs/ICONS.md)
