@@ -309,17 +309,10 @@ class TooltipManager:
         self._last_item: DockItem | None = None
         self._last_name: str = ""
         self._pending_show_source: int = 0
-        self._suppressed = False
 
     def set_theme(self, theme: Theme) -> None:
         """Update the theme used for tooltip spacing."""
         self._theme = theme
-
-    def set_suppressed(self, suppressed: bool) -> None:
-        """Prevent tooltip display while a higher-priority popup is visible."""
-        self._suppressed = suppressed
-        if suppressed:
-            self.hide()
 
     def update(
         self,
@@ -332,7 +325,7 @@ class TooltipManager:
         tooltip visible to avoid flicker. The dock's _on_leave hides it
         when the mouse actually exits the dock.
         """
-        if self._suppressed or not self._config.tooltips_enabled:
+        if not self._config.tooltips_enabled:
             self.hide()
             return
 
@@ -533,10 +526,7 @@ class TooltipManager:
         self._tooltip_window.move(tx, ty)
         self._tooltip_window.show_all()
 
-        # Rebuilding dynamic tooltip content remaps this popup and raises it
-        # above an already-open menu. Keep it immediately below the dock: the
-        # dock remains above normal windows, while its menus and dialogs retain
-        # their higher stacking position.
+        # Keep tooltips behind dialogs and other dock popups.
         tooltip_surface = self._tooltip_window.get_window()
         dock_surface = self._window.get_window()
         if tooltip_surface is not None and dock_surface is not None:

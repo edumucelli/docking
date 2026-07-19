@@ -98,21 +98,6 @@ class TestTooltipHide:
         # Then
         tooltip._tooltip_window.hide.assert_called_once()
 
-    def test_suppressed_tooltip_ignores_updates_until_resumed(self):
-        tooltip = _make_tooltip()
-        tooltip._show_tooltip = MagicMock()  # type: ignore[method-assign]
-        item = _make_item("Devices")
-
-        tooltip.set_suppressed(True)
-        tooltip.update(item, _frame_for_item(item))
-
-        assert tooltip._suppressed is True
-        tooltip._show_tooltip.assert_not_called()
-
-        tooltip.set_suppressed(False)
-
-        assert tooltip._suppressed is False
-
     def test_update_with_missing_geometry_returns_without_showing(self):
         tooltip = _make_tooltip()
         tooltip._show_tooltip = MagicMock()  # type: ignore[method-assign]
