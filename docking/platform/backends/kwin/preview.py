@@ -255,7 +255,7 @@ class KWinPreviewService(PreviewService):
             if not getattr(self, "_auth_warned", False):
                 self._auth_warned = True
                 log.info(
-                    "ScreenShot2 not authorized — previews require "
+                    "ScreenShot2 not authorized - previews require "
                     "Docking to be launched via its .desktop file "
                     "(e.g. gtk-launch org.docking.Docking)"
                 )

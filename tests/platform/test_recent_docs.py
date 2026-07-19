@@ -1,4 +1,4 @@
-"""Tests for recent_docs module — document-to-app association."""
+"""Tests for recent_docs module - document-to-app association."""
 
 from __future__ import annotations
 

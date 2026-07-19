@@ -714,7 +714,7 @@ msgstr "Active"
 
 #: docking/applets/caffeine/state.py:131
 msgid "Active - {time} left"
-msgstr "Aktīvs — palicis {time}"
+msgstr "Aktīvs - palicis {time}"
 
 #: docking/applets/calculator/applet.py:78
 #: docking/applets/calculator/applet.py:96

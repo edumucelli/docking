@@ -87,7 +87,7 @@ def test_toplevel_listing(runtime: WaylandProtocolRuntime) -> bool:
             all_done = False
 
     if not pending:
-        print("  (No open toplevels — this may be OK on an empty desktop)")
+        print("  (No open toplevels - this may be OK on an empty desktop)")
         return True
 
     if not all_done:
@@ -244,7 +244,7 @@ def test_overlap_protocol_bound(runtime: WaylandProtocolRuntime) -> bool:
 
     # Without a layer surface we cannot exercise the overlap subscription,
     # but we can verify the adapter is properly constructed.
-    print("  (Subscription requires a layer-shell surface — tested with full app)")
+    print("  (Subscription requires a layer-shell surface - tested with full app)")
     print("  PASS")
     return True
 
@@ -356,7 +356,7 @@ def main() -> int:
     if all_passed:
         print("All COSMIC protocol tests passed!")
         return 0
-    print("Some tests FAILED — see output above")
+    print("Some tests FAILED - see output above")
     return 1
 
 

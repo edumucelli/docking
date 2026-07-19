@@ -270,7 +270,7 @@ class AtspiWindowService(WindowService):
     # ------------------------------------------------------------------
 
     def _on_refresh_timer(self) -> bool:
-        """GLib timer callback — runs refresh in a background thread."""
+        """GLib timer callback - runs refresh in a background thread."""
         self._schedule_refresh()
         return True  # keep timer running
 
@@ -499,7 +499,7 @@ class AtspiWindowService(WindowService):
             if toolkit and w.app_id:
                 w.app_id = f"{w.app_id}.{toolkit}"
 
-        # Geometry via Component interface — only if the object
+        # Geometry via Component interface - only if the object
         # actually implements it (avoids impl_GetExtents CRITICALs).
         if self._has_interface(conn, service, path, "org.a11y.atspi.Component"):
             try:

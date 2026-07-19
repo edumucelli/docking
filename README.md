@@ -36,7 +36,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 62 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- 63 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -283,7 +283,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 62 built-in applets, ranging from application
+Docking includes 63 built-in applets, ranging from application
 launchers and system controls to productivity tools, wellness reminders, and
 live information.
 
@@ -295,7 +295,7 @@ live information.
 | Time & Productivity | Clock, Calendar, Alarm, Pomodoro, Calculator, Quick Note |
 | System & Power | Devices, Network, Bluetooth, Volume, Battery, System Tray |
 | Wellness & Ambient | Hydration, Plant Care, Stretch Coach, Ambient, Pet |
-| Information and Environment | Weather, Sunrise, Moon, Reddit, Hacker News, Crypto |
+| Information and Environment | Weather, Sunrise, Moon, News, Reddit, Hacker News |
 
 Add one from right-click -> **Add Applet**, then choose a category. See the
 [Applets guide](docs/APPLETS.md) for the complete catalog, interactions,

@@ -304,7 +304,7 @@ class HideMode(str, Enum):
     ──────────────  ──────────────────────────────────────────────────────
     NONE            Never hides, reserves struts so maximized windows
                     avoid the dock area.
-    ALWAYS_ON_TOP   Never hides, but does not reserve struts — maximized
+    ALWAYS_ON_TOP   Never hides, but does not reserve struts - maximized
                     windows fill the full screen and the dock floats above.
     AUTOHIDE        Hides when the mouse leaves the dock area.
     INTELLIGENT     Hides when any window from the active app overlaps

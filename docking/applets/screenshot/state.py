@@ -183,7 +183,7 @@ def _portal_args(*, mode: Mode) -> list[str]:
 def _launch(*, cmd: list[str], delay_seconds: int) -> None:
     """Launch *cmd* immediately or after a simple in-process delay."""
     kwargs: dict = {"start_new_session": True}
-    # Suppress stdout/stderr for portal calls — the D-Bus request handle
+    # Suppress stdout/stderr for portal calls - the D-Bus request handle
     # emitted to stdout is noise to the user and the portal completes
     # asynchronously.
     if cmd[0] == "gdbus":

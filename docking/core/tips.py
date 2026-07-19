@@ -154,6 +154,15 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         ),
     ),
     StartupTip(
+        "country-news",
+        _("Follow news sources by country"),
+        _(
+            "Add the News applet, choose a country, and select a publication "
+            "or edition. Scroll through its latest headlines, or add more "
+            "sources and switch between them from the applet menu."
+        ),
+    ),
+    StartupTip(
         "custom-icons",
         _("Customize pinned icons"),
         _(

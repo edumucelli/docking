@@ -91,6 +91,7 @@ from docking.applets.moon.render import create_icon as render_moon
 from docking.applets.moon.state import phase_name
 from docking.applets.music.render import create_music_icon
 from docking.applets.network.render import create_icon as render_network
+from docking.applets.news.render import render_icon as render_news
 from docking.applets.notifications.render import create_notifications_icon
 from docking.applets.pet.render import render_icon as render_pet
 from docking.applets.pet.state import PetState
@@ -360,6 +361,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             rx_speed=0.0,
             tx_speed=0.0,
             speed_overlay="none",
+        ),
+        AppletId.NEWS: render_news(
+            size=size,
+            index=0,
+            count=18,
         ),
         AppletId.HACKERNEWS: render_hackernews(
             size=size,

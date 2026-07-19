@@ -22,7 +22,7 @@ Backend selection::
                                        |     (via KWin VirtualDesktopManager D-Bus)
                                        +-- ReducedWindowService
                                        |     (window listing not available from
-                                       |      KWin 6 Wayland — KWin does not
+                                       |      KWin 6 Wayland - KWin does not
                                        |      expose a public window-list protocol)
                                        +-- ReducedVisibilityService
 

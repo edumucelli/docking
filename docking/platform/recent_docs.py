@@ -14,7 +14,7 @@
 """Recent-document-to-app association for per-app jumplist menus.
 
 Reads the freedesktop.org recent-files store (via Gtk.RecentManager) and
-associates each file with dock apps using ``has_application()`` — the only
+associates each file with dock apps using ``has_application()`` - the only
 reliable signal for "this app actually opened this file".
 
 MIME-type matching (``get_supported_types()``) was tested and rejected:
@@ -60,7 +60,7 @@ def recent_docs_for_app(
     """Return recent documents associated with *desktop_id*, most-recent first.
 
     Only returns files where ``has_application()`` confirms the app actually
-    opened them.  No MIME-type fallback — that produces identical noise across
+    opened them.  No MIME-type fallback - that produces identical noise across
     all apps sharing the same broad type registrations.
 
     Args:
@@ -86,7 +86,7 @@ def recent_docs_for_app(
     if not all_items:
         return []
 
-    # get_items() order is undefined — sort by modification time descending.
+    # get_items() order is undefined - sort by modification time descending.
     sorted_items = sorted(all_items, key=lambda i: i.get_modified(), reverse=True)
 
     docs: list[RecentDoc] = []
