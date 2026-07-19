@@ -370,7 +370,10 @@ def _capture_window_surface(window: Gtk.Window) -> cairo.ImageSurface:
 
 def _draw_tooltip_case() -> cairo.ImageSurface:
     manager = TooltipManager(
-        window=SimpleNamespace(get_position=lambda: (100, 200)),
+        window=SimpleNamespace(
+            get_position=lambda: (100, 200),
+            get_window=lambda: None,
+        ),
         config=SimpleNamespace(
             tooltips_enabled=True,
             pos=Position.BOTTOM,

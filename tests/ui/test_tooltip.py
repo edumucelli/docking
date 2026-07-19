@@ -98,21 +98,6 @@ class TestTooltipHide:
         # Then
         tooltip._tooltip_window.hide.assert_called_once()
 
-    def test_suppressed_tooltip_ignores_updates_until_resumed(self):
-        tooltip = _make_tooltip()
-        tooltip._show_tooltip = MagicMock()  # type: ignore[method-assign]
-        item = _make_item("Devices")
-
-        tooltip.set_suppressed(True)
-        tooltip.update(item, _frame_for_item(item))
-
-        assert tooltip._suppressed is True
-        tooltip._show_tooltip.assert_not_called()
-
-        tooltip.set_suppressed(False)
-
-        assert tooltip._suppressed is False
-
     def test_update_with_missing_geometry_returns_without_showing(self):
         tooltip = _make_tooltip()
         tooltip._show_tooltip = MagicMock()  # type: ignore[method-assign]
@@ -707,6 +692,7 @@ class _FakeTooltipScreen:
 class _FakeTooltipWindow:
     def __init__(self, **_kwargs):
         self._screen = _FakeTooltipScreen()
+        self._surface = MagicMock()
         self._visible = False
         self._child = None
         self._removed = 0
@@ -785,6 +771,9 @@ class _FakeTooltipWindow:
     def show_all(self) -> None:
         self._visible = True
 
+    def get_window(self):
+        return self._surface
+
 
 class _FakeTooltipLabel:
     def __init__(self, label: str):
@@ -827,6 +816,7 @@ class TestTooltipIntegrationBranches:
         monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
         monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
         window = MagicMock()
+        dock_surface = window.get_window.return_value
         window.surface_service.popups_use_parent_relative_coordinates = False
         config = SimpleNamespace(icon_size=48)
         model = MagicMock()
@@ -849,6 +839,9 @@ class TestTooltipIntegrationBranches:
         assert tooltip._tooltip_window._attached_to is window
         assert tooltip._tooltip_window._accept_focus is False
         assert tooltip._tooltip_window._focus_on_map is False
+        tooltip._tooltip_window._surface.restack.assert_called_once_with(
+            dock_surface, False
+        )
         moved = tooltip._tooltip_window._moved
         assert moved is not None
         assert moved[0] >= 0

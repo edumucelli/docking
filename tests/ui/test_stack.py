@@ -149,30 +149,6 @@ def test_activation_uses_latest_callback_and_closes_popup():
     controller._close_stack.assert_called_once()
 
 
-def test_visible_stack_suppresses_tooltips_until_closed():
-    controller = _controller()
-    runtime = controller._runtime
-    window = MagicMock()
-    window.get_visible.return_value = True
-    controller._folder_stack_window = window
-    controller._ensure_stack_window = MagicMock(return_value=window)
-    controller._folder_stack_revealer = MagicMock()
-    controller._replace_stack_content = MagicMock()
-    controller._restart_stack_animation = MagicMock()
-    controller._position_stack_window = MagicMock()
-
-    assert controller.show_stack(
-        owner_id="applet://devices",
-        provider=lambda _icon_size: StackContent(empty_label="No devices"),
-        anchor=SimpleNamespace(x=100, y=200, position="bottom"),
-    )
-
-    runtime.suppress_tooltip.assert_called_once()
-    runtime.resume_tooltip.reset_mock()
-    controller.close()
-    runtime.resume_tooltip.assert_called_once()
-
-
 def test_refresh_reloads_visible_provider_content():
     controller = _controller()
     first = StackContent(entries=(_entry("first"),))

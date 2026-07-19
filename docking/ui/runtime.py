@@ -90,12 +90,6 @@ class DockRuntime:
     def hide_tooltip(self) -> None:
         self._window.tooltip.hide()
 
-    def suppress_tooltip(self) -> None:
-        self._window.tooltip.set_suppressed(True)
-
-    def resume_tooltip(self) -> None:
-        self._window.tooltip.set_suppressed(False)
-
     def hide_hover_ui(self) -> None:
         self._window.tooltip.hide()
         self._window.preview.hide()
