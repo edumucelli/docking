@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 63 built-in applets that live alongside
+Docking includes 64 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, control desktop services, or provide small tools
 without opening a full application.
@@ -26,7 +26,8 @@ the applet keeps a safe unavailable state or hides unsupported actions.
 ## Catalog
 
 - **Launcher & Navigation:** [Applications](#applications), [Desktop](#desktop),
-  [Run Application](#run-application), [Workspaces](#workspaces)
+  [Run Application](#run-application), [WhatsApp](#whatsapp),
+  [Workspaces](#workspaces)
 - **Time & Productivity:** [AI Usage](#ai-usage), [Alarm](#alarm),
   [Bookmarks](#bookmarks), [Calculator](#calculator), [Calendar](#calendar),
   [Clippy](#clippy), [Clock](#clock), [Color Picker](#color-picker),
@@ -97,6 +98,41 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 **Right-click options:** Radio list of all workspaces
 
 **Tooltip:** Active workspace name
+
+### WhatsApp
+
+Runs a single persistent WhatsApp Web session in a Docking window. The session
+starts in the background shortly after Docking, so the applet can keep its
+unread badge and desktop notifications current. Closing the window hides it
+without signing out or stopping the session.
+
+**Click:** Show or hide the WhatsApp window
+
+**Right-click options:**
+
+- **Open WhatsApp** / **Hide WhatsApp**
+- **Reload** -- reload the embedded WhatsApp Web session
+- **Open in Browser** -- open WhatsApp Web in the default browser
+- **Disconnect WhatsApp** -- clear Docking's dedicated session and return to
+  the QR login page
+
+**Badge:** unread message count reported through WhatsApp Web's page title or
+standard browser Badging API. If neither provides an exact count, recent
+desktop notifications provide a temporary activity count that clears when the
+WhatsApp window opens.
+
+**Status:** the icon and tooltip distinguish loading, QR login, synchronization,
+offline, ready, and error states without reading chats or message content.
+
+**Notifications:** WhatsApp notifications appear through the desktop
+notification service. Activating one presents the Docking WhatsApp window.
+
+**Session storage:** cookies and website data use dedicated `whatsapp`
+directories under Docking's XDG data and cache locations. Login stays inside
+WhatsApp Web; Docking does not request or store separate WhatsApp credentials.
+
+**Integration requirement:** WebKitGTK 4.1 or 4.0 with GObject introspection.
+Camera and microphone requests always require confirmation.
 
 
 ## Time & Productivity

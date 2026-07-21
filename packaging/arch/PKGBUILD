@@ -15,6 +15,7 @@ depends=(
   'libwnck3'
   'networkmanager'
   'gstreamer'
+  'webkit2gtk-4.1'
   'librsvg'
   'hicolor-icon-theme'
   'adwaita-icon-theme'

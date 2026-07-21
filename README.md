@@ -36,7 +36,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 63 built-in applets for launching apps and commands, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- 64 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -63,6 +63,9 @@ sudo apt install \
   gir1.2-nm-1.0 gir1.2-gstreamer-1.0 \
   libcairo2-dev libgirepository1.0-dev pkg-config
 ```
+
+The WhatsApp applet additionally needs WebKitGTK. Install
+`gir1.2-webkit2-4.1`, or `gir1.2-webkit2-4.0` on systems such as Ubuntu 22.04.
 
 Native Wayland layer-shell source installs also need the system
 `gtk-layer-shell` GIR package:
@@ -283,7 +286,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 63 built-in applets, ranging from application
+Docking includes 64 built-in applets, ranging from application
 launchers and system controls to productivity tools, wellness reminders, and
 live information.
 
@@ -291,7 +294,7 @@ live information.
 
 | Category | Examples |
 |---|---|
-| Launcher & Navigation | Applications, Run Application, Desktop, Workspaces |
+| Launcher & Navigation | Applications, Run Application, Desktop, WhatsApp, Workspaces |
 | Time & Productivity | Clock, Calendar, Alarm, Pomodoro, Calculator, Quick Note |
 | System & Power | Devices, Network, Bluetooth, Volume, Battery, System Tray |
 | Wellness & Ambient | Hydration, Plant Care, Stretch Coach, Ambient, Pet |

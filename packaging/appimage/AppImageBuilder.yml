@@ -45,6 +45,7 @@ AppDir:
       - gir1.2-pango-1.0
       - gir1.2-nm-1.0
       - gir1.2-gstreamer-1.0
+      - gir1.2-webkit2-4.0
       - libgtk-3-0
       - libgtk-layer-shell0
       - libglib2.0-bin
@@ -57,6 +58,8 @@ AppDir:
       - libwayland-server0
       - libnm0
       - libgstreamer1.0-0
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-good
       - librsvg2-common
       - hicolor-icon-theme
 
