@@ -177,7 +177,6 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
 from docking.core.config import effective_edge_gap
-from docking.core.items import APP_KIND
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import (
     RGB,
@@ -1045,9 +1044,15 @@ class DockRenderer:
                 pos=pos,
             )
 
-        # --- Draw per-app overlays ---
+        # --- Draw per-item overlays ---
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
-            if item.kind != APP_KIND:
+            show_badge = (
+                item.badge_visible
+                and item.badge_count > 0
+                and config.show_launcher_badges
+            )
+            show_progress = item.progress_visible and config.show_launcher_progress
+            if not show_badge and not show_progress:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
@@ -1083,11 +1088,7 @@ class DockRenderer:
                 bounce=bounce,
             )
 
-            if (
-                config.show_launcher_badges
-                and item.badge_visible
-                and item.badge_count > 0
-            ):
+            if show_badge:
                 self._draw_badge(
                     cr=cr,
                     x=ix,
@@ -1095,7 +1096,7 @@ class DockRenderer:
                     size=scaled_size,
                     badge_count=item.badge_count,
                 )
-            if config.show_launcher_progress and item.progress_visible:
+            if show_progress:
                 self._draw_progress(
                     cr=cr,
                     x=ix,

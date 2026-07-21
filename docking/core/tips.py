@@ -190,6 +190,15 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
         ),
     ),
     StartupTip(
+        "whatsapp-applet",
+        _("Keep WhatsApp in the dock"),
+        _(
+            "Add the WhatsApp applet for a persistent WhatsApp Web window, "
+            "desktop notifications, and an unread-message badge. Closing "
+            "the window hides it without signing out."
+        ),
+    ),
+    StartupTip(
         "run-application",
         _("Use Run Application like Alt+F2"),
         _(

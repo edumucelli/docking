@@ -125,6 +125,8 @@ from docking.applets.urlshortener.render import create_icon as render_urlshorten
 from docking.applets.usbwatch.render import create_usbwatch_icon
 from docking.applets.volume.render import create_volume_icon
 from docking.applets.weather.render import create_icon as render_weather
+from docking.applets.whatsapp.render import render_icon as render_whatsapp
+from docking.applets.whatsapp.state import BrowserPhase as WhatsAppBrowserPhase
 from docking.applets.windowkiller.render import create_icon as render_windowkiller
 from docking.applets.workspaces.render import _render_grid
 
@@ -464,6 +466,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             size=size,
             weather=None,
             show_temperature=True,
+        ),
+        AppletId.WHATSAPP: render_whatsapp(
+            size=size,
+            phase=WhatsAppBrowserPhase.READY,
         ),
         AppletId.WINDOWKILLER: render_windowkiller(size=size),
         AppletId.WORKSPACES: _workspaces_pixbuf(size=size),

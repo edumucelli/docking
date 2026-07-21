@@ -9,6 +9,7 @@ Source0:        %{name}-%{version}.tar.gz
 
 Requires:       python3
 Requires:       gtk-layer-shell
+Requires:       webkit2gtk4.1
 Recommends:     python3-pywayland
 BuildRequires:  gcc
 BuildRequires:  gettext
@@ -715,4 +716,3 @@ fi
 - Fine-tune README title icon vertical alignment
 - Align README title icon using trimmed header asset
 - Refresh WM_CLASS mapping on each window scan
-

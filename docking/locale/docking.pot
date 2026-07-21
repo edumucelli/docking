@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-19 14:50+0200\n"
+"POT-Creation-Date: 2026-07-21 16:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -117,8 +117,8 @@ msgstr ""
 #: docking/applets/runcommand/applet.py:131
 #: docking/applets/runcommand/applet.py:350
 #: docking/applets/sunrise/applet.py:189 docking/applets/trash/applet.py:264
-#: docking/applets/weather/applet.py:274 docking/ui/diagnostics.py:342
-#: docking/ui/menu.py:441
+#: docking/applets/weather/applet.py:274 docking/applets/whatsapp/applet.py:181
+#: docking/ui/diagnostics.py:342 docking/ui/menu.py:441
 msgid "Cancel"
 msgstr ""
 
@@ -584,6 +584,7 @@ msgid "Discovered Devices"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:370
+#: docking/applets/whatsapp/applet.py:182
 msgid "Disconnect"
 msgstr ""
 
@@ -3807,6 +3808,159 @@ msgstr ""
 msgid "{city}: {temp}"
 msgstr ""
 
+#: docking/applets/whatsapp/applet.py:43
+#: docking/applets/whatsapp/browser.py:267
+#: docking/applets/whatsapp/browser.py:277
+msgid "WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:93
+msgid "Hide WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:93
+msgid "Open WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:98
+msgid "Reload"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:104
+msgid "Open in Browser"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:107
+msgid "Disconnect WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:173
+msgid "Disconnect WhatsApp?"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:177
+msgid ""
+"This clears the WhatsApp Web session stored by Docking. You will need to "
+"scan the QR code again."
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:198
+msgid "Could not disconnect WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:200
+msgid "Unknown WebKit error"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:153
+msgid "WebKitGTK is unavailable"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:278
+msgid "Docking applet"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:284
+msgid "Reload WhatsApp Web"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:388
+msgid "browser process stopped"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:472
+msgid "camera and microphone"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:474
+msgid "camera"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:476
+msgid "microphone"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:482
+#, python-brace-format
+msgid "Allow WhatsApp to use your {device}?"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:484
+msgid "Deny"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:485
+msgid "Allow"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:543
+msgid "WhatsApp requires WebKitGTK"
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:547
+msgid ""
+"Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
+msgstr ""
+
+#: docking/applets/whatsapp/browser.py:592
+msgid "unknown browser error"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:152
+msgid "WhatsApp: WebKitGTK is not installed"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:154
+msgid "WhatsApp: loading..."
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:156
+msgid "WhatsApp: scan the QR code to connect"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:158
+msgid "WhatsApp: synchronizing..."
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:160
+msgid "WhatsApp: offline"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:163
+#, python-brace-format
+msgid "WhatsApp: {error}"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:164
+msgid "WhatsApp: could not load WhatsApp Web"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:168
+msgid "WhatsApp: 1 new notification"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:169
+#, python-brace-format
+msgid "WhatsApp: {count} new notifications"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:173
+msgid "WhatsApp: 1 unread message"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:175
+#, python-brace-format
+msgid "WhatsApp: {count} unread messages"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:178
+msgid "WhatsApp: no unread messages"
+msgstr ""
+
+#: docking/applets/whatsapp/state.py:179
+msgid "WhatsApp: click to open"
+msgstr ""
+
 #: docking/applets/windowkiller/applet.py:78
 msgid "Window Killer"
 msgstr ""
@@ -3981,94 +4135,105 @@ msgid ""
 msgstr ""
 
 #: docking/core/tips.py:194
-msgid "Use Run Application like Alt+F2"
+msgid "Keep WhatsApp in the dock"
 msgstr ""
 
 #: docking/core/tips.py:196
+msgid ""
+"Add the WhatsApp applet for a persistent WhatsApp Web window, desktop "
+"notifications, and an unread-message badge. Closing the window hides it "
+"without signing out."
+msgstr ""
+
+#: docking/core/tips.py:203
+msgid "Use Run Application like Alt+F2"
+msgstr ""
+
+#: docking/core/tips.py:205
 msgid ""
 "Add Run Application to launch commands, apps, and terminal commands from the "
 "dock. As you type, matching applications are shown so you can launch by name "
 "or run a standalone command."
 msgstr ""
 
-#: docking/core/tips.py:203
+#: docking/core/tips.py:212
 msgid "Use window previews"
 msgstr ""
 
-#: docking/core/tips.py:205
+#: docking/core/tips.py:214
 msgid ""
 "Hover running apps to inspect open windows before switching. Previews help "
 "when one application has several windows open."
 msgstr ""
 
-#: docking/core/tips.py:211
+#: docking/core/tips.py:220
 msgid "Choose your click behavior"
 msgstr ""
 
-#: docking/core/tips.py:213
+#: docking/core/tips.py:222
 msgid ""
 "Preferences -> Behavior lets left click toggle, cycle, or focus the most "
 "recent window. Pick the behavior that matches how you switch between running "
 "applications."
 msgstr ""
 
-#: docking/core/tips.py:220
+#: docking/core/tips.py:229
 msgid "Ctrl-click opens a new window"
 msgstr ""
 
-#: docking/core/tips.py:222
+#: docking/core/tips.py:231
 msgid ""
 "Hold Ctrl while clicking an app icon to launch another window. This works "
 "even when the app is already running and a normal click would focus it."
 msgstr ""
 
-#: docking/core/tips.py:229
+#: docking/core/tips.py:238
 msgid "Use Clock as a calendar"
 msgstr ""
 
-#: docking/core/tips.py:231
+#: docking/core/tips.py:240
 msgid ""
 "Left-click the Clock applet to open the same calendar popup as the Calendar "
 "applet. Use Clock when you want the time and calendar in one dock item."
 msgstr ""
 
-#: docking/core/tips.py:238
+#: docking/core/tips.py:247
 msgid "Use app right-click menus"
 msgstr ""
 
-#: docking/core/tips.py:240
+#: docking/core/tips.py:249
 msgid ""
 "Right-click apps for desktop actions, open windows, recent documents, "
 "pinning, and close actions. Many apps expose useful shortcuts there, such as "
 "opening a private window or composing a new message."
 msgstr ""
 
-#: docking/core/tips.py:248
+#: docking/core/tips.py:257
 msgid "Use Recent Files"
 msgstr ""
 
-#: docking/core/tips.py:250
+#: docking/core/tips.py:259
 msgid ""
 "Add the Recent Files applet to jump back into documents you used recently. "
 "It is a faster path when you remember the file, not the folder."
 msgstr ""
 
-#: docking/core/tips.py:257
+#: docking/core/tips.py:266
 msgid "Use System Tray when needed"
 msgstr ""
 
-#: docking/core/tips.py:259
+#: docking/core/tips.py:268
 msgid ""
 "Add System Tray for tray/status apps and use its menu to manage tray "
 "ownership when supported. This helps with legacy apps that still rely on a "
 "classic notification area."
 msgstr ""
 
-#: docking/core/tips.py:266
+#: docking/core/tips.py:275
 msgid "Use Diagnostics for support"
 msgstr ""
 
-#: docking/core/tips.py:268
+#: docking/core/tips.py:277
 msgid ""
 "Open Diagnostics before filing an issue to copy backend, session, and "
 "feature details. Including that report makes it much easier to understand "

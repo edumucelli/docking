@@ -27,6 +27,7 @@ pyPkgs.buildPythonApplication rec {
     pango
     cairo
     gst_all_1.gstreamer
+    webkitgtk_4_1
     librsvg
   ];
 

@@ -10,6 +10,7 @@ import cairo
 import pytest
 
 import docking.ui.renderer as renderer_mod
+from docking.core.items import APPLET_KIND
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.model import DockItem
@@ -339,6 +340,50 @@ class TestRendererContentFlow:
 
         renderer._draw_badge.assert_called_once()
         renderer._draw_progress.assert_called_once()
+
+    def test_draw_content_dispatches_badge_for_applet_items(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+            additional_distance_from_edge=0,
+        )
+        item = DockItem(
+            desktop_id="applet://whatsapp",
+            kind=APPLET_KIND,
+            badge_count=5,
+            badge_visible=True,
+        )
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            frame=_frame([item], layout),
+            config=config,
+            theme=theme,
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
+        )
+
+        renderer._draw_badge.assert_called_once()
+        renderer._draw_progress.assert_not_called()
 
     @pytest.mark.parametrize(
         ("show_badges", "show_progress", "badge_calls", "progress_calls"),
