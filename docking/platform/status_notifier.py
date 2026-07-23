@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
-from typing import Any, Protocol
 
 from gi.repository import GLib
 
@@ -32,24 +30,6 @@ _UNREAD_NOTIFICATION_RE = re.compile(
 )
 
 log = with_context(get_logger(name="status_notifier"), component="notification_bridge")
-
-
-class StatusNotifierBackendLike(Protocol):
-    def get_state(self) -> StatusTrayState: ...
-
-    def close(self) -> None: ...
-
-
-class GuardedWorkerLike(Protocol):
-    def run_guarded(
-        self,
-        *,
-        key: str,
-        name: str,
-        fn: Callable[[], StatusTrayState],
-        on_result: Callable[[StatusTrayState], Any] | None = None,
-        on_error: Callable[[Exception], Any] | None = None,
-    ) -> bool: ...
 
 
 def status_notifier_desktop_id(item: TrayItem) -> str | None:
@@ -86,12 +66,10 @@ class StatusNotifierNotificationBridge:
         self,
         *,
         model: DockModel,
-        backend: StatusNotifierBackendLike | None = None,
-        worker: GuardedWorkerLike | None = None,
     ) -> None:
         self._model = model
-        self._backend = backend or StatusNotifierBackend()
-        self._worker = worker or BackgroundWorker(logger=log)
+        self._backend = StatusNotifierBackend()
+        self._worker = BackgroundWorker(logger=log)
         self._timer_id = 0
         self._running = False
         self._observed_source_ids: set[str] = set()

@@ -87,6 +87,16 @@ class _ImmediateWorker:
         return True
 
 
+def _bridge(monkeypatch, *, model, backend) -> StatusNotifierNotificationBridge:
+    monkeypatch.setattr(status_mod, "StatusNotifierBackend", lambda: backend)
+    monkeypatch.setattr(
+        status_mod,
+        "BackgroundWorker",
+        lambda **_kwargs: _ImmediateWorker(),
+    )
+    return StatusNotifierNotificationBridge(model=model)
+
+
 class TestSlackTrayParsing:
     def test_identifies_slack_status_item(self):
         assert status_notifier_desktop_id(_tray_item()) == SLACK_DESKTOP_ID
@@ -156,7 +166,6 @@ class TestStatusNotifierNotificationBridge:
     ):
         model = MagicMock()
         backend = _Backend(_available_state(_tray_item()))
-        worker = _ImmediateWorker()
         timer_calls: list[tuple[int, object]] = []
         removed_timers: list[int] = []
         monkeypatch.setattr(
@@ -169,10 +178,10 @@ class TestStatusNotifierNotificationBridge:
             "source_remove",
             lambda timer_id: removed_timers.append(timer_id),
         )
-        bridge = StatusNotifierNotificationBridge(
+        bridge = _bridge(
+            monkeypatch,
             model=model,
             backend=backend,
-            worker=worker,
         )
 
         bridge.start()
@@ -194,12 +203,12 @@ class TestStatusNotifierNotificationBridge:
         assert removed_timers == [77]
         assert backend.close_calls == 1
 
-    def test_disappearing_item_removes_overlay(self):
+    def test_disappearing_item_removes_overlay(self, monkeypatch):
         model = MagicMock()
-        bridge = StatusNotifierNotificationBridge(
+        bridge = _bridge(
+            monkeypatch,
             model=model,
             backend=_Backend(_available_state()),
-            worker=_ImmediateWorker(),
         )
         bridge._running = True
         bridge._on_state_result(_available_state(_tray_item()))
@@ -211,12 +220,12 @@ class TestStatusNotifierNotificationBridge:
             source_id=":1.42/StatusNotifierItem"
         )
 
-    def test_unavailable_backend_preserves_existing_overlay(self):
+    def test_unavailable_backend_preserves_existing_overlay(self, monkeypatch):
         model = MagicMock()
-        bridge = StatusNotifierNotificationBridge(
+        bridge = _bridge(
+            monkeypatch,
             model=model,
             backend=_Backend(_available_state()),
-            worker=_ImmediateWorker(),
         )
         bridge._running = True
         bridge._on_state_result(_available_state(_tray_item()))
@@ -227,12 +236,12 @@ class TestStatusNotifierNotificationBridge:
         model.remove_status_notifier_overlay.assert_not_called()
         model.apply_status_notifier_overlay.assert_not_called()
 
-    def test_malformed_tooltip_does_not_clear_previous_count(self):
+    def test_malformed_tooltip_does_not_clear_previous_count(self, monkeypatch):
         model = MagicMock()
-        bridge = StatusNotifierNotificationBridge(
+        bridge = _bridge(
+            monkeypatch,
             model=model,
             backend=_Backend(_available_state()),
-            worker=_ImmediateWorker(),
         )
         bridge._running = True
         bridge._on_state_result(_available_state(_tray_item()))
@@ -245,12 +254,12 @@ class TestStatusNotifierNotificationBridge:
         model.apply_status_notifier_overlay.assert_not_called()
         model.remove_status_notifier_overlay.assert_not_called()
 
-    def test_unknown_tray_items_are_ignored(self):
+    def test_unknown_tray_items_are_ignored(self, monkeypatch):
         model = MagicMock()
-        bridge = StatusNotifierNotificationBridge(
+        bridge = _bridge(
+            monkeypatch,
             model=model,
             backend=_Backend(_available_state()),
-            worker=_ImmediateWorker(),
         )
         bridge._running = True
 
@@ -260,13 +269,13 @@ class TestStatusNotifierNotificationBridge:
 
         model.apply_status_notifier_overlay.assert_not_called()
 
-    def test_poll_failure_preserves_overlays_and_keeps_timer_alive(self):
+    def test_poll_failure_preserves_overlays_and_keeps_timer_alive(self, monkeypatch):
         model = MagicMock()
         backend = _RaisingBackend(_available_state())
-        bridge = StatusNotifierNotificationBridge(
+        bridge = _bridge(
+            monkeypatch,
             model=model,
             backend=backend,
-            worker=_ImmediateWorker(),
         )
         bridge._running = True
         bridge._observed_source_ids.add(":1.42/StatusNotifierItem")
@@ -276,12 +285,12 @@ class TestStatusNotifierNotificationBridge:
         model.remove_status_notifier_overlay.assert_not_called()
         assert bridge._observed_source_ids == {":1.42/StatusNotifierItem"}
 
-    def test_late_result_after_stop_is_ignored(self):
+    def test_late_result_after_stop_is_ignored(self, monkeypatch):
         model = MagicMock()
-        bridge = StatusNotifierNotificationBridge(
+        bridge = _bridge(
+            monkeypatch,
             model=model,
             backend=_Backend(_available_state()),
-            worker=_ImmediateWorker(),
         )
 
         bridge._on_state_result(_available_state(_tray_item()))
