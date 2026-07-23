@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from gi.repository import GLib
 
-from docking.applets.systemtray.state import (
+from docking.applets.worker import BackgroundWorker
+from docking.log import get_logger, with_context
+from docking.platform.status_notifier.backend import (
     StatusNotifierBackend,
     StatusTrayState,
     TrayItem,
 )
-from docking.applets.worker import BackgroundWorker
-from docking.log import get_logger, with_context
-from docking.platform.model import DockModel
+
+if TYPE_CHECKING:
+    from docking.platform.model import DockModel
 
 POLL_INTERVAL_S = 3
 SLACK_DESKTOP_ID = "slack.desktop"

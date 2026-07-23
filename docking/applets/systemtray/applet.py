@@ -32,10 +32,15 @@ from docking.applets.popup import create_popup_window, show_wrapped_popup
 from docking.applets.systemtray import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
+from docking.platform.status_notifier import (
+    StatusNotifierBackend,
+    StatusTrayState,
+    TrayItem,
+)
+from docking.platform.status_notifier.dbusmenu import DBusMenuClient, DBusMenuItem
 
-from .dbusmenu import DBusMenuClient, DBusMenuItem
 from .render import create_status_tray_icon
-from .state import StatusNotifierBackend, StatusTrayState, TrayItem, tooltip_text
+from .state import tooltip_text
 from .xembed import XEmbedTrayHost
 
 if TYPE_CHECKING:

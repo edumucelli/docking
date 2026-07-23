@@ -1,22 +1,20 @@
-"""Tests for runtime StatusNotifier-to-launcher notification overlays."""
+"""Tests for StatusNotifier-to-launcher notification overlays."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import docking.platform.status_notifier as status_mod
-from docking.applets.systemtray.state import (
-    RegisteredItemAddress,
-    StatusTrayState,
-    tray_item_from_properties,
-    unavailable_state,
-)
+import docking.platform.status_notifier.notifications as status_mod
 from docking.platform.status_notifier import (
     POLL_INTERVAL_S,
     SLACK_DESKTOP_ID,
+    RegisteredItemAddress,
     StatusNotifierNotificationBridge,
+    StatusTrayState,
     parse_slack_notification_count,
     status_notifier_desktop_id,
+    tray_item_from_properties,
+    unavailable_state,
 )
 
 
