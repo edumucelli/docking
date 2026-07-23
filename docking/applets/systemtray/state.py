@@ -109,6 +109,7 @@ class TrayItem:
     tooltip_title: str
     tooltip_text: str
     item_is_menu: bool
+    item_id: str = ""
 
     @property
     def display_title(self) -> str:
@@ -196,11 +197,12 @@ def tray_item_from_properties(
 ) -> TrayItem:
     tooltip_title, tooltip_text_value = _tooltip_parts(properties.get("ToolTip"))
     pixmap = _best_icon_pixmap(properties.get("IconPixmap"))
+    item_id = str(properties.get("Id") or "")
     return TrayItem(
         identifier=address.identifier,
         service=address.service,
         path=address.path,
-        title=str(properties.get("Title") or properties.get("Id") or ""),
+        title=str(properties.get("Title") or item_id),
         status=str(properties.get("Status") or "Passive"),
         category=str(properties.get("Category") or ""),
         icon_name=str(properties.get("IconName") or ""),
@@ -212,6 +214,7 @@ def tray_item_from_properties(
         tooltip_title=tooltip_title,
         tooltip_text=tooltip_text_value,
         item_is_menu=bool(properties.get("ItemIsMenu") or False),
+        item_id=item_id,
     )
 
 

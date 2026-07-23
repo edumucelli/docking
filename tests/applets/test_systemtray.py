@@ -55,6 +55,7 @@ class TestTrayItemParsing:
                 path="/StatusNotifierItem",
             ),
             properties={
+                "Id": "example-id",
                 "Title": "Example",
                 "Status": "Active",
                 "Category": "ApplicationStatus",
@@ -69,6 +70,7 @@ class TestTrayItemParsing:
         )
 
         assert item.identifier == "org.example.App/StatusNotifierItem"
+        assert item.item_id == "example-id"
         assert item.display_title == "Example"
         assert item.effective_icon_name == "example-icon"
         assert item.menu_path == "/Menu"

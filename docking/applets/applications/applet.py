@@ -96,6 +96,7 @@ class ApplicationsApplet(Applet):
         search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         search_box.pack_start(search_entry, True, True, 0)
         search_item = Gtk.MenuItem()
+        search_item.set_reserve_indicator(True)
         search_item.add(search_box)
         menu.append(search_item)
         menu.append(Gtk.SeparatorMenuItem())
