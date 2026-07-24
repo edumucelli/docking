@@ -192,7 +192,7 @@ def _make_applet(
         mock_backend = mock_detect.return_value
         mock_backend.command = "pactl"
         mock_backend.get_state.return_value = state
-        applet = VolumeApplet(48, config=config)
+        applet = VolumeApplet(48, config=config or Config())
     # Re-attach the mock backend so tests can inspect calls
     applet._backend = mock_backend
     return applet
@@ -295,7 +295,7 @@ class TestVolumeApplet:
 
 def _make_applet_no_backend() -> VolumeApplet:
     with patch("docking.applets.volume.applet._detect_backend", return_value=None):
-        return VolumeApplet(48)
+        return VolumeApplet(48, config=Config())
 
 
 class TestVolumeStateBackendHelpers:

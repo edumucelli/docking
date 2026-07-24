@@ -55,7 +55,7 @@ class VolumeApplet(Applet):
     name = _("Volume")
     icon_name = "audio-volume-medium"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = _detect_backend()
         if not self._backend:
             log.bind(action="detect_backend").warning(
@@ -67,9 +67,8 @@ class VolumeApplet(Applet):
         self._show_level = False
         self._timer_id: int = 0
         self._worker = BackgroundWorker(logger=log)
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._show_level = bool(prefs.get("show_level", False))
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._show_level = bool(prefs.get("show_level", False))
         self._poll()
         super().__init__(icon_size, config)
         self.present()

@@ -47,7 +47,7 @@ class _ImmediateWorker:
 
 def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> ApodApplet:
     with patch("docking.applets.apod.applet.BackgroundWorker", _ImmediateWorker):
-        return ApodApplet(icon_size, config=config)
+        return ApodApplet(icon_size, config=config or Config())
 
 
 def _sample_result(**overrides: object) -> ApodResult:

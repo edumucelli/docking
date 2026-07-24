@@ -51,7 +51,7 @@ class SeparatorApplet(Applet):
     name = _("Separator")
     icon_name = "list-remove"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._gap = DEFAULT_SIZE
         self._style = STYLE_SPACE
         self._invert_color = False
@@ -65,14 +65,11 @@ class SeparatorApplet(Applet):
         return self.item.desktop_id.removeprefix("applet://")
 
     def load_instance_prefs(self) -> dict[str, Any]:
-        if self._config:
-            return dict(self._config.applet_prefs.get(self._prefs_key(), {}))
-        return {}
+        return dict(self._config.applet_prefs.get(self._prefs_key(), {}))
 
     def save_instance_prefs(self, prefs: dict[str, Any]) -> None:
-        if self._config:
-            self._config.applet_prefs[self._prefs_key()] = prefs
-            self._config.save()
+        self._config.applet_prefs[self._prefs_key()] = prefs
+        self._config.save()
 
     def apply_prefs(self) -> None:
         """Load persisted gap size after desktop_id is finalized."""

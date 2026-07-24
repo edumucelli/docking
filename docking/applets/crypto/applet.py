@@ -79,7 +79,7 @@ class CryptoApplet(Applet):
     name = _("Crypto")
     icon_name = "emblem-money-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._pulse_timer_id: int = 0
@@ -91,7 +91,7 @@ class CryptoApplet(Applet):
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        raw_prefs = config.applet_prefs.get(meta.id, {}) if config else None
+        raw_prefs = config.applet_prefs.get(meta.id, {})
         prefs = prefs_from_mapping(raw_prefs)
         self._assets = list(prefs.assets)
         self._active_index = prefs.active_index

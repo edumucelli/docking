@@ -23,6 +23,7 @@ from docking.applets.caffeine.state import (
     toggle,
     tooltip_text,
 )
+from docking.core.config import Config
 
 
 class FakeInhibitor:
@@ -205,24 +206,24 @@ class TestCompositeInhibitor:
 
 class TestApplet:
     def test_creates_with_icon(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = CaffeineApplet(size, inhibitor=FakeInhibitor())
+            applet = CaffeineApplet(size, inhibitor=FakeInhibitor(), config=Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_starts_off(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         assert applet._data.active is False
         assert applet.item.name == "Caffeine: off"
 
     def test_click_toggles_and_acquires(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
 
         applet.on_clicked()
 
@@ -232,7 +233,7 @@ class TestApplet:
 
     def test_second_click_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
 
         applet.on_clicked()
         applet.on_clicked()
@@ -243,7 +244,7 @@ class TestApplet:
 
     def test_timed_tick_to_zero_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
         applet._data = CaffeineState(active=True, duration_min=1, remaining=1)
         inhibitor.acquire()
 
@@ -255,7 +256,7 @@ class TestApplet:
 
     def test_stop_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
         applet.on_clicked()
 
         applet.stop()
@@ -263,7 +264,7 @@ class TestApplet:
         assert inhibitor.active is False
 
     def test_menu_lists_duration_choices(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
@@ -271,7 +272,7 @@ class TestApplet:
         assert "30 min" in labels
 
     def test_menu_shows_status_header(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Off" in labels
 

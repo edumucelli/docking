@@ -42,6 +42,7 @@ from docking.applets.keyboardlayout.state import (
     show_current_layout,
     tooltip_text,
 )
+from docking.core.config import Config
 from docking.platform.environment import Desktop
 
 
@@ -1048,7 +1049,7 @@ class TestKeyboardLayoutApplet:
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48)
+        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
         assert applet._active == "us"
         assert applet._available == ["us", "br"]
 
@@ -1056,7 +1057,7 @@ class TestKeyboardLayoutApplet:
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48)
+        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
         applet.refresh_tooltip()
         assert applet.item.name == "English (US)"
 
@@ -1074,7 +1075,7 @@ class TestKeyboardLayoutApplet:
         monkeypatch.setattr(kbl_state, "_run", mock_run)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48)
+        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
         applet.on_clicked()
         assert applet._active == "br"
         assert ["ibus", "engine", "xkb:br::por"] in commands
@@ -1083,7 +1084,7 @@ class TestKeyboardLayoutApplet:
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48)
+        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
         applet.on_scroll(direction_up=True)
         assert applet._active == "br"
         applet.on_scroll(direction_up=False)
@@ -1101,7 +1102,7 @@ class TestKeyboardLayoutApplet:
             "docking.applets.keyboardlayout.applet.current_layout_command",
             lambda layout_code: ["gkbd-keyboard-display", "-l", layout_code],
         )
-        applet = KeyboardLayoutApplet(icon_size=48)
+        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert labels[0] == "Show Current Layout"
         assert labels[-1] == "Keyboard Settings"
@@ -1118,6 +1119,6 @@ class TestKeyboardLayoutApplet:
         monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48)
+        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
         applet.refresh_tooltip()
         assert "No keyboard" in applet.item.name

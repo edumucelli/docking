@@ -12,7 +12,7 @@ from docking.core.config import Config
 
 
 def _make_applet(config: Config | None = None) -> CalculatorApplet:
-    return CalculatorApplet(48, config=config)
+    return CalculatorApplet(48, config=config or Config())
 
 
 class _FakePopupWindow:
@@ -218,7 +218,7 @@ class TestAppletCreation:
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = CalculatorApplet(size)
+            applet = CalculatorApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
 

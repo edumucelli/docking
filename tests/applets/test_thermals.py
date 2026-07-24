@@ -74,7 +74,7 @@ def _snapshot() -> ThermalSnapshot:
 
 def _make_applet(config: Config | None = None) -> ThermalsApplet:
     with patch("docking.applets.thermals.applet.BackgroundWorker", _ImmediateWorker):
-        return ThermalsApplet(48, config=config)
+        return ThermalsApplet(48, config=config or Config())
 
 
 class TestThermalsState:

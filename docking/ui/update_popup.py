@@ -73,7 +73,7 @@ class UpdateCheckController:
         self,
         *,
         config: Config,
-        window: Gtk.Window | None = None,
+        window: Gtk.Window,
     ) -> None:
         self._window = window
         self._config = config
@@ -194,9 +194,6 @@ class UpdateCheckController:
         return self._show_popup(release=release)
 
     def _show_popup(self, *, release: ReleaseInfo) -> bool:
-        if self._window is None:
-            log.debug("Skipping update popup because dock window is unavailable")
-            return False
         if not self._window.get_realized():
             log.debug("Skipping update popup because dock window is not realized")
             return False
@@ -258,7 +255,7 @@ class UpdateCheckController:
         return wrap_startup_popup_content(box)
 
     def _position_popup(self) -> None:
-        if self._popup is None or self._window is None:
+        if self._popup is None:
             return
         window_pos = window_screen_position(self._window)
         win_x, win_y = window_pos.x, window_pos.y

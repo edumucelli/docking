@@ -61,8 +61,8 @@ class PomodoroApplet(Applet):
     name = _("Pomodoro")
     icon_name = "alarm"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("pomodoro", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("pomodoro", {})
         self._data = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
 

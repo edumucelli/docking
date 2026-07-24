@@ -116,7 +116,7 @@ class UnitConverterApplet(Applet):
     name = _("Unit Converter")
     icon_name = "emblem-synchronizing-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._popup: Gtk.Dialog | None = None
         self._result_label: Gtk.Label | None = None
         self._from_combo: Gtk.ComboBoxText | None = None
@@ -125,7 +125,7 @@ class UnitConverterApplet(Applet):
         self._cat_combo: Gtk.ComboBoxText | None = None
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = config.applet_prefs.get("unitconverter", {}) if config else {}
+        prefs = config.applet_prefs.get("unitconverter", {})
         self._cat_idx = int(prefs.get("category_index", 0))
         self._from_idx = int(prefs.get("from_index", 0))
         self._to_idx = int(prefs.get("to_index", 1))

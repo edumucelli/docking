@@ -80,7 +80,7 @@ def _make_applet(
     icon_size: int = 48, *, config: Config | None = None
 ) -> SpeedtestApplet:
     with patch("docking.applets.speedtest.applet.BackgroundWorker", _ImmediateWorker):
-        return SpeedtestApplet(icon_size, config=config)
+        return SpeedtestApplet(icon_size, config=config or Config())
 
 
 class TestFormatSpeed:

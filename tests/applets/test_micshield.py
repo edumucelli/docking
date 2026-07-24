@@ -22,6 +22,7 @@ from docking.applets.micshield.state import (
     stream_label,
     toggle_mic_mute,
 )
+from docking.core.config import Config
 
 
 class _ImmediateWorker:
@@ -63,7 +64,7 @@ def _make_applet(state: MicShieldState | None = None) -> MicShieldApplet:
             lambda: state or MicShieldState(False, False, False),
         ),
     ):
-        return MicShieldApplet(48)
+        return MicShieldApplet(48, config=Config())
 
 
 SOURCE_OUTPUTS = """

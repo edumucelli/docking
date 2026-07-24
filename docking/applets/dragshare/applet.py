@@ -53,8 +53,8 @@ class DragshareApplet(Applet):
     name = _("Drag Share")
     icon_name = "folder-publicshare"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get(meta.id, {}) if config else {}
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get(meta.id, {})
         self._status = DragshareStatus.IDLE
         self._last_url = str(prefs.get("last_url", ""))
         self._file_name = ""

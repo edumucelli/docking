@@ -215,6 +215,7 @@ def test_niri_window_service_publishes_snapshot_and_actions():
         model=model,
         launcher=_launcher(),
         client=client,
+        event_stream_factory=lambda _callback: None,
     )
 
     service.start()
@@ -260,6 +261,7 @@ def test_niri_window_service_minimize_unsupported():
         model=_model(),
         launcher=_launcher(),
         client=client,
+        event_stream_factory=lambda _callback: None,
     )
     service.start()
 
@@ -273,6 +275,7 @@ def test_niri_window_service_ignores_other_backend_window_ids():
         model=_model(),
         launcher=_launcher(),
         client=client,
+        event_stream_factory=lambda _callback: None,
     )
     service.start()
 
@@ -486,6 +489,7 @@ def test_niri_window_service_close_all():
         model=_model(),
         launcher=_launcher(),
         client=client,
+        event_stream_factory=lambda _callback: None,
     )
     service.start()
 
@@ -502,6 +506,7 @@ def test_niri_window_service_close_all_not_found():
         model=_model(),
         launcher=_launcher(),
         client=client,
+        event_stream_factory=lambda _callback: None,
     )
     service.start()
 
@@ -544,7 +549,9 @@ def test_niri_workspace_service_lists_and_activates_workspaces():
             ]
         }
     )
-    service = NiriWorkspaceService(client=client)
+    service = NiriWorkspaceService(
+        client=client, event_stream_factory=lambda _callback: None
+    )
 
     service.start()
 

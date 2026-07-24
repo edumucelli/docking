@@ -182,6 +182,7 @@ def test_hyprland_window_service_publishes_snapshot_and_actions():
         model=model,
         launcher=_launcher(),
         client=client,
+        event_stream_factory=lambda _callback: None,
     )
 
     service.start()
@@ -229,6 +230,7 @@ def test_hyprland_window_service_resolves_preview_handle_from_companion_source()
         launcher=_launcher(),
         client=client,
         preview_handle_source=source,
+        event_stream_factory=lambda _callback: None,
     )
 
     service.start()
@@ -299,6 +301,7 @@ def test_hyprland_window_service_ignores_other_backend_window_ids():
         model=_model(),
         launcher=_launcher(),
         client=client,
+        event_stream_factory=lambda _callback: None,
     )
 
     service.start()

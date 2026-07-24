@@ -9,6 +9,7 @@ import docking.applets.apps as apps_shared
 from docking.applets.applications.applet import ApplicationsApplet
 from docking.applets.applications.state import _build_app_categories
 from docking.applets.apps import ApplicationEntry, all_desktop_app_infos
+from docking.core.config import Config
 
 
 class TestBuildAppCategories:
@@ -270,12 +271,12 @@ class TestApplicationsApplet:
         )
 
     def test_creates_with_icon(self):
-        d = ApplicationsApplet(48)
+        d = ApplicationsApplet(48, config=Config())
         assert d.item.icon is not None
 
     def test_left_click_opens_launcher_menu(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        d = ApplicationsApplet(48)
+        d = ApplicationsApplet(48, config=Config())
         d.on_clicked()
 
         assert d._popup_menu is not None
@@ -284,7 +285,7 @@ class TestApplicationsApplet:
 
     def test_launcher_menu_contains_search_entry(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        d = ApplicationsApplet(48)
+        d = ApplicationsApplet(48, config=Config())
         menu = d._build_launcher_menu()
         items = menu.get_children()
         assert items[0]._child.children[0].placeholder == "Search applications..."
@@ -292,12 +293,12 @@ class TestApplicationsApplet:
         assert isinstance(menu, applications_applet_mod.Gtk.Menu)
 
     def test_right_click_menu_items_are_empty(self):
-        d = ApplicationsApplet(48)
+        d = ApplicationsApplet(48, config=Config())
         assert d.get_menu_items() == []
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            d = ApplicationsApplet(size)
+            d = ApplicationsApplet(size, config=Config())
             pixbuf = d.create_icon(size)
             assert pixbuf is not None
 
@@ -322,7 +323,7 @@ class TestApplicationsApplet:
             },
         )
 
-        applet = ApplicationsApplet(48)
+        applet = ApplicationsApplet(48, config=Config())
         items = applet._build_launcher_menu().get_children()
         search_entry = items[0]._child.children[0]
         internet_item = items[2]

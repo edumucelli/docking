@@ -79,7 +79,7 @@ class NetworkApplet(Applet):
     name = _("Network")
     icon_name = "network-wireless-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._nm_client: NM.Client | None = None
         self._nm_handler_id: int = 0
@@ -95,9 +95,8 @@ class NetworkApplet(Applet):
         self._prev_time: float = 0.0
         self._last_wifi_scan_request_time: float = 0.0
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._speed_overlay = prefs.get("speed_overlay", "download")
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._speed_overlay = prefs.get("speed_overlay", "download")
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()

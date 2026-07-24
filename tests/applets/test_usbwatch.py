@@ -9,6 +9,7 @@ import docking.applets.usbwatch.applet as usbwatch_applet_mod
 from docking.applets.usbwatch.applet import UsbWatchApplet
 from docking.applets.usbwatch.render import create_usbwatch_icon
 from docking.applets.usbwatch.state import mounted_usb_devices, usbwatch_tooltip
+from docking.core.config import Config
 
 
 class _FakeRoot:
@@ -237,7 +238,7 @@ class TestUsbWatchApplet:
             lambda: _FakeMonitor(),
         )
 
-        applet = UsbWatchApplet(48)
+        applet = UsbWatchApplet(48, config=Config())
         items = applet.get_menu_items()
 
         assert len(items) == 1
@@ -254,7 +255,7 @@ class TestUsbWatchApplet:
             lambda: monitor,
         )
 
-        applet = UsbWatchApplet(48)
+        applet = UsbWatchApplet(48, config=Config())
         applet.present = MagicMock()
         items = applet.get_menu_items()
         remove_item = next(
@@ -275,7 +276,7 @@ class TestUsbWatchApplet:
             lambda: monitor,
         )
 
-        applet = UsbWatchApplet(48)
+        applet = UsbWatchApplet(48, config=Config())
         applet.start(MagicMock())
         applet.stop()
 
@@ -298,7 +299,7 @@ class TestUsbWatchApplet:
             side_effect=RuntimeError("busy")
         )
 
-        applet = UsbWatchApplet(48)
+        applet = UsbWatchApplet(48, config=Config())
         applet.present = MagicMock()
         applet._safe_remove(device=applet._devices[0])
 

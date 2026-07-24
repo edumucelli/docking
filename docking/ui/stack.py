@@ -294,7 +294,7 @@ class StackPopupController:
         *,
         config: Config,
         runtime: DockRuntime,
-        dock_window: Gtk.Window | None = None,
+        dock_window: Gtk.Window,
     ) -> None:
         self._config = config
         self._runtime = runtime
@@ -467,8 +467,7 @@ class StackPopupController:
 
         # On Wayland popups need a transient parent so the compositor
         # positions them relative to the dock rather than at (0,0).
-        if self._dock_window is not None:
-            window.set_transient_for(self._dock_window)
+        window.set_transient_for(self._dock_window)
 
         screen = window.get_screen()
         visual = screen.get_rgba_visual()

@@ -49,6 +49,7 @@ from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
+    from docking.platform.model import DockModel
 
 log = get_logger(name="atspi_window")
 
@@ -137,17 +138,15 @@ class AtspiWindowService(WindowService):
     def __init__(
         self,
         *,
-        launcher: Launcher | None = None,
-        model: object | None = None,
+        launcher: Launcher,
+        model: DockModel,
     ) -> None:
         self._connection: Gio.DBusConnection | None = None
         self._windows: dict[str, _AtspiWindow] = {}
         self._lock = Lock()
         self._refresh_running = False
         self._model = model
-        self._matcher: AppIdMatcher | None = None
-        if launcher is not None:
-            self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(launcher=launcher)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -327,21 +326,18 @@ class AtspiWindowService(WindowService):
     def _publish_running(self) -> None:
         """Build RunningAppInfo per desktop_id and push to the model."""
         model = self._model
-        if model is None:
-            return
         matcher = self._matcher
 
         # Sync visible items into the matcher
-        if matcher is not None:
-            with contextlib.suppress(Exception):
-                matcher.sync_visible_items(model.visible_items())
+        with contextlib.suppress(Exception):
+            matcher.sync_visible_items(model.visible_items())
 
         # Group windows by resolved desktop_id
         by_desktop: dict[str, list[_AtspiWindow]] = {}
         with self._lock:
             for w in self._windows.values():
                 desktop_id = None
-                if matcher is not None and w.app_name:
+                if w.app_name:
                     desktop_id = matcher.match(w.app_name)
                 if not desktop_id:
                     desktop_id = f"kwin:{w.app_name or w.window_id.value}"
@@ -622,7 +618,7 @@ class AtspiWindowService(WindowService):
         # Resolve to a proper .desktop ID via the matcher, falling back to
         # app_name with a kwin: prefix so the UI can still show something.
         desktop_id = None
-        if self._matcher is not None and w.app_name:
+        if w.app_name:
             desktop_id = self._matcher.match(w.app_name)
         if not desktop_id:
             desktop_id = f"kwin:{w.app_name or w.window_id.value}"

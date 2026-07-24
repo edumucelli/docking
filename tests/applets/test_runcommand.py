@@ -22,6 +22,7 @@ from docking.applets.runcommand.state import (
     normalize_history,
     updated_history,
 )
+from docking.core.config import Config
 
 
 class _FakeAppInfo:
@@ -140,7 +141,7 @@ class _FakeRow:
 
 
 def _make_applet() -> RunCommandApplet:
-    return RunCommandApplet(48)
+    return RunCommandApplet(48, config=Config())
 
 
 class TestRunCommandState:

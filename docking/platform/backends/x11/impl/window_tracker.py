@@ -245,9 +245,7 @@ class WindowMatcher:
 class WindowTracker:
     """Tracks running applications and maps them to dock items via WM_CLASS."""
 
-    def __init__(
-        self, model: DockModel, launcher: Launcher, config: Config | None = None
-    ) -> None:
+    def __init__(self, model: DockModel, launcher: Launcher, config: Config) -> None:
         self._model = model
         self._config = config
         self._launcher = launcher
@@ -322,7 +320,7 @@ class WindowTracker:
         active_xid = self._active_xid()
         active_workspace = (
             self._screen.get_active_workspace()
-            if self._config and self._config.current_workspace_only
+            if self._config.current_workspace_only
             else None
         )
         snapshots_by_desktop: dict[str, list[RunningWindowInfo]] = {}
@@ -950,7 +948,7 @@ class WindowTracker:
         result: list[Wnck.Window] = []
         active_ws = (
             self._screen.get_active_workspace()
-            if self._config and self._config.current_workspace_only
+            if self._config.current_workspace_only
             else None
         )
         for xid in self._running_xids_by_desktop.get(desktop_id, []):

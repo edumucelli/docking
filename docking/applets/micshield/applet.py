@@ -57,7 +57,7 @@ class MicShieldApplet(Applet):
     name = _("Mic Shield")
     icon_name = "audio-input-microphone"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._state: MicShieldState = probe_mic_state()
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0

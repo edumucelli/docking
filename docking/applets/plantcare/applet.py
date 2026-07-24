@@ -62,9 +62,9 @@ class PlantCareApplet(Applet):
     name = _("Plant Care")
     icon_name = "emblem-default"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         today = self._today()
-        prefs = config.applet_prefs.get(meta.id, {}) if config else None
+        prefs = config.applet_prefs.get(meta.id, {})
         self._state: PlantCareState = state_from_prefs(
             prefs=prefs,
             today=today,

@@ -71,7 +71,7 @@ class DevicesApplet(Applet):
     icon_name = "drive-harddisk"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._monitor = Gio.VolumeMonitor.get()
         self._unix_mount_monitor = get_mount_monitor()
         self._devices: list[MountedDevice] = mounted_devices(

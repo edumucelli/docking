@@ -57,7 +57,7 @@ class SystemTrayApplet(Applet):
     name = _("System Tray")
     icon_name = "application-x-executable"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = StatusNotifierBackend()
         self._state = self._backend.get_state()
         self._timer_id: int = 0

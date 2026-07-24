@@ -71,7 +71,7 @@ class PowerProfilesApplet(Applet):
     name = _("Power Profiles")
     icon_name = "battery-good-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         # Backend is auto-detected once during applet initialization.
         # Polling then queries the same backend instance repeatedly.
         self._backend: PowerProfilesControlBackend = detect_backend()

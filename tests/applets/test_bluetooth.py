@@ -23,6 +23,7 @@ from docking.applets.bluetooth.state import (
     device_menu_label,
     unavailable_state,
 )
+from docking.core.config import Config
 
 
 class _ImmediateThread:
@@ -787,7 +788,7 @@ def _make_applet(
     backend = _StubBackend(initial_state=state)
     monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
     monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
-    applet = BluetoothApplet(48)
+    applet = BluetoothApplet(48, config=Config())
     applet._on_poll_result(
         backend.get_state(active_adapter_path=applet._active_adapter_path)
     )
@@ -868,7 +869,7 @@ class TestBluetoothApplet:
         monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
         monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
 
-        applet = BluetoothApplet(48)
+        applet = BluetoothApplet(48, config=Config())
 
         assert backend.get_state_calls == 0
         assert applet._state.available is False

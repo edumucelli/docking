@@ -51,6 +51,7 @@ from docking.platform.backends.wayland.wayfire_ipc import (
 )
 
 if TYPE_CHECKING:
+    from docking.core.config import Config
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
@@ -79,7 +80,7 @@ class WayfireSessionBackend(SessionBackend):
         layer_shell: object,
         model: DockModel,
         launcher: Launcher,
-        config: object | None = None,
+        config: Config,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
         window_service: WindowService | None = None,
@@ -109,7 +110,7 @@ class WayfireSessionBackend(SessionBackend):
         )
 
         visibility = visibility_service
-        if visibility is None and config is not None:
+        if visibility is None:
             visibility = load_wayfire_visibility_service(config=config)
         if visibility is None:
             visibility = ReducedVisibilityService()

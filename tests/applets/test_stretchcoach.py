@@ -195,13 +195,13 @@ class TestRenderIcon:
 class TestStretchCoachApplet:
     def test_creates_with_icon(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         assert applet.item.icon is not None
         assert applet.item.name == "Next stretch in 30:00"
 
     def test_click_triggers_then_acknowledges_break(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
 
         applet.on_clicked()
         assert applet._state.due is True
@@ -215,7 +215,7 @@ class TestStretchCoachApplet:
 
     def test_menu_contains_core_actions(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
@@ -226,7 +226,7 @@ class TestStretchCoachApplet:
 
     def test_due_menu_uses_acknowledge_label(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         applet._state = trigger_reminder(
             applet._state,
             cards=[CARD],
@@ -239,13 +239,13 @@ class TestStretchCoachApplet:
 
     def test_show_random_stretch_updates_tooltip(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         applet._show_random_stretch()
         assert "Shoulder Roll" in applet.item.name
 
     def test_toggle_cards_updates_state_and_saves(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         widget = MagicMock()
         widget.get_active.return_value = False
         applet._save = MagicMock()
@@ -259,7 +259,7 @@ class TestStretchCoachApplet:
 
     def test_set_interval_saves_and_refreshes(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         applet._save = MagicMock()
         applet.present = MagicMock()
 
@@ -272,7 +272,7 @@ class TestStretchCoachApplet:
 
     def test_tick_due_branch_marks_urgent(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         applet._state = StretchCoachState(remaining=1)
         applet.present = MagicMock()
 
@@ -283,7 +283,7 @@ class TestStretchCoachApplet:
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         monkeypatch.setattr(
             stretchcoach_applet_mod.GLib,
             "timeout_add_seconds",
@@ -325,7 +325,7 @@ class TestStretchCoachApplet:
 class TestStretchCoachAppletBranches:
     def test_tick_refresh_branch_updates_presentation(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         applet.present = MagicMock()
         monkeypatch.setattr(
             stretchcoach_applet_mod,
@@ -342,7 +342,7 @@ class TestStretchCoachAppletBranches:
 
     def test_tick_tooltip_only_branch_notifies_without_icon_refresh(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
-        applet = StretchCoachApplet(48)
+        applet = StretchCoachApplet(48, config=Config())
         applet.present = MagicMock()
         applet._notify = MagicMock()
         monkeypatch.setattr(

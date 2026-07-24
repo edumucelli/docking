@@ -132,8 +132,8 @@ class FolderStackController(StackPopupController):
         *,
         config: Config,
         runtime: DockRuntime,
-        launcher: Launcher | None,
-        dock_window: Gtk.Window | None = None,
+        launcher: Launcher,
+        dock_window: Gtk.Window,
     ) -> None:
         super().__init__(
             config=config,
@@ -321,11 +321,7 @@ class FolderStackController(StackPopupController):
 
         prefs = self._folder_prefs_for_item(item)
         uri = launcher_mod.normalize_file_target(item.target) or item.target
-        app_name = (
-            self._launcher.default_directory_app_name()
-            if self._launcher is not None
-            else None
-        )
+        app_name = self._launcher.default_directory_app_name()
         cache_key = (
             uri,
             self._browser.cache_stamp(item.target),
@@ -386,7 +382,7 @@ class FolderStackController(StackPopupController):
     def _folder_stack_action_label(
         self, *, hidden_count: int, app_name: str | None = None
     ) -> str:
-        if app_name is None and self._launcher is not None:
+        if app_name is None:
             app_name = self._launcher.default_directory_app_name()
         if app_name:
             return (

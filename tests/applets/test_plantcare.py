@@ -403,14 +403,14 @@ class TestPlantCareApplet:
     def test_creates_with_icon_and_empty_tooltip(self, monkeypatch):
         monkeypatch.setattr(PlantCareApplet, "_today", staticmethod(lambda: TODAY))
 
-        applet = PlantCareApplet(48)
+        applet = PlantCareApplet(48, config=Config())
 
         assert applet.item.icon is not None
         assert "No plants" in applet.item.name
 
     def test_menu_contains_manage_actions(self, monkeypatch):
         monkeypatch.setattr(PlantCareApplet, "_today", staticmethod(lambda: TODAY))
-        applet = PlantCareApplet(48)
+        applet = PlantCareApplet(48, config=Config())
 
         labels = [item.get_label() for item in applet.get_menu_items()]
 
@@ -420,7 +420,7 @@ class TestPlantCareApplet:
 
     def test_due_menu_exposes_done_and_snooze(self, monkeypatch):
         monkeypatch.setattr(PlantCareApplet, "_today", staticmethod(lambda: TODAY))
-        applet = PlantCareApplet(48)
+        applet = PlantCareApplet(48, config=Config())
         applet._state = PlantCareState(plants=(_plant(),))
 
         menu = applet.get_menu_items()
@@ -453,7 +453,7 @@ class TestPlantCareApplet:
 
     def test_completion_clears_urgency_when_last_task_is_done(self, monkeypatch):
         monkeypatch.setattr(PlantCareApplet, "_today", staticmethod(lambda: TODAY))
-        applet = PlantCareApplet(48)
+        applet = PlantCareApplet(48, config=Config())
         applet._state = PlantCareState(plants=(_plant(),))
         applet._known_due_count = 0
         applet._refresh_due_state()
@@ -469,7 +469,7 @@ class TestPlantCareApplet:
         monkeypatch.setattr(PlantCareApplet, "_today", staticmethod(lambda: TODAY))
         monotonic = MagicMock(side_effect=[100, 200])
         monkeypatch.setattr(plantcare_mod.GLib, "get_monotonic_time", monotonic)
-        applet = PlantCareApplet(48)
+        applet = PlantCareApplet(48, config=Config())
         applet._state = PlantCareState(plants=(_plant(),))
 
         applet._refresh_due_state()
@@ -480,7 +480,7 @@ class TestPlantCareApplet:
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
         monkeypatch.setattr(PlantCareApplet, "_today", staticmethod(lambda: TODAY))
-        applet = PlantCareApplet(48)
+        applet = PlantCareApplet(48, config=Config())
         monkeypatch.setattr(
             plantcare_mod.GLib,
             "timeout_add_seconds",

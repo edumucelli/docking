@@ -12,6 +12,7 @@ from docking.applets.ambient.state import (
     DEFAULT_VOLUME,
     VOLUME_STEP,
 )
+from docking.core.config import Config
 
 
 class _FakeMenuItem:
@@ -41,7 +42,7 @@ class _FakeCheckMenuItem(_FakeMenuItem):
 def _make_applet() -> AmbientApplet:
     """Create applet with mocked GStreamer."""
     with patch("docking.applets.ambient.applet.Gst"):
-        return AmbientApplet(48)
+        return AmbientApplet(48, config=Config())
 
 
 class TestAmbientApplet:

@@ -66,7 +66,7 @@ class ThermalsApplet(Applet):
     name = _("Thermals")
     icon_name = "utilities-system-monitor"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._snapshot: ThermalSnapshot | None = None
         self._last_updated: dt.datetime | None = None
         self._loading = False
@@ -75,9 +75,7 @@ class ThermalsApplet(Applet):
         self._startup_fetch_timer_id = 0
         self._request_id = 0
         self._worker = BackgroundWorker(logger=log)
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._temperature_unit = prefs.temperature_unit
         super().__init__(icon_size=icon_size, config=config)
         self.present()

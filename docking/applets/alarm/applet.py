@@ -67,8 +67,8 @@ class AlarmApplet(Applet):
     name = _("Alarm")
     icon_name = "alarm"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("alarm", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("alarm", {})
         self._state: AlarmState = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
         super().__init__(icon_size=icon_size, config=config)

@@ -58,7 +58,7 @@ class MusicApplet(Applet):
     name = _("Music")
     icon_name = "audio-x-generic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = HybridBackend()
         self._cover_art = CoverArtResolver()
         self._state = unavailable_state()

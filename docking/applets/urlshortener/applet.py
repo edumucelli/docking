@@ -72,7 +72,7 @@ class UrlShortenerApplet(Applet):
     name = _("URL Shortener")
     icon_name = "chain"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._dialog: Gtk.Dialog | None = None
         self._url_entry: Gtk.Entry | None = None
         self._result_label: Gtk.Label | None = None
@@ -80,7 +80,7 @@ class UrlShortenerApplet(Applet):
         self._copy_btn: Gtk.Button | None = None
         self._last_result: str = ""
 
-        prefs = config.applet_prefs.get("urlshortener", {}) if config else {}
+        prefs = config.applet_prefs.get("urlshortener", {})
         self._last_url = str(prefs.get("last_url", ""))
 
         super().__init__(icon_size=icon_size, config=config)

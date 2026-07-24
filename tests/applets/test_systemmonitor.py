@@ -38,6 +38,7 @@ from docking.applets.systemmonitor.temperature import (
     read_command_temperature,
     read_temperature_file,
 )
+from docking.core.config import Config
 
 
 class TestParseProcStat:
@@ -514,20 +515,20 @@ class TestCpuHueRgb:
 class TestSystemMonitorRendering:
     @pytest.mark.parametrize("size", [32, 48, 64])
     def test_renders_valid_pixbuf(self, size):
-        applet = SystemMonitorApplet(size)
+        applet = SystemMonitorApplet(size, config=Config())
         pixbuf = applet.create_icon(size)
         assert pixbuf is not None
         assert pixbuf.get_width() == size
         assert pixbuf.get_height() == size
 
     def test_menu_has_show_disk(self):
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         items = applet.get_menu_items()
         assert items[0].get_label() == "Show Disk Usage"
         assert items[1].get_label() == "Temperature Unit"
 
     def test_tooltip_format(self):
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         applet._cpu = 0.423
         applet._mem = 0.671
         applet._temperature_c = 58.4
@@ -544,7 +545,7 @@ class TestSystemMonitorRendering:
         assert "GPU: 33%" in applet.item.name
 
     def test_tooltip_uses_selected_temperature_unit(self):
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         applet._cpu = 0.423
         applet._mem = 0.671
         applet._temperature_c = 58.4
@@ -572,7 +573,7 @@ class TestSystemMonitorRendering:
         }
 
     def test_icon_has_visible_content(self):
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         applet._cpu = 0.5
         applet._mem = 0.3
         pixbuf = applet.create_icon(48)
@@ -583,7 +584,7 @@ class TestSystemMonitorRendering:
 
 class TestSystemMonitorLifecycle:
     def test_start_registers_timer(self, monkeypatch):
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         monkeypatch.setattr(
             systemmonitor_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 123
         )
@@ -591,7 +592,7 @@ class TestSystemMonitorLifecycle:
         assert applet._timer_id == 123
 
     def test_stop_removes_timer(self, monkeypatch):
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         applet._timer_id = 77
         removed = []
         monkeypatch.setattr(
@@ -612,7 +613,7 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
         monkeypatch.setattr(systemmonitor_mod, "_PROC_MEMINFO", proc_meminfo)
         monkeypatch.setattr(applet._temperature_reader, "read", lambda: 55.2)
@@ -625,7 +626,7 @@ class TestSystemMonitorLifecycle:
         assert refresh == [True]
 
     def test_tick_handles_proc_stat_read_error(self, tmp_path, monkeypatch):
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", tmp_path / "missing-stat")
         assert applet._tick() is True
 
@@ -633,7 +634,7 @@ class TestSystemMonitorLifecycle:
         proc_stat = tmp_path / "stat"
         proc_stat.write_text("cpu  200 0 100 100 0 0 0\n", encoding="utf-8")
 
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
         monkeypatch.setattr(
             systemmonitor_mod,
@@ -654,7 +655,7 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         applet._cpu = 0.5
         applet._mem = 0.25
         applet._temperature_c = 55.0
@@ -686,7 +687,7 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         applet._cpu = 0.5
         applet._mem = 0.25
         applet._temperature_c = 55.0
@@ -720,7 +721,7 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48)
+        applet = SystemMonitorApplet(48, config=Config())
         applet._cpu = 0.5
         applet._mem = 0.25
         applet._temperature_c = 55.0
