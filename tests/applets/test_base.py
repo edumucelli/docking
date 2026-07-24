@@ -17,6 +17,7 @@ from docking.applets.base import (
     _icon_label_outline_width,
     draw_icon_label,
 )
+from docking.core.config import Config
 from docking.core.icons import IconSource
 
 
@@ -25,10 +26,10 @@ class _DeferredInitApplet(Applet):
     name = "Deferred Init"
     icon_name = "system-log-out"
 
-    def __init__(self) -> None:
+    def __init__(self, config: Config) -> None:
         self._label = ""
         self.render_calls = 0
-        super().__init__(icon_size=48)
+        super().__init__(icon_size=48, config=config)
         self._label = "Ready"
         self.present()
 
@@ -43,7 +44,7 @@ class _DeferredInitApplet(Applet):
 
 class TestAppletBaseLifecycle:
     def test_initial_presentation_waits_for_subclass_init(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
 
         assert applet.render_calls == 1
         assert applet.item.name == "Ready"
@@ -55,7 +56,7 @@ class _BasicApplet(Applet):
     name = "Basic"
     icon_name = "system-log-out"
 
-    def __init__(self, config=None) -> None:
+    def __init__(self, config: Config) -> None:
         self.render_count = 0
         super().__init__(icon_size=32, config=config)
 
@@ -74,7 +75,7 @@ class _SystemIconApplet(Applet):
     icon_name = "system-log-out"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, config=None) -> None:
+    def __init__(self, config: Config) -> None:
         self.docking_icon = object()
         self.render_count = 0
         super().__init__(icon_size=32, config=config)
@@ -96,8 +97,8 @@ class TestAppletBaseHelpers:
 
         assert applet.load_prefs() == {"enabled": True}
 
-    def test_load_prefs_without_config_returns_empty(self):
-        applet = _BasicApplet()
+    def test_load_prefs_from_empty_config_returns_empty(self):
+        applet = _BasicApplet(Config())
 
         assert applet.load_prefs() == {}
 
@@ -112,7 +113,7 @@ class TestAppletBaseHelpers:
         config.save.assert_called_once_with()
 
     def test_default_hooks_are_safe_and_present_notifies(self):
-        applet = _BasicApplet()
+        applet = _BasicApplet(Config())
         notify = MagicMock()
 
         applet.start(notify)
@@ -128,7 +129,7 @@ class TestAppletBaseHelpers:
         notify.assert_called_once_with()
 
     def test_system_icon_applet_defaults_to_docking_icon(self):
-        applet = _SystemIconApplet()
+        applet = _SystemIconApplet(Config())
 
         assert applet.icon_source() == ICON_SOURCE_DOCKING
         assert applet.create_icon(32) is applet.docking_icon
@@ -262,25 +263,25 @@ class TestDrawIconLabel:
 
 class TestAppletDefaultHooks:
     def test_create_docking_icon_raises_not_implemented(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         with pytest.raises(NotImplementedError):
             applet.create_docking_icon(48)
 
     def test_system_icon_name_defaults_to_icon_name(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         assert applet.system_icon_name() == applet.icon_name
 
     def test_icon_source_no_system_support_returns_docking(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         assert applet.icon_source() == ICON_SOURCE_DOCKING
 
     def test_set_icon_source_no_system_support_returns_early(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         # Should not raise or save
         applet.set_icon_source(ICON_SOURCE_SYSTEM)
 
     def test_set_icon_source_same_value_returns_early(self, monkeypatch):
-        applet = _SystemIconApplet()
+        applet = _SystemIconApplet(Config())
         monkeypatch.setattr(
             applet, "load_prefs", lambda: {ICON_SOURCE_PREF_KEY: ICON_SOURCE_DOCKING}
         )
@@ -288,36 +289,36 @@ class TestAppletDefaultHooks:
         applet.set_icon_source(ICON_SOURCE_DOCKING)
 
     def test_set_popup_anchor(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         anchor = MagicMock()
         applet.set_popup_anchor(anchor)
         assert applet._popup_anchor is anchor
 
     def test_accepts_drop_uris_defaults_false(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         assert applet.accepts_drop_uris() is False
 
     def test_on_drop_uris_default_returns_false(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         assert applet.on_drop_uris(["file:///test.txt"]) is False
 
     def test_stack_content_defaults_to_none(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
 
         assert applet.stack_content(48) is None
 
     def test_set_services_default_is_noop(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         services = MagicMock()
         # Should not raise
         applet.set_services(services)
 
     def test_on_scroll_default_is_noop(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         # Should not raise
         applet.on_scroll(direction_up=True)
 
     def test_refresh_tooltip_default_is_noop(self):
-        applet = _DeferredInitApplet()
+        applet = _DeferredInitApplet(Config())
         # Should not raise
         applet.refresh_tooltip()

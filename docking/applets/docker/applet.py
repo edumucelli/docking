@@ -54,7 +54,7 @@ class DockerApplet(Applet):
     name = _("Docker")
     icon_name = "docker"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._state: DockerState = query_docker_state()
         self._timer_id: int = 0
         self._worker = BackgroundWorker(logger=log)

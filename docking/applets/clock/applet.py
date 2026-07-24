@@ -54,11 +54,11 @@ class ClockApplet(Applet):
     name = _("Clock")
     icon_name = "clock"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer = _ClockTimer()
         self._calendar_popup: Gtk.Window | None = None
 
-        prefs = config.applet_prefs.get("clock", {}) if config else None
+        prefs = config.applet_prefs.get("clock", {})
         self._raw_alarm_target = self._prefs_alarm_target(prefs)
         (
             self._show_digital,

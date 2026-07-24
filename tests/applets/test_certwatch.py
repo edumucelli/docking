@@ -73,7 +73,7 @@ def _make_applet(
     icon_size: int = 48, *, config: Config | None = None
 ) -> CertwatchApplet:
     with patch("docking.applets.certwatch.applet.BackgroundWorker", _ImmediateWorker):
-        return CertwatchApplet(icon_size, config=config)
+        return CertwatchApplet(icon_size, config=config or Config())
 
 
 class TestParseHostPort:

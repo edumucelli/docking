@@ -22,6 +22,7 @@ from docking.applets.music.state import (
     tooltip_text,
     unavailable_state,
 )
+from docking.core.config import Config
 
 
 def _state(**overrides: object) -> MusicState:
@@ -629,7 +630,7 @@ def _make_applet(monkeypatch, state: MusicState):
 
     monkeypatch.setattr(music_applet_mod, "HybridBackend", lambda: backend)
     monkeypatch.setattr(music_applet_mod, "CoverArtResolver", lambda: resolver)
-    return MusicApplet(48), backend, resolver
+    return MusicApplet(48, config=Config()), backend, resolver
 
 
 class TestMusicApplet:

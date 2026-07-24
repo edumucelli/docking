@@ -13,6 +13,7 @@ from docking.applets.separator.state import (
     STYLE_LINE,
     STYLE_SPACE,
 )
+from docking.core.config import Config
 
 
 class FakeMenu:
@@ -95,16 +96,16 @@ class TestSeparatorApplet:
         monkeypatch.setattr(separator_applet_mod, "Gtk", fake_gtk)
 
     def test_creates_with_icon(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         assert applet.item.icon is not None
         assert applet.item.name == "Separator"
 
     def test_default_gap(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         assert applet.item.main_size == DEFAULT_SIZE
 
     def test_icon_width_matches_gap(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
         assert pixbuf.get_width() == DEFAULT_SIZE
@@ -112,13 +113,13 @@ class TestSeparatorApplet:
 
     def test_menu_has_increase_decrease(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert labels == ["Increase Gap", "Decrease Gap", "", "Style", "Invert Color"]
 
     def test_style_menu_has_line_and_space(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         style_item = next(
             mi for mi in applet.get_menu_items() if mi.get_label() == "Style"
         )
@@ -127,38 +128,38 @@ class TestSeparatorApplet:
         assert [mi.get_label() for mi in submenu.get_children()] == ["Line", "Space"]
 
     def test_scroll_up_increases_gap(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         before = applet._gap
         applet.on_scroll(direction_up=True)
         assert applet._gap == before + STEP
         assert applet.item.main_size == applet._gap
 
     def test_scroll_down_decreases_gap(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         before = applet._gap
         applet.on_scroll(direction_up=False)
         assert applet._gap == before - STEP
         assert applet.item.main_size == applet._gap
 
     def test_gap_clamps_at_min(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet._gap = MIN_SIZE
         applet.on_scroll(direction_up=False)
         assert applet._gap == MIN_SIZE
 
     def test_gap_clamps_at_max(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet._gap = MAX_SIZE
         applet.on_scroll(direction_up=True)
         assert applet._gap == MAX_SIZE
 
     def test_desktop_id_can_be_overridden(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet.item.desktop_id = "applet://separator#5"
         assert applet.item.desktop_id == "applet://separator#5"
 
     def test_apply_prefs_clamps_loaded_gap_above_max(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet.item.desktop_id = "applet://separator#0"
         applet.load_instance_prefs = lambda: {"gap": MAX_SIZE + 100}
 
@@ -168,7 +169,7 @@ class TestSeparatorApplet:
         assert applet.item.main_size == MAX_SIZE
 
     def test_apply_prefs_clamps_loaded_gap_below_min(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet.item.desktop_id = "applet://separator#0"
         applet.load_instance_prefs = lambda: {"gap": -999}
 
@@ -178,7 +179,7 @@ class TestSeparatorApplet:
         assert applet.item.main_size == MIN_SIZE
 
     def test_apply_prefs_invalid_gap_falls_back_to_default(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet.item.desktop_id = "applet://separator#0"
         applet.load_instance_prefs = lambda: {"gap": "bad"}
 
@@ -188,7 +189,7 @@ class TestSeparatorApplet:
         assert applet.item.main_size == DEFAULT_SIZE
 
     def test_apply_prefs_loads_style_and_invert_color(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet.item.desktop_id = "applet://separator#0"
         applet.load_instance_prefs = lambda: {
             "gap": DEFAULT_SIZE,
@@ -203,7 +204,7 @@ class TestSeparatorApplet:
         assert applet.item.allow_zoom is False
 
     def test_invalid_style_falls_back_to_space(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet.item.desktop_id = "applet://separator#0"
         applet.load_instance_prefs = lambda: {"style": "bad"}
 
@@ -233,7 +234,7 @@ class TestSeparatorApplet:
         assert config.saved == 1
 
     def test_set_style_and_invert_ignore_same_value(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet._save_current_prefs = lambda: (_ for _ in ()).throw(
             AssertionError("no save")
         )
@@ -242,7 +243,7 @@ class TestSeparatorApplet:
         applet._set_invert_color(False)
 
     def test_set_style_and_invert_save_changed_values(self):
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         saved: list[str] = []
         applet._save_current_prefs = lambda: saved.append("save")
         applet.present = lambda: saved.append("present")
@@ -256,7 +257,7 @@ class TestSeparatorApplet:
 
     def test_menu_callbacks_update_gap_style_and_invert(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        applet = SeparatorApplet(48)
+        applet = SeparatorApplet(48, config=Config())
         applet._save_current_prefs = lambda: None
         items = applet.get_menu_items()
 

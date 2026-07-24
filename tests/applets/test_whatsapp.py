@@ -28,6 +28,7 @@ from docking.applets.whatsapp.state import (
     parse_unread_count,
     tooltip_text,
 )
+from docking.core.config import Config
 
 
 class _FakeBrowser:
@@ -247,7 +248,7 @@ class TestWhatsAppApplet:
             "timeout_add_seconds",
             lambda seconds, callback: callbacks.append((seconds, callback)) or 17,
         )
-        applet = WhatsAppApplet(icon_size=48)
+        applet = WhatsAppApplet(icon_size=48, config=Config())
 
         applet.start(lambda: None)
 
@@ -267,7 +268,7 @@ class TestWhatsAppApplet:
             "source_remove",
             lambda source_id: removed.append(source_id),
         )
-        applet = WhatsAppApplet(icon_size=48)
+        applet = WhatsAppApplet(icon_size=48, config=Config())
         applet.start(lambda: None)
 
         applet.on_clicked()
@@ -276,7 +277,7 @@ class TestWhatsAppApplet:
         assert fake_browser.instances[0].toggled == 1
 
     def test_browser_callbacks_update_tooltip_and_badge(self, fake_browser):
-        applet = WhatsAppApplet(icon_size=48)
+        applet = WhatsAppApplet(icon_size=48, config=Config())
         browser = fake_browser.instances[0]
 
         browser.on_phase(BrowserPhase.READY, "")
@@ -295,7 +296,7 @@ class TestWhatsAppApplet:
         assert applet.item.badge_visible is True
 
     def test_notification_fallback_clears_when_window_is_opened(self, fake_browser):
-        applet = WhatsAppApplet(icon_size=48)
+        applet = WhatsAppApplet(icon_size=48, config=Config())
         browser = fake_browser.instances[0]
         browser.on_phase(BrowserPhase.READY, "")
 
@@ -321,7 +322,7 @@ class TestWhatsAppApplet:
             "source_remove",
             lambda source_id: removed.append(source_id),
         )
-        applet = WhatsAppApplet(icon_size=48)
+        applet = WhatsAppApplet(icon_size=48, config=Config())
         applet.start(lambda: None)
 
         applet.stop()
@@ -486,7 +487,10 @@ class TestDesktopNotifier:
     def test_default_action_presents_window_and_activates_web_notification(self):
         activated = []
         notification = MagicMock()
-        notifier = DesktopNotifier(on_activate=lambda: activated.append(True))
+        notifier = DesktopNotifier(
+            on_activate=lambda: activated.append(True),
+            on_shown=lambda: None,
+        )
         notifier._notifications[12] = notification
 
         notifier._on_action_invoked(
@@ -504,7 +508,10 @@ class TestDesktopNotifier:
 
     def test_desktop_dismissal_closes_web_notification(self):
         notification = MagicMock()
-        notifier = DesktopNotifier(on_activate=lambda: None)
+        notifier = DesktopNotifier(
+            on_activate=lambda: None,
+            on_shown=lambda: None,
+        )
         notifier._notifications[12] = notification
         notifier._notification_ids[id(notification)] = 12
 

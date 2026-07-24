@@ -210,6 +210,7 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
         ),
         launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
         client=SimpleNamespace(paths=HyprlandSocketPaths(command="", events="")),
+        event_stream_factory=lambda _callback: None,
     )
     backend = HyprlandSessionBackend(
         layer_shell=_layer_shell(),
@@ -388,6 +389,7 @@ def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
         ),
         launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
         client=MagicMock(),
+        event_stream_factory=lambda _callback: None,
     )
     backend = NiriSessionBackend(
         layer_shell=_layer_shell(),

@@ -25,6 +25,7 @@ from docking.applets.crypto.state import (
     prefs_from_mapping,
     prefs_payload,
 )
+from docking.core.config import Config
 
 BTC = CryptoAsset(AssetType.COIN, "bitcoin", "BTC", "Bitcoin")
 PUNK = CryptoAsset(AssetType.NFT, "cryptopunks", "PUNK", "CryptoPunks")
@@ -200,7 +201,7 @@ class TestCryptoApplet:
         )
 
         with patch("docking.applets.crypto.applet.BackgroundWorker", _InlineWorker):
-            applet = CryptoApplet(icon_size=48)
+            applet = CryptoApplet(icon_size=48, config=Config())
             applet._snapshot = _snapshot()
             applet.present()
 
@@ -214,7 +215,7 @@ class TestCryptoApplet:
             lambda **_kwargs: object(),
         )
         with patch("docking.applets.crypto.applet.BackgroundWorker", _InlineWorker):
-            applet = CryptoApplet(icon_size=48)
+            applet = CryptoApplet(icon_size=48, config=Config())
         nft_snapshot = CryptoSnapshot(
             asset=PUNK,
             vs_currency="usd",

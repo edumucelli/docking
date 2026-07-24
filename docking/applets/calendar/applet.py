@@ -69,7 +69,7 @@ class CalendarApplet(Applet):
     name = _("Calendar")
     icon_name = "office-calendar"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._last_day: int = -1
         self._tooltip_text: str = _("Calendar")

@@ -19,6 +19,7 @@ from docking.applets.dragshare.state import (
     first_uploadable_file,
     upload_file,
 )
+from docking.core.config import Config
 
 
 class _Response:
@@ -188,7 +189,7 @@ class TestApplet:
         assert saved == [True]
 
     def test_drop_without_local_file_sets_error(self, tmp_path):
-        applet = DragshareApplet(icon_size=48)
+        applet = DragshareApplet(icon_size=48, config=Config())
 
         consumed = applet.on_drop_uris(["https://example.test/file.txt"])
 

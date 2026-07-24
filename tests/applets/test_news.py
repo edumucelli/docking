@@ -181,7 +181,7 @@ def _rss_item(
 
 def _make_applet(config: Config | None = None) -> NewsApplet:
     with patch("docking.applets.news.applet.BackgroundWorker", _ImmediateWorker):
-        return NewsApplet(48, config=config)
+        return NewsApplet(48, config=config or Config())
 
 
 class TestCountries:

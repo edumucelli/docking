@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import docking.applets.screenshot.state as screenshot_state
 from docking.applets.screenshot.applet import ScreenshotApplet
 from docking.applets.screenshot.state import _TOOLS, Tool, _detect_tool, _run
+from docking.core.config import Config
 
 _MATE = Tool("mate-screenshot", [], ["-w"], ["-a"])
 _GNOME = Tool("gnome-screenshot", [], ["-w"], ["-a"])
@@ -372,7 +373,7 @@ class TestScreenshotApplet:
         with patch(
             "docking.applets.screenshot.applet._detect_tool", return_value=_MATE
         ):
-            applet = ScreenshotApplet(48)
+            applet = ScreenshotApplet(48, config=Config())
         assert applet.item.icon is not None
         assert applet.item.name == "Screenshot"
 
@@ -381,7 +382,7 @@ class TestScreenshotApplet:
             "docking.applets.screenshot.applet._detect_tool", return_value=_MATE
         ):
             for size in [32, 48, 64]:
-                applet = ScreenshotApplet(size)
+                applet = ScreenshotApplet(size, config=Config())
                 pixbuf = applet.create_icon(size)
                 assert pixbuf is not None
                 assert pixbuf.get_width() == size
@@ -390,7 +391,7 @@ class TestScreenshotApplet:
         with patch(
             "docking.applets.screenshot.applet._detect_tool", return_value=_MATE
         ):
-            applet = ScreenshotApplet(48)
+            applet = ScreenshotApplet(48, config=Config())
         labels = [mi.get_label() for mi in applet.get_menu_items() if mi.get_label()]
         assert labels == [
             "Full Screen",
@@ -404,21 +405,21 @@ class TestScreenshotApplet:
 
     def test_menu_empty_when_no_tool(self):
         with patch("docking.applets.screenshot.applet._detect_tool", return_value=None):
-            applet = ScreenshotApplet(48)
+            applet = ScreenshotApplet(48, config=Config())
         assert applet.get_menu_items() == []
 
     def test_on_clicked_calls_popen(self):
         with patch(
             "docking.applets.screenshot.applet._detect_tool", return_value=_MATE
         ):
-            applet = ScreenshotApplet(48)
+            applet = ScreenshotApplet(48, config=Config())
         with patch("docking.applets.screenshot.state.subprocess.Popen") as mock_popen:
             applet.on_clicked()
         mock_popen.assert_called_once_with(["mate-screenshot"], start_new_session=True)
 
     def test_on_clicked_noop_when_no_tool(self):
         with patch("docking.applets.screenshot.applet._detect_tool", return_value=None):
-            applet = ScreenshotApplet(48)
+            applet = ScreenshotApplet(48, config=Config())
         with patch("docking.applets.screenshot.state.subprocess.Popen") as mock_popen:
             applet.on_clicked()
         mock_popen.assert_not_called()
@@ -427,7 +428,7 @@ class TestScreenshotApplet:
         with patch(
             "docking.applets.screenshot.applet._detect_tool", return_value=_MATE
         ):
-            applet = ScreenshotApplet(48)
+            applet = ScreenshotApplet(48, config=Config())
         with patch("docking.applets.screenshot.applet._run") as mock_run:
             applet._run_mode(mode="full", delay_seconds=9)
         mock_run.assert_called_once_with(tool=_MATE, mode="full", delay_seconds=9)

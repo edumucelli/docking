@@ -17,6 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.platform.backends.x11.impl.window_tracker as window_tracker_mod
+from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.desktop_entries import DesktopInfo
 from docking.platform.model import DockItem
@@ -135,7 +136,11 @@ def tracker_env(monkeypatch):
     ]
     launcher = MagicMock()
     launcher.resolve_by_wm_class.return_value = None
-    tracker = window_tracker_mod.WindowTracker(model=model, launcher=launcher)
+    tracker = window_tracker_mod.WindowTracker(
+        model=model,
+        launcher=launcher,
+        config=Config(),
+    )
     return tracker, model, launcher
 
 

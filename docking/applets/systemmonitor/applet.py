@@ -65,7 +65,7 @@ class SystemMonitorApplet(Applet):
     name = _("System Monitor")
     icon_name = "utilities-system-monitor"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._prev_sample: CpuSample | None = None
         self._cpu: float = 0.0
@@ -76,9 +76,7 @@ class SystemMonitorApplet(Applet):
         self._gpu_reader = GpuReader()
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._show_disk = prefs.show_disk
         self._temperature_unit = prefs.temperature_unit
         super().__init__(icon_size=icon_size, config=config)

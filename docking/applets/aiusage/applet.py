@@ -75,12 +75,10 @@ class AiUsageApplet(Applet):
     name = _("AI Usage")
     icon_name = "utilities-terminal"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = None
-        if config:
-            prefs = config.applet_prefs.get(PREFS_KEY)
-            if not prefs:
-                prefs = config.applet_prefs.get(PREFS_KEY_LEGACY)
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get(PREFS_KEY)
+        if not prefs:
+            prefs = config.applet_prefs.get(PREFS_KEY_LEGACY)
         self._state = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
         self._selected_provider: Provider | None = None

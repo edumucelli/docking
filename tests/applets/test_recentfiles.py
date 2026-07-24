@@ -8,6 +8,7 @@ from docking.applets.recentfiles.state import (
     tooltip_text,
     truncate_name,
 )
+from docking.core.config import Config
 
 
 class TestState:
@@ -100,7 +101,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # Then
         assert len(applet._entries) == 2
@@ -117,7 +118,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # Then
         assert applet._entries == []
@@ -136,7 +137,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # Then only existing entries kept
         assert len(applet._entries) == 1
@@ -154,7 +155,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # When
         with patch(
@@ -175,7 +176,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # When
         with patch(
@@ -200,7 +201,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # When / Then (no exception raised)
         with patch(
@@ -222,7 +223,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # When
         items = applet.get_menu_items()
@@ -240,7 +241,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
         # When
         items = applet.get_menu_items()
@@ -260,7 +261,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48)
+            applet = RecentFilesApplet(48, config=Config())
 
             # When start
             applet.start(lambda: None)

@@ -56,7 +56,7 @@ class BrightnessApplet(Applet):
     name = _("Brightness")
     icon_name = "display-brightness-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = detect_output()
         if not self._backend:
             log.warning("No xrandr output detected")
@@ -65,9 +65,8 @@ class BrightnessApplet(Applet):
         self._timer_id: int = 0
         self._worker = BackgroundWorker(logger=log)
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._show_level = prefs.get("show_level", False)
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._show_level = prefs.get("show_level", False)
 
         self._poll()
         super().__init__(icon_size=icon_size, config=config)

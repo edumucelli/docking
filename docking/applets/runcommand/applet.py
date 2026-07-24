@@ -72,8 +72,8 @@ class RunCommandApplet(Applet):
     icon_name = "system-run"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get(meta.id, {}) if config else {}
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get(meta.id, {})
         self._history = normalize_history(prefs.get("history"))
         self._dialog: Gtk.Dialog | None = None
         self._entry_combo: Gtk.ComboBoxText | None = None

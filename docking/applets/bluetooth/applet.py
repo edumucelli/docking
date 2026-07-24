@@ -81,7 +81,7 @@ class BluetoothApplet(Applet):
     name = _("Bluetooth")
     icon_name = "bluetooth-active-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = BluezBackend()
         self._state: BluetoothState = unavailable_state()
         self._poll_id: int = 0
@@ -100,22 +100,21 @@ class BluetoothApplet(Applet):
         self._recent_connections: dict[str, float] = {}
         self._prefs_dirty = False
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._active_adapter_path = str(prefs.get("active_adapter_path", "") or "")
-            self._continuous_discovery = _as_pref_bool(
-                prefs.get("continuous_discovery", True),
-                default=True,
-            )
-            raw_recent = prefs.get("recent_connections", {})
-            if isinstance(raw_recent, dict):
-                for address, value in raw_recent.items():
-                    try:
-                        timestamp = float(value)
-                    except (TypeError, ValueError):
-                        continue
-                    if address:
-                        self._recent_connections[str(address)] = timestamp
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._active_adapter_path = str(prefs.get("active_adapter_path", "") or "")
+        self._continuous_discovery = _as_pref_bool(
+            prefs.get("continuous_discovery", True),
+            default=True,
+        )
+        raw_recent = prefs.get("recent_connections", {})
+        if isinstance(raw_recent, dict):
+            for address, value in raw_recent.items():
+                try:
+                    timestamp = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if address:
+                    self._recent_connections[str(address)] = timestamp
 
         self._known_connected_addresses: set[str] = set()
         super().__init__(icon_size=icon_size, config=config)

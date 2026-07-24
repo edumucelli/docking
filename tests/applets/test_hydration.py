@@ -11,6 +11,7 @@ from docking.applets.hydration.state import (
     tooltip_text,
     water_color,
 )
+from docking.core.config import Config
 
 
 class TestWaterColor:
@@ -34,54 +35,54 @@ class TestTooltipText:
 
 class TestHydrationApplet:
     def test_creates_with_icon(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         assert applet.item.icon is not None
         assert "45:00" in applet.item.name
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = HydrationApplet(size)
+            applet = HydrationApplet(size, config=Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_starts_full(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         assert applet._fill == 1.0
 
     def test_tick_decreases_fill(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._tick()
         assert applet._fill < 1.0
 
     def test_click_refills(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._fill = 0.5
         applet.on_clicked()
         assert applet._fill == 1.0
 
     def test_empty_triggers_urgent(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._fill = 1.0 / (DEFAULT_INTERVAL * 60)  # one tick from empty
         applet._tick()
         assert applet._fill <= 0
         assert applet.item.is_urgent is True
 
     def test_click_clears_urgent(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._fill = 0.0
         applet.item.is_urgent = True
         applet.on_clicked()
         assert applet.item.is_urgent is False
 
     def test_tick_noop_when_empty(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._fill = 0.0
         applet._tick()
         assert applet._fill == 0.0
 
     def test_menu_has_interval_presets(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "30 min" in labels
         assert "45 min" in labels
@@ -89,13 +90,13 @@ class TestHydrationApplet:
         assert "90 min" in labels
 
     def test_renders_when_empty(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._fill = 0.0
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
 
     def test_renders_at_half(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._fill = 0.5
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
@@ -120,7 +121,7 @@ class TestMouthCurvature:
 
 class TestHydrationLifecycle:
     def test_property_accessors_cover_interval_show_timer_and_tick_count(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._interval_min = 30
         applet._show_timer = False
         applet._tick_count = 12
@@ -129,7 +130,7 @@ class TestHydrationLifecycle:
         assert applet._tick_count == 12
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         monkeypatch.setattr(
             hydration_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 444
         )
@@ -148,7 +149,7 @@ class TestHydrationLifecycle:
         assert applet._timer_id == 0
 
     def test_toggle_timer_updates_state_and_saves(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         widget = MagicMock()
         widget.get_active.return_value = False
         applet._save = MagicMock()
@@ -161,7 +162,7 @@ class TestHydrationLifecycle:
         applet.present.assert_called_once()
 
     def test_tick_should_refresh_branch_updates_tooltip(self, monkeypatch):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         refreshed = []
         monkeypatch.setattr(applet, "present", lambda: refreshed.append(True))
         monkeypatch.setattr(
@@ -176,7 +177,7 @@ class TestHydrationLifecycle:
         assert refreshed == [True]
 
     def test_set_interval_saves_preferences(self):
-        applet = HydrationApplet(48)
+        applet = HydrationApplet(48, config=Config())
         applet._save = MagicMock()
         applet._set_interval(minutes=90)
         assert applet._interval_min == 90

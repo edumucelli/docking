@@ -288,8 +288,7 @@ class NiriWindowService(WindowService):
         client: NiriIpcClient,
         event_stream_factory: Callable[
             [Callable[[NiriEvent], None]], NiriEventStream | None
-        ]
-        | None = None,
+        ],
     ) -> None:
         self._model = model
         self._matcher = AppIdMatcher(launcher=launcher)
@@ -307,10 +306,9 @@ class NiriWindowService(WindowService):
         """Load initial windows and subscribe to events."""
         self._refresh_windows()
         self._refresh_workspaces()
-        if self._event_stream_factory is not None:
-            self._event_stream = self._event_stream_factory(self._on_event)
-            if self._event_stream is not None:
-                self._event_stream.start()
+        self._event_stream = self._event_stream_factory(self._on_event)
+        if self._event_stream is not None:
+            self._event_stream.start()
 
     def stop(self) -> None:
         """Stop event delivery and clear published running state."""
@@ -594,8 +592,7 @@ class NiriWorkspaceService(WorkspaceService):
         client: NiriIpcClient,
         event_stream_factory: Callable[
             [Callable[[NiriEvent], None]], NiriEventStream | None
-        ]
-        | None = None,
+        ],
     ) -> None:
         self._client = client
         self._event_stream_factory = event_stream_factory
@@ -607,10 +604,9 @@ class NiriWorkspaceService(WorkspaceService):
 
     def start(self) -> None:
         self._refresh_workspaces()
-        if self._event_stream_factory is not None:
-            self._event_stream = self._event_stream_factory(self._on_event)
-            if self._event_stream is not None:
-                self._event_stream.start()
+        self._event_stream = self._event_stream_factory(self._on_event)
+        if self._event_stream is not None:
+            self._event_stream.start()
 
     def stop(self) -> None:
         if self._event_stream is not None:

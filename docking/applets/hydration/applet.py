@@ -53,8 +53,8 @@ class HydrationApplet(Applet):
     name = _("Hydration")
     icon_name = "weather-showers"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("hydration", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("hydration", {})
         self._state = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
 

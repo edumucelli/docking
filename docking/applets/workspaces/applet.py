@@ -54,7 +54,7 @@ class WorkspacesApplet(Applet):
     name = _("Workspaces")
     icon_name = "preferences-desktop-workspaces"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._workspace_service: WorkspaceService | None = None
         self._watch_handle: object | None = None
         self._last_logged_state: tuple[int, int, str, str] | None = None

@@ -83,7 +83,7 @@ class WeatherApplet(Applet):
     name = _("Weather")
     icon_name = "weather-few-clouds"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._fetch_request_id: int = 0
@@ -96,9 +96,7 @@ class WeatherApplet(Applet):
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get("weather", {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get("weather", {}))
         self._cities: list[CityPref] = list(prefs.cities)
         self._active_index: int = prefs.active_index
         self._show_temperature = prefs.show_temperature

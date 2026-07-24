@@ -217,8 +217,7 @@ class HyprlandWindowService(WindowService):
         client: HyprlandIpcClient,
         event_stream_factory: Callable[
             [Callable[[HyprlandEvent], None]], HyprlandEventStream | None
-        ]
-        | None = None,
+        ],
         preview_handle_source: object | None = None,
     ) -> None:
         self._model = model
@@ -237,10 +236,9 @@ class HyprlandWindowService(WindowService):
         """Load initial clients and subscribe to taskbar-relevant changes."""
         self._start_preview_handle_source()
         self._refresh()
-        if self._event_stream_factory is not None:
-            self._event_stream = self._event_stream_factory(self._on_event)
-            if self._event_stream is not None:
-                self._event_stream.start()
+        self._event_stream = self._event_stream_factory(self._on_event)
+        if self._event_stream is not None:
+            self._event_stream.start()
 
     def stop(self) -> None:
         """Stop event delivery and clear published running state."""

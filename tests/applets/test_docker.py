@@ -18,6 +18,7 @@ from docking.applets.docker.state import (
     restart_container,
     stop_container,
 )
+from docking.core.config import Config
 
 
 class _InlineWorker:
@@ -185,7 +186,7 @@ class TestDockerApplet:
             docker_applet_mod, "render_icon", lambda **_kwargs: object()
         )
 
-        applet = DockerApplet(icon_size=48)
+        applet = DockerApplet(icon_size=48, config=Config())
 
         assert applet.item.name == "Docker: 1 running container"
         assert applet.item.icon is not None
@@ -201,7 +202,7 @@ class TestDockerApplet:
         )
         monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
 
-        applet = DockerApplet(icon_size=48)
+        applet = DockerApplet(icon_size=48, config=Config())
         items = applet.get_menu_items()
 
         labels = [item.get_label() for item in items]
@@ -217,7 +218,7 @@ class TestDockerApplet:
         )
         monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
 
-        applet = DockerApplet(icon_size=48)
+        applet = DockerApplet(icon_size=48, config=Config())
         items = applet.get_menu_items()
         container_item = next(
             item for item in items if item.get_label() == "web (nginx:latest)"
@@ -250,7 +251,7 @@ class TestDockerApplet:
         )
         monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
 
-        applet = DockerApplet(icon_size=48)
+        applet = DockerApplet(icon_size=48, config=Config())
         container_item = next(
             item
             for item in applet.get_menu_items()
@@ -275,7 +276,7 @@ class TestDockerApplet:
         )
         monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
 
-        applet = DockerApplet(icon_size=48)
+        applet = DockerApplet(icon_size=48, config=Config())
         applet.on_clicked()
 
         assert applet.item.name == "Docker: 1 running container"

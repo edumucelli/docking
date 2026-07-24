@@ -42,7 +42,7 @@ class DesktopApplet(Applet):
     icon_name = "user-desktop"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._desktop_actions: DesktopActionService | None = None
         super().__init__(icon_size=icon_size, config=config)
         self.present()

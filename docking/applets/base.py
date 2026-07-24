@@ -349,7 +349,7 @@ class Applet(ABC):
     icon_name: str
     icon_source_options: tuple[IconSource, ...] = (IconSource.DOCKING,)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._config = config
         self._icon_size = icon_size
         self._notify: Callable[[], None] | None = None
@@ -371,15 +371,12 @@ class Applet(ABC):
 
     def load_prefs(self) -> dict[str, Any]:
         """Load this applet's preferences from config."""
-        if self._config:
-            return dict(self._config.applet_prefs.get(self.id, {}))
-        return {}
+        return dict(self._config.applet_prefs.get(self.id, {}))
 
     def save_prefs(self, prefs: dict[str, Any]) -> None:
         """Save this applet's preferences to config."""
-        if self._config:
-            self._config.applet_prefs[self.id] = prefs
-            self._config.save()
+        self._config.applet_prefs[self.id] = prefs
+        self._config.save()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Render the active icon source at the given size."""

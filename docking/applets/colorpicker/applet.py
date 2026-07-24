@@ -59,21 +59,20 @@ class ColorPickerApplet(Applet):
     name = _("Color Picker")
     icon_name = "color-select"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._r, self._g, self._b = _DEFAULT_RGB
         self._hex = ""
         self._show_hex = True
         self._overlay: Gtk.Window | None = None
         self._screen_capture: ScreenCaptureService | None = None
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._show_hex = prefs.get("show_hex", True)
-            # Restore last picked color
-            self._r = prefs.get("r", _DEFAULT_RGB[0])
-            self._g = prefs.get("g", _DEFAULT_RGB[1])
-            self._b = prefs.get("b", _DEFAULT_RGB[2])
-            self._hex = prefs.get("hex", "")
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._show_hex = prefs.get("show_hex", True)
+        # Restore last picked color
+        self._r = prefs.get("r", _DEFAULT_RGB[0])
+        self._g = prefs.get("g", _DEFAULT_RGB[1])
+        self._b = prefs.get("b", _DEFAULT_RGB[2])
+        self._hex = prefs.get("hex", "")
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()

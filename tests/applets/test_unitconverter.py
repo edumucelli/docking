@@ -43,7 +43,7 @@ def _make_applet(config: Config | None = None) -> UnitConverterApplet:
     with patch(
         "docking.applets.unitconverter.applet.BackgroundWorker", _ImmediateWorker
     ):
-        return UnitConverterApplet(48, config=config)
+        return UnitConverterApplet(48, config=config or Config())
 
 
 def _unit(cat: Category, symbol: str) -> Unit:
@@ -608,7 +608,7 @@ class TestAppletCreation:
                 "docking.applets.unitconverter.applet.BackgroundWorker",
                 _ImmediateWorker,
             ):
-                applet = UnitConverterApplet(size)
+                applet = UnitConverterApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
 

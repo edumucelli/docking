@@ -44,7 +44,7 @@ class WhatsAppApplet(Applet):
     icon_name = "phone-symbolic"
     browser_factory = WhatsAppBrowser
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._state = WhatsAppState()
         self._startup_source_id = 0
         self._browser = self.browser_factory(

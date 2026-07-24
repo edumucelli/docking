@@ -76,7 +76,7 @@ class CertwatchApplet(Applet):
     name = _("Cert Watch")
     icon_name = "application-certificate"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._retry_timer_id: int = 0
@@ -86,9 +86,7 @@ class CertwatchApplet(Applet):
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._domains: list[DomainPref] = list(prefs.domains)
         self._certs: dict[tuple[str, int], CertInfo] = {}
 

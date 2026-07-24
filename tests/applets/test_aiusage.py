@@ -887,22 +887,22 @@ class TestAiUsageApplet:
         assert applet._state.days[0].sessions == 1
 
     def test_creates_with_icon(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = AiUsageApplet(size)
+            applet = AiUsageApplet(size, config=Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_tooltip_no_usage(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         assert "no usage" in applet.item.name
 
     def test_create_icon_forwards_selected_provider_and_display_mode(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet._selected_provider = Provider.CODEX
         applet._display_mode = DisplayMode.TOKENS
         render_icon = MagicMock(return_value="pixbuf")
@@ -917,7 +917,7 @@ class TestAiUsageApplet:
         )
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         monkeypatch.setattr(
             aiusage_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 999
         )
@@ -947,12 +947,12 @@ class TestAiUsageApplet:
         assert applet._timer_id == 0
 
     def test_menu_has_reset(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Reset Today" in labels
 
     def test_tooltip_widget_builds_headless_box(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         _patch_tooltip_widgets(monkeypatch)
 
         box = applet._build_tooltip_widget()
@@ -962,7 +962,7 @@ class TestAiUsageApplet:
         assert box.children[0].label == "AI Usage: no usage today"
 
     def test_tooltip_widget_renders_token_breakdown_and_week_total(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         _patch_tooltip_widgets(monkeypatch)
         today = set_session(
             session_id="today",
@@ -987,7 +987,7 @@ class TestAiUsageApplet:
         assert "This week: 3.9K" in labels[2]
 
     def test_tooltip_widget_filters_selected_provider_costs(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         _patch_tooltip_widgets(monkeypatch)
         applet._selected_provider = Provider.CODEX
         applet._state = set_session(
@@ -1006,7 +1006,7 @@ class TestAiUsageApplet:
         assert "Gpt-5.4: $2.50" in labels[1]
 
     def test_on_scroll_cycles_providers_and_presents(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
 
         applet.on_scroll(direction_up=True)
@@ -1017,7 +1017,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 3
 
     def test_set_provider_and_display_mode_present(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
 
         applet._set_provider(provider=Provider.OPENCODE)
@@ -1028,7 +1028,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 2
 
     def test_tick_merges_opencode_sessions_and_updates_state(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
         monkeypatch.setattr(
@@ -1057,7 +1057,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 1
 
     def test_tick_merges_codex_sessions_and_updates_state(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
         monkeypatch.setattr(
@@ -1087,7 +1087,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 1
 
     def test_reset_today_saves_prefs_and_presents(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet._state = set_session(
             session_id="test",
             state=AiUsageState(),
@@ -1103,7 +1103,7 @@ class TestAiUsageApplet:
         applet.present.assert_called_once()
 
     def test_tick_warns_once_when_opencode_poll_fails(self, monkeypatch, caplog):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
 
         def fail_query():

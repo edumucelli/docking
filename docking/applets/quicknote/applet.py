@@ -54,8 +54,8 @@ class QuickNoteApplet(Applet):
     name = _("Quick Note")
     icon_name = "text-editor"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("quicknote", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("quicknote", {})
         self._note = note_from_prefs(prefs)
         super().__init__(icon_size=icon_size, config=config)
         self.present()

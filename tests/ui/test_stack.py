@@ -18,6 +18,7 @@ def _controller() -> StackPopupController:
     return StackPopupController(
         config=SimpleNamespace(icon_size=48, pos="bottom"),
         runtime=MagicMock(),
+        dock_window=MagicMock(),
     )
 
 

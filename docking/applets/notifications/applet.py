@@ -78,7 +78,7 @@ class NotificationsApplet(Applet):
     name = _("Notifications")
     icon_name = "preferences-system-notifications"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend: NotificationsBackend = detect_backend()
         self._state: NotificationsState = self._backend.get_state()
         self._timer_id: int = 0

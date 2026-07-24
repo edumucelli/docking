@@ -60,7 +60,7 @@ class TodayInHistoryApplet(Applet):
     name = _("Today in History")
     icon_name = "office-calendar"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._events: list[HistoryEvent] = []
         self._index = -1
         self._current: HistoryEvent | None = None

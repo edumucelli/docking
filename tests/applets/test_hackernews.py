@@ -82,7 +82,7 @@ def _make_applet(config: Config | None = None) -> HackerNewsApplet:
         "docking.applets.hackernews.applet.BackgroundWorker",
         _ImmediateWorker,
     ):
-        return HackerNewsApplet(48, config=config)
+        return HackerNewsApplet(48, config=config or Config())
 
 
 class TestHackerNewsState:

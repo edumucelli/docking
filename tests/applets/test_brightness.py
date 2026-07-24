@@ -15,6 +15,7 @@ from docking.applets.brightness.state import (
     detect_output,
     get_brightness,
 )
+from docking.core.config import Config
 
 
 class _ImmediateWorker:
@@ -275,7 +276,7 @@ def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
             return_value=brightness,
         ),
     ):
-        return BrightnessApplet(48)
+        return BrightnessApplet(48, config=Config())
 
 
 class TestBrightnessApplet:
@@ -352,7 +353,7 @@ class TestBrightnessApplet:
         with patch(
             "docking.applets.brightness.applet.detect_output", return_value=None
         ):
-            applet = BrightnessApplet(48)
+            applet = BrightnessApplet(48, config=Config())
         applet.on_scroll(direction_up=True)
         applet.on_clicked()
 

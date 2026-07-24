@@ -110,10 +110,8 @@ class NewsApplet(Applet):
     name = _("News")
     icon_name = "internet-news-reader"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._sources = list(prefs.sources)
         self._active_source_index = prefs.active_source_index
         self._articles = list(prefs.articles)

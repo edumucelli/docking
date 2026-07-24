@@ -54,7 +54,7 @@ class PetApplet(Applet):
     name = _("Pet")
     icon_name = "face-smile"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._state = PetState()
         self._prev_sample: CpuSample | None = None
         self._timer_id: int = 0

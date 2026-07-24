@@ -80,8 +80,8 @@ class AmbientApplet(Applet):
     name = _("Ambient")
     icon_name = "audio-speakers"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("ambient", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("ambient", {})
         self._state = state_from_prefs(prefs=prefs)
         self._pipeline: Gst.Element | None = None
         self._bus_watching = False
