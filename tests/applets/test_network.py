@@ -1565,7 +1565,7 @@ class TestNetworkCommands:
         monkeypatch.setattr(
             network_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+            lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )
         assert open_connection_info() is True
         assert launched == [("gnome-control-center", "wifi")]
@@ -1580,7 +1580,7 @@ class TestNetworkCommands:
         monkeypatch.setattr(
             network_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+            lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )
         assert open_edit_connections() is True
         assert launched == [("nm-connection-editor",)]
@@ -1600,7 +1600,7 @@ class TestNetworkCommands:
         monkeypatch.setattr(
             network_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+            lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )
         assert open_hidden_wifi_settings() is True
         assert launched == [("nm-connection-editor",)]
@@ -1620,7 +1620,7 @@ class TestNetworkCommands:
         monkeypatch.setattr(
             network_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(tuple(cmd)),
+            lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )
         assert open_new_wifi_settings() is True
         assert launched == [("gnome-control-center", "wifi")]

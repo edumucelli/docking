@@ -619,7 +619,7 @@ class PreviewProtocolAdapter:
     def _on_finished(self, manager) -> None:
         self.available = False
 
-    def _on_shm_format(self, shm, format_: int) -> None:
+    def _on_shm_format(self, _shm, format_: int) -> None:
         self._shm_formats.add(int(format_))
 
 

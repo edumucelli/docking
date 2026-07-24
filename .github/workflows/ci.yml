@@ -74,7 +74,7 @@ jobs:
           echo "run_ci=true" >> "$GITHUB_OUTPUT"
 
   quality:
-    name: Quality (ruff + ty)
+    name: Quality (ruff + ty + vulture)
     needs: [changes]
     runs-on: ubuntu-24.04
     steps:
@@ -126,6 +126,9 @@ jobs:
 
       - name: Type check (ty)
         run: .venv/bin/python -m ty check --error-on-warning docking/
+
+      - name: Dead code (vulture)
+        run: .venv/bin/python -m vulture --config pyproject.toml
 
   bdd-visual:
     name: BDD + Visual Regression

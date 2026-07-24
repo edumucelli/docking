@@ -251,7 +251,7 @@ class TestBluetoothStateHelpers:
         monkeypatch.setattr(
             bluetooth_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+            lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
 
         assert bluetooth_state_mod.open_send_files() is True

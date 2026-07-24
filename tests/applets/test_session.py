@@ -266,7 +266,7 @@ class TestSessionState:
         monkeypatch.setattr(
             session_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+            lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
         session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")
         assert launched == [["systemctl", "suspend"]]
@@ -288,7 +288,7 @@ class TestSessionState:
         monkeypatch.setattr(
             session_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+            lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
 
         session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")

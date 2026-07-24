@@ -953,7 +953,7 @@ class TestCommandHelpers:
         monkeypatch.setattr(
             kbl_state.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+            lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
         assert open_keyboard_settings() is True
         assert show_current_layout("us") is True

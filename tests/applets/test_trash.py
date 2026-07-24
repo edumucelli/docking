@@ -839,7 +839,7 @@ class TestGioTrashBackend:
         monkeypatch.setattr(
             Gio.Settings,
             "new_full",
-            lambda schema_obj, backend_path, path: settings,
+            lambda _schema_obj, _backend_path, path: settings,
         )
         backend = MateTrashBackend()
         assert backend._confirmation_preference() is True
@@ -861,7 +861,7 @@ class TestGioTrashBackend:
         monkeypatch.setattr(
             Gio.Settings,
             "new_full",
-            lambda schema_obj, backend_path, path: settings,
+            lambda _schema_obj, _backend_path, path: settings,
         )
         backend = MateTrashBackend()
         assert backend._confirmation_preference() is None
