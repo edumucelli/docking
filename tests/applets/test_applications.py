@@ -182,6 +182,7 @@ class TestApplicationsApplet:
                 self.visible = True
                 self.parent = None
                 self.drag_source_args = None
+                self.reserve_indicator = False
 
             def get_label(self) -> str:
                 return self._label
@@ -200,6 +201,9 @@ class TestApplicationsApplet:
 
             def add(self, child) -> None:
                 self._child = child
+
+            def set_reserve_indicator(self, value: bool) -> None:
+                self.reserve_indicator = value
 
             def show(self) -> None:
                 self.visible = True
@@ -284,6 +288,7 @@ class TestApplicationsApplet:
         menu = d._build_launcher_menu()
         items = menu.get_children()
         assert items[0]._child.children[0].placeholder == "Search applications..."
+        assert items[0].reserve_indicator is True
         assert isinstance(menu, applications_applet_mod.Gtk.Menu)
 
     def test_right_click_menu_items_are_empty(self):

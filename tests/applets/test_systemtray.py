@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from gi.repository import GLib
 
-from docking.applets.systemtray.dbusmenu import parse_menu_node
 from docking.applets.systemtray.render import create_status_tray_icon
-from docking.applets.systemtray.state import (
+from docking.applets.systemtray.state import tooltip_text
+from docking.platform.status_notifier import (
     DEFAULT_ITEM_PATH,
     RegisteredItemAddress,
     StatusTrayState,
     parse_registered_item,
-    tooltip_text,
     tray_item_from_properties,
     unavailable_state,
 )
+from docking.platform.status_notifier.dbusmenu import parse_menu_node
 
 
 class TestRegisteredItemParsing:
@@ -55,6 +55,7 @@ class TestTrayItemParsing:
                 path="/StatusNotifierItem",
             ),
             properties={
+                "Id": "example-id",
                 "Title": "Example",
                 "Status": "Active",
                 "Category": "ApplicationStatus",
@@ -69,6 +70,7 @@ class TestTrayItemParsing:
         )
 
         assert item.identifier == "org.example.App/StatusNotifierItem"
+        assert item.item_id == "example-id"
         assert item.display_title == "Example"
         assert item.effective_icon_name == "example-icon"
         assert item.menu_path == "/Menu"
