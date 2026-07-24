@@ -235,6 +235,7 @@ def _folder_stack_handler() -> MenuHandler:
         config=config,
         runtime=runtime,
         launcher=launcher,
+        dock_window=runtime.window,
     )
     handler = MenuHandler(
         about=MagicMock(),

@@ -480,7 +480,7 @@ class TestPeripheralLabel:
 
 class TestPeripheralTooltip:
     def test_tooltip_lists_peripherals_under_battery(self):
-        applet = BatteryApplet(48)
+        applet = BatteryApplet(48, config=Config())
         applet._state = BatteryState(
             icon_name="battery-good",
             capacity=80,
@@ -499,7 +499,7 @@ class TestPeripheralTooltip:
         )
 
     def test_tooltip_battery_only_when_no_peripherals(self):
-        applet = BatteryApplet(48)
+        applet = BatteryApplet(48, config=Config())
         applet._state = BatteryState(
             icon_name="battery-good",
             capacity=80,
@@ -567,7 +567,7 @@ class TestPowerSettingsLauncher:
 
 class TestBatteryAppletRendering:
     def test_renders_valid_pixbuf(self):
-        applet = BatteryApplet(48)
+        applet = BatteryApplet(48, config=Config())
         pixbuf = applet.create_icon(48)
         assert pixbuf is not None
 
@@ -600,7 +600,7 @@ class TestBatteryAppletRendering:
             lambda: opened.append("opened") or True,
         )
 
-        applet = BatteryApplet(48)
+        applet = BatteryApplet(48, config=Config())
         items = applet.get_menu_items()
 
         assert [item.get_label() for item in items] == [
@@ -617,7 +617,7 @@ class TestBatteryAppletRendering:
     def test_menu_overlay_only_without_power_settings_tool(self, monkeypatch):
         monkeypatch.setattr(battery_applet_mod, "power_settings_command", lambda: None)
 
-        applet = BatteryApplet(48)
+        applet = BatteryApplet(48, config=Config())
         assert [item.get_label() for item in applet.get_menu_items()] == [
             "No overlay",
             "Percentage",
@@ -659,13 +659,13 @@ class TestBatteryAppletRendering:
             "docking.applets.battery.applet.read_battery",
             return_value=read_battery("BAT0", base=tmp_path),
         ):
-            applet = BatteryApplet(48)
+            applet = BatteryApplet(48, config=Config())
         assert applet.item.name == "Battery: 72%"
 
     def test_tooltip_no_battery(self, monkeypatch):
         monkeypatch.setattr(battery_applet_mod, "read_peripheral_batteries", list)
         with patch("docking.applets.battery.applet.read_battery", return_value=None):
-            applet = BatteryApplet(48)
+            applet = BatteryApplet(48, config=Config())
         assert applet.item.name == "No battery"
 
     def test_full_charging_icon(self, tmp_path, monkeypatch):
@@ -702,7 +702,7 @@ class TestBatteryAppletRendering:
             battery_applet_mod, "render_icon", lambda **_kwargs: object()
         )
 
-        applet = BatteryApplet(48)
+        applet = BatteryApplet(48, config=Config())
         applet.start(lambda: None)
         assert applet._timer_id == 77
         assert timer_ids == [60]

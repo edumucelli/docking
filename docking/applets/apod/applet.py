@@ -68,7 +68,7 @@ class ApodApplet(Applet):
     name = _("Astronomy Picture of the Day")
     icon_name = "image-x-generic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._refresh_timer_id: int = 0
         self._retry_timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
@@ -77,9 +77,7 @@ class ApodApplet(Applet):
         self._error: str | None = None
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._result: ApodResult | None = prefs.last_result
 
         super().__init__(icon_size=icon_size, config=config)

@@ -103,7 +103,7 @@ class CurrencyFxApplet(Applet):
     name = _("Currency FX")
     icon_name = "emblem-synchronizing-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         """Load preferences and render the first icon state.
 
         A day interval can render immediately from the local cache before the
@@ -122,7 +122,7 @@ class CurrencyFxApplet(Applet):
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        raw_prefs = config.applet_prefs.get(meta.id, {}) if config else None
+        raw_prefs = config.applet_prefs.get(meta.id, {})
         prefs = prefs_from_mapping(raw_prefs)
         self._pairs = list(prefs.pairs)
         self._active_index = prefs.active_index

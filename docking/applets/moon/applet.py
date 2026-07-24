@@ -62,15 +62,14 @@ class MoonApplet(Applet):
     name = _("Moon")
     icon_name = "weather-clear-night"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._moon: MoonData | None = None
         self._show_phase = True
         self._timer_id: int = 0
         self._worker = BackgroundWorker(logger=log)
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._show_phase = prefs.get("show_phase", True)
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._show_phase = prefs.get("show_phase", True)
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()

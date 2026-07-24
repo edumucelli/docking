@@ -162,12 +162,12 @@ class TestAlarmState:
 
 class TestAlarmApplet:
     def test_creates_with_icon(self):
-        applet = AlarmApplet(48)
+        applet = AlarmApplet(48, config=Config())
 
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
-        applet = AlarmApplet(48)
+        applet = AlarmApplet(48, config=Config())
         applet._state = AlarmState(presets=(AlarmPreset(hour=7, minute=30),))
 
         for size in [32, 48, 64]:

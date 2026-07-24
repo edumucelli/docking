@@ -1269,6 +1269,163 @@ class TestLauncherEntryState:
         assert items[0].badge_count == 2
 
 
+class TestStatusNotifierOverlayState:
+    def test_applies_badge_and_urgency_to_pinned_item(self, monkeypatch):
+        config = _make_config(["slack.desktop"])
+        launcher = _make_launcher("slack.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        monkeypatch.setattr(
+            "docking.platform.model.GLib.get_monotonic_time",
+            lambda: 100,
+        )
+
+        applied = model.apply_status_notifier_overlay(
+            source_id=":1.20/StatusNotifierItem",
+            desktop_id="slack.desktop",
+            badge_count=3,
+        )
+
+        item = model.visible_items()[0]
+        assert applied is True
+        assert item.badge_count == 3
+        assert item.badge_visible is True
+        assert item.status_notifier_badge_count == 3
+        assert item.status_notifier_urgent is True
+        assert item.is_urgent is True
+        assert item.last_urgent == 100
+
+    def test_count_increase_retriggers_urgent_timestamp(self, monkeypatch):
+        config = _make_config(["slack.desktop"])
+        launcher = _make_launcher("slack.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        timestamps = iter((100, 200))
+        monkeypatch.setattr(
+            "docking.platform.model.GLib.get_monotonic_time",
+            lambda: next(timestamps),
+        )
+
+        model.apply_status_notifier_overlay(
+            source_id="slack-item",
+            desktop_id="slack.desktop",
+            badge_count=1,
+        )
+        item = model.visible_items()[0]
+        assert item.last_urgent == 100
+
+        model.apply_status_notifier_overlay(
+            source_id="slack-item",
+            desktop_id="slack.desktop",
+            badge_count=1,
+        )
+        assert item.last_urgent == 100
+
+        model.apply_status_notifier_overlay(
+            source_id="slack-item",
+            desktop_id="slack.desktop",
+            badge_count=2,
+        )
+        assert item.last_urgent == 200
+
+    def test_zero_count_clears_badge_and_status_notifier_urgency(self):
+        config = _make_config(["slack.desktop"])
+        launcher = _make_launcher("slack.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.apply_status_notifier_overlay(
+            source_id="slack-item",
+            desktop_id="slack.desktop",
+            badge_count=2,
+        )
+
+        model.apply_status_notifier_overlay(
+            source_id="slack-item",
+            desktop_id="slack.desktop",
+            badge_count=0,
+        )
+
+        item = model.visible_items()[0]
+        assert item.badge_count == 0
+        assert item.badge_visible is False
+        assert item.status_notifier_urgent is False
+        assert item.is_urgent is False
+
+    def test_unity_and_status_notifier_badges_do_not_overwrite_each_other(self):
+        config = _make_config(["slack.desktop"])
+        launcher = _make_launcher("slack.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.apply_status_notifier_overlay(
+            source_id="slack-item",
+            desktop_id="slack.desktop",
+            badge_count=5,
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://slack.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://slack.desktop",
+                desktop_id="slack.desktop",
+                badge_count=2,
+                badge_visible=True,
+            ),
+        )
+
+        item = model.visible_items()[0]
+        assert item.launcher_entry_badge_count == 2
+        assert item.status_notifier_badge_count == 5
+        assert item.badge_count == 5
+
+        model.remove_launcher_entry(sender_name=":1.7")
+        assert item.badge_count == 5
+        assert item.badge_visible is True
+
+        model.remove_status_notifier_overlay(source_id="slack-item")
+        assert item.badge_count == 0
+        assert item.badge_visible is False
+
+    def test_multiple_tray_sources_use_highest_count_and_fall_back(self):
+        config = _make_config(["slack.desktop"])
+        launcher = _make_launcher("slack.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.apply_status_notifier_overlay(
+            source_id="slack-one",
+            desktop_id="slack.desktop",
+            badge_count=2,
+        )
+        model.apply_status_notifier_overlay(
+            source_id="slack-two",
+            desktop_id="slack.desktop",
+            badge_count=7,
+        )
+
+        item = model.visible_items()[0]
+        assert item.badge_count == 7
+
+        assert model.remove_status_notifier_overlay(source_id="slack-two")
+        assert item.badge_count == 2
+        assert item.is_urgent is True
+
+        assert model.remove_status_notifier_overlay(source_id="slack-one")
+        assert item.badge_count == 0
+        assert item.is_urgent is False
+
+    def test_badge_preference_hides_but_retains_status_notifier_count(self):
+        config = _make_config(["slack.desktop"])
+        config.show_launcher_badges = False
+        launcher = _make_launcher("slack.desktop")
+        model = DockModel(config, launcher, AppletServices())
+
+        model.apply_status_notifier_overlay(
+            source_id="slack-item",
+            desktop_id="slack.desktop",
+            badge_count=4,
+        )
+
+        item = model.visible_items()[0]
+        assert item.badge_count == 4
+        assert item.badge_visible is False
+        assert item.status_notifier_urgent is True
+
+
 class TestDockItemAnimationFields:
     def test_default_timestamps_zero(self):
         # Given / When

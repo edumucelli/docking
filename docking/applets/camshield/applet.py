@@ -62,7 +62,7 @@ class CamshieldApplet(Applet):
     name = _("Cam Shield")
     icon_name = "camera-web"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._state: CamshieldState = probe_camera_state()
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0

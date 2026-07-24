@@ -152,12 +152,12 @@ class TestSunriseState:
 
 class TestSunriseApplet:
     def test_creates_with_icon(self):
-        applet = SunriseApplet(48)
+        applet = SunriseApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = SunriseApplet(size)
+            applet = SunriseApplet(size, config=Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
@@ -177,7 +177,7 @@ class TestSunriseApplet:
         ]
 
     def test_scroll_cycles_city(self):
-        applet = SunriseApplet(48)
+        applet = SunriseApplet(48, config=Config())
         applet._cities = [_BERLIN, _TOKYO]
         applet._active_index = 0
 

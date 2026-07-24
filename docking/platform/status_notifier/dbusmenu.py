@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""DBusMenu client helpers for StatusNotifier/AppIndicator menus."""
+"""DBusMenu client and models for StatusNotifier/AppIndicator menus."""
 
 from __future__ import annotations
 

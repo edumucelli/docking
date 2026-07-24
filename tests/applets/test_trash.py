@@ -27,6 +27,7 @@ from docking.applets.trash.backend import (
     _visible_trash_info_directory,
     select_trash_backend,
 )
+from docking.core.config import Config
 from docking.platform.environment import Desktop
 
 
@@ -1254,7 +1255,7 @@ def _make_applet(monkeypatch, backend: _StubBackend) -> TrashApplet:
         "select_trash_backend",
         lambda **_: backend,
     )
-    return TrashApplet(48)
+    return TrashApplet(48, config=Config())
 
 
 class TestTrashAppletIcon:

@@ -13,6 +13,7 @@ from docking.applets.bookmarks.state import (
     tooltip_text,
     truncate_label,
 )
+from docking.core.config import Config
 
 
 class TestState:
@@ -88,7 +89,7 @@ class TestApplet:
         """Given no config, when created, then empty bookmarks."""
         from docking.applets.bookmarks.applet import BookmarksApplet
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         assert applet.item.icon is not None
         assert "No bookmarks" in applet.item.name
 
@@ -109,7 +110,7 @@ class TestApplet:
         """Given bookmarks, when clicked, then opens first URL."""
         from docking.applets.bookmarks.applet import BookmarksApplet
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]
 
         with patch("docking.applets.bookmarks.applet.Gio") as mock_gio:
@@ -122,7 +123,7 @@ class TestApplet:
         """Given no bookmarks, when clicked, then no-op."""
         from docking.applets.bookmarks.applet import BookmarksApplet
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         with patch("docking.applets.bookmarks.applet.Gio") as mock_gio:
             applet.on_clicked()
             mock_gio.AppInfo.launch_default_for_uri.assert_not_called()
@@ -148,7 +149,7 @@ class TestApplet:
             bookmarks_applet_mod.Gtk, "SeparatorMenuItem", _FakeMenuItem
         )
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]
         open_url = []
         add_calls = []
@@ -170,7 +171,7 @@ class TestApplet:
     def test_open_url_logs_glib_error(self, monkeypatch):
         from docking.applets.bookmarks.applet import BookmarksApplet
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         logger = SimpleNamespace(warning=lambda *_args, **_kwargs: None)
 
         def bind(**_kwargs):
@@ -268,7 +269,7 @@ class TestApplet:
         )
         monkeypatch.setattr(bookmarks_applet_mod.Gtk, "Entry", lambda: next(entries))
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[method-assign]
         applet.present = lambda: presented.append(True)  # type: ignore[method-assign]
         saved: list[dict[str, object]] = []
@@ -360,7 +361,7 @@ class TestApplet:
         )
         monkeypatch.setattr(bookmarks_applet_mod.Gtk, "Entry", lambda: next(entries))
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         applet.save_prefs = lambda prefs: (_ for _ in ()).throw(AssertionError(prefs))  # type: ignore[method-assign]
 
         applet._show_add_dialog()
@@ -370,7 +371,7 @@ class TestApplet:
     def test_remove_all_clears_state_and_presents(self):
         from docking.applets.bookmarks.applet import BookmarksApplet
 
-        applet = BookmarksApplet(icon_size=48)
+        applet = BookmarksApplet(icon_size=48, config=Config())
         applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]
         saved: list[dict[str, object]] = []
         applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[method-assign]

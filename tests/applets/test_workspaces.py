@@ -8,6 +8,7 @@ import pytest
 from docking.applets.services import AppletServices
 from docking.applets.workspaces.applet import WorkspacesApplet
 from docking.applets.workspaces.render import _render_grid
+from docking.core.config import Config
 from docking.platform.backends.base import WorkspaceSnapshot
 
 
@@ -69,19 +70,19 @@ class TestRenderGrid:
 class TestWorkspacesApplet:
     def test_creates_with_icon(self):
         # Given no Wnck screen, falls back to default 4-cell grid
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = WorkspacesApplet(size)
+            applet = WorkspacesApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_item_name_uses_workspace_number_even_if_wnck_name_is_stale(self):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         service.list_workspaces.return_value = [
             _workspace(0),
@@ -100,7 +101,7 @@ class TestWorkspacesApplet:
 class TestWorkspacesBehavior:
     def test_on_clicked_activates_next_workspace(self):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         service.list_workspaces.return_value = [
             _workspace(0),
@@ -116,7 +117,7 @@ class TestWorkspacesBehavior:
 
     def test_on_clicked_activates_next_workspace_by_snapshot_id(self):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         service.list_workspaces.return_value = [
             _workspace(0, workspace_id="first"),
@@ -131,7 +132,7 @@ class TestWorkspacesBehavior:
 
     def test_on_clicked_no_screen_or_active_is_safe(self):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         applet._workspace_service = None
         # When / Then
         applet.on_clicked()
@@ -146,7 +147,7 @@ class TestWorkspacesBehavior:
 
     def test_on_scroll_switches_workspace(self):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         service.list_workspaces.return_value = [
             _workspace(0, active=True),
@@ -162,7 +163,7 @@ class TestWorkspacesBehavior:
 
     def test_on_scroll_activates_workspace_by_snapshot_id(self):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         service.list_workspaces.return_value = [
             _workspace(0, workspace_id="previous"),
@@ -177,7 +178,7 @@ class TestWorkspacesBehavior:
 
     def test_get_menu_items_builds_radios_for_workspaces(self):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         service.list_workspaces.return_value = [
             _workspace(0, name="One"),
@@ -192,7 +193,7 @@ class TestWorkspacesBehavior:
 
     def test_start_and_stop_manage_screen_signal(self, monkeypatch):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         handle = object()
         service.list_workspaces.return_value = []
@@ -215,7 +216,7 @@ class TestWorkspacesBehavior:
         assert applet._watch_handle is None
 
     def test_start_is_idempotent_for_workspace_watch(self, monkeypatch):
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         handle = object()
         service.list_workspaces.return_value = []
@@ -235,7 +236,7 @@ class TestWorkspacesBehavior:
         assert refresh.call_count == 2
 
     def test_set_services_rewatches_when_already_started(self, monkeypatch):
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         old_service = MagicMock()
         old_handle = object()
         applet._workspace_service = old_service
@@ -257,7 +258,7 @@ class TestWorkspacesBehavior:
 
     def test_on_workspace_activate_and_changed_refresh(self, monkeypatch):
         # Given
-        applet = WorkspacesApplet(48)
+        applet = WorkspacesApplet(48, config=Config())
         service = MagicMock()
         service.list_workspaces.return_value = []
         service.active_workspace.return_value = None

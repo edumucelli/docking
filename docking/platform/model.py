@@ -205,6 +205,15 @@ class LauncherEntryState:
         )
 
 
+@dataclass(frozen=True)
+class StatusNotifierOverlayState:
+    """Badge state inferred from one StatusNotifier item."""
+
+    source_id: str
+    desktop_id: str
+    badge_count: int = 0
+
+
 def launcher_state_shows_effective_overlay(
     *,
     state: LauncherEntryState,
@@ -242,6 +251,7 @@ class DockModel:
         self._applet_change_listeners: list[Callable[[str], None]] = []
         self._launcher_entries: dict[str, LauncherEntryState] = {}
         self._launcher_item_by_sender: dict[str, str] = {}
+        self._status_notifier_entries: dict[str, StatusNotifierOverlayState] = {}
         self._recent_apps: list[DockItem] = []
         self._recent_closed_at: dict[str, int] = {}
         self._prev_running_ids: set[str] = set()
@@ -583,32 +593,46 @@ class DockModel:
             item.icon_name = path.name
         return item
 
-    @staticmethod
-    def _clear_launcher_state(item: DockItem) -> None:
-        item.badge_count = 0
-        item.badge_visible = False
+    def _clear_launcher_state(self, item: DockItem) -> None:
+        item.launcher_entry_badge_count = 0
+        item.launcher_entry_badge_visible = False
         item.progress = 0.0
         item.progress_visible = False
         item.launcher_entry_urgent = False
+        self._recompute_badge(item=item)
 
     def _apply_launcher_state(
         self, *, item: DockItem, state: LauncherEntryState
     ) -> None:
-        item.badge_count = state.badge_count
-        item.badge_visible = (
-            self._config.show_launcher_badges
-            and state.badge_visible
-            and state.badge_count > 0
-        )
+        item.launcher_entry_badge_count = state.badge_count
+        item.launcher_entry_badge_visible = state.badge_visible
         item.progress = clamp(state.progress, 0.0, 1.0)
         item.progress_visible = (
             self._config.show_launcher_progress and state.progress_visible
         )
         item.launcher_entry_urgent = state.urgent
+        self._recompute_badge(item=item)
         self._recompute_urgent(item=item)
 
+    def _recompute_badge(self, *, item: DockItem) -> None:
+        item.badge_count = max(
+            0,
+            item.launcher_entry_badge_count,
+            item.status_notifier_badge_count,
+        )
+        has_visible_count = (
+            item.launcher_entry_badge_visible and item.launcher_entry_badge_count > 0
+        ) or (
+            item.status_notifier_badge_visible and item.status_notifier_badge_count > 0
+        )
+        item.badge_visible = self._config.show_launcher_badges and has_visible_count
+
     def _recompute_urgent(self, *, item: DockItem) -> None:
-        effective = item.window_urgent or item.launcher_entry_urgent
+        effective = (
+            item.window_urgent
+            or item.launcher_entry_urgent
+            or item.status_notifier_urgent
+        )
         if effective and not item.is_urgent:
             item.last_urgent = GLib.get_monotonic_time()
         item.is_urgent = effective
@@ -789,6 +813,104 @@ class DockModel:
             if item in self._transient and not item.is_running:
                 self._drop_transient(item=item)
         self.notify()
+
+    def apply_status_notifier_overlay(
+        self,
+        *,
+        source_id: str,
+        desktop_id: str,
+        badge_count: int,
+    ) -> bool:
+        """Apply one tray-derived badge without overwriting Unity state."""
+        if not source_id or not desktop_id:
+            return False
+        previous_count = self._status_notifier_count(desktop_id=desktop_id)
+        previous = self._status_notifier_entries.get(source_id)
+        normalized = StatusNotifierOverlayState(
+            source_id=source_id,
+            desktop_id=desktop_id,
+            badge_count=max(0, int(badge_count)),
+        )
+        self._status_notifier_entries[source_id] = normalized
+
+        changed = False
+        if previous is not None and previous.desktop_id != desktop_id:
+            _found, old_changed = self._refresh_status_notifier_item(
+                desktop_id=previous.desktop_id,
+                pulse=False,
+            )
+            changed = changed or old_changed
+
+        current_count = self._status_notifier_count(desktop_id=desktop_id)
+        found, current_changed = self._refresh_status_notifier_item(
+            desktop_id=desktop_id,
+            pulse=current_count > previous_count,
+        )
+        changed = changed or current_changed
+        if changed:
+            self.notify()
+        return found
+
+    def remove_status_notifier_overlay(self, *, source_id: str) -> bool:
+        """Remove one vanished tray-derived overlay and recompute the item."""
+        previous = self._status_notifier_entries.pop(source_id, None)
+        if previous is None:
+            return False
+        found, changed = self._refresh_status_notifier_item(
+            desktop_id=previous.desktop_id,
+            pulse=False,
+        )
+        if changed:
+            self.notify()
+        return found
+
+    def _status_notifier_count(self, *, desktop_id: str) -> int:
+        return max(
+            (
+                state.badge_count
+                for state in self._status_notifier_entries.values()
+                if state.desktop_id == desktop_id
+            ),
+            default=0,
+        )
+
+    def _refresh_status_notifier_item(
+        self,
+        *,
+        desktop_id: str,
+        pulse: bool,
+    ) -> tuple[bool, bool]:
+        item = self.find_by_desktop_id(desktop_id=desktop_id)
+        if item is None:
+            return False, False
+        before = (
+            item.badge_count,
+            item.badge_visible,
+            item.status_notifier_badge_count,
+            item.status_notifier_badge_visible,
+            item.status_notifier_urgent,
+            item.is_urgent,
+            item.last_urgent,
+        )
+        count = self._status_notifier_count(desktop_id=desktop_id)
+        item.status_notifier_badge_count = count
+        item.status_notifier_badge_visible = count > 0
+        item.status_notifier_urgent = count > 0
+        self._recompute_badge(item=item)
+        was_urgent = item.is_urgent
+        self._recompute_urgent(item=item)
+        if pulse and was_urgent:
+            item.last_urgent = GLib.get_monotonic_time()
+        after = (
+            item.badge_count,
+            item.badge_visible,
+            item.status_notifier_badge_count,
+            item.status_notifier_badge_visible,
+            item.status_notifier_urgent,
+            item.is_urgent,
+            item.last_urgent,
+        )
+        return True, before != after
 
     def get_applet(self, desktop_id: str) -> Applet | None:
         """Look up active applet by desktop_id."""

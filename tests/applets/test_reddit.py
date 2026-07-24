@@ -112,7 +112,7 @@ def _make_applet(config: Config | None = None) -> RedditApplet:
         "docking.applets.reddit.applet.BackgroundWorker",
         _ImmediateWorker,
     ):
-        return RedditApplet(48, config=config)
+        return RedditApplet(48, config=config or Config())
 
 
 class TestRedditSources:

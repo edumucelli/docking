@@ -77,7 +77,7 @@ class _PendingWorker:
 
 def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> WeatherApplet:
     with patch("docking.applets.weather.applet.BackgroundWorker", _ImmediateWorker):
-        return WeatherApplet(icon_size, config=config)
+        return WeatherApplet(icon_size, config=config or Config())
 
 
 # -- State-level tests -------------------------------------------------------

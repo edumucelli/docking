@@ -9,6 +9,7 @@ import docking.applets.windowkiller.applet as windowkiller_applet_mod
 from docking.applets.services import AppletServices
 from docking.applets.windowkiller.applet import WindowKillerApplet
 from docking.applets.windowkiller.state import kill_pid
+from docking.core.config import Config
 from docking.platform.backends.base import WindowId, WindowSnapshot
 
 
@@ -32,31 +33,31 @@ class TestKillPid:
 
 class TestAppletCreation:
     def test_creates_with_icon(self):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_tooltip(self):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         applet.refresh_tooltip()
         assert "kill" in applet.item.name.lower()
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = WindowKillerApplet(size)
+            applet = WindowKillerApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
 
 
 class TestAppletOverlay:
     def test_on_clicked_starts_pick(self, monkeypatch):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         pick = MagicMock()
         monkeypatch.setattr(applet, "_start_pick", pick)
         applet.on_clicked()
         pick.assert_called_once()
 
     def test_stop_dismisses_overlay(self, monkeypatch):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         overlay = MagicMock()
         applet._overlay = overlay
         seat = MagicMock()
@@ -70,11 +71,11 @@ class TestAppletOverlay:
         assert applet._overlay is None
 
     def test_dismiss_without_overlay_is_safe(self):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         applet._dismiss_overlay()  # should not raise
 
     def test_start_pick_noop_when_overlay_exists(self):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         marker = object()
         applet._overlay = marker
         applet.set_services(AppletServices(window_picker=object()))
@@ -84,14 +85,14 @@ class TestAppletOverlay:
         assert applet._overlay is marker
 
     def test_start_pick_noop_without_window_picker_service(self):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
 
         applet._start_pick()
 
         assert applet._overlay is None
 
     def test_start_pick_creates_overlay_and_grabs_input(self, monkeypatch):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         applet.set_services(AppletServices(window_picker=object()))
         calls: list[object] = []
 
@@ -170,7 +171,7 @@ class TestAppletOverlay:
         assert "grab" in calls
 
     def test_overlay_draw_paints_transparent_mask(self):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         cr = MagicMock()
 
         assert applet._on_overlay_draw(MagicMock(), cr) is True
@@ -178,7 +179,7 @@ class TestAppletOverlay:
         cr.paint.assert_called_once_with()
 
     def test_overlay_click_kills_selected_window(self, monkeypatch):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         dismiss = []
         monkeypatch.setattr(applet, "_dismiss_overlay", lambda: dismiss.append(True))
         window_id = WindowId.x11(7)
@@ -204,7 +205,7 @@ class TestAppletOverlay:
         logger.info.assert_called_once()
 
     def test_overlay_click_warns_when_window_has_no_pid(self, monkeypatch):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         monkeypatch.setattr(applet, "_dismiss_overlay", lambda: None)
         window_id = WindowId.x11(7)
         target = WindowSnapshot(id=window_id, desktop_id="", title="Nameless")
@@ -224,7 +225,7 @@ class TestAppletOverlay:
         logger.warning.assert_called_once()
 
     def test_overlay_key_other_key_is_noop(self):
-        applet = WindowKillerApplet(48)
+        applet = WindowKillerApplet(48, config=Config())
         dismiss = []
         applet._dismiss_overlay = lambda: dismiss.append(True)  # type: ignore[method-assign]
 

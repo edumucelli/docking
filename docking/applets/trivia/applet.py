@@ -55,7 +55,7 @@ class TriviaApplet(Applet):
     name = _("Random Trivia")
     icon_name = "dialog-question"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._entries: list[TriviaEntry] = []
         self._index = -1
         self._current: TriviaEntry | None = None

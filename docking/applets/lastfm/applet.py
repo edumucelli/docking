@@ -80,10 +80,8 @@ class LastfmApplet(Applet):
     name = _("Last.fm")
     icon_name = "lastfm"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._prefs = prefs
         self._tracks: list[PlayedTrack] = []
         self._image_cache = ImageCache(max_entries=prefs.max_entries)

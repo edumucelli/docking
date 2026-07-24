@@ -7,6 +7,7 @@ from docking.applets.colorpicker.applet import ColorPickerApplet
 from docking.applets.colorpicker.render import create_icon
 from docking.applets.colorpicker.state import rgb_to_hex
 from docking.applets.services import AppletServices
+from docking.core.config import Config
 
 
 class TestRgbToHex:
@@ -41,52 +42,52 @@ class TestRenderIcon:
 
 class TestColorPickerApplet:
     def test_creates_with_icon(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_default_tooltip(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         assert applet.item.name == "Color Picker"
 
     def test_tooltip_after_pick(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet._hex = "#FF0000"
         applet.refresh_tooltip()
         assert applet.item.name == "#FF0000"
 
     def test_menu_has_show_hex_toggle(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Show Hex" in labels
 
     def test_menu_has_copy_when_color_picked(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet._hex = "#ABCDEF"
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Copy #ABCDEF" in labels
 
     def test_menu_no_copy_when_no_color(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet._hex = ""
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert not any("Copy" in label for label in labels)
 
     def test_icon_renders_at_various_sizes(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         for size in [32, 48, 64]:
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_on_clicked_starts_pick_mode(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
         applet._start_pick = lambda: calls.append("pick")  # type: ignore[method-assign]
         applet.on_clicked()
         assert calls == ["pick"]
 
     def test_toggle_hex_saves_and_refreshes(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
         applet._save = lambda: calls.append("save")  # type: ignore[method-assign]
         applet.present = lambda: calls.append("refresh")  # type: ignore[method-assign]
@@ -113,7 +114,7 @@ class TestColorPickerApplet:
         assert calls == ["rgba", "paint"]
 
     def test_overlay_click_updates_state_when_pixel_found(self, monkeypatch):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
         applet._dismiss_overlay = lambda: calls.append("dismiss")  # type: ignore[method-assign]
         applet._copy_to_clipboard = lambda: calls.append("copy")  # type: ignore[method-assign]
@@ -141,7 +142,7 @@ class TestColorPickerApplet:
         assert calls == ["dismiss", "copy", "save", "refresh"]
 
     def test_overlay_click_no_pixel_only_dismisses(self, monkeypatch):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
         applet._dismiss_overlay = lambda: calls.append("dismiss")  # type: ignore[method-assign]
         applet._copy_to_clipboard = lambda: calls.append("copy")  # type: ignore[method-assign]
@@ -160,7 +161,7 @@ class TestColorPickerApplet:
         assert calls == ["dismiss"]
 
     def test_overlay_key_escape_dismisses(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
         applet._dismiss_overlay = lambda: calls.append("dismiss")  # type: ignore[method-assign]
 
@@ -171,7 +172,7 @@ class TestColorPickerApplet:
         assert calls == ["dismiss"]
 
     def test_overlay_key_other_key_is_noop(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
         applet._dismiss_overlay = lambda: calls.append("dismiss")  # type: ignore[method-assign]
 
@@ -182,7 +183,7 @@ class TestColorPickerApplet:
         assert calls == []
 
     def test_dismiss_overlay_ungrabs_and_destroys(self, monkeypatch):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
 
         class _Seat:
@@ -206,7 +207,7 @@ class TestColorPickerApplet:
         assert calls == ["ungrab", "destroy"]
 
     def test_copy_to_clipboard_noop_without_hex(self, monkeypatch):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet._hex = ""
         monkeypatch.setattr(
             colorpicker_applet_mod.Gtk.Clipboard,
@@ -218,7 +219,7 @@ class TestColorPickerApplet:
         applet._copy_to_clipboard()
 
     def test_copy_to_clipboard_sets_text(self, monkeypatch):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet._hex = "#FF00AA"
         calls: list[tuple[str, object]] = []
 
@@ -238,7 +239,7 @@ class TestColorPickerApplet:
         assert calls == [("set_text", "#FF00AA"), ("store", None)]
 
     def test_save_persists_preferences_payload(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet._show_hex = False
         applet._r = 0.1
         applet._g = 0.2
@@ -277,7 +278,7 @@ class TestColorPickerApplet:
         assert applet._b == 0.3
 
     def test_start_pick_noop_when_overlay_exists(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         marker = object()
         applet._overlay = marker
         applet.set_services(AppletServices(screen_capture=object()))
@@ -285,12 +286,12 @@ class TestColorPickerApplet:
         assert applet._overlay is marker
 
     def test_start_pick_noop_without_screen_capture_service(self):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet._start_pick()
         assert applet._overlay is None
 
     def test_start_pick_creates_overlay_and_grabs_pointer(self, monkeypatch):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         applet.set_services(AppletServices(screen_capture=object()))
         calls: list[str] = []
 
@@ -366,7 +367,7 @@ class TestColorPickerApplet:
         assert "set_cursor" in calls
 
     def test_stop_dismisses_active_overlay(self, monkeypatch):
-        applet = ColorPickerApplet(48)
+        applet = ColorPickerApplet(48, config=Config())
         calls: list[str] = []
 
         class _Seat:

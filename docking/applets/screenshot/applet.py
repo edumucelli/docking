@@ -55,7 +55,7 @@ class ScreenshotApplet(Applet):
     icon_name = "applets-screenshooter"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._tool = _detect_tool()
         if not self._tool:
             log.bind(action="detect_tool").warning(

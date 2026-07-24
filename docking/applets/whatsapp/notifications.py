@@ -30,10 +30,10 @@ class DesktopNotifier:
         self,
         *,
         on_activate: Callable[[], None],
-        on_shown: Callable[[], None] | None = None,
+        on_shown: Callable[[], None],
     ) -> None:
         self._on_activate = on_activate
-        self._on_shown = on_shown or (lambda: None)
+        self._on_shown = on_shown
         self._bus: Gio.DBusConnection | None = None
         self._action_subscription = 0
         self._closed_subscription = 0

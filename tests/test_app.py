@@ -64,6 +64,13 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },
+        "docking.platform.status_notifier": {
+            "StatusNotifierNotificationBridge": type(
+                "StatusNotifierNotificationBridge",
+                (),
+                {},
+            ),
+        },
         "docking.ui.factory": {
             "build_dock_window": lambda **_kwargs: None,
         },
@@ -142,6 +149,7 @@ class TestAppMain:
         backend.idle = None
         backend.screen_capture = None
         unity = MagicMock()
+        status_notifications = MagicMock()
         window = MagicMock()
         ui = SimpleNamespace(
             window=window,
@@ -154,6 +162,9 @@ class TestAppMain:
         window.show_all.side_effect = lambda: call_order.append("show_all")
         ui.start.side_effect = lambda: call_order.append("ui_start")
         unity.start.side_effect = lambda: call_order.append("unity_start")
+        status_notifications.start.side_effect = lambda: call_order.append(
+            "status_notifications_start"
+        )
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
         if failed_stage is not None:
@@ -189,6 +200,11 @@ class TestAppMain:
             app_mod,
             "UnityLauncherListener",
             MagicMock(return_value=unity),
+        )
+        monkeypatch.setattr(
+            app_mod,
+            "StatusNotifierNotificationBridge",
+            MagicMock(return_value=status_notifications),
         )
         factory = MagicMock(return_value=ui)
         monkeypatch.setattr(app_mod, "build_dock_window", factory)
@@ -228,6 +244,8 @@ class TestAppMain:
         items_service.stop.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
+        status_notifications.start.assert_called_once()
+        status_notifications.stop.assert_called_once()
         ui.start.assert_called_once()
         ui.stop.assert_called_once()
         fake_glib.idle_add.assert_called_once()
@@ -240,6 +258,7 @@ class TestAppMain:
         fake_gtk.main.assert_called_once()
         if failed_stage is None:
             assert call_order == [
+                "status_notifications_start",
                 "unity_start",
                 "show_all",
                 "ui_start",
@@ -276,6 +295,7 @@ class TestAppMain:
         backend.surface = surface_service
         backend.visibility = visibility_service
         unity = MagicMock()
+        status_notifications = MagicMock()
         window = MagicMock()
         ui = SimpleNamespace(
             window=window,
@@ -288,6 +308,9 @@ class TestAppMain:
         window.show_all.side_effect = lambda: call_order.append("show_all")
         ui.start.side_effect = lambda: call_order.append("ui_start")
         unity.start.side_effect = lambda: call_order.append("unity_start")
+        status_notifications.start.side_effect = lambda: call_order.append(
+            "status_notifications_start"
+        )
         items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
@@ -306,6 +329,7 @@ class TestAppMain:
         renderer_cls = MagicMock(return_value=renderer)
         backend_cls = MagicMock(return_value=backend)
         unity_cls = MagicMock(return_value=unity)
+        status_notifications_cls = MagicMock(return_value=status_notifications)
         factory = MagicMock(return_value=ui)
         items_service_cls = MagicMock(return_value=items_service)
 
@@ -327,6 +351,11 @@ class TestAppMain:
         )
         monkeypatch.setattr(
             sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
+        )
+        monkeypatch.setattr(
+            sys.modules["docking.platform.status_notifier"],
+            "StatusNotifierNotificationBridge",
+            status_notifications_cls,
         )
         monkeypatch.setattr(
             sys.modules["docking.ui.factory"], "build_dock_window", factory
@@ -351,9 +380,12 @@ class TestAppMain:
         backend.stop.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
+        status_notifications.start.assert_called_once()
+        status_notifications.stop.assert_called_once()
         ui.start.assert_called_once()
         ui.stop.assert_called_once()
         assert call_order == [
+            "status_notifications_start",
             "unity_start",
             "show_all",
             "ui_start",

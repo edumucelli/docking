@@ -25,6 +25,7 @@ from docking.applets.notifications.state import (
     tooltip_text,
     unavailable_state,
 )
+from docking.core.config import Config
 
 
 def _state(**overrides: object) -> NotificationsState:
@@ -303,7 +304,7 @@ def _make_applet(
 ) -> tuple[NotificationsApplet, _StubBackend]:
     backend = _StubBackend(state=state, supports_clear=supports_clear)
     monkeypatch.setattr(notifications_applet_mod, "detect_backend", lambda: backend)
-    return NotificationsApplet(48), backend
+    return NotificationsApplet(48, config=Config()), backend
 
 
 class TestNotificationsApplet:

@@ -69,10 +69,8 @@ class HackerNewsApplet(Applet):
     name = _("Hacker News")
     icon_name = "internet-news-reader"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._stories: list[HackerNewsStory] = list(prefs.stories)
         self._active_index = prefs.active_index
         self._next_story_offset = prefs.next_offset

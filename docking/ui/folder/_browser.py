@@ -107,7 +107,7 @@ class FolderRow:
 class FolderBrowser:
     """List folder children with bounded caching and stable sort behavior."""
 
-    def __init__(self, launcher: Launcher | None = None) -> None:
+    def __init__(self, launcher: Launcher) -> None:
         self._launcher = launcher
         self._directory_rows: dict[tuple[str, int, bool, int], list[FolderRow]] = {}
 
@@ -230,17 +230,13 @@ class FolderBrowser:
                     size=int(info.get_size()),
                     created=int(info.get_attribute_uint64("time::created")),
                     modified=int(info.get_attribute_uint64("time::modified")),
-                    icon=(
-                        self._launcher.resolve_file_icon(
-                            target=child_uri,
-                            gicon=icon,
-                            content_type=info.get_content_type() or "",
-                            size=resolved_icon_px,
-                            is_dir=is_dir,
-                        )
-                    )
-                    if self._launcher
-                    else None,
+                    icon=self._launcher.resolve_file_icon(
+                        target=child_uri,
+                        gicon=icon,
+                        content_type=info.get_content_type() or "",
+                        size=resolved_icon_px,
+                        is_dir=is_dir,
+                    ),
                 )
             )
         self._put_lru(

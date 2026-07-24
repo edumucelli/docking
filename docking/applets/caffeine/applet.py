@@ -59,10 +59,10 @@ class CaffeineApplet(Applet):
     def __init__(
         self,
         icon_size: int,
-        config: Config | None = None,
+        config: Config,
         inhibitor: Inhibitor | None = None,
     ) -> None:
-        prefs = config.applet_prefs.get(meta.id, {}) if config else None
+        prefs = config.applet_prefs.get(meta.id, {})
         self._data = state_from_prefs(prefs=prefs)
         self._inhibitor = inhibitor if inhibitor is not None else default_inhibitor()
         self._timer_id: int = 0

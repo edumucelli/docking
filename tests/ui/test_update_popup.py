@@ -266,15 +266,9 @@ class TestUpdateCheckControllerInit:
         assert controller._latest_release is None
         assert controller._start_source_id == 0
 
-    def test_init_without_window(self):
-        config = MagicMock()
-        controller = UpdateCheckController(config=config)
-        assert controller._window is None
-        assert controller._config is config
-
     def test_set_window_attaches_window(self):
         config = MagicMock()
-        controller = UpdateCheckController(config=config)
+        controller = UpdateCheckController(window=MagicMock(), config=config)
         window = MagicMock()
         controller.set_window(window)
         assert controller._window is window
@@ -663,15 +657,6 @@ class TestUpdateCheckShowPending:
 
 
 class TestUpdateCheckShowPopup:
-    def test_show_popup_skips_null_window(self):
-        config = MagicMock()
-        controller = UpdateCheckController(config=config)
-        release = ReleaseInfo(version="3.0.0", name="v3", url="https://x.com")
-
-        result = controller._show_popup(release=release)
-
-        assert result is False
-
     def test_show_popup_skips_unrealized_window(self, monkeypatch):
         window = _FakeWindow(realized=False)
         config = MagicMock()
@@ -972,14 +957,6 @@ class TestUpdateCheckPositionPopup:
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
         controller._popup = None
-
-        # Should not raise
-        controller._position_popup()
-
-    def test_position_popup_no_window_returns_early(self):
-        config = MagicMock()
-        controller = UpdateCheckController(config=config)
-        controller._popup = MagicMock()
 
         # Should not raise
         controller._position_popup()

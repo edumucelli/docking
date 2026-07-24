@@ -56,7 +56,7 @@ class QuoteApplet(Applet):
     name = _("Quote")
     icon_name = "idea"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._source = DEFAULT_SOURCE
         self._quotes: list[QuoteEntry] = []
         self._index = -1
@@ -64,11 +64,10 @@ class QuoteApplet(Applet):
         self._loading = False
         self._clipboard: Gtk.Clipboard | None = None
 
-        if config:
-            prefs = config.applet_prefs.get("quote", {})
-            source = prefs.get("source", DEFAULT_SOURCE)
-            if source in SOURCE_LABELS:
-                self._source = source
+        prefs = config.applet_prefs.get("quote", {})
+        source = prefs.get("source", DEFAULT_SOURCE)
+        if source in SOURCE_LABELS:
+            self._source = source
 
         super().__init__(icon_size, config)
         self._quotes = source_fallback(source=self._source)

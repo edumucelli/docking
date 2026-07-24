@@ -78,7 +78,7 @@ class WindowKillerApplet(Applet):
     name = _("Window Killer")
     icon_name = "process-stop"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._overlay: Gtk.Window | None = None
         self._window_picker: WindowPickService | None = None
         super().__init__(icon_size=icon_size, config=config)

@@ -56,7 +56,7 @@ class ApplicationsApplet(Applet):
     icon_name = "view-app-grid"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         super().__init__(icon_size=icon_size, config=config)
         self._popup_menu: Gtk.Menu | None = None
         self.present()
@@ -96,6 +96,7 @@ class ApplicationsApplet(Applet):
         search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         search_box.pack_start(search_entry, True, True, 0)
         search_item = Gtk.MenuItem()
+        search_item.set_reserve_indicator(True)
         search_item.add(search_box)
         menu.append(search_item)
         menu.append(Gtk.SeparatorMenuItem())

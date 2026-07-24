@@ -6,23 +6,24 @@ import docking.applets.session.applet as session_applet_mod
 import docking.applets.session.state as session_state_mod
 from docking.applets.session.applet import SessionApplet
 from docking.applets.session.state import _ACTIONS, lock_screen
+from docking.core.config import Config
 
 
 class TestSessionApplet:
     def test_creates_with_icon(self):
-        applet = SessionApplet(48)
+        applet = SessionApplet(48, config=Config())
         assert applet.item.icon is not None
         assert applet.item.name == "Session"
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = SessionApplet(size)
+            applet = SessionApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_menu_has_all_actions(self):
-        applet = SessionApplet(48)
+        applet = SessionApplet(48, config=Config())
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items]
         assert labels == [
@@ -47,7 +48,7 @@ class TestSessionApplet:
             "lock_screen",
             lambda: calls.append("lock") or True,
         )
-        applet = SessionApplet(48)
+        applet = SessionApplet(48, config=Config())
         applet.on_clicked()
         assert calls == ["lock"]
 
@@ -85,7 +86,7 @@ class TestSessionApplet:
             lambda **kwargs: calls.append("run"),
         )
 
-        applet = SessionApplet(48)
+        applet = SessionApplet(48, config=Config())
         items = applet.get_menu_items()
         items[0].activate()
         items[1].activate()

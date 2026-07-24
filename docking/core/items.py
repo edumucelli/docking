@@ -72,9 +72,14 @@ class DockItem:
     last_closed: float = 0
     badge_count: int = 0
     badge_visible: bool = False
+    launcher_entry_badge_count: int = 0
+    launcher_entry_badge_visible: bool = False
+    status_notifier_badge_count: int = 0
+    status_notifier_badge_visible: bool = False
     progress: float = 0.0
     progress_visible: bool = False
     launcher_entry_urgent: bool = False
+    status_notifier_urgent: bool = False
     # Callable returning tooltip widget/content; used by applets for rich tooltips
     tooltip_builder: Callable[[], Any] | None = None
     # Optional key for per-item preferences (folder sort/view options, etc.).

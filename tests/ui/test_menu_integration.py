@@ -768,6 +768,7 @@ def handler(monkeypatch):
         config=config,
         runtime=runtime,
         launcher=launcher,
+        dock_window=runtime.window,
     )
     return menu_mod.MenuHandler(
         about=about,

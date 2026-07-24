@@ -130,7 +130,7 @@ class {class_name}(Applet):
     name = _("{display}")
     icon_name = "{icon_name}"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         super().__init__(icon_size, config)
         self.present()
 
@@ -147,16 +147,17 @@ _TEST_PY = '''\
 from __future__ import annotations
 
 from docking.applets.{aid}.applet import {class_name}
+from docking.core.config import Config
 
 
 class Test{class_name}:
     def test_creates_with_icon(self):
-        applet = {class_name}(48)
+        applet = {class_name}(48, Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = {class_name}(size)
+            applet = {class_name}(size, Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size

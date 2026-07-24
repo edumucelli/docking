@@ -77,6 +77,13 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },
+        "docking.platform.status_notifier": {
+            "StatusNotifierNotificationBridge": type(
+                "StatusNotifierNotificationBridge",
+                (),
+                {},
+            ),
+        },
         "docking.ui.factory": {
             "build_dock_window": lambda **_kwargs: None,
         },
@@ -264,6 +271,7 @@ def test_app_main_smoke(monkeypatch):
     backend.previews = preview_service
     backend.visibility = visibility_service
     unity = MagicMock()
+    status_notifications = MagicMock()
     window = MagicMock()
     ui = SimpleNamespace(
         window=window,
@@ -289,6 +297,11 @@ def test_app_main_smoke(monkeypatch):
         MagicMock(return_value=backend),
     )
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
+    monkeypatch.setattr(
+        app_mod,
+        "StatusNotifierNotificationBridge",
+        MagicMock(return_value=status_notifications),
+    )
     monkeypatch.setattr(app_mod, "build_dock_window", MagicMock(return_value=ui))
     monkeypatch.setattr(
         app_mod, "DockItemsService", MagicMock(return_value=items_service)
@@ -308,6 +321,8 @@ def test_app_main_smoke(monkeypatch):
     assert fake_glib.unix_signal_add.call_count == 2
     unity.start.assert_called_once()
     unity.stop.assert_called_once()
+    status_notifications.start.assert_called_once()
+    status_notifications.stop.assert_called_once()
     sig_calls = [call.args[1] for call in fake_glib.unix_signal_add.call_args_list]
     assert signal.SIGINT in sig_calls
     assert signal.SIGTERM in sig_calls

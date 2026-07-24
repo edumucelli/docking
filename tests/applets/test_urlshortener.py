@@ -12,7 +12,7 @@ from docking.core.config import Config
 
 
 def _make_applet(config: Config | None = None) -> UrlShortenerApplet:
-    return UrlShortenerApplet(48, config=config)
+    return UrlShortenerApplet(48, config=config or Config())
 
 
 class _FakeContentArea:
@@ -243,7 +243,7 @@ class TestAppletCreation:
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = UrlShortenerApplet(size)
+            applet = UrlShortenerApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
 

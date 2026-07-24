@@ -63,13 +63,12 @@ class BatteryApplet(Applet):
     name = _("Battery")
     icon_name = "battery-good"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._power_timer_id: int = 0
         self._overlay = OVERLAY_NONE
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._overlay = overlay_from_prefs(prefs)
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._overlay = overlay_from_prefs(prefs)
         self._state: BatteryState | None = read_battery()
         self._peripherals: list[PeripheralBattery] = read_peripheral_batteries()
         super().__init__(icon_size=icon_size, config=config)

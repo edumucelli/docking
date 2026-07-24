@@ -62,12 +62,12 @@ class TestFetchQuotes:
 
 class TestQuoteApplet:
     def test_creates_with_icon(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         assert applet.item.icon is not None
         assert applet._source == DEFAULT_SOURCE
 
     def test_click_advances_quotes(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._quotes = [
             QuoteEntry(text="one"),
             QuoteEntry(text="two"),
@@ -82,7 +82,7 @@ class TestQuoteApplet:
         assert applet._current == QuoteEntry(text="two")
 
     def test_exhausted_click_triggers_fetch(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._quotes = [QuoteEntry(text="only")]
         applet._index = 0
         applet._current = QuoteEntry(text="only")
@@ -92,7 +92,7 @@ class TestQuoteApplet:
         fetch_mock.assert_called_once_with(show_first=True)
 
     def test_menu_contains_core_actions(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Next Quote" in labels
         assert "Copy Quote" in labels
@@ -100,7 +100,7 @@ class TestQuoteApplet:
         assert "Source" in labels
 
     def test_menu_contains_legacy_source_labels(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         labels = [item.get_label() for item in applet.get_menu_items()]
         for label in SOURCE_LABELS.values():
             assert label in labels
@@ -121,7 +121,7 @@ class TestQuoteApplet:
 
 class TestQuoteAppletBranches:
     def test_on_source_toggled_ignores_inactive_widget(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._set_source = MagicMock()
         widget = MagicMock()
         widget.get_active.return_value = False
@@ -129,20 +129,20 @@ class TestQuoteAppletBranches:
         applet._set_source.assert_not_called()
 
     def test_set_source_ignores_invalid_and_same_source(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._fetch_async = MagicMock()
         applet._set_source("invalid-source")
         applet._set_source(applet._source)
         applet._fetch_async.assert_not_called()
 
     def test_refresh_from_web_delegates_to_async_fetch(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._fetch_async = MagicMock()
         applet._refresh_from_web()
         applet._fetch_async.assert_called_once_with(show_first=True)
 
     def test_copy_current_quote_uses_clipboard(self, monkeypatch):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._current = QuoteEntry(text="hello", author="world")
         clipboard = MagicMock()
         monkeypatch.setattr(quote_mod.Gtk.Clipboard, "get", lambda *_a, **_k: clipboard)
@@ -153,7 +153,7 @@ class TestQuoteAppletBranches:
         clipboard.store.assert_called_once()
 
     def test_copy_current_quote_handles_clipboard_errors(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._current = QuoteEntry(text="x")
         applet._clipboard = MagicMock()
         applet._clipboard.set_text.side_effect = RuntimeError("boom")
@@ -161,14 +161,14 @@ class TestQuoteAppletBranches:
         applet._copy_current_quote()
 
     def test_fetch_async_noop_when_loading(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._loading = True
         applet.present = MagicMock()
         applet._fetch_async(show_first=True)
         applet.present.assert_not_called()
 
     def test_fetch_async_runs_worker_and_posts_idle_result(self, monkeypatch):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         monkeypatch.setattr(
             quote_mod, "fetch_quotes", lambda source, limit: [QuoteEntry(text="q")]
         )
@@ -197,7 +197,7 @@ class TestQuoteAppletBranches:
         assert calls[0][3] is True
 
     def test_on_fetch_result_ignores_stale_source(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._source = "qdb"
         applet._loading = True
         assert (
@@ -206,7 +206,7 @@ class TestQuoteAppletBranches:
         )
 
     def test_on_fetch_result_applies_quotes_and_fallback(self, monkeypatch):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._source = "qdb"
         applet._loading = True
         applet.present = MagicMock()
@@ -223,7 +223,7 @@ class TestQuoteAppletBranches:
         assert applet._current == QuoteEntry(text="fallback")
 
     def test_refresh_tooltip_loading_state(self):
-        applet = QuoteApplet(48)
+        applet = QuoteApplet(48, config=Config())
         applet._loading = True
         applet._current = None
         applet.refresh_tooltip()

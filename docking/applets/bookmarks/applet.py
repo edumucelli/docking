@@ -55,9 +55,9 @@ class BookmarksApplet(Applet):
     name = _("Bookmarks")
     icon_name = "user-bookmarks"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._bookmarks: list[Bookmark] = bookmarks_from_prefs(
-            config.applet_prefs.get("bookmarks", {}) if config else None
+            config.applet_prefs.get("bookmarks", {})
         )
         super().__init__(icon_size=icon_size, config=config)
         self.present()

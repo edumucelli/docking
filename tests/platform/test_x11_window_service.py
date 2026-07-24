@@ -15,6 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.platform.backends.x11.impl.window_tracker as tracker_mod
+from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.x11.services.windows import X11WindowService
 from docking.platform.running import RunningAppInfo
@@ -119,7 +120,7 @@ def make_service(
 ) -> X11WindowService:
     service = X11WindowService.__new__(X11WindowService)
     service._screen = FakeScreen(windows=windows, active_window=active)
-    service._config = None
+    service._config = Config()
     service._model = MagicMock()
     service._launcher = MagicMock()
     service._running_xids_by_desktop = {

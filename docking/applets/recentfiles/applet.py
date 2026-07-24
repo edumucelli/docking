@@ -48,7 +48,7 @@ class RecentFilesApplet(Applet):
     name = _("Recent Files")
     icon_name = "document-open-recent"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._entries: list[RecentEntry] = []
         self._signal_id: int | None = None
         self._refresh_entries()

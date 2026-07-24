@@ -11,6 +11,7 @@ from docking.applets.devices.applet import DevicesApplet
 from docking.applets.devices.render import create_devices_icon
 from docking.applets.devices.state import devices_tooltip, mounted_devices
 from docking.applets.devices.unix_mounts import NativeNetworkMount
+from docking.core.config import Config
 
 
 class _FakeRoot:
@@ -134,7 +135,7 @@ def _applet(
         "get_mount_monitor",
         lambda: unix_monitor,
     )
-    return DevicesApplet(48)
+    return DevicesApplet(48, config=Config())
 
 
 def test_mounted_devices_includes_local_network_and_unbacked_mounts():
