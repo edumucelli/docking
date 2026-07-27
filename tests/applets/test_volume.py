@@ -167,7 +167,7 @@ class TestVolumeSettingsLauncher:
         monkeypatch.setattr(
             volume_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(cmd),
+            lambda cmd, **_kwargs: launched.append(cmd),
         )
 
         assert open_volume_settings() is True
