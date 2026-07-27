@@ -74,7 +74,7 @@ jobs:
           echo "run_ci=true" >> "$GITHUB_OUTPUT"
 
   quality:
-    name: Quality (ruff + ty + vulture)
+    name: Quality (ruff + ty)
     needs: [changes]
     runs-on: ubuntu-24.04
     steps:
