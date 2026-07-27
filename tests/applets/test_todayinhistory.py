@@ -500,6 +500,18 @@ class TestTodayInHistoryApplet:
 
         assert "loading" in applet.item.name.lower()
 
+    def test_tooltip_uses_wrapped_label(self, monkeypatch):
+        applet = TodayInHistoryApplet(48, config=Config())
+        applet._current = ENTRY
+        label = object()
+        build_label = MagicMock(return_value=label)
+        monkeypatch.setattr(today_applet_mod, "wrapped_tooltip_label", build_label)
+
+        applet.refresh_tooltip()
+
+        assert applet.item.tooltip_builder() is label
+        build_label.assert_called_once_with(format_history_event(ENTRY))
+
     def test_open_current_article_noop_success_and_error(self, monkeypatch):
         applet = TodayInHistoryApplet(48, config=Config())
         applet._current = None
