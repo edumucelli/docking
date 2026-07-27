@@ -1400,6 +1400,18 @@ msgstr ""
 msgid "Hacker News"
 msgstr ""
 
+#: docking/applets/hackernews/state.py:71
+msgid "Top Stories"
+msgstr ""
+
+#: docking/applets/hackernews/state.py:72
+msgid "Show HN"
+msgstr ""
+
+#: docking/applets/hackernews/state.py:73
+msgid "Jobs"
+msgstr ""
+
 #: docking/applets/hackernews/applet.py:161
 #: docking/applets/hackernews/state.py:163
 #: docking/applets/hackernews/state.py:196 docking/applets/news/applet.py:240
@@ -1426,6 +1438,10 @@ msgstr ""
 #: docking/applets/hackernews/applet.py:202 docking/applets/news/applet.py:290
 #: docking/applets/reddit/applet.py:208
 msgid "Next Headline"
+msgstr ""
+
+#: docking/applets/hackernews/applet.py:214
+msgid "Page"
 msgstr ""
 
 #: docking/applets/hackernews/applet.py:328
@@ -1934,7 +1950,7 @@ msgstr ""
 msgid "{count} sources - updated {time}"
 msgstr ""
 
-#: docking/applets/news/applet.py:811
+#: docking/applets/hackernews/state.py:180 docking/applets/news/applet.py:811
 #, python-brace-format
 msgid "{source} - {feed}"
 msgstr ""
