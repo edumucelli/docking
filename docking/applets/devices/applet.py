@@ -92,7 +92,9 @@ class DevicesApplet(Applet):
     def refresh_tooltip(self) -> None:
         self.item.name = devices_tooltip(self._devices)
 
-    def stack_content(self, icon_size: int) -> StackContent:
+    def stack_content(self, icon_size: int) -> StackContent | None:
+        if not self._devices:
+            return None
         return StackContent(
             entries=tuple(
                 StackEntry(
@@ -103,7 +105,6 @@ class DevicesApplet(Applet):
                 )
                 for device in self._devices
             ),
-            empty_label=_("No mounted devices"),
         )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:

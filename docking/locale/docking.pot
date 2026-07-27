@@ -1214,7 +1214,7 @@ msgstr ""
 msgid "Devices"
 msgstr ""
 
-#: docking/applets/devices/applet.py:106 docking/applets/devices/state.py:125
+#: docking/applets/devices/state.py:125
 msgid "No mounted devices"
 msgstr ""
 
