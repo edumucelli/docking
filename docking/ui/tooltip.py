@@ -169,7 +169,8 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+gi.require_version("Pango", "1.0")
+from gi.repository import Gdk, GLib, Gtk, Pango
 
 from docking.core.position import Position
 from docking.i18n import _
@@ -252,6 +253,34 @@ TOOLTIP_CORNER_RADIUS_PX = 6
 TOOLTIP_CONTENT_MARGIN_PX = 6
 TOOLTIP_BACKGROUND_ALPHA = 0.85
 TOOLTIP_BOUNCE_HEADROOM_FACTOR = 0.5
+WRAPPED_TOOLTIP_MAX_WIDTH_CHARS = 48
+
+
+def wrapped_tooltip_label(
+    text: str,
+    *,
+    max_width_chars: int = WRAPPED_TOOLTIP_MAX_WIDTH_CHARS,
+) -> Gtk.Label:
+    """Build a reusable tooltip label whose text wraps within a readable width."""
+    label = Gtk.Label(label=text)
+    return _configure_wrapped_tooltip_label(
+        label,
+        max_width_chars=max_width_chars,
+    )
+
+
+def _configure_wrapped_tooltip_label(
+    label: Gtk.Label,
+    *,
+    max_width_chars: int,
+) -> Gtk.Label:
+    label.set_xalign(0.0)
+    label.set_justify(Gtk.Justification.LEFT)
+    label.set_line_wrap(True)
+    label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+    label.set_max_width_chars(max_width_chars)
+    label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+    return label
 
 
 def compute_tooltip_position(
