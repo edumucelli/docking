@@ -209,6 +209,9 @@ class TestApplicationsApplet:
             def show(self) -> None:
                 self.visible = True
 
+            def show_all(self) -> None:
+                self.visible = True
+
             def hide(self) -> None:
                 self.visible = False
 
@@ -302,7 +305,7 @@ class TestApplicationsApplet:
             pixbuf = d.create_icon(size)
             assert pixbuf is not None
 
-    def test_search_filters_categories_and_submenus(self, monkeypatch):
+    def test_search_shows_direct_results_without_losing_focus(self, monkeypatch):
         self._fake_gtk(monkeypatch)
 
         firefox = MagicMock()
@@ -322,9 +325,12 @@ class TestApplicationsApplet:
                 "Office": [writer],
             },
         )
+        launch = MagicMock()
+        monkeypatch.setattr(applications_applet_mod, "_launch_app", launch)
 
         applet = ApplicationsApplet(48, config=Config())
-        items = applet._build_launcher_menu().get_children()
+        menu = applet._build_launcher_menu()
+        items = menu.get_children()
         search_entry = items[0]._child.children[0]
         internet_item = items[2]
         office_item = items[3]
@@ -348,20 +354,34 @@ class TestApplicationsApplet:
         search_entry.set_text("fire")
         search_entry.emit("changed")
 
-        assert internet_item.visible is True
+        assert internet_item.visible is False
         assert office_item.visible is False
-        assert [
-            child.get_label() for child in internet_item.get_submenu().get_children()
-        ] == [
-            "Firefox",
-        ]
-        assert internet_item.get_submenu().shown is True
+        assert search_entry.focused is True
+        assert len(menu.get_children()) == 5
+        result = menu.get_children()[-1]
+        assert result.get_label() == "Firefox"
+        assert result.get_submenu() is None
+
+        callback, args = result._signals["activate"][0]
+        callback(result, *args)
+        launch.assert_called_once_with(app_info=firefox)
+
+        search_entry.set_text("writer")
+        search_entry.emit("changed")
+
+        assert internet_item.visible is False
+        assert office_item.visible is False
+        assert search_entry.focused is True
+        assert len(menu.get_children()) == 5
+        assert menu.get_children()[-1].get_label() == "LibreOffice Writer"
 
         search_entry.set_text("")
         search_entry.emit("changed")
 
         assert internet_item.visible is True
         assert office_item.visible is True
+        assert search_entry.focused is True
+        assert len(menu.get_children()) == 4
         assert len(internet_item.get_submenu().get_children()) == 2
 
     def test_application_rows_drag_desktop_uri_to_dock(self, tmp_path, monkeypatch):
