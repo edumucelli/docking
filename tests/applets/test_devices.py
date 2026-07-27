@@ -290,13 +290,12 @@ class TestDevicesApplet:
 
         launch.assert_called_once_with("smb://fileserver/team", None)
 
-    def test_empty_stack_uses_mounted_devices_message(self, monkeypatch):
+    def test_empty_stack_is_suppressed(self, monkeypatch):
         applet = _applet(monkeypatch, _FakeMonitor())
 
         content = applet.stack_content(32)
 
-        assert content.entries == ()
-        assert content.empty_label == "No mounted devices"
+        assert content is None
 
     def test_mount_and_unmount_signals_refresh_live_stack(self, monkeypatch):
         monitor = _FakeMonitor([_mount("Data")])
@@ -320,7 +319,7 @@ class TestDevicesApplet:
         monitor.mounts = []
         monitor.emit("mount-removed")
 
-        assert applet.stack_content(32).entries == ()
+        assert applet.stack_content(32) is None
         notify.assert_called_once()
 
     def test_native_network_mount_signal_refreshes_and_opens_stack_entry(
