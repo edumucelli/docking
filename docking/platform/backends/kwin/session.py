@@ -193,7 +193,7 @@ class KWinWorkspaceService(WorkspaceService):
         self,
         proxy: Gio.DBusProxy,
         changed: GLib.Variant,
-        invalidated: list[str],
+        _invalidated: list[str],
     ) -> None:
         changed_dict = changed.unpack()
         needs_refresh = False

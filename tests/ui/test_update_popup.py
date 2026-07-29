@@ -667,7 +667,8 @@ class TestUpdateCheckShowPopup:
 
         assert result is False
 
-    def test_show_popup_creates_and_positions(self, popup_gtk, monkeypatch):
+    @pytest.mark.usefixtures("popup_gtk")
+    def test_show_popup_creates_and_positions(self, monkeypatch):
         window = _FakeWindow(realized=True)
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
@@ -685,7 +686,8 @@ class TestUpdateCheckShowPopup:
         # Verify content was built
         assert controller._popup.child is not None
 
-    def test_show_popup_reuses_existing_popup(self, popup_gtk, monkeypatch):
+    @pytest.mark.usefixtures("popup_gtk")
+    def test_show_popup_reuses_existing_popup(self, monkeypatch):
         window = _FakeWindow(realized=True)
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
@@ -714,7 +716,8 @@ class TestUpdateCheckShowPopup:
 
 
 class TestUpdateCheckBuildPopupContent:
-    def test_content_has_title_and_buttons(self, popup_gtk, monkeypatch):
+    @pytest.mark.usefixtures("popup_gtk")
+    def test_content_has_title_and_buttons(self, monkeypatch):
         window = _FakeWindow()
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)

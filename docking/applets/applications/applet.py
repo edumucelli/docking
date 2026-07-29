@@ -88,7 +88,7 @@ class ApplicationsApplet(Applet):
         """Build the categorized launcher menu lazily on each open."""
         menu = Gtk.Menu()
         categories = _build_app_categories()
-        category_rows: list[tuple[Gtk.MenuItem, Gtk.Menu, list[ApplicationEntry]]] = []
+        category_rows: list[tuple[Gtk.MenuItem, list[ApplicationEntry]]] = []
 
         search_entry = Gtk.Entry()
         search_entry.set_placeholder_text(_("Search applications..."))
@@ -116,21 +116,33 @@ class ApplicationsApplet(Applet):
 
             cat_item.set_submenu(submenu)
             menu.append(cat_item)
-            category_rows.append((cat_item, submenu, apps))
+            category_rows.append((cat_item, apps))
+
+        search_results: list[Gtk.MenuItem] = []
 
         def apply_filter(query: str) -> None:
+            nonlocal search_results
             lowered = query.strip().lower()
-            for cat_item, submenu, apps in category_rows:
-                matched = list(_filter_apps(apps=apps, query=lowered))
-                _populate_app_submenu(
-                    submenu=submenu,
-                    apps=matched,
+            for result in search_results:
+                menu.remove(result)
+            search_results = []
+
+            matches: list[ApplicationEntry] = []
+            for cat_item, apps in category_rows:
+                if lowered:
+                    cat_item.hide()
+                    matches.extend(_filter_apps(apps=apps, query=lowered))
+                else:
+                    cat_item.show()
+
+            for app_info in sorted(matches, key=lambda app: _app_name(app).lower()):
+                result = _application_menu_item(
+                    app_info=app_info,
                     config=self._config,
                 )
-                if matched:
-                    cat_item.show()
-                else:
-                    cat_item.hide()
+                menu.append(result)
+                result.show_all()
+                search_results.append(result)
 
         def on_search_changed(entry: Gtk.Entry) -> None:
             apply_filter(entry.get_text())
@@ -162,21 +174,34 @@ def _populate_app_submenu(
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
-        menu_item = make_menu_item_with_icon(
-            label=_app_name(app_info),
-            gicon=app_info.get_icon(),
+        submenu.append(
+            _application_menu_item(
+                app_info=app_info,
+                config=config,
+            )
         )
-        menu_item.connect(
-            "activate",
-            lambda _, info=app_info: _launch_app(app_info=info),
-        )
-        _configure_drag_source(
-            menu_item=menu_item,
-            app_info=app_info,
-            config=config,
-        )
-        submenu.append(menu_item)
     submenu.show_all()
+
+
+def _application_menu_item(
+    *,
+    app_info: ApplicationEntry,
+    config: Config | None,
+) -> Gtk.MenuItem:
+    menu_item = make_menu_item_with_icon(
+        label=_app_name(app_info),
+        gicon=app_info.get_icon(),
+    )
+    menu_item.connect(
+        "activate",
+        lambda _, info=app_info: _launch_app(app_info=info),
+    )
+    _configure_drag_source(
+        menu_item=menu_item,
+        app_info=app_info,
+        config=config,
+    )
+    return menu_item
 
 
 def _configure_drag_source(

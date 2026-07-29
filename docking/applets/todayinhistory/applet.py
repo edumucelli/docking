@@ -32,6 +32,7 @@ from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.ui.tooltip import wrapped_tooltip_label
 
 from .render import render_icon
 from .state import (
@@ -121,6 +122,7 @@ class TodayInHistoryApplet(Applet):
         )
 
     def refresh_tooltip(self) -> None:
+        self.item.tooltip_builder = lambda: wrapped_tooltip_label(self.item.name)
         if self._loading and self._current is None:
             self.item.name = _("Today in History: loading...")
             return
