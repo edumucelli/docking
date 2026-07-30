@@ -29,7 +29,6 @@ DBUS_INTERFACE = "org.freedesktop.DBus"
 
 TOGGLE_SEARCH_SHORTCUT_ID = "toggle-search"
 GLOBAL_SHORTCUTS_VERSION = 1
-CONFIGURE_SHORTCUTS_VERSION = 2
 
 log = logging.getLogger(__name__)
 
@@ -298,13 +297,6 @@ class GlobalShortcutsService:
             and self._portal_version >= GLOBAL_SHORTCUTS_VERSION
         )
 
-    @property
-    def supports_configure_shortcuts(self) -> bool:
-        return (
-            self._portal_version is not None
-            and self._portal_version >= CONFIGURE_SHORTCUTS_VERSION
-        )
-
     def start(self) -> None:
         """Start watching the portal and create the shortcut session."""
         if self._started:
@@ -374,42 +366,6 @@ class GlobalShortcutsService:
             ),
             on_response=self._on_list_response,
         )
-
-    def configure_shortcuts(
-        self,
-        *,
-        parent_window: str | None = None,
-        activation_token: str | None = None,
-    ) -> bool:
-        """Open portal configuration UI when interface version 2 is available."""
-        if (
-            not self._started
-            or self._session_handle is None
-            or not self.supports_configure_shortcuts
-        ):
-            return False
-
-        options: dict[str, object] = {}
-        if activation_token:
-            options["activation_token"] = activation_token
-        try:
-            self._call(
-                object_path=PORTAL_OBJECT_PATH,
-                interface=GLOBAL_SHORTCUTS_INTERFACE,
-                method="ConfigureShortcuts",
-                arguments=(
-                    self._session_handle,
-                    self._parent_window if parent_window is None else parent_window,
-                    options,
-                ),
-            )
-        except Exception as exc:
-            self._publish(
-                GlobalShortcutsState.ERROR,
-                f"ConfigureShortcuts failed: {exc}",
-            )
-            return False
-        return True
 
     def _initialize_portal(self) -> None:
         if not self._started or self._connection is None:
@@ -1013,16 +969,6 @@ def _gio_parameters(
             "(oa{sv})",
             (
                 session_handle,
-                _gio_vardict(glib, _mapping_value(options)),
-            ),
-        )
-    if method == "ConfigureShortcuts":
-        session_handle, parent_window, options = arguments
-        return variant(
-            "(osa{sv})",
-            (
-                session_handle,
-                parent_window,
                 _gio_vardict(glib, _mapping_value(options)),
             ),
         )

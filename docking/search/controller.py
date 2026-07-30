@@ -251,12 +251,6 @@ class GlobalSearchController:
             details = self._shortcut_fallback.error
         return details
 
-    def configure_shortcuts(self) -> bool:
-        return self._global_shortcuts.configure_shortcuts()
-
-    def can_configure_shortcuts(self) -> bool:
-        return self._global_shortcuts.supports_configure_shortcuts
-
     def add_shortcut_status_listener(
         self,
         listener: Callable[[], None],

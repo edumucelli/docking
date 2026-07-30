@@ -222,9 +222,6 @@ class SettingsActions:
         if self._search is not None:
             self._search.resume_shortcuts()
 
-    def configure_search_shortcuts(self) -> bool:
-        return bool(self._search and self._search.configure_shortcuts())
-
     def search_shortcut_status(self) -> str:
         if self._search is None:
             return _("Unavailable")
@@ -234,9 +231,6 @@ class SettingsActions:
         if self._search is None:
             return ""
         return self._search.shortcut_status_detail()
-
-    def can_configure_search_shortcuts(self) -> bool:
-        return bool(self._search and self._search.can_configure_shortcuts())
 
     def add_search_shortcut_status_listener(
         self,
@@ -316,7 +310,6 @@ class SettingsWindowController:
         self._global_search_scripts_switch: Any = None
         self._global_search_learning_switch: Any = None
         self._global_search_status_label: Any = None
-        self._configure_search_shortcut_button: Any = None
         self._search_provider_box: Any = None
         self._search_provider_checks: dict[str, Gtk.CheckButton] = {}
         self._applets_box: Any = None
@@ -608,13 +601,6 @@ class SettingsWindowController:
         self._global_search_status_label.set_xalign(0.0)
         self._global_search_status_label.set_line_wrap(False)
         self._global_search_status_label.set_max_width_chars(28)
-        self._configure_search_shortcut_button = Gtk.Button(
-            label=_("Configure Shortcut")
-        )
-        self._configure_search_shortcut_button.connect(
-            "clicked",
-            self._on_configure_search_shortcut,
-        )
         provider_labels = {
             "applications": _("Applications"),
             "dock": _("Dock Items"),
@@ -973,11 +959,6 @@ class SettingsWindowController:
                     _("Shortcut Status"),
                     self._global_search_status_label,
                     None,
-                ),
-                (
-                    _("Shortcut Actions"),
-                    self._configure_search_shortcut_button,
-                    _("Open the desktop's global shortcut configuration."),
                 ),
             ],
         )
@@ -1589,11 +1570,6 @@ class SettingsWindowController:
         self._global_search_status_label.set_tooltip_text(
             shortcut_detail or shortcut_status
         )
-        if self._configure_search_shortcut_button is not None:
-            self._configure_search_shortcut_button.set_sensitive(
-                bool(self._config.global_search_enabled)
-                and self._actions.can_configure_search_shortcuts()
-            )
 
     def _monitor_choices(self) -> list[Any]:
         try:
@@ -1743,13 +1719,6 @@ class SettingsWindowController:
 
     def _on_view_releases(self, _button: Gtk.Button) -> None:
         self._actions.open_releases_page()
-
-    def _on_configure_search_shortcut(self, _button: Gtk.Button) -> None:
-        if not self._actions.configure_search_shortcuts():
-            self._global_search_status_label.set_label(_("Unavailable on this desktop"))
-            self._global_search_status_label.set_tooltip_text(
-                _("The desktop portal does not provide shortcut configuration.")
-            )
 
     def _on_monitor_combo_changed(self, widget: Gtk.ComboBoxText) -> None:
         if self._syncing_widgets:
@@ -1920,10 +1889,6 @@ class SettingsWindowController:
             self._global_search_learning_switch.set_sensitive(search_sensitive)
         for check in self._search_provider_checks.values():
             check.set_sensitive(search_sensitive)
-        if self._configure_search_shortcut_button is not None:
-            self._configure_search_shortcut_button.set_sensitive(
-                search_sensitive and self._actions.can_configure_search_shortcuts()
-            )
 
     def _on_applet_toggled(
         self,

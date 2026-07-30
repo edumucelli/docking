@@ -77,8 +77,6 @@ class _Calls:
             options = _dict(arguments[3])
         elif method == "ListShortcuts":
             options = _dict(arguments[1])
-        elif method == "ConfigureShortcuts":
-            return ()
         else:
             raise AssertionError(f"unexpected GlobalShortcuts method: {method}")
 
@@ -346,16 +344,13 @@ def test_activated_forwards_activation_token() -> None:
     ]
 
 
-def test_list_and_configure_are_gated_by_interface_version() -> None:
+def test_list_is_gated_by_interface_version() -> None:
     service_v1, calls_v1, signals_v1 = _service(version=1)
     _start_bound(service_v1, calls_v1, signals_v1)
 
     assert service_v1.supports_list_shortcuts is True
-    assert service_v1.supports_configure_shortcuts is False
     assert service_v1.list_shortcuts() is True
-    assert service_v1.configure_shortcuts() is False
     assert "ListShortcuts" in calls_v1.methods()
-    assert "ConfigureShortcuts" not in calls_v1.methods()
 
     signals_v1.respond(
         calls_v1.request("ListShortcuts"),
@@ -370,24 +365,6 @@ def test_list_and_configure_are_gated_by_interface_version() -> None:
         },
     )
 
-    service_v2, calls_v2, signals_v2 = _service(version=2)
-    session_handle = _start_bound(service_v2, calls_v2, signals_v2)
-
-    assert service_v2.supports_configure_shortcuts is True
-    assert (
-        service_v2.configure_shortcuts(
-            parent_window="wayland:parent",
-            activation_token="activation",
-        )
-        is True
-    )
-    configure = calls_v2.by_method("ConfigureShortcuts")[0]
-    assert configure.arguments == (
-        session_handle,
-        "wayland:parent",
-        {"activation_token": "activation"},
-    )
-
 
 def test_version_zero_marks_portal_unavailable_without_creating_session() -> None:
     service, calls, _signals = _service(version=0)
@@ -398,7 +375,6 @@ def test_version_zero_marks_portal_unavailable_without_creating_session() -> Non
     assert service.portal_version is None
     assert "CreateSession" not in calls.methods()
     assert service.list_shortcuts() is False
-    assert service.configure_shortcuts() is False
 
 
 def test_shortcuts_changed_marks_an_existing_binding_reassigned() -> None:
