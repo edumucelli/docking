@@ -126,21 +126,3 @@ def test_malformed_nonfinite_usage_state_is_ignored(tmp_path) -> None:
     store = SearchUsageStore(path=path)
 
     assert store.boost(_result("firefox"), SearchQuery("fire")) == 0
-
-
-def test_usage_history_can_be_cleared(tmp_path) -> None:
-    path = tmp_path / "usage.json"
-    store = SearchUsageStore(path=path)
-    result = _result("firefox")
-    store.record(
-        query="fire",
-        result=result,
-        action=result.actions[0],
-        now=100,
-    )
-    assert path.exists()
-
-    store.clear()
-
-    assert not path.exists()
-    assert store.boost(result, SearchQuery("fire"), now=101) == 0

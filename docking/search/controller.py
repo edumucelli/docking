@@ -257,11 +257,6 @@ class GlobalSearchController:
     def can_configure_shortcuts(self) -> bool:
         return self._global_shortcuts.supports_configure_shortcuts
 
-    def clear_learned_ranking(self) -> None:
-        self._usage_store.clear()
-        if self.visible:
-            self._search(self._current_query)
-
     def add_shortcut_status_listener(
         self,
         listener: Callable[[], None],

@@ -121,16 +121,6 @@ class SearchUsageStore:
         )
         return (primary, *(action for _index, action in indexed))
 
-    def clear(self) -> None:
-        with self._lock:
-            self._results.clear()
-            self._actions.clear()
-            self._query_results.clear()
-            try:
-                self._path.unlink(missing_ok=True)
-            except OSError as exc:
-                log.warning("Failed to clear search usage state: %s", exc)
-
     def _action_count(self, action: SearchAction) -> int:
         record = self._actions.get(_identity_hash(action.identity))
         return record.count if record is not None else 0

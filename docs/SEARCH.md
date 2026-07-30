@@ -69,8 +69,7 @@ Docking learns from activated results and actions. Frequency, query-specific
 selection, and recency provide a small bounded ranking boost that cannot
 override stronger text-match tiers. The state file stores SHA-256 identifiers;
 raw queries, result titles, file paths, and document names are not persisted.
-These hashes are pseudonymous rather than encrypted and can be deleted with
-**Preferences -> Behavior -> Global Search -> Clear Learned Ranking**.
+These hashes are pseudonymous rather than encrypted.
 
 ```text
 ~/.local/state/docking/search-usage.json

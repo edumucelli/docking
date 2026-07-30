@@ -238,10 +238,6 @@ class SettingsActions:
     def can_configure_search_shortcuts(self) -> bool:
         return bool(self._search and self._search.can_configure_shortcuts())
 
-    def clear_search_learning(self) -> None:
-        if self._search is not None:
-            self._search.clear_learned_ranking()
-
     def add_search_shortcut_status_listener(
         self,
         listener: Callable[[], None],
@@ -319,7 +315,6 @@ class SettingsWindowController:
         self._global_search_web_engine_combo: Any = None
         self._global_search_scripts_switch: Any = None
         self._global_search_learning_switch: Any = None
-        self._clear_search_learning_button: Any = None
         self._global_search_status_label: Any = None
         self._configure_search_shortcut_button: Any = None
         self._search_provider_box: Any = None
@@ -594,13 +589,6 @@ class SettingsWindowController:
         self._global_search_web_fallback_switch = self._new_switch()
         self._global_search_scripts_switch = self._new_switch()
         self._global_search_learning_switch = self._new_switch()
-        self._clear_search_learning_button = Gtk.Button(
-            label=_("Clear Learned Ranking")
-        )
-        self._clear_search_learning_button.connect(
-            "clicked",
-            lambda *_: self._actions.clear_search_learning(),
-        )
         self._global_search_web_engine_combo = Gtk.ComboBoxText()
         web_engine_labels = {
             "duckduckgo": "DuckDuckGo",
@@ -980,11 +968,6 @@ class SettingsWindowController:
                         "Use hashed result and action history for small, bounded "
                         "ranking improvements."
                     ),
-                ),
-                (
-                    _("Learning Data"),
-                    self._clear_search_learning_button,
-                    _("Delete all stored result and action ranking history."),
                 ),
                 (
                     _("Shortcut Status"),
@@ -1935,8 +1918,6 @@ class SettingsWindowController:
             self._global_search_scripts_switch.set_sensitive(search_sensitive)
         if self._global_search_learning_switch is not None:
             self._global_search_learning_switch.set_sensitive(search_sensitive)
-        if self._clear_search_learning_button is not None:
-            self._clear_search_learning_button.set_sensitive(search_sensitive)
         for check in self._search_provider_checks.values():
             check.set_sensitive(search_sensitive)
         if self._configure_search_shortcut_button is not None:

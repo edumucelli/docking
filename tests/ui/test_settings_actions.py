@@ -87,17 +87,3 @@ def test_settings_actions_reconcile_launcher_overlay_visibility():
     actions.refresh_launcher_overlay_visibility()
 
     model.refresh_launcher_overlay_visibility.assert_called_once_with()
-
-
-def test_settings_actions_clear_search_learning() -> None:
-    search = MagicMock()
-    actions = SettingsActions(
-        runtime=MagicMock(),
-        dnd=MagicMock(),
-        model=MagicMock(),
-        search=search,
-    )
-
-    actions.clear_search_learning()
-
-    search.clear_learned_ranking.assert_called_once_with()
