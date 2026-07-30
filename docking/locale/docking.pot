@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-31 01:06+0200\n"
+"POT-Creation-Date: 2026-07-31 01:10+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4337,7 +4337,7 @@ msgid "Date & Time"
 msgstr ""
 
 #: docking/search/controller.py:535 docking/search/providers/scripts.py:114
-#: docking/ui/settings.py:943
+#: docking/ui/settings.py:948
 msgid "Script Commands"
 msgstr ""
 
@@ -5346,54 +5346,54 @@ msgid ""
 msgstr ""
 
 #: docking/ui/settings.py:923
-msgid "Maximum Results"
-msgstr ""
-
-#: docking/ui/settings.py:925
-msgid "Maximum number of rows shown in the palette."
+msgid "Shortcut Status"
 msgstr ""
 
 #: docking/ui/settings.py:928
-msgid "Sources"
+msgid "Maximum Results"
 msgstr ""
 
 #: docking/ui/settings.py:930
-msgid "Choose which local sources participate in search."
+msgid "Maximum number of rows shown in the palette."
 msgstr ""
 
 #: docking/ui/settings.py:933
-msgid "Web Fallback"
+msgid "Sources"
 msgstr ""
 
 #: docking/ui/settings.py:935
-msgid "Offer a web search when no strong local result matches."
+msgid "Choose which local sources participate in search."
 msgstr ""
 
 #: docking/ui/settings.py:938
-msgid "Search Engine"
+msgid "Web Fallback"
 msgstr ""
 
 #: docking/ui/settings.py:940
+msgid "Offer a web search when no strong local result matches."
+msgstr ""
+
+#: docking/ui/settings.py:943
+msgid "Search Engine"
+msgstr ""
+
+#: docking/ui/settings.py:945
 msgid "Choose the engine used by web fallback and the web keyword."
 msgstr ""
 
-#: docking/ui/settings.py:946
+#: docking/ui/settings.py:951
 msgid ""
 "Enable explicit cmd queries for executable scripts in Docking's user script "
 "directories."
 msgstr ""
 
-#: docking/ui/settings.py:951
+#: docking/ui/settings.py:956
 msgid "Learn from Selections"
 msgstr ""
 
-#: docking/ui/settings.py:954
+#: docking/ui/settings.py:959
 msgid ""
 "Use hashed result and action history for small, bounded ranking improvements."
-msgstr ""
-
-#: docking/ui/settings.py:959
-msgid "Shortcut Status"
 msgstr ""
 
 #: docking/ui/settings.py:1033

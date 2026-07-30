@@ -920,6 +920,11 @@ class SettingsWindowController:
                     ),
                 ),
                 (
+                    _("Shortcut Status"),
+                    self._global_search_status_label,
+                    None,
+                ),
+                (
                     _("Maximum Results"),
                     self._global_search_max_results_spin,
                     _("Maximum number of rows shown in the palette."),
@@ -954,11 +959,6 @@ class SettingsWindowController:
                         "Use hashed result and action history for small, bounded "
                         "ranking improvements."
                     ),
-                ),
-                (
-                    _("Shortcut Status"),
-                    self._global_search_status_label,
-                    None,
                 ),
             ],
         )
