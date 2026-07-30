@@ -285,6 +285,11 @@ class GnomeShellBridgeWindowService(WindowService):
         self._windows_by_id = windows
         self._publish_running()
 
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        return tuple(
+            self._snapshot_for(window) for window in self._windows_by_id.values()
+        )
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         return tuple(
             self._snapshot_for(window)

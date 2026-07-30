@@ -221,6 +221,10 @@ class AtspiWindowService(WindowService):
     # WindowService implementation
     # ------------------------------------------------------------------
 
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        with self._lock:
+            return tuple(self._to_snapshot(window) for window in self._windows.values())
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         snapshots = []
         with self._lock:

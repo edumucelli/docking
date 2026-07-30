@@ -291,6 +291,22 @@ DEFAULT_RECENT_APPS_RETENTION_DAYS = 14
 MIN_RECENT_APPS_RETENTION_DAYS = 1
 DEFAULT_SHOW_RECENT_DOCS_IN_MENU = True
 DEFAULT_RECENT_DOCS_MAX = 10
+DEFAULT_GLOBAL_SEARCH_ENABLED = True
+DEFAULT_GLOBAL_SEARCH_SHORTCUT = "CTRL+LOGO+space"
+DEFAULT_GLOBAL_SEARCH_PROVIDERS: tuple[str, ...] = (
+    "applications",
+    "dock",
+    "windows",
+    "calculator",
+    "recent-files",
+    "path",
+)
+DEFAULT_GLOBAL_SEARCH_MAX_RESULTS = 12
+DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK = True
+DEFAULT_GLOBAL_SEARCH_WEB_ENGINE = "duckduckgo"
+GLOBAL_SEARCH_WEB_ENGINES = ("duckduckgo", "google", "brave", "bing")
+DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED = True
+DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED = True
 MAX_RECENT_APPS_RETENTION_DAYS = 90
 
 logger = get_logger("config")
@@ -748,6 +764,17 @@ def _normalize_recent_apps(raw: object) -> list[dict[str, object]]:
     return result
 
 
+def _normalize_search_providers(raw: object) -> list[str]:
+    if not isinstance(raw, list | tuple):
+        return list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
+    supported = set(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
+    normalized: list[str] = []
+    for value in raw:
+        if isinstance(value, str) and value in supported and value not in normalized:
+            normalized.append(value)
+    return normalized or list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
+
+
 @dataclass
 class Config:
     """Dock configuration with sensible defaults."""
@@ -842,6 +869,24 @@ class Config:
     show_recent_docs_in_menu: bool = DEFAULT_SHOW_RECENT_DOCS_IN_MENU
     # Per-app cap for recent document entries in the submenu
     recent_docs_max: int = DEFAULT_RECENT_DOCS_MAX
+    # Whether the process-wide global search palette is available
+    global_search_enabled: bool = DEFAULT_GLOBAL_SEARCH_ENABLED
+    # Preferred XDG trigger and X11 fallback sequence
+    global_search_shortcut: str = DEFAULT_GLOBAL_SEARCH_SHORTCUT
+    # Search provider IDs enabled in the unified palette
+    global_search_providers: list[str] = field(
+        default_factory=lambda: list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
+    )
+    # Maximum visible result rows
+    global_search_max_results: int = DEFAULT_GLOBAL_SEARCH_MAX_RESULTS
+    # Whether an unmatched query offers a web-search result
+    global_search_web_fallback: bool = DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK
+    # Web engine used by fallback and the generic "web" keyword
+    global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
+    # Whether explicit `cmd` queries may discover user-owned scripts
+    global_search_scripts_enabled: bool = DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED
+    # Whether hashed result/action usage may influence ranking
+    global_search_learning_enabled: bool = DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED
 
     @property
     def pos(self) -> Position:
@@ -1019,6 +1064,39 @@ class Config:
             default=DEFAULT_RECENT_DOCS_MAX,
             minimum=1,
             maximum=25,
+        )
+        self.global_search_enabled = _normalize_bool(
+            self.global_search_enabled,
+            default=DEFAULT_GLOBAL_SEARCH_ENABLED,
+        )
+        shortcut = str(self.global_search_shortcut).strip()
+        self.global_search_shortcut = shortcut or DEFAULT_GLOBAL_SEARCH_SHORTCUT
+        self.global_search_providers = _normalize_search_providers(
+            self.global_search_providers
+        )
+        self.global_search_max_results = _normalize_int(
+            self.global_search_max_results,
+            default=DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
+            minimum=5,
+            maximum=30,
+        )
+        self.global_search_web_fallback = _normalize_bool(
+            self.global_search_web_fallback,
+            default=DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK,
+        )
+        web_engine = str(self.global_search_web_engine).strip().casefold()
+        self.global_search_web_engine = (
+            web_engine
+            if web_engine in GLOBAL_SEARCH_WEB_ENGINES
+            else DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
+        )
+        self.global_search_scripts_enabled = _normalize_bool(
+            self.global_search_scripts_enabled,
+            default=DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED,
+        )
+        self.global_search_learning_enabled = _normalize_bool(
+            self.global_search_learning_enabled,
+            default=DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED,
         )
 
     @classmethod

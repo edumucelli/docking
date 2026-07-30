@@ -96,21 +96,27 @@ class DockItemsService:
                 None,
                 None,
             )
-            registration_id = connection.register_object(
-                OBJECT_PATH,
-                self._interface_info,
-                self._handle_method_call,
-                None,
-                None,
-            )
+            self.register(connection=connection)
         except Exception as exc:
             log.warning("Could not register D-Bus service: %s", exc)
             if owner_id > 0:
                 Gio.bus_unown_name(owner_id)
             return
 
-        self._connection = connection
         self._owner_id = owner_id
+
+    def register(self, *, connection: Gio.DBusConnection) -> None:
+        """Register on a connection whose well-known name is owned elsewhere."""
+        if self._registration_id > 0:
+            return
+        registration_id = connection.register_object(
+            OBJECT_PATH,
+            self._interface_info,
+            self._handle_method_call,
+            None,
+            None,
+        )
+        self._connection = connection
         self._registration_id = registration_id
         self._attach_model_change_listener()
 

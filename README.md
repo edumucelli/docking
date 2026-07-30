@@ -22,6 +22,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - [Installation](#installation)
 - [Running](#running)
 - [First Use](#first-use)
+- [Global Search](#global-search)
 - [Configuration](#configuration)
 - [Applets](#applets)
 - [Theming](#theming)
@@ -36,7 +37,8 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 64 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- Unified global search for applications, dock items, open windows, recent files, calculator expressions, and direct paths.
+- 65 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -261,6 +263,32 @@ The first things to explore are:
 - **Diagnostics**: open right-click -> **Diagnostics** when checking backend
   support or preparing a support report.
 
+## Global Search
+
+Open **Search...** from the dock background menu or add the optional **Search**
+applet. Docking also registers a desktop-wide shortcut through the XDG
+GlobalShortcuts portal, with an X11 key-grab fallback when the portal is not
+available. Capture the desired sequence and inspect its current assignment
+under **Preferences -> Behavior -> Global Search**.
+
+Type normally to search applications, dock items, windows, and recent files.
+Arithmetic (`100 + 20`), unit and currency conversions (`10 km to miles`,
+`10 USD to EUR`), dates, time zones (`time in Tokyo`), URLs, and email addresses
+are recognized automatically. Provider keywords such as `app firefox`,
+`win terminal`, `file invoice`, `web google docking linux`, and
+`web gh docking` narrow or redirect the query. `cmd deploy staging` runs an
+explicitly discovered user script. These five top-level namespaces (`app`,
+`win`, `file`, `web`, and `cmd`) are the complete keyword set; calculations,
+conversions, dates, time zones, URLs, and paths remain implicit. Unmatched text
+can offer a configurable web-search fallback. Absolute paths, `~/path`, and
+`file://` URIs open directly.
+Press **Enter** for the primary action, **Tab** to complete a query keyword,
+**Ctrl+Right** to refine the selected result, **Ctrl+P** for a preview,
+**Ctrl+J** for contextual actions, and **Esc** to close the palette.
+
+See the [Global Search guide](docs/SEARCH.md) for script metadata, previews,
+pseudonymized relevance learning, and third-party provider entry points.
+
 ## Configuration
 
 Open right-click -> **Preferences** to configure the dock's appearance,
@@ -286,7 +314,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 64 built-in applets, ranging from application
+Docking includes 65 built-in applets, ranging from application
 launchers and system controls to productivity tools, wellness reminders, and
 live information.
 
@@ -294,7 +322,7 @@ live information.
 
 | Category | Examples |
 |---|---|
-| Launcher & Navigation | Applications, Run Application, Desktop, WhatsApp, Workspaces |
+| Launcher & Navigation | Applications, Search, Run Application, Desktop, WhatsApp, Workspaces |
 | Time & Productivity | Clock, Calendar, Alarm, Pomodoro, Calculator, Quick Note |
 | System & Power | Devices, Network, Bluetooth, Volume, Battery, System Tray |
 | Wellness & Ambient | Hydration, Plant Care, Stretch Coach, Ambient, Pet |
@@ -477,6 +505,7 @@ every package format live in the [packaging guide](packaging/README.md).
 ## Additional Docs
 
 - [Configuration](docs/CONFIGURATION.md)
+- [Global Search](docs/SEARCH.md)
 - [Applets](docs/APPLETS.md)
 - [Themes](docs/THEMES.md)
 - [D-Bus Remote Control](docs/DBUS.md)

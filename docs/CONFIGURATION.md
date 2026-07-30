@@ -161,6 +161,28 @@ stored separately in:
 ~/.local/state/docking/updates.json
 ```
 
+### Global Search
+
+| Setting | Default | Values | Description |
+|---|---:|---|---|
+| `global_search_enabled` | `true` | boolean | Enables the shared search palette, D-Bus activation, and XDG GlobalShortcuts registration. |
+| `global_search_shortcut` | `CTRL+LOGO+space` | captured shortcut | Preferred portal trigger and the active X11 fallback sequence. The desktop portal may retain or assign a different trigger. |
+| `global_search_providers` | all built-ins | list | Enabled provider IDs: `applications`, `dock`, `windows`, `calculator`, `recent-files`, and `path`. |
+| `global_search_max_results` | `12` | `5` to `30` | Maximum result rows displayed by the palette. |
+| `global_search_web_fallback` | `true` | boolean | Offers a web-search result when no strong local result matches. |
+| `global_search_web_engine` | `duckduckgo` | `duckduckgo`, `google`, `brave`, or `bing` | Engine used by fallback searches and the generic `web` keyword. |
+| `global_search_scripts_enabled` | `true` | boolean | Enables explicit `cmd` queries for executable, user-owned script commands. |
+| `global_search_learning_enabled` | `true` | boolean | Allows hashed result/action usage to provide small bounded ranking boosts. |
+
+Click the shortcut button in **Preferences -> Behavior -> Global Search**, then
+press the desired sequence. On Wayland, the assignment belongs to the desktop
+portal, which may retain or assign a different trigger. On X11, Docking uses
+the captured sequence directly when the portal is unavailable.
+
+Script command directories, metadata, relevance privacy, previews, and the
+third-party provider entry-point API are documented in
+[Global Search](SEARCH.md).
+
 ### Recent Applications and Documents
 
 | Setting | Default | Values | Description |

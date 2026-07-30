@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         WindowPickService,
         WorkspaceService,
     )
+    from docking.search.presenter import SearchPresenter
 
 
 @dataclass(frozen=True)
@@ -37,3 +38,4 @@ class AppletServices:
     window_picker: WindowPickService | None = None
     idle: IdleService | None = None
     screen_capture: ScreenCaptureService | None = None
+    search: SearchPresenter | None = None

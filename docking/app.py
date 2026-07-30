@@ -85,7 +85,7 @@ GLib.set_prgname("Docking")
 from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.core.theme import Theme
-from docking.ipc import DockItemsService
+from docking.ipc import DockBusHost, DockItemsService, DockSearchService
 from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
@@ -107,6 +107,10 @@ log = with_context(get_logger(name="app"), action="start_runtime")
 def main() -> None:
     """Entry point for the docking application."""
     apply_tweaks(desktop=detect_desktop())
+    bus_host = DockBusHost()
+    if not bus_host.acquire():
+        log.info("Another Docking process owns the session-bus name; exiting")
+        return
 
     config = Config.load()
     theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
@@ -146,6 +150,18 @@ def main() -> None:
     )
     window = ui.window
     items_service = DockItemsService(model=model, window=window)
+    search_service = DockSearchService(presenter=ui.search)
+    bus_host.register_interfaces((items_service, search_service))
+    model.set_applet_services(
+        AppletServices(
+            desktop_actions=backend.desktop_actions,
+            workspaces=backend.workspaces,
+            window_picker=backend.window_picker,
+            idle=backend.idle,
+            screen_capture=backend.screen_capture,
+            search=ui.search,
+        )
+    )
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
@@ -156,10 +172,10 @@ def main() -> None:
         unity.start()
         window.show_all()
         ui.start()
-        GLib.idle_add(_start_runtime, items_service, model, backend)
+        GLib.idle_add(_start_runtime, model, backend)
         Gtk.main()
     finally:
-        items_service.stop()
+        bus_host.stop()
         status_notifications.stop()
         ui.stop()
         unity.stop()
@@ -168,13 +184,11 @@ def main() -> None:
 
 
 def _start_runtime(
-    items_service: DockItemsService,
     model: DockModel,
     backend: SessionBackend,
 ) -> bool:
     """Start background runtime pieces after the window has been shown."""
     _start_runtime_stage(name="backend", start=backend.start)
-    _start_runtime_stage(name="items_service", start=items_service.start)
     _start_runtime_stage(name="applets", start=model.start_applets)
     return False
 

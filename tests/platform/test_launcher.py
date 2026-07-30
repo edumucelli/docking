@@ -1060,11 +1060,19 @@ class TestOpenTarget:
         assert kwargs["start_new_session"] is True
         launch_mock.assert_not_called()
 
+    def test_open_target_accepts_mailto_url(self):
+        with patch(
+            "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
+        ) as launch_mock:
+            assert open_target("mailto:test@example.com") is True
+
+        launch_mock.assert_called_once_with("mailto:test@example.com", None)
+
     def test_open_target_returns_false_for_unsupported_scheme(self):
         with patch(
             "docking.platform.launcher.Gio.AppInfo.launch_default_for_uri"
         ) as launch_mock:
-            assert open_target("mailto:test@example.com") is False
+            assert open_target("ftp://example.com") is False
 
         launch_mock.assert_not_called()
 

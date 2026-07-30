@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -43,6 +44,21 @@ class TestConfigDefaults:
         assert c.show_window_count_numbers is False
         assert c.show_launcher_badges is True
         assert c.show_launcher_progress is True
+        assert c.global_search_enabled is True
+        assert c.global_search_shortcut == "CTRL+LOGO+space"
+        assert c.global_search_max_results == 12
+        assert c.global_search_web_fallback is True
+        assert c.global_search_web_engine == "duckduckgo"
+        assert c.global_search_scripts_enabled is True
+        assert c.global_search_learning_enabled is True
+        assert c.global_search_providers == [
+            "applications",
+            "dock",
+            "windows",
+            "calculator",
+            "recent-files",
+            "path",
+        ]
         assert c.theme == "default"
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
@@ -111,6 +127,33 @@ class TestConfigDefaults:
         assert c.show_launcher_badges is False
         assert c.show_launcher_progress is False
         assert c.theme == "default"
+
+    def test_global_search_values_are_normalized(self):
+        malformed: Any = {
+            "global_search_enabled": "off",
+            "global_search_shortcut": " ",
+            "global_search_max_results": 100,
+            "global_search_providers": [
+                "windows",
+                "unknown",
+                {"bad": "value"},
+                "windows",
+            ],
+            "global_search_web_fallback": "off",
+            "global_search_web_engine": "unknown",
+            "global_search_scripts_enabled": "off",
+            "global_search_learning_enabled": "off",
+        }
+        c = Config(**malformed)
+
+        assert c.global_search_enabled is False
+        assert c.global_search_shortcut == "CTRL+LOGO+space"
+        assert c.global_search_max_results == 30
+        assert c.global_search_providers == ["windows"]
+        assert c.global_search_web_fallback is False
+        assert c.global_search_web_engine == "duckduckgo"
+        assert c.global_search_scripts_enabled is False
+        assert c.global_search_learning_enabled is False
 
 
 class TestConfigLoad:

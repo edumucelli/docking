@@ -103,7 +103,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "DockRenderer": type("DockRenderer", (), {}),
         },
         "docking.ipc": {
+            "DockBusHost": type("DockBusHost", (), {}),
             "DockItemsService": type("DockItemsService", (), {}),
+            "DockSearchService": type("DockSearchService", (), {}),
         },
     }
     for module_name, members in stub_modules.items():
@@ -275,10 +277,14 @@ def test_app_main_smoke(monkeypatch):
     window = MagicMock()
     ui = SimpleNamespace(
         window=window,
+        search=MagicMock(),
         start=MagicMock(),
         stop=MagicMock(),
     )
+    bus_host = MagicMock()
+    bus_host.acquire.return_value = True
     items_service = MagicMock()
+    search_service = MagicMock()
 
     config_cls = MagicMock()
     config_cls.load.return_value = config
@@ -306,6 +312,10 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(
         app_mod, "DockItemsService", MagicMock(return_value=items_service)
     )
+    monkeypatch.setattr(
+        app_mod, "DockSearchService", MagicMock(return_value=search_service)
+    )
+    monkeypatch.setattr(app_mod, "DockBusHost", MagicMock(return_value=bus_host))
 
     def idle_add(callback, *args):
         return callback(*args)
@@ -323,6 +333,10 @@ def test_app_main_smoke(monkeypatch):
     unity.stop.assert_called_once()
     status_notifications.start.assert_called_once()
     status_notifications.stop.assert_called_once()
+    bus_host.register_interfaces.assert_called_once_with(
+        (items_service, search_service)
+    )
+    bus_host.stop.assert_called_once()
     sig_calls = [call.args[1] for call in fake_glib.unix_signal_add.call_args_list]
     assert signal.SIGINT in sig_calls
     assert signal.SIGTERM in sig_calls

@@ -9,12 +9,18 @@ import pytest
 
 pytest.importorskip("pywayland")
 
-from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelListV1
-from pywayland.protocol.ext_idle_notify_v1 import ExtIdleNotifierV1
-from pywayland.protocol.ext_image_capture_source_v1 import (
-    ExtForeignToplevelImageCaptureSourceManagerV1,
-)
-from pywayland.protocol.ext_image_copy_capture_v1 import ExtImageCopyCaptureManagerV1
+ExtForeignToplevelListV1 = pytest.importorskip(
+    "pywayland.protocol.ext_foreign_toplevel_list_v1"
+).ExtForeignToplevelListV1
+ExtIdleNotifierV1 = pytest.importorskip(
+    "pywayland.protocol.ext_idle_notify_v1"
+).ExtIdleNotifierV1
+ExtForeignToplevelImageCaptureSourceManagerV1 = pytest.importorskip(
+    "pywayland.protocol.ext_image_capture_source_v1"
+).ExtForeignToplevelImageCaptureSourceManagerV1
+ExtImageCopyCaptureManagerV1 = pytest.importorskip(
+    "pywayland.protocol.ext_image_copy_capture_v1"
+).ExtImageCopyCaptureManagerV1
 from pywayland.protocol.wayland import WlSeat, WlShm
 
 from docking.platform.backends.wayland.idle import WaylandIdleService
