@@ -21,14 +21,23 @@ _KEYWORD_RE = re.compile(r"^[a-z0-9_-]+$")
 log = get_logger("search.scripts")
 
 
-def _default_script_directories() -> tuple[Path, ...]:
-    home = Path.home()
-    return (
-        home / ".config/docking/scripts",
-        home / ".local/share/docking/scripts",
-        home / ".local/bin",
-        home / "bin",
-    )
+def _user_path_directories() -> tuple[Path, ...]:
+    directories: list[Path] = []
+    seen: set[Path] = set()
+    uid = os.getuid()
+    for value in os.environ.get("PATH", "").split(os.pathsep):
+        if not value:
+            continue
+        try:
+            directory = Path(value).expanduser().resolve()
+            stat = directory.stat()
+        except OSError:
+            continue
+        if directory in seen or not directory.is_dir() or stat.st_uid != uid:
+            continue
+        seen.add(directory)
+        directories.append(directory)
+    return tuple(directories)
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,7 +102,7 @@ class ScriptCommandCatalog:
         directories: tuple[Path, ...] | None = None,
     ) -> None:
         self._directories = (
-            _default_script_directories() if directories is None else directories
+            _user_path_directories() if directories is None else directories
         )
 
     @property

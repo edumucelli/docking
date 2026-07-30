@@ -963,7 +963,7 @@ class SettingsWindowController:
                     self._global_search_scripts_switch,
                     _(
                         "Enable explicit cmd queries for user-owned executables "
-                        "in personal bin and Docking script directories."
+                        "in user-controlled PATH directories."
                     ),
                 ),
                 (
