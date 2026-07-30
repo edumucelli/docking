@@ -165,7 +165,6 @@ def _make_controller(
         currency_rates=currency_rates,
         usage_store=cast(Any, usage_store or _Usage()),
         script_catalog=script_catalog,
-        extension_providers=(),
         schedule_idle=schedule_idle,
     )
     return controller, created[0], applications, recent, shortcuts
@@ -566,7 +565,7 @@ def test_live_window_preview_uses_backend_capture(monkeypatch) -> None:
     assert loaded.height == 720
 
 
-def test_extension_refine_and_invoke_failures_are_contained(monkeypatch) -> None:
+def test_provider_refine_and_invoke_failures_are_contained(monkeypatch) -> None:
     controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
     provider = MagicMock()
     provider.refine.side_effect = RuntimeError("refine failed")

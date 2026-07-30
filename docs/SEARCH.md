@@ -85,17 +85,3 @@ Press **Ctrl+P** to preview the selected result. Search loads previews lazily:
 - directory listings and script source.
 
 Large, binary, unsupported, or failed previews fall back to safe metadata.
-
-## Third-party providers
-
-Trusted installed Python packages can expose a provider factory through the
-`docking.search_providers` entry-point group:
-
-```toml
-[project.entry-points."docking.search_providers"]
-example = "example_package.search:create_provider"
-```
-
-The factory receives `SearchProviderContext` with the current configuration,
-launcher, dock model, window service, clipboard callback, and GTK idle
-scheduler. Provider load and lifecycle failures are isolated from the dock.

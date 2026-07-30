@@ -33,10 +33,6 @@ from docking.platform.x11_shortcuts import (
     is_x11_session,
 )
 from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchSnapshot
-from docking.search.extensions import (
-    SearchProviderContext,
-    load_search_provider_extensions,
-)
 from docking.search.intents import (
     QueryIntent,
     QueryIntentKind,
@@ -99,7 +95,6 @@ class GlobalSearchController:
         currency_rates: CurrencyRatesCatalog | None = None,
         usage_store: SearchUsageStore | None = None,
         script_catalog: ScriptCommandCatalog | None = None,
-        extension_providers: tuple[InvokableSearchProvider, ...] | None = None,
         schedule_idle: Callable[..., int] | None = None,
     ) -> None:
         self._config = config
@@ -127,7 +122,7 @@ class GlobalSearchController:
         ] = {}
 
         copy_text = self._copy_text
-        built_in_providers: tuple[InvokableSearchProvider, ...] = (
+        providers: tuple[InvokableSearchProvider, ...] = (
             ApplicationSearchProvider(
                 catalog=self._application_catalog,
                 launcher=launcher,
@@ -154,28 +149,6 @@ class GlobalSearchController:
                 icon_size=config.icon_size,
             ),
             WebSearchProvider(copy_text=copy_text),
-        )
-        discovered_extensions = extension_providers
-        if discovered_extensions is None:
-            discovered_extensions = load_search_provider_extensions(
-                context=SearchProviderContext(
-                    config=config,
-                    launcher=launcher,
-                    model=model,
-                    windows=windows,
-                    copy_text=copy_text,
-                    schedule_idle=self._schedule_idle,
-                )
-            )
-        built_in_ids = {provider.provider_id for provider in built_in_providers}
-        extensions = tuple(
-            provider
-            for provider in discovered_extensions
-            if provider.provider_id not in built_in_ids
-        )
-        providers = (*built_in_providers, *extensions)
-        self._extension_provider_ids = tuple(
-            provider.provider_id for provider in extensions
         )
         self._provider_by_id = {
             provider.provider_id: provider for provider in providers
@@ -312,18 +285,6 @@ class GlobalSearchController:
         self._recent_files.add_listener(self._refresh_visible)
         self._currency_rates.add_listener(self._refresh_visible)
         self._model.add_change_listener(self._refresh_for_model_change)
-        for provider_id in self._extension_provider_ids:
-            provider = self._provider_by_id[provider_id]
-            start = getattr(provider, "start", None)
-            if callable(start):
-                try:
-                    start()
-                except Exception as exc:
-                    log.warning(
-                        "Failed to start search provider %s: %s",
-                        provider_id,
-                        exc,
-                    )
         if self._config.global_search_enabled:
             self._start_shortcut_services()
 
@@ -340,18 +301,6 @@ class GlobalSearchController:
         self._recent_files.remove_listener(self._refresh_visible)
         self._currency_rates.remove_listener(self._refresh_visible)
         self._currency_rates.stop()
-        for provider_id in reversed(self._extension_provider_ids):
-            provider = self._provider_by_id[provider_id]
-            stop = getattr(provider, "stop", None)
-            if callable(stop):
-                try:
-                    stop()
-                except Exception as exc:
-                    log.warning(
-                        "Failed to stop search provider %s: %s",
-                        provider_id,
-                        exc,
-                    )
         self._application_catalog.stop()
         self._recent_files.stop()
         self.window.destroy()
@@ -447,7 +396,7 @@ class GlobalSearchController:
             provider_ids = tuple(
                 provider_id
                 for provider_id in self._provider_by_id
-                if provider_id in enabled or provider_id in self._extension_provider_ids
+                if provider_id in enabled
             )
         self._enabled_provider_ids = provider_ids
         return SearchCoordinator(
@@ -532,7 +481,7 @@ class GlobalSearchController:
         provider_ids = [
             provider_id
             for provider_id in self._provider_by_id
-            if provider_id in enabled or provider_id in self._extension_provider_ids
+            if provider_id in enabled
         ]
         if (
             intent.search_text

@@ -10,12 +10,6 @@ from docking.search.coordinator import (
     SearchSnapshot,
     preserve_selected_identity,
 )
-from docking.search.extensions import (
-    SEARCH_PROVIDER_ENTRY_POINT,
-    SearchProviderContext,
-    SearchProviderFactory,
-    load_search_provider_extensions,
-)
 from docking.search.intents import (
     CANONICAL_QUERY_KEYWORDS,
     QueryIntent,
@@ -49,7 +43,6 @@ from docking.search.usage import SearchUsageStore, UsageRecord
 __all__ = [
     "CANONICAL_QUERY_KEYWORDS",
     "MATCH_QUALITY_LIMIT",
-    "SEARCH_PROVIDER_ENTRY_POINT",
     "SOURCE_BOOST_LIMIT",
     "STATE_BOOST_LIMIT",
     "TIER_BASE_SCORE",
@@ -66,8 +59,6 @@ __all__ = [
     "SearchIdentity",
     "SearchPreview",
     "SearchProvider",
-    "SearchProviderContext",
-    "SearchProviderFactory",
     "SearchQuery",
     "SearchRequest",
     "SearchResult",
@@ -77,7 +68,6 @@ __all__ = [
     "UsageRecord",
     "best_match",
     "complete_query_keyword",
-    "load_search_provider_extensions",
     "match_text",
     "normalize_search_text",
     "parse_query_intent",
