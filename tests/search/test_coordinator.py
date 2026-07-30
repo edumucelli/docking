@@ -49,6 +49,14 @@ def _coordinator(*provider_ids: str) -> SearchCoordinator:
 
 
 class TestGenerationsAndCancellation:
+    def test_recognized_value_is_forwarded_to_provider_request(self):
+        coordinator = _coordinator("apps")
+        recognized = object()
+
+        request = coordinator.begin("fire", recognized=recognized)
+
+        assert request.recognized is recognized
+
     def test_generations_increase_and_cancel_the_previous_request(self):
         coordinator = _coordinator("apps")
 

@@ -50,11 +50,16 @@ class SearchCancellation:
 
 @dataclass(frozen=True, slots=True)
 class SearchRequest:
-    """Request passed to each provider for one coordinator generation."""
+    """Request passed to each provider for one coordinator generation.
+
+    ``recognized`` carries an optional value produced during intent routing so
+    the selected built-in provider does not need to parse the same query again.
+    """
 
     query: SearchQuery
     generation: int
     cancellation: SearchCancellation
+    recognized: object | None = None
 
     @property
     def cancelled(self) -> bool:
@@ -212,6 +217,7 @@ class SearchCoordinator:
         query: str | SearchQuery,
         *,
         selected_identity: SearchIdentity | None = None,
+        recognized: object | None = None,
     ) -> SearchRequest:
         """Cancel the previous request and start the next generation."""
         normalized_query = SearchQuery(query) if isinstance(query, str) else query
@@ -232,6 +238,7 @@ class SearchCoordinator:
                 query=normalized_query,
                 generation=self._generation,
                 cancellation=cancellation,
+                recognized=recognized,
             )
             self._request = request
             self._results_by_provider = {
@@ -251,9 +258,14 @@ class SearchCoordinator:
         query: str | SearchQuery,
         *,
         selected_identity: SearchIdentity | None = None,
+        recognized: object | None = None,
     ) -> SearchRequest:
         """Alias for :meth:`begin` for callers that prefer lifecycle wording."""
-        return self.begin(query, selected_identity=selected_identity)
+        return self.begin(
+            query,
+            selected_identity=selected_identity,
+            recognized=recognized,
+        )
 
     def cancel(self, generation: int | None = None) -> bool:
         """Cancel the current generation and reject all subsequent batches."""

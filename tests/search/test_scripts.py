@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from docking.search.scripts import (
+from docking.search.providers.scripts import _parse_script_arguments
+from docking.search.services.script_commands import (
     ScriptCommandCatalog,
     execute_script,
-    parse_script_arguments,
-    script_command_from_path,
 )
 
 
@@ -34,25 +33,29 @@ def test_script_metadata_and_catalog_discovery(tmp_path) -> None:
     path = _script(tmp_path)
     ignored = tmp_path / "not-executable"
     ignored.write_text("#!/bin/sh")
-    command = script_command_from_path(path)
     catalog = ScriptCommandCatalog(directories=(tmp_path,))
+    commands = catalog.snapshot()
 
-    assert command is not None
+    assert len(commands) == 1
+    command = commands[0]
+    assert command.path == path
     assert command.name == "Deploy Project"
     assert command.keyword == "deploy"
-    assert catalog.snapshot() == (command,)
 
 
 def test_script_arguments_use_shell_quoting_without_shell_execution(
     tmp_path,
     monkeypatch,
 ) -> None:
-    command = script_command_from_path(_script(tmp_path))
-    assert command is not None
+    _script(tmp_path)
+    command = ScriptCommandCatalog(directories=(tmp_path,)).snapshot()[0]
     popen = MagicMock()
-    monkeypatch.setattr("docking.search.scripts.subprocess.Popen", popen)
+    monkeypatch.setattr(
+        "docking.search.services.script_commands.subprocess.Popen",
+        popen,
+    )
 
-    assert parse_script_arguments('--env "staging west"') == (
+    assert _parse_script_arguments('--env "staging west"') == (
         "--env",
         "staging west",
     )
@@ -68,7 +71,7 @@ def test_script_arguments_use_shell_quoting_without_shell_execution(
 
 
 def test_malformed_script_arguments_are_rejected() -> None:
-    assert parse_script_arguments('"unterminated') is None
+    assert _parse_script_arguments('"unterminated') is None
 
 
 def test_script_is_revalidated_immediately_before_execution(
@@ -76,15 +79,17 @@ def test_script_is_revalidated_immediately_before_execution(
     monkeypatch,
 ) -> None:
     path = _script(tmp_path)
-    command = script_command_from_path(path)
-    assert command is not None
+    command = ScriptCommandCatalog(directories=(tmp_path,)).snapshot()[0]
     replacement = tmp_path / "replacement"
     replacement.write_text("#!/bin/sh\n")
     replacement.chmod(0o700)
     path.unlink()
     path.symlink_to(replacement)
     popen = MagicMock()
-    monkeypatch.setattr("docking.search.scripts.subprocess.Popen", popen)
+    monkeypatch.setattr(
+        "docking.search.services.script_commands.subprocess.Popen",
+        popen,
+    )
 
     assert not execute_script(
         command=command,

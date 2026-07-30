@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -10,11 +11,10 @@ from docking.platform.launcher import open_target
 from docking.search.coordinator import SearchRequest
 from docking.search.preview import preview_local_descriptor
 from docking.search.providers.base import action, action_parts, metadata, score_fields
-from docking.search.scripts import (
+from docking.search.services.script_commands import (
     ScriptCommand,
     ScriptCommandCatalog,
     execute_script,
-    parse_script_arguments,
 )
 from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
@@ -23,6 +23,13 @@ from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 class _Invocation:
     command: ScriptCommand
     arguments: tuple[str, ...]
+
+
+def _parse_script_arguments(value: str) -> tuple[str, ...] | None:
+    try:
+        return tuple(shlex.split(value))
+    except ValueError:
+        return None
 
 
 class ScriptCommandSearchProvider:
@@ -40,7 +47,7 @@ class ScriptCommandSearchProvider:
 
     def search(self, request: SearchRequest):
         query = request.query.text.strip()
-        tokens = parse_script_arguments(query)
+        tokens = _parse_script_arguments(query)
         if tokens is None:
             yield SearchBatch.replace(self.provider_id, request.generation)
             return

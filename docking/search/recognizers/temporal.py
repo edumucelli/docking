@@ -1,4 +1,4 @@
-"""Deterministic date and time-zone query utilities."""
+"""Recognize and evaluate date and time-zone queries."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ _TIME_CONVERSION_RE = re.compile(
 )
 
 
-def resolve_timezone(value: str) -> tuple[str, ZoneInfo] | None:
+def _resolve_timezone(value: str) -> tuple[str, ZoneInfo] | None:
     normalized = " ".join(value.strip().split()).casefold()
     zone_name = _ZONE_ALIASES.get(normalized) or _ZONES_BY_CASEFOLD.get(normalized)
     if zone_name is None:
@@ -148,8 +148,8 @@ def _converted_time_value(
     *,
     now: dt.datetime,
 ) -> TemporalValue | None:
-    source = resolve_timezone(match.group("source"))
-    target = resolve_timezone(match.group("target"))
+    source = _resolve_timezone(match.group("source"))
+    target = _resolve_timezone(match.group("target"))
     if source is None or target is None:
         return None
     hour = int(match.group("hour"))
@@ -199,7 +199,7 @@ def parse_temporal_query(
         stripped
     )
     if current_match is not None:
-        zone = resolve_timezone(current_match.group(1))
+        zone = _resolve_timezone(current_match.group(1))
         if zone is not None:
             return _current_time_value(*zone, now=current)
     conversion_match = _TIME_CONVERSION_RE.fullmatch(stripped)
@@ -212,5 +212,4 @@ __all__ = [
     "TemporalKind",
     "TemporalValue",
     "parse_temporal_query",
-    "resolve_timezone",
 ]

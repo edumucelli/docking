@@ -33,7 +33,6 @@ from docking.platform.x11_shortcuts import (
     is_x11_session,
 )
 from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchSnapshot
-from docking.search.currency import CurrencyRatesCatalog
 from docking.search.extensions import (
     SearchProviderContext,
     load_search_provider_extensions,
@@ -58,7 +57,8 @@ from docking.search.providers import (
     WebSearchProvider,
     WindowSearchProvider,
 )
-from docking.search.scripts import ScriptCommandCatalog
+from docking.search.services.currency_rates import CurrencyRatesCatalog
+from docking.search.services.script_commands import ScriptCommandCatalog
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -477,6 +477,7 @@ class GlobalSearchController:
         request = self._coordinator.begin(
             query,
             selected_identity=self._selected_identity,
+            recognized=intent.recognized,
         )
         self._publish_snapshot(
             self._coordinator.snapshot(),

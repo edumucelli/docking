@@ -1,4 +1,4 @@
-"""Web-engine definitions and conservative URL recognition."""
+"""Recognize web targets and define supported search engines."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ class WebEngine:
         return self.search_url.format(query=quote_plus(query.strip()))
 
 
-WEB_ENGINES: tuple[WebEngine, ...] = (
+_WEB_ENGINES: tuple[WebEngine, ...] = (
     WebEngine(
         id="duckduckgo",
         name="DuckDuckGo",
@@ -52,9 +52,9 @@ WEB_ENGINES: tuple[WebEngine, ...] = (
         keywords=("gh", "github"),
     ),
 )
-WEB_ENGINE_BY_ID = {engine.id: engine for engine in WEB_ENGINES}
-WEB_ENGINE_BY_KEYWORD = {
-    keyword: engine for engine in WEB_ENGINES for keyword in engine.keywords
+_WEB_ENGINE_BY_ID = {engine.id: engine for engine in _WEB_ENGINES}
+_WEB_ENGINE_BY_KEYWORD = {
+    keyword: engine for engine in _WEB_ENGINES for keyword in engine.keywords
 }
 
 _DOMAIN_RE = re.compile(
@@ -65,7 +65,14 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 
 
 def get_web_engine(engine_id: str) -> WebEngine:
-    return WEB_ENGINE_BY_ID.get(engine_id, WEB_ENGINE_BY_ID[DEFAULT_WEB_ENGINE])
+    return _WEB_ENGINE_BY_ID.get(
+        engine_id,
+        _WEB_ENGINE_BY_ID[DEFAULT_WEB_ENGINE],
+    )
+
+
+def get_web_engine_by_keyword(keyword: str) -> WebEngine | None:
+    return _WEB_ENGINE_BY_KEYWORD.get(keyword.casefold())
 
 
 def normalize_web_target(text: str) -> str | None:
@@ -89,10 +96,8 @@ def normalize_web_target(text: str) -> str | None:
 
 __all__ = [
     "DEFAULT_WEB_ENGINE",
-    "WEB_ENGINES",
-    "WEB_ENGINE_BY_ID",
-    "WEB_ENGINE_BY_KEYWORD",
     "WebEngine",
     "get_web_engine",
+    "get_web_engine_by_keyword",
     "normalize_web_target",
 ]

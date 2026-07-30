@@ -1,4 +1,4 @@
-"""User-owned script-command discovery and safe argv execution."""
+"""Discover, validate, and safely execute user-owned script commands."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from docking.applets.runcommand.state import launch_command
 from docking.log import get_logger
 from docking.platform.environment import flatpak
 
-MAX_METADATA_BYTES = 16 * 1024
-DEFAULT_SCRIPT_DIRS = (
+_MAX_METADATA_BYTES = 16 * 1024
+_DEFAULT_SCRIPT_DIRS = (
     Path.home() / ".config/docking/scripts",
     Path.home() / ".local/share/docking/scripts",
 )
@@ -38,7 +38,7 @@ class ScriptCommand:
 def _metadata(path: Path) -> dict[str, str]:
     try:
         with path.open("r", encoding="utf-8", errors="replace") as handle:
-            content = handle.read(MAX_METADATA_BYTES)
+            content = handle.read(_MAX_METADATA_BYTES)
     except OSError:
         return {}
     values: dict[str, str] = {}
@@ -49,7 +49,7 @@ def _metadata(path: Path) -> dict[str, str]:
     return values
 
 
-def script_command_from_path(path: Path) -> ScriptCommand | None:
+def _script_command_from_path(path: Path) -> ScriptCommand | None:
     try:
         stat = path.stat()
     except OSError:
@@ -81,7 +81,11 @@ def script_command_from_path(path: Path) -> ScriptCommand | None:
 class ScriptCommandCatalog:
     """Small on-demand catalog; directories are scanned only for ``cmd`` queries."""
 
-    def __init__(self, *, directories: tuple[Path, ...] = DEFAULT_SCRIPT_DIRS) -> None:
+    def __init__(
+        self,
+        *,
+        directories: tuple[Path, ...] = _DEFAULT_SCRIPT_DIRS,
+    ) -> None:
         self._directories = directories
 
     @property
@@ -100,7 +104,7 @@ class ScriptCommandCatalog:
             except OSError:
                 continue
             for path in children:
-                command = script_command_from_path(path)
+                command = _script_command_from_path(path)
                 if command is not None:
                     if command.keyword in commands:
                         log.warning(
@@ -118,20 +122,13 @@ class ScriptCommandCatalog:
         )
 
 
-def parse_script_arguments(value: str) -> tuple[str, ...] | None:
-    try:
-        return tuple(shlex.split(value))
-    except ValueError:
-        return None
-
-
 def execute_script(
     *,
     command: ScriptCommand,
     arguments: tuple[str, ...],
     run_in_terminal: bool,
 ) -> bool:
-    refreshed = script_command_from_path(command.path)
+    refreshed = _script_command_from_path(command.path)
     if refreshed is None or refreshed.keyword != command.keyword:
         return False
     argv = [str(refreshed.path), *arguments]
@@ -156,10 +153,7 @@ def execute_script(
 
 
 __all__ = [
-    "DEFAULT_SCRIPT_DIRS",
     "ScriptCommand",
     "ScriptCommandCatalog",
     "execute_script",
-    "parse_script_arguments",
-    "script_command_from_path",
 ]

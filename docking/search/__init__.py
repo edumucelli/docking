@@ -1,11 +1,5 @@
-"""Pure global-search contracts, matching, and coordination."""
+"""Public global-search contracts, matching, and coordination."""
 
-from docking.search.conversion import (
-    CurrencyConversionRequest,
-    UnitConversion,
-    parse_currency_conversion,
-    parse_unit_conversion,
-)
 from docking.search.coordinator import (
     ProviderError,
     SearchCancellation,
@@ -16,7 +10,6 @@ from docking.search.coordinator import (
     SearchSnapshot,
     preserve_selected_identity,
 )
-from docking.search.currency import CurrencyRatesCatalog, CurrencyRatesState
 from docking.search.extensions import (
     SEARCH_PROVIDER_ENTRY_POINT,
     SearchProviderContext,
@@ -42,12 +35,6 @@ from docking.search.matcher import (
     normalize_search_text,
     score_match,
 )
-from docking.search.temporal import (
-    TemporalKind,
-    TemporalValue,
-    parse_temporal_query,
-    resolve_timezone,
-)
 from docking.search.types import (
     SearchAction,
     SearchBatch,
@@ -58,26 +45,14 @@ from docking.search.types import (
     SearchResult,
 )
 from docking.search.usage import SearchUsageStore, UsageRecord
-from docking.search.web import (
-    DEFAULT_WEB_ENGINE,
-    WEB_ENGINES,
-    WebEngine,
-    get_web_engine,
-    normalize_web_target,
-)
 
 __all__ = [
     "CANONICAL_QUERY_KEYWORDS",
-    "DEFAULT_WEB_ENGINE",
     "MATCH_QUALITY_LIMIT",
     "SEARCH_PROVIDER_ENTRY_POINT",
     "SOURCE_BOOST_LIMIT",
     "STATE_BOOST_LIMIT",
     "TIER_BASE_SCORE",
-    "WEB_ENGINES",
-    "CurrencyConversionRequest",
-    "CurrencyRatesCatalog",
-    "CurrencyRatesState",
     "MatchTier",
     "ProviderError",
     "QueryIntent",
@@ -98,24 +73,14 @@ __all__ = [
     "SearchResult",
     "SearchSnapshot",
     "SearchUsageStore",
-    "TemporalKind",
-    "TemporalValue",
     "TextMatch",
-    "UnitConversion",
     "UsageRecord",
-    "WebEngine",
     "best_match",
     "complete_query_keyword",
-    "get_web_engine",
     "load_search_provider_extensions",
     "match_text",
     "normalize_search_text",
-    "normalize_web_target",
-    "parse_currency_conversion",
     "parse_query_intent",
-    "parse_temporal_query",
-    "parse_unit_conversion",
     "preserve_selected_identity",
-    "resolve_timezone",
     "score_match",
 ]

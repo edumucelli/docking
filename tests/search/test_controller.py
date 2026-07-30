@@ -447,7 +447,10 @@ def test_web_fallback_can_be_disabled(monkeypatch) -> None:
 
 def test_currency_conversion_uses_ready_rate_catalog(monkeypatch) -> None:
     from docking.applets.unitconverter.state import Unit
-    from docking.search.currency import CurrencyRatesCatalog, CurrencyRatesState
+    from docking.search.services.currency_rates import (
+        CurrencyRatesCatalog,
+        CurrencyRatesState,
+    )
 
     rates = CurrencyRatesCatalog(
         schedule_idle=lambda _callback, *_args: 1,
@@ -469,6 +472,21 @@ def test_currency_conversion_uses_ready_rate_catalog(monkeypatch) -> None:
     assert window.snapshots[-1].results[0].title == "8 EUR"
 
 
+def test_intent_recognition_is_forwarded_to_provider(monkeypatch) -> None:
+    controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    controller._config.global_search_providers = ["calculator"]
+    parse_again = MagicMock(side_effect=AssertionError("parsed twice"))
+    monkeypatch.setattr(
+        "docking.search.providers.converter.parse_unit_conversion",
+        parse_again,
+    )
+
+    controller.show(initial_query="10 km to mi")
+
+    assert window.snapshots[-1].results[0].title.startswith("6.213")
+    parse_again.assert_not_called()
+
+
 def test_tab_completes_query_keyword_before_refining_result(monkeypatch) -> None:
     controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
     controller.show(initial_query="ap")
@@ -483,7 +501,7 @@ def test_cmd_keyword_routes_only_to_user_script_provider(
     monkeypatch,
     tmp_path,
 ) -> None:
-    from docking.search.scripts import ScriptCommandCatalog
+    from docking.search.services.script_commands import ScriptCommandCatalog
 
     script = tmp_path / "deploy"
     script.write_text(

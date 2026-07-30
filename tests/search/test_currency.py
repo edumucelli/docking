@@ -7,7 +7,10 @@ import threading
 import pytest
 
 from docking.applets.unitconverter.state import Unit
-from docking.search.currency import CurrencyRatesCatalog, CurrencyRatesState
+from docking.search.services.currency_rates import (
+    CurrencyRatesCatalog,
+    CurrencyRatesState,
+)
 
 
 def test_currency_rates_load_lazily_and_convert() -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from docking.search.temporal import TemporalKind, parse_temporal_query
+from docking.search.recognizers.temporal import TemporalKind, parse_temporal_query
 
 NOW = dt.datetime(2026, 7, 28, 12, 0, tzinfo=dt.timezone.utc)
 

@@ -1,4 +1,4 @@
-"""Lazy background cache for live currency conversion factors."""
+"""Lazy background service for live currency conversion factors."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ CurrencyLoader = Callable[[], tuple[Unit, ...] | None]
 IdleScheduler = Callable[..., int]
 Listener = Callable[[], None]
 log = get_logger("search.currency")
-DEFAULT_CURRENCY_TTL_SECONDS = 60 * 60
+_DEFAULT_CURRENCY_TTL_SECONDS = 60 * 60
 
 
 class CurrencyRatesState(str, Enum):
@@ -36,7 +36,7 @@ class CurrencyRatesCatalog:
         *,
         schedule_idle: IdleScheduler,
         loader: CurrencyLoader = fetch_currency_rates,
-        ttl_seconds: float = DEFAULT_CURRENCY_TTL_SECONDS,
+        ttl_seconds: float = _DEFAULT_CURRENCY_TTL_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._schedule_idle = schedule_idle
@@ -155,7 +155,6 @@ class CurrencyRatesCatalog:
 
 
 __all__ = [
-    "DEFAULT_CURRENCY_TTL_SECONDS",
     "CurrencyRatesCatalog",
     "CurrencyRatesState",
 ]

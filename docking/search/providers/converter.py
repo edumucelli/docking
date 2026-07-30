@@ -6,15 +6,18 @@ import hashlib
 from collections.abc import Callable
 
 from docking.i18n import _
-from docking.search.conversion import (
+from docking.search.coordinator import SearchRequest
+from docking.search.providers.base import action, action_parts, metadata
+from docking.search.recognizers.conversion import (
     CurrencyConversionRequest,
     UnitConversion,
     parse_currency_conversion,
     parse_unit_conversion,
 )
-from docking.search.coordinator import SearchRequest
-from docking.search.currency import CurrencyRatesCatalog, CurrencyRatesState
-from docking.search.providers.base import action, action_parts, metadata
+from docking.search.services.currency_rates import (
+    CurrencyRatesCatalog,
+    CurrencyRatesState,
+)
 from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
@@ -32,12 +35,22 @@ class ConverterSearchProvider:
         self._answers: dict[str, str] = {}
 
     def search(self, request: SearchRequest):
-        conversion = parse_unit_conversion(request.query.text)
+        recognized = request.recognized
+        if isinstance(recognized, UnitConversion):
+            conversion = recognized
+        elif isinstance(recognized, CurrencyConversionRequest):
+            conversion = None
+        else:
+            conversion = parse_unit_conversion(request.query.text)
         self._answers = {}
         if conversion is not None:
             result = self._static_result(conversion)
         else:
-            currency = parse_currency_conversion(request.query.text)
+            currency = (
+                recognized
+                if isinstance(recognized, CurrencyConversionRequest)
+                else parse_currency_conversion(request.query.text)
+            )
             result = self._currency_result(currency) if currency is not None else None
         if result is None:
             yield SearchBatch.replace(self.provider_id, request.generation)

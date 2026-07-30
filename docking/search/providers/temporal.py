@@ -7,7 +7,11 @@ from collections.abc import Callable
 from docking.i18n import _
 from docking.search.coordinator import SearchRequest
 from docking.search.providers.base import action, action_parts, metadata
-from docking.search.temporal import TemporalKind, parse_temporal_query
+from docking.search.recognizers.temporal import (
+    TemporalKind,
+    TemporalValue,
+    parse_temporal_query,
+)
 from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
@@ -19,7 +23,11 @@ class TemporalSearchProvider:
         self._values: dict[str, str] = {}
 
     def search(self, request: SearchRequest):
-        value = parse_temporal_query(request.query.text)
+        value = (
+            request.recognized
+            if isinstance(request.recognized, TemporalValue)
+            else parse_temporal_query(request.query.text)
+        )
         self._values = {}
         if value is None:
             yield SearchBatch.replace(self.provider_id, request.generation)

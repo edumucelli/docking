@@ -1,4 +1,4 @@
-"""Deterministic parsing and evaluation of inline unit conversions."""
+"""Recognize and evaluate inline unit-conversion queries."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ class CurrencyConversionRequest:
     target_code: str
 
 
-KNOWN_CURRENCY_CODES = {
+_KNOWN_CURRENCY_CODES = {
     "AUD",
     "BRL",
     "CAD",
@@ -188,8 +188,8 @@ def parse_currency_conversion(
     source_code = match.group("source").strip().upper()
     target_code = match.group("target").strip().upper()
     if (
-        source_code not in KNOWN_CURRENCY_CODES
-        or target_code not in KNOWN_CURRENCY_CODES
+        source_code not in _KNOWN_CURRENCY_CODES
+        or target_code not in _KNOWN_CURRENCY_CODES
     ):
         return None
     value_text = match.group("value")
@@ -204,7 +204,6 @@ def parse_currency_conversion(
 
 
 __all__ = [
-    "KNOWN_CURRENCY_CODES",
     "CurrencyConversionRequest",
     "UnitConversion",
     "parse_currency_conversion",

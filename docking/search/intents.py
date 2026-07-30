@@ -5,16 +5,19 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import Enum
+from typing import TypeAlias
 
 from docking.applets.calculator.state import evaluate
-from docking.search.conversion import (
+from docking.search.recognizers.conversion import (
+    CurrencyConversionRequest,
+    UnitConversion,
     parse_currency_conversion,
     parse_unit_conversion,
 )
-from docking.search.temporal import parse_temporal_query
-from docking.search.web import (
+from docking.search.recognizers.temporal import TemporalValue, parse_temporal_query
+from docking.search.recognizers.web import (
     DEFAULT_WEB_ENGINE,
-    WEB_ENGINE_BY_KEYWORD,
+    get_web_engine_by_keyword,
     normalize_web_target,
 )
 
@@ -31,6 +34,11 @@ class QueryIntentKind(str, Enum):
     SCRIPT = "script"
 
 
+_RecognizedQuery: TypeAlias = (
+    CurrencyConversionRequest | TemporalValue | UnitConversion | str
+)
+
+
 @dataclass(frozen=True, slots=True)
 class QueryIntent:
     raw_text: str
@@ -39,6 +47,7 @@ class QueryIntent:
     provider_ids: tuple[str, ...] = ()
     explicit: bool = False
     web_engine_id: str | None = None
+    recognized: _RecognizedQuery | None = None
 
 
 CANONICAL_QUERY_KEYWORDS = ("app", "win", "file", "web", "cmd")
@@ -128,7 +137,7 @@ def parse_query_intent(
         engine_keyword, engine_query = (
             _split_keyword(remainder) if remainder else ("", "")
         )
-        web_engine = WEB_ENGINE_BY_KEYWORD.get(engine_keyword)
+        web_engine = get_web_engine_by_keyword(engine_keyword)
         return QueryIntent(
             raw_text,
             engine_query if web_engine is not None else remainder,
@@ -155,22 +164,27 @@ def parse_query_intent(
             QueryIntentKind.PATH,
             provider_ids=("path",),
         )
-    if parse_temporal_query(stripped) is not None:
+    temporal = parse_temporal_query(stripped)
+    if temporal is not None:
         return QueryIntent(
             raw_text,
             stripped,
             QueryIntentKind.TEMPORAL,
             provider_ids=("datetime",),
+            recognized=temporal,
         )
-    if (
-        parse_unit_conversion(stripped) is not None
-        or parse_currency_conversion(stripped) is not None
-    ):
+    conversion: UnitConversion | CurrencyConversionRequest | None = (
+        parse_unit_conversion(stripped)
+    )
+    if conversion is None:
+        conversion = parse_currency_conversion(stripped)
+    if conversion is not None:
         return QueryIntent(
             raw_text,
             stripped,
             QueryIntentKind.CONVERSION,
             provider_ids=("converter",),
+            recognized=conversion,
         )
     if _looks_like_calculation(stripped):
         return QueryIntent(
@@ -179,12 +193,14 @@ def parse_query_intent(
             QueryIntentKind.CALCULATION,
             provider_ids=("calculator",),
         )
-    if normalize_web_target(stripped) is not None:
+    web_target = normalize_web_target(stripped)
+    if web_target is not None:
         return QueryIntent(
             raw_text,
             stripped,
             QueryIntentKind.URL,
             provider_ids=("web",),
+            recognized=web_target,
         )
     return QueryIntent(raw_text, stripped, QueryIntentKind.GLOBAL)
 

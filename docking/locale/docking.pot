@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-30 01:32+0200\n"
+"POT-Creation-Date: 2026-07-31 01:00+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -359,7 +359,7 @@ msgstr ""
 msgid "(c) {who}"
 msgstr ""
 
-#: docking/applets/applications/applet.py:55 docking/search/controller.py:548
+#: docking/applets/applications/applet.py:55 docking/search/controller.py:549
 #: docking/search/providers/applications.py:177 docking/ui/settings.py:631
 msgid "Applications"
 msgstr ""
@@ -736,7 +736,7 @@ msgid "Active - {time} left"
 msgstr ""
 
 #: docking/applets/calculator/applet.py:78
-#: docking/applets/calculator/applet.py:96 docking/search/controller.py:533
+#: docking/applets/calculator/applet.py:96 docking/search/controller.py:534
 #: docking/search/providers/calculator.py:40
 #: docking/search/providers/calculator.py:57 docking/ui/settings.py:634
 msgid "Calculator"
@@ -2928,7 +2928,7 @@ msgstr ""
 msgid "{source}: loading..."
 msgstr ""
 
-#: docking/applets/recentfiles/applet.py:48 docking/search/controller.py:551
+#: docking/applets/recentfiles/applet.py:48 docking/search/controller.py:552
 #: docking/search/providers/recent.py:52 docking/ui/settings.py:635
 msgid "Recent Files"
 msgstr ""
@@ -2999,7 +2999,8 @@ msgstr ""
 msgid "Rising"
 msgstr ""
 
-#: docking/applets/reddit/state.py:169 docking/search/temporal.py:82
+#: docking/applets/reddit/state.py:169
+#: docking/search/recognizers/temporal.py:82
 msgid "Today"
 msgstr ""
 
@@ -3049,7 +3050,7 @@ msgid "Help"
 msgstr ""
 
 #: docking/applets/runcommand/applet.py:132
-#: docking/search/providers/scripts.py:87
+#: docking/search/providers/scripts.py:94
 msgid "Run"
 msgstr ""
 
@@ -3082,7 +3083,7 @@ msgstr ""
 #: docking/applets/systemtray/applet.py:259
 #: docking/search/providers/applications.py:119
 #: docking/search/providers/dock.py:65 docking/search/providers/recent.py:59
-#: docking/search/providers/web.py:65 docking/ui/menu.py:446
+#: docking/search/providers/web.py:72 docking/ui/menu.py:446
 #: docking/ui/menu.py:531 docking/ui/search_window.py:579
 msgid "Open"
 msgstr ""
@@ -3755,7 +3756,7 @@ msgstr ""
 
 #: docking/applets/urlshortener/applet.py:190
 #: docking/applets/urlshortener/applet.py:209
-#: docking/search/providers/temporal.py:46
+#: docking/search/providers/temporal.py:54
 msgid "Copy"
 msgstr ""
 
@@ -4313,52 +4314,52 @@ msgstr ""
 msgid "Setup cancelled"
 msgstr ""
 
-#: docking/search/controller.py:535 docking/search/providers/converter.py:65
-#: docking/search/providers/converter.py:136
-#: docking/search/providers/converter.py:180
+#: docking/search/controller.py:536 docking/search/providers/converter.py:78
+#: docking/search/providers/converter.py:149
+#: docking/search/providers/converter.py:193
 msgid "Converter"
 msgstr ""
 
-#: docking/search/controller.py:537 docking/search/providers/web.py:59
+#: docking/search/controller.py:538 docking/search/providers/web.py:66
 msgid "URL"
 msgstr ""
 
-#: docking/search/controller.py:539
+#: docking/search/controller.py:540
 msgid "Web Search"
 msgstr ""
 
-#: docking/search/controller.py:541 docking/search/controller.py:552
+#: docking/search/controller.py:542 docking/search/controller.py:553
 msgid "Direct Path"
 msgstr ""
 
-#: docking/search/controller.py:543 docking/search/providers/temporal.py:39
+#: docking/search/controller.py:544 docking/search/providers/temporal.py:47
 msgid "Date & Time"
 msgstr ""
 
-#: docking/search/controller.py:545 docking/search/providers/scripts.py:107
+#: docking/search/controller.py:546 docking/search/providers/scripts.py:114
 #: docking/ui/settings.py:969
 msgid "Script Commands"
 msgstr ""
 
-#: docking/search/controller.py:549
+#: docking/search/controller.py:550
 #: docking/search/providers/applications.py:216
 #: docking/search/providers/windows.py:83 docking/ui/settings.py:633
 msgid "Windows"
 msgstr ""
 
-#: docking/search/controller.py:550 docking/search/providers/dock.py:92
+#: docking/search/controller.py:551 docking/search/providers/dock.py:92
 msgid "Dock"
 msgstr ""
 
-#: docking/search/controller.py:553
+#: docking/search/controller.py:554
 msgid "Files"
 msgstr ""
 
-#: docking/search/controller.py:555
+#: docking/search/controller.py:556
 msgid "Filtered"
 msgstr ""
 
-#: docking/search/controller.py:804
+#: docking/search/controller.py:805
 msgid "Live Window"
 msgstr ""
 
@@ -4473,36 +4474,36 @@ msgid "Invalid expression"
 msgstr ""
 
 #: docking/search/providers/calculator.py:63
-#: docking/search/providers/converter.py:72
-#: docking/search/providers/converter.py:143
+#: docking/search/providers/converter.py:85
+#: docking/search/providers/converter.py:156
 msgid "Copy Result"
 msgstr ""
 
-#: docking/search/providers/converter.py:58
-#: docking/search/providers/converter.py:129
+#: docking/search/providers/converter.py:71
+#: docking/search/providers/converter.py:142
 #, python-brace-format
 msgid "{value:g} {source} to {target}"
 msgstr ""
 
-#: docking/search/providers/converter.py:93
-#: docking/search/providers/converter.py:108
+#: docking/search/providers/converter.py:106
+#: docking/search/providers/converter.py:121
 msgid "Currency rates unavailable"
 msgstr ""
 
-#: docking/search/providers/converter.py:101
+#: docking/search/providers/converter.py:114
 msgid "Loading currency rates..."
 msgstr ""
 
-#: docking/search/providers/converter.py:120
+#: docking/search/providers/converter.py:133
 msgid "Currency pair unavailable"
 msgstr ""
 
-#: docking/search/providers/converter.py:137
-#: docking/search/providers/converter.py:181
+#: docking/search/providers/converter.py:150
+#: docking/search/providers/converter.py:194
 msgid "Currency"
 msgstr ""
 
-#: docking/search/providers/converter.py:168
+#: docking/search/providers/converter.py:181
 msgid "Retry"
 msgstr ""
 
@@ -4531,48 +4532,48 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#: docking/search/providers/path.py:60 docking/search/providers/scripts.py:78
+#: docking/search/providers/path.py:60 docking/search/providers/scripts.py:85
 msgid "Copy Path"
 msgstr ""
 
-#: docking/search/providers/scripts.py:72
+#: docking/search/providers/scripts.py:79
 msgid "Open Script"
 msgstr ""
 
-#: docking/search/providers/scripts.py:93
+#: docking/search/providers/scripts.py:100
 msgid "Run in Terminal"
 msgstr ""
 
-#: docking/search/providers/web.py:54
+#: docking/search/providers/web.py:61
 msgid "Compose email"
 msgstr ""
 
-#: docking/search/providers/web.py:54
+#: docking/search/providers/web.py:61
 msgid "Open URL"
 msgstr ""
 
-#: docking/search/providers/web.py:58 docking/search/providers/web.py:97
+#: docking/search/providers/web.py:65 docking/search/providers/web.py:104
 msgid "Web"
 msgstr ""
 
-#: docking/search/providers/web.py:59
+#: docking/search/providers/web.py:66
 msgid "Email"
 msgstr ""
 
-#: docking/search/providers/web.py:65
+#: docking/search/providers/web.py:72
 msgid "Compose"
 msgstr ""
 
-#: docking/search/providers/web.py:71 docking/search/providers/web.py:110
+#: docking/search/providers/web.py:78 docking/search/providers/web.py:117
 msgid "Copy Address"
 msgstr ""
 
-#: docking/search/providers/web.py:90
+#: docking/search/providers/web.py:97
 #, python-brace-format
 msgid "Search {engine} for “{query}”"
 msgstr ""
 
-#: docking/search/providers/web.py:104
+#: docking/search/providers/web.py:111
 msgid "Search the Web"
 msgstr ""
 
@@ -4584,33 +4585,34 @@ msgstr ""
 msgid "Close Window"
 msgstr ""
 
-#: docking/search/temporal.py:84
+#: docking/search/recognizers/temporal.py:84
 msgid "Tomorrow"
 msgstr ""
 
-#: docking/search/temporal.py:86
+#: docking/search/recognizers/temporal.py:86
 msgid "Yesterday"
 msgstr ""
 
-#: docking/search/temporal.py:88
+#: docking/search/recognizers/temporal.py:88
 #, python-brace-format
 msgid "In {count} days"
 msgstr ""
 
-#: docking/search/temporal.py:89
+#: docking/search/recognizers/temporal.py:89
 #, python-brace-format
 msgid "{count} days ago"
 msgstr ""
 
-#: docking/search/temporal.py:103
+#: docking/search/recognizers/temporal.py:103
 msgid "Date"
 msgstr ""
 
-#: docking/search/temporal.py:141 docking/search/temporal.py:180
+#: docking/search/recognizers/temporal.py:141
+#: docking/search/recognizers/temporal.py:180
 msgid "Time Zone"
 msgstr ""
 
-#: docking/search/temporal.py:174
+#: docking/search/recognizers/temporal.py:174
 #, python-brace-format
 msgid "{time} {source} to {target}"
 msgstr ""

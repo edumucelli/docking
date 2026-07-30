@@ -9,8 +9,8 @@ from docking.i18n import _
 from docking.platform.launcher import open_target
 from docking.search.coordinator import SearchRequest
 from docking.search.providers.base import action, action_parts, metadata
+from docking.search.recognizers.web import get_web_engine, normalize_web_target
 from docking.search.types import SearchBatch, SearchIdentity, SearchResult
-from docking.search.web import get_web_engine, normalize_web_target
 
 
 class WebSearchProvider:
@@ -27,7 +27,14 @@ class WebSearchProvider:
             yield SearchBatch.replace(self.provider_id, request.generation)
             return
 
-        direct_target = normalize_web_target(text)
+        direct_target = (
+            request.recognized
+            if (
+                request.query.context_value("intent_kind") == "url"
+                and isinstance(request.recognized, str)
+            )
+            else normalize_web_target(text)
+        )
         if direct_target is not None:
             result = self._url_result(direct_target)
         else:

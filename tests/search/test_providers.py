@@ -23,7 +23,6 @@ from docking.platform.launcher import FileTargetInfo
 from docking.platform.recent_docs import RecentDoc
 from docking.platform.recent_files import RecentFileSnapshot
 from docking.search.coordinator import SearchCancellation, SearchRequest
-from docking.search.currency import CurrencyRatesCatalog, CurrencyRatesState
 from docking.search.providers import (
     ApplicationSearchProvider,
     CalculatorSearchProvider,
@@ -36,7 +35,16 @@ from docking.search.providers import (
     WebSearchProvider,
     WindowSearchProvider,
 )
-from docking.search.scripts import ScriptCommandCatalog
+from docking.search.recognizers.conversion import (
+    parse_currency_conversion,
+    parse_unit_conversion,
+)
+from docking.search.recognizers.temporal import parse_temporal_query
+from docking.search.services.currency_rates import (
+    CurrencyRatesCatalog,
+    CurrencyRatesState,
+)
+from docking.search.services.script_commands import ScriptCommandCatalog
 from docking.search.types import SearchQuery
 
 
@@ -44,16 +52,19 @@ def _request(
     text: str,
     generation: int = 1,
     context: tuple[tuple[str, str], ...] = (),
+    recognized: object | None = None,
 ) -> SearchRequest:
     return SearchRequest(
         query=SearchQuery(text=text, limit=20, context=context),
         generation=generation,
         cancellation=SearchCancellation(generation),
+        recognized=recognized,
     )
 
 
-def _results(provider, text: str, context=()):
-    return tuple(next(iter(provider.search(_request(text, context=context)))).results)
+def _results(provider, text: str, context=(), recognized=None):
+    request = _request(text, context=context, recognized=recognized)
+    return tuple(next(iter(provider.search(request))).results)
 
 
 class _Windows:
@@ -290,6 +301,52 @@ def test_converter_provider_copies_implicit_result() -> None:
     assert copied == [result.title]
 
 
+def test_converter_provider_reuses_intent_recognition(monkeypatch) -> None:
+    provider = ConverterSearchProvider(copy_text=MagicMock())
+    conversion = parse_unit_conversion("10 km to mi")
+    assert conversion is not None
+    parse_again = MagicMock(side_effect=AssertionError("parsed twice"))
+    monkeypatch.setattr(
+        "docking.search.providers.converter.parse_unit_conversion",
+        parse_again,
+    )
+
+    result = _results(
+        provider,
+        "10 km to mi",
+        recognized=conversion,
+    )[0]
+
+    assert result.title.startswith("6.213")
+    parse_again.assert_not_called()
+
+
+def test_converter_provider_reuses_currency_recognition(monkeypatch) -> None:
+    provider = ConverterSearchProvider(copy_text=MagicMock())
+    conversion = parse_currency_conversion("10 USD to EUR")
+    assert conversion is not None
+    parse_unit_again = MagicMock(side_effect=AssertionError("parsed twice"))
+    parse_currency_again = MagicMock(side_effect=AssertionError("parsed twice"))
+    monkeypatch.setattr(
+        "docking.search.providers.converter.parse_unit_conversion",
+        parse_unit_again,
+    )
+    monkeypatch.setattr(
+        "docking.search.providers.converter.parse_currency_conversion",
+        parse_currency_again,
+    )
+
+    result = _results(
+        provider,
+        "10 USD to EUR",
+        recognized=conversion,
+    )[0]
+
+    assert result.title == "Currency rates unavailable"
+    parse_unit_again.assert_not_called()
+    parse_currency_again.assert_not_called()
+
+
 def test_converter_provider_uses_live_currency_factors() -> None:
     from docking.applets.unitconverter.state import Unit
 
@@ -339,6 +396,25 @@ def test_web_provider_detects_urls_and_uses_selected_engine(monkeypatch) -> None
     assert web.score == 950
 
 
+def test_web_provider_reuses_recognized_target(monkeypatch) -> None:
+    provider = WebSearchProvider(copy_text=MagicMock())
+    normalize_again = MagicMock(side_effect=AssertionError("parsed twice"))
+    monkeypatch.setattr(
+        "docking.search.providers.web.normalize_web_target",
+        normalize_again,
+    )
+
+    result = _results(
+        provider,
+        "docs.python.org",
+        context=(("intent_kind", "url"),),
+        recognized="https://docs.python.org",
+    )[0]
+
+    assert result.title == "Open URL"
+    normalize_again.assert_not_called()
+
+
 def test_temporal_provider_copies_detected_date() -> None:
     copied: list[str] = []
     provider = TemporalSearchProvider(copy_text=copied.append)
@@ -351,6 +427,26 @@ def test_temporal_provider_copies_detected_date() -> None:
         action_identity=result.actions[0].identity,
     )
     assert copied == ["2026-07-28"]
+
+
+def test_temporal_provider_reuses_intent_recognition(monkeypatch) -> None:
+    provider = TemporalSearchProvider(copy_text=MagicMock())
+    temporal = parse_temporal_query("2026-07-28")
+    assert temporal is not None
+    parse_again = MagicMock(side_effect=AssertionError("parsed twice"))
+    monkeypatch.setattr(
+        "docking.search.providers.temporal.parse_temporal_query",
+        parse_again,
+    )
+
+    result = _results(
+        provider,
+        "2026-07-28",
+        recognized=temporal,
+    )[0]
+
+    assert result.title == dt.date(2026, 7, 28).strftime("%A, %x")
+    parse_again.assert_not_called()
 
 
 def test_script_provider_requires_cmd_routing_and_preserves_arguments(

@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from docking.search.conversion import parse_unit_conversion
 from docking.search.intents import (
     CANONICAL_QUERY_KEYWORDS,
     QueryIntentKind,
     complete_query_keyword,
     parse_query_intent,
 )
-from docking.search.web import get_web_engine, normalize_web_target
+from docking.search.recognizers.conversion import parse_unit_conversion
+from docking.search.recognizers.temporal import TemporalValue
+from docking.search.recognizers.web import get_web_engine, normalize_web_target
 
 
 def test_top_level_keyword_set_is_intentionally_small() -> None:
@@ -69,8 +70,9 @@ def test_calculation_conversion_url_and_web_intents() -> None:
     assert calculation.search_text == "=100 + 20"
     assert conversion.kind is QueryIntentKind.CONVERSION
     assert conversion.provider_ids == ("converter",)
+    assert conversion.recognized is not None
     assert url.kind is QueryIntentKind.URL
-    assert normalize_web_target(url.search_text) == "https://docs.python.org/3/"
+    assert url.recognized == "https://docs.python.org/3/"
     assert web.kind is QueryIntentKind.WEB
     assert web.web_engine_id == "google"
     assert web.search_text == "docking linux"
@@ -79,7 +81,9 @@ def test_calculation_conversion_url_and_web_intents() -> None:
 
 
 def test_dates_timezones_and_normal_words_are_distinguished() -> None:
-    assert parse_query_intent("2026-07-28").kind is QueryIntentKind.TEMPORAL
+    date = parse_query_intent("2026-07-28")
+    assert date.kind is QueryIntentKind.TEMPORAL
+    assert isinstance(date.recognized, TemporalValue)
     assert parse_query_intent("time in Tokyo").kind is QueryIntentKind.TEMPORAL
     assert parse_query_intent("visual studio code").kind is QueryIntentKind.GLOBAL
 
