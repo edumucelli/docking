@@ -13,12 +13,15 @@ from docking.applets.hackernews.state import (
     HN_SOURCE,
     HN_WEB_URL,
     MAX_STORIES,
+    HackerNewsFeed,
     HackerNewsPage,
     HackerNewsPrefs,
     HackerNewsStory,
     append_unique_stories,
     build_tooltip,
     comments_url,
+    feed_endpoint,
+    feed_label,
     fetch_hn_stories,
     fetch_hn_story_page,
     normalize_active_index,
@@ -92,6 +95,18 @@ class TestHackerNewsState:
     def test_comments_url(self):
         assert comments_url(123) == f"{HN_WEB_URL}/item?id=123"
 
+    def test_supported_feeds(self):
+        assert [feed_label(feed) for feed in HackerNewsFeed] == [
+            "Top Stories",
+            "Show HN",
+            "Jobs",
+        ]
+        assert [feed_endpoint(feed) for feed in HackerNewsFeed] == [
+            "topstories",
+            "showstories",
+            "jobstories",
+        ]
+
     def test_story_rank_and_age_edges(self):
         assert story_rank(index=0, count=0) == ""
         assert story_age(story=_story(time=0)) == ""
@@ -157,6 +172,22 @@ class TestHackerNewsState:
         assert story.hn_url == f"{HN_WEB_URL}/item?id=123"
         assert story.score == 42
         assert story.comments == 7
+
+    def test_parse_job_payload(self):
+        story = parse_story_payload(
+            {
+                "id": 456,
+                "type": "job",
+                "title": "Example is hiring",
+                "url": "https://example.test/jobs",
+                "time": 1000,
+            }
+        )
+
+        assert story is not None
+        assert story.title == "Example is hiring"
+        assert story.score == 0
+        assert story.comments == 0
 
     def test_parse_story_payload_rejects_dead_and_non_story_items(self):
         assert parse_story_payload("bad") is None
@@ -227,7 +258,7 @@ class TestHackerNewsState:
             fetched_at=dt.datetime(2026, 4, 27, tzinfo=dt.timezone.utc),
             cadence_seconds=10 * 60,
         )
-        assert "Hacker News 2/3" in text
+        assert "Hacker News - Top Stories 2/3" in text
         assert "SQLite on the Edge" in text
         assert "456 points" in text
         assert "Updated:" in text
@@ -242,6 +273,7 @@ class TestHackerNewsState:
     def test_prefs_round_trip(self):
         story = _story()
         payload = prefs_payload(
+            feed=HackerNewsFeed.SHOW,
             stories=(story,),
             active_index=4,
             next_offset=20,
@@ -249,6 +281,7 @@ class TestHackerNewsState:
         )
         prefs = prefs_from_mapping(payload)
 
+        assert prefs.feed is HackerNewsFeed.SHOW
         assert prefs.stories == (story,)
         assert prefs.active_index == 0
         assert prefs.next_offset == 20
@@ -304,6 +337,17 @@ class TestHackerNewsState:
                 "has_more_stories": False,
             }
         ) == HackerNewsPrefs(has_more_stories=False)
+        assert (
+            prefs_from_mapping(
+                {
+                    "feed": "unknown",
+                    "stories": [],
+                    "next_offset": 0,
+                    "has_more_stories": True,
+                }
+            ).feed
+            is HackerNewsFeed.TOP
+        )
 
     def test_normalize_active_index(self):
         assert normalize_active_index(index=5, count=2) == 1
@@ -363,6 +407,27 @@ class TestFetchHnStories:
         assert [story.id for story in page.stories] == [1]
         assert page.next_offset == 2
         assert page.has_more is True
+
+    def test_fetches_selected_feed(self, monkeypatch):
+        import docking.applets.hackernews.state as hn_state
+
+        seen = []
+
+        def get_json(url, *, timeout=None):
+            seen.append(url)
+            if url == f"{HN_BASE_URL}/showstories.json":
+                return [123]
+            return {"id": 123, "type": "story", "title": "Show HN: Example"}
+
+        monkeypatch.setattr(hn_state, "http_get_json", get_json)
+
+        page = fetch_hn_story_page(feed=HackerNewsFeed.SHOW)
+
+        assert [story.title for story in page.stories] == ["Show HN: Example"]
+        assert seen == [
+            f"{HN_BASE_URL}/showstories.json",
+            f"{HN_BASE_URL}/item/123.json",
+        ]
 
     def test_fetch_failure_returns_empty(self, monkeypatch):
         import docking.applets.hackernews.state as hn_state
@@ -451,7 +516,11 @@ class TestHackerNewsApplet:
         ) as fetch:
             applet.on_scroll(direction_up=False)
 
-        fetch.assert_called_once_with(limit=20, offset=20)
+        fetch.assert_called_once_with(
+            feed=HackerNewsFeed.TOP,
+            limit=20,
+            offset=20,
+        )
         assert applet._active_index == 19
         assert applet._next_story_offset == 40
         assert applet._has_more_stories is True
@@ -635,6 +704,50 @@ class TestHackerNewsApplet:
         assert "Next Headline" in labels
         assert "Refreshes every 10 minutes" in labels
         assert "Refresh Now" in labels
+        assert "Page" in labels
+
+        page = next(
+            item for item in applet.get_menu_items() if item.get_label() == "Page"
+        )
+        submenu = page.get_submenu()
+        assert submenu is not None
+        assert [item.get_label() for item in submenu.children] == [
+            "Top Stories",
+            "Show HN",
+            "Jobs",
+        ]
+
+    def test_switching_feed_clears_cache_and_fetches_selected_page(self):
+        applet = _make_applet()
+        applet._stories = [_story()]
+        applet._next_story_offset = 20
+
+        with patch(
+            "docking.applets.hackernews.applet.fetch_hn_story_page",
+            return_value=HackerNewsPage(
+                stories=(_story(id=456, title="A job"),),
+                next_offset=1,
+                has_more=False,
+            ),
+        ) as fetch:
+            applet._set_feed(feed=HackerNewsFeed.JOBS)
+
+        fetch.assert_called_once_with(
+            feed=HackerNewsFeed.JOBS,
+            limit=20,
+            offset=0,
+        )
+        assert applet._feed is HackerNewsFeed.JOBS
+        assert [story.title for story in applet._stories] == ["A job"]
+        assert applet._next_story_offset == 1
+
+    def test_selecting_current_feed_is_noop(self):
+        applet = _make_applet()
+        applet._fetch_async = MagicMock()
+
+        applet._set_feed(feed=HackerNewsFeed.TOP)
+
+        applet._fetch_async.assert_not_called()
 
     def test_menu_without_story_disables_navigation(self):
         applet = _make_applet()
@@ -852,7 +965,11 @@ class TestHackerNewsApplet:
         ) as fetch:
             applet._fetch_async()
 
-        fetch.assert_called_once_with(limit=40, offset=0)
+        fetch.assert_called_once_with(
+            feed=HackerNewsFeed.TOP,
+            limit=40,
+            offset=0,
+        )
         assert applet._active_index == 38
         assert len(applet._stories) == 40
 

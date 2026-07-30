@@ -127,6 +127,9 @@ jobs:
       - name: Type check (ty)
         run: .venv/bin/python -m ty check --error-on-warning docking/
 
+      - name: Dead code (vulture)
+        run: .venv/bin/python -m vulture --config pyproject.toml
+
   bdd-visual:
     name: BDD + Visual Regression
     needs: [changes, quality]

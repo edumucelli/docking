@@ -14,6 +14,7 @@ from docking.core.position import Position
 from docking.ui.geometry import DockGeometryFrame, ItemGeometry, Rect
 from docking.ui.tooltip import (
     TOOLTIP_BASE_GAP,
+    WRAPPED_TOOLTIP_MAX_WIDTH_CHARS,
     TooltipManager,
     compute_tooltip_position,
 )
@@ -37,6 +38,25 @@ class TestTooltipManagerInit:
 
         # When / Then - gap should be small positive value
         assert 5 <= TOOLTIP_BASE_GAP <= 50
+
+
+def test_wrapped_tooltip_label_uses_readable_paragraph_width():
+    label = MagicMock()
+
+    result = tooltip_mod._configure_wrapped_tooltip_label(
+        label,
+        max_width_chars=WRAPPED_TOOLTIP_MAX_WIDTH_CHARS,
+    )
+
+    assert result is label
+    label.set_xalign.assert_called_once_with(0.0)
+    label.set_justify.assert_called_once_with(tooltip_mod.Gtk.Justification.LEFT)
+    label.set_line_wrap.assert_called_once_with(True)
+    label.set_line_wrap_mode.assert_called_once_with(
+        tooltip_mod.Pango.WrapMode.WORD_CHAR
+    )
+    label.set_max_width_chars.assert_called_once_with(WRAPPED_TOOLTIP_MAX_WIDTH_CHARS)
+    label.override_color.assert_called_once()
 
 
 class TestTooltipHide:

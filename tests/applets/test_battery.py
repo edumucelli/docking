@@ -542,7 +542,7 @@ class TestPowerSettingsLauncher:
         monkeypatch.setattr(
             battery_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(cmd),
+            lambda cmd, **_kwargs: launched.append(cmd),
         )
 
         assert open_power_settings() is True
