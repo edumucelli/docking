@@ -900,6 +900,47 @@ class TestSettingsWindowController:
         actions.refresh_search_settings.assert_called()
         actions.resume_search_shortcuts.assert_called_once_with()
 
+    def test_shortcut_status_is_concise_secondary_text(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        actions = MagicMock()
+        actions.search_shortcut_status.return_value = "Assigned: Super+Space"
+        actions.search_shortcut_status_summary.return_value = "Active"
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=_config(),
+        )
+
+        controller.show()
+
+        assert controller._global_search_shortcut_box.children == [
+            controller._global_search_shortcut_entry,
+            controller._global_search_status_label,
+        ]
+        assert controller._global_search_status_label.get_label() == (
+            "Shortcut Status: Active"
+        )
+        assert controller._global_search_status_label.tooltip_text == (
+            "Assigned: Super+Space"
+        )
+
+        actions.search_shortcut_status.return_value = "Permission denied"
+        actions.search_shortcut_status_summary.return_value = "Denied"
+        controller._update_search_shortcut_status()
+
+        assert controller._global_search_status_label.get_label() == (
+            "Shortcut Status: Denied"
+        )
+        assert controller._global_search_status_label.tooltip_text == (
+            "Permission denied"
+        )
+
     def test_web_fallback_settings_are_bound(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)

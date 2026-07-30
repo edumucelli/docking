@@ -304,7 +304,7 @@ def test_live_applet_tooltip_updates_do_not_restart_search(monkeypatch) -> None:
     assert len(window.snapshots) == update_count
 
 
-def test_shortcut_status_uses_concise_text_and_keeps_error_as_detail(
+def test_shortcut_status_uses_concise_text_and_summary(
     monkeypatch,
 ) -> None:
     controller, _window, _applications, _recent, _shortcuts = _make_controller(
@@ -317,7 +317,7 @@ def test_shortcut_status_uses_concise_text_and_keeps_error_as_detail(
     )
 
     assert controller.shortcut_status_text() == "Unavailable on this desktop"
-    assert controller.shortcut_status_detail() == raw_error
+    assert controller.shortcut_status_summary() == "Unavailable"
 
     controller._shortcut_status = GlobalShortcutsStatus(
         state=GlobalShortcutsState.BOUND,
@@ -328,6 +328,7 @@ def test_shortcut_status_uses_concise_text_and_keeps_error_as_detail(
         ),
     )
     assert controller.shortcut_status_text() == "Assigned: Super+Space"
+    assert controller.shortcut_status_summary() == "Active"
 
 
 def test_x11_fallback_activates_when_portal_is_unavailable(monkeypatch) -> None:
@@ -356,6 +357,7 @@ def test_x11_fallback_activates_when_portal_is_unavailable(monkeypatch) -> None:
 
     fallback.start.assert_called_once_with()
     assert controller.shortcut_status_text() == "Active: Ctrl+Super+Space (X11)"
+    assert controller.shortcut_status_summary() == "Active"
     controller.suspend_shortcuts()
     assert not fallback.active
     controller.resume_shortcuts()
@@ -390,6 +392,7 @@ def test_x11_shortcut_conflict_is_actionable(monkeypatch) -> None:
     )
 
     assert controller.shortcut_status_text() == "Shortcut already in use"
+    assert controller.shortcut_status_summary() == "Conflict"
 
 
 def test_x11_activation_timestamp_reaches_search_window(monkeypatch) -> None:

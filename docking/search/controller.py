@@ -244,12 +244,37 @@ class GlobalSearchController:
             return _("Registration failed")
         return _("Not active")
 
-    def shortcut_status_detail(self) -> str:
+    def shortcut_status_summary(self) -> str:
+        if self._shortcut_fallback is not None:
+            if self._shortcut_fallback.active:
+                return _("Active")
+            if self._shortcut_fallback.error:
+                if self._shortcut_fallback.error == "shortcut is already in use":
+                    return _("Conflict")
+                return _("Failed")
         status = self._shortcut_status
-        details = status.message if status and status.message else ""
-        if self._shortcut_fallback is not None and self._shortcut_fallback.error:
-            details = self._shortcut_fallback.error
-        return details
+        if status is None:
+            return _("Inactive")
+        if status.state in {
+            GlobalShortcutsState.STARTING,
+            GlobalShortcutsState.CREATING,
+            GlobalShortcutsState.BINDING,
+        }:
+            return _("Connecting")
+        if status.state in {
+            GlobalShortcutsState.BOUND,
+            GlobalShortcutsState.REASSIGNED,
+        }:
+            return _("Active")
+        if status.state is GlobalShortcutsState.UNAVAILABLE:
+            return _("Unavailable")
+        if status.state is GlobalShortcutsState.DENIED:
+            return _("Denied")
+        if status.state is GlobalShortcutsState.CANCELLED:
+            return _("Cancelled")
+        if status.state is GlobalShortcutsState.ERROR:
+            return _("Failed")
+        return _("Inactive")
 
     def add_shortcut_status_listener(
         self,

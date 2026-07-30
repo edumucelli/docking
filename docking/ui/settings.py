@@ -227,10 +227,10 @@ class SettingsActions:
             return _("Unavailable")
         return self._search.shortcut_status_text()
 
-    def search_shortcut_status_detail(self) -> str:
+    def search_shortcut_status_summary(self) -> str:
         if self._search is None:
-            return ""
-        return self._search.shortcut_status_detail()
+            return _("Unavailable")
+        return self._search.shortcut_status_summary()
 
     def add_search_shortcut_status_listener(
         self,
@@ -303,6 +303,7 @@ class SettingsWindowController:
         self._recent_docs_switch: Any = None
         self._recent_docs_max_spin: Any = None
         self._global_search_switch: Any = None
+        self._global_search_shortcut_box: Any = None
         self._global_search_shortcut_entry: Any = None
         self._global_search_max_results_spin: Any = None
         self._global_search_web_fallback_switch: Any = None
@@ -576,6 +577,28 @@ class SettingsWindowController:
             "capture-ended",
             lambda *_: self._actions.resume_search_shortcuts(),
         )
+        self._global_search_status_label = Gtk.Label()
+        self._global_search_status_label.set_xalign(0.0)
+        self._global_search_status_label.set_line_wrap(False)
+        self._global_search_status_label.set_max_width_chars(28)
+        self._global_search_status_label.set_margin_top(4)
+        self._global_search_status_label.get_style_context().add_class("dim-label")
+        self._global_search_shortcut_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=4,
+        )
+        self._global_search_shortcut_box.pack_start(
+            self._global_search_shortcut_entry,
+            False,
+            False,
+            0,
+        )
+        self._global_search_shortcut_box.pack_start(
+            self._global_search_status_label,
+            False,
+            False,
+            0,
+        )
         self._global_search_max_results_spin = self._new_numeric_spin_button(
             minimum=5, maximum=30, step=1
         )
@@ -597,10 +620,6 @@ class SettingsWindowController:
         self._global_search_web_engine_combo.set_active_id(
             DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
         )
-        self._global_search_status_label = Gtk.Label()
-        self._global_search_status_label.set_xalign(0.0)
-        self._global_search_status_label.set_line_wrap(False)
-        self._global_search_status_label.set_max_width_chars(28)
         provider_labels = {
             "applications": _("Applications"),
             "dock": _("Dock Items"),
@@ -913,16 +932,11 @@ class SettingsWindowController:
                 ),
                 (
                     _("Preferred Shortcut"),
-                    self._global_search_shortcut_entry,
+                    self._global_search_shortcut_box,
                     _(
                         "Click the button, then press the desired key sequence. "
                         "The desktop may reserve some shortcuts."
                     ),
-                ),
-                (
-                    _("Shortcut Status"),
-                    self._global_search_status_label,
-                    None,
                 ),
                 (
                     _("Maximum Results"),
@@ -1564,12 +1578,11 @@ class SettingsWindowController:
     def _update_search_shortcut_status(self) -> None:
         if self._global_search_status_label is None:
             return
-        shortcut_status = self._actions.search_shortcut_status()
-        shortcut_detail = self._actions.search_shortcut_status_detail()
+        shortcut_summary = self._actions.search_shortcut_status_summary()
+        shortcut_status = _("Shortcut Status: {status}").format(status=shortcut_summary)
+        shortcut_description = self._actions.search_shortcut_status()
         self._global_search_status_label.set_label(shortcut_status)
-        self._global_search_status_label.set_tooltip_text(
-            shortcut_detail or shortcut_status
-        )
+        self._global_search_status_label.set_tooltip_text(shortcut_description)
 
     def _monitor_choices(self) -> list[Any]:
         try:
