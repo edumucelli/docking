@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-31 01:17+0200\n"
+"POT-Creation-Date: 2026-07-31 01:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5405,8 +5405,8 @@ msgstr ""
 
 #: docking/ui/settings.py:965
 msgid ""
-"Enable explicit cmd queries for executable scripts in Docking's user script "
-"directories."
+"Enable explicit cmd queries for user-owned executables in personal bin and "
+"Docking script directories."
 msgstr ""
 
 #: docking/ui/settings.py:970

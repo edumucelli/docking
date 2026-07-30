@@ -29,6 +29,25 @@ def _script(tmp_path, name="deploy"):
     return path
 
 
+def test_default_catalog_includes_conventional_user_bin_directories(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "docking.search.services.script_commands.Path.home",
+        lambda: tmp_path,
+    )
+
+    catalog = ScriptCommandCatalog()
+
+    assert catalog.directories == (
+        tmp_path / ".config/docking/scripts",
+        tmp_path / ".local/share/docking/scripts",
+        tmp_path / ".local/bin",
+        tmp_path / "bin",
+    )
+
+
 def test_script_metadata_and_catalog_discovery(tmp_path) -> None:
     path = _script(tmp_path)
     ignored = tmp_path / "not-executable"

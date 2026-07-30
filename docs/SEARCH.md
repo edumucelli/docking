@@ -34,15 +34,24 @@ are cached for one hour and refreshed in the background.
 
 ## Script commands
 
-Place executable, user-owned scripts in either directory:
+Docking automatically discovers executable, user-owned files from the standard
+personal command directories:
+
+```text
+~/.local/bin
+~/bin
+```
+
+The following Docking-specific directories remain available when you want a
+curated command list separate from your other personal executables:
 
 ```text
 ~/.config/docking/scripts
 ~/.local/share/docking/scripts
 ```
 
-Scripts are only searched after the explicit `cmd` keyword. Docking executes
-the script directly with an argument vector and never uses `shell=True`.
+Commands are only searched after the explicit `cmd` keyword. Docking executes
+them directly with an argument vector and never uses `shell=True`.
 
 Optional metadata uses comment lines near the start of the file:
 

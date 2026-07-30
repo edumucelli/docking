@@ -962,8 +962,8 @@ class SettingsWindowController:
                     _("Script Commands"),
                     self._global_search_scripts_switch,
                     _(
-                        "Enable explicit cmd queries for executable scripts in "
-                        "Docking's user script directories."
+                        "Enable explicit cmd queries for user-owned executables "
+                        "in personal bin and Docking script directories."
                     ),
                 ),
                 (

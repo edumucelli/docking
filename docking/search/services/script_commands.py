@@ -14,15 +14,21 @@ from docking.log import get_logger
 from docking.platform.environment import flatpak
 
 _MAX_METADATA_BYTES = 16 * 1024
-_DEFAULT_SCRIPT_DIRS = (
-    Path.home() / ".config/docking/scripts",
-    Path.home() / ".local/share/docking/scripts",
-)
 _METADATA_RE = re.compile(
     r"^\s*#\s*@docking\.(name|description|keyword|icon|mode)\s+(.+?)\s*$"
 )
 _KEYWORD_RE = re.compile(r"^[a-z0-9_-]+$")
 log = get_logger("search.scripts")
+
+
+def _default_script_directories() -> tuple[Path, ...]:
+    home = Path.home()
+    return (
+        home / ".config/docking/scripts",
+        home / ".local/share/docking/scripts",
+        home / ".local/bin",
+        home / "bin",
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,9 +90,11 @@ class ScriptCommandCatalog:
     def __init__(
         self,
         *,
-        directories: tuple[Path, ...] = _DEFAULT_SCRIPT_DIRS,
+        directories: tuple[Path, ...] | None = None,
     ) -> None:
-        self._directories = directories
+        self._directories = (
+            _default_script_directories() if directories is None else directories
+        )
 
     @property
     def directories(self) -> tuple[Path, ...]:
