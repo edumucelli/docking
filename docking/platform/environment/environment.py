@@ -61,6 +61,7 @@ class Desktop(enum.Flag):
     HYPRLAND = enum.auto()
     NIRI = enum.auto()
     COSMIC = enum.auto()
+    CAGE = enum.auto()
 
     @property
     def uses_monitor_geometry(self) -> bool:
@@ -106,6 +107,7 @@ _DESKTOP_MAP: dict[str, Desktop] = {
     "hyprland": Desktop.HYPRLAND,
     "niri": Desktop.NIRI,
     "cosmic": Desktop.COSMIC,
+    "cage": Desktop.CAGE,
 }
 
 
