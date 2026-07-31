@@ -27,6 +27,7 @@ from docking.platform.environment import (
     Desktop,
     backend_name,
     detect_desktop,
+    is_gamescope_session,
     is_kde_session,
     is_wayland_session,
     is_x11_backend,
@@ -254,6 +255,13 @@ def create_session_backend(
                 "management protocol to third-party dock clients"
             )
         return _create_reduced_backend(reason=reason)
+
+    # GameScope sets XDG_SESSION_TYPE=x11 even though it is a Wayland
+    # compositor. Force reduced mode so we do not try the X11 backend.
+    if is_gamescope_session():
+        return _create_reduced_backend(
+            reason="GameScope session (XDG_SESSION_TYPE may be x11)"
+        )
 
     return _create_x11_backend(
         config=config,
