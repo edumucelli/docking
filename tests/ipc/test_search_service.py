@@ -9,7 +9,7 @@ from gi.repository import GLib
 from docking.ipc.bus_host import DockBusHost
 from docking.ipc.introspection import SEARCH_INTERFACE, SEARCH_OBJECT_PATH
 from docking.ipc.search_service import DockSearchService
-from docking.platform.app_identity import application_id, bus_name
+from docking.platform.app_identity import application_id
 
 
 class _Connection:
@@ -115,7 +115,6 @@ def test_package_identity() -> None:
     assert application_id(env={"FLATPAK_ID": "cc.docking.Docking"}) == (
         "cc.docking.Docking"
     )
-    assert bus_name(env={"FLATPAK_ID": "cc.docking.Docking"}) == ("cc.docking.Docking")
 
 
 def test_search_interface_name_is_stable() -> None:

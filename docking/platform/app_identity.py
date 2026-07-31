@@ -26,14 +26,8 @@ def application_id(env: Mapping[str, str] | None = None) -> str:
     return HOST_APPLICATION_ID
 
 
-def bus_name(env: Mapping[str, str] | None = None) -> str:
-    """Return the session-bus name owned by this package."""
-    return application_id(env=env)
-
-
 __all__ = [
     "FLATPAK_APPLICATION_ID",
     "HOST_APPLICATION_ID",
     "application_id",
-    "bus_name",
 ]
