@@ -47,10 +47,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     ui_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
 
-    search_pkg = types.ModuleType("docking.search")
-    search_pkg.__path__ = []
-    monkeypatch.setitem(sys.modules, "docking.search", search_pkg)
-
     stub_modules = {
         "docking.platform.environment": {
             "apply_tweaks": lambda **_kwargs: None,
@@ -85,14 +81,7 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "DockRenderer": type("DockRenderer", (), {}),
         },
         "docking.ipc": {
-            "DockBusHost": type("DockBusHost", (), {}),
             "DockItemsService": type("DockItemsService", (), {}),
-        },
-        "docking.search.ipc": {
-            "DockSearchService": type("DockSearchService", (), {}),
-        },
-        "docking.search.app_identity": {
-            "application_id": lambda: "org.docking.Docking",
         },
     }
     for module_name, members in stub_modules.items():
@@ -131,8 +120,8 @@ class TestAppImport:
 class TestAppMain:
     @pytest.mark.parametrize(
         "failed_stage",
-        (None, "backend", "applets"),
-        ids=("success", "backend-failure", "applets-failure"),
+        (None, "backend", "items_service", "applets"),
+        ids=("success", "backend-failure", "items-service-failure", "applets-failure"),
     )
     def test_main_builds_runtime_graph_and_starts_loop(self, monkeypatch, failed_stage):
         # Given
@@ -168,10 +157,7 @@ class TestAppMain:
             start=MagicMock(),
             stop=MagicMock(),
         )
-        bus_host = MagicMock()
-        bus_host.acquire.return_value = True
         items_service = MagicMock()
-        search_service = MagicMock()
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
@@ -180,10 +166,12 @@ class TestAppMain:
         status_notifications.start.side_effect = lambda: call_order.append(
             "status_notifications_start"
         )
+        items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
         if failed_stage is not None:
             {
                 "backend": backend.start,
+                "items_service": items_service.start,
                 "applets": model.start_applets,
             }[failed_stage].side_effect = RuntimeError(f"{failed_stage} failed")
 
@@ -224,10 +212,6 @@ class TestAppMain:
         monkeypatch.setattr(
             app_mod, "DockItemsService", MagicMock(return_value=items_service)
         )
-        monkeypatch.setattr(
-            app_mod, "DockSearchService", MagicMock(return_value=search_service)
-        )
-        monkeypatch.setattr(app_mod, "DockBusHost", MagicMock(return_value=bus_host))
 
         # When
         app_mod.main()
@@ -258,10 +242,8 @@ class TestAppMain:
         backend.stop.assert_called_once()
         model.start_applets.assert_called_once()
         model.stop_applets.assert_called_once()
-        bus_host.register_interfaces.assert_called_once_with(
-            (items_service, search_service)
-        )
-        bus_host.stop.assert_called_once()
+        items_service.start.assert_called_once()
+        items_service.stop.assert_called_once()
         unity.start.assert_called_once()
         unity.stop.assert_called_once()
         status_notifications.start.assert_called_once()
@@ -271,6 +253,7 @@ class TestAppMain:
         fake_glib.idle_add.assert_called_once()
         assert fake_glib.idle_add.call_args.args == (
             app_mod._start_runtime,
+            items_service,
             model,
             backend,
         )
@@ -282,6 +265,7 @@ class TestAppMain:
                 "show_all",
                 "ui_start",
                 "idle_add",
+                "items_start",
                 "applets_start",
             ]
 
@@ -321,10 +305,7 @@ class TestAppMain:
             start=MagicMock(),
             stop=MagicMock(),
         )
-        bus_host = MagicMock()
-        bus_host.acquire.return_value = True
         items_service = MagicMock()
-        search_service = MagicMock()
         call_order: list[str] = []
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
@@ -333,6 +314,7 @@ class TestAppMain:
         status_notifications.start.side_effect = lambda: call_order.append(
             "status_notifications_start"
         )
+        items_service.start.side_effect = lambda: call_order.append("items_start")
         model.start_applets.side_effect = lambda: call_order.append("applets_start")
 
         def idle_add(callback, *args):
@@ -353,8 +335,6 @@ class TestAppMain:
         status_notifications_cls = MagicMock(return_value=status_notifications)
         factory = MagicMock(return_value=ui)
         items_service_cls = MagicMock(return_value=items_service)
-        search_service_cls = MagicMock(return_value=search_service)
-        bus_host_cls = MagicMock(return_value=bus_host)
 
         monkeypatch.setattr(sys.modules["docking.core.config"], "Config", config_cls)
         monkeypatch.setattr(sys.modules["docking.core.theme"], "Theme", theme_cls)
@@ -386,12 +366,6 @@ class TestAppMain:
         monkeypatch.setattr(
             sys.modules["docking.ipc"], "DockItemsService", items_service_cls
         )
-        monkeypatch.setattr(
-            sys.modules["docking.search.ipc"],
-            "DockSearchService",
-            search_service_cls,
-        )
-        monkeypatch.setattr(sys.modules["docking.ipc"], "DockBusHost", bus_host_cls)
 
         sys.modules.pop("__main__", None)
         sys.modules.pop("docking.app", None)
@@ -404,10 +378,6 @@ class TestAppMain:
         theme.with_opacity.assert_called_once_with(1.0)
         factory.assert_called_once()
         items_service_cls.assert_called_once_with(model=model, window=window)
-        search_service_cls.assert_called_once_with(presenter=ui.search)
-        bus_host.register_interfaces.assert_called_once_with(
-            (items_service, search_service)
-        )
         fake_gtk.main.assert_called_once()
         backend.start.assert_called_once()
         backend.stop.assert_called_once()
@@ -423,6 +393,7 @@ class TestAppMain:
             "show_all",
             "ui_start",
             "idle_add",
+            "items_start",
             "applets_start",
         ]
 
