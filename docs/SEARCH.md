@@ -22,6 +22,12 @@ Currency expressions lazily fetch a generic EUR-based rate table from
 Frankfurter. The typed amount and currency pair are not sent. Successful rates
 are cached for one hour and refreshed in the background.
 
+Time-zone queries accept every IANA zone installed on the system. Use a full
+identifier such as `time in America/New_York`, or an unambiguous location name
+such as `time in Kathmandu`. Spaces, letter case, underscores, and accents are
+normalized. When a short location name belongs to more than one installed zone,
+use its region-qualified identifier.
+
 ## Keyboard controls
 
 - **Enter:** run the primary action.

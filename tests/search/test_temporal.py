@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import datetime as dt
 
-from docking.search.recognizers.temporal import TemporalKind, parse_temporal_query
+from docking.search.recognizers.temporal import (
+    TemporalKind,
+    _build_timezone_indexes,
+    parse_temporal_query,
+)
 
 NOW = dt.datetime(2026, 7, 28, 12, 0, tzinfo=dt.timezone.utc)
 
@@ -33,6 +37,30 @@ def test_current_time_and_timezone_conversion_are_detected() -> None:
     assert new_york.title == "06:00 · America/New_York"
 
 
+def test_timezone_aliases_are_generated_from_available_zones() -> None:
+    kathmandu = parse_temporal_query("time in Kathmandu", now=NOW)
+    sao_paulo = parse_temporal_query("time in São Paulo", now=NOW)
+    qualified = parse_temporal_query("time in america new york", now=NOW)
+
+    assert kathmandu is not None
+    assert kathmandu.canonical_key == "time:Asia/Kathmandu"
+    assert sao_paulo is not None
+    assert sao_paulo.canonical_key == "time:America/Sao_Paulo"
+    assert qualified is not None
+    assert qualified.canonical_key == "time:America/New_York"
+
+
+def test_ambiguous_generated_aliases_require_a_qualified_name() -> None:
+    qualified, aliases = _build_timezone_indexes(
+        ("Area/Shared_City", "Other/Shared_City")
+    )
+
+    assert "shared city" not in aliases
+    assert qualified["area/shared city"] == "Area/Shared_City"
+    assert qualified["area shared city"] == "Area/Shared_City"
+
+
 def test_unknown_timezones_and_invalid_dates_are_not_claimed() -> None:
     assert parse_temporal_query("time in Atlantis", now=NOW) is None
+    assert parse_temporal_query("time in NYC", now=NOW) is None
     assert parse_temporal_query("2026-02-31", now=NOW) is None

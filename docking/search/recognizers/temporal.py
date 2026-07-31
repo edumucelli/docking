@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+import unicodedata
+from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
@@ -27,30 +30,35 @@ class TemporalValue:
     canonical_key: str
 
 
-_ZONE_ALIASES = {
-    "utc": "UTC",
-    "gmt": "UTC",
-    "london": "Europe/London",
-    "paris": "Europe/Paris",
-    "berlin": "Europe/Berlin",
-    "lisbon": "Europe/Lisbon",
-    "new york": "America/New_York",
-    "nyc": "America/New_York",
-    "chicago": "America/Chicago",
-    "denver": "America/Denver",
-    "los angeles": "America/Los_Angeles",
-    "la": "America/Los_Angeles",
-    "sao paulo": "America/Sao_Paulo",
-    "são paulo": "America/Sao_Paulo",
-    "tokyo": "Asia/Tokyo",
-    "seoul": "Asia/Seoul",
-    "shanghai": "Asia/Shanghai",
-    "hong kong": "Asia/Hong_Kong",
-    "singapore": "Asia/Singapore",
-    "sydney": "Australia/Sydney",
-    "auckland": "Pacific/Auckland",
-}
-_ZONES_BY_CASEFOLD = {zone.casefold(): zone for zone in available_timezones()}
+def _normalize_timezone_name(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value)
+    without_accents = "".join(
+        character for character in decomposed if not unicodedata.combining(character)
+    )
+    return " ".join(without_accents.replace("_", " ").split()).casefold()
+
+
+def _build_timezone_indexes(
+    zones: Iterable[str],
+) -> tuple[dict[str, str], dict[str, str]]:
+    qualified: dict[str, str] = {}
+    short_candidates: defaultdict[str, set[str]] = defaultdict(set)
+    for zone_name in sorted(set(zones)):
+        qualified[_normalize_timezone_name(zone_name)] = zone_name
+        qualified[_normalize_timezone_name(zone_name.replace("/", " "))] = zone_name
+        short_name = zone_name.rsplit("/", 1)[-1]
+        short_candidates[_normalize_timezone_name(short_name)].add(zone_name)
+    unique_short_names = {
+        alias: next(iter(candidates))
+        for alias, candidates in short_candidates.items()
+        if len(candidates) == 1
+    }
+    return qualified, unique_short_names
+
+
+_QUALIFIED_TIMEZONES, _UNIQUE_TIMEZONE_ALIASES = _build_timezone_indexes(
+    available_timezones()
+)
 _CURRENT_TIME_RE = re.compile(r"^(?:time|now)\s+in\s+(.+)$", re.IGNORECASE)
 _CITY_TIME_RE = re.compile(r"^(.+?)\s+time$", re.IGNORECASE)
 _TIME_CONVERSION_RE = re.compile(
@@ -62,8 +70,10 @@ _TIME_CONVERSION_RE = re.compile(
 
 
 def _resolve_timezone(value: str) -> tuple[str, ZoneInfo] | None:
-    normalized = " ".join(value.strip().split()).casefold()
-    zone_name = _ZONE_ALIASES.get(normalized) or _ZONES_BY_CASEFOLD.get(normalized)
+    normalized = _normalize_timezone_name(value.strip())
+    zone_name = _QUALIFIED_TIMEZONES.get(normalized) or _UNIQUE_TIMEZONE_ALIASES.get(
+        normalized
+    )
     if zone_name is None:
         return None
     try:
