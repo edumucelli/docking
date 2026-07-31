@@ -77,6 +77,8 @@ class TestParseDesktop:
         assert _parse_desktop("phoc") == Desktop.PHOSH
         assert _parse_desktop("jay") == Desktop.JAY
         assert _parse_desktop("miriway") == Desktop.MIRIWAY
+        assert _parse_desktop("deepin") == Desktop.DEEPIN
+        assert _parse_desktop("treeland") == Desktop.DEEPIN
 
 
 class TestDetectDesktop:
