@@ -1,7 +1,7 @@
 """Defaults and normalization owned by Global Search."""
 
 DEFAULT_GLOBAL_SEARCH_ENABLED = True
-DEFAULT_GLOBAL_SEARCH_SHORTCUT = "CTRL+LOGO+space"
+DEFAULT_GLOBAL_SEARCH_SHORTCUT = "CTRL+ALT+space"
 DEFAULT_GLOBAL_SEARCH_PROVIDERS: tuple[str, ...] = (
     "applications",
     "dock",

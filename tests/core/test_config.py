@@ -45,7 +45,7 @@ class TestConfigDefaults:
         assert c.show_launcher_badges is True
         assert c.show_launcher_progress is True
         assert c.global_search_enabled is True
-        assert c.global_search_shortcut == "CTRL+LOGO+space"
+        assert c.global_search_shortcut == "CTRL+ALT+space"
         assert c.global_search_web_engine == "duckduckgo"
         assert c.theme == "default"
         assert c.transparency == 1.0
@@ -125,7 +125,7 @@ class TestConfigDefaults:
         c = Config(**malformed)
 
         assert c.global_search_enabled is False
-        assert c.global_search_shortcut == "CTRL+LOGO+space"
+        assert c.global_search_shortcut == "CTRL+ALT+space"
         assert c.global_search_web_engine == "duckduckgo"
 
 

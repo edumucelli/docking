@@ -758,7 +758,7 @@ def _config():
         show_recent_docs_in_menu=True,
         recent_docs_max=10,
         global_search_enabled=True,
-        global_search_shortcut="CTRL+LOGO+space",
+        global_search_shortcut="CTRL+ALT+space",
         global_search_web_engine="duckduckgo",
         save=MagicMock(),
     )
@@ -864,13 +864,13 @@ class TestSettingsWindowController:
         controller.show()
         capture = controller._global_search_shortcut_entry
 
-        assert capture.get_shortcut() == "CTRL+LOGO+space"
+        assert capture.get_shortcut() == "CTRL+ALT+space"
         capture.callbacks["capture-started"](capture)
         actions.suspend_search_shortcuts.assert_called_once_with()
-        capture.emit_shortcut_changed("CTRL+ALT+space")
+        capture.emit_shortcut_changed("CTRL+LOGO+space")
         capture.callbacks["capture-ended"](capture)
 
-        assert config.global_search_shortcut == "CTRL+ALT+space"
+        assert config.global_search_shortcut == "CTRL+LOGO+space"
         config.save.assert_called()
         actions.refresh_search_settings.assert_called()
         actions.resume_search_shortcuts.assert_called_once_with()

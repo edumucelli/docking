@@ -366,7 +366,7 @@ def test_x11_fallback_activates_when_portal_is_unavailable(monkeypatch) -> None:
     )
 
     fallback.start.assert_called_once_with()
-    assert controller.shortcut_status_text() == "Active: Ctrl+Super+Space (X11)"
+    assert controller.shortcut_status_text() == "Active: Ctrl+Alt+Space (X11)"
     assert controller.shortcut_status_summary() == "Active"
     controller.suspend_shortcuts()
     assert not fallback.active
