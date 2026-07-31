@@ -588,6 +588,10 @@ def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
         on_result_activated=lambda _result: None,
         on_action_activated=lambda _result, _action: None,
         on_hidden=lambda: None,
+        on_refine_requested=lambda _result: None,
+        on_completion_requested=lambda: False,
+        dynamic_preview_loader=lambda _preview, _width, _height: None,
+        preview_resolver=lambda _result: None,
     )
     root = window.window.get_child()
     window.window.remove(root)
