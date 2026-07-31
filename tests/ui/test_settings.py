@@ -759,14 +759,6 @@ def _config():
         recent_docs_max=10,
         global_search_enabled=True,
         global_search_shortcut="CTRL+LOGO+space",
-        global_search_providers=[
-            "applications",
-            "dock",
-            "windows",
-            "calculator",
-            "recent-files",
-            "path",
-        ],
         global_search_web_engine="duckduckgo",
         save=MagicMock(),
     )
@@ -845,19 +837,6 @@ class TestSettingsWindowController:
             "<b>Recent Apps</b>",
             "<b>Recent Documents</b>",
             "<b>Global Search</b>",
-        ]
-        provider_grid = controller._search_provider_box
-        assert isinstance(provider_grid, FakeGrid)
-        assert [
-            (left, top)
-            for _child, left, top, _width, _height in provider_grid.attachments
-        ] == [
-            (0, 0),
-            (1, 0),
-            (2, 0),
-            (0, 1),
-            (1, 1),
-            (2, 1),
         ]
         updates_box = _stack_page_child(stack, 3)
         updates_labels = [

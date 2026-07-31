@@ -5098,14 +5098,6 @@ msgid ""
 "Higher values mean the dock will not reveal as easily."
 msgstr ""
 
-#: docking/ui/settings.py:625
-msgid "Dock Items"
-msgstr ""
-
-#: docking/ui/settings.py:629
-msgid "Direct Paths"
-msgstr ""
-
 #: docking/ui/settings.py:655
 msgid "Look"
 msgstr ""
@@ -5395,14 +5387,6 @@ msgstr ""
 msgid ""
 "Click the button, then press the desired key sequence. The desktop may "
 "reserve some shortcuts."
-msgstr ""
-
-#: docking/ui/settings.py:947
-msgid "Sources"
-msgstr ""
-
-#: docking/ui/settings.py:949
-msgid "Choose which local sources participate in search."
 msgstr ""
 
 #: docking/ui/settings.py:957

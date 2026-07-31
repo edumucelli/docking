@@ -161,11 +161,9 @@ from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_ENABLED,
-    DEFAULT_GLOBAL_SEARCH_PROVIDERS,
     DEFAULT_GLOBAL_SEARCH_SHORTCUT,
     DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
     GLOBAL_SEARCH_WEB_ENGINES,
-    normalize_search_providers,
 )
 
 if TYPE_CHECKING:
@@ -854,10 +852,6 @@ class Config:
     global_search_enabled: bool = DEFAULT_GLOBAL_SEARCH_ENABLED
     # Preferred XDG trigger and X11 fallback sequence
     global_search_shortcut: str = DEFAULT_GLOBAL_SEARCH_SHORTCUT
-    # Search provider IDs enabled in the unified palette
-    global_search_providers: list[str] = field(
-        default_factory=lambda: list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
-    )
     # Web engine used by fallback searches
     global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
 
@@ -1044,9 +1038,6 @@ class Config:
         )
         shortcut = str(self.global_search_shortcut).strip()
         self.global_search_shortcut = shortcut or DEFAULT_GLOBAL_SEARCH_SHORTCUT
-        self.global_search_providers = normalize_search_providers(
-            self.global_search_providers
-        )
         web_engine = str(self.global_search_web_engine).strip().casefold()
         self.global_search_web_engine = (
             web_engine

@@ -140,7 +140,7 @@ def _make_controller(
         icon_name_for_desktop=lambda _desktop_id: "application-x-executable",
     )
     shortcuts = MagicMock()
-    config = Config(global_search_providers=["applications"])
+    config = Config()
 
     if schedule_idle is None:
 
@@ -255,8 +255,6 @@ def test_replaced_coordinator_cannot_publish_stale_snapshot(monkeypatch) -> None
     controller.show(initial_query="fire")
     previous = controller._coordinator
     stale_snapshot = previous.snapshot()
-    controller._config.global_search_providers = ["calculator"]
-
     window.callbacks["on_query_changed"]("100 + 20")
     update_count = len(window.snapshots)
     controller._publish_snapshot(stale_snapshot, coordinator=previous)
@@ -420,8 +418,6 @@ def test_intent_routing_supports_implicit_math_and_web_fallback(
     monkeypatch,
 ) -> None:
     controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
-    controller._config.global_search_providers = ["applications", "calculator"]
-
     controller.show(initial_query="100 + 20")
 
     assert window.snapshots[-1].results[0].title == "120"
@@ -475,8 +471,6 @@ def test_currency_conversion_uses_ready_rate_catalog(monkeypatch) -> None:
         monkeypatch,
         currency_rates=rates,
     )
-    controller._config.global_search_providers = ["calculator"]
-
     controller.show(initial_query="10 USD to EUR")
 
     assert window.snapshots[-1].results[0].title == "8 EUR"
@@ -484,7 +478,6 @@ def test_currency_conversion_uses_ready_rate_catalog(monkeypatch) -> None:
 
 def test_intent_recognition_is_forwarded_to_provider(monkeypatch) -> None:
     controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
-    controller._config.global_search_providers = ["calculator"]
     parse_again = MagicMock(side_effect=AssertionError("parsed twice"))
     monkeypatch.setattr(
         "docking.search.providers.converter.parse_unit_conversion",

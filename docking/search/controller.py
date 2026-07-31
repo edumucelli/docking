@@ -19,7 +19,10 @@ from docking.core.items import APPLET_KIND
 from docking.i18n import _
 from docking.log import get_logger
 from docking.search.app_identity import application_id
-from docking.search.config import DEFAULT_GLOBAL_SEARCH_MAX_RESULTS
+from docking.search.config import (
+    DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
+    DEFAULT_GLOBAL_SEARCH_PROVIDERS,
+)
 from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchSnapshot
 from docking.search.intents import (
     QueryIntent,
@@ -370,12 +373,7 @@ class GlobalSearchController:
         if previous is not None and previous.request is not None:
             previous.cancel()
         if provider_ids is None:
-            enabled = set(self._config.global_search_providers)
-            provider_ids = tuple(
-                provider_id
-                for provider_id in self._provider_by_id
-                if provider_id in enabled
-            )
+            provider_ids = DEFAULT_GLOBAL_SEARCH_PROVIDERS
         self._enabled_provider_ids = provider_ids
         return SearchCoordinator(
             tuple(
@@ -425,28 +423,13 @@ class GlobalSearchController:
             )
 
     def _provider_ids_for_intent(self, intent: QueryIntent) -> tuple[str, ...]:
-        enabled = set(self._config.global_search_providers)
-
-        def available(provider_id: str) -> bool:
-            if provider_id == "converter":
-                return "calculator" in enabled
-            if provider_id == "web":
-                return True
-            if provider_id == "datetime":
-                return True
-            return provider_id in enabled
-
         if intent.provider_ids:
             return tuple(
                 provider_id
                 for provider_id in intent.provider_ids
-                if available(provider_id)
+                if provider_id in self._provider_by_id
             )
-        provider_ids = [
-            provider_id
-            for provider_id in self._provider_by_id
-            if provider_id in enabled
-        ]
+        provider_ids = list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
         if intent.search_text and "web" not in provider_ids:
             provider_ids.append("web")
         return tuple(provider_ids)

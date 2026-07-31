@@ -47,14 +47,6 @@ class TestConfigDefaults:
         assert c.global_search_enabled is True
         assert c.global_search_shortcut == "CTRL+LOGO+space"
         assert c.global_search_web_engine == "duckduckgo"
-        assert c.global_search_providers == [
-            "applications",
-            "dock",
-            "windows",
-            "calculator",
-            "recent-files",
-            "path",
-        ]
         assert c.theme == "default"
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
@@ -128,19 +120,12 @@ class TestConfigDefaults:
         malformed: Any = {
             "global_search_enabled": "off",
             "global_search_shortcut": " ",
-            "global_search_providers": [
-                "windows",
-                "unknown",
-                {"bad": "value"},
-                "windows",
-            ],
             "global_search_web_engine": "unknown",
         }
         c = Config(**malformed)
 
         assert c.global_search_enabled is False
         assert c.global_search_shortcut == "CTRL+LOGO+space"
-        assert c.global_search_providers == ["windows"]
         assert c.global_search_web_engine == "duckduckgo"
 
 

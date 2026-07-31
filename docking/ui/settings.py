@@ -80,7 +80,6 @@ from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
 from docking.search.config import (
-    DEFAULT_GLOBAL_SEARCH_PROVIDERS,
     DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
     GLOBAL_SEARCH_WEB_ENGINES,
 )
@@ -128,9 +127,6 @@ TRANSPARENCY_PERCENT_STEP = 5
 HIDE_DELAY_MAX_MS = 5000
 HIDE_DELAY_STEP_MS = 50
 INFO_POPOVER_PADDING_PX = 8
-SEARCH_PROVIDER_COLUMNS = 3
-SEARCH_PROVIDER_COLUMN_SPACING_PX = 12
-SEARCH_PROVIDER_ROW_SPACING_PX = 4
 log = get_logger("settings")
 
 SettingsRow = tuple[str, Gtk.Widget, str | None]
@@ -300,8 +296,6 @@ class SettingsWindowController:
         self._global_search_shortcut_entry: Any = None
         self._global_search_web_engine_combo: Any = None
         self._global_search_status_label: Any = None
-        self._search_provider_box: Any = None
-        self._search_provider_checks: dict[str, Gtk.CheckButton] = {}
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
         self._bindings: list[_ScalarBinding] = []
@@ -603,34 +597,6 @@ class SettingsWindowController:
         self._global_search_web_engine_combo.set_active_id(
             DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
         )
-        provider_labels = {
-            "applications": _("Applications"),
-            "dock": _("Dock Items"),
-            "windows": _("Windows"),
-            "calculator": _("Calculator"),
-            "recent-files": _("Recent Files"),
-            "path": _("Direct Paths"),
-        }
-        self._search_provider_box = Gtk.Grid()
-        self._search_provider_box.set_column_spacing(SEARCH_PROVIDER_COLUMN_SPACING_PX)
-        self._search_provider_box.set_row_spacing(SEARCH_PROVIDER_ROW_SPACING_PX)
-        self._search_provider_box.set_column_homogeneous(True)
-        for index, provider_id in enumerate(DEFAULT_GLOBAL_SEARCH_PROVIDERS):
-            check = Gtk.CheckButton(label=provider_labels[provider_id])
-            check.connect(
-                "toggled",
-                self._on_search_provider_toggled,
-                provider_id,
-            )
-            self._search_provider_checks[provider_id] = check
-            self._search_provider_box.attach(
-                check,
-                index % SEARCH_PROVIDER_COLUMNS,
-                index // SEARCH_PROVIDER_COLUMNS,
-                1,
-                1,
-            )
-
         self._register_bindings()
 
         self._append_section(
@@ -920,11 +886,6 @@ class SettingsWindowController:
                         "Click the button, then press the desired key sequence. "
                         "The desktop may reserve some shortcuts."
                     ),
-                ),
-                (
-                    _("Sources"),
-                    self._search_provider_box,
-                    _("Choose which local sources participate in search."),
                 ),
                 (
                     _("Search Engine"),
@@ -1489,9 +1450,6 @@ class SettingsWindowController:
             }
             for desktop_id, check in self._applet_checks.items():
                 check.set_active(desktop_id in active_ids)
-            enabled_search_providers = set(self._config.global_search_providers)
-            for provider_id, check in self._search_provider_checks.items():
-                check.set_active(provider_id in enabled_search_providers)
             self._sync_monitor_combo()
             self._update_updates_status()
             self._update_search_shortcut_status()
@@ -1700,27 +1658,6 @@ class SettingsWindowController:
         if not self._config.active_display:
             self._actions.reposition()
 
-    def _on_search_provider_toggled(
-        self,
-        widget: Gtk.CheckButton,
-        provider_id: str,
-    ) -> None:
-        if self._syncing_widgets:
-            return
-        enabled = list(self._config.global_search_providers)
-        if widget.get_active():
-            if provider_id not in enabled:
-                enabled.append(provider_id)
-        else:
-            enabled = [value for value in enabled if value != provider_id]
-        if not enabled:
-            widget.set_active(True)
-            return
-        self._config.global_search_providers = enabled
-        self._config.save()
-        self._actions.refresh_search_settings()
-        self._update_dependent_sensitivity()
-
     def _apply_runtime_theme(self) -> None:
         theme = Theme.load(self._config.theme, self._config.icon_size).with_opacity(
             self._config.transparency
@@ -1829,8 +1766,6 @@ class SettingsWindowController:
             self._global_search_shortcut_entry.set_sensitive(search_sensitive)
         if self._global_search_web_engine_combo is not None:
             self._global_search_web_engine_combo.set_sensitive(search_sensitive)
-        for check in self._search_provider_checks.values():
-            check.set_sensitive(search_sensitive)
 
     def _on_applet_toggled(
         self,
